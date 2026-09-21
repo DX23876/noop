@@ -161,4 +161,34 @@ final class LabMarkerStoreTests: XCTestCase {
                                                 key: "ldl", from: "2026-01-01", to: "2026-12-31")
         XCTAssertEqual(proj.map { $0.value }, [3.4], "remaining same-day reading re-projects")
     }
+
+    // MARK: - legacy custom-percent key migration
+
+    func testLegacyPercentMigrationMovesRowsAndDailyProjectionOnce() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await store.upsertLabMarkers([
+            mk(id: "count", key: "custom_lymph", day: "2026-05-01", takenAt: 100,
+               value: 1.9, source: "manual", unit: "10^9/L"),
+            mk(id: "percent", key: "custom_lymph", day: "2026-05-02", takenAt: 200,
+               value: 31.2, source: "csv", unit: "%"),
+        ])
+
+        XCTAssertEqual(try await store.migrateLegacyPercentLabMarkerKeys(), 1)
+        XCTAssertEqual(try await store.migrateLegacyPercentLabMarkerKeys(), 0,
+                       "the version cursor makes a completed migration idempotent")
+
+        let count = try await store.labMarkers(deviceId: "my-whoop", markerKey: "custom_lymph")
+        let percent = try await store.labMarkers(deviceId: "my-whoop", markerKey: "custom_lymph_pct")
+        XCTAssertEqual(count.map(\.value), [1.9])
+        XCTAssertEqual(percent.map(\.value), [31.2])
+
+        let oldProjection = try await store.metricSeries(deviceId: WhoopStore.labBookSourceId,
+                                                         key: "custom_lymph",
+                                                         from: "2026-01-01", to: "2026-12-31")
+        let newProjection = try await store.metricSeries(deviceId: WhoopStore.labBookSourceId,
+                                                         key: "custom_lymph_pct",
+                                                         from: "2026-01-01", to: "2026-12-31")
+        XCTAssertEqual(oldProjection.map(\.value), [1.9])
+        XCTAssertEqual(newProjection.map(\.value), [31.2])
+    }
 }

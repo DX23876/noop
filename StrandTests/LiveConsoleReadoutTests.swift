@@ -42,6 +42,32 @@ final class LiveConsoleReadoutTests: XCTestCase {
         XCTAssertFalse(LiveConsoleReadout.activeIsWhoop(devices: [device("o1", "OURA")], activeId: "o1"))
     }
 
+    // MARK: - activeIsOura (#2305)
+
+    func testAnOuraActiveDeviceIsARing() {
+        let rows = [device("my-whoop", "WHOOP"), device("oura-123", "Oura")]
+        XCTAssertTrue(LiveConsoleReadout.activeIsOura(devices: rows, activeId: "oura-123"))
+        XCTAssertFalse(LiveConsoleReadout.activeIsOura(devices: rows, activeId: "my-whoop"))
+    }
+
+    func testAnUnresolvableActiveDeviceIsNotARing() {
+        // The opposite default to activeIsWhoop: a ring-only affordance must not appear for a device the
+        // registry cannot name — there would be nothing for "Reconnect ring" to reach.
+        XCTAssertFalse(LiveConsoleReadout.activeIsOura(devices: [], activeId: nil))
+        XCTAssertFalse(LiveConsoleReadout.activeIsOura(devices: [], activeId: "oura-123"))
+    }
+
+    func testAThirdBrandIsNeitherWhoopNorRing() {
+        let rows = [device("polar-1", "Polar")]
+        XCTAssertFalse(LiveConsoleReadout.activeIsWhoop(devices: rows, activeId: "polar-1"))
+        XCTAssertFalse(LiveConsoleReadout.activeIsOura(devices: rows, activeId: "polar-1"))
+    }
+
+    func testRingBrandMatchingIsCaseInsensitive() {
+        XCTAssertTrue(LiveConsoleReadout.activeIsOura(devices: [device("o1", "OURA")], activeId: "o1"))
+        XCTAssertTrue(LiveConsoleReadout.activeIsOura(devices: [device("o2", "oura")], activeId: "o2"))
+    }
+
     // MARK: - batteryPercent
 
     func testAWhoopActiveDeviceShowsTheStrapCharge() {

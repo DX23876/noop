@@ -1027,9 +1027,33 @@ final class HealthKitBridge: ObservableObject {
         let computedSleeps = (try? await whoopStore.sleepSessions(deviceId: computedDeviceId, from: fromTs, to: nowTs, limit: 200)) ?? []
         let importedSleeps = (try? await whoopStore.sleepSessions(deviceId: noopDeviceId, from: fromTs, to: nowTs, limit: 200)) ?? []
         var sleepsByStart: [Int: CachedSleepSession] = [:]
-        for s in computedSleeps { sleepsByStart[s.startTs] = s }
-        for s in importedSleeps { sleepsByStart[s.startTs] = s }
-        let sessions = sleepsByStart.keys.sorted().map { sleepsByStart[$0]! }
+        var selectedComputedStarts: Set<Int> = []
+        for s in computedSleeps {
+            sleepsByStart[s.startTs] = s
+            selectedComputedStarts.insert(s.startTs)
+        }
+        // Imported rows win the same-start precedence contest. Remove that start from the computed set
+        // as well: an imported correction is already final and must not be hidden merely because the
+        // discarded computed candidate still ends at the live HR frontier.
+        for s in importedSleeps {
+            sleepsByStart[s.startTs] = s
+            selectedComputedStarts.remove(s.startTs)
+        }
+        // A night the strap may still be recording is held back, with its day's vitals, until it closes
+        // (`HealthWriteback.nightIsStillOpen`).
+        // The strap's own heart rate, the same stream the HR write reads, so an Apple Watch still recording
+        // cannot make a strap night that stopped at its sync frontier look finished.
+        let newestHeartRateTs = (try? await whoopStore.hrFingerprint(deviceId: noopDeviceId, from: nowTs - 2 * 86_400,
+                                                                     to: nowTs).maxTs) ?? 0
+        let openStarts = Set(selectedComputedStarts.filter { start in
+            guard let session = sleepsByStart[start] else { return false }
+            return HealthWriteback.nightIsStillOpen(endTs: session.endTs,
+                                                     newestHeartRateTs: newestHeartRateTs,
+                                                     now: nowTs)
+        })
+        let sessions = sleepsByStart.keys.sorted().filter { !openStarts.contains($0) }.map { sleepsByStart[$0]! }
+        let openDays = Set(openStarts.compactMap { sleepsByStart[$0] }
+            .map { HealthKitBridge.dayString(Date(timeIntervalSince1970: TimeInterval($0.endTs))) })
 
         var firstError: Error?
         var reportEntries: [HealthWritebackReport.Entry] = []
@@ -1067,7 +1091,8 @@ final class HealthKitBridge: ObservableObject {
             HKQuantityType.quantityType(forIdentifier: .respiratoryRate),
         ].compactMap { $0 }
         await attempt("Vitals", types: vitalTypes) {
-            try await writeVitals(whoopStore: whoopStore, days: days, sessions: sessions)
+            try await writeVitals(whoopStore: whoopStore, days: days, sessions: sessions,
+                                  holdingDays: openDays)
         }
         await attempt("Sleep", types: [HKObjectType.categoryType(forIdentifier: .sleepAnalysis)].compactMap { $0 }) {
             try await writeSleep(sessions: sessions)
@@ -1157,7 +1182,8 @@ final class HealthKitBridge: ObservableObject {
     /// that day has a sleep session — a real timestamp inside the night the value describes, instead
     /// of a fabricated noon. Keys are unchanged, so re-stamped samples replace their noon ancestors.
     private func writeVitals(whoopStore: WhoopStore, days: Int,
-                             sessions: [CachedSleepSession]) async throws -> Int {
+                             sessions: [CachedSleepSession],
+                             holdingDays: Set<String> = []) async throws -> Int {
         let cal = Calendar.current
         let to = HealthKitBridge.dayString(Date())
         guard let fromDate = cal.date(byAdding: .day, value: -days, to: Date()) else { return 0 }
@@ -1184,7 +1210,7 @@ final class HealthKitBridge: ObservableObject {
         // (RMSSD for a strap row) under the SDNN type, turning a right value into a wrong one on every day
         // an import happened to cover (#2264).
         for r in imported { byDay[r.day] = HealthExportMerge.merged(computed: byDay[r.day], imported: r) }
-        let rows = byDay.keys.sorted().map { byDay[$0]! }
+        let rows = byDay.keys.sorted().filter { !holdingDays.contains($0) }.map { byDay[$0]! }
 
         // HealthKit's HRV identifier is SDNN, while DailyMetric.avgHrv is NOOP's RMSSD. The SDNN this
         // exports is `DailyMetric.avgSdnn`, computed and stored by the analytics pass; nothing is

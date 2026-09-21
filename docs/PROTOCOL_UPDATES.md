@@ -2,7 +2,59 @@
 
 This chapter follows the [shared scope](PROTOCOL.md#scope-and-compatibility). Image integrity, boot acceptance and session authorization are distinct mechanisms. These contracts describe boundaries, not a validated installation procedure.
 
-## Image-transfer command boundaries
+Neither generation has a documented end-to-end installation procedure in this
+reference. Do not send update, lock, trim, reboot or power-cycle commands based on
+these pages; no validated or authorized flashing path is documented. A CRC-valid
+container does not prove a WHOOP signature, board compatibility, version ordering
+or recoverability.
+
+<a id="whoop-4-boundary"></a>
+
+## WHOOP 4
+
+The documented WHOOP 4 package boundary is
+`HARVARD`/`GEN_4`: MAXIM `41.17.6.0` plus bundled NORDIC `17.2.2.0`. It establishes
+container and package facts, not a validated update or authorization interface.
+Historical low-number image operations or shared numeric
+IDs must not be mapped onto commands 142–159. Conversely, WHOOP 5/MG unsupported
+status does not describe WHOOP 4.
+
+| Layer | Documented contract | What remains unproven |
+|---|---|---|
+| Outer package | ZIP contains one HARVARD MAXIM ZBIN and one BOYLSTON Nordic DFU ZIP | service eligibility, device selection and install order |
+| MAXIM container | 512-byte header followed by gzip payload | complete header schema, signature fields and bootloader interpretation |
+| MAXIM payload CRC | stored payload CRC32 equals CRC32 of compressed bytes | authenticity and device acceptance |
+| MAXIM header CRC | stored header CRC32 equals CRC32 over header bytes `[8,0x1f8)` | purpose of every covered field and anti-tamper policy |
+| MAXIM image | gzip expands to a 1,315,584-byte image for version `41.17.6.0` | flash placement, activation and successful boot |
+| Nordic DFU | The [nRF52840 BLE processor](PROTOCOL_WHOOP4.md#whoop4-nrf52840) application is separate from combined SoftDevice/bootloader data; declared sizes are 153,140 SoftDevice bytes and 40,452 bootloader bytes | init-packet trust validation, compatibility and successful flash |
+| Nordic DFU transition | command 45 starts the Nordic DFU transition; response, disconnect, later advertisement and usable DFU service are separate observations | exact phone request, retry timing and completed transition |
+
+WHOOP 4 supports START/LOAD/PROCESS/VERIFY operations at 36–38 and 83, with 85
+sharing the LOAD operation. The protocol distinguishes update-region erase,
+indexed data and length, load success/failure, image CRC pass/fail, signature
+verification and staged completion. These are not aliases for WHOOP
+5/MG commands 142–144. Exact request lengths, transfer chunk limits,
+cryptographic key and signed-range rules, authorization,
+anti-rollback, boot acceptance, rollback and interruption recovery remain open.
+
+| WHOOP 4 command | 41.17.6.0 role | Contract boundary |
+|---:|---|---|
+| 36 | start load and erase update region | request revision/body and erase durability unresolved |
+| 37, 85 | shared indexed firmware-data load operation | index and length are parsed; exact field widths/chunk maximum unresolved |
+| 38 | process image and check image CRC | CRC pass is not authenticity or boot acceptance |
+| 45 | request NORDIC DFU/bootloader mode | phone-visible response and successful Nordic transition unresolved |
+| 83 | verify firmware image | algorithm, key and final trust decision unresolved |
+
+<a id="whoop-5mg-version-baseline"></a>
+
+## WHOOP 5/MG
+
+Except for the separately labelled [WHOOP 4 boundary](#whoop-4), command
+bodies, container fields and certificate rules in this chapter apply to **WHOOP
+5/MG 50.42.1.0**. They are protocol contracts, not a validated installation or
+flashing procedure.
+
+### Image-transfer command boundaries
 
 | Command | Request body | Response and limits |
 |---:|---|---|
@@ -11,20 +63,20 @@ This chapter follows the [shared scope](PROTOCOL.md#scope-and-compatibility). Im
 | 143 | `revision:u8=1, offset:u32le, length:u8, data[length]` | Length at most 224. `[1, detail]`; success detail 0, otherwise a lower-layer error or preparation detail 10. Partition, alignment and storage constraints also apply. |
 | 144 | `revision:u8=1` | Image integrity acceptance returns `[1,1]` with result 1 and queues lifecycle work. Preparation, integrity or revision failure returns `[1,0]` with result 0. Later boot acceptance remains a separate boundary. |
 
-An incomplete successful command 83 verification step schedules another step without
-sending a final response. The normal continuation needs no additional client
-command. Failure to close update storage does not replace the saved integrity
+An incomplete successful command 83 verification step is followed by another step
+without a final response in between. No additional client command is needed to
+make verification proceed. Failure to close update storage does not replace the saved integrity
 result. Timeout, disconnection and overlapping requests remain unresolved; wait
 for the correlated result and do not treat silence as success.
 
-Command 144 success confirms the application image CRC gate and requests storage
-coordination plus a delayed board reset. Those requests do not establish completed
-reset, installation, authenticity or boot acceptance. A reconnect does not by
+Command 144 success confirms the application image CRC gate. A later disconnect,
+reset or reconnect remains a separate observation and does not establish completed
+installation, authenticity or boot acceptance. A reconnect does not by
 itself identify the accepted image. Signature, compression and rollback policies
 remain unspecified; CRC equality and version fields do not establish them.
 These contracts do not supply an installation sequence.
 
-## Image container and integrity fields
+### Image container and integrity fields
 
 The documented container format has a **512-byte header** followed by its
 payload. Offsets below are offsets within the file, not Bluetooth-frame or memory
@@ -39,7 +91,7 @@ addresses. Multibyte numeric fields are little-endian.
 | 16 | 4 | Unresolved header word |
 | 504 | 4 | Header CRC32 over bytes 8–503 inclusive |
 
-Both checks use the conventional CRC32 result format used by `zlib.crc32`.
+Both checks use the conventional reflected CRC32 result.
 Unlisted header bytes include version/build information and unresolved fields;
 this table does not define them as zero or freely editable. The payload CRC and
 length are outside the header-CRC range.
@@ -50,70 +102,14 @@ payload and type 1 carries the decompressed payload. This is a bounded type
 mapping, not a complete type enumeration. Do not substitute one representation's
 length or checksums for the other's.
 
-The application checks partition bounds and payload integrity. Chunk writes of
-the documented size are read back and compared; that comparison is separate from
+Command 143 rejects chunks outside the accepted image range. Accepted chunk writes
+are read back and compared; a mismatch fails the command. This is separate from
 whole-image verification and eventual boot acceptance. These fields support
-container inspection; they do not establish which representation a complete
+container validation; they do not establish which representation a complete
 installation procedure must transfer or that a modified container will boot.
 
-## Certificate command boundaries
+### Certificate command boundaries
 
-| Command | Request body | Response and limits |
-|---:|---|---|
-| 155 | `revision:u8=1` | `[1]`; starts a fresh certificate transfer. |
-| 156 | `revision:u8=1, offset:u16le, length:u8, data[length]` | `[1]`; chunks are at most 225 bytes and the transfer capacity is 2458 bytes. Use nonwrapping, in-range slices. An immediately repeated offset is acknowledged without comparing replacement content. |
-| 157 | `revision:u8=1, declared_total:u16le` | `[1, detail]`: 1 validation success, 2 validation failure, 3 accumulated/declared length mismatch, 0 unsupported revision. Outer result is 1 only for validation success. |
-| 158 | `revision:u8=1` | `[1]`; revalidates and processes the certificate. Result 1 reports processing success. Certificate and metadata storage are separate operations, so failure does not promise that persistent state is unchanged. |
-| 159 | `revision:u8=1` | `[1]`; acknowledges a queued BLE authorization lock. Certificate clearing depends on the prior authorization state; eventual storage success is not reported. |
-
-Accumulated transfer length does not prove contiguous byte coverage. The certificate
-has three nonempty, period-separated segments. Payload and signature use unpadded
-URL-safe Base64. Verification covers the original encoded first and second
-segments and their separating period; the uploaded payload does not supply the
-trust key. Complete header-validation and issuer-provisioning policies remain
-unspecified.
-
-Certificate verification uses SHA-256 with the P-256 signature
-operation. The decoded signature is exactly 64 bytes: a 32-byte `r` followed by a
-32-byte `s`, rather than an ASN.1 DER signature. Payload and signature decoding
-each have a 512-byte output bound; the signature must also satisfy its exact
-64-byte length. This algorithm contract does not establish complete cryptographic
-implementation validation or firmware-image authentication and rollback policy.
-
-Required claims are strings `aud` and `sub`, bounded to 30 and 11 bytes and compared
-to stored device identity fields, plus decimal unsigned 32-bit numeric `iat` and
-`exp`, with `exp >= iat`. New transfers require `iat` to be strictly greater than the stored accepted value. If reading
-that metadata fails, the comparison uses a zero-filled fallback instead; a read
-failure does not itself force rejection. Identity-storage reads also initialize
-buffers and continue to the identity comparisons after read errors; those errors
-do not independently force certificate rejection. The separate remaining authorization duration is derived
-from `exp - iat`; it is not the freshness value or an established direct wall-clock
-comparison against `exp`. One accounting path charges elapsed monotonic seconds
-during flash work, capped at the remaining amount. A successful write commits the
-reduced amount and advances that accounting timestamp; failure behavior and reboot
-restoration remain separate limits. A saved certificate is parsed during cold initialization
-without requiring its
-own saved `iat` to be newer than itself. That differs from accepting a new
-transfer. JSON edge cases and complete duration restoration after reboot remain
-unresolved.
-
-Command 158 revalidates, stores the certificate, updates accepted `iat`, requests
-the remaining duration and queues an unlocked-state update. Storage operations
-are separate and failure may follow a partial persistent change. Equal `exp` and
-`iat` provide zero duration, so processing success does not guarantee a lasting
-unlocked state.
-
-Command 159 queues an authorization lock. Applied to a previously unlocked state,
-it also attempts to clear the stored certificate and requests zero duration;
-already locked, it skips that clearing step. Its response does not report the
-later storage result. This behavior does not establish irreversible fuse
-programming. A later properly signed, identity-matching certificate that processes
-successfully can request an unlocked state again; the persistent freshness
-requirement still applies when its metadata is readable. This is not a tested
-recovery procedure or a source of issuer authorization.
-
-A transfer acknowledgement, validation, storage, authorization update and lock
-completion are distinct outcomes. No installation or lock/recovery operation has
-been validated on a device for these contracts.
+Commands 155 through 159 cover certificate transfer and device authorization. They gate an authorization state that requires a validly signed, identity-matching certificate; NOOP implements no update, authorization or unlock path, and the signing key and detailed validation rules are outside this reference.
 
 For sensor production, live/save policy, typed configuration and flag behavior use [configuration](PROTOCOL_CONFIGURATION.md); for ECG wrist/start/stop and independent raw/filtered routing use [ECG](PROTOCOL_ECG.md). Those pages separate requested state from applied state and packet delivery. Exact timing, energy cost, all reset paths and all hardware variants remain open unless a specific contract says otherwise.

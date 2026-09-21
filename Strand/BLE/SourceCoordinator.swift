@@ -439,6 +439,7 @@ final class SourceCoordinator: ObservableObject {
             onModel: { [registry] model in registry.setModel(id, model: model) },   // #772: correct a name-guessed gen
             onSerial: { [weak self] serial in self?.adoptOuraSerial(currentId: id, serial: serial) },  // #771
             onsetKeying: { UserDefaults.standard.bool(forKey: AppModel.ouraOnsetKeyingKey) },  // #1284 residual 3
+            notifyMaskFull: { UserDefaults.standard.bool(forKey: AppModel.ouraNotifyMaskFullKey) },  // packed-notification A/B
             adoptIntent: adoptIntent)
         if adoptIntent { straplog("Oura: adopt consent granted - this session may install NOOP's key") }
         ouraSource = source   // the published typed handle for the adopt mirror (same object as activeSource)
@@ -480,6 +481,13 @@ final class SourceCoordinator: ObservableObject {
     /// active. Per OURA_PROTOCOL.md s3.2 the install is a one-time, consent-gated provisioning write.
     func requestOuraAdopt(deviceId: String) {
         pendingAdoptDeviceId = deviceId
+    }
+
+    /// The user asked the Live console to reconnect the active ring (#2305). Forwarded to the live Oura
+    /// source's own `reconnect()`; a no-op when no ring is the live source, so the console can only ever
+    /// reconnect the device it is showing — never a WHOOP, never a ring that is not active.
+    func reconnectActiveRing() {
+        ouraSource?.reconnect()
     }
 
     /// Stop the live non-WHOOP source (standard strap, FTMS machine, Huami device, or Oura ring) and drop

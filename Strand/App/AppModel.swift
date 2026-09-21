@@ -1547,8 +1547,15 @@ final class AppModel: ObservableObject {
     @Published private(set) var ouraFeatureStatuses: [Int: OuraFeatureStatus] = [:]
     private var ouraFeatureStatusCancellable: AnyCancellable?
 
-    /// (Re)bind the feature-status mirror to whichever `OuraLiveSource` the coordinator has live, and
-    /// every later swap — same `flatMap`-over-`$ouraSource` shape as `bindOuraAdoptMirror` below.
+    /// The live ring's link phase (`disconnected` / `connecting` / `authenticating` / `authenticated`),
+    /// mirrored off the live Oura source for the Live console's ring status and reconnect affordance
+    /// (#2305). `.disconnected` when no ring source is live. Bound beside the feature-status mirror.
+    @Published private(set) var ouraLinkPhase: OuraLiveSource.LinkPhase = .disconnected
+    private var ouraLinkPhaseCancellable: AnyCancellable?
+
+    /// (Re)bind the feature-status and link-phase mirrors to whichever `OuraLiveSource` the coordinator
+    /// has live, and every later swap — same `flatMap`-over-`$ouraSource` shape as `bindOuraAdoptMirror`
+    /// below.
     private func bindOuraFeatureStatusMirror() {
         guard let coordinator = sourceCoordinator else { return }
         ouraFeatureStatusCancellable = coordinator.$ouraSource
@@ -1558,6 +1565,19 @@ final class AppModel: ObservableObject {
             }
             .receive(on: DispatchQueue.main)
             .sink { [weak self] in self?.ouraFeatureStatuses = $0 }
+        ouraLinkPhaseCancellable = coordinator.$ouraSource
+            .flatMap { source -> AnyPublisher<OuraLiveSource.LinkPhase, Never> in
+                source?.$linkPhase.eraseToAnyPublisher()
+                    ?? Just(.disconnected).eraseToAnyPublisher()
+            }
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.ouraLinkPhase = $0 }
+    }
+
+    /// Reconnect the active ring on the user's request from the Live console (#2305). Routed through the
+    /// coordinator so it can only ever reach the ring that is the live source.
+    func reconnectOuraRing() {
+        sourceCoordinator?.reconnectActiveRing()
     }
 
     /// Take over a factory-reset Oura ring: grant the coordinator explicit adopt consent for THIS ring (so
@@ -2466,6 +2486,18 @@ final class AppModel: ObservableObject {
     var ouraOnsetKeying: Bool {
         get { UserDefaults.standard.bool(forKey: Self.ouraOnsetKeyingKey) }
         set { UserDefaults.standard.set(newValue, forKey: Self.ouraOnsetKeyingKey) }
+    }
+
+    /// Oura packed-notification A/B (EXPERIMENTAL, default OFF): send the official app's SetNotification
+    /// mask `1c 01 ff` at the next connect instead of NOOP's `3f`. The ring packs ~10 packets per
+    /// notification for the official app (9x the drain throughput) and NOOP's session never gets that
+    /// shape; the mask is the first candidate switch (OURA_PROTOCOL.md s2.3). Read once per connect, so
+    /// turning it off restores `3f` on the next session — nothing persists on the ring. Readout: the
+    /// `-> notify_all(ff)` line and the raw sidecar's notification-size histogram. Test Centre only.
+    static let ouraNotifyMaskFullKey = "noopOuraNotifyMaskFull"
+    var ouraNotifyMaskFull: Bool {
+        get { UserDefaults.standard.bool(forKey: Self.ouraNotifyMaskFullKey) }
+        set { UserDefaults.standard.set(newValue, forKey: Self.ouraNotifyMaskFullKey) }
     }
 
     /// Recompute the v5 skin-temp suite snapshots (cycle phase + body clock) from the current history.

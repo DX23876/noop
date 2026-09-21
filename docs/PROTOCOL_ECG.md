@@ -5,6 +5,8 @@ Applicability: [central scope and compatibility](PROTOCOL.md#scope-and-compatibi
 This chapter specifies the ECG interface applicable to the reference baseline.
 It complements [the main protocol reference](PROTOCOL.md) and separates the
 versioned sensor records from earlier generic “Labrador” payload hypotheses.
+MG ECG uses the ECG channel of the optical front end; see the
+[hardware overview](PROTOCOL_WHOOP5.md#whoop5-max86176).
 A shared firmware version does not guarantee ECG hardware, successful
 initialization, or availability on every strap. The complete workflow and physical
 waveform calibration have not been validated on hardware for this version.
@@ -12,6 +14,20 @@ waveform calibration have not been validated on hardware for this version.
 All offsets below refer to the **complete reassembled format-1 frame**, starting
 at its framing byte. Check framing, declared length and both checksums before
 reading a record. Multi-byte fields are little-endian unless explicitly stated.
+
+## Contents
+
+- [Commands and independent output gates](#commands-and-independent-output-gates)
+- [Repeated ECG start and companion collection](#repeated-ecg-start-and-companion-collection)
+- [Routing and shared header](#routing-and-shared-header)
+- [Packed status: bytes 21–33](#packed-status-bytes-2133)
+- [R17 filtered waveform](#r17-filtered-waveform)
+  - [Output ratio and conditional count bound](#output-ratio-and-conditional-count-bound)
+- [R16 raw waveform and lead diagnostics](#r16-raw-waveform-and-lead-diagnostics)
+- [Startup, settling and interpretation](#startup-settling-and-interpretation)
+- [Front-end application and calibration boundary](#front-end-application-and-calibration-boundary)
+- [Decoder and session requirements](#decoder-and-session-requirements)
+- [Constructed parser checks](#constructed-parser-checks)
 
 ## Commands and independent output gates
 
@@ -29,11 +45,11 @@ command in this table requires revision `01`. Response result `1` means success;
 | 139 / 8B | Send filtered ECG live | `01 00` off; `01 01` on | Independently gates filtered live output. |
 
 The four output toggles accept only arguments zero and one. Generation control
-and these toggles can be rejected by a hardware compatibility guard; passing that
-guard does not satisfy every initialization prerequisite. Wrist selection has a
-separate subsystem-state condition. It updates the active in-memory selection;
-retention across reboot is **not established**. Do not encode right/left as zero/one
-on this version or promise a persistent selection.
+and these toggles can be rejected when the required hardware capability is absent;
+having that capability does not satisfy every startup prerequisite. Wrist selection
+has a separate subsystem-state condition. It updates the current selection;
+persistence is **not established**. Do not encode right/left as zero/one on this
+version or promise a persistent selection.
 
 Generation and output are distinct. An enabled live gate does not start the ECG
 front end. A start ACK precedes fallible initialization and conversion setup, so it
@@ -44,9 +60,9 @@ The device setting `enable_raw_data_w_ecg` controls **accompanying historical
 optical and IMU requests**, after ECG startup succeeds. It is not a master ECG
 permission. Its stored values resolve as `1 = true`, `2 = false`, and `0 = true`;
 its unavailable/read-failure fallback is also true. Successful ECG generation can
-continue when the setting is false. Stopping ECG requests companion shutdown only while its bookkeeping still records
-those requests. Repeated starts can discard that bookkeeping; see the lifecycle
-condition below. A raw session can still retain its separate shared request. This interaction matters if the app also manages
+continue when the setting is false. Stopping ECG requests companion shutdown only while the session still records
+those companion requests. A repeated start can drop that record; see the
+lifecycle condition below. A raw session can still retain its separate shared request. This interaction matters if the app also manages
 optical/IMU collection independently: these controls write shared session requests in event order, so a later raw stop can clear ECG companion requests. Persistent and continuous sources can still contribute. A stored setting, an ACK and effective
 collection are different states.
 
@@ -62,14 +78,13 @@ Do not equate silence with absent electrode contact or a completed session.
 
 For command 124 revision 1, both arguments 2 and 3 request ECG startup. Neither is
 an idempotent ensure-running operation. When accompanying optical/IMU collection
-was enabled by an earlier successful ECG start, another start can discard the
-bookkeeping used to turn those companion requests off. This can happen if the
-new initialization fails, or if it succeeds with the companion option now off.
-A subsequent ECG stop can then omit its usual companion-off requests.
+was enabled by an earlier successful ECG start, another start can cause a later
+ECG stop to omit the companion-off requests. This is observed when the later start
+fails or when it succeeds with the companion option off.
 
 Serialize ECG session transitions and resolve the previous session before
-starting another. Reconcile shared raw/optical/IMU requests as part of the app's
-session management; those controls do not provide independent ownership leases.
+starting another. Reconcile shared raw/optical/IMU requests as part of client
+session management; the controls are not independent leases.
 A stop response does not establish that all queued sensor changes have completed.
 This ordering condition does not establish ongoing physical acquisition or a
 particular power effect.
@@ -112,20 +127,16 @@ records solely by that pair.
 This is a **13-byte packed region**, not a 17-byte structure of unpacked booleans.
 Preserve unknown codes and raw bytes alongside any derived presentation.
 
-The described quality handler produces numeric codes 0–3. Reset clears presence
-and quality; later transitions can set presence with quality 1, then quality 2 or
-3. Another transition clears both. These are partial state-machine outcomes, not
-an exhaustive enum or a bad/good/excellent scale. Keep presence separate from
-clinical signal quality and preserve unknown codes.
+Observed quality codes are 0–3. Presence and quality can clear together, then
+presence can appear with quality 1 followed by quality 2 or 3. These are partial
+observed outcomes, not an exhaustive enum or a bad/good/excellent scale. Keep
+presence separate from clinical signal quality and preserve unknown codes.
 
-In the described quality-input path, consecutive nonzero per-input flags increment
-an unsigned counter capped at 65535; zero resets that run counter. Once the count
-exceeds 100, it submits a transition input that, from the quality handler's state
-0, sets presence and quality to 1. These counts are processed input entries, not
-milliseconds. Later checks in the same iteration can submit further inputs, so
-this does not guarantee the next transmitted status or readiness. The handler's
-internal state 0 is distinct from the wire classifier fields below; nonzero flags
-are not an established electrical-contact or clinical-quality classification.
+A sustained run of nonzero per-input quality flags is required before presence
+and quality first report 1; a zero flag restarts that run. Its duration is counted
+in processed samples, not milliseconds, and reaching it does not guarantee what
+the next transmitted status will be. Nonzero flags are not an established
+electrical-contact or clinical-quality classification.
 
 | Offset | Width | Meaning and limitation |
 |---:|---:|---|
@@ -172,10 +183,10 @@ larger counts as anomalies. Do not silently truncate them. Read only the declare
 number of samples, even though every frame reserves all 100 slots. Zero-valued
 samples can be meaningful; nonzero detection is not a substitute for the count.
 
-these slots contain **signed i16 little-endian**
+In this version, these slots contain **signed i16 little-endian**
 values. Physical scale remains unresolved; signed numerical representation does
-not supply a voltage calibration. A gating condition can deliberately insert
-zero-valued samples into the output queue. Counted zeros therefore remain entries
+not supply a voltage calibration. A device condition can produce zero-valued
+samples. Counted zeros therefore remain entries
 and must not be discarded as padding or used alone to conclude that generation
 stopped. Do not assume that the final conversion guarantees a saturating amplitude
 clamp.
@@ -185,14 +196,14 @@ Sample capacity and notification cadence do not establish the sample rate.
 
 ### Output ratio and conditional count bound
 
-The standard startup configuration emits one filtered queue value per five
-processed input samples. This is a count ratio, not an independently established
+The standard observed configuration emits one filtered value per five processed
+input samples. This is a count ratio, not an independently established
 sample rate. With at most 500 accepted raw inputs per update, normal grouping
-state and an empty output queue before that update, at most 100 filtered entries
+and no retained filtered values before that update, at most 100 filtered entries
 are produced. This bound assumes no concurrent or intervening configuration change.
 
-The retrieval queue nevertheless has 250 slots and no final 100-entry clamp.
-Backlog, alternate configuration and other scheduling states are not covered by
+The strap can retain up to 250 filtered values before delivery and does not apply
+a final 100-entry limit there. Backlog, alternate configuration and other timing states are not covered by
 that conditional bound. Continue rejecting or quarantining a declared R17 count
 above 100. The normal-path explanation does not enlarge the frame's capacity or
 justify silently truncating an anomalous count.
@@ -228,7 +239,7 @@ flag7 = (b0 >> 7) & 1
 ```
 
 This is an 18-bit payload plus flags, not little-endian i16 and not a signed 24-bit
-sample. Retain bits 2–5 as uninterpreted reserved bits. the waveform uses **signed two's-complement 18-bit coding**: after reconstructing
+sample. Retain bits 2–5 as uninterpreted reserved bits. On the wire, the waveform uses **signed two's-complement 18-bit coding**: after reconstructing
 `raw18`, values below 131072 remain unchanged; values at or above 131072 subtract
 262144. The numerical range is **−131072 through 131071**. Keep flag bits 6/7
 separate; they are not sign bits. This establishes coding, not volts per count.
@@ -256,41 +267,6 @@ The I/Q halfwords have a signed diagnostic interpretation but no established
 physical units. Preserve raw words as well as an optional signed view. Do not use
 their sign or magnitude as a clinical threshold.
 
-## Decoder and session requirements
-
-An implementation integrating this contract needs:
-
-1. Version-aware wrist encoding and explicit support for all four live/save gates.
-2. Packet type **and** layout selection, exact frame size, checksum checks and count
-   bounds before sample extraction.
-3. Separate R16/R17 status parsers, fixed capacities and padding handling; no
-   fallback to the generic 17-byte Labrador header for these revisions.
-4. Raw values retained for unknown enum codes, flag semantics, waveform units and
-   timestamp fields. No medical label inferred from a classifier field name.
-5. Distinct session outcomes for command failure, acknowledged initialization,
-   waveform reception and stop/cleanup. Status changes alone are not samples.
-
-NOOP's earlier right/left zero/one mapping, 101-halfword filtered slice, and generic
-count-based raw payload interpretation are incompatible with these versioned
-contracts. This document specifies the required behavior; it does not assert that
-all application paths already implement it.
-
-Still unresolved are physical voltage scale, raw/filtered rates, an unconditional
-valid runtime filtered-count bound, complete hardware prerequisites, contact acceptance,
-classifier-code semantics and clinical validity. Neither 500 raw slots nor 100
-filtered slots establishes a rate, and no fixed session duration is established.
-
-## Constructed parser checks
-
-Run `python3 docs/protocol-examples/validate_examples.py` from the repository root.
-The [standalone example](protocol-examples/validate_examples.py) checks R17 count
-bounds and padding exclusion, signed i16/i18 edge cases, raw18/flag separation and
-the specified 500/10 contact-index boundaries using constructed values. Its buffers
-deliberately have no valid transport framing or checksums. These checks exercise
-the documented arithmetic; they do not independently validate device behavior,
-NOOP integration, the universal filtered-count bound or physical calibration.
-
-
 ## Startup, settling and interpretation
 
 Select the intended wrist and check the command response before starting ECG
@@ -305,19 +281,12 @@ actual generation using validated revision-specific ECG records and their declar
 sample counts. Command refusal, no incoming records, valid zero-valued samples and
 status changes are distinct observations.
 
-Valid counted samples can be zero during initial settling or later signal
-rejection. The standard startup gate begins at 179 processed-input iterations. With the
-normal initial selection phase and no extension, the first 36 selected outputs
-are counted zeros and the next selected output is at input 181. These conditional
-counts are not milliseconds or a guaranteed startup waveform. Settling can be
-extended by subsequent input conditions. A zero per-input flag proposes 930
-remaining processed-input iterations; an input at or below the configured signed
-lower bound, or at or above the upper bound, proposes 680; an absolute step at or
-above its configured threshold proposes 280. A candidate
-replaces the remaining count only when larger. Other holdoffs control which checks
-run, and these checks precede the block output-loop countdown. These are processing
-counts, not milliseconds or electrode/clinical thresholds. Do not infer
-readiness from a fixed delay, or classify a session solely from a flat waveform.
+Early samples can be reported as zeros while the front end settles; no fixed
+settling time is documented. Valid counted samples can also be zero during later
+signal rejection, and settling can be extended by subsequent signal conditions,
+so a flat opening does not bound how long the session takes to produce a
+waveform. Do not infer readiness from a fixed delay, or classify a session solely
+from a flat waveform.
 Preserve numeric quality, presence, state and classifier fields; their clinical
 meaning is not established here. Preserve unknown values for later interpretation.
 
@@ -329,18 +298,51 @@ the live/save gates enabled for the session.
 
 A calibration also requires the effective clock, gain and reference configuration
 and the complete conversion from input codes through processing to output values.
-Register definitions alone would not establish that chain. Buffer capacity is not
+Knowing the front end's configuration fields alone would not establish that chain. Buffer capacity is not
 a sample frequency, and numerical scaling constants alone do not identify volts.
 
 ## Front-end application and calibration boundary
 
-ECG initialization attempts front-end register writes and compares readback bytes.
-That comparison does not check every underlying transport return status. Software
+An accepted start does not prove the analog front end was configured. Reported
 initialization success or a cached configuration value therefore does not prove
-that all requested hardware settings took effect. A frame-divider change writes
-two ordered bytes and can fail partway through.
+that all requested hardware settings took effect, and a multi-byte front-end
+change can fail partway through.
 
 The numerical divider, FIFO count and one-in-five filtered selection do not
 establish absolute sample frequency or voltage scale. FIFO items can have
 different tags; an item count is not necessarily an ECG-only sample count. Use
 sample index and native amplitude unless a matching calibration is available.
+
+## Decoder and session requirements
+
+An implementation integrating this contract needs:
+
+1. Version-aware wrist encoding and explicit support for all four live/save gates.
+2. Packet type **and** layout selection, exact frame size, checksum checks and count
+   bounds before sample extraction.
+3. Separate R16/R17 status parsers, fixed capacities and padding handling; no
+   fallback to the generic 17-byte Labrador header for these revisions.
+4. Raw values retained for unknown enum codes, flag semantics, waveform units and
+   timestamp fields. No medical label inferred from a classifier field name.
+5. Distinct session outcomes for command failure, acknowledged initialization,
+   waveform reception and stop/cleanup. Status changes alone are not samples.
+
+The earlier right/left zero/one mapping, 101-halfword filtered slice, and generic
+count-based raw payload interpretation are incompatible with these versioned
+contracts. This document specifies the wire behavior without asserting support in
+every application path.
+
+Still unresolved are physical voltage scale, raw/filtered rates, an unconditional
+valid runtime filtered-count bound, complete hardware prerequisites, contact acceptance,
+classifier-code semantics and clinical validity. Neither 500 raw slots nor 100
+filtered slots establishes a rate, and no fixed session duration is established.
+
+## Constructed parser checks
+
+Run `python3 docs/protocol-examples/validate_examples.py` from the repository root.
+The [standalone example](protocol-examples/validate_examples.py) checks R17 count
+bounds and padding exclusion, signed i16/i18 edge cases, raw18/flag separation and
+the specified 500/10 contact-index boundaries using constructed values. Its buffers
+deliberately have no valid transport framing or checksums. These checks exercise
+the documented arithmetic; they do not independently validate device behavior,
+application integration, the universal filtered-count bound or physical calibration.

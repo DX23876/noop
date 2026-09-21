@@ -307,4 +307,34 @@ final class LabMarkerCsvImportTests: XCTestCase {
         XCTAssertEqual(LabMarkerCsvImport.customKey("Apo B"), "custom_apo_b")
         XCTAssertEqual(LabMarkerCsvImport.customKey("  ???  "), "")
     }
+
+    /// A white-cell differential lists each cell type as a count AND a percentage. Both used to
+    /// slug to `custom_lymph`, so on the same day the "%" row overwrote the count row.
+    func testPercentRowDoesNotOverwriteCountRow() {
+        let csv = """
+        date,marker,value,unit
+        2026-05-01,LYMPH,1.9,10^9/L
+        2026-05-01,LYMPH %,31.2,%
+        2026-05-01,BASO,0.03,10^9/L
+        2026-05-01,BASO %,0.5,%
+        """
+        let result = LabMarkerCsvImport.parse(text: csv)
+        XCTAssertEqual(result.importedReadings, 4)
+        XCTAssertEqual(result.customMarkerKeys,
+                       ["custom_baso", "custom_baso_pct", "custom_lymph", "custom_lymph_pct"])
+        XCTAssertEqual(result.rows.first { $0.markerKey == "custom_lymph" }?.value, 1.9)
+        XCTAssertEqual(result.rows.first { $0.markerKey == "custom_lymph_pct" }?.value, 31.2)
+    }
+
+    /// Pinned by oracle: the same literals are asserted by the Android twin
+    /// (LabMarkerCsvImportTest.customKeyIsPinned). Names without "%" keep their pre-"pct" keys.
+    func testCustomKeyIsPinned() {
+        let names = [
+            "LYMPH", "LYMPH %", "LYMPH%", "Lymph (%)", "BASO", "BASO %", "% Neutrophils", "NEUT  %", "a%%b", "%", "Apo B", "Magnesium", "  ???  ", "A - B", "Vitamin D (25-OH)", "Caf\u{e9} Marker", "Cafe\u{301} Marker", "MCHC g/dL", "HbA1c (IFCC)",
+        ]
+        let expected = [
+            "custom_lymph", "custom_lymph_pct", "custom_lymph_pct", "custom_lymph_pct", "custom_baso", "custom_baso_pct", "custom_pct_neutrophils", "custom_neut_pct", "custom_a_pctpct_b", "custom_pct", "custom_apo_b", "custom_magnesium", "", "custom_a__b", "custom_vitamin_d_25_oh", "custom_café_marker", "custom_café_marker", "custom_mchc_g_dl", "custom_hba1c_ifcc",
+        ]
+        XCTAssertEqual(names.map(LabMarkerCsvImport.customKey), expected)
+    }
 }

@@ -51,10 +51,23 @@ enum RescoreBackgroundPolicy {
     /// spent mid-unit; resting for all of it would stall a pass that has already been idle.
     static let maxBackgroundRestSeconds: Double = 30
 
-    /// Seconds to rest after `workSeconds` of re-score work. Zero in the foreground, where no CPU limit
-    /// applies and the user is waiting on the result. A non-finite or non-positive measurement rests zero.
+    /// How much work a backgrounded pass does between rests.
+    ///
+    /// Resting after every unit (every night) turned out to be the expensive part. A rest is a `Task.sleep`,
+    /// and a backgrounded process that is only sleeping is exactly what iOS suspends, until the next
+    /// bluetooth wake about ten minutes later. Each unit took milliseconds to a few seconds of CPU, so a pass
+    /// advanced roughly one night per wake. On one phone a 21-night pass ran 2 h 27 min, and a one-time
+    /// full-history pass held the re-score lock from 21:34 until after 11:00 the next day. Every post-offload
+    /// pass in between returned at the lock, so that morning's night was never scored. Working for ten seconds
+    /// before resting ten keeps the same ~50% ceiling under iOS's 80%-over-60 s kill, with one suspension
+    /// opportunity per ten seconds of work instead of one per night.
+    static let backgroundWorkQuantumSeconds: Double = 10
+
+    /// Seconds to rest after `workSeconds` of re-score work done since the last rest. Zero until a quantum of
+    /// work has accumulated (`backgroundWorkQuantumSeconds`), and always zero in the foreground, where no CPU
+    /// limit applies and the user is waiting on the result. A non-finite measurement rests zero.
     static func restSeconds(afterWorkSeconds workSeconds: Double, isBackground: Bool) -> Double {
-        guard isBackground, workSeconds.isFinite, workSeconds > 0 else { return 0 }
+        guard isBackground, workSeconds.isFinite, workSeconds >= backgroundWorkQuantumSeconds else { return 0 }
         return min(workSeconds * backgroundRestPerWorkSecond, maxBackgroundRestSeconds)
     }
 
@@ -73,10 +86,13 @@ enum RescoreBackgroundPolicy {
     ///     it is not evidence of a killed pass; the engine re-arms one follow-up pass for a trigger that
     ///     lands mid-run. Deferring instead recorded a newer debt, the running pass then finished without
     ///     settling it (#1681), and every offload after that deferred on it.
+    ///   - secondsSinceLastAttempt: how long ago the last pass STARTED, nil when unknown. An outstanding
+    ///     debt defers only while that attempt is recent (`interruptedRetryCooldownSeconds`).
     static func decide(isBackground: Bool,
                        isRealUpdate: Bool = true,
                        rescoreAlreadyOwed: Bool,
-                       passInProgress: Bool = false) -> Decision {
+                       passInProgress: Bool = false,
+                       secondsSinceLastAttempt: Double? = nil) -> Decision {
         guard isBackground else { return .run }
 
         guard isRealUpdate else {
@@ -84,11 +100,22 @@ enum RescoreBackgroundPolicy {
                 reason: "the backstop tick does not re-score while backgrounded; offloads run their own")
         }
 
-        if rescoreAlreadyOwed, !passInProgress {
+        if rescoreAlreadyOwed, !passInProgress,
+           let since = secondsSinceLastAttempt, since >= 0, since < interruptedRetryCooldownSeconds {
             return .deferToBackgroundTask(
                 reason: "a re-score is already outstanding from an earlier trigger")
         }
 
         return .run
     }
+
+    /// How long after an attempt that did not finish a backgrounded offload waits before trying again.
+    ///
+    /// Deferring on ANY outstanding debt, with no end, stopped scoring outright. A suspended app is
+    /// routinely terminated by iOS for memory, not CPU, so a pass interrupted that way is ordinary, and the
+    /// processing task it escalates to is granted rarely if ever. On one phone a pass left unfinished at
+    /// 11:25 deferred every offload until the app was next opened: 19 hours, with no score for the night
+    /// in between. Pacing (`backgroundRestPerWorkSecond`) is what keeps a background attempt under the CPU
+    /// limit now, so this only needs to stop a retry on every offload, not forever.
+    static let interruptedRetryCooldownSeconds: Double = 30 * 60
 }

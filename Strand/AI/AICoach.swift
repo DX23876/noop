@@ -3476,7 +3476,9 @@ final class AICoachEngine: ObservableObject {
               let hrv = today.avgHrv, let rhr = today.restingHr else {
             return "Not enough data yet to break down today's Charge."
         }
-        let hrvBase = Baselines.foldHistory(days.map(\.avgHrv), cfg: Baselines.hrvCfg)
+        let hrvBase = Baselines.foldHistory(days.map(\.avgHrv), dayKeys: days.map(\.day),
+                                            cfg: Baselines.hrvCfg,
+                                            baselineEpoch: Baselines.hrvBaselineEpoch())
         guard hrvBase.usable else { return "Still calibrating the HRV baseline — no Charge breakdown yet." }
         let rhrBase = Baselines.foldHistory(days.map { $0.restingHr.map(Double.init) },
                                             cfg: Baselines.restingHRCfg)
@@ -3587,7 +3589,9 @@ final class AICoachEngine: ObservableObject {
         let days = repo.days
         let todayKey = Repository.logicalDayKey(Date())
         guard let today = days.last(where: { $0.day == todayKey }) ?? days.last else { return nil }
-        let hrvBase = Baselines.foldHistory(days.map(\.avgHrv), cfg: Baselines.hrvCfg)
+        let hrvBase = Baselines.foldHistory(days.map(\.avgHrv), dayKeys: days.map(\.day),
+                                            cfg: Baselines.hrvCfg,
+                                            baselineEpoch: Baselines.hrvBaselineEpoch())
         let confidence = ScoreConfidence.charge(recovery: today.recovery, hrvBaseline: hrvBase)
         var line = "Charge confidence today: \(confidence.rawValue)"
         if confidence == .calibrating {
@@ -3757,7 +3761,9 @@ final class AICoachEngine: ObservableObject {
         guard endIndex > 0 else { return nil }
         let window = sorted[max(0, endIndex - days)..<endIndex]
         guard !window.isEmpty else { return nil }
-        let hrvBase = Baselines.foldHistory(sorted.map(\.avgHrv), cfg: Baselines.hrvCfg)
+        let hrvBase = Baselines.foldHistory(sorted.map(\.avgHrv), dayKeys: sorted.map(\.day),
+                                            cfg: Baselines.hrvCfg,
+                                            baselineEpoch: Baselines.hrvBaselineEpoch())
         let trusted = window.compactMap { row -> Double? in
             guard let r = row.recovery,
                   ScoreConfidence.charge(recovery: r, hrvBaseline: hrvBase) != .calibrating else { return nil }
@@ -3815,7 +3821,9 @@ final class AICoachEngine: ObservableObject {
             return "PLAN: nothing has been proposed or agreed in the last \(days) days."
         }
 
-        let hrvBase = Baselines.foldHistory(repo.days.map(\.avgHrv), cfg: Baselines.hrvCfg)
+        let hrvBase = Baselines.foldHistory(repo.days.map(\.avgHrv), dayKeys: repo.days.map(\.day),
+                                            cfg: Baselines.hrvCfg,
+                                            baselineEpoch: Baselines.hrvBaselineEpoch())
         let byDay = Dictionary(repo.days.map { ($0.day, $0) }, uniquingKeysWith: { _, last in last })
         let unresolved = Set(store.reconciliationResolutions.map(\.proposalId))
 

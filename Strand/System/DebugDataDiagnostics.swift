@@ -126,12 +126,24 @@ enum DebugDataDiagnostics {
         #endif
         #if os(iOS)
         // #52: iOS Backup & Sync folder-picker health. When users report "won't let me pick a folder",
-        // this pins the failure stage: "cancelled"/"never used" ⇒ the picker's Open button never fired
-        // (an iOS-side picker issue — the in-app "Use NOOP's own folder" fallback sidesteps it);
+        // this pins the failure stage: "closed without a folder"/"never used" ⇒ no URL came back;
         // "picked" + a FAILED flag ⇒ a returned folder failed to bookmark HERE (our bug).
+        //
+        // #2356: the no-URL case used to read "cancelled", which asserts an intent UIKit never tells us.
+        // It calls the same delegate method when someone taps Cancel and when someone picks a folder and
+        // taps Open that iOS then declines, and a reporter hit the second while the log claimed the first,
+        // sending the investigation after a disabled Open button that was never the problem. The two facts
+        // below are what let a reader tell them apart: a tap on Cancel closes in a second or two, whereas
+        // navigating into iCloud Drive and choosing a folder takes far longer.
         let pickEvent = d.string(forKey: "backupPicker.lastEvent") ?? "never used"
         let pickAt = d.double(forKey: "backupPicker.lastEventAt")
         lines.append("Folder picker: \(pickEvent)\(pickAt > 0 ? " (\(relTime(now - pickAt)))" : "")")
+        let openFor = d.double(forKey: "backupPicker.lastOpenSeconds")
+        if openFor > 0 {
+            let startedIn = d.string(forKey: "backupPicker.lastStart") ?? ""
+            lines.append("             open for \(String(format: "%.1f", openFor))s"
+                + (startedIn.isEmpty ? "" : ", opened on \(startedIn)"))
+        }
         if pickEvent == "picked" {
             let scoped = d.bool(forKey: "backupPicker.lastScopedOpen")
             let bmOk = d.bool(forKey: "backupPicker.lastBookmarkOk")
@@ -484,9 +496,13 @@ enum DebugDataDiagnostics {
             }
         }
         if let sent = d.object(forKey: "alarm.lastArmSentEpoch") as? Int {
-            var line = "Last arm: sent \(alarmStamp(sent))"
-            if let at = d.object(forKey: "alarm.lastArmAt") as? Double {
-                line += " · \(relTime(Date().timeIntervalSince1970 - at))"
+            // #2322: "for <alarm time> · sent <ago>". The old shape put both clocks on one line as
+            // "sent <alarm time> · <ago>", which reads as "we sent that time, that long ago" — but the
+            // stamp is the FUTURE instant armed and the relative time is when the command went out.
+            var line = "Last arm: for \(alarmStamp(sent))"
+            let armedAt = d.object(forKey: "alarm.lastArmAt") as? Double
+            if let armedAt {
+                line += " · sent \(relTime(Date().timeIntervalSince1970 - armedAt))"
             }
             if !d.bool(forKey: "alarm.lastArmConnected") { line += " · strap NOT connected (queued)" }
             // #34: the strap-clock skew AT ARM. Skew ~0 but the strap still rejects ⇒ a corrupted alarm
@@ -504,12 +520,21 @@ enum DebugDataDiagnostics {
             if let reported = d.object(forKey: "alarm.lastReportedEpoch") as? Int {
                 // #1706: only judge when both halves are known to be the SAME strap, otherwise this
                 // blames a device that was never asked.
+                // #2322: and only when the readback ANSWERED this arm. A readback that failed to decode
+                // leaves the previous one standing, so without the arrival stamps this line compared two
+                // different arms and blamed the strap for the difference.
+                let readAt = d.object(forKey: "alarm.lastReportedAt") as? Double
                 let verdict = AlarmReadback.verdict(
                     sentEpoch: sent,
                     reportedEpoch: reported,
                     sentDeviceId: d.string(forKey: "alarm.lastArmDeviceId"),
-                    reportedDeviceId: d.string(forKey: "alarm.lastReportedDeviceId"))
+                    reportedDeviceId: d.string(forKey: "alarm.lastReportedDeviceId"),
+                    sentAt: armedAt,
+                    reportedAt: readAt)
                 var rline = "Strap reports: \(alarmStamp(reported))" + AlarmReadback.suffix(verdict)
+                // When the readback landed, so a reader can see the provenance of both halves rather than
+                // having to trust that they belong together.
+                if let readAt { rline += " · read \(relTime(Date().timeIntervalSince1970 - readAt))" }
                 // #34: consecutive rejections — a persistent refusal (vs a one-off) points at a strap whose
                 // alarm register needs a reset, and is what SmartAlarmView warns the user about at ≥2.
                 let streak = d.integer(forKey: "alarm.rejectStreak")

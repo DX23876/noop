@@ -14,11 +14,13 @@ final class RescoreBackgroundPolicyTests: XCTestCase {
     private func decide(background: Bool = true,
                         realUpdate: Bool = true,
                         unfinished: Bool = false,
-                        running: Bool = false) -> RescoreBackgroundPolicy.Decision {
+                        running: Bool = false,
+                        attemptedSecondsAgo: Double? = 60) -> RescoreBackgroundPolicy.Decision {
         RescoreBackgroundPolicy.decide(isBackground: background,
                                        isRealUpdate: realUpdate,
                                        rescoreAlreadyOwed: unfinished,
-                                       passInProgress: running)
+                                       passInProgress: running,
+                                       secondsSinceLastAttempt: attemptedSecondsAgo)
     }
 
     private func isDeferred(_ d: RescoreBackgroundPolicy.Decision) -> Bool {
@@ -53,6 +55,16 @@ final class RescoreBackgroundPolicyTests: XCTestCase {
         XCTAssertTrue(isDeferred(decide(unfinished: true)))
     }
 
+    /// ...but only for a while. A suspended app is routinely terminated for memory, so an unfinished pass
+    /// is ordinary; deferring on it forever left a night unscored for 19 hours on one phone.
+    func testAnInterruptedAttemptIsRetriedOnceTheCooldownHasPassed() {
+        let cooldown = RescoreBackgroundPolicy.interruptedRetryCooldownSeconds
+        XCTAssertTrue(isDeferred(decide(unfinished: true, attemptedSecondsAgo: cooldown - 1)))
+        XCTAssertEqual(decide(unfinished: true, attemptedSecondsAgo: cooldown), .run)
+        // No recorded attempt (an install from before the attempt time existed) is not a recent one.
+        XCTAssertEqual(decide(unfinished: true, attemptedSecondsAgo: nil), .run)
+    }
+
     /// A pass running in THIS process reads as owed through its own started-mark. That is not a killed
     /// pass, and deferring on it recorded a newer debt the running pass could then never settle (#1681),
     /// so every later offload deferred too. The engine re-arms a follow-up pass for a mid-run trigger.
@@ -75,7 +87,16 @@ final class RescoreBackgroundPolicyTests: XCTestCase {
 
     /// Resting as long as it worked holds a backgrounded pass near 50% CPU, under the 80% iOS kills at.
     func testABackgroundedPassRestsAsLongAsItWorked() {
-        XCTAssertEqual(RescoreBackgroundPolicy.restSeconds(afterWorkSeconds: 6, isBackground: true), 6)
+        XCTAssertEqual(RescoreBackgroundPolicy.restSeconds(afterWorkSeconds: 12, isBackground: true), 12)
+    }
+
+    /// Short units run back to back until a quantum of work has built up: every rest is a chance for iOS to
+    /// suspend the process until the next wake, so resting after each night advanced a pass one night a wake.
+    func testWorkUnderAQuantumDoesNotRest() {
+        let quantum = RescoreBackgroundPolicy.backgroundWorkQuantumSeconds
+        XCTAssertEqual(RescoreBackgroundPolicy.restSeconds(afterWorkSeconds: 0.05, isBackground: true), 0)
+        XCTAssertEqual(RescoreBackgroundPolicy.restSeconds(afterWorkSeconds: quantum - 0.01, isBackground: true), 0)
+        XCTAssertEqual(RescoreBackgroundPolicy.restSeconds(afterWorkSeconds: quantum, isBackground: true), quantum)
     }
 
     /// No CPU limit applies in the foreground, and the user is waiting on the result.

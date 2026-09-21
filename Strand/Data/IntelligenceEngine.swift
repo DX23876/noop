@@ -126,7 +126,11 @@ final class IntelligenceEngine: ObservableObject {
     // same pass carries #2042 (Charge re-scored with the night's skin-temperature deviation) and #2220
     // (a pass no longer deletes and re-creates detected workouts). Legacy unlabelled rows keep scoring,
     // so no night loses HRV or Charge to the update. Bounded 21-day pass; no raw row is rewritten.
-    static let currentAnalysisRecipeVersion = 7
+    // v8 separates legacy custom Lab Book percentage rows from their count-valued siblings. The
+    // transactionally versioned marker migration moves identifiable percent-unit rows and rebuilds both
+    // daily projections before its own cursor advances; the bounded analysis pass then refreshes recent
+    // consumers that may have read the old projected key. User-entered readings and raw samples remain.
+    static let currentAnalysisRecipeVersion = 8
 
     /// Upstream 11.6 (2026-09-11) shipped the strict WHOOP 5 R-R read; its first bounded pass reached 21
     /// days back. No row before this day can have been blanked by it.
@@ -552,11 +556,35 @@ final class IntelligenceEngine: ObservableObject {
                                                       providedCount: Int, windowHours: Int,
                                                       skinCount: Int) -> String {
         // `reason` names WHICH absence this is, because grav=0 is printed but its consequence is not.
-        // With no motion the stager has no HR-only fallback, so no quantity of HR can stage a night — a
-        // strap capability limit, not a coverage gap, and the two want completely different follow-ups.
-        // With motion present the inputs were there and staging still produced nothing, which is the case
-        // actually worth investigating.
-        let reason = gravCount == 0 ? "no-motion" : "staged-none"
+        //
+        // `no-motion` USED to mean "and therefore nothing further was attempted" — the stager had no
+        // HR-only fallback, so no quantity of HR could stage a night. Since #1801 it does: a day with no
+        // gravity now also runs `SleepStager.hrOnlySessions`.
+        //
+        // Which is why grav=0 alone can no longer name the outcome. A 5/MG overnight capture showed this
+        // line reading `no-motion` while the HR-only spine on the SAME pass kept four sessions, the
+        // longest 311 minutes, and handed them over as `provided=3`. The reader was told nothing could
+        // stage a night while the log above said something had. So the no-gravity case splits by whether
+        // anything was actually provided:
+        //
+        //   no-motion                 no gravity, and nothing was provided either
+        //   no-motion-provided-unused no gravity, sessions WERE provided, and the night is still empty —
+        //                             they went in and no night came out, which is a question about what
+        //                             dropped them rather than about the strap
+        //
+        // Note "provided", not "HR-only". With no gravity `providedSleep` is the HR-only spine's output
+        // in the no-hypnogram branch, but it is STORED sessions in the stored-hypnogram one, and from
+        // here the two are indistinguishable. Naming the source would repeat the very over-claim this
+        // split exists to remove. The `[sleep] hr-only gate` trace is what says which branch ran.
+        //
+        // With motion present the inputs were there and staging still produced nothing, which remains the
+        // case most worth investigating.
+        let reason: String
+        if gravCount > 0 {
+            reason = "staged-none"
+        } else {
+            reason = providedCount > 0 ? "no-motion-provided-unused" : "no-motion"
+        }
         // #1118 follow-up: name any stream that came back AT its read cap. A read that returns exactly the
         // limit is the definition of truncated everywhere else here (`full.count >= limit`), and it is the
         // one thing a reader cannot infer from the counts alone — `grav=192698` looks healthy until you
@@ -742,6 +770,9 @@ final class IntelligenceEngine: ObservableObject {
         guard let store = await repo.storeHandle() else { return false }
         analysisMaintenancePhase = .checking
         do {
+            // Stored-value migration for recipe v8. Its own cursor is committed only after the row keys
+            // and projections succeed in one transaction, so an interrupted launch retries safely.
+            _ = try await store.migrateLegacyPercentLabMarkerKeys()
             let stored = try await store.cursor(Self.analysisRecipeCursor)
             var fromUpstream = false
             if stored == nil { fromUpstream = (try? await store.openedFromUpstreamMigrations()) ?? false }
@@ -1383,7 +1414,26 @@ final class IntelligenceEngine: ObservableObject {
         // also counts every minute the process spent suspended mid-pass. One overnight pass suspended by a
         // sleeping phone banked 19 003 s, which then deferred every background re-score after it.
         let reScoreStart = DispatchTime.now().uptimeNanoseconds
-        let owedToken = RescoreBackgroundScheduler.markRescoreOwed()
+        let reScoreCPUStart = RescoreBackgroundScheduler.processCPUSeconds()
+        let reScoreExpiriesAtStart = RescoreBackgroundScheduler.assertionExpiries
+        // #1538: the pass is now past every gate and will do real work. Mark it started durably, so that a
+        // process killed mid-pass leaves evidence a LATER process can read — the killed process itself gets
+        // no chance to record anything. Cleared beside the watermark at the end; there is no early return
+        // between here and there, so "started and never finished" means exactly "killed", never a silent
+        // internal skip. `RescoreBackgroundPolicy` reads it to stop re-attempting a pass that cannot
+        // finish in the background, which is the livelock in #1538.
+        // #1681: keep the token this debt was stamped with. At the end of the pass it is what tells our
+        // own debt apart from one a LATER trigger recorded while we were running - the latter must
+        // survive us, because the data it was recorded for arrived after we had already read our inputs.
+        //
+        // This is the SAME discipline the watermark beside it already used and the owed flag did not:
+        // capture the value at the start, compare against it at the end, never re-read. `wmKey` is read
+        // once at the top and the pass writes back THAT value, so HR arriving mid-pass leaves the
+        // watermark behind and the next trigger re-scores. The owed flag was the one piece of per-pass
+        // state that skipped the capture and just cleared, which is exactly where #1681 lived. The
+        // Kotlin post-offload gate makes the same point in its own words: "captured before the run,
+        // written only on success".
+        let owedToken = RescoreBackgroundScheduler.markRescoreOwed(passStarting: true)
 
         let up = UserProfile(weightKg: profile.weightKg, heightCm: profile.heightCm,
                              age: Double(profile.age), sex: profile.sex,
@@ -3583,6 +3633,11 @@ final class IntelligenceEngine: ObservableObject {
         let elapsed = Double(DispatchTime.now().uptimeNanoseconds &- reScoreStart) / 1_000_000_000
         let settled = RescoreBackgroundScheduler.markRescoreCompleted(seconds: elapsed,
                                                                        owedToken: owedToken)
+        diagnosticSink?(RescoreBackgroundScheduler.passCostLogLine(
+            cpuSeconds: RescoreBackgroundScheduler.processCPUSeconds().flatMap { end in reScoreCPUStart.map { end - $0 } },
+            elapsedSeconds: elapsed,
+            assertionExpiries: RescoreBackgroundScheduler.assertionExpiries - reScoreExpiriesAtStart,
+            backgroundedAtEnd: RescoreBackgroundScheduler.isBackgrounded), nil)
         if !settled {
             diagnosticSink?("re-score: completed, but a newer rescore request remains owed (#1681)", nil)
         }

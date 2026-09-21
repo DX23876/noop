@@ -19,3 +19,11 @@ Choose **no** for UI, navigation, logging, documentation, or output-identical pe
 tie historical analysis to the marketing version, build number, Xcode installation, or ordinary launch.
 Use an exact affected-day interval whenever the triggering mutation provides one. The confirmation-gated
 manual 21-day reanalysis in Settings is for diagnostics and does not advance the recipe version.
+
+## Readout and CI invariants
+
+- Resolve repeated readouts of one fact through one gated resolver and one supplied clock. Prefer one
+  readout; when several are necessary, test the shared resolver rather than counting its callers.
+- A CI gate must observe the change that can invalidate it. Require a stable expected roster and zero
+  non-success results; when a trigger cannot cover an invalidator, make that limitation explicit in the
+  failure message.

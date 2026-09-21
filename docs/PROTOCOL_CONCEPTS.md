@@ -23,20 +23,20 @@ A frame is a self-delimiting byte string beginning with a Start-Of-Frame marker 
 a CRC32 trailer. The two generations share the CRC32 payload check but differ in the header
 checksum. Select the family before parsing:
 
-| Family | Header check | Enum (`HeaderCRCKind`) |
-|--------|--------------|------------------------|
-| `whoop4` | CRC8 (poly `0x07`) | `.crc8` |
-| `whoop5` | CRC16-Modbus (poly `0xA001`, init `0xFFFF`, reflected) | `.crc16Modbus` |
+| Family | Header check |
+|--------|--------------|
+| WHOOP 4 | CRC8 (poly `0x07`) |
+| WHOOP 5/MG | CRC16-Modbus (poly `0xA001`, init `0xFFFF`, reflected) |
 
 <a id="25-checksums"></a>
 
 ## Checksums
 
-| Algorithm | Function | Parameters |
-|-----------|----------|------------|
-| CRC8 | `crc8(_:)` | table-driven, poly `0x07`, init `0x00` |
-| CRC32 (zlib) | `crc32(_:)` | reflected, poly `0xEDB88320`, init `0xFFFFFFFF`, final XOR `0xFFFFFFFF` |
-| CRC16-Modbus | `crc16Modbus(_:)` | poly `0xA001`, init `0xFFFF`, reflected |
+| Algorithm | Parameters |
+|-----------|------------|
+| CRC8 | table-driven, poly `0x07`, init `0x00` |
+| CRC32 (zlib) | reflected, poly `0xEDB88320`, init `0xFFFFFFFF`, final XOR `0xFFFFFFFF` |
+| CRC16-Modbus | poly `0xA001`, init `0xFFFF`, reflected |
 
 Validate the complete frame before decoding or updating state. CRC checks detect
 corruption; they are not cryptographic authentication. Generation-specific length

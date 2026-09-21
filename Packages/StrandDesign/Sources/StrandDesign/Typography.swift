@@ -118,6 +118,10 @@ public enum StrandFont {
     /// Native caption number for small live values (sparklines, chips).
     public static let captionNumber = Font.caption.weight(.medium).monospacedDigit()
 
+    /// Fixed compact numeral for labels embedded in a fixed-radius diagram. Unlike semantic captions,
+    /// this does not scale beyond the geometry that owns it; ordinary text must keep using `caption`.
+    public static let diagramLabel = roundedSystem(10, weight: .regular).monospacedDigit()
+
     /// Mono at an arbitrary size.
     public static func mono(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
         .system(size: size, weight: weight, design: .monospaced)

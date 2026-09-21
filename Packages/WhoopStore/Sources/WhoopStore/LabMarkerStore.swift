@@ -94,6 +94,10 @@ extension WhoopStore {
     /// The constant device-id the daily marker projection is written under, so Compare/
     /// Explore/Coach see markers as a single-source series (spec §"Cross-platform plan").
     public static let labBookSourceId = "lab-book"
+    /// Versioned cursor for the one-time split of legacy custom percentage markers. Written only after
+    /// every row and both old/new daily projections have moved in one transaction.
+    static let labMarkerKeyVersionCursor = "labMarker:keyVersion"
+    static let currentLabMarkerKeyVersion = 1
 
     // MARK: - Upsert (idempotent by natural key) + project to metricSeries
 
@@ -181,6 +185,77 @@ extension WhoopStore {
         }
     }
 
+    // MARK: - Legacy custom-percent key migration
+
+    /// Move legacy custom percentage readings from `custom_<name>` to `custom_<name>_pct`.
+    ///
+    /// Before key version 1, punctuation was discarded while slugging an imported marker name, so
+    /// `LYMPH` and `LYMPH %` both landed under `custom_lymph`; the percentage row usually won the
+    /// same-day projection. The original display name was not stored, but the row's required unit is:
+    /// rows whose unit explicitly says percent can therefore be separated without guessing from their
+    /// numeric value. Count rows and every non-custom marker remain untouched.
+    ///
+    /// The transaction is resumable by repetition: the cursor is advanced only after the rows and their
+    /// projections succeed, and the target suffix makes an already-moved row ineligible on a retry.
+    /// An exact target duplicate is collapsed; a non-identical natural-key collision throws so neither
+    /// user reading is silently discarded.
+    @discardableResult
+    public func migrateLegacyPercentLabMarkerKeys() async throws -> Int {
+        try syncWrite { db in
+            let stored = try Int.fetchOne(db, sql: "SELECT value FROM cursors WHERE name = ?",
+                                          arguments: [Self.labMarkerKeyVersionCursor]) ?? 0
+            guard stored < Self.currentLabMarkerKeyVersion else { return 0 }
+
+            let candidates = try Row.fetchAll(db, sql: """
+                SELECT * FROM labMarker
+                WHERE substr(markerKey, 1, 7) = 'custom_'
+                  AND substr(markerKey, -4) <> '_pct'
+                  AND lower(trim(unit)) IN ('%', 'percent', 'pct')
+                ORDER BY takenAt ASC, id ASC
+                """).map(LabMarkerRow.decode)
+            var touched: Set<DayCell> = []
+            var migrated = 0
+
+            for row in candidates {
+                let targetKey = row.markerKey + "_pct"
+                let existing = try Row.fetchOne(db, sql: """
+                    SELECT * FROM labMarker
+                    WHERE deviceId = ? AND markerKey = ? AND takenAt = ? AND source = ?
+                    """, arguments: [row.deviceId, targetKey, row.takenAt, row.source])
+                    .map(LabMarkerRow.decode)
+
+                if let existing {
+                    let exactDuplicate = existing.category == row.category
+                        && existing.day == row.day
+                        && existing.value == row.value
+                        && existing.valueText == row.valueText
+                        && existing.unit == row.unit
+                        && existing.note == row.note
+                        && existing.referenceText == row.referenceText
+                    guard exactDuplicate else {
+                        throw LabMarkerKeyMigrationError.conflictingTarget(
+                            deviceId: row.deviceId, oldKey: row.markerKey,
+                            targetKey: targetKey, takenAt: row.takenAt)
+                    }
+                    try db.execute(sql: "DELETE FROM labMarker WHERE id = ?", arguments: [row.id])
+                } else {
+                    try db.execute(sql: "UPDATE labMarker SET markerKey = ? WHERE id = ?",
+                                   arguments: [targetKey, row.id])
+                }
+                touched.insert(DayCell(deviceId: row.deviceId, markerKey: row.markerKey, day: row.day))
+                touched.insert(DayCell(deviceId: row.deviceId, markerKey: targetKey, day: row.day))
+                migrated += 1
+            }
+
+            try reprojectCells(db, cells: touched)
+            try db.execute(sql: """
+                INSERT INTO cursors (name, value) VALUES (?, ?)
+                ON CONFLICT(name) DO UPDATE SET value = excluded.value
+                """, arguments: [Self.labMarkerKeyVersionCursor, Self.currentLabMarkerKeyVersion])
+            return migrated
+        }
+    }
+
     // MARK: - Delete (removes the row AND its now-orphaned projected day)
 
     /// Delete one reading by `id`. If that was the last numeric reading for its
@@ -240,4 +315,8 @@ extension WhoopStore {
             }
         }
     }
+}
+
+enum LabMarkerKeyMigrationError: Error, Equatable {
+    case conflictingTarget(deviceId: String, oldKey: String, targetKey: String, takenAt: Int)
 }

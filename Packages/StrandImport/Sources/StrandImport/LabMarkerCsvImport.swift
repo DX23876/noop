@@ -343,15 +343,31 @@ public enum LabMarkerCsvImport {
 
     /// The `custom_<slug>` key for an unrecognised marker name. MUST stay byte-identical
     /// to the manual editor's `MarkerUnits.slug` (Strand/Screens/MarkerEditorView.swift)
-    /// so a CSV custom marker folds onto a hand-added one. Returns "" for a name with no
-    /// usable characters.
-    static func customKey(_ name: String) -> String {
-        let lowered = name.precomposedStringWithCanonicalMapping
-            .trimmingCharacters(in: .whitespaces).lowercased()
-        let mapped = lowered.map { ch -> Character in
-            (ch.isLetter || ch.isNumber) ? ch : "_"
+    /// so a CSV custom marker folds onto a hand-added one (the editor delegates here). Returns
+    /// "" for a name with no usable characters.
+    ///
+    /// "%" becomes its own `pct` token: a lab export lists a white-cell differential as both a
+    /// count and a percentage ("LYMPH" 1.9 and "LYMPH %" 31.2), and mapping "%" to "_" like any
+    /// other punctuation gave both `custom_lymph`, so the second row of the day overwrote the
+    /// first. The token is joined to a letter/digit neighbour by one "_" (a non-alphanumeric
+    /// neighbour already maps to "_"), so "LYMPH %", "LYMPH%" and "Lymph (%)" all give
+    /// `custom_lymph_pct`. Names without "%" keep the keys they always had. Twin: `customKey`
+    /// in android/app/src/main/java/com/noop/ingest/LabMarkerCsvImport.kt.
+    public static func customKey(_ name: String) -> String {
+        let lowered = Array(name.precomposedStringWithCanonicalMapping
+            .trimmingCharacters(in: .whitespaces).lowercased())
+        func isWordChar(_ ch: Character) -> Bool { ch.isLetter || ch.isNumber }
+        var mapped = ""
+        for (i, ch) in lowered.enumerated() {
+            if ch == "%" {
+                if i > 0, isWordChar(lowered[i - 1]) { mapped += "_" }
+                mapped += "pct"
+                if i + 1 < lowered.count, isWordChar(lowered[i + 1]) { mapped += "_" }
+            } else {
+                mapped.append(isWordChar(ch) ? ch : "_")
+            }
         }
-        let collapsed = String(mapped).replacingOccurrences(of: "__", with: "_")
+        let collapsed = mapped.replacingOccurrences(of: "__", with: "_")
         let trimmed = collapsed.trimmingCharacters(in: CharacterSet(charactersIn: "_"))
         guard !trimmed.isEmpty else { return "" }
         return "custom_" + trimmed

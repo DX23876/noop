@@ -29,10 +29,15 @@ enum ChargeBreakdownFormat {
     /// last-scored day); `restScore` is the merged Rest composite (0…100) the Rest ring reads, so the
     /// sleep-quality term stays consistent. Returns nil for a calibrating / cold-start night (no HRV or RHR,
     /// or no usable HRV baseline), so the caller gates through to the calibration copy instead.
-    static func compute(row: DailyMetric?, days: [DailyMetric], restScore: Double?)
+    static func compute(row: DailyMetric?, days: [DailyMetric], restScore: Double?,
+                        hrvBaselineEpoch: Double = 0)
         -> (drivers: [ChargeDriver], confidence: ScoreConfidence)? {
         guard let row, let hrv = row.avgHrv, let rhr = row.restingHr else { return nil }
-        let hrvBase = Baselines.foldHistory(days.map(\.avgHrv), cfg: Baselines.hrvCfg)
+        // Recalibration changes the history the engine scores against. The breakdown and its confidence
+        // badge must fold that same post-epoch history or the page can display two baselines at once.
+        let hrvBase = Baselines.foldHistory(days.map(\.avgHrv), dayKeys: days.map(\.day),
+                                            cfg: Baselines.hrvCfg,
+                                            baselineEpoch: hrvBaselineEpoch)
         guard hrvBase.usable else { return nil }
         let rhrBase = Baselines.foldHistory(days.map { $0.restingHr.map(Double.init) },
                                             cfg: Baselines.restingHRCfg)

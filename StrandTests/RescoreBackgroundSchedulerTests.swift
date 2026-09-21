@@ -15,6 +15,7 @@ final class RescoreBackgroundSchedulerTests: XCTestCase {
     private var savedSeconds: Any?
     private var savedToken: Any?
     private var savedAfterCompleted: Any?
+    private var savedAttemptAt: Any?
 
     override func setUp() {
         super.setUp()
@@ -25,6 +26,8 @@ final class RescoreBackgroundSchedulerTests: XCTestCase {
         savedToken = UserDefaults.standard.object(forKey: RescoreBackgroundScheduler.owedTokenKey)
         savedAfterCompleted = UserDefaults.standard.object(
             forKey: RescoreBackgroundScheduler.owedAfterCompletedPassKey)
+        savedAttemptAt = UserDefaults.standard.object(forKey: RescoreBackgroundScheduler.lastAttemptStartedAtKey)
+        UserDefaults.standard.removeObject(forKey: RescoreBackgroundScheduler.lastAttemptStartedAtKey)
         UserDefaults.standard.removeObject(forKey: RescoreBackgroundScheduler.owedKey)
         UserDefaults.standard.removeObject(forKey: RescoreBackgroundScheduler.lastPassSecondsKey)
         UserDefaults.standard.removeObject(forKey: RescoreBackgroundScheduler.owedTokenKey)
@@ -36,6 +39,7 @@ final class RescoreBackgroundSchedulerTests: XCTestCase {
         restore(savedSeconds, RescoreBackgroundScheduler.lastPassSecondsKey)
         restore(savedToken, RescoreBackgroundScheduler.owedTokenKey)
         restore(savedAfterCompleted, RescoreBackgroundScheduler.owedAfterCompletedPassKey)
+        restore(savedAttemptAt, RescoreBackgroundScheduler.lastAttemptStartedAtKey)
         super.tearDown()
     }
 
@@ -76,8 +80,8 @@ final class RescoreBackgroundSchedulerTests: XCTestCase {
     /// The bug this file exists for: deferring has to record the debt, or the background task it defers
     /// to has nothing to find.
     func testDeferringMarksTheWorkOwedAndDoesNotRunIt() async {
-        // An earlier pass was killed: its mark is set and nothing runs now, so the policy defers.
-        let killedToken = RescoreBackgroundScheduler.markRescoreOwed()
+        // An earlier pass was killed moments ago: its mark is set and nothing runs now, so the policy defers.
+        let killedToken = RescoreBackgroundScheduler.markRescoreOwed(passStarting: true)
 
         var ran = false
         var logged: [String] = []
@@ -122,7 +126,7 @@ final class RescoreBackgroundSchedulerTests: XCTestCase {
     /// is the livelock fix: #1538 paid for a full eight-minute pass on every offload because nothing
     /// remembered that the previous one had not finished.
     func testASecondBackgroundTriggerDoesNotStartADuplicatePass() async {
-        RescoreBackgroundScheduler.markRescoreOwed()
+        RescoreBackgroundScheduler.markRescoreOwed(passStarting: true)
 
         var ran = false
         await RescoreBackgroundScheduler.run(isBackground: true, log: { _ in }) { ran = true }
@@ -313,5 +317,34 @@ final class RescoreBackgroundSchedulerTests: XCTestCase {
 
         let latest = RescoreBackgroundScheduler.markRescoreOwed()
         XCTAssertTrue(RescoreBackgroundScheduler.markRescoreCompleted(seconds: 1, owedToken: latest))
+    }
+    func testThePassCostLineSeparatesASuspendedPassFromABusyOne() {
+        // The field shape: 2 h 27 min of uptime for a pass that is ~2 min of CPU when run in the foreground.
+        XCTAssertEqual(RescoreBackgroundScheduler.passCostLogLine(cpuSeconds: 150, elapsedSeconds: 8_813.2,
+                                                                  assertionExpiries: 1, backgroundedAtEnd: true),
+                       "re-score: cost cpu=150.0s elapsed=8813.2s cpuShare=2% assertionExpired=1 backgrounded=true")
+        XCTAssertEqual(RescoreBackgroundScheduler.passCostLogLine(cpuSeconds: nil, elapsedSeconds: 3,
+                                                                  assertionExpiries: 0, backgroundedAtEnd: false),
+                       "re-score: cost cpu=n/a elapsed=3.0s cpuShare=n/a assertionExpired=0 backgrounded=false")
+    }
+
+    func testProcessCPUTimeAdvances() {
+        let start = RescoreBackgroundScheduler.processCPUSeconds() ?? 0
+        var x = 0.0
+        for i in 0..<2_000_000 { x += sin(Double(i)) }
+        XCTAssertNotEqual(x, 0)
+        XCTAssertGreaterThan(RescoreBackgroundScheduler.processCPUSeconds() ?? 0, start)
+    }
+
+    /// Repeated deferrals re-mark the debt but must not refresh the attempt time, or an old unfinished pass
+    /// would look recent forever and every offload would keep deferring.
+    func testADeferralDoesNotMakeAnOldAttemptLookRecent() async {
+        RescoreBackgroundScheduler.markRescoreOwed(passStarting: true)
+        let old = Date().timeIntervalSince1970 - RescoreBackgroundPolicy.interruptedRetryCooldownSeconds - 60
+        UserDefaults.standard.set(old, forKey: RescoreBackgroundScheduler.lastAttemptStartedAtKey)
+        RescoreBackgroundScheduler.markRescoreOwed()
+        var ran = false
+        await RescoreBackgroundScheduler.run(isBackground: true, log: { _ in }) { ran = true }
+        XCTAssertTrue(ran, "an attempt older than the cooldown is retried in the background")
     }
 }

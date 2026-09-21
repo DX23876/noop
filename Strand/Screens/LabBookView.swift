@@ -652,10 +652,25 @@ extension LabMarkerCategory {
 // MARK: - Shared formatting (decimals from the catalog; UTC day labels)
 
 enum LabBookFormat {
-    /// Format a numeric value with the marker's catalog decimals (default 1 for custom markers).
+    /// Format a numeric value with the marker's catalog decimals. A custom (non-catalog) marker has no
+    /// declared precision, so it is shown at its own precision via `plain` rather than a fixed 1 decimal,
+    /// which rounded plateletcrit 0.27 to "0.3" and urine specific gravity 1.020 to "1.0".
     static func value(_ v: Double, key: String) -> String {
-        let decimals = MarkerCatalog.definition(for: key)?.decimals ?? 1
+        guard v.isFinite else { return "—" }
+        guard let decimals = MarkerCatalog.definition(for: key)?.decimals else { return plain(v) }
         return decimals == 0 ? String(Int(v.rounded())) : String(format: "%.\(decimals)f", v)
+    }
+
+    /// Up to 3 decimals with trailing zeros dropped ("0.27", "1.02", "140"), always with a "." separator
+    /// whatever the device locale (`String(format:)` without a locale is POSIX). A value that rounds to
+    /// zero prints "0", never "-0"; a non-finite value prints "—". Twin: `LabValueFormat.plain` (Android);
+    /// both are pinned by the same expected strings in `LabBookFormatTests` / `LabValueFormatTest`.
+    static func plain(_ v: Double) -> String {
+        guard v.isFinite else { return "—" }
+        var s = String(format: "%.3f", v)
+        while s.hasSuffix("0") { s.removeLast() }
+        if s.hasSuffix(".") { s.removeLast() }
+        return s == "-0" ? "0" : s
     }
 
     private static let dayFormatter: DateFormatter = {

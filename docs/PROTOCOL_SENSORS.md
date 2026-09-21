@@ -1,4 +1,6 @@
-# WHOOP 5/MG sensor records
+# WHOOP sensor records
+
+<a id="whoop-5mg-sensor-records"></a>
 
 Applicability: [central scope and compatibility](PROTOCOL.md#scope-and-compatibility).
 
@@ -9,11 +11,176 @@ records and their validity boundaries. It complements the historical
 For ECG R16/R17, use [the ECG contract](PROTOCOL_ECG.md).
 
 Frame shapes, count capacities and processing qualifications follow the central
-scope. Earlier NOOP physical scales and timing conventions remain explicitly
+scope. Earlier physical scales and timing conventions remain explicitly
 qualified; they do not establish a new hardware calibration or every device’s
 sensor configuration.
 
-## Packet types, record layouts and integrity
+## Contents
+
+- [WHOOP 4](#whoop-4)
+  - [WHOOP 4 realtime heart-rate record (type 40)](#whoop-4-realtime-heart-rate-record-type-40)
+  - [WHOOP 4 realtime raw layouts (type 43)](#whoop-4-realtime-raw-layouts-type-43)
+  - [WHOOP 4 historical v24](#whoop-4-historical-v24)
+  - [WHOOP 4 historical v25 and unknown versions](#whoop-4-historical-v25-and-unknown-versions)
+  - [WHOOP 4 sensor and record controls](#whoop-4-sensor-and-record-controls)
+- [WHOOP 5/MG](#whoop-5mg)
+  - [Packet types, record layouts and integrity](#packet-types-record-layouts-and-integrity)
+  - [Packet 40: live HR and R-R](#packet-40-live-hr-and-r-r)
+  - [R18: biometric summary](#r18-biometric-summary)
+    - [Step source, cadence and activity](#step-source-cadence-and-activity)
+    - [Motion/rest state and override](#motionrest-state-and-override)
+  - [R18 quality-adjacent source-selection bits](#r18-quality-adjacent-source-selection-bits)
+  - [R20: optical blocks](#r20-optical-blocks)
+    - [Configuration and conditional routing](#configuration-and-conditional-routing)
+  - [R21: six-axis IMU](#r21-six-axis-imu)
+  - [Inertial record timestamps](#inertial-record-timestamps)
+  - [R22 inner version](#r22-inner-version)
+  - [R22 version 9 queued channels and sample encoding](#r22-version-9-queued-channels-and-sample-encoding)
+  - [R22 version 9 metadata refinement](#r22-version-9-metadata-refinement)
+  - [R26: compact optical window](#r26-compact-optical-window)
+  - [Dedicated IMU stream types 51 and 52](#dedicated-imu-stream-types-51-and-52)
+  - [Implementation boundaries](#implementation-boundaries)
+  - [Constructed arithmetic checks](#constructed-arithmetic-checks)
+
+<a id="whoop-4-sensor-records"></a>
+
+## WHOOP 4
+
+WHOOP 4 uses its own envelope and versioned record layouts. These boundaries are
+capture-backed or retained interoperability conventions; they are not derived from
+the WHOOP 5/MG tables below.
+
+| Record | Established WHOOP 4 boundary |
+|---|---|
+| Type 40 realtime | The WHOOP 4 type-40 layout and the standard Heart Rate Service are separate sources. Do not apply the WHOOP 5/MG packet-40 absolute offsets below. |
+| Type 43 realtime raw | Several legacy layouts exist. Command 63 controls the observed R10/R11 stream; command 82 does not stop it. Preserve an unknown layout instead of guessing from type alone. |
+| Type 47 v24 | Schema-backed legacy biometric/optical/IMU record. On one 41.17.6.0 offload all 1,704 records were CRC-valid v24; HR agreed with `60000 / mean(R-R)` to about 1 bpm and gravity magnitude was about 1 g. This is one capture, not a generation default. |
+| Type 47 v25 | Version 41.17.6.0 also produces this 84-byte frame depending on device configuration: layout byte 25 at frame 5, Unix seconds `u32le` at 11, sensor block from 23 and three signed movement values at 73/75/77. Interpreting those values as gravity scaled by `1/16384` is observation-based, not a confirmed device parameter. No per-second HR field is mapped. |
+| Legacy v5/7/9/12 | Retained layout variants. Their documentation is not proof that every field was independently captured on current firmware. |
+| Legacy IMU block | Payload length 1,917 means declared length 1,924. The layout has 100 signed `i16le` samples per axis at the offsets listed in the [WHOOP 4 profile](PROTOCOL_WHOOP4.md#legacy-imu-layout). Scales `1/4096` and `2000/32768` are commonly applied interpretations, not confirmed device parameters. |
+
+For historical records, select the layout from the emitted version and validate
+the complete family-specific frame length and CRCs first. Version 24 and 25 are
+different layouts, not revisions to reconcile by shifting fields. Capture-backed
+physiological cross-checks support the listed interpretations but do not establish
+medical accuracy, wavelength identity, calibration, or universal sample timing.
+
+### WHOOP 4 realtime heart-rate record (type 40)
+
+The table below is **documented for this version** and corroborated by observed
+WHOOP 4 notifications. Offsets are absolute in the reassembled WHOOP 4 frame.
+
+| Offset | Width | Field | Boundary |
+|---:|---:|---|---|
+| 4 | 1 | Packet type 40 | Family-specific envelope already verified |
+| 5 | 1 | Frame sequence | Not a timestamp or request correlation |
+| 6 | 4 | Unix/device seconds | **Capture interpretation**; correct wall time depends on clock state |
+| 10 | 2 | Subseconds | **Retained field**; exact unit is not independently calibrated here |
+| 12 | 1 | Heart rate | bpm |
+| 13 | 1 | R-R count | Bounds-check against frame end before iterating |
+| 14 + 2n | 2 each | R-R intervals | milliseconds; zero is a placeholder rather than a measured interval |
+
+The standard Heart Rate Service is a separate BLE source. It can serve as a
+low-bandwidth alternative, but its values do not prove that proprietary type-40
+output or historical storage is healthy.
+
+### WHOOP 4 realtime raw layouts (type 43)
+
+The common prefix is **documented for this version**: command/subtype at 6,
+record header at 7–14, Unix seconds at 15 and subseconds at 19–20.
+After that prefix, select by validated payload length, which equals declared length minus 7; packet type alone is
+not enough.
+
+| Payload length | Validation | Established layout | Unmapped region |
+|---:|---|---|---|
+| 1,917 | **Documented for this version; observed in device captures.** Declared length is 1,924. | HR at 21, R-R count at 22, four R-R values at 23–30; accelerometer X/Y/Z spans 89–688 as 100 × 3 × `i16le` from 89/289/489; gyroscope spans 692–1291 from 692/892/1092; tail 1292–1923 | 31–88 and 689–691 remain unresolved; tail semantics are not yet named |
+| 1,921 | **Documented for this version; observed in device captures.** Declared length is 1,928. | Common time fields remain at 15–20; an additional optical header occupies 21–41; one signed 24-bit little-endian AC-coupled optical waveform starts at 42 with stride 4, up to 419 samples | fourth stride byte, auxiliary bytes and tail semantics |
+
+**Observed in device captures:** the 1,917 layout produced about 100 samples per axis per
+packet at roughly one packet per second. Accelerometer scaling `1/4096 g` matched
+a gravity sphere fit; gyroscope scaling `2000/32768 degrees/s` matched bounded
+720-degree rotations within the observation's turn-count precision. These are
+commonly applied interpretations, not confirmed device parameters or a guarantee
+for every sensor-board configuration.
+
+**Capture interpretation:** the 1,921 waveform showed a clean pulse-like signal
+on-finger and flattened in air, supporting an optical/PPG role. It did not expose
+four interleaved wavelength channels. Red, IR and ambient identities are therefore
+not assigned to this live stream; byte 3 of each four-byte stride must be retained.
+
+Command 63 is the **capture-backed** output switch for the observed R10/R11
+stream. Commands 81/82 concern collection state and did not substitute for command
+63 in the observed WHOOP 4 path. Command 105 is outside the documented 41.17.6.0
+command set and has no recorded observation;
+commands 106/107 are the supported IMU stream SET/GET pair. An accepted write
+does not prove packet production or persistence.
+
+### WHOOP 4 historical v24
+
+This mapping combines a retained layout with device captures. Offsets are absolute
+in the complete WHOOP 4 frame; version is byte 5.
+
+| Offset | Width/type | Field | Validation boundary |
+|---:|---|---|---|
+| 11 | 4/u32 | Unix seconds | capture-backed |
+| 21 | 1/u8 | Heart rate | capture-backed bpm |
+| 22 | 1/u8 | R-R count | frame bounds apply |
+| 23 | 2 × count | R-R intervals | milliseconds; zero omitted |
+| 33, 35 | 2/u16 each | green and red/IR-labelled raw optical scalars | labels come from the legacy layout; not calibrated wavelength proof |
+| 40/44/48 | 4/f32 | gravity vector | capture cross-check near 1 g |
+| 55 | 1/u8 | skin-contact state | zero is the retained off-wrist interpretation |
+| 56/60/64 | 4/f32 | second gravity vector | physical distinction from first vector unresolved |
+| 68/70 | 2/u16 | raw red/IR SpO2-adjacent scalars | not an SpO2 percentage |
+| 72 | 2/u16 | skin-temperature raw ADC | not centidegrees; family-specific provisional conversion only |
+| 74 | 2/u16 | ambient-light raw | uncalibrated |
+| 76/78 | 2/u16 | LED-drive words | units and channel assignment unresolved |
+| 80 | 2/u16 | respiration-adjacent raw | not breaths/minute |
+| 82 | 2/u16 | signal-quality word | scale/polarity unresolved |
+
+One version-identified 41.17.6.0 offload contained 1,704
+CRC-valid v24 records; HR and R-R arithmetic agreed to roughly one bpm and gravity
+magnitude was physiologically plausible. This validates decoding for that capture,
+not cloud equivalence, medical accuracy or universal v24 output behavior.
+Versions 12 and 24 share a retained layout map; that association is not a fresh
+v12 device validation.
+
+### WHOOP 4 historical v25 and unknown versions
+
+**Documented for this version; observed in device captures:** depending on device
+configuration, 41.17.6.0 produces v25 as an 84-byte complete frame with layout
+byte 25 at 5, seconds at 11, a sensor block from 23 and signed movement values at
+73/75/77. Interpreting those values as gravity divided by 16384 is observation-based,
+not a confirmed device parameter. Forty-five mapped records had gravity magnitude about 0.94–0.99 g. No
+per-second HR field is mapped; do not infer HR from the waveform.
+
+Versions 5/7/9, 12/24 and 25 have distinct documented maps. An otherwise unknown
+WHOOP 4 version remains an unknown layout even if some values resemble v24.
+
+### WHOOP 4 sensor and record controls
+
+The documented 41.17.6.0 controls cover AFE, LED/TIA/bias, accelerometer,
+gyroscope/IMU, fuel gauge, charger/cap-sense and board-dependent sensor-enable
+revisions 7, 9, 12 and 19. Separate record controls exist for R7, R9, R10+R11,
+R12/R24 and R19, plus AFE and IMU streaming. Saved and realtime output exists
+for R7, R9, R10+R11, R12 and R24. These facts do not establish the complete
+wire layouts, units, calibration, cadence or availability in every device state.
+
+The strap reports a step count and can recover from a count that remains zero or
+unchanged; it also reports sleep/wake motion classifications and rolling motion
+statistics. False-step suppression affects the reported count. Exact filters,
+threshold units, orientation compensation, persistence and ground-truth accuracy
+remain unknown. This counter
+must not be equated with app or cloud steps without a version-labelled wire field
+and a validation set.
+
+<a id="whoop-5mg-version-baseline"></a>
+
+## WHOOP 5/MG
+
+The remaining R18/R20/R21/R22/R26 contracts apply to 50.42.1.0 unless a subsection
+explicitly names an older device observation or interpretation convention.
+
+### Packet types, record layouts and integrity
 
 All offsets are absolute in the **reassembled WHOOP 5/MG format-1 frame**.
 Integers and IEEE-754 floats are little-endian unless stated otherwise. Verify
@@ -27,20 +194,20 @@ a record can span BLE fragments.
 | 43 | Live sensor data; R16 and R17 ECG use a layout selector at byte 9. Type alone does not identify a waveform. |
 | 47 | Historical data; byte 9 selects R16, R17, R18, R20, R21, R26 or another record layout. Preserve unknown layouts. |
 | 48 | Event; WHOOP 5 event number at byte 10 and u32 event timestamp at byte 12. Variable payloads require event-specific handling. |
-| 51 | Dedicated realtime IMU stream; [partial client layout](#dedicated-imu-stream-types-51-and-52), current strap producer unconfirmed. |
-| 52 | Dedicated historical IMU stream; [partial client layout](#dedicated-imu-stream-types-51-and-52). Do **not** assume type 47/R21. |
+| 51 | Dedicated realtime IMU stream; [documented count/span layout](#dedicated-imu-stream-types-51-and-52), current strap output unconfirmed. |
+| 52 | Dedicated historical IMU stream; [documented count/span layout](#dedicated-imu-stream-types-51-and-52). Do **not** assume type 47/R21. |
 
 Packet number, record layout, command number and event number are separate
 namespaces. WHOOP 4 type-43 shapes must not be imported by shifting offsets alone.
 The 1,917-byte WHOOP 4 IMU and 1,921-byte optical variants do not define WHOOP 5
-records. Current START/END/COMPLETE messages use metadata type 49. Preserve type 56 compatibility where older supported-device evidence requires it; no universal release boundary is established.
+records. Current START/END/COMPLETE messages use metadata type 49. Preserve type 56 compatibility where older supported-device observations require it; no universal release boundary is established.
 
 For R18/R20/R21/R26, byte 9 is the layout, u32 at 11 is a record index and u32 at
 15 is a Unix-seconds timestamp. The index is not a timestamp: do not fill time gaps
 by counting records or assume rollover/reset behavior. Unmapped fields must remain
 opaque, not silently converted to zero measurements.
 
-## Packet 40: live HR and R-R
+### Packet 40: live HR and R-R
 
 | Offset | Width / type | Meaning |
 |---:|---|---|
@@ -57,10 +224,10 @@ for multiplication. No packet-local quality flag or independent absolute timesta
 per interval is established. Do not reuse the unknown additional time field's
 scale from an unrelated clock command.
 
-## R18: biometric summary
+### R18: biometric summary
 
 The established summary shape is **124 bytes**, with CRC at 120. The following
-measurement conventions include earlier NOOP decoding; they are not all physical
+measurement conventions include earlier interpretations; they are not all physical
 sensor guarantees for every firmware version.
 
 | Offset | Width / encoding | Field, scale and validity |
@@ -69,26 +236,26 @@ sensor guarantees for every firmware version.
 | 11 | 4 / u32 | Record index |
 | 15 | 4 / u32 | Unix seconds; reject implausible dates according to the application's time-range policy |
 | 22 | 1 / u8 | Heart rate, bpm; retain quality context from byte 36 |
-| 23 | 1 / u8 | R-R count; NOOP reads at most four complete positive words |
+| 23 | 1 / u8 | R-R count; the documented layout contains at most four complete positive words |
 | 24 + 2i | 2 / u16 | Up to four R-R words; 1/1024 s, same rounded-ms conversion as packet 40 |
 | 33 | 1 / u8 | Cardiac-adjacent flags, meanings unresolved |
-| 36 | 1 / u8 | HR/R-R quality flags; bit 7 is the earlier NOOP validity interpretation, not independently established here for the reference baseline |
-| 37 | 1 / u8 | Alternate HR in bpm; earlier NOOP convention uses byte-36 bit 7 as its acceptance gate; validity for the reference baseline remains unresolved |
+| 36 | 1 / u8 | HR/R-R quality flags; bit 7 has an earlier validity interpretation not independently established here for the reference baseline |
+| 37 | 1 / u8 | Alternate HR in bpm; an earlier convention treats byte-36 bit 7 as its validity signal; validity for the reference baseline remains unresolved |
 | 38 | 2 / u16 | R-R-adjacent packed word; unit/meaning unresolved |
-| 41 | 4 / f32 | Dynamic, gravity-removed acceleration; g in NOOP's convention, accept finite values in [0,8] |
+| 41 | 4 / f32 | Dynamic, gravity-removed acceleration; g in the retained convention, accept finite values in [0,8] |
 | 45, 49, 53 | 4 each / f32 | Gravity x/y/z, g; no established per-axis sentinel |
 | 57 | 2 / u16 | Selected cumulative step/motion counter; selection detailed below |
 | 59 | 2 / u16 | Cadence-like raw value, supplied from u8; high byte is zero |
 | 61 | 2 / u16 | Hardware counter when software override is active, otherwise zero |
 | 63 | 1 / u8 | Activity: 0 still, 1 walk, 2 run; other input classes become FF and must not be surfaced as those three classes |
 | 64 | 1 / u8 | 10 hex when software counter override is active, otherwise zero |
-| 69, 71 | 2 each / i16 | Auxiliary thermal channels, raw/10 °C in NOOP; accept 0–60 °C |
+| 69, 71 | 2 each / i16 | Auxiliary thermal channels, retained raw/10 °C interpretation; accept 0–60 °C |
 | 73 | 2 / u16 | Skin-temperature convention, raw/100 °C; accept 5–45 °C |
 | 75, 77, 79 | 2 each / u16 | Raw status words; no sleep-stage meaning established |
 | 81 | 1 / bitfield | Four two-bit groups; detailed below |
 | 82 | 1 / u8 | Sleep-adjacent raw byte; 80/A0 hex are candidate sentinels, not established physiological labels |
 | 106, 107 | 1 each / u8 | Optical baseline-like raw values; per-byte optical identity provisional |
-| 108, 109 | 1 each / u8 | Optical amplitude-like values; simultaneous 128 is NOOP's signal-quality sentinel interpretation |
+| 108, 109 | 1 each / u8 | Optical amplitude-like values; simultaneous 128 has been treated as a signal-quality sentinel |
 | 113 | 4 / f32 | Unknown finite float; zero may mean unset, no established quantity |
 | 120 | 4 / u32 | CRC32 over `[8,120)` |
 
@@ -108,23 +275,23 @@ zero-filled convention in the available decoder coverage, and byte 104 a marker;
 these are not universal sentinels. Do not reject a future record solely because a
 previously constant tail changes.
 
-### Step source, cadence and activity
+#### Step source, cadence and activity
 
-the normal value at 57 is the hardware pedometer count. When software
+For this layout, the normal value at 57 is the hardware pedometer count. When software
 counter override is enabled, 57 carries the software count, 61 retains the hardware
 count and 64 becomes `0x10`. With no override, bytes 61–62 and 64 are zero. This
-allows a client to retain both sources and avoid joining a change of source into a
+allows a client to retain both sources and avoid turning a change of source into a
 false step delta.
 
 The hardware tuple contains count, cadence-like byte and activity class. A
-cadence value is **not a documented steps-per-minute conversion**; even its
-monotonic relationship to speed is not guaranteed. Preserve it raw. Neither
+cadence value is **not a documented steps-per-minute conversion**; even a
+consistent relationship to speed is not guaranteed. Preserve it raw. Neither
 counter is established as equal to the official app's aggregated step count.
 Rollover, reset and day boundaries remain unresolved; a timestamped counter must
 not be advertised as a midnight-reset daily total. Byte 63 also has older
 quality-oriented naming, so retain the raw byte with the selected activity label.
 
-### Motion/rest state and override
+#### Motion/rest state and override
 
 Byte 81 packs four independent two-bit values:
 
@@ -147,55 +314,23 @@ SLEEP is not a mapping to light, deep or REM sleep, and is unrelated to processo
 power-saving sleep. Byte 75 is not a deep-sleep indicator. The record supplies
 neither a validated hypnogram nor an established production SpO₂ value.
 
-## R18 quality-adjacent source-selection bits
+### R18 quality-adjacent source-selection bits
 
-The packed byte at frame 36 includes source-selection contributions. In the
-traced producer, bit 4 is added when an alternate-source selection branch is
-active, and bit 5 is added both there and under a subsequent hold condition.
-The same byte also receives the low four bits of a separate source through an
-OR operation, and another source can add bit 6. These contributions can coexist
-with bits 4 and 5. They do not establish a single quality enum, a complete
-validity mask or physiological labels.
+The packed byte at frame 36 combines several independently observable fields.
+Bit 4 marks active alternate-source selection. Bit 5 is set with bit 4 and can
+remain set without bit 4 for up to nine further qualifying updates. The low four
+bits carry a separate raw field, and bit 6 can be set independently; these values
+can coexist. Preserve the complete raw byte.
 
-The numeric selector has the following bounded transitions. Here `x` and `y` are
-internal numeric scores, `-128` is missing input, and counts are calls, not seconds
-or calibrated quality measures.
+These relationships do not establish a single quality enum, a complete validity
+mask, clinical quality, bit-7 validity or a sufficient rule for accepting or
+discarding a reading. Bit 5 is not an instantaneous source-selection indicator,
+and update counts are not a wall-clock duration. A separate byte in the flags word
+is zero for nonpositive finite input; positive values are limited to 30–210 and
+rounded to the nearest integer, with positive half values rounded upward. Its units
+remain unresolved and the range is not proof of heart-rate or quality semantics.
 
-| State | Selected transition rule |
-|---|---|
-| 0 | Wait ten count increments, then enter 1 for `x` in `[-127,12]`. |
-| 1 | Return to 0 for `x > 20`; otherwise missing `x` or `y` retains 1, and `y > x + 7` enters 2. |
-| 2 | Wait ten increments, then retain 2 only for `x` in `[-127,20]`, `y != -128`, and `y > x + 7`. |
-
-State 2 contributes the override only with the additional enable predicates;
-these transitions alone are not a client readiness test.
-
-The hold counter is set to 10 by that branch. Once the branch stops, it is
-reduced before testing; bit 5 can therefore remain without bit 4 for nine further
-qualifying updates. Continued selector state 1 or 2 is required; state 0 stops this
-contribution immediately. Update counts are not a wall-clock duration, and this
-is not an unconditional ten-record grace period.
-
-Preserve the raw byte. These contributions do not establish clinical quality,
-bit 7 validity, or a sufficient rule for accepting or discarding a reading.
-
-The numeric inputs behind the source-selection contributions in bits 4/5 have
-separate histories. After a history reset, the first four enabled updates supply
-a missing-input value. Updates 5–59 use a quantized cumulative mean of a
-transformed internal score; update 60 starts an approximately 2% new / 98% retained
-state smoother. These are update counts, not seconds or a sample-rate guarantee.
-A configuration-change path resets both histories. Combined with the selector
-and hold counter, this prevents treating bits 4/5 as an instantaneous quality rank.
-The score's physiological meaning remains unspecified.
-
-A separate contribution to the flags word is an internal cached numeric value
-shifted by 8 and ORed with other contributions. For finite inputs it is zero when
-nonpositive; positive inputs are clamped to 30–210 and rounded to the nearest
-integer, with positive half values rounded upward. Its units and other writers
-to the resulting byte remain unresolved. Do not interpret the numeric range as
-proof of heart-rate or quality semantics.
-
-## R20: optical blocks
+### R20: optical blocks
 
 R20 is exactly **2,140 bytes**: a 26-byte header, five 422-byte blocks, then CRC32
 at 2136 covering `[8,2136)`. It is not a checksum over only the blocks. Layout is
@@ -233,29 +368,30 @@ For a constructed count-only example, block counts `[12,0,0,12,12]` represent
 `3 × 2 × 12 = 72` populated values, despite 500 available positions. This example
 contains no measured samples.
 
-### Configuration and conditional routing
+#### Configuration and conditional routing
 
 The fourth block (zero-based block 3) has an alternate source pair. When the
 primary source has no samples, a fallback source supplies that block, including
 its count, and marker bit 0 is set. Do not interpret the fourth block as a permanently
 fixed optical channel or its marker as a quality verdict.
 
-On the known configuration-to-metadata producer path, drive/configuration values
-are quantized as
+In observed configuration metadata, drive/configuration values are quantized as
 `(((input + 5) mod 2^32) // 10) mod 2^16`: the addition wraps as u32 before
 unsigned division, then the result is stored as u16. This rounding/truncation does not establish milliamps or another
 upstream physical unit. Historical conventions include ranges 16/32 and offsets
-in multiples of 800. In the first-block configuration join, accepted offset
+in multiples of 800. In the first block, accepted offset
 settings 0/8000/16000/24000 produce signed metadata values 0/800/1600/2400.
-This join does not establish every block's complete routing or a physical unit.
+This relationship does not establish every block's complete routing or a physical unit.
 A zero-drive fourth block has served as a dark control; that
 pattern is not a guarantee under every routing configuration. The two slots share
 one header and remain **A/B**, not red/infrared/green. Detector geometry, wavelength,
 source enums and calibrated drive/range/offset units remain unresolved.
 
-## R21: six-axis IMU
+### R21: six-axis IMU
 
-R21 has fixed length **1,244 bytes**, with CRC32 at 1240 covering `[8,1240)`.
+R21 and the [dedicated IMU streams](#dedicated-imu-stream-types-51-and-52) use the
+[ICM-45686 IMU](PROTOCOL_WHOOP5.md#whoop5-icm-45686). R21 has fixed length
+**1,244 bytes**, with CRC32 at 1240 covering `[8,1240)`.
 Layout is 21 at 9 and the marker at 10 commonly `0x80`; neither marker alone proves
 measurement quality. Sequence and Unix-seconds base time are at 11 and 15.
 
@@ -278,11 +414,9 @@ The six columns each reserve 200 bytes. Counts are independent u8 values widened
 to u16, so their high bytes are zero in this version. All column capacity remains
 present when counts are smaller. Bounds-check each count against 100 and consume
 only that group's valid values. Do not require accelerometer and gyroscope counts
-to be equal merely because earlier NOOP decoding accepted only 100/100 buffers.
-Keep that existing strict decoder gate distinguishable from the broader record
-capacity contract.
+to be equal; the record capacity permits independent counts up to 100.
 
-NOOP’s earlier IMU convention scales acceleration as `raw / 4096` g,
+An earlier IMU convention scales acceleration as `raw / 4096` g,
 gyroscope as `raw * 2000 / 32768` degrees/s, and places sample i at
 `base_time + i/100` for a 100 Hz, one-second buffer. The fixed layout does not
 independently establish those physical settings or a timing rule for
@@ -293,9 +427,9 @@ No per-sample quality bit, axis-to-strap/body geometry, counter rollover, timest
 jitter rule or active range configuration is established here. Structurally valid
 six-axis data is not proof of a body orientation.
 
-## Inertial record timestamps
+### Inertial record timestamps
 
-layout 21 is carried by live packet 43 and historical
+In this version, layout 21 is carried by live packet 43 and historical
 packet 47. Its little-endian timestamp has Unix seconds at frame offset 15 and a
 u16 fraction at offset 19. Combine them as `seconds + fraction / 32768`.
 
@@ -305,56 +439,55 @@ For valid clock readings, fractional words range from 0 to 32440. This statement
 covers layout 21; it does not establish timing jitter, clock validity or the
 fractional scale of other layouts.
 
-No matching strap producer is established for packets 51/52. The [partial client
-layout](#dedicated-imu-stream-types-51-and-52) below provides separate count/span
+No matching strap output is established for packets 51/52. The [documented
+count/span layout](#dedicated-imu-stream-types-51-and-52) below provides separate
 bounds; do not decode these packets as layout 21.
 
-Command 106 changes requested live motion state, which is staged and applied later. Successful driver application enables the packet 43/layout 21 publisher. Failure or rapid opposite requests can leave active and requested state different; see [collection coordination](PROTOCOL_CONFIGURATION.md#collection-and-live-stream-coordination). No packet 51/52 producer is established by this route.
+Command 106 changes requested live motion state, which can take effect after the
+acknowledgement. Successful application enables packet 43/layout 21 output. Failure
+or rapid opposite requests can leave requested state and observed output different;
+see [collection coordination](PROTOCOL_CONFIGURATION.md#collection-and-live-stream-coordination).
+No packet 51/52 output is established by this route.
 
-## R22 inner version
+### R22 inner version
 
-the R22 inner version is byte 21 of the complete frame, followed
+On the wire, the R22 inner version is byte 21 of the complete frame, followed
 by subversion at byte 22. The frame remains 188 bytes across the selected version
-paths. These bytes are distinct from layout 22 at byte 9 and outer format tag 3
-at byte 6. [Version preferences](PROTOCOL_CONFIGURATION.md#r22-version-preferences)
+paths. These bytes are distinct from layout 22 at byte 9. In format 1, bytes 6–7
+contain the CRC16-Modbus value over bytes 0–5; there is no format tag there. Format 2
+instead carries an unnamed marker with value 3 at byte 34. [Version preferences](PROTOCOL_CONFIGURATION.md#r22-version-preferences)
 can fall back or use queued data. Preserve unknown versions; neither a preference
 name nor the fixed wrapper size supplies the full body schema. No packet 51/52
 layout follows from this R22 selection path.
 
-For the R18 quality byte at frame offset 36, the reference baseline contract combines
-multiple bit contributions rather than a single established classifier enum.
-Preserve the raw byte. This does not establish clinical meanings or confirm the
-earlier bit-7 validity interpretation for this version.
+### R22 version 9 queued channels and sample encoding
 
-## R22 version 9 queued channels and sample encoding
-
-the v9 body contains a channel identifier at complete-frame byte 141.
-The current-output path uses identifier 0 and stages bodies for identifiers 1..5.
+For this layout, the v9 body contains a channel identifier at complete-frame byte 141.
+Current output uses identifier 0; retained records use identifiers 1..5.
 These identifiers distinguish numeric input channels; their physical mapping
 and units remain unresolved.
 
-The current-versus-replay decision tests the first 32-bit input words of numeric
-channels 1 and 2. Both zero selects replay; otherwise current output is built.
+When the first 32-bit words of numeric channels 1 and 2 are both zero, the strap
+can replay retained output; otherwise it emits current output.
 These are value tests, not valid-count or complete-sensor-availability tests.
 A replayed body does not prove that all current sensor inputs were absent.
 
-When this predicate switches to replay, one saved body is emitted
-per preparation call in channel order **1,2,4,5,3**, draining each channel before
-the next. A saved body is not necessarily a fresh reading. Empty queues produce
+During replay, one retained body is emitted at a time in channel order
+**1,2,4,5,3**, exhausting each channel before the next. A retained body is not
+necessarily a fresh reading. When no retained record is available, the strap emits
 **version 4**, even when version 9 has priority in the configuration. Always decode
 the actual inner version at byte 21.
 
-The described preparation/replay path finally compares version and subversion
-together as a little-endian 16-bit number. Values above 9 become version 1,
+The emitted version and subversion are also interpreted together as a little-endian
+16-bit number. Values above 9 become version 1,
 subversion 0: 9/1 is normalized, whereas 0/0 is unchanged by this check. This is a
-producer rule, not a client whitelist or a rule for every R22 builder.
+documented output rule, not a client whitelist or a rule for every R22 variant.
 
-Each of the five traced queues has 60 slots in its normal count range. At
-capacity, new writes replace the last slot and retain the first 59; this is not
-a rotating window of the most recent 60 records. Replay order is not a promise
-of chronological order across channels. Adding current data does not itself
-rewind replay cursors. No maximum replay age or guaranteed number of delivered
-records is established.
+The strap keeps up to 60 queued records for each of the five channels. At capacity,
+a new record replaces the last position while the first 59 remain; this is not a
+rotating window of the most recent 60 records. Replay order is not a promise of
+chronological order across channels. New current data does not restart an ongoing
+replay. No maximum replay age or guaranteed number of delivered records is established.
 
 For emitted version 9/subversion 0, offsets below are from the complete 188-byte
 frame; the body starts at byte 21:
@@ -370,8 +503,8 @@ frame; the body starts at byte 21:
 | 35 | 98 | 49 little-endian signed 16-bit adjacent-sample differences |
 | 133 | 4 | Raw metadata; meaning unresolved |
 | 137 | 2 | Packed channel-selected metadata; [subfields](#r22-version-9-metadata-refinement) below |
-| 139 | 1 | Predicate contribution on the selected producer path; meaning/freshness unresolved |
-| 140 | 1 | Zero in this version's builder |
+| 139 | 1 | Raw 0/1 field; meaning/freshness unresolved |
+| 140 | 1 | Zero in this documented layout |
 | 141 | 1 | Numeric channel identifier 0..5 |
 | 142 | 42 | Opaque tail; do not assume zero |
 
@@ -383,48 +516,46 @@ is lossy. Preserve the initial 32-bit pattern. Neither the encoding nor its
 channel identifier establishes calibrated units, physical signedness or sample
 frequency. The 42-byte tail is outside the sample encoding.
 
-Keep body bytes 121–162 opaque. The output uses retained storage, and other body
-versions write within this region. A version 9 write does not itself clear those
-bytes. Nearby working-buffer and replay-pool clearing does not establish that
-this output tail is zero. Ignore the tail when decoding version 9; do not use its
+Keep body bytes 121–162 opaque. Other body versions can place values within this
+region, and a version 9 record does not guarantee that the tail is zero. Ignore
+the tail when decoding version 9; do not use its
 contents as a freshness marker or as extra sample values.
 
 The R18 validity convention and v8 remain unresolved. The v9 addition does not
-define packets 51/52; their [partial client contract](#dedicated-imu-stream-types-51-and-52) is separate.
+define packets 51/52; their [documented count/span layout](#dedicated-imu-stream-types-51-and-52) is separate.
 
-## R22 version 9 metadata refinement
+### R22 version 9 metadata refinement
 
 The little-endian word at complete-frame bytes 137..138 (body 116..117) is
 **packed metadata**, not a scalar gain, amplitude or quality score. Preserve its
 raw value alongside any extracted subfields.
 
-For the current producer, bits 0..1 identify metadata group 0, 1 or 2. Channel IDs
+In current observations, bits 0..1 identify metadata group 0, 1 or 2. Channel IDs
 0/1/2 use group 0; IDs 3/4 use group 1; ID 5 uses group 2. Bit 2 is an additional state
-contribution for group 2; bit 3 is zero in this producer. The channel ID remains
+contribution for group 2; bit 3 is zero in this output. The channel ID remains
 at frame 141 (body 120), and these group numbers do not establish physical
 wavelengths or electrode assignments.
 
-When the metadata source is available, bits 4..5 and 6..7 contain two separate
+When this metadata is available, bits 4..5 and 6..7 contain two separate
 2-bit values and bits 8..11 contain a 4-bit value. Their individual meanings
 remain unspecified. The upper nibble combines shifted source bytes; do not
 assign four independent boolean meanings until those source values are defined.
-When the source is unavailable, the producer emits `group_tag | 0x0c00`.
-**That pattern is not a unique availability indicator:** the available path can
+When it is unavailable, the strap emits `group_tag | 0x0c00`.
+**That pattern is not a unique availability indicator:** available metadata can
 produce the same word. Do not reject a record solely because its metadata equals
 that pattern.
 
-Frame 139 (body 118) has a producer that extracts one flag bit and stores it as 0
-or 1; the meaning of that predicate remains unspecified. This does not guarantee
-freshness on every record: the preparation path can be skipped, and queued v9
-records carry their saved metadata. The 42-byte tail at frame 142..183 remains
+Frame 139 (body 118) carries one raw flag bit as 0 or 1; its meaning remains
+unspecified. This does not guarantee freshness on every record, and replayed v9
+records carry their retained metadata. The 42-byte tail at frame 142..183 remains
 opaque, with no universal zero guarantee.
 
-## R26: compact optical window
+### R26: compact optical window
 
 R26 is exactly **88 bytes**, CRC at 84 covering `[8,84)`. It carries an optical
 base value plus **24 adjacent deltas**, not 24 independent absolute readings.
-NOOP models the 25-sample window as one second; physical wavelength and calibrated
-sample units remain unresolved.
+A one-second interpretation has been used for the 25-sample window; physical
+wavelength and calibrated sample units remain unresolved.
 
 | Offset | Width / encoding | Meaning |
 |---:|---|---|
@@ -458,8 +589,8 @@ This example is arithmetic, not a waveform capture.
 
 The burst identifier is an actual two-byte field and increments when acquisition
 enters a new burst; it is not the record index, a channel selector or a ring-slot
-index. Some NOOP paths omit zero, but zero remains possible after wrapping and is
-not established as an invalid wire value. Byte 12 belongs to the record index and
+index. Zero remains possible after wrapping and is not established as an invalid
+wire value. Byte 12 belongs to the record index and
 must not be interpreted as a wavelength either.
 
 A buffered window retains its own index/time while awaiting delivery, so receive
@@ -469,19 +600,18 @@ clinical quality vocabulary. This record does not identify simultaneous red and
 infrared channels, and carries no established R-R interval field. Do not derive
 SpO₂ from unassigned channels.
 
-## Dedicated IMU stream types 51 and 52
+### Dedicated IMU stream types 51 and 52
 
-Packet types 51 and 52 share the following partial client contract for app
-the [client baseline](PROTOCOL.md#scope-and-compatibility). A matching strap publisher and valid captured frames remain
-unconfirmed. Do not substitute the R10, R21 or R22 layout for these types.
+Packet types 51 and 52 share the following documented count/span layout. Valid
+captured frames from a matching strap output remain unconfirmed. Do not substitute
+the R10, R21 or R22 layout for these types.
 
-On this decoder's frame path, the complete-frame offsets 24 and 26 contain
-little-endian unsigned 16-bit accelerometer and gyroscope counts, A and G.
-The decoder computes planar array starts as follows:
+In this layout, complete-frame offsets 24 and 26 contain little-endian unsigned
+16-bit accelerometer and gyroscope counts, A and G. The planar arrays begin at:
 
 | Array | Complete-frame byte offset |
 | --- | --- |
-| Accelerometer X | `28` (inferred from the offset arithmetic) |
+| Accelerometer X | `28` |
 | Accelerometer Y | `28 + 2*A` |
 | Accelerometer Z | `28 + 4*A` |
 | Gyroscope X | `28 + 6*A` |
@@ -496,7 +626,7 @@ Sample signedness, physical scale, cadence, timestamp fields and normal count
 limits remain unspecified. Preserve these packets as opaque when that frame
 contract cannot be established.
 
-## Implementation boundaries
+### Implementation boundaries
 
 Keep versioned shape checks separate from physical interpretation. Counts determine
 valid values; fixed lengths determine buffer capacity. Do not treat padding,
@@ -506,13 +636,13 @@ new firmware version cannot silently inherit an incompatible decoder.
 
 These specifications do not make packet 51/52 equivalent to R21, turn ECG into
 an optical record, or make band-state SLEEP an external sleep stage. They provide
-parser and application contracts; remaining calibration, hardware and timing
+decoding boundaries; remaining calibration, hardware and timing
 uncertainties require version-specific validation before stronger user-facing claims.
 
-## Constructed arithmetic checks
+### Constructed arithmetic checks
 
 Run `python3 docs/protocol-examples/validate_examples.py` from the repository root.
 The [standalone example](protocol-examples/validate_examples.py) checks clipped
 R26 reconstruction and R-R conversion with invented values, alongside ECG field
 checks. It does not validate captured records, CRC implementation, firmware
-execution, physical calibration or NOOP integration.
+execution, physical calibration or application integration.

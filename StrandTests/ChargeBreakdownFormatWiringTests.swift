@@ -62,4 +62,54 @@ final class ChargeBreakdownFormatWiringTests: XCTestCase {
         XCTAssertTrue(labels.contains("Resting heart rate"), "\(labels)")
         XCTAssertNotEqual(out?.confidence, .calibrating)
     }
+
+    /// Epoch for a `yyyy-MM-dd` key at UTC midnight, matching what Recalibrate writes.
+    private func epochOf(_ day: String) -> Double {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        let parts = day.split(separator: "-").compactMap { Int($0) }
+        let date = cal.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))!
+        return date.timeIntervalSince1970
+    }
+
+    func testDriverBaselineHonoursTheRecalibrationEpoch() {
+        // The reported shape: low-HRV history, Recalibrate, then higher nights. Folding the WHOLE history
+        // gives one baseline and folding from the epoch gives another, and the headline uses the second.
+        // These rows have to agree with the headline rather than with history.
+        //
+        // Asserted on `baselineText` because that is what a Swift ChargeDriver carries: it pre-formats for
+        // display where the Kotlin twin keeps a numeric `baseline`. Different text is the observable proof
+        // that a different history was folded.
+        let old = (1...10).map { day(String(format: "2026-01-%02d", $0), hrv: 40) }
+        let since = (11...20).map { day(String(format: "2026-01-%02d", $0), hrv: 70) }
+        let today = day("2026-01-21", hrv: 72, recovery: 70)
+        let days = old + since + [today]
+
+        let whole = ChargeBreakdownFormat.compute(row: today, days: days, restScore: 85,
+                                                  hrvBaselineEpoch: 0)
+        let fromEpoch = ChargeBreakdownFormat.compute(row: today, days: days, restScore: 85,
+                                                      hrvBaselineEpoch: epochOf("2026-01-11"))
+        let hrvRow: ((drivers: [ChargeDriver], confidence: ScoreConfidence)?) -> ChargeDriver? = { out in
+            out?.drivers.first(where: { $0.label == "Heart rate variability" })
+        }
+        guard let w = hrvRow(whole), let r = hrvRow(fromEpoch) else {
+            return XCTFail("both folds must produce an HRV row")
+        }
+        XCTAssertNotEqual(w.baselineText, r.baselineText,
+                          "the epoch fold must discard the pre-recalibration nights, so the baseline it "
+                          + "reports differs from the whole-history one (whole=\(w.baselineText), "
+                          + "fromEpoch=\(r.baselineText))")
+    }
+
+    func testAnAbsentEpochLeavesTheBaselineExactlyAsItWas() {
+        // The common case: nobody who never recalibrated may see any change from this.
+        let past = (1...10).map { day(String(format: "2026-01-%02d", $0), hrv: 50 + Double($0 % 3)) }
+        let today = day("2026-01-20", hrv: 62, rhr: 51, recovery: 64)
+        let implicit = ChargeBreakdownFormat.compute(row: today, days: past + [today], restScore: 85)
+        let explicitZero = ChargeBreakdownFormat.compute(row: today, days: past + [today], restScore: 85,
+                                                         hrvBaselineEpoch: 0)
+        XCTAssertEqual(implicit?.drivers.map(\.label), explicitZero?.drivers.map(\.label))
+        XCTAssertEqual(implicit?.drivers.map(\.baselineText), explicitZero?.drivers.map(\.baselineText))
+        XCTAssertEqual(implicit?.drivers.map(\.deltaPoints), explicitZero?.drivers.map(\.deltaPoints))
+    }
 }

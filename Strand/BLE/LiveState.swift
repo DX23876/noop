@@ -1193,6 +1193,17 @@ public enum LiveConsoleReadout {
         return SourceIdentity.isWhoop(active)
     }
 
+    /// Whether the ACTIVE registry device is an Oura ring (#2305).
+    ///
+    /// The OPPOSITE default to `activeIsWhoop`: false when the registry has not opened or the active row is
+    /// not resolvable. The ring-only affordances this gates (the ring status line, "Reconnect ring") have
+    /// no WHOOP-first tone to keep; showing them for an unknown device would offer a reconnect that
+    /// reaches nothing. A device that is neither (Polar, Garmin, …) is neither — it gets the Devices row.
+    public static func activeIsOura(devices: [PairedDevice], activeId: String?) -> Bool {
+        guard let activeId, let active = devices.first(where: { $0.id == activeId }) else { return false }
+        return active.brand.caseInsensitiveCompare(ExperimentalBrand.oura.displayBrand) == .orderedSame
+    }
+
     /// The charge to show for the ACTIVE device, or nil to show nothing.
     ///
     /// A non-WHOOP active device never falls back to the WHOOP's charge. Showing nothing is the honest

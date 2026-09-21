@@ -46,6 +46,12 @@ jobs:
       - name: Protocol doc examples (arithmetic check)
         run: python3 docs/protocol-examples/validate_examples.py
 
+      # docs/PROTOCOL_IMPLEMENTATION.md names client code as file plus symbol, without line numbers.
+      # Those references rot silently when code moves or is renamed, so validate them beside the
+      # arithmetic examples on every pull request and direct push.
+      - name: Protocol doc source references (existence check)
+        run: python3 docs/protocol-examples/check_source_references.py
+
   # The sideload install sheet is generated from altstore-source.json, NOT from the signed app, so a
   # stale `appPermissions.entitlements` under-reports what NOOP asks for and nothing about the build
   # notices. That is exactly what happened: the fork's manifest listed only HealthKit while the app

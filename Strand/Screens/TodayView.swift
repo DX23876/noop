@@ -897,7 +897,8 @@ struct TodayView: View {
         // `restScore` is the same merged sleep_performance value the Rest ring reads, so the sleep-quality
         // term stays consistent; `chargeBreakdownRow` mirrors the ring (today's own row, else the carried
         // last-scored one).
-        ChargeBreakdownFormat.compute(row: chargeBreakdownRow, days: repo.days, restScore: restScore)
+        ChargeBreakdownFormat.compute(row: chargeBreakdownRow, days: repo.days, restScore: restScore,
+                                      hrvBaselineEpoch: Baselines.hrvBaselineEpoch())
     }
 
     /// The night's relative skin-temp marker for the displayed row (A5), or nil. Surfaced verbatim from
@@ -1099,7 +1100,9 @@ struct TodayView: View {
         switch metricKey {
         case "recovery":
             // Same HRV-baseline gate the Charge engine uses, fed by the loaded nightly SDNN history.
-            let hrvBase = Baselines.foldHistory(repo.days.map(\.avgHrv), cfg: Baselines.hrvCfg)
+            let hrvBase = Baselines.foldHistory(repo.days.map(\.avgHrv), dayKeys: repo.days.map(\.day),
+                                                cfg: Baselines.hrvCfg,
+                                                baselineEpoch: Baselines.hrvBaselineEpoch())
             conf = ScoreConfidence.charge(recovery: displayDay?.recovery, hrvBaseline: hrvBase)
         case "sleep_performance":
             // A watch night with a Rest score reads as built; without one it's still calibrating.

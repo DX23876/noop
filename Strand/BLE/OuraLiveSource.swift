@@ -119,6 +119,23 @@ public final class OuraLiveSource: NSObject, ObservableObject {
     /// Cleared on `stop()` so a previously-paired ring's readings never bleed into a different one.
     @Published public private(set) var featureStatuses: [Int: OuraFeatureStatus] = [:]
 
+    /// Where the ring's session is, for the Live console (#2305). `LiveState.connected` is one flag every
+    /// live source writes into and, for the ring, is only raised by the first live HR push — so under a
+    /// ring the console could only ever read WHOOP state or nothing, and "connected, authenticating" was
+    /// indistinguishable from "connected and dead" (#2303, #2304). This names the phase the ring is
+    /// actually in. `.authenticated` is `auth OK` reached — the stream itself is `LiveState.streamingLiveHR`.
+    public enum LinkPhase: Equatable, Sendable {
+        case disconnected
+        case connecting
+        case authenticating
+        case authenticated
+    }
+    @Published public private(set) var linkPhase: LinkPhase = .disconnected
+
+    /// Set by `reconnect()` while a CONNECTED link is being cancelled on the user's request, so the
+    /// ensuing `didDisconnectPeripheral` reconnects immediately instead of on the involuntary-drop backoff.
+    private var pendingUserReconnectID: UUID?
+
     // MARK: - BLE UUIDs (from the platform-pure OuraGatt facts)
 
     /// The Oura base service (gen3/4/5). `OuraGatt` keeps the raw strings so the package stays
@@ -240,6 +257,10 @@ public final class OuraLiveSource: NSObject, ObservableObject {
     /// #1284 residual 3 (default OFF): read live at persist — when true, an Oura hypnogram night is keyed on
     /// its rounded 0x49 onset (stable per-night anchor) instead of the end-anchored first-code time.
     private let onsetKeying: () -> Bool
+    /// Packed-notification A/B (default OFF): read once per connect — when true the session's
+    /// SetNotification is the official app's `ff` instead of `3f` (OURA_PROTOCOL.md s2.3). The next
+    /// connect re-reads it, so switching the toggle off restores the default with nothing left on the ring.
+    private let notifyMaskFull: () -> Bool
     private let log: (String) -> Void
     private let onBattery: (Int) -> Void
     /// Fired with the ring's TRUE model label ("Oura Ring 3/4/5") once the GetProductInfo hardware id resolves
@@ -449,6 +470,8 @@ public final class OuraLiveSource: NSObject, ObservableObject {
     private var central: CBCentralManager!
     private var peripheral: CBPeripheral?
     private var writeCharacteristic: CBCharacteristic?
+    /// The notify characteristic, kept so the auth watchdog can toggle its subscription (#2304).
+    private var notifyCharacteristic: CBCharacteristic?
     /// A peripheral asked to connect before `centralManagerDidUpdateState` reported `.poweredOn`.
     private var pendingConnectID: UUID?
     /// Peripherals retained by identifier so a chosen one survives until connection (exact
@@ -573,6 +596,7 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         standingConnectAt = Date()
         log("Oura: leaving a STANDING connect outstanding for \(id) - CoreBluetooth will reconnect "
             + "whenever the ring is reachable, including while the app is suspended")
+        linkPhase = .connecting
         central.connect(p, options: nil)
     }
 
@@ -1143,6 +1167,23 @@ public final class OuraLiveSource: NSObject, ObservableObject {
     private let flushCount = 30
     private let flushInterval: TimeInterval = 30
 
+    // MARK: - Auth watchdog (#2304)
+
+    /// One-shot timer armed on every `get_nonce` write and cleared by the nonce. nil outside the auth
+    /// phase. Its policy lives in `OuraAuthWatchdog` (pure, tested); this class only owns the clock and
+    /// the transport steps.
+    private var authWatchdogTimer: Timer?
+    /// When the most recent `get_nonce` of this session went out; nil once the nonce arrived.
+    private var authNonceRequestedAt: Date?
+    /// Escalations already taken this session (0 → resend → toggle → drop). Reset per connection.
+    private var authEscalations = 0
+    /// True between the watchdog's CCCD off/on toggle and its re-enable callback, so
+    /// `didUpdateNotificationStateFor` re-sends `get_nonce` there instead of restarting the handshake.
+    private var authToggleInFlight = false
+    /// Consecutive sessions the watchdog dropped for silence, printed on the drop line so a log shows
+    /// "the ring has answered nothing on N links" without counting by hand. Reset by any nonce.
+    private var silentSessionsInARow = 0
+
     // MARK: - Live-HR re-engagement
 
     /// Daytime-HR auto-reverts after ~20 s (OURA_PROTOCOL.md s5.7), so while a live session is open we
@@ -1274,6 +1315,7 @@ public final class OuraLiveSource: NSObject, ObservableObject {
                 onModel: @escaping (String) -> Void = { _ in },
                 onSerial: @escaping (String) -> Void = { _ in },
                 onsetKeying: @escaping () -> Bool = { false },
+                notifyMaskFull: @escaping () -> Bool = { false },
                 feedsLive: Bool = true,
                 adoptIntent: Bool = false) {
         self.live = live
@@ -1287,6 +1329,7 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         self.onModel = onModel
         self.onSerial = onSerial
         self.onsetKeying = onsetKeying
+        self.notifyMaskFull = notifyMaskFull
         self.feedsLive = feedsLive
         self.adoptIntent = adoptIntent
         // Tier-B MET research corpus: only on a live/persisting source, never the discovery-only scanner.
@@ -1459,6 +1502,7 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         reconnectID = id
         intentionalDisconnect = false
         standingConnectAt = nil   // an explicit connect supersedes any standing one
+        linkPhase = .connecting   // every branch below is an attempt to reach the ring (scan, defer, connect)
         let p = seenPeripherals[id] ?? central.retrievePeripherals(withIdentifiers: [id]).first
         guard let p else {
             // Never seen by this Mac/iPhone yet -> remember it and scan; didDiscover connects on sight.
@@ -1479,14 +1523,49 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         central.connect(p, options: nil)
     }
 
+    /// The user asked for the ring to be reconnected, from the Live console (#2305). Until now there was
+    /// NO user-facing ring reconnect anywhere: `connect(_:)` is only reached from the coordinator on
+    /// activation, and the only "connect" button a ring user could find on the Live screen was the WHOOP
+    /// scan — which is what the #2303 reporter tapped, and which ran a full 5/MG handshake under an
+    /// active ring. This is the ring's own affordance: drop whatever link exists and connect again,
+    /// through the same `connect(_:)` every activation uses. Nothing new goes to the ring.
+    ///
+    /// A connected link is cancelled and re-connected from `didDisconnectPeripheral` (CoreBluetooth
+    /// serialises the two; issuing the connect before the cancel lands would be racing it); a pending
+    /// connect is simply superseded by a fresh one. Also clears a `needsPairing` latch — a user reconnect
+    /// is the documented way out of that dead end — and never scans past a known ring.
+    public func reconnect() {
+        needsPairing = nil
+        intentionalDisconnect = false
+        failedReconnectAttempts = 0
+        if let p = peripheral, p.state == .connected {
+            log("Oura: reconnect requested - dropping the current link and connecting again")
+            pendingUserReconnectID = reconnectID ?? p.identifier
+            central.cancelPeripheralConnection(p)
+            return
+        }
+        guard let id = reconnectID ?? peripheral?.identifier else {
+            log("Oura: reconnect requested - no known ring, scanning")
+            scan()
+            return
+        }
+        if let p = peripheral, p.state == .connecting {
+            central.cancelPeripheralConnection(p)   // supersede the pending / standing connect
+        }
+        log("Oura: reconnect requested")
+        connect(id)
+    }
+
     /// Tear down: cancel the connection, stop scanning, flush, clear all transient state. Idempotent.
     public func stop() {
         // A deliberate teardown (device switch / removal) must NOT auto-reconnect: mark it intentional and
         // drop the reconnect target so any pending backoff bails and no fresh one is scheduled (#912).
         intentionalDisconnect = true
         reconnectID = nil
+        pendingUserReconnectID = nil
         failedReconnectAttempts = 0
         standingConnectAt = nil   // cancelPeripheralConnection below also cancels any standing connect
+        linkPhase = .disconnected
         stopScan()
         pendingConnectID = nil
         stopReengageTimer()
@@ -1505,9 +1584,11 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         // cases -- user disconnect, source switch, Bluetooth off. A process kill cannot be covered at
         // all, which is a limit of the transport rather than of this fix.
         disableLiveHR()
+        clearAuthWatchdog()
         if let p = peripheral { central.cancelPeripheralConnection(p) }
         peripheral = nil
         writeCharacteristic = nil
+        notifyCharacteristic = nil
         // Drain BEFORE driver.stop() clears its anchor, so a pending event still gets a real anchored
         // time if one exists rather than always falling back to wall-clock at teardown. Same for a
         // hypnogram burst still accumulating (e.g. the session ended mid-drain).
@@ -1661,6 +1742,9 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         guard let driver else { return }
         let commands = driver.nextStep(after: transition)
         write(commands)
+        // `.ready` is the step that writes `get_nonce`; from here the session waits on the ring, and
+        // nothing else is armed until `auth OK`. Start the clock on that wait (#2304).
+        if transition == .ready, driver.phase == .authenticating { armAuthWatchdog() }
         // Surface the driver's coarse phase honestly into the UI state.
         switch driver.phase {
         case .needsKeyInstall:
@@ -1677,6 +1761,7 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         case .streaming:
             if !reachedStreaming {
                 reachedStreaming = true
+                linkPhase = .authenticated
                 adoptPhase = .streaming   // re-auth after an install (or a normal auth) reached the stream: adoption complete
                 pendingInstallKey = nil   // an OK ack already persisted the key; nothing left in flight
                 // The driver's own auth-success path (OuraDriver.nextStep, .authCompleted(.success)) has no
@@ -1770,6 +1855,7 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         // Re-auth with the freshly-installed key. The driver returns enable-notify + get-nonce; the nonce
         // response then flows through the normal handleSecure -> advance path to streaming.
         write(driver.keyInstallAcknowledged())
+        if driver.phase == .authenticating { armAuthWatchdog() }
     }
 
     /// A fresh 16-byte application key for the adopt install, from the system CSPRNG. Per OURA_PROTOCOL.md
@@ -2317,6 +2403,110 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         }
     }
 
+    // MARK: - Auth watchdog (#2304)
+
+    /// Settle time between disabling and re-enabling the notify subscription on the `.toggleNotify`
+    /// step — open_ring's value for the same CCCD round-trip.
+    private static let authToggleGap: TimeInterval = 2.5
+
+    /// Start (or restart) the nonce clock: called on every `get_nonce` write of the session — the `.ready`
+    /// step, the post-install re-auth, and the watchdog's own re-sends — so each wait is measured from
+    /// the request it belongs to. One-shot; `authWatchdogFired` re-arms it after an escalation.
+    private func armAuthWatchdog() {
+        authWatchdogTimer?.invalidate()
+        authNonceRequestedAt = Date()
+        let t = Timer.scheduledTimer(withTimeInterval: OuraAuthWatchdog.nonceTimeout, repeats: false) { [weak self] _ in
+            Task { @MainActor in self?.authWatchdogFired() }
+        }
+        authWatchdogTimer = t
+    }
+
+    /// The nonce arrived, or the session ended: nothing left to watch.
+    private func clearAuthWatchdog() {
+        authWatchdogTimer?.invalidate()
+        authWatchdogTimer = nil
+        authNonceRequestedAt = nil
+    }
+
+    /// Ask the driver for the `get_nonce` again (only while it is still `.authenticating`) and restart
+    /// the clock on it. A driver that has moved on returns nil and the watchdog stays cleared.
+    private func resendAuthNonce() {
+        guard let driver, let cmd = driver.authNonceRetryCommand() else { clearAuthWatchdog(); return }
+        write([cmd])
+        armAuthWatchdog()
+    }
+
+    /// The nonce timer expired with no nonce (#2304). Print the one line that says what was not
+    /// answered — always-on, because this is exactly the rare-event evidence a report without Test
+    /// Centre lacks — then take the next bounded step from `OuraAuthWatchdog`: re-send once, toggle the
+    /// subscription and re-send once, then drop the link and let the ordinary reconnect backoff take
+    /// over. Never `announceNeedsPairing`: silence is not an auth verdict, and the "re-pair it in the
+    /// Oura app" dead end is reserved for an explicit non-success status.
+    ///
+    /// `canSendWriteWithoutResponse` is on the line because every Oura write goes out `.withoutResponse`
+    /// and nothing reads that flag: "the ring ignored `get_nonce`" and "CoreBluetooth had no room to
+    /// send it" produce the identical `-> get_nonce` log line. The boolean is the one thing that tells
+    /// the two apart after the fact.
+    private func authWatchdogFired() {
+        authWatchdogTimer = nil
+        // Only a session still waiting on the nonce has anything to escalate. A driver that moved on
+        // (the nonce landed between the timer firing and this running, a stop, a disconnect) is left alone.
+        guard let driver, driver.phase == .authenticating, let requestedAt = authNonceRequestedAt,
+              let p = peripheral else {
+            clearAuthWatchdog()
+            return
+        }
+        let elapsed = Date().timeIntervalSince(requestedAt)
+        let silent = "Oura: no auth nonce \(Int(elapsed))s after get_nonce - ring silent on the notify channel "
+            + "(canSendWriteWithoutResponse=\(p.canSendWriteWithoutResponse))"
+        switch OuraAuthWatchdog.step(secondsSinceNonceRequest: elapsed, attempt: authEscalations) {
+        case .wait:
+            // Fired early (clock adjustment / re-arm race): wait out the remainder, no escalation.
+            let remaining = max(0.5, OuraAuthWatchdog.nonceTimeout - elapsed)
+            let t = Timer.scheduledTimer(withTimeInterval: remaining, repeats: false) { [weak self] _ in
+                Task { @MainActor in self?.authWatchdogFired() }
+            }
+            authWatchdogTimer = t
+        case .resendNonce:
+            authEscalations = 1
+            log(silent + " - re-sending get_nonce (1/3)")
+            resendAuthNonce()
+        case .toggleNotify:
+            authEscalations = 2
+            guard let nc = notifyCharacteristic else {
+                // No subscription handle to toggle (never discovered): nothing to re-establish, so go
+                // straight to the last step rather than pretend a toggle happened.
+                log(silent + " - no notify characteristic to toggle, dropping the link (3/3)")
+                authEscalations = 3
+                clearAuthWatchdog()
+                central.cancelPeripheralConnection(p)
+                return
+            }
+            log(silent + " - toggling the notify subscription and re-sending get_nonce (2/3)")
+            authToggleInFlight = true
+            p.setNotifyValue(false, for: nc)
+            // The re-enable's callback (`didUpdateNotificationStateFor`) re-sends `get_nonce` and re-arms
+            // the clock; until then the clock keeps running from THIS moment so a toggle the ring never
+            // acknowledges still reaches the drop step instead of parking the session again.
+            armAuthWatchdog()
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.authToggleGap) { [weak self] in
+                guard let self, self.authToggleInFlight, let p = self.peripheral,
+                      let nc = self.notifyCharacteristic else { return }
+                p.setNotifyValue(true, for: nc)
+            }
+        case .dropLink:
+            authEscalations = 3
+            silentSessionsInARow += 1
+            log(silent + " - dropping the link; the ordinary reconnect takes over (3/3, silent session "
+                + "\(silentSessionsInARow) in a row)")
+            clearAuthWatchdog()
+            authToggleInFlight = false
+            // NOT an intentional teardown: `intentionalDisconnect` stays false and `reconnectID` stays
+            // set, so `didDisconnectPeripheral` schedules the normal backoff reconnect (#912).
+            central.cancelPeripheralConnection(p)
+        }
+    }
+
     // MARK: - Re-engagement timer (daytime-HR auto-reverts ~20s)
 
     /// Arm the re-engage tick — unless the screen has already been off past the grace window. That guard
@@ -2558,6 +2748,7 @@ extension OuraLiveSource: @preconcurrency CBCentralManagerDelegate {
 
     public func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         log("Oura: connected - discovering services")
+        linkPhase = .authenticating   // link up; discovery + the nonce handshake follow
         failedReconnectAttempts = 0   // a real connection clears the reconnect backoff (#912)
         standingConnectAt = nil       // whatever was outstanding has landed
         peripheral.delegate = self
@@ -2570,11 +2761,21 @@ extension OuraLiveSource: @preconcurrency CBCentralManagerDelegate {
         // ring actually sends (raw bytes per kind, decoded MET for 0x50) so the layouts can be validated
         // against real captures. It can never leak a value into scoring: OuraStreamMapping drops
         // .tierB/.activityInfo unconditionally - the Tier-discipline gate that matters lives there, not here.
+        // Packed-notification A/B: the mask is decided here, once per session, and named on its own line
+        // ONLY when it is not the default - the `-> notify_all(ff)` write line then confirms it went out.
+        let notificationMask = notifyMaskFull() ? OuraCommands.notificationMaskFull : OuraCommands.notificationMaskDefault
+        if notificationMask != OuraCommands.notificationMaskDefault {
+            log("Oura: SetNotification mask \(String(format: "%02x", notificationMask)) this session (packed-notification A/B, Test Centre) - default is \(String(format: "%02x", OuraCommands.notificationMaskDefault))")
+        }
         driver = OuraDriver(ringGen: ringGen,
                             authKey: authKey().map { [UInt8]($0) },
                             allowTierB: true,
-                            allowKeyInstall: adoptIntent)
+                            allowKeyInstall: adoptIntent,
+                            notificationMask: notificationMask)
         reachedStreaming = false
+        clearAuthWatchdog()   // a fresh session starts with a clean escalation count
+        authEscalations = 0
+        authToggleInFlight = false
         loggedFirstHR = false
         droppedFirstLiveHR = false
         loggedFirstTemp = false
@@ -2627,6 +2828,7 @@ extension OuraLiveSource: @preconcurrency CBCentralManagerDelegate {
     public func centralManager(_ central: CBCentralManager,
                                didFailToConnect peripheral: CBPeripheral, error: Error?) {
         log("Oura: WARNING failed to connect - \(error?.localizedDescription ?? "unknown error")")
+        linkPhase = .disconnected
         if feedsLive { live.connected = false; live.streamingLiveHR = false }
         // The ring wiped its bond (re-paired in the Oura app, or a firmware reset). CoreBluetooth surfaces
         // this as a stable CBError, and re-issuing connect just loops the same stale-pairing failure and
@@ -2664,9 +2866,12 @@ extension OuraLiveSource: @preconcurrency CBCentralManagerDelegate {
         dropUnanchoredHypnogramBursts()   // never wall-clock a night's time axis; they re-arrive next drain
         driver?.stop()
         driver = nil
+        clearAuthWatchdog()   // a link that drops mid-handshake takes this path, never the escalation
+        authToggleInFlight = false
         reassembler.reset()
         wearTracker.reset(); loggedWearState = nil; lastLivePulseAt = nil
         writeCharacteristic = nil
+        notifyCharacteristic = nil
         loggedFirstHR = false
         droppedFirstLiveHR = false
         loggedFirstTemp = false
@@ -2697,6 +2902,13 @@ extension OuraLiveSource: @preconcurrency CBCentralManagerDelegate {
         flush()
         if feedsLive { live.connected = false; live.streamingLiveHR = false }
         if self.peripheral?.identifier == peripheral.identifier { self.peripheral = nil }
+        linkPhase = .disconnected
+        // A user reconnect (#2305) cancelled this link on purpose: connect again now, not on the backoff.
+        if let id = pendingUserReconnectID {
+            pendingUserReconnectID = nil
+            connect(id)
+            return
+        }
         // Auto-reconnect on an INVOLUNTARY drop (#912): the paired ring went out of range or the link timed
         // out. Re-issue a connect on the backoff so it comes back on its own, exactly like the WHOOP strap.
         // A deliberate `stop()` set `intentionalDisconnect`/cleared `reconnectID`, so this is a no-op there.
@@ -2744,6 +2956,7 @@ extension OuraLiveSource: @preconcurrency CBPeripheralDelegate {
             log("Oura: write characteristic NOT FOUND - cannot drive the ring")
         }
         if let nc = chars.first(where: { $0.uuid == Self.notifyChar }) {
+            notifyCharacteristic = nc
             log("Oura: notify characteristic found - enabling notifications")
             peripheral.setNotifyValue(true, for: nc)
         } else {
@@ -2757,6 +2970,20 @@ extension OuraLiveSource: @preconcurrency CBPeripheralDelegate {
         guard characteristic.uuid == Self.notifyChar else { return }
         if let error = error {
             log("Oura: WARNING enabling notifications FAILED - \(error.localizedDescription) - ring will send no data")
+            return
+        }
+        // The auth watchdog's off/on toggle (#2304) lands here twice — once for the disable, once for the
+        // re-enable — and must NOT replay `.ready`: the driver is still `.authenticating`, so the only
+        // thing to do on the re-enable is ask for the nonce again, on the freshly re-established
+        // subscription. The `.ready` replay below is for the first enable of a session only.
+        if authToggleInFlight {
+            guard characteristic.isNotifying else {
+                log("Oura: notifications disabled for the auth toggle - re-enabling in \(Self.authToggleGap)s")
+                return
+            }
+            authToggleInFlight = false
+            log("Oura: notifications re-enabled (isNotifying=true) after the auth toggle - re-sending get_nonce")
+            resendAuthNonce()
             return
         }
         log("Oura: notifications enabled (isNotifying=\(characteristic.isNotifying)) - beginning auth")
@@ -2954,6 +3181,8 @@ extension OuraLiveSource: @preconcurrency CBPeripheralDelegate {
     private func handleSecure(_ routing: OuraDriver.SecureRouting) {
         switch routing {
         case .nonce(let nonce):
+            clearAuthWatchdog()   // the ring answered: the healthy path, and the watchdog's only exit
+            silentSessionsInARow = 0
             log("Oura: auth nonce received - submitting proof")
             advance(.nonceReceived(nonce))
         case .authStatus(let status):

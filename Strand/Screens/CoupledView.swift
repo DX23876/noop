@@ -535,7 +535,8 @@ struct CoupledView: View {
     /// the open sheet; one call now folds each series exactly once, guards before any fold.
     private func chargeBreakdown() -> (drivers: [ChargeDriver], confidence: ScoreConfidence)? {
         guard let row = breakdownRow else { return nil }
-        return ChargeBreakdownFormat.compute(row: row, days: repo.days, restScore: sleepPerformance)
+        return ChargeBreakdownFormat.compute(row: row, days: repo.days, restScore: sleepPerformance,
+                                             hrvBaselineEpoch: Baselines.hrvBaselineEpoch())
     }
 
     @ViewBuilder

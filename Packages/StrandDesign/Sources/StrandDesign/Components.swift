@@ -98,6 +98,23 @@ public enum NoopMetrics {
     /// Minimum desktop size for a navigation-based customization sheet.
     public static let editorSheetMinWidth: CGFloat = 440
     public static let editorSheetMinHeight: CGFloat = 600
+
+    // MARK: Body-clock dial
+    // One fixed-geometry diagram token set. Keeping these in StrandDesign makes the collision bounds,
+    // drawing code and typography a single design-system decision rather than screen-local literals.
+    public static let bodyClockDialHeight: CGFloat = 200
+    public static let bodyClockDialRimInset: CGFloat = 10
+    public static let bodyClockDialTunedRim: CGFloat = 90
+    public static let bodyClockDialLabelOffset: CGFloat = 15
+    public static let bodyClockDialReferenceOffset: CGFloat = 31
+    public static let bodyClockDialNightOffset: CGFloat = 45
+    public static let bodyClockDialGlyphOffset: CGFloat = 58
+    public static let bodyClockDialMidnightTick: CGFloat = 6
+    public static let bodyClockDialRegularTick: CGFloat = 4
+    public static let bodyClockDialReferenceWidth: CGFloat = 7
+    public static let bodyClockDialNightWidth: CGFloat = 9
+    public static let bodyClockDialGlyphSize: CGFloat = 12
+    public static let bodyClockDialReferenceDash: [CGFloat] = [10, 8]
 }
 
 // MARK: - Screen padding

@@ -297,17 +297,6 @@ struct RootTabView: View {
             case .insightsHub, .labBook, .fusedRecord, .rhythm:
                 routedPillar = dest
                 router.requestedDestination = nil
-            case .coach:
-                // K3: Coach is now a top-level tab (tag 3) — switch to it directly instead of
-                // presenting it as a pillar sheet.
-                // Guarded on the Coach switch: a brief notification already in Notification Centre still
-                // routes here after the Coach was turned off, and should leave the wearer where they are.
-                guard coachFeatureEnabled else {
-                    router.requestedDestination = nil
-                    break
-                }
-                withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 4 }
-                router.requestedDestination = nil
             case .trends:
                 // Trends is a primary tab on iPhone (not a pillar sheet) — switch to it.
                 withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 1 }
@@ -337,11 +326,6 @@ struct RootTabView: View {
                 // Reuses the SAME quick-action sheet machinery `.activeWorkout` does for `.live` — the
                 // coach chat's action row asks for Breathe directly, skipping the quick-action MENU step.
                 withAnimation(Self.sheetEase) { quickAction = .breathe }
-                router.requestedDestination = nil
-            case .coach:
-                // #1862: the Today Coach launcher hands its question here. Coach is a pillar sheet on
-                // iPhone, the same as the Insights hub, so route it that way rather than switching tabs.
-                routedPillar = dest
                 router.requestedDestination = nil
             case .journal:
                 // The #627 Today journal widget opens the journal through the quick-action Journal sheet
@@ -434,8 +418,6 @@ struct RootTabView: View {
                 case .fusedRecord: FusedRecordHost()
                 case .rhythm: RhythmHost(onClose: { routedPillar = nil })
                 case .devices: DevicesView()
-                // K5: the scheduled morning-brief notification's tap-through target.
-                case .coach: CoachView()
                 // .trends is never presented as a pillar sheet on iPhone (it's a primary tab — the
                 // requestedDestination handler switches `selectedTab` instead), but the switch must stay
                 // exhaustive. Fall back to Trends inside the sheet host if it ever arrives here.

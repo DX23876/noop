@@ -1,5 +1,6 @@
 import XCTest
 @testable import Strand
+import StrandImport
 
 final class MarkerUnitsUnicodeTests: XCTestCase {
     func testSlugCanonicalizesNFCAndNFDBeforeSlugging() {
@@ -12,5 +13,12 @@ final class MarkerUnitsUnicodeTests: XCTestCase {
         XCTAssertEqual(Array(MarkerUnits.slug("Caf\u{e9} Marker").utf8), expected)
         XCTAssertEqual(Array(MarkerUnits.slug("Cafe\u{301} Marker").utf8), expected)
         XCTAssertEqual(MarkerUnits.slug("Apo B"), "custom_apo_b")
+    }
+
+    func testSlugKeepsCountAndPercentApartAndMatchesTheCsvImporter() {
+        XCTAssertEqual(MarkerUnits.slug("LYMPH"), "custom_lymph")
+        XCTAssertEqual(MarkerUnits.slug("LYMPH %"), "custom_lymph_pct")
+        XCTAssertEqual(MarkerUnits.slug("LYMPH %"), LabMarkerCsvImport.customKey("LYMPH %"))
+        XCTAssertEqual(MarkerUnits.slug("  ???  "), "custom_")
     }
 }

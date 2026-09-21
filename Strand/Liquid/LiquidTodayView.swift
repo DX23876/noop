@@ -449,7 +449,8 @@ struct LiquidTodayView: View {
     /// The Charge breakdown (drivers + confidence), computed from the same row + rest-score the ring
     /// reads. Uses the shared pure `ChargeBreakdownFormat.compute` so classic Today and Liquid can't drift.
     private func chargeBreakdown() -> (drivers: [ChargeDriver], confidence: ScoreConfidence)? {
-        ChargeBreakdownFormat.compute(row: chargeBreakdownRow, days: repo.days, restScore: restScore)
+        ChargeBreakdownFormat.compute(row: chargeBreakdownRow, days: repo.days, restScore: restScore,
+                                      hrvBaselineEpoch: Baselines.hrvBaselineEpoch())
     }
     /// The night's relative skin-temp marker, surfaced verbatim from `RecoveryScorer.skinTempRelative`.
     private var chargeSkinTempRel: SkinTempRelative? {
