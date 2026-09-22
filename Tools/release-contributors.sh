@@ -15,7 +15,7 @@
 # Usage:
 #   Tools/release-contributors.sh 2026-07-20              # since a date (inclusive, whole day)
 #   Tools/release-contributors.sh v9.0.2                  # since that tag's exact commit time
-#   MAINTAINERS="ryanbr,Fanboynz" Tools/release-contributors.sh 2026-07-20
+#   MAINTAINERS="DX23876" Tools/release-contributors.sh 2026-07-20
 #
 # Requires: gh, authenticated. A dead or unauthenticated gh is a hard error, never an empty list —
 # for a tool whose whole job is "nobody is missed", silently missing EVERYBODY is the worst failure mode.
@@ -55,8 +55,8 @@ else
   exit 2
 fi
 
-MAINTAINERS="${MAINTAINERS:-ryanbr,Fanboynz}"
-REPO="${GH_REPO:-ryanbr/noop}"
+MAINTAINERS="${MAINTAINERS:-DX23876}"
+REPO="${GH_REPO:-DX23876/noop}"
 LIMIT=300
 
 # Field-exact, case-insensitive. The rows are "handle<TAB>#N<TAB>title", so a whole-line anchor never

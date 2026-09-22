@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # update-altstore-source.sh <version> <ipa> [desc] — refresh altstore-source.json with a new iOS release.
-# The downloadURL points at the canonical GitHub release asset (github.com/ryanbr/noop/releases);
+# The downloadURL points at the canonical fork release asset (github.com/DX23876/noop/releases);
 # noop.fans stays a mirror. Everything else reads CFBundleVersion + size from the IPA,
 # prepends/replaces apps[0].versions[0], and mirrors legacy top-level fields.
 #
@@ -13,6 +13,8 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 [ -f "$HERE/../deploy.env" ] && source "$HERE/../deploy.env"
 DOMAIN="${FORGE_DOMAIN:-${NOOP_DOMAIN:-noop.fans}}"
 ORG="${FORGE_ORG:-NoopApp}"; REPO="${FORGE_REPO:-noop}"
+GH_REPO="${GH_REPO:-DX23876/noop}"
+GH_ORG="${GH_REPO%/*}"; GH_PROJECT="${GH_REPO#*/}"
 
 VERSION="${1:?usage: $0 <version> <ipa> [desc]}"
 IPA="${2:?usage: $0 <version> <ipa> [desc]}"
@@ -38,7 +40,7 @@ SIZE="$(stat -f%z "$IPA")"
 DATE="$(date -u +%Y-%m-%d)"
 # GitHub is the canonical download home; the AltStore source must point at the GitHub release asset.
 # (noop.fans stays a mirror — the FORGE_* vars above are still used by the deploy/push mechanic.)
-URL="https://github.com/${ORG}/${REPO}/releases/download/v${VERSION}/NOOP-v${VERSION}-ios.ipa"
+URL="https://github.com/${GH_ORG}/${GH_PROJECT}/releases/download/v${VERSION}/NOOP-v${VERSION}-ios.ipa"
 
 echo "→ $VERSION (build $BUILD), ${SIZE} bytes, $DATE"
 jq --arg v "$VERSION" --arg b "$BUILD" --arg d "$DATE" --arg desc "$DESC" \

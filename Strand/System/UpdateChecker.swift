@@ -1,6 +1,16 @@
 import Foundation
 import WhoopProtocol
 
+/// Canonical public endpoints for this fork. Keeping them together prevents the updater, About screen
+/// and future support links from silently drifting back to upstream independently.
+enum ProjectLinks {
+    static let repository = URL(string: "https://github.com/DX23876/noop")!
+    static let latestReleaseAPI = URL(string: "https://api.github.com/repos/DX23876/noop/releases/latest")!
+    static let issues = URL(string: "https://github.com/DX23876/noop/issues")!
+    static let discussions = URL(string: "https://github.com/DX23876/noop/discussions")!
+    static let altStoreSource = URL(string: "https://raw.githubusercontent.com/DX23876/noop/main/altstore-source.json")!
+}
+
 /// "Check for updates": one call to the project's PUBLIC releases API (GitHub), reading the latest
 /// version number and comparing it to the installed one. Nothing about the user is sent, and it never
 /// installs anything — on iOS no API permits that for a sideloaded app.
@@ -28,8 +38,6 @@ final class UpdateChecker: ObservableObject {
 
     @Published var state: State = .idle
 
-    private static let endpoint = URL(string: "https://api.github.com/repos/DX23876/noop/releases/latest")!
-
     /// One release read. Shared by the button and the automatic check (#1659) so there is exactly one
     /// copy of the endpoint, the headers and the parsing — a second copy is how the two would drift into
     /// disagreeing about what "latest" means.
@@ -41,7 +49,7 @@ final class UpdateChecker: ObservableObject {
 
     static func fetchLatest() async -> Release? {
         do {
-            var req = URLRequest(url: Self.endpoint, timeoutInterval: 12)
+            var req = URLRequest(url: ProjectLinks.latestReleaseAPI, timeoutInterval: 12)
             req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
             let (data, resp) = try await URLSession.shared.data(for: req)
             guard (resp as? HTTPURLResponse)?.statusCode == 200,

@@ -8,6 +8,17 @@ import XCTest
 /// result is worth a row in the Updates inbox.
 final class UpdateAvailabilityTests: XCTestCase {
 
+    func testEveryPublicProjectLinkBelongsToTheFork() {
+        let links = [ProjectLinks.repository, ProjectLinks.latestReleaseAPI, ProjectLinks.issues,
+                     ProjectLinks.discussions, ProjectLinks.altStoreSource]
+
+        XCTAssertEqual(links.map(\.host), [
+            "github.com", "api.github.com", "github.com", "github.com", "raw.githubusercontent.com",
+        ])
+        XCTAssertTrue(links.allSatisfy { $0.path.lowercased().contains("dx23876/noop") },
+                      "all user-facing project and update links must stay on DX23876/noop")
+    }
+
     private let day = UpdateAvailability.checkInterval
 
     // MARK: - when it may look
