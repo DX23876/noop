@@ -447333,6 +447333,238 @@
         }
       }
     },
+    "A steadier sync and clearer readings" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stabilere Synchronisierung und klarere Messwerte"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una sincronización más estable y lecturas más claras"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une synchronisation plus stable et des mesures plus claires"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uma sincronização mais estável e leituras mais claras"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stabilniejsza synchronizacja i czytelniejsze odczyty"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronizzazione più stabile e letture più chiare"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Более стабильная синхронизация и понятные показатели"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步更稳定，读数更清晰"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步更穩定，讀數更清晰"
+          }
+        }
+      }
+    },
+    "**Fresh data finishes scoring.** Background reanalysis now resumes after iOS interrupts it, paces its work under the background budget, and explains its CPU cost in diagnostics." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Neue Daten werden vollständig ausgewertet.** Die Neuanalyse im Hintergrund wird jetzt fortgesetzt, nachdem iOS sie unterbrochen hat, taktet ihre Arbeit innerhalb des Hintergrundbudgets und erläutert ihren CPU-Aufwand in den Diagnosedaten."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Los datos nuevos terminan de analizarse.** El nuevo análisis en segundo plano se reanuda después de que iOS lo interrumpa, dosifica el trabajo dentro del tiempo disponible y explica su coste de CPU en los diagnósticos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Les nouvelles données vont au bout de l’analyse.** La réanalyse en arrière-plan reprend désormais après une interruption par iOS, adapte son rythme au temps disponible et explique son coût processeur dans les diagnostics."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Os novos dados concluem a análise.** A reanálise em segundo plano retoma agora após uma interrupção do iOS, ajusta o ritmo ao tempo disponível e explica o custo de CPU nos diagnósticos."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Nowe dane są analizowane do końca.** Ponowna analiza w tle wznawia się po przerwaniu przez iOS, dopasowuje tempo pracy do dostępnego czasu i wyjaśnia koszt procesora w diagnostyce."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**I nuovi dati completano l’analisi.** La rianalisi in background ora riprende dopo un’interruzione di iOS, distribuisce il lavoro entro il tempo disponibile e spiega il costo della CPU nella diagnostica."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Новые данные анализируются до конца.** Фоновый повторный анализ теперь возобновляется после прерывания iOS, распределяет работу в пределах доступного времени и объясняет затраты процессора в диагностике."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**新数据会完成评分。** 后台重新分析在被 iOS 中断后会继续，并根据后台时间预算调整工作节奏，同时在诊断中说明 CPU 开销。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**新資料會完成評分。** 背景重新分析在被 iOS 中斷後會繼續，並依照背景時間預算調整工作節奏，同時在診斷中說明 CPU 開銷。"
+          }
+        }
+      }
+    },
+    "**One baseline, everywhere.** Charge details, confidence labels and Coach answers now honour the same HRV recalibration date as the headline score." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Eine Basislinie, überall.** Charge-Details, Vertrauensangaben und Coach-Antworten berücksichtigen jetzt dasselbe HRV-Neukalibrierungsdatum wie der Hauptwert."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Una referencia, en todas partes.** Los detalles de Carga, las etiquetas de confianza y las respuestas del Coach respetan ahora la misma fecha de recalibración de VFC que la puntuación principal."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Une même référence partout.** Les détails de Charge, les libellés de confiance et les réponses du Coach respectent désormais la même date de recalibrage de la VFC que le score principal."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Uma referência, em todo o lado.** Os detalhes de Carga, as etiquetas de confiança e as respostas do Coach respeitam agora a mesma data de recalibração da VFC que a pontuação principal."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Jedna wartość bazowa wszędzie.** Szczegóły Charge, etykiety wiarygodności i odpowiedzi Coacha uwzględniają teraz tę samą datę ponownej kalibracji HRV co wynik główny."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Un unico riferimento, ovunque.** I dettagli di Carica, le etichette di affidabilità e le risposte del Coach ora rispettano la stessa data di ricalibrazione HRV del punteggio principale."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Единая базовая линия везде.** Подробности Charge, метки достоверности и ответы Coach теперь учитывают ту же дату перекалибровки ВСР, что и основной показатель."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**所有位置采用同一基线。** Charge 详情、置信度标签和 Coach 回答现在与主评分一样，采用相同的 HRV 重新校准日期。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**所有位置採用同一基準。** Charge 詳情、可信度標籤和 Coach 回答現在與主要評分一樣，採用相同的 HRV 重新校準日期。"
+          }
+        }
+      }
+    },
+    "**Lab counts and percentages stay separate.** Imports no longer let a percentage overwrite the matching count, and existing identifiable percentage history is moved forward safely." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Laborwerte und Prozentangaben bleiben getrennt.** Importe lassen einen Prozentwert nicht mehr den zugehörigen Zählwert überschreiben, und vorhandene eindeutig erkennbare Prozentverläufe werden sicher migriert."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Los recuentos y porcentajes de laboratorio permanecen separados.** Las importaciones ya no permiten que un porcentaje sobrescriba el recuento correspondiente, y el historial porcentual identificable se migra de forma segura."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Les numérations et pourcentages de laboratoire restent séparés.** Les imports ne permettent plus à un pourcentage d’écraser la numération correspondante, et l’historique de pourcentages identifiable est migré en toute sécurité."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**As contagens e percentagens laboratoriais permanecem separadas.** As importações já não permitem que uma percentagem substitua a contagem correspondente, e o histórico percentual identificável é migrado em segurança."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Liczby i wartości procentowe badań pozostają oddzielne.** Import nie pozwala już wartości procentowej zastąpić odpowiadającej jej liczby, a istniejąca rozpoznawalna historia procentowa jest bezpiecznie migrowana."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Conteggi e percentuali di laboratorio restano separati.** Le importazioni non consentono più a una percentuale di sovrascrivere il conteggio corrispondente e lo storico percentuale identificabile viene migrato in sicurezza."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Лабораторные количества и проценты остаются раздельными.** При импорте процент больше не перезаписывает соответствующее количество, а существующая распознаваемая история процентов безопасно переносится."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**化验计数和百分比保持分开。** 导入时百分比不再覆盖对应计数，已有且可识别的百分比历史记录会被安全迁移。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**化驗計數和百分比保持分開。** 匯入時百分比不再覆蓋對應計數，現有且可識別的百分比歷史記錄會被安全移轉。"
+          }
+        }
+      }
+    },
     "≈%lld kcal/day" : {
       "localizations" : {
         "de" : {
