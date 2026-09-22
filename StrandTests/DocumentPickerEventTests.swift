@@ -13,6 +13,21 @@ import XCTest
 /// `PiiRedactionTests` reads source. These pin the wording contract, not the picker's behaviour.
 final class DocumentPickerEventTests: XCTestCase {
 
+    /// With no prior grant, let Files choose its normal starting location.
+    ///
+    /// #1000a always forced NOOP's own Documents directory here. That workaround was never
+    /// reproduced, and #2356 reports the picker refusing every external folder only after the app is
+    /// re-signed. The app-container URL is the one nonstandard input that changes identity in that
+    /// environment, so it must not be supplied for a first pick. A resolved previous grant remains a
+    /// useful hint and is still allowed.
+    func testFirstFolderPickDoesNotForceTheAppDocumentsDirectory() throws {
+        let code = Self.codeLines(of: try Self.pickerSource())
+        XCTAssertTrue(code.contains { $0.contains("if let root { picker.directoryURL = root }") },
+                      "a previously resolved external folder may remain a start hint")
+        XCTAssertFalse(code.contains { $0.contains("?? FileManager.default.urls(for: .documentDirectory") },
+                       "a first pick must use Files' default instead of the re-signed app container")
+    }
+
     /// The no-URL outcome must describe what happened, not why someone did it.
     func testTheNoUrlOutcomeDoesNotClaimTheUserCancelled() throws {
         let code = Self.codeLines(of: try Self.pickerSource())
@@ -84,7 +99,8 @@ final class DocumentPickerEventTests: XCTestCase {
         XCTAssertEqual(BackupPickerStart.category(nil), "the picker default")
     }
 
-    /// Our own Documents is the fallback #1000a passes when there is no last-used folder.
+    /// Our own Documents remains a diagnostic category even though it is no longer the first-pick
+    /// fallback. UIKit may still report it, and older debug exports use the same wording.
     func testOurOwnDocumentsIsNamedAsSuch() {
         let ours = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
         let resolved = try? XCTUnwrap(ours)

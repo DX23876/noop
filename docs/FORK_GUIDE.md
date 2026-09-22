@@ -231,6 +231,7 @@ Fork-only docs, under [`fork/`](fork/):
 | [`fork/MUSCLE_BALANCE.md`](fork/MUSCLE_BALANCE.md), [`fork/MUSCLE_FATIGUE.md`](fork/MUSCLE_FATIGUE.md), [`fork/MUSCLE_STRENGTH.md`](fork/MUSCLE_STRENGTH.md) | One-page summaries of each muscle view |
 | [`fork/EXERCISE_CONTENT_AND_MEDIA.md`](fork/EXERCISE_CONTENT_AND_MEDIA.md) | Exercise identity, instructions and the optional user-initiated media download |
 | [`fork/THIRD_PARTY_NOTICES.md`](fork/THIRD_PARTY_NOTICES.md) | Provenance and rights status of exercise geometry, metadata and media |
+| [`fork/research/sideload-folder-picker.md`](fork/research/sideload-folder-picker.md) | Why re-signed iOS builds can fail to grant an external backup folder, and the staged fix strategy |
 | [`fork/releases/`](fork/releases/) | Release notes — `publish-ios-release.yml` reads `fork/releases/v<VERSION>.md` and refuses to publish without it. NOT tag-named: `Tools/appchangelog-gen.py` derives the in-app "What's New" version from the filename |
 
 When you add a doc, file it into the matching group in the same change — this map stays current

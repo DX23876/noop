@@ -41,21 +41,19 @@ enum DocumentPicker {
     /// security-scoped; the caller bookmarks it (see `FolderBackup.saveFolder`, which brackets the scoped
     /// access while minting the bookmark) so the chosen folder survives relaunch.
     ///
-    /// `startingAt` (#1000a): an explicit starting directory — the caller's last-used folder when there
-    /// is one, else our own Documents. Some iOS builds reportedly keep the Open/Select button disabled
-    /// when the picker opens on its default "Recents"-style root; giving it a concrete `directoryURL`
-    /// lands it on a real, selectable directory. HONESTY NOTE: we could not reproduce the dead button
-    /// in-house and Apple documents `directoryURL` only as a hint, so on the affected iOS build this
-    /// may or may not be the whole fix — which is why `BackupSyncView` now also surfaces a visible
-    /// message when the picker comes back empty instead of failing silently.
+    /// `startingAt` is only the caller's last successfully resolved folder. When there is no prior
+    /// grant, leave `directoryURL` unset and let Files choose its normal starting location. #1000a
+    /// used our own Documents directory as a fallback here, but that unverified workaround made the
+    /// re-signed app container part of every first pick. #2356 reports the system sheet refusing every
+    /// external folder only in such a re-signed build, so the fallback is deliberately removed while
+    /// preserving a real previous grant as a useful hint.
     @MainActor
     static func pickFolder(startingAt root: URL? = nil) async -> URL? {
         await present { coordinator in
             let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.folder], asCopy: false)
             picker.delegate = coordinator
             picker.allowsMultipleSelection = false
-            picker.directoryURL = root
-                ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+            if let root { picker.directoryURL = root }
             return picker
         }
     }
@@ -173,10 +171,12 @@ import Foundation
 
 /// Which KIND of directory the backup folder picker opened on, with no name attached.
 ///
-/// #1000a made the starting directory a variable (the last-used folder when there is one, else our own
-/// Documents), so which of those it landed on is worth knowing when a pick fails. The NAME is not, and
-/// must not travel: this string is printed into the debug export people attach to public issues, and a
-/// folder someone chose carries a person's name as easily as a strap does (#2337).
+/// The starting directory is either the last-used folder or the system picker's default, so which one
+/// it used is worth knowing when a pick fails. The NAME is not, and must not travel: this string is
+/// printed into the debug export people attach to public issues, and a folder someone chose carries a
+/// person's name as easily as a strap does (#2337). "NOOP's own folder" remains a valid category for
+/// old diagnostics and for a URL returned by UIKit, but NOOP no longer supplies it as the first-pick
+/// fallback (#2356).
 ///
 /// Deliberately OUTSIDE the `#if os(iOS)` above, even though only the iOS picker calls it. It is pure
 /// (a URL and `FileManager`, no UIKit), and behind the platform gate the macOS test bundle could only
