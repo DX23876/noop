@@ -74,7 +74,7 @@ class SourceReferenceTests(unittest.TestCase):
         self.assertEqual(1, code)
         self.assertEqual(2, len(lines))
         self.assertEqual(
-            f"FAIL {doc}:2 ../Sources/Client.swift [missing] symbol not found",
+            f"FAIL {doc.resolve()}:2 ../Sources/Client.swift [missing] symbol not found",
             lines[0],
         )
         self.assertEqual("checked 1 references, 1 files, 1 failures", lines[1])
@@ -89,7 +89,7 @@ class SourceReferenceTests(unittest.TestCase):
 
         self.assertEqual(1, code)
         self.assertEqual(
-            f"FAIL {doc}:1 ../Sources/Missing.swift file does not exist",
+            f"FAIL {doc.resolve()}:1 ../Sources/Missing.swift file does not exist",
             lines[0],
         )
         self.assertEqual("checked 1 references, 1 files, 1 failures", lines[1])
@@ -101,7 +101,7 @@ class SourceReferenceTests(unittest.TestCase):
 
         self.assertEqual(1, code)
         self.assertEqual(
-            f"FAIL {doc}:1 ../Sources/missing.py file does not exist",
+            f"FAIL {doc.resolve()}:1 ../Sources/missing.py file does not exist",
             lines[0],
         )
         self.assertEqual("checked 1 references, 1 files, 1 failures", lines[1])
@@ -121,7 +121,7 @@ class SourceReferenceTests(unittest.TestCase):
 
         self.assertEqual(1, code)
         self.assertEqual(
-            f"FAIL {doc}:1 ../Sources/Client.swift [decode] symbol not found",
+            f"FAIL {doc.resolve()}:1 ../Sources/Client.swift [decode] symbol not found",
             lines[0],
         )
         self.assertEqual("checked 1 references, 1 files, 1 failures", lines[1])

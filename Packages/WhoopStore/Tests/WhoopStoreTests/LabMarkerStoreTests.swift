@@ -173,8 +173,10 @@ final class LabMarkerStoreTests: XCTestCase {
                value: 31.2, source: "csv", unit: "%"),
         ])
 
-        XCTAssertEqual(try await store.migrateLegacyPercentLabMarkerKeys(), 1)
-        XCTAssertEqual(try await store.migrateLegacyPercentLabMarkerKeys(), 0,
+        let migratedCount = try await store.migrateLegacyPercentLabMarkerKeys()
+        let repeatedCount = try await store.migrateLegacyPercentLabMarkerKeys()
+        XCTAssertEqual(migratedCount, 1)
+        XCTAssertEqual(repeatedCount, 0,
                        "the version cursor makes a completed migration idempotent")
 
         let count = try await store.labMarkers(deviceId: "my-whoop", markerKey: "custom_lymph")

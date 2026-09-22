@@ -175,9 +175,10 @@ struct EnergyBurnRateCard: View {
 
     @ViewBuilder private func bandLabel(_ band: EnergyTrainingBand) -> some View {
         if labelledBands.contains(band) {
+            let timeRange = [time(band.start), time(band.end)].joined(separator: "–")
             VStack(spacing: 0) {
                 Text(band.sport)
-                Text(verbatim: "\(time(band.start))–\(time(band.end))")
+                Text(verbatim: timeRange)
             }
             .font(StrandFont.caption)
             .foregroundStyle(StrandPalette.textSecondary)

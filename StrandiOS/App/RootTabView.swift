@@ -297,6 +297,17 @@ struct RootTabView: View {
             case .insightsHub, .labBook, .fusedRecord, .rhythm:
                 routedPillar = dest
                 router.requestedDestination = nil
+            case .coach:
+                // The fork keeps Coach under More rather than giving it a dedicated tab. Route every
+                // launcher and notification through that one canonical destination, and drop stale
+                // notification requests when the master switch is off instead of opening hidden UI.
+                guard coachFeatureEnabled else {
+                    router.requestedDestination = nil
+                    break
+                }
+                withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 4 }
+                tabPaths[4] = NavigationPath([MoreDestination.coach])
+                router.requestedDestination = nil
             case .trends:
                 // Trends is a primary tab on iPhone (not a pillar sheet) — switch to it.
                 withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 1 }

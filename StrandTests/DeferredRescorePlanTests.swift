@@ -59,14 +59,16 @@ final class DeferredRescorePlanTests: XCTestCase {
 
     // MARK: - The policy that produces the debt in the first place
 
-    /// The step-2 half of the loop, stated directly: once a re-score is outstanding, every backgrounded
-    /// trigger defers to the processing task instead of starting a second pass beside it. That is exactly
-    /// why the SETTLEMENT has to be cheap. (Upstream #2296 replaced the old pass-duration budget with CPU
-    /// pacing, so the outstanding debt is now the only thing that defers a real update.)
-    func testAnOutstandingDebtDefersEveryBackgroundedTrigger() {
-        let decision = RescoreBackgroundPolicy.decide(isBackground: true, rescoreAlreadyOwed: true)
+    /// The step-2 half of the loop, stated directly: while an outstanding re-score is still inside the
+    /// retry cooldown, a backgrounded trigger defers to the processing task instead of starting a second
+    /// pass beside it. That is exactly why the SETTLEMENT has to be cheap. Once the cooldown expires the
+    /// newer policy retries the paced pass, which avoids leaving a night unscored indefinitely (#2334).
+    func testARecentOutstandingDebtDefersABackgroundedTrigger() {
+        let decision = RescoreBackgroundPolicy.decide(isBackground: true,
+                                                       rescoreAlreadyOwed: true,
+                                                       secondsSinceLastAttempt: 60)
         guard case .deferToBackgroundTask = decision else {
-            return XCTFail("a backgrounded trigger with a debt outstanding must defer, got \(decision)")
+            return XCTFail("a backgrounded trigger with a recent debt must defer, got \(decision)")
         }
     }
 
