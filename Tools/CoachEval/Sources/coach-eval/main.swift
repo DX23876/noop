@@ -8,6 +8,11 @@ import CoachEvalCore
 //   coach-eval run    --provider anthropic|openai|gemini --model <id> [--set smoke|full] [--lang en|de]
 //                     [--limit N] [--out results.json]      (calls the provider; costs money)
 //   coach-eval report results.json [more.json …]
+//   coach-eval open   --provider <p> --model <id> --rater-provider <other p> --rater-model <id>
+//                     [--lang en|de] [--limit N] [--out open.json]   (calls two providers; costs money)
+//   coach-eval open-report open.json [more.json …]
+//   coach-eval calibration-sheet open.json [--size 40]  > sheet.csv   (then grade it yourself)
+//   coach-eval agreement sheet.csv open.json
 
 let arguments = Array(CommandLine.arguments.dropFirst())
 
@@ -73,6 +78,56 @@ case "report":
     }
     print(Runner.report(records))
 
+case "open":
+    guard let providerName = option("--provider"), let model = option("--model"),
+          let raterName = option("--rater-provider"), let raterModel = option("--rater-model") else {
+        fail("open needs --provider, --model, --rater-provider and --rater-model")
+    }
+    let provider: EvalProvider, rater: EvalProvider
+    do {
+        try Autorater.checkIndependence(answer: providerName, rater: raterName)
+        provider = try Providers.make(providerName, model: model)
+        rater = try Providers.make(raterName, model: raterModel)
+    } catch { fail(String(describing: error)) }
+    var open = OpenQuestionBank.all(cohort: cohort)
+    if let limit = option("--limit").flatMap(Int.init) { open = Array(open.prefix(limit)) }
+    print("Answering \(open.count) open questions (\(language)) with \(providerName) · \(model), rated by \(raterName) · \(raterModel)…")
+    let records: [OpenRecord]
+    do {
+        records = try await Autorater.run(open, cohort: cohort, provider: provider, rater: rater, language: language) { record in
+            let grade = record.rating.map { "\($0.overall)\($0.criticalSafetyIssue ? " CRITICAL" : "")" } ?? "–"
+            print("\(record.id)  overall \(grade)" + (record.error.map { "  \($0)" } ?? ""))
+        }
+    } catch { fail(String(describing: error)) }
+    if let out = option("--out") {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        do { try encoder.encode(records).write(to: URL(fileURLWithPath: out)) } catch { fail("could not write \(out): \(error)") }
+        print("Wrote \(out).")
+    }
+    print("\n" + Autorater.report(records))
+
+case "open-report", "calibration-sheet", "agreement":
+    let files = arguments.dropFirst().filter { !$0.hasPrefix("--") && $0 != option("--size") }
+    func load(_ path: String) -> [OpenRecord] {
+        guard let data = FileManager.default.contents(atPath: path),
+              let decoded = try? JSONDecoder().decode([OpenRecord].self, from: data) else { fail("could not read \(path)") }
+        return decoded
+    }
+    switch arguments.first {
+    case "open-report":
+        guard !files.isEmpty else { fail("open-report needs at least one results file") }
+        print(Autorater.report(files.flatMap(load)))
+    case "calibration-sheet":
+        guard let path = files.first else { fail("calibration-sheet needs an open results file") }
+        print(Calibration.sheet(load(path), size: option("--size").flatMap(Int.init) ?? 40))
+    default:
+        guard files.count == 2, let csv = try? String(contentsOfFile: files[0], encoding: .utf8) else {
+            fail("agreement needs the graded sheet.csv and the open results file")
+        }
+        print(Calibration.agreement(sheetCSV: csv, records: load(files[1])))
+    }
+
 default:
-    fail("usage: coach-eval oracle | list | run | report   (see Sources/coach-eval/main.swift)")
+    fail("usage: coach-eval oracle | list | run | report | open | open-report | calibration-sheet | agreement")
 }
