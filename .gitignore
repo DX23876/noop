@@ -152,3 +152,7 @@ tools/linux-capture/captures/
 # points the picker, which is sometimes the repo root. Hundreds of megabytes of it would be
 # unremovable from history after one `git add -A`.
 *.noopbak
+
+# CoachEval provider runs write results next to the tool when asked to; they hold model answers about a
+# synthetic wearer and, for a local run against a real database, about the wearer. Never committed.
+Tools/CoachEval/Results/
