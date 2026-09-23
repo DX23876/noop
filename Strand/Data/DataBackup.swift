@@ -34,6 +34,9 @@ enum DataBackup {
     /// `.deflate`d and the count is of bytes landing on disk. (#1807)
     static let maxBackupSQLiteBytes: Int64 = 2_147_483_648
     private static let maxBackupSettingsBytes: Int64 = 1_048_576
+    /// Decompression ceiling for `coach-state.json`. Conversations carry chart payloads, so this is far
+    /// above a settings file, but it is still a zip-bomb guard, not a limit a real Coach history reaches.
+    private static let maxBackupCoachStateBytes: Int64 = 268_435_456
 
     // MARK: - Result
 
@@ -107,7 +110,8 @@ enum DataBackup {
             // (and #1014 added a quick_check read of the whole file first); run it off the main
             // actor so the UI never beach-balls. Only file paths cross the hop.
             try await Task.detached(priority: .utility) {
-                try writeVerifiedBackupZip(dbURL: dbURL, to: dest, settingsJSON: currentSettingsJSON())
+                try writeVerifiedBackupZip(dbURL: dbURL, to: dest, settingsJSON: currentSettingsJSON(),
+                                           coachStateJSON: currentCoachStateJSON())
             }.value
             return exportOutcome(dest, dbURL: dbURL)
         } catch {
@@ -122,7 +126,8 @@ enum DataBackup {
             if fm.fileExists(atPath: staged.path) { try fm.removeItem(at: staged) }
             // Off the main actor: same reason as the macOS branch (heavy read + DEFLATE). Only paths hop.
             try await Task.detached(priority: .utility) {
-                try writeVerifiedBackupZip(dbURL: dbURL, to: staged, settingsJSON: currentSettingsJSON())
+                try writeVerifiedBackupZip(dbURL: dbURL, to: staged, settingsJSON: currentSettingsJSON(),
+                                           coachStateJSON: currentCoachStateJSON())
             }.value
         } catch {
             return .failure(String(localized: "Export failed: \(error.localizedDescription)"))
@@ -222,11 +227,13 @@ enum DataBackup {
         verifyWrittenBackup(at: url) == .intact
     }
 
-    private static func writeVerifiedBackupZip(dbURL: URL, to dest: URL, settingsJSON: Data?) throws {
+    private static func writeVerifiedBackupZip(dbURL: URL, to dest: URL, settingsJSON: Data?,
+                                               coachStateJSON: Data?) throws {
         if let complaint = DatabaseIntegrity.quickCheckFailure(atPath: dbURL.path) {
             throw ExportIntegrityFailure(complaint: complaint)
         }
-        try writeBackupZip(dbURL: dbURL, to: dest, settingsJSON: settingsJSON, manifestJSON: currentManifestJSON())
+        try writeBackupZip(dbURL: dbURL, to: dest, settingsJSON: settingsJSON, coachStateJSON: coachStateJSON,
+                           manifestJSON: currentManifestJSON())
         switch verifyWrittenBackup(at: dest) {
         case .intact:
             break
@@ -259,7 +266,8 @@ enum DataBackup {
         return Data(json.utf8)
     }
 
-    private static func writeBackupZip(dbURL: URL, to dest: URL, settingsJSON: Data?, manifestJSON: Data) throws {
+    private static func writeBackupZip(dbURL: URL, to dest: URL, settingsJSON: Data?, coachStateJSON: Data?,
+                                       manifestJSON: Data) throws {
         let archive = try Archive(url: dest, accessMode: .create)
         try archive.addEntry(with: backupEntryName, fileURL: dbURL, compressionMethod: .deflate)
         let fm = FileManager.default
@@ -271,6 +279,15 @@ enum DataBackup {
             try settingsJSON.write(to: tmpJSON)
             defer { try? fm.removeItem(at: tmpJSON) }
             try archive.addEntry(with: BackupSettings.entryName, fileURL: tmpJSON, compressionMethod: .deflate)
+        }
+        // The Coach's own state (see `CoachStateBackup`), after settings and before the manifest. Absent
+        // when the Coach has never been used, so such a backup is byte-for-byte what it was before.
+        if let coachStateJSON {
+            let tmpCoach = fm.temporaryDirectory
+                .appendingPathComponent("noop-coach-state-\(UUID().uuidString).json")
+            try coachStateJSON.write(to: tmpCoach)
+            defer { try? fm.removeItem(at: tmpCoach) }
+            try archive.addEntry(with: CoachStateBackup.entryName, fileURL: tmpCoach, compressionMethod: .deflate)
         }
         // #1410: manifest LAST (after the DB + optional settings) and ALWAYS written — even a legacy
         // nil-settings backup states which build produced it.
@@ -300,6 +317,21 @@ enum DataBackup {
         return BackupSettings.encode(values)
     }
 
+    /// Where the Coach keeps its conversation, plan and avatar files — the directory every Coach store
+    /// resolves (`CoachConversationStore`, `CoachPlanStore`, `CoachIdentityStore`).
+    static var coachStateDirectory: URL {
+        let base = (try? FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask,
+                                                 appropriateFor: nil, create: true))
+            ?? URL(fileURLWithPath: NSTemporaryDirectory())
+        return base.appendingPathComponent("com.noopapp.noop", isDirectory: true)
+    }
+
+    /// The Coach's state as the `coach-state.json` payload, or nil when there is none. Reads files and
+    /// UserDefaults only, so the detached export tasks may call it off the main actor.
+    private static func currentCoachStateJSON() -> Data? {
+        CoachStateBackup.encode(CoachStateBackup.snapshot(defaults: .standard, directory: coachStateDirectory))
+    }
+
     /// (Backup & Sync) Write a `.noopbak` to a SPECIFIC `dest` URL with NO save panel: the folder /
     /// auto-backup path. Checkpoints the WAL (so the single `.sqlite` is whole) then writes the same
     /// deflate ZIP via the same `writeBackupZip` the interactive export uses, so folder / auto backups
@@ -322,7 +354,8 @@ enum DataBackup {
         do {
             let fm = FileManager.default
             if fm.fileExists(atPath: dest.path) { try fm.removeItem(at: dest) }
-            try writeVerifiedBackupZip(dbURL: dbURL, to: dest, settingsJSON: currentSettingsJSON())
+            try writeVerifiedBackupZip(dbURL: dbURL, to: dest, settingsJSON: currentSettingsJSON(),
+                                       coachStateJSON: currentCoachStateJSON())
             return exportOutcome(dest, dbURL: dbURL)
         } catch {
             return .failure(String(localized: "Backup failed: \(error.localizedDescription)"))
@@ -332,14 +365,16 @@ enum DataBackup {
     /// Test seam: write a `.noopbak` for an EXPLICIT source database (no checkpoint, no `StorePaths`),
     /// so a unit test can round-trip a throwaway SQLite through the exact ZIP container the app writes.
     /// `settings` (canonical `BackupSettings` keys) adds the `settings.json` entry; nil writes the
-    /// legacy single-entry ZIP — tests cover both shapes. Not used by app code; production goes
-    /// through `writeBackup(checkpoint:to:)`.
+    /// legacy single-entry ZIP — tests cover both shapes. `coachState` adds the `coach-state.json` entry.
+    /// Not used by app code; production goes through `writeBackup(checkpoint:to:)`.
     static func writeBackupForTesting(databaseAt dbURL: URL, to dest: URL,
-                                      settings: [String: Any]? = nil) throws {
+                                      settings: [String: Any]? = nil,
+                                      coachState: CoachStateBackup.Payload? = nil) throws {
         let fm = FileManager.default
         if fm.fileExists(atPath: dest.path) { try fm.removeItem(at: dest) }
         try writeBackupZip(dbURL: dbURL, to: dest,
                            settingsJSON: settings.flatMap { BackupSettings.encode($0) },
+                           coachStateJSON: coachState.flatMap { CoachStateBackup.encode($0) },
                            manifestJSON: currentManifestJSON())
     }
 
@@ -406,8 +441,11 @@ enum DataBackup {
     /// the previous `runImport` body; only the picker and path-resolution moved out to the callers.
     /// `settingsDefaults` is where a `settings.json` entry (#1000) is re-applied — injected for the
     /// same reason as `dbPath` (tests use a suite-scoped UserDefaults, never the runner's real domain).
+    /// `coachStateDirectory` is where a `coach-state.json` entry is left pending for the next launch;
+    /// nil means the Coach's real store directory.
     static func restore(from pickedSource: URL, toDatabaseAt dbPath: String,
                         settingsDefaults: UserDefaults = .standard,
+                        coachStateDirectory: URL? = nil,
                         allowOversize: Bool = false) -> BackupResult {
         // If the picked file is a .noopbak ZIP, extract the SQLite entry to a temp dir first.
         // Legacy plain-SQLite files fall straight through. The extracted dir is cleaned up below.
@@ -427,8 +465,8 @@ enum DataBackup {
                 // Reported as its own case, not a generic failure: this one is RECOVERABLE, and the caller
                 // is the only layer that can ask the user whether to go ahead. (#1807)
                 switch err {
-                case .entryTooLarge(let name):
-                    return .restoreTooLarge(name: name, limit: maxBackupSQLiteBytes)
+                case .entryTooLarge(let name, let limit):
+                    return .restoreTooLarge(name: name, limit: limit)
                 }
             } catch {
                 try? fm.removeItem(at: tmpExtract)
@@ -569,6 +607,18 @@ enum DataBackup {
                         settingsDefaults.removeObject(forKey: JournalCatalogBackupKeys.items)
                     }
                 }
+                // The Coach's state is NOT applied here: until the relaunch a restore asks for, the running
+                // Coach still holds the old state in memory and would write it back over the restored files.
+                // It is left pending and applied at the next launch, before any Coach store loads
+                // (`AppModel.init`). A backup without the entry, or with one this build cannot read, leaves
+                // the current Coach untouched.
+                let coachURL = extractedDir.appendingPathComponent(CoachStateBackup.entryName)
+                if let data = try? Data(contentsOf: coachURL), CoachStateBackup.decode(data) != nil {
+                    let dir = coachStateDirectory ?? Self.coachStateDirectory
+                    try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+                    try? data.write(to: dir.appendingPathComponent(CoachStateBackup.pendingFileName),
+                                    options: .atomic)
+                }
             }
             // #57 debug: record when a restore swapped the DB, so the export can correlate a restore with a
             // later write stall (a restore not followed by a relaunch is the #57 failure).
@@ -586,11 +636,11 @@ enum DataBackup {
     private static let backupEntryName = "noop-backup.sqlite"
 
     private enum BackupArchiveError: LocalizedError {
-        case entryTooLarge(String)
+        case entryTooLarge(String, limit: Int64)
 
         var errorDescription: String? {
             switch self {
-            case .entryTooLarge(let name):
+            case .entryTooLarge(let name, _):
                 return "\(name) is too large to restore safely."
             }
         }
@@ -688,6 +738,8 @@ enum DataBackup {
                 limit = allowOversize ? Int64.max : maxBackupSQLiteBytes
             case BackupSettings.entryName:
                 limit = maxBackupSettingsBytes
+            case CoachStateBackup.entryName:
+                limit = allowOversize ? Int64.max : maxBackupCoachStateBytes
             default:
                 continue
             }
@@ -702,7 +754,7 @@ enum DataBackup {
                 guard next <= limit else {
                     try? handle.close()
                     try? FileManager.default.removeItem(at: out)
-                    throw BackupArchiveError.entryTooLarge(name)
+                    throw BackupArchiveError.entryTooLarge(name, limit: limit)
                 }
                 try handle.write(contentsOf: data)
                 written = next

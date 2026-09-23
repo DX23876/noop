@@ -1,6 +1,7 @@
 import XCTest
 import SQLite3
 import ZIPFoundation
+import WhoopStore
 @testable import Strand
 
 /// Real file-I/O tests for the Backup & Sync restore path - not string logic (must-fix #5).
@@ -136,6 +137,68 @@ final class BackupSyncRoundTripTests: XCTestCase {
         XCTAssertNil(defaults.object(forKey: "profile.age"),
                      "A rejected restore must never apply the backup's settings")
         XCTAssertEqual(try deviceRows(in: liveDB), ["original"], "Live DB untouched")
+    }
+
+    // MARK: - Coach state travels with the backup and is applied on the next launch
+
+    func testCoachStateIsLeftPendingAndAppliesOnTheNextLaunch() throws {
+        let sourceDB = tmp.appendingPathComponent("source.sqlite")
+        try makeNoopDatabase(at: sourceDB, deviceRows: ["my-whoop"])
+        let conversations = Data(#"[{"id":"restored"}]"#.utf8)
+        let backup = tmp.appendingPathComponent("with-coach.noopbak")
+        try DataBackup.writeBackupForTesting(databaseAt: sourceDB, to: backup, coachState: .init(
+            files: ["coach-conversations.json": conversations],
+            defaults: ["ai.persona": "friend"]))
+
+        let coachDir = tmp.appendingPathComponent("coach", isDirectory: true)
+        let defaults = try freshDefaults()
+        defaults.set("commander", forKey: "ai.persona")
+        let liveDB = tmp.appendingPathComponent("live.sqlite")
+        let result = DataBackup.restore(from: backup, toDatabaseAt: liveDB.path, settingsDefaults: defaults,
+                                        coachStateDirectory: coachDir)
+        guard case .imported = result else { return XCTFail("Restore should succeed, got \(result)") }
+
+        XCTAssertEqual(defaults.string(forKey: "ai.persona"), "commander",
+                       "the running Coach is left alone until the relaunch")
+        XCTAssertTrue(FileManager.default.fileExists(
+            atPath: coachDir.appendingPathComponent(CoachStateBackup.pendingFileName).path))
+
+        XCTAssertTrue(CoachStateBackup.applyPending(defaults: defaults, directory: coachDir))
+        XCTAssertEqual(defaults.string(forKey: "ai.persona"), "friend")
+        XCTAssertEqual(try Data(contentsOf: coachDir.appendingPathComponent("coach-conversations.json")),
+                       conversations)
+    }
+
+    func testBackupWithoutCoachStateLeavesNothingPending() throws {
+        let sourceDB = tmp.appendingPathComponent("source.sqlite")
+        try makeNoopDatabase(at: sourceDB, deviceRows: ["my-whoop"])
+        let backup = tmp.appendingPathComponent("db-only.noopbak")
+        try DataBackup.writeBackupForTesting(databaseAt: sourceDB, to: backup)
+
+        let coachDir = tmp.appendingPathComponent("coach", isDirectory: true)
+        let liveDB = tmp.appendingPathComponent("live.sqlite")
+        let result = DataBackup.restore(from: backup, toDatabaseAt: liveDB.path,
+                                        settingsDefaults: try freshDefaults(), coachStateDirectory: coachDir)
+        guard case .imported = result else { return XCTFail("Restore should succeed, got \(result)") }
+        XCTAssertFalse(FileManager.default.fileExists(
+            atPath: coachDir.appendingPathComponent(CoachStateBackup.pendingFileName).path))
+    }
+
+    func testCoachStateIsNotLeftPendingWhenTheRestoreIsRejected() throws {
+        let foreign = tmp.appendingPathComponent("foreign.sqlite")
+        try makeForeignDatabase(at: foreign)
+        let backup = tmp.appendingPathComponent("foreign-coach.noopbak")
+        try DataBackup.writeBackupForTesting(databaseAt: foreign, to: backup,
+                                             coachState: .init(defaults: ["ai.persona": "friend"]))
+
+        let coachDir = tmp.appendingPathComponent("coach", isDirectory: true)
+        let liveDB = tmp.appendingPathComponent("live.sqlite")
+        try makeNoopDatabase(at: liveDB, deviceRows: ["original"])
+        let result = DataBackup.restore(from: backup, toDatabaseAt: liveDB.path,
+                                        settingsDefaults: try freshDefaults(), coachStateDirectory: coachDir)
+        guard case .failure = result else { return XCTFail("Foreign backup must be rejected, got \(result)") }
+        XCTAssertFalse(FileManager.default.fileExists(
+            atPath: coachDir.appendingPathComponent(CoachStateBackup.pendingFileName).path))
     }
 
     // MARK: - Foreign SQLite is rejected, live DB untouched

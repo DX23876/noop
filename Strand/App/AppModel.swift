@@ -292,6 +292,9 @@ final class AppModel: ObservableObject {
         // the registry active id once the store opens. Single-device install keeps "my-whoop" throughout.
         self.ble = BLEManager(state: live, deviceId: deviceId)
         self.repo = Repository(deviceId: deviceId)
+        // A backup restored in the previous session left the Coach's state pending; apply it before the
+        // Coach and its stores load, so they start from the restored state rather than overwrite it.
+        CoachStateBackup.applyPending(defaults: .standard, directory: DataBackup.coachStateDirectory)
         self.coach = AICoachEngine(repo: repo)
         self.intelligence = IntelligenceEngine(repo: repo, profile: profile, deviceId: deviceId)
         // Route the engine's per-day scoring diagnostic into the SAME shareable strap log every other
