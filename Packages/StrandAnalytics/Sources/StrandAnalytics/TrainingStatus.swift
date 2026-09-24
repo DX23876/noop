@@ -190,7 +190,10 @@ public enum TrainingAdaptationState: String, Equatable, Sendable, Codable {
 
 public enum TrainingAdaptationEvidence: String, Equatable, Sendable, Codable {
     case estimatedOneRepMax
+    /// Apple Watch's measured VO₂max, while fresh (`CardioEvidence.appleIsFresh`).
     case vo2max
+    /// Beats per kilometre in the main endurance sport (`CardioEvidence.heartRateEfficiency`).
+    case heartRateEfficiency
 }
 
 public struct TrainingAdaptationReading: Equatable, Sendable {
@@ -465,16 +468,19 @@ public enum TrainingStatusModel {
                                          observations: response.evaluated)
     }
 
-    public static func cardiovascularAdaptation(_ response: VO2maxResponse) -> TrainingAdaptationReading {
+    /// Cardio adaptation from the lane's performance evidence (`CardioEvidence.reading`) — never from
+    /// NOOP's VO₂max estimate, which is partly built from the load it would be judging.
+    public static func cardiovascularAdaptation(_ reading: CardioEvidenceReading) -> TrainingAdaptationReading {
         let state: TrainingAdaptationState
-        switch response.direction {
-        case .improving: state = .improving
-        case .worsening: state = .declining
+        switch reading.evidence {
+        case .rising: state = .improving
+        case .falling: state = .declining
         case .unclear: state = .unclear
-        case .unknown: state = .notEnoughData
+        case .none: state = .notEnoughData
         }
-        return TrainingAdaptationReading(state: state, evidence: .vo2max,
-                                         observations: response.readings.count)
+        return TrainingAdaptationReading(state: state,
+                                         evidence: reading.source == .heartRateEfficiency ? .heartRateEfficiency : .vo2max,
+                                         observations: reading.observations)
     }
 
     /// Which way VO₂max has moved over the last `vo2maxWindowDays` — cardio's answer to "is it working".

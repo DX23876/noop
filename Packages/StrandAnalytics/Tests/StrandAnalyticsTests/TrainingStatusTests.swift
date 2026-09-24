@@ -9,8 +9,7 @@ final class TrainingStatusTests: XCTestCase {
         let strength = TrainingStatusModel.strengthAdaptation(
             StrengthResponseReading(direction: .unknown, rising: 0, falling: 0, unclear: 0))
         let cardio = TrainingStatusModel.cardiovascularAdaptation(
-            VO2maxResponse(direction: .unknown, readings: [], slopePerWeek: nil,
-                           changeOverSpan: nil, spanDays: 0, segmentBreak: false))
+            CardioEvidenceReading(evidence: .none, source: .none, apple: nil, efficiency: nil))
         XCTAssertEqual(strength.state, .notEnoughData)
         XCTAssertEqual(cardio.state, .notEnoughData)
     }

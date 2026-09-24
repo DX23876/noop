@@ -3247,6 +3247,7 @@ final class AICoachEngine: ObservableObject {
     /// question-specific non-tool context below, it includes every *granted* purpose, but never silently
     /// crosses a granular data-access boundary.
     func buildFullContext() async -> String {
+        await refreshVO2maxDisplay()
         var blocks: [String] = []
         if toolConsent.allows(.biometricSummary) {
             blocks.append(buildContext(includeGoals: toolConsent.allows(.planAdherence)))
@@ -3305,6 +3306,7 @@ final class AICoachEngine: ObservableObject {
     }
 
     private func buildNonToolContext(for question: String) async -> PreparedNonToolContext {
+        await refreshVO2maxDisplay()
         let sections = CoachLocalContextPlanner.sections(for: question)
         var blocks: [String] = []
         var categories: [ChatMessage.LocalContextCategory] = []
@@ -4062,39 +4064,38 @@ final class AICoachEngine: ObservableObject {
             ?? "There isn't enough recent Charge history to project tomorrow honestly yet."
     }
 
-    /// VO₂max estimate from the same inputs the Fitness Age screen and `IntelligenceEngine.fitnessAgeRows`
-    /// use (median resting HR + strain-derived PA index over the last 7 days); nil without a waist
-    /// measurement, exactly as `FitnessAgeEngine` specifies. Shared by `goalEvidence()` (goal feasibility)
-    /// and `buildContext()` (chat), so the two can never disagree.
-    private func estimatedVO2max(days: [DailyMetric], profile: ProfileStore) -> Double? {
-        let gate7 = Array(days.suffix(7))
-        let rhrs = gate7.compactMap { $0.restingHr }.map(Double.init)
-        guard !rhrs.isEmpty, profile.age > 0, profile.waistCm > 0 else { return nil }
-        let strains = gate7.compactMap { $0.strain }.filter { $0 >= 30 }
-        let meanStrain = strains.isEmpty ? 0 : strains.reduce(0, +) / Double(strains.count)
-        let sorted = rhrs.sorted()
-        let medianRHR = sorted.count % 2 == 1
-            ? sorted[sorted.count / 2]
-            : (sorted[sorted.count / 2 - 1] + sorted[sorted.count / 2]) / 2
-        return FitnessAgeEngine.compute(
-            age: Double(profile.age), sex: profile.sex, restingHR: medianRHR,
-            paIndex: FitnessAgeEngine.physicalActivityIndexFromStrain(
-                activeDaysPerWeek: strains.count, meanActiveStrain: meanStrain),
-            waistCm: profile.waistCm)?.vo2max
+    /// The VO₂max the screens show (`CardioEvidence.display`): NOOP's stored weekly estimate — Nes 2011
+    /// with a waist measurement, Uth 2004 without — and Apple Watch's latest reading with its date. Read
+    /// from the store by `refreshVO2maxDisplay()` before each context is built, so the chat, goal
+    /// feasibility and every screen quote the same number. It used to be recomputed here from the last
+    /// seven days with Nes only, which gave the coach nothing at all without a waist measurement while the
+    /// screens showed the Uth estimate. Internal rather than private so tests can supply it without a store.
+    var vo2maxDisplay: VO2maxDisplay?
+
+    private func refreshVO2maxDisplay() async {
+        let estimates = await repo.exploreSeries(key: "vo2max_est", source: Repository.whoopSource, days: 90)
+            .map { VO2maxReading(day: $0.day, value: $0.value, segment: "vo2max_est") }
+        let apple = await repo.exploreSeries(key: "vo2max", source: Repository.appleHealthSource, days: 365)
+            .map { VO2maxReading(day: $0.day, value: $0.value, segment: Repository.appleHealthSource) }
+        vo2maxDisplay = CardioEvidence.display(estimates: estimates, apple: apple,
+                                               through: Repository.logicalDayKey(Date()))
+    }
+
+    /// The headline VO₂max value, or nil when neither source has one.
+    private func estimatedVO2max() -> Double? {
+        vo2maxDisplay?.primary?.value
     }
 
     /// Gather what the app can actually measure about the user's starting point, for the feasibility
-    /// check. Every field degrades to nil rather than guessing. VO₂max mirrors
-    /// `IntelligenceEngine.fitnessAgeRows`'s assembly (median resting HR + strain-derived PA index over
-    /// the recent gate window) and is nil without a waist measurement, exactly as `FitnessAgeEngine`
-    /// specifies — it is reported as context, never used to predict.
+    /// check. Every field degrades to nil rather than guessing. VO₂max is the value the screens show
+    /// (`vo2maxDisplay`) — reported as context, never used to predict.
     func goalEvidence() async -> GoalFeasibility.Evidence {
         let days = repo.days
-        let profile = ProfileStore()
         var evidence = GoalFeasibility.Evidence()
 
-        // VO₂max (context only): the same inputs the Fitness Age screen uses.
-        evidence.vo2max = estimatedVO2max(days: days, profile: profile)
+        // VO₂max (context only): the value the screens show.
+        await refreshVO2maxDisplay()
+        evidence.vo2max = estimatedVO2max()
 
         // Running base + weekly session count, from the last 30 days of workouts.
         let rows = await repo.workoutRows(days: 30)
@@ -4894,8 +4895,14 @@ final class AICoachEngine: ObservableObject {
                      + ", skin-temp deviation: \(avgOne(last30.compactMap { $0.skinTempDevC }))°C"
                      + ", steps: \(avgInt(last30.compactMap { $0.steps.map(Double.init) }))/day"
                      + ", active energy: \(avgInt(last30.compactMap { $0.activeKcalEst }))kcal/day")
-        if let vo2max = estimatedVO2max(days: days, profile: profile) {
-            lines.append(String(format: "Estimated VO2max: %.1f ml/kg/min", vo2max))
+        if let display = vo2maxDisplay, let headline = display.primary {
+            let source = headline.segment == Repository.appleHealthSource
+                ? "Apple Watch, measured \(headline.day)" : "NOOP weekly estimate, not a lab test"
+            lines.append(String(format: "VO2max: %.1f ml/kg/min (%@)", headline.value, source))
+            if let apple = display.appleLatest {
+                lines.append(String(format: "Apple Watch VO2max last measured %.1f ml/kg/min on %@",
+                                    apple.value, apple.day))
+            }
         }
 
         return lines.joined(separator: "\n")

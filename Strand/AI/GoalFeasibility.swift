@@ -6,9 +6,9 @@ import StrandAnalytics
 /// deliberately answered differently.
 ///
 /// WHAT THIS DOES NOT DO: predict. There are published VO₂max→race-time models, and building one here
-/// would be inventing science the project has decided not to invent (and NOOP's VO₂max estimate is
-/// itself nil unless the user has entered a waist measurement, so a predictor would be unavailable for
-/// most people anyway). Instead this reports the EVIDENCE — what the user's own history actually shows
+/// would be inventing science the project has decided not to invent (and NOOP's VO₂max is a
+/// non-exercise estimate — Nes 2011 with a waist measurement, Uth 2004 from resting heart rate without —
+/// too coarse to predict a race from). Instead this reports the EVIDENCE — what the user's own history actually shows
 /// about their starting point — and only flags the cases that are plainly out of reach.
 ///
 /// `.unknown` is a first-class, common, CORRECT answer. Saying "I can't judge this from what I can
@@ -38,8 +38,8 @@ enum GoalFeasibility {
     /// What the app could actually measure about the user's starting point. Every field is optional
     /// because every field is genuinely often missing.
     struct Evidence: Equatable {
-        /// Estimated VO₂max (ml/kg/min). nil without a waist measurement — reported as context only,
-        /// never used as a predictor.
+        /// VO₂max (ml/kg/min) as the screens show it (`CardioEvidence.display`). nil while neither NOOP's
+        /// estimate nor Apple Watch has a reading — reported as context only, never used as a predictor.
         var vo2max: Double?
         /// Longest single run in the recent window, km.
         var longestRecentRunKm: Double?

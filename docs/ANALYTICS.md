@@ -685,21 +685,28 @@ raises hypertrophy with the slope flattening past about 2 RIR but barely changes
 (Robinson et al. 2024) — which is why the load is effort-weighted sets but "productive" is judged on the
 lifts themselves.
 
-**VO₂max needs a change worth naming.** The direction shown beside the cardio lane is withheld unless
-the Theil–Sen line moves by at least 1.0 ml/kg/min across its window, on top of the existing agreement
-rule. An estimated VO₂max is inferred from heart rate and pace and carries roughly a point of error, so
-eight weeks drifting half a point in one direction describes the estimator rather than the athlete;
-below the floor the direction is *unclear*, with the readings still shown.
+**Cardio evidence — never NOOP's own VO₂max estimate.** Source: `CardioEvidence.swift`. The card shows
+NOOP's weekly `vo2max_est` as the VO₂max headline — always current while the band is worn, one
+unbroken line — and Apple Watch's latest measured reading beneath it *with its date*, so a reading from
+weeks ago never passes as today's value. It used to prefer Apple whenever there were four readings in
+eight weeks, however old the latest was. The estimate is not evidence, though: Nes 2011 is built from a
+physical-activity index NOOP derives from Effort, so more training raises it by construction (three
+days at Effort 45 → five days at Effort 75 is +2.0 ml/kg/min at an unchanged resting HR), and Uth 2004
+is resting heart rate alone, which the recovery reading already uses. The cardio verdict therefore
+reads, in order:
 
-**Cardio development — VO₂max.** The idea that a load counts as "productive" only while an aerobic
-marker rises is widely used; `TrainingStatusModel.vo2maxResponse` is that marker, shown beside the load status rather than
-changing it. It reads Apple Watch's measured Cardio Fitness when there are at least four readings in the
-last 56 days (it comes from real outdoor effort), otherwise NOOP's weekly `vo2max_est` (Nes 2011 with a
-waist, Uth 2004 without), each reading tagged with the estimator that produced it. The line is the same
-Theil–Sen estimator and agreement rule as a lift, drawn through the most recent segment only: readings
-from another source or estimator earlier in the window are left out and `segmentBreak` says so, because
-a change of method moves the number without any change in fitness. The screen shows the latest value,
-the direction with the change the line implies, a sparkline and the source.
+1. **Apple's measured VO₂max while fresh** — at least four readings in the last 56 days and the latest
+   no more than 14 days old. Theil–Sen line within one segment, the agreement rule, and at least
+   1.5 ml/kg/min of change across the window (an estimate's error is around a point).
+2. **Heart-rate efficiency** — beats per kilometre in the main endurance sport (the exact stored label
+   with the most sessions carrying the figure in 56 days), the same Theil–Sen line and agreement rule as
+   a lift over at least four sessions, and a change of at least 3 % of the typical value (NOOP's own
+   floor: beats per kilometre moves with heat, hills and pace). Fewer beats per kilometre is improving.
+3. **Nothing** — the statement describes the load.
+
+The chat context and goal feasibility quote the same headline and Apple reading
+(`AICoachEngine.vo2maxDisplay`); they used to recompute Nes themselves, which gave the coach no value at
+all without a waist measurement while every screen showed the Uth estimate.
 
 **Lasting overload — a warning, not another verdict.** The ECSS/ACSM consensus (Meeusen et al. 2013)
 separates functional overreaching (a planned hard block, recovered from in days, followed by better

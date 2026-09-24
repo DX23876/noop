@@ -1,6 +1,6 @@
 # Training Load – Umbau- und Erweiterungsplan
 
-Stand: 2026-09-24 · Branch: `claude/training-load-optimization-cfb32e` · Status: **beschlossen; P1a umgesetzt, weiter mit P1b**
+Stand: 2026-09-24 · Branch: `claude/training-load-optimization-cfb32e` · Status: **beschlossen; P1 umgesetzt (P1a, Nachtrag, P1b), weiter mit P3**
 
 Dieser Plan fasst die Untersuchung von Training Load zusammen (Code-Review, Messung gegen die echte
 `StrandAnalytics`-Logik, Abgleich mit dem Polar-Whitepaper) und die in vier Grilling-Runden getroffenen

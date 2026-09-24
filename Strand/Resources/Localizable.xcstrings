@@ -448321,6 +448321,354 @@
           }
         }
       }
+    },
+    "Apple Watch last measured %@ on %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Watch zuletzt gemessen: %@ am %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Última medición del Apple Watch: %@ el %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dernière mesure de l’Apple Watch : %@ le %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ultima misurazione dell’Apple Watch: %@ il %@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ostatni pomiar Apple Watch: %@ dnia %@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Última medição do Apple Watch: %@ a %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Последнее измерение Apple Watch: %@, %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Watch 最近一次测量：%@（%@）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Watch 最近一次測量：%@（%@）"
+          }
+        }
+      }
+    },
+    "improving" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "steigend"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "mejorando"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "en progrès"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "in miglioramento"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "poprawa"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "a melhorar"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "улучшается"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在提升"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在提升"
+          }
+        }
+      }
+    },
+    "declining" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "sinkend"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "empeorando"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "en baisse"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "in calo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "spadek"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "a piorar"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ухудшается"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在下降"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在下降"
+          }
+        }
+      }
+    },
+    "Measured VO₂max from Apple Watch: %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gemessene VO₂max der Apple Watch: %@."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VO₂max medido por el Apple Watch: %@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VO₂max mesurée par l’Apple Watch : %@."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VO₂max misurato dall’Apple Watch: %@."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VO₂max zmierzone przez Apple Watch: %@."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VO₂max medido pelo Apple Watch: %@."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VO₂max, измеренный Apple Watch: %@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Watch 测得的 VO₂max：%@。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Watch 測得的 VO₂max：%@。"
+          }
+        }
+      }
+    },
+    "Heart-rate efficiency in %@ — beats per kilometre over %lld sessions: %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Herzfrequenz-Effizienz beim %@ — Schläge pro Kilometer über %lld Einheiten: %@."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eficiencia cardíaca en %@ — latidos por kilómetro en %lld sesiones: %@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Efficacité cardiaque en %@ — battements par kilomètre sur %lld séances : %@."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Efficienza cardiaca in %@ — battiti per chilometro su %lld sessioni: %@."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wydajność tętna w dyscyplinie %@ — uderzenia na kilometr, liczba sesji: %lld: %@."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eficiência cardíaca em %@ — batimentos por quilómetro em %lld sessões: %@."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Эффективность пульса в виде спорта %@ — удары на километр, тренировок: %lld: %@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 的心率效率——%lld 次训练的每公里心跳数：%@。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 的心率效率——%lld 次訓練的每公里心跳數：%@。"
+          }
+        }
+      }
+    },
+    "No performance evidence yet: a fresh Apple Watch VO₂max, or at least four endurance sessions with distance and heart rate. Until then the statement only describes the load." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch kein Leistungsnachweis: eine aktuelle VO₂max der Apple Watch oder mindestens vier Ausdauereinheiten mit Distanz und Puls. Bis dahin beschreibt die Aussage nur die Last."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aún no hay datos de rendimiento: un VO₂max reciente del Apple Watch o al menos cuatro sesiones de resistencia con distancia y pulso. Hasta entonces, el mensaje solo describe la carga."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pas encore de preuve de performance : une VO₂max récente de l’Apple Watch ou au moins quatre séances d’endurance avec distance et fréquence cardiaque. D’ici là, le message ne décrit que la charge."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ancora nessuna prova di prestazione: un VO₂max recente dell’Apple Watch o almeno quattro sessioni di resistenza con distanza e frequenza cardiaca. Fino ad allora il messaggio descrive solo il carico."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak jeszcze danych o wynikach: aktualne VO₂max z Apple Watch albo co najmniej cztery sesje wytrzymałościowe z dystansem i tętnem. Do tego czasu komunikat tylko opisuje obciążenie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ainda não há prova de desempenho: um VO₂max recente do Apple Watch ou pelo menos quatro sessões de resistência com distância e frequência cardíaca. Até lá, a mensagem só descreve a carga."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пока нет данных о результатах: свежего VO₂max от Apple Watch или хотя бы четырёх тренировок на выносливость с дистанцией и пульсом. До тех пор сообщение лишь описывает нагрузку."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚无表现依据：需要近期的 Apple Watch VO₂max，或至少四次带距离和心率的耐力训练。在此之前，提示只描述负荷。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚無表現依據：需要近期的 Apple Watch VO₂max，或至少四次帶距離和心率的耐力訓練。在此之前，提示只描述負荷。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

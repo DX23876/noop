@@ -52,7 +52,8 @@ final class TrainingLoadModel: ObservableObject {
         let cardio: Lane
         let session: Lane
         let response: StrengthResponseReading
-        let vo2max: VO2maxResponse
+        let vo2display: VO2maxDisplay
+        let cardioEvidence: CardioEvidenceReading
         let recovery: RecoveryReading
         let history: [TrainingStatusModel.WeeklyLoadBands]
         let ratios: [RatioPoint]
@@ -75,9 +76,10 @@ final class TrainingLoadModel: ObservableObject {
     @Published private(set) var session: Lane?
     /// Which way the lifts of the last six weeks are moving — strength adaptation evidence.
     @Published private(set) var strengthResponse: StrengthResponseReading?
-    /// VO₂max over the last eight weeks — cardiovascular adaptation evidence and one input to the
-    /// sustained-overload pattern.
-    @Published private(set) var vo2max: VO2maxResponse?
+    /// The VO₂max the card shows: NOOP's estimate as the headline, Apple's latest reading beside it.
+    @Published private(set) var vo2display: VO2maxDisplay?
+    /// The cardio lane's performance evidence — fresh Apple VO₂max, else heart-rate efficiency, else none.
+    @Published private(set) var cardioEvidence: CardioEvidenceReading?
     /// Overreaching that has lasted with performance falling and recovery strained, if present.
     @Published private(set) var sustainedOverreaching: SustainedOverreaching?
     /// How recovery has held over the last seven nights.
@@ -120,7 +122,8 @@ final class TrainingLoadModel: ObservableObject {
         let prepared = await Task.detached(priority: .userInitiated) { () -> Prepared in
             Self.prepare(strengthHistory: strengthHistory, unified: unified,
                          cardioResolution: cardioResolution, rpeEntries: rpeEntries,
-                         dailyRows: dailyRows, vo2: vo2, today: today, now: now, offset: offset)
+                         dailyRows: dailyRows, vo2Estimates: vo2.estimates, vo2Apple: vo2.apple,
+                         today: today, now: now, offset: offset)
         }.value
 
         guard !Task.isCancelled else { return }
@@ -145,7 +148,8 @@ final class TrainingLoadModel: ObservableObject {
         cardio = prepared.cardio
         session = prepared.session
         strengthResponse = prepared.response
-        vo2max = prepared.vo2max
+        vo2display = prepared.vo2display
+        cardioEvidence = prepared.cardioEvidence
         sustainedOverreaching = prepared.sustained
         recovery = prepared.recovery
         history = prepared.history
@@ -168,7 +172,8 @@ final class TrainingLoadModel: ObservableObject {
                                     unified: [UnifiedTrainingSession],
                                     cardioResolution: TrainingCardioLoadResolution,
                                     rpeEntries: [SessionRPEEntry], dailyRows: [DailyMetric],
-                                    vo2: [VO2maxReading], today: String, now: Int,
+                                    vo2Estimates: [VO2maxReading], vo2Apple: [VO2maxReading] = [],
+                                    today: String, now: Int,
                                     offset: Int) -> Prepared {
         let strengthWorkouts = strengthHistory.workouts
         let templates = strengthHistory.templates
@@ -268,11 +273,18 @@ final class TrainingLoadModel: ObservableObject {
                                              strengthBand: point.day <= strengthDay ? point.strengthBand : nil,
                                              cardioBand: point.day <= cardioDay ? point.cardioBand : nil)
             }
-        let vo2max = TrainingStatusModel.vo2maxResponse(readings: vo2, through: today)
+        // What the card shows and what counts as evidence are separate questions: NOOP's estimate is the
+        // headline, but it is partly built from the load it would be judging, so the cardio verdict reads
+        // fresh Apple VO₂max or the lane's own heart-rate efficiency instead (`CardioEvidence`).
+        let vo2display = CardioEvidence.display(estimates: vo2Estimates, apple: vo2Apple, through: today)
+        let cardioSessions = CardioSession.sessions(
+            unified.filter { !cardioResolution.duplicateSessionIds.contains($0.id) }.map(\.row),
+            tzOffsetSeconds: offset)
+        let cardioEvidenceReading = CardioEvidence.reading(apple: vo2Apple, sessions: cardioSessions, through: today)
         let strengthAdaptation = TrainingStatusModel.strengthAdaptation(response)
-        let cardiovascularAdaptation = TrainingStatusModel.cardiovascularAdaptation(vo2max)
+        let cardiovascularAdaptation = TrainingStatusModel.cardiovascularAdaptation(cardioEvidenceReading)
         let strengthEvidence = LaneEvidence(response.direction)
-        let cardioEvidence = LaneEvidence(vo2max.direction)
+        let cardioEvidence = cardioEvidenceReading.evidence
         let strengthVerdict = strengthLane.reading.flatMap {
             LaneEngine.verdict($0, evidence: strengthEvidence, recovery: recovery.state, lane: .strength)
         }
@@ -324,7 +336,8 @@ final class TrainingLoadModel: ObservableObject {
                                                                   unknownDays: sessionUnknown),
                           measuredCount: measured, possibleCount: possible, reading: nil),
             response: response,
-            vo2max: vo2max,
+            vo2display: vo2display,
+            cardioEvidence: cardioEvidenceReading,
             recovery: recovery,
             history: history,
             ratios: ratios,
@@ -440,27 +453,20 @@ final class TrainingLoadModel: ObservableObject {
         return chosen.values.sorted { ($0.startTs, $0.id) < ($1.startTs, $1.id) }
     }
 
-    /// The VO₂max readings the cardio lane reads.
-    ///
-    /// Apple Watch's measured Cardio Fitness when it has at least four readings in the window — it comes
-    /// from real outdoor effort. Otherwise NOOP's weekly estimate, each reading tagged with the estimator
-    /// that produced it (Nes 2011 or Uth 2004), so `TrainingStatusModel.vo2maxResponse` never draws a
-    /// line across a change of method. The same series and provenance the Metric Explorer shows.
-    private static func vo2maxReadings(repo: Repository) async -> [VO2maxReading] {
-        let cutoff = WeeklyDigestEngine.addDays(Repository.localDayKey(Date()),
-                                                -(TrainingStatusModel.vo2maxWindowDays - 1))
-        let apple = await repo.exploreSeries(key: "vo2max", source: Repository.appleHealthSource, days: 90)
-        if apple.filter({ $0.day >= cutoff }).count >= StrengthProgress.minimumTrendPoints {
-            return apple.map { VO2maxReading(day: $0.day, value: $0.value, segment: Repository.appleHealthSource) }
-        }
+    /// Both VO₂max series, each reading tagged with where it came from: NOOP's weekly estimate (by its
+    /// estimator, Nes 2011 or Uth 2004, so no line is drawn across a change of method) and Apple Watch's
+    /// measured Cardio Fitness. `CardioEvidence` decides what each is used for.
+    private static func vo2maxReadings(repo: Repository) async -> (estimates: [VO2maxReading], apple: [VO2maxReading]) {
+        let appleSeries = await repo.exploreSeries(key: "vo2max", source: Repository.appleHealthSource, days: 90)
+        let apple = appleSeries.map { VO2maxReading(day: $0.day, value: $0.value, segment: Repository.appleHealthSource) }
         let resolution = await repo.resolvedSeries(key: "vo2max_est", source: Repository.whoopSource, days: 90)
-        var readings: [VO2maxReading] = []
+        var estimates: [VO2maxReading] = []
         for point in resolution.points {
             let tag = await repo.scoreProvenanceTag(resolvedSource: point.source, day: point.day,
                                                     metricKey: "vo2max_est")
-            readings.append(VO2maxReading(day: point.day, value: point.value, segment: tag ?? point.source))
+            estimates.append(VO2maxReading(day: point.day, value: point.value, segment: tag ?? point.source))
         }
-        return readings
+        return (estimates, apple)
     }
 }
 
@@ -1330,14 +1336,15 @@ struct TrainingLoadView: View {
         .accessibilityElement(children: .combine)
     }
 
-    /// Cardio's "is it working": VO₂max over eight weeks — the marker Garmin requires for a productive
-    /// load. Shown beside Polar's load status, never changing it.
+    /// Cardio's "is it working". Two things, kept apart: the VO₂max headline — NOOP's weekly estimate, with
+    /// Apple's latest reading and its date beneath it — and the performance EVIDENCE the cardio verdict
+    /// reads, which is never the estimate (it is partly built from the load it would judge).
     private var vo2maxCard: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.gap) {
             SectionHeader("Cardio development", overline: "VO₂max, last eight weeks")
             NoopCard {
                 VStack(alignment: .leading, spacing: NoopMetrics.space3) {
-                    if let vo2 = model.vo2max, let latest = vo2.latest {
+                    if let display = model.vo2display, let latest = display.primary {
                         HStack(alignment: .firstTextBaseline, spacing: NoopMetrics.space2) {
                             TrainingCountUp(value: shownVO2, decimals: 1)
                                 .font(StrandFont.number(40, weight: .bold))
@@ -1354,15 +1361,16 @@ struct TrainingLoadView: View {
                                 .font(StrandFont.caption)
                                 .foregroundStyle(StrandPalette.textTertiary)
                             Spacer(minLength: NoopMetrics.space2)
-                            vo2Chip(vo2)
                         }
-                        VO2maxSparkline(readings: vo2.readings, color: vo2Color(vo2.direction))
+                        if display.line.readings.count >= 2 {
+                            VO2maxSparkline(readings: display.line.readings, color: StrandPalette.effortColor)
+                        }
                         Text(vo2SourceText(latest))
                             .font(StrandFont.caption)
                             .foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
-                        if vo2.segmentBreak {
-                            Text("Earlier readings in this window came from a different estimate and are left out, so a change of method is not shown as fitness.")
+                        if let apple = display.appleLatest {
+                            Label(appleLatestText(apple), systemImage: "applewatch")
                                 .font(StrandFont.caption)
                                 .foregroundStyle(StrandPalette.textTertiary)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -1373,52 +1381,63 @@ struct TrainingLoadView: View {
                             .foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
+                    Divider().overlay(StrandPalette.hairline)
+                    evidenceRow
                 }
             }
         }
     }
 
-    private func vo2Color(_ direction: FitnessDirection) -> Color {
+    /// What the cardio verdict rests on, in one line: its direction and where it came from.
+    private var evidenceRow: some View {
+        let evidence = model.cardioEvidence
+        let direction = evidence?.evidence ?? LaneEvidence.none
+        let color: Color
+        let symbol: String
         switch direction {
-        case .improving: return StrandPalette.statusPositive
-        case .worsening: return StrandPalette.statusCritical
-        default:         return StrandPalette.effortColor
+        case .rising: color = StrandPalette.statusPositive; symbol = "arrow.up.right"
+        case .falling: color = StrandPalette.statusCritical; symbol = "arrow.down.right"
+        case .unclear: color = StrandPalette.textSecondary; symbol = "minus"
+        case .none: color = StrandPalette.textTertiary; symbol = "hourglass"
+        }
+        return HStack(alignment: .top, spacing: NoopMetrics.space3) {
+            StatusBadge(symbol: symbol, color: color, size: 26)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Performance evidence")
+                    .font(StrandFont.subhead.weight(.semibold))
+                    .foregroundStyle(StrandPalette.textPrimary)
+                Text(evidenceText(evidence))
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func evidenceText(_ evidence: CardioEvidenceReading?) -> String {
+        let direction: String
+        switch evidence?.evidence ?? LaneEvidence.none {
+        case .rising: direction = String(localized: "improving")
+        case .falling: direction = String(localized: "declining")
+        case .unclear: direction = String(localized: "no clear direction")
+        case .none: direction = ""
+        }
+        switch evidence?.source {
+        case .appleVO2max:
+            return String(localized: "Measured VO₂max from Apple Watch: \(direction).")
+        case .heartRateEfficiency:
+            let sport = evidence?.efficiency.map { WorkoutSource.localizedDisplaySport($0.sport) } ?? ""
+            return String(localized: "Heart-rate efficiency in \(sport) — beats per kilometre over \(evidence?.efficiency?.sessions ?? 0) sessions: \(direction).")
+        case .some(.none), nil:
+            return String(localized: "No performance evidence yet: a fresh Apple Watch VO₂max, or at least four endurance sessions with distance and heart rate. Until then the statement only describes the load.")
         }
     }
 
-    /// The direction and the change the line implies, e.g. "↗ +1.2 in 7 weeks".
-    private func vo2Chip(_ vo2: VO2maxResponse) -> some View {
-        let color = vo2Color(vo2.direction)
-        let symbol: String
-        let text: String
-        switch vo2.direction {
-        case .improving, .worsening:
-            symbol = vo2.direction == .improving ? "arrow.up.right" : "arrow.down.right"
-            let change = (vo2.changeOverSpan ?? 0).formatted(.number.precision(.fractionLength(1)).sign(strategy: .always()))
-            let weeks = max(1, Int((Double(vo2.spanDays) / 7).rounded()))
-            text = String(localized: "\(change) in \(weeks) weeks")
-        case .unclear:
-            symbol = "minus"
-            text = String(localized: "No clear direction")
-        case .unknown:
-            symbol = "hourglass"
-            text = String(localized: "Needs four readings")
-        }
-        let muted = vo2.direction == .unknown || vo2.direction == .unclear
-        return HStack(spacing: 5) {
-            Image(systemName: symbol).font(StrandFont.rounded(11, weight: .bold))
-            Text(text).font(StrandFont.captionNumber)
-        }
-        .foregroundStyle(muted ? StrandPalette.textSecondary : StrandPalette.onDarkPrimary)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
-        .background {
-            if muted {
-                Capsule().fill(StrandPalette.surfaceInset)
-            } else {
-                Capsule().fill(color.gradient).shadow(color: color.opacity(0.4), radius: 4, y: 2)
-            }
-        }
+    /// "Apple Watch last: 41.2 · 5 weeks ago" — the date is what keeps an old reading from passing as today's.
+    private func appleLatestText(_ reading: VO2maxReading) -> String {
+        let value = reading.value.formatted(.number.precision(.fractionLength(1)))
+        return String(localized: "Apple Watch last measured \(value) on \(StatusHistoryStrip.shortDate(reading.day))")
     }
 
     private func vo2SourceText(_ latest: VO2maxReading) -> String {
