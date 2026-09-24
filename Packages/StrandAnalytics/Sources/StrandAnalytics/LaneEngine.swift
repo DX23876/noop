@@ -16,8 +16,14 @@ import Foundation
 //     ratio r = 4u / (u + 3) of the uncoupled u used here. 1.15 is NOOP's own choice: Polar calls
 //     anything above 1.0 progression, which would make an ordinary +3 % week "above usual".
 //   • PERSONAL, from eight complete weeks: the robust weekly range of `TrainingLoad.relativeLoad`,
-//     expressed on the same ratio axis. "Well above" still starts no later than 1.44, so a wearer who
-//     trains irregularly never has a large jump read as normal.
+//     expressed on the same ratio axis, held between two limits. "Well above" starts no later than
+//     1.44, so a wearer who trains irregularly never has a large jump read as normal, and no earlier
+//     than 1.15, so a very regular history's tiny spread cannot make +13 % "well above"; "below" starts
+//     no earlier than 0.90.
+//
+// Days the data could not price leave both windows (`ComparisonCoverage.lane`) while at least five of the
+// seven recent days and three quarters of the baseline are known. All-or-nothing windows blanked a lane
+// for five weeks after one session without a usable heart-rate trace.
 //
 // Three guards sit on top of the edges:
 //
@@ -158,6 +164,13 @@ public enum LaneEngine {
     public static let provisionalThresholds = LaneThresholds(below: provisionalBelow, above: provisionalAbove,
                                                              wellAbove: wellAboveCeiling, isPersonal: false)
 
+    /// The earliest a personal "well above" may start. A very regular history has a tiny weekly spread,
+    /// and without a floor +13 % would read "well above usual"; it may not come sooner than the
+    /// provisional "above".
+    public static let personalWellAboveFloor = provisionalAbove
+    /// The earliest a personal "below usual" may start: a week has to be at least 10 % light.
+    public static let personalBelowCeiling = 0.90
+
     // MARK: Guards
 
     /// Sessions the baseline must hold before any band is shown.
@@ -206,9 +219,9 @@ public enum LaneEngine {
         }
         let week = trend.baselinePerDay * Double(TrainingLoad.recentWindow)
         guard week > 0 else { return provisionalThresholds }
-        let wellAbove = min(range.muchHigherBound / week, wellAboveCeiling)
+        let wellAbove = min(max(range.muchHigherBound / week, personalWellAboveFloor), wellAboveCeiling)
         let above = min(range.usualUpperBound / week, wellAbove)
-        let below = min(range.usualLowerBound / week, above)
+        let below = min(range.usualLowerBound / week, personalBelowCeiling, above)
         return LaneThresholds(below: below, above: above, wellAbove: wellAbove, isPersonal: true)
     }
 
@@ -322,7 +335,7 @@ public enum LaneEngine {
         private mutating func raw(_ day: String) -> Raw {
             if let cached = raws[day] { return cached }
             let relative = TrainingLoad.relativeLoad(dailyByDay: dailyByDay, through: day,
-                                                     unknownDays: unknownDays)
+                                                     unknownDays: unknownDays, coverage: .lane)
             let thresholds = LaneEngine.thresholds(for: relative)
             var guardState = LaneGuard.none
             var band: RelativeLoadBand?

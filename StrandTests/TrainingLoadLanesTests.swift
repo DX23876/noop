@@ -122,18 +122,18 @@ final class TrainingLoadLanesTests: XCTestCase {
 
     /// Captured from `LaneEngine` when the lanes moved onto it; a change here is a change to what
     /// Training Load shows. No lifting is logged today, so strength reads through yesterday; the run
-    /// today puts cardio through today. The unpriced run four days ago withholds every cardio comparison
-    /// whose window holds it — the hero, the chart and the strip alike.
+    /// today puts cardio through today. The unpriced run four days ago leaves both cardio windows rather
+    /// than blanking the comparison (`ComparisonCoverage.lane`).
     func testTodayReadingsMatchThePinnedOracle() {
         let prepared = Self.prepared(Self.fixture())
         XCTAssertEqual(Self.describe(prepared.strength),
                        "total=7.440000 sets=10 ratio=1.500000 pct=50.000000 maturity=baselineGrowing band=nil lower=false monotony=0.632456 strain=4.705469 wow=2.762431 measured=8/10 status=muchHigher guard=none day=2025-09-14")
         XCTAssertEqual(Self.describe(prepared.cardio),
-                       "total=372.000000 sets=0 ratio=nil pct=nil maturity=baselineGrowing band=nil lower=true monotony=nil strain=nil wow=nil measured=3/4 status=nil guard=none day=2025-09-15")
+                       "total=372.000000 sets=0 ratio=1.425287 pct=42.528736 maturity=baselineGrowing band=nil lower=true monotony=nil strain=nil wow=nil measured=3/4 status=higher guard=none day=2025-09-15")
         XCTAssertEqual(Self.describe(prepared.session),
                        "total=840.000000 sets=0 ratio=nil pct=nil maturity=earlyEstimate band=nil lower=true monotony=nil strain=nil wow=nil measured=2/7 status=nil guard=nil day=nil")
         XCTAssertEqual(Self.describe(prepared.ratios),
-                       "count=56 2025-09-13:2.735802/muchHigher,nil/nil 2025-09-14:1.500000/muchHigher,nil/nil 2025-09-15:nil/nil,nil/nil")
+                       "count=56 2025-09-13:2.735802/muchHigher,1.306513/higher 2025-09-14:1.500000/muchHigher,1.042146/usual 2025-09-15:nil/nil,1.425287/higher")
         XCTAssertNil(prepared.provisionalStrengthRing)
         XCTAssertTrue(prepared.cardioMeasured)
     }
@@ -141,7 +141,7 @@ final class TrainingLoadLanesTests: XCTestCase {
     func testAnUnknownDayOutsideTheWindowLeavesTheCardioComparisonIntact() {
         let prepared = Self.prepared(Self.fixture(unpricedDay: -40))
         XCTAssertEqual(Self.describe(prepared.cardio),
-                       "total=508.000000 sets=0 ratio=1.668309 pct=66.830870 maturity=baselineGrowing band=nil lower=false monotony=1.122291 strain=570.123789 wow=94.636015 measured=4/4 status=muchHigher guard=none day=2025-09-15")
+                       "total=508.000000 sets=0 ratio=1.668309 pct=66.830870 maturity=personalBaseline band=muchHigher lower=false monotony=1.122291 strain=570.123789 wow=94.636015 measured=4/4 status=muchHigher guard=none day=2025-09-15")
     }
 
     static func strengthLane(_ fixture: Fixture, through day: String) -> TrainingLoadModel.Lane {

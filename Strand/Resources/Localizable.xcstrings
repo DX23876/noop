@@ -448203,64 +448203,6 @@
         }
       }
     },
-    "NOOP compares the last 7 days with an earlier, non-overlapping baseline: through today once you have trained today, through yesterday before that. A partial training day stays visible as a lower bound but leaves the comparison. For the first eight weeks, below usual starts under −25 % and well above over +44 % — Polar's thresholds on these windows — with usual up to +15 %; after that your own robust weekly variation sets the range, and well above starts no later than +44 %. A band changes only once the change clears its edge by 5 points. With fewer than 3 sessions in the baseline there is no band, and a baseline under the WHO weekly minimum reads at most above usual." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "NOOP vergleicht die letzten 7 Tage mit einer früheren, nicht überlappenden Basis: bis heute, sobald du heute trainiert hast, sonst bis gestern. Ein teilweise gemessener Trainingstag bleibt als Untergrenze sichtbar, fließt aber nicht in den Vergleich ein. In den ersten acht Wochen beginnt „unter dem Üblichen“ unter −25 % und „deutlich höher“ über +44 % — Polars Schwellen auf diese Zeitfenster umgerechnet —, üblich reicht bis +15 %; danach legt deine eigene robuste Wochenschwankung den Bereich fest, und „deutlich höher“ beginnt spätestens bei +44 %. Ein Bereich wechselt erst, wenn die Änderung seine Grenze um 5 Punkte überschreitet. Mit weniger als 3 Einheiten in der Basis gibt es keinen Bereich, und eine Basis unter dem wöchentlichen WHO-Minimum zeigt höchstens „über dem Üblichen“."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "NOOP compara los últimos 7 días con una base anterior que no se solapa: hasta hoy si ya has entrenado hoy, si no hasta ayer. Un día de entrenamiento medido solo en parte sigue visible como límite inferior, pero queda fuera de la comparación. Durante las primeras ocho semanas, «por debajo de lo habitual» empieza por debajo de −25 % y «muy por encima» por encima de +44 % —los umbrales de Polar trasladados a estas ventanas—, y lo habitual llega hasta +15 %; después, tu propia variación semanal robusta fija el rango, y «muy por encima» empieza como tarde en +44 %. Un rango solo cambia cuando el cambio supera su límite en 5 puntos. Con menos de 3 sesiones en la base no hay rango, y una base por debajo del mínimo semanal de la OMS indica como mucho «por encima de lo habitual»."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "NOOP compare les 7 derniers jours à une base antérieure qui ne les chevauche pas : jusqu’à aujourd’hui si vous vous êtes déjà entraîné aujourd’hui, sinon jusqu’à hier. Un jour d’entraînement mesuré en partie reste visible comme borne inférieure mais sort de la comparaison. Pendant les huit premières semaines, « en dessous de l’habitude » commence sous −25 % et « nettement au-dessus » au-delà de +44 % — les seuils de Polar ramenés à ces fenêtres —, l’habitude allant jusqu’à +15 % ; ensuite, votre propre variation hebdomadaire robuste fixe la plage, et « nettement au-dessus » commence au plus tard à +44 %. Une plage ne change que lorsque l’écart dépasse sa limite de 5 points. Avec moins de 3 séances dans la base, il n’y a pas de plage, et une base sous le minimum hebdomadaire de l’OMS indique au plus « au-dessus de l’habitude »."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "NOOP confronta gli ultimi 7 giorni con una base precedente che non si sovrappone: fino a oggi se oggi ti sei già allenato, altrimenti fino a ieri. Un giorno di allenamento misurato solo in parte resta visibile come limite inferiore ma esce dal confronto. Nelle prime otto settimane «sotto il solito» inizia sotto −25 % e «molto sopra» oltre +44 % — le soglie di Polar riportate su queste finestre —, e il solito arriva a +15 %; poi è la tua variazione settimanale robusta a fissare l’intervallo, e «molto sopra» inizia al più tardi a +44 %. Un intervallo cambia solo quando la variazione supera il suo limite di 5 punti. Con meno di 3 sessioni nella base non c’è intervallo, e una base sotto il minimo settimanale dell’OMS indica al massimo «sopra il solito»."
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "NOOP porównuje ostatnie 7 dni z wcześniejszą, nienakładającą się bazą: do dziś, jeśli dziś już trenowałeś, w przeciwnym razie do wczoraj. Częściowo zmierzony dzień treningowy pozostaje widoczny jako dolna granica, ale nie wchodzi do porównania. Przez pierwsze osiem tygodni „poniżej zwykłego” zaczyna się poniżej −25 %, a „znacznie powyżej” powyżej +44 % — to progi Polar przeliczone na te okna — a zwykły poziom sięga +15 %; potem zakres wyznacza Twoja własna, odporna tygodniowa zmienność, a „znacznie powyżej” zaczyna się najpóźniej od +44 %. Zakres zmienia się dopiero, gdy zmiana przekroczy jego granicę o 5 punktów. Przy mniej niż 3 sesjach w bazie zakresu nie ma, a baza poniżej tygodniowego minimum WHO daje najwyżej „powyżej zwykłego”."
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O NOOP compara os últimos 7 dias com uma base anterior que não se sobrepõe: até hoje se já treinaste hoje, caso contrário até ontem. Um dia de treino medido só em parte continua visível como limite inferior, mas sai da comparação. Nas primeiras oito semanas, «abaixo do habitual» começa abaixo de −25 % e «muito acima» acima de +44 % — os limiares da Polar transpostos para estas janelas —, e o habitual vai até +15 %; depois, a tua própria variação semanal robusta define o intervalo, e «muito acima» começa no máximo em +44 %. Um intervalo só muda quando a variação ultrapassa o seu limite em 5 pontos. Com menos de 3 sessões na base não há intervalo, e uma base abaixo do mínimo semanal da OMS indica no máximo «acima do habitual»."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "NOOP сравнивает последние 7 дней с более ранней непересекающейся базой: по сегодняшний день, если вы уже тренировались сегодня, иначе — по вчерашний. Частично измеренный тренировочный день остаётся виден как нижняя граница, но выпадает из сравнения. Первые восемь недель «ниже обычного» начинается ниже −25 %, а «значительно выше» — выше +44 % (пороги Polar, пересчитанные на эти окна), обычный уровень доходит до +15 %; затем диапазон задаёт ваша собственная устойчивая недельная вариативность, а «значительно выше» начинается не позже +44 %. Диапазон меняется только тогда, когда изменение выходит за его границу на 5 пунктов. При менее чем 3 тренировках в базе диапазона нет, а база ниже недельного минимума ВОЗ даёт не больше чем «выше обычного»."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "NOOP 将最近 7 天与更早、互不重叠的基线进行比较：今天已训练则算到今天，否则算到昨天。只部分测量的训练日仍以下限显示，但不参与比较。前八周，“低于平常”从 −25% 以下开始，“远高于平常”从 +44% 以上开始（按这些时间窗换算的 Polar 阈值），平常上限为 +15%；此后由你自己稳健的每周波动决定范围，“远高于平常”最迟从 +44% 开始。只有变化越过边界 5 个百分点，范围才会改变。基线中少于 3 次训练时不显示范围；基线低于世卫组织每周最低建议时，最多显示“高于平常”。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "NOOP 將最近 7 天與更早、互不重疊的基線進行比較：今天已訓練則算到今天，否則算到昨天。只部分測量的訓練日仍以下限顯示，但不參與比較。前八週，「低於平常」從 −25% 以下開始，「遠高於平常」從 +44% 以上開始（按這些時間窗換算的 Polar 閾值），平常上限為 +15%；此後由你自己穩健的每週波動決定範圍，「遠高於平常」最遲從 +44% 開始。只有變化越過邊界 5 個百分點，範圍才會改變。基線中少於 3 次訓練時不顯示範圍；基線低於世衛組織每週最低建議時，最多顯示「高於平常」。"
-          }
-        }
-      }
-    },
     "Relative load is descriptive. A verdict such as productive, maintaining or unproductive needs a clear performance trend: estimated one-rep max for strength or VO₂max within one consistent measurement method for cardiovascular training. Without one, the statement only describes the load." : {
       "localizations" : {
         "de" : {
@@ -448321,6 +448263,64 @@
     },
     "Edwards 1993 · Banister 1991 · Foster 2001 · Mujika & Padilla 2000 · Bosquet et al. 2013 · Meeusen et al. 2013 · WHO 2020 · Polar Training Load Pro 2025 · Pelland et al. 2024 · Robinson et al. 2024" : {
       "shouldTranslate" : false
+    },
+    "NOOP compares the last 7 days with an earlier, non-overlapping baseline: through today once you have trained today, through yesterday before that. A day whose training could not be measured leaves both windows while at least 5 of the 7 days and three quarters of the baseline are known; otherwise there is no comparison. For the first eight weeks, below usual starts under −25 % and well above over +44 % — Polar's thresholds on these windows — with usual up to +15 %; after that your own robust weekly variation sets the range, with well above starting between +15 % and +44 % and below usual no earlier than −10 %. A band changes only once the change clears its edge by 5 points. With fewer than 3 sessions in the baseline there is no band, and a baseline under the WHO weekly minimum reads at most above usual." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP vergleicht die letzten 7 Tage mit einer früheren, nicht überlappenden Basis: bis heute, sobald du heute trainiert hast, sonst bis gestern. Ein Tag, dessen Training nicht gemessen werden konnte, fällt aus beiden Zeitfenstern heraus, solange mindestens 5 der 7 Tage und drei Viertel der Basis bekannt sind; sonst gibt es keinen Vergleich. In den ersten acht Wochen beginnt „unter dem Üblichen“ unter −25 % und „deutlich höher“ über +44 % — Polars Schwellen auf diese Zeitfenster umgerechnet —, üblich reicht bis +15 %; danach legt deine eigene robuste Wochenschwankung den Bereich fest, wobei „deutlich höher“ zwischen +15 % und +44 % beginnt und „unter dem Üblichen“ frühestens bei −10 %. Ein Bereich wechselt erst, wenn die Änderung seine Grenze um 5 Punkte überschreitet. Mit weniger als 3 Einheiten in der Basis gibt es keinen Bereich, und eine Basis unter dem wöchentlichen WHO-Minimum zeigt höchstens „über dem Üblichen“."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP compara los últimos 7 días con una base anterior que no se solapa: hasta hoy si ya has entrenado hoy, si no hasta ayer. Un día cuyo entrenamiento no se pudo medir sale de ambas ventanas mientras se conozcan al menos 5 de los 7 días y tres cuartas partes de la base; si no, no hay comparación. Durante las primeras ocho semanas, «por debajo de lo habitual» empieza por debajo de −25 % y «muy por encima» por encima de +44 % —los umbrales de Polar trasladados a estas ventanas—, y lo habitual llega hasta +15 %; después, tu propia variación semanal robusta fija el rango: «muy por encima» empieza entre +15 % y +44 %, y «por debajo de lo habitual» no antes de −10 %. Un rango solo cambia cuando el cambio supera su límite en 5 puntos. Con menos de 3 sesiones en la base no hay rango, y una base por debajo del mínimo semanal de la OMS indica como mucho «por encima de lo habitual»."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP compare les 7 derniers jours à une base antérieure qui ne les chevauche pas : jusqu’à aujourd’hui si vous vous êtes déjà entraîné aujourd’hui, sinon jusqu’à hier. Un jour dont l’entraînement n’a pas pu être mesuré sort des deux fenêtres tant qu’au moins 5 des 7 jours et les trois quarts de la base sont connus ; sinon, il n’y a pas de comparaison. Pendant les huit premières semaines, « en dessous de l’habitude » commence sous −25 % et « nettement au-dessus » au-delà de +44 % — les seuils de Polar ramenés à ces fenêtres —, l’habitude allant jusqu’à +15 % ; ensuite, votre propre variation hebdomadaire robuste fixe la plage : « nettement au-dessus » commence entre +15 % et +44 %, et « en dessous de l’habitude » pas avant −10 %. Une plage ne change que lorsque l’écart dépasse sa limite de 5 points. Avec moins de 3 séances dans la base, il n’y a pas de plage, et une base sous le minimum hebdomadaire de l’OMS indique au plus « au-dessus de l’habitude »."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP confronta gli ultimi 7 giorni con una base precedente che non si sovrappone: fino a oggi se oggi ti sei già allenato, altrimenti fino a ieri. Un giorno il cui allenamento non si è potuto misurare esce da entrambe le finestre finché sono noti almeno 5 dei 7 giorni e tre quarti della base; altrimenti non c’è confronto. Nelle prime otto settimane «sotto il solito» inizia sotto −25 % e «molto sopra» oltre +44 % — le soglie di Polar riportate su queste finestre —, e il solito arriva a +15 %; poi è la tua variazione settimanale robusta a fissare l’intervallo: «molto sopra» inizia tra +15 % e +44 %, e «sotto il solito» non prima di −10 %. Un intervallo cambia solo quando la variazione supera il suo limite di 5 punti. Con meno di 3 sessioni nella base non c’è intervallo, e una base sotto il minimo settimanale dell’OMS indica al massimo «sopra il solito»."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP porównuje ostatnie 7 dni z wcześniejszą, nienakładającą się bazą: do dziś, jeśli dziś już trenowałeś, w przeciwnym razie do wczoraj. Dzień, którego treningu nie udało się zmierzyć, wypada z obu okien, dopóki znane są co najmniej 5 z 7 dni i trzy czwarte bazy; w przeciwnym razie porównania nie ma. Przez pierwsze osiem tygodni „poniżej zwykłego” zaczyna się poniżej −25 %, a „znacznie powyżej” powyżej +44 % — to progi Polar przeliczone na te okna — a zwykły poziom sięga +15 %; potem zakres wyznacza Twoja własna, odporna tygodniowa zmienność: „znacznie powyżej” zaczyna się między +15 % a +44 %, a „poniżej zwykłego” nie wcześniej niż od −10 %. Zakres zmienia się dopiero, gdy zmiana przekroczy jego granicę o 5 punktów. Przy mniej niż 3 sesjach w bazie zakresu nie ma, a baza poniżej tygodniowego minimum WHO daje najwyżej „powyżej zwykłego”."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O NOOP compara os últimos 7 dias com uma base anterior que não se sobrepõe: até hoje se já treinaste hoje, caso contrário até ontem. Um dia cujo treino não pôde ser medido sai das duas janelas enquanto se conhecerem pelo menos 5 dos 7 dias e três quartos da base; caso contrário, não há comparação. Nas primeiras oito semanas, «abaixo do habitual» começa abaixo de −25 % e «muito acima» acima de +44 % — os limiares da Polar transpostos para estas janelas —, e o habitual vai até +15 %; depois, a tua própria variação semanal robusta define o intervalo: «muito acima» começa entre +15 % e +44 %, e «abaixo do habitual» não antes de −10 %. Um intervalo só muda quando a variação ultrapassa o seu limite em 5 pontos. Com menos de 3 sessões na base não há intervalo, e uma base abaixo do mínimo semanal da OMS indica no máximo «acima do habitual»."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP сравнивает последние 7 дней с более ранней непересекающейся базой: по сегодняшний день, если вы уже тренировались сегодня, иначе — по вчерашний. День, тренировку которого не удалось измерить, выпадает из обоих окон, пока известны не менее 5 из 7 дней и три четверти базы; иначе сравнения нет. Первые восемь недель «ниже обычного» начинается ниже −25 %, а «значительно выше» — выше +44 % (пороги Polar, пересчитанные на эти окна), обычный уровень доходит до +15 %; затем диапазон задаёт ваша собственная устойчивая недельная вариативность: «значительно выше» начинается между +15 % и +44 %, а «ниже обычного» — не раньше −10 %. Диапазон меняется только тогда, когда изменение выходит за его границу на 5 пунктов. При менее чем 3 тренировках в базе диапазона нет, а база ниже недельного минимума ВОЗ даёт не больше чем «выше обычного»."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 将最近 7 天与更早、互不重叠的基线进行比较：今天已训练则算到今天，否则算到昨天。无法测量训练的日子会从两个时间窗中移除，前提是 7 天中至少 5 天、基线中至少四分之三的日子已知；否则不进行比较。前八周，“低于平常”从 −25% 以下开始，“远高于平常”从 +44% 以上开始（按这些时间窗换算的 Polar 阈值），平常上限为 +15%；此后由你自己稳健的每周波动决定范围：“远高于平常”在 +15% 到 +44% 之间开始，“低于平常”最早从 −10% 开始。只有变化越过边界 5 个百分点，范围才会改变。基线中少于 3 次训练时不显示范围；基线低于世卫组织每周最低建议时，最多显示“高于平常”。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 將最近 7 天與更早、互不重疊的基線進行比較：今天已訓練則算到今天，否則算到昨天。無法測量訓練的日子會從兩個時間窗中移除，前提是 7 天中至少 5 天、基線中至少四分之三的日子已知；否則不進行比較。前八週，「低於平常」從 −25% 以下開始，「遠高於平常」從 +44% 以上開始（按這些時間窗換算的 Polar 閾值），平常上限為 +15%；此後由你自己穩健的每週波動決定範圍：「遠高於平常」在 +15% 到 +44% 之間開始，「低於平常」最早從 −10% 開始。只有變化越過邊界 5 個百分點，範圍才會改變。基線中少於 3 次訓練時不顯示範圍；基線低於世衛組織每週最低建議時，最多顯示「高於平常」。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

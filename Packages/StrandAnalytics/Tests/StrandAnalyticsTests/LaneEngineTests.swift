@@ -89,6 +89,26 @@ final class LaneEngineTests: XCTestCase {
         XCTAssertEqual(r.band, .muchHigher)
     }
 
+    /// A very regular history has a tiny weekly spread. Unbounded, +13 % would read "well above usual";
+    /// the personal edges may not start sooner than +15 % (well above) or −10 % (below).
+    func testAPersonalRangeIsNeverNarrowerThanItsFloors() {
+        let weekly: [Double] = [70, 71, 69, 70, 72, 68, 70]
+        var daily: [String: Double] = [:]
+        for (index, total) in weekly.enumerated() {
+            daily[WeeklyDigestEngine.addDays("2026-03-01", index * 7)] = total
+        }
+        daily[WeeklyDigestEngine.addDays("2026-03-01", 49)] = 70 * 1.13
+        let last = WeeklyDigestEngine.addDays("2026-03-01", 55)
+
+        let r = LaneEngine.reading(dailyByDay: daily, activity: activity(daily, minutes: 200), lane: .cardio,
+                                   through: last)
+        XCTAssertEqual(r.relative.maturity, .personalBaseline)
+        XCTAssertEqual(r.thresholds?.wellAbove, LaneEngine.personalWellAboveFloor)
+        XCTAssertEqual(r.thresholds?.below, LaneEngine.personalBelowCeiling)
+        XCTAssertEqual(r.trend?.ratio ?? 0, 1.13, accuracy: 1e-9)
+        XCTAssertEqual(r.band, .higher)
+    }
+
     // MARK: - Guards
 
     /// Two sessions in the baseline are not a pattern to compare with.
@@ -189,26 +209,51 @@ final class LaneEngineTests: XCTestCase {
 
     // MARK: - Unknown days
 
-    /// Days the data cannot price are not rest days. A week holding four unpriceable sessions is not
-    /// compared at all — the same all-or-nothing rule the hero follows — and is never reported as a drop.
+    /// Days the data cannot price are not rest days. Two unpriceable sessions in a steady week leave both
+    /// windows and the week reads as the usual week it was; counted as rest they would read as a drop.
     func testUnpriceableDaysDoNotReadAsABreak() {
         var s = series([(42, 10)])
         var unknown: Set<String> = []
-        for back in 3...6 {
+        for back in 3...4 {
             let day = WeeklyDigestEngine.addDays(s.last, -back)
             s.daily[day] = nil
             unknown.insert(day)
         }
         let honest = LaneEngine.reading(dailyByDay: s.daily, unknownDays: unknown, activity: activity(s.daily),
                                         lane: .cardio, through: s.last)
-        XCTAssertNil(honest.trend)
-        XCTAssertNil(honest.band)
+        XCTAssertEqual(honest.trend?.ratio ?? 0, 1, accuracy: 1e-9)
+        XCTAssertEqual(honest.band, .usual)
         XCTAssertEqual(honest.daysBelowUsual, 0)
 
-        // The same four days counted as rest is the failure this rule exists to prevent.
         let asRest = LaneEngine.reading(dailyByDay: s.daily, activity: activity(s.daily), lane: .cardio,
                                         through: s.last)
-        XCTAssertEqual(asRest.band, .below)
+        XCTAssertLessThan(asRest.trend?.ratio ?? 1, 1, "counted as rest, the same week reads lower")
+    }
+
+    /// Past what the coverage rule allows — fewer than five known recent days, or under three quarters
+    /// of the baseline — the comparison is withheld rather than drawn from the days that happen to be known.
+    func testTooManyUnknownDaysWithholdTheComparison() {
+        var recent = series([(42, 10)])
+        var unknownRecent: Set<String> = []
+        for back in 3...5 {
+            let day = WeeklyDigestEngine.addDays(recent.last, -back)
+            recent.daily[day] = nil
+            unknownRecent.insert(day)
+        }
+        let r = LaneEngine.reading(dailyByDay: recent.daily, unknownDays: unknownRecent,
+                                   activity: activity(recent.daily), lane: .cardio, through: recent.last)
+        XCTAssertNil(r.trend, "four of seven recent days known")
+
+        var baseline = series([(42, 10)])
+        var unknownBaseline: Set<String> = []
+        for back in 10...17 {
+            let day = WeeklyDigestEngine.addDays(baseline.last, -back)
+            baseline.daily[day] = nil
+            unknownBaseline.insert(day)
+        }
+        let b = LaneEngine.reading(dailyByDay: baseline.daily, unknownDays: unknownBaseline,
+                                   activity: activity(baseline.daily), lane: .cardio, through: baseline.last)
+        XCTAssertNil(b.trend, "twenty of twenty-eight baseline days known")
     }
 
     func testAFullyUnpriceableWeekWithholdsTheComparison() {

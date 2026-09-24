@@ -166,6 +166,19 @@ public struct ProvisionalStrengthRingReading: Equatable, Sendable {
     }
 }
 
+/// How many known days a comparison window needs.
+public enum ComparisonCoverage: Equatable, Sendable {
+    /// Every day of both windows known — the comparison is all-or-nothing.
+    case complete
+    /// Unknown days leave both windows, as long as at least `recentKnown` of the seven recent days and
+    /// `baselineShare` of the baseline days are known. Means are taken over the known days, and a week's
+    /// total is its known-day mean over seven days.
+    case tolerant(recentKnown: Int, baselineShare: Double)
+
+    /// What the Strength and Cardio lanes use: five of seven recent days, three quarters of the baseline.
+    public static let lane = ComparisonCoverage.tolerant(recentKnown: 5, baselineShare: 0.75)
+}
+
 public enum TrainingLoad {
 
     /// Recent window, in days.
@@ -268,7 +281,12 @@ public enum TrainingLoad {
     /// A comparison window is all-or-nothing. Nil means an observed training day was incomplete; it is
     /// never averaged away and never turned into a rest-day zero. Personal ranges use the preceding
     /// seven complete weekly totals, leaving the current week out of its own comparator.
-    public static func relativeLoad(daily: [Double?]) -> RelativeLoadReading {
+    ///
+    /// `coverage` decides what an unknown day does. `.complete` withholds any window that holds one;
+    /// `.tolerant` drops unknown days from both windows while enough known days remain — one unpriced
+    /// session then costs the comparison nothing instead of blanking it for five weeks.
+    public static func relativeLoad(daily: [Double?], coverage: ComparisonCoverage = .complete)
+    -> RelativeLoadReading {
         let completeDays = daily.compactMap { $0 }.count
         let completeWeeks = stride(from: 0, to: daily.count, by: recentWindow).reduce(0) { count, start in
             let end = min(start + recentWindow, daily.count)
@@ -277,7 +295,7 @@ public enum TrainingLoad {
 
         var maturity: TrainingLoadMaturity
         if daily.count >= personalBaselineWeeks * recentWindow,
-           daily.suffix(personalBaselineWeeks * recentWindow).allSatisfy({ $0 != nil }) {
+           weeksAreCovered(Array(daily.suffix(personalBaselineWeeks * recentWindow)), coverage: coverage) {
             maturity = .personalBaseline
         } else if completeDays >= growingBaselineDays {
             maturity = .baselineGrowing
@@ -289,9 +307,10 @@ public enum TrainingLoad {
 
         let comparison: LoadTrend?
         if maturity == .earlyEstimate {
-            comparison = strictTrend(daily: daily, recent: recentWindow, baseline: 14)
+            comparison = coveredTrend(daily: daily, recent: recentWindow, baseline: 14, coverage: coverage)
         } else if maturity == .baselineGrowing || maturity == .personalBaseline {
-            comparison = strictTrend(daily: daily, recent: recentWindow, baseline: baselineWindow)
+            comparison = coveredTrend(daily: daily, recent: recentWindow, baseline: baselineWindow,
+                                      coverage: coverage)
         } else {
             comparison = nil
         }
@@ -299,9 +318,9 @@ public enum TrainingLoad {
         var range: PersonalLoadRange?
         var relativeBand: RelativeLoadBand?
         if maturity == .personalBaseline {
-            let window = Array(daily.suffix(personalBaselineWeeks * recentWindow)).compactMap { $0 }
+            let window = Array(daily.suffix(personalBaselineWeeks * recentWindow))
             let totals = stride(from: 0, to: window.count, by: recentWindow).map {
-                window[$0..<($0 + recentWindow)].reduce(0, +)
+                weekTotal(Array(window[$0..<($0 + recentWindow)]), coverage: coverage)
             }
             if let current = totals.last, totals.count == personalBaselineWeeks,
                let centre = median(Array(totals.dropLast())), centre > 0 {
@@ -336,9 +355,10 @@ public enum TrainingLoad {
     /// Dated convenience form. Missing keys are known rest days; `unknownDays` are incomplete training
     /// days. History starts with the first load or explicitly unknown training day, whichever came first.
     public static func relativeLoad(dailyByDay: [String: Double], through day: String,
-                                    unknownDays: Set<String> = []) -> RelativeLoadReading {
+                                    unknownDays: Set<String> = [],
+                                    coverage: ComparisonCoverage = .complete) -> RelativeLoadReading {
         guard let firstDay = (Set(dailyByDay.keys).union(unknownDays)).min() else {
-            return relativeLoad(daily: [])
+            return relativeLoad(daily: [], coverage: coverage)
         }
         let available = max(0, StrengthSession.daysBetween(firstDay, and: day)) + 1
         let count = min(personalBaselineWeeks * recentWindow, available)
@@ -349,7 +369,7 @@ public enum TrainingLoad {
             daily.append(unknownDays.contains(cursor) ? nil : (dailyByDay[cursor] ?? 0))
             cursor = WeeklyDigestEngine.addDays(cursor, 1)
         }
-        return relativeLoad(daily: daily)
+        return relativeLoad(daily: daily, coverage: coverage)
     }
 
     /// Foster's session-RPE load: the session's own RPE times its duration in minutes.
@@ -502,6 +522,46 @@ public enum TrainingLoad {
         let sorted = values.sorted()
         let middle = sorted.count / 2
         return sorted.count.isMultiple(of: 2) ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle]
+    }
+
+    /// Whether every seven-day chunk of an eight-week window is known well enough to count as a week.
+    private static func weeksAreCovered(_ window: [Double?], coverage: ComparisonCoverage) -> Bool {
+        switch coverage {
+        case .complete:
+            return window.allSatisfy { $0 != nil }
+        case let .tolerant(recentKnown, _):
+            return stride(from: 0, to: window.count, by: recentWindow).allSatisfy { start in
+                window[start..<min(start + recentWindow, window.count)].compactMap { $0 }.count >= recentKnown
+            }
+        }
+    }
+
+    /// A week's total: the plain sum when every day is known, otherwise its known-day mean over a week.
+    private static func weekTotal(_ week: [Double?], coverage: ComparisonCoverage) -> Double {
+        let known = week.compactMap { $0 }
+        guard case .tolerant = coverage, known.count < week.count, !known.isEmpty else {
+            return known.reduce(0, +)
+        }
+        return known.reduce(0, +) / Double(known.count) * Double(recentWindow)
+    }
+
+    /// The comparison under a coverage rule. `.complete` is `strictTrend`; `.tolerant` compares the
+    /// means of the known days once both windows hold enough of them.
+    private static func coveredTrend(daily: [Double?], recent: Int, baseline: Int,
+                                     coverage: ComparisonCoverage) -> LoadTrend? {
+        guard case let .tolerant(recentKnown, baselineShare) = coverage else {
+            return strictTrend(daily: daily, recent: recent, baseline: baseline)
+        }
+        guard daily.count >= recent + baseline else { return nil }
+        let recentValues = daily.suffix(recent).compactMap { $0 }
+        let baselineValues = daily.dropLast(recent).suffix(baseline).compactMap { $0 }
+        let baselineNeeded = Int((Double(baseline) * baselineShare).rounded(.up))
+        guard recentValues.count >= recentKnown, baselineValues.count >= baselineNeeded else { return nil }
+        let recentMean = recentValues.reduce(0, +) / Double(recentValues.count)
+        let baselineMean = baselineValues.reduce(0, +) / Double(baselineValues.count)
+        guard baselineMean > 0 else { return nil }
+        return LoadTrend(recentPerDay: recentMean, baselinePerDay: baselineMean,
+                         percentChange: (recentMean - baselineMean) / baselineMean * 100)
     }
 
     private static func strictTrend(daily: [Double?], recent: Int, baseline: Int) -> LoadTrend? {

@@ -96,7 +96,7 @@ Reihenfolge (Q9): **P1 → P3 → P2 → P5 → P4 → P6**, später P7, P8 und 
 ### P1 – Eine Einstufung für den ganzen Screen + VO₂max-Resolver
 
 Geliefert in zwei Commits: **P1a** (Einstufung, Schutzregeln, Urteil, Kopfsatz, Streifen, Warnung) und **P1b** (VO₂max-Resolver, Cardio-Nachweis).
-Bei P1a gilt jetzt überall die strenge Vergleichsregel, die der Hero schon hatte: Ein Fenster mit einem nicht bewertbaren Tag wird nicht verglichen.
+Nachtrag zu P1a (Q32, Q33): Nicht bewertbare Tage fallen aus beiden Fenstern heraus, solange ≥ 5 von 7 und ≥ ¾ der Basis bekannt sind (Session Load bleibt „ganz oder gar nicht“); der persönliche Bereich hat die Grenzen „deutlich höher“ zwischen +15 % und +44 %, „unter üblich“ frühestens bei −10 %.
 
 - `LaneEngine` in `StrandAnalytics`: Bänder, Low-Load-Schutz, Tagesabschluss, Hysterese, Urteilstabelle.
   `TrainingLoadLanes.relativeStatus` wandert ins Package.
@@ -222,6 +222,8 @@ trainingSessionLoad (Migration v70 + Test)
 | Q29 | Cardio-Nachweis | Apple frisch → Herzfrequenz-Effizienz → kein Nachweis; NOOP-Schätzung nie |
 | Q30 | VO₂max-Resolver | app-weit, einer |
 | Q31 | Trainingsbasierter NOOP-VO₂max | späteres Paket P8, erst nach Validierung als Nachweis |
+| Q32 | Mindestbreite persönlicher Bereich | „deutlich höher“ frühestens +15 %, „unter üblich“ frühestens −10 % |
+| Q33 | Unbekannte Tage im Vergleich | aus beiden Fenstern entfernen, solange ≥ 5/7 und ≥ ¾ der Basis bekannt; sonst kein Vergleich |
 
 ### Q27 – Urteilstabelle (Kraft: e1RM, Cardio: Nachweis nach Q29)
 

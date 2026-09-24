@@ -592,23 +592,28 @@ warning); tests in `LaneEngineTests.swift`, `TrainingStatusTests.swift` and `Tra
 the statement and the warning — reads the same `LaneReading` from `LaneEngine`. The axis is the lane's
 own `LoadTrend.ratio`: the seven-day mean over the mean of the days immediately before it (14 while the
 history is short, then 28). The windows do not overlap, avoiding the coupled ratio's built-in
-correlation. A comparison is all-or-nothing: a window holding a day the data could not price has no
-band rather than a mean over the days that happen to be known, so a gap in the measurement is never
-reported as a drop in training.
+correlation. A day the data could not price is not a rest day: it leaves both windows
+(`ComparisonCoverage.lane`) while at least five of the seven recent days and three quarters of the
+baseline are known, and the means are taken over the known days; past that the comparison is withheld.
+A gap in the measurement is therefore never reported as a drop in training, and one session without a
+usable heart-rate trace no longer blanks the lane for five weeks, as an all-or-nothing window did.
+Session Load keeps the all-or-nothing rule: an unrated session is missing the athlete's own answer.
 
 | Band | Until eight complete weeks | From eight complete weeks |
 |---|---|---|
 | Below usual | ratio < 0.75 | under the robust weekly range (median − 1.4826 × MAD of the seven preceding weeks) |
 | Usual | 0.75 – 1.15 | within that range |
 | Above usual | 1.15 – 1.44 | above it, up to median + 2 × 1.4826 × MAD |
-| Well above usual | > 1.44 | beyond that — but never later than 1.44 |
+| Well above usual | > 1.44 | beyond that — but never later than 1.44 and never earlier than 1.15 |
 
 0.75 and 1.44 are Polar's 0.8 and 1.3 (Training Load Pro white paper, 2019/2025) on NOOP's windows:
 Polar's 28-day *tolerance* contains the acute week, so its coupled ratio is `4u / (u + 3)` of the
 uncoupled `u` used here. Keeping 0.8 / 1.3 after decoupling (2026-09-13) had silently moved "well above"
 from +44 % to +30 %. 1.15 is NOOP's own: Polar calls anything over 1.0 progression, which would make an
-ordinary +3 % week "above usual". The personal range may never let "well above" start past 1.44, so a
-wearer who trains irregularly does not have a large jump read as normal.
+ordinary +3 % week "above usual". The personal range is held between limits: "well above" may never
+start past 1.44, so a wearer who trains irregularly does not have a large jump read as normal, nor
+before 1.15, and "below usual" never before 0.90 — a very regular history has so small a weekly spread
+that +13 % would otherwise read "well above".
 
 Three guards sit on the edges:
 
