@@ -16,7 +16,6 @@ on:
       - 'Tools/SleepPSG/**'
       - 'Tools/Backfill/**'
       - 'Tools/MemoryBench/**'
-      - 'Tools/CoachEval/**'
       - '.github/workflows/swift-packages.yml'
       # Mirror of the note in android.yml: package tests read the ANDROID oracles to catch a one-sided
       # edit, and one reads Strand/Liquid/LiquidCore.swift. Editing only that side would otherwise skip
@@ -31,7 +30,6 @@ on:
       - 'Tools/SleepPSG/**'
       - 'Tools/Backfill/**'
       - 'Tools/MemoryBench/**'
-      - 'Tools/CoachEval/**'
       - '.github/workflows/swift-packages.yml'
       # Mirror of the note in android.yml: package tests read the ANDROID oracles to catch a one-sided
       # edit, and one reads Strand/Liquid/LiquidCore.swift. Editing only that side would otherwise skip
@@ -93,10 +91,6 @@ jobs:
   # `SleepStagerV2`, and its test suite is what proves that port still reproduces the shipped stager
   # label-for-label. Without this job the port drifts the first time someone edits a coefficient, and the
   # tool keeps printing confident numbers about a recipe that no longer exists. The check needs no dataset.
-  #
-  # CoachEval measures the coach's free-form analysis against a pre-registered bar. Its tests run the
-  # offline oracle (every reference spec through the real executor, scored against an independent
-  # reference) and a negative control on the scorer; a provider run needs a key and is never started here.
   tools:
     runs-on: macos-15
     strategy:
@@ -107,8 +101,6 @@ jobs:
           - SleepPSG
           - Backfill
           - MemoryBench
-          # Build + test only: the tests run the offline oracle; nothing here calls a provider.
-          - CoachEval
     steps:
       - name: Checkout
         uses: actions/checkout@v5
