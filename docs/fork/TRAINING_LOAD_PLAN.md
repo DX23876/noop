@@ -1,6 +1,6 @@
 # Training Load – Umbau- und Erweiterungsplan
 
-Stand: 2026-09-24 · Branch: `claude/training-load-optimization-cfb32e` · Status: **beschlossen; P1 und P3 umgesetzt, weiter mit P2** (offen: P3-Laufzeitprüfung am echten iPhone-Datensatz)
+Stand: 2026-09-24 · Branch: `claude/training-load-optimization-cfb32e` · Status: **beschlossen; P1, P3 und P2 umgesetzt, weiter mit P5** (offen: P3-Laufzeitprüfung am echten iPhone-Datensatz)
 
 Dieser Plan fasst die Untersuchung von Training Load zusammen (Code-Review, Messung gegen die echte
 `StrandAnalytics`-Logik, Abgleich mit dem Polar-Whitepaper) und die in vier Grilling-Runden getroffenen
@@ -120,6 +120,7 @@ Nachtrag zu P1a (Q32, Q33): Nicht bewertbare Tage fallen aus beiden Fenstern her
 - **Migration: nein** (Anzeige wird beim Lesen berechnet).
 
 ### P2 – Readiness und Coach (Q6, Q18)
+Geliefert: Readiness liest `Repository.readinessLoadContext` (aus denselben `LaneEngine`-Readings und Lesetagen wie der Screen, nach jedem Refresh neu gelesen). „Deutlich höher“ plus ein schlechtes Erholungssignal ergibt weiterhin *run down* (vorher: ACWR-Spike). Monotonie = `TrainingLoad.distribution` der Lane, Warnung ab 2,0 nur bei mindestens „wie üblich“. Coach-Tool `get_training_load` (Consent-Gruppe *workouts*); der Readiness-Block zeigt eine Zeile pro Lane statt der ACWR.
 - Das Readiness-Lastsignal liest die `LaneEngine`: *watch*, sobald Kraft **oder** Cardio „Well above usual“
   steht und der Low-Load-Schutz nicht greift. Ohne Lane-Kontext entfällt das Signal. Session Load
   zählt nicht.

@@ -5,8 +5,9 @@ public extension ReadinessEngine {
     ///
     /// The training-load result is deliberately OUTSIDE the Readiness synthesis. CTL/ATL/TSB do not
     /// change `readiness.level`, signals, confidence, or any headline score; they are contextual trends
-    /// for charts and explanations. This keeps the existing ACWR/monotony behavior intact and makes any
-    /// future decision to feed training-load state into a score an explicit, separately validated change.
+    /// for charts and explanations. Readiness's own load signal comes from the Training Load lanes the
+    /// caller passes as `loadContext`, never from this model, so a future decision to feed CTL/ATL/TSB
+    /// into a score stays an explicit, separately validated change.
     struct TrainingLoadAnalysis: Sendable, Equatable {
         public let readiness: Readiness
         public let trainingLoad: TrainingLoadEngine.Result
@@ -26,9 +27,10 @@ public extension ReadinessEngine {
     static func evaluateWithTrainingLoad(
         days: [DailyMetric],
         today: String? = nil,
+        loadContext: ReadinessLoadContext? = nil,
         trainingLoadConfiguration: TrainingLoadEngine.Configuration = .standard
     ) -> TrainingLoadAnalysis {
-        let readiness = evaluate(days: days, today: today)
+        let readiness = evaluate(days: days, today: today, loadContext: loadContext)
         let trainingDays = days.map { TrainingLoadEngine.DailyLoad(day: $0.day, load: $0.strain) }
         let trainingLoad = TrainingLoadEngine.evaluate(
             days: trainingDays,

@@ -1164,6 +1164,7 @@ struct TodayView: View {
         let today: DailyMetric?   // covers repo.today?.recovery (calibration) and day rollover
         let offset: Int
         let refreshSeq: Int
+        let loadContext: ReadinessLoadContext?
     }
 
     private var todayInputKey: TodayInputKey {
@@ -1174,7 +1175,8 @@ struct TodayView: View {
             lastDay: repo.days.last,
             today: repo.today,
             offset: selectedDayOffset,
-            refreshSeq: repo.refreshSeq)
+            refreshSeq: repo.refreshSeq,
+            loadContext: repo.readinessLoadContext)
     }
 
     private func computeReadiness() -> ReadinessEngine.Readiness {
@@ -1185,7 +1187,7 @@ struct TodayView: View {
         // key instead (the section header then stamps "Last night · <date>"). Honest: it's the real prior
         // read, not a fabricated today's, and today's own readiness wins the instant tonight is scored.
         let anchor = lastScoredRecoveryDay?.day ?? Repository.logicalDayKey(Date())
-        return ReadinessEngine.evaluate(days: repo.days, today: anchor)
+        return ReadinessEngine.evaluate(days: repo.days, today: anchor, loadContext: repo.readinessLoadContext)
     }
 
     private func computeCalibration() -> Int? {
@@ -1943,12 +1945,6 @@ struct TodayView: View {
                                 .foregroundStyle(StrandPalette.textPrimary)
                                 .accessibilityLabel("Readiness: \(levelWord(r.level)). \(headline)")
                             Spacer()
-                            if let acwr = r.acwr {
-                                Text("load \(String(format: "%.2f", locale: AppLanguage.activeLocale, acwr))")
-                                    .font(StrandFont.captionNumber)
-                                    .foregroundStyle(StrandPalette.textTertiary)
-                                    .help("Acute (7-day) vs chronic (28-day) training load. 0.8–1.3 is the sweet spot.")
-                            }
                         }
                         // #1405: mark this as a DIFFERENT axis from the home Synthesis word (the Charge-%
                         // band). Stated where the two get compared, so "Primed" here vs "Steady" there
@@ -2032,7 +2028,7 @@ struct TodayView: View {
         case "hrv": return String(localized: "HRV")
         case "rhr": return String(localized: "Resting HR")
         case "respRate": return String(localized: "Respiratory rate")
-        case "acwr": return String(localized: "Training load")
+        case "trainingLoad": return String(localized: "Training load")
         case "monotony": return String(localized: "Training variety")
         default: return key
         }
@@ -2045,30 +2041,21 @@ struct TodayView: View {
             let valueText = readinessNumber(value, decimals: decimals)
             let baselineText = readinessNumber(baseline, decimals: decimals)
             return String(localized: "\(valueText) vs \(baselineText) \(unit)")
-        case .trainingLoad(let acute, let chronic):
-            let acuteText = readinessNumber(acute, decimals: 1)
-            let chronicText = readinessNumber(chronic, decimals: 1)
-            return String(localized: "7d \(acuteText) / 28d \(chronicText)")
+        case .lanes(let lanes):
+            let parts = lanes.compactMap { lane -> String? in
+                guard lane.band != nil, let percent = lane.percentChange else { return nil }
+                let signed = (percent >= 0 ? "+" : "−") + readinessNumber(abs(percent), decimals: 0)
+                return "\(readinessLaneName(lane.kind)) \(signed) %"
+            }
+            return parts.isEmpty ? nil : parts.joined(separator: " · ")
         case .monotony(let value):
             return String(localized: "monotony \(readinessNumber(value, decimals: 1))")
         }
     }
 
     private func readinessDetailText(_ signal: ReadinessEngine.Signal) -> String {
-        if signal.key == "acwr", let evidence = signal.evidenceData,
-           case .trainingLoad(let acute, let chronic) = evidence {
-            let ratio = readinessNumber(chronic > 0 ? acute / chronic : 0, decimals: 2)
-            switch signal.flag {
-            case .good: return String(localized: "in the sweet spot (acute:chronic \(ratio))")
-            case .bad: return String(localized: "spiking (acute:chronic \(ratio)) - higher injury risk")
-            case .watch: return String(localized: "building fast (acute:chronic \(ratio)) - watch fatigue")
-            // Ramping down now carries `.neutral` (it is a state, not a concern — it no longer blocks
-            // `primed`). Without this branch it fell to the sweet-spot line, which would tell a wearer
-            // in the middle of a deload week that their load is exactly where it should be.
-            case .neutral: return acute < chronic
-                ? String(localized: "ramping down (acute:chronic \(ratio)) - room to build")
-                : String(localized: "in the sweet spot (acute:chronic \(ratio))")
-            }
+        if signal.key == "trainingLoad", let evidence = signal.evidenceData, case .lanes(let lanes) = evidence {
+            return readinessLoadDetail(lanes)
         }
         switch (signal.key, signal.flag) {
         case ("hrv", .good): return String(localized: "above your baseline - well recovered")
@@ -2083,8 +2070,33 @@ struct TodayView: View {
         // Only `.watch` — the engine now emits this signal solely when the week actually carried load
         // (see `ReadinessEngine`'s monotony gating). Matching on ANY flag was how a week of walks got
         // told its days were "too similarly intense".
-        case ("monotony", .watch): return String(localized: "low - similar strain every day raises strain/illness risk")
+        case ("monotony", .watch): return String(localized: "low - similar load every day raises strain/illness risk")
         default: return String(localized: "in your normal range")
+        }
+    }
+
+    /// The load signal's sentence, from the same lanes the engine flagged — the Training Load screen's
+    /// bands, so the two screens name one state.
+    private func readinessLoadDetail(_ lanes: [ReadinessLoadContext.Lane]) -> String {
+        let formatter = ListFormatter()
+        formatter.locale = AppLanguage.activeLocale
+        let names = { (band: RelativeLoadBand) -> String in
+            let named = lanes.filter { $0.band == band }.map { readinessLaneName($0.kind) }
+            return formatter.string(from: named) ?? named.joined(separator: ", ")
+        }
+        let bands = Set(lanes.compactMap(\.band))
+        if bands.contains(.muchHigher) {
+            return String(localized: "well above your usual (\(names(.muchHigher))) - watch fatigue")
+        }
+        if bands.contains(.higher) { return String(localized: "above your usual (\(names(.higher)))") }
+        if bands.contains(.usual) { return String(localized: "about your usual") }
+        return String(localized: "below your usual")
+    }
+
+    private func readinessLaneName(_ kind: TrainingLaneKind) -> String {
+        switch kind {
+        case .strength: return String(localized: "Strength")
+        case .cardio: return String(localized: "Cardio")
         }
     }
 

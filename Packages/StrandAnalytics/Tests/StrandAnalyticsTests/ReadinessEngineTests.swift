@@ -27,16 +27,22 @@ final class ReadinessEngineTests: XCTestCase {
         XCTAssertEqual(ReadinessEngine.evaluate(days: []).level, .insufficient)
     }
 
+    private func lane(_ kind: TrainingLaneKind, _ band: RelativeLoadBand?, guard guardState: LaneGuard = .none,
+                      percent: Double? = nil, monotony: Double? = nil) -> ReadinessLoadContext.Lane {
+        ReadinessLoadContext.Lane(kind: kind, band: band, guardState: guardState,
+                                  percentChange: percent, monotony: monotony)
+    }
+
     func testPrimedWhenSignalsAligned() {
-        // Today: HRV well above baseline, resting HR below, load steady.
+        // Today: HRV well above baseline, resting HR below. No load context: no load signal at all.
         let r = ReadinessEngine.evaluate(days: baseline(todayHrv: 72, todayRhr: 46, todayStrain: 10))
         XCTAssertEqual(r.level, .primed)
         XCTAssertEqual(r.signals.first { $0.key == "hrv" }?.flag, .good)
         XCTAssertEqual(r.signals.first { $0.key == "rhr" }?.flag, .good)
-        XCTAssertEqual(r.signals.first { $0.key == "acwr" }?.flag, .good)
+        XCTAssertNil(r.signals.first { $0.key == "trainingLoad" })
+        XCTAssertNil(r.loadContext)
         XCTAssertEqual(r.signals.first { $0.key == "hrv" }?.evidence, "72 vs 60 ms")
         XCTAssertEqual(r.signals.first { $0.key == "rhr" }?.evidence, "46 vs 52 bpm")
-        XCTAssertEqual(r.signals.first { $0.key == "acwr" }?.evidence, "7d 10.0 / 28d 10.0")
     }
 
     func testRundownWhenTwoRecoverySignalsDown() {
@@ -45,17 +51,90 @@ final class ReadinessEngineTests: XCTestCase {
         XCTAssertEqual(r.level, .rundown)
     }
 
-    func testAcwrSpikeStrains() {
-        // Recovery signals neutral, but acute load spikes above chronic.
+    // MARK: - Training load from the lanes (P2)
+
+    /// B5: the old signal read an acute:chronic ratio of daily Effort. Effort is logarithmic, so tripled
+    /// training read about 1.16 and the flag stood on "good". Daily strain alone must never produce a
+    /// load signal again — only the lanes can.
+    func testDailyEffortAloneNeverProducesALoadSignal() {
         var days: [DailyMetric] = []
         for i in 1...21 { days.append(d(i, hrv: 60, rhr: 52, strain: 5)) }
-        for i in 22...28 { days.append(d(i, hrv: 60, rhr: 52, strain: 15)) }
-        days.append(d(29, hrv: 60, rhr: 52, strain: 15))
+        for i in 22...29 { days.append(d(i, hrv: 60, rhr: 52, strain: 18)) }
         let r = ReadinessEngine.evaluate(days: days)
-        XCTAssertEqual(r.signals.first { $0.key == "acwr" }?.flag, .bad)
-        XCTAssertEqual(r.level, .strained)
-        XCTAssertNotNil(r.acwr)
-        XCTAssertGreaterThan(r.acwr!, 1.5)
+        XCTAssertNil(r.signals.first { $0.key == "trainingLoad" })
+        XCTAssertNil(r.monotony)
+    }
+
+    /// A usual week is described, never counted as evidence of readiness: before, it was `.good` and
+    /// helped push almost every read towards primed.
+    func testUsualLaneIsDescribedWithoutAFlag() {
+        let context = ReadinessLoadContext(lanes: [lane(.strength, .usual, percent: 4), lane(.cardio, .usual)])
+        let r = ReadinessEngine.evaluate(days: baseline(todayHrv: 60, todayRhr: 52, todayStrain: 10),
+                                         loadContext: context)
+        let signal = r.signals.first { $0.key == "trainingLoad" }
+        XCTAssertEqual(signal?.flag, .neutral)
+        XCTAssertEqual(signal?.detail, "about your usual")
+        XCTAssertEqual(signal?.evidenceData, .lanes(context.lanes))
+        XCTAssertEqual(r.loadContext, context)
+    }
+
+    func testAboveAndBelowAreDescribed() {
+        let above = ReadinessEngine.evaluate(
+            days: baseline(todayHrv: 60, todayRhr: 52, todayStrain: 10),
+            loadContext: ReadinessLoadContext(lanes: [lane(.strength, .usual), lane(.cardio, .higher)]))
+        XCTAssertEqual(above.signals.first { $0.key == "trainingLoad" }?.detail, "above your usual (cardio)")
+        XCTAssertEqual(above.signals.first { $0.key == "trainingLoad" }?.flag, .neutral)
+
+        let below = ReadinessEngine.evaluate(
+            days: baseline(todayHrv: 60, todayRhr: 52, todayStrain: 10),
+            loadContext: ReadinessLoadContext(lanes: [lane(.strength, .below), lane(.cardio, .below)]))
+        XCTAssertEqual(below.signals.first { $0.key == "trainingLoad" }?.detail, "below your usual")
+    }
+
+    /// Well above usual in either lane is a watch: it keeps a well-recovered read off primed.
+    func testWellAboveInEitherLaneIsAWatch() {
+        for kind in TrainingLaneKind.allCases {
+            let other: TrainingLaneKind = kind == .strength ? .cardio : .strength
+            let r = ReadinessEngine.evaluate(
+                days: baseline(todayHrv: 72, todayRhr: 46, todayStrain: 10),
+                loadContext: ReadinessLoadContext(lanes: [lane(kind, .muchHigher, percent: 60), lane(other, .usual)]))
+            let signal = r.signals.first { $0.key == "trainingLoad" }
+            XCTAssertEqual(signal?.flag, .watch, "\(kind)")
+            XCTAssertEqual(signal?.detail, "well above your usual (\(kind.rawValue)) - watch fatigue")
+            XCTAssertEqual(r.level, .balanced, "a watch holds a primed read back to balanced")
+        }
+    }
+
+    /// Well above usual with a recovery signal down is the run-down picture the old spike stood for.
+    func testWellAboveWithRecoveryDownIsRunDown() {
+        let context = ReadinessLoadContext(lanes: [lane(.cardio, .muchHigher)])
+        let r = ReadinessEngine.evaluate(days: baseline(todayHrv: 50, todayRhr: 52, todayStrain: 10),
+                                         loadContext: context)
+        XCTAssertEqual(r.signals.first { $0.key == "hrv" }?.flag, .bad)
+        XCTAssertEqual(r.level, .rundown)
+
+        let withoutLoad = ReadinessEngine.evaluate(days: baseline(todayHrv: 50, todayRhr: 52, todayStrain: 10),
+                                                   loadContext: ReadinessLoadContext(lanes: [lane(.cardio, .usual)]))
+        XCTAssertEqual(withoutLoad.level, .strained)
+    }
+
+    /// No band (too few sessions, or no comparison yet) is no signal: the guard's silence is kept.
+    func testLanesWithoutABandGiveNoSignal() {
+        let context = ReadinessLoadContext(lanes: [lane(.strength, nil, guard: .tooFewSessions),
+                                                   lane(.cardio, nil)])
+        let r = ReadinessEngine.evaluate(days: baseline(todayHrv: 60, todayRhr: 52, todayStrain: 10),
+                                         loadContext: context)
+        XCTAssertNil(r.signals.first { $0.key == "trainingLoad" })
+        XCTAssertEqual(r.loadContext, context)
+    }
+
+    /// The low-volume guard has already capped the band at "above", so a sparse baseline never warns.
+    func testLowVolumeCapNeverWarns() {
+        let context = ReadinessLoadContext(lanes: [lane(.cardio, .higher, guard: .lowVolumeCap, percent: 100)])
+        let r = ReadinessEngine.evaluate(days: baseline(todayHrv: 72, todayRhr: 46, todayStrain: 10),
+                                         loadContext: context)
+        XCTAssertEqual(r.signals.first { $0.key == "trainingLoad" }?.flag, .neutral)
+        XCTAssertEqual(r.level, .primed)
     }
 
     func testRespRateRiseFlags() {

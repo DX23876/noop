@@ -1611,5 +1611,9 @@
   "No performance evidence yet: a fresh Apple Watch VO₂max, or at least four endurance sessions with distance and heart rate. Until then the statement only describes the load.": "尚无表现依据：需要近期的 Apple Watch VO₂max，或至少四次带距离和心率的耐力训练。在此之前，提示只描述负荷。",
   "Recalculate cardio history": "重新计算有氧历史",
   "Recalculate": "重新计算",
-  "%lld stored sessions were priced with a different maximum heart rate. Recalculating uses your current one wherever the heart rate is still stored; sessions whose heart rate is gone keep their load.": "有 %lld 次已保存的训练是按其他最大心率计算的。重新计算时，凡仍保存心率的训练都会使用你当前的最大心率；没有心率数据的训练保留原有负荷。"
+  "%lld stored sessions were priced with a different maximum heart rate. Recalculating uses your current one wherever the heart rate is still stored; sessions whose heart rate is gone keep their load.": "有 %lld 次已保存的训练是按其他最大心率计算的。重新计算时，凡仍保存心率的训练都会使用你当前的最大心率；没有心率数据的训练保留原有负荷。",
+  "above your usual (%@)": "高于你平常的（%@）",
+  "well above your usual (%@) - watch fatigue": "明显高于你平常的（%@）——请留意疲劳",
+  "low - similar load every day raises strain/illness risk": "偏低——每天负荷雷同会增加过度负荷/患病风险",
+  "Your strength and cardio load against your usual": "你的力量和有氧负荷与平常相比"
 }

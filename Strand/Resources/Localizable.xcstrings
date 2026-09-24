@@ -46865,19 +46865,19 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "sobre tu habitual"
+            "value" : "en torno a lo habitual"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "à propos de ton habitude"
+            "value" : "environ comme d'habitude"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "riguardo al tuo solito"
+            "value" : "circa come al solito"
           }
         },
         "pl" : {
@@ -46889,25 +46889,25 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "sobre o seu habitual"
+            "value" : "cerca do habitual"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "о твоем обычном"
+            "value" : "примерно как обычно"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "关于你平时的"
+            "value" : "与平常相当"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "關於你平常的"
+            "value" : "與平常相當"
           }
         }
       }
@@ -448840,6 +448840,238 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "有 %lld 次已儲存的訓練是按其他最大心率計算的。重新計算時，凡仍儲存心率的訓練都會使用你目前的最大心率；沒有心率數據的訓練保留原有負荷。"
+          }
+        }
+      }
+    },
+    "above your usual (%@)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "mehr als sonst (%@)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "por encima de lo habitual (%@)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "au-dessus de votre habitude (%@)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "sopra il tuo solito (%@)"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "powyżej Twojej normy (%@)"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "acima do seu habitual (%@)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "выше вашего обычного (%@)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高于你平常的（%@）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高於你平常的（%@）"
+          }
+        }
+      }
+    },
+    "well above your usual (%@) - watch fatigue" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "deutlich mehr als sonst (%@) - achte auf Ermüdung"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "muy por encima de lo habitual (%@) - vigila la fatiga"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "nettement au-dessus de votre habitude (%@) - surveillez la fatigue"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "molto sopra il tuo solito (%@) - attenzione alla fatica"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "znacznie powyżej Twojej normy (%@) - obserwuj zmęczenie"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "muito acima do seu habitual (%@) - atenção à fadiga"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "значительно выше вашего обычного (%@) — следите за усталостью"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "明显高于你平常的（%@）——请留意疲劳"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "明顯高於你平常的（%@）——請留意疲勞"
+          }
+        }
+      }
+    },
+    "low - similar load every day raises strain/illness risk" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "niedrig - ähnliche Belastung an jedem Tag erhöht das Risiko für Überlastung/Krankheit"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "baja: una carga similar cada día aumenta el riesgo de sobrecarga o enfermedad"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "faible - une charge similaire chaque jour augmente le risque de surcharge/maladie"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "bassa - un carico simile ogni giorno aumenta il rischio di sovraccarico/malattia"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "niski – podobne obciążenie każdego dnia zwiększa ryzyko przeciążenia/choroby"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "baixo - carga semelhante todos os dias aumenta o risco de sobrecarga/doença"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "низкая - одинаковая нагрузка изо дня в день повышает риск избыточной нагрузки или болезни"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "偏低——每天负荷雷同会增加过度负荷/患病风险"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "偏低——每天負荷雷同會增加過度負荷/患病風險"
+          }
+        }
+      }
+    },
+    "Your strength and cardio load against your usual" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Kraft- und Cardio-Last im Vergleich zu sonst"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu carga de fuerza y cardio frente a lo habitual"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre charge de force et de cardio par rapport à votre habitude"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo carico di forza e cardio rispetto al solito"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twoje obciążenie siłowe i cardio na tle Twojej normy"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A sua carga de força e cardio face ao habitual"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваша силовая и кардионагрузка относительно обычной"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的力量和有氧负荷与平常相比"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的力量和有氧負荷與平常相比"
           }
         }
       }

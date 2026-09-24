@@ -1511,5 +1511,9 @@
   "No performance evidence yet: a fresh Apple Watch VO₂max, or at least four endurance sessions with distance and heart rate. Until then the statement only describes the load.": "Pas encore de preuve de performance : une VO₂max récente de l’Apple Watch ou au moins quatre séances d’endurance avec distance et fréquence cardiaque. D’ici là, le message ne décrit que la charge.",
   "Recalculate cardio history": "Recalculer l’historique cardio",
   "Recalculate": "Recalculer",
-  "%lld stored sessions were priced with a different maximum heart rate. Recalculating uses your current one wherever the heart rate is still stored; sessions whose heart rate is gone keep their load.": "%lld séances enregistrées ont été calculées avec une autre fréquence cardiaque maximale. Le recalcul utilise la vôtre actuelle là où la fréquence cardiaque est encore stockée ; les séances sans fréquence cardiaque stockée gardent leur charge."
+  "%lld stored sessions were priced with a different maximum heart rate. Recalculating uses your current one wherever the heart rate is still stored; sessions whose heart rate is gone keep their load.": "%lld séances enregistrées ont été calculées avec une autre fréquence cardiaque maximale. Le recalcul utilise la vôtre actuelle là où la fréquence cardiaque est encore stockée ; les séances sans fréquence cardiaque stockée gardent leur charge.",
+  "above your usual (%@)": "au-dessus de votre habitude (%@)",
+  "well above your usual (%@) - watch fatigue": "nettement au-dessus de votre habitude (%@) - surveillez la fatigue",
+  "low - similar load every day raises strain/illness risk": "faible - une charge similaire chaque jour augmente le risque de surcharge/maladie",
+  "Your strength and cardio load against your usual": "Votre charge de force et de cardio par rapport à votre habitude"
 }

@@ -23,8 +23,8 @@ import StrandTraining
 //   • The per-muscle reference is the user's OWN p25–p75 band over their last completed weeks, drawn
 //     as `TypicalRangeBar`'s hatch. NOOP has no evidence about anyone's correct weekly volume; it does
 //     know what this person has been doing.
-//   • "Strength Load" is the acute:chronic RATIO of working sets, in the same windows and the same
-//     bands `ReadinessEngine` uses for heart-rate strain. A ratio says something checkable; a "72"
+//   • "Strength Load" is the RATIO of this week's working sets to the usual, read through `LaneEngine` —
+//     the band Training Load and Readiness show for the same lane. A ratio says something checkable; a "72"
 //     would be a number with no unit and nothing a reader could disagree with.
 //   • "Recovery Capacity" is the week's mean Charge with the Readiness level beside it. The value
 //     already existed and already had a name — inventing a fourth term for it is the "more scores

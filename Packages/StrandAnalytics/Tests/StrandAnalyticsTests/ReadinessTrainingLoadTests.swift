@@ -31,14 +31,21 @@ final class ReadinessTrainingLoadTests: XCTestCase {
         XCTAssertNotNil(paired.trainingLoad.tsb)
     }
 
-    func testExistingAcwrAndMonotonyRemainOwnedByReadiness() {
+    /// Readiness's load signal comes from the lanes passed in, never from CTL/ATL/TSB over daily Effort.
+    func testLoadContextPassesThroughAndCTLStaysOutsideReadiness() {
         let days = (1...28).map { day in
             metric(day: day, strain: day <= 21 ? 5 : Double(12 + day % 3))
         }
-        let paired = ReadinessEngine.evaluateWithTrainingLoad(days: days)
+        let context = ReadinessLoadContext(lanes: [
+            ReadinessLoadContext.Lane(kind: .cardio, band: .muchHigher, guardState: .none,
+                                      percentChange: 70, monotony: 1.4)])
+        let paired = ReadinessEngine.evaluateWithTrainingLoad(days: days, loadContext: context)
 
-        XCTAssertNotNil(paired.readiness.acwr)
-        XCTAssertNotNil(paired.readiness.monotony)
+        XCTAssertEqual(paired.readiness, ReadinessEngine.evaluate(days: days, loadContext: context))
+        XCTAssertEqual(paired.readiness.loadContext, context)
+        XCTAssertEqual(paired.readiness.signals.first { $0.key == "trainingLoad" }?.flag, .watch)
+        XCTAssertNil(ReadinessEngine.evaluateWithTrainingLoad(days: days).readiness.monotony,
+                     "without lanes there is no monotony: daily Effort no longer feeds it")
         XCTAssertTrue(paired.trainingLoad.isAvailable)
         XCTAssertEqual(paired.trainingLoad.endDay, "2026-01-28")
     }

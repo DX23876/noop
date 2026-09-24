@@ -97,11 +97,16 @@ final class CoachMyLogsAndZonesTests: XCTestCase {
         // answered from nothing, and the failure mode is specific: the model states one confident
         // maintenance figure. The tool returns three estimates it is told never to average, each with
         // its provenance, so the honest answer (a spread) is the easy one to give.
-        XCTAssertEqual(engine.coachTools.count, 35,
+        //
+        // 35 → 36: `get_training_load` (Training Load plan, P2). Reviewed and intended. The Readiness
+        // block now carries only one line per lane; a question about volume, overload or whether
+        // training is working needs the screen's own bands, verdicts and coverage, and without them the
+        // model rebuilt a verdict from raw workouts that the Training Load screen would contradict.
+        XCTAssertEqual(engine.coachTools.count, 36,
                        "tool count changed — confirm the added per-round cost is intended")
 
         engine.toolConsent.enabled.insert(.patterns)
-        XCTAssertEqual(engine.coachTools.count, 37,
+        XCTAssertEqual(engine.coachTools.count, 38,
                        "the second opt-in adds personal patterns and training preferences")
     }
 

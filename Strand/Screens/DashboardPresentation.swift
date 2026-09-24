@@ -9,8 +9,11 @@ struct DashboardLoadKey: Hashable {
     let selection: String
     let preferences: String
     let profile: String
+    /// Readiness reads the Training Load lanes, which land after the daily rows (`Repository.readinessLoadContext`).
+    let readinessLoad: ReadinessLoadContext?
     @MainActor init(repo: Repository, selection: String, preferences: String, profile: ProfileStore) {
         revision = SleepPresentationRevision(repo: repo)
+        readinessLoad = repo.readinessLoadContext
         self.selection = selection; self.preferences = preferences
         self.profile = "\(profile.dateOfBirth)-\(profile.sex)-\(profile.weightKg)-\(profile.heightCm)-\(profile.hrMax)-\(profile.stepTicksPerStep)"
     }

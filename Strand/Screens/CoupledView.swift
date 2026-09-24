@@ -111,7 +111,7 @@ struct CoupledView: View {
     /// scored day today's own key wins, so Coupled's pill can't diverge from Today's onto yesterday (#787).
     private var readinessLevel: ReadinessEngine.Level {
         let anchor = (isCarryingRecovery ? carriedRecoveryDay?.day : day?.day) ?? Repository.logicalDayKey(Date())
-        return ReadinessEngine.evaluate(days: repo.days, today: anchor).level
+        return ReadinessEngine.evaluate(days: repo.days, today: anchor, loadContext: repo.readinessLoadContext).level
     }
 
     var body: some View {

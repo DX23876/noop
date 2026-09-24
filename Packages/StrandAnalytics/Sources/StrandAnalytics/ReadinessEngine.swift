@@ -13,10 +13,13 @@ import WhoopStore
 /// - **Resting-HR drift** — elevated resting HR vs baseline is a classic overtraining / illness
 ///   signal (Lamberts et al. 2004).
 /// - **Respiratory-rate drift** — a rise in sleeping respiratory rate is an early illness signal.
-/// - **Training Stress Balance (ACWR)** — acute (7-day) vs chronic (28-day) strain. The 0.8–1.3
-///   band is the "sweet spot"; >1.5 is associated with higher injury risk (Gabbett 2016).
-/// - **Training monotony** — mean/SD of daily strain over a week; high monotony (low variety) is
-///   associated with higher strain and illness (Foster 1998).
+/// - **Training load** — the Training Load lanes (`LaneEngine`) as the caller supplies them in a
+///   `ReadinessLoadContext`: a lane well above its usual is a `.watch`, anything else is described
+///   without a flag. It used to be an acute:chronic ratio of daily Effort — a logarithmic scale on which
+///   tripled training read 1.16, coupled windows, and missing days closed up — so it stood on "good" for
+///   almost any week and pushed readiness towards primed. Without a context there is no load signal.
+/// - **Training monotony** — Foster's mean/SD of a lane's week, from the same context; high monotony
+///   in a week that carried load is associated with higher strain and illness (Foster 1998).
 ///
 /// Not medical advice. These are approximations from a consumer strap; they describe trends in
 /// *your own* data, nothing more.
@@ -39,12 +42,13 @@ public enum ReadinessEngine {
     /// Locale-free numeric evidence. Clients format and localize it at the display boundary.
     public enum Evidence: Sendable, Equatable {
         case metric(value: Double, baseline: Double, unit: String, decimals: Int)
-        case trainingLoad(acute: Double, chronic: Double)
+        /// The Training Load lanes behind the load signal.
+        case lanes([ReadinessLoadContext.Lane])
         case monotony(Double)
     }
 
     public struct Signal: Sendable, Equatable {
-        public let key: String      // "hrv" | "rhr" | "respRate" | "acwr" | "monotony"
+        public let key: String      // "hrv" | "rhr" | "respRate" | "trainingLoad" | "monotony"
         public let label: String    // short human label
         public let evidence: String?
         public let evidenceData: Evidence?
@@ -62,18 +66,18 @@ public enum ReadinessEngine {
         public let headline: String
         public let summary: String
         public let signals: [Signal]
-        /// Acute:chronic workload ratio (nil if not enough strain history).
-        public let acwr: Double?
-        /// Foster training monotony over the last week (nil if not enough strain history).
+        /// The Training Load lanes this read used, nil when the caller supplied none.
+        public let loadContext: ReadinessLoadContext?
+        /// The highest Foster monotony of a lane's last week, nil without a context or a defined value.
         public let monotony: Double?
         /// How much history backs this read (HRV/RHR baseline density) — so the card can show
         /// calibrating / building / solid instead of a confident number off a 7-night baseline.
         public let confidence: ScoreConfidence
         public init(level: Level, headline: String, summary: String,
-                    signals: [Signal], acwr: Double?, monotony: Double?,
+                    signals: [Signal], loadContext: ReadinessLoadContext? = nil, monotony: Double?,
                     confidence: ScoreConfidence = .calibrating) {
             self.level = level; self.headline = headline; self.summary = summary
-            self.signals = signals; self.acwr = acwr; self.monotony = monotony
+            self.signals = signals; self.loadContext = loadContext; self.monotony = monotony
             self.confidence = confidence
         }
     }
@@ -82,54 +86,30 @@ public enum ReadinessEngine {
 
     private static let baselineWindow = 30   // days for HRV / RHR / RR baselines
     private static let minBaseline    = 7    // need at least this many baseline nights
-    // These three are PUBLIC because a second consumer now exists: the strength lane runs the identical
-    // acute-versus-chronic comparison over working sets. Copying the numbers there would be the
-    // "one number in two places" shape `StreamReadCap` was created to stop — the two would drift, and
-    // the app would quietly hold two different definitions of what "acute load" means.
-    public static let acuteWindow    = 7
-    public static let chronicWindow  = 28
-    public static let minChronic     = 14   // need at least this much history before a ratio is honest
-
-    // MARK: Monotony gating (#monotony-lowload)
-    //
-    // Foster monotony is mean/SD of the week's load. It is only interpretable ALONGSIDE the load itself
-    // — Foster's own companion figure is training strain (load x monotony) — because a week of near
-    // identical LOW load has a tiny SD and therefore a large quotient. Without a gate the engine told a
-    // wearer who had spent the week walking that their days were "too similarly intense" and warned
-    // them about overload, which is the opposite of the truth.
-
-    /// The week must not be markedly lighter than the wearer's own recent norm for the overload reading
-    /// to apply. Deliberately the SAME 0.8 as the lower ACWR sweet-spot bound below, not a new number:
-    /// the rule then reads as "monotony only warns while ACWR is not already saying ramping down", so
-    /// the two signals cannot contradict each other.
-    private static let monotonyMinLoadRatio = 0.8
-
-    /// Absolute floor on the week's mean load, on NOOP's 0-100 Effort axis. 6/21 of the scale is the
-    /// LIGHT/MODERATE band boundary the app already draws (`StrainGauge.stateLabel`); duplicated as a
-    /// literal because StrandAnalytics deliberately does not depend on StrandDesign.
-    ///
-    /// The relative rule alone is NOT enough, and this is the case that proves it: someone who has not
-    /// trained for a month has acute ~= chronic, so the ratio test passes and the engine would warn a
-    /// thoroughly detrained wearer about overload. Both conditions must hold.
-    private static let monotonyMinWeekLoad = 100.0 * 6.0 / 21.0
+    /// Foster's threshold for a monotonous week. It only warns in a lane whose week carried at least its
+    /// usual load: a week of near-identical LIGHT days has a tiny SD and therefore a large quotient, and
+    /// warning a wearer who spent the week walking about overload is the opposite of the truth
+    /// (#monotony-lowload).
+    public static let monotonyWatchThreshold = 2.0
 
     // MARK: Entry point
 
     /// Evaluate readiness from daily metrics. `days` may be in any order; the most recent day is
     /// treated as "today" unless `today` (a YYYY-MM-DD string) is given.
-    public static func evaluate(days: [DailyMetric], today: String? = nil) -> Readiness {
+    public static func evaluate(days: [DailyMetric], today: String? = nil,
+                                loadContext: ReadinessLoadContext? = nil) -> Readiness {
         // v7.0.2 perf (#707): `evaluate` SORTS the entire daily history and walks trailing windows every
         // call, and it is read from a SwiftUI computed property — so a `body` re-evaluation (the iOS twin of
         // a Compose recompose) re-runs the full-history sort on each ~1 Hz live-HR tick. The Today view also
         // memoizes this at the View layer (its `todayInputKey`); this engine-level cache additionally shields
         // every OTHER caller and the first/uncached read. Key = `today` + a fingerprint over ONLY the row
-        // fields the synthesis reads (day + avgHrv/restingHr/respRateBpm/strain), so a new sync re-keys but a
-        // cosmetic reorder does not. Result is a small `Readiness`; no row arrays are retained.
-        let key = ReadinessKey(today: today, rows: Self.rowsFingerprint(days))
-        return evaluateCache.value(key) { evaluateUncached(days: days, today: today) }
+        // fields the synthesis reads (day + avgHrv/restingHr/respRateBpm; strain is still folded in, which only
+        // over-keys), plus the load context, so a new sync re-keys but a cosmetic reorder does not. Result is a small `Readiness`; no row arrays are retained.
+        let key = ReadinessKey(today: today, rows: Self.rowsFingerprint(days), load: loadContext)
+        return evaluateCache.value(key) { evaluateUncached(days: days, today: today, loadContext: loadContext) }
     }
 
-    private struct ReadinessKey: Hashable { let today: String?; let rows: StreamFingerprint }
+    private struct ReadinessKey: Hashable { let today: String?; let rows: StreamFingerprint; let load: ReadinessLoadContext? }
     private static let evaluateCache = AnalyticsMemoCache<ReadinessKey, Readiness>(capacity: 16)
 
     /// Fingerprint the readiness-relevant columns of the daily rows without re-sorting or copying them.
@@ -163,7 +143,8 @@ public enum ReadinessEngine {
         return StreamFingerprint(count: days.count, firstTs: minDayHash, lastTs: maxDayHash, checksum: sum)
     }
 
-    private static func evaluateUncached(days: [DailyMetric], today: String?) -> Readiness {
+    private static func evaluateUncached(days: [DailyMetric], today: String?,
+                                         loadContext: ReadinessLoadContext?) -> Readiness {
         let sorted = days.sorted { $0.day < $1.day }
         // When an explicit `today` is given (the dashboard passes the device's real local day key), use
         // the row for THAT day and nothing else: a stale historical import has no row for today, so the
@@ -176,7 +157,7 @@ public enum ReadinessEngine {
             return Readiness(level: .insufficient,
                              headline: "Readiness",
                              summary: "Wear the strap for a few nights and your readiness read will appear here.",
-                             signals: [], acwr: nil, monotony: nil)
+                             signals: [], monotony: nil)
         }
         let history = sorted.filter { $0.day < latest.day }   // everything before today
 
@@ -237,37 +218,24 @@ public enum ReadinessEngine {
             }
         }
 
-        // Training Stress Balance (ACWR) + monotony --------------------------
-        let strainSeries = sorted.compactMap { $0.strain }
-        var acwr: Double? = nil
+        // Training load + monotony, from the Training Load lanes ----------------
         var monotony: Double? = nil
-        if strainSeries.count >= minChronic {
-            let acute = mean(Array(strainSeries.suffix(acuteWindow)))!
-            let chronic = mean(Array(strainSeries.suffix(chronicWindow)))!
-            if chronic > 0 {
-                let ratio = acute / chronic
-                acwr = ratio
-                signals.append(acwrSignal(ratio, acute: acute, chronic: chronic))
+        if let loadContext {
+            if let signal = trainingLoadSignal(loadContext) { signals.append(signal) }
+            let carried = loadContext.lanes.filter {
+                [RelativeLoadBand.usual, .higher, .muchHigher].contains($0.band ?? .below)
             }
-            // Foster monotony over the last week of strain. The VALUE is always recorded — charts, the
-            // coach context and the explanations read it. Only the overload WARNING is gated, because
-            // that reading presupposes a week that actually carried load (see the tunables above).
-            let week = Array(strainSeries.suffix(acuteWindow))
-            if week.count >= 4, let sd = sampleSD(week), sd > 0, let m = mean(week) {
-                let mono = m / sd
-                monotony = mono
-                let weekCarriedLoad = m >= chronic * monotonyMinLoadRatio && m >= monotonyMinWeekLoad
-                if mono >= 2.0, weekCarriedLoad {
-                    signals.append(Signal(key: "monotony", label: "Training variety",
-                        evidence: "monotony \(String(format: "%.1f", mono))",
-                        evidenceData: .monotony(mono),
-                        detail: "low - similar strain every day raises strain/illness risk", flag: .watch))
-                }
+            monotony = loadContext.lanes.compactMap(\.monotony).max()
+            if let high = carried.compactMap(\.monotony).max(), high >= monotonyWatchThreshold {
+                signals.append(Signal(key: "monotony", label: "Training variety",
+                    evidence: "monotony \(String(format: "%.1f", high))",
+                    evidenceData: .monotony(high),
+                    detail: "low - similar load every day raises strain/illness risk", flag: .watch))
             }
         }
 
         let (level, headline, summary) = synthesize(signals: signals,
-                                                    hasHistory: !history.isEmpty || acwr != nil)
+                                                    hasHistory: !history.isEmpty)
         // RD-confidence: surface how much history backs the read (HRV baseline density, the primary
         // readiness driver). A read off a 7-night baseline must not look as certain as one off the full
         // 30-night window. Insufficient reads carry .calibrating.
@@ -276,7 +244,7 @@ public enum ReadinessEngine {
                                                    baselineNights: hrvBaselineNights,
                                                    fullWindow: baselineWindow)
         return Readiness(level: level, headline: headline, summary: summary,
-                         signals: signals, acwr: acwr, monotony: monotony,
+                         signals: signals, loadContext: loadContext, monotony: monotony,
                          confidence: confidence)
     }
 
@@ -328,63 +296,28 @@ public enum ReadinessEngine {
                       detail: text, flag: flag)
     }
 
-    /// Where an acute:chronic ratio falls, as a named band.
-    ///
-    /// The cut points are the conventional ones and they live HERE, in one place, because two surfaces
-    /// now read them: this engine's Readiness signal and the strength lane's load tile. A second copy
-    /// would let the same ratio be called "sweet spot" on one screen and "building fast" on another.
-    ///
-    /// The band is a description of a RATIO, deliberately unitless — which is what lets the same
-    /// arithmetic serve heart-rate strain and working sets without either pretending to be the other.
-    public enum LoadBand: String, Sendable, CaseIterable {
-        /// < 0.8 — doing less than usual. A state, not a concern.
-        case rampingDown
-        /// 0.8–1.3 — the range most of the literature treats as unremarkable.
-        case steady
-        /// 1.3–1.5 — building faster than the body has been prepared for.
-        case buildingFast
-        /// ≥ 1.5 — a spike.
-        case spiking
-
-        public static func of(ratio: Double) -> LoadBand {
-            switch ratio {
-            case ..<0.8:    return .rampingDown
-            case 0.8..<1.3: return .steady
-            case 1.3..<1.5: return .buildingFast
-            default:        return .spiking
-            }
+    /// The load signal: `.watch` while a lane is well above its usual (the low-volume guard has already
+    /// capped a sparse baseline at "above"), otherwise a description without a flag. Never `.good`: a
+    /// usual week is not evidence of readiness, and counting it as one pushed every read towards primed.
+    private static func trainingLoadSignal(_ context: ReadinessLoadContext) -> Signal? {
+        let banded = context.lanes.filter { $0.band != nil }
+        guard !banded.isEmpty else { return nil }
+        let high = banded.filter { $0.band == .muchHigher }
+        let names = { (lanes: [ReadinessLoadContext.Lane]) in lanes.map(\.kind.rawValue).joined(separator: " and ") }
+        if !high.isEmpty {
+            return Signal(key: "trainingLoad", label: "Training load", evidenceData: .lanes(context.lanes),
+                          detail: "well above your usual (\(names(high))) - watch fatigue", flag: .watch)
         }
-    }
-
-    private static func acwrSignal(_ ratio: Double, acute: Double, chronic: Double) -> Signal {
-        let pct = String(format: "%.2f", ratio)
-        let evidence = "7d \(String(format: "%.1f", acute)) / 28d \(String(format: "%.1f", chronic))"
-        switch ratio {
-        case ..<0.8:
-            // NEUTRAL, not `.watch`. Ramping down is a state, not a concern — and the detail already
-            // says "room to build". As a `.watch` it blocked `primed` in `synthesize`, so a wearer who
-            // had rested and recovered well could never be given the green light this very signal was
-            // describing. The warning for ramping up TOO fast (1.3...1.5) keeps its `.watch`.
-            return Signal(key: "acwr", label: "Training load",
-                evidence: evidence,
-                evidenceData: .trainingLoad(acute: acute, chronic: chronic),
-                detail: "ramping down (acute:chronic \(pct)) - room to build", flag: .neutral)
-        case 0.8..<1.3:
-            return Signal(key: "acwr", label: "Training load",
-                evidence: evidence,
-                evidenceData: .trainingLoad(acute: acute, chronic: chronic),
-                detail: "in the sweet spot (acute:chronic \(pct))", flag: .good)
-        case 1.3..<1.5:
-            return Signal(key: "acwr", label: "Training load",
-                evidence: evidence,
-                evidenceData: .trainingLoad(acute: acute, chronic: chronic),
-                detail: "building fast (acute:chronic \(pct)) - watch fatigue", flag: .watch)
-        default:
-            return Signal(key: "acwr", label: "Training load",
-                evidence: evidence,
-                evidenceData: .trainingLoad(acute: acute, chronic: chronic),
-                detail: "spiking (acute:chronic \(pct)) - higher injury risk", flag: .bad)
+        let order: [RelativeLoadBand] = [.higher, .usual, .below]
+        let top = order.first { band in banded.contains { $0.band == band } } ?? .usual
+        let detail: String
+        switch top {
+        case .higher: detail = "above your usual (\(names(banded.filter { $0.band == .higher })))"
+        case .below: detail = "below your usual"
+        default: detail = "about your usual"
         }
+        return Signal(key: "trainingLoad", label: "Training load", evidenceData: .lanes(context.lanes),
+                      detail: detail, flag: .neutral)
     }
 
     private static func evidence(value: Double, baseline: Double, unit: String, decimals: Int) -> String {
@@ -408,13 +341,16 @@ public enum ReadinessEngine {
         let watch = signals.filter { $0.flag == .watch }
         let good = signals.filter { $0.flag == .good }
         let recoveryDown = signals.contains { ["hrv", "rhr", "respRate"].contains($0.key) && ($0.flag == .bad) }
-        let loadHigh = signals.contains { $0.key == "acwr" && $0.flag == .bad }
+        // A lane well above its usual is a `.watch` on its own: it keeps the read off primed and no more.
+        // Together with a recovery signal that is down it is the classic run-down picture — the place the
+        // old acute:chronic spike used to take.
+        let loadHigh = signals.contains { $0.key == "trainingLoad" && $0.flag == .watch }
 
         if bad.count >= 2 || (recoveryDown && loadHigh) {
             return (.rundown, "Run down",
                     "Several signals are down at once. Treat today as recovery - easy movement, real sleep tonight.")
         }
-        if recoveryDown || loadHigh || bad.count >= 1 {
+        if recoveryDown || bad.count >= 1 {
             return (.strained, "Strained",
                     "One of your signals is flagging. You can train, but keep it controlled and bank the recovery.")
         }
@@ -438,4 +374,42 @@ public enum ReadinessEngine {
         let ss = xs.reduce(0) { $0 + ($1 - m) * ($1 - m) }
         return (ss / Double(xs.count - 1)).squareRoot()
     }
+}
+
+/// The Training Load lanes as Readiness reads them. Built by the app from `LaneEngine` readings, so the
+/// load signal on Today can never disagree with the Training Load screen.
+public struct ReadinessLoadContext: Hashable, Sendable {
+    public struct Lane: Hashable, Sendable {
+        public let kind: TrainingLaneKind
+        public let band: RelativeLoadBand?
+        public let guardState: LaneGuard
+        public let percentChange: Double?
+        /// Foster monotony of the lane's last seven days, nil when undefined.
+        public let monotony: Double?
+
+        public init(kind: TrainingLaneKind, band: RelativeLoadBand?, guardState: LaneGuard,
+                    percentChange: Double?, monotony: Double?) {
+            self.kind = kind; self.band = band; self.guardState = guardState
+            self.percentChange = percentChange; self.monotony = monotony
+        }
+
+        public init(kind: TrainingLaneKind, reading: LaneReading, monotony: Double?) {
+            self.init(kind: kind, band: reading.band, guardState: reading.guardState,
+                      percentChange: reading.trend?.percentChange, monotony: monotony)
+        }
+
+        /// A lane from its reading and the daily series behind it. Monotony is `TrainingLoad.distribution`
+        /// over the seven days ending on the reading's day — the same figure the Training Load screen
+        /// shows for the lane, so Readiness and the screen hold one definition of it.
+        public init(kind: TrainingLaneKind, reading: LaneReading, dailyByDay: [String: Double],
+                    unknownDays: Set<String> = []) {
+            let distribution = TrainingLoad.distribution(dailyByDay: dailyByDay, through: reading.day,
+                                                         unknownDays: unknownDays)
+            self.init(kind: kind, reading: reading, monotony: distribution?.monotony)
+        }
+    }
+
+    public let lanes: [Lane]
+
+    public init(lanes: [Lane]) { self.lanes = lanes }
 }

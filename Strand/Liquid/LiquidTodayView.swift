@@ -2429,7 +2429,8 @@ struct LiquidTodayView: View {
         // `TodayView.computeReadiness` / `HeuteRedesignView.load` — was previously anchored on `day?.day`
         // here only, which is what let this screen disagree with the other two (on-device feedback).
         next.cachedReadiness = ReadinessEngine.evaluate(days: allDays,
-                                                   today: priorScored?.day ?? Repository.logicalDayKey(Date()))
+                                                   today: priorScored?.day ?? Repository.logicalDayKey(Date()),
+                                                   loadContext: repo.readinessLoadContext)
         next.cachedPriorScored = priorScored
         next.cachedChargeDisplay = ChargeDisplay.resolve(
             todayRecovery: day?.recovery,
@@ -2660,7 +2661,8 @@ struct LiquidTodayView: View {
     /// pass (readinessWord + synthLine + readiness.summary). The fallback runs only in the brief window
     /// before the first load() populates the cache.
     private var readiness: ReadinessEngine.Readiness {
-        cachedReadiness ?? ReadinessEngine.evaluate(days: repo.days, today: cachedDisplayDay?.day)
+        cachedReadiness ?? ReadinessEngine.evaluate(days: repo.days, today: cachedDisplayDay?.day,
+                                                    loadContext: repo.readinessLoadContext)
     }
 
     /// One card-level provenance label. Identical winners collapse to one name; mixed scores show at most

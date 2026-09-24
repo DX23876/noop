@@ -686,8 +686,8 @@ final class AICoachEngine: ObservableObject {
     than treating it as a zero. \
     Coach using autoregulation:
     • Readiness → prescription: your autoregulation input is a Readiness verdict computed the SAME way \
-    the app's own Today screen shows it - level (primed/balanced/strained/rundown), acute:chronic \
-    workload ratio, training monotony, and the contributing signals. FOLLOW that verdict rather than \
+    the app's own Today screen shows it - level (primed/balanced/strained/rundown), the strength and \
+    cardio training load bands against the user's usual, training monotony, and the contributing signals. FOLLOW that verdict rather than \
     re-deriving your own call from the raw charge number, so your advice never contradicts what the \
     user sees on Today. primed = green light to build/push, higher effort is fine; balanced = \
     maintain, quality over volume, keep it controlled; strained/rundown = active recovery only (Zone 2, \
@@ -3380,19 +3380,15 @@ final class AICoachEngine: ObservableObject {
 
     /// The on-device Readiness verdict (`ReadinessEngine`) — the SAME algorithm Today's synthesis card
     /// reads, so the coach's push/maintain/rest call can never contradict what the user sees on Today.
-    /// Includes ACWR (Gabbett) and Foster training monotony when there's enough strain history, plus a
-    /// plain-English read of the contributing signals. When an active illness signal is present, appends
+    /// Includes the Training Load lanes' bands and Foster monotony (`Repository.readinessLoadContext`, the
+    /// same lanes the Training Load screen reads) once they have been read, plus a plain-English read of
+    /// the contributing signals. When an active illness signal is present, appends
     /// a SAFETY note instructing the model not to suggest escalating training load — read fresh on every
     /// request rather than relying on the model to remember a static system-prompt rule.
     func readinessBlock() -> String {
-        let readiness = ReadinessEngine.evaluate(days: repo.days, today: Repository.logicalDayKey(Date()))
+        let readiness = currentReadiness()
         var lines = ["READINESS (\(readiness.level.rawValue)): \(readiness.headline)", readiness.summary]
-        if let acwr = readiness.acwr {
-            lines.append(String(format: "Acute:chronic workload ratio: %.2f", acwr))
-        }
-        if let monotony = readiness.monotony {
-            lines.append(String(format: "Training monotony: %.2f", monotony))
-        }
+        lines.append(contentsOf: CoachTrainingLoadBrief.readinessLines(readiness.loadContext))
         if !readiness.signals.isEmpty {
             lines.append("Signals:")
             for s in readiness.signals { lines.append("  \(s.label): \(s.detail)") }
@@ -3742,7 +3738,8 @@ final class AICoachEngine: ObservableObject {
     /// built for the model. Calls the SAME `ReadinessEngine.evaluate` the coach's context and Today's
     /// synthesis card use, so this can never disagree with either.
     func currentReadiness() -> ReadinessEngine.Readiness {
-        ReadinessEngine.evaluate(days: repo.days, today: Repository.logicalDayKey(Date()))
+        ReadinessEngine.evaluate(days: repo.days, today: Repository.logicalDayKey(Date()),
+                                 loadContext: repo.readinessLoadContext)
     }
 
     /// The most recent measured body weight (kg), resolving NOOP and Apple Health canonically. Kept

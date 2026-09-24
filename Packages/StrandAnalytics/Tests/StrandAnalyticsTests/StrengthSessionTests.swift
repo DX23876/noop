@@ -437,19 +437,10 @@ final class StrengthSessionTests: XCTestCase {
         XCTAssertNil(StrengthSession.strengthLoadTrend(workouts, asOf: Self.date("2026-05-24")))
     }
 
-    /// `ReadinessEngine` keeps its OWN acute:chronic ratio for the recovery score, and this display
-    /// comparison no longer borrows its bands — those came from team-sport distance research and were
-    /// never validated on set counts. The two are now deliberately separate, which is why the recovery
-    /// score is untouched by this change.
-    func testTheRecoveryEngineKeepsItsOwnWindows() {
-        XCTAssertEqual(ReadinessEngine.acuteWindow, 7)
-        XCTAssertEqual(ReadinessEngine.chronicWindow, 28)
+    /// The strength lane compares the same week-against-baseline windows every lane uses.
+    func testTheLaneWindows() {
         XCTAssertEqual(TrainingLoad.recentWindow, 7)
         XCTAssertEqual(TrainingLoad.baselineWindow, 28)
-        XCTAssertEqual(ReadinessEngine.LoadBand.of(ratio: 0.5), .rampingDown)
-        XCTAssertEqual(ReadinessEngine.LoadBand.of(ratio: 1.0), .steady)
-        XCTAssertEqual(ReadinessEngine.LoadBand.of(ratio: 1.4), .buildingFast)
-        XCTAssertEqual(ReadinessEngine.LoadBand.of(ratio: 2.0), .spiking)
     }
 
     // MARK: - The user's own range

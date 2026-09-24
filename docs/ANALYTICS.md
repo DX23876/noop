@@ -538,8 +538,8 @@ non-zero personal baseline exist.
   felt. Missing ratings are reported as missing and are never inferred from set RPE or heart rate.
 
 The percentage is presented as “above / about / below your usual” rather than exposing ACWR as a new
-score. Existing Readiness training-load calculations remain unchanged. Recovery interaction is shown
-through Charge, HRV, resting HR and Rest rather than an invented combined-load total.
+score. Readiness reads the same lanes (see *Readiness reads the lanes* below). Recovery interaction is
+shown through Charge, HRV, resting HR and Rest rather than an invented combined-load total.
 
 **The shape of a week, beside its size.** A seven-day mean throws away how the week was distributed. Two figures per lane are reported next to it,
 and neither is a verdict:
@@ -581,6 +581,41 @@ zones rather than merely blur a total. The card says how many of the week's sess
 says when part of the split rests on Apple Health's one-value-per-minute averages, which cannot resolve
 intervals shorter than a minute. No ideal distribution is implied: the polarised and threshold models
 disagree, and which applies depends on the sport, the phase and the athlete.
+
+### Readiness reads the lanes
+
+Source: `ReadinessEngine.swift` (`ReadinessLoadContext`, the load and monotony signals),
+`TrainingLoadLanes.readinessContext`, `Repository.readinessLoadContext`; tests in
+`ReadinessEngineTests.swift`, `ReadinessMonotonyTests.swift` and `StrandTests/ReadinessLoadContextTests.swift`.
+
+Today's Readiness card used to carry its own load signal: an acute:chronic ratio of daily Effort, over
+coupled 7/28-day windows, with missing days closed up by `compactMap`. Effort is logarithmic, so the
+signal barely moved — halved training read 0.89, doubled 1.10, tripled 1.16 — and stood on *good* for
+almost any week, which in turn helped push most reads towards *primed*. The Coach only ever saw that
+ratio.
+
+Readiness now reads the Strength and Cardio lanes of this screen. `TrainingLoadLanes.readinessContext`
+takes each lane's `LaneEngine` reading through the same reading day the screen uses, and the Repository
+publishes it after every refresh; Today, Heute, Coupled and the Coach all evaluate with it, so the load
+signal and the Training Load hero cannot name different bands. Session Load stays out: it has no guards
+and a rating quota decides how much of it exists.
+
+| Lane state | Signal |
+|---|---|
+| Strength **or** Cardio well above usual | `.watch` — keeps the read off *primed*; with a recovery signal down, *run down* |
+| Above usual / about usual / below usual | described, no flag |
+| No band (too few sessions, no comparison yet) | no signal |
+
+A usual week is never `.good`: it is not evidence of readiness. The low-volume guard has already capped a
+sparse baseline at "above usual", so a return to training cannot raise the watch. Without a context —
+before the first lane read, or in a caller that has none — there is no load signal at all, rather than a
+guessed one.
+
+**Monotony has one definition.** Readiness used to divide the mean of daily Effort by its sample standard
+deviation; this screen divides each lane's daily load by its population standard deviation over seven
+days with at least five known (`TrainingLoad.distribution`). Readiness now reports that same figure — the
+highest lane's — and warns at 2.0 only in a lane whose band is at least *about usual*. A week of walks
+has a tiny spread and a large quotient; it sits below usual and does not warn.
 
 ### Training status — is it too much, too little, or about right?
 

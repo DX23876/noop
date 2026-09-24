@@ -1487,5 +1487,9 @@
   "No performance evidence yet: a fresh Apple Watch VO₂max, or at least four endurance sessions with distance and heart rate. Until then the statement only describes the load.": "Пока нет данных о результатах: свежего VO₂max от Apple Watch или хотя бы четырёх тренировок на выносливость с дистанцией и пульсом. До тех пор сообщение лишь описывает нагрузку.",
   "Recalculate cardio history": "Пересчитать историю кардио",
   "Recalculate": "Пересчитать",
-  "%lld stored sessions were priced with a different maximum heart rate. Recalculating uses your current one wherever the heart rate is still stored; sessions whose heart rate is gone keep their load.": "Сохранённых тренировок, рассчитанных с другим максимальным пульсом: %lld. Пересчёт использует текущий там, где пульс ещё хранится; тренировки без сохранённого пульса сохраняют свою нагрузку."
+  "%lld stored sessions were priced with a different maximum heart rate. Recalculating uses your current one wherever the heart rate is still stored; sessions whose heart rate is gone keep their load.": "Сохранённых тренировок, рассчитанных с другим максимальным пульсом: %lld. Пересчёт использует текущий там, где пульс ещё хранится; тренировки без сохранённого пульса сохраняют свою нагрузку.",
+  "above your usual (%@)": "выше вашего обычного (%@)",
+  "well above your usual (%@) - watch fatigue": "значительно выше вашего обычного (%@) — следите за усталостью",
+  "low - similar load every day raises strain/illness risk": "низкая - одинаковая нагрузка изо дня в день повышает риск избыточной нагрузки или болезни",
+  "Your strength and cardio load against your usual": "Ваша силовая и кардионагрузка относительно обычной"
 }

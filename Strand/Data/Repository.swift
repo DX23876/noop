@@ -293,6 +293,12 @@ final class Repository: ObservableObject {
     var cardioLoadMemo: [String: TrainingCardioLoad] = [:]
     /// The in-flight ledger backfill (`scheduleCardioLoadBackfill`), so screens can ask for it freely.
     var cardioLoadBackfillTask: Task<Void, Never>?
+    /// The Strength and Cardio lanes as Readiness reads them (`scheduleReadinessLoadContextRefresh`). Nil
+    /// until the first read has finished; Readiness then shows no load signal rather than a guessed one.
+    @Published var readinessLoadContext: ReadinessLoadContext?
+    /// The in-flight lane read behind `readinessLoadContext`, and whether another was asked for meanwhile.
+    var readinessLoadContextTask: Task<Void, Never>?
+    var readinessLoadContextStale = false
 
     /// Emit one Workouts & GPS test-mode line iff the mode is on and a sink is wired. The cheap
     /// `TestCentre.active(.workouts)` gate is checked BEFORE `build()` runs, so the string is never
@@ -1368,6 +1374,9 @@ final class Repository: ObservableObject {
         // and an appended line after the bump is how that invariant quietly stops being true.
         self.exploreAllCache = nil
         self.refreshSeq += 1
+        // Readiness reads the Training Load lanes. They come from workouts and heart rate rather than the
+        // daily rows, so they are re-read after the publish instead of holding it up.
+        scheduleReadinessLoadContextRefresh()
     }
 
     /// Per-source coverage counts for the Freshness Pipeline card. Pure over the rows already read.

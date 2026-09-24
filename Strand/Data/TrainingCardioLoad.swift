@@ -105,6 +105,44 @@ extension Repository {
         }
     }
 
+    /// Re-reads the lanes behind `readinessLoadContext`, at most one read at a time: a request while one
+    /// runs is remembered and served once it ends, so a burst of refreshes costs two reads, not many.
+    func scheduleReadinessLoadContextRefresh() {
+        guard readinessLoadContextTask == nil else {
+            readinessLoadContextStale = true
+            return
+        }
+        readinessLoadContextTask = Task(priority: .utility) { [weak self] in
+            repeat {
+                self?.readinessLoadContextStale = false
+                await self?.refreshReadinessLoadContext()
+            } while self?.readinessLoadContextStale == true && !Task.isCancelled
+            self?.readinessLoadContextTask = nil
+        }
+    }
+
+    /// Reads the lanes over exactly the history a reading depends on (`TrainingLoadLanes.lookbackDays`),
+    /// and publishes only a changed context, so Today does not re-derive on an identical answer.
+    func refreshReadinessLoadContext() async {
+        let days = TrainingLoadLanes.lookbackDays
+        async let fusedRead = trainingSessions(days: days)
+        async let strengthRead = resolvedStrengthHistory(days: days)
+        let sessions = await fusedRead.sessions
+        let resolution = await cardioLoads(for: sessions)
+        let workouts = await strengthRead.workouts
+        let today = Repository.localDayKey(Date())
+        let offset = TimeZone.current.secondsFromGMT()
+        let context = await Task.detached(priority: .utility) {
+            TrainingLoadLanes.readinessContext(
+                strengthWorkouts: workouts,
+                cardio: TrainingLoadLanes.cardioSeries(sessions: sessions, resolution: resolution,
+                                                       tzOffsetSeconds: offset),
+                today: today, tzOffsetSeconds: offset)
+        }.value
+        guard !Task.isCancelled, context != readinessLoadContext else { return }
+        readinessLoadContext = context
+    }
+
     /// Ledger rows priced with a different HR maximum than the current one — what the "recalculate
     /// history" action would change. A changed HR max never rewrites history on its own.
     func cardioLoadRowsWithOtherHRmax() async -> Int {

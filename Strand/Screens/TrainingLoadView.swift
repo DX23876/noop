@@ -106,8 +106,15 @@ final class TrainingLoadModel: ObservableObject {
     /// Ring-only estimate used before a personal comparison exists. It never becomes a lane status.
     @Published private(set) var provisionalStrengthRing: ProvisionalStrengthRingReading?
 
-    func load(repo: Repository) async {
-        let now = Int(Date().timeIntervalSince1970)
+    /// Everything the screen reads, with no side effects — what the Coach's `get_training_load` reads too,
+    /// so the Coach can never describe another week than the one this screen shows.
+    struct Snapshot: Sendable {
+        let prepared: Prepared
+        let fusion: TrainingSessionFusionResult
+        let rpeEntries: [SessionRPEEntry]
+    }
+
+    static func snapshot(repo: Repository, now: Int = Int(Date().timeIntervalSince1970)) async -> Snapshot {
         let from = now - Self.historyDays * 86_400
         let offset = TimeZone.current.secondsFromGMT()
 
@@ -122,13 +129,23 @@ final class TrainingLoadModel: ObservableObject {
         let dailyRows = repo.days
         let vo2 = await Self.vo2maxReadings(repo: repo)
 
-        let today = Repository.localDayKey(Date())
+        let today = Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(now)))
         let prepared = await Task.detached(priority: .userInitiated) { () -> Prepared in
             Self.prepare(strengthHistory: strengthHistory, unified: unified,
                          cardioResolution: cardioResolution, rpeEntries: rpeEntries,
                          dailyRows: dailyRows, vo2Estimates: vo2.estimates, vo2Apple: vo2.apple,
                          today: today, now: now, offset: offset)
         }.value
+        return Snapshot(prepared: prepared, fusion: fusion, rpeEntries: rpeEntries)
+    }
+
+    func load(repo: Repository) async {
+        let now = Int(Date().timeIntervalSince1970)
+        let snapshot = await Self.snapshot(repo: repo, now: now)
+        let prepared = snapshot.prepared
+        let fusion = snapshot.fusion
+        let unified = fusion.sessions
+        let rpeEntries = snapshot.rpeEntries
 
         guard !Task.isCancelled else { return }
         // Imported workouts do not pass through `finishNativeWorkout`. If one has just ended and has

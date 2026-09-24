@@ -15,7 +15,6 @@ final class BaseCardStatementTests: XCTestCase {
             headline: "Primed",
             summary: "Your signals are aligned and your load is supported.",
             signals: [],
-            acwr: nil,
             monotony: nil)
     }
 

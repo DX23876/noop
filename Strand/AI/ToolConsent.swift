@@ -59,7 +59,8 @@ extension CoachTool {
             return .coreBiometrics
         case .dataCatalog, .metricHistory:
             return .longHistory
-        case .recentWorkouts, .strengthHistory, .zoneMinutes, .sessionOutlook, .simulateDay, .estimateSessionEffort:
+        case .recentWorkouts, .strengthHistory, .zoneMinutes, .sessionOutlook, .simulateDay, .estimateSessionEffort,
+             .trainingLoad:
             return .workouts
         // The two Hevy tools ride `.planning` with the other propose tools rather than inventing a
         // purpose nobody would recognise in Settings: reading the exercise catalogue and drafting a

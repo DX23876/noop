@@ -54,9 +54,12 @@ enum CoachTool: String, CaseIterable {
     case trainingPreferences = "get_training_preferences"
     /// A bounded, local aggregate of one metric over up to ten years; never returns raw readings.
     case metricHistory = "get_metric_history"
-    /// The on-device Readiness verdict — the SAME algorithm Today's synthesis card reads (level, ACWR,
-    /// training monotony, contributing signals), plus a health/safety note when relevant.
+    /// The on-device Readiness verdict — the SAME algorithm Today's synthesis card reads (level, the
+    /// Training Load lanes' bands and monotony, contributing signals), plus a health/safety note.
     case readiness = "get_readiness"
+    /// The Training Load screen's reading: each lane's band against the wearer's usual, the verdict where
+    /// performance evidence allows one, coverage and the eight-week history.
+    case trainingLoad = "get_training_load"
     /// The ordered "why is my Charge what it is" breakdown — signed points per contributing term.
     case chargeDrivers = "get_charge_drivers"
     /// SUGGEST a session for a day. It lands as a proposal the USER must accept — never an active plan.
@@ -206,12 +209,21 @@ enum CoachTool: String, CaseIterable {
                 + "timeline — never raw readings."
         case .readiness:
             return "Get the user's on-device Readiness verdict — the SAME call the Today screen uses "
-                + "(level: primed/balanced/strained/rundown/insufficient), acute:chronic workload ratio, "
-                + "training monotony, and the contributing signals with plain-English detail. ALWAYS call "
+                + "(level: primed/balanced/strained/rundown/insufficient), the strength and cardio training "
+                + "load bands against the user's usual, training monotony, and the contributing signals "
+                + "with plain-English detail. ALWAYS call "
                 + "this before advising whether to push, maintain or rest — never derive that call "
                 + "yourself from the raw charge number, so you never contradict what Today shows. May "
                 + "include a HEALTH SIGNAL / SAFETY note; when present, do not suggest increasing "
                 + "training load regardless of the readiness level."
+        case .trainingLoad:
+            return "Get the user's training load exactly as the app's Training Load screen shows it: three "
+                + "lanes in their own units (strength = weighted working sets, cardio = heart-rate load, "
+                + "session load = RPE × minutes), each last-7-days figure against the user's own usual, the "
+                + "band (below / about / above / well above usual), the verdict where performance evidence "
+                + "supports one, data coverage, recovery, and the last eight week-end bands. Call this for "
+                + "questions about training volume, overload, deloads or whether training is working. Never "
+                + "add the lanes together or invent a verdict the tool does not give."
         case .chargeDrivers:
             return "Get the ordered breakdown of WHY today's Charge is what it is — each contributing "
                 + "term (HRV, resting HR, respiration, skin temperature) with its signed point "
@@ -1271,6 +1283,8 @@ extension AICoachEngine {
                                            days: days, source: input["source"] as? String)
         case .readiness:
             return readinessBlock()
+        case .trainingLoad:
+            return await trainingLoadTool()
         case .chargeDrivers:
             var block = chargeDriversBlock()
             if let confidence = await chargeConfidenceBlock() { block += "\n\n" + confidence }

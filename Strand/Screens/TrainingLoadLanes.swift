@@ -135,6 +135,29 @@ enum TrainingLoadLanes {
         }
     }
 
+    /// The Strength and Cardio lanes as Readiness reads them, through the same reading days the Training
+    /// Load screen uses (`LaneEngine.readingDay`), so Today's load signal and the screen's hero can never
+    /// name two different bands. Session Load stays out: it is not a heart-rate or set measure and has
+    /// no guard of its own (Q18).
+    static func readinessContext(strengthWorkouts: [HevyWorkout], cardio: CardioSeries, today: String,
+                                 tzOffsetSeconds: Int) -> ReadinessLoadContext {
+        let strengthByDay = strengthByDay(strengthWorkouts, tzOffsetSeconds: tzOffsetSeconds)
+        let strengthActivity = strengthActivity(strengthWorkouts, tzOffsetSeconds: tzOffsetSeconds)
+        let strengthDay = LaneEngine.readingDay(today: today,
+                                                hasActivityToday: (strengthActivity.sessionsByDay[today] ?? 0) > 0)
+        let cardioDay = LaneEngine.readingDay(today: today,
+                                              hasActivityToday: (cardio.activity.sessionsByDay[today] ?? 0) > 0)
+        let strength = LaneEngine.reading(dailyByDay: strengthByDay, activity: strengthActivity,
+                                          lane: .strength, through: strengthDay)
+        let cardioReading = LaneEngine.reading(dailyByDay: cardio.byDay, unknownDays: cardio.unknownDays,
+                                               activity: cardio.activity, lane: .cardio, through: cardioDay)
+        return ReadinessLoadContext(lanes: [
+            ReadinessLoadContext.Lane(kind: .strength, reading: strength, dailyByDay: strengthByDay),
+            ReadinessLoadContext.Lane(kind: .cardio, reading: cardioReading, dailyByDay: cardio.byDay,
+                                      unknownDays: cardio.unknownDays)
+        ])
+    }
+
     /// The day a week is read through: its Sunday, or — while the week is still running — today once
     /// something was logged today, otherwise yesterday (`LaneEngine.readingDay`).
     static func readingDay(monday: String, today: String, hasActivityToday: Bool) -> String {

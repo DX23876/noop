@@ -156,7 +156,8 @@ struct HeuteRedesignView: View {
         .simultaneousGesture(daySwipeGesture)
         // repo.refreshSeq in the id (mirrors LiquidTodayView.swift/TodayView.swift): without it, a strap
         // sync or backfill completing while Heute is open never triggers a reload.
-        .task(id: "\(repo.refreshSeq)-\(selectedDayOffset)") { await load() }
+        .task(id: HeuteLoadKey(refreshSeq: repo.refreshSeq, dayOffset: selectedDayOffset,
+                               readinessLoad: repo.readinessLoadContext)) { await load() }
     }
 
     /// Whole days from today's logical day back to the earliest banked day — the lower bound the day-swipe
@@ -273,7 +274,8 @@ struct HeuteRedesignView: View {
         // carrying, the last SCORED day — otherwise `evaluate` reads `.insufficient` right after the
         // rollover and the base card's statement would vanish. Same anchor as `TodayView.computeReadiness`.
         readiness = ReadinessEngine.evaluate(days: repo.days,
-                                             today: priorScored?.day ?? Repository.logicalDayKey(Date()))
+                                             today: priorScored?.day ?? Repository.logicalDayKey(Date()),
+                                             loadContext: repo.readinessLoadContext)
 
         // Effort is the day's OWN strain, never carried: strain accumulates within a day, so yesterday's
         // total is not a stand-in for today's — a calm morning honestly reads near zero. (Charge is the
@@ -493,4 +495,12 @@ struct HeuteRedesignView: View {
         f.timeZone = .current
         return f
     }()
+}
+
+/// What Heute's load depends on: a refresh, the selected day, and the Training Load lanes Readiness reads,
+/// which land after the refresh that asked for them.
+private struct HeuteLoadKey: Hashable {
+    let refreshSeq: Int
+    let dayOffset: Int
+    let readinessLoad: ReadinessLoadContext?
 }
