@@ -819,6 +819,21 @@ The chat context and goal feasibility quote the same headline and Apple reading
 (`AICoachEngine.vo2maxDisplay`); they used to recompute Nes themselves, which gave the coach no value at
 all without a waist measurement while every screen showed the Uth estimate.
 
+**Training-based VO₂max — an experimental instrument.** Source: `ExerciseVO2max.swift`, behind a
+default-off switch (Settings › Experimental). It estimates VO₂max from what the wearer did: the ACSM
+metabolic equations turn a session's average speed into an oxygen cost (walking 0.1·S + 1.8·S·G + 3.5
+for 50–100 m/min, running 0.2·S + 0.9·S·G + 3.5 above 134 m/min; between the two the gait decides and
+NOOP cannot see it, so those sessions are left out), and %HRR = %VO₂R (Swain & Leutholtz 1997)
+extrapolates it to maximum. Sessions qualify on foot, ≥ 20 minutes, with distance, a measured heart-rate
+trace and an average of 40–85 % of heart-rate reserve; a week is the median of its sessions. **One
+departure from the published method:** grade is taken as zero, because routes are kept without altitude
+and there is no per-minute speed, so hills and stops read low and warm-up reads high — every surface
+says "grade assumed flat". It is shown beside the weekly estimate and never used as evidence until
+`ExerciseVO2max.validate` passes the rule fixed before looking at any data: at least 8 weeks paired with
+an Apple Watch reading within 7 days, a mean absolute difference of at most 3.5 ml/kg/min, and the
+direction of week-to-week change agreeing in at least 70 % of the steps where Apple moved by 0.5 or more.
+Tests recover five injected VO₂max values across speeds, gaits and wearers, not one.
+
 **Lasting overload — a warning, not another verdict.** The ECSS/ACSM consensus (Meeusen et al. 2013)
 separates functional overreaching (a planned hard block, recovered from in days, followed by better
 performance) from non-functional overreaching (a performance decrement taking weeks to months to

@@ -1,6 +1,6 @@
 # Training Load – Umbau- und Erweiterungsplan
 
-Stand: 2026-09-24 · Branch: `claude/training-load-optimization-cfb32e` · Status: **beschlossen; P1–P6 umgesetzt** (offen: Jahresvergleich, P7, P8; Laufzeitprüfung des Backfills am echten iPhone-Datensatz)
+Stand: 2026-09-24 · Branch: `claude/training-load-optimization-cfb32e` · Status: **beschlossen; P1–P6 und P8 (als Messinstrument) umgesetzt** (offen: Jahresvergleich, P7; Laufzeitprüfung des Backfills und P8-Validierung am echten iPhone-Datensatz)
 
 Dieser Plan fasst die Untersuchung von Training Load zusammen (Code-Review, Messung gegen die echte
 `StrandAnalytics`-Logik, Abgleich mit dem Polar-Whitepaper) und die in vier Grilling-Runden getroffenen
@@ -228,6 +228,10 @@ Geliefert: Spielraum (Bisektion gegen `relativeLoad` + `LaneEngine.thresholds`, 
 | Q31 | Trainingsbasierter NOOP-VO₂max | späteres Paket P8, erst nach Validierung als Nachweis |
 | Q32 | Mindestbreite persönlicher Bereich | „deutlich höher“ frühestens +15 %, „unter üblich“ frühestens −10 % |
 | Q33 | Unbekannte Tage im Vergleich | aus beiden Fenstern entfernen, solange ≥ 5/7 und ≥ ¾ der Basis bekannt; sonst kein Vergleich |
+| Q34 | Methode trainingsbasierte VO₂max | ACSM-Gleichungen + %HRR ≙ %VO₂R, Durchschnitt pro Einheit, Steigung flach angenommen und benannt; Höhe erfassen als späterer Ausbau |
+| Q35 | Welche Einheiten | Laufen > 8 km/h, Gehen 3–6 km/h, ≥ 20 min, mit Distanz, gemessener Pulsverlauf, 40–85 % HRR |
+| Q36 | Anzeige/Speicherung | beim Lesen berechnet, Wochen-Median, Schalter Einstellungen › Experimentell (aus), kein Nachweis |
+| Q37 | Validierungsregel | ≥ 8 Wochen-Paare mit Apple (±7 Tage), MAE ≤ 3,5 ml/kg/min, Richtung ≥ 70 %; synthetisch mehrere Werte wiederfinden |
 
 ### Q27 – Urteilstabelle (Kraft: e1RM, Cardio: Nachweis nach Q29)
 

@@ -452497,6 +452497,528 @@
           }
         }
       }
+    },
+    "Training-based VO₂max" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trainingsbasierte VO₂max"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VO₂max basado en el entrenamiento"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VO₂max issue de l’entraînement"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VO₂max basato sull’allenamento"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VO₂max na podstawie treningów"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VO₂max baseado no treino"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VO₂max по тренировкам"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基于训练的 VO₂max"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基於訓練的 VO₂max"
+          }
+        }
+      }
+    },
+    "Training-based VO₂max (experimental)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trainingsbasierte VO₂max (experimentell)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VO₂max basado en el entrenamiento (experimental)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VO₂max issue de l’entraînement (expérimental)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VO₂max basato sull’allenamento (sperimentale)"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VO₂max na podstawie treningów (eksperymentalne)"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VO₂max baseado no treino (experimental)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VO₂max по тренировкам (экспериментально)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基于训练的 VO₂max（实验性）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基於訓練的 VO₂max（實驗性）"
+          }
+        }
+      }
+    },
+    "Grade assumed flat. Not used as performance evidence." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Steigung als flach angenommen. Zählt nicht als Leistungsnachweis."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pendiente supuesta llana. No cuenta como prueba de rendimiento."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pente supposée nulle. Ne compte pas comme preuve de performance."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pendenza considerata piana. Non conta come prova di prestazione."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przyjęto płaski teren. Nie liczy się jako dowód wyników."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inclinação assumida como plana. Não conta como prova de desempenho."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Уклон принят нулевым. Не считается подтверждением результатов."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "坡度按平地计算。不作为表现依据。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "坡度按平地計算。不作為表現依據。"
+          }
+        }
+      }
+    },
+    "No usable session yet: a run above 8 km/h or a walk of 3–6 km/h, at least 20 minutes, with distance and a measured heart-rate trace." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch keine verwertbare Einheit: ein Lauf über 8 km/h oder ein Spaziergang mit 3–6 km/h, mindestens 20 Minuten, mit Distanz und gemessenem Pulsverlauf."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aún no hay ninguna sesión utilizable: una carrera a más de 8 km/h o una caminata a 3–6 km/h, de al menos 20 minutos, con distancia y registro de pulso medido."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pas encore de séance exploitable : une course au-dessus de 8 km/h ou une marche à 3–6 km/h, d’au moins 20 minutes, avec distance et tracé de fréquence cardiaque mesuré."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ancora nessuna sessione utilizzabile: una corsa oltre 8 km/h o una camminata a 3–6 km/h, di almeno 20 minuti, con distanza e traccia della frequenza cardiaca misurata."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak jeszcze użytecznej sesji: bieg powyżej 8 km/h lub marsz 3–6 km/h, co najmniej 20 minut, z dystansem i zmierzonym przebiegiem tętna."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ainda não há nenhuma sessão utilizável: uma corrida acima de 8 km/h ou uma caminhada a 3–6 km/h, de pelo menos 20 minutos, com distância e registo de frequência cardíaca medido."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пока нет пригодной тренировки: бег быстрее 8 км/ч или ходьба 3–6 км/ч, не менее 20 минут, с дистанцией и измеренной записью пульса."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚无可用的训练：需要速度超过 8 km/h 的跑步或 3–6 km/h 的步行，至少 20 分钟，并有距离和实测心率记录。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚無可用的訓練：需要速度超過 8 km/h 的跑步或 3–6 km/h 的步行，至少 20 分鐘，並有距離和實測心率記錄。"
+          }
+        }
+      }
+    },
+    "%@ ml/kg/min in the week of %@ · %lld of %lld sessions on foot usable" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ ml/kg/min in der Woche vom %@ · %lld von %lld Einheiten zu Fuß verwertbar"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ ml/kg/min en la semana del %@ · %lld de %lld sesiones a pie utilizables"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ ml/kg/min la semaine du %@ · %lld séances à pied exploitables sur %lld"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ ml/kg/min nella settimana del %@ · %lld di %lld sessioni a piedi utilizzabili"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ ml/kg/min w tygodniu od %@ · użyteczne sesje piesze: %lld z %lld"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ ml/kg/min na semana de %@ · %lld de %lld sessões a pé utilizáveis"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ мл/кг/мин за неделю с %@ · пригодных тренировок пешком: %lld из %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ ml/kg/min（%@ 当周）· 步行/跑步训练可用 %lld / %lld"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ ml/kg/min（%@ 當週）· 步行/跑步訓練可用 %lld / %lld"
+          }
+        }
+      }
+    },
+    "Compared with Apple Watch: %lld of %lld week pairs needed." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vergleich mit der Apple Watch: %lld von %lld nötigen Wochenpaaren."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comparación con el Apple Watch: %lld de %lld pares de semanas necesarios."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comparaison avec l’Apple Watch : %lld paires de semaines sur %lld nécessaires."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confronto con Apple Watch: %lld di %lld coppie di settimane necessarie."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Porównanie z Apple Watch: pary tygodni %lld z wymaganych %lld."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comparação com o Apple Watch: %lld de %lld pares de semanas necessários."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сравнение с Apple Watch: пар недель %lld из необходимых %lld."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "与 Apple Watch 对比：已有 %lld / 所需 %lld 个周配对。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "與 Apple Watch 對比：已有 %lld / 所需 %lld 個週配對。"
+          }
+        }
+      }
+    },
+    "Compared with Apple Watch over %lld weeks: %@ ml/kg/min apart on average, direction agrees %lld %%. Meets the rule fixed in advance." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vergleich mit der Apple Watch über %lld Wochen: im Mittel %@ ml/kg/min Abstand, Richtung stimmt zu %lld %% überein. Erfüllt die vorab festgelegte Regel."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comparación con el Apple Watch en %lld semanas: %@ ml/kg/min de diferencia media, la dirección coincide en un %lld %%. Cumple la regla fijada de antemano."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comparaison avec l’Apple Watch sur %lld semaines : %@ ml/kg/min d’écart moyen, direction concordante à %lld %%. Respecte la règle fixée à l’avance."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confronto con Apple Watch su %lld settimane: %@ ml/kg/min di scarto medio, la direzione coincide al %lld %%. Rispetta la regola fissata in anticipo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Porównanie z Apple Watch, liczba tygodni: %lld: średnio %@ ml/kg/min różnicy, kierunek zgodny w %lld %%. Spełnia regułę ustaloną z góry."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comparação com o Apple Watch em %lld semanas: %@ ml/kg/min de diferença média, a direção coincide em %lld %%. Cumpre a regra fixada antecipadamente."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сравнение с Apple Watch, недель: %lld: в среднем %@ мл/кг/мин разницы, направление совпадает в %lld %%. Соответствует заранее заданному правилу."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "与 Apple Watch 对比 %lld 周：平均相差 %@ ml/kg/min，方向一致率 %lld %%。符合事先确定的规则。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "與 Apple Watch 對比 %lld 週：平均相差 %@ ml/kg/min，方向一致率 %lld %%。符合事先確定的規則。"
+          }
+        }
+      }
+    },
+    "Compared with Apple Watch over %lld weeks: %@ ml/kg/min apart on average, direction agrees %lld %%. Does not meet the rule fixed in advance." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vergleich mit der Apple Watch über %lld Wochen: im Mittel %@ ml/kg/min Abstand, Richtung stimmt zu %lld %% überein. Erfüllt die vorab festgelegte Regel nicht."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comparación con el Apple Watch en %lld semanas: %@ ml/kg/min de diferencia media, la dirección coincide en un %lld %%. No cumple la regla fijada de antemano."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comparaison avec l’Apple Watch sur %lld semaines : %@ ml/kg/min d’écart moyen, direction concordante à %lld %%. Ne respecte pas la règle fixée à l’avance."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confronto con Apple Watch su %lld settimane: %@ ml/kg/min di scarto medio, la direzione coincide al %lld %%. Non rispetta la regola fissata in anticipo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Porównanie z Apple Watch, liczba tygodni: %lld: średnio %@ ml/kg/min różnicy, kierunek zgodny w %lld %%. Nie spełnia reguły ustalonej z góry."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comparação com o Apple Watch em %lld semanas: %@ ml/kg/min de diferença média, a direção coincide em %lld %%. Não cumpre a regra fixada antecipadamente."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сравнение с Apple Watch, недель: %lld: в среднем %@ мл/кг/мин разницы, направление совпадает в %lld %%. Не соответствует заранее заданному правилу."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "与 Apple Watch 对比 %lld 周：平均相差 %@ ml/kg/min，方向一致率 %lld %%。不符合事先确定的规则。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "與 Apple Watch 對比 %lld 週：平均相差 %@ ml/kg/min，方向一致率 %lld %%。不符合事先確定的規則。"
+          }
+        }
+      }
+    },
+    "Estimates VO₂max from runs and walks with distance and a measured heart-rate trace: the ACSM equations turn your average speed into an oxygen cost, and your heart-rate reserve extrapolates it to maximum. Grade is assumed flat, because routes are kept without altitude. Shown on Training Load beside the weekly estimate, with how it compares to Apple Watch. It never counts as performance evidence until that comparison passes a rule fixed in advance. Off by default." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schätzt die VO₂max aus Läufen und Spaziergängen mit Distanz und gemessenem Pulsverlauf: Die ACSM-Gleichungen machen aus deinem Durchschnittstempo einen Sauerstoffbedarf, und deine Herzfrequenzreserve rechnet ihn auf das Maximum hoch. Die Steigung wird als flach angenommen, weil Routen ohne Höhe gespeichert werden. Wird in Trainingslast neben der wöchentlichen Schätzung angezeigt, zusammen mit dem Vergleich zur Apple Watch. Zählt nie als Leistungsnachweis, solange dieser Vergleich eine vorab festgelegte Regel nicht erfüllt. Standardmäßig aus."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estima el VO₂max a partir de carreras y caminatas con distancia y registro de pulso medido: las ecuaciones del ACSM convierten tu velocidad media en un coste de oxígeno y tu reserva de frecuencia cardíaca lo extrapola al máximo. La pendiente se supone llana, porque las rutas se guardan sin altitud. Se muestra en Carga de entrenamiento junto a la estimación semanal, con su comparación con el Apple Watch. Nunca cuenta como prueba de rendimiento hasta que esa comparación cumpla una regla fijada de antemano. Desactivado por defecto."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estime la VO₂max à partir de courses et de marches avec distance et tracé de fréquence cardiaque mesuré : les équations de l’ACSM convertissent votre vitesse moyenne en coût en oxygène, et votre réserve de fréquence cardiaque l’extrapole au maximum. La pente est supposée nulle, car les itinéraires sont conservés sans altitude. Affichée dans Charge d’entraînement à côté de l’estimation hebdomadaire, avec sa comparaison à l’Apple Watch. Elle ne compte jamais comme preuve de performance tant que cette comparaison ne respecte pas une règle fixée à l’avance. Désactivé par défaut."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stima il VO₂max da corse e camminate con distanza e traccia della frequenza cardiaca misurata: le equazioni ACSM trasformano la tua velocità media in un costo di ossigeno e la tua riserva di frequenza cardiaca lo estrapola al massimo. La pendenza è considerata piana, perché i percorsi sono salvati senza altitudine. Mostrato in Carico di allenamento accanto alla stima settimanale, con il confronto con Apple Watch. Non conta mai come prova di prestazione finché quel confronto non rispetta una regola fissata in anticipo. Disattivato per impostazione predefinita."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Szacuje VO₂max na podstawie biegów i marszów z dystansem i zmierzonym przebiegiem tętna: równania ACSM zamieniają średnie tempo na zapotrzebowanie tlenowe, a rezerwa tętna ekstrapoluje je do maksimum. Przyjmuje się płaski teren, bo trasy są zapisywane bez wysokości. Wyświetlane w Obciążeniu treningowym obok cotygodniowego szacunku, wraz z porównaniem z Apple Watch. Nigdy nie liczy się jako dowód wyników, dopóki to porównanie nie spełni reguły ustalonej z góry. Domyślnie wyłączone."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estima o VO₂max a partir de corridas e caminhadas com distância e registo de frequência cardíaca medido: as equações do ACSM transformam a tua velocidade média num custo de oxigénio e a tua reserva de frequência cardíaca extrapola-o ao máximo. A inclinação é assumida como plana, porque os percursos são guardados sem altitude. Mostrado em Carga de treino ao lado da estimativa semanal, com a comparação com o Apple Watch. Nunca conta como prova de desempenho enquanto essa comparação não cumprir uma regra fixada antecipadamente. Desativado por predefinição."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Оценивает VO₂max по пробежкам и прогулкам с дистанцией и измеренной записью пульса: уравнения ACSM переводят вашу среднюю скорость в потребление кислорода, а резерв пульса экстраполирует его до максимума. Уклон принимается нулевым, потому что маршруты хранятся без высоты. Показывается в «Тренировочной нагрузке» рядом с еженедельной оценкой вместе со сравнением с Apple Watch. Никогда не считается подтверждением результатов, пока это сравнение не выполнит заранее заданное правило. По умолчанию выключено."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "根据带距离和实测心率记录的跑步与步行估算 VO₂max：ACSM 公式将你的平均速度换算为耗氧量，再用心率储备外推到最大值。由于路线保存时不含海拔，坡度按平地计算。显示在训练负荷中每周估算旁，并附与 Apple Watch 的对比。在该对比满足事先确定的规则之前，它从不作为表现依据。默认关闭。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "根據帶距離和實測心率記錄的跑步與步行估算 VO₂max：ACSM 公式將你的平均速度換算為耗氧量，再用心率儲備外推到最大值。由於路線保存時不含海拔，坡度按平地計算。顯示在訓練負荷中每週估算旁，並附與 Apple Watch 的對比。在該對比滿足事先確定的規則之前，它從不作為表現依據。預設關閉。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

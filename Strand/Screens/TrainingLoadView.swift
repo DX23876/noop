@@ -94,6 +94,16 @@ final class TrainingLoadModel: ObservableObject {
     @Published private(set) var vo2display: VO2maxDisplay?
     /// The cardio lane's performance evidence — fresh Apple VO₂max, else heart-rate efficiency, else none.
     @Published private(set) var cardioEvidence: CardioEvidenceReading?
+    /// The experimental training-based VO₂max, nil while its Experimental switch is off.
+    @Published private(set) var exerciseVO2max: ExerciseVO2maxReading?
+
+    /// What the experimental instrument read, and how it compares with Apple Watch.
+    struct ExerciseVO2maxReading: Sendable {
+        let weekly: [ExerciseVO2max.WeeklyEstimate]
+        let sessionsUsed: Int
+        let sessionsOnFoot: Int
+        let report: ExerciseVO2max.ValidationReport
+    }
     /// Overreaching that has lasted with performance falling and recovery strained, if present.
     @Published private(set) var sustainedOverreaching: SustainedOverreaching?
     /// How recovery has held over the last seven nights.
@@ -128,6 +138,8 @@ final class TrainingLoadModel: ObservableObject {
         let prepared: Prepared
         let fusion: TrainingSessionFusionResult
         let rpeEntries: [SessionRPEEntry]
+        /// The experimental training-based VO₂max, nil while its Experimental switch is off.
+        var exerciseVO2max: ExerciseVO2maxReading? = nil
     }
 
     static func snapshot(repo: Repository, now: Int = Int(Date().timeIntervalSince1970)) async -> Snapshot {
@@ -144,6 +156,13 @@ final class TrainingLoadModel: ObservableObject {
         let rpeEntries = await ratings
         let dailyRows = repo.days
         let vo2 = await Self.vo2maxReadings(repo: repo)
+        let exerciseInputs: (resting: [String: Double], apple: [VO2maxReading])? = PuffinExperiment.exerciseVO2maxEnabled
+            ? (await repo.restingHrByDay(fromDay: Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(from))),
+                                         toDay: Repository.localDayKey(Date())),
+               await repo.exploreSeries(key: "vo2max", source: Repository.appleHealthSource, days: Self.historyDays)
+                   .map { VO2maxReading(day: $0.day, value: $0.value, segment: Repository.appleHealthSource) })
+            : nil
+        let maxHR = Repository.cardioLoadMaxHR(repo.strainProfile)
 
         let today = Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(now)))
         let prepared = await Task.detached(priority: .userInitiated) { () -> Prepared in
@@ -152,7 +171,11 @@ final class TrainingLoadModel: ObservableObject {
                          dailyRows: dailyRows, vo2Estimates: vo2.estimates, vo2Apple: vo2.apple,
                          today: today, now: now, offset: offset)
         }.value
-        return Snapshot(prepared: prepared, fusion: fusion, rpeEntries: rpeEntries)
+        let exerciseVO2max = exerciseInputs.map { inputs in
+            Self.exerciseVO2max(sessions: unified, resolution: cardioResolution, restingByDay: inputs.resting,
+                                maxHR: maxHR, apple: inputs.apple, offset: offset)
+        }
+        return Snapshot(prepared: prepared, fusion: fusion, rpeEntries: rpeEntries, exerciseVO2max: exerciseVO2max)
     }
 
     func load(repo: Repository) async {
@@ -187,6 +210,7 @@ final class TrainingLoadModel: ObservableObject {
         strengthResponse = prepared.response
         vo2display = prepared.vo2display
         cardioEvidence = prepared.cardioEvidence
+        exerciseVO2max = snapshot.exerciseVO2max
         sustainedOverreaching = prepared.sustained
         recovery = prepared.recovery
         history = prepared.history
@@ -544,6 +568,32 @@ final class TrainingLoadModel: ObservableObject {
             chosen[key] = entry
         }
         return chosen.values.sorted { ($0.startTs, $0.id) < ($1.startTs, $1.id) }
+    }
+
+    /// The experimental training-based VO₂max over the loaded history: every on-foot session with a
+    /// measured heart-rate trace through `ExerciseVO2max`, weekly medians, and the pre-registered comparison
+    /// with Apple Watch's readings.
+    nonisolated static func exerciseVO2max(sessions: [UnifiedTrainingSession], resolution: TrainingCardioLoadResolution,
+                                           restingByDay: [String: Double], maxHR: Double,
+                                           apple: [VO2maxReading], offset: Int) -> ExerciseVO2maxReading {
+        var estimates: [ExerciseVO2max.SessionEstimate] = []
+        var onFoot = 0
+        for session in sessions where !resolution.duplicateSessionIds.contains(session.id) {
+            let metrics = CardioSession.metrics(for: session.row, tzOffsetSeconds: offset)
+            guard metrics.modality == .foot else { continue }
+            onFoot += 1
+            let input = ExerciseVO2max.SessionInput(
+                day: metrics.day, startTs: metrics.startTs, modality: metrics.modality,
+                distanceM: metrics.distanceM, durationS: metrics.durationS,
+                averageHR: metrics.avgHr.map(Double.init),
+                heartRateMeasured: resolution.loads[session.id] != nil,
+                restingHR: Repository.cardioLoadRestingHR(day: metrics.day, restingByDay: restingByDay),
+                maxHR: maxHR)
+            if case let .estimate(estimate) = ExerciseVO2max.estimate(input) { estimates.append(estimate) }
+        }
+        let weekly = ExerciseVO2max.weekly(estimates)
+        return ExerciseVO2maxReading(weekly: weekly, sessionsUsed: estimates.count, sessionsOnFoot: onFoot,
+                                     report: ExerciseVO2max.validate(weekly: weekly, apple: apple))
     }
 
     /// Both VO₂max series, each reading tagged with where it came from: NOOP's weekly estimate (by its
@@ -1554,11 +1604,60 @@ struct TrainingLoadView: View {
                             .foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
+                    if let experimental = model.exerciseVO2max {
+                        Divider().overlay(StrandPalette.hairline)
+                        exerciseVO2maxRow(experimental)
+                    }
                     Divider().overlay(StrandPalette.hairline)
                     evidenceRow
                 }
             }
         }
+    }
+
+    /// The experimental instrument, labelled as one: its latest weekly value, what it rests on, the stated
+    /// departure from the published method, and how it compares with Apple Watch so far.
+    private func exerciseVO2maxRow(_ reading: TrainingLoadModel.ExerciseVO2maxReading) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: NoopMetrics.space2) {
+                Image(systemName: "flask").foregroundStyle(StrandPalette.textTertiary).accessibilityHidden(true)
+                Text("Training-based VO₂max (experimental)")
+                    .font(StrandFont.subhead.weight(.semibold))
+                    .foregroundStyle(StrandPalette.textPrimary)
+            }
+            if let latest = reading.weekly.last {
+                let value = latest.value.formatted(.number.precision(.fractionLength(1)))
+                Text("\(value) ml/kg/min in the week of \(StatusHistoryStrip.shortDate(latest.mondayKey)) · \(reading.sessionsUsed) of \(reading.sessionsOnFoot) sessions on foot usable")
+                    .font(StrandFont.captionNumber)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text("No usable session yet: a run above 8 km/h or a walk of 3–6 km/h, at least 20 minutes, with distance and a measured heart-rate trace.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Text("Grade assumed flat. Not used as performance evidence.")
+                .font(StrandFont.caption)
+                .foregroundStyle(StrandPalette.textTertiary)
+            Text(validationText(reading.report))
+                .font(StrandFont.caption)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func validationText(_ report: ExerciseVO2max.ValidationReport) -> String {
+        let needed = ExerciseVO2max.validationMinimumPairs
+        guard report.pairs >= needed, let mae = report.meanAbsoluteError else {
+            return String(localized: "Compared with Apple Watch: \(report.pairs) of \(needed) week pairs needed.")
+        }
+        let error = mae.formatted(.number.precision(.fractionLength(1)))
+        let agreement = Int(((report.directionAgreement ?? 0) * 100).rounded())
+        return report.passes
+            ? String(localized: "Compared with Apple Watch over \(report.pairs) weeks: \(error) ml/kg/min apart on average, direction agrees \(agreement) %. Meets the rule fixed in advance.")
+            : String(localized: "Compared with Apple Watch over \(report.pairs) weeks: \(error) ml/kg/min apart on average, direction agrees \(agreement) %. Does not meet the rule fixed in advance.")
     }
 
     /// What the cardio verdict rests on, in one line: its direction and where it came from.

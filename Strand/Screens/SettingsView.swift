@@ -115,6 +115,8 @@ struct SettingsView: View {
     /// single-subject so far. Display-only; never feeds recovery/illness. See
     /// [PuffinExperiment.stressPersonalBaselineKey].
     @AppStorage(PuffinExperiment.stressPersonalBaselineKey) private var stressPersonalBaselineEnabled = false
+    /// [PuffinExperiment.exerciseVO2maxKey].
+    @AppStorage(PuffinExperiment.exerciseVO2maxKey) private var exerciseVO2maxEnabled = false
     /// #1545 opt-in: score Effort with Banister's exponential TRIMP instead of Edwards' heart-rate zones.
     /// Default OFF — it re-scores the whole window against a different recipe. See
     /// [PuffinExperiment.banisterEffortKey].
@@ -2639,6 +2641,20 @@ struct SettingsView: View {
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
 
+                // MARK: Training-based VO₂max — an instrument beside the weekly estimate. Off by default.
+                Divider().overlay(StrandPalette.hairline)
+
+                Toggle(isOn: $exerciseVO2maxEnabled) {
+                    Text("Training-based VO₂max")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                }
+                .toggleStyle(.switch)
+                .tint(StrandPalette.accent)
+                Text("Estimates VO₂max from runs and walks with distance and a measured heart-rate trace: the ACSM equations turn your average speed into an oxygen cost, and your heart-rate reserve extrapolates it to maximum. Grade is assumed flat, because routes are kept without altitude. Shown on Training Load beside the weekly estimate, with how it compares to Apple Watch. It never counts as performance evidence until that comparison passes a rule fixed in advance. Off by default.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 // MARK: #891 ECG raw-data gate — the second device-config key this app may write, MG-only.
                 Divider().overlay(StrandPalette.hairline)

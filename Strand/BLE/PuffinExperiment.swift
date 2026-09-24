@@ -86,6 +86,14 @@ enum PuffinExperiment {
 
     static var stressPersonalBaselineEnabled: Bool { UserDefaults.standard.bool(forKey: stressPersonalBaselineKey) }
 
+    /// Opt-in training-based VO₂max (`ExerciseVO2max`): the ACSM running/walking equations on a session's
+    /// average speed, extrapolated to maximum through %HRR = %VO₂R, shown beside NOOP's weekly estimate on
+    /// Training Load together with its comparison against Apple Watch. Default OFF, and never performance
+    /// evidence, until that comparison passes the rule fixed in `ExerciseVO2max.validate`.
+    static let exerciseVO2maxKey = "noopExerciseVO2max"
+
+    static var exerciseVO2maxEnabled: Bool { UserDefaults.standard.bool(forKey: exerciseVO2maxKey) }
+
     /// Opt-in "Banister Effort" (#1545): score Effort with Banister's EXPONENTIAL TRIMP instead of the
     /// default Edwards 5-zone summation.
     ///
