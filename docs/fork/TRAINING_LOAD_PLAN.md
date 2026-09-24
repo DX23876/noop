@@ -1,6 +1,6 @@
 # Training Load – Umbau- und Erweiterungsplan
 
-Stand: 2026-09-24 · Branch: `claude/training-load-optimization-cfb32e` · Status: **beschlossen; P1, P3, P2 und P5 umgesetzt, weiter mit P4** (offen: P3-Laufzeitprüfung am echten iPhone-Datensatz)
+Stand: 2026-09-24 · Branch: `claude/training-load-optimization-cfb32e` · Status: **beschlossen; P1, P3, P2, P5 und P4 umgesetzt, weiter mit P6** (offen: P3-Laufzeitprüfung am echten iPhone-Datensatz)
 
 Dieser Plan fasst die Untersuchung von Training Load zusammen (Code-Review, Messung gegen die echte
 `StrandAnalytics`-Logik, Abgleich mit dem Polar-Whitepaper) und die in vier Grilling-Runden getroffenen
@@ -149,6 +149,7 @@ trainingSessionLoad (Migration v70 + Test)
 - **Migration:** Schema ja; Analyse nein (gleiches Ergebnis).
 
 ### P4 – Cardio-Lane auf Banister (Q4, Q13, Q14)
+Geliefert als Analyse-Rezept **AI-9** (die Rezeptversion heißt seit diesem Stand „AI-n“ und liegt unter `noopai:analysisRecipeVersion`, damit sie nie mit einem späteren upstream-Zähler kollidiert). Ruhepuls: Median ±3 Tage, sonst ±30 Tage, sonst alle gelesenen Tage, sonst 60. Ledger-Methode `banister-hrr`; die Migration füllt das Ledger über die ganze Historie und bewertet keinen Tag neu (Effort unverändert). Alte `edwards-hrmax`-Zeilen bleiben stehen, werden aber nicht mehr gelesen – zwei Skalen dürfen in einer Lane nicht gemischt werden (präzisiert Q16). Durchschnittspuls-Schätzungen werden als `avg_hr` gespeichert und nur im Verlauf als heller Aufsatz gezeigt. Die klassische %HRmax-Edwards-Funktion ist entfernt; „Edwards“ bezeichnet damit nur noch den Effort-Rechenweg (B7). Nebenbei behoben: Der Ledger-Nachlauf endete nie, solange eine frische, nicht bepreisbare Einheit existierte.
 - Banister-TRIMP (stetig, mit Ruhepuls = Median `restingHr` ±3 Tage). b = 1,92 (männlich), 1,67 (weiblich),
   **1,795 (nonbinary / Standard)**. Effort bleibt unverändert; sein %HRR-Rechenweg bekommt einen
   eigenen Namen statt „Edwards“.

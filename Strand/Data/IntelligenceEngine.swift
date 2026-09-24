@@ -130,7 +130,27 @@ final class IntelligenceEngine: ObservableObject {
     // transactionally versioned marker migration moves identifiable percent-unit rows and rebuilds both
     // daily projections before its own cursor advances; the bounded analysis pass then refreshes recent
     // consumers that may have read the old projected key. User-entered readings and raw samples remain.
-    static let currentAnalysisRecipeVersion = 8
+    // AI-9 moves the Training Load cardio lane from Edwards' %HRmax zones to Banister's TRIMP over
+    // heart-rate reserve (resting rate = median of the week around each session; b = 1.92 / 1.67 /
+    // 1.795 by profile). The stored per-session loads change meaning, so the migration fills the cardio
+    // load ledger with the new method — the whole history where heart rate remains, newest first,
+    // resumable. No daily row changes: Effort keeps its own recipe, so an install already at AI-8 runs
+    // no daily pass at all. Rows of the old method are kept, unread.
+    static let currentAnalysisRecipeVersion = 9
+
+    /// The recipe whose migration refills the cardio load ledger.
+    static let cardioLedgerRecipe = 9
+
+    /// Whether a migration crosses the recipe that refills the cardio ledger.
+    static func migrationRefillsCardioLedger(from: Int, to: Int) -> Bool {
+        from < cardioLedgerRecipe && to >= cardioLedgerRecipe
+    }
+
+    /// Days of daily rows a migration from `from` must re-score: the standard window while a recipe up
+    /// to AI-8 is still owed, none when only AI-9 is — the narrowest interval each change can prove.
+    static func migrationDailyDays(from: Int, standard: Int = 21) -> Int {
+        from < cardioLedgerRecipe - 1 ? standard : 0
+    }
 
     /// Upstream 11.6 (2026-09-11) shipped the strict WHOOP 5 R-R read; its first bounded pass reached 21
     /// days back. No row before this day can have been blanked by it.
@@ -816,7 +836,7 @@ final class IntelligenceEngine: ObservableObject {
                 return true
             case .migrate(let from, let to):
                 analysisRecipeVersion = from
-                var days = 21
+                var days = Self.migrationDailyDays(from: from)
                 if fromUpstream {
                     let missing = try? await store.earliestSleptDayMissingHRV(
                         deviceId: deviceId + "-noop", since: Self.upstreamStrictRRWindowStart)
@@ -869,9 +889,15 @@ final class IntelligenceEngine: ObservableObject {
         analysisMaintenancePhase = phase
         let task = Task { @MainActor [weak self] in
             guard let self, let store = await self.repo.storeHandle() else { return false }
-            await self.analyzeRecent(maxDays: maxDays, force: true, allowDayReuse: false,
-                                     reason: .semanticChange)
+            if maxDays > 0 {
+                await self.analyzeRecent(maxDays: maxDays, force: true, allowDayReuse: false,
+                                         reason: .semanticChange)
+            }
             guard !Task.isCancelled else { return false }
+            if case .migrating(let from, let to) = phase, Self.migrationRefillsCardioLedger(from: from, to: to) {
+                await self.repo.fillCardioLoadLedger()
+                guard !Task.isCancelled else { return false }
+            }
             // Publish the repaired daily snapshot before committing the migration cursor. If the
             // process is interrupted between analysis and refresh, the recipe remains pending and
             // retries on the next launch instead of leaving dashboards on their stale pre-migration

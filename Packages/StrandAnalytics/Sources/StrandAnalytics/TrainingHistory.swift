@@ -12,7 +12,9 @@ import WhoopStore
 // Three kinds of day are kept apart, because only one of them is training:
 //   • KNOWN — a measured load, zero on a rest day;
 //   • UNKNOWN — training the data could not price (no usable heart rate, an unrated session). Never
-//     counted as rest: a gap in measurement would otherwise read as a drop in training;
+//     counted as rest: a gap in measurement would otherwise read as a drop in training. Where an
+//     estimate exists (cardio from a workout's average heart rate) the day is ESTIMATED instead: shown
+//     apart and marked, never added to the measured total, the level or the band;
 //   • UNRECORDED — before the lane's history began, or after its reading day (an unfinished today).
 //     Neither rest nor a gap: there was nothing to measure yet.
 //
@@ -87,8 +89,11 @@ public struct TrainingHistoryLanePeriod: Equatable, Sendable {
     /// The known days' summed load, in the lane's own unit. Nil when no day of the period was known.
     public let total: Double?
     public let knownDays: Int
-    /// Days with training the data could not price.
+    /// Days with training the data could not price, and no estimate either.
     public let unknownDays: Int
+    /// Days the data could not measure but an estimate covers, and the estimates' sum. Shown apart.
+    public let estimatedDays: Int
+    public let estimatedTotal: Double?
     /// Days before the lane's history began or after its reading day.
     public let unrecordedDays: Int
     /// The lane's usual for a period this long: the mean known daily load of the 42 days ending on the
@@ -101,11 +106,14 @@ public struct TrainingHistoryLanePeriod: Equatable, Sendable {
     public let possible: Int?
 
     public init(period: TrainingHistoryPeriod, total: Double?, knownDays: Int, unknownDays: Int,
+                estimatedDays: Int = 0, estimatedTotal: Double? = nil,
                 unrecordedDays: Int, level: Double?, band: RelativeLoadBand?, measured: Int?, possible: Int?) {
         self.period = period
         self.total = total
         self.knownDays = knownDays
         self.unknownDays = unknownDays
+        self.estimatedDays = estimatedDays
+        self.estimatedTotal = estimatedTotal
         self.unrecordedDays = unrecordedDays
         self.level = level
         self.band = band
@@ -113,9 +121,9 @@ public struct TrainingHistoryLanePeriod: Equatable, Sendable {
         self.possible = possible
     }
 
-    /// Share of the recorded days that were known, nil when none was recorded.
+    /// Share of the recorded days that were measured, nil when none was recorded.
     public var coverage: Double? {
-        let recorded = knownDays + unknownDays
+        let recorded = knownDays + unknownDays + estimatedDays
         return recorded > 0 ? Double(knownDays) / Double(recorded) : nil
     }
 }
@@ -216,7 +224,10 @@ public enum TrainingHistory {
     ///   - through: the lane's reading day (`LaneEngine.readingDay`); later days are unrecorded.
     ///   - bandLane: the lane whose `LaneEngine` bands to read, with its activity; nil for Session Load.
     ///   - measuredByDay / possibleByDay: session counts behind the figure, for a coverage quota.
+    ///   - estimatedByDay: estimates for some of the unknown days. They stay unknown to the level and the
+    ///     band, which read measured load only.
     public static func lane(dailyByDay: [String: Double], unknownDays: Set<String> = [],
+                            estimatedByDay: [String: Double] = [:],
                             historyStart: String?, through: String,
                             periods: [TrainingHistoryPeriod],
                             bandLane: (kind: TrainingLaneKind, activity: LaneActivity)? = nil,
@@ -236,14 +247,19 @@ public enum TrainingHistory {
             }
         }
         return zip(periods, recordedEnds).map { period, recordedEnd in
-            var known = 0, unknown = 0, unrecorded = 0
-            var total = 0.0
+            var known = 0, unknown = 0, estimated = 0, unrecorded = 0
+            var total = 0.0, estimatedTotal = 0.0
             var measured = 0, possible = 0
             var cursor = period.start
             while cursor <= period.end {
                 if let historyStart, cursor >= historyStart, cursor <= through {
                     if unknownDays.contains(cursor) {
-                        unknown += 1
+                        if let estimate = estimatedByDay[cursor] {
+                            estimated += 1
+                            estimatedTotal += estimate
+                        } else {
+                            unknown += 1
+                        }
                     } else {
                         known += 1
                         total += dailyByDay[cursor] ?? 0
@@ -258,9 +274,10 @@ public enum TrainingHistory {
             let level = recordedEnd.flatMap {
                 levelPerDay(dailyByDay: dailyByDay, unknownDays: unknownDays, historyStart: historyStart,
                             through: $0)
-            }.map { $0 * Double(known + unknown) }
+            }.map { $0 * Double(known + unknown + estimated) }
             return TrainingHistoryLanePeriod(
                 period: period, total: known > 0 ? total : nil, knownDays: known, unknownDays: unknown,
+                estimatedDays: estimated, estimatedTotal: estimated > 0 ? estimatedTotal : nil,
                 unrecordedDays: unrecorded, level: level,
                 band: recordedEnd.flatMap { bandByDay[$0] },
                 measured: measuredByDay == nil ? nil : measured,

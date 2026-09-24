@@ -240,7 +240,9 @@ struct TrainingHistoryLaneCard<Adaptation: View>: View {
     @ViewBuilder let adaptation: () -> Adaptation
 
     private var color: Color { lane?.color ?? StrandPalette.textSecondary }
-    private var recorded: [TrainingHistoryLanePeriod] { periods.filter { $0.knownDays + $0.unknownDays > 0 } }
+    private var recorded: [TrainingHistoryLanePeriod] {
+        periods.filter { $0.knownDays + $0.unknownDays + $0.estimatedDays > 0 }
+    }
 
     var body: some View {
         NoopCard {
@@ -277,6 +279,7 @@ struct TrainingHistoryLaneCard<Adaptation: View>: View {
         if let highlight, let entry = periods.first(where: { $0.period == highlight }) {
             let parts = [TrainingHistoryDates.label(entry.period, range.resolution),
                          entry.total.map { "\(format($0)) \(unit)" } ?? String(localized: "not measured"),
+                         entry.estimatedTotal.map { String(localized: "\(format($0)) estimated") },
                          entry.band?.label,
                          entry.unknownDays > 0 ? String(localized: "\(entry.unknownDays) days not measured") : nil]
             Text(parts.compactMap { $0 }.joined(separator: " · "))
@@ -287,6 +290,7 @@ struct TrainingHistoryLaneCard<Adaptation: View>: View {
 
     @ViewBuilder private var footnote: some View {
         let gaps = recorded.filter { $0.unknownDays > 0 }.count
+        let estimated = recorded.filter { $0.estimatedDays > 0 }.count
         let measured = recorded.compactMap(\.measured).reduce(0, +)
         let possible = recorded.compactMap(\.possible).reduce(0, +)
         VStack(alignment: .leading, spacing: NoopMetrics.space1) {
@@ -295,6 +299,9 @@ struct TrainingHistoryLaneCard<Adaptation: View>: View {
             }
             if gaps > 0 {
                 Text("\(gaps) of \(recorded.count) periods include days that could not be measured (hatched).")
+            }
+            if estimated > 0 {
+                Text("Pale tops are estimated from a workout's average heart rate, where no heart-rate trace was kept. They are not counted in the level or the band.")
             }
         }
         .font(StrandFont.caption)
@@ -316,6 +323,8 @@ struct TrainingHistoryBars: View {
         let end: Date
         let mid: Date
         let total: Double?
+        /// Estimated from average heart rate, drawn on top of the measured part and marked.
+        let estimated: Double?
         let level: Double?
         let gapShare: Double
     }
@@ -324,10 +333,11 @@ struct TrainingHistoryBars: View {
         periods.compactMap { entry in
             guard let (start, end) = TrainingHistoryDates.bounds(entry.period),
                   let mid = TrainingHistoryDates.mid(entry.period) else { return nil }
-            let recorded = entry.knownDays + entry.unknownDays
+            let recorded = entry.knownDays + entry.unknownDays + entry.estimatedDays
             let inset = end.timeIntervalSince(start) * 0.12
             return Bar(id: entry.period.start, start: start.addingTimeInterval(inset),
-                       end: end.addingTimeInterval(-inset), mid: mid, total: entry.total, level: entry.level,
+                       end: end.addingTimeInterval(-inset), mid: mid, total: entry.total,
+                       estimated: entry.estimatedTotal, level: entry.level,
                        gapShare: recorded > 0 ? Double(entry.unknownDays) / Double(recorded) : 0)
         }
     }
@@ -341,6 +351,12 @@ struct TrainingHistoryBars: View {
                                   yStart: .value("Zero", 0), yEnd: .value("Load", total))
                         .foregroundStyle(color.gradient)
                         .opacity(bar.gapShare > 0 ? 0.55 : 1)
+                }
+                if let estimated = bar.estimated, estimated > 0 {
+                    RectangleMark(xStart: .value("Start", bar.start), xEnd: .value("End", bar.end),
+                                  yStart: .value("Zero", bar.total ?? 0),
+                                  yEnd: .value("Estimated", (bar.total ?? 0) + estimated))
+                        .foregroundStyle(color.opacity(0.28))
                 }
             }
             ForEach(bars.filter { $0.level != nil }) { bar in

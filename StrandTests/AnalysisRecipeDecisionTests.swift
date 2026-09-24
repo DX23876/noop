@@ -22,17 +22,30 @@ final class AnalysisRecipeDecisionTests: XCTestCase {
     }
 
     /// The tests above are written against `current`, so they stay green through a bump without ever
-    /// witnessing one. This one names the numbers: an install carrying the v7 R-R precedence recipe must
-    /// ask for the v8 Lab Book key migration, and it must ask for it as `7 → 8` rather than another pair.
+    /// witnessing one. This one names the numbers: an install carrying AI-8 (the Lab Book key migration)
+    /// must ask for AI-9 (the Banister cardio ledger), and it must ask for it as `8 → 9`.
     ///
     /// It is deliberately a LITERAL pin. A future bump is supposed to make this line fail, because that
     /// failure is the prompt to answer CLAUDE.md's "Analysis migration required: yes/no" for whatever
     /// the bump carries — the question this file exists to stop anyone skipping.
-    func testRecipeVersionIsEightAndAV7InstallMigratesToIt() {
-        XCTAssertEqual(IntelligenceEngine.currentAnalysisRecipeVersion, 8,
+    func testRecipeVersionIsNineAndAnAI8InstallMigratesToIt() {
+        XCTAssertEqual(IntelligenceEngine.currentAnalysisRecipeVersion, 9,
                        "recipe version changed — answer 'Analysis migration required' for what moved")
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 7),
-                       .migrate(from: 7, to: 8))
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 8),
+                       .migrate(from: 8, to: 9))
+    }
+
+    /// AI-9 changes the stored cardio loads and no daily row: an AI-8 install refills the ledger and
+    /// re-scores no day. An install still owing an older recipe keeps the standard window, and every
+    /// migration that crosses AI-9 refills the ledger.
+    func testAI9RefillsTheLedgerAndRescoresNoDay() {
+        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 8), 0)
+        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 7), 21)
+        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 0), 21)
+        XCTAssertTrue(IntelligenceEngine.migrationRefillsCardioLedger(from: 8, to: 9))
+        XCTAssertTrue(IntelligenceEngine.migrationRefillsCardioLedger(from: 0, to: 9))
+        XCTAssertFalse(IntelligenceEngine.migrationRefillsCardioLedger(from: 9, to: 10))
+        XCTAssertFalse(IntelligenceEngine.migrationRefillsCardioLedger(from: 6, to: 8))
     }
 
     /// The recipe is about the MEANING of stored scores, not about the app's identity. An Xcode install
@@ -40,10 +53,10 @@ final class AnalysisRecipeDecisionTests: XCTestCase {
     /// build number here would cause. Pinned because the mistake is invisible until someone's phone
     /// spends twenty minutes re-scoring after a cosmetic update.
     func testAnInstallAlreadyAtTheCurrentRecipeNeverRescoresOnRelaunch() {
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 8), .upToDate)
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 9), .upToDate)
         // And a database written by a NEWER build that was rolled back stays put rather than
         // "migrating" backwards into a rescore that would overwrite better values with worse ones.
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 9), .upToDate)
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 10), .upToDate)
     }
 
     // MARK: - The fork's own recipe lineage
@@ -66,25 +79,25 @@ final class AnalysisRecipeDecisionTests: XCTestCase {
                      "the fork never wrote 9 under the legacy name; such a value is someone else's")
     }
 
-    /// An install from before the rename keeps its place: the legacy value moves to the new cursor and
-    /// nothing is re-scored for the rename itself.
-    func testAPreRenameInstallAdoptsItsRecipeWithoutRescoring() async throws {
+    /// An install from before the rename keeps its place: its legacy AI-8 is adopted, so it owes only
+    /// AI-9 — the ledger refill — and no daily re-score from 0.
+    func testAPreRenameInstallAdoptsItsRecipe() async throws {
         let path = FileManager.default.temporaryDirectory
             .appendingPathComponent("recipe-rename-\(UUID().uuidString).sqlite").path
         addTeardownBlock {
             for suffix in ["", "-wal", "-shm"] { try? FileManager.default.removeItem(atPath: path + suffix) }
         }
         let store = try await WhoopStore(path: path)
-        let current = IntelligenceEngine.currentAnalysisRecipeVersion
-        try await store.setCursor(IntelligenceEngine.legacyAnalysisRecipeCursor, current)
+        try await store.setCursor(IntelligenceEngine.legacyAnalysisRecipeCursor, 8)
         let repo = Repository(deviceId: "my-whoop")
         repo.setStoreForTesting(store)
         let engine = IntelligenceEngine(repo: repo, profile: ProfileStore(), deviceId: "my-whoop")
         let ok = await engine.prepareAnalysisRecipe()
         XCTAssertTrue(ok)
-        let adopted = try await store.cursor(IntelligenceEngine.analysisRecipeCursor)
-        XCTAssertEqual(adopted, current)
-        XCTAssertEqual(engine.analysisMaintenancePhase, .idle, "the rename alone must not start a reanalysis")
+        let migrated = try await store.cursor(IntelligenceEngine.analysisRecipeCursor)
+        XCTAssertEqual(migrated, IntelligenceEngine.currentAnalysisRecipeVersion)
+        let legacy = try await store.cursor(IntelligenceEngine.legacyAnalysisRecipeCursor)
+        XCTAssertEqual(legacy, 8, "the legacy cursor is read, never written")
     }
 
     // MARK: - A store switched over from upstream NOOP

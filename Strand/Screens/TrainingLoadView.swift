@@ -454,8 +454,9 @@ final class TrainingLoadModel: ObservableObject {
 
     /// The cardio lane's daily series, on ONE axis.
     ///
-    /// Measured Edwards TRIMP wherever the window has it. Stored Effort is a different recipe and never
-    /// substitutes for a missing trace; an unpriced training day remains unknown.
+    /// Measured Banister TRIMP wherever the window has it. Stored Effort is a different recipe and never
+    /// substitutes for a missing trace, and neither does an estimate from average heart rate
+    /// (`TrainingCardioLoadResolution.estimates`); an unpriced training day remains unknown.
     nonisolated static func cardioDailyLoad(sessions: [UnifiedTrainingSession],
                                             loads: [String: TrainingCardioLoad],
                                             duplicates: Set<String>,
@@ -1664,7 +1665,7 @@ struct TrainingLoadView: View {
             // cards above and have to name them the same way in every language.
             methodRow("Strength load", "Working sets weighted by proximity to failure. Tonnage remains a training statistic, not the load.")
             Divider().overlay(StrandPalette.hairline)
-            methodRow("Cardiovascular load", "Classic Edwards TRIMP from time in percentages of your maximum heart rate. NOOP band data wins; workout-associated Health data fills only when the band trace is incomplete.")
+            methodRow("Cardiovascular load", "Banister TRIMP: every minute counts by how far into your heart-rate reserve it went, rising steeply towards the top, with the resting heart rate of that week and a coefficient for your profile. NOOP band data wins; workout-associated Health data fills only when the band trace is incomplete.")
             Divider().overlay(StrandPalette.hairline)
             methodRow("Session load", "Your whole-session RPE × duration. Add it from any workout detail; missing ratings are never guessed.")
             Divider().overlay(StrandPalette.hairline)

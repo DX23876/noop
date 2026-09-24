@@ -1552,5 +1552,8 @@
   "Zero": "Null",
   "e1RM": "e1RM",
   "e1RM of your lifts (kg)": "e1RM deiner Übungen (kg)",
-  "not measured": "nicht gemessen"
+  "not measured": "nicht gemessen",
+  "%@ estimated": "%@ geschätzt",
+  "Banister TRIMP: every minute counts by how far into your heart-rate reserve it went, rising steeply towards the top, with the resting heart rate of that week and a coefficient for your profile. NOOP band data wins; workout-associated Health data fills only when the band trace is incomplete.": "Banister-TRIMP: Jede Minute zählt danach, wie weit sie in deine Herzfrequenzreserve reichte – nach oben hin steil ansteigend –, mit dem Ruhepuls jener Woche und einem Koeffizienten für dein Profil. Daten des NOOP-Bands haben Vorrang; workoutbezogene Health-Daten ergänzen nur, wenn die Bandaufzeichnung unvollständig ist.",
+  "Pale tops are estimated from a workout's average heart rate, where no heart-rate trace was kept. They are not counted in the level or the band.": "Helle Aufsätze sind aus dem Durchschnittspuls eines Workouts geschätzt, wo kein Herzfrequenzverlauf gespeichert wurde. Sie zählen weder für das Niveau noch für das Band."
 }

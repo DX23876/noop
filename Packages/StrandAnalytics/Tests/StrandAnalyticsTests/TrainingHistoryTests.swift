@@ -82,6 +82,25 @@ final class TrainingHistoryTests: XCTestCase {
         XCTAssertEqual(lane[1].coverage ?? 0, 0.8, accuracy: 1e-9)
     }
 
+    /// P4: an estimate fills a gap only in its own column. The measured total, the level and the band
+    /// never read it.
+    func testEstimatesStayApartFromTheMeasuredTotal() {
+        let periods = [TrainingHistoryPeriod(start: day(0), end: day(6))]
+        let lane = TrainingHistory.lane(dailyByDay: [day(1): 40], unknownDays: [day(3), day(5)],
+                                        estimatedByDay: [day(3): 25], historyStart: day(0), through: day(6),
+                                        periods: periods)
+        XCTAssertEqual(lane[0].total, 40)
+        XCTAssertEqual(lane[0].estimatedTotal, 25)
+        XCTAssertEqual(lane[0].estimatedDays, 1)
+        XCTAssertEqual(lane[0].unknownDays, 1, "the day without an estimate is still a gap")
+        XCTAssertEqual(lane[0].knownDays, 5)
+        XCTAssertEqual(lane[0].coverage ?? 0, 5.0 / 7.0, accuracy: 1e-9)
+        let without = TrainingHistory.lane(dailyByDay: [day(1): 40], unknownDays: [day(3), day(5)],
+                                           historyStart: day(0), through: day(6), periods: periods)
+        XCTAssertEqual(lane[0].level, without[0].level, "the level reads measured load only")
+        XCTAssertNil(without[0].estimatedTotal)
+    }
+
     func testAPeriodWithoutAKnownDayHasNoTotal() {
         let periods = [TrainingHistoryPeriod(start: day(0), end: day(1))]
         let gap = TrainingHistory.lane(dailyByDay: [:], unknownDays: [day(0), day(1)], historyStart: day(0),

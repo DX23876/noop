@@ -1654,5 +1654,8 @@
   "Zero": "零",
   "e1RM": "e1RM",
   "e1RM of your lifts (kg)": "你的动作 e1RM（kg）",
-  "not measured": "未测量"
+  "not measured": "未测量",
+  "%@ estimated": "估算 %@",
+  "Banister TRIMP: every minute counts by how far into your heart-rate reserve it went, rising steeply towards the top, with the resting heart rate of that week and a coefficient for your profile. NOOP band data wins; workout-associated Health data fills only when the band trace is incomplete.": "Banister TRIMP：每分钟按其进入你心率储备的程度计分，越接近上限增长越陡，并使用那一周的静息心率和适合你资料的系数。NOOP 手环数据优先；仅当手环记录不完整时，才使用与训练相关的“健康”数据补充。",
+  "Pale tops are estimated from a workout's average heart rate, where no heart-rate trace was kept. They are not counted in the level or the band.": "浅色顶部是在未保留心率记录时根据训练平均心率估算的，不计入水平线和区间。"
 }

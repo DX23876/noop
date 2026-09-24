@@ -524,9 +524,14 @@ non-zero personal baseline exist.
   log easy sets made the load appear to fall. Tonnage stays visible as a descriptive lifting statistic,
   but is not used as load: high-rep volume can outweigh substantially harder low-rep work in kilograms
   without representing greater training demand.
-- **Cardio Load** sums each qualifying cardio session's existing HR/intensity-derived **Effort** value.
-  It therefore retains the current TRIMP-derived cardiovascular model and its source provenance. Moving
-  time, distance and pace remain separate descriptive metrics. A day holding real training that could
+- **Cardio Load** sums each qualifying cardio session's Banister TRIMP (Banister 1991, analysis recipe
+  AI-9): every reading contributes its minutes × ΔHRR × 0.64 × e^(b·ΔHRR), where ΔHRR is the reading's
+  share of heart-rate reserve and the resting rate is the median of the recorded days within three of the
+  session (widening to a month, then to every day read, then 60 bpm). b is 1.92 for a male profile, 1.67
+  for a female one and 1.795 — NOOP's choice, the mean of the two — for any other. Unlike the Edwards
+  zones used until AI-8 it is continuous: one beat across a zone edge no longer moves a whole weight
+  step. Daily Effort is unchanged and keeps its own recipe. Moving time, distance and pace remain
+  separate descriptive metrics. A day holding real training that could
   not be priced at all — no usable trace, and no other session that day to cover it — is **not** a rest
   day: it leaves both comparison windows (`TrainingLoad.trend(daily:)` accepts a series with unknown
   days) rather than being scored zero, because scoring a gap in measurement as zero reports the
@@ -661,6 +666,14 @@ processing window, so a multi-year history no longer depends on a per-pass budge
 a load survives a future pruning of raw heart rate. A changed HR maximum never rewrites stored loads on
 its own; Training Load offers "Recalculate cardio history" when rows were priced with another one, and
 a session whose raw heart rate is gone keeps its stored load.
+
+Each row also keeps the resting rate it was priced with. Recipe AI-9 changed the method from
+`edwards-hrmax` to `banister-hrr`; its migration fills the ledger with the new method over the whole
+history, newest first and resumable, and re-scores no daily row. Rows of the old method stay in the table
+but are never read: the two methods have different scales, and one lane may not mix them. A session with
+no usable trace but a recorded average heart rate gets an estimate in Banister's original form (minutes ×
+ΔHRR of the average), stored as `avg_hr`. Only the history view shows it — marked, beside the measured
+bar — and no band, comparison, level or Readiness signal reads it.
 
 **One band, shown everywhere.** Every surface — the hero pill, the eight-week strip, the ratio chart,
 the statement and the warning — reads the same `LaneReading` from `LaneEngine`. The axis is the lane's

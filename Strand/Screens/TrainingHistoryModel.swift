@@ -34,6 +34,8 @@ final class TrainingHistoryModel: ObservableObject {
         let strengthActivity: LaneActivity
         let strengthStart: String?
         let cardio: TrainingLoadLanes.CardioSeries
+        /// Days the cardio lane could not measure but a workout's average heart rate estimates (P4).
+        let cardioEstimatedByDay: [String: Double]
         let cardioStart: String?
         let session: TrainingLoadModel.SessionSeries
         let sessionStart: String?
@@ -134,11 +136,21 @@ final class TrainingHistoryModel: ObservableObject {
                                                     tzOffsetSeconds: offset)
         let session = TrainingLoadModel.sessionSeries(unified: sessions, strengthWorkouts: workouts,
                                                       rpeEntries: ratings, offset: offset)
+        // The same daily series with the estimates admitted: whatever it knows that the measured series
+        // does not is an estimated day.
+        let withEstimates = TrainingLoadModel.cardioDailyLoad(
+            sessions: sessions, loads: resolution.loads.merging(resolution.estimates) { measured, _ in measured },
+            duplicates: resolution.duplicateSessionIds, tzOffsetSeconds: offset)
+        var estimatedByDay: [String: Double] = [:]
+        for day in cardio.unknownDays where !withEstimates.unknownDays.contains(day) {
+            estimatedByDay[day] = withEstimates.byDay[day] ?? 0
+        }
         let source = Source(
             workouts: workouts, templates: templates,
             strengthByDay: strengthByDay, strengthActivity: strengthActivity,
             strengthStart: strengthActivity.sessionsByDay.keys.min(),
             cardio: cardio,
+            cardioEstimatedByDay: estimatedByDay,
             cardioStart: cardio.activity.sessionsByDay.keys.min(),
             session: session,
             sessionStart: session.ratedKeysByDay.keys.min(),
@@ -179,7 +191,7 @@ final class TrainingHistoryModel: ObservableObject {
                                             through: min(source.strengthDay, end), periods: periods,
                                             bandLane: (.strength, source.strengthActivity))
         let cardio = TrainingHistory.lane(dailyByDay: source.cardio.byDay, unknownDays: source.cardio.unknownDays,
-                                          historyStart: source.cardioStart, through: min(source.cardioDay, end),
+                                          estimatedByDay: source.cardioEstimatedByDay, historyStart: source.cardioStart, through: min(source.cardioDay, end),
                                           periods: periods, bandLane: (.cardio, source.cardio.activity))
         let session = TrainingHistory.lane(dailyByDay: source.session.byDay, unknownDays: source.session.unknownDays,
                                            historyStart: source.sessionStart, through: min(source.sessionDay, end),

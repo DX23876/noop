@@ -6,7 +6,12 @@ import WhoopStore
 /// The measured cardiovascular work attached to one canonical training session. TRIMP is additive;
 /// Effort is its familiar 0–100 presentation and must never be summed across sessions.
 struct TrainingCardioLoad: Equatable, Sendable {
-    enum Source: String, Sendable { case noopBand = "noop_band", healthKitWorkout = "healthkit_workout" }
+    enum Source: String, Sendable {
+        case noopBand = "noop_band", healthKitWorkout = "healthkit_workout"
+        /// Estimated from the session's average heart rate (Banister's original form). Never a measured
+        /// load: the history shows it marked as estimated, and no band or comparison reads it.
+        case averageHeartRate = "avg_hr"
+    }
 
     let sessionId: String
     let trimp: Double
@@ -29,6 +34,14 @@ struct TrainingCardioLoadResolution: Sendable {
     var duplicateSessionIds: Set<String> = []
     /// Sessions left unpriced because the pass ran out of its heart-rate budget.
     var deferredSessionIds: Set<String> = []
+    /// Sessions without a usable trace, estimated from their average heart rate. Kept apart from `loads`
+    /// so nothing that compares or classifies load can read an estimate by accident.
+    var estimates: [String: TrainingCardioLoad] = [:]
+
+    /// Files a load where it belongs: a measured one in `loads`, an estimate in `estimates`.
+    mutating func record(_ load: TrainingCardioLoad) {
+        if load.source == .averageHeartRate { estimates[load.sessionId] = load } else { loads[load.sessionId] = load }
+    }
 }
 
 /// How a period's training time was distributed across the heart-rate zones, and what that rests on.
@@ -51,8 +64,9 @@ struct CardioZoneSplit: Equatable, Sendable {
 }
 
 extension Repository {
-    /// Bump whenever the read-time Training Load recipe changes. It is part of the in-memory memo key,
-    /// so a new build cannot reuse a result produced by different zone or gap semantics.
+    /// The version of `cardioLoadMethod`; bump it when that method's arithmetic changes. It is part of the
+    /// ledger key and the in-memory memo key, so a new build cannot reuse a result produced by other
+    /// semantics. Counted per method: a new method starts again at 1.
     nonisolated static let cardiovascularLoadRecipeVersion = 1
     /// Sessions shorter than this are not priced: a TRIMP over a couple of minutes is dominated by the
     /// ramp in and out, and the coverage rule below could not tell a real trace from two stray samples.
@@ -64,7 +78,13 @@ extension Repository {
     nonisolated static let cardioLoadSessionBudget = 300
 
     /// The method name stored with every ledger row. The version is `cardiovascularLoadRecipeVersion`.
-    nonisolated static let cardioLoadMethod = "edwards-hrmax"
+    ///
+    /// Banister's TRIMP over heart-rate reserve (P4, analysis recipe AI-9). Rows of the former
+    /// `edwards-hrmax` method stay in the table untouched — history is never deleted — but are no longer
+    /// read: the two methods have different scales, and one lane may not mix them.
+    nonisolated static let cardioLoadMethod = "banister-hrr"
+    /// Days either side of a session whose resting heart rates price it: the median of that week.
+    nonisolated static let cardioLoadRestingWindowDays = 3
     /// How long after a session ends its heart rate may still change. A strap banks history and offloads
     /// it later, and a watch syncs its workout HR on its own schedule, so a load computed sooner is kept
     /// only as a provisional row and computed again; one computed after this is final.
@@ -160,6 +180,17 @@ extension Repository {
         let sessions = await trainingSessions(days: TrainingHistoryWindow.allDays).sessions
         _ = await priceCardioSessions(sessions, budget: Int.max, recompute: true)
         cardioLoadMemo.removeAll()
+        cardioLoadUnpriceable.removeAll()
+    }
+
+    /// Fills the whole ledger with the current method, newest first — the migration for analysis recipe
+    /// AI-9. Resumable by construction: an interrupted run leaves the rows it wrote, and the next run
+    /// computes only what is still missing. Rows of the former method are left in place, unread.
+    func fillCardioLoadLedger() async {
+        while !Task.isCancelled, await backfillCardioLoadLedger(limit: 200) > 0 {
+            await Task.yield()
+        }
+        scheduleReadinessLoadContextRefresh()
     }
 
     nonisolated static func cardioLoadMaxHR(_ profile: StrainProfile?) -> Double {
@@ -174,9 +205,13 @@ extension Repository {
     private func priceCardioSessions(_ sessions: [UnifiedTrainingSession], budget initialBudget: Int,
                                      recompute: Bool) async -> (resolution: TrainingCardioLoadResolution, computed: Int) {
         let maxHR = Self.cardioLoadMaxHR(strainProfile)
+        let sex = strainProfile?.sex ?? ""
         let store = await storeHandle()
         let now = Int(Date().timeIntervalSince1970)
         var resolution = TrainingCardioLoadResolution()
+        // Resting heart rate is read once, and only if something is actually computed: a pass the ledger
+        // answers entirely should cost no daily-row read.
+        var restingByDay: [String: Double]?
 
         // Newest first, and where two sessions describe the same window the better-evidenced one claims
         // it: more components first, then the longer window, then the id so the choice is deterministic.
@@ -210,17 +245,18 @@ extension Repository {
             let stored = ledger[session.id]
             if !recompute, let stored, Self.ledgerRowIsFinal(stored, fingerprint: fingerprint, sessionEnd: end) {
                 if let load = Self.cardioLoad(from: stored) {
-                    resolution.loads[session.id] = load
+                    resolution.record(load)
                     priced.append((start, end))
                 }
                 continue
             }
-            let memoKey = Self.cardioLoadMemoKey(session: session, maxHR: maxHR, dataRevision: refreshSeq)
+            let memoKey = Self.cardioLoadMemoKey(session: session, maxHR: maxHR, sex: sex, dataRevision: refreshSeq)
             if !recompute, let memo = cardioLoadMemo[memoKey] {
-                resolution.loads[session.id] = memo
+                resolution.record(memo)
                 priced.append((start, end))
                 continue
             }
+            if !recompute, cardioLoadUnpriceable.contains(memoKey) { continue }
             guard budget > 0 else {
                 resolution.deferredSessionIds.insert(session.id)
                 continue
@@ -228,26 +264,40 @@ extension Repository {
             budget -= 1
             computed += 1
 
+            if restingByDay == nil {
+                restingByDay = await restingHrByDay(
+                    fromDay: Self.dayKey(ordered.last?.row.startTs ?? start, offsetDays: -30),
+                    toDay: Self.dayKey(ordered.first?.row.endTs ?? end, offsetDays: 30))
+            }
+            let resting = Self.cardioLoadRestingHR(day: Self.dayKey(start, offsetDays: 0),
+                                                   restingByDay: restingByDay ?? [:])
             let band = await hrSamples(from: start, to: end, limit: 20_000)
             var load = Self.makeCardioLoad(sessionId: session.id, samples: band,
                                            start: start, end: end, source: .noopBand,
-                                           maxHR: maxHR)
+                                           maxHR: maxHR, restingHR: resting, sex: sex)
             if load == nil, let store {
                 let samples = await Self.healthKitMinuteTrace(for: session, store: store)
                 load = Self.makeCardioLoad(sessionId: session.id, samples: samples,
                                            start: start, end: end, source: .healthKitWorkout,
-                                           maxHR: maxHR)
+                                           maxHR: maxHR, restingHR: resting, sex: sex)
             }
-            if load == nil, recompute, let stored, let kept = Self.cardioLoad(from: stored) {
+            if load == nil, recompute, let stored, let kept = Self.cardioLoad(from: stored),
+               kept.source != .averageHeartRate {
                 // The raw heart rate is gone; the stored answer is the only one left. Keep it untouched.
-                resolution.loads[session.id] = kept
+                resolution.record(kept)
                 priced.append((start, end))
                 continue
             }
+            if load == nil {
+                load = Self.averageHeartRateLoad(for: session, maxHR: maxHR, restingHR: resting, sex: sex)
+            }
             written.append(Self.ledgerRow(for: session, load: load, fingerprint: fingerprint,
-                                          maxHR: maxHR, computedAt: now))
-            guard let load else { continue }
-            resolution.loads[session.id] = load
+                                          maxHR: maxHR, restingHR: resting, computedAt: now))
+            guard let load else {
+                cardioLoadUnpriceable.insert(memoKey)
+                continue
+            }
+            resolution.record(load)
             cardioLoadMemo[memoKey] = load
             priced.append((start, end))
         }
@@ -276,7 +326,8 @@ extension Repository {
     }
 
     nonisolated static func ledgerRow(for session: UnifiedTrainingSession, load: TrainingCardioLoad?,
-                                      fingerprint: String, maxHR: Double, computedAt: Int) -> TrainingSessionLoadRow {
+                                      fingerprint: String, maxHR: Double, restingHR: Double?,
+                                      computedAt: Int) -> TrainingSessionLoadRow {
         TrainingSessionLoadRow(sessionId: session.id, method: cardioLoadMethod,
                                methodVersion: cardiovascularLoadRecipeVersion,
                                startTs: session.row.startTs, endTs: session.row.endTs,
@@ -284,7 +335,7 @@ extension Repository {
                                hrSource: load?.source.rawValue ?? "none",
                                coveredMinutes: load?.coveredMinutes ?? 0,
                                possibleMinutes: load?.possibleMinutes ?? 0,
-                               hrmaxUsed: maxHR, restingHrUsed: nil,
+                               hrmaxUsed: maxHR, restingHrUsed: restingHR,
                                inputFingerprint: fingerprint, computedAtTs: computedAt)
     }
 
@@ -296,16 +347,55 @@ extension Repository {
                                   coveredMinutes: row.coveredMinutes, possibleMinutes: row.possibleMinutes)
     }
 
-    /// Every input that can change a session's Edwards result. Keeping the key builder testable makes
-    /// stale reuse after an HR-max edit, source switch, fusion change or data refresh detectable.
-    nonisolated static func cardioLoadMemoKey(session: UnifiedTrainingSession, maxHR: Double,
+    /// Every input that can change a session's result. Keeping the key builder testable makes stale
+    /// reuse after an HR-max or profile edit, source switch, fusion change or data refresh detectable.
+    /// Resting heart rate is covered by the data revision: it only changes when daily rows do.
+    nonisolated static func cardioLoadMemoKey(session: UnifiedTrainingSession, maxHR: Double, sex: String = "",
                                               dataRevision: Int,
                                               recipeVersion: Int = cardiovascularLoadRecipeVersion) -> String {
         let components = session.components.map {
             "\($0.id):\($0.row.source):\($0.row.startTs):\($0.row.endTs)"
         }.sorted().joined(separator: ",")
-        return "v\(recipeVersion)|r\(dataRevision)|hr\(maxHR)|\(session.id)|"
+        return "\(cardioLoadMethod)v\(recipeVersion)|r\(dataRevision)|hr\(maxHR)|\(sex)|\(session.id)|"
             + "\(session.row.startTs)|\(session.row.endTs)|\(components)"
+    }
+
+    /// The resting heart rate a session is priced with: the median of the recorded days within
+    /// `cardioLoadRestingWindowDays` of it — the body that did the session, not today's. Widens to a month
+    /// and then to every day read before falling back to the population default, so a session is never
+    /// left unpriced for want of one night's reading. The value used is stored in the ledger row.
+    nonisolated static func cardioLoadRestingHR(day: String, restingByDay: [String: Double]) -> Double {
+        for radius in [cardioLoadRestingWindowDays, 30] {
+            let values = (-radius...radius).compactMap { restingByDay[WeeklyDigestEngine.addDays(day, $0)] }
+            if let median = median(values) { return median }
+        }
+        return median(Array(restingByDay.values)) ?? StrainScorer.defaultRestingHR
+    }
+
+    nonisolated static func median(_ values: [Double]) -> Double? {
+        guard !values.isEmpty else { return nil }
+        let sorted = values.sorted()
+        let middle = sorted.count / 2
+        return sorted.count.isMultiple(of: 2) ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle]
+    }
+
+    /// Local day key `offsetDays` from a timestamp's day.
+    nonisolated static func dayKey(_ ts: Int, offsetDays: Int) -> String {
+        WeeklyDigestEngine.addDays(AnalyticsEngine.dayString(ts, offsetSec: TimeZone.current.secondsFromGMT()),
+                                   offsetDays)
+    }
+
+    /// An estimate from the session's average heart rate, for a session whose trace could not be read.
+    nonisolated static func averageHeartRateLoad(for session: UnifiedTrainingSession, maxHR: Double,
+                                                 restingHR: Double, sex: String) -> TrainingCardioLoad? {
+        guard let average = session.row.avgHr, average > 0 else { return nil }
+        let seconds = session.row.durationS ?? Double(session.row.endTs - session.row.startTs)
+        guard let trimp = StrainScorer.banisterAverageTRIMP(minutes: seconds / 60, averageHR: Double(average),
+                                                            maxHR: maxHR, restingHR: restingHR, sex: sex)
+        else { return nil }
+        return TrainingCardioLoad(sessionId: session.id, trimp: trimp,
+                                  effort: StrainScorer.banisterLaneEffort(trimp, sex: sex), source: .averageHeartRate,
+                                  coveredMinutes: 0, possibleMinutes: max(1, Int(ceil(seconds / 60))))
     }
 
     /// True when two windows are the same bout: they overlap by more than half of the shorter one —
@@ -408,13 +498,14 @@ extension Repository {
                                sessionsPossible: possible, usedMinuteBuckets: usedBuckets)
     }
 
-    nonisolated private static func makeCardioLoad(sessionId: String, samples: [HRSample],
-                                                   start: Int, end: Int,
-                                                   source: TrainingCardioLoad.Source,
-                                                   maxHR: Double) -> TrainingCardioLoad? {
+    nonisolated static func makeCardioLoad(sessionId: String, samples: [HRSample],
+                                           start: Int, end: Int,
+                                           source: TrainingCardioLoad.Source,
+                                           maxHR: Double, restingHR: Double, sex: String) -> TrainingCardioLoad? {
         let coverage = traceCoverage(samples, start: start, end: end)
         guard hasUsableCoverage(samples, start: start, end: end),
-              let load = StrainScorer.edwardsTrainingLoad(samples, maxHR: maxHR) else { return nil }
+              let load = StrainScorer.banisterTrainingLoad(samples, maxHR: maxHR, restingHR: restingHR, sex: sex)
+        else { return nil }
         return TrainingCardioLoad(sessionId: sessionId, trimp: load.trimp, effort: load.effort,
                                   source: source, coveredMinutes: coverage.covered,
                                   possibleMinutes: coverage.possible)

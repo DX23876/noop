@@ -1530,5 +1530,8 @@
   "Zero": "Ноль",
   "e1RM": "e1RM",
   "e1RM of your lifts (kg)": "e1RM ваших упражнений (кг)",
-  "not measured": "не измерено"
+  "not measured": "не измерено",
+  "%@ estimated": "%@ (оценка)",
+  "Banister TRIMP: every minute counts by how far into your heart-rate reserve it went, rising steeply towards the top, with the resting heart rate of that week and a coefficient for your profile. NOOP band data wins; workout-associated Health data fills only when the band trace is incomplete.": "TRIMP Банистера: каждая минута учитывается по тому, насколько глубоко она зашла в ваш резерв пульса, — с резким ростом ближе к верху, — с пульсом покоя той недели и коэффициентом для вашего профиля. Данные браслета NOOP имеют приоритет; связанные с тренировкой данные Здоровья дополняют их только при неполной записи браслета.",
+  "Pale tops are estimated from a workout's average heart rate, where no heart-rate trace was kept. They are not counted in the level or the band.": "Светлые верхушки оценены по среднему пульсу тренировки, если запись пульса не сохранилась. Они не учитываются ни в уровне, ни в диапазоне."
 }

@@ -9,25 +9,66 @@ final class StrainScorerTests: XCTestCase {
         (0..<n).map { HRSample(ts: start + $0, bpm: bpm) }
     }
 
-    func testClassicEdwardsTrainingLoadUsesPercentOfMaximumHeartRate() throws {
-        // Ten minutes in each Edwards zone at exactly 50/60/70/80/90 % HRmax.
-        // The independent worked result is 10 × (1 + 2 + 3 + 4 + 5) = 150 TRIMP.
-        let maxHR = 200.0
-        var samples: [HRSample] = []
-        for (zone, bpm) in [100, 120, 140, 160, 180].enumerated() {
-            samples += hr(bpm, 600, start: zone * 600)
-        }
-        let load = try XCTUnwrap(StrainScorer.edwardsTrainingLoad(samples, maxHR: maxHR))
-        XCTAssertEqual(load.trimp, 150, accuracy: 0.05)
-        XCTAssertEqual(load.sampleCount, 3_000)
+    // MARK: - Training Load cardio lane (Banister, P4)
+
+    /// An hour at ΔHRR 0.5 (125 bpm, resting 60, maximum 190), male coefficient. Worked independently:
+    /// 60 × 0.5 × 0.64 × e^(1.92 × 0.5) = 50.1446 TRIMP.
+    func testBanisterLaneMatchesTheWorkedValue() throws {
+        let load = try XCTUnwrap(StrainScorer.banisterTrainingLoad(hr(125, 3_600), maxHR: 190, restingHR: 60,
+                                                                   sex: "male"))
+        XCTAssertEqual(load.trimp, 50.1446, accuracy: 0.001)
+        XCTAssertEqual(load.sampleCount, 3_600)
     }
 
-    func testClassicEdwardsTrainingLoadDoesNotPriceARecordingGap() throws {
-        let first = hr(150, 600, start: 0)
-        let second = hr(150, 600, start: 4_200) // one hour is unobserved
-        let load = try XCTUnwrap(StrainScorer.edwardsTrainingLoad(first + second, maxHR: 200))
-        // 20 measured minutes in zone 3. The hour between islands contributes nothing.
-        XCTAssertEqual(load.trimp, 59.95, accuracy: 0.001)
+    /// A recording gap contributes nothing: two ten-minute islands an hour apart price 1,199 covered
+    /// seconds at ΔHRR 90/130, 33.4522 TRIMP — never the hour between them.
+    func testBanisterLaneDoesNotPriceARecordingGap() throws {
+        let load = try XCTUnwrap(StrainScorer.banisterTrainingLoad(hr(150, 600) + hr(150, 600, start: 4_200),
+                                                                   maxHR: 190, restingHR: 60, sex: "male"))
+        XCTAssertEqual(load.trimp, 33.4522, accuracy: 0.001)
+    }
+
+    /// Q13: 1.92 male, 1.67 female, 1.795 for anyone else — including an unset or nonbinary profile.
+    func testBanisterCoefficientFollowsTheProfile() {
+        XCTAssertEqual(StrainScorer.banisterCoefficient(sex: "male"), 1.92)
+        XCTAssertEqual(StrainScorer.banisterCoefficient(sex: " Female "), 1.67)
+        XCTAssertEqual(StrainScorer.banisterCoefficient(sex: "nonbinary"), 1.795)
+        XCTAssertEqual(StrainScorer.banisterCoefficient(sex: ""), 1.795)
+        let male = StrainScorer.banisterTrainingLoad(hr(150, 1_800), maxHR: 190, restingHR: 60, sex: "male")!.trimp
+        let neutral = StrainScorer.banisterTrainingLoad(hr(150, 1_800), maxHR: 190, restingHR: 60, sex: "nonbinary")!.trimp
+        let female = StrainScorer.banisterTrainingLoad(hr(150, 1_800), maxHR: 190, restingHR: 60, sex: "female")!.trimp
+        XCTAssertGreaterThan(male, neutral)
+        XCTAssertGreaterThan(neutral, female)
+    }
+
+    /// The reason for the switch (B8): Edwards moved a whole weight step when one beat crossed a zone
+    /// edge. Banister follows the input continuously — it recovers each of several injected intensities
+    /// in order, and one beat moves the result by a few percent at most.
+    func testBanisterLaneTracksIntensityContinuously() throws {
+        let values = try [100, 120, 139, 140, 160, 180].map {
+            try XCTUnwrap(StrainScorer.banisterTrainingLoad(hr($0, 1_800), maxHR: 190, restingHR: 60, sex: "male")).trimp
+        }
+        XCTAssertEqual(values, values.sorted(), "more intensity is never less load")
+        XCTAssertLessThan(values[3] / values[2], 1.05, "one beat is not a weight step")
+    }
+
+    /// Below the resting rate there is no work; a profile whose resting rate reaches its maximum cannot price.
+    func testBanisterLaneGuards() {
+        XCTAssertEqual(StrainScorer.banisterTrainingLoad(hr(55, 3_600), maxHR: 190, restingHR: 60, sex: "male")?.trimp, 0)
+        XCTAssertNil(StrainScorer.banisterTrainingLoad(hr(150, 3_600), maxHR: 60, restingHR: 60, sex: "male"))
+        XCTAssertNil(StrainScorer.banisterTrainingLoad(hr(150, 5), maxHR: 190, restingHR: 60, sex: "male"),
+                     "five readings are not a session")
+    }
+
+    /// For a constant trace the average-heart-rate estimate equals the measured result; it is the same
+    /// formula applied to one number.
+    func testAverageHeartRateEstimateMatchesAConstantTrace() throws {
+        let trace = try XCTUnwrap(StrainScorer.banisterTrainingLoad(hr(125, 3_600), maxHR: 190, restingHR: 60,
+                                                                    sex: "female")).trimp
+        let estimate = try XCTUnwrap(StrainScorer.banisterAverageTRIMP(minutes: 60, averageHR: 125, maxHR: 190,
+                                                                       restingHR: 60, sex: "female"))
+        XCTAssertEqual(estimate, trace, accuracy: 1e-6)
+        XCTAssertNil(StrainScorer.banisterAverageTRIMP(minutes: 0, averageHR: 125, maxHR: 190, restingHR: 60, sex: "male"))
     }
 
     func testTanakaAndDefaultMax() {

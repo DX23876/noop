@@ -451337,6 +451337,180 @@
           }
         }
       }
+    },
+    "%@ estimated" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ geschätzt"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ estimado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ estimé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ stimato"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ szacunkowo"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ estimado"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (оценка)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "估算 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "估算 %@"
+          }
+        }
+      }
+    },
+    "Banister TRIMP: every minute counts by how far into your heart-rate reserve it went, rising steeply towards the top, with the resting heart rate of that week and a coefficient for your profile. NOOP band data wins; workout-associated Health data fills only when the band trace is incomplete." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Banister-TRIMP: Jede Minute zählt danach, wie weit sie in deine Herzfrequenzreserve reichte – nach oben hin steil ansteigend –, mit dem Ruhepuls jener Woche und einem Koeffizienten für dein Profil. Daten des NOOP-Bands haben Vorrang; workoutbezogene Health-Daten ergänzen nur, wenn die Bandaufzeichnung unvollständig ist."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TRIMP de Banister: cada minuto cuenta según cuánto entró en tu reserva de frecuencia cardíaca, con un aumento pronunciado hacia arriba, usando la frecuencia en reposo de esa semana y un coeficiente para tu perfil. Los datos de la banda NOOP tienen prioridad; los datos de Health asociados al entrenamiento solo completan cuando el registro de la banda está incompleto."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TRIMP de Banister : chaque minute compte selon la part de votre réserve cardiaque qu’elle a atteinte, de plus en plus fortement vers le haut, avec la fréquence de repos de cette semaine-là et un coefficient adapté à votre profil. Les données du bracelet NOOP sont prioritaires ; les données Santé associées à l’entraînement ne complètent que si le tracé du bracelet est incomplet."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TRIMP di Banister: ogni minuto conta in base a quanto è entrato nella tua riserva di frequenza cardiaca, con un aumento ripido verso l’alto, usando la frequenza a riposo di quella settimana e un coefficiente per il tuo profilo. I dati della fascia NOOP hanno la priorità; i dati Salute associati all’allenamento completano solo quando la traccia della fascia è incompleta."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TRIMP Banistera: każda minuta liczy się według tego, jak głęboko sięgnęła w Twoją rezerwę tętna – coraz mocniej ku górze – z tętnem spoczynkowym z tamtego tygodnia i współczynnikiem dla Twojego profilu. Dane opaski NOOP mają pierwszeństwo; dane Zdrowie powiązane z treningiem uzupełniają je tylko wtedy, gdy zapis opaski jest niepełny."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TRIMP de Banister: cada minuto conta consoante o quanto entrou na sua reserva de frequência cardíaca, subindo acentuadamente no topo, com a frequência em repouso dessa semana e um coeficiente para o seu perfil. Os dados da pulseira NOOP têm prioridade; os dados de Saúde associados ao treino apenas completam quando o registo da pulseira está incompleto."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TRIMP Банистера: каждая минута учитывается по тому, насколько глубоко она зашла в ваш резерв пульса, — с резким ростом ближе к верху, — с пульсом покоя той недели и коэффициентом для вашего профиля. Данные браслета NOOP имеют приоритет; связанные с тренировкой данные Здоровья дополняют их только при неполной записи браслета."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Banister TRIMP：每分钟按其进入你心率储备的程度计分，越接近上限增长越陡，并使用那一周的静息心率和适合你资料的系数。NOOP 手环数据优先；仅当手环记录不完整时，才使用与训练相关的“健康”数据补充。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Banister TRIMP：每分鐘按其進入你心率儲備的程度計分，越接近上限增長越陡，並使用那一週的靜息心率和適合你資料的係數。NOOP 手環資料優先；僅當手環記錄不完整時，才使用與訓練相關的「健康」資料補充。"
+          }
+        }
+      }
+    },
+    "Pale tops are estimated from a workout's average heart rate, where no heart-rate trace was kept. They are not counted in the level or the band." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Helle Aufsätze sind aus dem Durchschnittspuls eines Workouts geschätzt, wo kein Herzfrequenzverlauf gespeichert wurde. Sie zählen weder für das Niveau noch für das Band."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las partes claras superiores se estiman a partir de la frecuencia cardíaca media de un entrenamiento cuando no se guardó un registro de frecuencia cardíaca. No cuentan para el nivel ni para la banda."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les sommets pâles sont estimés à partir de la fréquence cardiaque moyenne d’un entraînement lorsqu’aucun tracé cardiaque n’a été conservé. Ils ne comptent ni dans le niveau ni dans la bande."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le cime chiare sono stimate dalla frequenza cardiaca media di un allenamento quando non è stata conservata una traccia cardiaca. Non contano per il livello né per la fascia."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jasne górne części są szacowane na podstawie średniego tętna treningu, gdy nie zachowano zapisu tętna. Nie liczą się do poziomu ani do pasma."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os topos claros são estimados a partir da frequência cardíaca média de um treino, quando não foi guardado um registo de frequência cardíaca. Não contam para o nível nem para a faixa."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Светлые верхушки оценены по среднему пульсу тренировки, если запись пульса не сохранилась. Они не учитываются ни в уровне, ни в диапазоне."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "浅色顶部是在未保留心率记录时根据训练平均心率估算的，不计入水平线和区间。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "淺色頂部是在未保留心率記錄時根據訓練平均心率估算的，不計入水平線和區間。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

@@ -432,20 +432,70 @@ public enum StrainScorer {
                                 sampleCount: hr.count, spanSeconds: span)
     }
 
-    /// Classic Edwards TRIMP for the Training Load screen, based on percentage of HRmax.
+    // MARK: - Training Load cardio lane (Banister)
+
+    /// Banister's coefficient when the profile names neither male nor female: the mean of the two
+    /// published values (1.92 and 1.67), NOOP's own choice rather than a published one.
+    public static let banisterBNeutral: Double = 1.795
+
+    /// The coefficient for the cardio lane: 1.92 for "male", 1.67 for "female", `banisterBNeutral`
+    /// for anything else. Daily Effort keeps its own male/female rule (`logMapDenominator`).
+    public static func banisterCoefficient(sex: String) -> Double {
+        switch sex.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "male": return banisterBMen
+        case "female": return banisterBWomen
+        default: return banisterBNeutral
+        }
+    }
+
+    /// Banister TRIMP (1991) for the Training Load cardio lane: every reading contributes its minutes ×
+    /// ΔHRR × 0.64 × e^(b·ΔHRR), ΔHRR = (HR − resting) / (HRmax − resting) clamped to [0, 1].
     ///
-    /// This is intentionally separate from NOOP's daily Effort recipe, which uses heart-rate reserve.
-    /// Recording gaps longer than two minutes contribute no duration; pricing the gap would invent work
-    /// while the sensor was silent.
-    public static func edwardsTrainingLoad(_ hr: [HRSample], maxHR: Double? = nil) -> CardioLoadResult? {
-        let effectiveMax = maxHR ?? Double(defaultMaxHR())
-        guard effectiveMax > 0 else { return nil }
+    /// Continuous where Edwards is a step function: one beat across a zone edge moved a whole weight
+    /// step. No sedentary floor — a training session is priced whole, unlike the daily Effort scorer,
+    /// which subtracts the cost of a waking day. The same reading guards as daily Effort, but a gap longer
+    /// than two minutes contributes nothing rather than two minutes. `effort` is the result
+    /// mapped onto Effort's Banister axis for this coefficient.
+    public static func banisterTrainingLoad(_ hr: [HRSample], maxHR: Double, restingHR: Double,
+                                            sex: String) -> CardioLoadResult? {
+        let reserve = maxHR - restingHR
+        guard maxHR > 0, restingHR > 0, reserve > 0 else { return nil }
         let ordered = hr.sorted { $0.ts < $1.ts }
         let span = max(0, (ordered.last?.ts ?? 0) - (ordered.first?.ts ?? 0))
-        let enough = ordered.count >= minReadings
-            || (ordered.count >= minSparseReadings && span >= minSpanSeconds)
-        guard enough else { return nil }
+        guard hasEnoughReadings(ordered, span: span) else { return nil }
+        let b = banisterCoefficient(sex: sex)
+        let trimp = banisterTRIMP(ordered, restingHR: restingHR, hrReserve: reserve,
+                                  durations: laneDurations(ordered), b: b)
+        return CardioLoadResult(trimp: trimp, effort: banisterLaneEffort(trimp, sex: sex),
+                                sampleCount: ordered.count, spanSeconds: span)
+    }
 
+    /// A lane TRIMP on Effort's 0–100 axis, against Banister's daily ceiling for the same coefficient.
+    public static func banisterLaneEffort(_ trimp: Double, sex: String) -> Double {
+        trimpToStrain(trimp, denominator: banisterDailyCeiling(b: banisterCoefficient(sex: sex)) + 1.0)
+    }
+
+    /// Banister's original form from a session's average heart rate: minutes × ΔHRR × 0.64 × e^(b·ΔHRR).
+    ///
+    /// Only an estimate — an average hides the intervals the exponential weights most, so it reads low
+    /// for uneven sessions. The Training Load history uses it for old workouts that kept no trace, marked
+    /// as estimated; no band or comparison ever reads it. Nil when the inputs cannot price a session.
+    public static func banisterAverageTRIMP(minutes: Double, averageHR: Double, maxHR: Double,
+                                            restingHR: Double, sex: String) -> Double? {
+        let reserve = maxHR - restingHR
+        guard minutes > 0, averageHR > 0, restingHR > 0, reserve > 0 else { return nil }
+        let x = pctHRR(averageHR, restingHR: restingHR, hrReserve: reserve) / 100.0
+        return minutes * x * banisterScale * exp(banisterCoefficient(sex: sex) * x)
+    }
+
+    /// The reading guard both lane recipes share: a dense stream, or a sparse one spanning ten minutes.
+    static func hasEnoughReadings(_ ordered: [HRSample], span: Int) -> Bool {
+        ordered.count >= minReadings || (ordered.count >= minSparseReadings && span >= minSpanSeconds)
+    }
+
+    /// Per-reading minutes for the lane recipes: each reading covers the gap to the next, a gap longer
+    /// than `maxSampleGapMin` covers nothing, and the last reading reuses the last covered gap.
+    static func laneDurations(_ ordered: [HRSample]) -> [Double] {
         var durations = [Double](repeating: fallbackSampleMin, count: ordered.count)
         if ordered.count > 1 {
             for index in 0..<(ordered.count - 1) {
@@ -455,21 +505,7 @@ public enum StrainScorer {
             }
             durations[ordered.count - 1] = durations.dropLast().last(where: { $0 > 0 }) ?? fallbackSampleMin
         }
-
-        var trimp = 0.0
-        for index in ordered.indices {
-            let percentage = Double(ordered[index].bpm) / effectiveMax
-            let weight: Double
-            if percentage >= 0.90 { weight = 5 }
-            else if percentage >= 0.80 { weight = 4 }
-            else if percentage >= 0.70 { weight = 3 }
-            else if percentage >= 0.60 { weight = 2 }
-            else if percentage >= 0.50 { weight = 1 }
-            else { weight = 0 }
-            trimp += weight * durations[index]
-        }
-        return CardioLoadResult(trimp: trimp, effort: trimpToStrain(trimp),
-                                sampleCount: ordered.count, spanSeconds: span)
+        return durations
     }
 
     /// One line naming what an Effort score was computed FROM, or why it could not be computed.
