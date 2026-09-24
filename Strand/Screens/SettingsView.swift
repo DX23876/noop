@@ -3800,7 +3800,8 @@ private struct AnalysisMaintenanceSettingsCard: View {
                 HStack {
                     Text("Analysis recipe").foregroundStyle(StrandPalette.textSecondary)
                     Spacer()
-                    Text(verbatim: "v\(max(engine.analysisRecipeVersion, IntelligenceEngine.currentAnalysisRecipeVersion))")
+                    Text(verbatim: IntelligenceEngine.recipeLabel(max(engine.analysisRecipeVersion,
+                                                                       IntelligenceEngine.currentAnalysisRecipeVersion)))
                         .font(StrandFont.captionNumber)
                         .foregroundStyle(StrandPalette.textPrimary)
                 }

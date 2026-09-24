@@ -152,7 +152,35 @@ final class IntelligenceEngine: ObservableObject {
         let span = (utc.dateComponents([.day], from: from, to: to).day ?? 0) + 1
         return min(45, max(21, span))
     }
-    static let analysisRecipeCursor = "analysis:recipeVersion"
+    /// The recipe lineage is this fork's own: ryanbr/noop has no analysis recipe at all. Its cursor
+    /// therefore lives under a fork namespace, and is shown as "AI-n", so that an upstream counter
+    /// introduced later under a plain name can never be read as one of these numbers — a store carried
+    /// over from upstream would otherwise look up to date and skip a rescore it still owes.
+    static let analysisRecipeCursor = "noopai:analysisRecipeVersion"
+    /// Where recipes 1–8 were stored before the rename. Read once and adopted, never written.
+    static let legacyAnalysisRecipeCursor = "analysis:recipeVersion"
+    /// The last recipe this fork wrote under the legacy name. A larger value there did not come from
+    /// this fork and is ignored.
+    static let lastLegacyAnalysisRecipeVersion = 8
+
+    /// "AI-8": the recipe as Settings and the logs name it.
+    static func recipeLabel(_ version: Int) -> String { "AI-\(version)" }
+
+    /// The legacy cursor's value when this fork could have written it, otherwise nil.
+    static func adoptableLegacyRecipe(_ legacy: Int?) -> Int? {
+        guard let legacy, (1...lastLegacyAnalysisRecipeVersion).contains(legacy) else { return nil }
+        return legacy
+    }
+
+    /// The stored recipe, adopting a pre-rename value into the fork-namespaced cursor the first time.
+    private static func storedRecipeVersion(_ store: WhoopStore) async throws -> Int? {
+        if let stored = try await store.cursor(analysisRecipeCursor) { return stored }
+        guard let legacy = adoptableLegacyRecipe(try await store.cursor(legacyAnalysisRecipeCursor)) else {
+            return nil
+        }
+        try await store.setCursor(analysisRecipeCursor, legacy)
+        return legacy
+    }
     static let analysisLastRunKey = "noop.analysisMaintenance.lastRun"
 
     enum AnalysisMaintenancePhase: Equatable {
@@ -773,7 +801,7 @@ final class IntelligenceEngine: ObservableObject {
             // Stored-value migration for recipe v8. Its own cursor is committed only after the row keys
             // and projections succeed in one transaction, so an interrupted launch retries safely.
             _ = try await store.migrateLegacyPercentLabMarkerKeys()
-            let stored = try await store.cursor(Self.analysisRecipeCursor)
+            let stored = try await Self.storedRecipeVersion(store)
             var fromUpstream = false
             if stored == nil { fromUpstream = (try? await store.openedFromUpstreamMigrations()) ?? false }
             switch Self.analysisRecipeDecision(storedVersion: stored, openedFromUpstream: fromUpstream) {
@@ -811,7 +839,7 @@ final class IntelligenceEngine: ObservableObject {
     @discardableResult
     func manuallyReanalyzeRecent() async -> Bool {
         guard let store = await repo.storeHandle() else { return false }
-        let stored = (try? await store.cursor(Self.analysisRecipeCursor))
+        let stored = ((try? await Self.storedRecipeVersion(store)) ?? nil)
             ?? Self.currentAnalysisRecipeVersion
         let owesMigration = stored < Self.currentAnalysisRecipeVersion
         let phase: AnalysisMaintenancePhase = owesMigration

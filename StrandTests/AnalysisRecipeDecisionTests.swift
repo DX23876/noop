@@ -1,4 +1,5 @@
 import XCTest
+import WhoopStore
 @testable import Strand
 
 @MainActor
@@ -43,6 +44,47 @@ final class AnalysisRecipeDecisionTests: XCTestCase {
         // And a database written by a NEWER build that was rolled back stays put rather than
         // "migrating" backwards into a rescore that would overwrite better values with worse ones.
         XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 9), .upToDate)
+    }
+
+    // MARK: - The fork's own recipe lineage
+
+    /// ryanbr/noop has no analysis recipe. The fork's lineage is stored under its own namespace and
+    /// named "AI-n", so an upstream counter added later under a plain name cannot pass for one of ours.
+    func testTheRecipeLivesUnderTheForkNamespace() {
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeCursor, "noopai:analysisRecipeVersion")
+        XCTAssertNotEqual(IntelligenceEngine.analysisRecipeCursor, IntelligenceEngine.legacyAnalysisRecipeCursor)
+        XCTAssertEqual(IntelligenceEngine.recipeLabel(8), "AI-8")
+    }
+
+    /// Only values this fork could have written under the legacy name are adopted.
+    func testOnlyTheForksLegacyValuesAreAdopted() {
+        XCTAssertNil(IntelligenceEngine.adoptableLegacyRecipe(nil))
+        XCTAssertNil(IntelligenceEngine.adoptableLegacyRecipe(0))
+        XCTAssertEqual(IntelligenceEngine.adoptableLegacyRecipe(1), 1)
+        XCTAssertEqual(IntelligenceEngine.adoptableLegacyRecipe(8), 8)
+        XCTAssertNil(IntelligenceEngine.adoptableLegacyRecipe(9),
+                     "the fork never wrote 9 under the legacy name; such a value is someone else's")
+    }
+
+    /// An install from before the rename keeps its place: the legacy value moves to the new cursor and
+    /// nothing is re-scored for the rename itself.
+    func testAPreRenameInstallAdoptsItsRecipeWithoutRescoring() async throws {
+        let path = FileManager.default.temporaryDirectory
+            .appendingPathComponent("recipe-rename-\(UUID().uuidString).sqlite").path
+        addTeardownBlock {
+            for suffix in ["", "-wal", "-shm"] { try? FileManager.default.removeItem(atPath: path + suffix) }
+        }
+        let store = try await WhoopStore(path: path)
+        let current = IntelligenceEngine.currentAnalysisRecipeVersion
+        try await store.setCursor(IntelligenceEngine.legacyAnalysisRecipeCursor, current)
+        let repo = Repository(deviceId: "my-whoop")
+        repo.setStoreForTesting(store)
+        let engine = IntelligenceEngine(repo: repo, profile: ProfileStore(), deviceId: "my-whoop")
+        let ok = await engine.prepareAnalysisRecipe()
+        XCTAssertTrue(ok)
+        let adopted = try await store.cursor(IntelligenceEngine.analysisRecipeCursor)
+        XCTAssertEqual(adopted, current)
+        XCTAssertEqual(engine.analysisMaintenancePhase, .idle, "the rename alone must not start a reanalysis")
     }
 
     // MARK: - A store switched over from upstream NOOP
