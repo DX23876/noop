@@ -19,8 +19,6 @@ public protocol EvalProvider {
     var model: String { get }
     func run(system: String, question: String, dataset: AnalysisDataset,
              handle: ([String: Any]) -> String) async throws -> Transcript
-    /// One plain request without tools — what the autorater uses.
-    func complete(system: String, user: String) async throws -> String
 }
 
 public enum ProviderError: Error, CustomStringConvertible {
@@ -134,18 +132,6 @@ struct AnthropicEval: EvalProvider {
     }
 }
 
-extension AnthropicEval {
-    func complete(system: String, user: String) async throws -> String {
-        let json = try await Providers.post(
-            URL(string: "https://api.anthropic.com/v1/messages")!,
-            headers: ["x-api-key": key, "anthropic-version": "2023-06-01"],
-            body: ["model": model, "max_tokens": 1_024, "system": system,
-                   "messages": [["role": "user", "content": user]]])
-        let content = json["content"] as? [[String: Any]] ?? []
-        return content.compactMap { $0["type"] as? String == "text" ? $0["text"] as? String : nil }.joined()
-    }
-}
-
 struct OpenAIEval: EvalProvider {
     let key: String
     let model: String
@@ -189,18 +175,6 @@ struct OpenAIEval: EvalProvider {
     }
 }
 
-extension OpenAIEval {
-    func complete(system: String, user: String) async throws -> String {
-        let json = try await Providers.post(
-            URL(string: "https://api.openai.com/v1/chat/completions")!,
-            headers: ["Authorization": "Bearer \(key)"],
-            body: ["model": model, "max_completion_tokens": 2_048,
-                   "messages": [["role": "system", "content": system], ["role": "user", "content": user]]])
-        let message = ((json["choices"] as? [[String: Any]])?.first)?["message"] as? [String: Any]
-        return message?["content"] as? String ?? ""
-    }
-}
-
 struct GeminiEval: EvalProvider {
     let key: String
     let model: String
@@ -241,19 +215,5 @@ struct GeminiEval: EvalProvider {
             contents.append(["role": "user", "parts": responses])
         }
         return transcript
-    }
-}
-
-extension GeminiEval {
-    func complete(system: String, user: String) async throws -> String {
-        let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent")!
-        let json = try await Providers.post(url, headers: ["x-goog-api-key": key], body: [
-            "system_instruction": ["parts": [["text": system]]],
-            "contents": [["role": "user", "parts": [["text": user]]]],
-            "generationConfig": ["maxOutputTokens": 4_096] as [String: Any],
-        ])
-        let parts = (((json["candidates"] as? [[String: Any]])?.first)?["content"] as? [String: Any])?["parts"]
-            as? [[String: Any]] ?? []
-        return parts.filter { ($0["thought"] as? Bool) != true }.compactMap { $0["text"] as? String }.joined()
     }
 }
