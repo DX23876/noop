@@ -192,21 +192,23 @@ final class TrainingLoadModel: ObservableObject {
         repo.scheduleCardioLoadBackfill()
     }
 
-    nonisolated static func prepare(strengthHistory: ResolvedStrengthHistory,
-                                    unified: [UnifiedTrainingSession],
-                                    cardioResolution: TrainingCardioLoadResolution,
-                                    rpeEntries: [SessionRPEEntry], dailyRows: [DailyMetric],
-                                    vo2Estimates: [VO2maxReading], vo2Apple: [VO2maxReading] = [],
-                                    today: String, now: Int,
-                                    offset: Int) -> Prepared {
-        let strengthWorkouts = strengthHistory.workouts
-        let templates = strengthHistory.templates
-        let strengthByDay = TrainingLoadLanes.strengthByDay(strengthWorkouts, tzOffsetSeconds: offset)
-        let cardioSeries = TrainingLoadLanes.cardioSeries(sessions: unified, resolution: cardioResolution,
-                                                          tzOffsetSeconds: offset)
-        let cardioByDay = cardioSeries.byDay
-        let cardioUnknown = cardioSeries.unknownDays
+    /// Session Load's daily series: the athlete's session RPE × minutes per day, the days holding a session
+    /// that was not rated (unknown, never rest), and which sessions were possible and rated each day — the
+    /// rating quota. Shared by the screen and the history view so both read one series.
+    struct SessionSeries: Sendable {
+        let byDay: [String: Double]
+        let unknownDays: Set<String>
+        let possibleKeysByDay: [String: Set<String>]
+        let ratedKeysByDay: [String: Set<String>]
+        let canonicalIdByStart: [Int: String]
+        let ratingBySession: [String: SessionRPEEntry]
 
+        var possibleByDay: [String: Int] { possibleKeysByDay.mapValues(\.count) }
+        var ratedByDay: [String: Int] { ratedKeysByDay.mapValues(\.count) }
+    }
+
+    nonisolated static func sessionSeries(unified: [UnifiedTrainingSession], strengthWorkouts: [HevyWorkout],
+                                          rpeEntries: [SessionRPEEntry], offset: Int) -> SessionSeries {
         var durationByStart: [Int: Double] = [:]
         var canonicalIdByStart: [Int: String] = [:]
         for session in unified {
@@ -250,6 +252,34 @@ final class TrainingLoadModel: ObservableObject {
             let ratedKeys = ratedSessionKeysByDay[day] ?? []
             return possibleKeys.isSubset(of: ratedKeys) ? nil : day
         })
+        return SessionSeries(byDay: sessionByDay, unknownDays: sessionUnknown,
+                             possibleKeysByDay: possibleSessionKeysByDay, ratedKeysByDay: ratedSessionKeysByDay,
+                             canonicalIdByStart: canonicalIdByStart, ratingBySession: ratingBySession)
+    }
+
+    nonisolated static func prepare(strengthHistory: ResolvedStrengthHistory,
+                                    unified: [UnifiedTrainingSession],
+                                    cardioResolution: TrainingCardioLoadResolution,
+                                    rpeEntries: [SessionRPEEntry], dailyRows: [DailyMetric],
+                                    vo2Estimates: [VO2maxReading], vo2Apple: [VO2maxReading] = [],
+                                    today: String, now: Int,
+                                    offset: Int) -> Prepared {
+        let strengthWorkouts = strengthHistory.workouts
+        let templates = strengthHistory.templates
+        let strengthByDay = TrainingLoadLanes.strengthByDay(strengthWorkouts, tzOffsetSeconds: offset)
+        let cardioSeries = TrainingLoadLanes.cardioSeries(sessions: unified, resolution: cardioResolution,
+                                                          tzOffsetSeconds: offset)
+        let cardioByDay = cardioSeries.byDay
+        let cardioUnknown = cardioSeries.unknownDays
+
+        let sessionSeries = Self.sessionSeries(unified: unified, strengthWorkouts: strengthWorkouts,
+                                               rpeEntries: rpeEntries, offset: offset)
+        let canonicalIdByStart = sessionSeries.canonicalIdByStart
+        let ratingBySession = sessionSeries.ratingBySession
+        let sessionByDay = sessionSeries.byDay
+        let sessionUnknown = sessionSeries.unknownDays
+        let possibleSessionKeysByDay = sessionSeries.possibleKeysByDay
+        let ratedSessionKeysByDay = sessionSeries.ratedKeysByDay
 
         // Each lane is read through today only once something was logged today; before that, through
         // yesterday. A day that has not happened yet is not a rest day (`LaneEngine.readingDay`).
@@ -531,6 +561,9 @@ struct TrainingLoadView: View {
                 duplicateReviewCard
                 sustainedCard
                 summaryGrid.trainingCardEntrance().id("statement")
+                TrainingHistoryLink(focus: .all) {
+                    TrainingHistoryRow(subtitle: String(localized: "Strength, cardio and session load over months and years"))
+                }
                 developmentCards.trainingCardEntrance().id("lifts")
                 shapeCard.trainingCardEntrance().id("shape")
                 explainers.trainingCardEntrance().id("method")

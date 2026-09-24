@@ -617,6 +617,33 @@ days with at least five known (`TrainingLoad.distribution`). Readiness now repor
 highest lane's — and warns at 2.0 only in a lane whose band is at least *about usual*. A week of walks
 has a tiny spread and a large quotient; it sits below usual and does not warn.
 
+### Training history — months and years of each lane
+
+Source: `TrainingHistory.swift` (periods, gaps, level line, bands per period, lift and VO₂max series),
+`TrainingHistoryModel.swift` and `TrainingHistoryView.swift`; tests in `TrainingHistoryTests.swift` and
+`StrandTests/TrainingHistoryModelTests.swift`. It replaced the Trends card "Effort over time" (CTL/ATL/TSB
+of log-scaled daily Effort) and opens from Training Load, Trends, Strength and Cardio, filtered to the
+matching lane.
+
+- **Spans and resolution.** 3 months, 1 year, 5 years or the whole history, plus a jump to any date (the
+  span is then centred on it, never running past today). Up to 92 days a bar is a day, up to two years a
+  week (Monday to Sunday), beyond that a calendar month. The first bar starts on its period's first day.
+- **Same series, same bands.** Strength, Cardio and Session Load are the Training Load screen's own daily
+  series (`TrainingLoadLanes`, `TrainingLoadModel.sessionSeries`). Each period's band strip is
+  `LaneEngine`'s reading on the period's last recorded day — the band the screen showed that day. Session
+  Load has no band.
+- **Three kinds of day.** A known day counts, zero on a rest day. An unknown day — training the data could
+  not price, or an unrated session — is left out of the total and hatched. Days before a lane's first
+  record, or after its reading day, are unrecorded: neither rest nor a gap. Cardio sessions the ledger has
+  not priced yet are unknown until the backfill reaches them.
+- **Level line.** The mean known daily load of the 42 days ending on the period's last recorded day, times
+  the period's recorded days — the wearer's usual for a period that long at that time. It needs 21 known
+  days of the 42.
+- **What the training did.** Above strength: the session-best e1RM per period of three lifts, the most
+  trained in the span unless the wearer picked others (stored locally). Above cardio: NOOP's VO₂max
+  estimate as the line, Apple Watch readings as points, each averaged per period.
+- **Session Load** shows its rating quota for the span: rated sessions of the sessions there were.
+
 ### Training status — is it too much, too little, or about right?
 
 Source: `LaneEngine.swift` (the band and the verdict table), `TrainingStatus.swift`

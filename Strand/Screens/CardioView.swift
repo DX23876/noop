@@ -59,6 +59,9 @@ struct CardioView: View {
                     loadHero
                     weekFigures
                     loadChart
+                    TrainingHistoryLink(focus: .cardio) {
+                        TrainingHistoryRow(subtitle: String(localized: "Your cardio load and VO₂max over months and years"))
+                    }
                     intensityCard.id("intensity")
                     activityTiles(proxy)
                     sportMix

@@ -1,6 +1,6 @@
 # Training Load – Umbau- und Erweiterungsplan
 
-Stand: 2026-09-24 · Branch: `claude/training-load-optimization-cfb32e` · Status: **beschlossen; P1, P3 und P2 umgesetzt, weiter mit P5** (offen: P3-Laufzeitprüfung am echten iPhone-Datensatz)
+Stand: 2026-09-24 · Branch: `claude/training-load-optimization-cfb32e` · Status: **beschlossen; P1, P3, P2 und P5 umgesetzt, weiter mit P4** (offen: P3-Laufzeitprüfung am echten iPhone-Datensatz)
 
 Dieser Plan fasst die Untersuchung von Training Load zusammen (Code-Review, Messung gegen die echte
 `StrandAnalytics`-Logik, Abgleich mit dem Polar-Whitepaper) und die in vier Grilling-Runden getroffenen
@@ -158,6 +158,7 @@ trainingSessionLoad (Migration v70 + Test)
 - **Migration: ja** – `currentAnalysisRecipeVersion` hochsetzen, Regressionstests, Hinweis in den Release Notes.
 
 ### P5 – Verlauf (Q7, Q19, Q20, Q23, Q24)
+Geliefert: `TrainingHistory` (StrandAnalytics) + `TrainingHistoryView`. Langzeitniveau = Mittel der bekannten Tageslast über 42 Tage × erfasste Tage der Periode (mind. 21 bekannte Tage). Band je Periode = `LaneEngine`-Reading am letzten erfassten Tag. Noch nicht bepreiste Cardio-Einheiten zählen als unbekannt (schraffiert), bis der P3-Backfill sie erreicht. Die Karte „Effort over time“ ist entfernt; `TrainingLoadEngine`/`evaluateWithTrainingLoad` bleiben im Package, werden in der App aber nicht mehr gelesen.
 - Eigener Screen **Verlauf**, erreichbar aus Training Load, Trends (anstelle der Karte „Effort over time“,
   die entfällt), Kraft und Cardio, jeweils auf die passende Lane gefiltert.
 - Zeiträume 3 M · 1 J · 5 J · Alles plus **Sprung zu einem Datum**. Auflösung Tage bis 3 M, Wochen bis 2 J,

@@ -281,11 +281,13 @@ struct TrendsView: View {
                             .staggeredAppear(index: 3)
                         smallMultiples(hrv: hrv, rhr: rhr, strain: strain)
                             .staggeredAppear(index: 4)
-                        // Long-horizon Effort history (CTL/ATL/TSB). Uses the FULL history, not the
-                        // range window — its baseline is inherently a 42-day horizon. Self-hides its
-                        // chart behind an honest "needs N more days" state until enough history exists.
-                        TrainingLoadCard(days: repo.days)
-                            .staggeredAppear(index: 5)
+                        // Long-horizon training history. Replaced the "Effort over time" card (CTL/ATL/TSB
+                        // on log-scaled Effort): the history view reads the Training Load lanes in their
+                        // own units, with the bands the Training Load screen showed at the time.
+                        TrainingHistoryLink(focus: .all) {
+                            TrainingHistoryRow(subtitle: String(localized: "Strength, cardio and session load over months and years"))
+                        }
+                        .staggeredAppear(index: 5)
                         yearStrip
                             .staggeredAppear(index: 6)
                         exportReportRow

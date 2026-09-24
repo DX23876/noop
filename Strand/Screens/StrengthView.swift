@@ -141,6 +141,9 @@ struct StrengthView: View {
                     // so the weekly set range in the middle of this screen can be captured too.
                     muscleGroups.id("volume")
                     loadChart
+                    TrainingHistoryLink(focus: .strength) {
+                        TrainingHistoryRow(subtitle: String(localized: "Your strength load and lifts over months and years"))
+                    }
                     balanceCard
                     selectedRangeOverview
                     exerciseProgress
