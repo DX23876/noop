@@ -163,6 +163,17 @@ extension Repository {
         readinessLoadContext = context
     }
 
+    /// The cardio lane's room today (`LaneOutlook.headroom`), read over exactly the history a reading
+    /// depends on — what the Coach checks a planned session against.
+    func cardioRoomToday() async -> LaneHeadroom? {
+        let sessions = await trainingSessions(days: TrainingLoadLanes.lookbackDays).sessions
+        let resolution = await cardioLoads(for: sessions)
+        let offset = TimeZone.current.secondsFromGMT()
+        let series = TrainingLoadLanes.cardioSeries(sessions: sessions, resolution: resolution, tzOffsetSeconds: offset)
+        return LaneOutlook.headroom(dailyByDay: series.byDay, unknownDays: series.unknownDays,
+                                    activity: series.activity, lane: .cardio, today: Repository.localDayKey(Date()))
+    }
+
     /// Ledger rows priced with a different HR maximum than the current one — what the "recalculate
     /// history" action would change. A changed HR max never rewrites history on its own.
     func cardioLoadRowsWithOtherHRmax() async -> Int {

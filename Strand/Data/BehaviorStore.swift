@@ -85,6 +85,10 @@ final class BehaviorStore: ObservableObject {
     /// recovery-derived optimal band. Default OFF like every other automation.
     @Published var strainTargetNudge: Bool { didSet { d.set(strainTargetNudge, forKey: K.strainTargetNudge) } }
 
+    // MARK: Training load alert (P6)
+    /// One alert when a Training Load lane moves into "well above your usual". Default OFF.
+    @Published var trainingLoadAlert: Bool { didSet { d.set(trainingLoadAlert, forKey: K.trainingLoadAlert) } }
+
     private let d: UserDefaults
     private enum K {
         static let dtAction = "behavior.doubleTapAction"
@@ -113,6 +117,7 @@ final class BehaviorStore: ObservableObject {
         static let batteryAlerts = "behavior.batteryAlerts"
         static let batteryPredictiveAlerts = "behavior.batteryPredictiveAlerts"
         static let strainTargetNudge = "behavior.strainTargetNudge"
+        static let trainingLoadAlert = "behavior.trainingLoadAlert"
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -143,6 +148,7 @@ final class BehaviorStore: ObservableObject {
         batteryAlerts = d.object(forKey: K.batteryAlerts) as? Bool ?? true
         batteryPredictiveAlerts = d.object(forKey: K.batteryPredictiveAlerts) as? Bool ?? true
         strainTargetNudge = d.object(forKey: K.strainTargetNudge) as? Bool ?? false
+        trainingLoadAlert = d.object(forKey: K.trainingLoadAlert) as? Bool ?? false
     }
 
     // MARK: Charge baseline recalibration

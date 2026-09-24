@@ -101,6 +101,9 @@ final class StrengthModel: ObservableObject {
         mondayKey: "", sessionCount: 0, workingSetCount: 0, volumeLoadKg: 0,
         setsByMuscle: [:], secondarySetsByMuscle: [:], unattributedSetCount: 0)
     @Published private(set) var typicalBands: [HevyMuscleGroup: ClosedRange<Double>] = [:]
+    /// Each muscle group's load band through the week's reading day (`MuscleGroupLoad`, P6) — the strength
+    /// lane's own reading, per group.
+    @Published private(set) var groupBands: [HevyMuscleGroup: RelativeLoadBand] = [:]
     /// The selected week's strength lane, read exactly as Training Load reads it.
     @Published private(set) var lane: TrainingLoadModel.Lane?
     @Published private(set) var laneRatios: [TrainingLoadModel.RatioPoint] = []
@@ -164,6 +167,7 @@ final class StrengthModel: ObservableObject {
         let bodyweightKg: Double
         let bodyweightSets: Int
         let unpricedBodyweightSets: Int
+        let groupBands: [HevyMuscleGroup: RelativeLoadBand]
     }
 
     // MARK: - Load
@@ -396,7 +400,9 @@ final class StrengthModel: ObservableObject {
                                                       endingBefore: anchor, tzOffsetSeconds: offset),
                 bodyweightKg: bodyweightVolume.kg,
                 bodyweightSets: bodyweightVolume.sets,
-                unpricedBodyweightSets: unpriced)
+                unpricedBodyweightSets: unpriced,
+                groupBands: MuscleGroupLoad.bands(laneWorkouts, templates: catalogue, through: laneDay,
+                                                  tzOffsetSeconds: offset))
         }.value
 
         guard !Task.isCancelled else { return }
@@ -417,6 +423,7 @@ final class StrengthModel: ObservableObject {
         weekBodyweightKg = bundle.bodyweightKg
         weekBodyweightSets = bundle.bodyweightSets
         weekUnpricedBodyweightSets = bundle.unpricedBodyweightSets
+        groupBands = bundle.groupBands
     }
 
     // MARK: - The exercise card

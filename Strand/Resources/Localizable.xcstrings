@@ -451511,6 +451511,992 @@
           }
         }
       }
+    },
+    "%lld of %lld sessions rated" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld von %lld Einheiten bewertet"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld de %lld sesiones valoradas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld séances notées sur %lld"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld sessioni valutate su %lld"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ocenione sesje: %lld z %lld"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld de %lld sessões avaliadas"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Оценено тренировок: %lld из %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已评分 %lld / %lld 次训练"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已評分 %lld / %lld 次訓練"
+          }
+        }
+      }
+    },
+    "Already above your usual week; %@ %@ more before well above usual." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schon über deiner üblichen Woche; noch %@ %@ bis deutlich über üblich."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ya por encima de tu semana habitual; %@ %@ más antes de quedar muy por encima."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déjà au-dessus de votre semaine habituelle ; encore %@ %@ avant nettement au-dessus."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Già sopra la tua settimana abituale; altri %@ %@ prima di molto sopra il solito."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Już powyżej Twojego zwykłego tygodnia; jeszcze %@ %@ do poziomu znacznie powyżej normy."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Já acima da sua semana habitual; mais %@ %@ antes de muito acima do habitual."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Уже выше вашей обычной недели; ещё %@ %@ до значительно выше обычного."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已高于你平常的一周；再增加 %@ %@ 就会明显高于平常。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已高於你平常的一週；再增加 %@ %@ 就會明顯高於平常。"
+          }
+        }
+      }
+    },
+    "Already past the edge of your usual week." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schon über der Grenze deiner üblichen Woche."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ya has pasado el límite de tu semana habitual."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déjà au-delà de la limite de votre semaine habituelle."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Già oltre il limite della tua settimana abituale."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Już poza granicą Twojego zwykłego tygodnia."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Já passou o limite da sua semana habitual."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Уже за пределами вашей обычной недели."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已超出你平常一周的边界。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已超出你平常一週的邊界。"
+          }
+        }
+      }
+    },
+    "Cardio load well above your usual" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cardio-Last deutlich über dem Üblichen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga de cardio muy por encima de lo habitual"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge cardio nettement au-dessus de l’habitude"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carico cardio molto sopra il solito"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obciążenie cardio znacznie powyżej normy"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga de cardio muito acima do habitual"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Кардионагрузка значительно выше обычной"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有氧负荷明显高于平常"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有氧負荷明顯高於平常"
+          }
+        }
+      }
+    },
+    "Notify when a lane is well above usual" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Benachrichtigen, wenn ein Bereich deutlich über dem Üblichen liegt"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avisar cuando una carga esté muy por encima de lo habitual"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avertir quand une charge est nettement au-dessus de l’habitude"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avvisa quando un carico è molto sopra il solito"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Powiadom, gdy obciążenie jest znacznie powyżej normy"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avisar quando uma carga estiver muito acima do habitual"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Уведомлять, когда нагрузка значительно выше обычной"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当某类负荷明显高于平常时通知"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "當某類負荷明顯高於平常時通知"
+          }
+        }
+      }
+    },
+    "Once per high phase: it notifies again only after the lane has been back within its usual. It describes load only, never whether the load is good or bad." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Einmal pro Hochphase: Erst wenn der Bereich wieder im Üblichen war, kommt eine neue Mitteilung. Sie beschreibt nur die Last, nie ob sie gut oder schlecht ist."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una vez por fase alta: solo vuelve a avisar cuando la carga ha regresado a lo habitual. Describe solo la carga, nunca si es buena o mala."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une fois par phase haute : elle ne revient qu’après un retour à l’habitude. Elle décrit seulement la charge, jamais si elle est bonne ou mauvaise."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una volta per fase alta: avvisa di nuovo solo dopo che il carico è tornato nel solito. Descrive solo il carico, mai se è buono o cattivo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Raz na wysoką fazę: kolejne powiadomienie pojawi się dopiero po powrocie do normy. Opisuje tylko obciążenie, nigdy czy jest dobre, czy złe."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uma vez por fase alta: só volta a avisar depois de a carga ter regressado ao habitual. Descreve apenas a carga, nunca se é boa ou má."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Один раз за фазу подъёма: повторно — только после возвращения к обычному. Описывает лишь нагрузку, а не то, хороша она или плоха."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每个高负荷阶段只通知一次：负荷回到平常后才会再次通知。它只描述负荷，从不评判好坏。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每個高負荷階段只通知一次：負荷回到平常後才會再次通知。它只描述負荷，從不評判好壞。"
+          }
+        }
+      }
+    },
+    "One notification when your strength or cardio load of the last seven days moves well above your usual — the same band Training Load shows." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine Mitteilung, wenn deine Kraft- oder Cardio-Last der letzten sieben Tage deutlich über dein Übliches steigt – dasselbe Band, das Trainingslast zeigt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un aviso cuando tu carga de fuerza o cardio de los últimos siete días pase a estar muy por encima de lo habitual: la misma banda que muestra Carga de entrenamiento."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une notification quand votre charge de force ou de cardio des sept derniers jours passe nettement au-dessus de l’habitude — la même bande que Charge d’entraînement."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una notifica quando il tuo carico di forza o cardio degli ultimi sette giorni sale molto sopra il solito: la stessa fascia di Carico di allenamento."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jedno powiadomienie, gdy obciążenie siłowe lub cardio z ostatnich siedmiu dni wzrośnie znacznie powyżej normy — to samo pasmo, które pokazuje Obciążenie treningowe."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uma notificação quando a sua carga de força ou cardio dos últimos sete dias passar a muito acima do habitual — a mesma faixa que a Carga de treino mostra."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Одно уведомление, когда силовая или кардионагрузка за последние семь дней станет значительно выше обычной, — тот же диапазон, что показывает «Тренировочная нагрузка»."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当你过去七天的力量或有氧负荷明显高于平常时发送一次通知——与训练负荷显示的区间相同。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "當你過去七天的力量或有氧負荷明顯高於平常時發送一次通知——與訓練負荷顯示的區間相同。"
+          }
+        }
+      }
+    },
+    "Room today" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spielraum heute"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Margen hoy"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Marge aujourd’hui"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Margine di oggi"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zapas na dziś"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Margem hoje"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Запас на сегодня"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日余量"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日餘量"
+          }
+        }
+      }
+    },
+    "Strength load well above your usual" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kraftlast deutlich über dem Üblichen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga de fuerza muy por encima de lo habitual"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge de force nettement au-dessus de l’habitude"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carico di forza molto sopra il solito"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obciążenie siłowe znacznie powyżej normy"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga de força muito acima do habitual"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Силовая нагрузка значительно выше обычной"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "力量负荷明显高于平常"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "力量負荷明顯高於平常"
+          }
+        }
+      }
+    },
+    "Training load alert" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trainingslast-Hinweis"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aviso de carga de entrenamiento"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alerte de charge d’entraînement"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avviso carico di allenamento"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alert obciążenia treningowego"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alerta de carga de treino"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Оповещение о нагрузке"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "训练负荷提醒"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "訓練負荷提醒"
+          }
+        }
+      }
+    },
+    "Up to %@ %@ more stays within your usual week." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bis zu %@ %@ mehr bleiben in deiner üblichen Woche."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hasta %@ %@ más te mantiene en tu semana habitual."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jusqu’à %@ %@ de plus reste dans votre semaine habituelle."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fino a %@ %@ in più restano nella tua settimana abituale."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Do %@ %@ więcej mieści się w Twoim zwykłym tygodniu."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Até mais %@ %@ mantém-se na sua semana habitual."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ещё до %@ %@ — в пределах вашей обычной недели."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再增加至多 %@ %@ 仍在你平常的一周之内。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再增加至多 %@ %@ 仍在你平常的一週之內。"
+          }
+        }
+      }
+    },
+    "Up to %@ %@ more stays within your usual week; %@ before well above usual." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bis zu %@ %@ mehr bleiben in deiner üblichen Woche; %@ bis deutlich über üblich."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hasta %@ %@ más te mantiene en tu semana habitual; %@ antes de quedar muy por encima."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jusqu’à %@ %@ de plus reste dans votre semaine habituelle ; %@ avant nettement au-dessus."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fino a %@ %@ in più restano nella tua settimana abituale; %@ prima di molto sopra il solito."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Do %@ %@ więcej mieści się w Twoim zwykłym tygodniu; %@ do poziomu znacznie powyżej normy."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Até mais %@ %@ mantém-se na sua semana habitual; %@ antes de muito acima do habitual."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ещё до %@ %@ — в пределах вашей обычной недели; %@ — до значительно выше обычного."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再增加至多 %@ %@ 仍在你平常的一周之内；增加 %@ 会明显高于平常。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再增加至多 %@ %@ 仍在你平常的一週之內；增加 %@ 會明顯高於平常。"
+          }
+        }
+      }
+    },
+    "Where the edges of your usual week lie, in each lane's own unit. Not a target." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wo die Grenzen deiner üblichen Woche liegen, in der eigenen Einheit jedes Bereichs. Kein Ziel."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dónde están los límites de tu semana habitual, en la unidad propia de cada carga. No es un objetivo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Où se situent les limites de votre semaine habituelle, dans l’unité propre à chaque charge. Pas un objectif."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dove si trovano i limiti della tua settimana abituale, nell’unità propria di ciascun carico. Non è un obiettivo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gdzie leżą granice Twojego zwykłego tygodnia, we własnej jednostce każdego obciążenia. To nie cel."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Onde ficam os limites da sua semana habitual, na unidade própria de cada carga. Não é um objetivo."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Где проходят границы вашей обычной недели, в собственной единице каждой нагрузки. Это не цель."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你平常一周的边界在哪里，按每类负荷自己的单位显示。不是目标。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你平常一週的邊界在哪裡，按每類負荷自己的單位顯示。不是目標。"
+          }
+        }
+      }
+    },
+    "With rest days, back within your usual on %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mit Ruhetagen wieder im Üblichen am %@."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Con días de descanso, de vuelta a lo habitual el %@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avec des jours de repos, de retour dans l’habitude le %@."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Con giorni di riposo, di nuovo nel solito il %@."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Z dniami odpoczynku powrót do normy: %@."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Com dias de descanso, de volta ao habitual em %@."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "С днями отдыха — снова в пределах обычного: %@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "若安排休息日，将于 %@ 回到平常范围。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "若安排休息日，將於 %@ 回到平常範圍。"
+          }
+        }
+      }
+    },
+    "Your last seven days of cardio are well above your usual. This describes the load only — Training Load shows what it rests on." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine letzten sieben Tage Cardio liegen deutlich über deinem Üblichen. Das beschreibt nur die Last – Trainingslast zeigt, worauf sie beruht."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tus últimos siete días de cardio están muy por encima de lo habitual. Esto describe solo la carga; Carga de entrenamiento muestra en qué se basa."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vos sept derniers jours de cardio sont nettement au-dessus de l’habitude. Cela décrit seulement la charge — Charge d’entraînement montre sur quoi elle repose."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gli ultimi sette giorni di cardio sono molto sopra il solito. Descrive solo il carico: Carico di allenamento mostra su cosa si basa."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ostatnie siedem dni cardio jest znacznie powyżej normy. To opisuje tylko obciążenie — Obciążenie treningowe pokazuje, na czym się opiera."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os seus últimos sete dias de cardio estão muito acima do habitual. Isto descreve apenas a carga — a Carga de treino mostra em que se baseia."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Последние семь дней кардио значительно выше обычного. Это описывает только нагрузку — «Тренировочная нагрузка» показывает, на чём она основана."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你过去七天的有氧明显高于平常。这里只描述负荷——训练负荷会显示其依据。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你過去七天的有氧明顯高於平常。這裡只描述負荷——訓練負荷會顯示其依據。"
+          }
+        }
+      }
+    },
+    "Your last seven days of lifting are well above your usual. This describes the load only — Training Load shows what it rests on." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine letzten sieben Tage Krafttraining liegen deutlich über deinem Üblichen. Das beschreibt nur die Last – Trainingslast zeigt, worauf sie beruht."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tus últimos siete días de fuerza están muy por encima de lo habitual. Esto describe solo la carga; Carga de entrenamiento muestra en qué se basa."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vos sept derniers jours de musculation sont nettement au-dessus de l’habitude. Cela décrit seulement la charge — Charge d’entraînement montre sur quoi elle repose."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gli ultimi sette giorni di forza sono molto sopra il solito. Descrive solo il carico: Carico di allenamento mostra su cosa si basa."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ostatnie siedem dni treningu siłowego jest znacznie powyżej normy. To opisuje tylko obciążenie — Obciążenie treningowe pokazuje, na czym się opiera."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os seus últimos sete dias de força estão muito acima do habitual. Isto descreve apenas a carga — a Carga de treino mostra em que se baseia."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Последние семь дней силовых тренировок значительно выше обычного. Это описывает только нагрузку — «Тренировочная нагрузка» показывает, на чём она основана."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你过去七天的力量训练明显高于平常。这里只描述负荷——训练负荷会显示其依据。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你過去七天的力量訓練明顯高於平常。這裡只描述負荷——訓練負荷會顯示其依據。"
+          }
+        }
+      }
+    },
+    "The bar is this week's working sets for that muscle. The shaded band behind it is what YOU usually do — the middle half of your last eight training weeks.\n\nIt is not a target. NOOP has no way of knowing what your right weekly volume is, and a number from a textbook presented as your goal would be a guess wearing a uniform. What it can tell you is when a week is unusual for you, and that is what the band shows.\n\nWeeks with no training are left out, so a holiday does not drag the band down and then make your return look excessive.\n\nThe symbol at the end of each row is the comparison Training Load makes for the whole strength lane — below, about, above or well above your usual — read for that muscle group on its own." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Balken zeigt die Arbeitssätze dieser Woche für diesen Muskel. Der schattierte Bereich dahinter ist das, was DU üblicherweise machst – die mittlere Hälfte deiner letzten acht Trainingswochen.\n\nEr ist kein Ziel. NOOP kann nicht wissen, welches Wochenvolumen für dich richtig ist, und eine Zahl aus dem Lehrbuch als dein Ziel auszugeben, wäre eine Vermutung in Uniform. Was NOOP sagen kann: wann eine Woche für dich ungewöhnlich ist – und genau das zeigt der Bereich.\n\nWochen ohne Training werden ausgelassen, damit ein Urlaub den Bereich nicht nach unten zieht und deine Rückkehr danach übertrieben aussieht.\n\nDas Symbol am Ende jeder Zeile ist der Vergleich, den Trainingslast für das gesamte Krafttraining anstellt – unter, etwa wie, über oder deutlich über deinem Üblichen –, hier für diese Muskelgruppe allein gelesen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La barra son las series de trabajo de esta semana para ese músculo. La banda sombreada detrás es lo que USTED suele hacer: la mitad media de sus últimas ocho semanas de entrenamiento.\n\nNo es un objetivo. NOOP no tiene forma de saber cuál es su volumen semanal correcto, y un número de un libro de texto presentado como su objetivo sería una suposición usando uniforme. Lo que puede decirte es cuándo una semana es inusual para ti, y eso es lo que muestra la banda.\n\nLas semanas sin entrenamiento quedan fuera, para que unas vacaciones no arrastren la banda hacia abajo y luego hagan que su regreso parezca excesivo.\n\nEl símbolo al final de cada fila es la comparación que Carga de entrenamiento hace para toda la fuerza —por debajo, en torno a, por encima o muy por encima de lo habitual—, leída solo para ese grupo muscular."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La barre représente les séries de travail de cette semaine pour ce muscle. La bande ombrée derrière représente ce que VOUS faites habituellement : la moitié médiane de vos huit dernières semaines d’entraînement.\n\nCe n'est pas une cible. NOOP n'a aucun moyen de savoir quel est votre bon volume hebdomadaire, et un chiffre tiré d'un manuel présenté comme votre objectif serait une supposition en portant un uniforme. Ce qu'il peut vous dire, c'est quand une semaine est inhabituelle pour vous, et c'est ce que le groupe montre.\n\nLes semaines sans entraînement sont laissées de côté, afin que les vacances ne fassent pas tomber le groupe et ne donnent pas l'impression que votre retour est excessif.\n\nLe symbole en fin de ligne est la comparaison que Charge d’entraînement fait pour toute la force — en dessous, environ, au-dessus ou nettement au-dessus de votre habitude —, lue pour ce seul groupe musculaire."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La barra sono le serie di lavoro di questa settimana per quel muscolo. La fascia ombreggiata dietro rappresenta ciò che fai di solito: la metà centrale delle tue ultime otto settimane di allenamento.\n\nNon è un obiettivo. NOOP non ha modo di sapere qual è il tuo volume settimanale corretto e un numero tratto da un libro di testo presentato come obiettivo sarebbe un'ipotesi indossando un'uniforme. Ciò che può dirti è quando una settimana è insolita per te, e questo è ciò che la band mostra.\n\nLe settimane senza allenamenti vengono tralasciate, così una vacanza non trascina il gruppo verso il basso e poi fa sembrare eccessivo il tuo ritorno.\n\nIl simbolo alla fine di ogni riga è il confronto che Carico di allenamento fa per tutta la forza — sotto, circa, sopra o molto sopra il tuo solito — letto solo per quel gruppo muscolare."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sztanga to serie robocze dla tego mięśnia na ten tydzień. Zacieniony pasek za nim to to, co zwykle robisz — środkowa połowa ostatnich ośmiu tygodni treningowych.\n\nTo nie jest cel. NOOP nie ma możliwości sprawdzenia, jaki jest Twój prawidłowy tygodniowy wolumen, a liczba z podręcznika przedstawiona jako Twój cel będzie przypuszczeniem, jeśli nosisz mundurek. Może ci powiedzieć, kiedy tydzień jest dla ciebie nietypowy i to właśnie pokazuje zespół.\n\nTygodnie bez treningów są pomijane, aby urlop nie ciągnął zespołu w dół i nie sprawiał, że powrót wyglądałby na nadmierny.\n\nSymbol na końcu każdego wiersza to porównanie, które Obciążenie treningowe robi dla całej siły — poniżej, w okolicach, powyżej lub znacznie powyżej Twojej normy — odczytane tylko dla tej grupy mięśni."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A barra são as séries de trabalho desta semana para este músculo. A faixa sombreada atrás é o que TU costumas fazer – na metade intermédia das últimas oito semanas de treino.\n\nNão é um alvo. O NOOP não tem forma de saber qual é o seu volume semanal correto, e um número de um livro apresentado como o seu objetivo seria um palpite usando uniforme. O que isto pode dizer é quando uma semana é incomum para si, e é isso que a banda mostra.\n\nAs semanas sem treino ficam de fora, para que o feriado não prejudique a banda e faça com que o seu regresso pareça excessivo.\n\nO símbolo no fim de cada linha é a comparação que a Carga de treino faz para toda a força — abaixo, cerca, acima ou muito acima do habitual —, lida só para esse grupo muscular."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Планка — это рабочие сеты на эту мышцу на этой неделе. Заштрихованная полоса позади него — это то, что ВЫ обычно делаете — середина последних восьми недель тренировок.\n\nЭто не цель. У NOOP нет возможности узнать, какой у вас правильный еженедельный объем, и число из учебника, представленное в качестве вашей цели, будет догадкой, если носить униформу. Что он может вам сказать, так это то, когда неделя для вас необычная, и это то, что показывает группа.\n\nНедели без тренировок не учитываются, поэтому отпуск не затянет группу и не сделает ваше возвращение чрезмерным.\n\nСимвол в конце каждой строки — это сравнение, которое «Тренировочная нагрузка» делает для всей силовой нагрузки: ниже, примерно как, выше или значительно выше обычного — только для этой группы мышц."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "杠铃是本周该肌肉的训练组数。它后面的阴影带是您通常做的事情——过去八周训练的中间部分。\n\n它不是一个目标。 NOOP 无法知道您每周的正确训练量是多少，教科书上作为您目标的数字只是穿着制服的猜测。它能告诉你的是，当一周对你来说不寻常时，这就是乐队所展示的。\n\n没有训练的几周就被排除在外，所以假期不会拖累乐队，也不会让你的回报看起来过高。\n\n每行末尾的符号是训练负荷对整个力量负荷所做的比较——低于、接近、高于或明显高于你的平常水平——仅针对该肌群读取。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "槓鈴是本週該肌肉的訓練組數。它後面的陰影帶是您通常會做的事情——過去八週訓練的中間部分。\n\n它不是一個目標。 NOOP 無法知道您每週的正確訓練量是多少，教科書上作為您目標的數字只是穿著制服的猜測。它能告訴你的是，當一周對你來說不尋常時，這就是樂團所展示的。\n\n沒有訓練的幾週就被排除在外，所以假期不會拖累樂隊，也不會讓你的回報看起來過高。\n\n每行末尾的符號是訓練負荷對整個力量負荷所做的比較——低於、接近、高於或明顯高於你的平常水平——僅針對該肌群讀取。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

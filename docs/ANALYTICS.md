@@ -622,6 +622,30 @@ days with at least five known (`TrainingLoad.distribution`). Readiness now repor
 highest lane's — and warns at 2.0 only in a lane whose band is at least *about usual*. A week of walks
 has a tiny spread and a large quotient; it sits below usual and does not warn.
 
+### Room today, settling, muscle groups and the alert
+
+Source: `LaneOutlook.swift` (`LaneOutlook`, `MuscleGroupLoad`); tests in `LaneOutlookTests.swift`,
+`StrandTests/TrainingLoadNotifierTests.swift` and `StrandTests/ReadinessLoadContextTests.swift`.
+
+- **Room today.** How much more load today keeps the last seven days at or under the edge of "above
+  usual", and of "well above usual" — in each lane's own unit, rounded down. Solved by bisection on today's
+  total against `TrainingLoad.relativeLoad` and `LaneEngine.thresholds`, because the personal edges move
+  with the week being judged; at the figure the week still reads inside the edge, one step past it it does
+  not. No room while the lane has no band; no "well above" room while the low-volume guard caps the lane.
+- **Settling.** For a lane above or well above usual: the first day within 21 on which `LaneEngine` —
+  hysteresis included — reads it about usual again if every day from its reading day is rest.
+- **Muscle groups.** The Strength screen marks each muscle group with the strength lane's band, read by
+  `LaneEngine` on that group's own hard sets per day (each set once, on its primary group — the list's own
+  counting).
+- **Coach.** `get_training_load` carries room and settling per lane; `estimate_session_effort` prices a
+  planned zone and duration as Banister TRIMP between the zone's heart-rate bounds (the average-heart-rate
+  form) and says whether it fits inside the usual week, would take it above, or well above.
+- **Alert.** Default off (Automations). One notification when a lane moves into well above usual, and
+  none again until that lane has left the band; the phase is tracked while the alert is off, so switching
+  it on in a high week does not post for a week already under way.
+
+None of these is a verdict: they locate the edges of the usual week, not whether to reach them.
+
 ### Training history — months and years of each lane
 
 Source: `TrainingHistory.swift` (periods, gaps, level line, bands per period, lift and VO₂max series),

@@ -74,6 +74,7 @@ enum CoachTrainingLoadBrief {
         lines.append(contentsOf: laneLines("Session load", unit: "RPE × minutes", lane: p.session,
                                            verdict: nil, coverage: "rated sessions"))
         lines.append("")
+        lines.append(contentsOf: outlookLines(p.outlook))
         lines.append("Recovery over the last 7 nights: \(p.recovery.state.rawValue)")
         if let sustained = p.sustained {
             lines.append("LASTING OVERLOAD: \(sustained.lanes.map(\.rawValue).joined(separator: " and ")) well above "
@@ -116,6 +117,45 @@ enum CoachTrainingLoadBrief {
             lines.append("  coverage: \(lane.measuredCount) of \(lane.possibleCount) \(coverage)")
         }
         return lines
+    }
+
+    /// Room left today and the settling day, per lane — where the edges are, not a target.
+    static func outlookLines(_ outlook: TrainingLoadModel.Outlook) -> [String] {
+        var lines: [String] = []
+        for (name, unit, room, settles) in [("Strength", "weighted sets", outlook.strengthRoom, outlook.strengthSettles),
+                                            ("Cardio", "TRIMP", outlook.cardioRoom, outlook.cardioSettles)] {
+            var parts: [String] = []
+            if let room {
+                parts.append("room today \(number(room.beforeAbove)) \(unit) before above usual"
+                             + (room.beforeWellAbove.map { ", \(number($0)) before well above usual" } ?? ""))
+            }
+            if let settles { parts.append("back to usual on \(settles) if every day from now is rest") }
+            if !parts.isEmpty { lines.append("\(name): " + parts.joined(separator: "; ")) }
+        }
+        guard !lines.isEmpty else { return [] }
+        return ["Room and settling (edges of the usual week, not targets):"] + lines.map { "  " + $0 }
+    }
+
+    /// What a planned cardio session would add to the lane, against today's room. Descriptive: it says
+    /// where the session lands, not whether to do it.
+    static func plannedCardioLine(low: Double, high: Double, room: LaneHeadroom?) -> String {
+        let load = "This session adds about \(number(low))–\(number(high)) TRIMP to the cardio lane (Banister, "
+            + "from the zone's heart-rate range)."
+        guard let room else {
+            return load + " The lane has no band yet, so there is no room to check it against."
+        }
+        let placement: String
+        if high <= room.beforeAbove {
+            placement = "It fits inside the usual week (room before above usual: \(number(room.beforeAbove)))."
+        } else if let well = room.beforeWellAbove, high <= well {
+            placement = "It would take the week above usual (room before above usual: \(number(room.beforeAbove)), "
+                + "before well above usual: \(number(well)))."
+        } else if let well = room.beforeWellAbove {
+            placement = "It would take the week well above usual (room before well above usual: \(number(well)))."
+        } else {
+            placement = "It would take the week above usual (room before above usual: \(number(room.beforeAbove)))."
+        }
+        return load + " " + placement + " This describes load only; recovery and readiness decide whether it is wise."
     }
 
     static func verdictText(_ verdict: LaneVerdict) -> String {

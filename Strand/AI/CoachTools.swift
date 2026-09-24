@@ -306,7 +306,8 @@ enum CoachTool: String, CaseIterable {
                 + "in minutes and get the figure back, computed from the user's own zones and resting "
                 + "heart rate. Call this BEFORE stating any Effort number for a session you are "
                 + "suggesting. Effort follows from intensity and duration — it is not a number you can "
-                + "choose, and a figure you invent will contradict what the app scores afterwards."
+                + "choose, and a figure you invent will contradict what the app scores afterwards. It also says "
+                + "where the session would take this week's cardio load against the user's usual."
         }
     }
 

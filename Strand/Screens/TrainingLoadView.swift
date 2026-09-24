@@ -47,6 +47,19 @@ final class TrainingLoadModel: ObservableObject {
         var id: String { day }
     }
 
+    /// What each lane can still take today, and when a high lane settles with rest (P6).
+    struct Outlook: Sendable, Equatable {
+        var strengthRoom: LaneHeadroom?
+        var cardioRoom: LaneHeadroom?
+        /// The first day the lane reads about usual again if every day from its reading day is rest.
+        var strengthSettles: String?
+        var cardioSettles: String?
+
+        var isEmpty: Bool {
+            strengthRoom == nil && cardioRoom == nil && strengthSettles == nil && cardioSettles == nil
+        }
+    }
+
     struct Prepared: Sendable {
         let strength: Lane
         let cardio: Lane
@@ -65,6 +78,7 @@ final class TrainingLoadModel: ObservableObject {
         let strengthAdaptation: TrainingAdaptationReading
         let cardiovascularAdaptation: TrainingAdaptationReading
         let provisionalStrengthRing: ProvisionalStrengthRingReading?
+        var outlook = Outlook()
     }
 
     /// Days of history read: the oldest week-end of the eight-week strip, 49 days back, plus everything
@@ -105,6 +119,8 @@ final class TrainingLoadModel: ObservableObject {
     @Published private(set) var cardiovascularAdaptation: TrainingAdaptationReading?
     /// Ring-only estimate used before a personal comparison exists. It never becomes a lane status.
     @Published private(set) var provisionalStrengthRing: ProvisionalStrengthRingReading?
+    /// Room left today and the settling day per lane.
+    @Published private(set) var outlook = Outlook()
 
     /// Everything the screen reads, with no side effects — what the Coach's `get_training_load` reads too,
     /// so the Coach can never describe another week than the one this screen shows.
@@ -183,6 +199,7 @@ final class TrainingLoadModel: ObservableObject {
         strengthAdaptation = prepared.strengthAdaptation
         cardiovascularAdaptation = prepared.cardiovascularAdaptation
         provisionalStrengthRing = prepared.provisionalStrengthRing
+        outlook = prepared.outlook
         #if DEBUG
         applyDemoStatusOverride()
         #endif
@@ -376,6 +393,17 @@ final class TrainingLoadModel: ObservableObject {
             provisionalStrengthRing = nil
         }
 
+        let outlook = Outlook(
+            strengthRoom: LaneOutlook.headroom(dailyByDay: strengthByDay, activity: strengthActivity,
+                                               lane: .strength, today: today),
+            cardioRoom: LaneOutlook.headroom(dailyByDay: cardioByDay, unknownDays: cardioUnknown,
+                                             activity: cardioSeries.activity, lane: .cardio, today: today),
+            strengthSettles: LaneOutlook.backToUsual(dailyByDay: strengthByDay, activity: strengthActivity,
+                                                     lane: .strength, from: strengthDay),
+            cardioSettles: LaneOutlook.backToUsual(dailyByDay: cardioByDay, unknownDays: cardioUnknown,
+                                                   activity: cardioSeries.activity, lane: .cardio,
+                                                   from: cardioDay))
+
         return Prepared(
             strength: strengthLane,
             cardio: cardioLane,
@@ -403,7 +431,8 @@ final class TrainingLoadModel: ObservableObject {
             cardioMeasured: cardioSeries.measured,
             strengthAdaptation: strengthAdaptation,
             cardiovascularAdaptation: cardiovascularAdaptation,
-            provisionalStrengthRing: provisionalStrengthRing)
+            provisionalStrengthRing: provisionalStrengthRing,
+            outlook: outlook)
     }
 
     /// Recomputes the stored cardio load history with the current HR maximum, then reloads.
@@ -558,6 +587,7 @@ struct TrainingLoadView: View {
                 // Named sections for `--demo-scroll-to` screenshot QA (DEBUG only; ids are inert otherwise).
                 hero.id("hero")
                 statementCard.trainingCardEntrance().id("advice")
+                roomCard
                 maturityLine
                 duplicateReviewCard
                 sustainedCard
@@ -735,9 +765,10 @@ struct TrainingLoadView: View {
             }
             SummaryTile(symbol: "person.fill.checkmark", tint: StrandPalette.metricCyan,
                         title: String(localized: "Session load"), headline: sessionText(model.session),
-                        detail: model.session?.trend.map {
+                        detail: [model.session?.trend.map {
                             "\(signedPercent($0.percentChange)) · \(comparisonText($0.percentChange))"
                         } ?? String(localized: "Needs two weeks of measured history"),
+                                 sessionQuota].compactMap { $0 }.joined(separator: "\n"),
                         action: { openSummary = .session }) {
                 EmptyView()
             }
@@ -1215,6 +1246,80 @@ struct TrainingLoadView: View {
     /// Shown only when overreaching has lasted three week-ends with that lane's performance falling and
     /// recovery strained — the pattern of non-functional overreaching (Meeusen et al. 2013). It says in
     /// so many words that it is not a diagnosis of overtraining.
+    // MARK: - Room today (P6)
+
+    /// What each lane can still take today before the week reads above usual, and when a high lane
+    /// settles with rest. Load only: it says where the edges are, never that they should be reached.
+    @ViewBuilder private var roomCard: some View {
+        let outlook = model.outlook
+        if !outlook.isEmpty {
+            NoopCard {
+                VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                    Text("Room today").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                    roomRow(.strength, room: outlook.strengthRoom, settles: outlook.strengthSettles,
+                            unit: String(localized: "weighted sets"))
+                    roomRow(.cardio, room: outlook.cardioRoom, settles: outlook.cardioSettles, unit: "TRIMP")
+                    Text("Where the edges of your usual week lie, in each lane's own unit. Not a target.")
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .trainingCardEntrance()
+            .id("room")
+        }
+    }
+
+    @ViewBuilder private func roomRow(_ lane: TrainingLane, room: LaneHeadroom?, settles: String?,
+                                      unit: String) -> some View {
+        if room != nil || settles != nil {
+            HStack(alignment: .top, spacing: NoopMetrics.space2) {
+                Image(systemName: lane.symbol)
+                    .font(StrandFont.caption.weight(.semibold))
+                    .foregroundStyle(lane.color)
+                    .frame(width: 20)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: NoopMetrics.space1) {
+                    if let room { Text(Self.roomText(room, unit: unit)).font(StrandFont.subhead) }
+                    if let settles {
+                        Text(Self.settlesText(settles))
+                            .font(StrandFont.caption)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                    }
+                }
+                .foregroundStyle(StrandPalette.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(Text(lane.title))
+        }
+    }
+
+    /// Rounded down: a figure rounded up would put the edge itself one step past it.
+    static func roomAmount(_ value: Double) -> String {
+        Int(value.rounded(.down)).formatted()
+    }
+
+    static func roomText(_ room: LaneHeadroom, unit: String) -> String {
+        let above = roomAmount(room.beforeAbove)
+        switch (room.beforeAbove > 0, room.beforeWellAbove) {
+        case (true, .some(let well)):
+            return String(localized: "Up to \(above) \(unit) more stays within your usual week; \(roomAmount(well)) before well above usual.")
+        case (true, .none):
+            return String(localized: "Up to \(above) \(unit) more stays within your usual week.")
+        case (false, .some(let well)) where well > 0:
+            return String(localized: "Already above your usual week; \(roomAmount(well)) \(unit) more before well above usual.")
+        default:
+            return String(localized: "Already past the edge of your usual week.")
+        }
+    }
+
+    static func settlesText(_ day: String) -> String {
+        guard let date = TrainingHistoryDates.date(day) else { return day }
+        let text = date.formatted(.dateTime.weekday(.wide).day().month(.abbreviated))
+        return String(localized: "With rest days, back within your usual on \(text).")
+    }
+
     @ViewBuilder private var sustainedCard: some View {
         if let warning = model.sustainedOverreaching {
             TrainingWashCard(color: TrainingStatus.overreaching.color, watermark: "exclamationmark.octagon.fill") {
@@ -1770,6 +1875,12 @@ struct TrainingLoadView: View {
             return String(localized: "\(lane.measuredCount) of \(lane.possibleCount) sessions fully measured; partial days do not enter your comparison")
         }
         return String(localized: "All \(lane.possibleCount) sessions have enough heart-rate data")
+    }
+
+    /// The rating quota on the tile itself: how much of the week the figure rests on.
+    private var sessionQuota: String? {
+        guard let lane = model.session, lane.possibleCount > 0 else { return nil }
+        return String(localized: "\(lane.measuredCount) of \(lane.possibleCount) sessions rated")
     }
 
     private func sessionCoverage(_ lane: TrainingLoadModel.Lane?) -> String {

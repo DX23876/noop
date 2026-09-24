@@ -1,6 +1,6 @@
 # Training Load – Umbau- und Erweiterungsplan
 
-Stand: 2026-09-24 · Branch: `claude/training-load-optimization-cfb32e` · Status: **beschlossen; P1, P3, P2, P5 und P4 umgesetzt, weiter mit P6** (offen: P3-Laufzeitprüfung am echten iPhone-Datensatz)
+Stand: 2026-09-24 · Branch: `claude/training-load-optimization-cfb32e` · Status: **beschlossen; P1–P6 umgesetzt** (offen: Jahresvergleich, P7, P8; Laufzeitprüfung des Backfills am echten iPhone-Datensatz)
 
 Dieser Plan fasst die Untersuchung von Training Load zusammen (Code-Review, Messung gegen die echte
 `StrandAnalytics`-Logik, Abgleich mit dem Polar-Whitepaper) und die in vier Grilling-Runden getroffenen
@@ -171,6 +171,7 @@ Geliefert: `TrainingHistory` (StrandAnalytics) + `TrainingHistoryView`. Langzeit
 - **Migration: nein.**
 
 ### P6 – Erweiterungen (Q25), in dieser Reihenfolge
+Geliefert: Spielraum (Bisektion gegen `relativeLoad` + `LaneEngine.thresholds`, abgerundet) und Prognose (`LaneEngine` mit Hysterese über fortgeschriebene Ruhetage, max. 21 Tage) als Karte „Spielraum heute“ und im Coach-Tool; Bewertungsquote auch auf der Session-Load-Kachel (Erinnerung nach der Einheit bestand bereits); `estimate_session_effort` ordnet eine geplante Einheit gegen den Cardio-Spielraum ein; Band pro Muskelgruppe auf dem Kraft-Screen; Mitteilung in den Automationen, standardmäßig aus, einmal pro Hochphase.
 1. Wochen-Spielraum (persönliche Obergrenze − letzte 6 Tage)
 2. Prognose (Fortschreiben mit Ruhetagen: „wieder im üblichen Bereich am …“)
 3. Bewertungsquote Session Load + Erinnerung nach der Einheit

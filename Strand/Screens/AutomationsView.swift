@@ -71,6 +71,7 @@ struct AutomationsView: View {
             healthInsightsCard
             batteryCard
             strainTargetCard
+            trainingLoadAlertCard
         }
     }
 
@@ -542,6 +543,21 @@ struct AutomationsView: View {
                         // (the reevaluateIllness idiom).
                         model.evaluateStrainTarget()
                     }
+                }
+        }
+    }
+
+    // MARK: - Training load alert (P6)
+
+    private var trainingLoadAlertCard: some View {
+        Section2(icon: "chart.bar.xaxis", title: String(localized: "Training load alert"),
+                 blurb: String(localized: "One notification when your strength or cardio load of the last seven days moves well above your usual — the same band Training Load shows."),
+                 active: behavior.trainingLoadAlert) {
+            ToggleRow(label: String(localized: "Notify when a lane is well above usual"),
+                      help: String(localized: "Once per high phase: it notifies again only after the lane has been back within its usual. It describes load only, never whether the load is good or bad."),
+                      isOn: $behavior.trainingLoadAlert)
+                .onChangeCompat(of: behavior.trainingLoadAlert) { on in
+                    if on { TrainingLoadNotifier.requestAuthorization() }
                 }
         }
     }

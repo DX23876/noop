@@ -2246,11 +2246,24 @@ final class AICoachEngine: ObservableObject {
             zone: zone, minutes: minutes, zoneSet: zoneSet, restingHR: resting) else {
             return "Not enough profile data to estimate that session's Effort yet."
         }
-        return [Self.zoneBandsLine(zoneSet),
-                String(format: "Resting HR used: %.0f bpm.", resting),
-                EffortFeasibility.sentence(zone: zone, minutes: minutes, range: range),
-                "Use this figure when you talk about the session — do not round it to a nicer number."]
-            .joined(separator: "\n")
+        var lines = [Self.zoneBandsLine(zoneSet),
+                     String(format: "Resting HR used: %.0f bpm.", resting),
+                     EffortFeasibility.sentence(zone: zone, minutes: minutes, range: range),
+                     "Use this figure when you talk about the session — do not round it to a nicer number."]
+        // P6: the same session against today's cardio room — the lane's own Banister TRIMP, priced with
+        // the lane's maximum and the profile's coefficient, between the zone's lower and upper heart rate.
+        if let band = zoneSet.zones.first(where: { $0.number == zone }) {
+            let maxHR = Repository.cardioLoadMaxHR(repo.strainProfile)
+            let sex = repo.strainProfile?.sex ?? ""
+            if let low = StrainScorer.banisterAverageTRIMP(minutes: minutes, averageHR: band.lower, maxHR: maxHR,
+                                                           restingHR: resting, sex: sex),
+               let high = StrainScorer.banisterAverageTRIMP(minutes: minutes, averageHR: band.upper, maxHR: maxHR,
+                                                            restingHR: resting, sex: sex) {
+                lines.append(CoachTrainingLoadBrief.plannedCardioLine(low: low, high: high,
+                                                                      room: await repo.cardioRoomToday()))
+            }
+        }
+        return lines.joined(separator: "\n")
     }
 
     /// One line naming THIS user's zone boundaries in both % of HRmax and bpm. Pure + static so the

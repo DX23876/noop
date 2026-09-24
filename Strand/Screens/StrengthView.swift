@@ -853,6 +853,12 @@ struct StrengthView: View {
                 .foregroundStyle(StrandPalette.textTertiary)
                 .lineLimit(1)
                 .frame(width: 62, alignment: .leading)
+            // The strength lane's band for this group alone — the same four words as Training Load.
+            Image(systemName: row.loadBand?.symbol ?? "minus")
+                .font(StrandFont.caption.weight(.bold))
+                .foregroundStyle(row.loadBand?.color ?? StrandPalette.textTertiary.opacity(0.4))
+                .frame(width: 16)
+                .help(row.loadBand?.label ?? "")
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(row.accessibilityText)
@@ -1304,7 +1310,7 @@ struct StrengthView: View {
         case .charge:
             return String(localized: "Your average Charge across this week — the same Charge as everywhere else in NOOP, not a new score.\n\nRead it beside the strength and Effort figures. Those two cannot be added together — there is no shared unit between tonnes lifted and heart-rate minutes — but they are carried by one body with one recovery budget, and this is the number that reflects both. A week of high load and falling Charge is a different week from one of high load and steady Charge, and that comparison is the reason all three sit together.")
         case .muscleBands:
-            return String(localized: "The bar is this week's working sets for that muscle. The shaded band behind it is what YOU usually do — the middle half of your last eight training weeks.\n\nIt is not a target. NOOP has no way of knowing what your right weekly volume is, and a number from a textbook presented as your goal would be a guess wearing a uniform. What it can tell you is when a week is unusual for you, and that is what the band shows.\n\nWeeks with no training are left out, so a holiday does not drag the band down and then make your return look excessive.")
+            return String(localized: "The bar is this week's working sets for that muscle. The shaded band behind it is what YOU usually do — the middle half of your last eight training weeks.\n\nIt is not a target. NOOP has no way of knowing what your right weekly volume is, and a number from a textbook presented as your goal would be a guess wearing a uniform. What it can tell you is when a week is unusual for you, and that is what the band shows.\n\nWeeks with no training are left out, so a holiday does not drag the band down and then make your return look excessive.\n\nThe symbol at the end of each row is the comparison Training Load makes for the whole strength lane — below, about, above or well above your usual — read for that muscle group on its own.")
         case .balance:
             return String(localized: "Each bar splits this week's working sets between two sides — pushing against pulling, upper body against lower, quads against hips and hamstrings. A set counts once, on its exercise's primary muscle, exactly as in the list above.\n\nThe hatched region is YOUR usual ratio over the last eight training weeks. There is deliberately no target: '1:1 push to pull' is coaching advice, not a measurement, and printing it here would turn every week into a pass or a fail against a number nobody validated for you.\n\nThe groupings are conventions — a triceps set counts as pushing, a biceps set as pulling. They decide only how sets are added up.")
         case .bodyweight:
@@ -1320,10 +1326,13 @@ struct StrengthView: View {
         let band: ClosedRange<Double>?
         let fraction: Double
         let usualText: String?
+        /// The group's load band this week (`MuscleGroupLoad`), nil without enough history.
+        var loadBand: RelativeLoadBand? = nil
 
         var accessibilityText: String {
             var parts = ["\(group.label): \(sets) working sets"]
             if let usualText { parts.append(usualText) }
+            if let loadBand { parts.append(loadBand.label) }
             return parts.joined(separator: ", ")
         }
     }
@@ -1404,7 +1413,8 @@ struct StrengthView: View {
                 return MuscleRow(
                     group: group, sets: sets, band: band.map { ($0.lowerBound / scale)...($0.upperBound / scale) },
                     fraction: Double(sets) / scale,
-                    usualText: band.map(Self.usualText))
+                    usualText: band.map(Self.usualText),
+                    loadBand: model.groupBands[group])
             }
             .sorted { $0.sets == $1.sets ? $0.group.rawValue < $1.group.rawValue : $0.sets > $1.sets }
     }

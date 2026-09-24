@@ -89,4 +89,40 @@ final class ReadinessLoadContextTests: XCTestCase {
         XCTAssertEqual(CoachTool.trainingLoad.purpose, .workouts)
         XCTAssertEqual(CoachTool.trainingLoad.rawValue, "get_training_load")
     }
+
+    // MARK: - P6
+
+    /// A planned session is placed against today's room: inside, above, or well above the usual week.
+    func testPlannedCardioSessionIsPlacedAgainstTheRoom() {
+        let room = LaneHeadroom(day: "2026-09-24", loggedToday: 0, beforeAbove: 40, beforeWellAbove: 90)
+        XCTAssertTrue(CoachTrainingLoadBrief.plannedCardioLine(low: 20, high: 35, room: room)
+            .contains("fits inside the usual week"))
+        XCTAssertTrue(CoachTrainingLoadBrief.plannedCardioLine(low: 50, high: 70, room: room)
+            .contains("take the week above usual"))
+        XCTAssertTrue(CoachTrainingLoadBrief.plannedCardioLine(low: 80, high: 120, room: room)
+            .contains("well above usual"))
+        XCTAssertTrue(CoachTrainingLoadBrief.plannedCardioLine(low: 20, high: 35, room: nil)
+            .contains("no band yet"))
+        XCTAssertTrue(CoachTrainingLoadBrief.plannedCardioLine(low: 20, high: 35, room: room)
+            .contains("describes load only"))
+    }
+
+    func testOutlookLinesNameRoomAndSettlingPerLane() {
+        var outlook = TrainingLoadModel.Outlook()
+        XCTAssertTrue(CoachTrainingLoadBrief.outlookLines(outlook).isEmpty)
+        outlook.strengthRoom = LaneHeadroom(day: "2026-09-24", loggedToday: 0, beforeAbove: 12, beforeWellAbove: nil)
+        outlook.cardioSettles = "2026-09-28"
+        let lines = CoachTrainingLoadBrief.outlookLines(outlook)
+        XCTAssertEqual(lines.count, 3)
+        XCTAssertEqual(lines[1], "  Strength: room today 12.0 weighted sets before above usual")
+        XCTAssertEqual(lines[2], "  Cardio: back to usual on 2026-09-28 if every day from now is rest")
+    }
+
+    func testRoomTextRoundsDownAndNamesTheEdge() {
+        let room = LaneHeadroom(day: "2026-09-24", loggedToday: 3, beforeAbove: 12.9, beforeWellAbove: 20.2)
+        let text = TrainingLoadView.roomText(room, unit: "TRIMP")
+        XCTAssertTrue(text.contains("12"))
+        XCTAssertFalse(text.contains("13"), "rounded down: 13 would already be past the edge")
+    }
 }
+

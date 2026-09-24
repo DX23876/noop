@@ -398,6 +398,11 @@ final class AppModel: ObservableObject {
             // Keep the battery night-guard's learned bedtime warm off the same signal (throttled inside).
             self?.refreshHabitualMidsleep()
         }.store(in: &hrCancellables)
+        // P6: the Training Load alert reads the same lane bands Readiness does, as soon as they are re-read.
+        repo.$readinessLoadContext.sink { [weak self] context in
+            guard let self else { return }
+            TrainingLoadNotifier.onLoadContext(context, enabled: self.behavior.trainingLoadAlert)
+        }.store(in: &hrCancellables)
         // Re-arm the strap's firmware alarm once the connection has SETTLED — not the instant it (re)bonds.
         // A smart-alarm time changed while the strap was away never reached it , the send is gated on bond
         // , so the strap kept the OLD time and fired at it (#59).
