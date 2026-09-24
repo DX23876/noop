@@ -447622,6 +447622,705 @@
           }
         }
       }
+    },
+    "Too few sessions" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zu wenige Einheiten"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muy pocas sesiones"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trop peu de séances"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Troppo poche sessioni"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Za mało sesji"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Poucas sessões"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Слишком мало тренировок"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "训练次数太少"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "訓練次數太少"
+          }
+        }
+      }
+    },
+    "Fewer than 3 sessions in the comparison window yet" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch weniger als 3 Einheiten im Vergleichszeitraum"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aún hay menos de 3 sesiones en el periodo de comparación"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Encore moins de 3 séances dans la période de comparaison"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ancora meno di 3 sessioni nel periodo di confronto"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Na razie mniej niż 3 sesje w okresie porównawczym"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ainda há menos de 3 sessões no período de comparação"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пока меньше 3 тренировок в периоде сравнения"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "对比期内的训练仍少于 3 次"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "比較期內的訓練仍少於 3 次"
+          }
+        }
+      }
+    },
+    "Your usual training is below the WHO weekly minimum, so this reads at most “above usual”." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein übliches Training liegt unter dem wöchentlichen Minimum der WHO, daher steht hier höchstens „Über dem Üblichen“."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu entrenamiento habitual está por debajo del mínimo semanal de la OMS, así que aquí se indica como mucho «Por encima de lo habitual»."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre entraînement habituel est sous le minimum hebdomadaire de l’OMS : l’indication s’arrête donc à « Au-dessus de l’habitude »."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo allenamento abituale è sotto il minimo settimanale dell’OMS, quindi qui compare al massimo «Sopra il solito»."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twój zwykły trening jest poniżej tygodniowego minimum WHO, więc wynik to najwyżej „Powyżej zwykłego”."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O teu treino habitual está abaixo do mínimo semanal da OMS, por isso aqui aparece no máximo «Acima do habitual»."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваши обычные тренировки ниже недельного минимума ВОЗ, поэтому здесь показывается не больше чем «Выше обычного»."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你平时的训练量低于世卫组织的每周最低建议，因此这里最多显示“高于平常”。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你平時的訓練量低於世衛組織的每週最低建議，因此這裡最多顯示「高於平常」。"
+          }
+        }
+      }
+    },
+    "Plenty of cardio without your endurance improving, and your strength work is well above your usual too. Decide which of the two to ease first." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Viel Cardio, ohne dass deine Ausdauer besser wird — und dein Krafttraining liegt ebenfalls deutlich über dem Üblichen. Entscheide, welches von beiden du zuerst zurücknimmst."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mucho cardio sin que tu resistencia mejore, y tu trabajo de fuerza también está muy por encima de lo habitual. Decide cuál de los dos bajar primero."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beaucoup de cardio sans que votre endurance progresse, et votre musculation est elle aussi nettement au-dessus de l’habitude. Décidez lequel des deux alléger en premier."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Molto cardio senza che la tua resistenza migliori, e anche il lavoro di forza è ben sopra il solito. Decidi quale dei due ridurre per primo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dużo cardio, a wytrzymałość się nie poprawia — trening siłowy także jest wyraźnie powyżej zwykłego poziomu. Zdecyduj, co odpuścić najpierw."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muito cardio sem a tua resistência melhorar, e o teu treino de força também está bem acima do habitual. Decide qual dos dois aliviar primeiro."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Много кардио без прироста выносливости, и силовая работа тоже заметно выше обычного. Решите, что сократить первым."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有氧很多但耐力没有提高，力量训练也明显高于平时。先决定减掉哪一边。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有氧很多但耐力沒有提高，力量訓練也明顯高於平時。先決定減掉哪一邊。"
+          }
+        }
+      }
+    },
+    "Plenty of cardio, but your endurance is not improving. More volume will not fix that: look at sleep, recovery or how the sessions are built." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Viel Cardio, aber deine Ausdauer wird nicht besser. Mehr Volumen löst das nicht: Schau auf Schlaf, Erholung oder den Aufbau deiner Einheiten."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mucho cardio, pero tu resistencia no mejora. Más volumen no lo arreglará: revisa el sueño, la recuperación o cómo están planteadas las sesiones."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beaucoup de cardio, mais votre endurance ne progresse pas. Plus de volume n’y changera rien : regardez le sommeil, la récupération ou la construction des séances."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tanto cardio, ma la tua resistenza non migliora. Più volume non risolve: guarda sonno, recupero o come sono impostate le sessioni."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dużo cardio, ale wytrzymałość się nie poprawia. Większa objętość tego nie naprawi: sprawdź sen, regenerację lub budowę sesji."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muito cardio, mas a tua resistência não melhora. Mais volume não resolve: olha para o sono, a recuperação ou a forma como as sessões estão construídas."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Много кардио, но выносливость не растёт. Больший объём не поможет: обратите внимание на сон, восстановление или построение тренировок."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有氧很多，但耐力没有提高。加量解决不了：检查睡眠、恢复或训练课的安排。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有氧很多，但耐力沒有提高。加量解決不了：檢查睡眠、恢復或訓練課的安排。"
+          }
+        }
+      }
+    },
+    "Both lanes are trained at or above your usual while performance falls in each. Ease the load and look at sleep and recovery before adding more." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beide Bereiche werden auf oder über dem Üblichen trainiert, während die Leistung in beiden sinkt. Nimm die Last zurück und schau auf Schlaf und Erholung, bevor du mehr machst."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ambas áreas se entrenan en o por encima de lo habitual mientras el rendimiento baja en las dos. Reduce la carga y revisa el sueño y la recuperación antes de añadir más."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les deux volets sont entraînés au niveau habituel ou au-dessus, alors que les performances baissent dans chacun. Allégez la charge et regardez le sommeil et la récupération avant d’en ajouter."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entrambe le aree sono allenate al solito livello o sopra, mentre le prestazioni calano in tutte e due. Riduci il carico e guarda sonno e recupero prima di aggiungere altro."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oba obszary są trenowane na zwykłym poziomie lub powyżej, a wyniki spadają w każdym z nich. Zmniejsz obciążenie i sprawdź sen oraz regenerację, zanim dodasz więcej."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As duas áreas são treinadas ao nível habitual ou acima, enquanto o desempenho desce em ambas. Alivia a carga e olha para o sono e a recuperação antes de acrescentar mais."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Оба направления тренируются на обычном уровне или выше, а результаты в каждом падают. Снизьте нагрузку и обратите внимание на сон и восстановление, прежде чем добавлять."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "两条训练线都在平常水平或以上，而两边的表现都在下降。先减轻负荷，关注睡眠和恢复，再考虑加量。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "兩條訓練線都在平常水準或以上，而兩邊的表現都在下降。先減輕負荷，關注睡眠和恢復，再考慮加量。"
+          }
+        }
+      }
+    },
+    "Less training than usual. Whether it costs fitness shows once there is performance data." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weniger Training als üblich. Ob es Fitness kostet, zeigt sich, sobald Leistungsdaten vorliegen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Menos entrenamiento de lo habitual. Si cuesta forma física se verá cuando haya datos de rendimiento."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moins d’entraînement que d’habitude. On saura s’il coûte de la forme dès qu’il y aura des données de performance."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Meno allenamento del solito. Se costa forma fisica si vedrà quando ci saranno dati sulle prestazioni."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mniej treningu niż zwykle. Czy kosztuje to formę, pokażą dane o wynikach."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Menos treino do que o habitual. Se custa forma física vê-se quando houver dados de desempenho."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Тренировок меньше обычного. Стоит ли это формы, станет видно, когда появятся данные о результатах."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "训练比平常少。是否影响体能，要等有了表现数据才能看出。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "訓練比平常少。是否影響體能，要等有了表現數據才能看出。"
+          }
+        }
+      }
+    },
+    "Training at your usual level. Performance data will show whether it is building or holding." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Training auf deinem üblichen Niveau. Leistungsdaten zeigen, ob es aufbaut oder hält."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entrenamiento a tu nivel habitual. Los datos de rendimiento mostrarán si construye o mantiene."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entraînement à votre niveau habituel. Les données de performance montreront s’il fait progresser ou maintient."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allenamento al tuo solito livello. I dati sulle prestazioni mostreranno se costruisce o mantiene."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trening na zwykłym poziomie. Dane o wynikach pokażą, czy buduje formę, czy ją utrzymuje."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Treino ao teu nível habitual. Os dados de desempenho vão mostrar se está a construir ou a manter."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Тренировки на обычном уровне. Данные о результатах покажут, идёт ли развитие или поддержание."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "训练处于平常水平。表现数据会显示这是在提升还是在保持。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "訓練處於平常水準。表現數據會顯示這是在提升還是在維持。"
+          }
+        }
+      }
+    },
+    "More training than usual. Whether it pays off shows once there is performance data." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mehr Training als üblich. Ob es sich auszahlt, zeigt sich, sobald Leistungsdaten vorliegen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Más entrenamiento de lo habitual. Si da frutos se verá cuando haya datos de rendimiento."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plus d’entraînement que d’habitude. On saura s’il porte ses fruits dès qu’il y aura des données de performance."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Più allenamento del solito. Se paga si vedrà quando ci saranno dati sulle prestazioni."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Więcej treningu niż zwykle. Czy to się opłaca, pokażą dane o wynikach."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mais treino do que o habitual. Se compensa vê-se quando houver dados de desempenho."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Тренировок больше обычного. Окупается ли это, станет видно, когда появятся данные о результатах."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "训练比平常多。是否有回报，要等有了表现数据才能看出。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "訓練比平常多。是否有回報，要等有了表現數據才能看出。"
+          }
+        }
+      }
+    },
+    "Much more training than usual. Watch your recovery; whether it pays off shows once there is performance data." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deutlich mehr Training als üblich. Achte auf deine Erholung; ob es sich auszahlt, zeigt sich, sobald Leistungsdaten vorliegen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mucho más entrenamiento de lo habitual. Vigila tu recuperación; si da frutos se verá cuando haya datos de rendimiento."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nettement plus d’entraînement que d’habitude. Surveillez votre récupération ; on saura s’il porte ses fruits dès qu’il y aura des données de performance."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Molto più allenamento del solito. Tieni d’occhio il recupero; se paga si vedrà quando ci saranno dati sulle prestazioni."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Znacznie więcej treningu niż zwykle. Pilnuj regeneracji; czy to się opłaca, pokażą dane o wynikach."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muito mais treino do que o habitual. Atenção à recuperação; se compensa vê-se quando houver dados de desempenho."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Тренировок значительно больше обычного. Следите за восстановлением; окупается ли это, станет видно, когда появятся данные о результатах."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "训练远多于平常。注意恢复；是否有回报，要等有了表现数据才能看出。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "訓練遠多於平常。注意恢復；是否有回報，要等有了表現數據才能看出。"
+          }
+        }
+      }
+    },
+    "NOOP compares the last 7 days with an earlier, non-overlapping baseline: through today once you have trained today, through yesterday before that. A partial training day stays visible as a lower bound but leaves the comparison. For the first eight weeks, below usual starts under −25 % and well above over +44 % — Polar's thresholds on these windows — with usual up to +15 %; after that your own robust weekly variation sets the range, and well above starts no later than +44 %. A band changes only once the change clears its edge by 5 points. With fewer than 3 sessions in the baseline there is no band, and a baseline under the WHO weekly minimum reads at most above usual." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP vergleicht die letzten 7 Tage mit einer früheren, nicht überlappenden Basis: bis heute, sobald du heute trainiert hast, sonst bis gestern. Ein teilweise gemessener Trainingstag bleibt als Untergrenze sichtbar, fließt aber nicht in den Vergleich ein. In den ersten acht Wochen beginnt „unter dem Üblichen“ unter −25 % und „deutlich höher“ über +44 % — Polars Schwellen auf diese Zeitfenster umgerechnet —, üblich reicht bis +15 %; danach legt deine eigene robuste Wochenschwankung den Bereich fest, und „deutlich höher“ beginnt spätestens bei +44 %. Ein Bereich wechselt erst, wenn die Änderung seine Grenze um 5 Punkte überschreitet. Mit weniger als 3 Einheiten in der Basis gibt es keinen Bereich, und eine Basis unter dem wöchentlichen WHO-Minimum zeigt höchstens „über dem Üblichen“."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP compara los últimos 7 días con una base anterior que no se solapa: hasta hoy si ya has entrenado hoy, si no hasta ayer. Un día de entrenamiento medido solo en parte sigue visible como límite inferior, pero queda fuera de la comparación. Durante las primeras ocho semanas, «por debajo de lo habitual» empieza por debajo de −25 % y «muy por encima» por encima de +44 % —los umbrales de Polar trasladados a estas ventanas—, y lo habitual llega hasta +15 %; después, tu propia variación semanal robusta fija el rango, y «muy por encima» empieza como tarde en +44 %. Un rango solo cambia cuando el cambio supera su límite en 5 puntos. Con menos de 3 sesiones en la base no hay rango, y una base por debajo del mínimo semanal de la OMS indica como mucho «por encima de lo habitual»."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP compare les 7 derniers jours à une base antérieure qui ne les chevauche pas : jusqu’à aujourd’hui si vous vous êtes déjà entraîné aujourd’hui, sinon jusqu’à hier. Un jour d’entraînement mesuré en partie reste visible comme borne inférieure mais sort de la comparaison. Pendant les huit premières semaines, « en dessous de l’habitude » commence sous −25 % et « nettement au-dessus » au-delà de +44 % — les seuils de Polar ramenés à ces fenêtres —, l’habitude allant jusqu’à +15 % ; ensuite, votre propre variation hebdomadaire robuste fixe la plage, et « nettement au-dessus » commence au plus tard à +44 %. Une plage ne change que lorsque l’écart dépasse sa limite de 5 points. Avec moins de 3 séances dans la base, il n’y a pas de plage, et une base sous le minimum hebdomadaire de l’OMS indique au plus « au-dessus de l’habitude »."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP confronta gli ultimi 7 giorni con una base precedente che non si sovrappone: fino a oggi se oggi ti sei già allenato, altrimenti fino a ieri. Un giorno di allenamento misurato solo in parte resta visibile come limite inferiore ma esce dal confronto. Nelle prime otto settimane «sotto il solito» inizia sotto −25 % e «molto sopra» oltre +44 % — le soglie di Polar riportate su queste finestre —, e il solito arriva a +15 %; poi è la tua variazione settimanale robusta a fissare l’intervallo, e «molto sopra» inizia al più tardi a +44 %. Un intervallo cambia solo quando la variazione supera il suo limite di 5 punti. Con meno di 3 sessioni nella base non c’è intervallo, e una base sotto il minimo settimanale dell’OMS indica al massimo «sopra il solito»."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP porównuje ostatnie 7 dni z wcześniejszą, nienakładającą się bazą: do dziś, jeśli dziś już trenowałeś, w przeciwnym razie do wczoraj. Częściowo zmierzony dzień treningowy pozostaje widoczny jako dolna granica, ale nie wchodzi do porównania. Przez pierwsze osiem tygodni „poniżej zwykłego” zaczyna się poniżej −25 %, a „znacznie powyżej” powyżej +44 % — to progi Polar przeliczone na te okna — a zwykły poziom sięga +15 %; potem zakres wyznacza Twoja własna, odporna tygodniowa zmienność, a „znacznie powyżej” zaczyna się najpóźniej od +44 %. Zakres zmienia się dopiero, gdy zmiana przekroczy jego granicę o 5 punktów. Przy mniej niż 3 sesjach w bazie zakresu nie ma, a baza poniżej tygodniowego minimum WHO daje najwyżej „powyżej zwykłego”."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O NOOP compara os últimos 7 dias com uma base anterior que não se sobrepõe: até hoje se já treinaste hoje, caso contrário até ontem. Um dia de treino medido só em parte continua visível como limite inferior, mas sai da comparação. Nas primeiras oito semanas, «abaixo do habitual» começa abaixo de −25 % e «muito acima» acima de +44 % — os limiares da Polar transpostos para estas janelas —, e o habitual vai até +15 %; depois, a tua própria variação semanal robusta define o intervalo, e «muito acima» começa no máximo em +44 %. Um intervalo só muda quando a variação ultrapassa o seu limite em 5 pontos. Com menos de 3 sessões na base não há intervalo, e uma base abaixo do mínimo semanal da OMS indica no máximo «acima do habitual»."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP сравнивает последние 7 дней с более ранней непересекающейся базой: по сегодняшний день, если вы уже тренировались сегодня, иначе — по вчерашний. Частично измеренный тренировочный день остаётся виден как нижняя граница, но выпадает из сравнения. Первые восемь недель «ниже обычного» начинается ниже −25 %, а «значительно выше» — выше +44 % (пороги Polar, пересчитанные на эти окна), обычный уровень доходит до +15 %; затем диапазон задаёт ваша собственная устойчивая недельная вариативность, а «значительно выше» начинается не позже +44 %. Диапазон меняется только тогда, когда изменение выходит за его границу на 5 пунктов. При менее чем 3 тренировках в базе диапазона нет, а база ниже недельного минимума ВОЗ даёт не больше чем «выше обычного»."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 将最近 7 天与更早、互不重叠的基线进行比较：今天已训练则算到今天，否则算到昨天。只部分测量的训练日仍以下限显示，但不参与比较。前八周，“低于平常”从 −25% 以下开始，“远高于平常”从 +44% 以上开始（按这些时间窗换算的 Polar 阈值），平常上限为 +15%；此后由你自己稳健的每周波动决定范围，“远高于平常”最迟从 +44% 开始。只有变化越过边界 5 个百分点，范围才会改变。基线中少于 3 次训练时不显示范围；基线低于世卫组织每周最低建议时，最多显示“高于平常”。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 將最近 7 天與更早、互不重疊的基線進行比較：今天已訓練則算到今天，否則算到昨天。只部分測量的訓練日仍以下限顯示，但不參與比較。前八週，「低於平常」從 −25% 以下開始，「遠高於平常」從 +44% 以上開始（按這些時間窗換算的 Polar 閾值），平常上限為 +15%；此後由你自己穩健的每週波動決定範圍，「遠高於平常」最遲從 +44% 開始。只有變化越過邊界 5 個百分點，範圍才會改變。基線中少於 3 次訓練時不顯示範圍；基線低於世衛組織每週最低建議時，最多顯示「高於平常」。"
+          }
+        }
+      }
+    },
+    "Relative load is descriptive. A verdict such as productive, maintaining or unproductive needs a clear performance trend: estimated one-rep max for strength or VO₂max within one consistent measurement method for cardiovascular training. Without one, the statement only describes the load." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die relative Last ist beschreibend. Ein Urteil wie produktiv, erhaltend oder unproduktiv braucht einen klaren Leistungstrend: das geschätzte Einer-Wiederholungsmaximum bei Krafttraining oder VO₂max innerhalb einer einheitlichen Messmethode beim Herz-Kreislauf-Training. Ohne ihn beschreibt die Aussage nur die Last."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La carga relativa es descriptiva. Un veredicto como productivo, de mantenimiento o improductivo necesita una tendencia clara del rendimiento: máximo estimado de una repetición para fuerza o VO₂max con un único método de medición coherente para entrenamiento cardiovascular. Sin ella, el mensaje solo describe la carga."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La charge relative est descriptive. Un verdict comme productif, maintien ou improductif exige une tendance nette des performances : maximum estimé sur une répétition pour la force ou VO₂max avec une même méthode d’estimation pour l’entraînement cardiovasculaire. Sans elle, le message ne décrit que la charge."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il carico relativo è descrittivo. Un verdetto come produttivo, di mantenimento o improduttivo richiede una chiara tendenza delle prestazioni: massimale stimato per una ripetizione nella forza o VO₂max con un metodo di misurazione coerente nell’allenamento cardiovascolare. Senza di essa, il messaggio descrive solo il carico."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obciążenie względne ma charakter opisowy. Ocena taka jak produktywny, utrzymujący czy nieproduktywny wymaga wyraźnego trendu wyników: szacowanego maksimum jednego powtórzenia dla siły lub VO₂max mierzonego spójną metodą w treningu sercowo-naczyniowym. Bez niego komunikat tylko opisuje obciążenie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A carga relativa é descritiva. Um veredicto como produtivo, de manutenção ou improdutivo exige uma tendência clara de desempenho: máximo estimado de uma repetição para força ou VO₂max dentro de um único método de medição consistente para treino cardiovascular. Sem ela, a mensagem só descreve a carga."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Относительная нагрузка носит описательный характер. Для оценки вроде «продуктивно», «поддержание» или «непродуктивно» нужен ясный тренд результативности: расчётный одноповторный максимум для силы или VO₂max, полученный одним последовательным методом при сердечно-сосудистых тренировках. Без него сообщение лишь описывает нагрузку."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "相对负荷仅用于描述。“有效”“保持”“无效”这类判断需要明确的表现趋势：力量训练采用估算单次最大重量，心血管训练采用同一测量方法下的 VO₂max。没有趋势时，提示只描述负荷。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "相對負荷僅用於描述。「有效」「維持」「無效」這類判斷需要明確的表現趨勢：力量訓練採用估算單次最大重量，心血管訓練採用同一測量方法下的 VO₂max。沒有趨勢時，提示只描述負荷。"
+          }
+        }
+      }
+    },
+    "Edwards 1993 · Banister 1991 · Foster 2001 · Mujika & Padilla 2000 · Bosquet et al. 2013 · Meeusen et al. 2013 · WHO 2020 · Polar Training Load Pro 2025 · Pelland et al. 2024 · Robinson et al. 2024" : {
+      "shouldTranslate" : false
     }
   },
   "version" : "1.0"

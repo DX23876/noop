@@ -143,7 +143,7 @@ public enum LoadRingSource: String, Equatable, Sendable, Codable {
     case provisionalWeightedSets
 }
 
-/// A pre-baseline strength-ring position. This type intentionally cannot become a `LaneStatus`:
+/// A pre-baseline strength-ring position. This type intentionally cannot become a `LaneReading`:
 /// callers therefore cannot accidentally feed a population convention into personal comparisons,
 /// adaptation or sustained-overload logic.
 public struct ProvisionalStrengthRingReading: Equatable, Sendable {

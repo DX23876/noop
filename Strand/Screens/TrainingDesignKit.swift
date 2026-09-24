@@ -31,18 +31,25 @@ enum TrainingLane: Sendable {
 /// colour only says which lane it belongs to.
 enum LoadPillState: Equatable, Sendable {
     case below, usual, higher, muchHigher, provisional, noComparison
+    /// A comparison exists, but the baseline holds too few sessions to place it in a band.
+    case tooFewSessions
 
-    static func of(_ lane: TrainingLoadModel.Lane?, provisional: Bool = false) -> LoadPillState {
-        switch lane?.status?.band {
-        case .below: return .below
-        case .maintaining: return .usual
-        case .productive: return .higher
-        case .above: return .muchHigher
-        case nil: return provisional ? .provisional : .noComparison
+    init(_ band: RelativeLoadBand) {
+        switch band {
+        case .below: self = .below
+        case .usual: self = .usual
+        case .higher: self = .higher
+        case .muchHigher: self = .muchHigher
         }
     }
 
-    var hasComparison: Bool { self != .provisional && self != .noComparison }
+    static func of(_ lane: TrainingLoadModel.Lane?, provisional: Bool = false) -> LoadPillState {
+        if let band = lane?.reading?.band { return LoadPillState(band) }
+        if lane?.reading?.guardState == .tooFewSessions { return .tooFewSessions }
+        return provisional ? .provisional : .noComparison
+    }
+
+    var hasComparison: Bool { self != .provisional && self != .noComparison && self != .tooFewSessions }
 
     var label: String {
         switch self {
@@ -52,6 +59,7 @@ enum LoadPillState: Equatable, Sendable {
         case .muchHigher: return String(localized: "Well above usual")
         case .provisional: return String(localized: "Provisional")
         case .noComparison: return String(localized: "No comparison yet")
+        case .tooFewSessions: return String(localized: "Too few sessions")
         }
     }
 
@@ -63,6 +71,7 @@ enum LoadPillState: Equatable, Sendable {
         case .muchHigher: return "chevron.up.2"
         case .provisional: return "sparkles"
         case .noComparison: return "hourglass"
+        case .tooFewSessions: return "hourglass"
         }
     }
 }

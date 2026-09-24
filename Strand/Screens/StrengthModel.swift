@@ -348,9 +348,12 @@ final class StrengthModel: ObservableObject {
         }
 
         let anchor = weekAnchorDay
-        let laneDay = TrainingLoadLanes.readingDay(monday: monday, today: Repository.localDayKey(Date()))
         let laneWorkouts = self.laneWorkouts
         let laneByDay = self.laneByDay
+        let laneActivity = TrainingLoadLanes.strengthActivity(laneWorkouts, tzOffsetSeconds: tzOffset)
+        let today = Repository.localDayKey(Date())
+        let laneDay = TrainingLoadLanes.readingDay(monday: monday, today: today,
+                                                   hasActivityToday: (laneActivity.sessionsByDay[today] ?? 0) > 0)
         let sessions = workouts
         let catalogue = templates
         let offset = tzOffset
@@ -383,7 +386,8 @@ final class StrengthModel: ObservableObject {
                                                           endingBefore: anchor, tzOffsetSeconds: offset),
                 lane: TrainingLoadLanes.strengthLane(workouts: laneWorkouts, byDay: laneByDay, through: laneDay,
                                                      tzOffsetSeconds: offset),
-                laneRatios: TrainingLoadLanes.ratios(strengthByDay: laneByDay, cardio: nil, through: laneDay),
+                laneRatios: TrainingLoadLanes.ratios(strengthByDay: laneByDay, strengthActivity: laneActivity,
+                                                     cardio: nil, through: laneDay),
                 laneDay: laneDay,
                 stimulus: index.week(containing: anchor).byMuscle,
                 typical: MuscleStimulus.typicalWeeklyStimulus(index: index, endingBefore: anchor),

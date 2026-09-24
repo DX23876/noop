@@ -100,14 +100,18 @@ final class TrainingLoadLanesTests: XCTestCase {
             "strain=\(f(lane.distribution?.strain))",
             "wow=\(f(lane.weekOverWeek))",
             "measured=\(lane.measuredCount)/\(lane.possibleCount)",
-            "status=\(lane.status.map { "\($0.band)" } ?? "nil")",
+            "status=\(lane.reading?.band.map { "\($0)" } ?? "nil")",
+            "guard=\(lane.reading.map { "\($0.guardState)" } ?? "nil")",
+            "day=\(lane.reading?.day ?? "nil")",
         ].joined(separator: " ")
     }
 
     static func describe(_ ratios: [TrainingLoadModel.RatioPoint]) -> String {
         func f(_ value: Double?) -> String { value.map { String(format: "%.6f", $0) } ?? "nil" }
+        func b(_ band: RelativeLoadBand?) -> String { band.map { "\($0)" } ?? "nil" }
         return "count=\(ratios.count) " + ratios.suffix(3)
-            .map { "\($0.day):\(f($0.strength)),\(f($0.cardio))" }.joined(separator: " ")
+            .map { "\($0.day):\(f($0.strength))/\(b($0.strengthBand)),\(f($0.cardio))/\(b($0.cardioBand))" }
+            .joined(separator: " ")
     }
 
     static func prepared(_ fixture: Fixture) -> TrainingLoadModel.Prepared {
@@ -116,18 +120,20 @@ final class TrainingLoadLanesTests: XCTestCase {
                                   dailyRows: [], vo2: [], today: today, now: now, offset: 0)
     }
 
-    /// Captured from the computation as it stood before the lanes were shared; a change here is a change
-    /// to what Training Load shows.
+    /// Captured from `LaneEngine` when the lanes moved onto it; a change here is a change to what
+    /// Training Load shows. No lifting is logged today, so strength reads through yesterday; the run
+    /// today puts cardio through today. The unpriced run four days ago withholds every cardio comparison
+    /// whose window holds it — the hero, the chart and the strip alike.
     func testTodayReadingsMatchThePinnedOracle() {
         let prepared = Self.prepared(Self.fixture())
         XCTAssertEqual(Self.describe(prepared.strength),
-                       "total=7.440000 sets=10 ratio=1.649667 pct=64.966741 maturity=baselineGrowing band=nil lower=false monotony=0.632456 strain=4.705469 wow=36.764706 measured=8/10 status=above")
+                       "total=7.440000 sets=10 ratio=1.500000 pct=50.000000 maturity=baselineGrowing band=nil lower=false monotony=0.632456 strain=4.705469 wow=2.762431 measured=8/10 status=muchHigher guard=none day=2025-09-14")
         XCTAssertEqual(Self.describe(prepared.cardio),
-                       "total=372.000000 sets=0 ratio=nil pct=nil maturity=baselineGrowing band=nil lower=true monotony=nil strain=nil wow=nil measured=3/4 status=nil")
+                       "total=372.000000 sets=0 ratio=nil pct=nil maturity=baselineGrowing band=nil lower=true monotony=nil strain=nil wow=nil measured=3/4 status=nil guard=none day=2025-09-15")
         XCTAssertEqual(Self.describe(prepared.session),
-                       "total=840.000000 sets=0 ratio=nil pct=nil maturity=earlyEstimate band=nil lower=true monotony=nil strain=nil wow=nil measured=2/7 status=nil")
+                       "total=840.000000 sets=0 ratio=nil pct=nil maturity=earlyEstimate band=nil lower=true monotony=nil strain=nil wow=nil measured=2/7 status=nil guard=nil day=nil")
         XCTAssertEqual(Self.describe(prepared.ratios),
-                       "count=56 2025-09-13:2.735802,1.306513 2025-09-14:1.500000,1.042146 2025-09-15:1.649667,1.425287")
+                       "count=56 2025-09-13:2.735802/muchHigher,nil/nil 2025-09-14:1.500000/muchHigher,nil/nil 2025-09-15:nil/nil,nil/nil")
         XCTAssertNil(prepared.provisionalStrengthRing)
         XCTAssertTrue(prepared.cardioMeasured)
     }
@@ -135,7 +141,7 @@ final class TrainingLoadLanesTests: XCTestCase {
     func testAnUnknownDayOutsideTheWindowLeavesTheCardioComparisonIntact() {
         let prepared = Self.prepared(Self.fixture(unpricedDay: -40))
         XCTAssertEqual(Self.describe(prepared.cardio),
-                       "total=508.000000 sets=0 ratio=1.668309 pct=66.830870 maturity=baselineGrowing band=nil lower=false monotony=1.122291 strain=570.123789 wow=94.636015 measured=4/4 status=above")
+                       "total=508.000000 sets=0 ratio=1.668309 pct=66.830870 maturity=baselineGrowing band=nil lower=false monotony=1.122291 strain=570.123789 wow=94.636015 measured=4/4 status=muchHigher guard=none day=2025-09-15")
     }
 
     static func strengthLane(_ fixture: Fixture, through day: String) -> TrainingLoadModel.Lane {
@@ -158,8 +164,10 @@ final class TrainingLoadLanesTests: XCTestCase {
         let shortest = Self.fixture(days: TrainingLoadLanes.lookbackDays + 1, unpricedDay: -40)
         let long = Self.fixture(days: 200, unpricedDay: -40)
         let prepared = Self.prepared(shortest)
-        XCTAssertEqual(Self.describe(Self.strengthLane(long, through: Self.today)), Self.describe(prepared.strength))
-        XCTAssertEqual(Self.describe(Self.cardioLane(long, through: Self.today)), Self.describe(prepared.cardio))
+        let strengthDay = prepared.strength.reading?.day ?? Self.today
+        let cardioDay = prepared.cardio.reading?.day ?? Self.today
+        XCTAssertEqual(Self.describe(Self.strengthLane(long, through: strengthDay)), Self.describe(prepared.strength))
+        XCTAssertEqual(Self.describe(Self.cardioLane(long, through: cardioDay)), Self.describe(prepared.cardio))
     }
 
     /// A past week is read through its own Sunday: training after that day must not reach its reading.
@@ -184,7 +192,13 @@ final class TrainingLoadLanesTests: XCTestCase {
     }
 
     func testAWeekIsReadThroughItsSundayOrTodayWhileItRuns() {
-        XCTAssertEqual(TrainingLoadLanes.readingDay(monday: "2025-09-01", today: "2025-09-15"), "2025-09-07")
-        XCTAssertEqual(TrainingLoadLanes.readingDay(monday: "2025-09-15", today: "2025-09-17"), "2025-09-17")
+        XCTAssertEqual(TrainingLoadLanes.readingDay(monday: "2025-09-01", today: "2025-09-15", hasActivityToday: false),
+                       "2025-09-07")
+        XCTAssertEqual(TrainingLoadLanes.readingDay(monday: "2025-09-15", today: "2025-09-17", hasActivityToday: true),
+                       "2025-09-17")
+        // A running week before today's first session is read through yesterday: the empty day has not
+        // happened yet, and counting it as rest would lower the week every morning.
+        XCTAssertEqual(TrainingLoadLanes.readingDay(monday: "2025-09-15", today: "2025-09-17", hasActivityToday: false),
+                       "2025-09-16")
     }
 }

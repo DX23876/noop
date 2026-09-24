@@ -5,167 +5,172 @@ import XCTest
 /// opposite directions. These are contract tests: they assert the properties the statement must hold
 /// for, not the branch order it happens to be written in.
 final class TrainingStatementTests: XCTestCase {
-    private let statuses = TrainingStatus.allCases
-    /// Cardio can never be `unproductive` — only the strength lane reads the lifts' e1RM response.
-    private var cardioStatuses: [TrainingStatus] { statuses.filter { $0 != .unproductive } }
+    /// Every verdict either lane can hold — judgements and plain descriptions alike. Cardio can be
+    /// unproductive too now that its evidence is a performance marker, so both lanes share the list.
+    private let verdicts: [LaneVerdict] = TrainingStatus.allCases.map { .status($0) }
+        + [RelativeLoadBand.below, .usual, .higher, .muchHigher].map { .loadOnly($0) }
     private let recoveries: [RecoveryState] = [.holding, .strained, .unknown]
 
-    private func lane(_ statement: TrainingStatusModel.TrainingStatement)
+    private func statement(_ strength: LaneVerdict?, _ cardio: LaneVerdict?,
+                           _ recovery: RecoveryState = .holding) -> TrainingStatusModel.TrainingStatement {
+        TrainingStatusModel.statement(strength: strength, cardio: cardio, recovery: recovery)
+    }
+
+    private func lanes(_ statement: TrainingStatusModel.TrainingStatement)
         -> (low: TrainingStatusModel.TrainingStatementLane, high: TrainingStatusModel.TrainingStatementLane)? {
         if case let .split(low, high, _) = statement { return (low, high) }
         return nil
     }
 
-    private func isBehind(_ status: TrainingStatus) -> Bool {
-        status == .detraining || status == .recovering
+    private func isBehind(_ verdict: LaneVerdict) -> Bool {
+        [.status(.detraining), .status(.recovering), .loadOnly(.below)].contains(verdict)
     }
 
-    private func isAhead(_ status: TrainingStatus) -> Bool {
-        status == .productive || status == .overreaching
+    /// At or above usual and moving: building, spinning or excessive.
+    private func isAhead(_ verdict: LaneVerdict) -> Bool {
+        [.status(.productive), .status(.unproductive), .status(.overreaching),
+         .loadOnly(.higher), .loadOnly(.muchHigher)].contains(verdict)
     }
 
-    /// Every input, including both lanes missing, resolves to a statement. A page that fell through to
-    /// nothing would print an empty card.
+    /// Every input, including both lanes missing, resolves to a statement.
     func testEveryPairResolves() {
-        for strength in statuses + [nil] {
-            for cardio in cardioStatuses + [nil] {
-                for recovery in recoveries {
-                    _ = TrainingStatusModel.statement(strength: strength, cardio: cardio,
-                                                       recovery: recovery)
-                }
+        for strength in verdicts.map(Optional.some) + [nil] {
+            for cardio in verdicts.map(Optional.some) + [nil] {
+                for recovery in recoveries { _ = statement(strength, cardio, recovery) }
             }
         }
     }
 
     /// The defect this exists for: a lane that is losing ground must never be dropped from the
-    /// statement because the other lane is louder.
+    /// statement because the other lane is louder — including when the louder lane is spinning.
     func testALaneLosingGroundIsNamedWheneverTheOtherIsAhead() {
-        for strength in statuses where isBehind(strength) {
-            for cardio in cardioStatuses where isAhead(cardio) {
-                let statement = TrainingStatusModel.statement(strength: strength, cardio: cardio,
-                                                              recovery: .holding)
-                let lanes = lane(statement)
-                XCTAssertEqual(lanes?.low, .strength, "\(strength) vs \(cardio) dropped the strength lane")
-                XCTAssertEqual(lanes?.high, .cardio)
-            }
-        }
-        for cardio in cardioStatuses where isBehind(cardio) {
-            for strength in statuses where isAhead(strength) {
-                let statement = TrainingStatusModel.statement(strength: strength, cardio: cardio,
-                                                              recovery: .holding)
-                let lanes = lane(statement)
-                XCTAssertEqual(lanes?.low, .cardio, "\(strength) vs \(cardio) dropped the cardio lane")
-                XCTAssertEqual(lanes?.high, .strength)
+        for behind in verdicts where isBehind(behind) {
+            for ahead in verdicts where isAhead(ahead) {
+                for recovery in recoveries {
+                    let first = lanes(statement(behind, ahead, recovery))
+                    XCTAssertEqual(first?.low, .strength, "\(behind) vs \(ahead) dropped the strength lane")
+                    XCTAssertEqual(first?.high, .cardio)
+                    let second = lanes(statement(ahead, behind, recovery))
+                    XCTAssertEqual(second?.low, .cardio, "\(ahead) vs \(behind) dropped the cardio lane")
+                    XCTAssertEqual(second?.high, .strength)
+                }
             }
         }
     }
 
     /// `aligned` claims both lanes agree, so it must never appear when they do not.
     func testAlignedNeverSpeaksForTwoLanesThatDisagree() {
-        for strength in statuses {
-            for cardio in cardioStatuses {
+        for strength in verdicts {
+            for cardio in verdicts {
                 for recovery in recoveries {
-                    guard case .aligned = TrainingStatusModel.statement(strength: strength,
-                                                                        cardio: cardio,
-                                                                        recovery: recovery) else { continue }
+                    guard case .aligned = statement(strength, cardio, recovery) else { continue }
                     let bothBehind = isBehind(strength) && isBehind(cardio)
                     let bothQuiet = !isBehind(strength) && !isBehind(cardio)
-                    XCTAssertTrue(bothBehind || bothQuiet,
-                                  "aligned claimed agreement for \(strength) vs \(cardio)")
+                    XCTAssertTrue(bothBehind || bothQuiet, "aligned claimed agreement for \(strength) vs \(cardio)")
                 }
             }
         }
     }
 
-    /// Swapping the lanes swaps them in the answer. Checked only on the verdicts both lanes can hold —
-    /// `unproductive` exists for strength alone.
+    /// Productive is only said when a lane has the evidence for it; more load alone is described.
+    func testProductiveIsNeverClaimedWithoutEvidence() {
+        let unproven = verdicts.filter { $0 != .status(.productive) }
+        for strength in unproven {
+            for cardio in unproven {
+                for recovery in recoveries {
+                    let answer = statement(strength, cardio, recovery)
+                    XCTAssertNotEqual(answer, .aligned(.status(.productive)), "\(strength) vs \(cardio)")
+                }
+            }
+        }
+        XCTAssertEqual(statement(.loadOnly(.higher), .loadOnly(.usual)), .aligned(.loadOnly(.higher)))
+        XCTAssertEqual(statement(.status(.productive), .loadOnly(.usual)), .aligned(.status(.productive)))
+    }
+
+    /// Swapping the lanes swaps them in the answer — for every verdict, now that both lanes can hold all.
     func testTheAnswerIsSymmetricBetweenTheLanes() {
-        for first in cardioStatuses {
-            for second in cardioStatuses {
-                let forwards = TrainingStatusModel.statement(strength: first, cardio: second,
-                                                              recovery: .holding)
-                let backwards = TrainingStatusModel.statement(strength: second, cardio: first,
-                                                               recovery: .holding)
-                switch (forwards, backwards) {
-                case let (.split(lowA, highA, severityA), .split(lowB, highB, severityB)):
-                    XCTAssertEqual(lowA, highB)
-                    XCTAssertEqual(highA, lowB)
-                    XCTAssertEqual(severityA, severityB)
-                case let (.excessive(laneA, _), .excessive(laneB, _)):
-                    XCTAssertNotEqual(laneA, laneB, "\(first) vs \(second) named the same lane both ways")
-                case let (.oneBehind(laneA), .oneBehind(laneB)):
-                    XCTAssertNotEqual(laneA, laneB)
-                default:
-                    XCTAssertEqual(forwards, backwards, "\(first) vs \(second) is not symmetric")
+        for first in verdicts {
+            for second in verdicts {
+                for recovery in recoveries {
+                    let forwards = statement(first, second, recovery)
+                    let backwards = statement(second, first, recovery)
+                    switch (forwards, backwards) {
+                    case let (.split(lowA, highA, severityA), .split(lowB, highB, severityB)):
+                        XCTAssertEqual(lowA, highB)
+                        XCTAssertEqual(highA, lowB)
+                        XCTAssertEqual(severityA, severityB)
+                    case let (.excessive(laneA, strainedA), .excessive(laneB, strainedB)):
+                        XCTAssertNotEqual(laneA, laneB, "\(first) vs \(second) named the same lane both ways")
+                        XCTAssertEqual(strainedA, strainedB)
+                    case let (.oneBehind(laneA), .oneBehind(laneB)):
+                        XCTAssertNotEqual(laneA, laneB)
+                    case let (.spinning(laneA, highA), .spinning(laneB, highB)):
+                        XCTAssertNotEqual(laneA, laneB)
+                        XCTAssertEqual(highA, highB)
+                    default:
+                        XCTAssertEqual(forwards, backwards, "\(first) vs \(second) is not symmetric")
+                    }
                 }
             }
         }
     }
 
-    func testTheTwoCasesThatPromptedThis() {
-        XCTAssertEqual(
-            TrainingStatusModel.statement(strength: .detraining, cardio: .overreaching, recovery: .holding),
-            .split(low: .strength, high: .cardio, severity: .sharp))
-        XCTAssertEqual(
-            TrainingStatusModel.statement(strength: .productive, cardio: .detraining, recovery: .holding),
-            .split(low: .cardio, high: .strength, severity: .mild))
+    func testTheTwoCasesThatPromptedTheMatrix() {
+        XCTAssertEqual(statement(.status(.detraining), .status(.overreaching)),
+                       .split(low: .strength, high: .cardio, severity: .sharp))
+        XCTAssertEqual(statement(.status(.productive), .status(.detraining)),
+                       .split(low: .cardio, high: .strength, severity: .mild))
     }
 
-    func testTheStatementsThatWereAlreadyRight() {
-        XCTAssertEqual(TrainingStatusModel.statement(strength: nil, cardio: nil, recovery: .unknown),
-                       .noHistory)
-        XCTAssertEqual(TrainingStatusModel.statement(strength: .unproductive, cardio: .maintaining,
-                                                      recovery: .holding),
-                       .spinning(cardioAlsoHigh: false))
-        XCTAssertEqual(TrainingStatusModel.statement(strength: .maintaining, cardio: .maintaining,
-                                                      recovery: .strained),
-                       .strainedRecovery)
-        XCTAssertEqual(TrainingStatusModel.statement(strength: .overreaching, cardio: .maintaining,
-                                                      recovery: .strained),
+    func testTheQuietCases() {
+        XCTAssertEqual(statement(nil, nil, .unknown), .noHistory)
+        XCTAssertEqual(statement(.status(.maintaining), .loadOnly(.usual), .strained), .strainedRecovery)
+        XCTAssertEqual(statement(.status(.maintaining), .loadOnly(.usual)), .aligned(.status(.maintaining)))
+        XCTAssertEqual(statement(.loadOnly(.usual), .loadOnly(.usual)), .aligned(.loadOnly(.usual)))
+        XCTAssertEqual(statement(.status(.overreaching), .status(.maintaining), .strained),
                        .excessive(.strength, recoveryStrained: true))
     }
 
-    /// Both lanes over the top used to read as a strength-only problem.
+    /// A deload beside a genuine decline is a decline; two lanes merely below usual stay a description.
+    func testTwoLanesBehindSayTheGraverThing() {
+        XCTAssertEqual(statement(.status(.recovering), .status(.detraining)), .aligned(.status(.detraining)))
+        XCTAssertEqual(statement(.status(.recovering), .loadOnly(.below)), .aligned(.status(.recovering)))
+        XCTAssertEqual(statement(.loadOnly(.below), .loadOnly(.below)), .aligned(.loadOnly(.below)))
+    }
+
     func testBothLanesOverTheTopSaySo() {
-        XCTAssertEqual(TrainingStatusModel.statement(strength: .overreaching, cardio: .overreaching,
-                                                      recovery: .holding),
+        XCTAssertEqual(statement(.status(.overreaching), .loadOnly(.muchHigher)),
                        .bothExcessive(recoveryStrained: false))
-        XCTAssertEqual(TrainingStatusModel.statement(strength: .overreaching, cardio: .overreaching,
-                                                      recovery: .strained),
+        XCTAssertEqual(statement(.status(.overreaching), .status(.overreaching), .strained),
                        .bothExcessive(recoveryStrained: true))
     }
 
-    /// Volume without return, with the cardio lane also running high: both facts, no claim that one
-    /// causes the other.
-    func testSpinningNotesAHighCardioLaneBesideIt() {
-        XCTAssertEqual(TrainingStatusModel.statement(strength: .unproductive, cardio: .overreaching,
-                                                      recovery: .holding),
-                       .spinning(cardioAlsoHigh: true))
+    /// Volume without return names its lane, and notes a high other lane without claiming it is the cause.
+    func testSpinningNamesItsLane() {
+        XCTAssertEqual(statement(.status(.unproductive), .status(.maintaining)),
+                       .spinning(.strength, otherAlsoHigh: false))
+        XCTAssertEqual(statement(.status(.unproductive), .status(.overreaching)),
+                       .spinning(.strength, otherAlsoHigh: true))
+        XCTAssertEqual(statement(.loadOnly(.usual), .status(.unproductive)),
+                       .spinning(.cardio, otherAlsoHigh: false))
+        XCTAssertEqual(statement(.status(.unproductive), .status(.unproductive)), .bothSpinning)
     }
 
     /// A single measured lane speaks only for itself.
     func testOneMeasuredLaneNeverSpeaksForTheOther() {
-        for status in statuses {
-            XCTAssertEqual(TrainingStatusModel.statement(strength: status, cardio: nil, recovery: .holding),
-                           .laneOnly(.strength, status))
-        }
-        for status in cardioStatuses {
-            XCTAssertEqual(TrainingStatusModel.statement(strength: nil, cardio: status, recovery: .holding),
-                           .laneOnly(.cardio, status))
+        for verdict in verdicts {
+            XCTAssertEqual(statement(verdict, nil), .laneOnly(.strength, verdict))
+            XCTAssertEqual(statement(nil, verdict), .laneOnly(.cardio, verdict))
         }
     }
 
-    /// Strained recovery sharpens or displaces a quiet statement, but never silences a split or a lane
-    /// that is falling behind.
+    /// Strained recovery sharpens or displaces a quiet statement, but never silences a split.
     func testStrainedRecoveryNeverHidesASplit() {
-        for strength in statuses {
-            for cardio in cardioStatuses {
-                let holding = TrainingStatusModel.statement(strength: strength, cardio: cardio,
-                                                             recovery: .holding)
+        for strength in verdicts {
+            for cardio in verdicts {
+                let holding = statement(strength, cardio, .holding)
                 guard case .split = holding else { continue }
-                XCTAssertEqual(TrainingStatusModel.statement(strength: strength, cardio: cardio,
-                                                              recovery: .strained),
-                               holding)
+                XCTAssertEqual(statement(strength, cardio, .strained), holding)
             }
         }
     }

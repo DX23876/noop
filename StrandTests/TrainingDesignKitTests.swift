@@ -37,21 +37,22 @@ final class TrainingDesignKitTests: XCTestCase {
     }
 
     func testThePillFollowsTheLaneBandAndSaysWhenThereIsNoComparison() {
-        func lane(_ band: TrainingLoadBand?) -> TrainingLoadModel.Lane {
-            let status = band.map {
-                LaneStatus(status: .maintaining, ratio: 1, band: $0, followsRecentHighPhase: false,
-                           usedStrengthResponse: false, usedRecovery: false)
-            }
+        func lane(_ band: RelativeLoadBand?, guardState: LaneGuard = .none) -> TrainingLoadModel.Lane {
+            let relative = TrainingLoad.relativeLoad(daily: [])
+            let reading = LaneReading(day: "2026-09-24", relative: relative, thresholds: nil, band: band,
+                                      guardState: guardState, daysBelowUsual: 0, followsHighPhase: false)
             return TrainingLoadModel.Lane(sevenDayTotal: 0, sevenDayWorkingSets: 0, trend: nil,
-                                          relative: TrainingLoad.relativeLoad(daily: []), isLowerBound: false,
+                                          relative: relative, isLowerBound: false,
                                           distribution: nil, weekOverWeek: nil, measuredCount: 0,
-                                          possibleCount: 0, status: status)
+                                          possibleCount: 0, reading: reading)
         }
         XCTAssertEqual(LoadPillState.of(lane(.below)), .below)
-        XCTAssertEqual(LoadPillState.of(lane(.maintaining)), .usual)
-        XCTAssertEqual(LoadPillState.of(lane(.productive)), .higher)
-        XCTAssertEqual(LoadPillState.of(lane(.above)), .muchHigher)
+        XCTAssertEqual(LoadPillState.of(lane(.usual)), .usual)
+        XCTAssertEqual(LoadPillState.of(lane(.higher)), .higher)
+        XCTAssertEqual(LoadPillState.of(lane(.muchHigher)), .muchHigher)
         XCTAssertEqual(LoadPillState.of(lane(nil)), .noComparison)
+        XCTAssertEqual(LoadPillState.of(lane(nil, guardState: .tooFewSessions)), .tooFewSessions)
+        XCTAssertFalse(LoadPillState.tooFewSessions.hasComparison)
         XCTAssertEqual(LoadPillState.of(lane(nil), provisional: true), .provisional)
         XCTAssertEqual(LoadPillState.of(nil), .noComparison)
     }

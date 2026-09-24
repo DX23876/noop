@@ -3,50 +3,33 @@ import Charts
 import StrandDesign
 import StrandAnalytics
 
-// MARK: - How a Training Load status looks
+// MARK: - How a Training Load band and verdict look
 //
-// The status itself is decided in `TrainingStatusModel`; this file only draws it. Every colour comes
-// from the palette's own tokens, so the dial follows whichever chart style the wearer picked instead of
-// carrying a second colour world of its own. The four zones form one cool-to-hot ramp:
+// The band is decided in `LaneEngine`, the verdict in `LaneEngine.verdict`; this file only draws them.
+// Every colour comes from the palette's own tokens, so the screen follows whichever chart style the
+// wearer picked instead of carrying a second colour world of its own. The bands form one cool-to-hot
+// ramp, and each verdict borrows the colour of the band it most often sits in:
 //
-//   below usual (detraining / recovering) → restColor       the calm, cool end: less than usual
-//   maintaining                           → metricCyan      steady, on the way to productive
-//   productive                            → statusPositive
-//   unproductive (strength only)          → statusWarning   work without return
-//   overreaching                          → statusCritical
+//   below usual       (detraining / recovering) → restColor       the calm, cool end
+//   usual             (maintaining)             → statusPositive
+//   above usual       (productive)              → metricCyan
+//   well above usual  (overreaching)            → metricAmber
+//   work without return (unproductive)          → statusWarning
 //
 // The drawing leans on what the platform offers — a drifting mesh-gradient backdrop (iOS 18 /
 // macOS 15), symbol effects, chart selection, donut sectors and scroll transitions (iOS 17 / macOS 14)
 // — each behind an availability gate with a plain fallback, because the app still ships macOS 13.
 
 extension TrainingStatus {
-    /// The word on the dial.
+    /// The verdict in one word. Only ever shown where `LaneEngine.verdict` had the evidence for it.
     var label: String {
         switch self {
-        case .detraining:   return String(localized: "Below usual")
-        case .recovering:   return String(localized: "Lighter phase")
-        case .maintaining:  return String(localized: "Within usual")
-        case .productive:   return String(localized: "Higher than usual")
-        case .unproductive: return String(localized: "Adaptation unclear")
-        case .overreaching: return String(localized: "Well above usual")
-        }
-    }
-
-    /// One line on what the state means — the legend's text.
-    var meaning: String {
-        switch self {
-        case .detraining:
-            return String(localized: "The recent load is below your own comparison level.")
-        case .recovering:
-            return String(localized: "A lighter stretch after a higher-load phase.")
-        case .maintaining:
-            return String(localized: "The recent load is within your usual variation.")
-        case .productive:
-            return String(localized: "The recent load is higher than your usual variation.")
-        case .unproductive:
-            return String(localized: "The available performance data has no clear direction.")
-        case .overreaching:
-            return String(localized: "The recent load is well above your usual variation.")
+        case .detraining:   return String(localized: "Detraining")
+        case .recovering:   return String(localized: "Recovering")
+        case .maintaining:  return String(localized: "Maintaining")
+        case .productive:   return String(localized: "Productive")
+        case .unproductive: return String(localized: "Unproductive")
+        case .overreaching: return String(localized: "Overreaching")
         }
     }
 
@@ -63,23 +46,50 @@ extension TrainingStatus {
 
     var color: Color {
         switch self {
-        case .detraining, .recovering: return StrandPalette.restColor
-        case .maintaining:             return StrandPalette.statusPositive
-        case .productive:              return StrandPalette.metricCyan
+        case .detraining, .recovering: return RelativeLoadBand.below.color
+        case .maintaining:             return RelativeLoadBand.usual.color
+        case .productive:              return RelativeLoadBand.higher.color
         case .unproductive:            return StrandPalette.statusWarning
-        case .overreaching:            return StrandPalette.metricAmber
+        case .overreaching:            return RelativeLoadBand.muchHigher.color
         }
     }
 }
 
-extension TrainingLoadBand {
-    /// The zone's colour — the colour of the status that zone stands for on Polar's scale.
+extension RelativeLoadBand {
+    /// The band in words — the same words as the lane's pill.
+    var label: String { LoadPillState(self).label }
+    var symbol: String { LoadPillState(self).symbol }
+
     var color: Color {
         switch self {
-        case .below:       return TrainingStatus.detraining.color
-        case .maintaining: return TrainingStatus.maintaining.color
-        case .productive:  return TrainingStatus.productive.color
-        case .above:       return TrainingStatus.overreaching.color
+        case .below:      return StrandPalette.restColor
+        case .usual:      return StrandPalette.statusPositive
+        case .higher:     return StrandPalette.metricCyan
+        case .muchHigher: return StrandPalette.metricAmber
+        }
+    }
+}
+
+extension LaneVerdict {
+    /// A judgement in its own word; a description in the band's.
+    var label: String {
+        switch self {
+        case let .status(status): return status.label
+        case let .loadOnly(band): return band.label
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case let .status(status): return status.symbol
+        case let .loadOnly(band): return band.symbol
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case let .status(status): return status.color
+        case let .loadOnly(band): return band.color
         }
     }
 }
@@ -88,7 +98,7 @@ extension TrainingLoadBand {
 
 /// How a load ratio is written beside the chart.
 enum LoadScale {
-    static func ratioText(_ ratio: Double, band: TrainingLoadBand) -> String {
+    static func ratioText(_ ratio: Double) -> String {
         String(localized: "\(ratio.formatted(.number.precision(.fractionLength(2)))) × usual")
     }
 }
@@ -203,7 +213,7 @@ struct StatusBadge: View {
 
 // MARK: - Ratio chart
 
-/// Eight weeks of one lane's ratio, the line coloured by the zone it is in, over faint zone bands.
+/// Eight weeks of one lane's ratio against its usual — the same daily readings the hero is built from.
 ///
 /// Touching the chart reads out any day (iOS 17 / macOS 14); without a touch the readout is the latest
 /// day. One lane at a time: with the line coloured by zone, two lines would be two lines in the same
@@ -217,13 +227,6 @@ struct LoadRatioChart: View {
     struct Sample: Equatable {
         let date: Date
         let value: Double
-    }
-
-    /// A run of the line inside one zone, from threshold to threshold.
-    struct Segment: Identifiable, Equatable {
-        let id: Int
-        let band: TrainingLoadBand
-        let samples: [Sample]
     }
 
     @State private var lane: Lane = .strength
@@ -244,60 +247,6 @@ struct LoadRatioChart: View {
         }
     }
 
-    /// Splits the line where it crosses 0.8, 1.0 or 1.3, so each piece can take its zone's colour.
-    ///
-    /// A crossing gets its own point exactly on the threshold, interpolated in time, and that point
-    /// ends one piece and starts the next — so the coloured line is continuous and changes colour on
-    /// the threshold, not halfway between two days. A day without a comparison breaks the line.
-    static func zoneSegments(_ days: [Sample?]) -> [Segment] {
-        let thresholds = [TrainingStatusModel.detrainingBelow, TrainingStatusModel.productiveFrom,
-                          TrainingStatusModel.overreachingAbove]
-        let bands: [TrainingLoadBand] = [.below, .maintaining, .productive, .above]
-        var segments: [Segment] = []
-        var current: [Sample] = []
-        var currentBand: TrainingLoadBand?
-        var previous: Sample?
-
-        func close() {
-            if let band = currentBand, !current.isEmpty {
-                segments.append(Segment(id: segments.count, band: band, samples: current))
-            }
-            current = []
-            currentBand = nil
-        }
-
-        for day in days {
-            guard let sample = day else {
-                close()
-                previous = nil
-                continue
-            }
-            let band = TrainingStatusModel.band(ratio: sample.value)
-            if let last = previous, let lastBand = currentBand, band != lastBand,
-               let from = bands.firstIndex(of: lastBand), let to = bands.firstIndex(of: band) {
-                let rising = from < to
-                let crossed = rising ? Array(from..<to) : Array((to..<from).reversed())
-                for index in crossed {
-                    let threshold = thresholds[index]
-                    let span = sample.value - last.value
-                    let share = span == 0 ? 0 : min(max((threshold - last.value) / span, 0), 1)
-                    let edge = Sample(date: last.date.addingTimeInterval(sample.date.timeIntervalSince(last.date) * share),
-                                      value: threshold)
-                    if current.last != edge { current.append(edge) }
-                    let next = rising ? bands[index + 1] : bands[index]
-                    close()
-                    current = [edge]
-                    currentBand = next
-                }
-            }
-            if current.last != sample { current.append(sample) }
-            currentBand = band
-            previous = sample
-        }
-        close()
-        return segments
-    }
-
     var body: some View {
         let days = days
         let samples = days.compactMap { $0 }
@@ -310,7 +259,7 @@ struct LoadRatioChart: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            chart(samples: samples, segments: Self.zoneSegments(days), focus: focus)
+            chart(samples: samples, focus: focus)
         }
     }
 
@@ -328,7 +277,7 @@ struct LoadRatioChart: View {
             Spacer(minLength: NoopMetrics.space2)
             if let focus {
                 VStack(alignment: .trailing, spacing: 1) {
-                    Text(verbatim: LoadScale.ratioText(focus.value, band: .maintaining))
+                    Text(verbatim: LoadScale.ratioText(focus.value))
                         .font(StrandFont.number(17, weight: .bold))
                         .foregroundStyle(lane == .strength ? StrandPalette.effortColor : StrandPalette.metricCyan)
                         .contentTransition(.numericText())
@@ -343,7 +292,7 @@ struct LoadRatioChart: View {
 
     private func clamped(_ value: Double) -> Double { min(max(value, Self.floor), Self.ceiling) }
 
-    private func chart(samples: [Sample], segments _: [Segment], focus: Sample?) -> some View {
+    private func chart(samples: [Sample], focus: Sample?) -> some View {
         let tint = lane == .strength ? StrandPalette.effortColor : StrandPalette.metricCyan
         return Chart {
             RuleMark(y: .value("Usual", 1.0))
@@ -615,9 +564,9 @@ struct CoverageRing: View {
 
 // MARK: - History strip
 
-/// Eight weeks, one cell per week and lane, each in the status it had AT THE TIME.
+/// Eight weeks, one cell per week and lane, each in the band it had AT THE TIME.
 struct StatusHistoryStrip: View {
-    let history: [TrainingStatusModel.WeeklyStatus]
+    let history: [TrainingStatusModel.WeeklyLoadBands]
 
     @State private var appeared = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -640,14 +589,14 @@ struct StatusHistoryStrip: View {
     }
 
     private func row(symbol: String, title: LocalizedStringKey,
-                     status: @escaping (TrainingStatusModel.WeeklyStatus) -> TrainingStatus?) -> some View {
+                     band: @escaping (TrainingStatusModel.WeeklyLoadBands) -> RelativeLoadBand?) -> some View {
         HStack(spacing: 4) {
             Image(systemName: symbol)
                 .font(StrandFont.caption)
                 .foregroundStyle(StrandPalette.textSecondary)
                 .frame(width: 20)
             ForEach(Array(history.enumerated()), id: \.offset) { index, week in
-                cell(status(week), isCurrent: index == history.count - 1)
+                cell(band(week), isCurrent: index == history.count - 1)
                     .scaleEffect(appeared ? 1 : 0.4)
                     .opacity(appeared ? 1 : 0)
                     .animation(reduceMotion ? nil : NoopMotion.card.delay(Double(index) * NoopMotion.stagger * 1.5),
@@ -656,18 +605,18 @@ struct StatusHistoryStrip: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(title))
-        .accessibilityValue(Text(history.map { status($0)?.label ?? "—" }.joined(separator: ", ")))
+        .accessibilityValue(Text(history.map { band($0)?.label ?? "—" }.joined(separator: ", ")))
     }
 
-    private func cell(_ status: TrainingStatus?, isCurrent: Bool) -> some View {
+    private func cell(_ band: RelativeLoadBand?, isCurrent: Bool) -> some View {
         let shape = RoundedRectangle(cornerRadius: 7, style: .continuous)
         return ZStack {
-            if let status {
-                shape.fill(status.color.gradient)
+            if let band {
+                shape.fill(band.color.gradient)
                 shape.fill(LinearGradient(colors: [StrandPalette.onDarkPrimary.opacity(0.3),
                                                    StrandPalette.onDarkPrimary.opacity(0)],
                                           startPoint: .top, endPoint: .center))
-                Image(systemName: status.symbol)
+                Image(systemName: band.symbol)
                     .font(StrandFont.rounded(9.5, weight: .bold))
                     .foregroundStyle(StrandPalette.onDarkPrimary)
             } else {
@@ -677,7 +626,7 @@ struct StatusHistoryStrip: View {
         .overlay(shape.strokeBorder(isCurrent ? StrandPalette.textPrimary.opacity(0.7) : Color.clear,
                                     lineWidth: 1.5)
             .padding(-2.5))
-        .shadow(color: isCurrent ? (status?.color ?? Color.clear).opacity(0.55) : Color.clear, radius: 5)
+        .shadow(color: isCurrent ? (band?.color ?? Color.clear).opacity(0.55) : Color.clear, radius: 5)
         .frame(maxWidth: .infinity, minHeight: 26, maxHeight: 26)
     }
 

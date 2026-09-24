@@ -8,11 +8,11 @@ import WhoopStore
 /// another must never change the figure. So there is exactly one computation, and the only thing a
 /// screen chooses is the day it is read through.
 enum TrainingLoadLanes {
-    /// History a reading needs before its day: the eight-week personal comparison, plus the 28 days of
-    /// earlier ratings the first of those days weights its unrated sets with. Data older than this does
-    /// not move a reading.
-    static let lookbackDays = TrainingLoad.personalBaselineWeeks * TrainingLoad.recentWindow
-        + TrainingLoad.baselineWindow
+    /// History a reading needs before its day: the days `LaneEngine` reads (each day's eight-week
+    /// comparison, the hysteresis warm-up and the longest below-usual run), plus the 28 days of earlier
+    /// ratings the first of those days weights its unrated sets with. Data older than this does not move
+    /// a reading.
+    static let lookbackDays = LaneEngine.dependencyDays + TrainingLoad.baselineWindow
 
     struct CardioSeries: Sendable {
         let byDay: [String: Double]
@@ -20,6 +20,8 @@ enum TrainingLoadLanes {
         /// than counting as rest, so a gap in the measurement is never reported as a drop in training.
         let unknownDays: Set<String>
         let measured: Bool
+        /// Cardio sessions per day and their minutes — what the lane's guards read.
+        let activity: LaneActivity
     }
 
     static func strengthByDay(_ workouts: [HevyWorkout], tzOffsetSeconds: Int) -> [String: Double] {
@@ -31,25 +33,57 @@ enum TrainingLoadLanes {
         let series = TrainingLoadModel.cardioDailyLoad(sessions: sessions, loads: resolution.loads,
                                                        duplicates: resolution.duplicateSessionIds,
                                                        tzOffsetSeconds: tzOffsetSeconds)
-        return CardioSeries(byDay: series.byDay, unknownDays: series.unknownDays, measured: series.measured)
+        return CardioSeries(byDay: series.byDay, unknownDays: series.unknownDays, measured: series.measured,
+                            activity: cardioActivity(sessions: sessions, duplicates: resolution.duplicateSessionIds,
+                                                     tzOffsetSeconds: tzOffsetSeconds))
+    }
+
+    /// Strength sessions per day and their minutes, for the lane's guards.
+    static func strengthActivity(_ workouts: [HevyWorkout], tzOffsetSeconds: Int) -> LaneActivity {
+        var sessions: [String: Int] = [:]
+        var minutes: [String: Double] = [:]
+        for workout in workouts {
+            let day = AnalyticsEngine.dayString(workout.startTs, offsetSec: tzOffsetSeconds)
+            sessions[day, default: 0] += 1
+            minutes[day, default: 0] += Double(max(0, workout.endTs - workout.startTs)) / 60
+        }
+        return LaneActivity(sessionsByDay: sessions, minutesByDay: minutes)
+    }
+
+    /// Cardio sessions per day and their minutes, for the lane's guards: every non-strength session long
+    /// enough to be priced, whether or not its heart rate could be, and each bout counted once.
+    static func cardioActivity(sessions: [UnifiedTrainingSession], duplicates: Set<String>,
+                               tzOffsetSeconds: Int) -> LaneActivity {
+        var count: [String: Int] = [:]
+        var minutes: [String: Double] = [:]
+        for session in sessions where session.kind != .strength && !duplicates.contains(session.id) {
+            let window = session.row.endTs - session.row.startTs
+            guard window >= Repository.cardioLoadMinimumSeconds else { continue }
+            let day = AnalyticsEngine.dayString(session.row.startTs, offsetSec: tzOffsetSeconds)
+            count[day, default: 0] += 1
+            minutes[day, default: 0] += (session.row.durationS ?? Double(window)) / 60
+        }
+        return LaneActivity(sessionsByDay: count, minutesByDay: minutes)
     }
 
     static func strengthLane(workouts: [HevyWorkout], byDay: [String: Double], through day: String,
                              tzOffsetSeconds: Int) -> TrainingLoadModel.Lane {
         let recent = inLastSeven(workouts, through: day, tzOffsetSeconds: tzOffsetSeconds) { $0.startTs }
         let pooled = StrengthSession.strengthLoad(recent)
-        let relative = TrainingLoad.relativeLoad(dailyByDay: byDay, through: day)
+        let reading = LaneEngine.reading(dailyByDay: byDay,
+                                         activity: strengthActivity(workouts, tzOffsetSeconds: tzOffsetSeconds),
+                                         lane: .strength, through: day)
         return TrainingLoadModel.Lane(
             sevenDayTotal: lastSeven(byDay, through: day),
             sevenDayWorkingSets: recent.flatMap { $0.exercises.flatMap(\.workingSets) }.count,
-            trend: relative.trend,
-            relative: relative,
+            trend: reading.trend,
+            relative: reading.relative,
             isLowerBound: false,
             distribution: TrainingLoad.distribution(dailyByDay: byDay, through: day),
             weekOverWeek: TrainingLoad.weekOverWeek(dailyByDay: byDay, through: day),
             measuredCount: pooled.ratedSets,
             possibleCount: pooled.workingSets,
-            status: relativeStatus(relative))
+            reading: reading)
     }
 
     static func cardioLane(sessions: [UnifiedTrainingSession], resolution: TrainingCardioLoadResolution,
@@ -62,13 +96,13 @@ enum TrainingLoadLanes {
                 ($0.row.endTs - $0.row.startTs) >= Repository.cardioLoadMinimumSeconds
                     && !resolution.duplicateSessionIds.contains($0.id)
             }
-        let relative = TrainingLoad.relativeLoad(dailyByDay: series.byDay, through: day,
-                                                 unknownDays: series.unknownDays)
+        let reading = LaneEngine.reading(dailyByDay: series.byDay, unknownDays: series.unknownDays,
+                                         activity: series.activity, lane: .cardio, through: day)
         return TrainingLoadModel.Lane(
             sevenDayTotal: lastSeven(series.byDay, through: day),
             sevenDayWorkingSets: 0,
-            trend: relative.trend,
-            relative: relative,
+            trend: reading.trend,
+            relative: reading.relative,
             isLowerBound: lastSevenContainsUnknown(series.unknownDays, through: day),
             distribution: TrainingLoad.distribution(dailyByDay: series.byDay, through: day,
                                                     unknownDays: series.unknownDays),
@@ -76,29 +110,36 @@ enum TrainingLoadLanes {
                                                     unknownDays: series.unknownDays),
             measuredCount: recent.filter { resolution.loads[$0.id] != nil }.count,
             possibleCount: recent.count,
-            status: relativeStatus(relative))
+            reading: reading)
     }
 
-    /// The 56 daily ratios ending at `day`, per lane. A lane the caller did not read stays nil.
-    static func ratios(strengthByDay: [String: Double]?, cardio: CardioSeries?,
-                       through day: String) -> [TrainingLoadModel.RatioPoint] {
-        var ratios: [TrainingLoadModel.RatioPoint] = []
-        var ratioDay = WeeklyDigestEngine.addDays(day, -55)
-        for _ in 0..<56 {
-            ratios.append(TrainingLoadModel.RatioPoint(
-                day: ratioDay,
-                strength: strengthByDay.flatMap { TrainingLoad.trend(dailyByDay: $0, through: ratioDay)?.ratio },
-                cardio: cardio.flatMap {
-                    TrainingLoad.trend(dailyByDay: $0.byDay, through: ratioDay, unknownDays: $0.unknownDays)?.ratio
-                }))
-            ratioDay = WeeklyDigestEngine.addDays(ratioDay, 1)
+    /// The 56 daily readings ending at `day`, per lane — the same readings the hero shows, day by day,
+    /// so the chart's line and colours can never disagree with the label above them. A lane the caller
+    /// did not read stays nil.
+    static func ratios(strengthByDay: [String: Double]?, strengthActivity: LaneActivity? = nil,
+                       cardio: CardioSeries?, through day: String) -> [TrainingLoadModel.RatioPoint] {
+        let days = (0..<56).reversed().map { WeeklyDigestEngine.addDays(day, -$0) }
+        let strength = strengthByDay.map {
+            LaneEngine.readings(dailyByDay: $0, activity: strengthActivity ?? .none, lane: .strength, days: days)
         }
-        return ratios
+        let cardio = cardio.map {
+            LaneEngine.readings(dailyByDay: $0.byDay, unknownDays: $0.unknownDays, activity: $0.activity,
+                                lane: .cardio, days: days)
+        }
+        return days.indices.map { index in
+            TrainingLoadModel.RatioPoint(day: days[index],
+                                         strength: strength?[index].trend?.ratio,
+                                         cardio: cardio?[index].trend?.ratio,
+                                         strengthBand: strength?[index].band,
+                                         cardioBand: cardio?[index].band)
+        }
     }
 
-    /// The day a week is read through: its Sunday, or today while the week is still running.
-    static func readingDay(monday: String, today: String) -> String {
-        min(WeeklyDigestEngine.addDays(monday, 6), today)
+    /// The day a week is read through: its Sunday, or — while the week is still running — today once
+    /// something was logged today, otherwise yesterday (`LaneEngine.readingDay`).
+    static func readingDay(monday: String, today: String, hasActivityToday: Bool) -> String {
+        min(WeeklyDigestEngine.addDays(monday, 6),
+            LaneEngine.readingDay(today: today, hasActivityToday: hasActivityToday))
     }
 
     static func inLastSeven<T>(_ items: [T], through day: String, tzOffsetSeconds: Int,
@@ -127,28 +168,5 @@ enum TrainingLoadLanes {
             cursor = WeeklyDigestEngine.addDays(cursor, -1)
         }
         return false
-    }
-
-    /// Adapts the neutral relative-load reading to the existing ring renderer. The legacy case names
-    /// are not presented to the wearer; `TrainingStatusVisuals` labels these as relative-load bands.
-    static func relativeStatus(_ reading: RelativeLoadReading) -> LaneStatus? {
-        guard let trend = reading.trend else { return nil }
-        let relativeBand: RelativeLoadBand = reading.band ?? {
-            if trend.percentChange < -15 { return .below }
-            if trend.percentChange <= 15 { return .usual }
-            if trend.percentChange <= 30 { return .higher }
-            return .muchHigher
-        }()
-        let legacyStatus: TrainingStatus
-        let legacyBand: TrainingLoadBand
-        switch relativeBand {
-        case .below: legacyStatus = .detraining; legacyBand = .below
-        case .usual: legacyStatus = .maintaining; legacyBand = .maintaining
-        case .higher: legacyStatus = .productive; legacyBand = .productive
-        case .muchHigher: legacyStatus = .overreaching; legacyBand = .above
-        }
-        return LaneStatus(status: legacyStatus, ratio: trend.ratio, band: legacyBand,
-                          followsRecentHighPhase: false, usedStrengthResponse: false,
-                          usedRecovery: false)
     }
 }

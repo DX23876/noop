@@ -213,10 +213,13 @@ final class CardioModel: ObservableObject {
         let anchor = weekAnchorDay
         let all = sessions
         let offset = tzOffset
-        let laneDay = TrainingLoadLanes.readingDay(monday: monday, today: Repository.localDayKey(Date()))
         let laneSessions = self.laneSessions
         let laneResolution = self.laneResolution
         let laneSeries = self.laneSeries
+        let today = Repository.localDayKey(Date())
+        let laneDay = TrainingLoadLanes.readingDay(
+            monday: monday, today: today,
+            hasActivityToday: (laneSeries?.activity.sessionsByDay[today] ?? 0) > 0)
 
         // Outside the detached task: binning zones is an async read on the repository, and its result
         // travels into the bundle as a finished value so the week's cache holds it too.

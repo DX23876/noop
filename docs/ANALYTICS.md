@@ -584,29 +584,55 @@ disagree, and which applies depends on the sport, the phase and the athlete.
 
 ### Training status — is it too much, too little, or about right?
 
-Source: `TrainingStatus.swift` (`TrainingStatusModel`), tests in `TrainingStatusTests.swift`. The ratio
-used throughout is the lane's own `LoadTrend.ratio`: the seven-day mean over the mean of up to 28 days
-immediately before it. The windows do not overlap, avoiding the coupled ratio's built-in correlation.
-The two lanes get a status by different
-rules, because the evidence behind them is different.
+Source: `LaneEngine.swift` (the band and the verdict table), `TrainingStatus.swift`
+(`TrainingStatusModel`: the evidence, the statement, the history strip and the lasting-overload
+warning); tests in `LaneEngineTests.swift`, `TrainingStatusTests.swift` and `TrainingStatementTests.swift`.
 
-**Cardio — an uncoupled load ratio.** NOOP compares seven days with the preceding 28 days of
-TRIMP-derived daily load, with rest days as zeros. The familiar bands remain for readable monitoring
-states, but they are conventions rather than measured safety limits and do not inherit a causal injury
-claim from the older coupled construction:
+**One band, shown everywhere.** Every surface — the hero pill, the eight-week strip, the ratio chart,
+the statement and the warning — reads the same `LaneReading` from `LaneEngine`. The axis is the lane's
+own `LoadTrend.ratio`: the seven-day mean over the mean of the days immediately before it (14 while the
+history is short, then 28). The windows do not overlap, avoiding the coupled ratio's built-in
+correlation. A comparison is all-or-nothing: a window holding a day the data could not price has no
+band rather than a mean over the days that happen to be known, so a gap in the measurement is never
+reported as a drop in training.
 
-| Ratio | Status |
-|---|---|
-| < 0.8 | **Recovering** when the ratio stood at ≥ 1.0 on at least half of the 14 days before (NOOP's rule; the convention names both states without publishing how it separates them). Otherwise **Maintaining**, becoming **Detraining** only once the lane has been below 0.8 for 14 consecutive days — short-term detraining research (Mujika & Padilla 2000) finds aerobic capacity largely held through roughly the first fortnight of reduced training. A single day at 1.0 is ordinary steady training, so a week off after regular training reads as recovering, and a longer quiet spell as a quiet lane rather than a loss the wearer has not had |
-| 0.8 – < 1.0 | Maintaining |
-| 1.0 – 1.3 | Productive |
-| > 1.3 | Overreaching |
+| Band | Until eight complete weeks | From eight complete weeks |
+|---|---|---|
+| Below usual | ratio < 0.75 | under the robust weekly range (median − 1.4826 × MAD of the seven preceding weeks) |
+| Usual | 0.75 – 1.15 | within that range |
+| Above usual | 1.15 – 1.44 | above it, up to median + 2 × 1.4826 × MAD |
+| Well above usual | > 1.44 | beyond that — but never later than 1.44 |
 
-**Strength — load, the lifts' response, and recovery.** No wearable publishes a validated strength
-status, and the ACWR literature contains no resistance-training study (2025 meta-analysis of 22
-studies; its authors also decline to call 0.8–1.3 reliably safe for the sports it does cover). So the
-ratio alone may not call a lifting block productive. Following the established idea that "productive" needs load
-*and* an improving fitness marker — the strength status also asks whether the lifts are improving:
+0.75 and 1.44 are Polar's 0.8 and 1.3 (Training Load Pro white paper, 2019/2025) on NOOP's windows:
+Polar's 28-day *tolerance* contains the acute week, so its coupled ratio is `4u / (u + 3)` of the
+uncoupled `u` used here. Keeping 0.8 / 1.3 after decoupling (2026-09-13) had silently moved "well above"
+from +44 % to +30 %. 1.15 is NOOP's own: Polar calls anything over 1.0 progression, which would make an
+ordinary +3 % week "above usual". The personal range may never let "well above" start past 1.44, so a
+wearer who trains irregularly does not have a large jump read as normal.
+
+Three guards sit on the edges:
+
+- **Too few sessions.** Fewer than three sessions in the baseline window: no band (Polar requires the
+  same three in 28 days). The percentage is still shown.
+- **Low volume.** While the baseline sits under the WHO weekly minimum — 150 cardio minutes, or two
+  strength days — a lane reads at most *above usual*. Polar likewise shows "productive" instead of
+  "overreaching" below the WHO level: one easy session a week becoming two is a return to training.
+- **Hysteresis.** A band is left only once the ratio clears the edge by five percentage points. Each
+  day's band replays a fixed fourteen-day warm-up, so a reading depends on a bounded window
+  (`LaneEngine.dependencyDays`) and history older than that can never move it.
+
+**The reading day.** A current reading runs through today once something was logged today, otherwise
+through yesterday: a day that has not happened yet is not a rest day. For daily training that removes
+a −14 % every morning. Training every other day still puts three or four sessions into any seven days,
+so the percentage alternates by about ±14 %; the band does not, because the usual range and the
+hysteresis absorb it.
+
+**Verdicts need performance evidence.** A band describes the load; a judgement about what the load is
+doing needs a measured performance trend. No wearable publishes a validated strength status, and the
+2025 ACWR meta-analysis (22 studies) contains no resistance-training study and does not call any ratio
+band reliably safe. Following the established idea that "productive" needs load *and* an improving
+marker, both lanes read their own evidence — the lifts' e1RM for strength, VO₂max for cardio — plus
+recovery:
 
 - **Response.** Each lift trained in the last 42 days gets the exercise card's own e1RM line
   (`StrengthProgress.e1rmTrend`, Theil–Sen over session bests) through the in-window sessions only. It
@@ -624,41 +650,35 @@ ratio alone may not call a lifting block productive. Following the established i
   *productive* and *overreaching* in the top band. Seven nights is also the window every other acute
   figure on the screen uses, and the bar is proportional so a thin week is not judged more harshly.
 
-| Band | rising | unclear | falling | unknown (fallback = load only) |
+`LaneEngine.verdict` — the same table for both lanes:
+
+| Band | rising | unclear | falling | no evidence |
 |---|---|---|---|---|
-| < 0.8 | Maintaining | Maintaining → Detraining after 21 days | Detraining | Maintaining → Detraining after 21 days |
-| 0.8 – < 1.0 | Productive | Maintaining | Detraining | Maintaining |
-| 1.0 – 1.3 | Productive | Maintaining | **Unproductive** | Productive |
-| > 1.3, recovery holding | Productive | Unproductive | Unproductive | Overreaching |
-| > 1.3, recovery strained or unknown | Overreaching | Overreaching | Overreaching | Overreaching |
+| Below usual | Maintaining | Maintaining → Detraining† | Detraining | "less than usual" → Detraining† |
+| Usual | Productive | Maintaining | Unproductive | "as usual" |
+| Above usual | Productive | Maintaining | Unproductive | "more than usual" |
+| Well above usual | Productive if recovery holds, else Overreaching | Unproductive if recovery holds, else Overreaching | Overreaching | Overreaching if recovery is strained, else "much more than usual" |
 
-Below 0.8 after such a productive or overreaching phase (ratio ≥ 1.0 on at least half of the 14 days
-before) is **Recovering** whatever the lifts do (a deload). Without such a phase and without clearly
-falling lifts, strength stays **Maintaining** until the lane has been below 0.8 for 21 consecutive
-days: Bosquet et al. (2013, meta-analysis of training cessation) find maximal force significantly lower
-only from the third week of inactivity, so an earlier "detraining" would describe a loss the lifter has
-not yet had. Clearly falling lifts are detraining at once. Cardio waits too, but for 14 days rather than
-21: aerobic capacity decays faster than maximal force, so the two lanes keep their own timing instead of
-borrowing each other's. "Unclear"
-at the usual load is deliberately *Maintaining*, not *Unproductive*: an advanced lifter gaining a
-fraction of a per cent a week is progressing below what six weeks of e1RM can resolve.
+† once the lane has been below usual for 21 days (strength; Bosquet et al. 2013, meta-analysis of
+training cessation: maximal force significantly lower only from the third week) or 14 days (cardio;
+Mujika & Padilla 2000: aerobic capacity largely held through about the first fortnight). Below usual
+straight after a high phase — above or well above usual on at least half of the 14 days before — is
+**Recovering** whatever the evidence says (NOOP's rule). Without evidence the verdict is a description
+(`LaneVerdict.loadOnly`), never "productive", "maintaining" or "unproductive". "Unclear" at the usual
+load is *Maintaining*: an advanced lifter gaining a fraction of a per cent a week is progressing below
+what six weeks of e1RM can resolve. Falling performance at the usual load or above is *Unproductive* —
+load without return — rather than detraining, which would blame too little training.
 
-The session lane (sRPE × minutes) keeps its comparison with the usual level and gets no status: a
-perceived-effort total has no published status scale to borrow.
+The session lane (sRPE × minutes) keeps its comparison with the usual level and gets no band or
+verdict: a perceived-effort total has no published scale to borrow.
 
-What the status is not: a measurement or an injury prediction. The thresholds are a monitoring convention,
-the strength table and the recovering rule are NOOP's, and the screen names which inputs a verdict used
-(`LaneStatus.usedStrengthResponse`, `usedRecovery`) so a fallback to load alone is visible. Supporting
+What a verdict is not: a measurement or an injury prediction. The edges are conventions with a stated
+source, the verdict table and the recovering rule are NOOP's. Supporting
 evidence for the strength inputs: weekly set volume raises both hypertrophy and strength with
 diminishing returns, more pronounced for strength (Pelland et al., 67 studies); proximity to failure
 raises hypertrophy with the slope flattening past about 2 RIR but barely changes strength gains
 (Robinson et al. 2024) — which is why the load is effort-weighted sets but "productive" is judged on the
 lifts themselves.
-
-The screen also shows how many evaluated lifts rise, stay unclear or fall (each lift's own line stays
-on the Strength screen), how long a lane has been below 0.8 (`LaneStatus.daysBelowUsual`), and an eight-week
-strip (`TrainingStatusModel.weeklyHistory`) in which every week is recomputed as of its own last day —
-its load, its lifts' lines and its recovery nights — rather than today's inputs painted backwards.
 
 **VO₂max needs a change worth naming.** The direction shown beside the cardio lane is withheld unless
 the Theil–Sen line moves by at least 1.0 ml/kg/min across its window, on top of the existing agreement
@@ -676,27 +696,24 @@ from another source or estimator earlier in the window are left out and `segment
 a change of method moves the number without any change in fitness. The screen shows the latest value,
 the direction with the change the line implies, a sparkline and the source.
 
-**Lasting overreaching — a warning, not a seventh state.** The ECSS/ACSM consensus (Meeusen et al.
-2013) separates functional overreaching (a planned hard block, recovered from in days, followed by
-better performance — what the ordinary *Overreaching* status means) from non-functional overreaching
-(a performance decrement taking weeks to months to recover from) and the overtraining syndrome, which
-it says can only be diagnosed clinically, over months and by excluding other causes, with no single
-marker qualifying. `TrainingStatusModel.sustainedOverreaching` therefore raises a warning only when a
-lane has been *Overreaching* at three consecutive week-ends of the history strip, that lane's
-performance is falling (lifts falling for strength; VO₂max falling for cardio) **and**
-recovery is strained now. A missing performance reading never raises it. The screen calls it "signs of
-lasting overreaching", recommends several easy or rest days, and says outright that it is not a
-diagnosis of overtraining and to see a doctor if performance and wellbeing stay down for weeks.
+**Lasting overload — a warning, not another verdict.** The ECSS/ACSM consensus (Meeusen et al. 2013)
+separates functional overreaching (a planned hard block, recovered from in days, followed by better
+performance) from non-functional overreaching (a performance decrement taking weeks to months to
+recover from) and the overtraining syndrome, which it says can only be diagnosed clinically, over
+months and by excluding other causes, with no single marker qualifying.
+`TrainingStatusModel.sustainedOverreaching` therefore raises a warning only when a lane has been *well
+above usual* at three consecutive week-ends of the history strip, that lane's performance evidence is
+falling **and** recovery is strained now. Missing evidence never raises it. The screen recommends
+several easy or rest days and says outright that it is not a diagnosis of overtraining and to see a
+doctor if performance and wellbeing stay down for weeks.
 
 **Considered and not adopted.**
 
 - *EWMA instead of rolling means* (Williams et al. 2017). EWMA-based ratios associate somewhat more
-  closely with health problems in team-sport data, but the 0.8 / 1.0 / 1.3 thresholds were set on
-  rolling 7- and 28-day means. Swapping the averaging while keeping the thresholds would silently change
-  what 1.3 means; the cardio lane stays on the construction those thresholds came from.
+  closely with health problems in team-sport data, but Polar's edges were set on rolling 7- and 28-day
+  means. Swapping the averaging while keeping the converted edges would silently change what they mean.
 - *A coupled ratio.* Rejected because putting the acute week inside its own baseline creates a built-in
-  mathematical relationship (Lolli et al. 2017). The screen keeps the familiar bands only as named
-  monitoring conventions and states that they are not safety limits.
+  mathematical relationship (Lolli et al. 2017). Polar's coupled edges are converted instead.
 
 **RIR-adjusted e1RM.** `OneRepMax` applies Epley to completed reps plus `10 − RPE` when a valid RPE
 (or an RIR entry converted to RPE at capture) exists. Without a rating it uses completed reps exactly as
@@ -708,33 +725,34 @@ different distances from failure while keeping the estimate explicitly labelled 
   formula.
 
 **One statement for both lanes.** `TrainingStatusModel.statement(strength:cardio:recovery:)` maps a PAIR
-of verdicts onto the page's single sentence. It exists because the previous read-time ladder stopped at
-its first match and therefore named one lane: strength detraining beside cardio overreaching was
-reported as "much more cardio than usual", and strength productive beside cardio detraining as "your
-build is working". Each verdict first reduces to a tendency — *behind* (detraining, recovering),
-*holding* (maintaining), *building* (productive), *spinning* (unproductive, strength only), *excessive*
-(overreaching) — so a split is decided by the rules that already priced each lane rather than by a
-second ratio threshold. Cardio can never be *spinning*: only the strength lane reads the e1RM response.
+of verdicts onto the page's single sentence. Each verdict first reduces to a tendency — *behind*
+(detraining, recovering, less than usual), *holding* (maintaining, as usual), *building* (productive,
+more than usual), *spinning* (unproductive), *excessive* (overreaching, much more than usual) — so a
+split is decided by the rules that already priced each lane rather than by a second threshold. Both
+lanes can be *spinning*, so the table is symmetric:
 
-| strength ↓ / cardio → | behind | holding | building | excessive | unmeasured |
-|---|---|---|---|---|---|
-| **behind** | `aligned` | `oneBehind(strength)` | `split` (mild) | `split` (sharp) | `laneOnly` |
-| **holding** | `oneBehind(cardio)` | `aligned` | `aligned` | `excessive(cardio)` | `laneOnly` |
-| **building** | `split` (mild) | `aligned` | `aligned` | `excessive(cardio)` | `laneOnly` |
-| **spinning** | `spinning` | `spinning` | `spinning` | `spinning(cardioAlsoHigh)` | `laneOnly` |
-| **excessive** | `split` (sharp) | `excessive(strength)` | `excessive(strength)` | `bothExcessive` | `laneOnly` |
-| **unmeasured** | `laneOnly` | `laneOnly` | `laneOnly` | `laneOnly` | `noHistory` |
+| strength ↓ / cardio → | behind | holding | building | spinning | excessive | unmeasured |
+|---|---|---|---|---|---|---|
+| **behind** | `aligned` | `oneBehind(strength)` | `split` (mild) | `split` (mild) | `split` (sharp) | `laneOnly` |
+| **holding** | `oneBehind(cardio)` | `aligned` | `aligned` | `spinning(cardio)` | `excessive(cardio)` | `laneOnly` |
+| **building** | `split` (mild) | `aligned` | `aligned` | `spinning(cardio)` | `excessive(cardio)` | `laneOnly` |
+| **spinning** | `split` (mild) | `spinning(strength)` | `spinning(strength)` | `bothSpinning` | `spinning(strength, otherAlsoHigh)` | `laneOnly` |
+| **excessive** | `split` (sharp) | `excessive(strength)` | `excessive(strength)` | `spinning(cardio, otherAlsoHigh)` | `bothExcessive` | `laneOnly` |
+| **unmeasured** | `laneOnly` | `laneOnly` | `laneOnly` | `laneOnly` | `laneOnly` | `noHistory` |
 
-A `split` always names the lane that is behind and the one that is ahead, and the card is painted from
-the first colour to the second so the divergence is visible before a word is read. Strained recovery is
-applied AFTER the pair resolves: it sharpens an overreaching statement and displaces a quiet one, but
-never overrides a split or a lane that is falling behind — the recovery card sits directly beneath
-either way. Where strength is spinning while cardio runs high, the sentence names both facts and does
-**not** claim that the cardio block is what costs the lifts their progress: plausible, unmeasured.
-Contract tests (`TrainingStatementTests.swift`) pin totality over every pair, the split invariants and
-lane symmetry rather than the branch order.
+A `split` always names the lane that is behind and the one that is ahead — including beside a spinning
+lane, which the previous matrix dropped — and the card is painted from the first colour to the second.
+An `aligned` statement is *productive* only when a building lane has the evidence for it, otherwise it
+describes the load. Strained recovery is applied AFTER the pair resolves: it sharpens an overload
+statement and displaces a quiet one, but never overrides a split or a lane that is falling behind.
+Where one lane is spinning while the other runs high, the sentence names both facts and does **not**
+claim that one costs the other its progress: plausible, unmeasured. Contract tests pin totality over
+every pair, the split invariants, symmetry and the no-productive-without-evidence rule.
 
-**Analysis migration required: yes.** The non-overlapping comparison changes the aggregation window,
+**Analysis migration required: no** for the single band, the guards, the reading day and the verdict
+table (2026-09-24): everything here is computed at read time and nothing stored changes.
+
+Earlier, 2026-09-13 — **analysis migration required: yes.** The non-overlapping comparison changes the aggregation window,
 and RIR-adjusted e1RM changes the meaning of the lift-response input used by Training Status. Both land
 inside the same unreleased analysis recipe 5 as canonical-session fusion; its existing resumable 21-day
 maintenance refreshes affected workout-derived outputs before committing the cursor. Raw workouts,

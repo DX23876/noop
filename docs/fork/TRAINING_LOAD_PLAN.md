@@ -1,6 +1,6 @@
 # Training Load – Umbau- und Erweiterungsplan
 
-Stand: 2026-09-24 · Branch: `claude/training-load-optimization-cfb32e` · Status: **beschlossen, Umsetzung ab P1**
+Stand: 2026-09-24 · Branch: `claude/training-load-optimization-cfb32e` · Status: **beschlossen; P1a umgesetzt, weiter mit P1b**
 
 Dieser Plan fasst die Untersuchung von Training Load zusammen (Code-Review, Messung gegen die echte
 `StrandAnalytics`-Logik, Abgleich mit dem Polar-Whitepaper) und die in vier Grilling-Runden getroffenen
@@ -18,7 +18,7 @@ Alle Zahlen stammen aus einem temporären Test gegen die echten Funktionen (dana
 | B1 | **Zwei Einstufungssysteme auf einem Screen.** Hero/Pille/Ring lesen die persönlichen Bänder (`TrainingLoadLanes.relativeStatus`: ±15/30 %, ab 8 Wochen Median ± MAD). 8-Wochen-Streifen und Überlastungswarnung lesen `TrainingStatusModel` mit 0,8/1,0/1,3. `TrainingStatusModel.statement()` (9-Fall-Matrix + Tests) wird seit dem Redesign `8e0ea74b9` nirgends mehr gezeigt. | −17 %: Hero „Below usual“, Streifen *maintaining*; +8 %: *usual* vs *productive*; +32 %: *Well above* vs *overreaching* | hoch |
 | B2 | **Polar-Schwellen passen nach der Entkopplung nicht mehr.** Polar rechnet Tolerance über die letzten 28 Tage *inklusive* akuter Woche (gekoppelt). NOOP hat am 13.09. entkoppelt, die Schwellen aber behalten. Gekoppelt = 4u/(u+3). | Polar 1,3 ≙ entkoppelt **1,44**; Polar 0,8 ≙ **0,75** | hoch |
 | B3 | **Kein Schutz bei geringer Last.** Polar zeigt unter WHO-Mindestaktivität „Productive“ statt „Overreaching“ und verlangt ≥ 3 Einheiten in 28 Tagen. NOOP hat nichts davon. | 1 → 2 lockere Einheiten/Woche = Verhältnis 2,0 → *overreaching* / „Well above usual“ | hoch |
-| B4 | **Der unvollständige heutige Tag zählt voll mit.** | Training jeden 2. Tag: morgens −14 % (*maintaining*), abends +14 % (*productive*) – selbe Woche | hoch |
+| B4 | **Der unvollständige heutige Tag zählt voll mit.** | Tägliches Training: morgens −14 %, abends 0 %. *Korrektur bei der Umsetzung:* Bei Training jeden 2. Tag schwankt die Prozentzahl auch mit Tagesabschluss um ±14 % (3 oder 4 Einheiten in 7 Tagen); dort halten der breitere „Usual“-Bereich und die Hysterese die Stufe stabil (Test `testAlternateDayTrainingKeepsOneBand`) | hoch |
 | B5 | **Das Lastsignal in Readiness ist praktisch blind.** Gekoppelte Fenster, log-Effort, `compactMap` staucht Kalendertage. Der Coach bekommt nur diese Zahl (`AICoach.readinessBlock`). | Last ×0,5 → 0,89; ×2 → 1,10; ×3 → 1,16 – immer Flag *good* | hoch |
 | B6 | **„Effort over time“ (CTL/ATL/TSB) rechnet auf log-Effort.** Außerdem ist der Cache-Kommentar falsch: Bei τ = 42 hat Tag −42 noch 37 % Gewicht. | 14 Tage doppelte Last: ATL +12 % (Effort) statt +86 % (TRIMP) | mittel |
 | B7 | **Effort (Tages-Strain) bewertet Zonen nach %HRR mit Edwards-Gewichten**, lockere Belastung zählt null. Die Cardio-Lane ist davon *nicht* betroffen (`edwardsTrainingLoad` = klassisches Edwards auf %HRmax). Zwei Rechenwege heißen also beide „Edwards“ und rechnen verschieden. | 60 min bei 118 bpm: Effort-Gewicht 0, Cardio-Lane 120 TRIMP | mittel |
@@ -94,6 +94,10 @@ gebaut (Q26). Kein Kotlin-Zwilling (Apple-only-Fork), das wird jeweils vermerkt.
 Reihenfolge (Q9): **P1 → P3 → P2 → P5 → P4 → P6**, später P7, P8 und der Jahresvergleich.
 
 ### P1 – Eine Einstufung für den ganzen Screen + VO₂max-Resolver
+
+Geliefert in zwei Commits: **P1a** (Einstufung, Schutzregeln, Urteil, Kopfsatz, Streifen, Warnung) und **P1b** (VO₂max-Resolver, Cardio-Nachweis).
+Bei P1a gilt jetzt überall die strenge Vergleichsregel, die der Hero schon hatte: Ein Fenster mit einem nicht bewertbaren Tag wird nicht verglichen.
+
 - `LaneEngine` in `StrandAnalytics`: Bänder, Low-Load-Schutz, Tagesabschluss, Hysterese, Urteilstabelle.
   `TrainingLoadLanes.relativeStatus` wandert ins Package.
 - **Bänder** (Q11, Q21): bis 8 Wochen Below < −25 % · Usual −25…+15 % · Above +15…+44 % · Well above > +44 %
