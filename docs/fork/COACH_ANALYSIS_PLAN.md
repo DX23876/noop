@@ -53,11 +53,9 @@ the Keychain and never enter a backup.
 
 ### 0 — Foundations
 
-- `Packages/CoachAnalysis`: the analysis spec, its validator, the executor, the per-answer test ledger
-  and the tool schema, testable with `swift test`. Foundation only — no GRDB, no `StrandAnalytics` — so
-  it builds in seconds for the app and for `Tools/CoachEval` alike. The few statistics it needs (Spearman,
-  OLS, Hedges' g, a seeded circular block bootstrap, Benjamini–Hochberg) are its own; `StrandAnalytics`
-  had none of the bootstrap or correction machinery to reuse.
+- `Packages/CoachAnalysis`: a database-free package holding the analysis spec, its validator, the executor
+  and the result renderer, testable with `swift test`. The statistics reuse `StrandAnalytics`
+  (`CorrelationEngine`, `ComparisonEngine`, `EffectRanker`).
 - `Tools/CoachEval`:
   - a synthetic data generator with several injected effects of different sizes, so a method is shown to
     track a varying input rather than match one value;
