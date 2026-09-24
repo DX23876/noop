@@ -94,6 +94,10 @@ final class TrainingLoadModel: ObservableObject {
     /// Each of the last 56 days' ratio per lane — the same comparison the dials show, day by day.
     @Published private(set) var ratios: [RatioPoint] = []
     @Published private(set) var loaded = false
+    /// Stored cardio loads priced with another HR maximum than the current one (Q15: history is only
+    /// recomputed on request).
+    @Published private(set) var hrmaxMismatchCount = 0
+    @Published private(set) var recomputingHistory = false
     @Published private(set) var ambiguousSessions: [[TrainingSessionComponent]] = []
     /// True when the cardiovascular lane has at least one session priced from measured heart rate.
     @Published private(set) var cardioMeasured = false
@@ -166,6 +170,9 @@ final class TrainingLoadModel: ObservableObject {
         applyDemoStatusOverride()
         #endif
         loaded = true
+        hrmaxMismatchCount = await repo.cardioLoadRowsWithOtherHRmax()
+        // Fill the long-term cardio load history in the background, a portion at a time.
+        repo.scheduleCardioLoadBackfill()
     }
 
     nonisolated static func prepare(strengthHistory: ResolvedStrengthHistory,
@@ -352,6 +359,15 @@ final class TrainingLoadModel: ObservableObject {
             provisionalStrengthRing: provisionalStrengthRing)
     }
 
+    /// Recomputes the stored cardio load history with the current HR maximum, then reloads.
+    func recomputeHistory(repo: Repository) async {
+        guard !recomputingHistory else { return }
+        recomputingHistory = true
+        await repo.recomputeCardioLoadHistory()
+        recomputingHistory = false
+        await load(repo: repo)
+    }
+
     func resolve(_ components: [TrainingSessionComponent], merge: Bool, repo: Repository) async {
         await repo.decideTrainingSessionPair(components, merge: merge)
         await load(repo: repo)
@@ -476,6 +492,7 @@ struct TrainingLoadView: View {
     @State private var shownVO2: Double = 0
     @State private var openSummary: SummaryDetail?
     @State private var adviceBounce = 0
+    @State private var confirmRecompute = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private enum SummaryDetail: String, Identifiable {
@@ -1605,7 +1622,39 @@ struct TrainingLoadView: View {
             Divider().overlay(StrandPalette.hairline)
             methodRow("Load and adaptation", "Relative load is descriptive. A verdict such as productive, maintaining or unproductive needs a clear performance trend: estimated one-rep max for strength or VO₂max within one consistent measurement method for cardiovascular training. Without one, the statement only describes the load.")
             Divider().overlay(StrandPalette.hairline)
+            if model.hrmaxMismatchCount > 0 {
+                Divider().overlay(StrandPalette.hairline)
+                recomputeHistoryRow
+            }
+            Divider().overlay(StrandPalette.hairline)
             methodRow("Sources", "Edwards 1993 · Banister 1991 · Foster 2001 · Mujika & Padilla 2000 · Bosquet et al. 2013 · Meeusen et al. 2013 · WHO 2020 · Polar Training Load Pro 2025 · Pelland et al. 2024 · Robinson et al. 2024")
+        }
+    }
+
+    /// Offered only when stored loads were priced with another HR maximum: a changed profile never
+    /// rewrites history on its own, and this is the one deliberate way to do it.
+    private var recomputeHistoryRow: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+            Text("Recalculate cardio history")
+                .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+            Text("\(model.hrmaxMismatchCount) stored sessions were priced with a different maximum heart rate. Recalculating uses your current one wherever the heart rate is still stored; sessions whose heart rate is gone keep their load.")
+                .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Button {
+                confirmRecompute = true
+            } label: {
+                if model.recomputingHistory {
+                    ProgressView()
+                } else {
+                    Text("Recalculate")
+                }
+            }
+            .buttonStyle(.bordered)
+            .disabled(model.recomputingHistory)
+            .confirmationDialog("Recalculate cardio history", isPresented: $confirmRecompute, titleVisibility: .visible) {
+                Button("Recalculate") { Task { await model.recomputeHistory(repo: repo) } }
+                Button("Cancel", role: .cancel) {}
+            }
         }
     }
 

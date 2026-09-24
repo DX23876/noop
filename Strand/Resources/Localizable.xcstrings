@@ -448669,6 +448669,180 @@
           }
         }
       }
+    },
+    "Recalculate cardio history" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cardio-Verlauf neu berechnen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recalcular el historial de cardio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recalculer l’historique cardio"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ricalcola lo storico cardio"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przelicz historię cardio"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recalcular o histórico de cardio"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пересчитать историю кардио"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新计算有氧历史"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新計算有氧歷史"
+          }
+        }
+      }
+    },
+    "Recalculate" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neu berechnen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recalcular"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recalculer"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ricalcola"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przelicz"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recalcular"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пересчитать"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新计算"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新計算"
+          }
+        }
+      }
+    },
+    "%lld stored sessions were priced with a different maximum heart rate. Recalculating uses your current one wherever the heart rate is still stored; sessions whose heart rate is gone keep their load." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld gespeicherte Einheiten wurden mit einer anderen maximalen Herzfrequenz berechnet. Beim Neuberechnen wird deine aktuelle verwendet, wo der Puls noch gespeichert ist; Einheiten ohne gespeicherten Puls behalten ihre Last."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld sesiones guardadas se calcularon con otra frecuencia cardíaca máxima. Al recalcular se usa la actual donde el pulso sigue guardado; las sesiones sin pulso guardado conservan su carga."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld séances enregistrées ont été calculées avec une autre fréquence cardiaque maximale. Le recalcul utilise la vôtre actuelle là où la fréquence cardiaque est encore stockée ; les séances sans fréquence cardiaque stockée gardent leur charge."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld sessioni salvate sono state calcolate con un’altra frequenza cardiaca massima. Il ricalcolo usa quella attuale dove la frequenza è ancora salvata; le sessioni senza frequenza salvata mantengono il loro carico."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zapisane sesje obliczone z innym tętnem maksymalnym: %lld. Przeliczenie użyje obecnego tam, gdzie tętno jest jeszcze zapisane; sesje bez zapisanego tętna zachowują swoje obciążenie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld sessões guardadas foram calculadas com outra frequência cardíaca máxima. O recálculo usa a atual onde a frequência ainda está guardada; as sessões sem frequência guardada mantêm a sua carga."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сохранённых тренировок, рассчитанных с другим максимальным пульсом: %lld. Пересчёт использует текущий там, где пульс ещё хранится; тренировки без сохранённого пульса сохраняют свою нагрузку."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有 %lld 次已保存的训练是按其他最大心率计算的。重新计算时，凡仍保存心率的训练都会使用你当前的最大心率；没有心率数据的训练保留原有负荷。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有 %lld 次已儲存的訓練是按其他最大心率計算的。重新計算時，凡仍儲存心率的訓練都會使用你目前的最大心率；沒有心率數據的訓練保留原有負荷。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

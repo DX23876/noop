@@ -70,7 +70,8 @@
   "v66-strength-workout-summary-pauses",
   "v67-training-exercise-canonical-identity",
   "v68-rr-source-index",
-  "v69-lift-log"
+  "v69-lift-log",
+  "v70-training-session-load"
  ],
  "divergenceReasons": {
   "android-orphan-synced-column": "REAL COLUMN DRIFT: `synced` exists on Android only. GRDB's v10 note is explicit that stepSample gets no `synced` column ('unused; see StreamStore'), and v12's ppgHrSample never had one either; the Room entities copied the flag from the older per-second entities. Nothing reads it on Android — the per-row upload flag belongs to an upload path that does not exist there — so it is dead width, not divergent data. Removing it needs a Room table rebuild.",
@@ -4488,6 +4489,110 @@
      "columns": [
       "sessionId",
       "ord"
+     ]
+    }
+   ]
+  },
+  "trainingSessionLoad": {
+   "platform": "ios_only",
+   "reason": "Per-session cardio load with its method, HR maximum and input fingerprint (GRDB v70). This Apple-only checkout has no Room twin.",
+   "columns": [
+    {
+     "name": "sessionId",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "method",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "methodVersion",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "startTs",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "endTs",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "trimp",
+     "affinity": "REAL",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "effort",
+     "affinity": "REAL",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "hrSource",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "coveredMinutes",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "possibleMinutes",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "hrmaxUsed",
+     "affinity": "REAL",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "restingHrUsed",
+     "affinity": "REAL",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "inputFingerprint",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "computedAtTs",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "sessionId",
+    "method",
+    "methodVersion"
+   ],
+   "indices": [
+    {
+     "name": "idx_trainingSessionLoad_start",
+     "unique": false,
+     "columns": [
+      "startTs"
      ]
     }
    ]

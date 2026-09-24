@@ -291,6 +291,8 @@ final class Repository: ObservableObject {
     /// indexed heart-rate range read, and Training Load, Cardio and the workout detail all ask about
     /// overlapping windows; without this, every visit repeats the same reads.
     var cardioLoadMemo: [String: TrainingCardioLoad] = [:]
+    /// The in-flight ledger backfill (`scheduleCardioLoadBackfill`), so screens can ask for it freely.
+    var cardioLoadBackfillTask: Task<Void, Never>?
 
     /// Emit one Workouts & GPS test-mode line iff the mode is on and a sink is wired. The cheap
     /// `TestCentre.active(.workouts)` gate is checked BEFORE `build()` runs, so the string is never

@@ -588,6 +588,18 @@ Source: `LaneEngine.swift` (the band and the verdict table), `TrainingStatus.swi
 (`TrainingStatusModel`: the evidence, the statement, the history strip and the lasting-overload
 warning); tests in `LaneEngineTests.swift`, `TrainingStatusTests.swift` and `TrainingStatementTests.swift`.
 
+**Where the cardio load comes from.** Each canonical session's TRIMP is computed once from its heart
+rate — the band's trace where it covers the session, the watch's minute buckets otherwise, never both —
+and kept in `trainingSessionLoad` (WhoopStore v70) with the method and version that produced it, the HR
+maximum it used and a fingerprint of its window and components. A row answers instead of the heart rate
+once it was computed at least seven days after the session ended (strap offload and watch sync can
+still add heart rate before then); newer sessions are recomputed on read as before. Rows of the whole
+history are filled newest first in portions, when Training Load or Cardio opens and in the background
+processing window, so a multi-year history no longer depends on a per-pass budget of 300 raw reads, and
+a load survives a future pruning of raw heart rate. A changed HR maximum never rewrites stored loads on
+its own; Training Load offers "Recalculate cardio history" when rows were priced with another one, and
+a session whose raw heart rate is gone keeps its stored load.
+
 **One band, shown everywhere.** Every surface — the hero pill, the eight-week strip, the ratio chart,
 the statement and the warning — reads the same `LaneReading` from `LaneEngine`. The axis is the lane's
 own `LoadTrend.ratio`: the seven-day mean over the mean of the days immediately before it (14 while the

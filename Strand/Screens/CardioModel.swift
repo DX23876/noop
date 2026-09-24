@@ -187,6 +187,8 @@ final class CardioModel: ObservableObject {
         await refreshSport()
         await refreshWeek(repo: repo)
         loaded = true
+        // Fill the long-term cardio load history in the background, a portion at a time.
+        repo.scheduleCardioLoadBackfill()
     }
 
     // MARK: - The week

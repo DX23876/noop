@@ -1662,5 +1662,8 @@
   "declining": "在下降",
   "Measured VO₂max from Apple Watch: %@.": "Apple Watch 測得的 VO₂max：%@。",
   "Heart-rate efficiency in %@ — beats per kilometre over %lld sessions: %@.": "%@ 的心率效率——%lld 次訓練的每公里心跳數：%@。",
-  "No performance evidence yet: a fresh Apple Watch VO₂max, or at least four endurance sessions with distance and heart rate. Until then the statement only describes the load.": "尚無表現依據：需要近期的 Apple Watch VO₂max，或至少四次帶距離和心率的耐力訓練。在此之前，提示只描述負荷。"
+  "No performance evidence yet: a fresh Apple Watch VO₂max, or at least four endurance sessions with distance and heart rate. Until then the statement only describes the load.": "尚無表現依據：需要近期的 Apple Watch VO₂max，或至少四次帶距離和心率的耐力訓練。在此之前，提示只描述負荷。",
+  "Recalculate cardio history": "重新計算有氧歷史",
+  "Recalculate": "重新計算",
+  "%lld stored sessions were priced with a different maximum heart rate. Recalculating uses your current one wherever the heart rate is still stored; sessions whose heart rate is gone keep their load.": "有 %lld 次已儲存的訓練是按其他最大心率計算的。重新計算時，凡仍儲存心率的訓練都會使用你目前的最大心率；沒有心率數據的訓練保留原有負荷。"
 }

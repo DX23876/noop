@@ -1855,6 +1855,34 @@ extension WhoopStore {
             try db.create(index: "idx_liftSet_session_ord", on: "liftSet",
                           columns: ["sessionId", "ord"], options: [.ifNotExists])
         }
+        // v70: the cardio load of each canonical training session, computed once from its heart rate and
+        // kept. Pricing reads raw HR per session, so a multi-year history cost thousands of range reads on
+        // every open (a per-pass budget of 300 hid the rest), and a load that exists only as a computation
+        // over raw samples disappears the day those samples are pruned. Each row records the method that
+        // produced it, the HR maximum it used and the inputs it was computed from, so it can be recomputed
+        // deliberately rather than drifting when a profile setting changes. `trimp` is NULL for a session
+        // whose heart rate could not price it — a known answer, not a missing row. Purely additive.
+        migrator.registerMigration("v70-training-session-load") { db in
+            try db.create(table: "trainingSessionLoad") { t in
+                t.column("sessionId", .text).notNull()
+                t.column("method", .text).notNull()
+                t.column("methodVersion", .integer).notNull()
+                t.column("startTs", .integer).notNull()
+                t.column("endTs", .integer).notNull()
+                t.column("trimp", .double)
+                t.column("effort", .double)
+                t.column("hrSource", .text).notNull()
+                t.column("coveredMinutes", .integer).notNull()
+                t.column("possibleMinutes", .integer).notNull()
+                t.column("hrmaxUsed", .double).notNull()
+                t.column("restingHrUsed", .double)
+                t.column("inputFingerprint", .text).notNull()
+                t.column("computedAtTs", .integer).notNull()
+                t.primaryKey(["sessionId", "method", "methodVersion"])
+            }
+            try db.create(index: "idx_trainingSessionLoad_start", on: "trainingSessionLoad",
+                          columns: ["startTs"])
+        }
         return migrator
     }
 }

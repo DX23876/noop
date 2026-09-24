@@ -1601,5 +1601,8 @@
   "declining": "in calo",
   "Measured VO₂max from Apple Watch: %@.": "VO₂max misurato dall’Apple Watch: %@.",
   "Heart-rate efficiency in %@ — beats per kilometre over %lld sessions: %@.": "Efficienza cardiaca in %@ — battiti per chilometro su %lld sessioni: %@.",
-  "No performance evidence yet: a fresh Apple Watch VO₂max, or at least four endurance sessions with distance and heart rate. Until then the statement only describes the load.": "Ancora nessuna prova di prestazione: un VO₂max recente dell’Apple Watch o almeno quattro sessioni di resistenza con distanza e frequenza cardiaca. Fino ad allora il messaggio descrive solo il carico."
+  "No performance evidence yet: a fresh Apple Watch VO₂max, or at least four endurance sessions with distance and heart rate. Until then the statement only describes the load.": "Ancora nessuna prova di prestazione: un VO₂max recente dell’Apple Watch o almeno quattro sessioni di resistenza con distanza e frequenza cardiaca. Fino ad allora il messaggio descrive solo il carico.",
+  "Recalculate cardio history": "Ricalcola lo storico cardio",
+  "Recalculate": "Ricalcola",
+  "%lld stored sessions were priced with a different maximum heart rate. Recalculating uses your current one wherever the heart rate is still stored; sessions whose heart rate is gone keep their load.": "%lld sessioni salvate sono state calcolate con un’altra frequenza cardiaca massima. Il ricalcolo usa quella attuale dove la frequenza è ancora salvata; le sessioni senza frequenza salvata mantengono il loro carico."
 }

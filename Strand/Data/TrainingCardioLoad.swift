@@ -57,10 +57,18 @@ extension Repository {
     /// Sessions shorter than this are not priced: a TRIMP over a couple of minutes is dominated by the
     /// ramp in and out, and the coverage rule below could not tell a real trace from two stray samples.
     nonisolated static let cardioLoadMinimumSeconds = 600
-    /// How many sessions one pass will read raw heart rate for. Each priced session is its own indexed
-    /// range read, so an unbounded pass over a decade of history would stall the screen it feeds. The
-    /// newest sessions are priced first, which is what every surface reading this actually shows.
+    /// How many sessions one pass will COMPUTE from raw heart rate. Each computation is its own indexed
+    /// range read, so an unbounded pass over a decade of history would stall the screen it feeds. Loads
+    /// already in the ledger cost no computation and do not count; the newest missing sessions are
+    /// computed first, and `backfillCardioLoadLedger` fills the rest in the background.
     nonisolated static let cardioLoadSessionBudget = 300
+
+    /// The method name stored with every ledger row. The version is `cardiovascularLoadRecipeVersion`.
+    nonisolated static let cardioLoadMethod = "edwards-hrmax"
+    /// How long after a session ends its heart rate may still change. A strap banks history and offloads
+    /// it later, and a watch syncs its workout HR on its own schedule, so a load computed sooner is kept
+    /// only as a provisional row and computed again; one computed after this is final.
+    nonisolated static let cardioLoadFinalAfterSeconds = 7 * 86_400
 
     /// Resolve exactly one HR source per session. A sufficiently complete NOOP-band trace wins; only
     /// when it is absent do workout-associated HealthKit samples fill the session. Sources are never
@@ -69,12 +77,67 @@ extension Repository {
     /// Overlapping sessions are priced ONCE. Two components the wearer has not yet ruled on stay
     /// separate on purpose (that is the duplicate review), but they describe the same minutes of heart
     /// rate, so adding both would double that day's cardio load until the review is answered.
+    ///
+    /// A final ledger row (`trainingSessionLoad`) answers without reading heart rate. Everything else is
+    /// computed within the budget and written back, so the next read — and the long-term history — find it.
     func cardioLoads(for sessions: [UnifiedTrainingSession]) async -> TrainingCardioLoadResolution {
+        await priceCardioSessions(sessions, budget: Self.cardioLoadSessionBudget, recompute: false).resolution
+    }
+
+    /// Computes up to `limit` sessions of the whole history that the ledger does not yet hold, newest
+    /// first, and returns how many it computed. Resumable by construction: the rows it writes are what
+    /// the next call skips, so calling it until it returns 0 fills the ledger.
+    @discardableResult
+    func backfillCardioLoadLedger(limit: Int = 200) async -> Int {
+        let sessions = await trainingSessions(days: TrainingHistoryWindow.allDays).sessions
+        return await priceCardioSessions(sessions, budget: limit, recompute: false).computed
+    }
+
+    /// Fills the ledger in portions at low priority, once at a time. Safe to call from every screen that
+    /// reads cardio load; a call while a run is in flight joins nothing and returns.
+    func scheduleCardioLoadBackfill() {
+        guard cardioLoadBackfillTask == nil else { return }
+        cardioLoadBackfillTask = Task(priority: .background) { [weak self] in
+            while let self, !Task.isCancelled, await self.backfillCardioLoadLedger(limit: 200) > 0 {
+                await Task.yield()
+            }
+            self?.cardioLoadBackfillTask = nil
+        }
+    }
+
+    /// Ledger rows priced with a different HR maximum than the current one — what the "recalculate
+    /// history" action would change. A changed HR max never rewrites history on its own.
+    func cardioLoadRowsWithOtherHRmax() async -> Int {
+        guard let store = await storeHandle() else { return 0 }
+        let current = Self.cardioLoadMaxHR(strainProfile)
+        let rows = (try? await store.trainingSessionLoads(from: 0, to: Int.max, method: Self.cardioLoadMethod,
+                                                           methodVersion: Self.cardiovascularLoadRecipeVersion)) ?? []
+        return rows.filter { $0.trimp != nil && abs($0.hrmaxUsed - current) >= 0.5 }.count
+    }
+
+    /// Recomputes every stored load with the current HR maximum, wherever the heart rate is still
+    /// there. A session whose raw heart rate is gone keeps its row as it was: history that cannot be
+    /// recomputed is never thrown away.
+    func recomputeCardioLoadHistory() async {
+        let sessions = await trainingSessions(days: TrainingHistoryWindow.allDays).sessions
+        _ = await priceCardioSessions(sessions, budget: Int.max, recompute: true)
+        cardioLoadMemo.removeAll()
+    }
+
+    nonisolated static func cardioLoadMaxHR(_ profile: StrainProfile?) -> Double {
         // A missing strain profile must not blank the whole lane: the population default is what every
         // other unprofiled Effort path uses, and the figure is a comparison against the wearer's own
         // recent level rather than an absolute claim.
-        let maxHR = strainProfile?.hrMax ?? Double(StrainScorer.defaultMaxHR())
+        profile?.hrMax ?? Double(StrainScorer.defaultMaxHR())
+    }
+
+    /// The shared pricing pass. `recompute` ignores the ledger's answers (while keeping any row whose raw
+    /// heart rate can no longer be read); otherwise final rows answer and only the rest is computed.
+    private func priceCardioSessions(_ sessions: [UnifiedTrainingSession], budget initialBudget: Int,
+                                     recompute: Bool) async -> (resolution: TrainingCardioLoadResolution, computed: Int) {
+        let maxHR = Self.cardioLoadMaxHR(strainProfile)
         let store = await storeHandle()
+        let now = Int(Date().timeIntervalSince1970)
         var resolution = TrainingCardioLoadResolution()
 
         // Newest first, and where two sessions describe the same window the better-evidenced one claims
@@ -90,9 +153,14 @@ extension Repository {
                 if lhsSpan != rhsSpan { return lhsSpan > rhsSpan }
                 return lhs.id < rhs.id
             }
+        let ledger = (try? await store?.trainingSessionLoads(
+            sessionIds: ordered.map(\.id), method: Self.cardioLoadMethod,
+            methodVersion: Self.cardiovascularLoadRecipeVersion)) ?? [:]
 
         var priced: [(start: Int, end: Int)] = []
-        var budget = Self.cardioLoadSessionBudget
+        var budget = initialBudget
+        var computed = 0
+        var written: [TrainingSessionLoadRow] = []
         for session in ordered {
             let start = session.row.startTs
             let end = session.row.endTs
@@ -100,18 +168,27 @@ extension Repository {
                 resolution.duplicateSessionIds.insert(session.id)
                 continue
             }
-            guard budget > 0 else {
-                resolution.deferredSessionIds.insert(session.id)
+            let fingerprint = Self.cardioLoadFingerprint(session: session)
+            let stored = ledger[session.id]
+            if !recompute, let stored, Self.ledgerRowIsFinal(stored, fingerprint: fingerprint, sessionEnd: end) {
+                if let load = Self.cardioLoad(from: stored) {
+                    resolution.loads[session.id] = load
+                    priced.append((start, end))
+                }
                 continue
             }
-            let memoKey = Self.cardioLoadMemoKey(session: session, maxHR: maxHR,
-                                                 dataRevision: refreshSeq)
-            if let memo = cardioLoadMemo[memoKey] {
+            let memoKey = Self.cardioLoadMemoKey(session: session, maxHR: maxHR, dataRevision: refreshSeq)
+            if !recompute, let memo = cardioLoadMemo[memoKey] {
                 resolution.loads[session.id] = memo
                 priced.append((start, end))
                 continue
             }
+            guard budget > 0 else {
+                resolution.deferredSessionIds.insert(session.id)
+                continue
+            }
             budget -= 1
+            computed += 1
 
             let band = await hrSamples(from: start, to: end, limit: 20_000)
             var load = Self.makeCardioLoad(sessionId: session.id, samples: band,
@@ -123,12 +200,62 @@ extension Repository {
                                            start: start, end: end, source: .healthKitWorkout,
                                            maxHR: maxHR)
             }
+            if load == nil, recompute, let stored, let kept = Self.cardioLoad(from: stored) {
+                // The raw heart rate is gone; the stored answer is the only one left. Keep it untouched.
+                resolution.loads[session.id] = kept
+                priced.append((start, end))
+                continue
+            }
+            written.append(Self.ledgerRow(for: session, load: load, fingerprint: fingerprint,
+                                          maxHR: maxHR, computedAt: now))
             guard let load else { continue }
             resolution.loads[session.id] = load
             cardioLoadMemo[memoKey] = load
             priced.append((start, end))
         }
-        return resolution
+        if !written.isEmpty { try? await store?.upsertTrainingSessionLoads(written) }
+        return (resolution, computed)
+    }
+
+    // MARK: - Ledger rows
+
+    /// What a stored load was computed from. Deliberately NOT the HR maximum: a changed profile does not
+    /// rewrite history on its own (it is recorded in `hrmaxUsed` and recomputed only on request), and not
+    /// the data revision, which moves on every refresh. The window and the components are what make a
+    /// different session out of the same id.
+    nonisolated static func cardioLoadFingerprint(session: UnifiedTrainingSession) -> String {
+        let components = session.components.map {
+            "\($0.id):\($0.row.source):\($0.row.startTs):\($0.row.endTs)"
+        }.sorted().joined(separator: ",")
+        return "\(session.row.startTs)|\(session.row.endTs)|\(components)"
+    }
+
+    /// A row answers only for the same inputs, and only once it was computed late enough that the
+    /// session's heart rate can no longer arrive (`cardioLoadFinalAfterSeconds`).
+    nonisolated static func ledgerRowIsFinal(_ row: TrainingSessionLoadRow, fingerprint: String,
+                                             sessionEnd: Int) -> Bool {
+        row.inputFingerprint == fingerprint && row.computedAtTs >= sessionEnd + cardioLoadFinalAfterSeconds
+    }
+
+    nonisolated static func ledgerRow(for session: UnifiedTrainingSession, load: TrainingCardioLoad?,
+                                      fingerprint: String, maxHR: Double, computedAt: Int) -> TrainingSessionLoadRow {
+        TrainingSessionLoadRow(sessionId: session.id, method: cardioLoadMethod,
+                               methodVersion: cardiovascularLoadRecipeVersion,
+                               startTs: session.row.startTs, endTs: session.row.endTs,
+                               trimp: load?.trimp, effort: load?.effort,
+                               hrSource: load?.source.rawValue ?? "none",
+                               coveredMinutes: load?.coveredMinutes ?? 0,
+                               possibleMinutes: load?.possibleMinutes ?? 0,
+                               hrmaxUsed: maxHR, restingHrUsed: nil,
+                               inputFingerprint: fingerprint, computedAtTs: computedAt)
+    }
+
+    /// The load a row stores, or nil for a row that records an unpriceable session.
+    nonisolated static func cardioLoad(from row: TrainingSessionLoadRow) -> TrainingCardioLoad? {
+        guard let trimp = row.trimp, let effort = row.effort,
+              let source = TrainingCardioLoad.Source(rawValue: row.hrSource) else { return nil }
+        return TrainingCardioLoad(sessionId: row.sessionId, trimp: trimp, effort: effort, source: source,
+                                  coveredMinutes: row.coveredMinutes, possibleMinutes: row.possibleMinutes)
     }
 
     /// Every input that can change a session's Edwards result. Keeping the key builder testable makes

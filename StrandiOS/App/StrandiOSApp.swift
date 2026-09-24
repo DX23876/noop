@@ -117,6 +117,10 @@ struct StrandiOSApp: App {
         // Registered before launch finishes and permitted in project.yml, or iOS never delivers it.
         RescoreBackgroundScheduler.register(perform: { [weak model] in
             await model?.runDeferredRescoreIfOwed()
+            // The same processing window fills the long-term cardio load history, a portion at a time,
+            // until it is complete or iOS reclaims the time.
+            while !Task.isCancelled, let repo = model?.repo,
+                  await repo.backfillCardioLoadLedger(limit: 200) > 0 {}
         }, onExpire: { [weak model] in
             model?.live.append(log: "re-score: background processing time expired before the pass finished (#1538)")
         })
