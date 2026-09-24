@@ -48,11 +48,12 @@ final class EnergyBurnRateTests: XCTestCase {
             slice(60, 5, basal: 6, active: 0),
             slice(0, 0, basal: 6, active: 1),                       // zero duration
             .init(startSeconds: -300, durationSeconds: 300, basalKcal: 1, activeKcal: 1),
-            .init(startSeconds: 120 * 60, durationSeconds: 300,
+            .init(startSeconds: 120.0 * 60, durationSeconds: 300,
                   basalKcal: .nan, activeKcal: 3),                  // NaN basal, real active
             slice(30, 5, basal: 6, active: 0),
         ])
-        XCTAssertEqual(points.map(\.startSeconds), [30 * 60, 60 * 60, 120 * 60])
+        let starts: [Double] = points.map { $0.startSeconds }
+        XCTAssertEqual(starts, [30.0 * 60, 60.0 * 60, 120.0 * 60])
         // The NaN was treated as absent, not as a reason to drop a measured active figure.
         XCTAssertEqual(points[2].kcalPerMinute, 0.6, accuracy: 0.0001)
     }

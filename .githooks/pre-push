@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# pre-push — refuse to push onto a main whose CI is red, unless the push says it knows.
+#
+# This fork pushes straight to main (no pull requests), so nothing forces anyone to look at CI after a
+# push. `Swift Packages CI` stayed red on main from 2026-09-22 for days while ten more commits landed on
+# top of it: the failure was in code that compiles with the Swift on a developer's Mac and not with the
+# older default toolchain of the `macos-15` runner, so every local run was green and nobody saw it.
+# The consequence was worse than one red badge — none of the package tests of those ten commits ran in
+# CI at all, because the test target no longer compiled.
+#
+# So before a push to main, this asks GitHub how the workflows finished on the commit the push is about
+# to build on. Any failure stops the push and names it. A push that is the fix goes through deliberately:
+#
+#   NOOP_ALLOW_RED_MAIN=1 git push origin HEAD:main
+#
+# Runs still in progress are not waited for. Without `gh`, without a network or without a GitHub login the
+# check is skipped with a note rather than blocking every push; source-hygiene and the CI itself remain
+# the backstop.
+#
+# Enable once per clone (hooks are not cloned by git):
+#   git config core.hooksPath .githooks
+set -uo pipefail
+
+REMOTE_NAME="${1:-origin}"
+REPO="DX23876/noop"
+
+note() { echo "pre-push: $*" >&2; }
+
+# stdin: <local ref> <local sha> <remote ref> <remote sha> per pushed ref.
+TARGET_SHA=""
+while read -r _local_ref _local_sha remote_ref remote_sha; do
+  if [ "$remote_ref" = "refs/heads/main" ]; then
+    TARGET_SHA="$remote_sha"
+  fi
+done
+
+# Not a push to main, or main does not exist yet on the remote.
+[ -n "$TARGET_SHA" ] || exit 0
+case "$TARGET_SHA" in 0000000000000000000000000000000000000000) exit 0 ;; esac
+
+if [ "${NOOP_ALLOW_RED_MAIN:-}" = "1" ]; then
+  note "NOOP_ALLOW_RED_MAIN=1 — skipping the CI check on $REMOTE_NAME/main."
+  exit 0
+fi
+
+if ! command -v gh >/dev/null 2>&1; then
+  note "gh not installed — CI state of main not checked."
+  exit 0
+fi
+
+RUNS="$(gh run list --repo "$REPO" --branch main --commit "$TARGET_SHA" --limit 50 \
+          --json workflowName,status,conclusion \
+          --jq '.[] | select(.status == "completed") | "\(.workflowName)\t\(.conclusion)"' 2>/dev/null)" || {
+  note "could not reach GitHub — CI state of main not checked."
+  exit 0
+}
+
+FAILED="$(printf '%s\n' "$RUNS" | awk -F '\t' '$2 == "failure" || $2 == "timed_out" { print "      • " $1 }' | sort -u)"
+[ -z "$FAILED" ] && exit 0
+
+SHORT="$(printf '%s' "$TARGET_SHA" | cut -c1-9)"
+echo "" >&2
+echo "  ✖ push rejected: CI is red on $REMOTE_NAME/main ($SHORT)." >&2
+echo "" >&2
+printf '%s\n' "$FAILED" >&2
+echo "" >&2
+echo "    Look at it first:  gh run list --repo $REPO --branch main --commit $TARGET_SHA" >&2
+echo "    If this push is the fix, say so:  NOOP_ALLOW_RED_MAIN=1 git push $REMOTE_NAME HEAD:main" >&2
+echo "" >&2
+exit 1

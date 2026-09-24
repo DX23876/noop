@@ -201,7 +201,11 @@ final class EnergyPlanningTests: XCTestCase {
         let fat = EnergyPlanning.thermicEffect(intakeKcal: 2_000, proteinG: 60, carbsG: 150,
                                                fatG: 120) ?? 0
         XCTAssertGreaterThan(protein, fat)
-        let byHand: Double = 200 * 4 * 0.25 + 150 * 4 * 0.08 + 66 * 9 * 0.04
+        // Split into typed parts: as one literal expression the CI toolchain's type checker timed out.
+        let proteinPart: Double = 200 * 4 * 0.25
+        let carbPart: Double = 150 * 4 * 0.08
+        let fatPart: Double = 66 * 9 * 0.04
+        let byHand = proteinPart + carbPart + fatPart
         XCTAssertEqual(protein, byHand, accuracy: 0.01)
         // A partial log still counts what it knows rather than falling back to the flat figure.
         let proteinOnly: Double = 150 * 4 * 0.25
