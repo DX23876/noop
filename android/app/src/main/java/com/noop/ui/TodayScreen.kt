@@ -3949,8 +3949,8 @@ private fun HostedCardsSection(
     }
     // Today's stress curve, loaded only when the card is actually hosted — the same "hosting none pays
     // nothing" rule the sleep model above follows. Routed through the SAME gated producer the stress
-    // widget publishes from, so hosting this card costs one indexed COUNT on an unchanged day and the
-    // card and the widget can never show different curves.
+    // widget publishes from, so an unchanged day costs one indexed COUNT. The foreground card passes
+    // the user's selected lens; background widget callers deliberately keep the cheaper default lens.
     val needsStressCurve = cards.contains(HostedCard.STRESS_TODAY)
     var stressCurve by remember { mutableStateOf<List<StressPoint>>(emptyList()) }
     // SEEDED from the curve already on disk, so an app update does not show "Calibrating" for a day it
@@ -3961,11 +3961,13 @@ private fun HostedCardsSection(
     // makes the producer answer null, which by contract means "say nothing" and leaves the card empty
     // until the next pass.
     //
-    // The widget snapshot is the same curve, written by the last scoring pass and day-guarded on load,
-    // so it is either today's or nothing. Read once, off the main thread, and only while nothing better
-    // has arrived, so a compute that has already landed is never overwritten by a staler copy.
+    // The widget snapshot is today's default-lens curve. It is a valid cold-start seed only while the
+    // personal lens is OFF; using it while opted in recreates #2430 until the foreground pass finishes,
+    // or indefinitely if no active strap id arrives. Read once, off the main thread, and only while
+    // nothing better has arrived, so a compute that already landed is never overwritten by a stale copy.
     LaunchedEffect(Unit) {
         if (stressCurve.isNotEmpty()) return@LaunchedEffect
+        if (NoopPrefs.stressPersonalBaseline(context)) return@LaunchedEffect
         val banked = withContext(Dispatchers.IO) {
             runCatching { WidgetSnapshotStore.load(context).stressSeries }.getOrDefault(emptyList())
         }
@@ -3975,8 +3977,8 @@ private fun HostedCardsSection(
     // heart rate — `days` is the daily rows, not the intraday samples the curve is built from. So a
     // card left open held whatever it scored then, while the Stress screen scores when you open it,
     // and the two drifted apart by however long sat between the two triggers. A reporter saw 1pm here
-    // against 2pm there at twenty past four. Same producer and same scoring on both sides; the whole
-    // difference was when each last asked, so this asks again on the cadence the widget already uses.
+    // against 2pm there at twenty past four. This asks again on the producer's shared cadence; the
+    // foreground lens is passed below so Today's curve also matches Stress detail when personal mode is on.
     val stressLifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(needsStressCurve, days, viewModel.activeStrapId, stressLifecycleOwner) {
         if (!needsStressCurve) {
@@ -3996,7 +3998,11 @@ private fun HostedCardsSection(
                 // producer documents as keep-what-you-had rather than "today scored nothing". Holding
                 // the last curve matters more here than for a single pass: blanking the card on one bad
                 // tick would be a visible flicker on a screen that is sitting open.
-                StressWidgetProducer.todayCurve(viewModel.repo, viewModel.activeStrapId)
+                StressWidgetProducer.todayCurve(
+                    viewModel.repo,
+                    viewModel.activeStrapId,
+                    personalBaseline = NoopPrefs.stressPersonalBaseline(context),
+                )
                     ?.let { stressCurve = it.points }
                 delay(StressWidgetProducer.RESCORE_INTERVAL_MS)
             }

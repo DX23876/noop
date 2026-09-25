@@ -57,7 +57,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
-import com.noop.analytics.DaytimeBaselines
 import com.noop.analytics.DaytimeStress
 import com.noop.analytics.HrvFreqDomain
 import com.noop.analytics.StressIndex
@@ -256,12 +255,10 @@ private suspend fun loadDaytimeCore(
     // history exists (DaytimeBaselines.scoringMode is the degradation gate); else the day's own calm
     // hours (DayRelative, the default). The trailing-history reads happen only past the HR-count guard
     // above and only while the toggle is ON, so the default read is byte-identical to before. Twin of
-    // the iOS StressView daytimeScoringMode.
-    val mode = if (personalBaseline) {
-        daytimeScoringMode(vm, todayWindow.day, zone)
-    } else {
-        DaytimeStress.ScoringMode.DayRelative
-    }
+    // the shared iOS DaytimeStressMode resolver.
+    val mode = selectedDaytimeStressMode(
+        vm.repo, vm.activeStrapId, todayWindow.day, zone, personalBaseline,
+    )
     // includeTimeline: the SLIDING read, so the screen's line moves in half-hours instead of stepping
     // through whole clock hours (#2144). The scored unit is still a full hour; this only decides how
     // often that hour is re-read, so a thin ten minutes now costs the windows that overlap it rather
@@ -275,52 +272,6 @@ private suspend fun loadDaytimeCore(
     // ADDITIVE advanced readouts from the SAME `rr`. Each engine self-gates and returns null when
     // its requirement is not met, in which case its row is simply hidden in the UI.
     DaytimeCore(daytime, rr)
-}
-
-/**
- * Build the personal daytime baselines from the trailing [baselineHistoryDays] local days (TODAY
- * EXCLUDED — it's the day being scored, not part of its own baseline) and return the scoring mode for
- * today's intraday read: BaselineRelative once there's enough real worn daytime-HR history for a usable
- * baseline, else DayRelative (the unchanged default). Reads each past day's raw HR once (bounded per
- * day) via [vm].repo; unworn days (no HR) are skipped without an R-R read. Faithful twin of the iOS
- * StressView.daytimeScoringMode. [todayLocalDay] is today's date in [zone]. Each day is reduced
- * to its aggregate as it is read (#2107), so only the aggregates are retained, never the streams.
- */
-private suspend fun daytimeScoringMode(
-    vm: AppViewModel,
-    todayLocalDay: LocalDate,
-    zone: ZoneId,
-): DaytimeStress.ScoringMode {
-    // 30 mirrors the app's other rolling baselines (nightly resting-HR / HRV) and the iOS baselineHistoryDays.
-    val baselineHistoryDays = 30
-    // #2107: keep each day's AGGREGATE, never its streams. This used to accumulate 30 x
-    // DaytimeDayStreams, each holding up to 200,000 HR plus 200,000 R-R samples, and hand the lot to
-    // the fold. The fold's first act is to reduce a day to two Doubles, so all that was ever wanted
-    // from thirty days was sixty numbers; holding the samples alive to produce them is what exhausted
-    // a 256MB heap on a worn 5.0 and crashed the app with an OutOfMemoryError. Reducing here lets each
-    // day's samples become garbage at the end of its own iteration.
-    val aggregates = ArrayList<DaytimeBaselines.DayAggregate>(baselineHistoryDays)
-    // Oldest → newest so the EWMA fold replays the history in order.
-    for (back in baselineHistoryDays downTo 1) {
-        val window = stressLocalDayWindow(todayLocalDay.minusDays(back.toLong()), zone)
-        val dayHr = vm.repo.hrSamplesUnion(
-            vm.activeStrapId,
-            window.fromEpochSecond,
-            window.toEpochSecondInclusive,
-            limit = 200_000,
-        )
-        if (dayHr.isEmpty()) continue   // unworn day — no floor to learn, skip the R-R read
-        val dayRr = vm.repo.rrIntervalsUnion(
-            vm.activeStrapId,
-            window.fromEpochSecond,
-            window.toEpochSecondInclusive,
-            limit = 200_000,
-        )
-        aggregates.add(
-            DaytimeBaselines.dayDaytimeAggregate(dayHr, dayRr, window.offsetSeconds.toLong()),
-        )
-    }
-    return DaytimeBaselines.scoringModeFromAggregates(aggregates)
 }
 
 // MARK: - Loaded content

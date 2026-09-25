@@ -12,11 +12,10 @@ import StrandAnalytics
 /// heart-rate fingerprint — a COUNT and a MAX over an indexed column — says today's heart rate actually
 /// moved. A publish that changed nothing costs that one query and reuses the previous curve.
 ///
-/// SCORING MODE. Always the `.dayRelative` default, never the opt-in personal-baseline lens. Resolving
-/// that mode reads fourteen trailing days of heart rate to decide whether enough worn history exists,
-/// which the screen can afford on demand and a publish path cannot. Stated plainly because it is
-/// user-visible: with the personal-baseline toggle on, the widget shows the default lens while the
-/// screen shows the refined one, so the two can differ.
+/// SCORING MODE. Background callers keep the `.dayRelative` default: resolving the personal lens reads
+/// trailing days of heart rate, which a foreground screen can afford and an unprompted publish cannot.
+/// Today's hosted card passes its selected foreground lens explicitly, so it agrees with Stress detail;
+/// the home-screen widget does not opt in and remains a deliberately cheaper background surface.
 enum StressDayCurve {
 
     /// What the last scoring saw and produced, swapped in as ONE value.
@@ -29,6 +28,7 @@ enum StressDayCurve {
         let count: Int
         let maxTs: Int
         let day: Int
+        let personalBaseline: Bool
         let result: DaytimeStress.Result
     }
 
@@ -46,7 +46,8 @@ enum StressDayCurve {
     /// kept this file iOS-only, and the Today card is shared with macOS.
     @MainActor
     static func today(repo: Repository, now: Date = Date(),
-                      calendar: Calendar = .current) async -> (result: DaytimeStress.Result, day: Int)? {
+                      calendar: Calendar = .current,
+                      personalBaseline: Bool = false) async -> (result: DaytimeStress.Result, day: Int)? {
         let startOfDay = calendar.startOfDay(for: now)
         let from = Int(startOfDay.timeIntervalSince1970)
         let to = Int(now.timeIntervalSince1970)
@@ -56,7 +57,10 @@ enum StressDayCurve {
         // Same day, same heart rate: nothing can have changed the score, so nothing is read. The day is
         // part of the check because a fingerprint that happened to match across midnight would otherwise
         // serve yesterday's curve as today's.
-        if let memo, memo.day == day, memo.count == fingerprint.count, memo.maxTs == fingerprint.maxTs {
+        // Foreground Today and the widget publisher can call in either order. Include the requested
+        // lens so an unchanged HR fingerprint can never replay one surface's result into the other.
+        if let memo, memo.day == day, memo.count == fingerprint.count,
+           memo.maxTs == fingerprint.maxTs, memo.personalBaseline == personalBaseline {
             return (memo.result, day)
         }
 
@@ -69,6 +73,12 @@ enum StressDayCurve {
             // exactly as the screen does.
             let gravity = await repo.gravitySamplesUnion(from: from, to: to, limit: 200_000)
             let tz = TimeZone.current.secondsFromGMT(for: now)
+            let mode = await DaytimeStressMode.selected(
+                repo: repo,
+                startOfToday: startOfDay,
+                calendar: calendar,
+                personalBaseline: personalBaseline
+            )
             // Scored OFF the main actor. `Repository` is `@MainActor`, so without this hop a day's worth
             // of hours would be bucketed and averaged on the main thread — and unlike the Stress screen,
             // which does this because the user asked for it and is waiting, this runs unprompted when
@@ -88,13 +98,14 @@ enum StressDayCurve {
             // and after every Health sync, exactly when the UI is busy, so it must yield.
             scored = await runUnescalated {
                 DaytimeStress.analyze(hr: hr, rr: rr, gravity: gravity,
-                                      tzOffsetSeconds: tz, mode: .dayRelative,
+                                      tzOffsetSeconds: tz, mode: mode,
                                       includeTimeline: true)
             }
         }
         // Too little signal leaves an EMPTY result, which is a real answer about today rather than a
         // refusal: a reader should drop yesterday's line rather than keep drawing it.
-        memo = Memo(count: fingerprint.count, maxTs: fingerprint.maxTs, day: day, result: scored)
+        memo = Memo(count: fingerprint.count, maxTs: fingerprint.maxTs, day: day,
+                    personalBaseline: personalBaseline, result: scored)
         return (scored, day)
     }
 

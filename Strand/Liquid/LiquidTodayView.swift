@@ -1837,7 +1837,10 @@ struct LiquidTodayView: View {
 
         // #2040: and today's stress, on the same "only when hosted" rule.
         hostedStressHours = HostedCardPrefs.decodeEnabled(hostedCardsRaw).contains(.stressToday)
-            ? (await StressDayCurve.today(repo: repo)?.result.timeline ?? [])
+            ? (await StressDayCurve.today(
+                repo: repo,
+                personalBaseline: PuffinExperiment.stressPersonalBaselineEnabled
+            )?.result.timeline ?? [])
             : []
 
         // First load done — bring the hero gauges + sky to life now the launch churn has settled.

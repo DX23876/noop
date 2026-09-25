@@ -4605,8 +4605,9 @@ struct TodayView: View {
     ///
     /// The same "hosting none pays nothing" rule the sleep model above follows. `StressDayCurve` does
     /// the gating: it reads nothing until a cheap heart-rate fingerprint says today's heart rate moved,
-    /// and it memoises, so the iOS widget publishing from the same producer shares this computation
-    /// rather than scoring the day a second time.
+    /// and it memoises. The foreground lens is part of that memo's identity: Today shares the default
+    /// computation with the widget when the toggle is off, and recomputes with the selected personal
+    /// lens when it is on so this card and Stress detail cannot disagree.
     private func loadHostedStress() async {
         guard HostedCardPrefs.decodeEnabled(hostedCardsRaw).contains(.stressToday) else {
             hostedStressHours = []
@@ -4614,7 +4615,10 @@ struct TodayView: View {
         }
         // `timeline`, not `hours`: the half-step display series, so the curve tracks the day rather
         // than stepping through it, matching the widget and the Android card.
-        hostedStressHours = await StressDayCurve.today(repo: repo)?.result.timeline ?? []
+        hostedStressHours = await StressDayCurve.today(
+            repo: repo,
+            personalBaseline: PuffinExperiment.stressPersonalBaselineEnabled
+        )?.result.timeline ?? []
     }
 
     private func loadHostedSleepModel() async {
