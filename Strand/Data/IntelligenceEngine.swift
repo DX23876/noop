@@ -399,7 +399,28 @@ final class IntelligenceEngine: ObservableObject {
         return dayStart < nowLocalMidnight ? nextMidnight : min(nextMidnight, now)
     }
 
-    /// Counts + a window length only — same privacy class as the sibling `sleep day=` line, no PII. Pure so
+    /// The provided session the NO-NIGHT line reports as `providedLongest` / `providedLongestEnd`: the
+    /// longest, ties broken by the later END.
+    ///
+    /// The tie-break is the point. Selecting on duration alone left the OUTPUT undefined whenever two
+    /// sessions ran the same length, because `Array.max(by:)` and Kotlin's `maxByOrNull` do not agree on
+    /// which of two equal elements they keep, and the field actually printed is the END day. Two equal
+    /// sessions ending on different days would then render differently on the two platforms from
+    /// identical input, on a line whose whole contract is being byte-identical across them.
+    ///
+    /// Equal-length sessions are not a corner case: the HR-only spine works in fixed epochs, so
+    /// durations are quantised and repeat. Ordering by (duration, end) makes any surviving tie one where
+    /// both printed fields are equal anyway, so the output is deterministic even where the choice of
+    /// element is not.
+    ///
+    /// Pure and `nonisolated` so both the picked duration and its day key are unit-tested directly;
+    /// byte-identical twin of the Kotlin `longestProvidedForDiag`.
+    nonisolated static func longestProvidedForDiag(_ sessions: [SleepSession]) -> SleepSession? {
+        return sessions.max(by: { ($0.end - $0.start, $0.end) < ($1.end - $1.start, $1.end) })
+    }
+
+    /// Counts, a window length and day keys only — same privacy class as the sibling `sleep day=` line,
+    /// no PII. Pure so
     /// it's unit-tested directly; byte-identical to the Android `sleepDetectNoNightLogLine`.
 /// Fold the per-day diagnostic lines onto the one channel that already replays them.
     ///
@@ -415,7 +436,10 @@ final class IntelligenceEngine: ObservableObject {
 
     nonisolated static func sleepDetectNoNightLogLine(day: String, hrCount: Int, rrCount: Int,
                                                       respCount: Int, gravCount: Int, stepCount: Int,
-                                                      providedCount: Int, windowHours: Int,
+                                                      providedCount: Int, providedEndingOnDay: Int,
+                                                      providedLongestMin: Int?,
+                                                      providedLongestEndDay: String?,
+                                                      windowHours: Int,
                                                       skinCount: Int) -> String {
         // `reason` names WHICH absence this is, because grav=0 is printed but its consequence is not.
         //
@@ -476,8 +500,38 @@ final class IntelligenceEngine: ObservableObject {
         if gravCount >= StreamReadCap.gravity { atCap.append("grav") }
         if skinCount >= StreamReadCap.skin { atCap.append("skin") }
         let capNote = atCap.isEmpty ? "" : " atCap=" + atCap.joined(separator: ",")
+        // WHERE the provided sessions fall, which `provided=` alone does not say and which is the next
+        // question every time this line reads `no-motion-provided-unused`.
+        //
+        // A session is attributed to a day by where it ENDS (`AnalyticsEngine.analyzeDay`, the
+        // `tsInDay(it.end)` filter), so `provided=3` with an empty night means those three ended
+        // somewhere else. Without that, the line stops one field short of its own conclusion: a real
+        // 5/MG capture showed `provided=3` beside an HR-only spine reporting a 240-minute session, on a
+        // night the wearer demonstrably slept, and a reader still could not tell whether the spine had
+        // missed the night or the attribution had moved it. Those two want opposite fixes.
+        //
+        // `providedHere` is the count that DID end on this day, and is therefore the number the night
+        // was built from: seeing 0 next to a non-zero `provided` is the whole diagnosis. The longest
+        // session and its end day come along because the longest is the one that should have matched,
+        // and naming its day says which neighbour absorbed it.
+        //
+        // Self-checking on purpose: `providedLongestEnd` equal to `day` while `providedHere` is 0 is a
+        // contradiction, and points at the filter rather than at the spine.
+        //
+        // Only when something was actually provided. With `provided=0` the three fields say nothing
+        // that `reason=no-motion` has not already said, and the sibling `atCap` note sets the precedent
+        // for a suffix that appears only when it carries information.
+        let providedNote: String
+        if providedCount > 0 {
+            providedNote = " providedHere=\(providedEndingOnDay)"
+                + " providedLongest=\(providedLongestMin.map(String.init) ?? "nil")"
+                + " providedLongestEnd=\(providedLongestEndDay ?? "nil")"
+        } else {
+            providedNote = ""
+        }
         return "sleep-detect day=\(day) NO-NIGHT hr=\(hrCount) rr=\(rrCount) resp=\(respCount) "
-            + "grav=\(gravCount) skin=\(skinCount) steps=\(stepCount) provided=\(providedCount) "
+            + "grav=\(gravCount) skin=\(skinCount) steps=\(stepCount) provided=\(providedCount)"
+            + providedNote + " "
             + "window=\(windowHours)h reason=\(reason)" + capNote
     }
 
@@ -1498,10 +1552,22 @@ final class IntelligenceEngine: ObservableObject {
                         // from/to are Int unix seconds; the span is always a whole-hour multiple
                         // (30 h + 24 h, or 30 h + 18 h), so integer division is exact. Matches Kotlin.
                         let windowHours = (to - from) / 3_600
+                        // Attribute each provided session the same way `analyzeDay` does — by the LOCAL
+                        // day its END falls in — so this line and the filter that emptied the night agree
+                        // by construction rather than by two readings of the same rule.
+                        let longestProvided = Self.longestProvidedForDiag(providedSleep)
                         hrvDiag = Self.sleepDetectNoNightLogLine(
                             day: day, hrCount: hr.count, rrCount: rr.count, respCount: resp.count,
                             gravCount: grav.count, stepCount: steps.count,
-                            providedCount: providedSleep.count, windowHours: windowHours,
+                            providedCount: providedSleep.count,
+                            providedEndingOnDay: providedSleep.filter {
+                                AnalyticsEngine.dayString($0.end, offsetSec: tzOffset) == day
+                            }.count,
+                            providedLongestMin: longestProvided.map { ($0.end - $0.start) / 60 },
+                            providedLongestEndDay: longestProvided.map {
+                                AnalyticsEngine.dayString($0.end, offsetSec: tzOffset)
+                            },
+                            windowHours: windowHours,
                             skinCount: skin.count)
                     } else {
                         hrvDiag = nil
