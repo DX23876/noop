@@ -112,22 +112,34 @@ final class CoachSuggestionsTests: XCTestCase {
     // MARK: - High strain
 
     func testHighStrainAddsLoadedChip() {
-        let today = metric(day: 10, recovery: 70, strain: 16)
+        let today = metric(day: 10, recovery: 70, strain: 70)
         let chips = CoachSuggestions.suggestions(for: today, recent: [])
         XCTAssertTrue(chips.contains("Have I done enough today, or push more?"))
     }
 
-    func testStrainBelow14DoesNotAddLoadedChip() {
-        let today = metric(day: 10, recovery: 70, strain: 13)
+    func testStrainBelowMappedWhoop14DoesNotAddLoadedChip() {
+        let today = metric(day: 10, recovery: 70, strain: 60)
         let chips = CoachSuggestions.suggestions(for: today, recent: [])
         XCTAssertFalse(chips.contains("Have I done enough today, or push more?"))
+    }
+
+    func testMappedWhoop14IsTheHighStrainBoundary() {
+        let boundary = StrainScorer.effortValue(fromWhoopStrain: 14)
+        let atBoundary = CoachSuggestions.suggestions(
+            for: metric(day: 10, recovery: 70, strain: boundary), recent: []
+        )
+        let belowBoundary = CoachSuggestions.suggestions(
+            for: metric(day: 10, recovery: 70, strain: boundary.nextDown), recent: []
+        )
+        XCTAssertTrue(atBoundary.contains("Have I done enough today, or push more?"))
+        XCTAssertFalse(belowBoundary.contains("Have I done enough today, or push more?"))
     }
 
     // MARK: - Cap + stable generic
 
     func testAllSignalsFireCapsAtFour() {
         let recent = (1...30).map { metric(day: $0, hrv: 60) }
-        let today = metric(day: 31, recovery: 20, hrv: 40, sleepMin: 300, strain: 16)
+        let today = metric(day: 31, recovery: 20, hrv: 40, sleepMin: 300, strain: 70)
         let chips = CoachSuggestions.suggestions(for: today, recent: recent)
         // charge + hrv + sleep + strain + stable generic = 5 candidates → capped at 4.
         XCTAssertEqual(chips.count, 4)

@@ -31,7 +31,33 @@ class ChargeEffortRestScoringTest {
     fun effort_scaleConstantsAreRescaled() {
         // The whole rebrand is a pure linear rescale: maxStrain 21→100, denominator unchanged.
         assertEquals(100.0, StrainScorer.maxStrain, 0.0)
+        assertEquals(21.0, StrainScorer.whoopMaxStrain, 0.0)
         assertEquals(7201.0, StrainScorer.strainDenominator, 0.0)
+    }
+
+    @Test
+    fun effort_whoopAxisValuesMapAcrossTheWholeRange() {
+        val cases = listOf(
+            0.0 to 0.0,
+            1.0 to 4.761904761904762,
+            3.5 to 16.666666666666668,
+            7.0 to 33.333333333333336,
+            10.5 to 50.0,
+            12.5 to 59.523809523809526,
+            14.0 to 66.66666666666667,
+            17.5 to 83.33333333333333,
+            20.0 to 95.23809523809524,
+            21.0 to 100.0,
+        )
+
+        cases.forEach { (whoop, effort) ->
+            assertEquals(
+                "WHOOP $whoop must map proportionally onto 0–100",
+                effort,
+                StrainScorer.effortValueFromWhoopStrain(whoop),
+                1e-12,
+            )
+        }
     }
 
     @Test

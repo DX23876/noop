@@ -123,22 +123,36 @@ class CoachSuggestionsTest {
     // MARK: - High strain
 
     @Test fun highStrainAddsLoadedChip() {
-        val today = metric(day = 10, recovery = 70.0, strain = 16.0)
+        val today = metric(day = 10, recovery = 70.0, strain = 70.0)
         val chips = CoachSuggestions.suggestions(today, emptyList())
         assertTrue(chips.contains("Have I done enough today, or push more?"))
     }
 
-    @Test fun strainBelow14DoesNotAddLoadedChip() {
-        val today = metric(day = 10, recovery = 70.0, strain = 13.0)
+    @Test fun strainBelowMappedWhoop14DoesNotAddLoadedChip() {
+        val today = metric(day = 10, recovery = 70.0, strain = 60.0)
         val chips = CoachSuggestions.suggestions(today, emptyList())
         assertFalse(chips.contains("Have I done enough today, or push more?"))
+    }
+
+    @Test fun mappedWhoop14IsTheHighStrainBoundary() {
+        val boundary = StrainScorer.effortValueFromWhoopStrain(14.0)
+        val atBoundary = CoachSuggestions.suggestions(
+            metric(day = 10, recovery = 70.0, strain = boundary),
+            emptyList(),
+        )
+        val belowBoundary = CoachSuggestions.suggestions(
+            metric(day = 10, recovery = 70.0, strain = Math.nextDown(boundary)),
+            emptyList(),
+        )
+        assertTrue(atBoundary.contains("Have I done enough today, or push more?"))
+        assertFalse(belowBoundary.contains("Have I done enough today, or push more?"))
     }
 
     // MARK: - Cap + stable generic
 
     @Test fun allSignalsFireCapsAtFour() {
         val recent = (1..30).map { metric(day = it, hrv = 60.0) }
-        val today = metric(day = 31, recovery = 20.0, hrv = 40.0, sleepMin = 300.0, strain = 16.0)
+        val today = metric(day = 31, recovery = 20.0, hrv = 40.0, sleepMin = 300.0, strain = 70.0)
         val chips = CoachSuggestions.suggestions(today, recent)
         // charge + hrv + sleep + strain + stable generic = 5 candidates → capped at 4.
         assertEquals(4, chips.size)

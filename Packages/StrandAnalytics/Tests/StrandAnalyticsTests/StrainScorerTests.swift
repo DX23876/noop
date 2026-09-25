@@ -20,6 +20,28 @@ final class StrainScorerTests: XCTestCase {
         XCTAssertEqual(StrainScorer.trimpToStrain(7200), 100.0, accuracy: 1e-9)
     }
 
+    func testWhoopAxisValuesMapAcrossTheWholeEffortRange() {
+        let cases: [(whoop: Double, effort: Double)] = [
+            (0, 0),
+            (1, 4.761904761904762),
+            (3.5, 16.666666666666668),
+            (7, 33.333333333333336),
+            (10.5, 50),
+            (12.5, 59.523809523809526),
+            (14, 66.66666666666667),
+            (17.5, 83.33333333333333),
+            (20, 95.23809523809524),
+            (21, 100),
+        ]
+
+        for sample in cases {
+            XCTAssertEqual(
+                StrainScorer.effortValue(fromWhoopStrain: sample.whoop), sample.effort,
+                accuracy: 1e-12, "WHOOP \(sample.whoop) must map proportionally onto 0–100"
+            )
+        }
+    }
+
     func testTrimpToStrainKnownValues() {
         XCTAssertEqual(StrainScorer.trimpToStrain(0), 0.0, accuracy: 1e-9)
         XCTAssertEqual(StrainScorer.trimpToStrain(-5), 0.0, accuracy: 1e-9)
