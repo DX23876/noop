@@ -2820,4 +2820,5 @@
     <string name="data_sources_whoop_live_subtitle">Se empareja directamente con tu pulsera por Bluetooth: sin app de WHOOP, sin nube. La pulsera también puede anunciar su frecuencia cardíaca como un sensor Bluetooth estándar.</string>
     <string name="data_sources_band_broadcast_description">Difunde por Bluetooth la frecuencia cardíaca en vivo de la propia pulsera para Garmin, Zwift o equipos de gimnasio.</string>
     <string name="whoop4_direct_broadcast_explainer">Tu WHOOP 4.0 puede transmitir la frecuencia cardíaca directamente. Abre Fuentes de datos y usa «Transmitir frecuencia cardíaca desde la pulsera» para Zwift, Peloton, Garmin o equipos de gimnasio. También puedes usar «Transmitir FC desde este teléfono» cuando sea necesario.</string>
+    <string name="sleep_edit_bedtime_date">Fecha de la hora de acostarse</string>
 </resources>

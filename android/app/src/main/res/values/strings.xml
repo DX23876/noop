@@ -2849,4 +2849,5 @@
     <string name="data_sources_whoop_live_subtitle">Pairs directly with your strap over Bluetooth: no WHOOP app, no cloud. The strap can also advertise its heart rate as a standard Bluetooth sensor.</string>
     <string name="data_sources_band_broadcast_description">Broadcasts the strap\'s own live heart rate over Bluetooth for Garmin, Zwift or gym equipment.</string>
     <string name="whoop4_direct_broadcast_explainer">Your WHOOP 4.0 can broadcast heart rate directly. Open Data Sources and use “Broadcast heart rate from the strap” for Zwift, Peloton, Garmin or gym equipment. You can alternatively use “Broadcast HR from this phone” when needed.</string>
+    <string name="sleep_edit_bedtime_date">Bedtime date</string>
 </resources>

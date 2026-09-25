@@ -33,6 +33,28 @@ class SleepTimeEditDraftTest {
         )
     }
 
+    /** #2470: an evening bedtime corrected forward across midnight must keep the explicitly selected
+     *  next-day date. Retaining the detected start's date would create a 28-hour window and disable Save. */
+    @Test
+    fun eveningBedtimeCanMoveForwardToWakeDay() {
+        val original = SleepTimeEditDraft(
+            startTs = ts(2026, 9, 24, 23, 0),
+            endTs = ts(2026, 9, 25, 8, 0),
+        )
+
+        val corrected = original.withBedCandidate(
+            candidateBedTs = ts(2026, 9, 25, 4, 0),
+            nowTs = ts(2026, 9, 25, 12, 0),
+            zone = zone,
+        )
+
+        assertEquals(ts(2026, 9, 25, 4, 0), corrected.startTs)
+        assertEquals(
+            ts(2026, 9, 25, 4, 0) to ts(2026, 9, 25, 8, 0),
+            corrected.validatedWindow(nowTs = ts(2026, 9, 25, 12, 0)),
+        )
+    }
+
     @Test
     fun explicitWakeDateIsPreservedAfterBedCorrection() {
         val original = SleepTimeEditDraft(

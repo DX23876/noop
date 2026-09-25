@@ -268,36 +268,55 @@ internal fun NightNavHeader(
         )
     }
 
-    // Bed-time picker mutates only the draft. Returning to the parent dialog lets the user inspect and
+    // Bed-time editing mutates only the draft. Select the date explicitly before the time so an evening
+    // onset can move forward across midnight (23:00 day 1 -> 04:00 day 2) without retaining day 1 and
+    // manufacturing a >24 h window (#2470). Returning to the parent dialog lets the user inspect and
     // adjust BOTH endpoints before the single Save (#515). The cross-midnight correction stays in the
     // pure SleepTimeEditDraft/SleepEditGuard path pinned by JVM tests.
     val draftForBed = sleepEditDraft
     if (editingBed && session != null && draftForBed != null) {
         val startCal = Calendar.getInstance().apply { timeInMillis = draftForBed.startTs * 1000L }
         DisposableEffect(Unit) {
-            val dialog = TimePickerDialog(
+            var dateChosen = false
+            val dateDialog = DatePickerDialog(
                 context,
-                { _, h, m ->
-                    val cal = Calendar.getInstance().apply {
+                { _, year, month, day ->
+                    dateChosen = true
+                    val selectedDate = Calendar.getInstance().apply {
                         timeInMillis = draftForBed.startTs * 1000L
-                        set(Calendar.HOUR_OF_DAY, h); set(Calendar.MINUTE, m)
-                        set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+                        set(Calendar.YEAR, year); set(Calendar.MONTH, month); set(Calendar.DAY_OF_MONTH, day)
                     }
-                    sleepEditDraft = draftForBed.withBedCandidate(
-                        candidateBedTs = cal.timeInMillis / 1000L,
-                        nowTs = System.currentTimeMillis() / 1000L,
-                    )
+                    val timeDialog = TimePickerDialog(
+                        context,
+                        { _, h, m ->
+                            selectedDate.set(Calendar.HOUR_OF_DAY, h); selectedDate.set(Calendar.MINUTE, m)
+                            selectedDate.set(Calendar.SECOND, 0); selectedDate.set(Calendar.MILLISECOND, 0)
+                            sleepEditDraft = draftForBed.withBedCandidate(
+                                candidateBedTs = selectedDate.timeInMillis / 1000L,
+                                nowTs = System.currentTimeMillis() / 1000L,
+                            )
+                        },
+                        startCal.get(Calendar.HOUR_OF_DAY), startCal.get(Calendar.MINUTE), true,
+                    ).apply { setTitle("Bedtime") }
+                    timeDialog.setOnDismissListener {
+                        editingBed = false
+                        if (sleepEditDraft != null) showTimeChoice = true
+                    }
+                    timeDialog.show()
                 },
-                startCal.get(Calendar.HOUR_OF_DAY),
-                startCal.get(Calendar.MINUTE),
-                true,
-            ).apply { setTitle("Bedtime") }
-            dialog.setOnDismissListener {
-                editingBed = false
-                if (sleepEditDraft != null) showTimeChoice = true
+                startCal.get(Calendar.YEAR), startCal.get(Calendar.MONTH), startCal.get(Calendar.DAY_OF_MONTH),
+            ).apply {
+                datePicker.maxDate = System.currentTimeMillis()
+                setTitle(context.getString(R.string.sleep_edit_bedtime_date))
+                setOnDismissListener {
+                    if (editingBed && !dateChosen) {
+                        editingBed = false
+                        if (sleepEditDraft != null) showTimeChoice = true
+                    }
+                }
             }
-            dialog.show()
-            onDispose { runCatching { dialog.dismiss() } }
+            dateDialog.show()
+            onDispose { runCatching { dateDialog.dismiss() } }
         }
     }
 
@@ -604,5 +623,3 @@ internal fun NightNavHeader(
 }
 
 // MARK: - 2. Metric grid (row-equalized min-height tiles, each with a bottom sparkline)
-
-

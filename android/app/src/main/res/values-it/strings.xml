@@ -2788,4 +2788,5 @@
     <string name="data_sources_whoop_live_subtitle">Si abbina direttamente alla tua fascia tramite Bluetooth: niente app WHOOP, niente cloud. La fascia può anche trasmettere la frequenza cardiaca come un normale sensore Bluetooth.</string>
     <string name="data_sources_band_broadcast_description">Trasmette la frequenza cardiaca in diretta della fascia tramite Bluetooth per Garmin, Zwift o attrezzi da palestra.</string>
     <string name="whoop4_direct_broadcast_explainer">La tua WHOOP 4.0 può trasmettere direttamente la frequenza cardiaca. Apri Sorgenti dati e usa “Trasmetti la frequenza cardiaca dalla fascia” per Zwift, Peloton, Garmin o attrezzi da palestra. In alternativa, se serve, puoi usare “Trasmetti la FC da questo telefono”.</string>
+    <string name="sleep_edit_bedtime_date">Data dell’ora di andare a letto</string>
 </resources>

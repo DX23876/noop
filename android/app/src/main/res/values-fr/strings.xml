@@ -2819,4 +2819,5 @@
     <string name="data_sources_whoop_live_subtitle">S\'associe directement à votre bracelet par Bluetooth : pas d\'app WHOOP, pas de cloud. Le bracelet peut aussi annoncer sa fréquence cardiaque comme capteur Bluetooth standard.</string>
     <string name="data_sources_band_broadcast_description">Diffuse en Bluetooth la fréquence cardiaque en direct propre au bracelet pour Garmin, Zwift ou les équipements de sport.</string>
     <string name="whoop4_direct_broadcast_explainer">Votre WHOOP 4.0 peut diffuser directement la fréquence cardiaque. Ouvrez Sources de données et utilisez « Diffuser la fréquence cardiaque du bracelet » pour Zwift, Peloton, Garmin ou les équipements de sport. Vous pouvez aussi utiliser « Diffuser la FC depuis ce téléphone » si nécessaire.</string>
+    <string name="sleep_edit_bedtime_date">Date du coucher</string>
 </resources>
