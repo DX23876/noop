@@ -634,8 +634,8 @@ class OuraLiveSource(
      * the real sleep end by 10–43 min). A COLLECTION, not a single slot: a drain can carry an overnight
      * AND a daytime nap, and keeping only the latest let the nap's 0x49 clobber the overnight's before
      * its burst finalized (overnight then fell back to its +4 h write time, 2026-07-17 capture). Each
-     * burst matches its OWN by ring-time proximity. Bounded (oldest dropped past the cap). Twin of Swift's
-     * recentSleepWindows049.
+     * burst matches its OWN by ring-time proximity. Bounded (oldest dropped past the cap); kept across
+     * reconnects, cleared on teardown ([clearsSleepWindowStash]). Twin of Swift's recentSleepWindows049.
      */
     private val recentSleepWindows049 = ArrayList<Triple<Long, Int, Int>>()
 
@@ -1266,7 +1266,8 @@ class OuraLiveSource(
         handler.removeCallbacks(chainedDrainRunnable)
         hypnogramAssembler.reset()        // never replay a half-accumulated burst from a dead session
         pendingUnanchoredBursts.clear()
-        recentSleepWindows049.clear()
+        // Kept across the reconnect: the burst that pairs with a stashed 0x49 can arrive on this link.
+        if (clearsSleepWindowStash(SleepWindowStashBoundary.LINK_BOUNDARY)) recentSleepWindows049.clear()
         recentPersistedSessionWindows.clear()
         greenIbiAmpCount = 0
         greenIbiAmpLengths.clear()
@@ -1331,6 +1332,7 @@ class OuraLiveSource(
         drainPendingAnchorEvents()
         dropUnanchoredHypnogramBursts()
         commitInterruptedDrainCursor()   // #2443: bank the drain's progress before the anchor goes
+        if (clearsSleepWindowStash(SleepWindowStashBoundary.TEARDOWN)) recentSleepWindows049.clear()
         // #1526 follow-up, twin of the Swift `stop()` call: cancelling the re-engage does NOT stop the
         // ring. That is the "just stop poking it" assumption #1526's captures falsified -- daytime-HR
         // left in mode 0x01 kept pushing green 0x80 all night, and the ring's ~20 s auto-revert never
@@ -2571,6 +2573,21 @@ class OuraLiveSource(
             return best
         }
 
+        /**
+         * Whether [recentSleepWindows049] is cleared at [boundary]. Pure, so the policy is testable without a
+         * ring. Twin of Swift's `clearsSleepWindowStash(at:)`.
+         *
+         * A reconnect must KEEP it (2026-09-21 and 2026-09-24 captures): the ring writes its 0x49 window and
+         * its SleepNet phase records seconds apart (12 s on 09-24), so a fetch that catches up between them
+         * delivers the 0x49 on one fetch and the burst on the next. When the link drops in between, the next
+         * fetch runs on a new connection, and clearing the stash there left the burst unpaired: it persisted
+         * `[no-0x49-onset]` 16 min before the ring's own onset and superseded the anchored row. Pairing is
+         * already safe without the clear, since [closestSleepWindow049] matches by ring-time proximity
+         * (10 min). A teardown still clears it: the next session may be a different ring on a different clock.
+         */
+        internal fun clearsSleepWindowStash(boundary: SleepWindowStashBoundary): Boolean =
+            boundary == SleepWindowStashBoundary.TEARDOWN
+
         /** The SetAuthKey-response OUTER opcode (`0x25`) and its OK status byte (`0x00`). The ring replies
          *  `25 01 00` to a successful `0x24` key install (OURA_PROTOCOL.md s3.2). */
         private const val SET_AUTH_KEY_RESP_OP = 0x25
@@ -2702,4 +2719,12 @@ object OuraSyncAnchorStore {
                 .apply()
         }
     }
+}
+
+/** Where an Oura session ends, for the 0x49 stash (twin of Swift's `SleepWindowStashBoundary`). */
+internal enum class SleepWindowStashBoundary {
+    /** The link dropped or re-formed; the same ring, the same process, the same ring clock. */
+    LINK_BOUNDARY,
+    /** A deliberate teardown ([OuraLiveSource.stop]: device switch, removal, disable). */
+    TEARDOWN,
 }

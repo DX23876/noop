@@ -1,7 +1,9 @@
 package com.noop.ble
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -51,5 +53,27 @@ class OuraSleepWindowPairingTest {
 
     @Test fun emptyReturnsNull() {
         assertNull(OuraLiveSource.closestSleepWindow049(emptyList(), 8_400_000L, 6_000L))
+    }
+
+    // The stash survives a reconnect (2026-09-24 capture). Same ring times as the Swift twin: the 0x49 event
+    // at 07:16:23, the fetch that delivered it caught up at 07:16:31, the SleepNet burst written at 07:16:35.
+    private val window0924 = Triple(53_280_886L, 503, 0)
+    private val cursorAfter0x49Fetch = 53_280_976L
+    private val burst0924 = 53_281_006L
+
+    @Test fun the0924BurstLandedAfterTheFetchThatCarriedIts0x49() {
+        assertTrue(window0924.first < cursorAfter0x49Fetch)
+        assertTrue(burst0924 > cursorAfter0x49Fetch)
+    }
+
+    @Test fun aKeptWindowPairsWithTheBurstOnTheNextConnection() {
+        val w = OuraLiveSource.closestSleepWindow049(listOf(window0924), burst0924, 6_000L)
+        assertEquals(window0924, w)
+    }
+
+    /** Regression: a link boundary keeps the stash; only a deliberate teardown clears it. */
+    @Test fun theStashIsKeptAcrossALinkBoundaryAndClearedOnTeardown() {
+        assertFalse(OuraLiveSource.clearsSleepWindowStash(SleepWindowStashBoundary.LINK_BOUNDARY))
+        assertTrue(OuraLiveSource.clearsSleepWindowStash(SleepWindowStashBoundary.TEARDOWN))
     }
 }

@@ -386,7 +386,8 @@ public final class OuraLiveSource: NSObject, ObservableObject {
     /// nap), so this is a COLLECTION, not a single slot: keeping only the latest let a nap's 0x49 clobber
     /// the overnight's before the overnight burst finalized, and the overnight then fell back to its
     /// +4 h write time (2026-07-17 capture). Each burst matches its OWN window by ring-time proximity.
-    /// Bounded (oldest dropped past the cap); reset per session.
+    /// Bounded (oldest dropped past the cap); kept across reconnects, cleared on teardown
+    /// (`clearsSleepWindowStash`).
     private var recentSleepWindows049: [(ringTimestamp: UInt32, startOffMin: Int, endOffMin: Int)] = []
     private static let recentSleepWindows049Cap = 16
 
@@ -1004,6 +1005,30 @@ public final class OuraLiveSource: NSObject, ObservableObject {
             }
         }
         return best
+    }
+
+    /// Where a session ends, for the purpose of the 0x49 stash below.
+    enum SleepWindowStashBoundary: Equatable, Sendable {
+        /// The link dropped or re-formed; the same ring, the same process, the same ring clock.
+        case linkBoundary
+        /// A deliberate teardown (`stop()`: device switch, removal, disable).
+        case teardown
+    }
+
+    /// Whether `recentSleepWindows049` is cleared at `boundary`. Pure, so the policy is tested without a ring.
+    ///
+    /// WHY A RECONNECT MUST KEEP IT (2026-09-21 and 2026-09-24 captures). The ring writes its 0x49 window and
+    /// its SleepNet phase records as two events, seconds apart (12 s on 09-24: 0x49 07:16:23, phase records
+    /// 07:16:35). A history fetch that catches up BETWEEN them delivers the 0x49 on one fetch and the burst
+    /// on the next. On a steady link the next fetch runs on the same connection and pairs normally; when the
+    /// link drops in between (07:28:36 on 09-24), the next fetch runs on a new connection, and clearing the
+    /// stash there left the burst unpaired: it persisted `[no-0x49-onset]` at 22:36:35 and superseded the
+    /// anchored 22:54 row, 16 min before the ring's own onset, which the Oura app showed to the minute.
+    /// Clearing was never what made pairing safe: `closestSleepWindow049` pairs by ring-time proximity
+    /// (10 min), so a window cannot pair with another finalization's burst, and the stash stays capped.
+    /// A teardown still clears it, because the next session may be a different ring on a different clock.
+    nonisolated static func clearsSleepWindowStash(at boundary: SleepWindowStashBoundary) -> Bool {
+        boundary == .teardown
     }
 
     /// Persist a closed hypnogram burst with its RECONSTRUCTED time axis: codes laid backward at the
@@ -1667,7 +1692,7 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         loggedProductInfo.removeAll()
         greenIbiAmpCount = 0
         greenIbiAmpLengths.removeAll()
-        recentSleepWindows049.removeAll()
+        if Self.clearsSleepWindowStash(at: .teardown) { recentSleepWindows049.removeAll() }
         recentPersistedSessionWindows.removeAll()
         activityMETByDay.removeAll()
         activityCadenceObs.removeAll()
@@ -2879,7 +2904,8 @@ extension OuraLiveSource: @preconcurrency CBCentralManagerDelegate {
         loggedProductInfo.removeAll()
         greenIbiAmpCount = 0
         greenIbiAmpLengths.removeAll()
-        recentSleepWindows049.removeAll()
+        // Kept across the reconnect: the burst that pairs with a stashed 0x49 can arrive on this link.
+        if Self.clearsSleepWindowStash(at: .linkBoundary) { recentSleepWindows049.removeAll() }
         recentPersistedSessionWindows.removeAll()
         pendingAnchorEvents.removeAll()   // a fresh session must never replay a stale-anchor guess
         hypnogramAssembler.reset()        // ditto for a half-accumulated burst from a dead session
@@ -2976,7 +3002,8 @@ extension OuraLiveSource: @preconcurrency CBCentralManagerDelegate {
         loggedProductInfo.removeAll()
         greenIbiAmpCount = 0
         greenIbiAmpLengths.removeAll()
-        recentSleepWindows049.removeAll()
+        // Kept across the drop: the next link's fetch may carry the burst this 0x49 belongs to.
+        if Self.clearsSleepWindowStash(at: .linkBoundary) { recentSleepWindows049.removeAll() }
         recentPersistedSessionWindows.removeAll()
         activityMETByDay.removeAll()
         activityCadenceObs.removeAll()

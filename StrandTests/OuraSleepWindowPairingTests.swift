@@ -57,4 +57,34 @@ final class OuraSleepWindowPairingTests: XCTestCase {
     func testEmptyReturnsNil() {
         XCTAssertNil(OuraLiveSource.closestSleepWindow049(in: [], toRingTimestamp: 8_400_000, within: 6_000))
     }
+
+    // MARK: - The stash survives a reconnect (2026-09-24 capture)
+
+    // Ring times from the 09-24 capture, derived from that morning's SyncTime anchor (rt 53_289_426 at
+    // 07:30:37): the 0x49 event at 07:16:23, the fetch that delivered it caught up at 07:16:31, and the
+    // SleepNet phase records were written at 07:16:35 — AFTER that fetch, so they came on the next one.
+    private let window0924: (ringTimestamp: UInt32, startOffMin: Int, endOffMin: Int) = (53_280_886, 503, 0)
+    private let cursorAfter0x49Fetch: UInt32 = 53_280_976
+    private let burst0924: UInt32 = 53_281_006
+
+    /// The shape of the defect: the fetch caught up BETWEEN the ring's 0x49 and its burst, so the two can
+    /// only meet if the stash outlives the fetch — and, when the link drops in between, the connection.
+    func testThe0924BurstLandedAfterTheFetchThatCarriedIts0x49() {
+        XCTAssertLessThan(window0924.ringTimestamp, cursorAfter0x49Fetch)
+        XCTAssertGreaterThan(burst0924, cursorAfter0x49Fetch)
+    }
+
+    /// With the window still stashed on the next connection, the burst pairs with it (12 s apart), so the
+    /// night is anchored at the ring's own 22:53 onset instead of persisting `[no-0x49-onset]` at 22:36.
+    func testAKeptWindowPairsWithTheBurstOnTheNextConnection() {
+        let w = OuraLiveSource.closestSleepWindow049(in: [window0924], toRingTimestamp: burst0924, within: 6_000)
+        XCTAssertEqual(w?.ringTimestamp, window0924.ringTimestamp)
+        XCTAssertEqual(w?.startOffMin, 503)
+    }
+
+    /// THE REGRESSION TEST. A link boundary keeps the stash; only a deliberate teardown clears it.
+    func testTheStashIsKeptAcrossALinkBoundaryAndClearedOnTeardown() {
+        XCTAssertFalse(OuraLiveSource.clearsSleepWindowStash(at: .linkBoundary))
+        XCTAssertTrue(OuraLiveSource.clearsSleepWindowStash(at: .teardown))
+    }
 }
