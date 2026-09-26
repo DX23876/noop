@@ -96,6 +96,11 @@ final class HevyConnectModel: ObservableObject {
             // analysis pass: a logged set changes no score, so nothing needs re-deriving — see
             // `HevySyncCoordinator`'s note on why this lane invalidates no day.
             await repo.refresh()
+            // A logged session is also the workout context the strap energy model prices its heart
+            // rate under, so a sync that changed sessions re-prices the window the model keeps.
+            if summary.fetchedWorkouts + summary.deletedWorkouts > 0 {
+                repo.scheduleEnergyRefresh(coveringStart: 0)
+            }
 
             let stored = (try? await store.hevyWorkoutCount()) ?? 0
             HevySyncState.recordSuccess(storedWorkouts: stored, skipped: summary.skipped)
@@ -136,6 +141,7 @@ final class HevyConnectModel: ObservableObject {
             isConnected = false
             status = HevySyncState.load()
             await repo.refresh()
+            repo.scheduleEnergyRefresh(coveringStart: 0)
             report(String(localized: "Disconnected and removed every synced session."), failed: false)
         }
     }

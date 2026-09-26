@@ -559,6 +559,30 @@ final class EnergyEngineTests: XCTestCase {
         }
     }
 
+    /// On a 23- or 25-hour day the strap total still carries `bmr / 86 400` per represented second
+    /// (that is how the bucket model prices basal), so exactly that is what comes back out: a strap
+    /// that measured nothing but basal leaves no active energy behind, whatever the day's length.
+    func testTheStrapsOwnBasalIsRemovedAtTheRateItWasPricedAt() {
+        for duration in [82_800.0, 86_400.0, 90_000.0] {
+            let covered = duration * 0.5
+            let summary = EnergyEngine.summarize(
+                inputs(strap: bmr / 86_400 * covered, coverage: Int(covered)), profile: profile,
+                context: context(elapsed: 0.5, duration: duration, today: true))
+            XCTAssertEqual(summary.activeBurnedSoFar ?? -1, 0, accuracy: 0.01, "\(duration)")
+        }
+    }
+
+    /// The model's stored active energy is taken as it is, so a basal rate that differs from the one
+    /// the buckets were priced with (a formula change) moves basal only, never active energy.
+    func testStoredStrapActiveEnergyIsNotRederivedFromBasal() {
+        let inputs = EnergyEngine.DayInputs(day: "2026-09-26", strapTotalKcal: 2_600,
+                                            strapCoverageSeconds: 86_400, strapActiveKcal: 540,
+                                            strapCalibrationFactor: 1.1, calibrationStatus: .active)
+        let summary = EnergyEngine.summarize(inputs, profile: profile, context: context())
+        XCTAssertEqual(summary.activeBurnedSoFar ?? 0, 540 * 1.1, accuracy: 1e-9)
+        XCTAssertEqual(summary.basalBurnedSoFar ?? 0, bmr, accuracy: 1e-6)
+    }
+
     func testMalformedInputsAreRejected() {
         let summary = EnergyEngine.summarize(
             inputs(appleActive: .infinity, appleBasal: -1, strap: .nan,

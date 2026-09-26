@@ -51,6 +51,8 @@ final class OuraConnectModel: ObservableObject {
                     }
                 }
                 await repo.refresh()
+                // Ring workouts are workout context for the strap energy model as well as list rows.
+                if s.workouts > 0 { repo.scheduleEnergyRefresh(coveringStart: 0) }
                 var line = "Imported \(s.days) days · \(s.sleeps) sleeps · \(s.workouts) workouts · \(s.hrSamples) HR samples"
                 if !s.skippedEndpoints.isEmpty {
                     line += " · skipped: \(s.skippedEndpoints.joined(separator: ", ")) — tap Sync again to retry"
@@ -81,6 +83,7 @@ final class OuraConnectModel: ObservableObject {
                     statusText = "Disconnected, but couldn't fully clear local Oura data: \(error.localizedDescription)"
                 }
                 await repo.refresh()
+                repo.scheduleEnergyRefresh(coveringStart: 0)
             } else {
                 statusText = "Disconnected."
             }

@@ -1,4 +1,5 @@
 import Foundation
+import WhoopProtocol
 
 // WorkoutEnergyEstimate.swift — what one session cost, and how we know.
 //
@@ -22,6 +23,9 @@ public enum WorkoutEnergyEstimate {
     public enum Provenance: String, Equatable, Sendable {
         /// The session recorded it. Not an estimate.
         case recorded
+        /// The strap's own energy model over the session's window — the same five-minute buckets the
+        /// day's total and its training share are built from, heart rate and movement together.
+        case strapModel
         /// Keytel at the session's average heart rate — evidence about the person who did it.
         case heartRate
         /// The published activity cost for the sport's NAME. A population average, and the last
@@ -52,13 +56,19 @@ public enum WorkoutEnergyEstimate {
     /// so an estimated row reads on the same scale as a recorded one beside it. An Apple import is
     /// energy ABOVE resting and is returned untouched as `.recorded`: converting it here would
     /// silently restate a figure the wearer can also see in Apple's own app.
+    ///
+    /// `strapKcal` is `strapWindowKcal` for the session, when the strap model covered it. It outranks
+    /// the heart-rate estimate because it is built from the same samples plus movement, with the
+    /// session's own workout context — and because it is the figure the day's energy already counts,
+    /// so the session tile and the day's training share cannot tell two stories about one workout.
     public static func resolve(recordedKcal: Double?,
                                sport: String,
                                durationSeconds: Double,
                                averageHR: Int?,
                                profile: UserProfile,
                                hrMax: Double?,
-                               restingHR: Double?) -> Resolved? {
+                               restingHR: Double?,
+                               strapKcal: Double? = nil) -> Resolved? {
         func valid(_ kcal: Double?, _ provenance: Provenance) -> Resolved? {
             guard let kcal, kcal.isFinite, kcal > 0 else { return nil }
             return Resolved(kcal: kcal, provenance: provenance)
@@ -66,16 +76,153 @@ public enum WorkoutEnergyEstimate {
 
         if let resolved = valid(recordedKcal, .recorded) { return resolved }
         guard durationSeconds.isFinite, durationSeconds > 0 else { return nil }
+        if let resolved = valid(strapKcal, .strapModel) { return resolved }
 
         if let averageHR, averageHR > 0,
-           let resolved = valid(Calories.estimateBoutCalories(averageHR: averageHR,
-                                                              durationSeconds: durationSeconds,
-                                                              profile: profile, hrmax: hrMax,
-                                                              restingHR: restingHR), .heartRate) {
+           let resolved = valid(heartRateKcal(averageHR: averageHR, sport: sport,
+                                              durationSeconds: durationSeconds, profile: profile,
+                                              hrMax: hrMax, restingHR: restingHR), .heartRate) {
             return resolved
         }
 
         return valid(ActivityMETCatalog.grossKcal(sport: sport, seconds: durationSeconds,
                                                   weightKg: profile.weightKg), .metTable)
+    }
+}
+
+extension WorkoutEnergyEstimate {
+
+    /// Gross energy from a session's average heart rate.
+    ///
+    /// Keytel (2005) was fitted on steady endurance exercise, and for lifting it reads the pressor
+    /// response as oxygen uptake: the reported 90-minute session at 108 bpm came out at ~783 kcal,
+    /// about 5.7 MET, where the Compendium puts resistance training at 3.5–6. A resistance session is
+    /// therefore priced by `resistanceKcal` — the strap model's own curve plus basal, the same
+    /// arithmetic its buckets use — so a session without strap coverage lands on the scale of one with
+    /// it. Everything else keeps Keytel.
+    static func heartRateKcal(averageHR: Int, sport: String, durationSeconds: Double,
+                              profile: UserProfile, hrMax: Double?, restingHR: Double?) -> Double? {
+        guard EnergyWorkoutKind.forSport(sport) == .resistance,
+              let price = resistancePricer(profile: profile, hrMax: hrMax, restingHR: restingHR) else {
+            return Calories.estimateBoutCalories(averageHR: averageHR, durationSeconds: durationSeconds,
+                                                 profile: profile, hrmax: hrMax, restingHR: restingHR)
+        }
+        return price(Double(averageHR), durationSeconds)
+    }
+
+    /// Gross energy of a bout from its heart-rate SAMPLES, priced the way its sport should be.
+    ///
+    /// The one entry point for every place NOOP stores a figure it computed itself — a live session at
+    /// save time and the post-sync rescore of an under-scored manual row. Both called Keytel directly,
+    /// so a lifting session recorded live was stored at Keytel's figure and shown as recorded, however
+    /// the rest of the app priced lifting. A resistance sport is integrated sample by sample on
+    /// `resistanceKcal`; every other sport returns exactly `Calories.estimateBoutCalories`.
+    ///
+    /// Samples are weighted by the time to the next one, capped at `WorkoutDetector.mergeGapS`, the
+    /// same rule the Keytel integration uses, so a sparse stream is not undercounted and a wear gap
+    /// cannot be inflated. Zero with fewer than two samples, like its sibling.
+    public static func boutKcal(_ samples: [HRSample], sport: String, profile: UserProfile,
+                                hrMax: Double?, restingHR: Double?) -> Double {
+        guard EnergyWorkoutKind.forSport(sport) == .resistance,
+              let price = resistancePricer(profile: profile, hrMax: hrMax, restingHR: restingHR) else {
+            return Calories.estimateBoutCalories(samples, profile: profile, hrmax: hrMax,
+                                                 restingHR: restingHR).0
+        }
+        let ordered = samples.sorted { $0.ts < $1.ts }
+        guard ordered.count >= 2 else { return 0 }
+        var kcal = 0.0
+        for index in ordered.indices {
+            let seconds: Double
+            if index < ordered.count - 1 {
+                let gap = Double(ordered[index + 1].ts - ordered[index].ts)
+                seconds = gap > 0 ? min(gap, WorkoutDetector.mergeGapS) : 1
+            } else {
+                seconds = 1
+            }
+            kcal += price(Double(ordered[index].bpm), seconds)
+        }
+        return kcal
+    }
+
+    /// Basal plus resistance-curve active energy for `seconds` at a heart rate, or nil when the
+    /// profile has no body data to price basal with (the caller then keeps Keytel, which carries its
+    /// own population defaults). Resting and maximum take the bounds the bucket model applies.
+    private static func resistancePricer(profile: UserProfile, hrMax: Double?, restingHR: Double?)
+        -> ((Double, Double) -> Double)? {
+        guard let bmr = Calories.bmrKcalPerDay(profile: profile), profile.weightKg > 0 else { return nil }
+        let resting = min(100, max(35, restingHR ?? 60))
+        let maximum = max(resting + 20, hrMax ?? profile.maxHR
+                          ?? (profile.age > 0 ? StrainScorer.tanakaHRmax(age: profile.age) : 190))
+        let weight = profile.weightKg
+        return { bpm, seconds in
+            let met = WhoopEnergyModel.exerciseMET(hr: bpm, resting: resting, maximum: maximum,
+                                                   kind: .resistance)
+            return bmr / 86_400 * seconds
+                + WhoopEnergyModel.activeKcal(met: met, seconds: seconds, weightKg: weight)
+        }
+    }
+
+    /// One stored five-minute bucket of the strap energy model, as a session window reads it.
+    public struct StrapBucket: Equatable, Sendable {
+        public let start: Int
+        public let durationSeconds: Int
+        public let basalKcal: Double
+        public let activeKcal: Double
+        /// Nil for a context string this build does not know; such a bucket covers the window but
+        /// never counts as the model having seen the workout.
+        public let context: EnergyContext?
+
+        public init(start: Int, durationSeconds: Int, basalKcal: Double, activeKcal: Double,
+                    context: EnergyContext?) {
+            self.start = start
+            self.durationSeconds = durationSeconds
+            self.basalKcal = basalKcal
+            self.activeKcal = activeKcal
+            self.context = context
+        }
+    }
+
+    /// Share of the session window the model must have priced from the strap before it may answer.
+    public static let strapMinimumCoverage = 0.8
+    /// Share of those seconds the model must have priced AS the workout.
+    public static let strapMinimumWorkoutShare = 0.5
+
+    /// What the strap energy model charged for `[startTs, endTs)`, GROSS (basal plus active), or nil
+    /// when it cannot answer for this session.
+    ///
+    /// Gross because every other estimated branch here is gross, so the tile keeps one scale whatever
+    /// branch priced it. The day's "Training" line is ACTIVE energy only; the two differ by exactly
+    /// the basal share of the window, which is summed here from the same buckets.
+    ///
+    /// Two gates, each answering "did the model actually see this session?":
+    ///   • **coverage** — buckets (off-wrist excluded) span at least `strapMinimumCoverage` of the
+    ///     window. The uncovered remainder is charged at the covered seconds' mean rate, a short gap
+    ///     inside a workout being part of the workout.
+    ///   • **workout context** — at least `strapMinimumWorkoutShare` of the covered seconds were
+    ///     priced as `confirmedWorkout`. Buckets computed before the session was saved carry
+    ///     `unresolvedElevatedHR` instead; summing those would state the stale answer as the strap's.
+    ///
+    /// `activeFactor` is the opted-in Watch calibration, applied to active energy only, exactly as the
+    /// day total and the burn-rate chart apply it.
+    public static func strapWindowKcal(buckets: [StrapBucket], startTs: Int, endTs: Int,
+                                       activeFactor: Double = 1) -> Double? {
+        guard endTs > startTs, activeFactor.isFinite, activeFactor > 0 else { return nil }
+        var covered = 0.0
+        var workout = 0.0
+        var kcal = 0.0
+        for bucket in buckets where bucket.durationSeconds > 0 && bucket.context != .offWrist {
+            let overlap = Double(min(endTs, bucket.start + bucket.durationSeconds)
+                                 - max(startTs, bucket.start))
+            guard overlap > 0, bucket.basalKcal.isFinite, bucket.activeKcal.isFinite else { continue }
+            covered += overlap
+            if bucket.context == .confirmedWorkout { workout += overlap }
+            kcal += (max(0, bucket.basalKcal) + max(0, bucket.activeKcal) * activeFactor)
+                * overlap / Double(bucket.durationSeconds)
+        }
+        let window = Double(endTs - startTs)
+        guard covered > 0, covered >= window * strapMinimumCoverage,
+              workout >= covered * strapMinimumWorkoutShare else { return nil }
+        let total = kcal * window / covered
+        return total.isFinite && total > 0 ? total : nil
     }
 }

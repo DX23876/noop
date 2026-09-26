@@ -1,4 +1,5 @@
 import Foundation
+import StrandAnalytics
 import WhoopStore
 
 // MARK: - The athlete's own rating of one whole session
@@ -87,3 +88,44 @@ extension Repository {
         return (try? await store.deleteTrainingSessionRating(id: id)) == true
     }
 }
+
+// MARK: - When to ask
+
+extension Repository {
+
+    /// Whether a finished session should get the delayed "how did it feel?" prompt.
+    ///
+    /// The Session Load card stays on every session's detail; this decides only the push. The choice is
+    /// the wearer's (`SessionRatingPrompt`); the default asks where the answer adds something heart
+    /// rate cannot (`SessionRatingPolicy`). A session's average heart rate is read from the window
+    /// when the caller has none, so a steady session is not asked about merely because its row was
+    /// loaded without one — the policy treats "no heart rate" as a reason to ask.
+    func shouldPromptSessionRating(startTs: Int, endTs: Int, sport: String, source: String = "",
+                                   averageHR: Int? = nil) async -> Bool {
+        switch TrainingPreferences.sessionRatingPrompt {
+        case .off: return false
+        case .always: return true
+        case .whenUseful: break
+        }
+        let seconds = Double(max(0, endTs - startTs))
+        guard !SessionRatingPolicy.family(forSport: sport).alwaysWorthRating else { return true }
+        var average = averageHR.map(Double.init)
+        if average == nil, endTs > startTs, let store = await storeHandle() {
+            let ids = Self.workoutHrDeviceIds(source: source, activeStrapId: deviceId,
+                                              importedIds: importedReadIds)
+            if let primary = ids.first,
+               let stats = try? await store.hrWindowStats(primaryId: primary,
+                                                          secondaryId: ids.dropFirst().first ?? primary,
+                                                          from: startTs, to: endTs),
+               stats.n >= 60 {
+                average = stats.avg
+            }
+        }
+        let resting = days.compactMap(\.restingHr).suffix(14).sorted()
+        return SessionRatingPolicy.isWorthRating(
+            sport: sport, durationSeconds: seconds, averageHR: average,
+            restingHR: resting.isEmpty ? nil : Double(resting[resting.count / 2]),
+            maxHR: strainProfile?.hrMax)
+    }
+}
+

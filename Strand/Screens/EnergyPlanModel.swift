@@ -123,8 +123,8 @@ final class EnergyPlanModel: ObservableObject {
 
     // MARK: - The formula page
 
-    /// Which formula applies today, from the dated log.
-    var currentFormula: BasalFormula { EnergyPlanStore.formulaLog.formula(onDay: today) }
+    /// The formula every day is computed with (`BmrFormulaLog.current`).
+    var currentFormula: BasalFormula { EnergyPlanStore.formulaLog.current }
 
     /// The body-fat figure in force today, whatever its source.
     var bodyFatToday: BodyReading? { metrics.asOf("body_fat", day: today) }

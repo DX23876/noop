@@ -24,6 +24,14 @@ final class ActivityMETCatalogTests: XCTestCase {
         XCTAssertEqual(ActivityMETCatalog.met(forSport: ""), ActivityMETCatalog.defaultMET)
     }
 
+    func testTheStrengthLabelsSessionsArriveWithAllFindTheStrengthEntry() {
+        for label in ["Strength Training", "Traditional Strength Training", "TraditionalStrengthTraining",
+                      "Functional strength training", "strength_training", "Weight Training"] {
+            XCTAssertEqual(ActivityMETCatalog.met(forSport: label),
+                           ActivityMETCatalog.met(forSport: "Strength"), label)
+        }
+    }
+
     func testTheTableOrdersActivitiesTheWayPhysiologyDoes() {
         XCTAssertLessThan(ActivityMETCatalog.met(forSport: "Meditation"),
                           ActivityMETCatalog.met(forSport: "Yoga"))

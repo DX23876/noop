@@ -185,7 +185,7 @@ public struct ActivityContribution: Equatable, Sendable {
     /// Which lane a logged session arrived through. Mirrors the app's `WorkoutSource` one for one, so
     /// the app's mapping is a compiler-checked switch rather than a string compare.
     public enum Source: String, Equatable, Sendable, Codable, CaseIterable {
-        case whoop, apple, detected, manual, lifting, activityFile, hevy
+        case whoop, apple, detected, manual, lifting, activityFile, hevy, oura
 
         /// Whether this lane's kcal figure still contains the resting energy of the bout.
         ///
@@ -193,7 +193,12 @@ public struct ActivityContribution: Equatable, Sendable {
         /// writes, and the compiler is the only reviewer guaranteed to ask.
         public var includesRestingEnergy: Bool {
             switch self {
-            case .apple: return false
+            // Oura publishes no definition for a workout's `calories`. It is treated as ACTIVE energy
+            // because that is the quantity Oura writes for the same session into Apple Health, whose
+            // workout energy is active by definition, and because Oura's own daily summary keeps active
+            // and total calories apart. Inferred, not documented: a gross figure read this way would
+            // overstate a device-less day by the session's resting energy.
+            case .apple, .oura: return false
             case .whoop, .detected, .manual, .lifting, .activityFile, .hevy: return true
             }
         }
@@ -283,6 +288,11 @@ public enum EnergyEngine {
         /// Wall-clock seconds whose basal share is already included in `strapTotalKcal`. Legacy rows
         /// may contain distinct HR seconds instead; model-version filtering prevents crossing them.
         public let strapCoverageSeconds: Int?
+        /// The strap model's ACTIVE energy for the day as it stored it (the sum of its buckets' active
+        /// share), when known. Preferred over `strapTotalKcal − basal`: that subtraction only returns
+        /// the active energy when the basal taken out is the basal the buckets were priced with, and a
+        /// basal-formula change — or a day older than the model's recompute window — breaks that.
+        public let strapActiveKcal: Double?
         /// Optional, user-enabled Apple Watch reference calibration. Values outside the deliberately
         /// narrow 0.8...1.2 range are ignored, and the factor is never applied to Apple-only days.
         public let strapCalibrationFactor: Double?
@@ -308,6 +318,7 @@ public enum EnergyEngine {
         public init(day: String, appleActiveKcal: Double? = nil, appleBasalKcal: Double? = nil,
                     appleCoverageSeconds: Int? = nil,
                     strapTotalKcal: Double? = nil, strapCoverageSeconds: Int? = nil,
+                    strapActiveKcal: Double? = nil,
                     strapCalibrationFactor: Double? = nil,
                     strapUncertaintyFraction: Double? = nil,
                     calibrationStatus: EnergyCalibrationStatus = .off,
@@ -322,6 +333,7 @@ public enum EnergyEngine {
             self.appleCoverageSeconds = appleCoverageSeconds
             self.strapTotalKcal = strapTotalKcal
             self.strapCoverageSeconds = strapCoverageSeconds
+            self.strapActiveKcal = strapActiveKcal
             self.strapCalibrationFactor = strapCalibrationFactor
             self.strapUncertaintyFraction = strapUncertaintyFraction
             self.calibrationStatus = calibrationStatus
@@ -457,14 +469,17 @@ public enum EnergyEngine {
                                   rawWhoopTotalKcal: strap)
             }
             let observedSeconds = min(context.elapsedSeconds, max(0, Double(covered)))
-            let basalRate = bmr24h / context.dayDurationSeconds
-            let observedBasal = basalRate * observedSeconds
+            // The basal share to take back out is the one the strap total CONTAINS, and the bucket
+            // model priced every represented second at `bmr24h / 86 400` whatever the day's length.
+            // Dividing by the local day's length instead removed ~4 % too much on the 23-hour spring
+            // day (active understated by ~an hour of basal) and too little on the 25-hour autumn one.
+            let observedBasal = bmr24h / 86_400 * observedSeconds
             // Calibrate ACTIVE energy only. The Watch reference factor is fitted on activity-only
             // buckets (see `EnergyCalibrationEngine` / the fit in `Repository.refreshWhoopEnergyModel`),
             // so applying it to `strap` — which still contains WHOOP's own basal estimate for the
             // observed window — would scale a metabolic constant by a factor that was never fitted
             // against it. `rawActive` isolates the part the fit actually describes.
-            let rawActive = max(0, strap - observedBasal)
+            let rawActive = inputs.strapActiveKcal ?? max(0, strap - observedBasal)
             let active = rawActive * (factor ?? 1)
             let basalElapsedValue = bmr24h * elapsed
             return BurnResult(basal: basalElapsedValue, active: active,
@@ -736,6 +751,7 @@ public enum EnergyEngine {
                          appleCoverageSeconds: appleCovered,
                          strapTotalKcal: strapKcal(inputs.strapTotalKcal),
                          strapCoverageSeconds: covered,
+                         strapActiveKcal: kcal(inputs.strapActiveKcal),
                          strapCalibrationFactor: factor,
                          strapUncertaintyFraction: uncertainty,
                          calibrationStatus: calibrationStatus,

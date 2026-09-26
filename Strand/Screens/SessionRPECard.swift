@@ -46,7 +46,9 @@ struct SessionRPECard: View {
                 saved = await repo.sessionRPE(at: startTs)
             }
             if let saved { draft = saved.rpe }
-            if saved == nil, let durationS {
+            if saved == nil, let durationS,
+               await repo.shouldPromptSessionRating(startTs: startTs, endTs: startTs + Int(durationS),
+                                                    sport: sport) {
                 await SessionRPEReminder.schedule(startTs: startTs, durationS: durationS, sport: sport)
             }
         }

@@ -1234,8 +1234,9 @@ final class AppModel: ObservableObject {
             ? StrainScorer.strain(samples, maxHR: Double(profile.hrMax),
                                   restingHR: restingHR,
                                   method: PuffinExperiment.effortMethod, sex: profile.sex) : nil
-        // Estimate calories from the captured HR window (same Keytel/Harris–Benedict model the
-        // auto-detector uses) so a manual session shows energy too, not just duration/strain. (#117)
+        // Estimate calories from the captured HR window so a manual session shows energy too, not just
+        // duration/strain (#117). Through `boutKcal`, which prices a lifting sport on the resistance
+        // curve instead of Keytel — the figure stored here is later shown as the session's own.
         let up = UserProfile(weightKg: profile.weightKg, heightCm: profile.heightCm,
                              age: Double(profile.age), sex: profile.sex)
         let kcal = samples.count >= 2
@@ -1243,8 +1244,8 @@ final class AppModel: ObservableObject {
             // active-vs-resting threshold sits at resting + 30% HRR, so the default silently shifts what
             // counts as active — and #972 already threads it in the rescore path, so leaving it nil here
             // meant a saved workout's kcal disagreed with its own re-score just as its Effort did.
-            ? Calories.estimateBoutCalories(samples, profile: up, hrmax: Double(profile.hrMax),
-                                            restingHR: restingHR).0
+            ? WorkoutEnergyEstimate.boutKcal(samples, sport: w.sport, profile: up,
+                                             hrMax: Double(profile.hrMax), restingHR: restingHR)
             : 0
         let startTs = Int(w.start.timeIntervalSince1970)
         let row = WorkoutRow(

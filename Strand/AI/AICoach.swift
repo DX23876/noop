@@ -5011,6 +5011,7 @@ final class AICoachEngine: ObservableObject {
                 fromDay: Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(oldest))),
                 toDay: Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(newest))))
         }
+        let strapByKey = await repo.strapSessionEnergy(for: quoted)
 
         lines.append("Newest sessions:")
         for w in quoted {
@@ -5023,7 +5024,8 @@ final class AICoachEngine: ObservableObject {
             // with it: a bare figure in a prompt becomes a measurement the moment it is quoted back.
             let energy = WorkoutEnergyDisplay.resolve(w, profile: analyticsProfile,
                                                       hrMax: Double(profileStore.hrMax),
-                                                      restingHrByDay: restingHrByDay)
+                                                      restingHrByDay: restingHrByDay,
+                                                      strapKcalByKey: strapByKey)
             if let spoken = WorkoutEnergyDisplay.spoken(energy, averageHR: w.avgHr) {
                 parts.append(spoken)
             }
@@ -5075,7 +5077,7 @@ final class AICoachEngine: ObservableObject {
                          + " (\(Int(balance.lowerBoundKcal.rounded()))–\(Int(balance.upperBoundKcal.rounded()))),"
                          + " from \(balance.intakeDays) intake days. Self-reported intake runs low, which biases this figure DOWN.")
         }
-        let formula = EnergyPlanStore.formulaLog.formula(onDay: today)
+        let formula = EnergyPlanStore.formulaLog.current
         if let basal = BasalRate.kcalPerDay(formula,
                                             weightKg: metrics.value("weight", on: today) ?? profile.weightKg,
                                             heightCm: metrics.value("height", on: today) ?? profile.heightCm,
