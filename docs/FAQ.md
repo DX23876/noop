@@ -77,7 +77,8 @@ forks and restore with the same or a newer build when possible.
 For scoring, yes. A 5.0/MG pairs, syncs its stored history and feeds the same HRV, sleep staging,
 Charge, Effort, Rest, Stress and workout detection as a 4.0; it even reads skin temperature and steps
 directly, where a 4.0 gets an on-device estimate, and it sends its own blood-oxygen value, which
-NOOP can show as an unverified strap estimate behind an Experimental toggle (a 4.0 has none). What
+NOOP can show as an unverified strap estimate behind an Experimental toggle (from a 4.0, NOOP gets
+only raw sensor channels and shows SpO₂ only from an imported WHOOP export). What
 it does not give yet is a confirmed strap-driven alarm wake or a validated ECG (an experimental
 MG-only capture). Pairing is the usual hurdle: the strap bonds to one device at a time, so unpair it from the
 official WHOOP app first.
