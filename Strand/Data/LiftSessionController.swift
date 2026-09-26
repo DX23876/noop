@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import WhoopStore
+import StrandAnalytics
 
 // The live session, owned ABOVE any screen.
 //
@@ -12,7 +13,7 @@ import WhoopStore
 // present.
 //
 // A workout outlives the screen you happen to be looking at, so the session has to as well. This
-// controller owns the engine, the tick, the buzz gating and the persistence. The sheet is a
+// controller owns the engine, the rest's timers, the buzz gating and the persistence. The sheet is a
 // rendering of it; the bottom bar is another. Dismissing either changes nothing about the session.
 //
 // The strap gesture is claimed for the LIFETIME OF THE SESSION rather than the lifetime of a view,
@@ -21,19 +22,32 @@ import WhoopStore
 @MainActor
 final class LiftSessionController: ObservableObject {
 
-    /// The running session, or nil when none is in flight.
-    @Published private(set) var engine: LiftSessionEngine?
+    /// The running session, or nil when none is in flight. Every change re-arms the rest's timers
+    /// (`scheduleRestTimers`), which only act when the rest itself changed.
+    @Published private(set) var engine: LiftSessionEngine? { didSet { scheduleRestTimers() } }
     @Published private(set) var programId: String?
     @Published private(set) var programName: String?
-    /// Ticks every second while a session runs, so views can redraw clocks off one shared timer
-    /// rather than each starting their own.
-    @Published private(set) var now = Int(Date().timeIntervalSince1970)
     /// True while the full sheet is presented; false when minimised to the bottom bar.
     @Published var isPresented = false
 
     /// Bumped each time a finished session is written. The session sheet is presented above every
     /// screen, so its save cannot call back into the one listing sessions; that screen reloads on this.
     @Published private(set) var savedSessions = 0
+
+    /// Sends the moment a strap double-tap has moved the session on, with the new stage in place — unlike
+    /// `$engine`, which publishes before the change lands. The Lock Screen banner uses it to light the
+    /// screen on the step just taken, and because it comes before anything else about the step reaches
+    /// the banner, that one lit update is usually the only update the step causes.
+    let strapStepTaken = PassthroughSubject<Void, Never>()
+
+    /// Anything about the session changed, once the change has landed and settled — what the Lock Screen
+    /// banner follows. `objectWillChange` fires BEFORE a change lands, so a banner pushed from it showed the
+    /// step before; the debounce also folds a burst (typing a number, the several changes of one tap) into one
+    /// push. Built once, so its subscribers keep one pipeline.
+    private(set) lazy var changesSettled: AnyPublisher<Void, Never> = objectWillChange
+        .debounce(for: .milliseconds(250), scheduler: RunLoop.main)
+        .map { _ in () }
+        .eraseToAnyPublisher()
 
     var isActive: Bool { engine != nil && engine?.isFinished == false }
 
@@ -78,12 +92,20 @@ final class LiftSessionController: ObservableObject {
     /// and hands it over; until it does (a session resumed straight into the bar after a relaunch, say)
     /// the grey numbers fall through to the program's target, which is the layer below.
     @Published private var lastSession: [String: [Int: LiftSetCarry]] = [:]
-    private var ticker: AnyCancellable?
+    /// The running rest's warning and end, and the end they were set for — see `scheduleRestTimers`.
+    private var restTimers: [Task<Void, Never>] = []
+    private var scheduledRestEnd: Int?
 
     /// Fires the strap buzz. Injected so the controller has no opinion about BLE and stays testable.
     private let buzz: (UInt8) -> Void
     /// Claims/releases the strap's double-tap for the session's lifetime.
-    private let setStrapHandler: ((() -> Void)?) -> Void
+    private let setStrapHandler: ((@MainActor () -> Void)?) -> Void
+    /// Writes a line to the strap log — how a double-tap the session holds back is accounted for.
+    private let log: (String) -> Void
+
+    /// When the session last acted on a strap double-tap (unix seconds). Nil until it has, and after a
+    /// relaunch: a knock is judged against a tap in the same sitting, never one from before it.
+    private var lastStrapStepAt: Int?
 
     /// One pulse confirms a strap double-tap registered — with the phone face-down there is
     /// otherwise no way to know. Three means the rest is nearly up. Two patterns that cannot be
@@ -92,11 +114,16 @@ final class LiftSessionController: ObservableObject {
     static let restWarningBuzzes: UInt8 = 3
     /// How long before the rest ends the warning fires.
     static let restWarningLeadSec = 5
+    /// A strap double-tap this soon after the last one the session acted on is taken as a knock. See
+    /// `isKnock(secondsSinceLastStep:stage:now:)`.
+    static let strapKnockWindowSec = 5
 
     init(buzz: @escaping (UInt8) -> Void,
-         setStrapHandler: @escaping ((() -> Void)?) -> Void) {
+         setStrapHandler: @escaping ((@MainActor () -> Void)?) -> Void,
+         log: @escaping (String) -> Void = { _ in }) {
         self.buzz = buzz
         self.setStrapHandler = setStrapHandler
+        self.log = log
     }
 
     // MARK: - Lifecycle
@@ -107,11 +134,25 @@ final class LiftSessionController: ObservableObject {
         self.programId = programId
         self.programName = programName
         warnedFor = nil
-        now = stamp
         isPresented = true
         claimStrap()
-        startTicking()
         persist()
+    }
+
+    /// Pick up the session a previous run of NOOP left going, as the app process starts.
+    ///
+    /// iOS closes NOOP in the background and relaunches it when the strap next sends something — four
+    /// times in 28 minutes of one gym session (strap log, 21 Sep 2026). The session used to come back only
+    /// when the first screen appeared, and the Lock Screen banner is driven by the same screen: its first
+    /// push found no session, ended the banner, and iOS allows a new one only while NOOP is open. Every
+    /// strap step after a restart then lit nothing ("no Lift Log banner is running") until NOOP was opened.
+    /// Resumed here, before any screen exists, the session is back before anything asks about it, and
+    /// the banner iOS kept on the Lock Screen is picked up again instead. The line it logs is how a later
+    /// strap log shows a restart in the middle of a session.
+    func resumeSaved(from defaults: UserDefaults = .standard) {
+        guard !isActive, let snapshot = LiftSessionPersistence.load(from: defaults) else { return }
+        resume(from: snapshot)
+        log("Lift Log: session picked up again after NOOP restarted")
     }
 
     /// Rehydrate an interrupted session found on disk. Does NOT present the sheet: the session comes
@@ -125,19 +166,17 @@ final class LiftSessionController: ObservableObject {
         // to prevent, whether it is lost to a blur or to a relaunch.
         pendingValues = LiftSessionPersistence.pendingValues(from: snapshot)
         pendingWarmups = LiftSessionPersistence.pendingWarmups(from: snapshot)
-        now = Int(Date().timeIntervalSince1970)
         // Suppress the warning for a rest that is ALREADY inside its final seconds. Without this,
         // reopening a session mid-rest greets the user with three buzzes for a rest they have been
         // watching count down all along.
         if case .resting(_, let endsAt) = engine?.stage,
-           endsAt - now <= LiftSessionController.restWarningLeadSec {
+           endsAt - Self.unixNow <= LiftSessionController.restWarningLeadSec {
             warnedFor = endsAt
         } else {
             warnedFor = nil
         }
         isPresented = present
         claimStrap()
-        startTicking()
     }
 
     /// Give up the session without saving.
@@ -158,46 +197,74 @@ final class LiftSessionController: ObservableObject {
         programId = nil
         programName = nil
         warnedFor = nil
+        lastStrapStepAt = nil
         pendingWarmups = []
         pendingValues = [:]
         isPresented = false
-        ticker?.cancel()
-        ticker = nil
         setStrapHandler(nil)
     }
 
+    /// The handler runs SYNCHRONOUSLY, inside the frame handling that delivered the tap. It used to hop
+    /// through a `Task`, which let the sync request the same strap event triggers reach the strap
+    /// first; the strap then started a history transfer before playing the confirming buzz, and those
+    /// buzzes came 1–2.8 s after the tap, where most others came in under one (strap log, 16 Sep 2026).
     private func claimStrap() {
-        setStrapHandler({ [weak self] in
-            Task { @MainActor in self?.advance(fromStrap: true) }
-        })
+        setStrapHandler({ [weak self] in self?.advance(fromStrap: true) })
     }
 
-    private func startTicking() {
-        ticker?.cancel()
-        ticker = Timer.publish(every: 1, on: .main, in: .common)
-            .autoconnect()
-            .sink { [weak self] instant in
-                guard let self else { return }
-                self.now = Int(instant.timeIntervalSince1970)
-                self.fireRestWarningIfDue()
-            }
-    }
+    /// The current unix second. Read when needed; nothing about a session is stored per second.
+    static var unixNow: Int { Int(Date().timeIntervalSince1970) }
 
     // MARK: - Actions
 
-    /// The one action. `fromStrap` earns a single confirming buzz.
+    /// The one action. `fromStrap` earns a single confirming buzz, unless the tap reads as a knock.
     func advance(fromStrap: Bool = false) {
-        guard engine != nil else { return }
-        // BUZZ FIRST, before any state work. The confirmation is a latency signal — its whole job is
-        // to say "that registered" — so it must not queue behind a JSON encode and a defaults write.
-        if fromStrap { buzz(LiftSessionController.advanceConfirmBuzzes) }
-
+        guard let current = engine else { return }
         let stamp = Int(Date().timeIntervalSince1970)
+        if fromStrap {
+            if let last = lastStrapStepAt,
+               Self.isKnock(secondsSinceLastStep: stamp - last, stage: current.stage, now: stamp) {
+                // No buzz: the missing confirmation is the lifter's cue to tap again.
+                log("Lift Log: that double-tap was not acted on — \(stamp - last) s after the last one it "
+                    + "acted on (under \(Self.strapKnockWindowSec) s is taken as a knock)")
+                return
+            }
+            lastStrapStepAt = stamp
+            // BUZZ FIRST, before any state work. The confirmation is a latency signal — its whole job
+            // is to say "that registered" — so it must not queue behind a JSON encode and a defaults write.
+            buzz(LiftSessionController.advanceConfirmBuzzes)
+        }
+
         engine?.advance(now: stamp)
+        // Straight after the stage moves, so the screen lights with no wait behind the bookkeeping below.
+        // What follows cannot change what the banner shows: numbers typed into a set are already shown
+        // before they are applied (`setNumbers`).
+        if fromStrap { strapStepTaken.send() }
         applyPendingInput()
-        now = stamp
         warnedFor = nil
         persist()
+    }
+
+    /// Whether a strap double-tap `secondsSinceLastStep` after the last one the session acted on is a
+    /// knock rather than a tap.
+    ///
+    /// The strap's own sensor log for the 16 Sep 2026 session shows two double-taps it detected 3 s
+    /// and 4 s after one that had just started a set — the arm going onto the bar, not a second tap.
+    /// Each was a genuine detection with its own timestamp, so the de-duplication in `FrameRouter`
+    /// rightly let it through, and each finished a set seconds old and started its rest: "it skipped
+    /// two things when it should have done only one". Only the timing tells such a knock from a tap.
+    ///
+    /// Under `strapKnockWindowSec` counts as a knock, because no set a lifter means to finish, and no
+    /// rest a lifter means to end, is that short. It was 8 s at first; after the next session Utku found
+    /// that too long to wait for a deliberate second tap (21 Sep 2026), and 5 s still covers the knocks
+    /// measured at +2.9 s and +4.1 s. The exception is a rest that is already over — a
+    /// line planned with no rest, or the one left once every set is done — where going straight on is
+    /// the plan. The on-screen button is never held back: a knock does not press it. A tap held back
+    /// gets no buzz, which tells the lifter to tap again.
+    static func isKnock(secondsSinceLastStep: Int, stage: LiftSessionEngine.Stage, now: Int) -> Bool {
+        guard (0..<strapKnockWindowSec).contains(secondsSinceLastStep) else { return false }
+        if case .resting(_, let endsAt) = stage, endsAt <= now { return false }
+        return true
     }
 
     // MARK: - Presentation
@@ -209,14 +276,14 @@ final class LiftSessionController: ObservableObject {
 
     struct Presentation: Equatable {
         var isResting: Bool
-        /// The exercise being worked or rested from; the program's name when neither applies.
+        /// The exercise being worked or rested from; the program's name during the warm-up.
         var exercise: String
-        /// "Set 2", "Resting after set 2", "Ready for the next set", "3 of 19 sets done".
+        /// "Set 2", "Resting after set 2", "Ready for the next set", "Warm-up".
         var status: String
         /// "8 x 30 kg", already unit-converted. Nil when neither reps nor weight is known.
         var detail: String?
-        var setsDone: Int
-        var setsPlanned: Int
+        /// "Next: Set 3 · Bench press" — see `nextLine(_:)`.
+        var next: String
         var stageStartedAt: Date
         /// When the running rest is due to end. Nil while working.
         var restEndsAt: Date?
@@ -224,44 +291,60 @@ final class LiftSessionController: ObservableObject {
 
     func presentation(system: UnitSystem) -> Presentation? {
         guard let engine, !engine.isFinished else { return nil }
-        let done = engine.completedWorkingSets
-        let planned = engine.plannedWorkingSets
         let started = Date(timeIntervalSince1970: TimeInterval(engine.stageStartedAt))
-        let fallback = String(localized: "\(done) of \(planned) sets done")
+        let next = Self.nextLine(engine)
 
         guard let slot = engine.currentSlot, let item = engine.planItem(for: slot) else {
             return Presentation(isResting: false,
                                 exercise: programName ?? String(localized: "Session"),
-                                status: fallback, detail: nil,
-                                setsDone: done, setsPlanned: planned,
+                                status: String(localized: "Warm-up"), detail: nil, next: next,
                                 stageStartedAt: started, restEndsAt: nil)
         }
 
         let detail = setNumbers(for: slot, system: system)
         switch engine.stage {
         case .resting(_, let endsAt):
-            let ready = endsAt <= now
+            let ready = endsAt <= Self.unixNow
             return Presentation(
                 isResting: true, exercise: item.exercise,
                 status: ready ? String(localized: "Ready for the next set")
                               : String(localized: "Resting after set \(slot.setIndex)"),
-                detail: detail, setsDone: done, setsPlanned: planned,
+                detail: detail, next: next,
                 stageStartedAt: started,
                 restEndsAt: Date(timeIntervalSince1970: TimeInterval(endsAt)))
         default:
             return Presentation(
                 isResting: false, exercise: item.exercise,
                 status: String(localized: "Set \(slot.setIndex)"),
-                detail: detail, setsDone: done, setsPlanned: planned,
+                detail: detail, next: next,
                 stageStartedAt: started, restEndsAt: nil)
         }
     }
 
-    /// Reps x weight for a slot, as "8 x 30 kg": what the set counts as — typed numbers, else the grey
-    /// ones the sheet shows.
+    /// The set after this one, as the bar and the Lock Screen show it on one line.
+    ///
+    /// It replaced "3 of 19 sets done", which answered nothing a lifter acts on mid-session, while the
+    /// set coming up says where to walk (Utku, 16 Sep 2026). It is always a SET, never the rest before
+    /// it. The set number comes before the exercise so that a narrow line cuts the name, not the
+    /// number. "Last set" while the final set is worked; "All sets done" once it is.
+    static func nextLine(_ engine: LiftSessionEngine) -> String {
+        if let upcoming = engine.upcomingSlot, let item = engine.planItem(for: upcoming) {
+            return String(localized: "Next: Set \(upcoming.setIndex) · \(item.exercise)")
+        }
+        return engine.allCompleted ? String(localized: "All sets done") : String(localized: "Last set")
+    }
+
+    /// Reps x weight for a slot, as "8 x 30 kg": what the set's row on the sheet shows — typed numbers,
+    /// else the grey ones.
+    ///
+    /// That includes numbers typed into a set BEFORE it is recorded (`pendingValues`), which the row shows
+    /// black. Without them the bar and the Lock Screen showed the grey plan for the set being lifted while
+    /// its row showed what was typed (simulator, 16 Sep 2026: 70 kg × 9 typed, "8 x 60 kg" on the bar).
     func setNumbers(for slot: LiftSlot, system: UnitSystem) -> String? {
         guard engine != nil else { return nil }
-        let shown = values(of: slot)
+        let grey = values(of: slot)
+        let typed = pendingValues[slot]
+        let shown = LiftSetCarry(weightKg: typed?.weightKg ?? grey.weightKg, reps: typed?.reps ?? grey.reps)
 
         let weight = shown.weightKg.map {
             LiftFormat.trim(LiftFormat.display(fromKilograms: $0, system: system))
@@ -340,7 +423,6 @@ final class LiftSessionController: ObservableObject {
         engine?.start(slot, now: stamp)
         // Starting a slot drops any record it had, so its warm-up mark reverts to pending — which is
         // where it already lives.
-        now = stamp
         warnedFor = nil
         persist()
     }
@@ -350,6 +432,21 @@ final class LiftSessionController: ObservableObject {
     @discardableResult
     func addSet(toExercise index: Int) -> Bool {
         guard engine?.addSet(toExercise: index) == true else { return false }
+        persist()
+        return true
+    }
+
+    /// Add an exercise the program does not have (Utku, 21 Sep 2026), at the end of the sheet: one set,
+    /// planned as 0 kg × 0 reps with no max RPE and the default rest, so its row shows zeros until
+    /// numbers are typed — or last session's numbers, when the exercise has been done before. It
+    /// carries the id its program line will have if finishing adds it. Returns whether it was added.
+    @discardableResult
+    func addExercise(_ name: String, primaryMuscle: LiftMuscle?, secondaryMuscles: [LiftMuscle]) -> Bool {
+        let line = LiftPlanItem(exercise: name, primaryMuscle: primaryMuscle,
+                                secondaryMuscles: secondaryMuscles.filter { $0 != primaryMuscle },
+                                targetSets: 1, targetRepsLow: 0, targetWeightKg: 0,
+                                programItemId: UUID().uuidString, addedInSession: true)
+        guard engine?.addExercise(line) == true else { return false }
         persist()
         return true
     }
@@ -409,9 +506,9 @@ final class LiftSessionController: ObservableObject {
 
     // MARK: - Finishing
 
-    /// Slots with no number typed in — never started, or finished without typing. Finishing asks once
-    /// whether to complete all of them with their grey numbers or leave them out.
-    var unfinishedSlots: [LiftSlot] { engine?.unenteredSlots ?? [] }
+    /// Sets never started. Finishing asks once whether to complete them with their grey numbers or
+    /// discard them; a set that WAS done is never in question (`setsToSave`).
+    var unfinishedSlots: [LiftSlot] { engine?.unperformedSlots ?? [] }
 
     /// One set as the finished session saves it. Timing is nil for a set completed at finish without
     /// ever being started: there is no moment to record, and inventing one would give it a rest and a
@@ -427,33 +524,46 @@ final class LiftSessionController: ObservableObject {
         var restSec: Int?
     }
 
-    /// The sets the session saves.
+    /// The sets the session saves — every slot on the sheet.
     ///
-    /// A set with anything typed always saves, and a number left blank takes its grey value, so a set
-    /// that was rated but never weighed does not save empty. Unfinished sets are saved with their grey
-    /// numbers (and anything typed in advance) when `completingUnfinished`, and left out otherwise.
-    /// Performed sets keep the order they happened in; sets completed at finish follow in plan order.
+    /// A set that was DONE — ticked by Set done or a strap double-tap — is complete, with no question at
+    /// finish (Utku, 21 Sep 2026): it saves what was typed into it, and a number left blank takes the grey
+    /// value the sheet showed. That includes RPE: a set left unrated saves the program line's max RPE
+    /// (16 Sep 2026). A rating typed for the set always wins, and a previous set's rating is never copied
+    /// onto another — only the plan's own number fills a blank. Sets never started are the only
+    /// unfinished ones: they save with their grey numbers (and anything typed in advance) when
+    /// `completingUnfinished`; otherwise as 0 kg × 0 reps, which every figure leaves out
+    /// (`LiftMetrics.isPerformed`) and Edit sets still shows, so a discard made by mistake can be filled
+    /// back in. Done sets keep the order they happened in and their timing; sets never started follow in
+    /// plan order, with no timing.
     func setsToSave(completingUnfinished: Bool) -> [FinishedSet] {
         guard let engine else { return [] }
-        let unfinished = Set(engine.unenteredSlots)
-        var out = engine.sets
-            .filter { completingUnfinished || !unfinished.contains($0.slot) }
-            .map { set -> FinishedSet in
-                let shown = values(of: set.slot)
-                return FinishedSet(slot: set.slot, weightKg: shown.weightKg, reps: shown.reps,
-                                   rpe: set.rpe, isWarmup: set.isWarmup, startTs: set.startTs,
-                                   endTs: set.endTs, restSec: set.restSec)
-            }
-        guard completingUnfinished else { return out }
+        // The plan's max RPE, which the session shows grey in the RPE field.
+        func planned(_ slot: LiftSlot) -> Double? { engine.planItem(for: slot)?.targetRpe }
+        var out = engine.sets.map { set -> FinishedSet in
+            let shown = values(of: set.slot)
+            return FinishedSet(slot: set.slot, weightKg: shown.weightKg, reps: shown.reps,
+                               rpe: set.rpe ?? planned(set.slot), isWarmup: set.isWarmup,
+                               startTs: set.startTs, endTs: set.endTs, restSec: set.restSec)
+        }
         for slot in engine.allSlots where !engine.isCompleted(slot) {
             let typed = pendingValues[slot]
             let grey = carry(for: slot)
-            out.append(FinishedSet(slot: slot, weightKg: typed?.weightKg ?? grey.weightKg,
-                                   reps: typed?.reps ?? grey.reps, rpe: typed?.rpe,
+            out.append(FinishedSet(slot: slot,
+                                   weightKg: completingUnfinished ? typed?.weightKg ?? grey.weightKg : 0,
+                                   reps: completingUnfinished ? typed?.reps ?? grey.reps : 0,
+                                   rpe: completingUnfinished ? typed?.rpe ?? planned(slot) : nil,
                                    isWarmup: pendingWarmups.contains(slot),
                                    startTs: nil, endTs: nil, restSec: nil))
         }
         return out
+    }
+
+    /// Whether any of `sets` was performed. When none was (no set done, and the rest discarded), there
+    /// is nothing to file: `LiftSessionView.save` writes no session, no sets and no workout, and the
+    /// finish sheet says so before Save.
+    static func anyPerformed(_ sets: [FinishedSet]) -> Bool {
+        sets.contains { LiftMetrics.isPerformed(reps: $0.reps) }
     }
 
     /// A program line whose set count this session changed.
@@ -466,7 +576,8 @@ final class LiftSessionController: ObservableObject {
 
     /// Lines whose set count in this session differs from the program's current one. A line with no
     /// count counts as one set, as it does when a session starts, and a line deleted from the program
-    /// since is skipped rather than resurrected.
+    /// since is skipped rather than resurrected — as is a line added during the session, which the
+    /// program does not have yet (`programAfterSession`).
     static func setCountChanges(plan: [LiftPlanItem], program items: [LiftProgramItemRow]) -> [SetCountChange] {
         let byId = Dictionary(items.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         return plan.compactMap { line in
@@ -475,6 +586,70 @@ final class LiftSessionController: ObservableObject {
             guard saved != line.targetSets else { return nil }
             return SetCountChange(itemId: id, exercise: line.exercise, from: saved, to: line.targetSets)
         }
+    }
+
+    /// The program's lines with each one's HEAVIEST done set this session as its new weight and reps.
+    ///
+    /// Utku, 21 Sep 2026: numbers typed during a session update the program, without asking. A line holds
+    /// one weight and one rep count for all its sets, so it takes the heaviest set — the working weight,
+    /// which a lighter back-off set must not pull down; between sets of equal weight, the one with more
+    /// reps. Only sets actually done count: a warm-up, a set discarded to zeros and a set completed at
+    /// finish without being started (it carries grey numbers, not new ones) move nothing. A number the
+    /// heaviest set does not have (a bodyweight line's weight) is left as it was; a leftover rep range
+    /// top below the new count is dropped, since the editor keeps one rep count. Lines without a program
+    /// line behind them, or deleted since, are skipped.
+    static func applyingHeaviestSets(_ sets: [FinishedSet], plan: [LiftPlanItem],
+                                     to items: [LiftProgramItemRow]) -> [LiftProgramItemRow] {
+        var heaviest: [String: FinishedSet] = [:]
+        for set in sets where set.startTs != nil && !set.isWarmup && LiftMetrics.isPerformed(reps: set.reps) {
+            guard plan.indices.contains(set.slot.exerciseIndex),
+                  let id = plan[set.slot.exerciseIndex].programItemId else { continue }
+            if let best = heaviest[id], !isHeavier(set, than: best) { continue }
+            heaviest[id] = set
+        }
+        return items.map { row in
+            guard let top = heaviest[row.id] else { return row }
+            var edited = row
+            if let weight = top.weightKg { edited.targetWeightKg = weight }
+            if let reps = top.reps {
+                edited.targetRepsLow = reps
+                if let high = edited.targetRepsHigh, high < reps { edited.targetRepsHigh = nil }
+            }
+            return edited
+        }
+    }
+
+    /// More weight wins; at equal weight, more reps. A missing number ranks below any number.
+    private static func isHeavier(_ a: FinishedSet, than b: FinishedSet) -> Bool {
+        let (weightA, weightB) = (a.weightKg ?? -1, b.weightKg ?? -1)
+        if weightA != weightB { return weightA > weightB }
+        return (a.reps ?? -1) > (b.reps ?? -1)
+    }
+
+    /// The program's lines after this session — what `LiftSessionView.save` writes.
+    ///
+    /// Every line already in the program takes its heaviest done set (`applyingHeaviestSets`, always).
+    /// With `keepingChanges` — the answer to the finish sheet's program question — changed set counts
+    /// move too (`applying`), and each exercise added during the session becomes a new line at the end,
+    /// in the order added: the session's set count for it, its heaviest done set's weight and reps, else
+    /// 0 kg × 0 reps, and nothing else (Utku, 21 Sep 2026: the rest is set later in the program editor).
+    static func programAfterSession(_ sets: [FinishedSet], plan: [LiftPlanItem],
+                                    program items: [LiftProgramItemRow], keepingChanges: Bool,
+                                    programId: String, deviceId: String) -> [LiftProgramItemRow] {
+        var lines = items
+        if keepingChanges {
+            lines = applying(setCountChanges(plan: plan, program: items), to: lines)
+            let next = (items.map(\.ord).max() ?? -1) + 1
+            for (offset, line) in plan.filter(\.addedInSession).enumerated() {
+                guard let id = line.programItemId, !lines.contains(where: { $0.id == id }) else { continue }
+                lines.append(LiftProgramItemRow(
+                    id: id, deviceId: deviceId, programId: programId, ord: next + offset,
+                    exercise: line.exercise, targetSets: line.targetSets,
+                    targetRepsLow: 0, targetRepsHigh: nil, targetRpe: nil, targetWeightKg: 0,
+                    restSec: nil, note: nil))
+            }
+        }
+        return applyingHeaviestSets(sets, plan: plan, to: lines)
     }
 
     /// The program's lines with `changes` applied. Only `targetSets` moves.
@@ -488,14 +663,64 @@ final class LiftSessionController: ObservableObject {
         }
     }
 
-    // MARK: - The rest warning
+    // MARK: - The rest's two moments
+    //
+    // A running session changes with time alone at two moments of each rest: the warning buzz
+    // `restWarningLeadSec` before it ends, and its end. Each gets a one-shot timer, set when the rest starts
+    // and replaced whenever the rest does; between taps a session does no work at all.
+    //
+    // It used to tick once a second, and publish the tick to every screen watching the session — the whole
+    // tab shell, the session sheet, the bar, the Lift Log hub — so all of them were redrawn every second, on
+    // screen or not. iOS killed NOOP four times in one gym session for background CPU (Utku's crash reports,
+    // 21 Sep 2026: over 80% for 60 s, busy redrawing SwiftUI views), and every kill cost a Lock Screen banner
+    // and the log before it. The clocks on screen tick by themselves, and only while shown (`LiftRunningClock`).
+
+    /// Re-arm the rest's timers when the rest changed — a new rest, a rest undone or cut short, no rest.
+    private func scheduleRestTimers() {
+        let endsAt: Int? = { if case .resting(_, let end) = engine?.stage { return end }; return nil }()
+        guard endsAt != scheduledRestEnd else { return }
+        scheduledRestEnd = endsAt
+        restTimers.forEach { $0.cancel() }
+        restTimers = []
+        guard let endsAt else { return }
+        let times = Self.restEventTimes(endsAt: endsAt, now: Self.unixNow)
+        restTimers.append(after(times.warning) { $0.fireRestWarningIfDue() })
+        if let end = times.end {
+            restTimers.append(after(end) { $0.restDidEnd() })
+        }
+    }
+
+    /// When a rest's warning and end fire, in unix seconds. The warning comes `restWarningLeadSec` before the
+    /// end, or one second from now when the rest is already inside that window (a short rest, none at all,
+    /// or the rest left once every set is done) — when the once-a-second tick used to fire it, and clear of
+    /// the confirming buzz the same tap just sent. The end fires only for a rest still to run.
+    static func restEventTimes(endsAt: Int, now: Int) -> (warning: Int, end: Int?) {
+        (warning: max(now + 1, endsAt - restWarningLeadSec), end: endsAt > now ? endsAt : nil)
+    }
+
+    /// Run `action` on the main actor at unix second `unix`, unless cancelled first.
+    private func after(_ unix: Int,
+                       _ action: @escaping @MainActor (LiftSessionController) -> Void) -> Task<Void, Never> {
+        let delay = Date(timeIntervalSince1970: TimeInterval(unix)).timeIntervalSinceNow
+        return Task { [weak self] in
+            if delay > 0 { try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000)) }
+            guard !Task.isCancelled, let self else { return }
+            action(self)
+        }
+    }
 
     private func fireRestWarningIfDue() {
         guard let engine, case .resting(_, let endsAt) = engine.stage else { return }
         guard warnedFor != endsAt else { return }
-        guard endsAt - now <= LiftSessionController.restWarningLeadSec else { return }
+        guard endsAt - Self.unixNow <= LiftSessionController.restWarningLeadSec else { return }
         warnedFor = endsAt
         buzz(LiftSessionController.restWarningBuzzes)
+    }
+
+    /// The rest is over: the one moment a session's words change with time alone — on screen and, through
+    /// `changesSettled`, on the Lock Screen, "Resting after set 2" becomes "Ready for the next set".
+    private func restDidEnd() {
+        objectWillChange.send()
     }
 
     // MARK: - Persistence

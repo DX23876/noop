@@ -329,8 +329,14 @@ public final class OuraLiveSource: NSObject, ObservableObject {
     /// stop/disconnect. These are last-night values from the history fetch, not live pushes, but we still
     /// only want one log line, not one per sample. Twin of `loggedFirstHR`.
     private var loggedFirstTemp = false
-    /// Logs the FIRST SpO2 sample decoded this session only. Twin of `loggedFirstTemp`.
-    private var loggedFirstSpo2 = false
+    /// Logs the FIRST SpO2 sample decoded this session, PER CHANNEL. Twin of `loggedFirstTemp`, except
+    /// that `.spo2` carries two quantities three orders of magnitude apart (`OuraSpO2Channel`), and one
+    /// latch across both reported whichever the drain served first: the same ring printed `value 93
+    /// (raw)` on one reconnect and `value 101144 (dc_raw)` on the next. A reporter read the second as a
+    /// percentage and filed a defect against SpO2 that was never wrong. One latch per channel, so each
+    /// line names one quantity and a session that only ever saw perfusion says so instead of implying a
+    /// percentage arrived.
+    private var loggedFirstSpo2: Set<OuraSpO2Channel> = []
     /// The 0x13 SyncTime reply parked because nothing yet available could disambiguate its unit (ticks vs
     /// seconds x10): the resume cursor was 0 (fresh pair / post-reboot full pull) or so stale the ring's
     /// clock had run past the window. Retried against the drain's `maxSeenRingTime` as the first batch
@@ -380,7 +386,8 @@ public final class OuraLiveSource: NSObject, ObservableObject {
     /// nap), so this is a COLLECTION, not a single slot: keeping only the latest let a nap's 0x49 clobber
     /// the overnight's before the overnight burst finalized, and the overnight then fell back to its
     /// +4 h write time (2026-07-17 capture). Each burst matches its OWN window by ring-time proximity.
-    /// Bounded (oldest dropped past the cap); reset per session.
+    /// Bounded (oldest dropped past the cap); kept across reconnects, cleared on teardown
+    /// (`clearsSleepWindowStash`).
     private var recentSleepWindows049: [(ringTimestamp: UInt32, startOffMin: Int, endOffMin: Int)] = []
     private static let recentSleepWindows049Cap = 16
 
@@ -459,6 +466,14 @@ public final class OuraLiveSource: NSObject, ObservableObject {
     /// True once the live-HR stream has been requested, so the disconnect handler can tell "we never got
     /// authenticated/streaming" (-> honest note) from "the link just dropped".
     private var reachedStreaming = false
+    /// True while THIS session has actually put the ring into daytime-HR mode: the driver's enable
+    /// triplet completed, `reengageLiveHR()` wrote an enable, or a live push proved the ring is streaming
+    /// regardless of what we asked. `disableLiveHR()` keys off it so a connect made while suspended —
+    /// which now skips the triplet (`OuraDriver.liveHRWanted`) — does not follow up with a `mode 0x00`
+    /// write for a mode it never set: that write is itself a state change on the ring, and the whole
+    /// point of the suspended connect is to leave the ring's own night suite untouched. Cleared with
+    /// `reachedStreaming` and after a disable is sent.
+    private var liveHRArmedThisSession = false
     /// The freshly-generated 16-byte key written to the ring during an adopt key install. Held in memory
     /// ONLY between writing the `0x24` install and receiving the `0x25` ack: it is persisted to the keystore
     /// ONLY on an OK ack (so a failed/absent ack never leaves a key the next session would wrongly trust).
@@ -577,6 +592,14 @@ public final class OuraLiveSource: NSObject, ObservableObject {
     /// No new outbound command: `central.connect` is the same call `connect(_:)` already makes.
     private func issueStandingConnect(_ id: UUID) {
         guard !intentionalDisconnect, reconnectID == id else { return }
+        // The same trap as `connect(_:)` (#2433), and worse here: a retrieve before `.poweredOn` answers
+        // nothing, the fallback below reads that as "never seen" and calls `connect(id)`, which scans.
+        // Scanning is the one thing a STANDING connect exists to avoid.
+        guard central.state == .poweredOn else {
+            pendingConnectID = id
+            log("Oura: standing reconnect deferred - Bluetooth not powered on (state=\(central.state.rawValue))")
+            return
+        }
         guard let p = seenPeripherals[id] ?? central.retrievePeripherals(withIdentifiers: [id]).first else {
             // No peripheral object to hand CoreBluetooth (never seen on this device). Fall back to the
             // ordinary connect path, which scans for it — that is the only way to acquire one.
@@ -587,12 +610,6 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         seenPeripherals[id] = p
         peripheral = p
         p.delegate = self
-        guard central.state == .poweredOn else {
-            // `centralManagerDidUpdateState` replays this on poweredOn.
-            pendingConnectID = id
-            log("Oura: standing reconnect deferred - Bluetooth not powered on (state=\(central.state.rawValue))")
-            return
-        }
         standingConnectAt = Date()
         log("Oura: leaving a STANDING connect outstanding for \(id) - CoreBluetooth will reconnect "
             + "whenever the ring is reachable, including while the app is suspended")
@@ -885,6 +902,39 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         batchQuietTimer?.invalidate()
         batchQuietTimer = nil
     }
+    /// Bank an interrupted drain's progress before the link and its anchor go away (#2443).
+    ///
+    /// The resume cursor is committed only when a drain ENDS, so a link that dropped (or a `stop()`)
+    /// partway through threw the drain's progress away: the next connect refetched from the old cursor
+    /// and the ring re-served everything the interrupted drain had already stored. Those copies resolve
+    /// under the NEXT session's SyncTime anchor, so they land a second or two off the first copy and MISS
+    /// `rrInterval`'s `(deviceId, ts, rrMs, seq)` key instead of colliding with it. The beats are stored
+    /// twice, the night's R-R coverage goes above 1, and `sessionAvgHRV` refuses the night. A reported
+    /// night had 1,753 of its 4,346 records served twice.
+    ///
+    /// Commits what the drain did bank, under the same rules `finishDrain` applies to a drain that
+    /// stopped early: forward-only, only when the candidate resolves under the anchor, and through the
+    /// #2097 reboot judge. Nothing new decides the cursor here.
+    ///
+    /// Call AFTER the hypnogram flush, so a burst still assembling banks against the cursor it belongs
+    /// to, and BEFORE `driver?.stop()`, because the commit asks the driver to resolve the candidate ring
+    /// time and a stopped driver has no anchor left to resolve it with.
+    ///
+    /// This NARROWS the window rather than closing the hole: a redrain of an already completed night
+    /// stores the same beats twice by the same route with no cursor involved, so the durable fix is a
+    /// dedup that survives an anchor shift. Tracked on #2443.
+    /// Never makes the #2097 REBOOT judgement. That judgement resets the cursor to 0 and re-pulls the
+    /// ring's whole history, and it declines to trust continuity when this session never adopted an
+    /// anchor, which is the ordinary state of a drain that was cut short before a 0x13 reply resolved.
+    /// Deferring it to a drain that actually finishes costs nothing, because a genuine reboot still
+    /// serves pre-resume data on the next drain; making it here would answer "no evidence" with a full
+    /// re-pull, and by this issue's own mechanism every re-served record would then double-store.
+    private func commitInterruptedDrainCursor() {
+        guard let driver, driver.phase == .fetchingHistory, drain.maxStoredRingTime > 0,
+              !drain.sawPreResumeData else { return }
+        _ = commitResumeCursor(drainCompleted: false)
+    }
+
 
     /// Commit the durable resume cursor at drain end. Only a cursor that (a) moved forward, (b) is below
     /// the plausibility ceiling, and (c) resolves to a real time under the CURRENT anchor is persisted;
@@ -955,6 +1005,30 @@ public final class OuraLiveSource: NSObject, ObservableObject {
             }
         }
         return best
+    }
+
+    /// Where a session ends, for the purpose of the 0x49 stash below.
+    enum SleepWindowStashBoundary: Equatable, Sendable {
+        /// The link dropped or re-formed; the same ring, the same process, the same ring clock.
+        case linkBoundary
+        /// A deliberate teardown (`stop()`: device switch, removal, disable).
+        case teardown
+    }
+
+    /// Whether `recentSleepWindows049` is cleared at `boundary`. Pure, so the policy is tested without a ring.
+    ///
+    /// WHY A RECONNECT MUST KEEP IT (2026-09-21 and 2026-09-24 captures). The ring writes its 0x49 window and
+    /// its SleepNet phase records as two events, seconds apart (12 s on 09-24: 0x49 07:16:23, phase records
+    /// 07:16:35). A history fetch that catches up BETWEEN them delivers the 0x49 on one fetch and the burst
+    /// on the next. On a steady link the next fetch runs on the same connection and pairs normally; when the
+    /// link drops in between (07:28:36 on 09-24), the next fetch runs on a new connection, and clearing the
+    /// stash there left the burst unpaired: it persisted `[no-0x49-onset]` at 22:36:35 and superseded the
+    /// anchored 22:54 row, 16 min before the ring's own onset, which the Oura app showed to the minute.
+    /// Clearing was never what made pairing safe: `closestSleepWindow049` pairs by ring-time proximity
+    /// (10 min), so a window cannot pair with another finalization's burst, and the stash stays capped.
+    /// A teardown still clears it, because the next session may be a different ring on a different clock.
+    nonisolated static func clearsSleepWindowStash(at boundary: SleepWindowStashBoundary) -> Bool {
+        boundary == .teardown
     }
 
     /// Persist a closed hypnogram burst with its RECONSTRUCTED time axis: codes laid backward at the
@@ -1503,6 +1577,14 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         intentionalDisconnect = false
         standingConnectAt = nil   // an explicit connect supersedes any standing one
         linkPhase = .connecting   // every branch below is an attempt to reach the ring (scan, defer, connect)
+        // Before the radio is up a retrieve answers nothing even for a ring this phone has been bonded to
+        // for weeks, and the branch below would read that as "never seen" and arm a scan (#2433). Park the
+        // intent instead: `centralManagerDidUpdateState` asks again once the answer means something.
+        guard central.state == .poweredOn else {
+            pendingConnectID = id
+            log("Oura: connect to \(id) deferred - Bluetooth not powered on (state=\(central.state.rawValue))")
+            return
+        }
         let p = seenPeripherals[id] ?? central.retrievePeripherals(withIdentifiers: [id]).first
         guard let p else {
             // Never seen by this Mac/iPhone yet -> remember it and scan; didDiscover connects on sight.
@@ -1514,11 +1596,6 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         seenPeripherals[id] = p
         peripheral = p
         p.delegate = self
-        guard central.state == .poweredOn else {
-            pendingConnectID = id
-            log("Oura: Bluetooth not powered on - connect to \(id) deferred until ready")
-            return
-        }
         log("Oura: connecting to \(id)")
         central.connect(p, options: nil)
     }
@@ -1597,6 +1674,7 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         }
         drainPendingAnchorEvents()
         dropUnanchoredHypnogramBursts()   // never wall-clock a night's time axis; they re-arrive next drain
+        commitInterruptedDrainCursor()    // #2443: bank the drain's progress before the anchor goes
         driver?.stop()
         driver = nil
         reassembler.reset()
@@ -1604,7 +1682,7 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         loggedFirstHR = false
         droppedFirstLiveHR = false
         loggedFirstTemp = false
-        loggedFirstSpo2 = false
+        loggedFirstSpo2.removeAll()
         loggedAnchor = false
         pendingSyncTime = nil
         loggedTierBKinds.removeAll()
@@ -1614,7 +1692,7 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         loggedProductInfo.removeAll()
         greenIbiAmpCount = 0
         greenIbiAmpLengths.removeAll()
-        recentSleepWindows049.removeAll()
+        if Self.clearsSleepWindowStash(at: .teardown) { recentSleepWindows049.removeAll() }
         recentPersistedSessionWindows.removeAll()
         activityMETByDay.removeAll()
         activityCadenceObs.removeAll()
@@ -1633,6 +1711,7 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         chainedDrainTimer?.invalidate()
         chainedDrainTimer = nil
         reachedStreaming = false
+        liveHRArmedThisSession = false
         pendingInstallKey = nil
         adoptPhase = .idle
         batteryPct = nil
@@ -1764,12 +1843,13 @@ public final class OuraLiveSource: NSObject, ObservableObject {
                 linkPhase = .authenticated
                 adoptPhase = .streaming   // re-auth after an install (or a normal auth) reached the stream: adoption complete
                 pendingInstallKey = nil   // an OK ack already persisted the key; nothing left in flight
-                // The driver's own auth-success path (OuraDriver.nextStep, .authCompleted(.success)) has no
-                // suspend awareness - it unconditionally re-runs the live-HR enable triplet on EVERY connect,
-                // including a reconnect during a suspended night (08-17/18: 25 reconnects, green never hit
-                // zero any hour). Only claim the stream is wanted, and only start the keep-alive, when the
-                // screen is actually on; startReengageTimer's own suspended guard sends the explicit disable
-                // that undoes what the triplet above just armed.
+                // The driver ran its live-HR enable triplet only if `liveHRWanted` was set at auth
+                // (`handleSecure`, `.authStatus`); a suspended connect skipped it and arrives here having
+                // written nothing to the daytime-HR feature. (Before that flag the triplet ran on EVERY
+                // connect — 08-17/18: 25 reconnects, green never hit zero any hour — and
+                // `startReengageTimer()`'s suspended guard sent the disable that undid it.) Only claim the
+                // stream is wanted, and only start the keep-alive, when the screen is actually on.
+                if driver.liveHRWanted { liveHRArmedThisSession = true }
                 if !liveHRSuspended {
                     if feedsLive { live.streamingLiveHR = true }   // drive the green menu-bar STREAMING pill (no WHOOP bond)
                     log("Oura: live-HR enabled - streaming HR / IBI")
@@ -2038,6 +2118,7 @@ public final class OuraLiveSource: NSObject, ObservableObject {
                         log("Oura: live-HR push arrived while SUSPENDED (\(hr.bpm) bpm) - dhr_disable did not "
                             + "stop the stream, self-healing now")
                     }
+                    liveHRArmedThisSession = true   // the push is the proof; let the disable go out
                     startReengageTimer()
                 }
                 // Drop the first (settling) live-HR sample of the session — it is frequently an artifact.
@@ -2107,9 +2188,8 @@ public final class OuraLiveSource: NSObject, ObservableObject {
                 }
 
             case .spo2(let s):
-                if !loggedFirstSpo2 {
-                    loggedFirstSpo2 = true
-                    log("Oura: first SpO2 decoded (last night) - value \(s.value) (\(s.unit))")
+                if loggedFirstSpo2.insert(s.channel).inserted {
+                    log("Oura: " + OuraSpO2Channel.firstDecodedLogLine(value: s.value, unit: s.unit))
                 }
                 if let ts = driver.unixSeconds(forRingTimestamp: s.ringTimestamp) {
                     enqueue([e], ts: ts)
@@ -2574,9 +2654,15 @@ public final class OuraLiveSource: NSObject, ObservableObject {
     /// intentional teardown must hand the ring back out of daytime mode for the same reason a suspend
     /// must. The `.streaming` guard covers both callers -- there is nothing to disable if the session
     /// never got that far.
+    /// Additionally gated on `liveHRArmedThisSession`: a connect made while suspended never armed
+    /// daytime HR (the driver skipped its triplet), so there is nothing to hand back and the `mode 0x00`
+    /// write would be a gratuitous state change on a ring we are trying to leave alone. A live push while
+    /// suspended marks the session armed first (the ring is evidently streaming), so the self-heal path
+    /// still sends the disable.
     private func disableLiveHR() {
-        guard let driver, driver.phase == .streaming else { return }
+        guard let driver, driver.phase == .streaming, liveHRArmedThisSession else { return }
         write([OuraCommands.liveHRDisable(), OuraCommands.liveHRUnsubscribe()])
+        liveHRArmedThisSession = false
         if feedsLive { live.streamingLiveHR = false }
     }
 
@@ -2599,6 +2685,7 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         }
         guard let driver, reachedStreaming, driver.phase != .fetchingHistory else { return }
         write(driver.reengageLiveHRCommands())
+        liveHRArmedThisSession = true
         // Live-HR watchdog: if the stream has gone silent past the grace window while we were WORN, the
         // ring came off the finger (no "removed" event exists) -> NOT WORN. Only meaningful once we have
         // seen at least one live beat this session.
@@ -2698,13 +2785,41 @@ extension OuraLiveSource: @preconcurrency CBCentralManagerDelegate {
     public func centralManagerDidUpdateState(_ central: CBCentralManager) {
         switch central.state {
         case .poweredOn:
-            // Replay any intent that arrived before the radio was ready.
-            if let id = pendingConnectID, let p = seenPeripherals[id] {
-                pendingConnectID = nil
-                central.connect(p, options: nil)
-            } else if scanning {
+            // Replay any intent that arrived before the radio was ready. The retrieve is re-issued
+            // HERE rather than trusting the one that ran while the state was still `.unknown`: that one
+            // answers nothing even for a bonded ring, which used to drop this replay into the scan branch
+            // and leave the ring unreachable for half an hour off-screen, where iOS throttles scanning
+            // hard (#2433).
+            let parked = pendingConnectID
+            let held = parked.flatMap { seenPeripherals[$0] }
+            let fresh = held == nil
+                ? parked.flatMap { central.retrievePeripherals(withIdentifiers: [$0]).first }
+                : nil
+            switch PendingConnect.replay(isPending: parked != nil,
+                                         isHeld: held != nil,
+                                         didRetrieve: fresh != nil,
+                                         isScanning: scanning) {
+            case .connect:
+                if let id = parked, let p = held ?? fresh {
+                    pendingConnectID = nil
+                    seenPeripherals[id] = p
+                    peripheral = p
+                    p.delegate = self
+                    log("Oura: connecting to \(id) - targeted (the radio was not up when it was asked for)")
+                    central.connect(p, options: nil)
+                }
+            case .scan:
                 central.scanForPeripherals(withServices: [Self.service],
                                            options: [CBCentralManagerScanOptionAllowDuplicatesKey: false])
+            case .discover:
+                // Nothing to connect and no scan armed, because the intent was parked before the
+                // retrieve. `scan()` arms `scanning` and `didDiscover` connects the parked id on sight.
+                // Named, because this whole defect was read off log lines: a line that says a
+                // connect could not be resolved is only useful if it says which device.
+                if let id = parked { log("Oura: \(id) is not resolvable yet - discovering to find it") }
+                scan()
+            case .idle:
+                break
             }
         default:
             // Radio off / unauthorized / resetting -> the link is not live.
@@ -2776,10 +2891,11 @@ extension OuraLiveSource: @preconcurrency CBCentralManagerDelegate {
         clearAuthWatchdog()   // a fresh session starts with a clean escalation count
         authEscalations = 0
         authToggleInFlight = false
+        liveHRArmedThisSession = false
         loggedFirstHR = false
         droppedFirstLiveHR = false
         loggedFirstTemp = false
-        loggedFirstSpo2 = false
+        loggedFirstSpo2.removeAll()
         loggedAnchor = false
         pendingSyncTime = nil
         loggedTierBKinds.removeAll()
@@ -2788,7 +2904,8 @@ extension OuraLiveSource: @preconcurrency CBCentralManagerDelegate {
         loggedProductInfo.removeAll()
         greenIbiAmpCount = 0
         greenIbiAmpLengths.removeAll()
-        recentSleepWindows049.removeAll()
+        // Kept across the reconnect: the burst that pairs with a stashed 0x49 can arrive on this link.
+        if Self.clearsSleepWindowStash(at: .linkBoundary) { recentSleepWindows049.removeAll() }
         recentPersistedSessionWindows.removeAll()
         pendingAnchorEvents.removeAll()   // a fresh session must never replay a stale-anchor guess
         hypnogramAssembler.reset()        // ditto for a half-accumulated burst from a dead session
@@ -2864,6 +2981,7 @@ extension OuraLiveSource: @preconcurrency CBCentralManagerDelegate {
         }
         drainPendingAnchorEvents()
         dropUnanchoredHypnogramBursts()   // never wall-clock a night's time axis; they re-arrive next drain
+        commitInterruptedDrainCursor()    // #2443: bank the drain's progress before the anchor goes
         driver?.stop()
         driver = nil
         clearAuthWatchdog()   // a link that drops mid-handshake takes this path, never the escalation
@@ -2875,7 +2993,7 @@ extension OuraLiveSource: @preconcurrency CBCentralManagerDelegate {
         loggedFirstHR = false
         droppedFirstLiveHR = false
         loggedFirstTemp = false
-        loggedFirstSpo2 = false
+        loggedFirstSpo2.removeAll()
         loggedAnchor = false
         pendingSyncTime = nil
         loggedTierBKinds.removeAll()
@@ -2884,7 +3002,8 @@ extension OuraLiveSource: @preconcurrency CBCentralManagerDelegate {
         loggedProductInfo.removeAll()
         greenIbiAmpCount = 0
         greenIbiAmpLengths.removeAll()
-        recentSleepWindows049.removeAll()
+        // Kept across the drop: the next link's fetch may carry the burst this 0x49 belongs to.
+        if Self.clearsSleepWindowStash(at: .linkBoundary) { recentSleepWindows049.removeAll() }
         recentPersistedSessionWindows.removeAll()
         activityMETByDay.removeAll()
         activityCadenceObs.removeAll()
@@ -2894,6 +3013,7 @@ extension OuraLiveSource: @preconcurrency CBCentralManagerDelegate {
         lastPhaseUtc = nil
         lastPhaseCodeCount = 0
         reachedStreaming = false
+        liveHRArmedThisSession = false
         pendingInstallKey = nil
         // A disconnect MID-install is an honest failure (no ack came); a disconnect after streaming leaves
         // the completed `.streaming` outcome intact so the wizard's success transition isn't undone.
@@ -3187,7 +3307,17 @@ extension OuraLiveSource: @preconcurrency CBPeripheralDelegate {
             advance(.nonceReceived(nonce))
         case .authStatus(let status):
             if status.isSuccess {
-                log("Oura: auth OK - enabling live HR")
+                // Decide HERE, before the driver's next step, whether this connect arms daytime HR at all.
+                // A reconnect during a suspended night used to run the enable triplet regardless and have
+                // `startReengageTimer()` undo it one second later — `DHR_mode:3` → `DHR_mode:0` on the
+                // ring for every overnight visit. On a Ring 5 overnight capture (#2075's reporter,
+                // 2026-09-16) four of the five interruptions of the ring's own SpO2 session began on the
+                // exact second of such a visit (3–49 min each, ≈ 2 h of a 9 h night). Suspended ⇒ the
+                // driver goes straight to `.streaming` with no daytime-HR write; the log says which.
+                let wanted = !liveHRSuspended
+                driver?.liveHRWanted = wanted
+                log(wanted ? "Oura: auth OK - enabling live HR"
+                           : "Oura: auth OK - live HR suspended (screen off), daytime HR left untouched")
             } else {
                 log("Oura: WARNING auth status \(status.rawValue)")
             }

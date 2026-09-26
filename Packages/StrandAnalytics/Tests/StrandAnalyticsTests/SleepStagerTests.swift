@@ -986,15 +986,15 @@ final class SleepStagerTests: XCTestCase {
     }
 
     func testSessionHrvWindowsAlignedEndpointBeatsFillTheFinalWindow() {
-        // 120 beats in the opening window plus three beats exactly on an aligned end = 600. The
-        // second window is the final one, so it closes on `end` and holds those three beats;
+        // 120 beats in the opening window plus 25 beats exactly on an aligned end = 600 (enough to clear
+        // the `minBeats` floor). The second window is the final one, so it closes on `end` and holds them;
         // before the fix it was emitted empty and its RMSSD was nil. Constant 900 ms RR keeps the
         // RMSSD analytically 0.0 on both platforms — this pins the BINNING, not the RMSSD math.
         var rr: [RRInterval] = (0..<120).map { RRInterval(ts: $0, rrMs: 900) }
-        rr.append(contentsOf: (0..<3).map { _ in RRInterval(ts: 600, rrMs: 900) })
+        rr.append(contentsOf: (0..<25).map { _ in RRInterval(ts: 600, rrMs: 900) })
         let wins = SleepStager.sessionHrvWindows(start: 0, end: 600, rr: rr, stages: [])
         XCTAssertEqual(wins.map { $0.startTs }, [0, 300])
-        XCTAssertEqual(wins.map { $0.cleanBeats }, [120, 3],
+        XCTAssertEqual(wins.map { $0.cleanBeats }, [120, 25],
                        "the endpoint beats must fill the final window")
         XCTAssertEqual(wins.map { $0.rmssd }, [0.0, 0.0])
     }
@@ -1012,8 +1012,27 @@ final class SleepStagerTests: XCTestCase {
     func testSessionAvgHRVZeroLengthWindowUsesTheEndpointBeats() {
         // The value-level consequence: a zero-length window (start == end) is one closed bin, so
         // beats admitted by the prefilter produce a number instead of nil.
-        let rr = (0..<3).map { _ in RRInterval(ts: 1000, rrMs: 900) }
+        let rr = (0..<25).map { _ in RRInterval(ts: 1000, rrMs: 900) }
         XCTAssertEqual(SleepStager.sessionAvgHRV(start: 1000, end: 1000, rr: rr), 0.0)
+    }
+
+    func testSessionHrvWindowNeedsMinBeatsCleanIntervals() {
+        // A window emits an RMSSD only with `HRVAnalyzer.minBeats` (20) clean intervals: 19 is nil, 20 is
+        // a value. Before the floor a window needed just 2, and weighed as much as a full one in the mean.
+        func window(_ n: Int) -> Double? {
+            let rr = (0..<n).map { RRInterval(ts: $0, rrMs: 900) }
+            return SleepStager.sessionHrvWindows(start: 0, end: 300, rr: rr, stages: []).first?.rmssd
+        }
+        XCTAssertNil(window(HRVAnalyzer.minBeats - 1))
+        XCTAssertEqual(window(HRVAnalyzer.minBeats), 0.0)
+    }
+
+    func testSessionAvgHRVIgnoresASparseWindow() {
+        // A full window of alternating 900/1000 ms (RMSSD 100) next to a sparse one of 900/1300 ms
+        // (RMSSD 400, 10 beats). Without the floor the sparse window counted equally and the mean was 250.
+        let full = (0..<300).map { RRInterval(ts: $0, rrMs: $0 % 2 == 0 ? 900 : 1000) }
+        let sparse = (0..<10).map { RRInterval(ts: 300 + $0 * 25, rrMs: $0 % 2 == 0 ? 900 : 1300) }
+        XCTAssertEqual(SleepStager.sessionAvgHRV(start: 0, end: 600, rr: full + sparse), 100.0)
     }
 
     // MARK: - Helper robustness

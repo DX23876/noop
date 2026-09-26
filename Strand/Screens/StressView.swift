@@ -164,9 +164,12 @@ struct StressView: View {
         // chooseable lens, not a silent default. The mode is resolved only AFTER the HR-count guard above,
         // so the trailing-history reads are never paid on a day with no scorable timeline — and are never
         // paid at all while the toggle is OFF (the default), keeping the read byte-identical to before.
-        let mode = PuffinExperiment.stressPersonalBaselineEnabled
-            ? await daytimeScoringMode(startOfToday: startOfDay)
-            : .dayRelative
+        let mode = await DaytimeStressMode.selected(
+            repo: repo,
+            startOfToday: startOfDay,
+            calendar: cal,
+            personalBaseline: PuffinExperiment.stressPersonalBaselineEnabled
+        )
         if case .baselineRelative = mode { daytimeUsesPersonalBaseline = true }
         else { daytimeUsesPersonalBaseline = false }
         // includeTimeline: the SLIDING read, so the screen's line moves in half-hours instead of
@@ -208,50 +211,6 @@ struct StressView: View {
         }
         stressIndex = advanced.index
         freqHRV = advanced.freq
-    }
-
-    /// Trailing local days folded into the personal daytime baselines the `.baselineRelative` mode
-    /// scores against. 30 mirrors the app's other rolling baselines (nightly resting-HR / HRV) and the
-    /// illness engine's ~28-day base.
-    private static let baselineHistoryDays = 30
-
-    /// Build the personal daytime baselines from the trailing `baselineHistoryDays` local days (TODAY
-    /// EXCLUDED — it's the day being scored, not part of its own baseline) and return the scoring mode
-    /// for today's intraday read: `.baselineRelative` once there's enough real worn daytime-HR history
-    /// for a usable baseline, else `.dayRelative` (the unchanged default). The only behavioural change
-    /// vs. before is that a user with a few worn days now scores today's hours against their own
-    /// cross-day floor instead of the day's own calm hours; a cold-start / sparse-history user is
-    /// byte-identical to before (`DaytimeStress.scoringMode` is the single degradation gate).
-    ///
-    /// PERF: reads each past day's raw HR (and, only when that day was worn, R-R) once, bounded per day,
-    /// off the main actor via `repo` — riding the same async `load()` the today-timeline already runs on.
-    /// Unworn days are skipped without an R-R read. The `DaytimeStress` analyze memo is untouched; the
-    /// fold itself is O(days).
-    private func daytimeScoringMode(startOfToday: Date) async -> DaytimeStress.ScoringMode {
-        let cal = Calendar.current
-        // #2107: keep each day's AGGREGATE, never its streams. This used to accumulate 30 x
-        // DaytimeDayStreams, each holding up to 200,000 HR plus 200,000 R-R samples, and hand the lot to
-        // the fold. The fold's first act is to reduce a day to two Doubles, so all that was ever wanted
-        // from thirty days was sixty numbers; holding the samples alive to produce them is what exhausted
-        // a 256MB heap on the Android twin and crashed it with an OutOfMemoryError. Reducing here lets
-        // each day's samples be released at the end of its own iteration.
-        var aggregates: [(hr: Double?, rmssd: Double?)] = []
-        aggregates.reserveCapacity(Self.baselineHistoryDays)
-        // Oldest → newest so the EWMA fold replays the history in order.
-        for back in stride(from: Self.baselineHistoryDays, through: 1, by: -1) {
-            guard let dayStart = cal.date(byAdding: .day, value: -back, to: startOfToday),
-                  let dayEnd = cal.date(byAdding: .day, value: 1, to: dayStart) else { continue }
-            let from = Int(dayStart.timeIntervalSince1970)
-            let to = Int(dayEnd.timeIntervalSince1970) - 1
-            let dayTz = TimeZone.current.secondsFromGMT(for: dayStart)
-            let dayHR = await repo.hrSamples(from: from, to: to, limit: 200_000)
-            guard !dayHR.isEmpty else { continue }   // unworn day — no floor to learn, skip the R-R read
-            let dayRR = await repo.rrIntervals(from: from, to: to, limit: 200_000)
-            aggregates.append(
-                DaytimeStress.dayDaytimeAggregate(hr: dayHR, rr: dayRR, tzOffsetSeconds: dayTz)
-            )
-        }
-        return DaytimeStress.scoringModeFromAggregates(aggregates)
     }
 
     /// Recompute the cached `StressModel` only when (repo.days, storedSeries)
@@ -522,7 +481,7 @@ struct StressView: View {
                         if let ratio = f.lfhf {
                             StatTile(
                                 label: "Autonomic balance (LF/HF)",
-                                value: String(format: "%.1f", ratio),
+                                value: StressTrace.formatRatio(ratio),
                                 caption: String(localized: "Sympathetic vs parasympathetic tone from frequency-domain HRV. Higher leans sympathetic (stress-ward)."),
                                 accent: StressRamp.steady
                             )

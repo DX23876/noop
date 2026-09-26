@@ -18,6 +18,55 @@ import OuraProtocol
 final class RrSourceChannelTests: XCTestCase {
     private let ts = 1_750_000_000
 
+    func testWhoop4HistoricalSourceWinsAndPromotesLegacyLiveRows() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await store.upsertDevice(id: "strap", mac: nil, name: nil)
+        try DeviceRegistryStore(dbQueue: store.registryWriter).add(PairedDevice(
+            id: "strap", brand: "WHOOP", model: "4.0", sourceKind: .liveBLE,
+            capabilities: [.hr, .hrv], status: .active, addedAt: ts, lastSeenAt: ts))
+
+        _ = try await store.insert(Streams(rr: [RRInterval(ts: ts, rrMs: 800),
+                                                  RRInterval(ts: ts + 1, rrMs: 810)]), deviceId: "strap")
+        _ = try await store.insert(Streams(rr: [RRInterval(ts: ts, rrMs: 800, srcChannel: .whoop4Historical),
+                                                  RRInterval(ts: ts + 1, rrMs: 820, srcChannel: .whoop4Historical)]),
+                                   deviceId: "strap")
+
+        let selected = try await store.rrIntervals(deviceId: "strap", from: ts, to: ts + 1, limit: 100)
+        XCTAssertEqual(selected.map(\.rrMs), [800, 820])
+        XCTAssertEqual(selected.map(\.srcChannel), [.whoop4Historical, .whoop4Historical])
+    }
+
+    func testWhoop4FallsBackToUnlabelledRowsWhenNoHistoricalDataExists() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await store.upsertDevice(id: "strap", mac: nil, name: nil)
+        try DeviceRegistryStore(dbQueue: store.registryWriter).add(PairedDevice(
+            id: "strap", brand: "WHOOP", model: "4.0", sourceKind: .liveBLE,
+            capabilities: [.hr, .hrv], status: .active, addedAt: ts, lastSeenAt: ts))
+        _ = try await store.insert(Streams(rr: [RRInterval(ts: ts, rrMs: 800)]), deviceId: "strap")
+
+        let selected = try await store.rrIntervals(deviceId: "strap", from: ts, to: ts, limit: 100)
+        XCTAssertEqual(selected.map(\.rrMs), [800])
+        XCTAssertNil(selected.first?.srcChannel)
+    }
+
+    /// Upstream scores the labelled history for the whole window; this fork decides per beat
+    /// (`RRTransportReconciler`), which agrees here because both unlabelled beats lie within its radius.
+    func testWhoop4HistoryReplacesTheUnlabelledCopyOfTheSameBeats() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await store.upsertDevice(id: "strap", mac: nil, name: nil)
+        try DeviceRegistryStore(dbQueue: store.registryWriter).add(PairedDevice(
+            id: "strap", brand: "WHOOP", model: "4.0", sourceKind: .liveBLE,
+            capabilities: [.hr, .hrv], status: .active, addedAt: ts, lastSeenAt: ts))
+        _ = try await store.insert(Streams(rr: [RRInterval(ts: ts, rrMs: 800),
+                                                  RRInterval(ts: ts + 1, rrMs: 810)]), deviceId: "strap")
+        _ = try await store.insert(Streams(rr: [RRInterval(ts: ts, rrMs: 805, srcChannel: .whoop4Historical)]),
+                                   deviceId: "strap")
+
+        let selected = try await store.rrIntervals(deviceId: "strap", from: ts, to: ts + 1, limit: 100)
+        XCTAssertEqual(selected.map(\.rrMs), [805])
+        XCTAssertEqual(selected.map(\.srcChannel), [.whoop4Historical])
+    }
+
     // MARK: - The label survives the mapping
 
     /// A 0x6E record and a 0x80 record covering the same interval must produce rows with DISTINCT
@@ -54,7 +103,8 @@ final class RrSourceChannelTests: XCTestCase {
     /// The two enums are pinned to the same raw values on purpose: they are one durable storage code
     /// split across two packages only because `OuraProtocol` does not depend on `WhoopProtocol`.
     func testTheTwoChannelEnumsAgreeCaseForCaseAndCodeForCode() {
-        XCTAssertEqual(OuraIBIChannel.allCases.count, RRSourceChannel.allCases.filter { !$0.isWhoop5Transport }.count)
+        XCTAssertEqual(OuraIBIChannel.allCases.count,
+                       RRSourceChannel.allCases.filter { !$0.isWhoop5Transport && $0.rawValue <= 4 }.count)
         for c in OuraIBIChannel.allCases {
             let mapped = OuraStreamMapping.rrChannel(c)
             XCTAssertEqual(mapped?.rawValue, c.rawValue,
@@ -211,5 +261,109 @@ final class RrSourceChannelTests: XCTestCase {
         // Read: exactly one.
         XCTAssertEqual(scored.count, trueBeats)
         XCTAssertEqual(Set(scored.compactMap(\.srcChannel)), [.greenQuality])
+    }
+
+    // MARK: - One Oura beat channel per window
+
+    /// 0x60 and 0x80 over the SAME night: 0x60 is the complete train, 0x80 a partial second copy of the
+    /// same beats. Read together they over-cover the wall clock and the #1118 gate refuses the night, so
+    /// the read keeps the fuller channel alone. NULL rows pass untouched; 0x6E stays excluded.
+    /// Fixture shared byte-for-byte with Kotlin `OuraOneChannelReadSqliteTest`.
+    func testTwoOuraBeatChannelsOverOneNightScoreOnlyTheFullerOne() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await store.upsertDevice(id: "ring", mac: nil, name: nil)
+        _ = try await store.insert(Streams(rr: Self.oneChannelFixture(ts: ts)), deviceId: "ring")
+
+        let read = try await store.rrIntervals(deviceId: "ring", from: ts, to: ts + 200, limit: 1000)
+        XCTAssertEqual(read.map(\.rrMs), [1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009,
+                                          1010, 1011, 777])
+        XCTAssertEqual(Set(read.compactMap(\.srcChannel)), [.ibiAmplitude])
+        XCTAssertEqual(read.filter { $0.srcChannel == nil }.count, 1)
+    }
+
+    /// Which channel is complete is a property of the capture, not the tag. Where 0x80 is the fuller
+    /// stream it is the one scored — the #1071 guarantee that a ring's only full source is never dropped.
+    func testWhenGreenIsTheFullerChannelItIsTheOneScored() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await store.upsertDevice(id: "ring", mac: nil, name: nil)
+        var rows: [RRInterval] = []
+        for i in 0..<10 { rows.append(RRInterval(ts: ts + i, rrMs: 950 + i, srcChannel: .greenQuality)) }
+        for i in 0..<3 { rows.append(RRInterval(ts: ts + 3 * i, rrMs: 1100 + i, srcChannel: .ibiAmplitude)) }
+        _ = try await store.insert(Streams(rr: rows), deviceId: "ring")
+
+        let read = try await store.rrIntervals(deviceId: "ring", from: ts, to: ts + 100, limit: 1000)
+        XCTAssertEqual(read.map(\.rrMs), Array(950...959))
+        XCTAssertEqual(Set(read.compactMap(\.srcChannel)), [.greenQuality])
+    }
+
+    /// The choice is made over the REQUESTED window, not the device's whole history: a window where 0x80
+    /// is the only channel present still reads it, even though 0x60 dominates the night around it.
+    func testTheChannelIsChosenWithinTheRequestedWindow() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await store.upsertDevice(id: "ring", mac: nil, name: nil)
+        _ = try await store.insert(Streams(rr: Self.oneChannelFixture(ts: ts)), deviceId: "ring")
+        // A window after the 0x60 train ends, holding only the late 0x80 tail.
+        _ = try await store.insert(Streams(rr: [
+            RRInterval(ts: ts + 300, rrMs: 880, srcChannel: .greenQuality),
+            RRInterval(ts: ts + 301, rrMs: 881, srcChannel: .greenQuality),
+        ]), deviceId: "ring")
+
+        let read = try await store.rrIntervals(deviceId: "ring", from: ts + 250, to: ts + 350, limit: 1000)
+        XCTAssertEqual(read.map(\.rrMs), [880, 881])
+    }
+
+    /// Equal counts keep the amplitude family, so a tie has one defined answer on both platforms.
+    func testAChannelTieResolvesToTheAmplitudeFamily() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await store.upsertDevice(id: "ring", mac: nil, name: nil)
+        var rows: [RRInterval] = []
+        for i in 0..<3 {
+            rows.append(RRInterval(ts: ts + i, rrMs: 900 + i, srcChannel: .greenQuality))
+            rows.append(RRInterval(ts: ts + i, rrMs: 1200 + i, srcChannel: .ibiAmplitude))
+        }
+        _ = try await store.insert(Streams(rr: rows), deviceId: "ring")
+
+        let read = try await store.rrIntervals(deviceId: "ring", from: ts, to: ts + 100, limit: 1000)
+        XCTAssertEqual(read.map(\.rrMs), [1200, 1201, 1202])
+    }
+
+    /// 0x60 and 0x44 are ONE family (one decoder, split for labelling only), so they are counted together
+    /// against green and kept together: 4 + 4 amplitude beats outweigh 6 green, though neither tag would
+    /// alone.
+    func testTheAmplitudeFamilyIsCountedAndKeptAsOne() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await store.upsertDevice(id: "ring", mac: nil, name: nil)
+        var rows: [RRInterval] = []
+        for i in 0..<6 { rows.append(RRInterval(ts: ts + i, rrMs: 900 + i, srcChannel: .greenQuality)) }
+        for i in 0..<8 {
+            rows.append(RRInterval(ts: ts + i, rrMs: 1000 + i, srcChannel: i % 2 == 0 ? .ibiAmplitude : .ibiBare))
+        }
+        _ = try await store.insert(Streams(rr: rows), deviceId: "ring")
+
+        let read = try await store.rrIntervals(deviceId: "ring", from: ts, to: ts + 100, limit: 1000)
+        XCTAssertEqual(read.map(\.rrMs), Array(1000...1007))
+        XCTAssertEqual(Set(read.compactMap(\.srcChannel)), [.ibiAmplitude, .ibiBare])
+    }
+
+    /// 12 s of 0x60 (the full train), 4 overlapping 0x80 beats (the partial copy), 0x6E over the same
+    /// seconds (excluded by name), and one unlabelled row. Mirrored exactly in the Kotlin test.
+    /// The diagnostic read makes no selection: both Oura beat channels come back, 0x6E still excluded.
+    /// Same fixture and expected values as Kotlin `OuraOneChannelReadSqliteTest.theRawExportReadKeepsBothBeatChannels`.
+    func testTheRawDiagnosticReadKeepsBothBeatChannels() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await store.upsertDevice(id: "ring", mac: nil, name: nil)
+        _ = try await store.insert(Streams(rr: Self.oneChannelFixture(ts: ts)), deviceId: "ring")
+        let read = try await store.rawRrIntervals(deviceId: "ring", from: ts, to: ts + 200, limit: 1_000)
+        XCTAssertEqual(Set(read.compactMap { $0.srcChannel?.rawValue }), [1, 3])
+        XCTAssertEqual(read.count, 12 + 4 + 1)
+    }
+
+    static func oneChannelFixture(ts: Int) -> [RRInterval] {
+        var rows: [RRInterval] = []
+        for i in 0..<12 { rows.append(RRInterval(ts: ts + i, rrMs: 1000 + i, srcChannel: .ibiAmplitude)) }
+        for i in 0..<4 { rows.append(RRInterval(ts: ts + 2 * i, rrMs: 900 + i, srcChannel: .greenQuality)) }
+        for i in 0..<12 { rows.append(RRInterval(ts: ts + i, rrMs: 1000 + 8 * i, srcChannel: .spo2Ibi)) }
+        rows.append(RRInterval(ts: ts + 100, rrMs: 777))
+        return rows
     }
 }

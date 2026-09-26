@@ -105,6 +105,18 @@ public enum StressTrace {
         return "\(tenths / 10).\(tenths % 10)"
     }
 
+    /// Prints the LF/HF ratio to one decimal with the same tenths arithmetic as `formatLevel`.
+    ///
+    /// The two platforms disagreed through their printf-family formatters in OPPOSITE directions —
+    /// Java's `%.1f` rounds half UP where C's rounds half to EVEN — so an exact quotient such as
+    /// 9/4 spelled "2.3" on Android and "2.2" here. A ratio has no domain ceiling, so only the
+    /// floor is braced; band powers cannot go negative, but the brace keeps the two surfaces
+    /// identical rather than trusting that.
+    public static func formatRatio(_ value: Double) -> String {
+        let tenths = max(Int((value * 10).rounded(.toNearestOrAwayFromZero)), 0)
+        return "\(tenths / 10).\(tenths % 10)"
+    }
+
     /// The one placement rule, shared so a dot and its vertex cannot land apart.
     private static func place(ts: Int64, level: Double, t0: Int64, span: CGFloat,
                               width: CGFloat, height: CGFloat) -> Pt {

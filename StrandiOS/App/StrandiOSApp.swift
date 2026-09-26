@@ -38,7 +38,9 @@ struct StrandiOSApp: App {
     private var health: HealthKitBridge { services.health }
     private var watch: WatchSessionBridge { services.watch }
     private var router: NavRouter { services.router }
-    @State private var liveActivity = LiveActivityController()
+    /// NOOP's live heart rate banner. Built in `init` and fed from there (`LiveActivityController.follow`), not from
+    /// a view: a process iOS starts in the background need not build one.
+    @State private var liveActivity: LiveActivityController
     @Environment(\.scenePhase) private var scenePhase
     /// Appearance preference (System/Light/Dark). Default follows the OS; the Settings picker writes it.
     @AppStorage(AppearanceMode.storageKey) private var appearanceRaw = AppearanceMode.system.rawValue
@@ -108,6 +110,11 @@ struct StrandiOSApp: App {
         // The strap-sync Live Activity (Lock Screen + Dynamic Island). Same placement, same reason — and
         // it must also run in a process the Sync Strap shortcut launched with no scene.
         SyncLiveActivityController.shared.attach(to: model.live)
+        // The live heart rate banner follows the strap from process start (#2422). The Lift Log is dormant in
+        // this fork, so there is no gym banner for it to stand aside for.
+        let liveActivity = LiveActivityController()
+        liveActivity.follow(model, standsAside: { false })
+        _liveActivity = State(initialValue: liveActivity)
         // #1538: a strap offload completes while the app is BACKGROUNDED — it stays alive as a
         // bluetooth-central to receive it — and the re-score it triggers took nearly eight minutes on the
         // reporter's install, far longer than that wake survives. The pass is all-or-nothing, so being
@@ -242,40 +249,6 @@ struct StrandiOSApp: App {
                 // fixed-geometry tiles/gauges stay legible at the largest accessibility sizes rather than
                 // clipping; the common Larger-Text range still scales fully.
                 .dynamicTypeSize(...DynamicTypeSize.accessibility1)
-                .onReceive(
-                    model.live.$heartRate
-                        .removeDuplicates()
-                        .throttle(for: .seconds(2), scheduler: RunLoop.main, latest: true)
-                ) { _ in
-                    // #911: anchor the Live Activity on the SAME shared `Repository.widgetAnchor` the
-                    // Home/Lock widget and the watch snapshot use, so this fourth surface can't drift to a
-                    // different day at the rollover (it previously read `days.last(where: recovery != nil)`,
-                    // which kept pointing at yesterday's scored row after Today had moved on).
-                    // ActivityKit itself is updated at most once every two seconds. Apply the same gate to
-                    // the publisher so raw strap samples do not schedule otherwise-discarded work on the
-                    // main run loop while the user scrolls or taps.
-                    let day = model.repo.cachedWidgetAnchor()
-                    liveActivity.update(
-                        bpm: model.live.connected ? (model.bpm ?? model.live.heartRate) : nil,
-                        recovery: day?.recovery.map { Int($0.rounded()) },
-                        // While a sync runs its own activity is the useful banner; don't stack the HR one.
-                        connected: model.live.connected && !model.live.backfilling,
-                        effort: day?.strain.map { Int($0.rounded()) }
-                    )
-                }
-                // End the Live Activity the moment the link drops, even if no further HR tick arrives.
-                .onReceive(model.live.$connected) { isConnected in
-                    // #911: same shared anchor as the heartRate site above, so the Live Activity, the
-                    // widget, the watch and Today never disagree about which day they describe. Memoized
-                    // (shares the heartRate site's cache; recomputes only on a data refresh or day-roll).
-                    let day = model.repo.cachedWidgetAnchor()
-                    liveActivity.update(
-                        bpm: isConnected ? (model.bpm ?? model.live.heartRate) : nil,
-                        recovery: day?.recovery.map { Int($0.rounded()) },
-                        connected: isConnected && !model.live.backfilling,
-                        effort: day?.strain.map { Int($0.rounded()) }
-                    )
-                }
                 // #911/#759: republish the Home/Lock-Screen widget whenever the dashboard caches actually
                 // change mid-session. The only other publish site is the scenePhase .active handler, so
                 // during a long foreground session the widget froze at the last-foreground snapshot while
@@ -404,6 +377,8 @@ struct StrandiOSApp: App {
                         model.coach.surfaceScheduledBrief(stored)
                     }
                 }
+                // Only the foreground may start the live heart rate banner: offer it now.
+                liveActivity.appBecameActive()
                 // End a "Connecting…" sync island whose sync never came, rather than leave it greyed.
                 SyncLiveActivityController.shared.reconcile(live: model.live)
                 // Re-arm the strap's smart alarm on foreground: the firmware alarm is a single instant

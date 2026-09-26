@@ -65,6 +65,21 @@ public enum StrainScorer {
     /// Charge/Effort/Rest redesign; only the output scale changes, the curve does not.
     public static let maxStrain: Double = 100.0
 
+    /// Top of WHOOP's Day Strain axis. Kept beside `maxStrain` so every value inherited from the
+    /// old/WHOOP 0–21 axis can be mapped onto NOOP's current axis through one proportional rule.
+    public static let whoopMaxStrain: Double = 21.0
+
+    /// Map any value on WHOOP's 0–21 Day Strain axis onto NOOP's current 0–`maxStrain` Effort axis.
+    /// This is deliberately a value conversion, not a one-off threshold constant: callers carrying
+    /// any range boundary from the 0–21 scale must pass it through the same mapping.
+    /// Kotlin twin: `StrainScorer.effortValueFromWhoopStrain`. Multiplies by the pre-divided ratio so
+    /// the result is bit-identical to the importers' existing rescale of the same fact
+    /// (`WhoopExportImporter.dayStrainToEffortScale`, `WhoopCsvImporter.DAY_STRAIN_TO_EFFORT_SCALE`);
+    /// `value * maxStrain / whoopMaxStrain` disagrees with them by an ULP on about a quarter of inputs.
+    public static func effortValue(fromWhoopStrain value: Double) -> Double {
+        value * (maxStrain / whoopMaxStrain)
+    }
+
     /// Logarithmic-map denominator D. Chosen so the Edwards daily ceiling
     /// (top zone weight 5 sustained 24 h = 7200) maps to exactly maxStrain:
     /// D = 7200 + 1 = 7201 makes ln(7201)/ln(7201) = 1.
@@ -506,6 +521,40 @@ public enum StrainScorer {
             durations[ordered.count - 1] = durations.dropLast().last(where: { $0 > 0 }) ?? fallbackSampleMin
         }
         return durations
+    }
+
+    /// One line naming WHERE the day's HRmax came from, and what the day's own heart rate actually
+    /// reached — the pair of numbers #2438's step 0 turns on.
+    ///
+    /// The `effort score` line beside this one already reports the HRmax it used, but it can only say
+    /// `provided` or `default`, and `provided` is two different answers at once: a manual override, and
+    /// the Tanaka age formula. Those are the two the step-0 proposal treats differently ("a manual
+    /// override always wins"), so a contributed log cannot currently be read for it. This line splits
+    /// them, and carries the day's observed peak next to the formula value so the gap between the
+    /// yardstick a day was scored against and the one the day's own heart rate suggests is a
+    /// subtraction rather than an inference.
+    ///
+    /// `peak` is the day's RAW maximum, not a percentile. That is deliberate: the rule under discussion
+    /// counts days whose peak passed a threshold ("reached on at least two different days in the last
+    /// 90"), so the per-day maximum is the quantity that rule is written in, and a reader can evaluate
+    /// the rule from a run of these lines before anything is built. A single artefact spike is visible
+    /// as the one day that disagrees with its neighbours, which is the same thing the two-day
+    /// requirement exists to absorb.
+    ///
+    /// Changes no score. `hrmaxSource` is the branch the CALLER took, because the branch is only visible
+    /// there — `strain` receives an HRmax with its provenance already discarded.
+    ///
+    /// No PII: a day key and four bpm values. Byte-identical to the Kotlin twin `dayCalibrationLine`.
+    public static func dayCalibrationLine(day: String, hrmax: Double?, hrmaxSource: String,
+                                          tanaka: Double?, observedPeak: Double?,
+                                          restingHR: Double) -> String {
+        // The formatters live on WorkoutDetector, where `effort bout` needed them first. Sharing them
+        // rather than copying is what keeps a day line and a bout line in the same log rounding the same
+        // way; a second copy would be free to drift, and these two lines are read side by side.
+        var out = "effort calib day=\(day) hrmax=\(WorkoutDetector.round0(hrmax))"
+        out += " src=\(hrmaxSource) tanaka=\(WorkoutDetector.round0(tanaka))"
+        out += " peak=\(WorkoutDetector.round0(observedPeak)) rhr=\(WorkoutDetector.round0(restingHR))"
+        return out
     }
 
     /// One line naming what an Effort score was computed FROM, or why it could not be computed.

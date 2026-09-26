@@ -281,7 +281,12 @@ enum DebugDataDiagnostics {
         }
         let grav = (try? await store.gravitySamples(deviceId: did, from: cs.startTs, to: cs.endTs, limit: 200_000)) ?? []
         let hr = await repo.hrSamples(from: cs.startTs, to: cs.endTs, limit: 200_000)
-        let rr = (try? await store.rrIntervals(deviceId: did, from: cs.startTs, to: cs.endTs, limit: 200_000)) ?? []
+        // Beats BANKED, not beats scored: the raw read, so `rr=` keeps the meaning it had in every log filed
+        // before the one-Oura-channel selection, on both platforms (Kotlin `AndroidDiagnostics`).
+        // On a WHOOP 5 this steps the number UP rather than restoring it: the strict transport
+        // selection predates that change, so `rr=` now counts every banked transport. Banked is what
+        // this line has always meant. See `rawRrIntervals` for why, and for the #2456 interaction.
+        let rr = (try? await store.rawRrIntervals(deviceId: did, from: cs.startTs, to: cs.endTs, limit: 200_000)) ?? []
         let resp = (try? await store.respSamples(deviceId: did, from: cs.startTs, to: cs.endTs, limit: 200_000)) ?? []
         lines.append("Night \(dayStamp(cs.startTs))"
                      + funnelFallbackNote(chosenDay: dayStamp(cs.startTs),
@@ -309,7 +314,17 @@ enum DebugDataDiagnostics {
             return lines
         }
         if let rem = SleepStager.remFunnelDiagnostic(start: cs.startTs, end: cs.endTs, grav: grav, hr: hr, rr: rr, resp: resp) {
-            lines.append(rem.summary)
+            // The funnel replays the V1 classifier, but the shipped hypnogram is staged by V2 whenever
+            // the default-on flag says so — name both, or the two totals read as one fact disagreeing.
+            // On a 5/MG the gap is maximal: V1's primary REM gate needs the raw resp channel that
+            // hardware never emits, while V2 recovers respiration from R-R, so the funnel can report
+            // ~46min REM against a 231min screen for the same night.
+            let screenStager = PuffinExperiment.experimentalSleepV2Enabled ? "V2" : "V1"
+            var summary = rem.summary + " · funnel replays V1; screen staged by \(screenStager)"
+            if screenStager != "V1" {
+                summary += " — totals can differ"
+            }
+            lines.append(summary)
         } else {
             lines.append("REM funnel: insufficient motion data (<2 gravity samples)")
         }

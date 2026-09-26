@@ -26,6 +26,17 @@ final class RRTransportReconcilerTests: XCTestCase {
         XCTAssertEqual(RRTransportReconciler.reconcile(rows).map(\.transport), [.whoopHistorical])
     }
 
+    func testLabelledWhoop4HistoryWinsOverStandardOnlyWhereItCovers() {
+        let rows = [
+            RRInterval(ts: 300, rrMs: 1_000, srcChannel: .whoop4Historical, transport: .whoopHistorical),
+            rr(301, 1_002, .standardHeartRate),
+            rr(330, 1_004, .standardHeartRate),
+        ]
+        let resolved = RRTransportReconciler.reconcile(rows)
+        XCTAssertEqual(resolved.map(\.ts), [300, 330])
+        XCTAssertEqual(resolved.map(\.srcChannel), [.whoop4Historical, nil])
+    }
+
     func testLegacyOnlyInputIsByteIdentical() {
         let rows = [rr(1, 800, nil), rr(1, 810, nil), rr(2, 820, nil)]
         XCTAssertEqual(RRTransportReconciler.reconcile(rows), rows)

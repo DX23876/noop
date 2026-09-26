@@ -257,7 +257,7 @@ class HomeLocalizationTest(unittest.TestCase):
     def test_android_home_score_labels_and_empty_states_fit_localized_copy(self) -> None:
         source = (ROOT / "android/app/src/main/java/com/noop/ui/TodayScreen.kt").read_text(encoding="utf-8")
         self.assertIn("text = domainLabel.uppercase()", source)
-        self.assertIn(".padding(start = Metrics.space2, end = Metrics.space18)", source)
+        self.assertIn(".padding(horizontal = Metrics.space16)", source)
         self.assertIn("minScale = 0.7f", source)
         self.assertIn("private fun RingNoData(diameter: Dp)", source)
         self.assertIn("maxLines = 2", source)
@@ -426,9 +426,8 @@ class HomeLocalizationTest(unittest.TestCase):
             "static func skinTempDevText", 1
         )[0]
         verdicts = set(re.findall(r'(?:return|\?|:)\s*"([^"]+)"', verdict_block))
-        # Thirteen return paths currently collapse to twelve unique keys because several helpers share
-        # "at baseline". Pin the unique-key set size so syntax changes cannot silently evade extraction.
-        self.assertEqual(12, len(verdicts), "Verdict extraction changed; review the catalog contract")
+        # Pin the unique-key set size so syntax changes cannot silently evade extraction.
+        self.assertEqual(18, len(verdicts), "Verdict extraction changed; review the catalog contract")
 
         catalog = audit.load_catalog(ROOT / "Strand/Resources/Localizable.xcstrings")
         missing = []

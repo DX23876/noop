@@ -258,7 +258,7 @@ struct TestCentreView: View {
 
                 Toggle("Protocol probes", isOn: $puffinExperiments)
                     .toggleStyle(.switch).tint(StrandPalette.accent)
-                Text("Sends experimental protocol queries and records the replies in the strap log.")
+                Text("Sends experimental protocol queries and records replies in the strap log. Also enables the experimental 5/MG strap alarm.")
                     .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
 
                 Divider().overlay(StrandPalette.hairline)

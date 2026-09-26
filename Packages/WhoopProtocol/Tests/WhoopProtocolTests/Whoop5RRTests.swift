@@ -50,6 +50,6 @@ final class Whoop5RRTests: XCTestCase {
     }
 
     func testTransportCodes() {
-        XCTAssertEqual(RRSourceChannel.allCases.map(\.rawValue), Array(1...7))
+        XCTAssertEqual(RRSourceChannel.allCases.map(\.rawValue), Array(1...8))
     }
 }

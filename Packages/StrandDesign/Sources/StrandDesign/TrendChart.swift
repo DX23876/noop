@@ -267,6 +267,13 @@ public struct TrendChart: View {
         })
     }
 
+    /// The days the x-axis marks, so the marks and their label format agree about which days are shown.
+    ///
+    /// Spans `displayPoints`, the set the marks are actually built from, rather than `points`. Bucketing
+    /// keeps the extremes, so the two agree today; deriving the axis from a collection the chart is not
+    /// drawing is the kind of thing that stops being true quietly.
+    private var axisDays: [Date] { ChartAxisDays.spanning(displayPoints.map(\.date)) }
+
     // Map data values onto the unit interval for gradient stops.
     private func unit(_ value: Double) -> Double {
         let lo = valueRange.lowerBound, hi = valueRange.upperBound
@@ -429,10 +436,21 @@ public struct TrendChart: View {
         .chartPlotStyle { plotArea in
             if showsBarValues { plotArea.padding(.top, 18) } else { plotArea.clipped() }
         }
+        // Marks are pinned to WHOLE DAYS, not asked for by count (#2431-style label smear on Trends).
+        //
+        // `.automatic(desiredCount: 5)` is free to choose the stride that best fits the count, and over a
+        // short window the best fit is sub-day: several marks then land inside one calendar day, the label
+        // formats each to a date, and the axis prints "Sep 21" twice over itself. What the screenshot
+        // shows is not crowding but DUPLICATION, which is why more room would not have helped.
+        //
+        // Naming the days outright makes a duplicate structurally impossible: the marks are distinct
+        // start-of-day instants, so no two can format to the same date, whatever the window. The explicit
+        // day-only format keeps a mark from ever printing a time as well.
         .chartXAxis {
-            AxisMarks(values: .automatic(desiredCount: 5)) { _ in
+            AxisMarks(values: axisDays) { _ in
                 AxisGridLine().foregroundStyle(StrandPalette.hairline.opacity(0.4))
-                AxisValueLabel().foregroundStyle(StrandPalette.textTertiary)
+                AxisValueLabel(format: ChartAxisDays.labelFormat(for: axisDays))
+                    .foregroundStyle(StrandPalette.textTertiary)
                     .font(StrandFont.footnote)
             }
         }

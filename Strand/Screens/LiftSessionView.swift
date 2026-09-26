@@ -19,8 +19,9 @@ import WhoopStore
 // because a workout outlives the screen you happen to be looking at.
 
 struct LiftSessionView: View {
+    // Only what the sheet draws from. The live heart rate and the running clocks are their own small views
+    // (`LiftLiveReadouts.swift`): watched from here, every beat, log line and tick redrew the whole sheet.
     @EnvironmentObject var repo: Repository
-    @EnvironmentObject var live: LiveState
     @EnvironmentObject var session: LiftSessionController
     @Environment(\.dismiss) private var dismiss
 
@@ -37,13 +38,12 @@ struct LiftSessionView: View {
     @State private var programChoice: ProgramChoice?
     /// Program lines whose set count this session changed, read when the finish sheet opens.
     @State private var setCountChanges: [LiftSessionController.SetCountChange] = []
+    @State private var addingExercise = false
+    /// The card to bring into view once an exercise has been added — the new one, at the end.
+    @State private var scrollTarget: Int?
 
     private enum UnfinishedChoice: Hashable { case complete, discard }
     private enum ProgramChoice: Hashable { case update, keep }
-
-    /// For the live heart rate on the control bar. `AppModel.bpm` is the smoothed, spike-filtered
-    /// value every screen is supposed to show — never the raw per-beat number, which swings with HRV.
-    @EnvironmentObject private var model: AppModel
 
     @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
     private var unitSystem: UnitSystem { UnitSystem(rawValue: unitSystemRaw) ?? .metric }
@@ -89,7 +89,9 @@ struct LiftSessionView: View {
         .background(StrandPalette.surfaceBase)
         .keyboardDoneToolbar($focused)
         .dismissesKeyboardOnTap($focused)
-        .task { await loadLastTime() }
+        // Re-read whenever the session's exercises change, so an exercise added mid-session that was
+        // done before shows last time's numbers in grey, like every other line.
+        .task(id: engine?.plan.map(\.exercise)) { await loadLastTime() }
         // Release a field's draft once the user leaves it, so the row returns to the canonical
         // formatting ("45.50" typed becomes "45.5"). The single-argument form on purpose: the
         // two-argument `onChange` is macOS 14+ and this file also builds for macOS 13.
@@ -109,6 +111,7 @@ struct LiftSessionView: View {
                     ForEach(Array(engine.plan.enumerated()), id: \.offset) { index, item in
                         exerciseCard(engine, index: index, item: item)
                     }
+                    addExerciseRow(engine)
                     Color.clear.frame(height: 8)
                 }
                 .padding(.horizontal, NoopMetrics.screenPadding)
@@ -120,7 +123,46 @@ struct LiftSessionView: View {
                 guard let slot else { return }
                 withAnimation { proxy.scrollTo(slot.exerciseIndex, anchor: .top) }
             }
+            .onChange(of: scrollTarget) { target in
+                guard let target else { return }
+                withAnimation { proxy.scrollTo(target, anchor: .top) }
+                scrollTarget = nil
+            }
+            .sheet(isPresented: $addingExercise) {
+                LiftSessionExerciseSheet { name, primary, secondaries in
+                    guard session.addExercise(name, primaryMuscle: primary,
+                                              secondaryMuscles: secondaries) else { return }
+                    scrollTarget = (session.engine?.plan.count ?? 1) - 1
+                }
+            }
         }
+    }
+
+    /// Add an exercise the program does not have — at the END of the sheet, after everything planned,
+    /// because that is where it goes: the program's lines keep their order, and the new one is tapped to
+    /// start whenever the lifter gets to it (Utku, 21 Sep 2026). Finishing asks whether the program keeps
+    /// it; until then it changes this session only, like ⊕/⊖.
+    private func addExerciseRow(_ engine: LiftSessionEngine) -> some View {
+        let canAdd = engine.plan.count < LiftSessionEngine.maxExercises
+        return Button {
+            addingExercise = true
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 17, weight: .semibold))
+                Text("Add exercise").font(StrandFont.body)
+            }
+            .foregroundStyle(canAdd ? StrandPalette.effortColor : StrandPalette.textTertiary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(
+                RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous)
+                    .strokeBorder(StrandPalette.textTertiary.opacity(0.35),
+                                  style: StrokeStyle(lineWidth: 1, dash: [5, 4])))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!canAdd)
     }
 
     private func header(_ engine: LiftSessionEngine) -> some View {
@@ -354,14 +396,12 @@ struct LiftSessionView: View {
     /// control bar is pinned to the bottom and this is where your eyes already are — and once the
     /// sheet is scrolled to a later exercise, the band is the only thing that says which rest.
     private func restBand(_ engine: LiftSessionEngine) -> some View {
-        let remaining = engine.restRemaining(now: session.now) ?? 0
-        return HStack(spacing: 8) {
+        HStack(spacing: 8) {
             Text("Rest period").strandOverline()
                 .foregroundStyle(StrandPalette.metricAmber)
             Spacer(minLength: 0)
-            Text(LiftFormat.duration(remaining))
+            LiftRunningClock { engine.restRemaining(now: $0) ?? 0 }
                 .font(StrandFont.captionNumber)
-                .monospacedDigit()
                 .foregroundStyle(StrandPalette.metricAmber)
         }
         .lineLimit(1)
@@ -404,10 +444,12 @@ struct LiftSessionView: View {
         session.carry(for: slot).reps.map(String.init) ?? "—"
     }
 
-    /// RPE is never carried, so its ghost is only the previous set's own rating — a reminder, never a
-    /// value any set will save.
+    /// Grey RPE is the line's max RPE when the program sets one — and, like every other grey number, it is
+    /// what the set saves if nothing is typed over it (RULES 34). A previous set's own rating is shown as a
+    /// reminder when the plan sets no maximum, and that one is never saved: it belongs to another set.
     private func ghostRpe(_ engine: LiftSessionEngine, slot: LiftSlot) -> String {
-        engine.previousSetInSession(for: slot)?.rpe.map { LiftFormat.trim($0) } ?? "—"
+        if let planned = engine.planItem(for: slot)?.targetRpe { return LiftFormat.trim(planned) }
+        return engine.previousSetInSession(for: slot)?.rpe.map { LiftFormat.trim($0) } ?? "—"
     }
 
     private func display(_ kg: Double) -> String {
@@ -493,9 +535,7 @@ struct LiftSessionView: View {
     private func controlBar(_ engine: LiftSessionEngine) -> some View {
         VStack(spacing: NoopMetrics.rowSpacing) {
             HStack(spacing: 14) {
-                clock(String(localized: "Session"),
-                      LiftFormat.duration(max(0, session.now - engine.startTs)),
-                      tint: StrandPalette.textPrimary)
+                clock(String(localized: "Session"), tint: StrandPalette.textPrimary) { $0 - engine.startTs }
                 stageClock(engine)
                 heartRate()
                 Spacer(minLength: 0)
@@ -539,28 +579,26 @@ struct LiftSessionView: View {
     ///
     /// It belongs here and not in the scrolling sheet: this strip is the part that never scrolls
     /// away, and a glance mid-set is the whole use — you are holding a bar, not browsing. Asked for
-    /// after a real session.
-    ///
-    /// Shown even when there is no value, as "—", the same way `LiveView` reports it. A row that
-    /// disappears when the strap stops streaming would shift the clocks beside it and leave the user
-    /// wondering whether the reading is missing or the feature is; a dash says which.
-    ///
-    /// This is display only. Nothing here feeds a score — Effort stays HR-derived from what the
-    /// strap MEASURED over the session window, computed by the analytics engine, not by this view.
+    /// after a real session. Always shown, dash included, and display only (`LiftHeartRate`).
     private func heartRate() -> some View {
-        clock(String(localized: "HR"),
-              model.bpm.map(String.init) ?? "—",
-              tint: model.bpm == nil ? StrandPalette.textTertiary : StrandPalette.metricRose)
+        labelled(String(localized: "HR")) { LiftHeartRate(style: .plain) }
     }
 
-    private func clock(_ label: String, _ value: String, tint: Color) -> some View {
+    /// A running clock under its label. `seconds` turns the current unix second into what it reads.
+    private func clock(_ label: String, tint: Color, seconds: @escaping (Int) -> Int) -> some View {
+        labelled(label) {
+            LiftRunningClock(seconds: seconds)
+                .font(StrandFont.bodyNumber)
+                .foregroundStyle(tint)
+        }
+    }
+
+    private func labelled<Value: View>(_ label: String, @ViewBuilder value: () -> Value) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(label).strandOverline()
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
-            Text(value)
-                .font(StrandFont.bodyNumber)
-                .foregroundStyle(tint)
+            value()
         }
     }
 
@@ -568,20 +606,20 @@ struct LiftSessionView: View {
     private func stageClock(_ engine: LiftSessionEngine) -> some View {
         switch engine.stage {
         case .working:
-            clock(String(localized: "This set"),
-                  LiftFormat.duration(max(0, session.now - engine.stageStartedAt)),
-                  tint: StrandPalette.statusPositive)
+            clock(String(localized: "This set"), tint: StrandPalette.statusPositive) {
+                $0 - engine.stageStartedAt
+            }
         case .resting:
             // "Rest period", never "Rest": the catalog's "Rest" key is NOOP's SLEEP metric, so this
             // label rendered as "Erholung" (recovery) in German — the exact collision CLAUDE.md and
             // the handover brief both warn about. Reintroduced by the workout-sheet rewrite.
-            clock(String(localized: "Rest period"),
-                  LiftFormat.duration(engine.restRemaining(now: session.now) ?? 0),
-                  tint: StrandPalette.metricAmber)
+            clock(String(localized: "Rest period"), tint: StrandPalette.metricAmber) {
+                engine.restRemaining(now: $0) ?? 0
+            }
         case .warmup, .finished:
-            clock(String(localized: "Warm-up"),
-                  LiftFormat.duration(max(0, session.now - engine.stageStartedAt)),
-                  tint: StrandPalette.textSecondary)
+            clock(String(localized: "Warm-up"), tint: StrandPalette.textSecondary) {
+                $0 - engine.stageStartedAt
+            }
         }
     }
 
@@ -598,8 +636,9 @@ struct LiftSessionView: View {
 
     private var finishSheet: some View {
         let unfinished = session.unfinishedSlots.count
+        let asksAboutProgram = !setCountChanges.isEmpty || !addedExercises.isEmpty
         let answered = (unfinished == 0 || unfinishedChoice != nil)
-            && (setCountChanges.isEmpty || programChoice != nil)
+            && (!asksAboutProgram || programChoice != nil)
         return ScreenScaffold(title: "Finish session",
                               subtitle: "One number for the whole session, so a leg day can be compared with a run.") {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
@@ -619,31 +658,23 @@ struct LiftSessionView: View {
                     }
                 }
                 if unfinished > 0 { unfinishedCard(count: unfinished) }
-                if !setCountChanges.isEmpty { programCard }
+                if asksAboutProgram { programCard }
 
-                HStack {
-                    Button("Skip") { Task { await save() } }
-                        .buttonStyle(.plain)
-                        .font(StrandFont.body)
-                        .foregroundStyle(StrandPalette.textSecondary)
-                        .disabled(saving || !answered)
-                    Spacer()
-                    Button("Save session") { Task { await save() } }
-                        .buttonStyle(.noopPrimary)
-                        .frame(maxWidth: 180)
-                        .disabled(saving || !answered)
-                        .opacity(saving || !answered ? NoopButtonMetrics.disabledOpacity : 1)
-                }
+                // One way to save. Session RPE above is optional, so an empty field is simply no rating;
+                // a separate "Skip" saved exactly the same way and read as a second choice.
+                Button("Save session") { Task { await save() } }
+                    .buttonStyle(.noopPrimary)
+                    .disabled(saving || !answered)
+                    .opacity(saving || !answered ? NoopButtonMetrics.disabledOpacity : 1)
                 if !answered {
                     Text("Choose an option above to save.")
                         .font(StrandFont.footnote)
                         .foregroundStyle(StrandPalette.textTertiary)
                 }
 
-                // A way OUT that records nothing. Until this existed, every route off this screen
-                // saved: "Skip" skips the RPE question, not the session. A session started by a
-                // mis-tap, or to try something out, had to be saved and then lived in the history
-                // and in that day's Effort for good.
+                // A way OUT that records nothing. Until this existed, the only route off this screen
+                // saved. A session started by a mis-tap, or to try something out, had to be saved and
+                // then lived in the history and in that day's Effort for good.
                 Button(role: .destructive) {
                     confirmingDiscard = true
                 } label: {
@@ -677,14 +708,15 @@ struct LiftSessionView: View {
         .task { await loadSetCountChanges() }
     }
 
-    /// Sets nobody typed a number into. One choice covers all of them, because what matters at the end
-    /// of a session is simply whether they happened: complete them with the numbers the sheet showed,
-    /// or leave them out.
+    /// Sets never started. One choice covers all of them, because what matters at the end of a session
+    /// is simply whether they happened: complete them with the numbers the sheet showed, or discard them
+    /// to zeros that every figure leaves out and Edit sets can still fill in. A set that was done is never
+    /// asked about — it is complete (`LiftSessionController.setsToSave`).
     private func unfinishedCard(count: Int) -> some View {
         NoopCard {
             VStack(alignment: .leading, spacing: NoopMetrics.gap) {
                 Text("Unfinished sets").strandOverline()
-                Text("\(count) sets have no numbers typed in — sets you did not start, or finished without typing.")
+                Text("Sets not started: \(count)")
                     .font(StrandFont.body)
                     .foregroundStyle(StrandPalette.textPrimary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -694,25 +726,45 @@ struct LiftSessionView: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                Text("Completing saves them with the grey numbers shown. Discarding leaves them out of the session.")
+                Text("Completing saves them with the grey numbers shown. Discarding keeps them out of every figure; they stay under Edit sets as zeros you can fill in later.")
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
+                // Said before Save rather than after: `save` files nothing when no set counts.
+                if unfinishedChoice == .discard,
+                   !LiftSessionController.anyPerformed(session.setsToSave(completingUnfinished: false)) {
+                    Text("Every set would be a zero, so discarding saves no session and no workout.")
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.statusWarning)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
     }
 
-    /// Set counts changed with ⊕/⊖ during the session. The program keeps them only if asked to.
+    /// Exercises added during the session, which the program does not have yet.
+    private var addedExercises: [LiftPlanItem] {
+        session.engine?.plan.filter(\.addedInSession) ?? []
+    }
+
+    /// Set counts changed with ⊕/⊖, and exercises added, during the session. The program keeps them only
+    /// if asked to — one answer for all of them, listed so the lifter sees what "update" would write.
     private var programCard: some View {
-        NoopCard {
+        let added = addedExercises
+        return NoopCard {
             VStack(alignment: .leading, spacing: NoopMetrics.gap) {
                 Text("Program").strandOverline()
-                Text("You changed the number of sets. Keep the new counts in the program for next time?")
+                Text(programQuestion(countsChanged: !setCountChanges.isEmpty, exercisesAdded: !added.isEmpty))
                     .font(StrandFont.body)
                     .foregroundStyle(StrandPalette.textPrimary)
                     .fixedSize(horizontal: false, vertical: true)
                 ForEach(setCountChanges, id: \.itemId) { change in
                     Text("\(change.exercise): \(change.from) → \(change.to) sets")
+                        .font(StrandFont.bodyNumber)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                }
+                ForEach(Array(added.enumerated()), id: \.offset) { _, line in
+                    Text("New: \(line.exercise) · sets: \(line.targetSets)")
                         .font(StrandFont.bodyNumber)
                         .foregroundStyle(StrandPalette.textSecondary)
                 }
@@ -723,6 +775,15 @@ struct LiftSessionView: View {
                 .pickerStyle(.segmented)
                 .labelsHidden()
             }
+        }
+    }
+
+    /// The program question, worded for what actually changed.
+    private func programQuestion(countsChanged: Bool, exercisesAdded: Bool) -> LocalizedStringKey {
+        switch (countsChanged, exercisesAdded) {
+        case (true, true):  return "You added exercises and changed the number of sets. Keep these changes in the program for next time?"
+        case (false, true): return "You added exercises. Add them to the program for next time?"
+        default:            return "You changed the number of sets. Keep the new counts in the program for next time?"
         }
     }
 
@@ -761,16 +822,13 @@ struct LiftSessionView: View {
         // After `finish`, which closes out the running rest: that set's measured rest belongs to it.
         let finished = session.setsToSave(completingUnfinished: unfinishedChoice == .complete)
 
-        // Nothing to file, so file nothing. Discarding can empty a session completely: a session run
-        // face-down and advanced entirely on the strap has nothing typed, so every slot is unentered
-        // and "Discard them" leaves no set behind. Filing it anyway wrote a session row with no sets
-        // AND a manual workout, and the engine fills that workout's strain from the heart rate the
-        // strap measured — so an hour that recorded nothing still read back as a workout. The
-        // program's set counts are a separate thing the user chose explicitly, so those still apply.
-        guard !finished.isEmpty else {
-            if programChoice == .update {
-                await writeSetCountsToProgram(store: store, plan: engine.plan)
-            }
+        // Nothing to file, so file nothing. With no set done, "Discard them" turns every set into a zero.
+        // Filing that anyway wrote a session with nothing in it AND a manual workout, and the engine fills
+        // that workout's strain from the heart rate the strap measured — so an hour that recorded nothing
+        // still read back as a workout. The finish sheet says so before Save. The program's set counts
+        // are a separate thing the user chose explicitly, so those still apply.
+        guard LiftSessionController.anyPerformed(finished) else {
+            await writeProgram(store: store, plan: engine.plan, sets: finished)
             await finishAndDismiss()
             return
         }
@@ -802,9 +860,7 @@ struct LiftSessionView: View {
                 restSec: s.restSec, note: nil)
         }
         _ = try? await store.upsertLiftSets(rows)
-        if programChoice == .update {
-            await writeSetCountsToProgram(store: store, plan: engine.plan)
-        }
+        await writeProgram(store: store, plan: engine.plan, sets: finished)
 
         // Through the SAME path a manual workout takes, so it inherits overlap dedup, the engine's
         // HR-derived strain fill and delete/merge. `strain` stays nil deliberately: the engine fills
@@ -837,18 +893,22 @@ struct LiftSessionView: View {
         setCountChanges = LiftSessionController.setCountChanges(plan: plan, program: rows)
     }
 
-    /// Save this session's set counts onto its program — only when the user chose to.
+    /// Carry this session onto its program (`LiftSessionController.programAfterSession`): each line's
+    /// heaviest done set becomes its weight and reps (always, Utku 21 Sep 2026); changed set counts and
+    /// exercises added during the session reach it only when the user chose to keep them.
     ///
-    /// Re-reads the lines and moves only `targetSets`, so a program edited elsewhere while the session
-    /// ran keeps every other change and a line deleted since is not resurrected. The store call
-    /// replaces the lines wholesale, so nothing is written when no count differs.
-    private func writeSetCountsToProgram(store: WhoopStore, plan: [LiftPlanItem]) async {
+    /// Re-reads the lines, so a program edited elsewhere while the session ran keeps every other change
+    /// and a line deleted since is not resurrected. The store call replaces the lines wholesale, so
+    /// nothing is written when no line differs.
+    private func writeProgram(store: WhoopStore, plan: [LiftPlanItem],
+                              sets: [LiftSessionController.FinishedSet]) async {
         guard let programId = session.programId,
               let rows = try? await store.liftProgramItems(programId: programId) else { return }
-        let changes = LiftSessionController.setCountChanges(plan: plan, program: rows)
-        guard !changes.isEmpty else { return }
-        _ = try? await store.replaceLiftProgramItems(
-            programId: programId, items: LiftSessionController.applying(changes, to: rows))
+        let edited = LiftSessionController.programAfterSession(
+            sets, plan: plan, program: rows, keepingChanges: programChoice == .update,
+            programId: programId, deviceId: repo.deviceId)
+        guard edited != rows else { return }
+        _ = try? await store.replaceLiftProgramItems(programId: programId, items: edited)
     }
 
     /// The sport every logged session is filed under — the same token the Hevy/Liftosaur importer

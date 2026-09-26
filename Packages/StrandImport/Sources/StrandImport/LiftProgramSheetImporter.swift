@@ -5,7 +5,7 @@ import ZIPFoundation
 // Build a Lift Log PROGRAM from a spreadsheet filled in on a computer.
 //
 // WHY THIS EXISTS. A program is a name plus an ordered list of exercise lines, and every line carries
-// an exercise, a muscle classification, sets, reps, a weight, a rest period and a technique note.
+// an exercise, a muscle classification, sets, reps, a weight, a max RPE, a rest period and a technique note.
 // Typing all of that on a phone, for a dozen exercises, is the single most tedious thing in the
 // feature — and it is exactly the kind of work a spreadsheet on a real keyboard is good at.
 //
@@ -27,11 +27,13 @@ public struct ImportedProgramLine: Sendable, Equatable {
     public var targetSets: Int?
     public var targetReps: Int?
     public var targetWeightKg: Double?
+    /// The line's max RPE, 1-10: a ceiling to stay under, stored as `liftProgramItem.targetRpe`.
+    public var targetMaxRpe: Double?
     public var restSec: Int?
     public var note: String?
 
     public init(exercise: String, primaryMuscle: LiftMuscle?, secondaryMuscles: [LiftMuscle],
-                targetSets: Int?, targetReps: Int?, targetWeightKg: Double?,
+                targetSets: Int?, targetReps: Int?, targetWeightKg: Double?, targetMaxRpe: Double?,
                 restSec: Int?, note: String?) {
         self.exercise = exercise
         self.primaryMuscle = primaryMuscle
@@ -39,6 +41,7 @@ public struct ImportedProgramLine: Sendable, Equatable {
         self.targetSets = targetSets
         self.targetReps = targetReps
         self.targetWeightKg = targetWeightKg
+        self.targetMaxRpe = targetMaxRpe
         self.restSec = restSec
         self.note = note
     }
@@ -196,6 +199,17 @@ public enum LiftProgramSheetImporter {
                 }
             }
 
+            // A max RPE outside the scale is refused with a warning rather than clamped: 12 is a typo,
+            // and guessing whether it meant 10 or 1.2 would put a ceiling in the plan nobody chose.
+            var maxRpe = doubleValue(row, ["target_max_rpe", "max_rpe", "rpe_max", "target_rpe", "rpe"])
+            if let rpe = maxRpe, !(1...10).contains(rpe) {
+                maxRpe = nil
+                if warnings.count < maxWarnings {
+                    let shown = rpe == rpe.rounded() ? String(Int(rpe)) : String(rpe)
+                    warnings.append(rowMessage(i, "max RPE \(shown) is not between 1 and 10, so \"\(exercise)\" has none"))
+                }
+            }
+
             // Notes are capped to the same lengths the in-app editors enforce. A spreadsheet cell
             // holds far more than a phone can show, and a note that arrives longer than the editor
             // would ever let you type is a note you can never fully see or edit afterwards.
@@ -206,6 +220,7 @@ public enum LiftProgramSheetImporter {
                 targetSets: intValue(row, setsKeys),
                 targetReps: intValue(row, repsKeys),
                 targetWeightKg: doubleValue(row, weightKeys),
+                targetMaxRpe: maxRpe,
                 restSec: intValue(row, restKeys),
                 note: value(row, noteKeys)?.trimmed.nilIfEmpty
                     .map { String($0.prefix(WhoopStore.maxExerciseNoteLength)) })

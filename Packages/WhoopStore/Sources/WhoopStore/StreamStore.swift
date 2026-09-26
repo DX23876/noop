@@ -240,6 +240,11 @@ extension WhoopStore {
                     AND ((:source = 5 AND (srcChannel IS NULL OR srcChannel IN (6, 7)))
                       OR (:source = 7 AND (srcChannel IS NULL OR srcChannel = 6)))
                     """)
+                let promoteWhoop4History = try db.cachedStatement(sql: """
+                    UPDATE rrInterval SET srcChannel = :source, ord = :ord
+                    WHERE deviceId = :device AND ts = :ts AND rrMs = :rr AND seq = :seq
+                    AND :source = 8 AND srcChannel IS NULL
+                    """)
                 var seqByTsRr: [RRBatchSecond: [Int: Int]] = [:]
                 var ordByTs: [RRBatchSecond: Int] = [:]
                 for r in streams.rr {
@@ -264,6 +269,14 @@ extension WhoopStore {
                         // observation supplies its order; values/keys and Oura labels remain intact.
                         // The WHERE guard makes this a no-op on a row that already carries the label.
                         try promote.execute(arguments: ["source": source.rawValue, "ord": ord,
+                            "device": deviceId, "ts": r.ts, "rr": r.rrMs, "seq": seq])
+                        if db.changesCount > 0 { changedAnalysisTimestamps.insert(r.ts) }
+                    }
+                    // A WHOOP 4 history beat already stored unlabelled gains its label. The label moves the
+                    // beat up the reconciler's precedence, so a promotion also moves the day's revision.
+                    if changed == 0, r.srcChannel == .whoop4Historical {
+                        try promoteWhoop4History.execute(arguments: [
+                            "source": RRSourceChannel.whoop4Historical.rawValue, "ord": ord,
                             "device": deviceId, "ts": r.ts, "rr": r.rrMs, "seq": seq])
                         if db.changesCount > 0 { changedAnalysisTimestamps.insert(r.ts) }
                     }
@@ -629,8 +642,12 @@ extension WhoopStore {
         iso.formatOptions = [.withInternetDateTime]
 
         let stamp = Int(Date().timeIntervalSince1970)
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("noop-raw-sensors-\(stamp).csv")
+        // Inside the app's own bundle-named scratch folder; see the note in AppleHealthImporter and #2446.
+        let scratch = FileManager.default.temporaryDirectory
+            .appendingPathComponent((Bundle.main.bundleIdentifier ?? "com.noopapp.noop") + ".scratch",
+                                    isDirectory: true)
+        try? FileManager.default.createDirectory(at: scratch, withIntermediateDirectories: true)
+        let url = scratch.appendingPathComponent("raw-sensors-\(stamp).csv")
         FileManager.default.createFile(atPath: url.path, contents: nil)
         let handle = try FileHandle(forWritingTo: url)
         defer { try? handle.close() }

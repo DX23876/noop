@@ -93,4 +93,30 @@ final class TodayDayNavClampTests: XCTestCase {
         let picked = cal.date(from: DateComponents(year: 2026, month: 6, day: 24))!
         XCTAssertEqual(TodayView.pickedDayOffset(pickedDate: picked, anchorLogicalDay: logical), 4)
     }
+
+    // MARK: - daySwipeDelta (#2378)
+
+    /// A rightward drag reveals the past, so it steps OLDER (+1). Twin of the Kotlin
+    /// `DayNavTest.rightwardSwipeGoesOlder`, which pins the same direction for `dayNavSwipeTarget`.
+    func testRightwardSwipeStepsOlder() {
+        XCTAssertEqual(TodayView.daySwipeDelta(dx: 120), 1)
+        XCTAssertEqual(TodayView.daySwipeDelta(dx: 51), 1)
+    }
+
+    /// A leftward drag brings the later day in from the right, so it steps NEWER (-1). Twin of the
+    /// Kotlin `DayNavTest.leftwardSwipeGoesNewerClampedAtToday` (the clamp itself is covered above).
+    func testLeftwardSwipeStepsNewer() {
+        XCTAssertEqual(TodayView.daySwipeDelta(dx: -120), -1)
+        XCTAssertEqual(TodayView.daySwipeDelta(dx: -51), -1)
+    }
+
+    /// Composed with the clamp: from today a leftward swipe cannot reach a future day, and a rightward
+    /// one reaches yesterday — the two halves the gesture closures actually chain.
+    func testSwipeDeltaComposedWithClamp() {
+        let older = TodayView.daySwipeDelta(dx: 200)
+        XCTAssertEqual(TodayView.clampedDayOffset(current: 0, delta: older, maxOffset: 30), 1)
+        let newer = TodayView.daySwipeDelta(dx: -200)
+        XCTAssertEqual(TodayView.clampedDayOffset(current: 0, delta: newer, maxOffset: 30), 0)
+        XCTAssertEqual(TodayView.clampedDayOffset(current: 5, delta: newer, maxOffset: 30), 4)
+    }
 }

@@ -1,6 +1,7 @@
 #if os(iOS)
 import Foundation
 import HealthKit
+import WhoopProtocol
 import CoreLocation
 import UIKit
 import WhoopStore
@@ -179,6 +180,7 @@ final class HealthKitBridge: ObservableObject {
         }
         if let sleep = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) { s.insert(sleep) }
         s.insert(HKObjectType.workoutType())
+        s.insert(HKSeriesType.workoutRoute())
         return s
     }
 
@@ -1244,6 +1246,14 @@ final class HealthKitBridge: ObservableObject {
             )
             candidates.append(Candidate(type: type, key: key, sample: sample))
         }
+        // Keys of OUR earlier samples to delete with no replacement: a value this build no longer writes
+        // must not survive from a build that did.
+        var retracted: [HKQuantityType: [String]] = [:]
+        func retract(_ id: HKQuantityTypeIdentifier, _ day: String) {
+            guard let type = HKQuantityType.quantityType(forIdentifier: id),
+                  store.authorizationStatus(for: type) == .sharingAuthorized else { return }
+            retracted[type, default: []].append(HealthWriteback.appleHealthVitalKey(metricId: id.rawValue, day: day))
+        }
 
         for row in rows {
             guard let date = HealthKitBridge.date(from: row.day) else { continue }
@@ -1258,10 +1268,13 @@ final class HealthKitBridge: ObservableObject {
             // derivation in `AnalyticsEngine`, where a whole-night SD is shown to read 2-3× high. A row
             // without one exports no HRV at all; a wrong number in the user's Health history is worse
             // than a gap. (This replaces an export-time whole-night recomputation that had the same
-            // mislabelling problem upstream ryanbr/noop fixed in #1334.)
+            // mislabelling problem upstream ryanbr/noop fixed in #1334.) A night without an SDNN also
+            // retracts any sample an earlier build wrote for that day (#2264).
             if let sdnn = row.avgSdnn {
                 add(.heartRateVariabilitySDNN, .secondUnit(with: .milli), sdnn, row.day, at,
                     algorithmVersion: 1)
+            } else {
+                retract(.heartRateVariabilitySDNN, row.day)
             }
             if let spo2 = row.spo2Pct {
                 add(.oxygenSaturation, .percent(), spo2 / 100, row.day, at)
@@ -1282,21 +1295,23 @@ final class HealthKitBridge: ObservableObject {
         // Nothing about the regular write-back changed: the dedup below is still key-scoped, so this
         // pass keeps overwriting its own last-14-days samples exactly as before.
 
-        guard !candidates.isEmpty else { return 0 }
+        guard !candidates.isEmpty || !retracted.isEmpty else { return 0 }
 
         // Delete any of OUR prior samples that carry the same metadata keys, then write the fresh
         // batch. Scoped to HKSource.default() so we never touch a sample written by another app
         // that happens to use the same external UUID. Delete failures are non-fatal (e.g., nothing
         // to delete on first run) — only the save throws.
         let bySource = HKQuery.predicateForObjects(from: HKSource.default())
-        let grouped = Dictionary(grouping: candidates, by: { $0.type })
-        for (type, items) in grouped {
-            let keys = Array(Set(items.map { $0.key }))
+        var keysByType = Dictionary(grouping: candidates, by: { $0.type }).mapValues { $0.map { $0.key } }
+        for (type, keys) in retracted { keysByType[type, default: []] += keys }
+        for (type, allKeys) in keysByType {
+            let keys = Array(Set(allKeys))
             let byKey = HKQuery.predicateForObjects(withMetadataKey: HKMetadataKeyExternalUUID,
                                                     allowedValues: keys)
             let pred = NSCompoundPredicate(andPredicateWithSubpredicates: [bySource, byKey])
             _ = try? await self.store.deleteObjects(of: type, predicate: pred)
         }
+        guard !candidates.isEmpty else { return 0 }
         try await self.store.save(candidates.map { $0.sample })
         return candidates.count
     }
@@ -2080,8 +2095,34 @@ final class HealthKitBridge: ObservableObject {
                 extras.append(contentsOf: heartRate.map { $0 as HKSample })
                 if !extras.isEmpty { try await builder.addSamples(extras) }
                 try await builder.endCollection(at: end)
-                guard try await builder.finishWorkout() != nil else { continue }
+                guard let workout = try await builder.finishWorkout() else { continue }
                 written += 1
+
+                // #2340: workout route write-back. Load the encoded polyline and its original point
+                // measurements from the Apple-only side-store and attach them to the finished workout.
+                // We only do this if the workout type supports a distance (GPS) route.
+                if Self.distanceTypeId(forSport: row.sport) != nil,
+                   store.authorizationStatus(for: HKSeriesType.workoutRoute()) == .sharingAuthorized,
+                   let route = RouteStore.loadWithPoints(startTs: row.startTs, sport: row.sport),
+                   !route.polyline.isEmpty,
+                   route.hasExportableMeasurements,
+                   let points = route.points {
+                    let routeBuilder = HKWorkoutRouteBuilder(healthStore: store, device: .local())
+                    do {
+                        let locs = points.map { point in
+                            CLLocation(coordinate: CLLocationCoordinate2D(latitude: point.lat, longitude: point.lon),
+                                       altitude: 0, horizontalAccuracy: point.accuracyM, verticalAccuracy: -1,
+                                       timestamp: Date(timeIntervalSince1970: Double(point.tMs) / 1000))
+                        }
+                        try await routeBuilder.insertRouteData(locs)
+                        try await routeBuilder.finishRoute(with: workout, metadata: nil)
+                    } catch {
+                        // Route is optional enrichment. Discard its uncommitted series and retain the workout.
+                        routeBuilder.discard()
+                        // HealthKit route attachment failures are intentionally silent: writeBack's
+                        // lastError describes workout/sync failures, while this enrichment can safely be retried.
+                    }
+                }
             } catch {
                 builder.discardWorkout()
                 throw error
@@ -2632,9 +2673,12 @@ final class HealthKitBridge: ObservableObject {
         for (workout, row) in workoutsAndRows {
             if let route = await Self.fetchWorkoutRoute(for: workout, store: store),
                route.count >= 2 {
-                let polyline = RouteMath.encode(route)
-                let distanceM = RouteMath.totalMeters(route)
-                importedRoutes.append((WorkoutRoute(polyline: polyline, distanceM: distanceM),
+                let latLngs = route.map { RouteMath.LatLng($0.lat, $0.lon) }
+                let polyline = RouteMath.encode(latLngs)
+                let distanceM = RouteMath.totalMeters(latLngs)
+                // Keyed by the stored row's own start and sport label, which is what the detail screen
+                // looks the route up by (`HealthWorkoutActivityCatalog` names differ from `sportName`).
+                importedRoutes.append((WorkoutRoute(polyline: polyline, distanceM: distanceM, points: route),
                                        row.startTs, row.sport))
             }
         }
@@ -2702,12 +2746,12 @@ final class HealthKitBridge: ObservableObject {
         }
     }
 
-    /// #1205: fetch the GPS route (list of `RouteMath.LatLng`) for a single `HKWorkout`.
+    /// #1205: fetch the GPS route and its original timing/accuracy for a single `HKWorkout`.
     /// Queries `HKWorkoutRoute` samples overlapping the workout's time range, then collects all
     /// `CLLocation` waypoints from each route via `HKWorkoutRouteQuery`. Returns `nil` when there
     /// is no route, the user has not granted route read access, or HealthKit reports an error —
     /// all of which are graceful skips (the workout imports without a map, same as today).
-    nonisolated static func fetchWorkoutRoute(for workout: HKWorkout, store: HKHealthStore) async -> [RouteMath.LatLng]? {
+    nonisolated static func fetchWorkoutRoute(for workout: HKWorkout, store: HKHealthStore) async -> [WorkoutRoutePoint]? {
         let routeType = HKSeriesType.workoutRoute()
         let predicate = HKQuery.predicateForSamples(withStart: workout.startDate, end: workout.endDate, options: .strictStartDate)
         // First: query for HKWorkoutRoute samples associated with this workout.
@@ -2722,12 +2766,15 @@ final class HealthKitBridge: ObservableObject {
         guard !routes.isEmpty else { return nil }
         // Second: collect CLLocation waypoints from each route. HKWorkoutRouteQuery calls its
         // handler repeatedly with batches of locations; `done: true` marks the end of one route.
-        var points: [RouteMath.LatLng] = []
+        var points: [WorkoutRoutePoint] = []
         for route in routes {
             await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
                 let query = HKWorkoutRouteQuery(route: route) { _, locations, done, _ in
                     for loc in locations ?? [] {
-                        points.append(RouteMath.LatLng(loc.coordinate.latitude, loc.coordinate.longitude))
+                        points.append(WorkoutRoutePoint(lat: loc.coordinate.latitude,
+                                                        lon: loc.coordinate.longitude,
+                                                        accuracyM: loc.horizontalAccuracy,
+                                                        tMs: Int64(loc.timestamp.timeIntervalSince1970 * 1000)))
                     }
                     if done { cont.resume(returning: ()) }
                 }

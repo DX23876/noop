@@ -34,4 +34,23 @@ final class ActiveRouteJournalTests: XCTestCase {
         journal.clear()
         XCTAssertEqual(journal.load(), [])
     }
+
+    func testMeasuredPointsRestoreWithTheirTimeAndAccuracy() {
+        let journal = ActiveRouteJournal(url: url)
+        journal.append(measured: [WorkoutRoutePoint(lat: 47.3769, lon: 8.5417, accuracyM: 4.5, tMs: 1_700_000_000_000),
+                                  WorkoutRoutePoint(lat: 47.3770, lon: 8.5420, accuracyM: 6.25, tMs: 1_700_000_005_000)])
+        let restored = journal.loadMeasured()
+        XCTAssertEqual(restored.track, [.init(47.3769, 8.5417), .init(47.3770, 8.5420)])
+        XCTAssertEqual(restored.points?.map(\.tMs), [1_700_000_000_000, 1_700_000_005_000])
+        XCTAssertEqual(restored.points?.map(\.accuracyM), [4.5, 6.25])
+    }
+
+    func testABareLineRestoresTheTrackButNoMeasurements() {
+        let journal = ActiveRouteJournal(url: url)
+        journal.append([.init(47.1, 8.1)])
+        journal.append(measured: [WorkoutRoutePoint(lat: 47.2, lon: 8.2, accuracyM: 5, tMs: 1_700_000_000_000)])
+        let restored = journal.loadMeasured()
+        XCTAssertEqual(restored.track, [.init(47.1, 8.1), .init(47.2, 8.2)])
+        XCTAssertNil(restored.points)
+    }
 }

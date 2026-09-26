@@ -11,7 +11,7 @@ import GRDB
 public struct OuraRawRow: Equatable, Codable, Sendable {
     public let endpoint: String     // "sleep" | "daily_readiness" | "heartrate" | …
     public let documentId: String   // Oura `id`; for heartrate pages, a synthesized window key
-    public let day: String?         // YYYY-MM-DD when the document is day-keyed
+    public let day: String?         // Optional YYYY-MM-DD; page archives that span dates leave this nil
     public let payloadJSON: String  // verbatim object
     public let fetchedAt: Int       // unix seconds
     public init(endpoint: String, documentId: String, day: String?, payloadJSON: String, fetchedAt: Int) {
@@ -43,13 +43,25 @@ extension WhoopStore {
         }
     }
 
-    /// Archived payloads for a device + endpoint, oldest day first (null days sort first in SQLite).
+    /// Archived payloads for a device + endpoint, oldest `fetchedAt` first, ties broken by insertion order.
+    ///
+    /// Ordered on (fetchedAt, rowid) rather than `day`: the page producers leave `day` nil, so the whole
+    /// column was nil and `ORDER BY day ASC` degenerated to whatever order SQLite happened to return.
+    /// `rowid` breaks the tie because one fetch normally writes all of its pages in the same second, and
+    /// the page sequence within that second is the order they were written.
+    ///
+    /// A TIE is what rowid orders, not a fetch. `upsertOuraRaw` is an `ON CONFLICT DO UPDATE`, so a
+    /// re-pulled page keeps its original rowid but takes the NEW `fetchedAt`. Re-pulling one page of an
+    /// earlier fetch therefore moves that page to the end of this read while its siblings stay put, and
+    /// the pages of that fetch are no longer contiguous. That is the honest ordering, since the row really
+    /// was fetched later, but a reader that needs the pages of one fetch together has to group on
+    /// `fetchedAt` itself rather than assume this read hands them over adjacent.
     public func ouraRaw(deviceId: String, endpoint: String) async throws -> [OuraRawRow] {
         try syncRead { db in
             try Row.fetchAll(db, sql: """
                 SELECT endpoint, documentId, day, payloadJSON, fetchedAt FROM ouraRaw
                 WHERE deviceId = ? AND endpoint = ?
-                ORDER BY day ASC
+                ORDER BY fetchedAt ASC, rowid ASC
                 """, arguments: [deviceId, endpoint])
                 .map { OuraRawRow(endpoint: $0["endpoint"], documentId: $0["documentId"],
                                   day: $0["day"], payloadJSON: $0["payloadJSON"], fetchedAt: $0["fetchedAt"]) }

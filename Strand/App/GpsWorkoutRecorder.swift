@@ -21,9 +21,9 @@ import StrandAnalytics   // WorkoutsTrace + TestCentre: the GPS-fix line for the
 //                     mirroring Android `TrackFilter` (50 m accuracy gate, ~12 m/s speed gate). Bounds the
 //                     UNTRUSTED stream of OS location fixes before any of it reaches the stored route.
 //   • `RouteStore`  — a tiny on-device side-store (UserDefaults) keyed by a workout's natural key
-//                     (startTs + sport), holding the encoded polyline + distance for that session. The
-//                     shared `WhoopStore.WorkoutRow` carries no route column on Apple, so the route lives
-//                     here and is read back by WorkoutDetailView — exactly how `moments` / `sleepMarks` /
+//                     (startTs + sport), holding the encoded polyline, distance, and captured point
+//                     measurements for that session. `WorkoutRow` has no route column on Apple, so the
+//                     route lives here and is read back by WorkoutDetailView — like `moments` / `sleepMarks` /
 //                     the durable active-workout snapshot already persist on Apple. On-device only; never
 //                     leaves the phone.
 //   • `GpsWorkoutRecorder` — the thin CoreLocation wrapper. Requests When-In-Use, streams fixes through
@@ -190,13 +190,84 @@ final class TrackFilter {
 
 // MARK: - RouteStore (on-device side-store)
 
-/// The route persisted for one finished workout: the encoded polyline + the GPS distance it implies.
-/// A tiny `Codable` value, the unit a `RouteStore` keys by a workout's natural key.
+/// A waypoint with the measurements captured by CoreLocation. Accuracy is horizontal metres and time is
+/// milliseconds since epoch, matching `RawFix` without introducing CoreLocation into persisted data.
+struct WorkoutRoutePoint: Equatable, Codable {
+    var lat: Double
+    var lon: Double
+    var accuracyM: Double
+    var tMs: Int64
+}
+
+/// The route persisted for one finished workout: an encoded polyline, its GPS distance, and (when
+/// available) the original per-point measurements. Legacy entries may not carry point metadata.
 struct WorkoutRoute: Equatable, Codable {
     /// Google precision-5 polyline of the captured route (`RouteMath.encode`).
     var polyline: String
     /// Total GPS distance in metres (`RouteMath.totalMeters` of the captured points).
     var distanceM: Double
+    /// Original filtered GPS measurements. `nil` for routes saved before this field existed.
+    var points: [WorkoutRoutePoint]? = nil
+
+    /// Whether this route has enough trustworthy per-point data to export as a HealthKit time series.
+    /// Legacy routes remain drawable from their polyline but must never be exported with guessed values.
+    var hasExportableMeasurements: Bool {
+        guard let points, points.count >= 2 else { return false }
+        var previousTimestamp: Int64?
+        for point in points {
+            guard point.lat.isFinite, (-90...90).contains(point.lat),
+                  point.lon.isFinite, (-180...180).contains(point.lon),
+                  point.accuracyM.isFinite, point.accuracyM >= 0, point.tMs > 0 else { return false }
+            if let previousTimestamp, point.tMs <= previousTimestamp { return false }
+            previousTimestamp = point.tMs
+        }
+        return true
+    }
+}
+
+/// Per-workout GPS point measurements, held in one `UserDefaults` key EACH rather than in `RouteStore`'s
+/// map. Never leaves the device.
+///
+/// A point array is around thirteen times the size of the polyline that encodes the same path, roughly 75
+/// bytes of JSON per fix against six, and with `distanceFilter` at 5 m a 10 km run is about 2000 fixes. Kept
+/// in the routes map, 400 of those would be tens of megabytes that EVERY `RouteStore.load` decodes in full
+/// to answer one key: the same cost `RouteStore.storeAll` already exists to avoid on the write side, and the
+/// detail screen pays it just to draw a polyline it does not need points for. One key per workout keeps the
+/// routes map the handful of bytes its cap assumes, and leaves the heavy series to the one reader that wants
+/// it, a blob at a time.
+enum RoutePointStore {
+
+    /// `UserDefaults` key for one workout's points, suffixed with the same natural key `RouteStore` uses.
+    static func defaultsKey(for mapKey: String) -> String { "noop.workoutRoutePoints." + mapKey }
+
+    /// Encode / decode are pure so the round-trip is unit-testable. An empty array reads back as nil, so
+    /// "recorded no points" and "saved before points existed" are the same absent answer to a caller.
+    static func encode(_ points: [WorkoutRoutePoint]) -> Data? { try? JSONEncoder().encode(points) }
+
+    static func decode(_ data: Data?) -> [WorkoutRoutePoint]? {
+        guard let data, !data.isEmpty,
+              let points = try? JSONDecoder().decode([WorkoutRoutePoint].self, from: data),
+              !points.isEmpty else { return nil }
+        return points
+    }
+
+    static func load(for mapKey: String, from defaults: UserDefaults = .standard) -> [WorkoutRoutePoint]? {
+        decode(defaults.data(forKey: defaultsKey(for: mapKey)))
+    }
+
+    /// Persist or clear one workout's points. nil / empty removes the key rather than storing a placeholder.
+    static func store(_ points: [WorkoutRoutePoint]?, for mapKey: String,
+                      into defaults: UserDefaults = .standard) {
+        guard let points, !points.isEmpty, let data = encode(points) else {
+            defaults.removeObject(forKey: defaultsKey(for: mapKey))
+            return
+        }
+        defaults.set(data, forKey: defaultsKey(for: mapKey))
+    }
+
+    static func remove(for mapKey: String, from defaults: UserDefaults = .standard) {
+        defaults.removeObject(forKey: defaultsKey(for: mapKey))
+    }
 }
 
 /// On-device persistence for finished GPS routes, keyed by a workout's natural key (startTs + sport) so a
@@ -274,14 +345,26 @@ enum RouteStore {
         let usable = entries.filter { !$0.route.polyline.isEmpty }
         guard !usable.isEmpty else { return }
         var map = loadMap(from: defaults)
-        for e in usable { map[key(startTs: e.startTs, sport: e.sport)] = e.route }
+        for e in usable {
+            let k = key(startTs: e.startTs, sport: e.sport)
+            // The map holds the polyline only. Points go to their own key (`RoutePointStore`), so the map
+            // stays small enough for the every-read full decode its cap assumes.
+            var light = e.route
+            light.points = nil
+            map[k] = light
+            RoutePointStore.store(e.route.points, for: k, into: defaults)
+        }
         if map.count > maxRoutes {
             // Keys lead with the startTs, so a lexicographic sort by the numeric prefix evicts the oldest.
             let ordered = map.keys.sorted { lhs, rhs in
                 (Int(lhs.split(separator: "|").first ?? "") ?? 0)
                     < (Int(rhs.split(separator: "|").first ?? "") ?? 0)
             }
-            for k in ordered.prefix(map.count - maxRoutes) { map.removeValue(forKey: k) }
+            for k in ordered.prefix(map.count - maxRoutes) {
+                map.removeValue(forKey: k)
+                // Evict the points with the route, or their keys would outlive it forever.
+                RoutePointStore.remove(for: k, from: defaults)
+            }
         }
         guard let data = encodeMap(map) else { return }
         defaults.set(data, forKey: defaultsKey)
@@ -290,9 +373,20 @@ enum RouteStore {
     /// Remove a workout's route (used when a session is deleted; keeps the side-store from leaking).
     static func remove(startTs: Int, sport: String, from defaults: UserDefaults = .standard) {
         var map = loadMap(from: defaults)
+        RoutePointStore.remove(for: key(startTs: startTs, sport: sport), from: defaults)
         guard map.removeValue(forKey: key(startTs: startTs, sport: sport)) != nil,
               let data = encodeMap(map) else { return }
         defaults.set(data, forKey: defaultsKey)
+    }
+
+    /// The route WITH its recorded point measurements, for the one caller that needs them (the HealthKit
+    /// route export). Everything that only draws the path uses `load`, which never touches the points.
+    static func loadWithPoints(startTs: Int, sport: String,
+                               from defaults: UserDefaults = .standard) -> WorkoutRoute? {
+        let k = key(startTs: startTs, sport: sport)
+        guard var route = loadMap(from: defaults)[k] else { return nil }
+        route.points = RoutePointStore.load(for: k, from: defaults)
+        return route
     }
 }
 
@@ -330,8 +424,8 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
     private let manager = CLLocationManager()
     private var filter = TrackFilter()
     private var track: [RouteMath.LatLng] = []
-    /// Accepted points not yet written to the route journal.
-    private var unjournaledPoints: [RouteMath.LatLng] = []
+    /// Accepted points not yet written to the route journal, with their recorded accuracy and time.
+    private var unjournaledPoints: [WorkoutRoutePoint] = []
     private var lastJournalFlush = Date.distantPast
     /// Time of the newest fix seen, for the Workouts trace's gap line.
     private var lastFixMs: Int64 = 0
@@ -345,6 +439,9 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
     /// location indicator honest. Held only while a route is being recorded.
     private var backgroundActivity: AnyObject?
     #endif
+    /// The recorded measurement of every point in `track`, index for index. After a restore from a journal
+    /// without measurements it holds fewer, and `capturedRoute` then exports none (#2340).
+    private var routePoints: [WorkoutRoutePoint] = []
     private var startMs: Int64 = 0
     private var pausedAtMs: Int64?
     private var pausedDurationMs: Int64 = 0
@@ -381,6 +478,7 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
         journal.clear()
         unjournaledPoints.removeAll()
         track.removeAll()
+        routePoints.removeAll()
         filter = TrackFilter()
         self.startMs = startMs
         pausedAtMs = nil
@@ -411,11 +509,12 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
     /// live pace excludes all time the workout spent paused before and across the relaunch.
     func restore(startMs: Int64, pausedAtMs: Int64?, pausedDurationMs: Int64) {
         // Read the journal BEFORE `start`, which clears it for a fresh session.
-        let saved = journal.load()
+        let saved = journal.loadMeasured()
         start(startMs: startMs)
-        if saved.count > 0 {
-            track = saved
-            journal.append(saved)
+        if saved.track.count > 0 {
+            track = saved.track
+            routePoints = saved.points ?? []
+            if let points = saved.points { journal.append(measured: points) } else { journal.append(saved.track) }
             pointCount = track.count
             distanceM = RouteMath.totalMeters(track)
         }
@@ -444,7 +543,7 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
     /// app moves to the background.
     func flushJournal() {
         guard !unjournaledPoints.isEmpty else { return }
-        journal.append(unjournaledPoints)
+        journal.append(measured: unjournaledPoints)
         unjournaledPoints.removeAll(keepingCapacity: true)
         lastJournalFlush = Date()
     }
@@ -477,7 +576,8 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
     func capturedRoute() -> WorkoutRoute? {
         guard track.count >= 2 else { return nil }
         return WorkoutRoute(polyline: RouteMath.encode(track),
-                            distanceM: RouteMath.totalMeters(track))
+                            distanceM: RouteMath.totalMeters(track),
+                            points: routePoints.count == track.count ? routePoints : nil)
     }
 
     // MARK: Updates
@@ -521,7 +621,10 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
                 // session steadily more expensive, and that work runs in the background too.
                 if let last = track.last { added += RouteMath.haversineMeters(last, pt) }
                 track.append(pt)
-                unjournaledPoints.append(pt)
+                let measured = WorkoutRoutePoint(lat: fix.lat, lon: fix.lon,
+                                                 accuracyM: fix.accuracyM, tMs: fix.tMs)
+                routePoints.append(measured)
+                unjournaledPoints.append(measured)
                 changed = true
             }
         }

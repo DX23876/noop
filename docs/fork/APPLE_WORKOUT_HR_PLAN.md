@@ -2,6 +2,13 @@
 
 Stand: 2026-09-24 · Status: **Idee aufgenommen, Entscheidungen offen (Q1–Q6), noch nichts umgesetzt**
 
+**2026-09-26:** Upstream hat #2440 samt Nachbesserungen gemergt (zugehöriger Puls via
+`predicateForObjects(from:)` + `notNoopAuthored`, Rückfall aufs Band `62e3666e7`, eine Quelle für die ganze
+Zeile `ccab5db02`). Beim Sync durch `ba68fd8cd` ist das in der History, `collectWorkouts` blieb aber
+bewusst fork-eigen (Nutzerentscheidung): Die Funktion wird als Nächstes nach diesem Plan gebaut. Upstreams
+Zwei-Schwellen-Regel (Ø/Max ohne Mindestmenge, Effort ab 20 Samples über 10 Minuten) und „eine Quelle
+beantwortet die ganze Zeile“ sind als Vorlage brauchbar.
+
 Anlass: Upstream-PR [ryanbr/noop#2440](https://github.com/ryanbr/noop/pull/2440) von `@rodrigosa7`
 („Health: Calculate effort for Apple Health workouts“, zu Issue
 [#2439](https://github.com/ryanbr/noop/issues/2439)). Der Autor hat gefragt, ob wir das in den Fork aufnehmen.

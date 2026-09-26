@@ -557,21 +557,9 @@
           }
         },
         "it" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld allenamento"
-                }
-              },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld allenamenti"
-                }
-              }
-            }
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld allenamenti"
           }
         },
         "zh-Hans" : {
@@ -659,7 +647,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld g fa"
+            "value" : "%lldg fa"
           }
         },
         "zh-Hans" : {
@@ -787,7 +775,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld min fa"
+            "value" : "%lldm fa"
           }
         },
         "zh-Hans" : {
@@ -1571,7 +1559,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "MASSIMO SFORZO"
+            "value" : "MASSIMO"
           }
         },
         "zh-Hans" : {
@@ -3198,7 +3186,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Fatto"
+            "value" : "Fine"
           }
         },
         "ru" : {
@@ -5657,7 +5645,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nessun dato sulla frequenza cardiaca"
+            "value" : "Nessun dato di frequenza cardiaca"
           }
         },
         "zh-Hans" : {
@@ -6561,7 +6549,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Calendario del recupero: %lld giorni, media %lld, minimo %lld, massimo %lld"
+            "value" : "Calendario recupero, %lld giorni, media %lld, minimo %lld, massimo %lld"
           }
         },
         "zh-Hans" : {
@@ -6625,7 +6613,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Calendario del recupero, nessun dato"
+            "value" : "Calendario recupero, nessun dato"
           }
         },
         "zh-Hans" : {
@@ -9330,7 +9318,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Andamento: %lld punti, ultimo %@, minimo %@, massimo %@"
+            "value" : "Andamento, %lld punti, ultimo %@, minimo %@, massimo %@"
           }
         },
         "zh-Hans" : {

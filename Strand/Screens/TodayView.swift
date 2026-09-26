@@ -766,6 +766,20 @@ struct TodayView: View {
         return min(upper, max(0, current + delta))
     }
 
+    /// #2378 - the day step a horizontal swipe of `dx` points asks for: +1 OLDER, -1 NEWER.
+    ///
+    /// Rightward (dx > 0) is OLDER and leftward is NEWER, which is direct manipulation — dragging the
+    /// content left brings the page to its right, the later day, into view — and the direction the
+    /// Kotlin twin already takes (`dayNavSwipeTarget`, pinned by `DayNavTest`). Apple ran the opposite
+    /// way in both shells, so the same gesture moved the day backwards here and forwards there.
+    ///
+    /// Pure and shared by both Apple shells so the direction is pinned by a test rather than living
+    /// twice inside gesture closures, which is how the two platforms drifted apart unnoticed.
+    /// Mirror EXACTLY in Kotlin.
+    static func daySwipeDelta(dx: CGFloat) -> Int {
+        dx > 0 ? 1 : -1
+    }
+
     /// #16 - whole days-back offset for a date chosen in the day-nav picker, measured from the LOGICAL day
     /// (not raw Date()). Pure + unit-testable so the 00:00-04:00 rollover case is locked: in that window the
     /// logical day is the PREVIOUS calendar day, so anchoring the offset here (rather than on raw Date())
@@ -1316,8 +1330,8 @@ struct TodayView: View {
                 let dy = value.translation.height
                 // Horizontal-dominant and far enough to count as a deliberate day flip.
                 guard abs(dx) > abs(dy) * 1.5, abs(dx) > 50 else { return }
-                // Swipe LEFT (dx < 0) -> OLDER day (+1 offset); swipe RIGHT -> NEWER day (-1 offset).
-                let delta = dx < 0 ? 1 : -1
+                // Swipe RIGHT (dx > 0) -> OLDER day (+1 offset); swipe LEFT -> NEWER day (-1 offset).
+                let delta = Self.daySwipeDelta(dx: dx)
                 let next = Self.clampedDayOffset(current: selectedDayOffset, delta: delta,
                                                  maxOffset: earliestDayOffset)
                 guard next != selectedDayOffset else { return }
@@ -1857,69 +1871,6 @@ struct TodayView: View {
     }
 
     // MARK: First-run scoring-guide card (one-time, dismissible)
-
-    /// "New here?", a single, dismissible card that points first-time users at the guide. Tapping the
-    /// card opens the guide; the ✕ closes it. Either action sets `scoringGuideCardSeen`, so it shows
-    /// once and never again. Follows the in-flow, never-modal card pattern.
-    private var scoringGuideFirstRunCard: some View {
-        NoopCard {
-            HStack(alignment: .top, spacing: 14) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 18))
-                    .foregroundStyle(StrandPalette.accent)
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("New here?")
-                        .font(StrandFont.headline)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                    Text("See how Charge, Effort and Rest are calculated, and how they differ from WHOOP.")
-                        .font(StrandFont.subhead)
-                        .foregroundStyle(StrandPalette.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Button {
-                        scoringGuideCardSeen = true
-                        showGuideTop = true
-                    } label: {
-                        Label("How your scores work", systemImage: "arrow.right")
-                            .font(StrandFont.subhead)
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(StrandPalette.accent)
-                    .padding(.top, 2)
-                }
-                Spacer(minLength: 0)
-                Button {
-                    // Dismiss INTO the Updates inbox (restorable), rather than permanently hiding.
-                    withAnimation(StrandMotion.interactive) {
-                        dismissTodayCard(
-                            id: "newHere",
-                            title: String(localized: "New here?"),
-                            message: String(localized: "How Charge, Effort and Rest are calculated, and how they differ from WHOOP.")
-                        )
-                    }
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(StrandPalette.textTertiary)
-                        .padding(6)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Dismiss")
-            }
-            // The whole card is tappable as the primary action; the ✕ stops the tap from also firing.
-            .contentShape(Rectangle())
-            .onTapGesture {
-                #if os(iOS)
-                StrandHaptic.selection.play()
-                #endif
-                scoringGuideCardSeen = true
-                showGuideTop = true
-            }
-        }
-        // Press-down feedback for the tappable card surface.
-        .strandPressable()
-    }
 
     // MARK: Readiness, on-device training-readiness synthesis (HRV / resting-HR / load).
 
@@ -4870,8 +4821,9 @@ struct TodayView: View {
     ///
     /// The same "hosting none pays nothing" rule the sleep model above follows. `StressDayCurve` does
     /// the gating: it reads nothing until a cheap heart-rate fingerprint says today's heart rate moved,
-    /// and it memoises, so the iOS widget publishing from the same producer shares this computation
-    /// rather than scoring the day a second time.
+    /// and it memoises. The foreground lens is part of that memo's identity: Today shares the default
+    /// computation with the widget when the toggle is off, and recomputes with the selected personal
+    /// lens when it is on so this card and Stress detail cannot disagree.
     private func loadHostedStress() async {
         guard HostedCardPrefs.decodeEnabled(hostedCardsRaw).contains(.stressToday) else {
             hostedStressHours = []
@@ -4879,7 +4831,10 @@ struct TodayView: View {
         }
         // `timeline`, not `hours`: the half-step display series, so the curve tracks the day rather
         // than stepping through it, matching the widget and the Android card.
-        hostedStressHours = await StressDayCurve.today(repo: repo)?.result.timeline ?? []
+        hostedStressHours = await StressDayCurve.today(
+            repo: repo,
+            personalBaseline: PuffinExperiment.stressPersonalBaselineEnabled
+        )?.result.timeline ?? []
     }
 
     private func loadHostedSleepModel() async {
@@ -5475,27 +5430,6 @@ struct TodayView: View {
         }
     }
 
-    private var dateLine: String {
-        // The selected day's date when navigated; today's banked-row date (or today) at offset 0.
-        if selectedDayOffset == 0, let day = repo.today?.day, let date = Self.dayParser.date(from: day) {
-            return date.formatted(
-                .dateTime.weekday(.wide).day().month(.wide).locale(AppLanguage.activeLocale)
-            )
-        }
-        return selectedLogicalDay.formatted(
-            .dateTime.weekday(.wide).day().month(.wide).locale(AppLanguage.activeLocale)
-        )
-    }
-
-    /// Hero title that names the selected day, "Today's"/"Yesterday's"/"Day's" Synthesis.
-    private var synthesisTitle: LocalizedStringKey {
-        switch selectedDayOffset {
-        case 0:  return "Today’s Synthesis"
-        case 1:  return "Yesterday’s Synthesis"
-        default: return "Synthesis"
-        }
-    }
-
     /// Section overline naming the selected day, "Today"/"Yesterday"/"EEE d MMM".
     private var selectedDayOverline: String {
         switch selectedDayOffset {
@@ -5509,12 +5443,6 @@ struct TodayView: View {
         }
     }
 
-
-    private func ringSupporting(_ d: DailyMetric?) -> String {
-        let hrv = d?.avgHrv.map { String(localized: "\(Int($0.rounded())) ms") } ?? " - ms"
-        let rhr = d?.restingHr.map { "\($0)" } ?? "—"
-        return String(localized: "HRV \(hrv) · RHR \(rhr)")
-    }
 
     private func sleepValue(_ d: DailyMetric?) -> String {
         guard let m = d?.totalSleepMin else { return "—" }

@@ -656,14 +656,14 @@ public enum SleepStager {
     /// `public` because the app target calls it: `Strand/Data/IntelligenceEngine.swift` is the day scan,
     /// and it lives outside this package. The spine and the anchor below it stay `internal` — the tests
     /// reach them with `@testable`, and nothing outside should be building its own spine.
-    public static func hrOnlySessions(hr: [HRSample], rr: [RRInterval], resp: [RespSample],
+    public static func hrOnlySessions(day: String, hr: [HRSample], rr: [RRInterval], resp: [RespSample],
                                       minMinutes: Int = minSleepMin,
                                       traceSink: ((String) -> Void)? = nil) -> [SleepSession] {
         let hrS = hr.sorted { $0.ts < $1.ts }
         // ONE sort of the bpm axis, reused for the anchor and for the spread the trace reports.
         let sortedBpm = hrS.map { Double($0.bpm) }.sorted()
         guard let baseline = percentileOfSorted(sortedBpm, hrOnlyAnchorPercentile) else {
-            traceSink?(GateTrace.hrOnlyLine(anchorBpm: nil, bandBpm: nil, hrP50: nil, hrP90: nil,
+            traceSink?(GateTrace.hrOnlyLine(day: day, anchorBpm: nil, bandBpm: nil, hrP50: nil, hrP90: nil,
                                             epochs: 0, runs: 0,
                                             mergedRuns: 0, sleepRuns: 0, longestSleepMin: 0,
                                             staged: 0, kept: 0, minSleepMin: minMinutes))
@@ -702,6 +702,7 @@ public enum SleepStager {
                                     hrOnly: true))
         }
         traceSink?(GateTrace.hrOnlyLine(
+            day: day,
             anchorBpm: baseline,
             bandBpm: baseline * hrOnlyBandMult,
             // The wearer's own spread. An anchor alone cannot be judged: p10 of 60 means one thing when
@@ -2669,12 +2670,21 @@ public enum SleepStager {
         return .noRespFallbackBar                          // resp never measured and the no-resp bar unmet
     }
 
-    /// Read-only REM-funnel triage for ONE in-bed window [start, end] (#688). Re-runs the SAME Stage-0→3
-    /// staging seam `stageSession` uses (epoch grid → Cole–Kripke → features → classify → smooth →
-    /// re-impose), but instead of emitting a hypnogram it COUNTS where REM was lost. Changes NOTHING:
-    /// no label, no score, no session. Returns nil only when the window has too little gravity to grid
-    /// (mirroring `stageSession`'s degenerate fallback, which carries no REM to explain). The caller
-    /// logs `.summary`; tests assert the counts. Pure + deterministic. (#688)
+    /// Read-only REM-funnel triage for ONE in-bed window [start, end] (#688). Re-runs THIS type's
+    /// Stage-0→3 seam (epoch grid → Cole–Kripke → features → classify → smooth → re-impose), but
+    /// instead of emitting a hypnogram it COUNTS where REM was lost. Changes NOTHING: no label, no
+    /// score, no session. Returns nil only when the window has too little gravity to grid (mirroring
+    /// `stageSession`'s degenerate fallback, which carries no REM to explain). The caller logs
+    /// `.summary`; tests assert the counts. Pure + deterministic. (#688)
+    ///
+    /// WHICH HYPNOGRAM THIS EXPLAINS. V1's, always — this function is `SleepStager`'s own seam. It used
+    /// to say it explained "the SAME hypnogram" as the screen, and that has been false since V2 became
+    /// the default: the shipped hypnogram is staged by `SleepStagerV2` whenever
+    /// `experimentalSleepV2Enabled` says so, which is by default. On a 5/MG the two can be far apart,
+    /// because V1's primary REM gate needs the raw respiratory channel the hardware never emits while V2
+    /// recovers respiration regularity from R-R: one field pair reported ~46 min REM here against hours
+    /// on the screen for the same night (#2365). The caller's line names both stagers for that reason
+    /// (#2366); do not restore the claim that they are one. 
     public static func remFunnelDiagnostic(start: Int, end: Int, grav: [GravitySample],
                                            hr: [HRSample], rr: [RRInterval],
                                            resp: [RespSample]) -> REMFunnelDiagnostic? {
@@ -2967,7 +2977,7 @@ public enum SleepStager {
     }
 
     /// Mean RMSSD over 5-min tumbling windows across the session (ms), or nil.
-    /// Uses the same range-filter + ≥2-valid-interval rule as hrv.rmssd().
+    /// A window counts only with `HRVAnalyzer.minBeats` clean intervals (see `sessionHrvWindows`).
     static func sessionAvgHRV(start: Int, end: Int, rr: [RRInterval]) -> Double? {
         let vals = sessionHrvWindows(start: start, end: end, rr: rr, stages: []).compactMap { $0.rmssd }
         if vals.isEmpty { return nil }
@@ -2981,6 +2991,16 @@ public enum SleepStager {
         // Classified over the SAME beats the value was built from, windowed [start, end] exactly as
         // `sessionHrvWindows` does, so the verdict cannot describe a different set of beats than the number
         // it is gating.
+        guard !sessionHrvOverCounted(start: start, end: end, rr: rr) else { return nil }
+        return vals.reduce(0, +) / Double(vals.count)
+    }
+
+    /// Whether the #1118 coverage gate refuses a session's HRV: its own R-R, windowed [start, end] exactly
+    /// as `sessionAvgHRV` windows it, banks more beat-time than the wall clock allows. Pure. The ONE
+    /// definition of "refused": `sessionAvgHRV` gates on it, and `AnalyticsEngine` asks it whether a main
+    /// night's missing HRV was refused rather than never measured, so the two cannot disagree about which
+    /// nights were refused. Byte-parity twin of Kotlin `SleepStager.sessionHrvOverCounted`.
+    static func sessionHrvOverCounted(start: Int, end: Int, rr: [RRInterval]) -> Bool {
         let seg = rr.filter { $0.ts >= start && $0.ts <= end }
         let segTs = seg.map { $0.ts }
         let segMs = seg.map { Double($0.rrMs) }
@@ -2994,15 +3014,13 @@ public enum SleepStager {
         // buying a distinction the caller discards would hand that back. `rrCoverage` is a single O(n)
         // pass. If a future gate ever needs the two over-count cases apart, compute it then.
         let verdict = HRVAnalyzer.classifyCoverage(coverage: coverage, collapsed: coverage)
-        if !HRVAnalyzer.successiveDiffIsTrustworthy(verdict) {
-            // Rows written before transport provenance cannot be reconciled after the fact: the old
-            // schema did not record whether a beat came from historical, proprietary realtime, or
-            // standard 0x2A37 delivery. Keep the pre-v3 result for a wholly legacy night and let the
-            // persisted `hrv_rr_overcount` flag label it unverified. New tagged data remains strictly
-            // gated if reconciliation still cannot bring it below the physical coverage ceiling.
-            guard seg.allSatisfy({ $0.transport == nil }) else { return nil }
-        }
-        return vals.reduce(0, +) / Double(vals.count)
+        guard !HRVAnalyzer.successiveDiffIsTrustworthy(verdict) else { return false }
+        // Rows written before transport provenance cannot be reconciled after the fact: the old schema did
+        // not record whether a beat came from historical, proprietary realtime, or standard 0x2A37 delivery.
+        // A wholly legacy night is therefore NOT refused: it keeps its pre-v3 result and the persisted
+        // `hrv_rr_overcount` flag labels it unverified. New tagged data remains strictly gated if
+        // reconciliation still cannot bring it below the physical coverage ceiling.
+        return !seg.allSatisfy({ $0.transport == nil })
     }
 
     /// Per-5-min-window RMSSD across a session, each window tagged with the sleep stage at its CENTER
@@ -3044,7 +3062,11 @@ public enum SleepStager {
             // #204/#195: gap-aware — a successive difference straddling a dropped beat is skipped so a
             // removed out-of-range/ectopic beat can't splice its neighbours into a spurious delta.
             let cleaned = HRVAnalyzer.cleanRRGapAware(bucket)
-            let rmssd: Double? = (cleaned.nn.count >= 2) ? HRVAnalyzer.rmssdGapAware(cleaned.nn, cleaned.contiguous) : nil
+            // The same `minBeats` floor the spot reading and the SDNN index apply. The night is a plain mean
+            // over windows, so without it a window left with a handful of clean beats (a dropout, a
+            // movement-shredded stretch, a short final window) weighed as much as a full five minutes.
+            let rmssd: Double? = (cleaned.nn.count >= HRVAnalyzer.minBeats)
+                ? HRVAnalyzer.rmssdGapAware(cleaned.nn, cleaned.contiguous) : nil
             let center = t + windowS / 2
             while stageIndex < stages.count, center >= stages[stageIndex].end { stageIndex += 1 }
             let stage = stageIndex < stages.count

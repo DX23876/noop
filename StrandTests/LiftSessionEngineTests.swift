@@ -98,6 +98,43 @@ final class LiftSessionEngineTests: XCTestCase {
         XCTAssertEqual(e.slotAfter(slot(2, 2)), slot(0, 1), "exhausted -> first pending in plan order")
     }
 
+    // MARK: - What comes next (the bar and the Lock Screen)
+
+    /// "Next" names the set the taps will actually reach — never the rest in between, and never a
+    /// guess of its own. Walked through a whole session with an exercise skipped and come back to,
+    /// the set named during a set and during its rest is the one `advance` then lands on.
+    func testTheNextSetNamedIsTheOneTheTapsReach() {
+        var e = LiftSessionEngine(plan: threeExercisePlan(), startTs: t0)
+        XCTAssertEqual(e.upcomingSlot, slot(0, 1), "the warm-up names the set the first tap starts")
+
+        e.start(slot(2, 1), now: t0 + 10)   // exercise 0's machine is busy
+        var now = t0 + 10
+        while !e.allCompleted {
+            guard case .working(let current) = e.stage else { return XCTFail("expected a set, got \(e.stage)") }
+            let namedWhileWorking = e.upcomingSlot
+            now += 30; e.advance(now: now)                     // set done -> rest
+            XCTAssertEqual(e.upcomingSlot, namedWhileWorking, "the rest names what the set named")
+            now += 60; e.advance(now: now)                     // rest done -> next set
+            if e.allCompleted {
+                XCTAssertNil(namedWhileWorking, "\(current) was the last set, so nothing was next")
+            } else {
+                XCTAssertEqual(e.stage, .working(namedWhileWorking!), "after \(current)")
+            }
+        }
+        XCTAssertNil(e.upcomingSlot, "a complete sheet has nothing next")
+    }
+
+    /// The last set of an exercise names the next exercise, and the order is the one a gym forces:
+    /// the rest of the machine you are at first, then the skipped exercise.
+    func testTheLastSetOfAnExerciseNamesTheNextExercise() {
+        var e = LiftSessionEngine(plan: threeExercisePlan(), startTs: t0)
+        e.start(slot(2, 1), now: t0)
+        XCTAssertEqual(e.upcomingSlot, slot(2, 2), "the same machine first")
+        e.advance(now: t0 + 30); e.advance(now: t0 + 90)
+        XCTAssertEqual(e.stage, .working(slot(2, 2)))
+        XCTAssertEqual(e.upcomingSlot, slot(0, 1), "exercise 2 is done after this set: the skipped one")
+    }
+
     // MARK: - Grey numbers
     //
     // A finished set records its timing only. Its numbers stay grey until typed, and what a set without
@@ -114,7 +151,7 @@ final class LiftSessionEngineTests: XCTestCase {
         XCTAssertNil(row?.weightKg, "a grey number is not an entry")
         XCTAssertNil(row?.reps)
         XCTAssertEqual(e.values(of: slot(0, 1), lastSession: [:]), LiftSetCarry(weightKg: 50, reps: 10))
-        XCTAssertEqual(e.unenteredSlots.first, slot(0, 1))
+        XCTAssertFalse(e.unperformedSlots.contains(slot(0, 1)), "done, so complete even with nothing typed")
     }
 
     /// The second set follows what the FIRST set counts as — if you dropped to 45 kg, set 2 follows
@@ -188,14 +225,14 @@ final class LiftSessionEngineTests: XCTestCase {
         XCTAssertEqual(e.values(of: slot(0, 1), lastSession: [:]), LiftSetCarry(weightKg: 0, reps: 0))
     }
 
-    /// Only a set with nothing typed at all is unentered; a rating alone counts as an entry.
-    func testUnenteredSlotsAreTheOnesNobodyTypedInto() {
+    /// Only a set never started is unperformed. A set that was done counts as done whether or not
+    /// anything was typed into it (Utku, 21 Sep 2026).
+    func testUnperformedSlotsAreTheOnesNeverStarted() {
         var e = LiftSessionEngine(plan: twoExercisePlan(), startTs: t0)
         e.start(slot(0, 1), now: t0); e.advance(now: t0 + 40)     // done, untyped
         e.start(slot(0, 2), now: t0 + 100); e.advance(now: t0 + 140)
         e.updateSet(slot(0, 2), weightKg: nil, reps: nil, rpe: 8, isWarmup: false)
-        XCTAssertEqual(e.unenteredSlots, [slot(0, 1), slot(1, 1)],
-                       "an untyped finished set and a never-started one; the rated set is entered")
+        XCTAssertEqual(e.unperformedSlots, [slot(1, 1)], "only the set nobody started")
     }
 
     // MARK: - The default in-order path

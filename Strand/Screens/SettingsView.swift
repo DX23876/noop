@@ -79,12 +79,6 @@ struct SettingsView: View {
     @State private var showOversizeRestoreConfirm = false
     @State private var oversizeRestoreMessage = ""
 
-    /// Opt-in WHOOP 5/MG protocol experiments (off by default). See [PuffinExperiment].
-    @AppStorage(PuffinExperiment.defaultsKey) private var puffinExperiments = false
-
-    /// Opt-in WHOOP 5/MG raw-frame capture to a file (off by default). See [PuffinFrameRecorder].
-    @AppStorage(PuffinFrameRecorder.enabledKey) private var puffinCapture = false
-
     /// Opt-in WHOOP 5/MG "R22" deep-data unlock (off by default) — the one probe that writes a
     /// persistent feature flag to the strap. See [PuffinExperiment.deepDataKey]. (#174)
     @AppStorage(PuffinExperiment.deepDataKey) private var deepDataEnabled = false
@@ -95,15 +89,6 @@ struct SettingsView: View {
     /// like an undo. Asking is the right shape rather than writing automatically: the strap may not be
     /// connected, and a write to bonded hardware is not something a toggle should do unannounced.
     @State private var confirmingDeepDataDisable = false
-
-    /// Opt-in "Broadcast heart rate" (off by default) — makes the strap advertise its HR as a standard
-    /// BLE sensor for Garmin/Zwift/gym kit. See [PuffinExperiment.broadcastHrKey]. (#181)
-    @AppStorage(PuffinExperiment.broadcastHrKey) private var broadcastHrEnabled = false
-
-    /// #891 opt-in: writes the device-config key `enable_raw_data_w_ecg` on an attested WHOOP MG. A
-    /// persistent strap write, so it gets its own deliberate switch like #174 and #181.
-    /// See [PuffinExperiment.ecgRawDataKey].
-    @AppStorage(PuffinExperiment.ecgRawDataKey) private var ecgRawDataEnabled = false
 
     /// #103 opt-in: surfaces the WHOOP 5/MG `spo2_candidate_82` nightly mean in the Blood Oxygen tile
     /// as a "strap estimate (unverified)" fallback when no calibrated `spo2Pct` exists. Display-only —
@@ -121,6 +106,21 @@ struct SettingsView: View {
     /// Default OFF — it re-scores the whole window against a different recipe. See
     /// [PuffinExperiment.banisterEffortKey].
     @AppStorage(PuffinExperiment.banisterEffortKey) private var banisterEffortEnabled = false
+
+    /// Opt-in WHOOP 5/MG protocol experiments (off by default). See [PuffinExperiment].
+    @AppStorage(PuffinExperiment.defaultsKey) private var puffinExperiments = false
+
+    /// Opt-in WHOOP 5/MG raw-frame capture to a file (off by default). See [PuffinFrameRecorder].
+    @AppStorage(PuffinFrameRecorder.enabledKey) private var puffinCapture = false
+
+    /// Opt-in "Broadcast heart rate" (off by default) — makes the strap advertise its HR as a standard
+    /// BLE sensor for Garmin/Zwift/gym kit. See [PuffinExperiment.broadcastHrKey]. (#181)
+    @AppStorage(PuffinExperiment.broadcastHrKey) private var broadcastHrEnabled = false
+
+    /// #891 opt-in: writes the device-config key `enable_raw_data_w_ecg` on an attested WHOOP MG. A
+    /// persistent strap write, so it gets its own deliberate switch like #174 and #181.
+    /// See [PuffinExperiment.ecgRawDataKey].
+    @AppStorage(PuffinExperiment.ecgRawDataKey) private var ecgRawDataEnabled = false
 
     /// True when the connected strap has positively attested itself a WHOOP MG. The variant is published as
     /// its label string (`LiveState.whoop5Variant`); "MG" is `Whoop5Variant.mg.label`. nil / not-yet-
@@ -177,6 +177,12 @@ struct SettingsView: View {
     /// card. Default off; with it off the four ECG opcodes are dropped by the command allowlist, so no
     /// ECG byte can reach a strap. See [PuffinExperiment.ecgKey].
     @AppStorage(PuffinExperiment.ecgKey) private var ecgEnabled = false
+
+    /// #646/#651: the "Export raw + log" button's zip build now runs off the main actor, so a second tap
+    /// mid-export would fire a second `exportPair` — two staged zips, two save panels / stacked share
+    /// sheets (see the `present(activityItems:)` #455 comment). Same disable-while-busy guard as
+    /// `rawCsvBusy` above.
+    @State private var rawAndLogBusy = false
 
     /// Opt-in "Continuous HRV capture" (off by default) — holds the dense realtime stream armed 24/7 so
     /// the strap banks beat-to-beat R-R for better overnight HRV/recovery/sleep, at a battery cost.
@@ -329,20 +335,11 @@ struct SettingsView: View {
     private var distanceSystemBinding: Binding<String> {
         Binding(get: { distanceUnitSystem.rawValue }, set: { distanceSystemRaw = $0 })
     }
-    private var temperatureUnit: TemperatureUnit {
-        UnitPrefs.resolveTemperature(system: unitSystem, override: temperatureRaw)
-    }
 
     /// Raw-sensor CSV export (experimental diagnostic, #308/#276/#322). Holds the last-written file so
     /// macOS can "Reveal in Finder" after a share, mirroring the puffin-capture export.
     @State private var rawCsvBusy = false
     @State private var lastRawCsvURL: URL?
-
-    /// #646/#651: the "Export raw + log" button's zip build now runs off the main actor, so a second tap
-    /// mid-export would fire a second `exportPair` — two staged zips, two save panels / stacked share
-    /// sheets (see the `present(activityItems:)` #455 comment). Same disable-while-busy guard as
-    /// `rawCsvBusy` above.
-    @State private var rawAndLogBusy = false
 
     /// Passive WHOOP 5/MG optical experiment: the picker writes local timestamp markers into the
     /// durable deep-buffer JSONL. It never calls a BLE write path.
@@ -418,6 +415,9 @@ struct SettingsView: View {
                 if shows(.training) { trainingCard.staggeredAppear(index: 2) }
                 if shows(.appearance) { appearanceCard.staggeredAppear(index: 3) }
                 if shows(.strap) { strapCard.staggeredAppear(index: 4) }
+                #if os(iOS)
+                if shows(.strap) { liveNotificationsCard.staggeredAppear(index: 4) }
+                #endif
                 if shows(.streak) { streakCard.staggeredAppear(index: 5) }
                 if shows(.features) { featuresCard.staggeredAppear(index: 6) }
                 #if os(iOS)
@@ -1877,36 +1877,6 @@ struct SettingsView: View {
                     strapNameControl
                 }
 
-                #if os(iOS)
-                rowDivider
-                // MARK: Live Activity — show live HR on the Lock Screen + Dynamic Island (#336).
-                Toggle(isOn: $liveActivityEnabled) {
-                    Text("Live heart rate in Dynamic Island")
-                        .font(StrandFont.subhead)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                }
-                .toggleStyle(.switch)
-                .appleInspiredTint("settings.controls")
-                Text("Shows your live heart rate on the Lock Screen and in the Dynamic Island while the strap is connected. Turn it off to keep your live HR out of the Dynamic Island. (Any one already showing clears within a moment.)")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                rowDivider
-                // MARK: Strap-sync Live Activity — its own switch, independent of the live-HR one.
-                Toggle(isOn: $syncLiveActivityEnabled) {
-                    Text("Strap sync in Dynamic Island")
-                        .font(StrandFont.subhead)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                }
-                .toggleStyle(.switch)
-                .tint(StrandPalette.accent)
-                .accessibilityHint("Shows sync progress on the Lock Screen and in the Dynamic Island")
-                Text("Shows Connecting… / Syncing… with the chunk count and elapsed time while NOOP pulls history from your strap, including a sync started by the Sync Strap shortcut. Independent of the live heart rate switch above.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
-                #endif
             }
         }
     }
@@ -1999,6 +1969,46 @@ struct SettingsView: View {
     /// or an early reading that anchored too high). It writes now (epoch SECONDS) to BOTH the
     /// `noop.hrvBaselineEpoch` and `noop.recoveryBaselineEpoch` settings the recovery engine reads, then
     /// kicks a recompute the same way the sleep-edit path does (analyzeRecent → refresh). History stays.
+    #if os(iOS)
+    /// NOOP's live notifications — its Live Activities, on the Lock Screen and in the Dynamic Island — one switch
+    /// each: the live heart rate (which also carries a running workout) and a strap sync. Upstream's third, the Lift
+    /// Log session, is left out because the Lift Log is dormant in this fork.
+    /// A switch only decides whether its notification is SHOWN: the heart rate is still measured, recorded and
+    /// scored, a session still runs and buzzes, a sync still runs, with any of them off.
+    private var liveNotificationsCard: some View {
+        SettingsSection(
+            icon: "bell.badge",
+            title: "Live notifications",
+            blurb: "Shown on the Lock Screen and in the Dynamic Island. A switch only hides one: NOOP still measures and records everything."
+        ) {
+            VStack(alignment: .leading, spacing: NoopMetrics.rowSpacing) {
+                liveNotificationSwitch("Live heart rate", isOn: $liveActivityEnabled,
+                                       detail: "While the strap is connected.")
+                rowDivider
+                liveNotificationSwitch("Strap sync", isOn: $syncLiveActivityEnabled,
+                                       detail: "Progress while NOOP pulls history from the strap.")
+            }
+        }
+    }
+
+    private func liveNotificationSwitch(_ title: LocalizedStringKey, isOn: Binding<Bool>,
+                                        detail: LocalizedStringKey) -> some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space1) {
+            Toggle(isOn: isOn) {
+                Text(title)
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.textPrimary)
+            }
+            .toggleStyle(.switch)
+            .appleInspiredTint("settings.controls")
+            Text(detail)
+                .font(StrandFont.caption)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+    #endif
+
     private var recoveryCard: some View {
         SettingsSection(
             icon: "heart.text.square",
@@ -2907,7 +2917,8 @@ struct SettingsView: View {
     }
 
     /// Export the last 24h of decoded sensor streams for the connected strap to a CSV, then save (macOS
-    /// NSSavePanel) or share (iOS share sheet) — the same pattern as exportPuffinCaptures().
+    /// NSSavePanel) or share (iOS share sheet). This is the only exporter left on this screen: the Puffin
+    /// capture export that shared the shape went with the research card in #2417.
     ///
     /// The strap id comes from `repo.deviceId`, NOT `model.deviceId`. The latter is a hardcoded
     /// `let "my-whoop"`; the former is seeded with it and then re-pointed to the registry's active strap
@@ -2967,6 +2978,14 @@ struct SettingsView: View {
         }
     }
 
+    private func markOpticalPhase(_ phase: PuffinOpticalExperimentPhase) {
+        if model.ble.markWhoop5OpticalPhase(phase) {
+            opticalPhaseStatus = String(localized: "Marked: \(phase.displayName)")
+        } else {
+            opticalPhaseStatus = String(localized: "Marker wasn't saved. Keep frame recording on and try again.")
+        }
+    }
+
     /// Flush the in-flight capture, then copy it to a user-chosen location (save panel on macOS) or
     /// hand it to the system share sheet (iOS).
     private func exportPuffinCaptures() {
@@ -2994,14 +3013,6 @@ struct SettingsView: View {
             #else
             FileExport.exportFile(at: src, suggestedName: suggested)
             #endif
-        }
-    }
-
-    private func markOpticalPhase(_ phase: PuffinOpticalExperimentPhase) {
-        if model.ble.markWhoop5OpticalPhase(phase) {
-            opticalPhaseStatus = String(localized: "Marked: \(phase.displayName)")
-        } else {
-            opticalPhaseStatus = String(localized: "Marker wasn't saved. Keep frame recording on and try again.")
         }
     }
 

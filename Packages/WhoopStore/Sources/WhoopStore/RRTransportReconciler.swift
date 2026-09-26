@@ -20,13 +20,18 @@ import WhoopProtocol
 ///   7. No provenance at all — rows older than the `transport` column. Kept wherever nothing better
 ///      covers them: they are what this install scored before, and dropping them blanked HRV and Charge.
 ///
-/// Every other device keeps the original order: standard > historical > realtime > untagged.
+/// Every other device keeps the original order: standard > historical > realtime > untagged, except that a
+/// WHOOP 4 beat labelled as type-47 history (`srcChannel` 8) outranks all of them. Since the 4.0 gained its
+/// standard HR broadcast (#2400) the same beat can arrive both ways; upstream scores the labelled history
+/// for a whole window when any exists (c1beffa51), here it wins per beat, so standard beats the
+/// history does not cover still count.
 enum RRTransportReconciler {
     static let overlapRadiusSeconds = 3
 
     static func reconcile(_ rows: [RRInterval], whoop5: Bool = false) -> [RRInterval] {
-        guard rows.contains(where: { $0.transport != nil || $0.srcChannel?.isWhoop5Transport == true })
-        else { return rows }
+        guard rows.contains(where: {
+            $0.transport != nil || $0.srcChannel?.isWhoop5Transport == true || $0.srcChannel == .whoop4Historical
+        }) else { return rows }
 
         // rrIntervals supplies timestamp-ordered rows, and compactMap preserves that order, so each
         // per-rank list is already sorted for the binary search.
@@ -52,6 +57,7 @@ enum RRTransportReconciler {
     /// Higher wins inside the overlap radius. Zero is "no provenance".
     static func rank(_ row: RRInterval, whoop5: Bool) -> Int {
         guard whoop5 else {
+            if row.srcChannel == .whoop4Historical { return 4 }
             switch row.transport {
             case .standardHeartRate: return 3
             case .whoopHistorical: return 2

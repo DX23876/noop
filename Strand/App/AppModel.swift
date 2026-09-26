@@ -71,6 +71,14 @@ final class AppModel: ObservableObject {
         let f = DateFormatter(); f.dateFormat = "HH:mm:ss"; return f
     }()
 
+    /// One of our own strap-log lines, stamped like the lines around it. NOOP's log takes each line's time from
+    /// whoever writes it, and the Lift Log's lines arrived without one: all 98 of them in Utku's 22 Sep session,
+    /// so the moment a tap or a step happened had to be inferred from the neighbouring lines. A diagnostic says
+    /// when it happened.
+    static func stamped(_ line: String) -> String {
+        "[\(logTimeFormatter.string(from: Date()))] \(line)"
+    }
+
     /// The CANONICAL imported/computed id ("my-whoop"). The WHOOP-IMPORT target (`WhoopImporter`), the
     /// FusionSource `.whoopImport` mapping, and a manually-saved workout all land under THIS stable id, and
     /// the engine writes its computed scores under the matching `-noop` sibling. It must NOT follow the
@@ -165,6 +173,31 @@ final class AppModel: ObservableObject {
 
         var isPaused: Bool { pausedAt != nil }
 
+        /// Adds a heart-rate sample unless this second already has one, and says whether it did.
+        ///
+        /// `captureWorkoutSample` runs from two `@Published` sinks (`heartRate` and `rr`), so a strap sends
+        /// it one call per R-R packet plus another whenever the rate itself moves, which during exercise is
+        /// most seconds: two samples with one `ts`. Effort credits each sample with the gap to the next and a
+        /// zero gap with a full second (`StrainScorer.sampleDurationsMinutes`), so every repeat counted as
+        /// another second of effort, live and in the saved workout. The stream is one reading a second.
+        ///
+        /// A refused reading still reaches `peakHr`: the sinks fire because the rate moved, so a repeat is often a
+        /// different bpm for that second, and a within-second high is part of the workout's peak. Only the last
+        /// sample is compared, so this drops a repeat of the current second, not an out-of-order arrival; the live
+        /// stream is monotonic.
+        mutating func recordSample(_ sample: HRSample) -> Bool {
+            if let last = samples.last, last.ts == sample.ts {
+                peakHr = max(peakHr, sample.bpm)
+                return false
+            }
+            samples.append(sample)
+            return true
+        }
+
+        /// The maximum heart rate the workout is saved with: the highest sample, or a higher reading a repeated
+        /// second folded into `peakHr` (`recordSample`). Nil with no samples.
+        var savedPeak: Int? { samples.map(\.bpm).max().map { max($0, peakHr) } }
+
         /// Delegates to `ActiveWorkoutClock` so this and the two card surfaces cannot drift apart again.
         func elapsed(at now: Date = Date()) -> TimeInterval {
             ActiveWorkoutClock.activeElapsed(start: start, pausedAt: pausedAt,
@@ -214,6 +247,8 @@ final class AppModel: ObservableObject {
     // L3 stress-onset detector state: a rolling R-R buffer + the replay-safe detector state (persisted
     // via BiofeedbackPrefs so a relaunch can't re-fire), carried verbatim between evaluations.
     private var rrBuf: [Int] = []
+    /// Which live R-R packet `rrBuf` last took, so each packet enters it once (`RRPacketCursor`).
+    private var stressPackets = RRPacketCursor()
     private var stressState = BiofeedbackPrefs.loadStressState()
 
     /// Import source currently writing to the local store, if any.
@@ -321,14 +356,23 @@ final class AppModel: ObservableObject {
         // Smooth HR centrally so it's solid everywhere it's shown.
         // Combine invokes a sink on the publisher's delivery thread. CoreBluetooth is configured for
         // main, but restored/background sources can still bridge a value from another executor; make the
-        // UI-facing `bpm` publisher's actor hop explicit before `ingestHR()` mutates it.
+        // UI-facing `bpm` publisher's actor hop explicit before `ingestHR` mutates it.
+        // A `@Published` sink sees the value being written (willSet), so each hands `ingestHR` that value and
+        // reads the other from `live`. Reading both from `live` meant clearing the heart rate (a disconnect,
+        // the strap off the wrist) could find the old values still there and keep the median.
         live.$heartRate
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in self?.ingestHR() }
+            .sink { [weak self] hr in
+                guard let self else { return }
+                self.ingestHR(heartRate: hr, rr: self.live.rr)
+            }
             .store(in: &hrCancellables)
         live.$rr
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in self?.ingestHR() }
+            .sink { [weak self] rr in
+                guard let self else { return }
+                self.ingestHR(heartRate: self.live.heartRate, rr: rr)
+            }
             .store(in: &hrCancellables)
 
         // #2117: bank the device's R-R transport facts whenever a link comes up. Shell-independent on
@@ -908,12 +952,12 @@ final class AppModel: ObservableObject {
     /// Fold a fresh reading into the smoothing window and republish a stable bpm.
     /// Prefers the strap's reported HR; falls back to 60000/R-R. Clamps to a plausible
     /// 30–220 range (rejects 0 / garbage spikes) and publishes the window MEDIAN.
-    private func ingestHR() {
+    private func ingestHR(heartRate: Int?, rr: [Int]) {
         let now = Date()
         var inst: Double?
-        if let hr = live.heartRate, hr >= 30, hr <= 220 {
+        if let hr = heartRate, hr >= 30, hr <= 220 {
             inst = Double(hr)
-        } else if let rr = live.rr.last, rr > 0 {
+        } else if let rr = rr.last, rr > 0 {
             let v = 60_000.0 / Double(rr)
             if v >= 30, v <= 220 { inst = v }
         }
@@ -922,7 +966,7 @@ final class AppModel: ObservableObject {
             // median so screens that now prefer `bpm` fall through to "," instead of freezing on the
             // last value. Mirrors Android (_bpm = null on disconnect). A transient out-of-range sample
             // with the link still up (heartRate or rr still present) keeps the last median.
-            if live.heartRate == nil && live.rr.isEmpty { resetSmoothing() }
+            if heartRate == nil && rr.isEmpty { resetSmoothing() }
             let ceilingCue = evaluateHRCeiling(nil, at: now)
             evaluateHRZoneTraining(nil, at: now, ceilingCue: ceilingCue)
             return
@@ -1178,7 +1222,7 @@ final class AppModel: ObservableObject {
         }
         let avg = samples.isEmpty ? nil
             : Int((Double(samples.map(\.bpm).reduce(0, +)) / Double(samples.count)).rounded())
-        let peak = samples.map(\.bpm).max()
+        let peak = w.savedPeak
         // #983: score the SAVED workout with the wearer's measured resting HR, not the hardcoded
         // default of 60. %HRR is (bpm - resting) / (max - resting), so the default moves every zone
         // boundary — at 136 bpm with maxHR 190 it is the difference between zone 1 and zone 2. Today's
@@ -1242,7 +1286,13 @@ final class AppModel: ObservableObject {
         if let last = w.samples.last?.ts, now - last > Self.liveGapThresholdSeconds {
             emitWorkoutsTrace(WorkoutsTrace.gapLine(stream: "hr", gapSec: now - last))
         }
-        w.samples.append(HRSample(ts: now, bpm: hr))
+        // A second that already has its sample moves only the peak: publish that, and skip the rescore and the
+        // snapshot (the next second's sample carries the peak into the snapshot).
+        let peakBefore = w.peakHr
+        guard w.recordSample(HRSample(ts: now, bpm: hr)) else {
+            if w.peakHr != peakBefore { activeWorkout = w }
+            return
+        }
         w.peakHr = max(w.peakHr, hr)
         workoutBpmSum += hr
         w.avgHr = Int((Double(workoutBpmSum) / Double(w.samples.count)).rounded())
@@ -1321,6 +1371,10 @@ final class AppModel: ObservableObject {
     /// baseline + rate limit), persisted via `BiofeedbackPrefs` so a relaunch can't re-fire. Honest /
     /// non-clinical: "stress" is an autonomic proxy vs the user's own baseline, never a diagnosis.
     private func evaluateStress() {
+        // Once per R-R packet. `ingestHR` runs from both the heart-rate and the R-R sink, so a packet reached
+        // this once or twice, its intervals entered `rrBuf` as often, and the detector's slow baseline
+        // advanced on every call rather than every packet.
+        guard stressPackets.isNew(live.rrSeq) else { return }
         let fresh = live.rr.filter { $0 > 300 && $0 < 2000 }   // plausible R-R (30–200 bpm)
         guard !fresh.isEmpty else { return }
         rrBuf.append(contentsOf: fresh)
@@ -2000,22 +2054,22 @@ final class AppModel: ObservableObject {
     ///
     /// A double tap rather than a single one because a strap takes knocks against bars and benches all
     /// session, and two deliberate taps are not something a rack does by accident.
-    var strapDoubleTapOverride: (() -> Void)?
+    var strapDoubleTapOverride: (@MainActor () -> Void)?
 
     private func handleDoubleTap() {
         let now = Date()
         let since = now.timeIntervalSince(lastDoubleTapAt)
         guard since > 1.2 else {   // debounce repeats
-            live.append(log: String(format: "Double-tap ignored: %.1f s after the previous one (debounce 1.2 s)", since))
+            live.append(log: Self.stamped(String(format: "Double-tap ignored: %.1f s after the previous one (debounce 1.2 s)", since)))
             return
         }
         lastDoubleTapAt = now
         if let override = strapDoubleTapOverride {
-            live.append(log: "Double-tap → Lift Log: next")
+            live.append(log: Self.stamped("Double-tap → Lift Log: next"))
             override()
             return
         }
-        live.append(log: "Double-tap → \(behavior.doubleTapAction.label)")
+        live.append(log: Self.stamped("Double-tap → \(behavior.doubleTapAction.label)"))
         runMacAction(behavior.doubleTapAction, shortcut: behavior.doubleTapShortcut)
     }
 
@@ -2773,8 +2827,7 @@ final class AppModel: ObservableObject {
     nonisolated static func materializeForImport(_ picked: URL) async throws -> ImportFile {
         #if os(iOS)
         let ext = picked.pathExtension.isEmpty ? "dat" : picked.pathExtension
-        let dst = FileManager.default.temporaryDirectory
-            .appendingPathComponent("noop-import-\(UUID().uuidString)")
+        let dst = NoopScratch.file("import-\(UUID().uuidString)")
             .appendingPathExtension(ext)
         var coordError: NSError?
         var ioError: Error?
@@ -2944,28 +2997,18 @@ final class AppModel: ObservableObject {
         #endif
     }
 
-    /// True for any scratch file/dir NOOP itself writes into the temp directory , import copies, the
-    /// decompressed export.xml, exports, backups, raw captures: every one is prefixed `noop-`. #590: the
-    /// import decompresses `export.xml` to a `noop-health-*` temp file (up to 8 GB), but a previous build
-    /// only matched `noop-import-*`, so an interrupted import stranded multi-GB extractions the Storage
-    /// screen never saw OR reclaimed. Matching the shared `noop-` prefix counts + sweeps them all and is
-    /// future-proof. Safe: the temp dir is NOOP's private sandbox and the 60 s in-flight guard in
-    /// `purgeImportTemp` protects a live import.
-    nonisolated static func isNoopTempScratch(_ name: String) -> Bool { name.hasPrefix("noop-") }
-
-    /// Total bytes of NOOP's own `noop-*` temp scratch (a crash mid-import can strand a multi-GB one).
-    /// Recurses into directories (the Xiaomi importer stages a `noop-xiaomi-*` folder).
+    /// Total bytes of NOOP's own temp scratch: its owned folder, plus the flat scratch earlier builds
+    /// left beside it. A crash mid-import can strand a multi-GB extraction in there (#590).
+    ///
+    /// Recurses, because the scratch holds directories (the Xiaomi importer stages one). Scoped to what
+    /// [purgeImportTemp] would actually reclaim, so the Storage screen cannot attribute another
+    /// program's disk to NOOP (#2446).
     nonisolated static func importTempSizeBytes() -> Int64 {
-        let tmp = FileManager.default.temporaryDirectory
-        guard let items = try? FileManager.default.contentsOfDirectory(
-            at: tmp, includingPropertiesForKeys: [.fileSizeKey, .isDirectoryKey], options: []) else { return 0 }
-        var total: Int64 = 0
-        for item in items where isNoopTempScratch(item.lastPathComponent) {
+        NoopScratch.sizeBytes { item in
             let vals = try? item.resourceValues(forKeys: [.fileSizeKey, .isDirectoryKey])
-            if vals?.isDirectory == true { total += directorySizeBytes(item) }
-            else { total += Int64(vals?.fileSize ?? 0) }
+            if vals?.isDirectory == true { return directorySizeBytes(item) }
+            return Int64(vals?.fileSize ?? 0)
         }
-        return total
     }
 
     /// Sum every regular file under `dir` (one level , Inbox is flat). Best-effort; missing dir → 0.
@@ -2992,21 +3035,11 @@ final class AppModel: ObservableObject {
         return await storageReport()
     }
 
-    /// Remove NOOP's stranded `noop-*` temp scratch (import copies, the multi-GB `noop-health-*`
-    /// export.xml an interrupted import leaves behind , #590, exports, backups, raw captures). Mirrors
-    /// `purgeImportInbox`'s 60 s in-flight guard so a concurrent import/export isn't disturbed.
-    nonisolated static func purgeImportTemp() {
-        let fm = FileManager.default
-        let tmp = fm.temporaryDirectory
-        guard let items = try? fm.contentsOfDirectory(
-            at: tmp, includingPropertiesForKeys: [.contentModificationDateKey], options: []) else { return }
-        let cutoff = Date().addingTimeInterval(-60)
-        for item in items where isNoopTempScratch(item.lastPathComponent) {
-            let modified = (try? item.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
-            if let modified, modified > cutoff { continue }
-            try? fm.removeItem(at: item)
-        }
-    }
+    /// Remove NOOP's stranded temp scratch: everything in the folder it owns, plus the flat scratch
+    /// earlier builds wrote (the multi-GB `noop-health-*` export.xml an interrupted import leaves
+    /// behind, #590). Keeps `purgeImportInbox`'s 60 s in-flight guard, so a concurrent import or
+    /// export is not disturbed. See `NoopScratch` for why ownership is a folder and not a prefix.
+    nonisolated static func purgeImportTemp() { NoopScratch.purge() }
 
     /// Handle a `noop://import-health` deep link (PR #581), the HealthKit-free Shortcuts import for
     /// sideloaded installs. Custom URL schemes are forgeable by other apps/sites, so this only decodes

@@ -16,59 +16,64 @@ import StrandDesign
 struct LiftSessionBar: View {
     @EnvironmentObject var session: LiftSessionController
 
-    /// Live heart rate, same source as the sheet's control bar: the smoothed, spike-filtered value,
-    /// never the raw per-beat number.
-    @EnvironmentObject private var model: AppModel
-
     @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
     private var unitSystem: UnitSystem { UnitSystem(rawValue: unitSystemRaw) ?? .metric }
 
     var body: some View {
-        if let engine = session.engine, !engine.isFinished {
+        // `LiftSessionController.presentation`, the same resolution the Lock Screen renders, so the two
+        // cannot word the session differently. Resolved once per render; all three lines read it.
+        if let engine = session.engine, let shown = session.presentation(system: unitSystem) {
             Button {
                 session.isPresented = true
             } label: {
-                HStack(spacing: NoopMetrics.gap) {
+                // The Lock Screen banner's layout (`LiftLiveActivity`), because this is the same banner
+                // seen inside the app: the icon and the numbers sit near the edges and the heart rate
+                // stacks over the clock, so the words get the width (Utku, 21 Sep 2026, with a screenshot
+                // of the bar: "more place for writings"). Same sizes as before.
+                HStack(spacing: 10) {
                     Image(systemName: "dumbbell.fill")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(tint(engine))
                         .accessibilityHidden(true)
 
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(title(engine))
+                        Text(shown.exercise)
                             .font(StrandFont.caption)
                             .foregroundStyle(StrandPalette.textPrimary)
                             .lineLimit(1)
-                        Text(subtitle(engine))
+                        Text(shown.detail.map { "\(shown.status) — \($0)" } ?? shown.status)
                             .font(StrandFont.footnote)
                             .foregroundStyle(StrandPalette.textSecondary)
                             .lineLimit(1)
+                        // The set coming up, on one line that cuts the exercise name before the
+                        // set number (`LiftSessionController.nextLine`).
+                        Text(shown.next)
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
                     }
 
-                    Spacer(minLength: 0)
+                    Spacer(minLength: 6)
 
-                    // ALWAYS shown, dash included. An earlier version hid it whenever there was no
-                    // reading, to save width on a crowded capsule — and the first thing that
-                    // produced was "there is no HR in the minimised tab", because an absent readout
-                    // is indistinguishable from an absent feature. Mid-workout the difference
-                    // matters: a dash says the strap is not reading, which is something to act on.
-                    HStack(spacing: 3) {
-                        Image(systemName: "heart.fill")
-                            .font(.system(size: 10, weight: .semibold))
-                        Text(model.bpm.map(String.init) ?? "—")
-                            .font(StrandFont.captionNumber)
+                    // Heart rate over the clock, both flush right, each its own small view that updates
+                    // itself (`LiftLiveReadouts.swift`), so a beat or a tick redraws one number, not the bar.
+                    // The clock's width comes from a hidden "00:00" in its font — the widest a set or a rest
+                    // shows under an hour — so the words beside it do not shift when it gains a digit.
+                    VStack(alignment: .trailing, spacing: 2) {
+                        LiftHeartRate(style: .compact)
+
+                        Text(verbatim: "00:00")
+                            .font(StrandFont.bodyNumber)
                             .monospacedDigit()
+                            .hidden()
+                            .overlay(alignment: .trailing) {
+                                bigClock(engine)
+                                    .font(StrandFont.bodyNumber)
+                                    .foregroundStyle(tint(engine))
+                                    .fixedSize()
+                            }
                     }
-                    .foregroundStyle(model.bpm == nil
-                                     ? StrandPalette.textTertiary
-                                     : StrandPalette.metricRose)
-                    .accessibilityLabel(model.bpm.map { String(localized: "Heart rate \($0)") }
-                                        ?? String(localized: "Heart rate"))
-
-                    Text(bigClock(engine))
-                        .font(StrandFont.bodyNumber)
-                        .foregroundStyle(tint(engine))
-                        .monospacedDigit()
 
                     // The same action the sheet's button performs, so a set can be closed out
                     // without opening anything.
@@ -80,7 +85,8 @@ struct LiftSessionBar: View {
                     .buttonStyle(.plain)
                     .accessibilityLabel("Next")
                 }
-                .padding(.horizontal, 14)
+                .padding(.leading, 12)
+                .padding(.trailing, 8)
                 .padding(.vertical, 10)
                 .background(.ultraThinMaterial, in: Capsule())
                 .overlay(Capsule().stroke(tint(engine).opacity(0.35), lineWidth: 1))
@@ -99,27 +105,9 @@ struct LiftSessionBar: View {
         }
     }
 
-
-    /// Title and subtitle come from `LiftSessionController.presentation` — the SAME resolution the
-    /// Lock Screen Live Activity renders, so the two surfaces cannot word the session differently.
-    private func title(_ engine: LiftSessionEngine) -> String {
-        session.presentation(system: unitSystem)?.exercise
-            ?? session.programName ?? String(localized: "Session")
-    }
-
-    private func subtitle(_ engine: LiftSessionEngine) -> String {
-        guard let p = session.presentation(system: unitSystem) else {
-            return String(localized: "\(engine.completedWorkingSets) of \(engine.plannedWorkingSets) sets done")
-        }
-        guard let detail = p.detail else { return p.status }
-        return "\(p.status) — \(detail)"
-    }
-
-    /// Rest counts DOWN (that is the number you act on); everything else counts up.
-    private func bigClock(_ engine: LiftSessionEngine) -> String {
-        if let remaining = engine.restRemaining(now: session.now) {
-            return LiftFormat.duration(remaining)
-        }
-        return LiftFormat.duration(max(0, session.now - engine.stageStartedAt))
+    /// Rest counts DOWN (that is the number you act on); everything else counts up. Written as the Lock
+    /// Screen writes the same clock — "0:45", "0:00", "1:05:00" — through NOOP's one running-clock format.
+    private func bigClock(_ engine: LiftSessionEngine) -> LiftRunningClock {
+        LiftRunningClock { now in engine.restRemaining(now: now) ?? now - engine.stageStartedAt }
     }
 }

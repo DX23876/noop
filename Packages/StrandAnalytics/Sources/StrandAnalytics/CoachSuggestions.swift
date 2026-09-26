@@ -32,7 +32,9 @@ public enum CoachSuggestions {
     private static let hrvDownRatio: Double = 0.85
     /// Sleep "poor night" cutoff: under 6h (360 min).
     private static let poorSleepMin: Double = 360
-    /// "Already loaded" strain cutoff: a day strain at/above 14 reads as a high-load day.
+    /// "Already loaded" cutoff, on WHOOP's 0–21 Day Strain axis. Compared through
+    /// `StrainScorer.effortValue(fromWhoopStrain:)` because `DailyMetric.strain` stores Effort on the
+    /// 0–100 axis; kept a literal here so both platforms hold the same number.
     private static let highStrain: Double = 14
     /// Max chips surfaced.
     private static let maxChips: Int = 4
@@ -80,7 +82,7 @@ public enum CoachSuggestions {
         }
 
         // 4. Already a high-strain day.
-        if let st = strain, st >= highStrain {
+        if let st = strain, st >= StrainScorer.effortValue(fromWhoopStrain: highStrain) {
             chips.append("Have I done enough today, or push more?")
         }
 

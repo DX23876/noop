@@ -50,9 +50,15 @@ struct LiquidLiveHR: View {
         guard let i = scrubIndex, series.indices.contains(i) else { return nil }
         return Int(series[i].rounded())
     }
+    /// Today, the big number is the LIVE heart rate only (#2422). It used to fall back to the last banked 5-minute
+    /// average, drawn exactly like a live reading, so with the strap off the wrist the card went on showing one. The
+    /// day's trace still shows without a live strap; a past day, which has no live reading, keeps its last average.
     private var bigBpm: Int? {
         if let scrubbed = scrubbedBpm { return scrubbed }
-        if showsLive, let hr = live.heartRate, hr > 0, live.connected { return hr }
+        if showsLive {
+            guard let hr = live.heartRate, hr > 0, live.connected else { return nil }
+            return hr
+        }
         if let last = fallback.last { return Int(last.rounded()) }
         return nil
     }
@@ -135,7 +141,9 @@ struct LiquidLiveHR: View {
         }
         .onAppear { if samples.isEmpty, let hr = live.heartRate, hr > 0 { samples = [Double(hr)] } }
         .onChangeCompat(of: live.heartRate) { hr in
-            guard let hr, hr > 0 else { return }
+            // No live heart rate (the strap off the wrist, or gone): drop the trace, so the card stops calling an
+            // old one "Live" (#2422).
+            guard let hr, hr > 0 else { samples.removeAll(); return }
             samples.append(Double(hr))
             if samples.count > maxSamples { samples.removeFirst(samples.count - maxSamples) }
             beat.toggle()

@@ -35,6 +35,16 @@ final class StressTraceTests: XCTestCase {
         XCTAssertEqual(StressTrace.formatLevel(2.25), "2.3")
     }
 
+    func testTheLfHfRatioSharesTheLevelArithmeticWithoutItsCeiling() {
+        // 9/4 is an exact binary 2.25: Java's %.1f said "2.3" while C's said "2.2" (#2167).
+        XCTAssertEqual(StressTrace.formatRatio(9.0 / 4.0), "2.3")
+        XCTAssertEqual(StressTrace.formatRatio(0.25), "0.3")
+        XCTAssertEqual(StressTrace.formatRatio(1.75), "1.8")
+        // No stress-domain ceiling: a sympathetic-leaning ratio prints as itself, not as 3.0.
+        XCTAssertEqual(StressTrace.formatRatio(4.25), "4.3")
+        XCTAssertEqual(StressTrace.formatRatio(-0.3), "0.0")
+    }
+
     func testAStressLevelRoundsToOneDecimal() {
         XCTAssertEqual(StressTrace.formatLevel(1.85), "1.9")
         XCTAssertEqual(StressTrace.formatLevel(1.96), "2.0")

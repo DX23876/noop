@@ -218,6 +218,7 @@ extension WhoopStore {
                   (SELECT COUNT(*) FROM rrInterval WHERE srcChannel = 7
                      AND (tsSuspect IS NULL OR tsSuspect <> 1)) AS w7,
                   (SELECT COUNT(*) FROM rrInterval WHERE srcChannel IN (5, 6, 7)) AS w5tagged,
+                  (SELECT COUNT(*) FROM rrInterval WHERE srcChannel = 8) AS w4history,
                   (SELECT COALESCE(GROUP_CONCAT(identity, ';'), '') FROM
                     (SELECT QUOTE(id) || ':' || QUOTE(brand) || ':' || QUOTE(model) || ':' || QUOTE(status) AS identity
                      FROM pairedDevice ORDER BY id)) AS registry,
@@ -237,8 +238,9 @@ extension WhoopStore {
             }
             let historyCount: Int = row["w5"]
             let registry: String = row["registry"]
-            return "v3|h\(hc):\(hm)|" + tails.joined(separator: "|")
-                + "|w5\(historyCount)|w7\(row["w7"] as Int)|tagged\(row["w5tagged"] as Int)|registry\(registry)"
+            return "v4|h\(hc):\(hm)|" + tails.joined(separator: "|")
+                + "|w5\(historyCount)|w7\(row["w7"] as Int)|tagged\(row["w5tagged"] as Int)"
+                + "|w4history\(row["w4history"] as Int)|registry\(registry)"
         }
     }
 
@@ -258,8 +260,9 @@ extension WhoopStore {
     /// The streams are exactly the ones the per-day loop reads and hands to `analyzeDay`:
     /// - `ppgHrSample`: the day's HR read is measured ∪ PPG-derived ([hrSamples]), so a PPG row for a second
     ///   with no measured HR changes the scored series while `hrSample` stays put.
-    /// - `rrInterval`: filtered exactly as [rrIntervals] filters at read (the 0x6E SpO2-IBI duplicate and
-    ///   future-stamped beats are excluded), so the witness counts the beats that are actually scored.
+    /// - `rrInterval`: filtered as [rrIntervals] filters at read (the 0x6E SpO2-IBI duplicate and
+    ///   future-stamped beats are excluded), but WITHOUT its one-Oura-channel selection: the witness counts
+    ///   every beat that selection chooses from, since a new row on either channel can change which is scored.
     /// - `sleepStateSample`: appended from the SAME v18 record at the same `ts` as HR, so a re-offloaded
     ///   record whose HR row is dropped on conflict still lands a new band row that `analyzeDay` scores.
     ///   Its letter is `b` (band), not `s`, which is reserved for the version prefix.
@@ -286,6 +289,8 @@ extension WhoopStore {
                   (SELECT COUNT(*) FROM rrInterval WHERE deviceId = :d AND ts >= :f AND ts <= :t
                      AND srcChannel = 7 AND (tsSuspect IS NULL OR tsSuspect <> 1)) AS w7,
                   EXISTS(SELECT 1 FROM rrInterval WHERE deviceId = :d AND srcChannel IN (5, 6, 7)) AS w5owner,
+                  (SELECT COUNT(*) FROM rrInterval WHERE deviceId = :d AND ts >= :f AND ts <= :t
+                     AND srcChannel = :whoop4Historical AND (tsSuspect IS NULL OR tsSuspect <> 1)) AS w4h,
                   COALESCE((SELECT QUOTE(brand) || ':' || QUOTE(model) FROM pairedDevice
                             WHERE id = :d), 'absent') AS registry,
                   (SELECT COUNT(*) FROM respSample WHERE deviceId = :d AND ts >= :f AND ts <= :t) AS xc,
@@ -303,7 +308,8 @@ extension WhoopStore {
                   (SELECT COUNT(*) FROM event WHERE deviceId = :d AND ts >= :f AND ts <= :t) AS ec,
                   (SELECT COALESCE(MAX(ts), 0) FROM event WHERE deviceId = :d AND ts >= :f AND ts <= :t) AS em
                 """, arguments: ["d": deviceId, "f": from, "t": to,
-                                 "rrx": RRSourceChannel.spo2Ibi.rawValue]) else { return "" }
+                                 "rrx": RRSourceChannel.spo2Ibi.rawValue,
+                                 "whoop4Historical": RRSourceChannel.whoop4Historical.rawValue]) else { return "" }
             let keys = ["p", "r", "x", "o", "g", "z", "t", "b", "e"]
             let parts = keys.map { key -> String in
                 let count: Int = row[key + "c"], maxTs: Int = row[key + "m"]
@@ -312,7 +318,8 @@ extension WhoopStore {
             let historyCount: Int = row["w5"]
             let registry: String = row["registry"]
             let strictRR = try Self.isWhoop5RRSource(db: db, deviceId: deviceId)
-            return "s2|" + parts.joined(separator: "|") + "|w5\(historyCount)|w7\(row["w7"] as Int)|ownerTagged\(row["w5owner"] as Int)|registry\(registry)|rr5=\(strictRR)"
+            return "s3|" + parts.joined(separator: "|") + "|w5\(historyCount)|w7\(row["w7"] as Int)"
+                + "|w4h\(row["w4h"] as Int)|ownerTagged\(row["w5owner"] as Int)|registry\(registry)|rr5=\(strictRR)"
         }
     }
 
@@ -407,6 +414,13 @@ extension WhoopStore {
         }
     }
 
+    /// The Oura beat channels `rrIntervals` chooses between, as a SQL list: `greenQuality` (0x80) on one
+    /// side, and the amplitude family on the other, `ibiAmplitude` (0x60) + `ibiBare` (0x44). Those two
+    /// share one decoder and were split for labelling only, so they are scored together, never against
+    /// each other. `spo2Ibi` (0x6E) is not listed because `rrIntervals` excludes it outright. Twin of
+    /// Kotlin `SCORABLE_OURA_CHANNELS`, so the channel set cannot drift between the two scoring reads.
+    static let scorableOuraChannels = "(1, 3, 4)"
+
     /// R-R intervals in EMISSION order (#823). `ord` leads the sort: ordering by `rrMs` returned a
     /// second's beats sorted by VALUE, which makes successive beats similar by construction and biases
     /// RMSSD — all successive differences — downward. Pre-v30 rows have `ord` NULL and SQLite sorts NULL
@@ -431,6 +445,19 @@ extension WhoopStore {
     /// two: it is quantised to an 8 ms grid, applies no quality gate, and runs only while an SpO2
     /// measurement is on — so scoring off it would make HRV coverage a function of the SpO2 duty cycle.
     ///
+    /// ONE Oura channel per window, not merely one excluded. Captures since have shown 0x60 and 0x80
+    /// firing TOGETHER over the same nights, on two rings. On one, 0x60 alone covers 0.91-0.99 of the
+    /// wall clock and 0x80 adds a partial second copy of 8-33 % of it, so the pair read 1.01-1.31 and the
+    /// #1118 coverage gate refused whichever nights happened to bank more 0x80. Neither channel is a
+    /// duplicate to exclude by name. Which one is complete is a property of the capture, not of the tag,
+    /// so the read keeps green alone when it holds MORE beats in the requested window than the amplitude
+    /// family (0x60 + 0x44, see `scorableOuraChannels`), and the amplitude family alone otherwise, ties
+    /// included. A ring with only one of them keeps it, which is the guarantee the exclusion above was
+    /// protecting. NULL rows and every
+    /// non-Oura code are untouched, so WHOOP and pre-v32 rows read exactly as before. Same shape as the
+    /// WHOOP 5 transport selection below: an uncorrelated subquery over the SAME time/suspect predicates
+    /// as the outer read, evaluated before LIMIT.
+    ///
     /// Rows are FILTERED, never deleted: the 0x6E stream stays on disk as the cross-check on green.
     /// Every R-R consumer reads through this one function, so the `hrv diag` trace moves with the scores
     /// rather than reporting a coverage nobody can reproduce.
@@ -445,7 +472,12 @@ extension WhoopStore {
     /// No window is withheld. Upstream reads one transport for the whole requested interval and so
     /// returns nothing for a night recorded before labels existed, which blanked HRV, respiratory rate and
     /// Charge on update (#2101). Here every observation competes only with the others that cover the same
-    /// beat, in `RRTransportReconciler`, and a beat nothing better covers is kept.
+    /// beat, in `RRTransportReconciler`, and a beat nothing better covers is kept. That includes a WHOOP 4:
+    /// its labelled type-47 history outranks the unlabelled standard-BLE copy of the same beat, instead of
+    /// taking the whole window as upstream does.
+    ///
+    /// The Oura channel choice (#2423) stays a window-level SQL predicate: it picks between two complete
+    /// measurements of the same beats, which is a property of the capture rather than of one beat.
     public nonisolated func rrIntervals(deviceId: String, from: Int, to: Int, limit: Int,
                                         unlabelledAliasOfWhoop5: Bool) async throws -> [RRInterval] {
         guard limit > 0 else { return [] }
@@ -457,18 +489,55 @@ extension WhoopStore {
             let candidateLimit = limit > Int.max / 4 ? Int.max : limit * 4
             let rows = try Row.fetchAll(db, sql: """
                 SELECT ts, rrMs, srcChannel, transport, ord, seq FROM rrInterval
-                WHERE deviceId = ? AND ts >= ? AND ts <= ?
-                AND (srcChannel IS NULL OR srcChannel <> ?)
+                WHERE deviceId = :d AND ts >= :f AND ts <= :t
+                AND (srcChannel IS NULL OR srcChannel <> :rrx)
+                AND (srcChannel IS NULL OR srcChannel NOT IN \(Self.scorableOuraChannels) OR (srcChannel = 1) = (
+                    SELECT SUM(srcChannel = 1) > SUM(srcChannel <> 1) FROM rrInterval
+                    WHERE deviceId = :d AND ts >= :f AND ts <= :t AND srcChannel IN \(Self.scorableOuraChannels)
+                    AND (tsSuspect IS NULL OR tsSuspect <> 1)))
                 AND (tsSuspect IS NULL OR tsSuspect <> 1)   -- #1073: exclude future-stamped beats
-                ORDER BY ts ASC, ord ASC, rrMs ASC, seq ASC LIMIT ?
-                """, arguments: [deviceId, from, to, RRSourceChannel.spo2Ibi.rawValue, candidateLimit])
+                ORDER BY ts ASC, ord ASC, rrMs ASC, seq ASC LIMIT :lim
+                """, arguments: ["d": deviceId, "f": from, "t": to,
+                                 "rrx": RRSourceChannel.spo2Ibi.rawValue, "lim": candidateLimit])
                 .map { row in
                     RRInterval(ts: row["ts"], rrMs: row["rrMs"],
                                srcChannel: (row["srcChannel"] as Int?).flatMap(RRSourceChannel.init(rawValue:)),
                                transport: (row["transport"] as Int?).flatMap(RRTransport.init(rawValue:)),
                                ord: row["ord"] as Int?, seq: row["seq"])
                 }
-            return Array(RRTransportReconciler.reconcile(rows, whoop5: whoop5).prefix(limit))
+            // A ring record served twice is stored twice: each connection anchors on its own SyncTime,
+            // so the second copy lands a second or two off the first and misses the row key instead of
+            // colliding with it (#2456). Collapsed HERE rather than at one scorer, so every SCORING
+            // reader agrees: the damage shows up as a coverage over-count, and coverage is computed
+            // from this read. The raw diagnostic export (`rawRrIntervals`) deliberately still shows both.
+            let reconciled = RRTransportReconciler.reconcile(rows, whoop5: whoop5)
+            return Array(OuraRedrainCollapse.withoutRedrainedRuns(reconciled).prefix(limit))
+        }
+    }
+
+    /// The diagnostic read: every beat channel except the `spo2Ibi` (0x6E) duplicate, with NO scoring
+    /// selection and no transport reconciliation, so a strap-log count or an export still carries every
+    /// stored observation as each other's cross-check. Quarantined (`tsSuspect`) beats stay excluded.
+    ///
+    /// It answers what the strap BANKED, not what was scored, so on a WHOOP 5 or a redrained ring night
+    /// (#2456) it counts more than the `hrv diag` line does. A strap log and the app disagreeing on beat
+    /// counts is the signal, not a fault.
+    public nonisolated func rawRrIntervals(deviceId: String, from: Int, to: Int, limit: Int) async throws -> [RRInterval] {
+        try await asyncRead { db in
+            try Row.fetchAll(db, sql: """
+                SELECT ts, rrMs, srcChannel, transport, ord, seq FROM rrInterval
+                WHERE deviceId = :d AND ts >= :f AND ts <= :t
+                AND (srcChannel IS NULL OR srcChannel <> :rrx)
+                AND (tsSuspect IS NULL OR tsSuspect <> 1)
+                ORDER BY ts ASC, ord ASC, rrMs ASC, seq ASC LIMIT :lim
+                """, arguments: ["d": deviceId, "f": from, "t": to,
+                                 "rrx": RRSourceChannel.spo2Ibi.rawValue, "lim": limit])
+                .map { row in
+                    RRInterval(ts: row["ts"], rrMs: row["rrMs"],
+                               srcChannel: (row["srcChannel"] as Int?).flatMap(RRSourceChannel.init(rawValue:)),
+                               transport: (row["transport"] as Int?).flatMap(RRTransport.init(rawValue:)),
+                               ord: row["ord"] as Int?, seq: row["seq"])
+                }
         }
     }
 

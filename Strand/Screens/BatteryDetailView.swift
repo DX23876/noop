@@ -8,9 +8,11 @@ enum StrapBatteryDisplayState: Equatable {
     case offline
     /// Linked, but no charge reading has landed yet. `charging` is still knowable on its own.
     case pending(charging: Bool)
-    /// A reading from the current link, clamped to 0…100.
-    case charge(pct: Double, charging: Bool)
-    /// The strap is not the active device (#2208), so there is no charge of the active device to show.
+    /// A reading from the current link, clamped to 0…100. `isRing` says whose: the ring's own charge under an
+    /// active ring (#2374), the strap's under an active strap — a label names the device the number belongs to.
+    case charge(pct: Double, charging: Bool, isRing: Bool)
+    /// The active device is neither the strap nor a ring that has reported its charge this link (#2208), so
+    /// there is no charge of the active device to show.
     ///
     /// Distinct from [offline], which asserts a strap that IS active is not connected. Collapsing the two
     /// put "strap not connected" on the header of a wearer whose ring was streaming. (#2216)
@@ -19,11 +21,20 @@ enum StrapBatteryDisplayState: Equatable {
     /// `activeIsWhoop` is required, not defaulted: `connected` is true the moment ANY source streams and
     /// `batteryPct` is the strap's and never cleared, so without it an active ring drew the strap's charge.
     /// A defaulted flag is one a future call site can forget, reinstating #2208 in a form that compiles.
-    static func resolve(activeIsWhoop: Bool, connected: Bool, batteryPct: Double?, charging: Bool?) -> Self {
-        guard activeIsWhoop else { return .notActiveDevice }
+    ///
+    /// A ring reports its OWN charge into `ringPct` (`LiveState.ouraBatteryPct`), cleared with the link, so under
+    /// a non-WHOOP active device a non-nil `ringPct` is a reading from the ring that is live right now; nil keeps
+    /// the control off. `ringCharging` is the ring's charger state, the only charging evidence a ring gives. A
+    /// surface that is about the STRAP alone passes nil, so it never shows a ring's number under a strap title.
+    static func resolve(activeIsWhoop: Bool, connected: Bool, batteryPct: Double?, charging: Bool?,
+                        ringPct: Int?, ringCharging: Bool) -> Self {
+        guard activeIsWhoop else {
+            guard let ringPct else { return .notActiveDevice }
+            return .charge(pct: min(100, max(0, Double(ringPct))), charging: ringCharging, isRing: true)
+        }
         guard connected else { return .offline }
         guard let batteryPct else { return .pending(charging: charging == true) }
-        return .charge(pct: min(100, max(0, batteryPct)), charging: charging == true)
+        return .charge(pct: min(100, max(0, batteryPct)), charging: charging == true, isRing: false)
     }
 
     /// The canonical level bands. These are the menu-bar stat's thresholds
@@ -82,7 +93,7 @@ struct DashboardBatteryButton: View {
 
     private var state: StrapBatteryDisplayState {
         .resolve(activeIsWhoop: live.activeIsWhoop, connected: live.connected,
-                 batteryPct: live.batteryPct, charging: live.charging)
+                 batteryPct: live.batteryPct, charging: live.charging, ringPct: nil, ringCharging: false)
     }
 
     var body: some View {
@@ -99,7 +110,7 @@ struct DashboardBatteryButton: View {
                 // would leave a gap.
                 HStack(spacing: 5) {
                     ring
-                    if case .charge(let pct, _) = state {
+                    if case .charge(let pct, _, _) = state {
                         Text(StrapBatteryCopy.percentText(pct))
                             .font(StrandFont.captionNumber)
                             .foregroundStyle(StrandPalette.textSecondary)
@@ -133,7 +144,7 @@ struct DashboardBatteryButton: View {
             case .pending(let charging):
                 Image(systemName: charging ? "bolt.fill" : "ellipsis")
                     .foregroundStyle(charging ? StrandPalette.statusPositive : StrandPalette.textSecondary)
-            case .charge(let pct, let charging):
+            case .charge(let pct, let charging, _):
                 Circle()
                     .trim(from: 0, to: max(0.015, pct / 100))
                     .stroke(tint(pct), style: StrokeStyle(lineWidth: max(2.5, size * 0.09), lineCap: .round))
@@ -156,7 +167,7 @@ struct DashboardBatteryButton: View {
         case .pending(let charging): return charging
             ? String(localized: "Strap battery charging, no reading yet")
             : String(localized: "Strap battery, no reading yet")
-        case .charge(let pct, let charging):
+        case .charge(let pct, let charging, _):
             let base = charging
                 ? String(localized: "Strap battery \(Int(pct.rounded())) percent, charging")
                 : String(localized: "Strap battery \(Int(pct.rounded())) percent")
@@ -176,7 +187,7 @@ struct BatteryDetailView: View {
 
     private var state: StrapBatteryDisplayState {
         .resolve(activeIsWhoop: live.activeIsWhoop, connected: live.connected,
-                 batteryPct: live.batteryPct, charging: live.charging)
+                 batteryPct: live.batteryPct, charging: live.charging, ringPct: nil, ringCharging: false)
     }
 
     var body: some View {
@@ -236,7 +247,7 @@ struct BatteryDetailView: View {
                 Image(systemName: charging ? "bolt.fill" : "ellipsis")
                     .font(StrandFont.title2).foregroundStyle(charging ? StrandPalette.statusPositive : StrandPalette.textSecondary)
             }.frame(width: 112, height: 112)
-        case .charge(let pct, let charging):
+        case .charge(let pct, let charging, _):
             GlowRing(fraction: pct / 100, value: pct,
                      format: { "\(Int($0.rounded()))%" }, color: tint,
                      diameter: 132, lineWidth: 11)
@@ -247,7 +258,7 @@ struct BatteryDetailView: View {
     }
 
     private var tint: Color {
-        guard case .charge(let pct, _) = state else { return StrandPalette.textTertiary }
+        guard case .charge(let pct, _, _) = state else { return StrandPalette.textTertiary }
         if pct <= 15 { return StrandPalette.statusCritical }
         if pct <= 30 { return StrandPalette.statusWarning }
         return StrandPalette.statusPositive
@@ -258,7 +269,7 @@ struct BatteryDetailView: View {
         case .notActiveDevice: return String(localized: "Strap is not the active device")
         case .offline: return String(localized: "Strap not connected")
         case .pending(let charging): return charging ? String(localized: "Charging · waiting for a reading") : String(localized: "Waiting for a battery reading")
-        case .charge(_, let charging): return charging ? String(localized: "Charging") : String(localized: "On battery")
+        case .charge(_, let charging, _): return charging ? String(localized: "Charging") : String(localized: "On battery")
         }
     }
 
