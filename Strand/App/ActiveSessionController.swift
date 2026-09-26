@@ -587,9 +587,11 @@ final class ActiveSessionController: ObservableObject {
         return tracker
     }
 
+    /// Set-based lifting only. CrossFit stays a heart-rate session on purpose: a WOD runs for time or as an
+    /// AMRAP, and nobody logs it set by set while the clock runs.
     private static let strengthSportKeys: Set<String> = [
         "Strength", "Strength Training", "Bodybuilding", "Weightlifting", "Powerlifting",
-        "CrossFit", "Calisthenics", "Traditional Strength Training", "Functional Strength Training"
+        "Calisthenics", "Traditional Strength Training", "Functional Strength Training"
     ].reduce(into: Set<String>()) { $0.insert(WorkoutSource.sportKey($1)) }
 
     static func isStrengthSport(_ sport: String) -> Bool {
