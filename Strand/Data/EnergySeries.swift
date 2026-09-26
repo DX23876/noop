@@ -131,6 +131,7 @@ extension Repository {
     /// observable the caller already holds, and the BMR must come from the same profile the rest of
     /// the screen is showing.
     func energySummaries(days: Int = 30, profile: UserProfile) async -> [DailyEnergySummary] {
+        energyProfile = profile
         let todayKey = Self.localDayKey(Date())
         let now = Date()
 
@@ -187,6 +188,16 @@ extension Repository {
         }
         let calibration = await energyCalibrationState(store: store)
         let calibrationFactor = calibration.status == .active ? calibration.factor : nil
+        // Katch–McArdle reads the body fat in force on each day; every other formula skips the read.
+        let bodyFatOn = await bodyFatResolver(for: profile.basalFormula)
+        // The model's own active energy per day, summed from the hourly rows it stored beside the
+        // buckets. Handed to the engine so a day's active energy is what the buckets priced, not
+        // "total minus a basal rate" — which drifts the moment the basal formula differs from the one
+        // the buckets were priced with, as it does after a formula change on days past the recompute.
+        var strapActiveByDay: [String: Double] = [:]
+        for row in (try? await store?.whoopEnergyHours(deviceId: deviceId, from: cutoff, to: todayKey)) ?? [] {
+            strapActiveByDay[row.day, default: 0] += row.activeKcal
+        }
         // Both shape the FORECAST only, never what was actually burned. Resolved once for the whole
         // window rather than per day: they describe the person, not the day.
         let shape = await activityShape()
@@ -224,6 +235,7 @@ extension Repository {
                    calendar: calendar) {
                 dayProfile.weightKg = historicalWeight
             }
+            dayProfile.bodyFatPercent = bodyFatOn(day)
             // Priced with THIS day's body mass and resting heart rate: both belong to the day rather
             // than to today, the same reason the weight above is resolved causally. The engine reads
             // them only on a day nothing measured, so the decision stays in one place.
@@ -238,6 +250,8 @@ extension Repository {
                 appleCoverageSeconds: appleCoverageByDay[day],
                 strapTotalKcal: strapEnergy?.kcal,
                 strapCoverageSeconds: strapEnergy?.seconds,
+                // Only for a current-generation day: its hourly rows and its buckets are one pass.
+                strapActiveKcal: derived.map { _ in strapActiveByDay[day] ?? 0 },
                 strapCalibrationFactor: calibrationFactor,
                 strapUncertaintyFraction: derived?.uncertaintyFraction,
                 calibrationStatus: calibration.status,
@@ -270,6 +284,8 @@ extension Repository {
     /// active energy comes only from the persisted, context-qualified five-minute buckets.
     func todayEnergyTimeline(profile: UserProfile, now: Date = Date()) async
         -> [EnergyTimelinePoint] {
+        var profile = profile
+        profile.bodyFatPercent = await bodyFatResolver(for: profile.basalFormula)(Self.localDayKey(now))
         guard let store = await storeHandle(),
               let bmr = Calories.bmrKcalPerDay(profile: profile) else { return [] }
         let calendar = Calendar.current
@@ -360,6 +376,57 @@ extension Repository {
         return result
     }
 
+    /// What the strap energy model charged for each session that recorded no energy of its own,
+    /// keyed by `WorkoutEnergyDisplay.key(_:)`. Sessions it cannot answer for are absent; the tile then
+    /// falls back to the heart-rate and activity-table estimates as before.
+    ///
+    /// Only days whose stored model row is the CURRENT generation are read: a superseded day still
+    /// holds buckets priced under the previous inclusion rules, which is the exact disagreement this
+    /// exists to remove. `maxDays` bounds the bucket reads for a long list — rows arrive newest first,
+    /// so it is the oldest sessions that keep their fallback.
+    func strapSessionEnergy(for rows: [WorkoutRow], maxDays: Int = 120) async -> [String: Double] {
+        let candidates = rows.filter { row in
+            row.endTs > row.startTs && !(row.energyKcal.map { $0.isFinite && $0 > 0 } ?? false)
+        }
+        guard !candidates.isEmpty, let store = await storeHandle(),
+              let earliest = candidates.map(\.startTs).min(),
+              let latest = candidates.map({ $0.endTs - 1 }).max() else { return [:] }
+        func dayKey(_ ts: Int) -> String { Self.localDayKey(Date(timeIntervalSince1970: TimeInterval(ts))) }
+        let current = Set(((try? await store.whoopDailyEnergy(
+            deviceId: deviceId, from: dayKey(earliest), to: dayKey(latest))) ?? [])
+            .filter { $0.modelVersion == WhoopDailyEnergyEstimate.modelVersion }
+            .map(\.day))
+        guard !current.isEmpty else { return [:] }
+        let calibration = await energyCalibrationState(store: store)
+        let activeFactor = calibration.status == .active ? (calibration.factor ?? 1) : 1
+
+        var bucketsByDay: [String: [WorkoutEnergyEstimate.StrapBucket]] = [:]
+        var result: [String: Double] = [:]
+        for row in candidates {
+            let days = Array(Set([dayKey(row.startTs), dayKey(row.endTs - 1)])).sorted()
+            guard days.allSatisfy(current.contains) else { continue }
+            var buckets: [WorkoutEnergyEstimate.StrapBucket] = []
+            for day in days {
+                if bucketsByDay[day] == nil {
+                    guard bucketsByDay.count < maxDays else { break }
+                    let stored = (try? await store.whoopEnergyBuckets(deviceId: deviceId, day: day)) ?? []
+                    bucketsByDay[day] = stored.map {
+                        WorkoutEnergyEstimate.StrapBucket(
+                            start: $0.bucketStart, durationSeconds: $0.durationSeconds,
+                            basalKcal: $0.basalKcal, activeKcal: $0.activeKcal,
+                            context: EnergyContext(rawValue: $0.context))
+                    }
+                }
+                buckets += bucketsByDay[day] ?? []
+            }
+            if let kcal = WorkoutEnergyEstimate.strapWindowKcal(
+                buckets: buckets, startTs: row.startTs, endTs: row.endTs, activeFactor: activeFactor) {
+                result[WorkoutEnergyDisplay.key(row)] = kcal
+            }
+        }
+        return result
+    }
+
     /// The median rate curve over the `windowDays` days BEFORE `day`, or nil when too few of them
     /// qualify.
     ///
@@ -372,6 +439,7 @@ extension Repository {
         guard let previous = calendar.date(byAdding: .day, value: -1, to: noon),
               let first = calendar.date(byAdding: .day, value: -windowDays, to: noon) else { return nil }
         let from = Self.localDayKey(first), to = Self.localDayKey(previous)
+        let bodyFatOn = await bodyFatResolver(for: profile.basalFormula)
         let hours = (try? await store.whoopEnergyHours(deviceId: deviceId, from: from, to: to)) ?? []
         let daily = (try? await store.whoopDailyEnergy(deviceId: deviceId, from: from, to: to)) ?? []
         let eligible = Set(daily.filter {
@@ -386,7 +454,11 @@ extension Repository {
         return EnergyBurnRate.reference(
             days: byDay.sorted { $0.key < $1.key }.map { .init(day: $0.key, activeKcalByHour: $0.value) },
             windowDays: windowDays,
-            basalKcalPerDay: Calories.bmrKcalPerDay(profile: profile))
+            basalKcalPerDay: Calories.bmrKcalPerDay(profile: {
+                var dayProfile = profile
+                dayProfile.bodyFatPercent = bodyFatOn(day)
+                return dayProfile
+            }()))
     }
 
     func energyCalibrationState() async -> EnergyCalibrationViewState {
@@ -432,15 +504,20 @@ extension Repository {
     /// Apple Watch reference factor from time-aligned high-quality buckets. Sources remain separate:
     /// each point compares one WHOOP estimate with one selected Watch source and never adds devices.
     func refreshWhoopEnergyModel(days: Int = 120, profile: UserProfile) async {
+        energyProfile = profile
         guard let store = await storeHandle() else { return }
         let now = Date()
         let calendar = Calendar.current
         // Callers may request a current-day repair after a model-version upgrade. Calibration still
         // enforces its own seven-day minimum when fitting, so forcing every refresh to read at least
         // seven days only made the Energy detail screen unnecessarily block on raw movement history.
-        let fromDate = days <= 1
-            ? calendar.startOfDay(for: now)
-            : (calendar.date(byAdding: .day, value: -days, to: now) ?? now)
+        //
+        // Whole local days only: `days` calendar days ending today, from the first one's midnight.
+        // The window used to start at `now - days`, mid-day, and `replaceWhoopEnergyWindow` replaces
+        // each day it is handed WHOLESALE — so the oldest day was rewritten from its afternoon alone
+        // on every refresh, losing its morning's buckets and part of its total.
+        let fromDate = calendar.startOfDay(
+            for: calendar.date(byAdding: .day, value: -(max(1, days) - 1), to: now) ?? now)
         let from = Int(fromDate.timeIntervalSince1970)
         let to = Int(now.timeIntervalSince1970) + 1
         let hr = await hrBuckets(from: from, to: to, bucketSeconds: 300)
@@ -458,7 +535,8 @@ extension Repository {
             ?? (profile.age > 0 ? StrainScorer.tanakaHRmax(age: profile.age) : nil)
         let sleepIntervals = await energySleepIntervals(store: store, from: from, to: to)
         let offWristIntervals = await energyOffWristIntervals(store: store, from: from, to: to)
-        let workoutIntervals = await energyWorkoutIntervals(store: store, from: from, to: to)
+        let workoutIntervals = await energyWorkoutIntervals(from: from, to: to)
+        let bodyFatOn = await bodyFatResolver(for: profile.basalFormula)
 
         // The wearer's own step length, from Apple's iPhone-measured walking-step-length reading.
         // This is an INPUT to the model, not an energy figure: no Apple kcal is read here, the source
@@ -490,6 +568,7 @@ extension Repository {
         for (day, rows) in Dictionary(grouping: hr, by: { Self.localDayKey(
             Date(timeIntervalSince1970: TimeInterval($0.ts))) }) {
             var dayProfile = profile
+            dayProfile.bodyFatPercent = bodyFatOn(day)
             let noon = WeightSeries.date(forDay: day)
                 .map { Int($0.timeIntervalSince1970 + 43_200) } ?? (rows.first.map(\.ts) ?? from)
             var weightSource = WhoopDailyEnergyRow.WeightSource.profile
@@ -795,27 +874,24 @@ extension Repository {
         return []
     }
 
-    private func energyWorkoutIntervals(store: WhoopStore, from: Int, to: Int) async
-        -> [EnergyWorkoutInterval] {
-        var rows: [WorkoutRow] = []
-        let ids = importedReadIds + computedReadIds
-            + [Self.appleHealthSource, "lifting", "activity-file"]
-        for id in ids {
-            rows += (try? await store.workouts(deviceId: id, from: from - 43_200,
-                                               to: to, limit: 100_000)) ?? []
+    /// The sessions whose five-minute buckets the model prices as a confirmed workout.
+    ///
+    /// Read through `rawWorkoutRows`, the same union the Workouts list, the burn-rate bands and the
+    /// day's logged activity read, rather than a list of storage namespaces of its own. The private
+    /// list this replaced had drifted: it lacked the native training tables (every session the
+    /// in-app strength logger or the FitNotes/Strong import produced), the Hevy API namespace and any
+    /// retained strap other than the active and canonical ones, and it still counted detector bouts
+    /// the wearer had dismissed. A native lifting session was therefore priced as elevated heart
+    /// rate with no activity — zero active kcal — under a band the chart labelled as training.
+    ///
+    /// Two days of lead-in, as `energyDayRate` uses, so a session that started before the window
+    /// still marks the buckets it reaches.
+    private func energyWorkoutIntervals(from: Int, to: Int) async -> [EnergyWorkoutInterval] {
+        let rows = WorkoutSource.dedupCrossSource(
+            await rawWorkoutRows(from: from - 2 * 86_400, to: to))
+        return rows.filter { $0.endTs > $0.startTs && $0.endTs > from && $0.startTs < to }.map {
+            (start: $0.startTs, end: $0.endTs, kind: EnergyWorkoutKind.forSport($0.sport))
         }
-        return rows.filter { $0.endTs > $0.startTs }.map {
-            (start: $0.startTs, end: $0.endTs, kind: Self.energyWorkoutKind($0.sport))
-        }
-    }
-
-    private nonisolated static func energyWorkoutKind(_ sport: String) -> EnergyWorkoutKind {
-        let key = sport.lowercased().filter { $0.isLetter }
-        if ["strength", "weight", "lifting", "crossfit", "functional", "yoga", "pilates"]
-            .contains(where: key.contains) { return .resistance }
-        if ["run", "walk", "cycle", "cycling", "bike", "swim", "row", "hike", "ski"]
-            .contains(where: key.contains) { return .endurance }
-        return .other
     }
 
     private nonisolated static func contains(_ timestamp: Int,
@@ -939,6 +1015,7 @@ extension Repository {
         case .lifting:      return .lifting
         case .activityFile: return .activityFile
         case .hevy:         return .hevy
+        case .oura:         return .oura
         }
     }
 
@@ -1014,10 +1091,21 @@ extension Repository {
     /// hold the profile, which is on the main actor anyway.
     @MainActor
     static func analyticsProfile(_ profile: ProfileStore) -> UserProfile {
+        // The basal formula the wearer chose on the Energy Plan (Mifflin–St Jeor until they choose),
+        // applied to the whole history. Body fat is resolved per day by the energy paths that need it.
         UserProfile(weightKg: profile.weightKg,
                     heightCm: profile.heightCm,
                     age: Double(profile.age),
                     sex: profile.sex,
-                    maxHR: Double(profile.hrMax))
+                    maxHR: Double(profile.hrMax),
+                    basalFormula: EnergyPlanStore.formulaLog.current)
+    }
+
+    /// The body fat in force on a day, for Katch–McArdle; a resolver that answers nil without reading
+    /// anything for every other formula.
+    func bodyFatResolver(for formula: BasalFormula) async -> (String) -> Double? {
+        guard formula.needsBodyFat else { return { _ in nil } }
+        let metrics = await bodyMetrics()
+        return { metrics.asOf("body_fat", day: $0)?.value }
     }
 }

@@ -325404,6 +325404,64 @@
         }
       }
     },
+    "Source synced from Oura" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quelle synchronisiert von Oura"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fuente sincronizada desde Oura"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Données synchronisées depuis Oura"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dati sincronizzati da Oura"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Źródło zsynchronizowane z Oura"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fonte sincronizada do Oura"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Источник: синхронизировано из Oura"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数据源从 Oura 同步"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "資料來源從 Oura 同步"
+          }
+        }
+      }
+    },
     "Source Whoop" : {
       "localizations" : {
         "de" : {
@@ -446640,6 +446698,64 @@
         }
       }
     },
+    "est. from strap data" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "aus Strap-Daten geschätzt"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "estimado con datos de la pulsera"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "estimé d’après le bracelet"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "estimado pelos dados da bracelete"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "szac. z danych paska"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "stimato dai dati della fascia"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "оценка по данным браслета"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "根据手环数据估算"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "根據手環資料估算"
+          }
+        }
+      }
+    },
     "estimated" : {
       "localizations" : {
         "de" : {
@@ -447335,6 +447451,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "~%@ 千卡，根據平均心率估算%@"
+          }
+        }
+      }
+    },
+    "~%@ kcal, estimated from the strap's heart rate and movement" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "~%@ kcal, aus Herzfrequenz und Bewegung des Straps geschätzt"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "~%@ kcal, estimadas a partir de la frecuencia cardiaca y el movimiento de la pulsera"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "~%@ kcal, estimées d’après la fréquence cardiaque et les mouvements du bracelet"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "~%@ kcal, estimadas a partir da frequência cardíaca e do movimento da bracelete"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "~%@ kcal, oszacowane z tętna i ruchu zarejestrowanych przez pasek"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "~%@ kcal, stimate dalla frequenza cardiaca e dal movimento della fascia"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "~%@ ккал, оценка по пульсу и движению с браслета"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "~%@ 千卡，根据手环的心率和运动估算"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "~%@ 千卡，根據手環的心率和動作估算"
           }
         }
       }
@@ -455097,6 +455271,470 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "傳送實驗性協定查詢並將回覆記錄到手環日誌中。也會啟用實驗性的 5/MG 手環鬧鐘。"
+          }
+        }
+      }
+    },
+    "Ask to rate sessions" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nach Einheiten fragen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pedir valorar sesiones"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demander d’évaluer les séances"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chiedi di valutare le sessioni"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pytaj o ocenę sesji"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pedir para avaliar sessões"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Просить оценить тренировку"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提醒评价训练"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提醒評價訓練"
+          }
+        }
+      }
+    },
+    "When useful" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wenn sinnvoll"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cuando sea útil"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quand c’est utile"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quando utile"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gdy ma to sens"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quando útil"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Когда полезно"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有用时"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有用時"
+          }
+        }
+      }
+    },
+    "A reminder after a session to rate how demanding it felt, from 1 to 10, for Session Load. When useful: after lifting, ball, racket and combat sports and swimming, and after any other session that lasted 45 minutes or more or was at least moderately hard. Every session can still be rated on its detail screen." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine Erinnerung nach einer Einheit, zu bewerten, wie anstrengend sie war – von 1 bis 10, für die Session Load. Wenn sinnvoll: nach Kraft-, Ball-, Rückschlag- und Kampfsport sowie Schwimmen und nach jeder anderen Einheit, die 45 Minuten oder länger dauerte oder mindestens moderat anstrengend war. Bewerten lässt sich jede Einheit weiterhin in ihrer Detailansicht."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un recordatorio tras una sesión para valorar lo exigente que fue, de 1 a 10, para la carga de sesión. Cuando sea útil: tras fuerza, deportes de pelota, de raqueta y de combate y natación, y tras cualquier otra sesión de 45 minutos o más o al menos moderadamente intensa. Cualquier sesión puede seguir valorándose en su pantalla de detalle."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un rappel après une séance pour évaluer son exigence, de 1 à 10, pour la charge de séance. Quand c’est utile : après la musculation, les sports de balle, de raquette et de combat et la natation, et après toute autre séance de 45 minutes ou plus ou au moins modérément intense. Chaque séance reste évaluable depuis son écran de détail."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un promemoria dopo una sessione per valutare quanto è stata impegnativa, da 1 a 10, per il carico di sessione. Quando utile: dopo pesi, sport con la palla, di racchetta e da combattimento e nuoto, e dopo ogni altra sessione di almeno 45 minuti o almeno moderatamente intensa. Ogni sessione resta valutabile dalla sua schermata di dettaglio."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przypomnienie po sesji, by ocenić jej wymagający charakter w skali 1–10 na potrzeby obciążenia sesji. Gdy ma to sens: po treningu siłowym, sportach z piłką, rakietowych i walki oraz pływaniu, a także po każdej innej sesji trwającej 45 minut lub dłużej albo co najmniej umiarkowanie intensywnej. Każdą sesję można nadal ocenić na jej ekranie szczegółów."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um lembrete após uma sessão para avaliar o quão exigente foi, de 1 a 10, para a carga da sessão. Quando útil: após musculação, desportos de bola, de raquete e de combate e natação, e após qualquer outra sessão de 45 minutos ou mais ou pelo menos moderadamente intensa. Qualquer sessão pode continuar a ser avaliada no seu ecrã de detalhe."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Напоминание после тренировки оценить её тяжесть от 1 до 10 для нагрузки сессии. Когда полезно: после силовых, игровых, ракеточных и единоборств, плавания и любой другой тренировки от 45 минут или хотя бы умеренной интенсивности. Любую тренировку по-прежнему можно оценить на её экране."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "训练结束后提醒你按 1–10 评价其强度，用于训练负荷。有用时：力量、球类、拍类、格斗运动和游泳之后，以及任何持续 45 分钟以上或至少中等强度的训练之后。每次训练仍可在其详情页中评价。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "訓練結束後提醒你按 1–10 評價其強度，用於訓練負荷。有用時：力量、球類、拍類、格鬥運動和游泳之後，以及任何持續 45 分鐘以上或至少中等強度的訓練之後。每次訓練仍可在其詳細頁面中評價。"
+          }
+        }
+      }
+    },
+    "Mifflin–St Jeor is the default: the more accurate formula from height and weight. Earlier versions used revised Harris–Benedict; every day, past ones included, is now computed with Mifflin–St Jeor." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Standard ist Mifflin–St Jeor, die genauere Formel aus Größe und Gewicht. Frühere Versionen nutzten das revidierte Harris–Benedict; jeder Tag, auch vergangene, wird jetzt mit Mifflin–St Jeor berechnet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mifflin–St Jeor es la opción predeterminada: la fórmula más precisa a partir de altura y peso. Las versiones anteriores usaban Harris–Benedict revisada; ahora cada día, también los pasados, se calcula con Mifflin–St Jeor."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mifflin–St Jeor est la formule par défaut : la plus précise à partir de la taille et du poids. Les versions précédentes utilisaient Harris–Benedict révisée ; chaque jour, passés compris, est désormais calculé avec Mifflin–St Jeor."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mifflin–St Jeor è la predefinita: la formula più precisa da altezza e peso. Le versioni precedenti usavano Harris–Benedict rivista; ora ogni giorno, anche quelli passati, è calcolato con Mifflin–St Jeor."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Domyślnie Mifflin–St Jeor: dokładniejszy wzór na podstawie wzrostu i wagi. Wcześniejsze wersje używały poprawionego wzoru Harrisa–Benedicta; teraz każdy dzień, także miniony, jest liczony wzorem Mifflin–St Jeor."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mifflin–St Jeor é a predefinição: a fórmula mais precisa a partir da altura e do peso. As versões anteriores usavam Harris–Benedict revista; agora cada dia, incluindo os passados, é calculado com Mifflin–St Jeor."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "По умолчанию — Миффлин–Сан Жеор, более точная формула по росту и весу. Прежние версии использовали пересмотренную формулу Харриса–Бенедикта; теперь каждый день, включая прошедшие, считается по Миффлину–Сан Жеору."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "默认使用 Mifflin–St Jeor：基于身高和体重更准确的公式。早期版本使用修订版 Harris–Benedict；现在每一天（包括过去的日子）都按 Mifflin–St Jeor 计算。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "預設使用 Mifflin–St Jeor：依身高與體重較準確的公式。早期版本使用修訂版 Harris–Benedict；現在每一天（包括過去的日子）都按 Mifflin–St Jeor 計算。"
+          }
+        }
+      }
+    },
+    "The chosen formula applies to your whole history, so every day is compared on the same method." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die gewählte Formel gilt für deinen gesamten Verlauf, damit jeder Tag nach derselben Methode verglichen wird."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La fórmula elegida se aplica a todo tu historial, para que cada día se compare con el mismo método."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La formule choisie s’applique à tout votre historique, pour que chaque jour soit comparé avec la même méthode."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La formula scelta vale per tutta la cronologia, così ogni giorno è confrontato con lo stesso metodo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wybrany wzór obowiązuje dla całej historii, by każdy dzień porównywać tą samą metodą."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A fórmula escolhida aplica-se a todo o teu histórico, para que cada dia seja comparado com o mesmo método."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выбранная формула применяется ко всей истории, чтобы каждый день сравнивался одним методом."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所选公式适用于你的全部历史，使每一天都按同一方法比较。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所選公式適用於你的全部歷史，使每一天都按同一方法比較。"
+          }
+        }
+      }
+    },
+    "Katch–McArdle uses the body-fat reading in force on each day. Days before your first reading use Mifflin–St Jeor, so the curve steps where your first reading begins." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Katch–McArdle nutzt den an jedem Tag gültigen Körperfettwert. Tage vor deiner ersten Messung werden mit Mifflin–St Jeor berechnet; die Kurve macht deshalb dort eine Stufe, wo deine erste Messung beginnt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Katch–McArdle usa la medición de grasa corporal vigente cada día. Los días anteriores a tu primera medición usan Mifflin–St Jeor, así que la curva da un salto donde empieza tu primera medición."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Katch–McArdle utilise la mesure de masse grasse en vigueur chaque jour. Les jours antérieurs à votre première mesure utilisent Mifflin–St Jeor ; la courbe marque donc une marche là où commence votre première mesure."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Katch–McArdle usa la misura di grasso corporeo in vigore ogni giorno. I giorni prima della prima misura usano Mifflin–St Jeor, quindi la curva ha un gradino dove inizia la prima misura."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Katch–McArdle używa pomiaru tkanki tłuszczowej obowiązującego danego dnia. Dni przed pierwszym pomiarem liczone są wzorem Mifflin–St Jeor, więc krzywa ma skok tam, gdzie zaczyna się pierwszy pomiar."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Katch–McArdle usa a medição de gordura corporal em vigor em cada dia. Os dias antes da tua primeira medição usam Mifflin–St Jeor, por isso a curva dá um salto onde começa a primeira medição."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Кэтч–Макардл использует показатель жира, действующий в каждый день. Дни до первого измерения считаются по Миффлину–Сан Жеору, поэтому кривая делает ступеньку там, где начинается первое измерение."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Katch–McArdle 使用每天有效的体脂读数。首次读数之前的日子按 Mifflin–St Jeor 计算，因此曲线会在首次读数开始处出现台阶。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Katch–McArdle 使用每天有效的體脂讀數。首次讀數之前的日子按 Mifflin–St Jeor 計算，因此曲線會在首次讀數開始處出現台階。"
+          }
+        }
+      }
+    },
+    "Applied to your whole history, past days included, so every day is compared on the same formula." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gilt für deinen gesamten Verlauf, auch für vergangene Tage, damit jeder Tag nach derselben Formel verglichen wird."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se aplica a todo tu historial, incluidos los días pasados, para que cada día se compare con la misma fórmula."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S’applique à tout votre historique, jours passés compris, pour que chaque jour soit comparé avec la même formule."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Si applica a tutta la cronologia, giorni passati inclusi, così ogni giorno è confrontato con la stessa formula."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obowiązuje dla całej historii, łącznie z minionymi dniami, by każdy dzień porównywać tym samym wzorem."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aplica-se a todo o teu histórico, incluindo dias passados, para que cada dia seja comparado com a mesma fórmula."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Применяется ко всей истории, включая прошедшие дни, чтобы каждый день сравнивался по одной формуле."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "适用于你的全部历史（包括过去的日子），使每一天都按同一公式比较。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "適用於你的全部歷史（包括過去的日子），使每一天都按同一公式比較。"
+          }
+        }
+      }
+    },
+    "Elapsed time, heart rate, sets and rest while a workout runs." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dauer, Puls, Sätze und Pause, solange ein Workout läuft."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tiempo, pulso, series y descanso mientras dura un entrenamiento."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Durée, fréquence cardiaque, séries et repos pendant un entraînement."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Durata, frequenza cardiaca, serie e recupero durante un allenamento."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Czas, tętno, serie i przerwa podczas treningu."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tempo, frequência cardíaca, séries e descanso durante um treino."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Время, пульс, подходы и отдых во время тренировки."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "训练进行时显示用时、心率、组数和休息。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "訓練進行時顯示用時、心率、組數和休息。"
           }
         }
       }

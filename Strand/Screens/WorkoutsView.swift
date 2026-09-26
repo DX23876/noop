@@ -81,6 +81,9 @@ struct WorkoutsView: View {
     /// Loaded once per list load rather than per row — it is a database read, and the kcal column
     /// renders for every visible session.
     @State private var restingHrByDay: [String: Double] = [:]
+    /// The strap model's figure per session (`Repository.strapSessionEnergy`), for the rows that
+    /// recorded none. Reloaded when the rows change and whenever the energy model republishes.
+    @State private var strapEnergyByKey: [String: Double] = [:]
 
     /// Local `yyyy-MM-dd` formatter for the heatmap's day keys + "today" anchor (matches the stored keys).
     private static let dayFormatter: DateFormatter = {
@@ -274,6 +277,10 @@ struct WorkoutsView: View {
                 let from = Self.dayFormatter.string(from: Date(timeIntervalSince1970: TimeInterval(oldest)))
                 restingHrByDay = await repo.restingHrByDay(fromDay: min(from, toDay), toDay: toDay)
             }
+        }
+        .task(id: "\(allRows.count)|\(allRows.first?.startTs ?? 0)|\(repo.energyPresentationRevision)") {
+            guard !usesPreviewRows, loaded else { return }
+            strapEnergyByKey = await repo.strapSessionEnergy(for: allRows)
         }
         .onAppear {
             // Preview-seeded rows skip `.task`; still choose a range that has data.
@@ -647,7 +654,7 @@ struct WorkoutsView: View {
 
     /// The origin classes offered in the Source filter (imported + on-device), in a stable menu order.
     private static let sourceFilterOptions: [WorkoutSource] =
-        [.whoop, .apple, .detected, .manual, .hevy, .lifting, .activityFile]
+        [.whoop, .apple, .detected, .manual, .hevy, .lifting, .activityFile, .oura]
 
     /// The Source-filter menu label for an origin class (matches the row source badges).
     private static func sourceFilterLabel(_ c: WorkoutSource) -> String {
@@ -659,6 +666,7 @@ struct WorkoutsView: View {
         case .hevy:         return String(localized: "Hevy")
         case .lifting:      return String(localized: "Lifting")
         case .activityFile: return String(localized: "File")
+        case .oura:         return String(localized: "Oura")
         }
     }
 
@@ -1762,7 +1770,7 @@ struct WorkoutsView: View {
             Button("Edit…") { editWorkout(row) }
             Divider()
             Button("Delete", role: .destructive) { delete(row) }
-        case .whoop, .apple, .lifting, .activityFile, .hevy:
+        case .whoop, .apple, .lifting, .activityFile, .hevy, .oura:
             // Imported history is read-only; offer a copy-to-manual edit path that doesn't touch it.
             Button("Duplicate as manual…") { editWorkout(asManualCopy(row), isCopy: true) }
         }
@@ -1805,6 +1813,7 @@ struct WorkoutsView: View {
             case .hevy:     return (String(localized: "Hevy"), StrandPalette.zone2, String(localized: "Source synced from Hevy"))
             case .lifting:  return (String(localized: "Lifting"), StrandPalette.zone2, String(localized: "Source imported lifting log"))
             case .activityFile: return (String(localized: "File"), StrandPalette.metricAmber, String(localized: "Source imported activity file"))
+            case .oura:     return (String(localized: "Oura"), StrandPalette.metricPurple, String(localized: "Source synced from Oura"))
             }
         }()
         // String interpolation lifts the computed label into a LocalizedStringKey (SourceBadge's type).
@@ -1960,7 +1969,8 @@ struct WorkoutsView: View {
     /// activity usually costs. Shared with the detail screen so one session cannot read two figures.
     private func resolvedEnergy(_ row: WorkoutRow) -> WorkoutEnergyEstimate.Resolved? {
         WorkoutEnergyDisplay.resolve(row, profile: Repository.analyticsProfile(profile),
-                                     hrMax: Double(profile.hrMax), restingHrByDay: restingHrByDay)
+                                     hrMax: Double(profile.hrMax), restingHrByDay: restingHrByDay,
+                                     strapKcalByKey: strapEnergyByKey)
     }
 
     private func grouped(_ v: Double) -> String {

@@ -33,7 +33,7 @@ struct FormulaSwitchSheet: View {
                                 .font(StrandFont.headline)
                                 .foregroundStyle(StrandPalette.textPrimary)
                                 .fixedSize(horizontal: false, vertical: true)
-                            Text("From today onward. Days already scored keep the formula that applied then — this never rewrites history.")
+                            Text("Applied to your whole history, past days included, so every day is compared on the same formula.")
                                 .font(StrandFont.subhead)
                                 .foregroundStyle(StrandPalette.textSecondary)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -51,9 +51,11 @@ struct FormulaSwitchSheet: View {
                         }
                     }
 
-                    Text("A step in the curve at today's date is this change, not a measurement change. The Energy screen labels it.")
-                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    if target.needsBodyFat {
+                        Text("Katch–McArdle uses the body-fat reading in force on each day. Days before your first reading use Mifflin–St Jeor, so the curve steps where your first reading begins.")
+                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 .padding(NoopMetrics.gap)
             }

@@ -65,4 +65,110 @@ final class WorkoutEnergyEstimateTests: XCTestCase {
         XCTAssertEqual(resolved?.provenance, .metTable)
         XCTAssertGreaterThan(resolved?.kcal ?? 0, 0)
     }
+
+    /// Without strap coverage a lifting session's average heart rate is priced on the strap model's
+    /// resistance curve plus basal — not Keytel, which reads the pressor response as oxygen uptake.
+    func testALiftingSessionsHeartRateIsPricedOnTheResistanceCurve() throws {
+        let seconds = 5_400.0
+        let resolved = try XCTUnwrap(WorkoutEnergyEstimate.resolve(
+            recordedKcal: nil, sport: "Strength Training", durationSeconds: seconds, averageHR: 108,
+            profile: profile, hrMax: 190, restingHR: 60))
+        XCTAssertEqual(resolved.provenance, .heartRate)
+        let met = WhoopEnergyModel.exerciseMET(hr: 108, resting: 60, maximum: 190, kind: .resistance)
+        let expected = try XCTUnwrap(Calories.bmrKcalPerDay(profile: profile)) / 86_400 * seconds
+            + WhoopEnergyModel.activeKcal(met: met, seconds: seconds, weightKg: 80)
+        XCTAssertEqual(resolved.kcal, expected, accuracy: 1e-6)
+        let keytel = try XCTUnwrap(Calories.estimateBoutCalories(
+            averageHR: 108, durationSeconds: seconds, profile: profile, hrmax: 190, restingHR: 60))
+        XCTAssertLessThan(resolved.kcal, keytel)
+
+        // An endurance session keeps Keytel.
+        let run = try XCTUnwrap(WorkoutEnergyEstimate.resolve(
+            recordedKcal: nil, sport: "Running", durationSeconds: 3_600, averageHR: 150,
+            profile: profile, hrMax: 190, restingHR: 60))
+        XCTAssertEqual(run.kcal, Calories.estimateBoutCalories(
+            averageHR: 150, durationSeconds: 3_600, profile: profile, hrmax: 190, restingHR: 60) ?? 0,
+            accuracy: 1e-6)
+    }
+
+    // MARK: - Strap model over the session window
+
+    private func bucket(_ start: Int, basal: Double = 7, active: Double = 10,
+                        context: EnergyContext? = .confirmedWorkout) -> WorkoutEnergyEstimate.StrapBucket {
+        .init(start: start, durationSeconds: 300, basalKcal: basal, activeKcal: active, context: context)
+    }
+
+    func testTheStrapModelOutranksTheAverageHeartRateButNotARecording() {
+        let withStrap = WorkoutEnergyEstimate.resolve(
+            recordedKcal: nil, sport: "Strength Training", durationSeconds: 5_400, averageHR: 108,
+            profile: profile, hrMax: 190, restingHR: 60, strapKcal: 306)
+        XCTAssertEqual(withStrap?.provenance, .strapModel)
+        XCTAssertEqual(withStrap?.kcal, 306)
+        XCTAssertEqual(withStrap?.isEstimated, true)
+
+        let recorded = WorkoutEnergyEstimate.resolve(
+            recordedKcal: 512, sport: "Strength Training", durationSeconds: 5_400, averageHR: 108,
+            profile: profile, hrMax: 190, restingHR: 60, strapKcal: 306)
+        XCTAssertEqual(recorded?.provenance, .recorded)
+
+        // No strap answer: the heart-rate branch is reached exactly as before.
+        XCTAssertEqual(WorkoutEnergyEstimate.resolve(
+            recordedKcal: nil, sport: "Strength Training", durationSeconds: 5_400, averageHR: 108,
+            profile: profile, hrMax: 190, restingHR: 60, strapKcal: nil)?.provenance, .heartRate)
+        XCTAssertEqual(WorkoutEnergyEstimate.resolve(
+            recordedKcal: nil, sport: "Strength Training", durationSeconds: 5_400, averageHR: 108,
+            profile: profile, hrMax: 190, restingHR: 60, strapKcal: 0)?.provenance, .heartRate)
+    }
+
+    func testTheWindowSumsBasalAndActiveOfTheBucketsInsideIt() throws {
+        // 30 min = six whole buckets inside the window, one bucket either side outside it.
+        let buckets = (-1...6).map { bucket($0 * 300) }
+        let kcal = try XCTUnwrap(WorkoutEnergyEstimate.strapWindowKcal(
+            buckets: buckets, startTs: 0, endTs: 1_800))
+        XCTAssertEqual(kcal, 6 * 17, accuracy: 1e-9)
+    }
+
+    func testAPartialBucketIsProratedByItsOverlap() throws {
+        let kcal = try XCTUnwrap(WorkoutEnergyEstimate.strapWindowKcal(
+            buckets: [bucket(0), bucket(300)], startTs: 150, endTs: 600))
+        XCTAssertEqual(kcal, 17 * 0.5 + 17, accuracy: 1e-9)
+    }
+
+    func testCalibrationScalesActiveEnergyOnly() throws {
+        let kcal = try XCTUnwrap(WorkoutEnergyEstimate.strapWindowKcal(
+            buckets: [bucket(0)], startTs: 0, endTs: 300, activeFactor: 1.5))
+        XCTAssertEqual(kcal, 7 + 15, accuracy: 1e-9)
+    }
+
+    func testBucketsPricedBeforeTheSessionExistedDoNotAnswerForIt() {
+        // The reported case: the model ran while the session was invisible to it and charged the
+        // lifting as elevated heart rate with no activity. Summing that would present the stale
+        // zero-active answer as the strap's verdict on the workout.
+        let stale = (0..<18).map { bucket($0 * 300, active: 0, context: .unresolvedElevatedHR) }
+        XCTAssertNil(WorkoutEnergyEstimate.strapWindowKcal(buckets: stale, startTs: 0, endTs: 5_400))
+    }
+
+    func testAWindowTheStrapBarelyCoveredDoesNotAnswer() {
+        // 3 of 6 buckets: half the session unseen.
+        XCTAssertNil(WorkoutEnergyEstimate.strapWindowKcal(
+            buckets: (0..<3).map { bucket($0 * 300) }, startTs: 0, endTs: 1_800))
+        // Off-wrist time is modelled basal, not strap evidence, and does not count as coverage.
+        let offWrist = (0..<6).map { bucket($0 * 300, active: 0, context: $0 < 3 ? .offWrist : .confirmedWorkout) }
+        XCTAssertNil(WorkoutEnergyEstimate.strapWindowKcal(buckets: offWrist, startTs: 0, endTs: 1_800))
+    }
+
+    func testAShortGapIsChargedAtTheCoveredRate() throws {
+        // 5 of 6 buckets present (83 % coverage): the missing five minutes cost what the rest did.
+        let kcal = try XCTUnwrap(WorkoutEnergyEstimate.strapWindowKcal(
+            buckets: [0, 1, 2, 4, 5].map { bucket($0 * 300) }, startTs: 0, endTs: 1_800))
+        XCTAssertEqual(kcal, 6 * 17, accuracy: 1e-9)
+    }
+
+    func testAnEmptyOrInvertedWindowIsNil() {
+        XCTAssertNil(WorkoutEnergyEstimate.strapWindowKcal(buckets: [], startTs: 0, endTs: 1_800))
+        XCTAssertNil(WorkoutEnergyEstimate.strapWindowKcal(buckets: [bucket(0)], startTs: 300, endTs: 300))
+        XCTAssertNil(WorkoutEnergyEstimate.strapWindowKcal(buckets: [bucket(0)], startTs: 0, endTs: 300,
+                                                           activeFactor: .nan))
+    }
 }
+

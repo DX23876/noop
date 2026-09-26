@@ -24,14 +24,24 @@ enum WorkoutEnergyDisplay {
     /// `restingHrByDay` is keyed by local day and looked up by the session's START — the resting rate
     /// sets the activity gate the estimate is measured against, and the wrong day's rate can move the
     /// figure by hundreds of kcal or drop it below the gate entirely.
+    ///
+    /// `strapKcalByKey` is `Repository.strapSessionEnergy(for:)` for the rows on screen. A session the
+    /// strap model covered takes its figure from there, so the tile agrees with the day's energy.
     static func resolve(_ row: WorkoutRow, profile: UserProfile, hrMax: Double?,
-                        restingHrByDay: [String: Double]) -> WorkoutEnergyEstimate.Resolved? {
+                        restingHrByDay: [String: Double],
+                        strapKcalByKey: [String: Double] = [:]) -> WorkoutEnergyEstimate.Resolved? {
         let day = Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(row.startTs)))
         return WorkoutEnergyEstimate.resolve(
             recordedKcal: row.energyKcal, sport: row.sport,
             durationSeconds: row.durationS ?? Double(max(0, row.endTs - row.startTs)),
             averageHR: row.avgHr, profile: profile, hrMax: hrMax,
-            restingHR: restingHrByDay[day])
+            restingHR: restingHrByDay[day], strapKcal: strapKcalByKey[key(row)])
+    }
+
+    /// Identity of one session for the strap-energy lookup. The window is part of it: an edited start
+    /// or end is a different window, and must not inherit the old one's figure.
+    static func key(_ row: WorkoutRow) -> String {
+        "\(row.source)|\(row.startTs)|\(row.endTs)|\(row.sport)"
     }
 
     /// "529 kcal" when it was recorded, "~529 kcal" when it was not. The tilde is the same marker
@@ -47,6 +57,7 @@ enum WorkoutEnergyDisplay {
     static func caption(_ resolved: WorkoutEnergyEstimate.Resolved?) -> String? {
         switch resolved?.provenance {
         case .recorded, .none: return nil
+        case .strapModel:      return String(localized: "est. from strap data")
         case .heartRate:       return String(localized: "est. from avg HR")
         case .metTable:        return String(localized: "est. from activity")
         }
@@ -63,6 +74,8 @@ enum WorkoutEnergyDisplay {
         switch resolved.provenance {
         case .recorded:
             return "\(number) kcal"
+        case .strapModel:
+            return String(localized: "~\(number) kcal, estimated from the strap's heart rate and movement")
         case .heartRate:
             let hr = averageHR.map { " of \($0) bpm" } ?? ""
             return String(localized: "~\(number) kcal, estimated from the average heart rate\(hr)")

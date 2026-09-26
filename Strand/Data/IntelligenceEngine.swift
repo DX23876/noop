@@ -3923,7 +3923,7 @@ final class IntelligenceEngine: ObservableObject {
                                                            to: row.endTs, limit: 20_000),
                   let s = ManualWorkoutRescore.scored(windowSamples: samples, profile: up, hrMax: hrMax,
                                                       restingHR: restingHR,
-                                                      effortMethod: effortMethod),
+                                                      effortMethod: effortMethod, sport: row.sport),
                   ManualWorkoutRescore.improves(s, over: row.energyKcal, currentStrain: row.strain,
                                                 allowStrainOnlyFill: true)
             else { continue }

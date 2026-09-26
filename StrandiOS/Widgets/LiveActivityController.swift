@@ -67,6 +67,15 @@ final class LiveActivityController {
             .dropFirst()
             .sink { [weak self] _ in self?.refreshBanner() }
             .store(in: &cancellables)
+        // The workout switch acts at once too: turning it off mid-session ends the banner, turning it on shows it.
+        NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
+            .receive(on: DispatchQueue.main)
+            .map { _ in UnitPrefs.workoutLiveActivityEnabled() }
+            .prepend(UnitPrefs.workoutLiveActivityEnabled())
+            .removeDuplicates()
+            .dropFirst()
+            .sink { [weak model] _ in model?.session.publishActivity() }
+            .store(in: &cancellables)
     }
 
     /// NOOP came on screen, the only time iOS lets it start the banner: offered now rather than at the next heart-rate
@@ -211,12 +220,26 @@ final class LiveActivityController {
     /// starting or ending, a set completed) are pushed at once; heart rate and distance at most every 2 s.
     func updateWorkout(_ snapshot: LiveWorkoutActivitySnapshot?, now: Date = Date()) {
         guard let snapshot else {
+            workoutSkipLogged = nil
             guard currentWorkout != nil else { return }
             currentWorkout = nil
+            logWorkout("ended: the workout is over")
             Task { await end() }
             return
         }
-        guard authInfo.areActivitiesEnabled, UnitPrefs.liveActivityEnabled() else { return }
+        guard authInfo.areActivitiesEnabled else {
+            logWorkoutSkip("not shown: Live Activities are off for NOOP in iOS Settings")
+            return
+        }
+        guard UnitPrefs.workoutLiveActivityEnabled() else {
+            logWorkoutSkip("not shown: its switch in Settings > Live notifications is off")
+            if currentWorkout != nil {
+                currentWorkout = nil
+                logWorkout("ended: its switch is off")
+                Task { await end() }
+            }
+            return
+        }
         let workout = Self.workoutState(snapshot, now: now)
         let state = NOOPActivityAttributes.ContentState(bpm: snapshot.bpm, recovery: nil, bonded: true,
                                                         effort: nil, workout: workout)
@@ -234,7 +257,10 @@ final class LiveActivityController {
         }
         // ActivityKit only accepts a new activity from the foreground app. Leave `currentWorkout` unset so the
         // next publish after returning to the app starts it.
-        guard UIApplication.shared.applicationState == .active else { return }
+        guard UIApplication.shared.applicationState == .active else {
+            logWorkoutSkip("waiting: iOS starts it only while NOOP is on screen")
+            return
+        }
         guard !isStarting else { return }
         isStarting = true
         currentWorkout = workout
@@ -245,11 +271,32 @@ final class LiveActivityController {
                 activity = try Activity.request(attributes: NOOPActivityAttributes(title: Self.workoutTitle),
                                                 content: content, pushType: nil)
                 lastPush = Date()
+                workoutSkipLogged = nil
+                logWorkout("started (\(workout.kind.rawValue))")
             } catch {
                 activity = nil
+                // Unset, so the next publish (the next set, the next return to the app) asks again.
+                currentWorkout = nil
+                logWorkoutSkip("iOS did not start it: \(error.localizedDescription)")
             }
             isStarting = false
         }
+    }
+
+    /// The last reason a workout banner was not shown, logged once rather than on every publish. Cleared when one
+    /// starts or the workout ends, so the next session's first refusal is logged again.
+    private var workoutSkipLogged: String?
+
+    /// The workout banner's own lines in the strap log. It used to write none — a refusal from iOS was swallowed
+    /// and the switch skipped silently — so a log could not say why a Lock Screen stayed empty during a session.
+    private func logWorkout(_ line: String) {
+        model?.live.append(log: AppModel.stamped("Workout banner: " + line))
+    }
+
+    private func logWorkoutSkip(_ reason: String) {
+        guard workoutSkipLogged != reason else { return }
+        workoutSkipLogged = reason
+        logWorkout(reason)
     }
 
     /// Distinguishes a workout activity from the live-HR one without a second attributes type.

@@ -132,6 +132,16 @@ enum UnitPrefs {
             ? true : UserDefaults.standard.bool(forKey: liveActivityKey)
     }
 
+    /// Whether a running workout may show on the Lock Screen and in the Dynamic Island, iOS only. Its own switch:
+    /// it used to ride on the live-HR one, whose label only speaks of the connected strap, so turning off the
+    /// everyday heart-rate banner silently took the workout banner with it. Unset, it follows the live-HR switch,
+    /// so nobody who had turned that off gets a banner back unasked; set, it stands on its own.
+    static let workoutLiveActivityKey = "liveActivity.workout.enabled"
+    static func workoutLiveActivityEnabled() -> Bool {
+        UserDefaults.standard.object(forKey: workoutLiveActivityKey) == nil
+            ? liveActivityEnabled() : UserDefaults.standard.bool(forKey: workoutLiveActivityKey)
+    }
+
     /// Whether the strap-sync Live Activity may show, iOS only. Its own switch, deliberately separate from
     /// the live-HR one above: wanting a sync readout says nothing about wanting a heart rate on the Lock
     /// Screen, and the reverse. Defaults to ON, read default-true like its sibling.

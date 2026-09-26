@@ -30,13 +30,21 @@ public struct UserProfile: Equatable, Sendable {
     /// counter overcounts and its true tick rate is unknown, so the daily-steps total
     /// divides by this. 1.0 = raw pass-through (default); the engine clamps ≥ 0.5.
     public var stepTicksPerStep: Double
+    /// The basal formula `Calories.bmrKcalPerDay(profile:)` evaluates. Harris–Benedict by default so a
+    /// profile built without one keeps the rate it always had; the app passes the wearer's choice.
+    public var basalFormula: BasalFormula
+    /// Body fat in force on the day this profile describes, for Katch–McArdle. Nil = no reading.
+    public var bodyFatPercent: Double?
     public init(weightKg: Double = 70.0, heightCm: Double = 170.0,
                 age: Double = 30.0, sex: String = "nonbinary",
-                stepTicksPerStep: Double = 1.0, maxHR: Double? = nil) {
+                stepTicksPerStep: Double = 1.0, maxHR: Double? = nil,
+                basalFormula: BasalFormula = .revisedHarrisBenedict, bodyFatPercent: Double? = nil) {
         self.weightKg = weightKg; self.heightCm = heightCm
         self.age = age; self.sex = sex
         self.stepTicksPerStep = stepTicksPerStep
         self.maxHR = maxHR
+        self.basalFormula = basalFormula
+        self.bodyFatPercent = bodyFatPercent
     }
 
     /// Every stored field, for a cache key that must change when the profile does (the per-cycle load
@@ -45,6 +53,7 @@ public struct UserProfile: Equatable, Sendable {
     /// bit pattern, so the key is exact and locale-free. Twin of Kotlin `UserProfile.cacheKey`.
     public var cacheKey: String {
         "w=\(weightKg.bitPattern),h=\(heightCm.bitPattern),a=\(age.bitPattern),s=\(sex),t=\(stepTicksPerStep.bitPattern)"
+            + ",b=\(basalFormula.rawValue),f=\(bodyFatPercent?.bitPattern.description ?? "-")"
     }
 }
 
@@ -691,13 +700,21 @@ public enum Calories {
     ///
     /// `public`: the EnergyEngine is the first caller outside this file, and it must not re-derive
     /// the formula.
+    ///
+    /// Evaluates `profile.basalFormula` (`BasalRate`). Every energy path — the day total, the strap
+    /// bucket model, the day's timeline, a session's tile — reads the basal rate through here, so one
+    /// choice reaches all of them; before this the Energy Plan's formula choice changed only the
+    /// Energy Plan. Katch–McArdle without a body-fat reading in force falls back to Mifflin–St Jeor,
+    /// the more accurate of the two height-and-weight regressions, rather than returning nothing.
     public static func bmrKcalPerDay(profile: UserProfile) -> Double? {
         guard profile.weightKg > 0, profile.heightCm > 0, profile.age > 0 else { return nil }
-        let value = bmrKcalPerDay(resolveCoeffs(profile.sex),
-                                  weightKg: profile.weightKg,
-                                  heightCm: profile.heightCm,
-                                  age: profile.age)
-        return value > 0 ? value : nil
+        let formula: BasalFormula = profile.basalFormula == .katchMcArdle && profile.bodyFatPercent == nil
+            ? .mifflinStJeor : profile.basalFormula
+        return BasalRate.kcalPerDay(formula, weightKg: profile.weightKg, heightCm: profile.heightCm,
+                                    age: profile.age, sex: profile.sex,
+                                    bodyFatPercent: profile.bodyFatPercent)
+            ?? BasalRate.kcalPerDay(.mifflinStJeor, weightKg: profile.weightKg,
+                                    heightCm: profile.heightCm, age: profile.age, sex: profile.sex)
     }
 
     /// Uth–Sørensen VO2max estimate (ml·kg⁻¹·min⁻¹) ≈ 15.3 · HRmax / HRrest. Returns nil when no

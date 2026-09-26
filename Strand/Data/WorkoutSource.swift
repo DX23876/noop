@@ -8,6 +8,9 @@ import StrandAnalytics   // WorkoutsTrace: the dedup-decision line formatter for
 ///   - "whoop"        — WhoopImporter (imported WHOOP session)
 ///   - "apple_health" / "apple-health" — AppleHealthImport
 ///   - "manual"       — AppModel.endWorkout (v1.67 live session) AND the retro add/edit sheet
+///   - "oura-api"     — Oura cloud sync (`OuraSyncWriter`). The stored `source` column carries Oura's
+///                       OWN origin ("manual", "autodetected", "confirmed"), so `Repository` rewrites it to
+///                       this id on read — see `normalizedOuraRow`.
 ///   - "my-whoop-noop"— legacy IntelligenceEngine detected bouts (source == the computed deviceId,
 ///                       i.e. it ends in "-noop"). These remain readable/editable but are no longer
 ///                       created or reconciled by `analyzeRecent`.
@@ -15,16 +18,19 @@ import StrandAnalytics   // WorkoutsTrace: the dedup-decision line formatter for
 /// Classification order matters: "-noop" is checked BEFORE "whoop" because the computed id
 /// "my-whoop-noop" also contains the substring "whoop".
 enum WorkoutSource: Equatable {
-    case whoop, apple, detected, manual, lifting, activityFile, hevy
+    case whoop, apple, detected, manual, lifting, activityFile, hevy, oura
 
     /// Canonical Apple Health source id written by new imports. The early rows used the underscore
     /// spelling, so reads must accept both — see `isAppleHealth`.
     static let appleHealthSource = "apple-health"
+    /// The namespace, and after `normalizedOuraRow` the source, of workouts synced from Oura's cloud.
+    static let ouraSource = "oura-api"
     private static let legacyAppleHealthSource = "apple_health"
 
     static func classify(_ source: String) -> WorkoutSource {
         let s = source.lowercased()
         if s.hasPrefix("native-training") { return .manual }
+        if s == ouraSource { return .oura }
         if s.hasSuffix("-noop") { return .detected }   // BEFORE whoop: "my-whoop-noop" contains "whoop"
         if s == "manual" { return .manual }
         if s == "lifting" { return .lifting }          // imported Hevy / Liftosaur strength CSV/JSON
@@ -340,7 +346,32 @@ enum WorkoutSource: Equatable {
         case .lifting:      return "lifting"
         case .activityFile: return "activityFile"
         case .hevy:         return "hevy"
+        case .oura:         return "oura"
         }
+    }
+
+    /// An Oura workout row as the rest of the app reads it.
+    ///
+    /// Two columns arrive in Oura's vocabulary rather than this app's. `source` holds Oura's own origin
+    /// enum, and its "manual" would classify as a NOOP manual row — editable and deletable through
+    /// the strap namespaces, where the delete finds nothing and the row reappears. `sport` is Oura's
+    /// activity token ("strength_training"), which the cross-source dedup cannot match against the same
+    /// session arriving through Apple Health or the native logger ("Strength Training"). Rewritten at
+    /// read time rather than in the writer so rows already stored are corrected too, and so the store's
+    /// natural key — which includes the sport — is left exactly as it was written.
+    static func normalizedOuraRow(_ row: WorkoutRow) -> WorkoutRow {
+        WorkoutRow(startTs: row.startTs, endTs: row.endTs, sport: ouraSport(row.sport),
+                   source: ouraSource, durationS: row.durationS, energyKcal: row.energyKcal,
+                   avgHr: row.avgHr, maxHr: row.maxHr, strain: row.strain, distanceM: row.distanceM,
+                   zonesJSON: row.zonesJSON, notes: row.notes, steps: row.steps)
+    }
+
+    /// "strength_training" / "strengthTraining" -> "Strength Training"; "walking" -> "Walking".
+    static func ouraSport(_ activity: String) -> String {
+        let spaced = splitCamelCase(activity.replacingOccurrences(of: "_", with: " ")
+            .replacingOccurrences(of: "-", with: " "))
+        let words = spaced.split(separator: " ").map { $0.prefix(1).uppercased() + $0.dropFirst().lowercased() }
+        return words.isEmpty ? "Workout" : words.joined(separator: " ")
     }
 
     /// Diagnostic twin of `dedupCrossSource(...)` for the Workouts & GPS test mode: returns the BYTE-IDENTICAL
@@ -563,7 +594,7 @@ enum WorkoutMerge {
     static func isMergeable(_ row: WorkoutRow) -> Bool {
         switch WorkoutSource.classify(row.source) {
         case .manual, .detected: return true
-        case .whoop, .apple, .lifting, .activityFile, .hevy: return false
+        case .whoop, .apple, .lifting, .activityFile, .hevy, .oura: return false
         }
     }
 

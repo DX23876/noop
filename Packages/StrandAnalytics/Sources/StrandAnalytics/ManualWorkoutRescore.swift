@@ -13,7 +13,7 @@ import WhoopProtocol
 /// Pure + deterministic (no store, no I/O) so it's unit-tested directly. The caller (the post-sync
 /// scoring pass) decides which workouts to feed it — under-scored `manual` ones — reads the window's
 /// HR, and only persists when the result is a genuine improvement. The scoring formulas mirror the
-/// app's `endWorkout` exactly (same `StrainScorer` + `Calories.estimateBoutCalories`).
+/// app's `endWorkout` exactly (same `StrainScorer` + `WorkoutEnergyEstimate.boutKcal`).
 public enum ManualWorkoutRescore {
 
     public struct Scored: Equatable {
@@ -50,7 +50,11 @@ public enum ManualWorkoutRescore {
     public static func scored(windowSamples: [HRSample], profile: UserProfile, hrMax: Double,
                               restingHR: Double? = nil,
                               // #1545: see WorkoutDetector.detect — Edwards by default, threaded by the app.
-                              effortMethod: StrainScorer.Method = .edwards) -> Scored? {
+                              effortMethod: StrainScorer.Method = .edwards,
+                              // The row's sport, so a lifting session is priced on the resistance
+                              // curve rather than Keytel (`WorkoutEnergyEstimate.boutKcal`). Empty keeps
+                              // Keytel, which is what every caller got before it was threaded.
+                              sport: String = "") -> Scored? {
         guard windowSamples.count >= 2 else { return nil }
         let bpms = windowSamples.map(\.bpm)
         let avg = Int((Double(bpms.reduce(0, +)) / Double(bpms.count)).rounded())
@@ -58,8 +62,8 @@ public enum ManualWorkoutRescore {
         let strain = StrainScorer.strain(windowSamples, maxHR: hrMax,
                                          restingHR: restingHR ?? StrainScorer.defaultRestingHR,
                                          method: effortMethod, sex: profile.sex)
-        let kcalRaw = Calories.estimateBoutCalories(windowSamples, profile: profile,
-                                                    hrmax: hrMax, restingHR: restingHR).0
+        let kcalRaw = WorkoutEnergyEstimate.boutKcal(windowSamples, sport: sport, profile: profile,
+                                                     hrMax: hrMax, restingHR: restingHR)
         return Scored(avgHr: avg, maxHr: peak, strain: strain, kcal: kcalRaw > 0 ? kcalRaw : nil)
     }
 

@@ -6,6 +6,13 @@ enum TrainingEffortPreference: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+/// When NOOP asks, by notification, how demanding a finished session felt. The Session Load card on a
+/// session's detail is there either way; this governs only the push.
+enum SessionRatingPrompt: String, CaseIterable, Identifiable {
+    case off, whenUseful, always
+    var id: String { rawValue }
+}
+
 enum TrainingMediaPresentation: String, CaseIterable, Identifiable {
     case large, small, hidden
     var id: String { rawValue }
@@ -13,6 +20,7 @@ enum TrainingMediaPresentation: String, CaseIterable, Identifiable {
 
 enum TrainingPreferences {
     static let effortKey = "training.effortScale"
+    static let sessionRatingPromptKey = "training.sessionRatingPrompt"
     static let defaultRestKey = "training.defaultRestSeconds"
     static let warmupRestKey = "training.warmupRestSeconds"
     static let restPauseKey = "training.restPauseSeconds"
@@ -39,6 +47,10 @@ enum TrainingPreferences {
 
     static var effort: TrainingEffortPreference {
         TrainingEffortPreference(rawValue: UserDefaults.standard.string(forKey: effortKey) ?? "") ?? .rpe
+    }
+    static var sessionRatingPrompt: SessionRatingPrompt {
+        SessionRatingPrompt(rawValue: UserDefaults.standard.string(forKey: sessionRatingPromptKey) ?? "")
+            ?? .whenUseful
     }
     static var timerSoundEnabled: Bool {
         UserDefaults.standard.object(forKey: soundKey) as? Bool ?? true

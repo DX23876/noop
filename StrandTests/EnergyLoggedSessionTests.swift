@@ -31,10 +31,13 @@ final class EnergyLoggedSessionTests: XCTestCase {
         XCTAssertEqual(Repository.contributionSource("my-whoop-noop"), .detected)
         XCTAssertEqual(Repository.contributionSource("lifting"), .lifting)
         XCTAssertEqual(Repository.contributionSource("activity-file"), .activityFile)
-        // Apple writes energy ABOVE resting; every other lane's figure still contains the bout's own
-        // resting energy. Getting this backwards would quietly double-count an hour of basal.
+        XCTAssertEqual(Repository.contributionSource("oura-api"), .oura)
+        // Apple (and Oura, which writes the same figure into Apple Health) report energy ABOVE resting;
+        // every other lane's figure still contains the bout's own resting energy. Getting this backwards
+        // would quietly double-count an hour of basal.
         XCTAssertFalse(ActivityContribution.Source.apple.includesRestingEnergy)
-        for source in ActivityContribution.Source.allCases where source != .apple {
+        XCTAssertFalse(ActivityContribution.Source.oura.includesRestingEnergy)
+        for source in ActivityContribution.Source.allCases where source != .apple && source != .oura {
             XCTAssertTrue(source.includesRestingEnergy, "\(source)")
         }
     }

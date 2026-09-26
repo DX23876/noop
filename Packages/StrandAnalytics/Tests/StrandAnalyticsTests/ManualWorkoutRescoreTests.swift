@@ -106,4 +106,40 @@ final class ManualWorkoutRescoreTests: XCTestCase {
         // And it's idempotent: re-running over the now-good value is a no-op.
         XCTAssertFalse(ManualWorkoutRescore.improves(s, over: s.kcal))
     }
+
+    /// A lifting session's stored figure is priced on the resistance curve, not Keytel — this value is
+    /// later shown as the session's own. Every other sport, and a caller that passes none, keeps Keytel.
+    func testALiftingSessionIsRescoredOnTheResistanceCurve() throws {
+        // 60 minutes, sets at 125 bpm and rests at 100, 1 Hz.
+        let samples = (0..<3_600).map { HRSample(ts: 1_000 + $0, bpm: $0 % 180 < 60 ? 125 : 100) }
+        let lifting = try XCTUnwrap(ManualWorkoutRescore.scored(
+            windowSamples: samples, profile: profile, hrMax: 190, restingHR: 60,
+            sport: "Strength Training")?.kcal)
+        let keytel = Calories.estimateBoutCalories(samples, profile: profile, hrmax: 190, restingHR: 60).0
+        XCTAssertEqual(lifting, WorkoutEnergyEstimate.boutKcal(samples, sport: "Strength Training",
+                                                               profile: profile, hrMax: 190,
+                                                               restingHR: 60), accuracy: 1e-9)
+        XCTAssertLessThan(lifting, keytel)
+        XCTAssertEqual(try XCTUnwrap(ManualWorkoutRescore.scored(
+            windowSamples: samples, profile: profile, hrMax: 190, restingHR: 60)?.kcal), keytel,
+            accuracy: 1e-9)
+        XCTAssertEqual(try XCTUnwrap(ManualWorkoutRescore.scored(
+            windowSamples: samples, profile: profile, hrMax: 190, restingHR: 60, sport: "Running")?.kcal),
+            keytel, accuracy: 1e-9)
+    }
+
+    /// Linear curve: a steady 1 Hz lifting trace integrates to what its average prices, so the stored
+    /// figure and the average-HR fallback describe one session the same way.
+    func testSteadyLiftingSamplesIntegrateToTheAverageHeartRatePrice() throws {
+        let samples = (0...5_400).map { HRSample(ts: $0, bpm: 108) }
+        let integrated = WorkoutEnergyEstimate.boutKcal(samples, sport: "Strength Training",
+                                                         profile: profile, hrMax: 190, restingHR: 60)
+        let fromAverage = try XCTUnwrap(WorkoutEnergyEstimate.heartRateKcal(
+            averageHR: 108, sport: "Strength Training", durationSeconds: 5_401, profile: profile,
+            hrMax: 190, restingHR: 60))
+        XCTAssertEqual(integrated, fromAverage, accuracy: 1e-6)
+        XCTAssertEqual(WorkoutEnergyEstimate.boutKcal([HRSample(ts: 0, bpm: 108)], sport: "Strength Training",
+                                                      profile: profile, hrMax: 190, restingHR: 60), 0)
+    }
 }
+

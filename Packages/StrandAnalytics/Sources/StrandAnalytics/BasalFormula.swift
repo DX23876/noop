@@ -94,6 +94,19 @@ public struct BmrFormulaLog: Equatable, Codable, Sendable {
         return BmrFormulaLog(epochs: next)
     }
 
+    /// The formula the whole history is computed with.
+    ///
+    /// One formula for every day, not the one in force per day: the choice is a method, not a change
+    /// in the body, and a curve that switches method at a date carries a step that reads as a
+    /// metabolic change — in trends, 30-day means and the intake/weight comparison alike. What really
+    /// changes over time (weight, body fat) is still resolved per day from its own history. An
+    /// untouched log answers Mifflin–St Jeor, the more accurate height-and-weight regression; the
+    /// Harris–Benedict seed only records what earlier versions used. `formula(onDay:)` remains for
+    /// reading the log itself.
+    public var current: BasalFormula {
+        lastSwitchDay == nil ? .mifflinStJeor : (epochs.last?.formula ?? .mifflinStJeor)
+    }
+
     /// The day the formula last changed, or nil for an untouched log. The chart marks this date, and
     /// the provenance sheet names it — an unexplained step of 50–200 kcal/day reads as a bug.
     public var lastSwitchDay: String? {

@@ -291,7 +291,81 @@ final class WhoopEnergyModelTests: XCTestCase {
     /// to this exact string, so a silent revert would resurrect pre-movement-corroboration (v1) rows
     /// into a chart that should only ever show one model generation at a time.
     func testModelVersionIsTheContextFirstGeneration() {
-        XCTAssertEqual(WhoopDailyEnergyEstimate.modelVersion, "whoop-bucket-v6")
+        XCTAssertEqual(WhoopDailyEnergyEstimate.modelVersion, "whoop-bucket-v7")
+    }
+
+    /// MET of one confirmed-workout bucket, read back out of its active energy.
+    private func workoutMET(_ bpm: Double, kind: EnergyWorkoutKind, resting: Double = 60,
+                            maximum: Double = 190) throws -> Double {
+        let value = try XCTUnwrap(WhoopEnergyModel.estimate(
+            buckets: [.init(start: 0, averageHR: bpm, isWorkout: true, workoutKind: kind)],
+            profile: profile, restingHR: resting, maxHR: maximum))
+        return 1 + value.buckets[0].activeKcal / (3.5 * profile.weightKg / 200 * 5)
+    }
+
+    /// The reported session: lifting at an average of 108 bpm. The v6 curve (1 + 8·HRR²) priced it at
+    /// ~2.1 MET, below the Compendium's 3.5 for light resistance training; the ACSM reserve relation
+    /// with the resistance share lands inside the Compendium's 3.5–6 band for a lifting session.
+    func testLiftingAtAModerateHeartRateLandsInTheCompendiumRange() throws {
+        let met = try workoutMET(108, kind: .resistance)
+        XCTAssertGreaterThanOrEqual(met, 3.5)
+        XCTAssertLessThanOrEqual(met, 5.0)
+        XCTAssertEqual(met, WhoopEnergyModel.exerciseMET(hr: 108, resting: 60, maximum: 190,
+                                                         kind: .resistance), accuracy: 1e-9)
+    }
+
+    /// Linear in the reserve, so an average heart rate prices a session the way its buckets would, and
+    /// a run is not undercounted: 155 bpm at rest 55 / max 185 is hard running, ~10 MET and up.
+    func testTheWorkoutCurveIsLinearInTheReserveAndOrderedByKind() throws {
+        let quarter = try workoutMET(92.5, kind: .endurance)
+        let half = try workoutMET(125, kind: .endurance)
+        let threeQuarters = try workoutMET(157.5, kind: .endurance)
+        XCTAssertEqual(half - quarter, threeQuarters - half, accuracy: 1e-9)
+        XCTAssertGreaterThan(try workoutMET(155, kind: .endurance, resting: 55, maximum: 185), 9.5)
+        XCTAssertGreaterThan(try workoutMET(130, kind: .endurance), try workoutMET(130, kind: .other))
+        XCTAssertGreaterThan(try workoutMET(130, kind: .other), try workoutMET(130, kind: .resistance))
+        XCTAssertEqual(try workoutMET(60, kind: .endurance), 1, accuracy: 1e-9)
+        XCTAssertLessThanOrEqual(try workoutMET(240, kind: .endurance), 14.5)
+    }
+
+    /// Every spelling an importer writes for the same activity has to land on the same curve: the
+    /// native logger, WHOOP's camel case, Apple's HealthKit type names and Hevy's shared label.
+    func testWorkoutKindResolvesEveryImporterSpelling() {
+        for sport in ["Strength Training", "TraditionalStrengthTraining",
+                      "HKWorkoutActivityTypeTraditionalStrengthTraining",
+                      "Functional strength training", "Weightlifting", "Powerlifting", "CrossFit"] {
+            XCTAssertEqual(EnergyWorkoutKind.forSport(sport), .resistance, sport)
+        }
+        for sport in ["Treadmill walk", "Running", "HKWorkoutActivityTypeWalking", "Indoor cycle",
+                      "Rowing", "Pool swim", "Hiking", "Elliptical", "Stair climber", "Rucking"] {
+            XCTAssertEqual(EnergyWorkoutKind.forSport(sport), .endurance, sport)
+        }
+        for sport in ["Workout", "detected", "HIIT", "Tennis", ""] {
+            XCTAssertEqual(EnergyWorkoutKind.forSport(sport), .other, sport)
+        }
+    }
+
+    /// The v7 fix end to end at the model boundary: the same lifting buckets are worth nothing active
+    /// while the session is invisible to the model, and the resistance curve once it is not.
+    func testALoggedLiftingSessionIsWhatUnlocksItsActiveEnergy() throws {
+        let hr: [Double] = [98, 112, 104, 131, 101, 118, 96, 140, 108, 115, 99, 126]
+        func buckets(workout: Bool) -> [WhoopEnergyBucket] {
+            hr.enumerated().map { index, bpm in
+                WhoopEnergyBucket(start: index * 300, averageHR: bpm, isWorkout: workout,
+                                  workoutKind: workout ? .resistance : .other,
+                                  hasMovementCoverage: true, movementSeconds: 0)
+            }
+        }
+        let unseen = try XCTUnwrap(WhoopEnergyModel.estimate(
+            buckets: buckets(workout: false), profile: profile, restingHR: 60, maxHR: 190,
+            flexHR: 80))
+        let seen = try XCTUnwrap(WhoopEnergyModel.estimate(
+            buckets: buckets(workout: true), profile: profile, restingHR: 60, maxHR: 190,
+            flexHR: 80))
+        XCTAssertEqual(unseen.buckets.reduce(0) { $0 + $1.activeKcal }, 0)
+        XCTAssertTrue(unseen.buckets.allSatisfy { $0.context == .unresolvedElevatedHR })
+        XCTAssertGreaterThan(seen.buckets.reduce(0) { $0 + $1.activeKcal }, 0)
+        XCTAssertTrue(seen.buckets.allSatisfy { $0.context == .confirmedWorkout })
     }
 
     func testInvalidBucketsAndProfileDoNotInventEnergy() {
