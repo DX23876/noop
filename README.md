@@ -208,8 +208,9 @@ Both generations pair over direct Bluetooth, sync the history the strap has stor
 same scores: HRV, sleep stages, Charge, Effort, Rest, Stress and workout detection all work from
 either one. The inputs differ in a few places. A 5.0/MG reads skin temperature and steps directly,
 where a 4.0 gets an on-device estimate. Respiratory rate is an estimate from beat-to-beat intervals
-on both. Blood oxygen and blood pressure come from neither strap; SpO₂ appears only when imported
-from a WHOOP or Apple Health export.
+on both. A 5.0/MG also sends its own blood-oxygen value, which NOOP can show as an unverified strap
+estimate (Settings, Experimental · Blood Oxygen, off by default); a 4.0 has none, and on either strap
+an imported WHOOP or Apple Health export fills it. Blood pressure comes from neither.
 
 Before relying on a 5.0/MG:
 

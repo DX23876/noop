@@ -735,8 +735,10 @@ Why the 5.0/MG column reads this way:
 - **HRV and respiratory rate follow R-R coverage.** A record without a detected beat carries no R-R,
   and too few clean beats can leave a night's HRV blank. Respiratory rate is the RSA estimate from
   R-R on both generations; the 5.0/MG record has no respiratory channel.
-- **SpO₂** is not computed. Byte 82 of the v18 record is logged as a candidate strap-computed value
-  for research (#103) and never becomes a shown or scored metric.
+- **SpO₂** is not calibrated. Byte 82 of the v18 record carries the strap's own SpO₂ value (#103).
+  With Settings → *Experimental · Blood Oxygen* on (default off), its nightly mean appears in the
+  Blood Oxygen tile as "strap estimate (unverified)"; it never feeds scoring. A 4.0 has no such byte.
+  The grid's *No* predates that toggle (grid 2026-08-08, toggle 2026-08-09).
 - **ECG** is an MG-only capture behind Test Centre and the Experimental opt-in — unvalidated
   instrumentation, not a measurement.
 - **Outside the grid:** the strap alarm arms on a 5.0/MG only with Experimental mode on and its wake
