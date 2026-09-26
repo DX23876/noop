@@ -455274,6 +455274,180 @@
           }
         }
       }
+    },
+    "Ask to rate sessions" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nach Einheiten fragen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pedir valorar sesiones"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demander d’évaluer les séances"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chiedi di valutare le sessioni"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pytaj o ocenę sesji"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pedir para avaliar sessões"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Просить оценить тренировку"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提醒评价训练"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提醒評價訓練"
+          }
+        }
+      }
+    },
+    "When useful" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wenn sinnvoll"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cuando sea útil"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quand c’est utile"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quando utile"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gdy ma to sens"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quando útil"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Когда полезно"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有用时"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有用時"
+          }
+        }
+      }
+    },
+    "A reminder after a session to rate how demanding it felt, from 1 to 10, for Session Load. When useful: after lifting, ball, racket and combat sports and swimming, and after any other session that lasted 45 minutes or more or was at least moderately hard. Every session can still be rated on its detail screen." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine Erinnerung nach einer Einheit, zu bewerten, wie anstrengend sie war – von 1 bis 10, für die Session Load. Wenn sinnvoll: nach Kraft-, Ball-, Rückschlag- und Kampfsport sowie Schwimmen und nach jeder anderen Einheit, die 45 Minuten oder länger dauerte oder mindestens moderat anstrengend war. Bewerten lässt sich jede Einheit weiterhin in ihrer Detailansicht."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un recordatorio tras una sesión para valorar lo exigente que fue, de 1 a 10, para la carga de sesión. Cuando sea útil: tras fuerza, deportes de pelota, de raqueta y de combate y natación, y tras cualquier otra sesión de 45 minutos o más o al menos moderadamente intensa. Cualquier sesión puede seguir valorándose en su pantalla de detalle."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un rappel après une séance pour évaluer son exigence, de 1 à 10, pour la charge de séance. Quand c’est utile : après la musculation, les sports de balle, de raquette et de combat et la natation, et après toute autre séance de 45 minutes ou plus ou au moins modérément intense. Chaque séance reste évaluable depuis son écran de détail."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un promemoria dopo una sessione per valutare quanto è stata impegnativa, da 1 a 10, per il carico di sessione. Quando utile: dopo pesi, sport con la palla, di racchetta e da combattimento e nuoto, e dopo ogni altra sessione di almeno 45 minuti o almeno moderatamente intensa. Ogni sessione resta valutabile dalla sua schermata di dettaglio."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przypomnienie po sesji, by ocenić jej wymagający charakter w skali 1–10 na potrzeby obciążenia sesji. Gdy ma to sens: po treningu siłowym, sportach z piłką, rakietowych i walki oraz pływaniu, a także po każdej innej sesji trwającej 45 minut lub dłużej albo co najmniej umiarkowanie intensywnej. Każdą sesję można nadal ocenić na jej ekranie szczegółów."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um lembrete após uma sessão para avaliar o quão exigente foi, de 1 a 10, para a carga da sessão. Quando útil: após musculação, desportos de bola, de raquete e de combate e natação, e após qualquer outra sessão de 45 minutos ou mais ou pelo menos moderadamente intensa. Qualquer sessão pode continuar a ser avaliada no seu ecrã de detalhe."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Напоминание после тренировки оценить её тяжесть от 1 до 10 для нагрузки сессии. Когда полезно: после силовых, игровых, ракеточных и единоборств, плавания и любой другой тренировки от 45 минут или хотя бы умеренной интенсивности. Любую тренировку по-прежнему можно оценить на её экране."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "训练结束后提醒你按 1–10 评价其强度，用于训练负荷。有用时：力量、球类、拍类、格斗运动和游泳之后，以及任何持续 45 分钟以上或至少中等强度的训练之后。每次训练仍可在其详情页中评价。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "訓練結束後提醒你按 1–10 評價其強度，用於訓練負荷。有用時：力量、球類、拍類、格鬥運動和游泳之後，以及任何持續 45 分鐘以上或至少中等強度的訓練之後。每次訓練仍可在其詳細頁面中評價。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

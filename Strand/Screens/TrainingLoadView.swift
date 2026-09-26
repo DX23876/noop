@@ -198,7 +198,12 @@ final class TrainingLoadModel: ObservableObject {
             let alreadyRated = ratedIds.contains(workout.id)
                 || ratedStarts.contains(workout.row.startTs)
                 || !ratedStarts.isDisjoint(with: componentStarts)
-            guard !alreadyRated, end <= now, end + 30 * 60 > now else { continue }
+            guard !alreadyRated, end <= now, end + 30 * 60 > now,
+                  await repo.shouldPromptSessionRating(startTs: workout.row.startTs, endTs: end,
+                                                       sport: workout.row.sport,
+                                                       source: workout.row.source,
+                                                       averageHR: workout.row.avgHr)
+            else { continue }
             await SessionRPEReminder.schedule(
                 startTs: workout.row.startTs,
                 durationS: Double(max(0, end - workout.row.startTs)),

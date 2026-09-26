@@ -235,6 +235,8 @@ struct SettingsView: View {
     @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
     @AppStorage(UnitPrefs.trendChartStyleKey) private var trendChartStyleRaw = TrendChartStyle.line.rawValue
     @AppStorage(TrainingPreferences.effortKey) private var trainingEffortRaw = TrainingEffortPreference.rpe.rawValue
+    @AppStorage(TrainingPreferences.sessionRatingPromptKey) private var sessionRatingPromptRaw =
+        SessionRatingPrompt.whenUseful.rawValue
     @AppStorage(TrainingPreferences.defaultRestKey) private var trainingRestSeconds = TrainingPreferences.defaultRestSeconds
     @AppStorage(TrainingPreferences.warmupRestKey) private var trainingWarmupRestSeconds = TrainingPreferences.defaultWarmupRestSeconds
     @AppStorage(TrainingPreferences.restPauseKey) private var trainingRestPauseSeconds = TrainingPreferences.defaultRestPauseSeconds
@@ -1218,6 +1220,18 @@ struct SettingsView: View {
                     }.labelsHidden().pickerStyle(.menu)
                 }
                 Text("RIR counts the repetitions left in reserve; RPE rates the set from 1 to 10. Off hides per-set effort entry and keeps ratings you already logged.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                rowDivider
+                FormRow(label: "Ask to rate sessions") {
+                    Picker("Ask to rate sessions", selection: $sessionRatingPromptRaw) {
+                        Text("Off").tag(SessionRatingPrompt.off.rawValue)
+                        Text("When useful").tag(SessionRatingPrompt.whenUseful.rawValue)
+                        Text("Always").tag(SessionRatingPrompt.always.rawValue)
+                    }.labelsHidden().pickerStyle(.menu)
+                }
+                Text("A reminder after a session to rate how demanding it felt, from 1 to 10, for Session Load. When useful: after lifting, ball, racket and combat sports and swimming, and after any other session that lasted 45 minutes or more or was at least moderately hard. Every session can still be rated on its detail screen.")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)

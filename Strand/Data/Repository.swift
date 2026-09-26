@@ -1128,7 +1128,12 @@ final class Repository: ObservableObject {
         if let rpe = workout.sessionRPE {
             _ = await recordSessionRPE(rpe, startTs: workout.startedAt, sport: workout.title,
                                        ratedAtTs: Int(Date().timeIntervalSince1970))
-        } else {
+        } else if await shouldPromptSessionRating(
+            startTs: workout.startedAt, endTs: workout.endedAt,
+            // The projection's sport, not the title: a title is the wearer's own words ("Shoulder &
+            // Legs") and says nothing about what kind of session it was.
+            sport: NativeTrainingProjection.workoutRow(workout).sport,
+            source: NativeTrainingProjection.workoutRow(workout).source) {
             await SessionRPEReminder.schedule(startTs: workout.startedAt,
                                               durationS: Double(workout.endedAt - workout.startedAt),
                                               sport: workout.title)
