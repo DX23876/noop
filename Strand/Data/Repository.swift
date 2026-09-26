@@ -251,7 +251,57 @@ final class Repository: ObservableObject {
     /// Bumped after an energy-model window commits. Energy is stored outside the merged daily caches,
     /// so `refreshSeq` cannot describe this change; dashboards use this narrow signal to refresh calories.
     @Published private(set) var energyPresentationRevision = 0
-    func noteEnergyPresentationChanged() { energyPresentationRevision &+= 1 }
+    func noteEnergyPresentationChanged() {
+        // A finished day's burn-rate grid is only fixed until the model re-prices it. The memo used to
+        // outlive every refresh, so a past day kept the training share of its first read — before a
+        // late offload, a model-version bump or a workout saved afterwards — for the whole session.
+        energyDayRateCache.removeAll()
+        energyPresentationRevision &+= 1
+    }
+
+    /// Re-prices the strap energy model over the days a workout change can have moved.
+    ///
+    /// A session is not only a list entry: `refreshWhoopEnergyModel` reads the workouts to decide
+    /// which five-minute buckets were a confirmed workout, so saving, editing, deleting or importing
+    /// one changes that day's stored energy. Nothing re-ran the model on those changes; a session
+    /// logged after the last offload stayed priced as unexplained heart rate until the next sync.
+    ///
+    /// Coalesced: a merge (save + deletes), a bulk delete or a history import is one pass, from the
+    /// earliest start any of them touched. Bounded by `energyRefreshMaxDays`, the window every offload
+    /// already recomputes. Without a profile yet (nothing has asked for energy this session) only the
+    /// presentation is invalidated; the next offload or Energy screen prices the change.
+    func scheduleEnergyRefresh(coveringStart startTs: Int) {
+        pendingEnergyRefreshFrom = min(pendingEnergyRefreshFrom ?? startTs, startTs)
+        guard !energyRefreshScheduled else { return }
+        energyRefreshScheduled = true
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 750_000_000)
+            await self?.runScheduledEnergyRefresh()
+        }
+    }
+
+    static let energyRefreshMaxDays = 120
+
+    private func runScheduledEnergyRefresh() async {
+        energyRefreshScheduled = false
+        guard let from = pendingEnergyRefreshFrom else { return }
+        pendingEnergyRefreshFrom = nil
+        guard let profile = energyProfile else {
+            // The training bands follow the rows even with nothing re-priced.
+            noteEnergyPresentationChanged()
+            return
+        }
+        let calendar = Calendar.current
+        let now = Date()
+        let firstDay = calendar.startOfDay(for: Date(timeIntervalSince1970: TimeInterval(max(0, from))))
+        let spanned = (calendar.dateComponents([.day], from: firstDay,
+                                               to: calendar.startOfDay(for: now)).day ?? 0) + 1
+        await refreshWhoopEnergyModel(days: min(Self.energyRefreshMaxDays, max(1, spanned)),
+                                      profile: profile)
+        // `refreshWhoopEnergyModel` publishes when it wrote; a window with no heart rate returns
+        // early, and the bands still moved.
+        noteEnergyPresentationChanged()
+    }
 
     /// Bumped whenever a period-start row is logged or removed. Cycle surfaces use this lightweight
     /// signal to reload their sensitive local history without forcing a full strap-data refresh.
@@ -286,6 +336,13 @@ final class Repository: ObservableObject {
     /// cannot change, and paging back through the Energy screen's day picker would otherwise re-read
     /// and re-split the same 288 buckets on every swipe. Today is deliberately never stored.
     var energyDayRateCache: [String: EnergyDayRate] = [:]
+
+    /// The profile the energy model last ran with, so a workout change can re-price it without every
+    /// mutation site having to carry one. Set by `refreshWhoopEnergyModel` and `energySummaries`.
+    var energyProfile: UserProfile?
+    /// Earliest session start waiting for `scheduleEnergyRefresh`'s coalesced pass.
+    private var pendingEnergyRefreshFrom: Int?
+    private var energyRefreshScheduled = false
 
     /// Memo for `cardioLoads(for:)`, keyed by canonical session id and window. Pricing one session is an
     /// indexed heart-rate range read, and Training Load, Cardio and the workout detail all ask about
@@ -1020,6 +1077,9 @@ final class Repository: ObservableObject {
         guard let store = await ensureStore() else { throw RepositoryTrainingError.storeUnavailable }
         try await store.upsertTrainingExercises(result.exercises, nowTs: Int(Date().timeIntervalSince1970))
         try await store.upsertNativeWorkouts(result.workouts)
+        if let earliest = result.workouts.map(\.startedAt).min() {
+            scheduleEnergyRefresh(coveringStart: earliest)
+        }
         await refresh()
     }
 
@@ -1063,6 +1123,7 @@ final class Repository: ObservableObject {
     func finishNativeWorkout(_ workout: NativeWorkout) async throws {
         guard let store = await ensureStore() else { throw RepositoryTrainingError.storeUnavailable }
         try await store.completeNativeWorkout(workout)
+        scheduleEnergyRefresh(coveringStart: workout.startedAt)
         if let rpe = workout.sessionRPE {
             _ = await recordSessionRPE(rpe, startTs: workout.startedAt, sport: workout.title,
                                        ratedAtTs: Int(Date().timeIntervalSince1970))
@@ -3832,6 +3893,7 @@ final class Repository: ObservableObject {
     ///  - an IMPORTED row is never passed here as `replacing` (duplicating one is a pure add), so its
     ///    history is never touched.
     func saveManualWorkout(_ row: WorkoutRow, replacing old: WorkoutRow? = nil) async {
+        defer { scheduleEnergyRefresh(coveringStart: min(row.startTs, old?.startTs ?? row.startTs)) }
         guard let store = await ensureStore() else { return }
         if let old, WorkoutSource.classify(old.source) == .detected {
             // Write the replacement first. If that insert fails, the grandfathered source row and its
@@ -3873,6 +3935,7 @@ final class Repository: ObservableObject {
     /// the detected original. The analytics detector may still enrich this real row on a later pass, but
     /// it no longer recreates a generic detected twin. (#107/#2187)
     func relabelDetected(_ row: WorkoutRow, sport: String) async {
+        defer { scheduleEnergyRefresh(coveringStart: row.startTs) }
         guard let store = await ensureStore() else { return }
         guard WorkoutSource.classify(row.source) == .detected else { return }
         let trimmed = sport.trimmingCharacters(in: .whitespaces)
@@ -3894,6 +3957,7 @@ final class Repository: ObservableObject {
     /// Idempotent: a span already present isn't duplicated. (#107/#2187)
     func dismissDetected(_ row: WorkoutRow) async {
         guard WorkoutSource.classify(row.source) == .detected else { return }
+        defer { scheduleEnergyRefresh(coveringStart: row.startTs) }
         let token = WorkoutSource.dismissedToken(for: row)
         var spans = dismissedDetectedSpans
         if !spans.contains(token) { spans.append(token); dismissedDetectedSpans = spans }
@@ -3909,6 +3973,7 @@ final class Repository: ObservableObject {
     /// active strap id.
     func deleteWorkout(_ row: WorkoutRow) async {
         if WorkoutSource.classify(row.source) == .detected { await dismissDetected(row); return }
+        defer { scheduleEnergyRefresh(coveringStart: row.startTs) }
         guard let store = await ensureStore() else { return }
         if row.source.hasPrefix("native-training") {
             await deleteNativeWorkoutRow(row, store: store)
@@ -4001,6 +4066,7 @@ final class Repository: ObservableObject {
         guard let store = await ensureStore() else { return }
         do { _ = try await store.upsertWorkouts([merged], deviceId: deviceId) }
         catch { return }
+        scheduleEnergyRefresh(coveringStart: min(merged.startTs, rows.map(\.startTs).min() ?? merged.startTs))
 
         // Retire each original. Skip any row whose natural key matches the merged row's, so we never
         // dismiss/delete the span the merged row now owns.

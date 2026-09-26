@@ -5011,6 +5011,7 @@ final class AICoachEngine: ObservableObject {
                 fromDay: Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(oldest))),
                 toDay: Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(newest))))
         }
+        let strapByKey = await repo.strapSessionEnergy(for: quoted)
 
         lines.append("Newest sessions:")
         for w in quoted {
@@ -5023,7 +5024,8 @@ final class AICoachEngine: ObservableObject {
             // with it: a bare figure in a prompt becomes a measurement the moment it is quoted back.
             let energy = WorkoutEnergyDisplay.resolve(w, profile: analyticsProfile,
                                                       hrMax: Double(profileStore.hrMax),
-                                                      restingHrByDay: restingHrByDay)
+                                                      restingHrByDay: restingHrByDay,
+                                                      strapKcalByKey: strapByKey)
             if let spoken = WorkoutEnergyDisplay.spoken(energy, averageHR: w.avgHr) {
                 parts.append(spoken)
             }

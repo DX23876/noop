@@ -446640,6 +446640,64 @@
         }
       }
     },
+    "est. from strap data" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "aus Strap-Daten geschätzt"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "estimado con datos de la pulsera"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "estimé d’après le bracelet"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "estimado pelos dados da bracelete"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "szac. z danych paska"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "stimato dai dati della fascia"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "оценка по данным браслета"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "根据手环数据估算"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "根據手環資料估算"
+          }
+        }
+      }
+    },
     "estimated" : {
       "localizations" : {
         "de" : {
@@ -447335,6 +447393,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "~%@ 千卡，根據平均心率估算%@"
+          }
+        }
+      }
+    },
+    "~%@ kcal, estimated from the strap's heart rate and movement" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "~%@ kcal, aus Herzfrequenz und Bewegung des Straps geschätzt"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "~%@ kcal, estimadas a partir de la frecuencia cardiaca y el movimiento de la pulsera"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "~%@ kcal, estimées d’après la fréquence cardiaque et les mouvements du bracelet"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "~%@ kcal, estimadas a partir da frequência cardíaca e do movimento da bracelete"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "~%@ kcal, oszacowane z tętna i ruchu zarejestrowanych przez pasek"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "~%@ kcal, stimate dalla frequenza cardiaca e dal movimento della fascia"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "~%@ ккал, оценка по пульсу и движению с браслета"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "~%@ 千卡，根据手环的心率和运动估算"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "~%@ 千卡，根據手環的心率和動作估算"
           }
         }
       }

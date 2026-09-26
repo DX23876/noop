@@ -27,6 +27,21 @@ public enum EnergyWorkoutKind: String, Codable, Equatable, Sendable {
     case endurance
     case resistance
     case other
+
+    /// The curve a logged session is priced on, from its sport label.
+    ///
+    /// Matched on letters only, lower-cased, so every spelling the importers write resolves alike:
+    /// the native logger's "Strength Training", WHOOP's camel-cased "TraditionalStrengthTraining",
+    /// Apple's "HKWorkoutActivityTypeTraditionalStrengthTraining", "Treadmill walk". Resistance is
+    /// tested first, so "Functional strength training" is a lift rather than an endurance session.
+    public static func forSport(_ sport: String) -> EnergyWorkoutKind {
+        let key = sport.lowercased().filter { $0.isLetter }
+        if ["strength", "weight", "lifting", "crossfit", "functional", "yoga", "pilates"]
+            .contains(where: key.contains) { return .resistance }
+        if ["run", "walk", "cycle", "cycling", "bike", "swim", "row", "hike", "ski"]
+            .contains(where: key.contains) { return .endurance }
+        return .other
+    }
 }
 
 /// One fixed-width WHOOP energy input window. Callers normally use five-minute buckets; duration is
@@ -93,6 +108,14 @@ public struct WhoopEnergyBucketResult: Equatable, Sendable {
 }
 
 public struct WhoopDailyEnergyEstimate: Equatable, Sendable {
+    /// v7 (2026-09-26): the workout context now comes from every session the app lists — the native
+    /// strength logger, Hevy API sync and the FitNotes/Strong history import, all retained straps and
+    /// the detector's dismissals — instead of a hand-kept list of storage
+    /// namespaces that had none of the first three. A 90-minute native strength session was
+    /// therefore priced as `unresolvedElevatedHR`, i.e. zero active energy, while the burn-rate chart
+    /// drew it as a training band. The model itself is unchanged; the same day's inputs now carry the
+    /// sessions they always should have, so their stored figures must be recomputed.
+    ///
     /// v6 (2026-09-10): the cadence branch of `movementMET` prices steps with the wearer's own
     /// measured step length instead of a 0.75 m population average. Bumped because the same day's
     /// inputs now yield a different figure; days with no measurement keep the old value exactly.
@@ -100,7 +123,7 @@ public struct WhoopDailyEnergyEstimate: Equatable, Sendable {
     /// v5 (2026-08-29): heart rate without independently confirmed movement or a workout contributes
     /// no active energy. Locomotion is charged only for its observed movement seconds rather than the
     /// entire five-minute bucket. Bumped so every v4 physiological allowance is recomputed away.
-    public static let modelVersion = "whoop-bucket-v6"
+    public static let modelVersion = "whoop-bucket-v7"
 
     public let totalKcal: Double
     public let observedSeconds: Int

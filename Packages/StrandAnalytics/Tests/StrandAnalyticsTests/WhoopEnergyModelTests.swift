@@ -291,7 +291,47 @@ final class WhoopEnergyModelTests: XCTestCase {
     /// to this exact string, so a silent revert would resurrect pre-movement-corroboration (v1) rows
     /// into a chart that should only ever show one model generation at a time.
     func testModelVersionIsTheContextFirstGeneration() {
-        XCTAssertEqual(WhoopDailyEnergyEstimate.modelVersion, "whoop-bucket-v6")
+        XCTAssertEqual(WhoopDailyEnergyEstimate.modelVersion, "whoop-bucket-v7")
+    }
+
+    /// Every spelling an importer writes for the same activity has to land on the same curve: the
+    /// native logger, WHOOP's camel case, Apple's HealthKit type names and Hevy's shared label.
+    func testWorkoutKindResolvesEveryImporterSpelling() {
+        for sport in ["Strength Training", "TraditionalStrengthTraining",
+                      "HKWorkoutActivityTypeTraditionalStrengthTraining",
+                      "Functional strength training", "Weightlifting", "Powerlifting", "CrossFit"] {
+            XCTAssertEqual(EnergyWorkoutKind.forSport(sport), .resistance, sport)
+        }
+        for sport in ["Treadmill walk", "Running", "HKWorkoutActivityTypeWalking", "Indoor cycle",
+                      "Rowing", "Pool swim", "Hiking"] {
+            XCTAssertEqual(EnergyWorkoutKind.forSport(sport), .endurance, sport)
+        }
+        for sport in ["Workout", "detected", "HIIT", "Tennis", ""] {
+            XCTAssertEqual(EnergyWorkoutKind.forSport(sport), .other, sport)
+        }
+    }
+
+    /// The v7 fix end to end at the model boundary: the same lifting buckets are worth nothing active
+    /// while the session is invisible to the model, and the resistance curve once it is not.
+    func testALoggedLiftingSessionIsWhatUnlocksItsActiveEnergy() throws {
+        let hr: [Double] = [98, 112, 104, 131, 101, 118, 96, 140, 108, 115, 99, 126]
+        func buckets(workout: Bool) -> [WhoopEnergyBucket] {
+            hr.enumerated().map { index, bpm in
+                WhoopEnergyBucket(start: index * 300, averageHR: bpm, isWorkout: workout,
+                                  workoutKind: workout ? .resistance : .other,
+                                  hasMovementCoverage: true, movementSeconds: 0)
+            }
+        }
+        let unseen = try XCTUnwrap(WhoopEnergyModel.estimate(
+            buckets: buckets(workout: false), profile: profile, restingHR: 60, maxHR: 190,
+            flexHR: 80))
+        let seen = try XCTUnwrap(WhoopEnergyModel.estimate(
+            buckets: buckets(workout: true), profile: profile, restingHR: 60, maxHR: 190,
+            flexHR: 80))
+        XCTAssertEqual(unseen.buckets.reduce(0) { $0 + $1.activeKcal }, 0)
+        XCTAssertTrue(unseen.buckets.allSatisfy { $0.context == .unresolvedElevatedHR })
+        XCTAssertGreaterThan(seen.buckets.reduce(0) { $0 + $1.activeKcal }, 0)
+        XCTAssertTrue(seen.buckets.allSatisfy { $0.context == .confirmedWorkout })
     }
 
     func testInvalidBucketsAndProfileDoNotInventEnergy() {
