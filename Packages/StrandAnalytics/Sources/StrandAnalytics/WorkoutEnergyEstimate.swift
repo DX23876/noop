@@ -78,10 +78,9 @@ public enum WorkoutEnergyEstimate {
         if let resolved = valid(strapKcal, .strapModel) { return resolved }
 
         if let averageHR, averageHR > 0,
-           let resolved = valid(Calories.estimateBoutCalories(averageHR: averageHR,
-                                                              durationSeconds: durationSeconds,
-                                                              profile: profile, hrmax: hrMax,
-                                                              restingHR: restingHR), .heartRate) {
+           let resolved = valid(heartRateKcal(averageHR: averageHR, sport: sport,
+                                              durationSeconds: durationSeconds, profile: profile,
+                                              hrMax: hrMax, restingHR: restingHR), .heartRate) {
             return resolved
         }
 
@@ -91,6 +90,31 @@ public enum WorkoutEnergyEstimate {
 }
 
 extension WorkoutEnergyEstimate {
+
+    /// Gross energy from a session's average heart rate.
+    ///
+    /// Keytel (2005) was fitted on steady endurance exercise, and for lifting it reads the pressor
+    /// response as oxygen uptake: the reported 90-minute session at 108 bpm came out at ~783 kcal,
+    /// about 5.7 MET, where the Compendium puts resistance training at 3.5–6. A resistance session is
+    /// therefore priced on the strap model's own curve (`WhoopEnergyModel.exerciseMET`, with the
+    /// resistance share) plus the profile's basal rate — the same arithmetic its buckets use, so a
+    /// session without strap coverage lands on the scale of one with it. Everything else keeps Keytel.
+    static func heartRateKcal(averageHR: Int, sport: String, durationSeconds: Double,
+                              profile: UserProfile, hrMax: Double?, restingHR: Double?) -> Double? {
+        guard EnergyWorkoutKind.forSport(sport) == .resistance,
+              let bmr = Calories.bmrKcalPerDay(profile: profile), profile.weightKg > 0 else {
+            return Calories.estimateBoutCalories(averageHR: averageHR, durationSeconds: durationSeconds,
+                                                 profile: profile, hrmax: hrMax, restingHR: restingHR)
+        }
+        // The same bounds the bucket model applies to its resting and maximum rates.
+        let resting = min(100, max(35, restingHR ?? 60))
+        let maximum = max(resting + 20, hrMax ?? profile.maxHR
+                          ?? (profile.age > 0 ? StrainScorer.tanakaHRmax(age: profile.age) : 190))
+        let met = WhoopEnergyModel.exerciseMET(hr: Double(averageHR), resting: resting,
+                                               maximum: maximum, kind: .resistance)
+        return bmr / 86_400 * durationSeconds
+            + WhoopEnergyModel.activeKcal(met: met, seconds: durationSeconds, weightKg: profile.weightKg)
+    }
 
     /// One stored five-minute bucket of the strap energy model, as a session window reads it.
     public struct StrapBucket: Equatable, Sendable {

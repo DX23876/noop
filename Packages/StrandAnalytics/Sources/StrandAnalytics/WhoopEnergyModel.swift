@@ -28,6 +28,21 @@ public enum EnergyWorkoutKind: String, Codable, Equatable, Sendable {
     case resistance
     case other
 
+    /// The share of the heart-rate reserve that shows up as oxygen-uptake reserve for this kind.
+    ///
+    /// Endurance work is where the ACSM relationship (%HRR ≈ %VO2R, Swain & Leutholtz 1997) was
+    /// established, so it takes it whole. Lifting does not follow it: the pressor response to a heavy
+    /// set drives heart rate far ahead of oxygen uptake — circuit weight training ran at ~70–80 % of
+    /// HRmax while VO2 sat at ~40–50 % of VO2max (Hurley et al. 1984) — which on the reserve scales is
+    /// about 0.6. `other` (HIIT, team sports, an unnamed "Workout") sits between the two.
+    public var vo2ReserveShare: Double {
+        switch self {
+        case .endurance: return 1.0
+        case .other: return 0.8
+        case .resistance: return 0.6
+        }
+    }
+
     /// The curve a logged session is priced on, from its sport label.
     ///
     /// Matched on letters only, lower-cased, so every spelling the importers write resolves alike:
@@ -38,7 +53,9 @@ public enum EnergyWorkoutKind: String, Codable, Equatable, Sendable {
         let key = sport.lowercased().filter { $0.isLetter }
         if ["strength", "weight", "lifting", "crossfit", "functional", "yoga", "pilates"]
             .contains(where: key.contains) { return .resistance }
-        if ["run", "walk", "cycle", "cycling", "bike", "swim", "row", "hike", "ski"]
+        // "hiking" is listed on its own: it does not contain "hike", and a hike was priced as `other`.
+        if ["run", "walk", "cycle", "cycling", "bike", "swim", "row", "hike", "hiking", "ski",
+            "elliptical", "stair", "ruck"]
             .contains(where: key.contains) { return .endurance }
         return .other
     }
@@ -116,6 +133,11 @@ public struct WhoopDailyEnergyEstimate: Equatable, Sendable {
     /// drew it as a training band. The model itself is unchanged; the same day's inputs now carry the
     /// sessions they always should have, so their stored figures must be recomputed.
     ///
+    /// Also v7: a confirmed workout is priced by `exerciseMET` — the ACSM heart-rate-reserve relation
+    /// with a per-kind share — instead of `1 + c·HRR²`. The quadratic had no source and priced a
+    /// 108-bpm lifting session at ~2 MET, below the Compendium's 3.5 for light resistance training,
+    /// and a 155-bpm run at ~7 MET where the running itself costs ~10.
+    ///
     /// v6 (2026-09-10): the cadence branch of `movementMET` prices steps with the wearer's own
     /// measured step length instead of a 0.75 m population average. Bumped because the same day's
     /// inputs now yield a different figure; days with no measurement keep the old value exactly.
@@ -189,8 +211,8 @@ public enum WhoopEnergyModel {
                                       context: .sleep, uncertainty: 0.20)
                 modeled += seconds
             } else if bucket.isWorkout, let hr {
-                let met = workoutMET(hr: hr, resting: resting, maximum: maximum,
-                                     kind: bucket.workoutKind)
+                let met = exerciseMET(hr: hr, resting: resting, maximum: maximum,
+                                      kind: bucket.workoutKind)
                 let active = activeKcal(met: met, seconds: seconds, weightKg: profile.weightKg)
                 result = bucketResult(bucket, basal: basal, active: active, evidence: .observed,
                                       context: .confirmedWorkout, uncertainty: 0.18)
@@ -203,8 +225,7 @@ public enum WhoopEnergyModel {
                 // but cannot turn an ordinary walk into a maximal-effort bucket.
                 let met: Double
                 if let hr {
-                    let exercise = workoutMET(hr: hr, resting: resting, maximum: maximum,
-                                              kind: .endurance)
+                    let exercise = locomotionHRMET(hr: hr, resting: resting, maximum: maximum)
                     met = min(14.5, movement + min(1.5, max(0, exercise - movement) * 0.25))
                 } else {
                     met = movement
@@ -343,21 +364,49 @@ public enum WhoopEnergyModel {
     /// Metabolic cost above rest for a whole bucket, in kcal. One conversion site so the HR,
     /// movement and corroborated paths can never drift apart on the MET→kcal arithmetic.
     private static func activeKcal(met: Double, seconds: Int, weightKg: Double) -> Double {
-        max(0, met - 1) * 3.5 * weightKg / 200 * (Double(seconds) / 60)
+        activeKcal(met: met, seconds: Double(seconds), weightKg: weightKg)
     }
 
-    /// Continuous exercise curve. Context selection happens before this function, so there is no
-    /// 50%-HRR branch and therefore no one-bpm discontinuity.
-    private static func workoutMET(hr: Double, resting: Double, maximum: Double,
+    /// The same conversion for a span of any length — `WorkoutEnergyEstimate` prices a whole session
+    /// on it, so the session tile and the buckets agree on what one MET-minute costs.
+    static func activeKcal(met: Double, seconds: Double, weightKg: Double) -> Double {
+        max(0, met - 1) * 3.5 * weightKg / 200 * (seconds / 60)
+    }
+
+    /// The MET a confirmed workout runs at, from heart rate.
+    ///
+    /// ACSM's working relation between heart-rate reserve and oxygen-uptake reserve (Swain &
+    /// Leutholtz 1997): `%VO2R ≈ %HRR`, so `MET = 1 + %HRR · (peakMET − 1)`, scaled by the kind's
+    /// `vo2ReserveShare`. Linear, so a session's average heart rate prices it exactly as its buckets
+    /// would, and continuous, with no step anywhere in the range.
+    ///
+    /// Only ever reached inside an independently confirmed workout — the context selection upstream
+    /// is what keeps an unexplained high heart rate from being charged as exercise, which is the
+    /// failure the old whole-day HR model was withdrawn for.
+    public static func exerciseMET(hr: Double, resting: Double, maximum: Double,
                                    kind: EnergyWorkoutKind) -> Double {
+        guard maximum > resting else { return 1 }
         let reserve = min(1, max(0, (hr - resting) / (maximum - resting)))
-        let coefficient: Double
-        switch kind {
-        case .endurance: coefficient = 11
-        case .resistance: coefficient = 8
-        case .other: coefficient = 9.5
-        }
-        return min(14.5, 1 + coefficient * reserve * reserve)
+        return min(14.5, 1 + kind.vo2ReserveShare * reserve * (peakMET(resting: resting, maximum: maximum) - 1))
+    }
+
+    /// VO2max in METs from Uth–Sørensen (`Calories.vo2maxFor`), bounded to 7...16. The resting rate
+    /// NOOP has is the overnight one, which sits below the seated rest Uth measured and so reads
+    /// fitter than the wearer is; the upper bound keeps that bias from compounding with the reserve.
+    static func peakMET(resting: Double, maximum: Double) -> Double {
+        guard let vo2 = Calories.vo2maxFor(hrmax: maximum, restingHR: resting) else { return 10 }
+        return min(16, max(7, vo2 / 3.5))
+    }
+
+    /// The bounded heart-rate nudge a LOCOMOTION bucket may take on top of its movement MET.
+    ///
+    /// Deliberately still the pre-v7 curve. This is not a workout price but a secondary correction
+    /// on every walking minute of the day, and it was sized against this curve; moving it with
+    /// `exerciseMET` would raise ordinary walking across the whole day, which is a separate question
+    /// from how a confirmed workout is priced.
+    private static func locomotionHRMET(hr: Double, resting: Double, maximum: Double) -> Double {
+        let reserve = min(1, max(0, (hr - resting) / (maximum - resting)))
+        return min(14.5, 1 + 11 * reserve * reserve)
     }
 
 }

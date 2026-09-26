@@ -462,8 +462,11 @@ public enum EnergyEngine {
                                   rawWhoopTotalKcal: strap)
             }
             let observedSeconds = min(context.elapsedSeconds, max(0, Double(covered)))
-            let basalRate = bmr24h / context.dayDurationSeconds
-            let observedBasal = basalRate * observedSeconds
+            // The basal share to take back out is the one the strap total CONTAINS, and the bucket
+            // model priced every represented second at `bmr24h / 86 400` whatever the day's length.
+            // Dividing by the local day's length instead removed ~4 % too much on the 23-hour spring
+            // day (active understated by ~an hour of basal) and too little on the 25-hour autumn one.
+            let observedBasal = bmr24h / 86_400 * observedSeconds
             // Calibrate ACTIVE energy only. The Watch reference factor is fitted on activity-only
             // buckets (see `EnergyCalibrationEngine` / the fit in `Repository.refreshWhoopEnergyModel`),
             // so applying it to `strap` — which still contains WHOOP's own basal estimate for the

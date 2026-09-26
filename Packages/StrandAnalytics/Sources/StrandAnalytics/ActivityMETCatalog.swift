@@ -70,6 +70,11 @@ public enum ActivityMETCatalog {
         // Gym
         "elliptical": 5.0, "hiit": 8.0, "crossfit": 8.0, "bootcamp": 8.0, "calisthenics": 6.0,
         "strength": 5.0, "bodybuilding": 5.0, "weightlifting": 5.0, "powerlifting": 6.0,
+        // The labels sessions actually arrive with. The lookup is exact, so the native logger's,
+        // Hevy's and Oura's "Strength Training" and Apple's two strength types all missed "strength"
+        // and were priced at the unknown-sport default instead.
+        "strengthtraining": 5.0, "traditionalstrengthtraining": 5.0,
+        "functionalstrengthtraining": 5.0, "weighttraining": 5.0, "resistancetraining": 5.0,
         "gymnastics": 3.8, "climbing": 7.5,
         // Low intensity
         "yoga": 2.5, "pilates": 3.0, "stretching": 2.3, "meditation": 1.3, "gaming": 1.5,

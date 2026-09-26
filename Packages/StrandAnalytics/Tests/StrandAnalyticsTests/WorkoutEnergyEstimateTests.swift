@@ -66,6 +66,31 @@ final class WorkoutEnergyEstimateTests: XCTestCase {
         XCTAssertGreaterThan(resolved?.kcal ?? 0, 0)
     }
 
+    /// Without strap coverage a lifting session's average heart rate is priced on the strap model's
+    /// resistance curve plus basal — not Keytel, which reads the pressor response as oxygen uptake.
+    func testALiftingSessionsHeartRateIsPricedOnTheResistanceCurve() throws {
+        let seconds = 5_400.0
+        let resolved = try XCTUnwrap(WorkoutEnergyEstimate.resolve(
+            recordedKcal: nil, sport: "Strength Training", durationSeconds: seconds, averageHR: 108,
+            profile: profile, hrMax: 190, restingHR: 60))
+        XCTAssertEqual(resolved.provenance, .heartRate)
+        let met = WhoopEnergyModel.exerciseMET(hr: 108, resting: 60, maximum: 190, kind: .resistance)
+        let expected = try XCTUnwrap(Calories.bmrKcalPerDay(profile: profile)) / 86_400 * seconds
+            + WhoopEnergyModel.activeKcal(met: met, seconds: seconds, weightKg: 80)
+        XCTAssertEqual(resolved.kcal, expected, accuracy: 1e-6)
+        let keytel = try XCTUnwrap(Calories.estimateBoutCalories(
+            averageHR: 108, durationSeconds: seconds, profile: profile, hrmax: 190, restingHR: 60))
+        XCTAssertLessThan(resolved.kcal, keytel)
+
+        // An endurance session keeps Keytel.
+        let run = try XCTUnwrap(WorkoutEnergyEstimate.resolve(
+            recordedKcal: nil, sport: "Running", durationSeconds: 3_600, averageHR: 150,
+            profile: profile, hrMax: 190, restingHR: 60))
+        XCTAssertEqual(run.kcal, Calories.estimateBoutCalories(
+            averageHR: 150, durationSeconds: 3_600, profile: profile, hrmax: 190, restingHR: 60) ?? 0,
+            accuracy: 1e-6)
+    }
+
     // MARK: - Strap model over the session window
 
     private func bucket(_ start: Int, basal: Double = 7, active: Double = 10,
