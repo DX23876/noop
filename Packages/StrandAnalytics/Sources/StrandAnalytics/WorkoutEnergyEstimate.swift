@@ -1,4 +1,5 @@
 import Foundation
+import WhoopProtocol
 
 // WorkoutEnergyEstimate.swift — what one session cost, and how we know.
 //
@@ -96,24 +97,69 @@ extension WorkoutEnergyEstimate {
     /// Keytel (2005) was fitted on steady endurance exercise, and for lifting it reads the pressor
     /// response as oxygen uptake: the reported 90-minute session at 108 bpm came out at ~783 kcal,
     /// about 5.7 MET, where the Compendium puts resistance training at 3.5–6. A resistance session is
-    /// therefore priced on the strap model's own curve (`WhoopEnergyModel.exerciseMET`, with the
-    /// resistance share) plus the profile's basal rate — the same arithmetic its buckets use, so a
-    /// session without strap coverage lands on the scale of one with it. Everything else keeps Keytel.
+    /// therefore priced by `resistanceKcal` — the strap model's own curve plus basal, the same
+    /// arithmetic its buckets use — so a session without strap coverage lands on the scale of one with
+    /// it. Everything else keeps Keytel.
     static func heartRateKcal(averageHR: Int, sport: String, durationSeconds: Double,
                               profile: UserProfile, hrMax: Double?, restingHR: Double?) -> Double? {
         guard EnergyWorkoutKind.forSport(sport) == .resistance,
-              let bmr = Calories.bmrKcalPerDay(profile: profile), profile.weightKg > 0 else {
+              let price = resistancePricer(profile: profile, hrMax: hrMax, restingHR: restingHR) else {
             return Calories.estimateBoutCalories(averageHR: averageHR, durationSeconds: durationSeconds,
                                                  profile: profile, hrmax: hrMax, restingHR: restingHR)
         }
-        // The same bounds the bucket model applies to its resting and maximum rates.
+        return price(Double(averageHR), durationSeconds)
+    }
+
+    /// Gross energy of a bout from its heart-rate SAMPLES, priced the way its sport should be.
+    ///
+    /// The one entry point for every place NOOP stores a figure it computed itself — a live session at
+    /// save time and the post-sync rescore of an under-scored manual row. Both called Keytel directly,
+    /// so a lifting session recorded live was stored at Keytel's figure and shown as recorded, however
+    /// the rest of the app priced lifting. A resistance sport is integrated sample by sample on
+    /// `resistanceKcal`; every other sport returns exactly `Calories.estimateBoutCalories`.
+    ///
+    /// Samples are weighted by the time to the next one, capped at `WorkoutDetector.mergeGapS`, the
+    /// same rule the Keytel integration uses, so a sparse stream is not undercounted and a wear gap
+    /// cannot be inflated. Zero with fewer than two samples, like its sibling.
+    public static func boutKcal(_ samples: [HRSample], sport: String, profile: UserProfile,
+                                hrMax: Double?, restingHR: Double?) -> Double {
+        guard EnergyWorkoutKind.forSport(sport) == .resistance,
+              let price = resistancePricer(profile: profile, hrMax: hrMax, restingHR: restingHR) else {
+            return Calories.estimateBoutCalories(samples, profile: profile, hrmax: hrMax,
+                                                 restingHR: restingHR).0
+        }
+        let ordered = samples.sorted { $0.ts < $1.ts }
+        guard ordered.count >= 2 else { return 0 }
+        var kcal = 0.0
+        for index in ordered.indices {
+            let seconds: Double
+            if index < ordered.count - 1 {
+                let gap = Double(ordered[index + 1].ts - ordered[index].ts)
+                seconds = gap > 0 ? min(gap, WorkoutDetector.mergeGapS) : 1
+            } else {
+                seconds = 1
+            }
+            kcal += price(Double(ordered[index].bpm), seconds)
+        }
+        return kcal
+    }
+
+    /// Basal plus resistance-curve active energy for `seconds` at a heart rate, or nil when the
+    /// profile has no body data to price basal with (the caller then keeps Keytel, which carries its
+    /// own population defaults). Resting and maximum take the bounds the bucket model applies.
+    private static func resistancePricer(profile: UserProfile, hrMax: Double?, restingHR: Double?)
+        -> ((Double, Double) -> Double)? {
+        guard let bmr = Calories.bmrKcalPerDay(profile: profile), profile.weightKg > 0 else { return nil }
         let resting = min(100, max(35, restingHR ?? 60))
         let maximum = max(resting + 20, hrMax ?? profile.maxHR
                           ?? (profile.age > 0 ? StrainScorer.tanakaHRmax(age: profile.age) : 190))
-        let met = WhoopEnergyModel.exerciseMET(hr: Double(averageHR), resting: resting,
-                                               maximum: maximum, kind: .resistance)
-        return bmr / 86_400 * durationSeconds
-            + WhoopEnergyModel.activeKcal(met: met, seconds: durationSeconds, weightKg: profile.weightKg)
+        let weight = profile.weightKg
+        return { bpm, seconds in
+            let met = WhoopEnergyModel.exerciseMET(hr: bpm, resting: resting, maximum: maximum,
+                                                   kind: .resistance)
+            return bmr / 86_400 * seconds
+                + WhoopEnergyModel.activeKcal(met: met, seconds: seconds, weightKg: weight)
+        }
     }
 
     /// One stored five-minute bucket of the strap energy model, as a session window reads it.

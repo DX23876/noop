@@ -499,7 +499,7 @@ Active samples are grouped into runs (merging gaps < `mergeGapS = 150 s`), then 
 
 ### Calories (`Calories.estimateBoutCalories`)
 
-Per-second blend of **Keytel (2005)** active expenditure and **revised Harris–Benedict** BMR (resting), with sex-specific coefficients (`male` / `female` / `nonbinary`). Below a `RHR + 0.30 × HRR` threshold the resting rate is used; above it, the HR-driven active rate. Returns `(kcal, kJ)`. **Approximate** — not laboratory calorimetry.
+Per-second blend of **Keytel (2005)** active expenditure and **revised Harris–Benedict** BMR (resting), with sex-specific coefficients (`male` / `female` / `nonbinary`). Below a `RHR + 0.30 × HRR` threshold the resting rate is used; above it, the HR-driven active rate. Returns `(kcal, kJ)`. **Approximate** — not laboratory calorimetry. **Not used for lifting:** every figure NOOP stores for a session it scored itself — a live session at save (`AppModel.endWorkout`) and the post-sync rescore of an under-scored manual row (`ManualWorkoutRescore`) — goes through `WorkoutEnergyEstimate.boutKcal`, which integrates a resistance sport sample by sample on `WhoopEnergyModel.exerciseMET` (resistance share) plus basal and returns this Keytel integration for every other sport. Keytel was fitted on steady endurance exercise and reads lifting's pressor response as oxygen uptake. Figures already stored are left as they are: the manual sheet lets the wearer type kcal, so a stored value cannot be told apart from one NOOP computed.
 
 ---
 
