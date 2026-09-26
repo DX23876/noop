@@ -1,6 +1,6 @@
 # Design-Engine: austauschbare Designs (Aktuell, Aura, NOOP, WHOOP-Stil)
 
-Stand: 2026-09-26 · Status: **Plan, Grilling Runde 1 entschieden (§10), Runde 2 offen, noch nichts umgesetzt** ·
+Stand: 2026-09-26 · Status: **Plan, Grilling Runden 1–2 entschieden (§10), Runde 3 offen, noch nichts umgesetzt** ·
 Branch: `feature/design-engine`
 
 Anlass: Der Fork [gdorgian/noop](https://github.com/gdorgian/noop) („Noop Aura“) zeigt ein deutlich ruhigeres
@@ -170,6 +170,18 @@ anderes Design gewählt wird.
 | R1.8 | macOS | Nur Themes; Seitenleiste und Layouts bleiben |
 | R1.9 | Ort der Screen-Modelle | Swift-Paket (mit `swift test` prüfbar, CI-abgedeckt); Repository-Anbindung im App-Target |
 
-### Runde 2 (offen)
+### Runde 2 (2026-09-26, entschieden): Aura
 
-Siehe Grilling-Verlauf; wird hier nachgetragen.
+| # | Frage | Entscheidung |
+|---|---|---|
+| R2.1 | Treue zum Handoff | **Optik treu** (Maße, Farben, Formen, Bewegung laut `docs/design/11.7`), **Inhalt aus den eigenen Screen-Modellen** (Töne nach R1.3, übersetzt). Auras englische Texte werden nicht übernommen |
+| R2.2 | Tabs | Aura-Aufbau: **Today · Trends · ＋ · Rest · You**. Training über ＋ und eine Today-Karte, Trainingshistorie unter Trends; Inhalt von „More“ unter You |
+| R2.3 | Today-Hero | **Charge in Auras Kugel-Optik**; Tipp startet die Atemübung. Tageszeit-abhängiger Hero ggf. später |
+| R2.4 | ＋-Sheet | Nur Vorhandenes: Koffein, Wasser, Journal, Workout starten, Kraft (Lift), Atmen. Keine neuen Log-Arten |
+| R2.5 | Coach | Kein schwebender Knopf; Coach-Karte auf Today + Eintrag unter You; beides weg, wenn der Coach aus ist |
+| R2.6 | Bewegung | Wie im Original; steht still bei „Bewegung reduzieren“, läuft nur, solange der Screen sichtbar ist |
+| R2.7 | Branch | `feature/design-engine` nach `origin` gepusht (Backup, kein PR) |
+
+### Runde 3 (offen)
+
+Wird hier nachgetragen.
