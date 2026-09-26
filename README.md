@@ -202,6 +202,30 @@ Island.
 </tr>
 </table>
 
+## WHOOP 4.0 and 5.0/MG
+
+Both generations pair over direct Bluetooth, sync the history the strap has stored, and feed the
+same scores: HRV, sleep stages, Charge, Effort, Rest, Stress and workout detection all work from
+either one. The inputs differ in a few places. A 5.0/MG reads skin temperature and steps directly,
+where a 4.0 gets an on-device estimate. Respiratory rate is an estimate from beat-to-beat intervals
+on both. Blood oxygen and blood pressure come from neither strap; SpO₂ appears only when imported
+from a WHOOP or Apple Health export.
+
+Before relying on a 5.0/MG:
+
+- **Pairing.** The strap keeps its encrypted bond with one device at a time. Unpair it from the
+  official WHOOP app, put the band into pairing mode, then choose **WHOOP 5.0 / MG** in NOOP.
+- **HRV needs clean beats.** Each second of stored history carries at most four R-R intervals, and
+  none when the strap could not detect a beat, so a night with too little coverage can leave HRV and
+  respiratory rate blank.
+- **Strap alarm.** It arms only with Experimental mode on, and a strap-driven wake has not been
+  confirmed on this generation yet, so keep a backup alarm.
+- **ECG (MG only)** is an experimental capture behind Test Centre and an Experimental opt-in, not a
+  medical measurement.
+
+The full per-metric grid is in the app under **NOOP Limitations** and in
+[Features](docs/FEATURES.md#noop-limitations).
+
 ## Privacy, precisely
 
 NOOP AI is offline-first. Your strap data, database, scores, history, goals, coach memory and

@@ -37,6 +37,7 @@ use [RyanBR's upstream NOOP](https://github.com/ryanbr/noop) for Android.
 
 ## Protocol and device references
 
+- [WHOOP 4.0 vs 5.0/MG support](FEATURES.md#noop-limitations) — what each strap generation reads.
 - [WHOOP protocol](PROTOCOL.md)
 - [BLE reverse engineering](BLE_REVERSE_ENGINEERING.md)
 - [WHOOP 5/MG deep data](WHOOP5_DEEP_DATA.md)

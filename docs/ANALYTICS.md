@@ -432,7 +432,7 @@ Source: assembled in `AnalyticsEngine` from the `SleepStager` outputs above. Res
 | Consistency (sleep/wake regularity) | 0.10 | how consistent your sleep and wake timing is |
 
 - **Personal sleep need:** 8 h default, refined by your recent average; the hours-vs-need term clamps at 100.
-- Rest consumes whatever stages each device provides (v25 motion on 4.0; PPG/IMU on 5/MG as it unlocks) — the sleep-staging algorithm itself is unchanged.
+- Rest consumes whatever stages each device provides (gravity from the history records: v24/v25 on 4.0, per-second v18 on 5/MG; a night without motion goes through the heart-rate-only path) — the sleep-staging algorithm itself is unchanged.
 - The `sleep_performance` key now stores this 0–100 composite. The **Charge** "Rest quality" driver reads it (÷100) instead of raw efficiency.
 
 This composite is similar *in spirit* to WHOOP's Sleep Performance %, but the blend is our own.

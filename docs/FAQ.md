@@ -72,10 +72,26 @@ gate, not that the backup was deliberately made incompatible. Future compatibili
 guaranteed across arbitrary version gaps, so keep an untouched backup before switching between
 forks and restore with the same or a newer build when possible.
 
+## Does a WHOOP 5.0 / MG work as fully as a 4.0?
+
+For scoring, yes. A 5.0/MG pairs, syncs its stored history and feeds the same HRV, sleep staging,
+Charge, Effort, Rest, Stress and workout detection as a 4.0; it even reads skin temperature and steps
+directly, where a 4.0 gets an on-device estimate. What it does not give is blood oxygen (neither
+generation does), a confirmed strap-driven alarm wake, or a validated ECG (an experimental MG-only
+capture). Pairing is the usual hurdle: the strap bonds to one device at a time, so unpair it from the
+official WHOOP app first.
+
+The per-metric grid is under **NOOP Limitations** in the app and in
+[FEATURES.md](FEATURES.md#noop-limitations). Upstream README notes describing 5.0/MG as live heart
+rate only, with recovery, strain and sleep "still being mapped", were written in June 2026, days after
+the 5.0/MG history decode first landed; the scoring, staging and step work that followed, and the
+in-app grid (August 2026), supersede them.
+
 ## Which numbers are measured, and which are NOOP's own estimates?
 
-Measured from the strap: heart rate, R-R intervals, resting HR, skin temperature, respiratory rate,
-sleep duration and stages.
+Measured from the strap: heart rate, R-R intervals, motion, and skin temperature (a calibrated
+estimate on a 4.0); steps on a 5.0/MG. Derived on the device from those: resting HR, respiratory rate
+(an estimate from R-R on both generations), sleep timing and stages.
 
 NOOP's own on-device scores, not clinical measures: Charge (recovery), Effort (strain), Rest (sleep
 performance), Stress, Fitness Age and Vitality. [docs/ANALYTICS.md](ANALYTICS.md) documents the

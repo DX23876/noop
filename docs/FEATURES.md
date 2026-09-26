@@ -702,9 +702,46 @@ sleep/recovery data.
 
 `NoopLimitationsView.swift` — a plain, honest capability grid: every metric NOOP surfaces, and
 whether it's read **live** off a WHOOP 4.0 vs a 5.0/MG (full / partial-estimate-or-experimental /
-not available). For example, skin temperature and steps are full on 5.0/MG but only a partial
-estimate on 4.0; SpO₂% and blood pressure aren't available live on either generation. A legend
-carries the three-state meaning so the table doesn't need per-row prose.
+not available). A legend carries the three-state meaning so the table doesn't need per-row prose.
+The grid as it ships (the `rows` array in that file; change the two together):
+
+| Metric | WHOOP 4.0 | WHOOP 5.0 / MG |
+|---|:-:|:-:|
+| Live heart rate | Yes | Yes |
+| HRV (rMSSD) | Yes | Yes |
+| Sleep staging | Yes | Yes |
+| Recovery & strain | Yes | Yes |
+| Respiratory rate | Partly | Partly |
+| Stress (on-device) | Yes | Yes |
+| Workout detection | Yes | Yes |
+| Skin temperature | Partly | Yes |
+| Steps | Partly | Yes |
+| Blood oxygen (SpO₂ %) | No | No |
+| ECG | No | Partly |
+| Blood pressure | No | No |
+
+**Yes** = read off the strap · **Partly** = on-device estimate, or experimental / firmware-gated ·
+**No** = not from the strap (SpO₂ can be filled by importing a WHOOP or Health export).
+
+Why the 5.0/MG column reads this way:
+
+- **The per-second history record carries the scoring inputs.** Layout v18 decodes heart rate, up
+  to four R-R intervals, a gravity vector, a step counter, skin temperature (°C = raw/100) and the
+  band's own sleep state (`decodeWhoop5Historical` in `Interpreter.swift`). Scores, staging, skin
+  temperature and steps run on those, through the same engines a 4.0 uses. A night with no motion
+  falls back to the heart-rate-only staging path on either generation.
+- **The other 5.0/MG layouts add less.** v26 is a PPG waveform whose derived heart rate fills only
+  seconds without a measured one; v20 (optical) and v21 (IMU) decode to raw arrays no engine reads.
+- **HRV and respiratory rate follow R-R coverage.** A record without a detected beat carries no R-R,
+  and too few clean beats can leave a night's HRV blank. Respiratory rate is the RSA estimate from
+  R-R on both generations; the 5.0/MG record has no respiratory channel.
+- **SpO₂** is not computed. Byte 82 of the v18 record is logged as a candidate strap-computed value
+  for research (#103) and never becomes a shown or scored metric.
+- **ECG** is an MG-only capture behind Test Centre and the Experimental opt-in — unvalidated
+  instrumentation, not a measurement.
+- **Outside the grid:** the strap alarm arms on a 5.0/MG only with Experimental mode on and its wake
+  is unconfirmed on that generation (see [Alarms](#alarms)); pairing needs the strap's single
+  encrypted bond, so it must be unpaired from the official WHOOP app first.
 
 ---
 
