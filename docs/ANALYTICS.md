@@ -902,6 +902,12 @@ sets, ratings and heart-rate samples are retained.
 
 Source: `Packages/StrandAnalytics/Sources/StrandAnalytics/{EnergyEngine,WhoopEnergyModel,EnergyCalibrationEngine,EnergyValidation,AdaptiveExpenditureEngine}.swift`, all pure and DB-free. Together they answer "how much did I burn today?" (the **ENERGY** card in Control Center / Today, `Strand/Screens/EnergyCard.swift`) without ever silently adding two devices' measurements for the same body.
 
+### Basal rate — one formula for the whole history
+
+Every energy path (the day total, the strap bucket model, the day's timeline, the reference curves, a session's tile) reads basal through `Calories.bmrKcalPerDay(profile:)`, which evaluates `UserProfile.basalFormula` via `BasalRate`. `Repository.analyticsProfile` fills it from `BmrFormulaLog.current`: the wearer's choice on the Energy Plan, **Mifflin–St Jeor** until they choose (more accurate than revised Harris–Benedict for height/weight alone; earlier versions used Harris–Benedict). The choice applies to **every day**, past ones included, because it is a method rather than a change in the body — a formula that changed at a date would put a step into trends, 30-day means and the intake/weight comparison that reads as a metabolic change. Weight and body fat are still resolved per day from their own history. Katch–McArdle uses the body fat in force on each day (`Repository.bodyFatResolver`); days before the first reading use Mifflin–St Jeor, so the curve steps where the first reading begins. No wearable NOOP supports measures resting metabolism (that takes gas exchange); these are population regressions.
+
+A strap day's active energy is the model's own stored figure (`DayInputs.strapActiveKcal`, the sum of the hourly rows written beside the buckets), not `strap total − basal`, so a formula change moves basal and total only. A switch re-prices the strap model's stored basal over its 120-day window (`scheduleEnergyRefresh`).
+
 ### `EnergyEngine` — one day's total, sources never summed
 
 `EnergyEngine.summarize(_:profile:context:)` selects **one** source per day and, where possible, tops it up with the *modelled remainder* — it never adds two measured sources together:

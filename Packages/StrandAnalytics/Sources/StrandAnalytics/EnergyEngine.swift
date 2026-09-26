@@ -288,6 +288,11 @@ public enum EnergyEngine {
         /// Wall-clock seconds whose basal share is already included in `strapTotalKcal`. Legacy rows
         /// may contain distinct HR seconds instead; model-version filtering prevents crossing them.
         public let strapCoverageSeconds: Int?
+        /// The strap model's ACTIVE energy for the day as it stored it (the sum of its buckets' active
+        /// share), when known. Preferred over `strapTotalKcal − basal`: that subtraction only returns
+        /// the active energy when the basal taken out is the basal the buckets were priced with, and a
+        /// basal-formula change — or a day older than the model's recompute window — breaks that.
+        public let strapActiveKcal: Double?
         /// Optional, user-enabled Apple Watch reference calibration. Values outside the deliberately
         /// narrow 0.8...1.2 range are ignored, and the factor is never applied to Apple-only days.
         public let strapCalibrationFactor: Double?
@@ -313,6 +318,7 @@ public enum EnergyEngine {
         public init(day: String, appleActiveKcal: Double? = nil, appleBasalKcal: Double? = nil,
                     appleCoverageSeconds: Int? = nil,
                     strapTotalKcal: Double? = nil, strapCoverageSeconds: Int? = nil,
+                    strapActiveKcal: Double? = nil,
                     strapCalibrationFactor: Double? = nil,
                     strapUncertaintyFraction: Double? = nil,
                     calibrationStatus: EnergyCalibrationStatus = .off,
@@ -327,6 +333,7 @@ public enum EnergyEngine {
             self.appleCoverageSeconds = appleCoverageSeconds
             self.strapTotalKcal = strapTotalKcal
             self.strapCoverageSeconds = strapCoverageSeconds
+            self.strapActiveKcal = strapActiveKcal
             self.strapCalibrationFactor = strapCalibrationFactor
             self.strapUncertaintyFraction = strapUncertaintyFraction
             self.calibrationStatus = calibrationStatus
@@ -472,7 +479,7 @@ public enum EnergyEngine {
             // so applying it to `strap` — which still contains WHOOP's own basal estimate for the
             // observed window — would scale a metabolic constant by a factor that was never fitted
             // against it. `rawActive` isolates the part the fit actually describes.
-            let rawActive = max(0, strap - observedBasal)
+            let rawActive = inputs.strapActiveKcal ?? max(0, strap - observedBasal)
             let active = rawActive * (factor ?? 1)
             let basalElapsedValue = bmr24h * elapsed
             return BurnResult(basal: basalElapsedValue, active: active,
@@ -744,6 +751,7 @@ public enum EnergyEngine {
                          appleCoverageSeconds: appleCovered,
                          strapTotalKcal: strapKcal(inputs.strapTotalKcal),
                          strapCoverageSeconds: covered,
+                         strapActiveKcal: kcal(inputs.strapActiveKcal),
                          strapCalibrationFactor: factor,
                          strapUncertaintyFraction: uncertainty,
                          calibrationStatus: calibrationStatus,

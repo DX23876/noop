@@ -165,4 +165,30 @@ final class BasalFormulaTests: XCTestCase {
         XCTAssertEqual(BmrFormulaLog.decode("not json"), .seeded)
         XCTAssertEqual(BmrFormulaLog.decode("{\"unexpected\":1}"), .seeded)
     }
+
+    // MARK: - One formula for the whole history
+
+    func testAnUntouchedLogComputesEverythingWithMifflin() {
+        XCTAssertEqual(BmrFormulaLog.seeded.current, .mifflinStJeor)
+        XCTAssertEqual(BmrFormulaLog.seeded.appending(.revisedHarrisBenedict, effectiveFrom: "2026-09-26").current,
+                       .revisedHarrisBenedict, "an explicit choice of Harris–Benedict is honoured")
+        XCTAssertEqual(BmrFormulaLog.seeded.appending(.katchMcArdle, effectiveFrom: "2026-09-26").current,
+                       .katchMcArdle)
+    }
+
+    /// Every energy path reads basal through `Calories.bmrKcalPerDay(profile:)`, so the profile's
+    /// formula is what they all get.
+    func testTheProfilesFormulaIsWhatEveryEnergyPathReads() throws {
+        func bmr(_ formula: BasalFormula, bodyFat: Double? = nil) throws -> Double {
+            try XCTUnwrap(Calories.bmrKcalPerDay(profile: .init(
+                weightKg: weightKg, heightCm: heightCm, age: age, sex: "male",
+                basalFormula: formula, bodyFatPercent: bodyFat)))
+        }
+        XCTAssertEqual(try bmr(.revisedHarrisBenedict), 1825.247, accuracy: 0.001)
+        XCTAssertEqual(try bmr(.mifflinStJeor), 1755, accuracy: 0.001)
+        XCTAssertEqual(try bmr(.katchMcArdle, bodyFat: 20), 370 + 21.6 * 64, accuracy: 1e-9)
+        XCTAssertEqual(try bmr(.katchMcArdle), 1755, accuracy: 0.001,
+                       "no reading in force: Mifflin, never nothing")
+    }
 }
+

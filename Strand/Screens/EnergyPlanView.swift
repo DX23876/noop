@@ -97,6 +97,9 @@ struct EnergyPlanView: View {
         .sheet(item: $infoTopic) { infoSheet($0) }
         .sheet(item: $switching) { formula in
             FormulaSwitchSheet(model: model, target: formula, profile: analyticsProfile) {
+                // The whole history is computed with the new formula: re-price the strap model's
+                // stored basal over the window it keeps, and let every energy surface redraw.
+                repo.scheduleEnergyRefresh(coveringStart: 0)
                 await model.load(repo: repo, profile: analyticsProfile)
             }
         }
@@ -324,8 +327,13 @@ struct EnergyPlanView: View {
                 .buttonStyle(.plain)
                 .disabled(!model.isAvailable(formula))
             }
-            if let switched = EnergyPlanStore.formulaLog.lastSwitchDay {
-                Text("Changed on \(switched). Days before that keep the formula that applied then — a switch never rewrites history.")
+            Text(EnergyPlanStore.formulaLog.lastSwitchDay == nil
+                 ? String(localized: "Mifflin–St Jeor is the default: the more accurate formula from height and weight. Earlier versions used revised Harris–Benedict; every day, past ones included, is now computed with Mifflin–St Jeor.")
+                 : String(localized: "The chosen formula applies to your whole history, so every day is compared on the same method."))
+                .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+            if model.currentFormula.needsBodyFat {
+                Text("Katch–McArdle uses the body-fat reading in force on each day. Days before your first reading use Mifflin–St Jeor, so the curve steps where your first reading begins.")
                     .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }

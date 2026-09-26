@@ -572,6 +572,17 @@ final class EnergyEngineTests: XCTestCase {
         }
     }
 
+    /// The model's stored active energy is taken as it is, so a basal rate that differs from the one
+    /// the buckets were priced with (a formula change) moves basal only, never active energy.
+    func testStoredStrapActiveEnergyIsNotRederivedFromBasal() {
+        let inputs = EnergyEngine.DayInputs(day: "2026-09-26", strapTotalKcal: 2_600,
+                                            strapCoverageSeconds: 86_400, strapActiveKcal: 540,
+                                            strapCalibrationFactor: 1.1, calibrationStatus: .active)
+        let summary = EnergyEngine.summarize(inputs, profile: profile, context: context())
+        XCTAssertEqual(summary.activeBurnedSoFar ?? 0, 540 * 1.1, accuracy: 1e-9)
+        XCTAssertEqual(summary.basalBurnedSoFar ?? 0, bmr, accuracy: 1e-6)
+    }
+
     func testMalformedInputsAreRejected() {
         let summary = EnergyEngine.summarize(
             inputs(appleActive: .infinity, appleBasal: -1, strap: .nan,

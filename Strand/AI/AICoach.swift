@@ -5077,7 +5077,7 @@ final class AICoachEngine: ObservableObject {
                          + " (\(Int(balance.lowerBoundKcal.rounded()))–\(Int(balance.upperBoundKcal.rounded()))),"
                          + " from \(balance.intakeDays) intake days. Self-reported intake runs low, which biases this figure DOWN.")
         }
-        let formula = EnergyPlanStore.formulaLog.formula(onDay: today)
+        let formula = EnergyPlanStore.formulaLog.current
         if let basal = BasalRate.kcalPerDay(formula,
                                             weightKg: metrics.value("weight", on: today) ?? profile.weightKg,
                                             heightCm: metrics.value("height", on: today) ?? profile.heightCm,
