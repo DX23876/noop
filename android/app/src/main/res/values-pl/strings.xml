@@ -854,7 +854,7 @@
     <string name="l10n_smart_alarm_screen_wind_down_nudge_5ca87a0f">Odprężające szturchnięcie</string>
     <string name="l10n_smart_alarm_screen_window_length_46179fcb">Długość okna</string>
     <string name="l10n_smart_alarm_screen_windowminutes_min_bd89fd82">%1$s min</string>
-    <string name="l10n_smart_alarm_screen_your_whoop_5_mg_won_t_75029bae">Twój WHOOP 5/MG nie uzbroi tego, dopóki nie zostanie włączony tryb eksperymentalny (Ustawienia → Experimental). Right now your wake time is saved but the strap is NOT armed.</string>
+    <string name="l10n_smart_alarm_screen_your_whoop_5_mg_won_t_75029bae">Alarm na opasce WHOOP 5/MG wymaga włączenia Testów protokołu (Centrum Testowe → Diagnostyka protokołu 5/MG). Godzina pobudki została zapisana, ale alarm na opasce nie jest jeszcze uzbrojony. Zachowaj alarm zapasowy.</string>
     <string name="l10n_steps_calibration_screen_calibrate_your_steps_38b4e814">Skalibruj swoje kroki</string>
     <string name="l10n_steps_calibration_screen_close_bbfa773e">Zamknij</string>
     <string name="l10n_steps_calibration_screen_day_987b9ced">Dzień</string>
@@ -2841,4 +2841,6 @@
     <string name="l10n_today_screen_pending_sync_complete_5940c589">Oczekuje na synchronizację · %1$s</string>
     <string name="l10n_today_screen_value_bpm_complete_ab58df4e">%1$s bpm%2$s</string>
     <string name="fused_record_contribution_in_use">%1$s, %2$s, w użyciu</string>
+    <string name="smart_alarm_5mg_armed_experimental">Alarm uzbrojono na opasce eksperymentalnym poleceniem 5/MG. Zgłaszano wybudzanie przez opaski 5.0 i MG, ale nie jest ono gwarantowane. Zachowaj alarm zapasowy na ważne okazje.</string>
+    <string name="raw_diag_protocol_probes_detail">Wysyła eksperymentalne zapytania protokołu i włącza alarm opaski 5/MG. Nie jest potrzebne do zwykłej synchronizacji, snu, regeneracji ani kroków.</string>
 </resources>

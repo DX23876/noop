@@ -5970,7 +5970,7 @@ class WhoopBleClient(
     }
 
     /**
-     * Arm the strap's **firmware** alarm to buzz at [epochSec] (absolute UTC seconds). The strap fires
+     * Arm the strap's **firmware** alarm for [epochSec] (absolute UTC seconds). WHOOP 4.0 fires
      * at that instant even if the phone is asleep or NOOP is closed. SET_CLOCK is sent first so the
      * strap's RTC is UTC-correct (a wrong RTC fires the alarm at the wrong wall-clock time). The 4.0
      * payload is `[0x01] + u32 LE epoch + [0x00, 0x00] + [0x00, 0x00]` (9 bytes — see
@@ -5981,12 +5981,12 @@ class WhoopBleClient(
     fun armStrapAlarm(epochSec: Long) {
         if (connectedFamily == DeviceFamily.WHOOP5) {
             // 5/MG SET_ALARM_TIME is REVISION_4 (the strap arms its own RTC alarm + fires the wake
-            // haptic itself). EXPERIMENTAL/UNCONFIRMED on our side — gated behind the Experimental
-            // probes opt-in so a normal user can't rely on an alarm that might silently not fire.
+            // haptic itself). Wakes have been reported on 5.0 and MG (#864, #2464), but are not
+            // guaranteed — gated behind Protocol probes so no one relies on it by default.
             // The strap maintains its RTC from the connect handshake / history sync, so no SET_CLOCK
             // here. (PR #85, AlarmPayload)
             if (!PuffinExperiment.from(context).isEnabled) {
-                log("Alarm: 5/MG firmware alarm needs the Experimental toggle (unconfirmed) — not armed")
+                log("Alarm: 5/MG firmware alarm needs Protocol probes (Test Centre) — not armed")
                 return
             }
             send(CommandNumber.SET_ALARM_TIME, AlarmPayload.build(epochSec * 1000L))

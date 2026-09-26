@@ -721,7 +721,7 @@
     <string name="l10n_smart_alarm_screen_wind_down_nudge_5ca87a0f">Rappel de détente</string>
     <string name="l10n_smart_alarm_screen_window_length_46179fcb">Longueur de la fenêtre</string>
     <string name="l10n_smart_alarm_screen_windowminutes_min_bd89fd82">%1$s min</string>
-    <string name="l10n_smart_alarm_screen_your_whoop_5_mg_won_t_75029bae">Votre WHOOP 5/MG n\'armera pas cela jusqu\'à ce que le mode expérimental soit activé (Paramètres → Experimental). Right now your wake time is saved but the strap is NOT armed.</string>
+    <string name="l10n_smart_alarm_screen_your_whoop_5_mg_won_t_75029bae">Les alarmes du bracelet WHOOP 5/MG nécessitent Sondes de protocole (Centre de test → Diagnostics du protocole 5/MG). L’heure de réveil est enregistrée, mais le bracelet ne porte pas encore une alarme active. Gardez une alarme de secours.</string>
     <string name="l10n_steps_calibration_screen_calibrate_your_steps_38b4e814">Calibrez vos pas</string>
     <string name="l10n_steps_calibration_screen_close_bbfa773e">Fermer</string>
     <string name="l10n_steps_calibration_screen_day_987b9ced">Jour</string>
@@ -2826,4 +2826,6 @@
     <string name="l10n_today_screen_pending_sync_complete_5940c589">Synchronisation en attente · %1$s</string>
     <string name="l10n_today_screen_value_bpm_complete_ab58df4e">%1$s bpm%2$s</string>
     <string name="fused_record_contribution_in_use">%1$s, %2$s, en cours d\'utilisation</string>
+    <string name="smart_alarm_5mg_armed_experimental">L’alarme est activée sur le bracelet avec une commande expérimentale 5/MG. Des réveils par le bracelet ont été signalés sur 5.0 et MG, sans être garantis. Gardez une alarme de secours pour tout réveil important.</string>
+    <string name="raw_diag_protocol_probes_detail">Envoie des requêtes de protocole expérimentales et active l’alarme du bracelet 5/MG. Inutile pour la synchronisation, le sommeil, la récupération ou les pas ordinaires.</string>
 </resources>

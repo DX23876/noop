@@ -1278,8 +1278,8 @@ public final class BLEManager: NSObject, ObservableObject {
 
     /// True when the selected/connected strap is a WHOOP 5/MG. Read-only window onto the private
     /// `selectedModel` so a view can tell whether the firmware-alarm path is the experimental 5/MG one
-    /// (see `armStrapAlarm`, which only arms a 5/MG when Experimental is on). #864: the iOS Smart-alarm
-    /// UI needs this so it stops telling a 5/MG owner the strap is armed when, without Experimental, it
+    /// (see `armStrapAlarm`, which only arms a 5/MG when Protocol probes is on). #864: the iOS Smart-alarm
+    /// UI needs this so it stops telling a 5/MG owner the strap is armed when, without that opt-in, it
     /// isn't. Mirrors the Android `LiveState.whoop5Detected` signal the equivalent screen reads.
     var isWhoop5: Bool { selectedModel.deviceFamily == .whoop5 }
 
@@ -5267,14 +5267,13 @@ public final class BLEManager: NSObject, ObservableObject {
     /// rev-1 SET_ALARM_TIME. WHOOP 5/MG sends the REVISION_4 body alone — the strap maintains
     /// its RTC (set during the connect handshake / history sync) and the official app's alarm
     /// path doesn't re-set it (wire observation; mirrors Android WhoopBleClient.armStrapAlarm).
-    /// Either way the strap will buzz at `date` even if the app is backgrounded or force-quit
-    /// (event STRAP_DRIVEN_ALARM_EXECUTED=57). This is the only alarm path: the strap fires at
-    /// the fixed time — NOOP has no light-sleep early-wake layer.
+    /// The WHOOP 4.0 strap buzzes at `date` even if the app is backgrounded or force-quit
+    /// (event STRAP_DRIVEN_ALARM_EXECUTED=57). The 5/MG path intends the same behavior but remains
+    /// experimental. This is the only strap-alarm path; NOOP has no light-sleep early-wake layer.
     ///
-    /// EXPERIMENTAL / UNCONFIRMED on 5/MG (same posture as the Android client): the byte-identical
-    /// Android rev-4 frame has been ACKed by a real 5/MG when arming, but a strap-driven wake fire
-    /// has NOT been captured on our side (no STRAP_DRIVEN_ALARM_EXECUTED event observed yet) — do
-    /// not present the 5/MG alarm as guaranteed until one is.
+    /// EXPERIMENTAL on 5/MG (same posture as the Android client): the rev-4 frame has been ACKed,
+    /// and strap-driven wakes have been reported on both 5.0 and MG (#864, #2464). No 5/MG
+    /// STRAP_DRIVEN_ALARM_EXECUTED event has been captured in NOOP, so do not promise a wake.
     func armStrapAlarm(at date: Date) {
         // Log the wake time in the user's LOCAL zone. `Date` prints in UTC by default, so an alarm
         // for (say) 07:00 in New York logged as "11:00:00 +0000" reads like a timezone bug — but it
@@ -5283,12 +5282,12 @@ public final class BLEManager: NSObject, ObservableObject {
         let localFmt = DateFormatter()
         localFmt.dateFormat = "EEE HH:mm zzz"
         if selectedModel.deviceFamily == .whoop5 {
-            // The 5/MG firmware alarm is unconfirmed (arming ACKs, but the wake actually FIRING is not
-            // verified), so only arm it when the user has opted into Experimental — matching the Android
+            // The 5/MG firmware alarm remains experimental despite reported wakes, so only arm it when
+            // the user has opted into Protocol probes — matching the Android
             // client, which refuses to arm it otherwise. Without this a normal 5/MG user is silently
             // armed onto an alarm that may never fire.
             guard PuffinExperiment.isEnabled else {
-                log("Alarm: 5/MG firmware alarm needs the Experimental toggle (unconfirmed) — not armed")
+                log("Alarm: 5/MG firmware alarm needs Protocol probes (Test Centre) — not armed")
                 return
             }
             // 5/MG SET_ALARM_TIME is REVISION_4: [04][id][u32 sec][u16 subsec][12-byte 47/152
@@ -6783,7 +6782,7 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                 startBackfillTimer()            // re-offload the type-47 store every backfillIntervalSeconds
                 // #34: signal settled directly (skip the cmd-notify gate `maybeSignalConnectSettled()`
                 // uses) — armStrapAlarm's 5/MG branch never sends GET_ALARM_TIME (log-only readback is
-                // WHOOP4-only, and the 5/MG alarm itself stays behind the Experimental toggle), so there's
+                // WHOOP4-only, and the 5/MG alarm itself stays behind Protocol probes), so there's
                 // no reply-channel race to wait out here; this just keeps the re-arm-on-bond signal firing
                 // for 5/MG the way it did before `connectSettled` replaced raw `bonded`.
                 if !connectSettledSignaled {

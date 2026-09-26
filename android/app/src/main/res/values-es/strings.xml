@@ -703,7 +703,7 @@
     <string name="l10n_smart_alarm_screen_wind_down_nudge_5ca87a0f">Recordatorio de relajación</string>
     <string name="l10n_smart_alarm_screen_window_length_46179fcb">Longitud de ventana</string>
     <string name="l10n_smart_alarm_screen_windowminutes_min_bd89fd82">%1$s min</string>
-    <string name="l10n_smart_alarm_screen_your_whoop_5_mg_won_t_75029bae">Su WHOOP 5/MG no armará esto hasta que el modo experimental esté encendido (Configuración → Experimental). Right now your wake time is saved but the strap is NOT armed.</string>
+    <string name="l10n_smart_alarm_screen_your_whoop_5_mg_won_t_75029bae">Las alarmas de la pulsera WHOOP 5/MG requieren Sondas de protocolo (Centro de pruebas → Diagnóstico del protocolo 5/MG). La hora de despertar está guardada, pero la pulsera aún no está armada. Mantén una alarma de respaldo.</string>
     <string name="l10n_steps_calibration_screen_calibrate_your_steps_38b4e814">Calibra tus pasos</string>
     <string name="l10n_steps_calibration_screen_close_bbfa773e">Cerrar</string>
     <string name="l10n_steps_calibration_screen_day_987b9ced">Día</string>
@@ -2827,4 +2827,6 @@
     <string name="l10n_today_screen_pending_sync_complete_5940c589">Sincronización pendiente · %1$s</string>
     <string name="l10n_today_screen_value_bpm_complete_ab58df4e">%1$s bpm%2$s</string>
     <string name="fused_record_contribution_in_use">%1$s, %2$s, en uso</string>
+    <string name="smart_alarm_5mg_armed_experimental">La alarma se activó en la pulsera con un comando experimental 5/MG. Se han comunicado despertares desde pulseras 5.0 y MG, pero no están garantizados. Mantén una alarma de respaldo para lo que no puedas perderte.</string>
+    <string name="raw_diag_protocol_probes_detail">Envía consultas de protocolo experimentales y habilita la alarma de la pulsera 5/MG. No se necesita para la sincronización, el sueño, la recuperación ni los pasos normales.</string>
 </resources>

@@ -966,7 +966,7 @@
     <string name="l10n_smart_alarm_screen_wind_down_nudge_5ca87a0f">Promemoria per il rilassamento</string>
     <string name="l10n_smart_alarm_screen_window_length_46179fcb">Durata della finestra</string>
     <string name="l10n_smart_alarm_screen_windowminutes_min_bd89fd82">%1$s min</string>
-    <string name="l10n_smart_alarm_screen_your_whoop_5_mg_won_t_75029bae">Il tuo WHOOP 5/MG non la attiverà finché la modalità Sperimentale non è attiva (Impostazioni → Experimental). Right now your wake time is saved but the strap is NOT armed.</string>
+    <string name="l10n_smart_alarm_screen_your_whoop_5_mg_won_t_75029bae">Le sveglie sulla fascia WHOOP 5/MG richiedono Sonde di protocollo (Centro test → Diagnostica protocollo 5/MG). L’ora di sveglia è salvata, ma la fascia non è ancora armata. Tieni una sveglia di riserva.</string>
     <string name="l10n_steps_calibration_screen_calibrate_your_steps_38b4e814">Calibra i tuoi passi</string>
     <string name="l10n_steps_calibration_screen_close_bbfa773e">Chiudi</string>
     <string name="l10n_steps_calibration_screen_day_987b9ced">Giorno</string>
@@ -2795,4 +2795,6 @@
     <string name="l10n_today_screen_pending_sync_complete_5940c589">Sincronizzazione in sospeso · %1$s</string>
     <string name="l10n_today_screen_value_bpm_complete_ab58df4e">%1$s bpm%2$s</string>
     <string name="fused_record_contribution_in_use">%1$s, %2$s, in uso</string>
+    <string name="smart_alarm_5mg_armed_experimental">La sveglia è stata attivata sulla fascia con un comando sperimentale 5/MG. Sono stati segnalati risvegli dalla fascia su 5.0 e MG, ma non sono garantiti. Tieni una sveglia di riserva per gli impegni importanti.</string>
+    <string name="raw_diag_protocol_probes_detail">Invia richieste di protocollo sperimentali e abilita la sveglia della fascia 5/MG. Non serve per la normale sincronizzazione, il sonno, il recupero o i passi.</string>
 </resources>

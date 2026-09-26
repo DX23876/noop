@@ -218,7 +218,7 @@ fun TestCentreScreen(vm: AppViewModel, onOpenGroundTruthCollector: () -> Unit = 
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     DeveloperToggleRow(
                         title = stringResource(R.string.raw_diag_protocol_probes),
-                        detail = "Sends experimental protocol queries. It is not needed for normal WHOOP 5/MG sync, sleep, recovery, or steps.",
+                        detail = stringResource(R.string.raw_diag_protocol_probes_detail),
                         checked = protocolProbes,
                         onCheckedChange = {
                             protocolProbes = it

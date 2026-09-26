@@ -270,24 +270,23 @@ struct SmartAlarmView: View {
                     }
                     Divider().overlay(StrandPalette.hairline)
                     alarmWeekdayPicker
-                    // #864: a WHOOP 5/MG only arms its firmware alarm when Experimental is on (see
+                    // #864: a WHOOP 5/MG only arms its firmware alarm when Protocol probes is on (see
                     // BLEManager.armStrapAlarm, which logs "not armed" and returns otherwise). Without this
                     // branch the card claimed "Armed on the strap itself" to a 5/MG owner whose strap was
                     // NOT armed, an honest-data violation (reporter: 5/MG, Experimental off, never buzzed).
                     // Mirrors the Android SmartAlarmScreen StrapAlarmCard wording exactly. The else copy
                     // was truth-synced once a real 4.0 wake was confirmed (PR #535: official-app wire
-                    // capture + on-device buzz by the capture author); 5/MG remains unconfirmed, so this
-                    // gated branch keeps its honesty wording.
+                    // capture + on-device buzz by the capture author); 5/MG remains experimental, so this
+                    // gated branch keeps its backup-alarm wording.
                     if model.whoop5Detected && !PuffinExperiment.isEnabled {
-                        Text("Your WHOOP 5/MG won't arm this until Experimental mode is on (Settings, Experimental). Right now your wake time is saved but the strap is NOT armed. Even with Experimental on, a 5/MG strap-driven wake is still unconfirmed on our side, so keep a backup alarm.")
+                        Text("WHOOP 5/MG strap alarms require Protocol probes (Test Centre → 5/MG protocol diagnostics). Your wake time is saved, but the strap is not armed yet. Keep a backup alarm.")
                             .font(StrandFont.footnote)
                             .foregroundStyle(StrandPalette.statusWarning)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     } else if model.whoop5Detected {
-                        // 5/MG with Experimental ON: the strap IS armed (the rev-4 puffin payload), but a
-                        // strap-driven wake has NEVER been captured on 5/MG - so the "confirmed on 4.0" copy
-                        // must NOT show here (#864 honesty). Keep the 5/MG-unconfirmed caveat.
-                        Text("Armed on the strap itself with the experimental 5/MG command. A strap-driven wake is still unconfirmed on 5/MG on our side (confirmed only on WHOOP 4.0), so keep a backup alarm for anything you truly can't miss.")
+                        // 5/MG with Protocol probes ON: the rev-4 command arms the strap. Wakes have
+                        // been reported on 5.0 and MG (#864, #2464), but are not guaranteed.
+                        Text("Armed on the strap with an experimental 5/MG command. Strap-driven wakes have been reported on 5.0 and MG, but are not guaranteed. Keep a backup alarm for anything you cannot miss.")
                             .font(StrandFont.footnote)
                             .foregroundStyle(StrandPalette.textTertiary)
                             .frame(maxWidth: .infinity, alignment: .leading)

@@ -903,7 +903,7 @@
     <string name="l10n_smart_alarm_screen_wind_down_nudge_5ca87a0f">Runterkommen-Anstoß</string>
     <string name="l10n_smart_alarm_screen_window_length_46179fcb">Fensterlänge</string>
     <string name="l10n_smart_alarm_screen_windowminutes_min_bd89fd82">%1$s min</string>
-    <string name="l10n_smart_alarm_screen_your_whoop_5_mg_won_t_75029bae">Dein WHOOP 5/MG wird dies nicht bewaffnen, bis der Experimentalmodus eingeschaltet ist (Einstellungen) Experimental). Right now your wake time is saved but the strap is NOT armed.</string>
+    <string name="l10n_smart_alarm_screen_your_whoop_5_mg_won_t_75029bae">WHOOP 5/MG-Strapalarme benötigen Protokolltests (Testcenter → 5/MG-Protokolldiagnose). Deine Weckzeit ist gespeichert, aber der Strap ist noch nicht scharfgestellt. Behalte einen Ersatzwecker.</string>
     <string name="l10n_steps_calibration_screen_calibrate_your_steps_38b4e814">Deine Schritte kalibrieren</string>
     <string name="l10n_steps_calibration_screen_close_bbfa773e">Schließen</string>
     <string name="l10n_steps_calibration_screen_day_987b9ced">Tag</string>
@@ -2840,4 +2840,6 @@
     <string name="l10n_today_screen_pending_sync_complete_5940c589">Sync ausstehend · %1$s</string>
     <string name="l10n_today_screen_value_bpm_complete_ab58df4e">%1$s bpm%2$s</string>
     <string name="fused_record_contribution_in_use">%1$s, %2$s, in Benutzung</string>
+    <string name="smart_alarm_5mg_armed_experimental">Der Alarm wurde mit einem experimentellen 5/MG-Befehl auf dem Strap aktiviert. Weckvorgänge durch den Strap wurden für 5.0 und MG gemeldet, sind aber nicht garantiert. Behalte für alles Wichtige einen Ersatzwecker.</string>
+    <string name="raw_diag_protocol_probes_detail">Sendet experimentelle Protokollabfragen und aktiviert den 5/MG-Strapalarm. Für normale Synchronisierung, Schlaf, Erholung oder Schritte nicht erforderlich.</string>
 </resources>

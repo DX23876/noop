@@ -32474,60 +32474,60 @@
         }
       }
     },
-    "Armed on the strap itself with the experimental 5/MG command. A strap-driven wake is still unconfirmed on 5/MG on our side (confirmed only on WHOOP 4.0), so keep a backup alarm for anything you truly can't miss.": {
+    "Armed on the strap with an experimental 5/MG command. Strap-driven wakes have been reported on 5.0 and MG, but are not guaranteed. Keep a backup alarm for anything you cannot miss.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bewaffnet am Riemen selbst mit dem experimentellen Befehl 5/MG. Ein gurtgetriebener Wake ist immer noch unbestätigt auf 5/MG auf unserer Seite (bestätigt nur auf WHOOP 4.0), also halte einen Backup-Alarm für alles, was du wirklich nicht verpassen kannst."
+            "value": "Der Alarm wurde mit einem experimentellen 5/MG-Befehl auf dem Strap aktiviert. Weckvorgänge durch den Strap wurden für 5.0 und MG gemeldet, sind aber nicht garantiert. Behalte für alles Wichtige einen Ersatzwecker."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Armado en la correa misma con el comando experimental 5/MG. Un velador con correa sigue sin confirmar en 5/MG de nuestro lado (confirmado sólo en WHOOP 4.0), así que mantenga una alarma de respaldo para cualquier cosa que realmente no se puede perder."
+            "value": "La alarma se activó en la pulsera con un comando experimental 5/MG. Se han comunicado despertares desde pulseras 5.0 y MG, pero no están garantizados. Mantén una alarma de respaldo para lo que no puedas perderte."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Armé sur la sangle elle-même avec la commande expérimentale 5/MG. Un réveil à sangle est toujours non confirmé sur 5/MG de notre côté (confirmé uniquement sur WHOOP 4.0), donc gardez une alarme de sauvegarde pour tout ce que vous ne pouvez vraiment pas manquer."
+            "value": "L’alarme est activée sur le bracelet avec une commande expérimentale 5/MG. Des réveils par le bracelet ont été signalés sur 5.0 et MG, sans être garantis. Gardez une alarme de secours pour tout réveil important."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Impostata direttamente sulla fascia con il comando sperimentale per 5/MG. Da parte nostra, la sveglia attivata dalla fascia non è ancora confermata su 5/MG (confermata solo su WHOOP 4.0), quindi tieni una sveglia di riserva per tutto ciò che non puoi assolutamente perdere."
+            "value": "La sveglia è stata attivata sulla fascia con un comando sperimentale 5/MG. Sono stati segnalati risvegli dalla fascia su 5.0 e MG, ma non sono garantiti. Tieni una sveglia di riserva per gli impegni importanti."
           }
         },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
-            "value": "Armado na própria correia com o comando experimental 5/MG. Um rasto acionado por correia ainda não está confirmado em 5/MG do nosso lado (confirmado apenas em WHOOP 4.0), por isso mantenha um alarme de reserva para qualquer coisa que não possa realmente perder."
+            "value": "O alarme foi armado na pulseira com um comando experimental 5/MG. Foram comunicados despertares pela pulseira em 5.0 e MG, mas não são garantidos. Mantém um alarme de reserva para tudo o que não podes perder."
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Uzbrojony w sam pasek za pomocą eksperymentalnego polecenia 5/MG. Budzenie napędzane paskiem jest nadal niepotwierdzone na 5/MG po naszej stronie (potwierdzone tylko na WHOOP 4.0), więc miej alarm zapasowy na wypadek wszystkiego, czego naprawdę nie możesz przegapić."
+            "value": "Alarm uzbrojono na opasce eksperymentalnym poleceniem 5/MG. Zgłaszano wybudzanie przez opaski 5.0 i MG, ale nie jest ono gwarantowane. Zachowaj alarm zapasowy na ważne okazje."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Устанавливается на самом браслете экспериментальной командой 5/MG. Пробуждение с браслета на 5/MG у нас пока не подтверждено (подтверждено только на WHOOP 4.0), поэтому оставьте резервный будильник для всего, что действительно нельзя пропустить."
+            "value": "Будильник установлен на браслете экспериментальной командой 5/MG. Сообщалось о срабатывании на 5.0 и MG, но оно не гарантировано. Оставьте резервный будильник для важных событий."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "使用实验性的 5/MG 命令在手环上设置。我们尚未确认 5/MG 上由手环驱动的唤醒（仅在 WHOOP 4.0 上确认过），因此对于绝不能错过的事项请保留备用闹钟。"
+            "value": "已通过实验性 5/MG 命令在手环上设置闹钟。有用户报告 5.0 和 MG 手环能够唤醒，但不保证每次生效。重要事项请保留备用闹钟。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "使用實驗性的 5/MG 指令在手環上設定。我們尚未確認 5/MG 上由手環驅動的喚醒（僅在 WHOOP 4.0 上確認過），因此對於絕不能錯過的事項請保留備用鬧鐘。"
+            "value": "已透過實驗性 5/MG 指令在手環上設定鬧鐘。有使用者回報 5.0 和 MG 手環能夠喚醒，但不保證每次生效。重要事項請保留備用鬧鐘。"
           }
         }
       }
@@ -184726,60 +184726,60 @@
         }
       }
     },
-    "Your WHOOP 5/MG won't arm this until Experimental mode is on (Settings, Experimental). Right now your wake time is saved but the strap is NOT armed. Even with Experimental on, a 5/MG strap-driven wake is still unconfirmed on our side, so keep a backup alarm.": {
+    "WHOOP 5/MG strap alarms require Protocol probes (Test Centre → 5/MG protocol diagnostics). Your wake time is saved, but the strap is not armed yet. Keep a backup alarm.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dein WHOOP 5/MG stellt das erst scharf, wenn der Experimentell-Modus an ist (Einstellungen, Experimentell). Gerade ist deine Aufwachzeit gespeichert, aber der Strap ist NICHT scharfgestellt. Selbst mit Experimentell an ist ein 5/MG-Strap-gesteuertes Wecken unsererseits noch unbestätigt, also halte einen Ersatzwecker bereit."
+            "value": "WHOOP 5/MG-Strapalarme benötigen Protokolltests (Testcenter → 5/MG-Protokolldiagnose). Deine Weckzeit ist gespeichert, aber der Strap ist noch nicht scharfgestellt. Behalte einen Ersatzwecker."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tu WHOOP 5/MG no armará esto hasta que actives el modo experimental (Ajustes, Experimental). Ahora mismo tu hora de despertar está guardada pero la pulsera NO está armada. Incluso con Experimental activado, el despertar desde una pulsera 5/MG sigue sin confirmarse de nuestro lado, así que mantén una alarma de respaldo."
+            "value": "Las alarmas de la pulsera WHOOP 5/MG requieren Sondas de protocolo (Centro de pruebas → Diagnóstico del protocolo 5/MG). La hora de despertar está guardada, pero la pulsera aún no está armada. Mantén una alarma de respaldo."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Votre WHOOP 5/MG n'armera pas cette fonction tant que le mode expérimental n'est pas activé (Paramètres, Expérimental). Pour l'instant, votre heure de réveil est enregistrée mais le bracelet n'est PAS armé. Même avec le mode expérimental activé, un réveil piloté par un bracelet 5/MG reste non confirmé de notre côté, gardez donc une alarme de secours."
+            "value": "Les alarmes du bracelet WHOOP 5/MG nécessitent Sondes de protocole (Centre de test → Diagnostics du protocole 5/MG). L’heure de réveil est enregistrée, mais le bracelet ne porte pas encore une alarme active. Gardez une alarme de secours."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Il tuo WHOOP 5/MG non attiverà questa funzione finché la modalità Sperimentale non è attiva (Impostazioni, Sperimentale). Per ora l'ora di sveglia è salvata ma la fascia NON è armata. Anche con la modalità Sperimentale attiva, una sveglia gestita dalla fascia 5/MG non è ancora confermata da parte nostra, quindi tieni una sveglia di riserva."
+            "value": "Le sveglie sulla fascia WHOOP 5/MG richiedono Sonde di protocollo (Centro test → Diagnostica protocollo 5/MG). L’ora di sveglia è salvata, ma la fascia non è ancora armata. Tieni una sveglia di riserva."
           }
         },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
-            "value": "O teu WHOOP 5/MG não armará isto até que o modo Experimental esteja activado (Definições, Experimental). Neste momento, o teu horário de despertar está guardado, mas a bracelete NÃO está armada. Mesmo com o Experimental ativado, um rasto acionado pelo cinto 5/MG ainda não está confirmado do nosso lado, por isso mantenha um alarme de reserva."
+            "value": "Os alarmes da pulseira WHOOP 5/MG requerem Sondas de protocolo (Centro de testes → Diagnóstico do protocolo 5/MG). A hora de despertar está guardada, mas a pulseira ainda não está armada. Mantém um alarme de reserva."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ваш WHOOP 5/MG не активирует это, пока не включён экспериментальный режим (Настройки, Экспериментальный). Сейчас время пробуждения сохранено, но браслет НЕ активирован. Даже при включённом экспериментальном режиме пробуждение через браслет 5/MG пока не подтверждено с нашей стороны, поэтому держите резервный будильник."
+            "value": "Для будильника на браслете WHOOP 5/MG включите Пробы протокола (Тестовый центр → Диагностика протокола 5/MG). Время пробуждения сохранено, но будильник на браслете ещё не активирован. Оставьте резервный будильник."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "在实验模式开启之前（设置，实验），你的 WHOOP 5/MG 不会设定此项。目前你的起床时间已保存，但手环尚未设定。即使开启了实验模式，由 5/MG 手环驱动的唤醒在我们这边仍未得到确认，因此请保留一个备用闹钟。"
+            "value": "WHOOP 5/MG 手环闹钟需要开启“协议探测”（测试中心 → 5/MG 协议诊断）。唤醒时间已保存，但手环闹钟尚未启用。请保留备用闹钟。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "在實驗模式開啟之前（設定，實驗），你的 WHOOP 5/MG 不會設定此項。目前你的起床時間已保存，但手環尚未設定。即使開啟了實驗模式，由 5/MG 手環驅動的喚醒在我們這邊仍未得到確認，因此請保留一個備用鬧鐘。"
+            "value": "WHOOP 5/MG 手環鬧鐘需要開啟「協定探測」（測試中心 → 5/MG 協定診斷）。喚醒時間已儲存，但手環鬧鐘尚未啟用。請保留備用鬧鐘。"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Twój WHOOP 5/MG nie uzbroi tego, dopóki nie zostanie włączony tryb eksperymentalny (Ustawienia, Eksperyment). W tej chwili czas budzenia jest zapisany, ale pasek NIE jest uzbrojony. Nawet przy włączonym trybie eksperymentalnym budzenie napędzane paskiem 5/MG nadal nie jest potwierdzone z naszej strony, więc miej alarm zapasowy."
+            "value": "Alarm na opasce WHOOP 5/MG wymaga włączenia Testów protokołu (Centrum Testowe → Diagnostyka protokołu 5/MG). Godzina pobudki została zapisana, ale alarm na opasce nie jest jeszcze uzbrojony. Zachowaj alarm zapasowy."
           }
         }
       }
@@ -215269,7 +215269,7 @@
     "5/MG PROTOCOL DIAGNOSTICS": {"shouldTranslate":false,"localizations":{"de":{"stringUnit":{"state":"translated","value":"5/MG-PROTOKOLLDIAGNOSE"}},"es":{"stringUnit":{"state":"translated","value":"DIAGNÓSTICO DEL PROTOCOLO 5/MG"}},"fr":{"stringUnit":{"state":"translated","value":"DIAGNOSTICS DU PROTOCOLE 5/MG"}},"pt-PT":{"stringUnit":{"state":"translated","value":"DIAGNÓSTICO DO PROTOCOLO 5/MG"}},"it":{"stringUnit":{"state":"translated","value":"DIAGNOSTICA PROTOCOLLO 5/MG"}},"pl":{"stringUnit":{"state":"translated","value":"DIAGNOSTYKA PROTOKOŁU 5/MG"}},"ru":{"stringUnit":{"state":"translated","value":"ДИАГНОСТИКА ПРОТОКОЛА 5/MG"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"5/MG 协议诊断"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"5/MG 協定診斷"}}}},
     "Developer tools for unmapped protocol features. None of these are required for normal WHOOP 5/MG recording, history sync, or the bounded Raw Data Collector.": {"shouldTranslate":false,"localizations":{"de":{"stringUnit":{"state":"translated","value":"Entwicklerwerkzeuge für nicht zugeordnete Protokollfunktionen. Für normale Aufnahme, Verlauf und Rohdaten-Collector nicht erforderlich."}},"es":{"stringUnit":{"state":"translated","value":"Herramientas para funciones de protocolo sin asignar. No son necesarias para el uso normal."}},"fr":{"stringUnit":{"state":"translated","value":"Outils pour les fonctions de protocole non identifiées. Ils ne sont pas requis pour l’usage normal."}},"pt-PT":{"stringUnit":{"state":"translated","value":"Ferramentas para funções de protocolo não identificadas. Não são necessárias para o uso normal."}},"it":{"stringUnit":{"state":"translated","value":"Strumenti per sviluppatori per funzioni di protocollo non mappate. Nessuno è necessario per la normale registrazione WHOOP 5/MG, la sincronizzazione della cronologia o il Raccoglitore dati grezzi."}},"pl":{"stringUnit":{"state":"translated","value":"Narzędzia deweloperskie do niezmapowanych funkcji protokołu. Żadne z nich nie są wymagane do zwykłego nagrywania WHOOP 5/MG, synchronizacji historii ani Kolektora danych surowych."}},"ru":{"stringUnit":{"state":"translated","value":"Инструменты разработчика для неразобранных функций протокола. Ничего из этого не требуется для обычной записи WHOOP 5/MG, синхронизации истории или Сборщика сырых данных."}},"zh-Hans":{"stringUnit":{"state":"translated","value":"用于未映射协议功能的开发者工具。正常的 WHOOP 5/MG 记录、历史同步和原始数据采集器都不需要这些。"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"用於未對應協定功能的開發者工具。正常的 WHOOP 5/MG 記錄、歷史同步與原始資料收集器都不需要這些。"}}}},
     "Protocol probes": {"shouldTranslate":false,"localizations":{"de":{"stringUnit":{"state":"translated","value":"Protokolltests"}},"es":{"stringUnit":{"state":"translated","value":"Sondas de protocolo"}},"fr":{"stringUnit":{"state":"translated","value":"Sondes de protocole"}},"pt-PT":{"stringUnit":{"state":"translated","value":"Sondas de protocolo"}},"it":{"stringUnit":{"state":"translated","value":"Sonde di protocollo"}},"pl":{"stringUnit":{"state":"translated","value":"Sondy protokołu"}},"ru":{"stringUnit":{"state":"translated","value":"Пробы протокола"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"协议探测"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"協定探測"}}}},
-    "Sends experimental protocol queries and records the replies in the strap log.": {"shouldTranslate":false,"localizations":{"de":{"stringUnit":{"state":"translated","value":"Sendet experimentelle Abfragen und protokolliert die Antworten."}},"es":{"stringUnit":{"state":"translated","value":"Envía consultas experimentales y registra las respuestas."}},"fr":{"stringUnit":{"state":"translated","value":"Envoie des requêtes expérimentales et consigne les réponses."}},"pt-PT":{"stringUnit":{"state":"translated","value":"Envia consultas experimentais e regista as respostas."}},"it":{"stringUnit":{"state":"translated","value":"Invia query sperimentali e registra le risposte nel log della fascia."}},"pl":{"stringUnit":{"state":"translated","value":"Wysyła eksperymentalne zapytania protokołu i zapisuje odpowiedzi w dzienniku paska."}},"ru":{"stringUnit":{"state":"translated","value":"Отправляет экспериментальные запросы протокола и записывает ответы в журнал браслета."}},"zh-Hans":{"stringUnit":{"state":"translated","value":"发送实验性协议查询，并将回复记录到手环日志中。"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"傳送實驗性協定查詢，並將回覆記錄到手環日誌中。"}}}},
+    "Sends experimental protocol queries and records replies in the strap log. Also enables the experimental 5/MG strap alarm.": {"shouldTranslate":true,"localizations":{"de":{"stringUnit":{"state":"translated","value":"Sendet experimentelle Protokollabfragen und protokolliert die Antworten im Strap-Log. Aktiviert auch den experimentellen 5/MG-Strapalarm."}},"es":{"stringUnit":{"state":"translated","value":"Envía consultas de protocolo experimentales y registra las respuestas en el registro de la pulsera. También habilita la alarma experimental de la pulsera 5/MG."}},"fr":{"stringUnit":{"state":"translated","value":"Envoie des requêtes de protocole expérimentales et consigne les réponses dans le journal du bracelet. Active aussi l’alarme expérimentale du bracelet 5/MG."}},"pt-PT":{"stringUnit":{"state":"translated","value":"Envia consultas experimentais de protocolo e regista as respostas no diário da pulseira. Também ativa o alarme experimental da pulseira 5/MG."}},"it":{"stringUnit":{"state":"translated","value":"Invia richieste di protocollo sperimentali e registra le risposte nel log della fascia. Abilita anche la sveglia sperimentale della fascia 5/MG."}},"pl":{"stringUnit":{"state":"translated","value":"Wysyła eksperymentalne zapytania protokołu i zapisuje odpowiedzi w dzienniku opaski. Włącza też eksperymentalny alarm opaski 5/MG."}},"ru":{"stringUnit":{"state":"translated","value":"Отправляет экспериментальные запросы протокола и записывает ответы в журнал браслета. Также включает экспериментальный будильник браслета 5/MG."}},"zh-Hans":{"stringUnit":{"state":"translated","value":"发送实验性协议查询并将回复记录到手环日志中。还会启用实验性的 5/MG 手环闹钟。"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"傳送實驗性協定查詢並將回覆記錄到手環日誌中。也會啟用實驗性的 5/MG 手環鬧鐘。"}}}},
     "Broadcast heart rate from the strap": {"shouldTranslate":false,"localizations":{"de":{"stringUnit":{"state":"translated","value":"Herzfrequenz vom Band übertragen"}},"es":{"stringUnit":{"state":"translated","value":"Transmitir frecuencia cardíaca desde la pulsera"}},"fr":{"stringUnit":{"state":"translated","value":"Diffuser la fréquence cardiaque du bracelet"}},"pt-PT":{"stringUnit":{"state":"translated","value":"Transmitir frequência cardíaca da bracelete"}},"it":{"stringUnit":{"state":"translated","value":"Trasmetti la frequenza cardiaca dalla fascia"}},"pl":{"stringUnit":{"state":"translated","value":"Nadawaj tętno z paska"}},"ru":{"stringUnit":{"state":"translated","value":"Транслировать пульс с браслета"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"从手环广播心率"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"從手環廣播心率"}}}},
     "Writes the reversible 5/MG advertising flag for Garmin, Zwift, and compatible gym equipment.": {"shouldTranslate":false,"localizations":{"de":{"stringUnit":{"state":"translated","value":"Setzt das umkehrbare 5/MG-Werbe-Flag für kompatible Geräte."}},"es":{"stringUnit":{"state":"translated","value":"Activa el indicador reversible 5/MG para equipos compatibles."}},"fr":{"stringUnit":{"state":"translated","value":"Active l’indicateur réversible 5/MG pour les appareils compatibles."}},"pt-PT":{"stringUnit":{"state":"translated","value":"Ativa o indicador reversível 5/MG para equipamento compatível."}},"it":{"stringUnit":{"state":"translated","value":"Scrive il flag di advertising 5/MG reversibile per Garmin, Zwift e attrezzature da palestra compatibili."}},"pl":{"stringUnit":{"state":"translated","value":"Zapisuje odwracalną flagę rozgłaszania 5/MG dla Garmina, Zwifta i zgodnego sprzętu na siłowni."}},"ru":{"stringUnit":{"state":"translated","value":"Записывает обратимый флаг вещания 5/MG для Garmin, Zwift и совместимых тренажёров."}},"zh-Hans":{"stringUnit":{"state":"translated","value":"写入可撤销的 5/MG 广播标记，供 Garmin、Zwift 及兼容健身器材使用。"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"寫入可撤銷的 5/MG 廣播標記，供 Garmin、Zwift 及相容健身器材使用。"}}}},
     "Legacy R22 feature-flag experiment": {"shouldTranslate":false,"localizations":{"de":{"stringUnit":{"state":"translated","value":"Altes R22-Feature-Flag-Experiment"}},"es":{"stringUnit":{"state":"translated","value":"Experimento antiguo de indicadores R22"}},"fr":{"stringUnit":{"state":"translated","value":"Ancienne expérience d’indicateurs R22"}},"pt-PT":{"stringUnit":{"state":"translated","value":"Experiência antiga de indicadores R22"}},"it":{"stringUnit":{"state":"translated","value":"Vecchio esperimento con i flag R22"}},"pl":{"stringUnit":{"state":"translated","value":"Dawny eksperyment z flagami R22"}},"ru":{"stringUnit":{"state":"translated","value":"Старый эксперимент с флагами R22"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"旧的 R22 功能标记实验"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"舊的 R22 功能標記實驗"}}}},

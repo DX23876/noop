@@ -846,7 +846,7 @@
     <string name="l10n_smart_alarm_screen_wind_down_nudge_5ca87a0f">入睡准备提醒</string>
     <string name="l10n_smart_alarm_screen_window_length_46179fcb">唤醒窗口时长</string>
     <string name="l10n_smart_alarm_screen_windowminutes_min_bd89fd82">%1$s 分钟</string>
-    <string name="l10n_smart_alarm_screen_your_whoop_5_mg_won_t_75029bae">您的 WHOOP 5 只有在开启实验模式后，才能激活此功能 (设置 → Experimental). Right now your wake time is saved but the strap is NOT armed.</string>
+    <string name="l10n_smart_alarm_screen_your_whoop_5_mg_won_t_75029bae">WHOOP 5/MG 手环闹钟需要开启“协议探测”（测试中心 → 5/MG 协议诊断）。唤醒时间已保存，但手环闹钟尚未启用。请保留备用闹钟。</string>
     <string name="l10n_steps_calibration_screen_calibrate_your_steps_38b4e814">校准您的步数</string>
     <string name="l10n_steps_calibration_screen_close_bbfa773e">关闭</string>
     <string name="l10n_steps_calibration_screen_day_987b9ced">日期</string>
@@ -2798,4 +2798,6 @@
     <string name="l10n_today_screen_pending_sync_complete_5940c589">等待同步 · %1$s</string>
     <string name="l10n_today_screen_value_bpm_complete_ab58df4e">%1$s bpm%2$s</string>
     <string name="fused_record_contribution_in_use">%1$s，%2$s，使用中</string>
+    <string name="smart_alarm_5mg_armed_experimental">已通过实验性 5/MG 命令在手环上设置闹钟。有用户报告 5.0 和 MG 手环能够唤醒，但不保证每次生效。重要事项请保留备用闹钟。</string>
+    <string name="raw_diag_protocol_probes_detail">发送实验性协议查询并启用 5/MG 手环闹钟。正常同步、睡眠、恢复和步数功能不需要开启。</string>
 </resources>
