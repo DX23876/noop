@@ -453,7 +453,8 @@ final class Repository: ObservableObject {
     /// disagree, and a future namespace added to the read alone would reintroduce exactly this bug.
     nonisolated static func workoutNamespaces(rawIds: [String]) -> [String] {
         deletableWorkoutNamespaces(rawIds: rawIds)
-            + [WorkoutSource.appleHealthSource, "lifting", HevySource.id, "activity-file"]
+            + [WorkoutSource.appleHealthSource, "lifting", HevySource.id, "activity-file",
+               WorkoutSource.ouraSource]
     }
 
     /// The subset of [workoutNamespaces] a DELETE may touch: the strap namespaces only.
@@ -3623,7 +3624,8 @@ final class Repository: ObservableObject {
         // fused instead of one silently overwriting the other. #29: imported activity FILES (FIT / GPX /
         // TCX) live under "activity-file", or a successful file import never appears here at all.
         for id in Self.workoutNamespaces(rawIds: rawPhysiologyReadIds(store: store)) {
-            rows += await pagedWorkoutRows(store: store, deviceId: id, from: lo, to: hi)
+            let page = await pagedWorkoutRows(store: store, deviceId: id, from: lo, to: hi)
+            rows += id == WorkoutSource.ouraSource ? page.map(WorkoutSource.normalizedOuraRow) : page
         }
         // Native sessions remain normalized in the training tables. Their read-time envelope makes
         // them visible to Workouts and session fusion without persisting a duplicate workout row.
@@ -3866,6 +3868,11 @@ final class Repository: ObservableObject {
            !trackerId.isEmpty {
             return [trackerId]
         }
+        // An Oura session was measured by the ring, whose heart rate the sync banks under the same
+        // namespace. The worn strap stays first, so a session both devices saw reads the strap.
+        if WorkoutSource.classify(source) == .oura {
+            return importedIds + [WorkoutSource.ouraSource]
+        }
         guard WorkoutSource.classify(source) == .detected else { return importedIds }
         return [source.hasSuffix("-noop") ? String(source.dropLast(5)) : source]
     }
@@ -4074,7 +4081,7 @@ final class Repository: ObservableObject {
             switch WorkoutSource.classify(r.source) {
             case .detected: await dismissDetected(r)
             case .manual:   await deleteWorkout(r)
-            case .whoop, .apple, .lifting, .activityFile, .hevy:
+            case .whoop, .apple, .lifting, .activityFile, .hevy, .oura:
                 // Defensive: canMerge already excludes imported rows; never rewrite imported history.
                 continue
             }
@@ -4099,7 +4106,7 @@ final class Repository: ObservableObject {
             switch WorkoutSource.classify(r.source) {
             case .detected: await dismissDetected(r)
             case .manual:   await deleteWorkout(r)
-            case .whoop, .apple, .lifting, .activityFile, .hevy: continue
+            case .whoop, .apple, .lifting, .activityFile, .hevy, .oura: continue
             }
         }
     }

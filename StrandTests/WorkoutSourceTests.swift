@@ -605,4 +605,37 @@ final class WorkoutSourceTests: XCTestCase {
         XCTAssertEqual(newEnd.timeIntervalSince(newStart), end.timeIntervalSince(start))
     }
 
+    // MARK: - Oura
+
+    /// Oura's sync stores Oura's OWN origin in `source`. Read as-is, "manual" made an Oura session a
+    /// NOOP manual row (deletable through strap namespaces that do not hold it) and "autodetected"
+    /// fell through to Apple Health; the Oura namespace was not read at all.
+    func testOuraRowsAreReadAsOuraWithTheAppsSportVocabulary() {
+        let stored = row(start: 1_000, end: 4_600, sport: "strength_training", source: "manual")
+        let read = WorkoutSource.normalizedOuraRow(stored)
+        XCTAssertEqual(read.source, WorkoutSource.ouraSource)
+        XCTAssertEqual(WorkoutSource.classify(read.source), .oura)
+        XCTAssertEqual(read.sport, "Strength Training")
+        XCTAssertEqual(read.startTs, stored.startTs)
+        XCTAssertEqual(read.endTs, stored.endTs)
+        XCTAssertFalse(WorkoutMerge.isMergeable(read), "imported history stays read-only")
+
+        XCTAssertEqual(WorkoutSource.ouraSport("walking"), "Walking")
+        XCTAssertEqual(WorkoutSource.ouraSport("strengthTraining"), "Strength Training")
+        XCTAssertEqual(WorkoutSource.ouraSport(""), "Workout")
+        XCTAssertTrue(Repository.workoutNamespaces(rawIds: ["my-whoop"]).contains(WorkoutSource.ouraSource))
+        XCTAssertFalse(Repository.deletableWorkoutNamespaces(rawIds: ["my-whoop"])
+            .contains(WorkoutSource.ouraSource))
+    }
+
+    /// The same lifting session logged in the app and recorded by the ring is one session.
+    func testAnOuraSessionAndItsNativeTwinCollapseToOne() {
+        let native = row(start: 1_000, end: 6_400, sport: "Strength Training", source: "native-training",
+                         avgHr: 108, maxHr: 148)
+        let oura = WorkoutSource.normalizedOuraRow(
+            row(start: 1_060, end: 6_300, sport: "strength_training", source: "autodetected"))
+        let kept = WorkoutSource.dedupCrossSource([native, oura])
+        XCTAssertEqual(kept.count, 1)
+        XCTAssertEqual(kept.first?.source, "native-training")
+    }
 }

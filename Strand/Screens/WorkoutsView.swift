@@ -654,7 +654,7 @@ struct WorkoutsView: View {
 
     /// The origin classes offered in the Source filter (imported + on-device), in a stable menu order.
     private static let sourceFilterOptions: [WorkoutSource] =
-        [.whoop, .apple, .detected, .manual, .hevy, .lifting, .activityFile]
+        [.whoop, .apple, .detected, .manual, .hevy, .lifting, .activityFile, .oura]
 
     /// The Source-filter menu label for an origin class (matches the row source badges).
     private static func sourceFilterLabel(_ c: WorkoutSource) -> String {
@@ -666,6 +666,7 @@ struct WorkoutsView: View {
         case .hevy:         return String(localized: "Hevy")
         case .lifting:      return String(localized: "Lifting")
         case .activityFile: return String(localized: "File")
+        case .oura:         return String(localized: "Oura")
         }
     }
 
@@ -1769,7 +1770,7 @@ struct WorkoutsView: View {
             Button("Edit…") { editWorkout(row) }
             Divider()
             Button("Delete", role: .destructive) { delete(row) }
-        case .whoop, .apple, .lifting, .activityFile, .hevy:
+        case .whoop, .apple, .lifting, .activityFile, .hevy, .oura:
             // Imported history is read-only; offer a copy-to-manual edit path that doesn't touch it.
             Button("Duplicate as manual…") { editWorkout(asManualCopy(row), isCopy: true) }
         }
@@ -1812,6 +1813,7 @@ struct WorkoutsView: View {
             case .hevy:     return (String(localized: "Hevy"), StrandPalette.zone2, String(localized: "Source synced from Hevy"))
             case .lifting:  return (String(localized: "Lifting"), StrandPalette.zone2, String(localized: "Source imported lifting log"))
             case .activityFile: return (String(localized: "File"), StrandPalette.metricAmber, String(localized: "Source imported activity file"))
+            case .oura:     return (String(localized: "Oura"), StrandPalette.metricPurple, String(localized: "Source synced from Oura"))
             }
         }()
         // String interpolation lifts the computed label into a LocalizedStringKey (SourceBadge's type).

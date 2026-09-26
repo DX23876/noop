@@ -185,7 +185,7 @@ public struct ActivityContribution: Equatable, Sendable {
     /// Which lane a logged session arrived through. Mirrors the app's `WorkoutSource` one for one, so
     /// the app's mapping is a compiler-checked switch rather than a string compare.
     public enum Source: String, Equatable, Sendable, Codable, CaseIterable {
-        case whoop, apple, detected, manual, lifting, activityFile, hevy
+        case whoop, apple, detected, manual, lifting, activityFile, hevy, oura
 
         /// Whether this lane's kcal figure still contains the resting energy of the bout.
         ///
@@ -193,7 +193,12 @@ public struct ActivityContribution: Equatable, Sendable {
         /// writes, and the compiler is the only reviewer guaranteed to ask.
         public var includesRestingEnergy: Bool {
             switch self {
-            case .apple: return false
+            // Oura publishes no definition for a workout's `calories`. It is treated as ACTIVE energy
+            // because that is the quantity Oura writes for the same session into Apple Health, whose
+            // workout energy is active by definition, and because Oura's own daily summary keeps active
+            // and total calories apart. Inferred, not documented: a gross figure read this way would
+            // overstate a device-less day by the session's resting energy.
+            case .apple, .oura: return false
             case .whoop, .detected, .manual, .lifting, .activityFile, .hevy: return true
             }
         }

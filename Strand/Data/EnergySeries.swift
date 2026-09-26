@@ -993,6 +993,7 @@ extension Repository {
         case .lifting:      return .lifting
         case .activityFile: return .activityFile
         case .hevy:         return .hevy
+        case .oura:         return .oura
         }
     }
 
