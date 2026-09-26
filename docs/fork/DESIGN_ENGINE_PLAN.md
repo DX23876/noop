@@ -1,6 +1,6 @@
 # Design-Engine: austauschbare Designs (Aktuell, Aura, NOOP, WHOOP-Stil)
 
-Stand: 2026-09-26 · Status: **Plan, Grilling Runden 1–2 entschieden (§10), Runde 3 offen, noch nichts umgesetzt** ·
+Stand: 2026-09-26 · Status: **Plan, Grilling Runden 1–3 entschieden (§10), Runde 4 (Orb-Hero) offen, noch nichts umgesetzt** ·
 Branch: `feature/design-engine`
 
 Anlass: Der Fork [gdorgian/noop](https://github.com/gdorgian/noop) („Noop Aura“) zeigt ein deutlich ruhigeres
@@ -182,6 +182,21 @@ anderes Design gewählt wird.
 | R2.6 | Bewegung | Wie im Original; steht still bei „Bewegung reduzieren“, läuft nur, solange der Screen sichtbar ist |
 | R2.7 | Branch | `feature/design-engine` nach `origin` gepusht (Backup, kein PR) |
 
-### Runde 3 (offen)
+### Runde 3 (2026-09-26, entschieden): Inhalt Today/Rest, Rückfall-Tabs
 
-Wird hier nachgetragen.
+| # | Frage | Entscheidung |
+|---|---|---|
+| R3.1 | Aura-Today unter dem Hero | Feste Reihenfolge: Satz zu Charge → Letzte Nacht (eine Zeile) → Coach-Karte → Effort heute (mit „Training starten“) → Tag bisher (Pulsverlauf) → „Alle Werte“ (öffnet Standard-Today im Aura-Theme) |
+| R3.2 | Töne | Zwei: **knapp** und **erzählend**; „nur Zahlen“ lässt ein Layout selbst weg |
+| R3.3 | Satz unter dem Hero | Immer der feste Satz aus dem Screen-Modell. Der Coach spricht nur in seiner Karte, mit einem Satz aus dem vorhandenen Morgen-Briefing (`AICoachEngine.startBriefIfNeeded`, einmal pro Tag); kein zusätzlicher Modellaufruf |
+| R3.4 | Aura-Rest | Ring gegen den Bedarf (Phasen farbig im Ring) → Satz → letzte 7 Nächte gegen Bedarf → Phasenbalken → Schlafkonto → „Ganze Nacht ansehen“ (vorhandenes Nacht-Detail). Abendteil (Schlafenszeit, Wecker) später |
+| R3.5 | Rückfall bis zu eigenen Layouts | Trends = heutiger Trends-Screen im Aura-Theme; You = heutige „More“-Liste im Aura-Theme mit Profilkopf; „Effort heute“ öffnet den heutigen Trainingsbereich samt Historie. „Trainingshistorie unter Trends“ (R2.2) erst mit Aura-Trends |
+| R3.6 | Tab-Name | „Schlaf“ (übersetzt, wie heute „Sleep“); der Score darin heißt weiter Rest |
+| R3.7 | Name und Nennung | Design heißt „Aura“; Danksagung „Design nach Noop Aura von @gdorgian“ |
+
+### Runde 4 (offen): Orb-Hero
+
+Idee (2026-09-26): Die Hero-Ringe als leuchtende Kugeln im Stil von Auras Body-Age-Orb (weiches Leuchten,
+verformte Ringform mit dunkler Mitte, Partikelfeld, Zahl in der Mitte), **drei Stück für Charge, Effort, Rest**.
+Aura baut den Orb in reinem SwiftUI (`NoopAgeOrb` in `StrandiOS/NoopUI/Acts/NoopAct6Ages.swift`, ≈ 150 Zeilen,
+`TimelineView` mit 30 fps, pausiert bei „Bewegung reduzieren“), also ohne Shader machbar. Berührt R2.3.
