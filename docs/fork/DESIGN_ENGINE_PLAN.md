@@ -1,6 +1,6 @@
 # Design-Engine: austauschbare Designs (Aktuell, Aura, NOOP, WHOOP-Stil)
 
-Stand: 2026-09-26 · Status: **Plan, Entscheidungen offen (Q1–Q9), noch nichts umgesetzt** ·
+Stand: 2026-09-26 · Status: **Plan, Grilling Runde 1 entschieden (§10), Runde 2 offen, noch nichts umgesetzt** ·
 Branch: `feature/design-engine`
 
 Anlass: Der Fork [gdorgian/noop](https://github.com/gdorgian/noop) („Noop Aura“) zeigt ein deutlich ruhigeres
@@ -29,12 +29,12 @@ jeweils eines dieser Pakete. Umschalten geht in den Einstellungen, live.
 | Kontraste sind getestet | `ChromeContrastTests` liest `NoopVisualStyle.ChromeHex` | Jedes Design muss dieselben Kontrastprüfungen bestehen |
 | Umfang der Aufrufstellen | Referenzen: `StrandPalette.` ≈ 5.400, `StrandFont.` ≈ 3.240, `NoopVisualStyle.` ≈ 360, `DomainTheme.` ≈ 350 | Umstellung nur über die Token-Quelle, nicht über die Aufrufstellen |
 | Farbwelt pro Bereich existiert | `DomainTheme` (charge / effort / rest / stress): Primärfarbe, Verlauf, Glow | Entspricht Auras „eine Akzentfarbe pro Tab“; geht im Theme auf |
-| Datenfarben sind schon ein eigenes Thema | `ChartStyle` (7 Stile: signature, titanium, classic, health, aurora, sunset, forest), `SleepChartStyle` | Bleibt eine eigene Achse, siehe Q1 |
+| Datenfarben sind schon ein eigenes Thema | `ChartStyle` (7 Stile: signature, titanium, classic, health, aurora, sunset, forest), `SleepChartStyle` | Bleibt eine eigene Achse, siehe R1.2 |
 | Today existiert schon **viermal** | `RootTabView.todayTabRoot`: `TodayView` (6.226 Zeilen), `LiquidTodayView` (3.685), `TrendsDashboardView`, `OverviewDashboardView`; dazu das stillgelegte Heute-Redesign `StrandiOS/Redesign/` | Jede Variante holt ihre Daten selbst. Sie sind schon auseinandergelaufen (Kommentar in `DomainTheme`: derselbe Wert hieß „Charge“ und „Recovery“) |
 | Tab-Gerüst ist fest verdrahtet | `RootTabView.body`: native `TabView` mit 5 festen Tabs (Today, Trends, Training, Sleep, More), `CoachFloatingButton` darüber | Das Gerüst muss aus dem Design kommen können |
 | Es gibt schon eine NOOP-Designvorlage | `docs/fork/redesign-briefing.md`, `docs/fork/design/design-spec.md` + Mockups | Grundlage für das Paket „NOOP“ |
 | Aura-Quelle | gdorgian/noop, Basis ryanbr 11.7 (`45ee2fb76`); UI in `StrandiOS/NoopUI` (≈ 42.000 Zeilen), eigenes `NoopDesign.swift`, ≈ 750 feste Farbwerte, 4 Tabs + Plus, nur Englisch; öffentliches Handoff `docs/design/11.7` (HTML pro Screen, Maße); Lizenz PolyForm Noncommercial | Vorlage, kein Merge. Nennung von gdorgian als Quelle |
-| macOS hat ein eigenes Gerüst | `Strand/App/RootView.swift` (Seitenleiste) | macOS nutzt vorerst nur Themes (Q9) |
+| macOS hat ein eigenes Gerüst | `Strand/App/RootView.swift` (Seitenleiste) | macOS nutzt nur Themes (R1.8) |
 
 ## 3. Architektur
 
@@ -131,7 +131,7 @@ anderes Design gewählt wird.
 | P4 | Paket `aura`: Theme, Gerüst (4 Tabs + Plus), Today-Layout auf dem Modell aus P2; Einstellung sichtbar | Build; Gerät: echte Daten, leere Zustände, Dynamic Type, hell/dunkel |
 | P5 | Screen-Modell + Aura-Layout **Rest** | wie P4 |
 | P6 | Paket `noop` und `whoop-stil`, zunächst nur Theme + Today | wie P4 |
-| P7+ | weitere Screens nach Bedarf; die vier heutigen Today-Varianten auf das Modell umstellen (Q3) | pro Screen |
+| P7+ | weitere Screens nach Bedarf; die vier heutigen Today-Varianten auf das Modell umstellen (R1.5) | pro Screen |
 
 **Analysis migration required: nein.** Reine Darstellung: keine Formel, kein Fenster, kein gespeicherter Wert
 ändert sich. `currentAnalysisRecipeVersion` bleibt.
@@ -154,16 +154,22 @@ anderes Design gewählt wird.
 - **Doppelte Wege:** solange die alten Today-Varianten selbst Daten holen, können sie vom Modell abweichen.
   Deshalb P7.
 
-## 10. Offene Entscheidungen
+## 10. Entscheidungen
 
-| # | Frage | Empfehlung |
+### Runde 1 (2026-09-26, entschieden)
+
+| # | Frage | Entscheidung |
 |---|---|---|
-| Q1 | Bestimmt ein Design auch Datenfarben (`ChartStyle`) und Akzent? | Design bringt Vorgaben mit; `ChartStyle` und Akzent bleiben als Nutzer-Übersteuerung mit Option „wie Design“ |
-| Q2 | Wo leben Screen-Modelle? | Modelltypen und Bau-Funktionen in einem Paket (testbar mit `swift test`), Eingabe als einfache Werte; die Anbindung ans Repository im App-Target |
-| Q3 | Was wird aus den vier Today-Varianten (Classic, Liquid, Trends, Overview)? | Vorerst Layouts im Standard-Paket, unverändert; später entscheiden, welche bleiben |
-| Q4 | Aura-Code portieren oder nach Handoff neu bauen? | Nach Handoff neu bauen, auf Tokens; einzelne Zeichnungen mit Quellenangabe übernehmen, keine festen Farbwerte |
-| Q5 | Was steht im Aura-Hero auf Today? | Das, wofür man die App öffnet (Charge bzw. letzte Nacht); Atem-Übung als optionaler Einstieg |
-| Q6 | Namen im WHOOP-Stil | NOOP-Namen (Charge / Effort / Rest) bleiben, auch dort |
-| Q7 | Sprache | Alle Designs übersetzt wie heute; Aura wird nicht auf Englisch festgelegt |
-| Q8 | Wo wird die Wahl gespeichert? | Gerätelokal, nicht im `.noopbak`-Whitelist (wie `SleepChartStyle`) |
-| Q9 | macOS | Vorerst nur Themes; Seitenleiste und Layouts bleiben |
+| R1.1 | Was wird ausgewählt? | **Eine** Auswahl „Design“; ein Paket ist geschlossen (Theme, Stile, Layouts, Gerüst). Mischungen werden als eigenes Paket angelegt |
+| R1.2 | Datenfarben (`ChartStyle`) und Akzent | Design bringt Vorgaben mit; beide bleiben als Nutzer-Übersteuerung, Standardoption „wie Design“ |
+| R1.3 | Texte pro Design | Screen-Modell liefert jede Aussage in wenigen festen Tönen (z. B. „knapp“, „erzählend“), das Design wählt den Ton; einmal geschrieben, einmal übersetzt. Deutende Sätze zusätzlich vom Coach (günstiges Modell), nur wenn der Coach an ist |
+| R1.4 | Erstes Design nach Standard | **Aura** |
+| R1.5 | Die vier Today-Varianten | Bleiben als Layouts im Standard-Paket; Umstellung aufs Modell später (P7) |
+| R1.6 | Sprache | Alle Designs übersetzt wie heute, auch Aura |
+| R1.7 | Sichtbarkeit der Auswahl | Versteckt (Experimentell), bis Aura Today **und** Rest hat |
+| R1.8 | macOS | Nur Themes; Seitenleiste und Layouts bleiben |
+| R1.9 | Ort der Screen-Modelle | Swift-Paket (mit `swift test` prüfbar, CI-abgedeckt); Repository-Anbindung im App-Target |
+
+### Runde 2 (offen)
+
+Siehe Grilling-Verlauf; wird hier nachgetragen.
