@@ -1319,11 +1319,8 @@ struct NativeWorkoutLoggerView: View {
                         .font(StrandFont.caption.weight(.semibold))
                         .foregroundStyle(StrandPalette.chargeColor)
                 }
-                setHeader(definition?.mode ?? .weightReps, unilateral: definition?.isUnilateral == true)
-                ForEach(Array(exercise.sets.enumerated()), id: \.element.id) { setIndex, set in
-                    setRow(exerciseIndex, setIndex, set, mode: definition?.mode ?? .weightReps,
-                           unilateral: definition?.isUnilateral == true)
-                }
+                setTable(exerciseIndex, exercise, mode: definition?.mode ?? .weightReps,
+                         unilateral: definition?.isUnilateral == true)
                 Button { model.addSet(to: exercise.id) } label: { Label("Add set", systemImage: "plus") }
                     .font(StrandFont.caption.weight(.semibold)).buttonStyle(.plain).foregroundStyle(StrandPalette.accent)
                 TextField("Exercise notes", text: Binding(
@@ -1346,8 +1343,18 @@ struct NativeWorkoutLoggerView: View {
                         .font(StrandFont.caption.monospacedDigit()).foregroundStyle(StrandPalette.textSecondary)
                 }
                 if let first = pending.first {
-                    setRow(exerciseIndex, first.offset, first.element, mode: definition?.mode ?? .weightReps,
-                           unilateral: definition?.isUnilateral == true)
+                    let mode = definition?.mode ?? .weightReps
+                    let unilateral = definition?.isUnilateral == true
+                    if stacksReps(mode, unilateral: unilateral) {
+                        ViewThatFits(in: .horizontal) {
+                            setRow(exerciseIndex, first.offset, first.element, mode: mode,
+                                   unilateral: unilateral, stacked: false)
+                            setRow(exerciseIndex, first.offset, first.element, mode: mode,
+                                   unilateral: unilateral, stacked: true)
+                        }
+                    } else {
+                        setRow(exerciseIndex, first.offset, first.element, mode: mode, unilateral: unilateral)
+                    }
                 } else {
                     Label("Complete", systemImage: "checkmark.circle.fill")
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.chargeColor)
@@ -1374,6 +1381,76 @@ struct NativeWorkoutLoggerView: View {
                                     mode: TrainingMeasurementMode,
                                     unilateral: Bool) -> String {
         TrainingSetText.summary(set, mode: mode, unilateral: unilateral)
+    }
+
+    /// Whether a set row can move its repetitions onto a second line when one line does not fit.
+    ///
+    /// One line costs 36 pt for the set, about 88 pt per stepper, 50 pt for effort and 44 pt for the
+    /// check. A unilateral weighted exercise carries three steppers — about 424 pt against the 329 pt
+    /// a 393 pt iPhone leaves inside the card — and an overflowing row widened the whole card past
+    /// the screen, clipping the exercise title, the column labels and the set numbers at both edges.
+    /// Weight plus reps (about 330 pt) is already over on a 375 pt phone.
+    private func stacksReps(_ mode: TrainingMeasurementMode, unilateral: Bool) -> Bool {
+        switch mode {
+        case .weightReps, .weightedBodyweight, .assistedBodyweight: true
+        case .bodyweightReps, .repetitions: unilateral
+        case .duration, .distanceDuration: false
+        }
+    }
+
+    /// The header and every set of one exercise, laid out together so the header always describes
+    /// the layout its rows actually use. One line where it fits; otherwise the load, effort and check
+    /// stay on the first line and the repetitions move to a second.
+    @ViewBuilder private func setTable(_ exerciseIndex: Int, _ exercise: NativeWorkoutExercise,
+                                       mode: TrainingMeasurementMode, unilateral: Bool) -> some View {
+        if stacksReps(mode, unilateral: unilateral) {
+            ViewThatFits(in: .horizontal) {
+                setRows(exerciseIndex, exercise, mode: mode, unilateral: unilateral, stacked: false)
+                setRows(exerciseIndex, exercise, mode: mode, unilateral: unilateral, stacked: true)
+            }
+        } else {
+            setRows(exerciseIndex, exercise, mode: mode, unilateral: unilateral, stacked: false)
+        }
+    }
+
+    private func setRows(_ exerciseIndex: Int, _ exercise: NativeWorkoutExercise,
+                         mode: TrainingMeasurementMode, unilateral: Bool, stacked: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            setHeader(mode, unilateral: unilateral, stacked: stacked)
+            ForEach(Array(exercise.sets.enumerated()), id: \.element.id) { setIndex, set in
+                setRow(exerciseIndex, setIndex, set, mode: mode, unilateral: unilateral, stacked: stacked)
+            }
+        }
+    }
+
+    @ViewBuilder private func setHeader(_ mode: TrainingMeasurementMode, unilateral: Bool,
+                                        stacked: Bool) -> some View {
+        if stacked {
+            stackedSetHeader(mode, unilateral: unilateral)
+        } else {
+            setHeader(mode, unilateral: unilateral)
+        }
+    }
+
+    private func stackedSetHeader(_ mode: TrainingMeasurementMode, unilateral: Bool) -> some View {
+        VStack(spacing: 2) {
+            HStack(spacing: 6) {
+                Text("SET").frame(width: 36)
+                switch mode {
+                case .weightReps, .weightedBodyweight: Text("WEIGHT").frame(maxWidth: .infinity)
+                case .assistedBodyweight: Text("ASSIST").frame(maxWidth: .infinity)
+                default: Spacer(minLength: 0)
+                }
+                if effortPreference != .off { Text("EFFORT").frame(width: 50) }
+                Color.clear.frame(width: 44, height: 1)
+            }
+            HStack(spacing: 6) {
+                Color.clear.frame(width: 36, height: 1)
+                repsHeader(unilateral: unilateral)
+            }
+        }
+        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+        .lineLimit(1).minimumScaleFactor(0.6)
     }
 
     private func setHeader(_ mode: TrainingMeasurementMode, unilateral: Bool) -> some View {
@@ -1411,40 +1488,68 @@ struct NativeWorkoutLoggerView: View {
     }
 
     private func setRow(_ exerciseIndex: Int, _ setIndex: Int, _ set: NativeWorkoutSet,
-                        mode: TrainingMeasurementMode, unilateral: Bool) -> some View {
-        HStack(spacing: 6) {
-            setKindMenu(exerciseIndex, setIndex, set)
-            metricControls(exerciseIndex, setIndex, set, mode: mode, unilateral: unilateral)
-            if effortPreference != .off {
-                Button {
-                    effortRequest = EffortPickerRequest(
-                        exerciseIndex: exerciseIndex, setIndex: setIndex,
-                        scale: effortPreference == .rir ? .rir : .rpe, current: set.effort)
-                } label: {
-                    let prefix = set.effort?.scale == .rir ? "R" : ""
-                    EffortBadge(text: prefix + (set.effort?.value.formatted(.number.precision(.fractionLength(0...1))) ?? "—"),
-                                color: set.effort.map { EffortChoice.color(for: $0) })
-                        .frame(width: 50, height: 32)
+                        mode: TrainingMeasurementMode, unilateral: Bool,
+                        stacked: Bool = false) -> some View {
+        Group {
+            if stacked {
+                VStack(spacing: 0) {
+                    HStack(spacing: 6) {
+                        setKindMenu(exerciseIndex, setIndex, set)
+                        switch mode {
+                        case .weightReps, .weightedBodyweight, .assistedBodyweight:
+                            loadControl(exerciseIndex, setIndex, set, mode: mode)
+                        default:
+                            Spacer(minLength: 0)
+                        }
+                        trailingSetControls(exerciseIndex, setIndex, set)
+                    }
+                    HStack(spacing: 6) {
+                        Color.clear.frame(width: 36, height: 1)
+                        repsControls(exerciseIndex, setIndex, set, unilateral: unilateral)
+                    }
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(Text(effortPreference == .rir ? "Repetitions in reserve" : "RPE"))
-                .accessibilityValue(Text(set.effort.map { $0.value.formatted(.number.precision(.fractionLength(0...1))) }
-                                         ?? String(localized: "Not rated")))
+            } else {
+                HStack(spacing: 6) {
+                    setKindMenu(exerciseIndex, setIndex, set)
+                    metricControls(exerciseIndex, setIndex, set, mode: mode, unilateral: unilateral)
+                    trailingSetControls(exerciseIndex, setIndex, set)
+                }
             }
-            Button {
-                model.toggleSet(exerciseIndex: exerciseIndex, setIndex: setIndex)
-                setCompletionHaptic()
-            } label: {
-                Image(systemName: set.isCompleted ? "checkmark.circle.fill" : "circle")
-                    .font(.title3).foregroundStyle(set.isCompleted ? StrandPalette.chargeColor : StrandPalette.textTertiary)
-            }.buttonStyle(.plain).frame(minWidth: 44, minHeight: 44)
-            .accessibilityLabel(Text(set.isCompleted ? "Mark set incomplete" : "Mark set complete"))
         }
         .padding(.vertical, 4)
         .opacity(set.isCompleted ? 0.72 : 1)
         // A container keeps every control reachable; combining the row would hide them behind one label.
         .accessibilityElement(children: .contain)
         .accessibilityLabel(setAccessibilityLabel(set, mode: mode, unilateral: unilateral))
+    }
+
+    /// Effort rating and the completion check — the right-hand end of a set row in either layout.
+    @ViewBuilder private func trailingSetControls(_ exerciseIndex: Int, _ setIndex: Int,
+                                                  _ set: NativeWorkoutSet) -> some View {
+        if effortPreference != .off {
+            Button {
+                effortRequest = EffortPickerRequest(
+                    exerciseIndex: exerciseIndex, setIndex: setIndex,
+                    scale: effortPreference == .rir ? .rir : .rpe, current: set.effort)
+            } label: {
+                let prefix = set.effort?.scale == .rir ? "R" : ""
+                EffortBadge(text: prefix + (set.effort?.value.formatted(.number.precision(.fractionLength(0...1))) ?? "—"),
+                            color: set.effort.map { EffortChoice.color(for: $0) })
+                    .frame(width: 50, height: 32)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text(effortPreference == .rir ? "Repetitions in reserve" : "RPE"))
+            .accessibilityValue(Text(set.effort.map { $0.value.formatted(.number.precision(.fractionLength(0...1))) }
+                                     ?? String(localized: "Not rated")))
+        }
+        Button {
+            model.toggleSet(exerciseIndex: exerciseIndex, setIndex: setIndex)
+            setCompletionHaptic()
+        } label: {
+            Image(systemName: set.isCompleted ? "checkmark.circle.fill" : "circle")
+                .font(.title3).foregroundStyle(set.isCompleted ? StrandPalette.chargeColor : StrandPalette.textTertiary)
+        }.buttonStyle(.plain).frame(minWidth: 44, minHeight: 44)
+        .accessibilityLabel(Text(set.isCompleted ? "Mark set incomplete" : "Mark set complete"))
     }
 
     /// The exercise's animation above its sets. Only the exercise being logged animates; the others
@@ -1494,18 +1599,7 @@ struct NativeWorkoutLoggerView: View {
                                              unilateral: Bool) -> some View {
         switch mode {
         case .weightReps, .weightedBodyweight, .assistedBodyweight:
-            let step = weightStep(exerciseIndex)
-            let field = TrainingSetField(setId: set.id, metric: .weight)
-            stepControl(mode == .assistedBodyweight ? String(localized: "Assistance in kilograms")
-                            : String(localized: "Weight in kilograms"),
-                        value: set.weightKg.map { $0.formatted(.number.precision(.fractionLength(0...2))) } ?? "—",
-                        field: field,
-                        minus: { model.adjustWeight(exerciseIndex: exerciseIndex, setIndex: setIndex, by: -step) },
-                        plus: { model.adjustWeight(exerciseIndex: exerciseIndex, setIndex: setIndex, by: step) }) {
-                decimalField(set.weightKg, field: field) {
-                    model.setWeight(exerciseIndex: exerciseIndex, setIndex: setIndex, kg: $0)
-                }
-            }
+            loadControl(exerciseIndex, setIndex, set, mode: mode)
             repsControls(exerciseIndex, setIndex, set, unilateral: unilateral)
         case .bodyweightReps, .repetitions:
             repsControls(exerciseIndex, setIndex, set, unilateral: unilateral)
@@ -1534,6 +1628,23 @@ struct NativeWorkoutLoggerView: View {
                         minus: { model.adjustDuration(exerciseIndex: exerciseIndex, setIndex: setIndex, by: -5) },
                         plus: { model.adjustDuration(exerciseIndex: exerciseIndex, setIndex: setIndex, by: 5) }) {
                 Text(durationText(set.durationS)).font(StrandFont.subhead.monospacedDigit())
+            }
+        }
+    }
+
+    /// The weight (or assistance) stepper of a loaded set.
+    private func loadControl(_ exerciseIndex: Int, _ setIndex: Int, _ set: NativeWorkoutSet,
+                             mode: TrainingMeasurementMode) -> some View {
+        let step = weightStep(exerciseIndex)
+        let field = TrainingSetField(setId: set.id, metric: .weight)
+        return stepControl(mode == .assistedBodyweight ? String(localized: "Assistance in kilograms")
+                               : String(localized: "Weight in kilograms"),
+                           value: set.weightKg.map { $0.formatted(.number.precision(.fractionLength(0...2))) } ?? "—",
+                           field: field,
+                           minus: { model.adjustWeight(exerciseIndex: exerciseIndex, setIndex: setIndex, by: -step) },
+                           plus: { model.adjustWeight(exerciseIndex: exerciseIndex, setIndex: setIndex, by: step) }) {
+            decimalField(set.weightKg, field: field) {
+                model.setWeight(exerciseIndex: exerciseIndex, setIndex: setIndex, kg: $0)
             }
         }
     }
