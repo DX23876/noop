@@ -588,8 +588,8 @@ final class ActiveSessionController: ObservableObject {
     }
 
     private static let strengthSportKeys: Set<String> = [
-        "Strength", "Strength Training", "Bodybuilding", "Weightlifting",
-        "Traditional Strength Training", "Functional Strength Training"
+        "Strength", "Strength Training", "Bodybuilding", "Weightlifting", "Powerlifting",
+        "CrossFit", "Calisthenics", "Traditional Strength Training", "Functional Strength Training"
     ].reduce(into: Set<String>()) { $0.insert(WorkoutSource.sportKey($1)) }
 
     static func isStrengthSport(_ sport: String) -> Bool {

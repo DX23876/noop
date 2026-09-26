@@ -455680,6 +455680,64 @@
           }
         }
       }
+    },
+    "Elapsed time, heart rate, sets and rest while a workout runs." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dauer, Puls, Sätze und Pause, solange ein Workout läuft."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tiempo, pulso, series y descanso mientras dura un entrenamiento."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Durée, fréquence cardiaque, séries et repos pendant un entraînement."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Durata, frequenza cardiaca, serie e recupero durante un allenamento."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Czas, tętno, serie i przerwa podczas treningu."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tempo, frequência cardíaca, séries e descanso durante um treino."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Время, пульс, подходы и отдых во время тренировки."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "训练进行时显示用时、心率、组数和休息。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "訓練進行時顯示用時、心率、組數和休息。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

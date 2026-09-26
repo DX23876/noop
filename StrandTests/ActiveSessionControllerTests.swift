@@ -57,7 +57,8 @@ final class ActiveSessionControllerTests: XCTestCase {
     }
 
     func testStrengthSportsFromEveryPickerOpenTheStrengthLogger() {
-        for name in ["Strength", "Strength Training", "Bodybuilding", "Weightlifting", "strength training"] {
+        for name in ["Strength", "Strength Training", "Bodybuilding", "Weightlifting", "strength training",
+                     "Powerlifting", "CrossFit", "Calisthenics"] {
             XCTAssertTrue(ActiveSessionController.isStrengthSport(name), name)
         }
         for name in ["Walk", "Run", "Treadmill walk", "HIIT"] {
