@@ -37,7 +37,8 @@ public enum StandardHRContact: String, Equatable, Codable, Sendable {
 /// The sensor channel or transport that produced an R-R interval.
 ///
 /// WHOOP 5 exposes one beat train over multiple transports; codes 5–7 distinguish those observations.
-/// WHOOP 4 standard-BLE rows and legacy data keep nil; its type-47 historical rows use code 8. An Oura ring has more than one optical channel:
+/// WHOOP 4 type-40 realtime and standard-BLE rows use codes 9 and 10; legacy data keeps nil.
+/// Its type-47 historical rows use code 8. An Oura ring has more than one optical channel:
 /// the green-quality tag (0x80) and the SpO2 tag (0x6E) both
 /// decode to R-R and both were stored, so the table held roughly TWO complete copies of every night —
 /// not duplicate rows to de-duplicate, but the SAME heartbeats measured twice. Labelling the channel is
@@ -73,8 +74,15 @@ public enum RRSourceChannel: Int, Equatable, Codable, Sendable, CaseIterable {
     /// WHOOP 4.0 type-47 historical R-R intervals. The 4.0 standard BLE feed has no source label,
     /// so this distinguishes the clock-anchored offload from the overlapping live feed at read time.
     case whoop4Historical = 8
+    /// WHOOP 4.0 type-40 live R-R intervals, timestamped from the strap's realtime record clock.
+    case whoop4Realtime = 9
+    /// WHOOP 4.0 standard BLE 0x2A37 R-R intervals, timestamped on notification receipt.
+    case whoop4Standard = 10
 
     public var isWhoop5Transport: Bool { (5...7).contains(rawValue) }
+
+    /// WHOOP 4.0 provenance labels: type-47 history, type-40 realtime, standard 0x2A37.
+    public var isWhoop4Transport: Bool { (8...10).contains(rawValue) }
 
     /// The ring's beat trains (0x80, 0x6E, 0x60, 0x44), as opposed to a WHOOP transport.
     public var isOura: Bool { (1...4).contains(rawValue) }
@@ -845,8 +853,13 @@ private func toWall(_ deviceTs: Int?, _ deviceClockRef: Int, _ wallClockRef: Int
 /// carries an HR byte but streams alongside type-40 during raw collection, so routing both
 /// would double-count HR for the same instants. Frames whose integrity verdict is negative are
 /// skipped — no row is derived from a frame that is not intact.
+///
+/// Kotlin twin: `extractStreams`. Adding `family` changed the arity on both sides at once, which
+/// unpaired them in the ledger even though they moved together; the reference says they are one
+/// contract so the next parameter does not have to rediscover that.
 public func extractStreams(_ parsed: [ParsedFrame],
-                           deviceClockRef: Int, wallClockRef: Int) -> Streams {
+                           deviceClockRef: Int, wallClockRef: Int,
+                           family: DeviceFamily? = nil) -> Streams {
     var out = Streams()
     for r in parsed {
         // `ok` is now the FULL verdict — header checksum, payload CRC32 and structural length — so it
@@ -866,6 +879,7 @@ public func extractStreams(_ parsed: [ParsedFrame],
                 // #1118: the batch is spread across the time it describes — stamping every
                 // interval at the frame put ~1.5s of beats on 1s of clock. See RrBatchTimestamps.
                 let source = p["rr_source_channel"]?.intValue.flatMap(RRSourceChannel.init(rawValue:))
+                    ?? (family == .whoop4 ? .whoop4Realtime : nil)
                 for placed in RrBatchTimestamps.spread(frameTs: ts, rrMs: rrs) {
                     out.rr.append(RRInterval(ts: placed.ts, rrMs: placed.rrMs, srcChannel: source,
                                              transport: .whoopRealtime))

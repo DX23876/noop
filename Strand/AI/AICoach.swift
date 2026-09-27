@@ -1544,13 +1544,27 @@ final class AICoachEngine: ObservableObject {
     func surfaceScheduledBrief(_ text: String) {
         guard messages.isEmpty else { return }
         appendMessage(ChatMessage(role: .assistant, text: "Today's brief\n\n" + text))
+        conversationDay = Self.localEpochDay()
+    }
+
+    /// Retire yesterday's chat before today's scheduled brief is surfaced, and before a new turn. A
+    /// process kept alive overnight does not reload persisted messages, so the one-time load check
+    /// cannot retire that chat. Upstream empties its single transcript; here the stale conversation
+    /// stays in history and a fresh one is opened, so nothing the user wrote is lost.
+    func retireStaleConversationIfNeeded() {
+        guard Self.isStaleConversation(lastEpochDay: conversationDay,
+                                       todayEpochDay: Self.localEpochDay()) else { return }
+        newConversation()
+        conversationDay = nil
     }
 
     /// K5: append an explicitly-generated brief (the Coach settings "Generate now" button) as a new
     /// assistant message, unconditionally — unlike `surfaceScheduledBrief`, this always appends so a
     /// mid-conversation tap still shows the fresh brief.
     func appendGeneratedBrief(_ text: String) {
+        retireStaleConversationIfNeeded()
         appendMessage(ChatMessage(role: .assistant, text: "Today's brief\n\n" + text))
+        conversationDay = Self.localEpochDay()
     }
 
     /// Send a question: append it, build the metrics context, call the chosen provider with the
@@ -1573,11 +1587,8 @@ final class AICoachEngine: ObservableObject {
         // A transcript from an earlier local day becomes a saved history item and a fresh conversation
         // is opened. This preserves the fork's multi-conversation feature while adopting upstream's
         // protection against yesterday's assistant replies contaminating today's context.
-        let today = Self.localEpochDay()
-        if Self.isStaleConversation(lastEpochDay: conversationDay, todayEpochDay: today) {
-            newConversation()
-        }
-        conversationDay = today
+        retireStaleConversationIfNeeded()
+        conversationDay = Self.localEpochDay()
         // The current question becomes searchable for the NEXT turn, not its own retrieval.
         let conversationsBeforeCurrentQuestion = conversations
         // Route through `appendMessage` for upstream's `maxStoredMessages` cap (unbounded-RAM fix, #741)

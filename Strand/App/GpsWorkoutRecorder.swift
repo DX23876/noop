@@ -186,6 +186,20 @@ final class TrackFilter {
         last = fix
         return RouteMath.LatLng(fix.lat, fix.lon)
     }
+
+    /// Whether a fix could plausibly follow a point captured earlier, by the same speed rule `accept`
+    /// applies between consecutive fixes.
+    ///
+    /// `accept` cannot answer this at the seam a restored route creates. Seeding `last` with the banked
+    /// point would stall the track for good if the wearer resumed somewhere else, because a rejected fix
+    /// deliberately does NOT advance `last`, so every later fix would be measured against the same stale
+    /// point and dropped. This is the same arithmetic, asked once, without touching the filter's state.
+    func couldFollow(_ fix: RawFix, from lat: Double, _ lon: Double, at fromMs: Int64) -> Bool {
+        let dt = Double(fix.tMs - fromMs) / 1000.0
+        guard dt > 0 else { return false }
+        let d = RouteMath.haversineMeters(RouteMath.LatLng(lat, lon), RouteMath.LatLng(fix.lat, fix.lon))
+        return d / dt <= maxSpeedMps
+    }
 }
 
 // MARK: - RouteStore (on-device side-store)
@@ -442,6 +456,8 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
     /// The recorded measurement of every point in `track`, index for index. After a restore from a journal
     /// without measurements it holds fewer, and `capturedRoute` then exports none (#2340).
     private var routePoints: [WorkoutRoutePoint] = []
+    /// The last journaled point a `restore` adopted, until the first fix after it has been judged against it.
+    private var restoredSeam: WorkoutRoutePoint?
     private var startMs: Int64 = 0
     private var pausedAtMs: Int64?
     private var pausedDurationMs: Int64 = 0
@@ -479,6 +495,7 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
         unjournaledPoints.removeAll()
         track.removeAll()
         routePoints.removeAll()
+        restoredSeam = nil
         filter = TrackFilter()
         self.startMs = startMs
         pausedAtMs = nil
@@ -515,6 +532,8 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
             track = saved.track
             routePoints = saved.points ?? []
             if let points = saved.points { journal.append(measured: points) } else { journal.append(saved.track) }
+            // Only measured points carry a time, and the seam check needs one.
+            restoredSeam = saved.points?.last
             pointCount = track.count
             distanceM = RouteMath.totalMeters(track)
         }
@@ -617,6 +636,24 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
         if let last = fixes.last { lastFixMs = max(lastFixMs, last.tMs) }
         for fix in fixes {
             if let pt = filter.accept(fix) {
+                if let seam = restoredSeam {
+                    restoredSeam = nil
+                    if !filter.couldFollow(fix, from: seam.lat, seam.lon, at: seam.tMs) {
+                        // The wearer is somewhere the journaled route cannot reach at running speed, so
+                        // joining would add that jump to `distanceM` and draw a straight line across
+                        // ground the strap never saw — the same lie `hrGapSegments` exists to refuse.
+                        // Drop the restored prefix instead: the worst case is a route that begins at
+                        // relaunch rather than a long invented one.
+                        workoutsLog?("gps route: dropped the journaled prefix, the first fix after restore "
+                                     + "is further from it than running speed allows")
+                        track.removeAll()
+                        routePoints.removeAll()
+                        distanceM = 0
+                        pointCount = 0
+                        journal.clear()
+                        unjournaledPoints.removeAll()
+                    }
+                }
                 // Distance grows by the new leg only; summing the whole route on every fix made a long
                 // session steadily more expensive, and that work runs in the background too.
                 if let last = track.last { added += RouteMath.haversineMeters(last, pt) }

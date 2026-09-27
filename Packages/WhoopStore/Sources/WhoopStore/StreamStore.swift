@@ -243,7 +243,7 @@ extension WhoopStore {
                 let promoteWhoop4History = try db.cachedStatement(sql: """
                     UPDATE rrInterval SET srcChannel = :source, ord = :ord
                     WHERE deviceId = :device AND ts = :ts AND rrMs = :rr AND seq = :seq
-                    AND :source = 8 AND srcChannel IS NULL
+                    AND :source = 8 AND (srcChannel IS NULL OR srcChannel IN (9, 10))
                     """)
                 var seqByTsRr: [RRBatchSecond: [Int: Int]] = [:]
                 var ordByTs: [RRBatchSecond: Int] = [:]
@@ -272,8 +272,9 @@ extension WhoopStore {
                             "device": deviceId, "ts": r.ts, "rr": r.rrMs, "seq": seq])
                         if db.changesCount > 0 { changedAnalysisTimestamps.insert(r.ts) }
                     }
-                    // A WHOOP 4 history beat already stored unlabelled gains its label. The label moves the
-                    // beat up the reconciler's precedence, so a promotion also moves the day's revision.
+                    // A WHOOP 4 history beat already stored unlabelled, or under a live label (9 realtime, 10
+                    // standard), gains the history label. The label moves the beat up the reconciler's
+                    // precedence, so a promotion also moves the day's revision.
                     if changed == 0, r.srcChannel == .whoop4Historical {
                         try promoteWhoop4History.execute(arguments: [
                             "source": RRSourceChannel.whoop4Historical.rawValue, "ord": ord,

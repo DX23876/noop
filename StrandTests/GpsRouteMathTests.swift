@@ -192,6 +192,36 @@ final class GpsRouteMathTests: XCTestCase {
         XCTAssertFalse(loaded?.hasExportableMeasurements ?? true)
     }
 
+    // MARK: - Restoring an in-flight route (ActiveRouteJournal)
+
+    /// The seam a restore creates is judged, not assumed. A fix the banked route could not have reached at
+    /// running speed must be refused as a continuation, because joining it would add the jump to the
+    /// distance and draw a straight line across ground never recorded. A plausible one is accepted.
+    func testSeamAfterRestoreIsJudgedBySpeedNotAssumed() {
+        let f = TrackFilter()
+        let banked = WorkoutRoutePoint(lat: 51.5007, lon: -0.1246, accuracyM: 4, tMs: 1_000_000)
+        // Two seconds later, a few metres on: a wearer still running.
+        let near = fix(51.5008, -0.1246, acc: 4, t: banked.tMs + 2_000)
+        XCTAssertTrue(f.couldFollow(near, from: banked.lat, banked.lon, at: banked.tMs))
+        // Two minutes later, most of a degree of latitude away: nobody ran that.
+        let far = fix(52.2000, -0.1246, acc: 4, t: banked.tMs + 120_000)
+        XCTAssertFalse(f.couldFollow(far, from: banked.lat, banked.lon, at: banked.tMs))
+        // A fix stamped at or before the banked point cannot follow it either.
+        let backwards = fix(51.5008, -0.1246, acc: 4, t: banked.tMs)
+        XCTAssertFalse(f.couldFollow(backwards, from: banked.lat, banked.lon, at: banked.tMs))
+    }
+
+    /// `ActiveRouteJournal` restores the track from the measured points, which is only sound while
+    /// the filter hands back the fix's OWN coordinates. Pin that: if the gate ever smooths or snaps a fix,
+    /// a restored route would diverge from the one already drawn, and this fires instead.
+    func testFilterReturnsTheFixCoordinatesSoBankedPointsRebuildTheTrack() {
+        let f = TrackFilter()
+        let raw = fix(51.5007, -0.1246, acc: 4, t: 1_000)
+        let accepted = f.accept(raw)
+        XCTAssertEqual(accepted?.lat, raw.lat)
+        XCTAssertEqual(accepted?.lon, raw.lon)
+    }
+
     func testRouteMeasurementsRequireMonotonicValidTimesAndAccuracy() {
         let good = [
             WorkoutRoutePoint(lat: a.lat, lon: a.lon, accuracyM: 4, tMs: 1000),

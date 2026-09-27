@@ -21,7 +21,9 @@ import WhoopProtocol
 ///      covers them: they are what this install scored before, and dropping them blanked HRV and Charge.
 ///
 /// Every other device keeps the original order: standard > historical > realtime > untagged, except that a
-/// WHOOP 4 beat labelled as type-47 history (`srcChannel` 8) outranks all of them. Since the 4.0 gained its
+/// WHOOP 4 beat labelled as type-47 history (`srcChannel` 8) outranks all of them. The 4.0 live labels
+/// (`srcChannel` 9 realtime, 10 standard) rank as their transports do. Upstream prefers type-40 realtime
+/// over standard per UTC hour (aee05cb49); this fork keeps standard ahead, per beat. Since the 4.0 gained its
 /// standard HR broadcast (#2400) the same beat can arrive both ways; upstream scores the labelled history
 /// for a whole window when any exists (c1beffa51), here it wins per beat, so standard beats the
 /// history does not cover still count.
@@ -30,7 +32,7 @@ enum RRTransportReconciler {
 
     static func reconcile(_ rows: [RRInterval], whoop5: Bool = false) -> [RRInterval] {
         guard rows.contains(where: {
-            $0.transport != nil || $0.srcChannel?.isWhoop5Transport == true || $0.srcChannel == .whoop4Historical
+            $0.transport != nil || $0.srcChannel?.isWhoop5Transport == true || $0.srcChannel?.isWhoop4Transport == true
         }) else { return rows }
 
         // rrIntervals supplies timestamp-ordered rows, and compactMap preserves that order, so each
@@ -58,7 +60,7 @@ enum RRTransportReconciler {
     static func rank(_ row: RRInterval, whoop5: Bool) -> Int {
         guard whoop5 else {
             if row.srcChannel == .whoop4Historical { return 4 }
-            switch row.transport {
+            switch row.transport ?? impliedWhoop4Transport(row.srcChannel) {
             case .standardHeartRate: return 3
             case .whoopHistorical: return 2
             case .whoopRealtime: return 1
@@ -76,6 +78,16 @@ enum RRTransportReconciler {
         case .whoopRealtime: return 3
         case .standardHeartRate: return 2
         case nil: return 0
+        }
+    }
+
+    /// The WHOOP 4 live labels (9 type-40 realtime, 10 standard 0x2A37) name the same delivery paths as
+    /// `transport`. The app writes both, so this only decides a row that carries the label alone.
+    static func impliedWhoop4Transport(_ channel: RRSourceChannel?) -> RRTransport? {
+        switch channel {
+        case .whoop4Realtime: return .whoopRealtime
+        case .whoop4Standard: return .standardHeartRate
+        default: return nil
         }
     }
 

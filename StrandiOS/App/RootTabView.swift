@@ -294,7 +294,7 @@ struct RootTabView: View {
             case .devices:
                 showDevices = true
                 router.requestedDestination = nil
-            case .insightsHub, .labBook, .fusedRecord, .rhythm:
+            case .insightsHub, .labBook, .fusedRecord, .rhythm, .alarms:
                 routedPillar = dest
                 router.requestedDestination = nil
             case .coach:
@@ -457,6 +457,7 @@ struct RootTabView: View {
                 // #1862: Coach IS presented here — the launcher sheet routes to it as a pillar, so unlike
                 // the fallbacks above this arm is the real destination, not a safety net.
                 case .coach: CoachView()
+                case .alarms: SmartAlarmView()
                 }
             }
             // The Trends/Today fallbacks above emit TabRoute value pushes (#198), which need a

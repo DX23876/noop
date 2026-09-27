@@ -238,7 +238,7 @@ extension WhoopStore {
             }
             let historyCount: Int = row["w5"]
             let registry: String = row["registry"]
-            return "v4|h\(hc):\(hm)|" + tails.joined(separator: "|")
+            return "v5|h\(hc):\(hm)|" + tails.joined(separator: "|")
                 + "|w5\(historyCount)|w7\(row["w7"] as Int)|tagged\(row["w5tagged"] as Int)"
                 + "|w4history\(row["w4history"] as Int)|registry\(registry)"
         }
@@ -318,7 +318,7 @@ extension WhoopStore {
             let historyCount: Int = row["w5"]
             let registry: String = row["registry"]
             let strictRR = try Self.isWhoop5RRSource(db: db, deviceId: deviceId)
-            return "s3|" + parts.joined(separator: "|") + "|w5\(historyCount)|w7\(row["w7"] as Int)"
+            return "s4|" + parts.joined(separator: "|") + "|w5\(historyCount)|w7\(row["w7"] as Int)"
                 + "|w4h\(row["w4h"] as Int)|ownerTagged\(row["w5owner"] as Int)|registry\(registry)|rr5=\(strictRR)"
         }
     }

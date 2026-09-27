@@ -151,6 +151,18 @@ The `add-unpaired-function` diagnostic defines "new" by absence of the
 platform-qualified owner, name, and arity from the base declaration inventory,
 not by a changed source line.
 
+The ledger can report that diagnostic while its checked-in twin map still
+describes the old source tree. Its pipe-separated finding identity is only a
+source-drift diagnostic; it is **not** the platform-qualified, NUL-separated
+authority identity accepted by `parity_dispositions.json`. Writing a disposition
+does not make a scan against the old map pass. After choosing a remedy below,
+run the guarded `--refresh-derived` flow above. That flow derives the current
+authority, checks any new one-sided identity against the typed registry and
+exact base, and restores both snapshots if the ratchet rejects the change.
+Use the identity in the derived `unpaired_functions` set for a disposition,
+including its platform prefix; do not copy the `add-unpaired-function|...`
+diagnostic into the registry.
+
 1. Implement and test its Swift/Kotlin twin (required for shared bug fixes and
    final shared features).
 2. Manually add an `experimental` disposition with exact identity/platform,

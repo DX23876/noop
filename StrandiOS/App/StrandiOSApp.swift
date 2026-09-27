@@ -102,9 +102,12 @@ struct StrandiOSApp: App {
         // AND listed in BGTaskSchedulerPermittedIdentifiers. The closure is the fork's OWN brief
         // (`generateBriefText`), not a second generation path — so the notification, the widget and the
         // Coach transcript all quote one model run, and the day's brief stamp is set by it exactly once.
-        CoachBriefScheduler.register { [weak model] in
+        // A refused background request is written to the strap log rather than dropped silently.
+        CoachBriefScheduler.register(generateBrief: { [weak model] in
             await model?.coach.generateBriefText()
-        }
+        }, log: { [weak model] line in
+            model?.live.append(log: AppModel.stamped(line))
+        })
         // Settings → "Keep screen on while syncing". Wired once here, not as another modifier on `body`.
         SyncKeepAwake.shared.attach(to: model.live)
         // The strap-sync Live Activity (Lock Screen + Dynamic Island). Same placement, same reason — and
@@ -358,7 +361,7 @@ struct StrandiOSApp: App {
         // access (it only reads write/share status, never prompts) so background syncs resume; and
         // HealthKitBridge.sync guards on `auth == .authorized`, so the scenePhase trigger stays a
         // safe no-op until the user opts in.
-        .onChange(of: scenePhase) { _, phase in
+        .onChange(of: scenePhase, initial: true) { _, phase in
             if phase == .active {
                 model.traceAppState("foreground")
                 model.session.publishActivity()
@@ -372,7 +375,9 @@ struct StrandiOSApp: App {
                     _ = await CoachBriefScheduler.catchUpIfDue { await model.coach.generateBriefText() }
                     CoachBriefScheduler.activateIfEnabled { await model.coach.generateBriefText() }
                     // A brief generated while the app was away is surfaced into the transcript here, so
-                    // opening Coach shows the brief the notification quoted rather than nothing.
+                    // opening Coach shows the brief the notification quoted rather than nothing. A
+                    // process kept alive overnight still holds yesterday's chat, which would swallow it.
+                    model.coach.retireStaleConversationIfNeeded()
                     if let stored = CoachBriefScheduler.consumeStoredBrief() {
                         model.coach.surfaceScheduledBrief(stored)
                     }
