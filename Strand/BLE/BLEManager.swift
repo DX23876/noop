@@ -7308,7 +7308,12 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                     // BEFORE the offload branch so it catches the burst; no-op unless capture is on.
                     puffinDeepBufferLog.appendIfDeepBuffer(frame: frame, char: characteristic.uuid, isOffload: isOffload)
                     stopUnexpectedRealtimeImu(frame, isOffload: isOffload)
-                    // #423: the queryable twin of that diagnostics line — persist the decoded 100 Hz 6-axis
+                    // #423/#1709: live 5/MG frames do not reach Collector.ingest below, where IMU
+                    // session storage moved. Bank valid 100 Hz buffers before the offload split so
+                    // both live capture and history replay can complete an open session.
+                    if let collector, verifyFrame(frame, family: .whoop5).ok {
+                        collector.recordGroundTruthImu(frame)
+                    }
                     if isOffload {
                         // Same policy as WHOOP4: historical offload frames are bulk sync traffic.
                         // Keep them out of the live UI parser during backfill and let Backfiller

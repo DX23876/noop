@@ -385,7 +385,7 @@ final class Collector {
         rawCapture.open(at: monotonic(), duration: seconds)
     }
 
-    private func recordGroundTruthImu(_ frame: [UInt8]) {
+    func recordGroundTruthImu(_ frame: [UInt8]) {
         _ = ImuSessionFileStore.shared.append(deviceId: deviceId, frame: frame,
             receivedAtMs: Int64(Date().timeIntervalSince1970 * 1_000))
     }

@@ -47,6 +47,8 @@ final class Whoop5RawImuTests: XCTestCase {
     func testDecodesRealBufferAsGravityShell() {
         let f = Self.realFrameBytes
         XCTAssertEqual(f.count, Whoop5RawImu.bufferLength)
+        XCTAssertTrue(verifyFrame(f, family: .whoop5).ok,
+                      "the collector's integrity gate must admit a captured IMU buffer")
         guard let frame = Whoop5RawImu.decode(f) else { return XCTFail("real buffer did not decode") }
         XCTAssertEqual(frame.samples.count, 100)
         XCTAssertEqual(frame.baseTs, 1_784_037_165)   // strap ts @15
