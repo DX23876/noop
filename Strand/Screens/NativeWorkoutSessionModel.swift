@@ -11,7 +11,10 @@ import UserNotifications
 /// from the stored stream when it finishes.
 @MainActor
 final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
-    @Published var draft: WorkoutDraft
+    @Published var draft: WorkoutDraft {
+        // Every way the timer changes (a completed set, ±15 s, pause, skip, restore) re-arms the strap cue.
+        didSet { if oldValue.timer != draft.timer { scheduleStrapCues() } }
+    }
     @Published var sessionRPE: Double?
     @Published var errorMessage: String?
     @Published var watchFinishRequested = false
@@ -20,21 +23,38 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
     private let repo: Repository
     private unowned let controller: ActiveSessionController
     private let exerciseTitles: [String: String]
+    private let exerciseModes: [String: TrainingMeasurementMode]
     private var pendingPersist: Task<Void, Never>?
     private var debouncedPersist: Task<Void, Never>?
     private var discarded = false
+    /// Fires the strap buzz. Injected so the session knows nothing about BLE.
+    private let strapBuzz: (UInt8) -> Void
+    /// Writes a line to the strap log, where each strap step and each cue is accounted for.
+    private let strapLog: (String) -> Void
+    /// When the session last acted on a strap double-tap. Nil after a relaunch: a knock is judged
+    /// against a tap in the same sitting, never one from before it.
+    private var lastStrapStepAt: Int?
+    /// The pending buzz for the running timer, replaced whenever the timer changes.
+    private var strapCueTask: Task<Void, Never>?
 
     /// How long ordinary edits (steppers, notes) are gathered before one save. A completed set, a pause,
     /// backgrounding and finishing all save immediately.
     static let persistDebounceNanoseconds: UInt64 = 2_000_000_000
 
     init(draft: WorkoutDraft, repo: Repository, controller: ActiveSessionController,
-         exercises: [TrainingExercise]) {
+         exercises: [TrainingExercise],
+         strapBuzz: @escaping (UInt8) -> Void = { _ in },
+         strapLog: @escaping (String) -> Void = { _ in }) {
         self.draft = draft
         self.repo = repo
         self.controller = controller
         self.exerciseTitles = Dictionary(uniqueKeysWithValues: exercises.map { ($0.id, $0.title) })
+        self.exerciseModes = Dictionary(uniqueKeysWithValues: exercises.map { ($0.id, $0.mode) })
+        self.strapBuzz = strapBuzz
+        self.strapLog = strapLog
         publishCompanionState()
+        // A session restored mid-rest still gets its buzz.
+        scheduleStrapCues()
     }
 
     /// Entered after the fact: no heart rate, no minimized bar, and it never blocks a live start.
@@ -457,6 +477,7 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
             workout.lifecycleVersion = draft.lifecycleVersion
             try await repo.finishNativeWorkout(workout)
             TrainingRestNotification.cancel(for: draft.id)
+            strapCueTask?.cancel()
             let saved = workout
             Task { await repo.linkNativeWorkoutPhysiology(saved) }
             return workout
@@ -487,6 +508,7 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
             return false
         }
         TrainingRestNotification.cancel(for: draft.id)
+        strapCueTask?.cancel()
         return true
     }
 
@@ -554,10 +576,147 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
         case .completeSet:
             guard draft.exercises.indices.contains(activeExerciseIndex),
                   let setIndex = draft.exercises[activeExerciseIndex].sets.firstIndex(where: { !$0.isCompleted }) else { return }
+            // The Watch cannot show the whole row either, so a set without its numbers stays open.
+            guard isLoggableUnseen(exerciseIndex: activeExerciseIndex, setIndex: setIndex) else {
+                strapLog("Strength session: Watch \"complete set\" not acted on, set \(setIndex + 1) of "
+                         + "\(title(ofExercise: activeExerciseIndex)) has no numbers to log")
+                return
+            }
             toggleSet(exerciseIndex: activeExerciseIndex, setIndex: setIndex)
         case .finish: watchFinishRequested = true
         default: break
         }
+    }
+
+    // MARK: - Strap
+
+    /// One pulse confirms a strap double-tap registered; with the phone face-down there is otherwise no
+    /// way to know. Three mean the rest is nearly up, two that a timed set's time is up. Patterns that
+    /// cannot be mistaken for each other on a wrist that has been knocked about all session.
+    static let strapConfirmBuzzes: UInt8 = 1
+    static let restWarningBuzzes: UInt8 = 3
+    static let timedSetEndBuzzes: UInt8 = 2
+    /// How long before the rest ends the warning fires: time to chalk up and take the bar.
+    static let restWarningLeadSec = 5
+    /// A strap double-tap this soon after the last one the session acted on is taken as a knock.
+    static let strapKnockWindowSec = 5
+    /// A cue that could only run this long after its timer ended says nothing useful any more.
+    static let staleCueSec = 10
+
+    static var unixNow: Int { Int(Date().timeIntervalSince1970) }
+
+    /// A strap double-tap: what tapping the next open set's checkmark does, with the numbers already in
+    /// the row, so a set is logged with the phone left on the bench. A running timed set is finished
+    /// instead. Called by `ActiveSessionController`, which claims the gesture for the session's lifetime.
+    func strapDoubleTap(now: Int = NativeWorkoutSessionModel.unixNow) {
+        guard !isRetrospective else { return }
+        guard draft.state == .active else {
+            strapLog("Strength session: double-tap not acted on, the workout is paused")
+            return
+        }
+        if let last = lastStrapStepAt, Self.isKnock(secondsSinceLastStep: now - last) {
+            // No buzz: the missing confirmation is the lifter's cue to tap again.
+            strapLog("Strength session: double-tap not acted on, \(now - last) s after the last one it acted on "
+                     + "(under \(Self.strapKnockWindowSec) s is taken as a knock)")
+            return
+        }
+        let finishesTimedSet = draft.timer?.kind == .timedSet
+        let next = finishesTimedSet ? nil : NativeWorkoutEngine.nextOpenSet(in: draft)
+        guard finishesTimedSet || next != nil else {
+            strapLog("Strength session: double-tap not acted on, every set is done")
+            return
+        }
+        if let next, !isLoggableUnseen(exerciseIndex: next.exercise, setIndex: next.set) {
+            // No buzz: the missing confirmation sends the lifter to the phone, where the empty field shows.
+            strapLog("Strength session: double-tap not acted on, set \(next.set + 1) of "
+                     + "\(title(ofExercise: next.exercise)) has no numbers to log")
+            return
+        }
+        lastStrapStepAt = now
+        // Buzz first: the confirmation is a latency signal and must not queue behind the save below.
+        strapBuzz(Self.strapConfirmBuzzes)
+        if finishesTimedSet {
+            finishTimedSet()
+            strapLog("Strength session: double-tap finished the timed set")
+        } else if let next {
+            toggleSet(exerciseIndex: next.exercise, setIndex: next.set)
+            strapLog("Strength session: double-tap completed set \(next.set + 1) of \(title(ofExercise: next.exercise))")
+        }
+    }
+
+    /// Whether a set may be completed by a step that cannot see its row (the strap, the Watch): it has the
+    /// numbers its exercise is logged with. The checkmark on the phone is never held back; the row is in view.
+    func isLoggableUnseen(exerciseIndex: Int, setIndex: Int) -> Bool {
+        guard draft.exercises.indices.contains(exerciseIndex),
+              draft.exercises[exerciseIndex].sets.indices.contains(setIndex) else { return false }
+        let exercise = draft.exercises[exerciseIndex]
+        return NativeWorkoutEngine.hasLoggableValues(exercise.sets[setIndex],
+                                                     mode: exerciseModes[exercise.exerciseId])
+    }
+
+    private func title(ofExercise index: Int) -> String {
+        let id = draft.exercises[index].exerciseId
+        return exerciseTitles[id] ?? id
+    }
+
+    /// Whether a strap double-tap `secondsSinceLastStep` after the last one the session acted on is a knock
+    /// (the arm going onto the bar) rather than a tap. No set a lifter means to log is that short.
+    static func isKnock(secondsSinceLastStep: Int) -> Bool {
+        (0..<strapKnockWindowSec).contains(secondsSinceLastStep)
+    }
+
+    /// One strap buzz a running timer earns: when it fires, the end it belongs to, how many pulses.
+    struct StrapCue: Equatable {
+        let at: Int
+        let endsAt: Int
+        let loops: UInt8
+    }
+
+    /// The buzz a running timer earns. A rest warns `restWarningLeadSec` before its end, or a second from
+    /// now when it is already inside that window; a timed set buzzes at its end. Nil for a paused timer, a
+    /// timed set already over, or any cue that would come more than `staleCueSec` after its timer ended.
+    static func strapCue(for timer: WorkoutTimerState, now: Int) -> StrapCue? {
+        guard timer.pausedRemainingSeconds == nil, !isStaleCue(endsAt: timer.endsAtTs, now: now) else { return nil }
+        switch timer.kind {
+        case .rest, .restPause:
+            return StrapCue(at: max(now + 1, timer.endsAtTs - restWarningLeadSec), endsAt: timer.endsAtTs,
+                            loops: restWarningBuzzes)
+        case .timedSet:
+            guard timer.endsAtTs > now else { return nil }
+            return StrapCue(at: timer.endsAtTs, endsAt: timer.endsAtTs, loops: timedSetEndBuzzes)
+        }
+    }
+
+    static func isStaleCue(endsAt: Int, now: Int) -> Bool { now - endsAt > staleCueSec }
+
+    /// Re-arms the strap buzz for the running timer. The wait is a task rather than a ticking timer: between
+    /// changes a session does no work at all.
+    private func scheduleStrapCues() {
+        strapCueTask?.cancel()
+        strapCueTask = nil
+        guard !discarded, !isRetrospective, let timer = draft.timer,
+              let cue = Self.strapCue(for: timer, now: Self.unixNow) else { return }
+        let delay = Date(timeIntervalSince1970: TimeInterval(cue.at)).timeIntervalSinceNow
+        strapCueTask = Task { [weak self] in
+            if delay > 0 { try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000)) }
+            guard !Task.isCancelled else { return }
+            self?.fireStrapCue(cue)
+        }
+    }
+
+    private func fireStrapCue(_ cue: StrapCue) {
+        let now = Self.unixNow
+        guard !discarded, let timer = draft.timer, timer.endsAtTs == cue.endsAt,
+              timer.pausedRemainingSeconds == nil else { return }
+        guard !Self.isStaleCue(endsAt: cue.endsAt, now: now) else {
+            // iOS kept NOOP asleep past the end: a buzz now would announce a rest that is long over.
+            strapLog("Strength session: timer buzz dropped, NOOP only woke \(now - cue.endsAt) s after the timer ended")
+            return
+        }
+        guard HapticPrefs.enabled(HapticPrefs.liftRest) else { return }
+        strapBuzz(cue.loops)
+        strapLog(timer.kind == .timedSet ? "Strength session: timed set over, strap buzzed"
+                 : "Strength session: rest ends in \(max(0, cue.endsAt - now)) s, strap buzzed")
     }
 
     /// Gathers ordinary edits into one save. A later immediate save supersedes it.

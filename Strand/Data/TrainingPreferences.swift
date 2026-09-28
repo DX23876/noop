@@ -28,6 +28,7 @@ enum TrainingPreferences {
     static let soundKey = "training.timerSound"
     static let hapticsKey = "training.timerHaptics"
     static let timerFeedbackKey = "training.timerFeedback"
+    static let strapDoubleTapKey = "training.strapDoubleTapLogsSet"
     static let weekStartKey = "training.weekStartsOn"
     static let activeLayoutKey = "training.activeWorkout.layout"
     static let equipmentKey = "training.availableEquipment"
@@ -57,6 +58,11 @@ enum TrainingPreferences {
     }
     static var timerFeedbackEnabled: Bool {
         UserDefaults.standard.object(forKey: timerFeedbackKey) as? Bool ?? true
+    }
+    /// Whether a strap double-tap completes the next set during a strength session. Default on; off hands
+    /// the gesture back to the configured double-tap action for the whole session.
+    static var strapDoubleTapLogsSet: Bool {
+        UserDefaults.standard.object(forKey: strapDoubleTapKey) as? Bool ?? true
     }
     static var weekStart: TrainingWeekStart {
         TrainingWeekStart(rawValue: UserDefaults.standard.string(forKey: weekStartKey) ?? "") ?? .monday

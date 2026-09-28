@@ -245,6 +245,8 @@ struct SettingsView: View {
     @AppStorage(TrainingPreferences.soundKey) private var trainingSound = true
     @AppStorage(TrainingPreferences.hapticsKey) private var trainingHaptics = true
     @AppStorage(TrainingPreferences.timerFeedbackKey) private var trainingTimerFeedback = true
+    @AppStorage(TrainingPreferences.strapDoubleTapKey) private var trainingStrapDoubleTap = true
+    @AppStorage(HapticPrefs.liftRest) private var trainingStrapRestBuzz = true
     @AppStorage(TrainingPreferences.weekStartKey) private var trainingWeekStartRaw = TrainingWeekStart.monday.rawValue
     @AppStorage(TrainingPreferences.activeLayoutKey) private var trainingLayoutRaw = "focus"
     @AppStorage(UnitPrefs.hrvWindowKey) private var hrvWindowRaw = HrvWindow.whole.rawValue
@@ -1300,6 +1302,15 @@ struct SettingsView: View {
                 Toggle("Timer sound", isOn: $trainingSound).disabled(!trainingTimerFeedback)
                 Toggle("Haptics", isOn: $trainingHaptics)
                     .accessibilityHint(Text("Vibrates when you complete a set and, with timer feedback on, when a timer ends"))
+                rowDivider
+                Toggle("Strap double-tap completes a set", isOn: $trainingStrapDoubleTap)
+                    .accessibilityHint(Text("During a strength workout, a double-tap on the strap logs the next set"))
+                Toggle("Buzz the strap before rest ends", isOn: $trainingStrapRestBuzz)
+                    .accessibilityHint(Text("The strap vibrates three times five seconds before a rest ends"))
+                Text("During a strength workout a double-tap on the strap completes the next set with the numbers already in its row, and one buzz confirms it. A second double-tap within five seconds is ignored as a knock. Outside a workout the double-tap keeps its own action.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
                 rowDivider
                 Toggle("Keep screen on during a workout", isOn: $workoutKeepScreenOn)
                     .accessibilityHint("Stops the screen dimming while a workout is recording")

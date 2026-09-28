@@ -44,7 +44,7 @@ final class ActiveSessionController: ObservableObject {
     @Published private(set) var strength: NativeWorkoutSessionModel? {
         // Every way a strength session appears or goes — start, restore, finish, discard — reaches the
         // system surfaces, not only later edits.
-        didSet { if oldValue !== strength { publishActivity() } }
+        didSet { if oldValue !== strength { publishActivity(); updateStrapClaim() } }
     }
     /// Whether the full-screen session is showing. False with a session running means minimized.
     @Published var isPresented = false
@@ -76,6 +76,9 @@ final class ActiveSessionController: ObservableObject {
     private var handledWatchOperations: Set<UUID> = []
     private var contextLoad: Task<Void, Never>?
     private var restoring = false
+    /// Whether this controller holds the strap's double-tap right now, so it only ever hands back a claim
+    /// it made.
+    private var strapClaimed = false
 
     init(app: AppModel) {
         self.app = app
@@ -116,6 +119,11 @@ final class ActiveSessionController: ObservableObject {
                 guard let self, self.hasLiveSession else { return }
                 self.publishActivity()
             }
+            .store(in: &cancellables)
+        // The Training setting can be switched mid-session; the claim follows it without a relaunch.
+        NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.updateStrapClaim() }
             .store(in: &cancellables)
     }
 
@@ -560,7 +568,23 @@ final class ActiveSessionController: ObservableObject {
 
     private func makeSession(_ draft: WorkoutDraft) -> NativeWorkoutSessionModel {
         NativeWorkoutSessionModel(draft: draft, repo: repo, controller: self,
-                                  exercises: context.exercises)
+                                  exercises: context.exercises,
+                                  strapBuzz: { [weak app] loops in app?.buzz(loops: loops) },
+                                  strapLog: { [weak app] line in app?.live.append(log: AppModel.stamped(line)) })
+    }
+
+    /// Claims the strap's double-tap while a live strength session runs, so a set is logged without picking
+    /// the phone up, and hands the gesture back to the configured double-tap action when the session ends
+    /// or the Training setting is switched off. A retrospective entry never claims it.
+    private func updateStrapClaim() {
+        let claim = strength.map { !$0.isRetrospective } == true && TrainingPreferences.strapDoubleTapLogsSet
+        guard claim != strapClaimed else { return }
+        strapClaimed = claim
+        if claim {
+            app.strapDoubleTapOverride = { [weak self] in self?.strength?.strapDoubleTap() }
+        } else {
+            app.strapDoubleTapOverride = nil
+        }
     }
 
     private func prepareLifecycle(_ draft: inout WorkoutDraft) {

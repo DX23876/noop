@@ -455738,6 +455738,296 @@
           }
         }
       }
+    },
+    "Strap double-tap completes a set" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Doppeltipp auf den Strap schließt einen Satz ab"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Doble toque en la pulsera completa una serie"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Double tape sur le bracelet valide une série"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Doppio tocco sul bracciale completa una serie"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Podwójne stuknięcie w opaskę kończy serię"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toque duplo na pulseira conclui uma série"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Двойное касание браслета завершает подход"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "双击手环完成一组"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "雙擊手環完成一組"
+          }
+        }
+      }
+    },
+    "During a strength workout, a double-tap on the strap logs the next set" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Im Krafttraining loggt ein Doppeltipp auf den Strap den nächsten Satz"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Durante un entrenamiento de fuerza, un doble toque en la pulsera registra la siguiente serie"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pendant une séance de force, un double tape sur le bracelet enregistre la série suivante"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Durante un allenamento di forza, un doppio tocco sul bracciale registra la serie successiva"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Podczas treningu siłowego podwójne stuknięcie w opaskę zapisuje następną serię"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Durante um treino de força, um toque duplo na pulseira regista a série seguinte"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Во время силовой тренировки двойное касание браслета записывает следующий подход"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "力量训练中，双击手环会记录下一组"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "力量訓練中，雙擊手環會記錄下一組"
+          }
+        }
+      }
+    },
+    "Buzz the strap before rest ends" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Strap vibriert vor Pausenende"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vibrar la pulsera antes del fin del descanso"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Faire vibrer le bracelet avant la fin du repos"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vibrazione del bracciale prima della fine del recupero"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wibracja opaski przed końcem przerwy"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vibrar a pulseira antes do fim do descanso"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вибрация браслета перед концом отдыха"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "休息结束前手环振动"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "休息結束前手環震動"
+          }
+        }
+      }
+    },
+    "The strap vibrates three times five seconds before a rest ends" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Strap vibriert fünf Sekunden vor Pausenende dreimal"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La pulsera vibra tres veces cinco segundos antes de que termine el descanso"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le bracelet vibre trois fois cinq secondes avant la fin du repos"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il bracciale vibra tre volte cinque secondi prima della fine del recupero"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opaska wibruje trzy razy pięć sekund przed końcem przerwy"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A pulseira vibra três vezes cinco segundos antes do fim do descanso"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Браслет вибрирует три раза за пять секунд до конца отдыха"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "休息结束前五秒手环振动三次"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "休息結束前五秒手環震動三次"
+          }
+        }
+      }
+    },
+    "During a strength workout a double-tap on the strap completes the next set with the numbers already in its row, and one buzz confirms it. A second double-tap within five seconds is ignored as a knock. Outside a workout the double-tap keeps its own action." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Im Krafttraining schließt ein Doppeltipp auf den Strap den nächsten Satz mit den Werten ab, die schon in seiner Zeile stehen. Ein Vibrieren bestätigt es. Ein zweiter Doppeltipp innerhalb von fünf Sekunden gilt als Stoß und wird ignoriert. Außerhalb eines Trainings behält der Doppeltipp seine eigene Aktion."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Durante un entrenamiento de fuerza, un doble toque en la pulsera completa la siguiente serie con los valores que ya tiene su fila, y una vibración lo confirma. Un segundo doble toque en menos de cinco segundos se ignora como un golpe. Fuera de un entrenamiento, el doble toque mantiene su propia acción."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pendant une séance de force, un double tape sur le bracelet valide la série suivante avec les valeurs déjà présentes sur sa ligne, et une vibration le confirme. Un second double tape dans les cinq secondes est ignoré comme un choc. Hors séance, le double tape garde sa propre action."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Durante un allenamento di forza, un doppio tocco sul bracciale completa la serie successiva con i valori già presenti nella sua riga, e una vibrazione lo conferma. Un secondo doppio tocco entro cinque secondi viene ignorato come un urto. Fuori dall'allenamento il doppio tocco mantiene la sua azione."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Podczas treningu siłowego podwójne stuknięcie w opaskę kończy następną serię z wartościami, które są już w jej wierszu, a jedna wibracja to potwierdza. Drugie podwójne stuknięcie w ciągu pięciu sekund jest ignorowane jako przypadkowe uderzenie. Poza treningiem podwójne stuknięcie zachowuje własną akcję."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Durante um treino de força, um toque duplo na pulseira conclui a série seguinte com os valores que já estão na sua linha, e uma vibração confirma. Um segundo toque duplo em menos de cinco segundos é ignorado como uma pancada. Fora de um treino, o toque duplo mantém a sua própria ação."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Во время силовой тренировки двойное касание браслета завершает следующий подход со значениями, которые уже указаны в его строке, и одна вибрация подтверждает это. Второе двойное касание в течение пяти секунд считается случайным ударом и игнорируется. Вне тренировки двойное касание выполняет своё обычное действие."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "力量训练中，双击手环会用该行已有的数值完成下一组，并以一次振动确认。五秒内的第二次双击会被视为碰撞而忽略。训练之外，双击保持其原有操作。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "力量訓練中，雙擊手環會以該列已有的數值完成下一組，並以一次震動確認。五秒內的第二次雙擊會被視為碰撞而忽略。訓練之外，雙擊保留其原有動作。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

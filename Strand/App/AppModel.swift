@@ -2049,8 +2049,8 @@ final class AppModel: ObservableObject {
 
     // MARK: - Physical inputs / wear automation
 
-    /// Set by a running Lift Log session to CLAIM the strap's double-tap for the duration of that
-    /// session, so a set can be logged without picking the phone up — the one cue that works with the
+    /// Set by a running strength session (`ActiveSessionController`) to CLAIM the strap's double-tap for
+    /// the duration of that session, so a set can be logged without picking the phone up — the one cue that works with the
     /// phone face-down on a bench. Cleared when the session ends, handing the gesture straight back to
     /// whatever the user has configured; nothing about their setting is read or written.
     ///
@@ -2067,7 +2067,7 @@ final class AppModel: ObservableObject {
         }
         lastDoubleTapAt = now
         if let override = strapDoubleTapOverride {
-            live.append(log: Self.stamped("Double-tap → Lift Log: next"))
+            live.append(log: Self.stamped("Double-tap → strength session: next set"))
             override()
             return
         }
