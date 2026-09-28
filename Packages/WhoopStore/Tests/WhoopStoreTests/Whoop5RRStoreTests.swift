@@ -126,25 +126,30 @@ final class Whoop5RRStoreTests: XCTestCase {
         XCTAssertEqual(stored.count, 2, "source policy never rewrites or removes legacy intervals")
     }
 
-    func testPerBeatPrecedenceSharesBoundsAndQuarantine() async throws {
+    /// One path per five-minute segment (`RRTransportReconciler`): standard 0x2A37 covers segment 0, the
+    /// labelled history nine tenths of it, native live only segment 1.
+    func testSegmentPrecedenceSharesBoundsAndQuarantine() async throws {
         let s = try await WhoopStore.inMemory()
         try registry(s, model: "5.0 MG")
-        let rows = (100..<200).map { RRInterval(ts: $0, rrMs: 1000, srcChannel: .whoop5Standard) }
-            + [RRInterval(ts: 200, rrMs: 900, srcChannel: .whoop5Historical),
-               RRInterval(ts: 201, rrMs: 800, srcChannel: .whoop5Realtime)]
-        _ = try await s.insert(Streams(rr: rows), deviceId: id)
+        let rows = (0..<300).map { RRInterval(ts: $0, rrMs: 1000, srcChannel: .whoop5Standard) }
+            + (0..<270).map { RRInterval(ts: $0, rrMs: 900, srcChannel: .whoop5Historical) }
+            + [RRInterval(ts: 400, rrMs: 800, srcChannel: .whoop5Realtime)]
+        _ = try await s.insert(Streams(rr: rows.sorted { $0.ts < $1.ts }), deviceId: id)
         var selected = try await read(s, limit: 1_000)
-        // History wins only within the overlap radius: standard 197…199 and live 201 give way to it.
-        XCTAssertEqual(selected.count, 97 + 1)
-        XCTAssertEqual(selected.last?.rrMs, 900)
-        XCTAssertFalse(selected.contains { $0.ts >= 197 && $0.ts <= 199 })
+        // The history is read alone in segment 0; the standard copy does not fill its tail.
+        XCTAssertEqual(selected.map(\.rrMs), Array(repeating: 900, count: 270) + [800],
+                       "native live is kept where nothing better covers it")
         selected = try await read(s, to: 199, limit: 1_000)
-        XCTAssertEqual(selected.count, 100, "history outside this interval cannot drop a beat inside it")
-        try await s.registryWriter.write { db in try db.execute(sql: "UPDATE rrInterval SET tsSuspect = 1 WHERE ts = 200") }
-        selected = try await read(s, limit: 1_000)
-        XCTAssertEqual(selected.count, 100, "suspect-only history cannot suppress the valid standard beats")
-        selected = try await read(s, from: 201)
-        XCTAssertEqual(selected.map(\.rrMs), [800], "native live is kept where nothing better covers it")
+        XCTAssertEqual(selected.map(\.rrMs), Array(repeating: 900, count: 200),
+                       "a window inside a segment reads the segment's own choice")
+        try await s.registryWriter.write { db in
+            try db.execute(sql: "UPDATE rrInterval SET tsSuspect = 1 WHERE srcChannel = 5 AND ts < 100")
+        }
+        selected = try await read(s, to: 299, limit: 1_000)
+        XCTAssertEqual(selected.map(\.rrMs), Array(repeating: 1000, count: 300),
+                       "suspect history does not count toward its path's claim")
+        selected = try await read(s, from: 301)
+        XCTAssertEqual(selected.map(\.rrMs), [800])
     }
 
     func testZeroInsertPromotionRestoresHistoricalOrderAndInvalidatesBothCaches() async throws {

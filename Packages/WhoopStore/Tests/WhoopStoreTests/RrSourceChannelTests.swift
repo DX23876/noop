@@ -51,24 +51,25 @@ final class RrSourceChannelTests: XCTestCase {
         XCTAssertNil(selected.first?.srcChannel)
     }
 
-    /// Upstream scores the labelled history for the whole window; this fork decides per beat
-    /// (`RRTransportReconciler`), which agrees here because both unlabelled beats lie within its radius.
+    /// Upstream scores the labelled history for the whole hour; this fork chooses one path per five-minute
+    /// segment (`RRTransportReconciler`), which agrees here because the history covers the same seconds.
     func testWhoop4HistoryReplacesTheUnlabelledCopyOfTheSameBeats() async throws {
         let store = try await WhoopStore.inMemory()
         try await store.upsertDevice(id: "strap", mac: nil, name: nil)
         try setRegistry(store)
         _ = try await store.insert(Streams(rr: [RRInterval(ts: ts, rrMs: 800),
                                                   RRInterval(ts: ts + 1, rrMs: 810)]), deviceId: "strap")
-        _ = try await store.insert(Streams(rr: [RRInterval(ts: ts, rrMs: 805, srcChannel: .whoop4Historical)]),
+        _ = try await store.insert(Streams(rr: [RRInterval(ts: ts, rrMs: 805, srcChannel: .whoop4Historical),
+                                                  RRInterval(ts: ts + 1, rrMs: 815, srcChannel: .whoop4Historical)]),
                                    deviceId: "strap")
 
         let selected = try await store.rrIntervals(deviceId: "strap", from: ts, to: ts + 1, limit: 100)
-        XCTAssertEqual(selected.map(\.rrMs), [805])
-        XCTAssertEqual(selected.map(\.srcChannel), [.whoop4Historical])
+        XCTAssertEqual(selected.map(\.rrMs), [805, 815])
+        XCTAssertEqual(selected.map(\.srcChannel), [.whoop4Historical, .whoop4Historical])
     }
 
     /// Upstream prefers the type-40 realtime label per UTC hour (aee05cb49); this fork keeps standard 0x2A37
-    /// ahead of realtime, per beat (`RRTransportReconciler`), and the labels rank as their transports do.
+    /// ahead of realtime (`RRTransportReconciler`), and the labels name the same paths as their transports.
     func testWhoop4StandardSourceWinsOverRealtimeAndLegacyRows() async throws {
         let store = try await WhoopStore.inMemory()
         try await store.upsertDevice(id: "strap", mac: nil, name: nil)
@@ -84,7 +85,11 @@ final class RrSourceChannelTests: XCTestCase {
         XCTAssertEqual(selected.map(\.srcChannel), [.whoop4Standard])
     }
 
-    func testWhoop4PartialHistoryKeepsUnlabelledRowsFromOtherHours() async throws {
+    /// Upstream reads the labelled history for any hour holding some; here it is read per five-minute
+    /// segment and only where it is nearly as complete as the fullest path. The first segment's history
+    /// covers every second the unlabelled rows do and wins; the second's covers one of three seconds,
+    /// so that segment keeps its complete unlabelled train instead of losing two beats to a partial offload.
+    func testWhoop4PartialHistoryYieldsToAFullerPathPerSegment() async throws {
         let store = try await WhoopStore.inMemory()
         try await store.upsertDevice(id: "strap", mac: nil, name: nil)
         try setRegistry(store)
@@ -104,9 +109,9 @@ final class RrSourceChannelTests: XCTestCase {
 
         let selected = try await store.rrIntervals(deviceId: "strap", from: base,
                                                     to: base + 7200, limit: 100)
-        XCTAssertEqual(selected.map(\.rrMs), [805, 815, 825])
+        XCTAssertEqual(selected.map(\.rrMs), [805, 815, 820, 830, 840])
         XCTAssertEqual(selected.map(\.srcChannel),
-                       [.whoop4Historical, .whoop4Historical, .whoop4Historical])
+                       [.whoop4Historical, .whoop4Historical, nil, nil, nil])
     }
 
     // MARK: - The label survives the mapping

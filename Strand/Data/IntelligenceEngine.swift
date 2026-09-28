@@ -150,7 +150,13 @@ final class IntelligenceEngine: ObservableObject {
     // ryanbr/noop#2522). The primary-session selection (the nap fix) stays, and the mean stays recorded as
     // the `rhr_primary_session` shadow metric. The pass reaches back to `restingHRMeanWindowStart` so no day
     // scored with the mean survives; no raw row is rewritten and the cardio ledger is not refilled.
-    static let currentAnalysisRecipeVersion = 11
+    // AI-12 (2026-09-28) changes which R-R beats every HRV, respiration and Charge input is built from: a
+    // WHOOP's delivery paths (history, standard 0x2A37, realtime) are chosen per five-minute segment instead
+    // of per beat, so a drifting offset between the strap's and the phone's clocks can no longer splice the
+    // two copies of a beat into one train (`RRTransportReconciler`, #1118). Per-night derivations inside
+    // the engine's window, so the standard bounded 21-day pass; no raw row is rewritten and the cardio
+    // ledger is not refilled.
+    static let currentAnalysisRecipeVersion = 12
 
     /// The recipe whose migration refills the cardio load ledger.
     static let cardioLedgerRecipe = 9
@@ -166,11 +172,14 @@ final class IntelligenceEngine: ObservableObject {
     /// The recipe that takes the daily resting HR back to the primary session's lowest 5-min bin.
     static let restingHRNadirRecipe = 11
 
+    /// The recipe that chooses a WHOOP's R-R delivery path per five-minute segment.
+    static let rrSegmentRecipe = 12
+
     /// Days of daily rows a migration from `from` must re-score: the standard window while a recipe that
-    /// changes daily rows (up to AI-8, AI-10 or AI-11) is still owed, none when only AI-9 is — the
+    /// changes daily rows (up to AI-8, AI-10, AI-11 or AI-12) is still owed, none when only AI-9 is — the
     /// narrowest interval each change can prove.
     static func migrationDailyDays(from: Int, standard: Int = 21) -> Int {
-        from < cardioLedgerRecipe - 1 || from < restingHRNadirRecipe ? standard : 0
+        from < cardioLedgerRecipe - 1 || from < rrSegmentRecipe ? standard : 0
     }
 
     /// The earliest day a build could have scored with #2358's whole-session mean: the upstream commit is
@@ -2378,6 +2387,23 @@ final class IntelligenceEngine: ObservableObject {
                         + "meanNN=\(ms(h.meanNN))ms rr=\(h.nInput)/\(h.nClean) rejected=\(rej)% coverage=\(cov) collapsedCov=\(colCov) dupBeats=\(dup) "
                         + "beatAccurate=\(acc) "
                         + "rrIntegrity=\(verdict.rawValue)"
+                    // #1118: which delivery paths the night's five-minute segments were read from, and how many
+                    // seams join two paths in the scored train. Costs one pass over rows already in hand.
+                    // On the newest night only,
+                    // also how far the standard-profile copy of a beat sits from its history copy, from the
+                    // stored rows: the clock offset the segment choice exists to be immune to, and the one
+                    // number that says whether that immunity is still needed.
+                    diagLine += "\nrr paths day=\(res.daily.day) \(RRDeliveryPaths.segmentCensus(sleepRrRows))"
+                    if offset == 0, let first = sleepRrRows.first, let last = sleepRrRows.last,
+                       let raw = try? await store.rawRrIntervals(deviceId: owner, from: first.ts,
+                                                                 to: last.ts, limit: Int.max) {
+                        let whoop5 = (try? await store.isWhoop5RRSource(
+                            deviceId: owner,
+                            unlabelledAliasOfWhoop5: activeWhoop5RR && owner == Repository.whoopSource)) ?? false
+                        if let lag = RRDeliveryPaths.standardMinusHistoryOffset(raw, whoop5: whoop5) {
+                            diagLine += "\nrr paths clock day=\(res.daily.day) standardMinusHistory=\(lag)"
+                        }
+                    }
                     // #1008: on an OVER-COUNT night only, append a raw-row sample around the densest second
                     // (carried as a second \n-joined line, split back apart at the emit site) so the
                     // over-count's MECHANISM is readable from the always-on log — clean nights stay quiet.

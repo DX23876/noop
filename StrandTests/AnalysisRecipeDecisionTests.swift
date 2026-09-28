@@ -22,32 +22,33 @@ final class AnalysisRecipeDecisionTests: XCTestCase {
     }
 
     /// The tests above are written against `current`, so they stay green through a bump without ever
-    /// witnessing one. This one names the numbers: an install carrying AI-10 (the 2026-09-26 upstream
-    /// scoring changes, with #2358's mean resting HR) must ask for AI-11 (the primary session's nadir), and
-    /// it must ask for it as `10 → 11`.
+    /// witnessing one. This one names the numbers: an install carrying AI-11 (the primary session's nadir)
+    /// must ask for AI-12 (R-R delivery paths chosen per five-minute segment), and it must ask for it as
+    /// `11 → 12`.
     ///
     /// It is deliberately a LITERAL pin. A future bump is supposed to make this line fail, because that
     /// failure is the prompt to answer CLAUDE.md's "Analysis migration required: yes/no" for whatever
     /// the bump carries — the question this file exists to stop anyone skipping.
-    func testRecipeVersionIsElevenAndAnAI10InstallMigratesToIt() {
-        XCTAssertEqual(IntelligenceEngine.currentAnalysisRecipeVersion, 11,
+    func testRecipeVersionIsTwelveAndAnAI11InstallMigratesToIt() {
+        XCTAssertEqual(IntelligenceEngine.currentAnalysisRecipeVersion, 12,
                        "recipe version changed — answer 'Analysis migration required' for what moved")
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 11),
+                       .migrate(from: 11, to: 12))
         XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 10),
-                       .migrate(from: 10, to: 11))
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 9),
-                       .migrate(from: 9, to: 11))
+                       .migrate(from: 10, to: 12))
         XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 8),
-                       .migrate(from: 8, to: 11))
+                       .migrate(from: 8, to: 12))
     }
 
-    /// AI-10 and AI-11 change daily rows, so every install below AI-11 re-scores at least the standard
-    /// window, an AI-9 or AI-10 one included. Only crossing AI-9 refills the cardio ledger.
-    func testAI10AndAI11RescoreTheStandardWindowWithoutRefillingTheLedger() {
+    /// AI-10, AI-11 and AI-12 change daily rows, so every install below AI-12 re-scores at least the
+    /// standard window, an AI-9, AI-10 or AI-11 one included. Only crossing AI-9 refills the cardio ledger.
+    func testAI10ToAI12RescoreTheStandardWindowWithoutRefillingTheLedger() {
         XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 9), 21)
         XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 10), 21)
-        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 11), 0)
-        XCTAssertFalse(IntelligenceEngine.migrationRefillsCardioLedger(from: 9, to: 11))
-        XCTAssertFalse(IntelligenceEngine.migrationRefillsCardioLedger(from: 10, to: 11))
+        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 11), 21)
+        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 12), 0)
+        XCTAssertFalse(IntelligenceEngine.migrationRefillsCardioLedger(from: 9, to: 12))
+        XCTAssertFalse(IntelligenceEngine.migrationRefillsCardioLedger(from: 11, to: 12))
     }
 
     /// AI-11 must reach every day a build could have scored with #2358's mean: back to 2026-09-02, never
@@ -77,10 +78,10 @@ final class AnalysisRecipeDecisionTests: XCTestCase {
     /// build number here would cause. Pinned because the mistake is invisible until someone's phone
     /// spends twenty minutes re-scoring after a cosmetic update.
     func testAnInstallAlreadyAtTheCurrentRecipeNeverRescoresOnRelaunch() {
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 11), .upToDate)
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 12), .upToDate)
         // And a database written by a NEWER build that was rolled back stays put rather than
         // "migrating" backwards into a rescore that would overwrite better values with worse ones.
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 12), .upToDate)
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 13), .upToDate)
     }
 
     // MARK: - The fork's own recipe lineage

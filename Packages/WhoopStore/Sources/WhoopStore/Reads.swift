@@ -238,7 +238,7 @@ extension WhoopStore {
             }
             let historyCount: Int = row["w5"]
             let registry: String = row["registry"]
-            return "v5|h\(hc):\(hm)|" + tails.joined(separator: "|")
+            return "v6|h\(hc):\(hm)|" + tails.joined(separator: "|")
                 + "|w5\(historyCount)|w7\(row["w7"] as Int)|tagged\(row["w5tagged"] as Int)"
                 + "|w4history\(row["w4history"] as Int)|registry\(registry)"
         }
@@ -271,25 +271,30 @@ extension WhoopStore {
     /// Returned as an opaque string: it is only ever compared to itself in memory, so no cross-platform or
     /// cross-launch byte identity is required. The Kotlin twin is `WhoopDao.dayStreamFingerprint`.
     public func dayStreamFingerprint(deviceId: String, from: Int, to: Int) async throws -> String {
-        try syncRead { db in
+        // `rrIntervals` chooses beats per whole five-minute segment, so a row just outside the window can
+        // change which beats inside it are scored. Witness R-R over the same whole segments.
+        let segment = RRTransportReconciler.segmentSeconds
+        let rrFrom = from > Int.min + segment ? RRTransportReconciler.segmentStart(from) : from
+        let rrTo = to < Int.max - segment ? RRTransportReconciler.segmentEnd(to) : to
+        return try syncRead { db in
             // Every sub-select is COUNT/COALESCE(MAX(...), 0), so each column is non-null and the aggregate
             // query always returns exactly one row — same idiom as `analysisFingerprint` above.
             guard let row = try Row.fetchOne(db, sql: """
                 SELECT
                   (SELECT COUNT(*) FROM ppgHrSample WHERE deviceId = :d AND ts >= :f AND ts <= :t) AS pc,
                   (SELECT COALESCE(MAX(ts), 0) FROM ppgHrSample WHERE deviceId = :d AND ts >= :f AND ts <= :t) AS pm,
-                  (SELECT COUNT(*) FROM rrInterval WHERE deviceId = :d AND ts >= :f AND ts <= :t
+                  (SELECT COUNT(*) FROM rrInterval WHERE deviceId = :d AND ts >= :rf AND ts <= :rt
                      AND (srcChannel IS NULL OR srcChannel <> :rrx)
                      AND (tsSuspect IS NULL OR tsSuspect <> 1)) AS rc,
-                  (SELECT COALESCE(MAX(ts), 0) FROM rrInterval WHERE deviceId = :d AND ts >= :f AND ts <= :t
+                  (SELECT COALESCE(MAX(ts), 0) FROM rrInterval WHERE deviceId = :d AND ts >= :rf AND ts <= :rt
                      AND (srcChannel IS NULL OR srcChannel <> :rrx)
                      AND (tsSuspect IS NULL OR tsSuspect <> 1)) AS rm,
-                  (SELECT COUNT(*) FROM rrInterval WHERE deviceId = :d AND ts >= :f AND ts <= :t
+                  (SELECT COUNT(*) FROM rrInterval WHERE deviceId = :d AND ts >= :rf AND ts <= :rt
                      AND srcChannel = 5 AND (tsSuspect IS NULL OR tsSuspect <> 1)) AS w5,
-                  (SELECT COUNT(*) FROM rrInterval WHERE deviceId = :d AND ts >= :f AND ts <= :t
+                  (SELECT COUNT(*) FROM rrInterval WHERE deviceId = :d AND ts >= :rf AND ts <= :rt
                      AND srcChannel = 7 AND (tsSuspect IS NULL OR tsSuspect <> 1)) AS w7,
                   EXISTS(SELECT 1 FROM rrInterval WHERE deviceId = :d AND srcChannel IN (5, 6, 7)) AS w5owner,
-                  (SELECT COUNT(*) FROM rrInterval WHERE deviceId = :d AND ts >= :f AND ts <= :t
+                  (SELECT COUNT(*) FROM rrInterval WHERE deviceId = :d AND ts >= :rf AND ts <= :rt
                      AND srcChannel = :whoop4Historical AND (tsSuspect IS NULL OR tsSuspect <> 1)) AS w4h,
                   COALESCE((SELECT QUOTE(brand) || ':' || QUOTE(model) FROM pairedDevice
                             WHERE id = :d), 'absent') AS registry,
@@ -309,7 +314,8 @@ extension WhoopStore {
                   (SELECT COALESCE(MAX(ts), 0) FROM event WHERE deviceId = :d AND ts >= :f AND ts <= :t) AS em
                 """, arguments: ["d": deviceId, "f": from, "t": to,
                                  "rrx": RRSourceChannel.spo2Ibi.rawValue,
-                                 "whoop4Historical": RRSourceChannel.whoop4Historical.rawValue]) else { return "" }
+                                 "whoop4Historical": RRSourceChannel.whoop4Historical.rawValue,
+                                 "rf": rrFrom, "rt": rrTo]) else { return "" }
             let keys = ["p", "r", "x", "o", "g", "z", "t", "b", "e"]
             let parts = keys.map { key -> String in
                 let count: Int = row[key + "c"], maxTs: Int = row[key + "m"]
@@ -318,7 +324,7 @@ extension WhoopStore {
             let historyCount: Int = row["w5"]
             let registry: String = row["registry"]
             let strictRR = try Self.isWhoop5RRSource(db: db, deviceId: deviceId)
-            return "s4|" + parts.joined(separator: "|") + "|w5\(historyCount)|w7\(row["w7"] as Int)"
+            return "s5|" + parts.joined(separator: "|") + "|w5\(historyCount)|w7\(row["w7"] as Int)"
                 + "|w4h\(row["w4h"] as Int)|ownerTagged\(row["w5owner"] as Int)|registry\(registry)|rr5=\(strictRR)"
         }
     }
@@ -425,8 +431,8 @@ extension WhoopStore {
     /// second's beats sorted by VALUE, which makes successive beats similar by construction and biases
     /// RMSSD — all successive differences — downward. Pre-v30 rows have `ord` NULL and SQLite sorts NULL
     /// first in ASC, so an all-NULL second ties and falls through to the old (rrMs, seq) order unchanged.
-    /// Several observations of one WHOOP beat are reconciled per beat, never per window; see
-    /// `RRTransportReconciler`.
+    /// Several delivery paths of one WHOOP's beats are reconciled one five-minute segment at a time, never
+    /// per requested window; see `RRTransportReconciler`.
     ///
     /// ONE optical channel (#1071). An Oura ring measures the same heartbeats on more than one tag, and
     /// every one of them is stored, so an unfiltered read returned roughly TWO complete copies of a night
@@ -471,10 +477,13 @@ extension WhoopStore {
     ///
     /// No window is withheld. Upstream reads one transport for the whole requested interval and so
     /// returns nothing for a night recorded before labels existed, which blanked HRV, respiratory rate and
-    /// Charge on update (#2101). Here every observation competes only with the others that cover the same
-    /// beat, in `RRTransportReconciler`, and a beat nothing better covers is kept. That includes a WHOOP 4:
-    /// its labelled type-47 history outranks the unlabelled standard-BLE copy of the same beat, instead of
-    /// taking the whole window as upstream does.
+    /// Charge on update (#2101). Here the delivery paths compete per five-minute segment in
+    /// `RRTransportReconciler`, and a segment no labelled path covers well keeps what it has. That
+    /// includes a WHOOP 4: its type-47 history is read wherever it is nearly complete, and the standard-BLE
+    /// feed wherever it is not, instead of one choice per hour as upstream makes.
+    ///
+    /// The segments the requested window touches are read IN FULL and cut back to `[from, to]` after the
+    /// choice, so a five-minute read selects exactly the beats a whole-night read does.
     ///
     /// The Oura channel choice (#2423) stays a window-level SQL predicate: it picks between two complete
     /// measurements of the same beats, which is a property of the capture rather than of one beat.
@@ -487,9 +496,12 @@ extension WhoopStore {
             // Several observations of one beat can coexist on disk. Read enough candidates for the
             // reconciler before applying the caller's cap.
             let candidateLimit = limit > Int.max / 4 ? Int.max : limit * 4
-            let rows = try Row.fetchAll(db, sql: """
+            let segment = RRTransportReconciler.segmentSeconds
+            let fetchFrom = from > Int.min + segment ? RRTransportReconciler.segmentStart(from) : from
+            let fetchTo = to < Int.max - segment ? RRTransportReconciler.segmentEnd(to) : to
+            var rows = try Row.fetchAll(db, sql: """
                 SELECT ts, rrMs, srcChannel, transport, ord, seq FROM rrInterval
-                WHERE deviceId = :d AND ts >= :f AND ts <= :t
+                WHERE deviceId = :d AND ts >= :ff AND ts <= :ft
                 AND (srcChannel IS NULL OR srcChannel <> :rrx)
                 AND (srcChannel IS NULL OR srcChannel NOT IN \(Self.scorableOuraChannels) OR (srcChannel = 1) = (
                     SELECT SUM(srcChannel = 1) > SUM(srcChannel <> 1) FROM rrInterval
@@ -497,7 +509,7 @@ extension WhoopStore {
                     AND (tsSuspect IS NULL OR tsSuspect <> 1)))
                 AND (tsSuspect IS NULL OR tsSuspect <> 1)   -- #1073: exclude future-stamped beats
                 ORDER BY ts ASC, ord ASC, rrMs ASC, seq ASC LIMIT :lim
-                """, arguments: ["d": deviceId, "f": from, "t": to,
+                """, arguments: ["d": deviceId, "f": from, "t": to, "ff": fetchFrom, "ft": fetchTo,
                                  "rrx": RRSourceChannel.spo2Ibi.rawValue, "lim": candidateLimit])
                 .map { row in
                     RRInterval(ts: row["ts"], rrMs: row["rrMs"],
@@ -505,12 +517,23 @@ extension WhoopStore {
                                transport: (row["transport"] as Int?).flatMap(RRTransport.init(rawValue:)),
                                ord: row["ord"] as Int?, seq: row["seq"])
                 }
+            // A fetch cut off by the candidate cap may end halfway through a segment, whose choice would
+            // then rest on part of its beats. Leave that segment out while another one remains to read.
+            if rows.count == candidateLimit, let last = rows.last {
+                let lastSegment = RRTransportReconciler.segment(last.ts)
+                if let lastEarlier = rows.lastIndex(where: {
+                    RRTransportReconciler.segment($0.ts) != lastSegment
+                }) {
+                    rows.removeSubrange((lastEarlier + 1)...)
+                }
+            }
+            let reconciled = RRTransportReconciler.reconcile(rows, whoop5: whoop5)
+                .filter { $0.ts >= from && $0.ts <= to }
             // A ring record served twice is stored twice: each connection anchors on its own SyncTime,
             // so the second copy lands a second or two off the first and misses the row key instead of
             // colliding with it (#2456). Collapsed HERE rather than at one scorer, so every SCORING
             // reader agrees: the damage shows up as a coverage over-count, and coverage is computed
             // from this read. The raw diagnostic export (`rawRrIntervals`) deliberately still shows both.
-            let reconciled = RRTransportReconciler.reconcile(rows, whoop5: whoop5)
             return Array(OuraRedrainCollapse.withoutRedrainedRuns(reconciled).prefix(limit))
         }
     }
