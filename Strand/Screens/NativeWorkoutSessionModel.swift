@@ -291,30 +291,25 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
         guard draft.exercises.indices.contains(exerciseIndex),
               draft.exercises[exerciseIndex].sets.indices.contains(setIndex) else { return }
         let old = draft.exercises[exerciseIndex].sets[setIndex].weightKg ?? 0
-        draft.exercises[exerciseIndex].sets[setIndex].weightKg = max(0, old + delta)
-        touchAndPersist()
+        editValues(exerciseIndex, setIndex) { $0.weightKg = max(0, old + delta) }
     }
 
     func adjustReps(exerciseIndex: Int, setIndex: Int, by delta: Int) {
         guard draft.exercises.indices.contains(exerciseIndex),
               draft.exercises[exerciseIndex].sets.indices.contains(setIndex) else { return }
         let old = draft.exercises[exerciseIndex].sets[setIndex].reps ?? 0
-        draft.exercises[exerciseIndex].sets[setIndex].reps = max(0, old + delta)
-        touchAndPersist()
+        editValues(exerciseIndex, setIndex) { $0.reps = max(0, old + delta) }
     }
 
     func adjustSideReps(exerciseIndex: Int, setIndex: Int, left: Bool, by delta: Int) {
         guard draft.exercises.indices.contains(exerciseIndex),
               draft.exercises[exerciseIndex].sets.indices.contains(setIndex) else { return }
-        if left {
-            let old = draft.exercises[exerciseIndex].sets[setIndex].leftReps ?? 0
-            draft.exercises[exerciseIndex].sets[setIndex].leftReps = max(0, old + delta)
-        } else {
-            let old = draft.exercises[exerciseIndex].sets[setIndex].rightReps ?? 0
-            draft.exercises[exerciseIndex].sets[setIndex].rightReps = max(0, old + delta)
+        let set = draft.exercises[exerciseIndex].sets[setIndex]
+        let value = max(0, ((left ? set.leftReps : set.rightReps) ?? 0) + delta)
+        editValues(exerciseIndex, setIndex) {
+            if left { $0.leftReps = value } else { $0.rightReps = value }
+            $0.reps = nil
         }
-        draft.exercises[exerciseIndex].sets[setIndex].reps = nil
-        touchAndPersist()
     }
 
     func setEffort(exerciseIndex: Int, setIndex: Int, scale: TrainingEffortScale, value: Double) {
@@ -331,34 +326,23 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
     }
 
     func setWeight(exerciseIndex: Int, setIndex: Int, kg: Double?) {
-        guard draft.exercises.indices.contains(exerciseIndex),
-              draft.exercises[exerciseIndex].sets.indices.contains(setIndex) else { return }
-        draft.exercises[exerciseIndex].sets[setIndex].weightKg = kg.map { max(0, $0) }
-        touchAndPersist()
+        editValues(exerciseIndex, setIndex) { $0.weightKg = kg.map { max(0, $0) } }
     }
 
     func setReps(exerciseIndex: Int, setIndex: Int, reps: Int?) {
-        guard draft.exercises.indices.contains(exerciseIndex),
-              draft.exercises[exerciseIndex].sets.indices.contains(setIndex) else { return }
-        draft.exercises[exerciseIndex].sets[setIndex].reps = reps.map { max(0, $0) }
-        touchAndPersist()
+        editValues(exerciseIndex, setIndex) { $0.reps = reps.map { max(0, $0) } }
     }
 
     func setSideReps(exerciseIndex: Int, setIndex: Int, left: Bool, reps: Int?) {
-        guard draft.exercises.indices.contains(exerciseIndex),
-              draft.exercises[exerciseIndex].sets.indices.contains(setIndex) else { return }
         let value = reps.map { max(0, $0) }
-        if left { draft.exercises[exerciseIndex].sets[setIndex].leftReps = value }
-        else { draft.exercises[exerciseIndex].sets[setIndex].rightReps = value }
-        draft.exercises[exerciseIndex].sets[setIndex].reps = nil
-        touchAndPersist()
+        editValues(exerciseIndex, setIndex) {
+            if left { $0.leftReps = value } else { $0.rightReps = value }
+            $0.reps = nil
+        }
     }
 
     func setDistance(exerciseIndex: Int, setIndex: Int, meters: Double?) {
-        guard draft.exercises.indices.contains(exerciseIndex),
-              draft.exercises[exerciseIndex].sets.indices.contains(setIndex) else { return }
-        draft.exercises[exerciseIndex].sets[setIndex].distanceM = meters.map { max(0, $0) }
-        touchAndPersist()
+        editValues(exerciseIndex, setIndex) { $0.distanceM = meters.map { max(0, $0) } }
     }
 
     func setExerciseNote(_ exerciseId: UUID, _ value: String) {
@@ -389,16 +373,14 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
         guard draft.exercises.indices.contains(exerciseIndex),
               draft.exercises[exerciseIndex].sets.indices.contains(setIndex) else { return }
         let old = draft.exercises[exerciseIndex].sets[setIndex].durationS ?? 0
-        draft.exercises[exerciseIndex].sets[setIndex].durationS = max(0, old + delta)
-        touchAndPersist()
+        editValues(exerciseIndex, setIndex) { $0.durationS = max(0, old + delta) }
     }
 
     func adjustDistance(exerciseIndex: Int, setIndex: Int, by delta: Double) {
         guard draft.exercises.indices.contains(exerciseIndex),
               draft.exercises[exerciseIndex].sets.indices.contains(setIndex) else { return }
         let old = draft.exercises[exerciseIndex].sets[setIndex].distanceM ?? 0
-        draft.exercises[exerciseIndex].sets[setIndex].distanceM = max(0, old + delta)
-        touchAndPersist()
+        editValues(exerciseIndex, setIndex) { $0.distanceM = max(0, old + delta) }
     }
 
     func setKind(exerciseIndex: Int, setIndex: Int, phase: TrainingSetPhase,
@@ -541,6 +523,15 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
         TrainingRestNotification.schedule(identifier: draft.id,
             at: Date(timeIntervalSince1970: TimeInterval(timer.endsAtTs)),
             kind: timer.kind, sound: TrainingPreferences.timerSoundEnabled)
+    }
+
+    /// A number typed or stepped into a set. The open sets riding along with it follow the change
+    /// (`NativeWorkoutEngine.editSet`), so a double-tap on the next set logs what the lifter now uses.
+    private func editValues(_ exerciseIndex: Int, _ setIndex: Int, _ edit: (inout NativeWorkoutSet) -> Void) {
+        guard draft.exercises.indices.contains(exerciseIndex),
+              draft.exercises[exerciseIndex].sets.indices.contains(setIndex) else { return }
+        NativeWorkoutEngine.editSet(setIndex, ofExercise: exerciseIndex, in: &draft, edit)
+        touchAndPersist()
     }
 
     private func reindexSets(_ exerciseIndex: Int) {
