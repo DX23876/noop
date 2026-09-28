@@ -42,10 +42,13 @@ public struct NOOPActivityAttributes: ActivityAttributes {
         public var setsDone: Int?
         public var setsTotal: Int?
         public var restEndsAt: Date?
+        /// Why the last strap double-tap was not logged, already localized by the app. OPTIONAL so an
+        /// activity started by an older build still decodes.
+        public var notice: String?
 
         public init(kind: Kind, title: String, elapsedAnchor: Date, pausedElapsedSeconds: Int?, zone: Int?,
                     distanceM: Double?, paceSecPerKm: Double?, setsDone: Int?, setsTotal: Int?,
-                    restEndsAt: Date?) {
+                    restEndsAt: Date?, notice: String? = nil) {
             self.kind = kind
             self.title = title
             self.elapsedAnchor = elapsedAnchor
@@ -56,6 +59,7 @@ public struct NOOPActivityAttributes: ActivityAttributes {
             self.setsDone = setsDone
             self.setsTotal = setsTotal
             self.restEndsAt = restEndsAt
+            self.notice = notice
         }
     }
 

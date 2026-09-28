@@ -2723,5 +2723,18 @@
   "During a strength workout, a double-tap on the strap logs the next set": "Podczas treningu siłowego podwójne stuknięcie w opaskę zapisuje następną serię",
   "Buzz the strap before rest ends": "Wibracja opaski przed końcem przerwy",
   "The strap vibrates three times five seconds before a rest ends": "Opaska wibruje trzy razy pięć sekund przed końcem przerwy",
-  "During a strength workout a double-tap on the strap completes the next set with the numbers already in its row, and one buzz confirms it. A second double-tap within five seconds is ignored as a knock. Outside a workout the double-tap keeps its own action.": "Podczas treningu siłowego podwójne stuknięcie w opaskę kończy następną serię z wartościami, które są już w jej wierszu, a jedna wibracja to potwierdza. Drugie podwójne stuknięcie w ciągu pięciu sekund jest ignorowane jako przypadkowe uderzenie. Poza treningiem podwójne stuknięcie zachowuje własną akcję."
+  "During a strength workout a double-tap on the strap completes the next set with the numbers already in its row, and one buzz confirms it. A second double-tap within five seconds is ignored as a knock. Outside a workout the double-tap keeps its own action.": "Podczas treningu siłowego podwójne stuknięcie w opaskę kończy następną serię z wartościami, które są już w jej wierszu, a jedna wibracja to potwierdza. Drugie podwójne stuknięcie w ciągu pięciu sekund jest ignorowane jako przypadkowe uderzenie. Poza treningiem podwójne stuknięcie zachowuje własną akcję.",
+  "Double-tap not logged: every set is done": "Podwójne stuknięcie nie zapisane: wszystkie serie są zrobione",
+  "Double-tap not logged: the workout is paused": "Podwójne stuknięcie nie zapisane: trening jest wstrzymany",
+  "Double-tap not logged: under 5 seconds after the last one": "Podwójne stuknięcie nie zapisane: mniej niż 5 sekund po poprzednim",
+  "Double-tap the strap to complete the next set with the numbers in its row. Change a number first and the sets after it follow.": "Stuknij dwa razy w opaskę, aby zakończyć następną serię z wartościami z jej wiersza. Jeśli najpierw zmienisz liczbę, kolejne serie ją przejmą.",
+  "Double-tap the strap: next set": "Podwójne stuknięcie w opaskę: następna seria",
+  "How strap logging works": "Jak działa zapisywanie opaską",
+  "Log sets with the strap": "Zapisuj serie opaską",
+  "Not logged, the phone and Lock Screen say why": "Nie zapisano, telefon i ekran blokady podają powód",
+  "Not logged: set %lld of %@ has no numbers yet": "Nie zapisano: seria %lld ćwiczenia %@ nie ma jeszcze wartości",
+  "Rest ends in 5 seconds": "Przerwa kończy się za 5 sekund",
+  "Set logged": "Seria zapisana",
+  "Timed set over": "Seria na czas zakończona",
+  "Turn it off in Settings › Training.": "Wyłącz w Ustawienia › Trening."
 }

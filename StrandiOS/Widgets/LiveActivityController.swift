@@ -307,7 +307,8 @@ final class LiveActivityController {
               elapsedAnchor: snapshot.elapsedAnchor,
               pausedElapsedSeconds: snapshot.pausedAt == nil ? nil : snapshot.activeSeconds(at: now),
               zone: snapshot.zone, distanceM: snapshot.distanceM, paceSecPerKm: snapshot.paceSecPerKm,
-              setsDone: snapshot.setsDone, setsTotal: snapshot.setsTotal, restEndsAt: snapshot.restEndsAt)
+              setsDone: snapshot.setsDone, setsTotal: snapshot.setsTotal, restEndsAt: snapshot.restEndsAt,
+              notice: snapshot.notice)
     }
 
     /// Changes the Lock Screen must reflect immediately rather than on the next throttled push.
@@ -316,6 +317,7 @@ final class LiveActivityController {
         guard let old else { return true }
         return (old.pausedElapsedSeconds == nil) != (new.pausedElapsedSeconds == nil)
             || old.restEndsAt != new.restEndsAt
+            || old.notice != new.notice
             || old.setsDone != new.setsDone
             || old.setsTotal != new.setsTotal
             || old.title != new.title

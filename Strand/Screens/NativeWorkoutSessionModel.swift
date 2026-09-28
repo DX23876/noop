@@ -18,6 +18,9 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
     @Published var sessionRPE: Double?
     @Published var errorMessage: String?
     @Published var watchFinishRequested = false
+    /// Why the last strap double-tap or Watch "complete set" was not acted on, shown on the phone and the
+    /// Lock Screen: the missing buzz alone does not say why. Cleared by the next completed set, or dismissed.
+    @Published private(set) var strapNotice: String?
 
     nonisolated let id = UUID()
     private let repo: Repository
@@ -220,6 +223,7 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
               draft.exercises[exerciseIndex].sets.indices.contains(setIndex) else { return }
         draft.exercises[exerciseIndex].sets[setIndex].isCompleted.toggle()
         if draft.exercises[exerciseIndex].sets[setIndex].isCompleted {
+            strapNotice = nil
             draft.cursor = .init(exerciseId: draft.exercises[exerciseIndex].id,
                 setId: draft.exercises[exerciseIndex].sets.first(where: { !$0.isCompleted })?.id)
             startRestAfterCompletedSet(exerciseIndex: exerciseIndex, setIndex: setIndex)
@@ -575,6 +579,8 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
             guard isLoggableUnseen(exerciseIndex: activeExerciseIndex, setIndex: setIndex) else {
                 strapLog("Strength session: Watch \"complete set\" not acted on, set \(setIndex + 1) of "
                          + "\(title(ofExercise: activeExerciseIndex)) has no numbers to log")
+                showStrapNotice(Self.missingNumbersNotice(set: setIndex + 1,
+                                                          exercise: title(ofExercise: activeExerciseIndex)))
                 return
             }
             toggleSet(exerciseIndex: activeExerciseIndex, setIndex: setIndex)
@@ -607,29 +613,36 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
         guard !isRetrospective else { return }
         guard draft.state == .active else {
             strapLog("Strength session: double-tap not acted on, the workout is paused")
+            showStrapNotice(String(localized: "Double-tap not logged: the workout is paused"))
             return
         }
         if let last = lastStrapStepAt, Self.isKnock(secondsSinceLastStep: now - last) {
             // No buzz: the missing confirmation is the lifter's cue to tap again.
             strapLog("Strength session: double-tap not acted on, \(now - last) s after the last one it acted on "
                      + "(under \(Self.strapKnockWindowSec) s is taken as a knock)")
+            showStrapNotice(String(localized: "Double-tap not logged: under 5 seconds after the last one"))
             return
         }
         let finishesTimedSet = draft.timer?.kind == .timedSet
         let next = finishesTimedSet ? nil : NativeWorkoutEngine.nextOpenSet(in: draft)
         guard finishesTimedSet || next != nil else {
             strapLog("Strength session: double-tap not acted on, every set is done")
+            showStrapNotice(String(localized: "Double-tap not logged: every set is done"))
             return
         }
         if let next, !isLoggableUnseen(exerciseIndex: next.exercise, setIndex: next.set) {
             // No buzz: the missing confirmation sends the lifter to the phone, where the empty field shows.
             strapLog("Strength session: double-tap not acted on, set \(next.set + 1) of "
                      + "\(title(ofExercise: next.exercise)) has no numbers to log")
+            showStrapNotice(Self.missingNumbersNotice(set: next.set + 1, exercise: title(ofExercise: next.exercise)))
             return
         }
         lastStrapStepAt = now
+        // The first set logged from the strap shows the lifter has found the feature: the tip card retires.
+        UserDefaults.standard.set(true, forKey: TrainingPreferences.strapTapTipDoneKey)
         // Buzz first: the confirmation is a latency signal and must not queue behind the save below.
         strapBuzz(Self.strapConfirmBuzzes)
+        strapNotice = nil
         if finishesTimedSet {
             finishTimedSet()
             strapLog("Strength session: double-tap finished the timed set")
@@ -647,6 +660,21 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
         let exercise = draft.exercises[exerciseIndex]
         return NativeWorkoutEngine.hasLoggableValues(exercise.sets[setIndex],
                                                      mode: exerciseModes[exercise.exerciseId])
+    }
+
+    func dismissStrapNotice() {
+        guard strapNotice != nil else { return }
+        strapNotice = nil
+        controller.publishActivity()
+    }
+
+    private func showStrapNotice(_ text: String) {
+        strapNotice = text
+        controller.publishActivity()
+    }
+
+    static func missingNumbersNotice(set: Int, exercise: String) -> String {
+        String(localized: "Not logged: set \(set) of \(exercise) has no numbers yet")
     }
 
     private func title(ofExercise index: Int) -> String {

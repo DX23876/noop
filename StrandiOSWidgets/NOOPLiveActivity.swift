@@ -134,6 +134,19 @@ private struct WorkoutActivityBanner: View {
     let bpm: Int?
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            stats
+            // Why the last strap double-tap was not logged: the missing buzz alone does not say.
+            if let notice = workout.notice {
+                Label { Text(verbatim: notice) } icon: { Image(systemName: "hand.tap") }
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(StrandPalette.statusWarning)
+                    .lineLimit(2)
+            }
+        }
+    }
+
+    private var stats: some View {
         HStack(alignment: .center, spacing: 14) {
             Image(systemName: WorkoutActivityLink.symbol(workout.kind))
                 .font(.title2)

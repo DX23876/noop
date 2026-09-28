@@ -1587,5 +1587,18 @@
   "During a strength workout, a double-tap on the strap logs the next set": "Durante um treino de força, um toque duplo na pulseira regista a série seguinte",
   "Buzz the strap before rest ends": "Vibrar a pulseira antes do fim do descanso",
   "The strap vibrates three times five seconds before a rest ends": "A pulseira vibra três vezes cinco segundos antes do fim do descanso",
-  "During a strength workout a double-tap on the strap completes the next set with the numbers already in its row, and one buzz confirms it. A second double-tap within five seconds is ignored as a knock. Outside a workout the double-tap keeps its own action.": "Durante um treino de força, um toque duplo na pulseira conclui a série seguinte com os valores que já estão na sua linha, e uma vibração confirma. Um segundo toque duplo em menos de cinco segundos é ignorado como uma pancada. Fora de um treino, o toque duplo mantém a sua própria ação."
+  "During a strength workout a double-tap on the strap completes the next set with the numbers already in its row, and one buzz confirms it. A second double-tap within five seconds is ignored as a knock. Outside a workout the double-tap keeps its own action.": "Durante um treino de força, um toque duplo na pulseira conclui a série seguinte com os valores que já estão na sua linha, e uma vibração confirma. Um segundo toque duplo em menos de cinco segundos é ignorado como uma pancada. Fora de um treino, o toque duplo mantém a sua própria ação.",
+  "Double-tap not logged: every set is done": "Toque duplo não registado: todas as séries estão feitas",
+  "Double-tap not logged: the workout is paused": "Toque duplo não registado: o treino está em pausa",
+  "Double-tap not logged: under 5 seconds after the last one": "Toque duplo não registado: menos de 5 segundos após o anterior",
+  "Double-tap the strap to complete the next set with the numbers in its row. Change a number first and the sets after it follow.": "Toque duas vezes na pulseira para concluir a série seguinte com os valores da sua linha. Se alterar primeiro um número, as séries seguintes acompanham.",
+  "Double-tap the strap: next set": "Toque duplo na pulseira: série seguinte",
+  "How strap logging works": "Como funciona o registo pela pulseira",
+  "Log sets with the strap": "Registar séries com a pulseira",
+  "Not logged, the phone and Lock Screen say why": "Não registado, o telemóvel e o ecrã bloqueado indicam porquê",
+  "Not logged: set %lld of %@ has no numbers yet": "Não registado: a série %lld de %@ ainda não tem valores",
+  "Rest ends in 5 seconds": "O descanso termina em 5 segundos",
+  "Set logged": "Série registada",
+  "Timed set over": "Série cronometrada terminada",
+  "Turn it off in Settings › Training.": "Desative em Definições › Treino."
 }

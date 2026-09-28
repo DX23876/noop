@@ -1588,5 +1588,18 @@
   "During a strength workout, a double-tap on the strap logs the next set": "Pendant une séance de force, un double tape sur le bracelet enregistre la série suivante",
   "Buzz the strap before rest ends": "Faire vibrer le bracelet avant la fin du repos",
   "The strap vibrates three times five seconds before a rest ends": "Le bracelet vibre trois fois cinq secondes avant la fin du repos",
-  "During a strength workout a double-tap on the strap completes the next set with the numbers already in its row, and one buzz confirms it. A second double-tap within five seconds is ignored as a knock. Outside a workout the double-tap keeps its own action.": "Pendant une séance de force, un double tape sur le bracelet valide la série suivante avec les valeurs déjà présentes sur sa ligne, et une vibration le confirme. Un second double tape dans les cinq secondes est ignoré comme un choc. Hors séance, le double tape garde sa propre action."
+  "During a strength workout a double-tap on the strap completes the next set with the numbers already in its row, and one buzz confirms it. A second double-tap within five seconds is ignored as a knock. Outside a workout the double-tap keeps its own action.": "Pendant une séance de force, un double tape sur le bracelet valide la série suivante avec les valeurs déjà présentes sur sa ligne, et une vibration le confirme. Un second double tape dans les cinq secondes est ignoré comme un choc. Hors séance, le double tape garde sa propre action.",
+  "Double-tap not logged: every set is done": "Double tape non enregistré : toutes les séries sont faites",
+  "Double-tap not logged: the workout is paused": "Double tape non enregistré : la séance est en pause",
+  "Double-tap not logged: under 5 seconds after the last one": "Double tape non enregistré : moins de 5 secondes après le précédent",
+  "Double-tap the strap to complete the next set with the numbers in its row. Change a number first and the sets after it follow.": "Tapez deux fois sur le bracelet pour valider la série suivante avec les valeurs de sa ligne. Si vous changez d'abord un nombre, les séries suivantes le reprennent.",
+  "Double-tap the strap: next set": "Double tape sur le bracelet : série suivante",
+  "How strap logging works": "Comment fonctionne l'enregistrement par le bracelet",
+  "Log sets with the strap": "Enregistrer les séries avec le bracelet",
+  "Not logged, the phone and Lock Screen say why": "Non enregistré, le téléphone et l'écran verrouillé indiquent pourquoi",
+  "Not logged: set %lld of %@ has no numbers yet": "Non enregistré : la série %lld de %@ n'a pas encore de valeurs",
+  "Rest ends in 5 seconds": "Le repos se termine dans 5 secondes",
+  "Set logged": "Série enregistrée",
+  "Timed set over": "Série chronométrée terminée",
+  "Turn it off in Settings › Training.": "Désactivez-le dans Réglages › Entraînement."
 }

@@ -1586,5 +1586,18 @@
   "During a strength workout, a double-tap on the strap logs the next set": "Im Krafttraining loggt ein Doppeltipp auf den Strap den nächsten Satz",
   "Buzz the strap before rest ends": "Strap vibriert vor Pausenende",
   "The strap vibrates three times five seconds before a rest ends": "Der Strap vibriert fünf Sekunden vor Pausenende dreimal",
-  "During a strength workout a double-tap on the strap completes the next set with the numbers already in its row, and one buzz confirms it. A second double-tap within five seconds is ignored as a knock. Outside a workout the double-tap keeps its own action.": "Im Krafttraining schließt ein Doppeltipp auf den Strap den nächsten Satz mit den Werten ab, die schon in seiner Zeile stehen. Ein Vibrieren bestätigt es. Ein zweiter Doppeltipp innerhalb von fünf Sekunden gilt als Stoß und wird ignoriert. Außerhalb eines Trainings behält der Doppeltipp seine eigene Aktion."
+  "During a strength workout a double-tap on the strap completes the next set with the numbers already in its row, and one buzz confirms it. A second double-tap within five seconds is ignored as a knock. Outside a workout the double-tap keeps its own action.": "Im Krafttraining schließt ein Doppeltipp auf den Strap den nächsten Satz mit den Werten ab, die schon in seiner Zeile stehen. Ein Vibrieren bestätigt es. Ein zweiter Doppeltipp innerhalb von fünf Sekunden gilt als Stoß und wird ignoriert. Außerhalb eines Trainings behält der Doppeltipp seine eigene Aktion.",
+  "Double-tap not logged: every set is done": "Doppeltipp nicht geloggt: alle Sätze sind erledigt",
+  "Double-tap not logged: the workout is paused": "Doppeltipp nicht geloggt: das Training ist pausiert",
+  "Double-tap not logged: under 5 seconds after the last one": "Doppeltipp nicht geloggt: weniger als 5 Sekunden nach dem letzten",
+  "Double-tap the strap to complete the next set with the numbers in its row. Change a number first and the sets after it follow.": "Tippe zweimal auf den Strap, um den nächsten Satz mit den Werten seiner Zeile abzuschließen. Änderst du vorher eine Zahl, ziehen die Sätze danach mit.",
+  "Double-tap the strap: next set": "Doppeltipp auf den Strap: nächster Satz",
+  "How strap logging works": "So funktioniert das Loggen per Strap",
+  "Log sets with the strap": "Sätze mit dem Strap loggen",
+  "Not logged, the phone and Lock Screen say why": "Nicht geloggt, Handy und Sperrbildschirm zeigen den Grund",
+  "Not logged: set %lld of %@ has no numbers yet": "Nicht geloggt: Satz %lld von %@ hat noch keine Zahlen",
+  "Rest ends in 5 seconds": "Pause endet in 5 Sekunden",
+  "Set logged": "Satz geloggt",
+  "Timed set over": "Zeitsatz vorbei",
+  "Turn it off in Settings › Training.": "Abschalten unter Einstellungen › Training."
 }

@@ -29,6 +29,8 @@ enum TrainingPreferences {
     static let hapticsKey = "training.timerHaptics"
     static let timerFeedbackKey = "training.timerFeedback"
     static let strapDoubleTapKey = "training.strapDoubleTapLogsSet"
+    /// Set once the strap double-tap tip in a running session is dismissed or a set is logged from the strap.
+    static let strapTapTipDoneKey = "training.strapTapTipDone"
     static let weekStartKey = "training.weekStartsOn"
     static let activeLayoutKey = "training.activeWorkout.layout"
     static let equipmentKey = "training.availableEquipment"

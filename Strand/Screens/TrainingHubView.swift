@@ -1003,6 +1003,7 @@ struct NativeWorkoutLoggerView: View {
     @AppStorage(TrainingPreferences.effortKey) private var effortRaw = TrainingEffortPreference.rpe.rawValue
     @AppStorage(TrainingPreferences.mediaPresentationKey) private var mediaPresentationRaw = TrainingMediaPresentation.large.rawValue
     @AppStorage(TrainingPreferences.hapticsKey) private var hapticsEnabled = true
+    @AppStorage(TrainingPreferences.strapDoubleTapKey) private var strapDoubleTapLogsSet = true
     #if os(macOS)
     @State private var macActivity: NSObjectProtocol?
     #endif
@@ -1020,6 +1021,10 @@ struct NativeWorkoutLoggerView: View {
                 LazyVStack(spacing: 14) {
                     WorkoutLoggerHeader(model: model)
                     if !model.isRetrospective { physiologyCard }
+                    if showsStrapTapHint { StrapTapHint() }
+                    if let notice = model.strapNotice {
+                        StrapTapNotice(text: notice) { model.dismissStrapNotice() }
+                    }
                     workoutContent
                     Button { showingExercises = true } label: {
                         Label("Add exercise", systemImage: "plus.circle.fill")
@@ -1135,6 +1140,12 @@ struct NativeWorkoutLoggerView: View {
 
     private var layout: ActiveWorkoutLayout {
         ActiveWorkoutLayout(rawValue: layoutRaw) ?? .focus
+    }
+
+    /// The strap double-tap is explained only where it works: a live session recording from the strap,
+    /// with the Training setting on.
+    private var showsStrapTapHint: Bool {
+        !model.isRetrospective && strapDoubleTapLogsSet && model.draft.physiologyProvider == .noopBand
     }
 
     private var effortPreference: TrainingEffortPreference {

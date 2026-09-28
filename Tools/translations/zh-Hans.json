@@ -1688,5 +1688,18 @@
   "During a strength workout, a double-tap on the strap logs the next set": "力量训练中，双击手环会记录下一组",
   "Buzz the strap before rest ends": "休息结束前手环振动",
   "The strap vibrates three times five seconds before a rest ends": "休息结束前五秒手环振动三次",
-  "During a strength workout a double-tap on the strap completes the next set with the numbers already in its row, and one buzz confirms it. A second double-tap within five seconds is ignored as a knock. Outside a workout the double-tap keeps its own action.": "力量训练中，双击手环会用该行已有的数值完成下一组，并以一次振动确认。五秒内的第二次双击会被视为碰撞而忽略。训练之外，双击保持其原有操作。"
+  "During a strength workout a double-tap on the strap completes the next set with the numbers already in its row, and one buzz confirms it. A second double-tap within five seconds is ignored as a knock. Outside a workout the double-tap keeps its own action.": "力量训练中，双击手环会用该行已有的数值完成下一组，并以一次振动确认。五秒内的第二次双击会被视为碰撞而忽略。训练之外，双击保持其原有操作。",
+  "Double-tap not logged: every set is done": "双击未记录：所有组都已完成",
+  "Double-tap not logged: the workout is paused": "双击未记录：训练已暂停",
+  "Double-tap not logged: under 5 seconds after the last one": "双击未记录：距上次不到 5 秒",
+  "Double-tap the strap to complete the next set with the numbers in its row. Change a number first and the sets after it follow.": "双击手环即可用该行的数值完成下一组。先修改某个数值，之后的组会随之调整。",
+  "Double-tap the strap: next set": "双击手环：下一组",
+  "How strap logging works": "手环记录的工作方式",
+  "Log sets with the strap": "用手环记录组",
+  "Not logged, the phone and Lock Screen say why": "未记录，手机和锁屏会显示原因",
+  "Not logged: set %lld of %@ has no numbers yet": "未记录：%2$@ 的第 %1$lld 组还没有数值",
+  "Rest ends in 5 seconds": "休息将在 5 秒后结束",
+  "Set logged": "已记录该组",
+  "Timed set over": "计时组结束",
+  "Turn it off in Settings › Training.": "可在 设置 › 训练 中关闭。"
 }

@@ -1564,5 +1564,18 @@
   "During a strength workout, a double-tap on the strap logs the next set": "Во время силовой тренировки двойное касание браслета записывает следующий подход",
   "Buzz the strap before rest ends": "Вибрация браслета перед концом отдыха",
   "The strap vibrates three times five seconds before a rest ends": "Браслет вибрирует три раза за пять секунд до конца отдыха",
-  "During a strength workout a double-tap on the strap completes the next set with the numbers already in its row, and one buzz confirms it. A second double-tap within five seconds is ignored as a knock. Outside a workout the double-tap keeps its own action.": "Во время силовой тренировки двойное касание браслета завершает следующий подход со значениями, которые уже указаны в его строке, и одна вибрация подтверждает это. Второе двойное касание в течение пяти секунд считается случайным ударом и игнорируется. Вне тренировки двойное касание выполняет своё обычное действие."
+  "During a strength workout a double-tap on the strap completes the next set with the numbers already in its row, and one buzz confirms it. A second double-tap within five seconds is ignored as a knock. Outside a workout the double-tap keeps its own action.": "Во время силовой тренировки двойное касание браслета завершает следующий подход со значениями, которые уже указаны в его строке, и одна вибрация подтверждает это. Второе двойное касание в течение пяти секунд считается случайным ударом и игнорируется. Вне тренировки двойное касание выполняет своё обычное действие.",
+  "Double-tap not logged: every set is done": "Двойное касание не записано: все подходы выполнены",
+  "Double-tap not logged: the workout is paused": "Двойное касание не записано: тренировка на паузе",
+  "Double-tap not logged: under 5 seconds after the last one": "Двойное касание не записано: меньше 5 секунд после предыдущего",
+  "Double-tap the strap to complete the next set with the numbers in its row. Change a number first and the sets after it follow.": "Дважды коснитесь браслета, чтобы завершить следующий подход со значениями из его строки. Если сначала изменить число, следующие подходы подстроятся.",
+  "Double-tap the strap: next set": "Двойное касание браслета: следующий подход",
+  "How strap logging works": "Как работает запись браслетом",
+  "Log sets with the strap": "Записывать подходы браслетом",
+  "Not logged, the phone and Lock Screen say why": "Не записано, причина видна на телефоне и экране блокировки",
+  "Not logged: set %lld of %@ has no numbers yet": "Не записано: у подхода %lld упражнения %@ ещё нет значений",
+  "Rest ends in 5 seconds": "Отдых закончится через 5 секунд",
+  "Set logged": "Подход записан",
+  "Timed set over": "Подход на время завершён",
+  "Turn it off in Settings › Training.": "Отключается в Настройки › Тренировки."
 }

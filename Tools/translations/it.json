@@ -1681,5 +1681,18 @@
   "During a strength workout, a double-tap on the strap logs the next set": "Durante un allenamento di forza, un doppio tocco sul bracciale registra la serie successiva",
   "Buzz the strap before rest ends": "Vibrazione del bracciale prima della fine del recupero",
   "The strap vibrates three times five seconds before a rest ends": "Il bracciale vibra tre volte cinque secondi prima della fine del recupero",
-  "During a strength workout a double-tap on the strap completes the next set with the numbers already in its row, and one buzz confirms it. A second double-tap within five seconds is ignored as a knock. Outside a workout the double-tap keeps its own action.": "Durante un allenamento di forza, un doppio tocco sul bracciale completa la serie successiva con i valori già presenti nella sua riga, e una vibrazione lo conferma. Un secondo doppio tocco entro cinque secondi viene ignorato come un urto. Fuori dall'allenamento il doppio tocco mantiene la sua azione."
+  "During a strength workout a double-tap on the strap completes the next set with the numbers already in its row, and one buzz confirms it. A second double-tap within five seconds is ignored as a knock. Outside a workout the double-tap keeps its own action.": "Durante un allenamento di forza, un doppio tocco sul bracciale completa la serie successiva con i valori già presenti nella sua riga, e una vibrazione lo conferma. Un secondo doppio tocco entro cinque secondi viene ignorato come un urto. Fuori dall'allenamento il doppio tocco mantiene la sua azione.",
+  "Double-tap not logged: every set is done": "Doppio tocco non registrato: tutte le serie sono fatte",
+  "Double-tap not logged: the workout is paused": "Doppio tocco non registrato: l'allenamento è in pausa",
+  "Double-tap not logged: under 5 seconds after the last one": "Doppio tocco non registrato: meno di 5 secondi dopo il precedente",
+  "Double-tap the strap to complete the next set with the numbers in its row. Change a number first and the sets after it follow.": "Tocca due volte il bracciale per completare la serie successiva con i valori della sua riga. Se prima cambi un numero, le serie successive lo seguono.",
+  "Double-tap the strap: next set": "Doppio tocco sul bracciale: serie successiva",
+  "How strap logging works": "Come funziona la registrazione con il bracciale",
+  "Log sets with the strap": "Registra le serie con il bracciale",
+  "Not logged, the phone and Lock Screen say why": "Non registrato, il telefono e la schermata di blocco dicono perché",
+  "Not logged: set %lld of %@ has no numbers yet": "Non registrato: la serie %lld di %@ non ha ancora valori",
+  "Rest ends in 5 seconds": "Il recupero finisce tra 5 secondi",
+  "Set logged": "Serie registrata",
+  "Timed set over": "Serie a tempo finita",
+  "Turn it off in Settings › Training.": "Disattivalo in Impostazioni › Allenamento."
 }

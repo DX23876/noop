@@ -489,7 +489,8 @@ final class ActiveSessionController: ObservableObject {
                 pausedAt: open.map { Date(timeIntervalSince1970: TimeInterval($0)) },
                 pausedSeconds: TimeInterval(closedPaused), bpm: bpm, zone: zone(bpm),
                 distanceM: nil, paceSecPerKm: nil,
-                setsDone: sets.filter(\.isCompleted).count, setsTotal: sets.count, restEndsAt: restEnds)
+                setsDone: sets.filter(\.isCompleted).count, setsTotal: sets.count, restEndsAt: restEnds,
+                notice: strength.strapNotice)
         }
         if let workout = app.activeWorkout {
             let gps = app.gpsRecorder

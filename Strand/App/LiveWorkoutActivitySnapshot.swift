@@ -23,6 +23,8 @@ struct LiveWorkoutActivitySnapshot: Equatable {
     var setsTotal: Int?
     /// End of the current strength rest, when one is counting down.
     var restEndsAt: Date?
+    /// Why the last strap double-tap was not logged, until the next set is completed.
+    var notice: String? = nil
 
     /// The instant elapsed time counts from once pauses are taken out, for a system-rendered timer.
     var elapsedAnchor: Date { startedAt.addingTimeInterval(pausedSeconds) }
