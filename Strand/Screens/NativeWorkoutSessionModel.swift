@@ -107,13 +107,17 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
     }
 
     func addExercise(_ exercise: TrainingExercise) {
-        let initial = exercise.isUnilateral
-            ? NativeWorkoutSet(index: 0, weightKg: exercise.mode == .bodyweightReps ? nil : 0,
-                               leftReps: 8, rightReps: 8)
-            : NativeWorkoutSet(index: 0, weightKg: exercise.mode == .bodyweightReps ? nil : 0,
-                               reps: 8)
+        // The same numbers a session started with this exercise would show: its last performance, native
+        // first, then imported. Without one, the weight is left empty rather than a loggable 0 kg.
+        let last = controller.context.performance.latest(for: exercise.id)?.sets.enumerated().map { index, prior in
+            NativeWorkoutSet(index: index, phase: prior.isWarmup ? .warmup : .work, weightKg: prior.weightKg,
+                             reps: prior.reps, leftReps: prior.leftReps, rightReps: prior.rightReps,
+                             durationS: prior.durationS, distanceM: prior.distanceM)
+        } ?? []
+        let initial = NativeWorkoutEngine.setsForAddedExercise(lastPerformance: last,
+                                                               unilateral: exercise.isUnilateral)
         NativeWorkoutEngine.addExercise(exercise.id, to: &draft,
-            sets: [initial], definition: exercise)
+            sets: initial, definition: exercise)
         if let index = draft.exercises.indices.last {
             draft.exercises[index].restSeconds = UserDefaults.standard.object(
                 forKey: TrainingPreferences.defaultRestKey) as? Int
