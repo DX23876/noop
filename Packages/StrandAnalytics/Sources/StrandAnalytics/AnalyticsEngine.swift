@@ -705,14 +705,17 @@ public enum AnalyticsEngine {
         // call site" a scattered filter invites.
         let physiologyOnly = matched.filter { !$0.hrOnly }
         let physiologySessions = physiologyOnly.isEmpty ? matched : physiologyOnly
-        // Resting Heart Rate: Use PrimarySessionRestingHR (arithmetic sample mean of the longest/primary
-        // sleep session, #1169), eliminating daytime nap floor distortion.
-        // #804: Preserve ring/device-provided resting HR when present in `providedSleep`.
-        // Cleanly falls back to physiologySessions.compactMap { $0.restingHR }.min() when coverage is sparse.
-        let providedPrimaryRHR = physiologySessions.max(by: { ($0.end - $0.start) < ($1.end - $1.start) })
+        // Resting heart rate: the lowest 5-min bin of the PRIMARY (longest) session. Taking the primary
+        // session is #2358's nap fix, so a short low-HR nap can no longer replace the main night. This fork
+        // keeps the nadir as the definition instead of #2358's whole-session mean (docs/fork/decisions.md,
+        // 2026-09-28; ryanbr/noop#2522). The mean is still recorded beside it as the `rhr_primary_session`
+        // shadow metric. #804: a ring/device-provided resting HR for the primary session wins outright.
+        // Falls back to the lowest bin of the day's other sessions when the primary one has none.
+        let primarySession = physiologySessions.max(by: { ($0.end - $0.start) < ($1.end - $1.start) })
+        let providedPrimaryRHR = primarySession
             .flatMap { p in providedSleep.first(where: { $0.start == p.start && $0.end == p.end })?.restingHR }
         let restingHRDaily: Int? = providedPrimaryRHR
-            ?? primarySessionRestingHR(sessions: physiologySessions, hr: hr).map { Int($0.rounded()) }
+            ?? primarySession?.restingHR
             ?? physiologySessions.compactMap { $0.restingHR }.min()
         // Daily avg HRV = in-bed-weighted mean of per-session avg HRV.
         let avgHRVDaily: Double? = {

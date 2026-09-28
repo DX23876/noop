@@ -144,7 +144,13 @@ final class IntelligenceEngine: ObservableObject {
     // a redrain stored twice collapsed (#2456); and today's live Effort uses the manual HRmax override
     // (#2460). All are per-night or per-day derivations inside the engine's window, so the migration is
     // the standard bounded 21-day pass; no raw row is rewritten and the cardio ledger is not refilled.
-    static let currentAnalysisRecipeVersion = 10
+    // AI-11 (2026-09-28) takes the daily resting HR back to the lowest 5-min bin, now of the primary
+    // session: AI-10 had carried #2358's whole-session mean, which reads ~9–10 bpm higher and moved Effort,
+    // Fitness Age, energy, workout detection and the Health export with it (docs/fork/decisions.md;
+    // ryanbr/noop#2522). The primary-session selection (the nap fix) stays, and the mean stays recorded as
+    // the `rhr_primary_session` shadow metric. The pass reaches back to `restingHRMeanWindowStart` so no day
+    // scored with the mean survives; no raw row is rewritten and the cardio ledger is not refilled.
+    static let currentAnalysisRecipeVersion = 11
 
     /// The recipe whose migration refills the cardio load ledger.
     static let cardioLedgerRecipe = 9
@@ -157,11 +163,26 @@ final class IntelligenceEngine: ObservableObject {
     /// The recipe whose migration re-scores the standard daily window after the 2026-09-26 upstream sync.
     static let upstreamSept26Recipe = 10
 
+    /// The recipe that takes the daily resting HR back to the primary session's lowest 5-min bin.
+    static let restingHRNadirRecipe = 11
+
     /// Days of daily rows a migration from `from` must re-score: the standard window while a recipe that
-    /// changes daily rows (up to AI-8, or AI-10) is still owed, none when only AI-9 is — the narrowest
-    /// interval each change can prove.
+    /// changes daily rows (up to AI-8, AI-10 or AI-11) is still owed, none when only AI-9 is — the
+    /// narrowest interval each change can prove.
     static func migrationDailyDays(from: Int, standard: Int = 21) -> Int {
-        from < cardioLedgerRecipe - 1 || from < upstreamSept26Recipe ? standard : 0
+        from < cardioLedgerRecipe - 1 || from < restingHRNadirRecipe ? standard : 0
+    }
+
+    /// The earliest day a build could have scored with #2358's whole-session mean: the upstream commit is
+    /// dated 2026-09-23 and a pass reaches 21 days back. No stored resting HR before this day can be a mean.
+    static let restingHRMeanWindowStart = "2026-09-02"
+
+    /// Days an AI-11 migration must re-score so no mean-defined resting HR is left behind: back to
+    /// `restingHRMeanWindowStart`, never fewer than 21 and never more than 45 (the same bounds as the
+    /// upstream repair window). 0 once AI-11 is applied.
+    static func restingHRRepairDays(from: Int, today: String) -> Int {
+        guard from < restingHRNadirRecipe else { return 0 }
+        return upstreamRepairWindowDays(earliestMissingDay: restingHRMeanWindowStart, today: today)
     }
 
     /// Upstream 11.6 (2026-09-11) shipped the strict WHOOP 5 R-R read; its first bounded pass reached 21
@@ -902,13 +923,14 @@ final class IntelligenceEngine: ObservableObject {
                 return true
             case .migrate(let from, let to):
                 analysisRecipeVersion = from
+                let today = Repository.localDayKey(Date())
                 var days = Self.migrationDailyDays(from: from)
                 if fromUpstream {
                     let missing = try? await store.earliestSleptDayMissingHRV(
                         deviceId: deviceId + "-noop", since: Self.upstreamStrictRRWindowStart)
-                    days = Self.upstreamRepairWindowDays(earliestMissingDay: missing ?? nil,
-                                                         today: Repository.localDayKey(Date()))
+                    days = Self.upstreamRepairWindowDays(earliestMissingDay: missing ?? nil, today: today)
                 }
+                days = max(days, Self.restingHRRepairDays(from: from, today: today))
                 return await runAnalysisMaintenance(
                     phase: .migrating(from: from, to: to),
                     markRecipeOnSuccess: true, maxDays: days)

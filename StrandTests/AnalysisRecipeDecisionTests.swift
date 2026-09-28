@@ -22,27 +22,42 @@ final class AnalysisRecipeDecisionTests: XCTestCase {
     }
 
     /// The tests above are written against `current`, so they stay green through a bump without ever
-    /// witnessing one. This one names the numbers: an install carrying AI-9 (the Banister cardio ledger)
-    /// must ask for AI-10 (the 2026-09-26 upstream scoring changes), and it must ask for it as `9 → 10`.
+    /// witnessing one. This one names the numbers: an install carrying AI-10 (the 2026-09-26 upstream
+    /// scoring changes, with #2358's mean resting HR) must ask for AI-11 (the primary session's nadir), and
+    /// it must ask for it as `10 → 11`.
     ///
     /// It is deliberately a LITERAL pin. A future bump is supposed to make this line fail, because that
     /// failure is the prompt to answer CLAUDE.md's "Analysis migration required: yes/no" for whatever
     /// the bump carries — the question this file exists to stop anyone skipping.
-    func testRecipeVersionIsTenAndAnAI9InstallMigratesToIt() {
-        XCTAssertEqual(IntelligenceEngine.currentAnalysisRecipeVersion, 10,
+    func testRecipeVersionIsElevenAndAnAI10InstallMigratesToIt() {
+        XCTAssertEqual(IntelligenceEngine.currentAnalysisRecipeVersion, 11,
                        "recipe version changed — answer 'Analysis migration required' for what moved")
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 10),
+                       .migrate(from: 10, to: 11))
         XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 9),
-                       .migrate(from: 9, to: 10))
+                       .migrate(from: 9, to: 11))
         XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 8),
-                       .migrate(from: 8, to: 10))
+                       .migrate(from: 8, to: 11))
     }
 
-    /// AI-10 changes daily rows, so every install below it re-scores the standard window, an AI-9 one
-    /// included. Only crossing AI-9 refills the cardio ledger; AI-9 → AI-10 does not.
-    func testAI10RescoresTheStandardWindowWithoutRefillingTheLedger() {
+    /// AI-10 and AI-11 change daily rows, so every install below AI-11 re-scores at least the standard
+    /// window, an AI-9 or AI-10 one included. Only crossing AI-9 refills the cardio ledger.
+    func testAI10AndAI11RescoreTheStandardWindowWithoutRefillingTheLedger() {
         XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 9), 21)
-        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 10), 0)
-        XCTAssertFalse(IntelligenceEngine.migrationRefillsCardioLedger(from: 9, to: 10))
+        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 10), 21)
+        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 11), 0)
+        XCTAssertFalse(IntelligenceEngine.migrationRefillsCardioLedger(from: 9, to: 11))
+        XCTAssertFalse(IntelligenceEngine.migrationRefillsCardioLedger(from: 10, to: 11))
+    }
+
+    /// AI-11 must reach every day a build could have scored with #2358's mean: back to 2026-09-02, never
+    /// fewer than the standard 21 days and never more than 45. Nothing once AI-11 is applied.
+    func testAI11ReachesBackToTheFirstPossibleMeanDay() {
+        XCTAssertEqual(IntelligenceEngine.restingHRRepairDays(from: 10, today: "2026-09-28"), 27)
+        XCTAssertEqual(IntelligenceEngine.restingHRRepairDays(from: 9, today: "2026-09-28"), 27)
+        XCTAssertEqual(IntelligenceEngine.restingHRRepairDays(from: 10, today: "2026-09-10"), 21)
+        XCTAssertEqual(IntelligenceEngine.restingHRRepairDays(from: 10, today: "2026-12-31"), 45)
+        XCTAssertEqual(IntelligenceEngine.restingHRRepairDays(from: 11, today: "2026-09-28"), 0)
     }
 
     /// AI-9 changes the stored cardio loads and no daily row. An install owing it still re-scores the
@@ -62,10 +77,10 @@ final class AnalysisRecipeDecisionTests: XCTestCase {
     /// build number here would cause. Pinned because the mistake is invisible until someone's phone
     /// spends twenty minutes re-scoring after a cosmetic update.
     func testAnInstallAlreadyAtTheCurrentRecipeNeverRescoresOnRelaunch() {
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 10), .upToDate)
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 11), .upToDate)
         // And a database written by a NEWER build that was rolled back stays put rather than
         // "migrating" backwards into a rescore that would overwrite better values with worse ones.
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 11), .upToDate)
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 12), .upToDate)
     }
 
     // MARK: - The fork's own recipe lineage
