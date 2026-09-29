@@ -189,6 +189,37 @@ final class JournalWorkoutAppleCacheTests: XCTestCase {
         XCTAssertNil(rows[0].notes)
     }
 
+    func testLegacyEnergyCorrectionIsConditionalAndMarksOnlyUneditedRows() async throws {
+        let store = try await WhoopStore.inMemory()
+        let row = WorkoutRow(startTs: 1_000, endTs: 4_600, sport: "Walking", source: "manual",
+                             durationS: 3_600, energyKcal: 2_000, avgHr: 140, maxHr: 160,
+                             strain: nil, distanceM: 4_000, zonesJSON: nil, notes: "preserve",
+                             steps: nil)
+        try await store.upsertWorkouts([row], deviceId: "my-whoop")
+        let key = WorkoutKey(deviceId: "my-whoop", startTs: row.startTs, sport: row.sport)
+        let wrongValue = try await store.correctLegacyWorkoutEnergy(for: key, matching: 1_999, to: 800)
+        XCTAssertFalse(wrongValue)
+        let corrected = try await store.correctLegacyWorkoutEnergy(for: key, matching: 2_000, to: 800)
+        XCTAssertTrue(corrected)
+        let repeated = try await store.correctLegacyWorkoutEnergy(for: key, matching: 800, to: 700)
+        XCTAssertFalse(repeated)
+        let saved = try await store.workouts(deviceId: "my-whoop", from: 1_000, to: 1_000, limit: 1)
+        XCTAssertEqual(saved.first?.energyKcal, 800)
+        XCTAssertEqual(saved.first?.notes, "preserve")
+        let sources = try await store.workoutEnergySources(deviceId: "my-whoop", from: 1_000, to: 1_000)
+        XCTAssertEqual(sources[key], .computed)
+
+        let entered = WorkoutKey(deviceId: "my-whoop", startTs: 5_000, sport: "Walking")
+        try await store.upsertWorkouts([
+            WorkoutRow(startTs: 5_000, endTs: 8_600, sport: "Walking", source: "manual",
+                       durationS: 3_600, energyKcal: 2_000, avgHr: 140, maxHr: 160,
+                       strain: nil, distanceM: 4_000, zonesJSON: nil, notes: nil, steps: nil)
+        ], deviceId: "my-whoop")
+        try await store.setWorkoutEnergySource(.entered, for: entered)
+        let protected = try await store.correctLegacyWorkoutEnergy(for: entered, matching: 2_000, to: 800)
+        XCTAssertFalse(protected)
+    }
+
     func testWorkoutDistinctSportSameStartCoexist() async throws {
         let store = try await WhoopStore.inMemory()
         try await store.upsertWorkouts([

@@ -1,4 +1,6 @@
 import XCTest
+import StrandAnalytics
+import WhoopProtocol
 import WhoopStore
 @testable import Strand
 
@@ -23,29 +25,64 @@ final class AnalysisRecipeDecisionTests: XCTestCase {
 
     /// The tests above are written against `current`, so they stay green through a bump without ever
     /// witnessing one. This one names the numbers: an install carrying AI-12 (R-R delivery paths per
-    /// five-minute segment) must ask for AI-13 (stored Keytel session energy corrected), as `12 → 13`.
+    /// five-minute segment) must ask for AI-14 (legacy workout owner repair), as `12 → 14`.
     ///
     /// It is deliberately a LITERAL pin. A future bump is supposed to make this line fail, because that
     /// failure is the prompt to answer CLAUDE.md's "Analysis migration required: yes/no" for whatever
     /// the bump carries — the question this file exists to stop anyone skipping.
-    func testRecipeVersionIsThirteenAndAnAI12InstallMigratesToIt() {
-        XCTAssertEqual(IntelligenceEngine.currentAnalysisRecipeVersion, 13,
+    func testRecipeVersionIsFourteenAndAnAI13InstallMigratesToIt() {
+        XCTAssertEqual(IntelligenceEngine.currentAnalysisRecipeVersion, 14,
                        "recipe version changed — answer 'Analysis migration required' for what moved")
         XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 12),
-                       .migrate(from: 12, to: 13))
+                       .migrate(from: 12, to: 14))
         XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 11),
-                       .migrate(from: 11, to: 13))
+                       .migrate(from: 11, to: 14))
         XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 8),
-                       .migrate(from: 8, to: 13))
+                       .migrate(from: 8, to: 14))
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 13),
+                       .migrate(from: 13, to: 14))
     }
 
-    /// AI-13 corrects stored session energy and no daily row: an AI-12 install re-scores no day but
+    /// AI-14 corrects stored session energy and no daily row: an AI-13 install re-scores no day but
     /// runs the correction, and so does every older install crossing it.
-    func testAI13CorrectsSessionEnergyWithoutRescoringDays() {
+    func testAI14CorrectsSessionEnergyWithoutRescoringDays() {
         XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 12), 0)
-        XCTAssertTrue(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 12, to: 13))
-        XCTAssertTrue(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 8, to: 13))
+        XCTAssertTrue(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 12, to: 14))
+        XCTAssertTrue(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 8, to: 14))
+        XCTAssertTrue(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 13, to: 14))
         XCTAssertFalse(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 13, to: 13))
+    }
+
+    func testLegacyCorrectionFindsCanonicalWorkoutUnderAnotherActiveStrap() async throws {
+        let store = try await WhoopStore.inMemory()
+        let active = "whoop-readded"
+        let repo = Repository(deviceId: active)
+        repo.setStoreForTesting(store)
+        let profile = UserProfile(weightKg: 212, heightCm: 196, age: 35, sex: "male", maxHR: 195)
+        let start = Int(Date().timeIntervalSince1970) - 10_000
+        let duration = 3_600.0
+        let old = Calories.estimateBoutCalories(averageHR: 147, durationSeconds: duration,
+                                               profile: profile, hrmax: 195, restingHR: nil)!
+        let row = WorkoutRow(startTs: start, endTs: start + Int(duration), sport: "Walking",
+                             source: "manual", durationS: duration, energyKcal: old, avgHr: 147,
+                             maxHr: 165, strain: nil, distanceM: 4_000, zonesJSON: nil,
+                             notes: "keep me", steps: nil)
+        try await store.upsertWorkouts([row], deviceId: "my-whoop")
+        let hr = (0..<Int(duration)).map { HRSample(ts: start + $0, bpm: 60) }
+        try await store.insert(Streams(hr: hr), deviceId: active)
+
+        let corrected = try await repo.correctLegacyWorkoutEnergy(profile: profile)
+        XCTAssertEqual(corrected, start)
+        let updated = try await store.workouts(deviceId: "my-whoop", from: start, to: start, limit: 1)
+        XCTAssertEqual(updated.count, 1)
+        XCTAssertNotEqual(updated[0].energyKcal, old)
+        XCTAssertEqual(updated[0].notes, "keep me")
+        let key = WorkoutKey(deviceId: "my-whoop", startTs: start, sport: "Walking")
+        let sources = try await store.workoutEnergySources(deviceId: "my-whoop", from: start, to: start)
+        XCTAssertEqual(sources[key], .computed)
+        let repeated = try await repo.correctLegacyWorkoutEnergy(profile: profile)
+        XCTAssertNil(repeated,
+                     "the provenance marker makes the migration resumable")
     }
 
     /// AI-10, AI-11 and AI-12 change daily rows, so every install below AI-12 re-scores at least the
@@ -86,10 +123,10 @@ final class AnalysisRecipeDecisionTests: XCTestCase {
     /// build number here would cause. Pinned because the mistake is invisible until someone's phone
     /// spends twenty minutes re-scoring after a cosmetic update.
     func testAnInstallAlreadyAtTheCurrentRecipeNeverRescoresOnRelaunch() {
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 13), .upToDate)
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 14), .upToDate)
         // And a database written by a NEWER build that was rolled back stays put rather than
         // "migrating" backwards into a rescore that would overwrite better values with worse ones.
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 14), .upToDate)
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 15), .upToDate)
     }
 
     // MARK: - The fork's own recipe lineage

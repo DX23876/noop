@@ -161,8 +161,10 @@ final class IntelligenceEngine: ObservableObject {
     // model v8 prices sessions by pace or by heart rate against the day's aerobic ceiling. The migration
     // re-prices every manual row whose stored figure reproduces an old formula on the strap's heart rate
     // (`Repository.correctLegacyWorkoutEnergy`), records it as computed, and has Apple Health rewrite the
-    // corrected span. Typed figures do not reproduce and are left alone. No daily row is re-scored.
-    static let currentAnalysisRecipeVersion = 13
+    // corrected span. Marked entered figures are left alone. No daily row is re-scored.
+    // AI-14 (2026-09-29) retries AI-13 across every physical and canonical workout owner and
+    // recognizes live GPS summaries when the later offloaded HR trace differs from live capture.
+    static let currentAnalysisRecipeVersion = 14
 
     /// The recipe whose migration refills the cardio load ledger.
     static let cardioLedgerRecipe = 9
@@ -182,7 +184,7 @@ final class IntelligenceEngine: ObservableObject {
     static let rrSegmentRecipe = 12
 
     /// The recipe whose migration corrects stored Keytel session energy.
-    static let workoutEnergyRecipe = 13
+    static let workoutEnergyRecipe = 14
 
     /// Whether a migration crosses the recipe that corrects stored session energy.
     static func migrationCorrectsWorkoutEnergy(from: Int, to: Int) -> Bool {
@@ -1011,8 +1013,11 @@ final class IntelligenceEngine: ObservableObject {
             }
             if case .migrating(let from, let to) = phase, Self.migrationCorrectsWorkoutEnergy(from: from, to: to) {
                 let analytics = Repository.analyticsProfile(self.profile)
-                if let earliest = await self.repo.correctLegacyWorkoutEnergy(profile: analytics) {
-                    HealthWorkoutRewrite.request(from: earliest)
+                do {
+                    _ = try await self.repo.correctLegacyWorkoutEnergy(profile: analytics)
+                } catch {
+                    self.analysisMaintenancePhase = .failed(error.localizedDescription)
+                    return false
                 }
                 guard !Task.isCancelled else { return false }
             }

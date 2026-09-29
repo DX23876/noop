@@ -411,26 +411,43 @@ extension Repository {
         try? await store.setWorkoutEnergySource(.entered, for: key)
     }
 
-    /// The one-time correction of stored session figures NOOP computed with Keytel (recipe AI-13).
+    /// The versioned correction of stored session figures NOOP computed with Keytel (AI-13/AI-14).
     ///
     /// Every manual row with energy and no recorded source is re-priced when its figure reproduces an
     /// old formula on the strap's heart rate for its window (`LegacyWorkoutEnergy.looksComputed`), using
     /// that day's weight and resting rate. A reproduced figure is replaced by the model-v8 session price
-    /// and recorded as computed; anything else (a typed figure, a window without strap heart rate) is left
-    /// as it is. Returns the start of the earliest corrected row, so the caller can have Apple Health
-    /// rewritten from there; nil when nothing changed.
-    func correctLegacyWorkoutEnergy(profile base: UserProfile) async -> Int? {
+    /// and recorded as computed; rows with known entered provenance or without enough strap heart rate
+    /// stay unchanged. Each committed correction queues its Health rewrite and energy refresh immediately,
+    /// so a later read failure does not strand an already-corrected row. Returns the earliest correction.
+    func correctLegacyWorkoutEnergy(profile base: UserProfile) async throws -> Int? {
         guard let store = await storeHandle() else { return nil }
         let now = Int(Date().timeIntervalSince1970)
-        let rows = ((try? await store.workouts(deviceId: deviceId, from: 0, to: now, limit: 5_000)) ?? [])
-            .filter { row in
-                guard row.source == "manual", row.endTs > row.startTs else { return false }
-                return (row.energyKcal ?? 0) > 0
+        // Live sessions were historically saved under "my-whoop" even when the current strap has a
+        // physical device id. AI-13 scanned only that physical id and then advanced its cursor.
+        var ownedRows: [(owner: String, row: WorkoutRow)] = []
+        for owner in rawPhysiologyReadIds(store: store) {
+            var offset = 0
+            while true {
+                let page = try await store.workouts(deviceId: owner, from: 0, to: now,
+                                                    limit: 500, offset: offset)
+                ownedRows += page.compactMap { row in
+                    guard row.source == "manual", row.endTs > row.startTs,
+                          (row.energyKcal ?? 0) > 0 else { return nil }
+                    return (owner, row)
+                }
+                if page.count < 500 { break }
+                offset += page.count
             }
-        guard let first = rows.map(\.startTs).min() else { return nil }
-        let known = (try? await store.workoutEnergySources(deviceId: deviceId, from: first, to: now)) ?? [:]
-        let pending = rows.filter {
-            known[WorkoutKey(deviceId: deviceId, startTs: $0.startTs, sport: $0.sport)] == nil
+        }
+        guard let first = ownedRows.map({ $0.row.startTs }).min() else { return nil }
+        var known: [WorkoutKey: WorkoutEnergySource] = [:]
+        for owner in Set(ownedRows.map(\.owner)) {
+            known.merge(try await store.workoutEnergySources(deviceId: owner, from: first, to: now))
+                { current, _ in current }
+        }
+        let pending = ownedRows.filter { owned in
+            known[WorkoutKey(deviceId: owned.owner, startTs: owned.row.startTs,
+                             sport: owned.row.sport)] == nil
         }
         guard !pending.isEmpty else { return nil }
         let firstDay = Self.localDayKey(Date(timeIntervalSince1970: TimeInterval(first)))
@@ -443,10 +460,17 @@ extension Repository {
                                         source: point.source == .manual ? .manual : .health)
             }
         }
-        var corrected: [WorkoutRow] = []
-        for row in pending {
+        var earliest: Int?
+        defer {
+            if let earliest {
+                HealthWorkoutRewrite.request(from: earliest)
+                scheduleEnergyRefresh(coveringStart: earliest)
+            }
+        }
+        for (owner, row) in pending {
             let day = Self.localDayKey(Date(timeIntervalSince1970: TimeInterval(row.startTs)))
-            let samples = await hrSamples(deviceIds: importedReadIds, from: row.startTs, to: row.endTs,
+            let samples = await hrSamples(deviceIds: rawPhysiologyReadIds(store: store),
+                                          from: row.startTs, to: row.endTs,
                                           limit: 40_000)
             guard samples.count >= 2, let stored = row.energyKcal else { continue }
             var profile = base
@@ -454,27 +478,24 @@ extension Repository {
                 profile.weightKg = weight
             }
             let restingHR = resting[day] ?? resting.filter { $0.key <= day }.max { $0.key < $1.key }?.value
-            guard LegacyWorkoutEnergy.looksComputed(stored: stored, samples: samples, sport: row.sport,
-                                                    profile: profile, hrMax: profile.maxHR,
-                                                    restingHR: restingHR) else { continue }
+            let matchesOffloaded = LegacyWorkoutEnergy.looksComputed(
+                stored: stored, samples: samples, sport: row.sport, profile: profile,
+                hrMax: profile.maxHR, restingHR: restingHR)
+            // The live stream can differ materially from a later strap offload. For a GPS bout,
+            // replay the old formula from the saved live mean and moving duration as a second witness.
+            let matchesLiveSummary = (row.distanceM ?? 0) > 0 && LegacyWorkoutEnergy.looksComputed(
+                stored: stored, averageHR: row.avgHr, durationSeconds: row.durationS,
+                profile: profile, hrMax: profile.maxHR, restingHR: restingHR)
+            guard matchesOffloaded || matchesLiveSummary else { continue }
             let kcal = WorkoutEnergyEstimate.boutKcal(
                 samples, sport: row.sport, profile: profile, hrMax: profile.maxHR, restingHR: restingHR,
                 peakMET: WorkoutEnergyDisplay.peakMET(on: day, in: peaks), distanceM: row.distanceM)
             guard kcal > 0 else { continue }
-            corrected.append(WorkoutRow(
-                startTs: row.startTs, endTs: row.endTs, sport: row.sport, source: row.source,
-                durationS: row.durationS, energyKcal: kcal, avgHr: row.avgHr, maxHr: row.maxHr,
-                strain: row.strain, distanceM: row.distanceM, zonesJSON: row.zonesJSON, notes: row.notes,
-                steps: row.steps))
+            let key = WorkoutKey(deviceId: owner, startTs: row.startTs, sport: row.sport)
+            if try await store.correctLegacyWorkoutEnergy(for: key, matching: stored, to: kcal) {
+                earliest = min(earliest ?? row.startTs, row.startTs)
+            }
         }
-        guard !corrected.isEmpty,
-              (try? await store.upsertWorkouts(corrected, deviceId: deviceId)) != nil else { return nil }
-        for row in corrected {
-            try? await store.setWorkoutEnergySource(
-                .computed, for: WorkoutKey(deviceId: deviceId, startTs: row.startTs, sport: row.sport))
-        }
-        let earliest = corrected.map(\.startTs).min()
-        scheduleEnergyRefresh(coveringStart: earliest ?? now)
         return earliest
     }
 

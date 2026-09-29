@@ -24,6 +24,31 @@ public struct WorkoutKey: Hashable, Sendable {
 
 extension WhoopStore {
 
+    /// Reprice one unmarked legacy manual row without rewriting its other fields. The value check
+    /// protects an edit made while the migration was computing, and the marker shares the transaction.
+    public func correctLegacyWorkoutEnergy(for key: WorkoutKey, matching oldKcal: Double,
+                                           to newKcal: Double) async throws -> Bool {
+        try syncWrite { db in
+            try db.execute(sql: """
+                UPDATE workout SET energyKcal = ?
+                WHERE deviceId = ? AND startTs = ? AND sport = ? AND source = 'manual'
+                  AND energyKcal = ?
+                  AND NOT EXISTS (
+                    SELECT 1 FROM workoutEnergySource e
+                    WHERE e.deviceId = workout.deviceId AND e.startTs = workout.startTs
+                      AND e.sport = workout.sport)
+                """, arguments: [newKcal, key.deviceId, key.startTs, key.sport, oldKcal])
+            guard db.changesCount > 0 else { return false }
+            try db.execute(sql: """
+                INSERT INTO workoutEnergySource (deviceId, startTs, sport, kind, updatedAtTs)
+                VALUES (?, ?, ?, ?, ?)
+                """, arguments: [key.deviceId, key.startTs, key.sport,
+                                  WorkoutEnergySource.computed.rawValue,
+                                  Int(Date().timeIntervalSince1970)])
+            return true
+        }
+    }
+
     /// Records where a workout's energy came from. Replaces any earlier entry for the same row.
     public func setWorkoutEnergySource(_ kind: WorkoutEnergySource, for key: WorkoutKey,
                                        at now: Int = Int(Date().timeIntervalSince1970)) async throws {

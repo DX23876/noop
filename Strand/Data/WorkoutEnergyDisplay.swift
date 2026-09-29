@@ -108,7 +108,7 @@ enum WorkoutEnergyDisplay {
 /// A pending request to rewrite NOOP's workouts in Apple Health from a given time.
 ///
 /// The regular write-back covers the last 14 days. When stored session energy is corrected further back
-/// (recipe AI-13), the Health copies of those sessions would keep the old figures, and every app reading
+/// (recipes AI-13/AI-14), the Health copies of those sessions would keep the old figures, and every app reading
 /// Health would keep quoting them. The request is a timestamp in UserDefaults because the correction runs
 /// in shared analysis code while the writer is the iOS-only Health bridge; the bridge widens its next
 /// workout pass to reach it and clears the request once that pass has written.

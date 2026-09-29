@@ -248,6 +248,18 @@ final class LegacyWorkoutEnergyTests: XCTestCase {
                                                          profile: heavy, hrMax: 195, restingHR: 63))
     }
 
+    func testLiveGpsSummaryCanRecogniseAStoredKeytelFigureWhenOffloadDiffers() {
+        let live = Calories.estimateBoutCalories(averageHR: 147, durationSeconds: 7_794,
+                                                profile: heavy, hrmax: 195, restingHR: 58)!
+        XCTAssertTrue(LegacyWorkoutEnergy.looksComputed(stored: 2_784, averageHR: 147,
+                                                        durationSeconds: 7_794, profile: heavy,
+                                                        hrMax: 195, restingHR: 58))
+        XCTAssertEqual(live, 2_784, accuracy: 700)
+        XCTAssertFalse(LegacyWorkoutEnergy.looksComputed(stored: 900, averageHR: 147,
+                                                         durationSeconds: 7_794, profile: heavy,
+                                                         hrMax: 195, restingHR: 58))
+    }
+
     /// A lifting session saved under v7 was priced on the resistance curve, not Keytel.
     func testAV7LiftingFigureIsRecognised() throws {
         let lift = (0..<3_600).map { HRSample(ts: $0, bpm: $0 % 180 < 60 ? 125 : 100) }

@@ -331,4 +331,15 @@ public enum LegacyWorkoutEnergy {
         return candidates(samples, sport: sport, profile: profile, hrMax: hrMax, restingHR: restingHR)
             .contains { abs(stored - $0) <= tolerance * $0 }
     }
+
+    /// Replays the live workout summary when a later strap offload has a different HR coverage.
+    /// The live save persisted its mean HR and moving duration alongside the energy figure.
+    public static func looksComputed(stored: Double, averageHR: Int?, durationSeconds: Double?,
+                                     profile: UserProfile, hrMax: Double?, restingHR: Double?) -> Bool {
+        guard stored.isFinite, stored > 0, let averageHR, let durationSeconds,
+              let candidate = Calories.estimateBoutCalories(
+                  averageHR: averageHR, durationSeconds: durationSeconds,
+                  profile: profile, hrmax: hrMax, restingHR: restingHR) else { return false }
+        return candidate.isFinite && candidate > 0 && abs(stored - candidate) <= tolerance * candidate
+    }
 }
