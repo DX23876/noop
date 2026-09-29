@@ -261,19 +261,24 @@ extension WhoopStore {
         }
     }
 
+    // Split into separate guards: one long `&&` chain exceeded the type checker's time limit on the
+    // CI runner's older Swift, although newer compilers accept it.
     private static func valid(_ row: WhoopDailyEnergyRow) -> Bool {
-        row.day.count == 10 && row.rawTotalKcal.isFinite && row.rawTotalKcal >= 0
-            && !row.modelVersion.isEmpty && row.observedSeconds >= 0 && row.inferredSeconds >= 0
-            && row.modeledSeconds >= 0 && row.representedSeconds >= 0
-            && row.physiologicalSeconds >= 0
-            && row.representedSeconds == row.observedSeconds + row.inferredSeconds
-                + row.modeledSeconds + row.physiologicalSeconds
-            && row.representedSeconds <= 100_000
-            && !row.contextJSON.isEmpty && row.uncertaintyFraction.isFinite
-            && (0...1).contains(row.uncertaintyFraction) && row.weightKg.isFinite
-            && (25...350).contains(row.weightKg)
-            && row.aerobicSeconds >= 0 && row.aerobicSeconds <= 86_400
-            && (row.peakMET.map { $0.isFinite && $0 > 0 } ?? true)
+        guard row.day.count == 10, row.rawTotalKcal.isFinite, row.rawTotalKcal >= 0,
+              !row.modelVersion.isEmpty else { return false }
+        guard row.observedSeconds >= 0, row.inferredSeconds >= 0, row.modeledSeconds >= 0,
+              row.representedSeconds >= 0, row.physiologicalSeconds >= 0 else { return false }
+        let evidenceSeconds: Int = row.observedSeconds + row.inferredSeconds
+            + row.modeledSeconds + row.physiologicalSeconds
+        guard row.representedSeconds == evidenceSeconds, row.representedSeconds <= 100_000 else {
+            return false
+        }
+        guard !row.contextJSON.isEmpty, row.uncertaintyFraction.isFinite,
+              (0...1).contains(row.uncertaintyFraction) else { return false }
+        guard row.weightKg.isFinite, (25...350).contains(row.weightKg) else { return false }
+        guard row.aerobicSeconds >= 0, row.aerobicSeconds <= 86_400 else { return false }
+        if let peak = row.peakMET, !(peak.isFinite && peak > 0) { return false }
+        return true
     }
 
     private static func valid(_ row: WhoopEnergyBucketRow, day: String) -> Bool {
@@ -287,6 +292,16 @@ extension WhoopStore {
 
     private static func upsertWhoopDailyEnergy(_ row: WhoopDailyEnergyRow, deviceId: String,
                                                in db: Database) throws -> Int {
+        // Two literals joined rather than one: a 21-element mixed-type literal risks the CI runner's
+        // older type checker, which already timed out on a long expression in this file.
+        let base: StatementArguments = [deviceId, row.day, row.rawTotalKcal, row.modelVersion,
+                                        row.observedSeconds, row.inferredSeconds, row.modeledSeconds,
+                                        row.representedSeconds, row.physiologicalSeconds, row.contextJSON,
+                                        row.uncertaintyFraction, row.weightKg, row.weightSource.rawValue]
+        let fitness: StatementArguments = [row.aerobicSeconds, row.hadLightActivity, row.peakMET,
+                                           row.peakMETSource, row.peakMETSourceDay, row.measuredVO2max,
+                                           row.measuredWeightKg, row.activityLevel]
+        let arguments = base + fitness
         try db.execute(sql: """
             INSERT INTO whoopDailyEnergy
                 (deviceId, day, rawTotalKcal, modelVersion, observedSeconds,
@@ -333,13 +348,7 @@ extension WhoopStore {
                OR measuredVO2max IS NOT excluded.measuredVO2max
                OR measuredWeightKg IS NOT excluded.measuredWeightKg
                OR activityLevel IS NOT excluded.activityLevel
-            """, arguments: [deviceId, row.day, row.rawTotalKcal, row.modelVersion,
-                             row.observedSeconds, row.inferredSeconds, row.modeledSeconds,
-                             row.representedSeconds, row.physiologicalSeconds, row.contextJSON,
-                             row.uncertaintyFraction, row.weightKg, row.weightSource.rawValue,
-                             row.aerobicSeconds, row.hadLightActivity, row.peakMET, row.peakMETSource,
-                             row.peakMETSourceDay, row.measuredVO2max, row.measuredWeightKg,
-                             row.activityLevel])
+            """, arguments: arguments)
         return db.changesCount
     }
 }
