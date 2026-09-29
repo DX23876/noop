@@ -424,8 +424,14 @@ extension Repository {
         let now = Int(Date().timeIntervalSince1970)
         // Live sessions were historically saved under "my-whoop" even when the current strap has a
         // physical device id. AI-13 scanned only that physical id and then advanced its cursor.
+        // Unlike the ordinary chart read, a failed registry lookup cannot silently remove an
+        // archived workout owner from a versioned pass whose cursor will then be committed.
+        let registered = try DeviceRegistryStore(dbQueue: store.registryWriter).all()
+            .filter { $0.brand.caseInsensitiveCompare("WHOOP") == .orderedSame }
+            .map(\.id)
+        let readIds = Self.rawWhoopSourceIds(activeDeviceId: deviceId, registeredWhoopIds: registered)
         var ownedRows: [(owner: String, row: WorkoutRow)] = []
-        for owner in rawPhysiologyReadIds(store: store) {
+        for owner in readIds {
             var offset = 0
             while true {
                 let page = try await store.workouts(deviceId: owner, from: 0, to: now,
@@ -469,9 +475,17 @@ extension Repository {
         }
         for (owner, row) in pending {
             let day = Self.localDayKey(Date(timeIntervalSince1970: TimeInterval(row.startTs)))
-            let samples = await hrSamples(deviceIds: rawPhysiologyReadIds(store: store),
-                                          from: row.startTs, to: row.endTs,
-                                          limit: 40_000)
+            // The normal chart facade deliberately treats a failed device read as an empty series.
+            // A migration cannot: it would skip this row and still commit the recipe cursor.
+            var byTimestamp: [Int: HRSample] = [:]
+            for id in readIds {
+                for sample in try await store.hrSamples(deviceId: id, from: row.startTs,
+                                                        to: row.endTs, limit: 40_000)
+                    where byTimestamp[sample.ts] == nil {
+                    byTimestamp[sample.ts] = sample
+                }
+            }
+            let samples = byTimestamp.values.sorted { $0.ts < $1.ts }
             guard samples.count >= 2, let stored = row.energyKcal else { continue }
             var profile = base
             if let weight = CausalWeightResolver.weight(at: row.startTs, observations: observations) {

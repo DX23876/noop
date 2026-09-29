@@ -440,7 +440,7 @@ final class Repository: ObservableObject {
     /// the final fallback. Archived devices intentionally remain: archive means "stop connecting, keep
     /// data", and historical timelines must not orphan their retained samples. The active id remains first
     /// even for a non-WHOOP provider, preserving the pre-multi-strap cross-provider path.
-    func rawPhysiologyReadIds(store: WhoopStore) -> [String] {
+    private func rawPhysiologyReadIds(store: WhoopStore) -> [String] {
         ensureRegisteredWhoopIds(store: store)
         return Self.rawWhoopSourceIds(activeDeviceId: deviceId, registeredWhoopIds: registeredWhoopIds)
     }
