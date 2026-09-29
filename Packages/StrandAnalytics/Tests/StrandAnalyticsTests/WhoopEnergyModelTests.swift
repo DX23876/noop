@@ -12,7 +12,7 @@ final class WhoopEnergyModelTests: XCTestCase {
             WhoopEnergyBucket(start: 900, averageHR: 130, isOffWrist: true),
         ]
         let value = try XCTUnwrap(WhoopEnergyModel.estimate(
-            buckets: rows, profile: profile, restingHR: 55, maxHR: 185))
+            buckets: rows, profile: profile, restingHR: 55, maxHR: 185, peakMET: 14))
         XCTAssertEqual(value.observedSeconds, 300)
         XCTAssertEqual(value.inferredSeconds, 300)
         XCTAssertEqual(value.modeledSeconds, 600)
@@ -25,7 +25,7 @@ final class WhoopEnergyModelTests: XCTestCase {
         let sleeping = WhoopEnergyBucket(start: 0, averageHR: 180, isSleep: true)
         let ordinary = WhoopEnergyBucket(start: 300, averageHR: 180, isWorkout: true)
         let result = try XCTUnwrap(WhoopEnergyModel.estimate(
-            buckets: [sleeping, ordinary], profile: profile, restingHR: 55, maxHR: 185))
+            buckets: [sleeping, ordinary], profile: profile, restingHR: 55, maxHR: 185, peakMET: 14))
         XCTAssertEqual(result.buckets[0].evidence, .modeled)
         XCTAssertEqual(result.buckets[1].evidence, .observed)
         XCTAssertGreaterThan(result.buckets[1].kcal, result.buckets[0].kcal)
@@ -38,7 +38,7 @@ final class WhoopEnergyModelTests: XCTestCase {
     /// back out of the reported kcal.
     private func inferredActive(_ bucket: WhoopEnergyBucket, seconds: Int = 300) throws -> Double {
         let result = try XCTUnwrap(WhoopEnergyModel.estimate(
-            buckets: [bucket], profile: profile, restingHR: 55, maxHR: 185))
+            buckets: [bucket], profile: profile, restingHR: 55, maxHR: 185, peakMET: 14))
         XCTAssertEqual(result.buckets[0].evidence, .inferred)
         let basal = try XCTUnwrap(Calories.bmrKcalPerDay(profile: profile)) / 86_400 * Double(seconds)
         return result.totalKcal - basal
@@ -145,9 +145,9 @@ final class WhoopEnergyModelTests: XCTestCase {
         let walking = WhoopEnergyBucket(start: 0, averageHR: 103, steps: 550, activityClass: 1)
 
         let flat = try XCTUnwrap(WhoopEnergyModel.estimate(
-            buckets: [hrOnly], profile: profile, restingHR: 55, maxHR: 185))
+            buckets: [hrOnly], profile: profile, restingHR: 55, maxHR: 185, peakMET: 14))
         let corroborated = try XCTUnwrap(WhoopEnergyModel.estimate(
-            buckets: [walking], profile: profile, restingHR: 55, maxHR: 185))
+            buckets: [walking], profile: profile, restingHR: 55, maxHR: 185, peakMET: 14))
 
         // HR without activity context is physiological evidence, not an observed calorie measurement.
         XCTAssertEqual(flat.buckets[0].evidence, .physiological)
@@ -167,7 +167,7 @@ final class WhoopEnergyModelTests: XCTestCase {
     func testRecoversMultipleInjectedIntensitiesMonotonically() throws {
         func active(_ bucket: WhoopEnergyBucket) throws -> Double {
             let value = try XCTUnwrap(WhoopEnergyModel.estimate(
-                buckets: [bucket], profile: profile, restingHR: 55, maxHR: 185))
+                buckets: [bucket], profile: profile, restingHR: 55, maxHR: 185, peakMET: 14))
             return value.totalKcal - (try XCTUnwrap(Calories.bmrKcalPerDay(profile: profile)) / 86_400 * 300)
         }
         let still = try active(.init(start: 0, averageHR: 60))
@@ -191,9 +191,9 @@ final class WhoopEnergyModelTests: XCTestCase {
                                         isWorkout: true)
         let bare = WhoopEnergyBucket(start: 0, averageHR: 160, isWorkout: true)
         let withMotion = try XCTUnwrap(WhoopEnergyModel.estimate(
-            buckets: [cycling], profile: profile, restingHR: 55, maxHR: 185))
+            buckets: [cycling], profile: profile, restingHR: 55, maxHR: 185, peakMET: 14))
         let without = try XCTUnwrap(WhoopEnergyModel.estimate(
-            buckets: [bare], profile: profile, restingHR: 55, maxHR: 185))
+            buckets: [bare], profile: profile, restingHR: 55, maxHR: 185, peakMET: 14))
         XCTAssertEqual(withMotion.totalKcal, without.totalKcal, accuracy: 0.001)
     }
 
@@ -203,7 +203,7 @@ final class WhoopEnergyModelTests: XCTestCase {
         let resting = WhoopEnergyBucket(start: 0, averageHR: 58, motionIntensity: 0.0,
                                         activityClass: 0)
         let value = try XCTUnwrap(WhoopEnergyModel.estimate(
-            buckets: [resting], profile: profile, restingHR: 55, maxHR: 185))
+            buckets: [resting], profile: profile, restingHR: 55, maxHR: 185, peakMET: 14))
         let basal = try XCTUnwrap(Calories.bmrKcalPerDay(profile: profile)) / 86_400 * 300
         // At 2% reserve the HR curve gives ~1.05 MET; the 1.5-MET movement floor must not apply.
         XCTAssertEqual(value.totalKcal - basal, 0, accuracy: 1.0)
@@ -213,7 +213,7 @@ final class WhoopEnergyModelTests: XCTestCase {
         let value = try XCTUnwrap(WhoopEnergyModel.estimate(
             buckets: [.init(start: 0, averageHR: 200, activityClass: 0,
                             hasMovementCoverage: true)],
-            profile: profile, restingHR: 55, maxHR: 185, flexHR: 75))
+            profile: profile, restingHR: 55, maxHR: 185, flexHR: 75, peakMET: 14))
         XCTAssertEqual(value.buckets[0].context, .unresolvedElevatedHR)
         XCTAssertEqual(value.buckets[0].evidence, .physiological)
         XCTAssertEqual(value.buckets[0].activeKcal, 0, accuracy: 0.001)
@@ -232,7 +232,7 @@ final class WhoopEnergyModelTests: XCTestCase {
         }
         let value = try XCTUnwrap(WhoopEnergyModel.estimate(
             buckets: tenHours, profile: heavyProfile, restingHR: 55, maxHR: 185,
-            flexHR: 75))
+            flexHR: 75, peakMET: 14))
         let expectedBasal = try XCTUnwrap(Calories.bmrKcalPerDay(profile: heavyProfile))
             * 10 / 24
 
@@ -244,11 +244,11 @@ final class WhoopEnergyModelTests: XCTestCase {
         let full = try XCTUnwrap(WhoopEnergyModel.estimate(
             buckets: [.init(start: 0, steps: 300, activityClass: 1,
                             hasMovementCoverage: true, movementSeconds: 300)],
-            profile: profile, restingHR: 55, maxHR: 185))
+            profile: profile, restingHR: 55, maxHR: 185, peakMET: 14))
         let short = try XCTUnwrap(WhoopEnergyModel.estimate(
             buckets: [.init(start: 0, steps: 30, activityClass: 1,
                             hasMovementCoverage: true, movementSeconds: 30)],
-            profile: profile, restingHR: 55, maxHR: 185))
+            profile: profile, restingHR: 55, maxHR: 185, peakMET: 14))
         XCTAssertEqual(short.buckets[0].activeKcal,
                        full.buckets[0].activeKcal / 10, accuracy: 0.01)
     }
@@ -258,7 +258,7 @@ final class WhoopEnergyModelTests: XCTestCase {
             try XCTUnwrap(WhoopEnergyModel.estimate(
                 buckets: [.init(start: 0, averageHR: bpm, isWorkout: true,
                                 workoutKind: .endurance)],
-                profile: profile, restingHR: 55, maxHR: 185)).buckets[0].activeKcal
+                profile: profile, restingHR: 55, maxHR: 185, peakMET: 14)).buckets[0].activeKcal
         }
         XCTAssertLessThan(try active(120) - active(119), 1.0)
     }
@@ -268,7 +268,7 @@ final class WhoopEnergyModelTests: XCTestCase {
             buckets: [.init(start: 0, durationSeconds: 300, hrCoverageSeconds: 30,
                             averageHR: 100, steps: 500, activityClass: 1,
                             hasMovementCoverage: true)],
-            profile: profile, restingHR: 55, maxHR: 185))
+            profile: profile, restingHR: 55, maxHR: 185, peakMET: 14))
         XCTAssertEqual(value.observedSeconds, 30)
         XCTAssertEqual(value.inferredSeconds, 270)
         XCTAssertEqual(value.buckets[0].context, .locomotion)
@@ -281,7 +281,7 @@ final class WhoopEnergyModelTests: XCTestCase {
         let mislabelled = WhoopEnergyBucket(start: 0, averageHR: 150, steps: 900,
                                             distanceM: 1_200, activityClass: 1)
         let value = try XCTUnwrap(WhoopEnergyModel.estimate(
-            buckets: [mislabelled], profile: profile, restingHR: 55, maxHR: 185))
+            buckets: [mislabelled], profile: profile, restingHR: 55, maxHR: 185, peakMET: 14))
         let basal = try XCTUnwrap(Calories.bmrKcalPerDay(profile: profile)) / 86_400 * 300
         // 1.2 km in 5 min = 14.4 km/h → far above the 3.0-MET walk floor.
         XCTAssertGreaterThan(value.totalKcal - basal, 60)
@@ -291,7 +291,7 @@ final class WhoopEnergyModelTests: XCTestCase {
     /// to this exact string, so a silent revert would resurrect pre-movement-corroboration (v1) rows
     /// into a chart that should only ever show one model generation at a time.
     func testModelVersionIsTheContextFirstGeneration() {
-        XCTAssertEqual(WhoopDailyEnergyEstimate.modelVersion, "whoop-bucket-v7")
+        XCTAssertEqual(WhoopDailyEnergyEstimate.modelVersion, "whoop-bucket-v8")
     }
 
     /// MET of one confirmed-workout bucket, read back out of its active energy.
@@ -299,7 +299,7 @@ final class WhoopEnergyModelTests: XCTestCase {
                             maximum: Double = 190) throws -> Double {
         let value = try XCTUnwrap(WhoopEnergyModel.estimate(
             buckets: [.init(start: 0, averageHR: bpm, isWorkout: true, workoutKind: kind)],
-            profile: profile, restingHR: resting, maxHR: maximum))
+            profile: profile, restingHR: resting, maxHR: maximum, peakMET: 14))
         return 1 + value.buckets[0].activeKcal / (3.5 * profile.weightKg / 200 * 5)
     }
 
@@ -311,7 +311,7 @@ final class WhoopEnergyModelTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(met, 3.5)
         XCTAssertLessThanOrEqual(met, 5.0)
         XCTAssertEqual(met, WhoopEnergyModel.exerciseMET(hr: 108, resting: 60, maximum: 190,
-                                                         kind: .resistance), accuracy: 1e-9)
+                                                         kind: .resistance, peakMET: 14), accuracy: 1e-9)
     }
 
     /// Linear in the reserve, so an average heart rate prices a session the way its buckets would, and
@@ -358,23 +358,162 @@ final class WhoopEnergyModelTests: XCTestCase {
         }
         let unseen = try XCTUnwrap(WhoopEnergyModel.estimate(
             buckets: buckets(workout: false), profile: profile, restingHR: 60, maxHR: 190,
-            flexHR: 80))
+            flexHR: 80, peakMET: 14))
         let seen = try XCTUnwrap(WhoopEnergyModel.estimate(
             buckets: buckets(workout: true), profile: profile, restingHR: 60, maxHR: 190,
-            flexHR: 80))
+            flexHR: 80, peakMET: 14))
         XCTAssertEqual(unseen.buckets.reduce(0) { $0 + $1.activeKcal }, 0)
         XCTAssertTrue(unseen.buckets.allSatisfy { $0.context == .unresolvedElevatedHR })
         XCTAssertGreaterThan(seen.buckets.reduce(0) { $0 + $1.activeKcal }, 0)
         XCTAssertTrue(seen.buckets.allSatisfy { $0.context == .confirmedWorkout })
     }
 
+    // MARK: - v8: walks by pace, a ceiling that fits the body
+
+    private let heavyWalker = UserProfile(weightKg: 212, heightCm: 196, age: 35, sex: "male",
+                                          basalFormula: .mifflinStJeor)
+
+    /// The reported walk of 2026-09-13, shape preserved: 115 minutes at 3.4 km/h, heart rate climbing
+    /// from 125 to 180 (mean ~155), resting 63, maximum 195, 212 kg. The Apple Watch put it at 1,017
+    /// active kcal and the ACSM walking equation on the flat at ~690; v7 said ~3,800.
+    private func reportedWalk(onFoot: Bool) -> [WhoopEnergyBucket] {
+        (0..<23).map { index in
+            WhoopEnergyBucket(start: index * 300, averageHR: 125 + Double(index) * 55 / 22,
+                              steps: 420, distanceM: 283, activityClass: 1, isWorkout: true,
+                              workoutKind: .endurance, workoutOnFoot: onFoot,
+                              hasMovementCoverage: true, movementSeconds: 300)
+        }
+    }
+
+    func testTheReportedWalkIsPricedByPaceInsideTheAgreedBand() throws {
+        let value = try XCTUnwrap(WhoopEnergyModel.estimate(
+            buckets: reportedWalk(onFoot: true), profile: heavyWalker, restingHR: 63, maxHR: 195,
+            peakMET: 19 / 3.5))
+        let active = value.buckets.reduce(0) { $0 + $1.activeKcal }
+        XCTAssertTrue((700...1_300).contains(active), "\(active)")
+        XCTAssertTrue(value.buckets.allSatisfy { $0.context == .confirmedWorkout })
+    }
+
+    /// Pace decides, not the ceiling: the same walk costs the same whatever VO₂max is assumed. Priced
+    /// by heart rate with Uth's ceiling it is the three-fold figure this generation removes.
+    func testAWalkDoesNotFollowTheCeilingButAHeartRateSessionDoes() throws {
+        func active(onFoot: Bool, peak: Double?) throws -> Double {
+            try XCTUnwrap(WhoopEnergyModel.estimate(
+                buckets: reportedWalk(onFoot: onFoot), profile: heavyWalker, restingHR: 63, maxHR: 195,
+                peakMET: peak)).buckets.reduce(0) { $0 + $1.activeKcal }
+        }
+        XCTAssertEqual(try active(onFoot: true, peak: 5), try active(onFoot: true, peak: 14), accuracy: 1e-9)
+        let uth = try XCTUnwrap(Calories.vo2maxFor(hrmax: 195, restingHR: 63)) / 3.5
+        let walked = try active(onFoot: true, peak: uth)
+        XCTAssertGreaterThan(try active(onFoot: false, peak: uth), 3 * walked)
+        XCTAssertLessThan(try active(onFoot: false, peak: 5), try active(onFoot: false, peak: 14))
+    }
+
+    /// A walk logged without any movement evidence has nothing to be priced by pace on.
+    func testAnOnFootSessionWithoutMovementFallsBackToHeartRate() throws {
+        let bare = WhoopEnergyBucket(start: 0, averageHR: 150, isWorkout: true, workoutKind: .endurance,
+                                     workoutOnFoot: true)
+        let value = try XCTUnwrap(WhoopEnergyModel.estimate(
+            buckets: [bare], profile: profile, restingHR: 60, maxHR: 190, peakMET: 10))
+        let met = WhoopEnergyModel.exerciseMET(hr: 150, resting: 60, maximum: 190, kind: .endurance,
+                                               peakMET: 10)
+        let perMET: Double = 3.5 * 80 / 200 * 5
+        XCTAssertEqual(value.buckets[0].activeKcal, (met - 1) * perMET, accuracy: 1e-9)
+    }
+
+    /// Before the first resting HR there is no ceiling: the sport's table price, flagged as inferred.
+    func testWithoutACeilingAWorkoutTakesItsSportsTablePrice() throws {
+        let lifting = WhoopEnergyBucket(start: 0, averageHR: 120, isWorkout: true, workoutKind: .resistance,
+                                        workoutTableMET: 5)
+        let value = try XCTUnwrap(WhoopEnergyModel.estimate(
+            buckets: [lifting], profile: profile, restingHR: nil, maxHR: 190, peakMET: nil))
+        let perMET: Double = 3.5 * 80 / 200 * 5
+        XCTAssertEqual(value.buckets[0].activeKcal, 4 * perMET, accuracy: 1e-9)
+        XCTAssertEqual(value.buckets[0].evidence, .inferred)
+        XCTAssertEqual(value.buckets[0].context, .confirmedWorkout)
+        let unnamed = try XCTUnwrap(WhoopEnergyModel.estimate(
+            buckets: [.init(start: 0, averageHR: 120, isWorkout: true)], profile: profile,
+            restingHR: nil, maxHR: 190))
+        XCTAssertEqual(unnamed.buckets[0].activeKcal, (ActivityMETCatalog.defaultMET - 1) * perMET,
+                       accuracy: 1e-9)
+    }
+
+    func testOnFootSportsAreWalkingRunningHikingAndRucking() {
+        for sport in ["Walking", "HKWorkoutActivityTypeRunning", "Treadmill walk", "Hiking", "Rucking",
+                      "Trail run", "Jogging"] {
+            XCTAssertTrue(EnergyWorkoutKind.isOnFoot(sport: sport), sport)
+        }
+        for sport in ["Stair climber", "Indoor cycle", "Rowing", "Pool swim", "Elliptical",
+                      "Strength Training", "Workout", ""] {
+            XCTAssertFalse(EnergyWorkoutKind.isOnFoot(sport: sport), sport)
+        }
+    }
+
+    // MARK: - Activity evidence for the Jurca category
+
+    private func walkBucket(_ index: Int, steps: Int = 550, seconds: Int = 300) -> WhoopEnergyBucket {
+        // 550 steps in 5 min at 0.75 m = 4.95 km/h, ~3.6 MET by pace.
+        WhoopEnergyBucket(start: index * 300, steps: steps, activityClass: 1, hasMovementCoverage: true,
+                          movementSeconds: seconds)
+    }
+
+    func testOnlyBoutsOfTwentyMinutesCountAsAerobic() throws {
+        let fourBuckets = (0..<4).map { walkBucket($0) }
+        let threeBuckets = (0..<3).map { walkBucket($0) }
+        let bout = try XCTUnwrap(WhoopEnergyModel.estimate(
+            buckets: fourBuckets, profile: profile, restingHR: 55, maxHR: 185))
+        let short = try XCTUnwrap(WhoopEnergyModel.estimate(
+            buckets: threeBuckets, profile: profile, restingHR: 55, maxHR: 185))
+        XCTAssertEqual(bout.aerobicSeconds, 1_200)
+        XCTAssertEqual(short.aerobicSeconds, 0)
+        XCTAssertTrue(short.hadLightActivity)
+        // A gap between buckets ends the run: two separate 15-minute walks are no bout.
+        let split = (0..<3).map { walkBucket($0) } + (5..<8).map { walkBucket($0) }
+        XCTAssertEqual(try XCTUnwrap(WhoopEnergyModel.estimate(
+            buckets: split, profile: profile, restingHR: 55, maxHR: 185)).aerobicSeconds, 0)
+    }
+
+    /// The span makes the bout, the observed seconds are what it contributes.
+    func testABoutContributesItsMovementSecondsNotItsSpan() throws {
+        let value = try XCTUnwrap(WhoopEnergyModel.estimate(
+            buckets: (0..<4).map { walkBucket($0, steps: 460, seconds: 250) }, profile: profile,
+            restingHR: 55, maxHR: 185))
+        XCTAssertEqual(value.aerobicSeconds, 1_000)
+    }
+
+    func testAStrollIsLightButNotAerobic() throws {
+        // 250 steps in 5 min = 2.25 km/h, below 3 MET by pace.
+        let value = try XCTUnwrap(WhoopEnergyModel.estimate(
+            buckets: (0..<6).map { walkBucket($0, steps: 250) }, profile: profile, restingHR: 55,
+            maxHR: 185))
+        XCTAssertEqual(value.aerobicSeconds, 0)
+        XCTAssertTrue(value.hadLightActivity)
+        let still = try XCTUnwrap(WhoopEnergyModel.estimate(
+            buckets: [.init(start: 0, averageHR: 60, activityClass: 0, hasMovementCoverage: true,
+                            movementSeconds: 0)], profile: profile, restingHR: 55, maxHR: 185))
+        XCTAssertFalse(still.hadLightActivity)
+    }
+
+    /// A workout qualifies by its heart-rate reserve, independent of the ceiling it is priced with.
+    func testAWorkoutQualifiesByReserveWhateverTheCeiling() throws {
+        func aerobic(_ bpm: Double, peak: Double?) throws -> Int {
+            try XCTUnwrap(WhoopEnergyModel.estimate(
+                buckets: (0..<4).map { WhoopEnergyBucket(start: $0 * 300, averageHR: bpm, isWorkout: true) },
+                profile: profile, restingHR: 60, maxHR: 190, peakMET: peak)).aerobicSeconds
+        }
+        // 40 % of a 130-beat reserve above 60 is 112.
+        XCTAssertEqual(try aerobic(113, peak: 8), 1_200)
+        XCTAssertEqual(try aerobic(113, peak: nil), 1_200)
+        XCTAssertEqual(try aerobic(110, peak: 14), 0)
+    }
+
     func testInvalidBucketsAndProfileDoNotInventEnergy() {
         XCTAssertNil(WhoopEnergyModel.estimate(
             buckets: [.init(start: 0)],
-            profile: .init(weightKg: 0, heightCm: 0, age: 0), restingHR: nil, maxHR: nil))
+            profile: .init(weightKg: 0, heightCm: 0, age: 0), restingHR: nil, maxHR: nil, peakMET: 14))
         XCTAssertNil(WhoopEnergyModel.estimate(
             buckets: [.init(start: 0, durationSeconds: 0)],
-            profile: profile, restingHR: nil, maxHR: nil))
+            profile: profile, restingHR: nil, maxHR: nil, peakMET: 14))
     }
 
     func testCausalWeightNeverReadsFutureAndManualWinsSameDay() throws {

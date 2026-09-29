@@ -384,6 +384,29 @@ extension Repository {
     /// holds buckets priced under the previous inclusion rules, which is the exact disagreement this
     /// exists to remove. `maxDays` bounds the bucket reads for a long list — rows arrive newest first,
     /// so it is the oldest sessions that keep their fallback.
+    /// The day's stored model row of this generation, or nil when none has been computed.
+    func whoopEnergyRow(day: String) async -> WhoopDailyEnergyRow? {
+        guard let store = await storeHandle() else { return nil }
+        return ((try? await store.whoopDailyEnergy(deviceId: deviceId, from: day, to: day)) ?? [])
+            .first { $0.modelVersion == WhoopDailyEnergyEstimate.modelVersion }
+    }
+
+    /// The aerobic ceiling (METs) each day's energy model used, for this model generation, keyed by
+    /// local day. A session priced outside the bucket model (its tile without strap coverage, a
+    /// rescore, a live save) reads it through `WorkoutEnergyDisplay.peakMET(on:in:)`, so it lands on the
+    /// same scale as the day it belongs to.
+    func energyPeakMETByDay(fromDay: String, toDay: String) async -> [String: Double] {
+        guard let store = await storeHandle() else { return [:] }
+        let rows = (try? await store.whoopDailyEnergy(
+            deviceId: deviceId, from: WeeklyDigestEngine.addDays(fromDay, -WorkoutEnergyDisplay.peakMETCarryDays),
+            to: toDay)) ?? []
+        var byDay: [String: Double] = [:]
+        for row in rows where row.modelVersion == WhoopDailyEnergyEstimate.modelVersion {
+            if let peak = row.peakMET, peak.isFinite, peak > 0 { byDay[row.day] = peak }
+        }
+        return byDay
+    }
+
     func strapSessionEnergy(for rows: [WorkoutRow], maxDays: Int = 120) async -> [String: Double] {
         let candidates = rows.filter { row in
             row.endTs > row.startTs && !(row.energyKcal.map { $0.isFinite && $0 > 0 } ?? false)
@@ -565,8 +588,23 @@ extension Repository {
         // like (Apple's `activeKcal` is already basal-free), and computing it twice would risk the
         // two copies drifting apart on the exact basal-per-second arithmetic.
         var whoopActiveByBucket: [Int: Double] = [:]
-        for (day, rows) in Dictionary(grouping: hr, by: { Self.localDayKey(
-            Date(timeIntervalSince1970: TimeInterval($0.ts))) }) {
+        // Pass 1 builds every day's inputs and reads off its activity evidence; pass 2 prices each
+        // day with the aerobic ceiling that evidence implies. Two passes because a day's Jurca
+        // category includes the day itself, and the evidence does not depend on the ceiling (a workout
+        // qualifies by heart-rate reserve, movement by pace), so pricing without one is enough to read it.
+        // Oldest first, so each day's category sees the days before it.
+        struct PreparedDay {
+            let day: String
+            let profile: UserProfile
+            let weightSource: WhoopDailyEnergyRow.WeightSource
+            let inputs: [WhoopEnergyBucket]
+            let restingHR: Double?
+        }
+        var prepared: [PreparedDay] = []
+        var evidence: [DailyActivityEvidence] = []
+        let hrByDay = Dictionary(grouping: hr, by: { Self.localDayKey(
+            Date(timeIntervalSince1970: TimeInterval($0.ts))) })
+        for (day, rows) in hrByDay.sorted(by: { $0.key < $1.key }) {
             var dayProfile = profile
             dayProfile.bodyFatPercent = bodyFatOn(day)
             let noon = WeightSeries.date(forDay: day)
@@ -612,6 +650,7 @@ extension Repository {
                     strideM: dayStrideM,
                     activityClass: move?.activityClass,
                     isWorkout: workout != nil, workoutKind: workout?.kind ?? .other,
+                    workoutOnFoot: workout?.onFoot ?? false, workoutTableMET: workout?.tableMET,
                     isSleep: Self.contains(midpoint, in: sleepIntervals),
                     isOffWrist: Self.contains(midpoint, in: offWristIntervals),
                     hasMovementCoverage: move?.covered == true,
@@ -621,9 +660,49 @@ extension Repository {
             let priorResting = self.days.filter { $0.day < day }.compactMap(\.restingHr)
                 .suffix(14).map(Double.init).sorted()
             let restingHR = priorResting.isEmpty ? nil : priorResting[priorResting.count / 2]
-            guard let estimate = WhoopEnergyModel.estimate(
+            guard let unpriced = WhoopEnergyModel.estimate(
                 buckets: inputs, profile: dayProfile, restingHR: restingHR,
                 maxHR: maximumHR, flexHR: restingHR.map { $0 + 20 }) else { continue }
+            evidence.append(DailyActivityEvidence(day: day, aerobicSeconds: unpriced.aerobicSeconds,
+                                                  hadLightActivity: unpriced.hadLightActivity))
+            prepared.append(PreparedDay(day: day, profile: dayProfile, weightSource: weightSource,
+                                        inputs: inputs, restingHR: restingHR))
+        }
+
+        // Evidence for the four weeks before the window, from this generation's stored days; older
+        // generations never recorded it and would read as inactive weeks.
+        if let firstDay = prepared.first?.day {
+            let lookback = WeeklyDigestEngine.addDays(firstDay, -PeakMETResolver.activityWindowDays)
+            let stored = (try? await store.whoopDailyEnergy(
+                deviceId: deviceId, from: lookback, to: WeeklyDigestEngine.addDays(firstDay, -1))) ?? []
+            evidence += stored.filter { $0.modelVersion == WhoopDailyEnergyEstimate.modelVersion }.map {
+                DailyActivityEvidence(day: $0.day, aerobicSeconds: $0.aerobicSeconds,
+                                      hadLightActivity: $0.hadLightActivity)
+            }
+        }
+        let appleVO2 = await exploreSeries(key: "vo2max", source: Self.appleHealthSource,
+                                           days: days + PeakMETResolver.appleFreshnessDays)
+            .map { VO2maxReading(day: $0.day, value: $0.value, segment: Self.appleHealthSource) }
+        let manualVO2 = FitnessPreferences.manualEntry
+        let levelOverride = FitnessPreferences.activityLevelOverride
+        func weightOnDay(_ day: String) -> Double? {
+            guard let date = WeightSeries.date(forDay: day) else { return nil }
+            return CausalWeightResolver.weight(at: Int(date.timeIntervalSince1970 + 43_200),
+                                               observations: observations, calendar: calendar)
+        }
+
+        for entry in prepared {
+            let day = entry.day
+            let dayProfile = entry.profile
+            let restingHR = entry.restingHR
+            let level = levelOverride ?? PeakMETResolver.activityLevel(for: day, evidence: evidence)
+            let ceiling = PeakMETResolver.resolve(
+                day: day, profile: dayProfile, restingHR: restingHR, manual: manualVO2,
+                apple: appleVO2, weightOnDay: weightOnDay, activityLevel: level)
+            guard let estimate = WhoopEnergyModel.estimate(
+                buckets: entry.inputs, profile: dayProfile, restingHR: restingHR,
+                maxHR: maximumHR, flexHR: restingHR.map { $0 + 20 },
+                peakMET: ceiling?.peakMET) else { continue }
             for bucket in estimate.buckets { bucketResults[bucket.start] = bucket }
             // The same pass, kept at hourly resolution so `ActivityShapeEngine` can fit a personal
             // time-of-day profile later without re-walking the raw ~1 Hz streams. ACTIVE energy only:
@@ -647,7 +726,11 @@ extension Repository {
                 physiologicalSeconds: estimate.physiologicalSeconds,
                 contextJSON: Self.energyContextJSON(estimate.contextSeconds),
                 uncertaintyFraction: estimate.uncertaintyFraction,
-                weightKg: dayProfile.weightKg, weightSource: weightSource)
+                weightKg: dayProfile.weightKg, weightSource: entry.weightSource,
+                aerobicSeconds: estimate.aerobicSeconds, hadLightActivity: estimate.hadLightActivity,
+                peakMET: ceiling?.peakMET, peakMETSource: ceiling?.source.rawValue,
+                peakMETSourceDay: ceiling?.sourceDay, measuredVO2max: ceiling?.measuredVO2max,
+                measuredWeightKg: ceiling?.measuredWeightKg, activityLevel: ceiling?.activityLevel?.rawValue)
             let storedBuckets = estimate.buckets.compactMap { bucket -> WhoopEnergyBucketRow? in
                 guard let input = bucketInputs[bucket.start] else { return nil }
                 return .init(day: day, bucketStart: bucket.start,
@@ -660,6 +743,9 @@ extension Repository {
             }
             pendingWindow.append(.init(daily: row, activeKcalByHour: activeByHour,
                                        buckets: storedBuckets))
+            if let peak = ceiling?.peakMET, day >= (latestEnergyPeakMET?.day ?? "") {
+                latestEnergyPeakMET = (day, peak)
+            }
         }
 
         // Daily totals and their hourly activity shape describe one model generation. Publish the
@@ -850,7 +936,8 @@ extension Repository {
         }
     }
 
-    private typealias EnergyWorkoutInterval = (start: Int, end: Int, kind: EnergyWorkoutKind)
+    private typealias EnergyWorkoutInterval = (start: Int, end: Int, kind: EnergyWorkoutKind,
+                                               onFoot: Bool, tableMET: Double)
 
     private func energySleepIntervals(store: WhoopStore, from: Int, to: Int) async
         -> [(start: Int, end: Int)] {
@@ -890,7 +977,9 @@ extension Repository {
         let rows = WorkoutSource.dedupCrossSource(
             await rawWorkoutRows(from: from - 2 * 86_400, to: to))
         return rows.filter { $0.endTs > $0.startTs && $0.endTs > from && $0.startTs < to }.map {
-            (start: $0.startTs, end: $0.endTs, kind: EnergyWorkoutKind.forSport($0.sport))
+            (start: $0.startTs, end: $0.endTs, kind: EnergyWorkoutKind.forSport($0.sport),
+             onFoot: EnergyWorkoutKind.isOnFoot(sport: $0.sport),
+             tableMET: ActivityMETCatalog.met(forSport: $0.sport))
         }
     }
 

@@ -81,6 +81,7 @@ struct WorkoutsView: View {
     /// Loaded once per list load rather than per row — it is a database read, and the kcal column
     /// renders for every visible session.
     @State private var restingHrByDay: [String: Double] = [:]
+    @State private var peakMETByDay: [String: Double] = [:]
     /// The strap model's figure per session (`Repository.strapSessionEnergy`), for the rows that
     /// recorded none. Reloaded when the rows change and whenever the energy model republishes.
     @State private var strapEnergyByKey: [String: Double] = [:]
@@ -276,6 +277,7 @@ struct WorkoutsView: View {
             if let oldest = r.map(\.startTs).min() {
                 let from = Self.dayFormatter.string(from: Date(timeIntervalSince1970: TimeInterval(oldest)))
                 restingHrByDay = await repo.restingHrByDay(fromDay: min(from, toDay), toDay: toDay)
+                peakMETByDay = await repo.energyPeakMETByDay(fromDay: min(from, toDay), toDay: toDay)
             }
         }
         .task(id: "\(allRows.count)|\(allRows.first?.startTs ?? 0)|\(repo.energyPresentationRevision)") {
@@ -1970,7 +1972,7 @@ struct WorkoutsView: View {
     private func resolvedEnergy(_ row: WorkoutRow) -> WorkoutEnergyEstimate.Resolved? {
         WorkoutEnergyDisplay.resolve(row, profile: Repository.analyticsProfile(profile),
                                      hrMax: Double(profile.hrMax), restingHrByDay: restingHrByDay,
-                                     strapKcalByKey: strapEnergyByKey)
+                                     strapKcalByKey: strapEnergyByKey, peakMETByDay: peakMETByDay)
     }
 
     private func grouped(_ v: Double) -> String {

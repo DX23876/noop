@@ -1888,6 +1888,23 @@ extension WhoopStore {
             try db.create(index: "idx_trainingSessionLoad_start", on: "trainingSessionLoad",
                           columns: ["startTs"])
         }
+        // v71-whoop-energy-fitness: model v8 scales confirmed workouts to a ceiling resolved per day
+        // (an entered VO₂max, a fresh Apple Watch reading, else Jurca 2005 from resting HR and the
+        // activity category). The day keeps what fed that category and which ceiling it used, so the
+        // next day's category reads stored evidence and a session tile prices on the same ceiling.
+        // Additive with neutral defaults; every row is replaced by the next 120-day recompute.
+        migrator.registerMigration("v71-whoop-energy-fitness") { db in
+            try db.alter(table: "whoopDailyEnergy") { t in
+                t.add(column: "aerobicSeconds", .integer).notNull().defaults(to: 0)
+                t.add(column: "hadLightActivity", .integer).notNull().defaults(to: 0)
+                t.add(column: "peakMET", .double)
+                t.add(column: "peakMETSource", .text)
+                t.add(column: "peakMETSourceDay", .text)
+                t.add(column: "measuredVO2max", .double)
+                t.add(column: "measuredWeightKg", .double)
+                t.add(column: "activityLevel", .integer)
+            }
+        }
         return migrator
     }
 }

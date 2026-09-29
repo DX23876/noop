@@ -68,7 +68,8 @@ public enum WorkoutEnergyEstimate {
                                profile: UserProfile,
                                hrMax: Double?,
                                restingHR: Double?,
-                               strapKcal: Double? = nil) -> Resolved? {
+                               strapKcal: Double? = nil,
+                               peakMET: Double? = nil) -> Resolved? {
         func valid(_ kcal: Double?, _ provenance: Provenance) -> Resolved? {
             guard let kcal, kcal.isFinite, kcal > 0 else { return nil }
             return Resolved(kcal: kcal, provenance: provenance)
@@ -81,7 +82,8 @@ public enum WorkoutEnergyEstimate {
         if let averageHR, averageHR > 0,
            let resolved = valid(heartRateKcal(averageHR: averageHR, sport: sport,
                                               durationSeconds: durationSeconds, profile: profile,
-                                              hrMax: hrMax, restingHR: restingHR), .heartRate) {
+                                              hrMax: hrMax, restingHR: restingHR, peakMET: peakMET),
+                                 .heartRate) {
             return resolved
         }
 
@@ -101,9 +103,11 @@ extension WorkoutEnergyEstimate {
     /// arithmetic its buckets use — so a session without strap coverage lands on the scale of one with
     /// it. Everything else keeps Keytel.
     static func heartRateKcal(averageHR: Int, sport: String, durationSeconds: Double,
-                              profile: UserProfile, hrMax: Double?, restingHR: Double?) -> Double? {
+                              profile: UserProfile, hrMax: Double?, restingHR: Double?,
+                              peakMET: Double? = nil) -> Double? {
         guard EnergyWorkoutKind.forSport(sport) == .resistance,
-              let price = resistancePricer(profile: profile, hrMax: hrMax, restingHR: restingHR) else {
+              let price = resistancePricer(profile: profile, hrMax: hrMax, restingHR: restingHR,
+                                           peakMET: peakMET) else {
             return Calories.estimateBoutCalories(averageHR: averageHR, durationSeconds: durationSeconds,
                                                  profile: profile, hrmax: hrMax, restingHR: restingHR)
         }
@@ -122,9 +126,10 @@ extension WorkoutEnergyEstimate {
     /// same rule the Keytel integration uses, so a sparse stream is not undercounted and a wear gap
     /// cannot be inflated. Zero with fewer than two samples, like its sibling.
     public static func boutKcal(_ samples: [HRSample], sport: String, profile: UserProfile,
-                                hrMax: Double?, restingHR: Double?) -> Double {
+                                hrMax: Double?, restingHR: Double?, peakMET: Double? = nil) -> Double {
         guard EnergyWorkoutKind.forSport(sport) == .resistance,
-              let price = resistancePricer(profile: profile, hrMax: hrMax, restingHR: restingHR) else {
+              let price = resistancePricer(profile: profile, hrMax: hrMax, restingHR: restingHR,
+                                           peakMET: peakMET) else {
             return Calories.estimateBoutCalories(samples, profile: profile, hrmax: hrMax,
                                                  restingHR: restingHR).0
         }
@@ -145,18 +150,21 @@ extension WorkoutEnergyEstimate {
     }
 
     /// Basal plus resistance-curve active energy for `seconds` at a heart rate, or nil when the
-    /// profile has no body data to price basal with (the caller then keeps Keytel, which carries its
-    /// own population defaults). Resting and maximum take the bounds the bucket model applies.
-    private static func resistancePricer(profile: UserProfile, hrMax: Double?, restingHR: Double?)
-        -> ((Double, Double) -> Double)? {
-        guard let bmr = Calories.bmrKcalPerDay(profile: profile), profile.weightKg > 0 else { return nil }
+    /// profile has no body data to price basal with, or no aerobic ceiling is known (the caller then
+    /// keeps Keytel, which carries its own population defaults). Resting and maximum take the bounds
+    /// the bucket model applies; `peakMET` is the ceiling the day's bucket model used, so a session
+    /// without strap coverage lands on the same scale as one with it.
+    private static func resistancePricer(profile: UserProfile, hrMax: Double?, restingHR: Double?,
+                                         peakMET: Double?) -> ((Double, Double) -> Double)? {
+        guard let bmr = Calories.bmrKcalPerDay(profile: profile), profile.weightKg > 0,
+              let peakMET, peakMET.isFinite else { return nil }
         let resting = min(100, max(35, restingHR ?? 60))
         let maximum = max(resting + 20, hrMax ?? profile.maxHR
                           ?? (profile.age > 0 ? StrainScorer.tanakaHRmax(age: profile.age) : 190))
         let weight = profile.weightKg
         return { bpm, seconds in
             let met = WhoopEnergyModel.exerciseMET(hr: bpm, resting: resting, maximum: maximum,
-                                                   kind: .resistance)
+                                                   kind: .resistance, peakMET: peakMET)
             return bmr / 86_400 * seconds
                 + WhoopEnergyModel.activeKcal(met: met, seconds: seconds, weightKg: weight)
         }

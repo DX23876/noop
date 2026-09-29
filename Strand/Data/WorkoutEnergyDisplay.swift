@@ -27,15 +27,32 @@ enum WorkoutEnergyDisplay {
     ///
     /// `strapKcalByKey` is `Repository.strapSessionEnergy(for:)` for the rows on screen. A session the
     /// strap model covered takes its figure from there, so the tile agrees with the day's energy.
+    ///
+    /// `peakMETByDay` is `Repository.energyPeakMETByDay`: the aerobic ceiling the day's bucket model
+    /// used, so a session priced from its average heart rate is scaled the way its day was.
     static func resolve(_ row: WorkoutRow, profile: UserProfile, hrMax: Double?,
                         restingHrByDay: [String: Double],
-                        strapKcalByKey: [String: Double] = [:]) -> WorkoutEnergyEstimate.Resolved? {
+                        strapKcalByKey: [String: Double] = [:],
+                        peakMETByDay: [String: Double] = [:]) -> WorkoutEnergyEstimate.Resolved? {
         let day = Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(row.startTs)))
         return WorkoutEnergyEstimate.resolve(
             recordedKcal: row.energyKcal, sport: row.sport,
             durationSeconds: row.durationS ?? Double(max(0, row.endTs - row.startTs)),
             averageHR: row.avgHr, profile: profile, hrMax: hrMax,
-            restingHR: restingHrByDay[day], strapKcal: strapKcalByKey[key(row)])
+            restingHR: restingHrByDay[day], strapKcal: strapKcalByKey[key(row)],
+            peakMET: peakMET(on: day, in: peakMETByDay))
+    }
+
+    /// How far back a day without its own energy row may borrow the ceiling of an earlier one: the
+    /// Apple Watch freshness window, since a ceiling older than that would not be used for the day itself.
+    static let peakMETCarryDays = PeakMETResolver.appleFreshnessDays
+
+    /// The ceiling in force on `day`: its own, else the newest earlier one within `peakMETCarryDays`.
+    /// Nil keeps the session on Keytel, as a day with no ceiling at all would.
+    static func peakMET(on day: String, in byDay: [String: Double]) -> Double? {
+        if let own = byDay[day] { return own }
+        let earliest = WeeklyDigestEngine.addDays(day, -peakMETCarryDays)
+        return byDay.filter { $0.key < day && $0.key >= earliest }.max { $0.key < $1.key }?.value
     }
 
     /// Identity of one session for the strap-energy lookup. The window is part of it: an edited start

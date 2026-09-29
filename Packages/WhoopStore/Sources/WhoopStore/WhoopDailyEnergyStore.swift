@@ -21,12 +21,32 @@ public struct WhoopDailyEnergyRow: Equatable, Sendable {
     public let uncertaintyFraction: Double
     public let weightKg: Double
     public let weightSource: WeightSource
+    /// Moderate-or-harder seconds in bouts of 20 minutes or more, and whether the day held ten
+    /// continuous minutes of movement: the evidence the Jurca activity category is measured from.
+    public let aerobicSeconds: Int
+    public let hadLightActivity: Bool
+    /// The aerobic ceiling (METs) confirmed workouts were scaled to, and where it came from
+    /// (`manual`, `appleWatch`, `jurca`; raw strings so this package stays free of StrandAnalytics).
+    /// Nil when the day had none and workouts were priced from their sport's table.
+    public let peakMET: Double?
+    public let peakMETSource: String?
+    /// The day the ceiling was measured or entered, the value as measured (ml/kg/min) and the weight
+    /// it was per kilogram of. Nil for an estimate.
+    public let peakMETSourceDay: String?
+    public let measuredVO2max: Double?
+    public let measuredWeightKg: Double?
+    /// The Jurca category (1–5) the estimate used. Nil for a measured ceiling.
+    public let activityLevel: Int?
 
     public init(day: String, rawTotalKcal: Double, modelVersion: String,
                 observedSeconds: Int, inferredSeconds: Int, modeledSeconds: Int,
                 representedSeconds: Int? = nil, physiologicalSeconds: Int = 0,
                 contextJSON: String = "{}",
-                uncertaintyFraction: Double, weightKg: Double, weightSource: WeightSource) {
+                uncertaintyFraction: Double, weightKg: Double, weightSource: WeightSource,
+                aerobicSeconds: Int = 0, hadLightActivity: Bool = false,
+                peakMET: Double? = nil, peakMETSource: String? = nil, peakMETSourceDay: String? = nil,
+                measuredVO2max: Double? = nil, measuredWeightKg: Double? = nil,
+                activityLevel: Int? = nil) {
         self.day = day
         self.rawTotalKcal = rawTotalKcal
         self.modelVersion = modelVersion
@@ -40,6 +60,14 @@ public struct WhoopDailyEnergyRow: Equatable, Sendable {
         self.uncertaintyFraction = uncertaintyFraction
         self.weightKg = weightKg
         self.weightSource = weightSource
+        self.aerobicSeconds = aerobicSeconds
+        self.hadLightActivity = hadLightActivity
+        self.peakMET = peakMET
+        self.peakMETSource = peakMETSource
+        self.peakMETSourceDay = peakMETSourceDay
+        self.measuredVO2max = measuredVO2max
+        self.measuredWeightKg = measuredWeightKg
+        self.activityLevel = activityLevel
     }
 }
 
@@ -142,7 +170,9 @@ extension WhoopStore {
             try Row.fetchAll(db, sql: """
                 SELECT day, rawTotalKcal, modelVersion, observedSeconds, inferredSeconds,
                        modeledSeconds, representedSeconds, physiologicalSeconds, contextJSON,
-                       uncertaintyFraction, weightKg, weightSource
+                       uncertaintyFraction, weightKg, weightSource, aerobicSeconds, hadLightActivity,
+                       peakMET, peakMETSource, peakMETSourceDay, measuredVO2max, measuredWeightKg,
+                       activityLevel
                 FROM whoopDailyEnergy
                 WHERE deviceId = ? AND day >= ? AND day <= ?
                 ORDER BY day ASC
@@ -157,7 +187,11 @@ extension WhoopStore {
                         representedSeconds: row["representedSeconds"],
                         physiologicalSeconds: row["physiologicalSeconds"], contextJSON: row["contextJSON"],
                         uncertaintyFraction: row["uncertaintyFraction"], weightKg: row["weightKg"],
-                        weightSource: source)
+                        weightSource: source, aerobicSeconds: row["aerobicSeconds"],
+                        hadLightActivity: row["hadLightActivity"], peakMET: row["peakMET"],
+                        peakMETSource: row["peakMETSource"], peakMETSourceDay: row["peakMETSourceDay"],
+                        measuredVO2max: row["measuredVO2max"], measuredWeightKg: row["measuredWeightKg"],
+                        activityLevel: row["activityLevel"])
                 }
         }
     }
@@ -238,6 +272,8 @@ extension WhoopStore {
             && !row.contextJSON.isEmpty && row.uncertaintyFraction.isFinite
             && (0...1).contains(row.uncertaintyFraction) && row.weightKg.isFinite
             && (25...350).contains(row.weightKg)
+            && row.aerobicSeconds >= 0 && row.aerobicSeconds <= 86_400
+            && (row.peakMET.map { $0.isFinite && $0 > 0 } ?? true)
     }
 
     private static func valid(_ row: WhoopEnergyBucketRow, day: String) -> Bool {
@@ -255,8 +291,9 @@ extension WhoopStore {
             INSERT INTO whoopDailyEnergy
                 (deviceId, day, rawTotalKcal, modelVersion, observedSeconds,
                  inferredSeconds, modeledSeconds, representedSeconds, physiologicalSeconds, contextJSON,
-                 uncertaintyFraction, weightKg, weightSource)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 uncertaintyFraction, weightKg, weightSource, aerobicSeconds, hadLightActivity,
+                 peakMET, peakMETSource, peakMETSourceDay, measuredVO2max, measuredWeightKg, activityLevel)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(deviceId, day) DO UPDATE SET
                 rawTotalKcal = excluded.rawTotalKcal,
                 modelVersion = excluded.modelVersion,
@@ -268,7 +305,15 @@ extension WhoopStore {
                 contextJSON = excluded.contextJSON,
                 uncertaintyFraction = excluded.uncertaintyFraction,
                 weightKg = excluded.weightKg,
-                weightSource = excluded.weightSource
+                weightSource = excluded.weightSource,
+                aerobicSeconds = excluded.aerobicSeconds,
+                hadLightActivity = excluded.hadLightActivity,
+                peakMET = excluded.peakMET,
+                peakMETSource = excluded.peakMETSource,
+                peakMETSourceDay = excluded.peakMETSourceDay,
+                measuredVO2max = excluded.measuredVO2max,
+                measuredWeightKg = excluded.measuredWeightKg,
+                activityLevel = excluded.activityLevel
             WHERE rawTotalKcal IS NOT excluded.rawTotalKcal
                OR modelVersion IS NOT excluded.modelVersion
                OR observedSeconds IS NOT excluded.observedSeconds
@@ -280,10 +325,21 @@ extension WhoopStore {
                OR uncertaintyFraction IS NOT excluded.uncertaintyFraction
                OR weightKg IS NOT excluded.weightKg
                OR weightSource IS NOT excluded.weightSource
+               OR aerobicSeconds IS NOT excluded.aerobicSeconds
+               OR hadLightActivity IS NOT excluded.hadLightActivity
+               OR peakMET IS NOT excluded.peakMET
+               OR peakMETSource IS NOT excluded.peakMETSource
+               OR peakMETSourceDay IS NOT excluded.peakMETSourceDay
+               OR measuredVO2max IS NOT excluded.measuredVO2max
+               OR measuredWeightKg IS NOT excluded.measuredWeightKg
+               OR activityLevel IS NOT excluded.activityLevel
             """, arguments: [deviceId, row.day, row.rawTotalKcal, row.modelVersion,
                              row.observedSeconds, row.inferredSeconds, row.modeledSeconds,
                              row.representedSeconds, row.physiologicalSeconds, row.contextJSON,
-                             row.uncertaintyFraction, row.weightKg, row.weightSource.rawValue])
+                             row.uncertaintyFraction, row.weightKg, row.weightSource.rawValue,
+                             row.aerobicSeconds, row.hadLightActivity, row.peakMET, row.peakMETSource,
+                             row.peakMETSourceDay, row.measuredVO2max, row.measuredWeightKg,
+                             row.activityLevel])
         return db.changesCount
     }
 }

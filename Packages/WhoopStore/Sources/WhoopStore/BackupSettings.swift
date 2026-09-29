@@ -89,6 +89,14 @@ public enum BackupSettings {
         // nobody having changed anything — the wearer would be looking at a bug that is really a lost
         // setting. Append-only data, so a restore can only ever bring back what was already true.
         "energy.bmrFormulaLog": .string,
+        // A VO₂max the wearer entered (a lab test, another device), the day it was entered and the
+        // weight it was per kilogram of. The energy model scales confirmed workouts to it for 183 days;
+        // lost in a restore, the day totals would silently fall back to an estimate. Plus the activity
+        // category override for that estimate (0 = measured from the strap).
+        "profile.vo2maxManual": .double,
+        "profile.vo2maxManualDay": .string,
+        "profile.vo2maxManualWeightKg": .double,
+        "profile.activityLevelOverride": .int,
     ]
 
     /// Canonical JSON key → this platform's UserDefaults key. Identity everywhere except
@@ -112,6 +120,10 @@ public enum BackupSettings {
         "dayCycle.mode": "noop.dayCycleMode",
         "today.hostedCards": "today.hostedCards",
         "energy.bmrFormulaLog": "energy.bmrFormulaLog",
+        "profile.vo2maxManual": "profile.vo2maxManual",
+        "profile.vo2maxManualDay": "profile.vo2maxManualDay",
+        "profile.vo2maxManualWeightKg": "profile.vo2maxManualWeightKg",
+        "profile.activityLevelOverride": "profile.activityLevelOverride",
     ]
 
     // MARK: - Snapshot / apply (UserDefaults boundary)

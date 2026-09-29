@@ -8,7 +8,8 @@ final class WorkoutEnergyEstimateTests: XCTestCase {
                          seconds: Double = 4_620, avgHR: Int? = nil)
         -> WorkoutEnergyEstimate.Resolved? {
         WorkoutEnergyEstimate.resolve(recordedKcal: recorded, sport: sport, durationSeconds: seconds,
-                                      averageHR: avgHR, profile: profile, hrMax: 190, restingHR: 55)
+                                      averageHR: avgHR, profile: profile, hrMax: 190, restingHR: 55,
+                                      peakMET: 10)
     }
 
     func testARecordedFigureWinsAndIsNotMarkedAsAnEstimate() {
@@ -72,9 +73,10 @@ final class WorkoutEnergyEstimateTests: XCTestCase {
         let seconds = 5_400.0
         let resolved = try XCTUnwrap(WorkoutEnergyEstimate.resolve(
             recordedKcal: nil, sport: "Strength Training", durationSeconds: seconds, averageHR: 108,
-            profile: profile, hrMax: 190, restingHR: 60))
+            profile: profile, hrMax: 190, restingHR: 60, peakMET: 10))
         XCTAssertEqual(resolved.provenance, .heartRate)
-        let met = WhoopEnergyModel.exerciseMET(hr: 108, resting: 60, maximum: 190, kind: .resistance)
+        let met = WhoopEnergyModel.exerciseMET(hr: 108, resting: 60, maximum: 190, kind: .resistance,
+                                               peakMET: 10)
         let expected = try XCTUnwrap(Calories.bmrKcalPerDay(profile: profile)) / 86_400 * seconds
             + WhoopEnergyModel.activeKcal(met: met, seconds: seconds, weightKg: 80)
         XCTAssertEqual(resolved.kcal, expected, accuracy: 1e-6)
@@ -85,9 +87,23 @@ final class WorkoutEnergyEstimateTests: XCTestCase {
         // An endurance session keeps Keytel.
         let run = try XCTUnwrap(WorkoutEnergyEstimate.resolve(
             recordedKcal: nil, sport: "Running", durationSeconds: 3_600, averageHR: 150,
-            profile: profile, hrMax: 190, restingHR: 60))
+            profile: profile, hrMax: 190, restingHR: 60, peakMET: 10))
         XCTAssertEqual(run.kcal, Calories.estimateBoutCalories(
             averageHR: 150, durationSeconds: 3_600, profile: profile, hrmax: 190, restingHR: 60) ?? 0,
+            accuracy: 1e-6)
+    }
+
+    /// The resistance curve is scaled to the ceiling the day's bucket model used. With none known the
+    /// session keeps Keytel rather than a ceiling nobody measured.
+    func testALiftingSessionFollowsTheDaysCeilingAndKeepsKeytelWithoutOne() throws {
+        func kcal(_ peak: Double?) -> Double? {
+            WorkoutEnergyEstimate.resolve(
+                recordedKcal: nil, sport: "Strength Training", durationSeconds: 3_600, averageHR: 120,
+                profile: profile, hrMax: 190, restingHR: 60, peakMET: peak)?.kcal
+        }
+        XCTAssertLessThan(try XCTUnwrap(kcal(6)), try XCTUnwrap(kcal(12)))
+        XCTAssertEqual(try XCTUnwrap(kcal(nil)), try XCTUnwrap(Calories.estimateBoutCalories(
+            averageHR: 120, durationSeconds: 3_600, profile: profile, hrmax: 190, restingHR: 60)),
             accuracy: 1e-6)
     }
 

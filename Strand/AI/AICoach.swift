@@ -5017,10 +5017,12 @@ final class AICoachEngine: ObservableObject {
         let profileStore = ProfileStore()
         let analyticsProfile = Repository.analyticsProfile(profileStore)
         var restingHrByDay: [String: Double] = [:]
+        var peakMETByDay: [String: Double] = [:]
         if let oldest = quoted.map(\.startTs).min(), let newest = quoted.map(\.startTs).max() {
-            restingHrByDay = await repo.restingHrByDay(
-                fromDay: Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(oldest))),
-                toDay: Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(newest))))
+            let fromDay = Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(oldest)))
+            let toDay = Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(newest)))
+            restingHrByDay = await repo.restingHrByDay(fromDay: fromDay, toDay: toDay)
+            peakMETByDay = await repo.energyPeakMETByDay(fromDay: fromDay, toDay: toDay)
         }
         let strapByKey = await repo.strapSessionEnergy(for: quoted)
 
@@ -5036,7 +5038,8 @@ final class AICoachEngine: ObservableObject {
             let energy = WorkoutEnergyDisplay.resolve(w, profile: analyticsProfile,
                                                       hrMax: Double(profileStore.hrMax),
                                                       restingHrByDay: restingHrByDay,
-                                                      strapKcalByKey: strapByKey)
+                                                      strapKcalByKey: strapByKey,
+                                                      peakMETByDay: peakMETByDay)
             if let spoken = WorkoutEnergyDisplay.spoken(energy, averageHR: w.avgHr) {
                 parts.append(spoken)
             }

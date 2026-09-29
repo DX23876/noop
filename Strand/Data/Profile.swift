@@ -86,6 +86,39 @@ final class ProfileStore: ObservableObject {
     /// `ProfileStore.stepsHasBankedMotion`.
     @Published var stepsHasBankedMotion: Bool { didSet { d.set(stepsHasBankedMotion, forKey: K.stepsHasMotion) } }
 
+    // ── Aerobic ceiling for the energy model ───────────────────────────────────────────────────
+    // The energy model scales confirmed workouts to the wearer's VO₂max (`PeakMETResolver`): an
+    // entered value first, then a fresh Apple Watch reading, then Jurca 2005 from the strap's resting
+    // HR and activity. The repository reads these keys through `FitnessPreferences`, off the main actor.
+
+    /// A VO₂max the wearer entered, ml/kg/min; 0 = none. Written only by ``setManualVO2max(_:)``, which
+    /// also records the day and the weight it was per kilogram of.
+    @Published private(set) var vo2maxManual: Double
+    /// Local day (`yyyy-MM-dd`) the value was entered; "" = none.
+    @Published private(set) var vo2maxManualDay: String
+    /// Jurca activity category 1–5 chosen by hand; 0 = measured from the strap.
+    @Published var activityLevelOverride: Int {
+        didSet { d.set(min(max(activityLevelOverride, 0), 5), forKey: FitnessPreferences.levelOverrideKey) }
+    }
+
+    /// Store an entered VO₂max with today's date and weight, or clear it with nil. The weight matters:
+    /// a value measured per kilogram of today's body is rescaled as that body changes.
+    func setManualVO2max(_ value: Double?) {
+        if let value, value.isFinite, value > 0 {
+            let day = Repository.localDayKey(Date())
+            d.set(value, forKey: FitnessPreferences.manualKey)
+            d.set(day, forKey: FitnessPreferences.manualDayKey)
+            d.set(weightKg, forKey: FitnessPreferences.manualWeightKey)
+            vo2maxManual = value
+            vo2maxManualDay = day
+        } else {
+            for key in [FitnessPreferences.manualKey, FitnessPreferences.manualDayKey,
+                        FitnessPreferences.manualWeightKey] { d.removeObject(forKey: key) }
+            vo2maxManual = 0
+            vo2maxManualDay = ""
+        }
+    }
+
     // ── Profile picture (optional, on-device only) ──────────────────────────────────────────────
     /// The user's chosen profile photo as JPEG bytes, or nil for the default SF-Symbol fallback.
     /// LOCAL-ONLY — like every other field here it lives in UserDefaults on this device; NOOP is
@@ -192,6 +225,9 @@ final class ProfileStore: ObservableObject {
         stepsHasBankedMotion = d.object(forKey: K.stepsHasMotion) as? Bool ?? false
         avatarImageData = d.data(forKey: K.avatar)
         name = d.string(forKey: K.name) ?? ""
+        vo2maxManual = max(0, d.object(forKey: FitnessPreferences.manualKey) as? Double ?? 0)
+        vo2maxManualDay = d.string(forKey: FitnessPreferences.manualDayKey) ?? ""
+        activityLevelOverride = min(max(d.object(forKey: FitnessPreferences.levelOverrideKey) as? Int ?? 0, 0), 5)
     }
 
     /// The persisted body weight, read WITHOUT constructing a store (#goal-journey-freeze).
@@ -389,5 +425,28 @@ final class ProfileStore: ObservableObject {
                        : stepScaleIncrement(for: value - 0.0001)
         let next = ((value + (up ? delta : -delta)) / delta).rounded() * delta
         return min(max(next, stepScaleRange.lowerBound), stepScaleRange.upperBound)
+    }
+}
+
+/// The profile's aerobic-ceiling settings as the energy model reads them. UserDefaults-backed and free
+/// of the main actor, like `EnergyCalibrationPreferences`, because the repository refresh runs off it.
+enum FitnessPreferences {
+    static let manualKey = "profile.vo2maxManual"
+    static let manualDayKey = "profile.vo2maxManualDay"
+    static let manualWeightKey = "profile.vo2maxManualWeightKg"
+    static let levelOverrideKey = "profile.activityLevelOverride"
+
+    /// The entered VO₂max, or nil when none is set. Expiry is the resolver's business, not this one's.
+    static var manualEntry: PeakMETResolver.ManualEntry? {
+        let defaults = UserDefaults.standard
+        guard let value = defaults.object(forKey: manualKey) as? Double, value > 0, value.isFinite,
+              let day = defaults.string(forKey: manualDayKey), day.count == 10 else { return nil }
+        let weight = (defaults.object(forKey: manualWeightKey) as? Double).flatMap { $0 > 0 ? $0 : nil }
+        return .init(vo2max: value, day: day, weightKg: weight)
+    }
+
+    /// The hand-chosen Jurca category, or nil to measure it from the strap.
+    static var activityLevelOverride: JurcaFitness.ActivityLevel? {
+        JurcaFitness.ActivityLevel(rawValue: UserDefaults.standard.integer(forKey: levelOverrideKey))
     }
 }

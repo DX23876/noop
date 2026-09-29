@@ -169,9 +169,10 @@ struct WorkoutDetailView: View {
         // The strap model's own figure for this window, when it covered it — the figure the day's
         // energy already counts. The list reads the same thing, so the two cannot disagree.
         let strapByKey = await repo.strapSessionEnergy(for: [row])
+        let peakByDay = await repo.energyPeakMETByDay(fromDay: day, toDay: day)
         let resolvedEnergy = WorkoutEnergyDisplay.resolve(
             row, profile: Repository.analyticsProfile(profile), hrMax: Double(profile.hrMax),
-            restingHrByDay: restingByDay, strapKcalByKey: strapByKey)
+            restingHrByDay: restingByDay, strapKcalByKey: strapByKey, peakMETByDay: peakByDay)
 
         await MainActor.run {
             self.energy = resolvedEnergy

@@ -3961,6 +3961,11 @@ final class IntelligenceEngine: ObservableObject {
         guard let rows = try? await store.workouts(deviceId: deviceId, from: since, to: now, limit: 200)
         else { return }
         let hrMax = Double(profile.hrMax)
+        // The ceiling each day's energy model used, so a rescored lifting session is priced on the
+        // curve its day was. Days without one keep Keytel, as before.
+        let peakByDay = await repo.energyPeakMETByDay(
+            fromDay: Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(since))),
+            toDay: Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(now))))
         var updated: [WorkoutRow] = []
         // A manual row is eligible when it looks under-scored (negligible kcal, #137) OR it's missing
         // strain (the merged-workout case, where kcal is the SUM of inputs so it never looks under-scored
@@ -3971,7 +3976,11 @@ final class IntelligenceEngine: ObservableObject {
                                                            to: row.endTs, limit: 20_000),
                   let s = ManualWorkoutRescore.scored(windowSamples: samples, profile: up, hrMax: hrMax,
                                                       restingHR: restingHR,
-                                                      effortMethod: effortMethod, sport: row.sport),
+                                                      effortMethod: effortMethod, sport: row.sport,
+                                                      peakMET: WorkoutEnergyDisplay.peakMET(
+                                                        on: Repository.localDayKey(Date(
+                                                            timeIntervalSince1970: TimeInterval(row.startTs))),
+                                                        in: peakByDay)),
                   ManualWorkoutRescore.improves(s, over: row.energyKcal, currentStrain: row.strain,
                                                 allowStrainOnlyFill: true)
             else { continue }

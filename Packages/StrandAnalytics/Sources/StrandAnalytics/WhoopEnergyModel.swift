@@ -59,6 +59,19 @@ public enum EnergyWorkoutKind: String, Codable, Equatable, Sendable {
             .contains(where: key.contains) { return .endurance }
         return .other
     }
+
+    /// Whether a session's sport moves the body on foot, so its cost follows from speed.
+    ///
+    /// Walking, running, hiking and rucking are priced by the pace the strap and phone measured, the way
+    /// ordinary walking outside a session already is. Stairs, cycling, rowing, swimming and the elliptical
+    /// are left to heart rate: the speed table has no column for climbing, and their movement signal is
+    /// not ground speed.
+    public static func isOnFoot(sport: String) -> Bool {
+        let key = sport.lowercased().filter { $0.isLetter }
+        if ["stair", "elliptical", "cycle", "cycling", "bike", "swim", "row"]
+            .contains(where: key.contains) { return false }
+        return ["walk", "run", "hike", "hiking", "ruck", "treadmill", "jog"].contains(where: key.contains)
+    }
 }
 
 /// One fixed-width WHOOP energy input window. Callers normally use five-minute buckets; duration is
@@ -86,6 +99,12 @@ public struct WhoopEnergyBucket: Equatable, Sendable {
     public let hasMovementCoverage: Bool
     public let isWorkout: Bool
     public let workoutKind: EnergyWorkoutKind
+    /// The session is walking, running, hiking or rucking (`EnergyWorkoutKind.isOnFoot`), so a bucket
+    /// with movement evidence is priced by pace rather than by heart rate.
+    public let workoutOnFoot: Bool
+    /// The Compendium MET for the session's sport (`ActivityMETCatalog`), the price of a workout bucket
+    /// when no aerobic ceiling is known yet.
+    public let workoutTableMET: Double?
     public let isSleep: Bool
     public let isOffWrist: Bool
 
@@ -93,7 +112,8 @@ public struct WhoopEnergyBucket: Equatable, Sendable {
                 averageHR: Double? = nil,
                 motionIntensity: Double? = nil, steps: Int? = nil, distanceM: Double? = nil,
                 strideM: Double? = nil, activityClass: Int? = nil, isWorkout: Bool = false,
-                workoutKind: EnergyWorkoutKind = .other, isSleep: Bool = false,
+                workoutKind: EnergyWorkoutKind = .other, workoutOnFoot: Bool = false,
+                workoutTableMET: Double? = nil, isSleep: Bool = false,
                 isOffWrist: Bool = false, hasMovementCoverage: Bool = false,
                 movementSeconds: Int? = nil) {
         self.start = start
@@ -110,6 +130,8 @@ public struct WhoopEnergyBucket: Equatable, Sendable {
         self.hasMovementCoverage = hasMovementCoverage
         self.isWorkout = isWorkout
         self.workoutKind = workoutKind
+        self.workoutOnFoot = workoutOnFoot
+        self.workoutTableMET = workoutTableMET
         self.isSleep = isSleep
         self.isOffWrist = isOffWrist
     }
@@ -125,6 +147,14 @@ public struct WhoopEnergyBucketResult: Equatable, Sendable {
 }
 
 public struct WhoopDailyEnergyEstimate: Equatable, Sendable {
+    /// v8 (2026-09-29): the aerobic ceiling a confirmed workout is scaled to is an INPUT
+    /// (`PeakMETResolver`: an entered value, a fresh Apple Watch reading, else Jurca 2005) instead of
+    /// Uth's 15.3 · HRmax / HRrest bounded to 7–16 MET. Uth has no body term and is validated in trained
+    /// men only; for a 212 kg wearer measured at 19 ml/kg/min it read 47, and walks were priced at three
+    /// times what the Watch and the ACSM walking equation give. Also v8: a session on foot with movement
+    /// evidence is priced by pace, as ordinary walking already was, with heart rate as the same bounded
+    /// correction; and a workout with no ceiling yet is priced from the sport's Compendium MET.
+    ///
     /// v7 (2026-09-26): the workout context now comes from every session the app lists — the native
     /// strength logger, Hevy API sync and the FitNotes/Strong history import, all retained straps and
     /// the detector's dismissals — instead of a hand-kept list of storage
@@ -145,7 +175,7 @@ public struct WhoopDailyEnergyEstimate: Equatable, Sendable {
     /// v5 (2026-08-29): heart rate without independently confirmed movement or a workout contributes
     /// no active energy. Locomotion is charged only for its observed movement seconds rather than the
     /// entire five-minute bucket. Bumped so every v4 physiological allowance is recomputed away.
-    public static let modelVersion = "whoop-bucket-v7"
+    public static let modelVersion = "whoop-bucket-v8"
 
     public let totalKcal: Double
     public let observedSeconds: Int
@@ -156,6 +186,13 @@ public struct WhoopDailyEnergyEstimate: Equatable, Sendable {
     /// Symmetric approximate uncertainty, expressed as a fraction of total energy.
     public let uncertaintyFraction: Double
     public let buckets: [WhoopEnergyBucketResult]
+    /// Seconds of moderate-or-harder activity inside bouts of at least 20 minutes: movement at 3 MET or
+    /// more by measured pace (or classified as a run), or a workout at 40 % of the heart-rate reserve or more (ACSM's lower bound for
+    /// moderate). Feeds the Jurca activity category. A workout is judged by its reserve rather than its
+    /// MET because its MET is itself scaled to the ceiling this figure helps estimate.
+    public let aerobicSeconds: Int
+    /// Whether the day held at least ten continuous minutes of movement or workout.
+    public let hadLightActivity: Bool
 
     /// Wall-clock seconds whose basal share is already present in `totalKcal`. This is the denominator
     /// `EnergyEngine` must use when topping up the unmodelled remainder of a day; using HR coverage here
@@ -175,8 +212,20 @@ public struct WhoopDailyEnergyEstimate: Equatable, Sendable {
 public enum WhoopEnergyModel {
     public static let defaultBucketSeconds = 300
 
+    /// Continuous span a bout must last to count toward `aerobicSeconds`.
+    static let aerobicBoutSeconds = 1_200
+    /// Continuous span of movement that makes a day count as lightly active.
+    static let lightBoutSeconds = 600
+    /// Share of the heart-rate reserve at which a workout counts as moderate (ACSM).
+    static let moderateReserve = 0.40
+    /// Pace-derived MET at which movement counts as moderate.
+    static let moderateMET = 3.0
+
+    /// - Parameter peakMET: the wearer's aerobic ceiling for the day (`PeakMETResolver`). Nil prices
+    ///   confirmed workouts from their sport's Compendium MET instead of from heart rate.
     public static func estimate(buckets: [WhoopEnergyBucket], profile: UserProfile,
-                                restingHR: Double?, maxHR: Double?, flexHR: Double? = nil)
+                                restingHR: Double?, maxHR: Double?, flexHR: Double? = nil,
+                                peakMET: Double? = nil)
         -> WhoopDailyEnergyEstimate? {
         guard let bmr = Calories.bmrKcalPerDay(profile: profile), profile.weightKg > 0 else { return nil }
         let valid = buckets
@@ -191,6 +240,9 @@ public enum WhoopEnergyModel {
         var physiological = 0
         var modeled = 0
         var contextSeconds: [EnergyContext: Int] = [:]
+        // Per bucket: seconds that count as moderate, and seconds of any movement or workout.
+        var moderateByBucket: [Int] = []
+        var movingByBucket: [Int] = []
 
         for bucket in valid {
             let seconds = bucket.durationSeconds
@@ -201,6 +253,9 @@ public enum WhoopEnergyModel {
             let resting = min(100, max(35, restingHR ?? 60))
             let maximum = max(resting + 20, maxHR ?? 190)
             let flex = min(maximum, max(resting, flexHR ?? resting + 20))
+            let movesOnFoot = bucket.isWorkout && bucket.workoutOnFoot && hasMovement(bucket)
+            var moderate = 0
+            var moving = 0
 
             if bucket.isOffWrist {
                 result = bucketResult(bucket, basal: basal, active: 0, evidence: .modeled,
@@ -210,14 +265,28 @@ public enum WhoopEnergyModel {
                 result = bucketResult(bucket, basal: basal, active: 0, evidence: .modeled,
                                       context: .sleep, uncertainty: 0.20)
                 modeled += seconds
-            } else if bucket.isWorkout, let hr {
-                let met = exerciseMET(hr: hr, resting: resting, maximum: maximum,
-                                      kind: bucket.workoutKind)
-                let active = activeKcal(met: met, seconds: seconds, weightKg: profile.weightKg)
-                result = bucketResult(bucket, basal: basal, active: active, evidence: .observed,
-                                      context: .confirmedWorkout, uncertainty: 0.18)
-                observed += hrSeconds
-                inferred += seconds - hrSeconds
+            } else if bucket.isWorkout, let hr, !movesOnFoot {
+                if let peakMET {
+                    let met = exerciseMET(hr: hr, resting: resting, maximum: maximum,
+                                          kind: bucket.workoutKind, peakMET: peakMET)
+                    let active = activeKcal(met: met, seconds: seconds, weightKg: profile.weightKg)
+                    result = bucketResult(bucket, basal: basal, active: active, evidence: .observed,
+                                          context: .confirmedWorkout, uncertainty: 0.18)
+                    observed += hrSeconds
+                    inferred += seconds - hrSeconds
+                } else {
+                    // No ceiling yet (no resting HR, nothing measured): the sport's published cost,
+                    // which knows what the activity usually costs rather than what this one did.
+                    let met = bucket.workoutTableMET ?? ActivityMETCatalog.defaultMET
+                    let active = activeKcal(met: met, seconds: seconds, weightKg: profile.weightKg)
+                    result = bucketResult(bucket, basal: basal, active: active, evidence: .inferred,
+                                          context: .confirmedWorkout, uncertainty: 0.30)
+                    inferred += seconds
+                }
+                moving = seconds
+                if reserveFraction(hr: hr, resting: resting, maximum: maximum) >= moderateReserve {
+                    moderate = seconds
+                }
             } else if hasMovement(bucket) {
                 let movementSeconds = min(seconds, max(0, bucket.movementSeconds))
                 let movement = movementMET(bucket)
@@ -232,9 +301,17 @@ public enum WhoopEnergyModel {
                 }
                 let active = activeKcal(met: met, seconds: movementSeconds,
                                         weightKg: profile.weightKg)
+                // A walk logged as a session stays the session, so its window reads as training;
+                // only the price follows the pace.
                 result = bucketResult(bucket, basal: basal, active: active,
                                       evidence: hr == nil ? .inferred : .observed,
-                                      context: .locomotion, uncertainty: hr == nil ? 0.28 : 0.20)
+                                      context: movesOnFoot ? .confirmedWorkout : .locomotion,
+                                      uncertainty: hr == nil ? 0.28 : 0.20)
+                moving = movementSeconds
+                // Pace, not the class floor, decides moderate; a classified run is moderate outright.
+                if (paceMET(bucket) ?? 0) >= moderateMET || bucket.activityClass == 2 {
+                    moderate = movementSeconds
+                }
                 if hr == nil {
                     inferred += seconds
                 } else {
@@ -264,7 +341,11 @@ public enum WhoopEnergyModel {
             }
             contextSeconds[result.context, default: 0] += seconds
             results.append(result)
+            moderateByBucket.append(moderate)
+            movingByBucket.append(moving)
         }
+        let aerobic = boutSeconds(valid, counted: moderateByBucket, minimumSpan: aerobicBoutSeconds)
+        let light = boutSeconds(valid, counted: movingByBucket, minimumSpan: lightBoutSeconds)
 
         let total = results.reduce(0) { $0 + $1.kcal }
         let duration = max(1, observed + inferred + physiological + modeled)
@@ -274,7 +355,34 @@ public enum WhoopEnergyModel {
         let uncertainty = min(0.60, uncertaintyNumerator / Double(duration))
         return .init(totalKcal: total, observedSeconds: observed, inferredSeconds: inferred,
                      modeledSeconds: modeled, physiologicalSeconds: physiological,
-                     contextSeconds: contextSeconds, uncertaintyFraction: uncertainty, buckets: results)
+                     contextSeconds: contextSeconds, uncertaintyFraction: uncertainty, buckets: results,
+                     aerobicSeconds: aerobic, hadLightActivity: light > 0)
+    }
+
+    /// Counted seconds inside runs of back-to-back buckets whose wall-clock span reaches `minimumSpan`.
+    ///
+    /// The span decides whether a run is a bout; the counted seconds are what it contributes. A walk
+    /// that fills 250 s of each of four buckets is a 20-minute bout worth 1,000 s, not a missed bout.
+    static func boutSeconds(_ buckets: [WhoopEnergyBucket], counted: [Int], minimumSpan: Int) -> Int {
+        var total = 0
+        var runSpan = 0
+        var runCounted = 0
+        var runEnd: Int?
+        func close() {
+            if runSpan >= minimumSpan { total += runCounted }
+            runSpan = 0
+            runCounted = 0
+            runEnd = nil
+        }
+        for (bucket, seconds) in zip(buckets, counted) {
+            guard seconds > 0 else { close(); continue }
+            if let end = runEnd, bucket.start != end { close() }
+            runSpan += bucket.durationSeconds
+            runCounted += seconds
+            runEnd = bucket.start + bucket.durationSeconds
+        }
+        close()
+        return total
     }
 
     private static func bucketResult(_ bucket: WhoopEnergyBucket, basal: Double, active: Double,
@@ -328,22 +436,7 @@ public enum WhoopEnergyModel {
     }
 
     private static func movementMET(_ bucket: WhoopEnergyBucket) -> Double {
-        let minutes = max(1.0 / 60, Double(bucket.movementSeconds) / 60)
-        var met: Double
-        if let distance = finite(bucket.distanceM), distance > 0 {
-            let speedKmh = distance / 1_000 / (minutes / 60)
-            met = metForSpeed(speedKmh)
-        } else if let steps = bucket.steps, steps > 0 {
-            let cadence = Double(steps) / minutes
-            // Step length folds cadence onto the SAME curve the distance branch uses, rather than
-            // maintaining a second, independently-tuned table that can drift away from it again.
-            // It is the wearer's OWN measured step when one is available and the population average
-            // otherwise — and that fallback is the exact 0.75 m this branch has always used, so a
-            // wearer the phone never measured is priced today the way they were yesterday.
-            met = metForSpeed(cadence * StrideLength.metersPerStep(bucket.strideM) * 60 / 1_000)
-        } else {
-            met = motionMET(bucket)
-        }
+        var met = paceMET(bucket) ?? motionMET(bucket)
         // The strap's own classification is stronger evidence than a cadence bucket derived from a
         // motion-tick counter, so it raises a floor rather than being averaged in. It never LOWERS a
         // higher estimate: a run misreported as a walk keeps the faster distance/cadence answer.
@@ -353,6 +446,29 @@ public enum WhoopEnergyModel {
         default: break
         }
         return met
+    }
+
+    /// MET from measured ground speed (distance, else cadence), or nil when neither was measured.
+    ///
+    /// Separate from `movementMET` because the activity category reads pace alone: the strap's walk
+    /// class floors energy at 3 MET so a classified walk is never priced below one, but that floor says
+    /// nothing about how brisk the walk was, and would make every stroll count as moderate exercise.
+    private static func paceMET(_ bucket: WhoopEnergyBucket) -> Double? {
+        let minutes = max(1.0 / 60, Double(bucket.movementSeconds) / 60)
+        if let distance = finite(bucket.distanceM), distance > 0 {
+            let speedKmh = distance / 1_000 / (minutes / 60)
+            return metForSpeed(speedKmh)
+        }
+        if let steps = bucket.steps, steps > 0 {
+            let cadence = Double(steps) / minutes
+            // Step length folds cadence onto the SAME curve the distance branch uses, rather than
+            // maintaining a second, independently-tuned table that can drift away from it again.
+            // It is the wearer's OWN measured step when one is available and the population average
+            // otherwise — and that fallback is the exact 0.75 m this branch has always used, so a
+            // wearer the phone never measured is priced today the way they were yesterday.
+            return metForSpeed(cadence * StrideLength.metersPerStep(bucket.strideM) * 60 / 1_000)
+        }
+        return nil
     }
 
     /// Coarse fallback when neither distance nor cadence is available — gravity-derived motion only.
@@ -383,19 +499,20 @@ public enum WhoopEnergyModel {
     /// Only ever reached inside an independently confirmed workout — the context selection upstream
     /// is what keeps an unexplained high heart rate from being charged as exercise, which is the
     /// failure the old whole-day HR model was withdrawn for.
+    ///
+    /// `peakMET` is the wearer's ceiling from `PeakMETResolver`. It used to be derived here from Uth's
+    /// heart-rate ratio, which knows nothing of body size; see `WhoopDailyEnergyEstimate.modelVersion`.
     public static func exerciseMET(hr: Double, resting: Double, maximum: Double,
-                                   kind: EnergyWorkoutKind) -> Double {
-        guard maximum > resting else { return 1 }
-        let reserve = min(1, max(0, (hr - resting) / (maximum - resting)))
-        return min(14.5, 1 + kind.vo2ReserveShare * reserve * (peakMET(resting: resting, maximum: maximum) - 1))
+                                   kind: EnergyWorkoutKind, peakMET: Double) -> Double {
+        guard maximum > resting, peakMET.isFinite else { return 1 }
+        let reserve = reserveFraction(hr: hr, resting: resting, maximum: maximum)
+        return min(14.5, 1 + kind.vo2ReserveShare * reserve * (max(1, peakMET) - 1))
     }
 
-    /// VO2max in METs from Uth–Sørensen (`Calories.vo2maxFor`), bounded to 7...16. The resting rate
-    /// NOOP has is the overnight one, which sits below the seated rest Uth measured and so reads
-    /// fitter than the wearer is; the upper bound keeps that bias from compounding with the reserve.
-    static func peakMET(resting: Double, maximum: Double) -> Double {
-        guard let vo2 = Calories.vo2maxFor(hrmax: maximum, restingHR: resting) else { return 10 }
-        return min(16, max(7, vo2 / 3.5))
+    /// Share of the heart-rate reserve, bounded to 0…1.
+    static func reserveFraction(hr: Double, resting: Double, maximum: Double) -> Double {
+        guard maximum > resting else { return 0 }
+        return min(1, max(0, (hr - resting) / (maximum - resting)))
     }
 
     /// The bounded heart-rate nudge a LOCOMOTION bucket may take on top of its movement MET.

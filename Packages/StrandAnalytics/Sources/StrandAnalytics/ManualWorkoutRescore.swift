@@ -54,7 +54,10 @@ public enum ManualWorkoutRescore {
                               // The row's sport, so a lifting session is priced on the resistance
                               // curve rather than Keytel (`WorkoutEnergyEstimate.boutKcal`). Empty keeps
                               // Keytel, which is what every caller got before it was threaded.
-                              sport: String = "") -> Scored? {
+                              sport: String = "",
+                              // The aerobic ceiling the day's energy model used, so a lifting session
+                              // rescored here lands on the same curve as its buckets. Nil keeps Keytel.
+                              peakMET: Double? = nil) -> Scored? {
         guard windowSamples.count >= 2 else { return nil }
         let bpms = windowSamples.map(\.bpm)
         let avg = Int((Double(bpms.reduce(0, +)) / Double(bpms.count)).rounded())
@@ -63,7 +66,8 @@ public enum ManualWorkoutRescore {
                                          restingHR: restingHR ?? StrainScorer.defaultRestingHR,
                                          method: effortMethod, sex: profile.sex)
         let kcalRaw = WorkoutEnergyEstimate.boutKcal(windowSamples, sport: sport, profile: profile,
-                                                     hrMax: hrMax, restingHR: restingHR)
+                                                     hrMax: hrMax, restingHR: restingHR,
+                                                     peakMET: peakMET)
         return Scored(avgHr: avg, maxHr: peak, strain: strain, kcal: kcalRaw > 0 ? kcalRaw : nil)
     }
 

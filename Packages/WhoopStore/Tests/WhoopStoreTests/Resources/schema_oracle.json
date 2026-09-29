@@ -71,7 +71,8 @@
   "v67-training-exercise-canonical-identity",
   "v68-rr-source-index",
   "v69-lift-log",
-  "v70-training-session-load"
+  "v70-training-session-load",
+  "v71-whoop-energy-fitness"
  ],
  "divergenceReasons": {
   "android-orphan-synced-column": "REAL COLUMN DRIFT: `synced` exists on Android only. GRDB's v10 note is explicit that stepSample gets no `synced` column ('unused; see StreamStore'), and v12's ppgHrSample never had one either; the Room entities copied the flag from the older per-second entities. Nothing reads it on Android — the per-row upload flag belongs to an upload path that does not exist there — so it is dead width, not divergent data. Removing it needs a Room table rebuild.",
@@ -895,6 +896,54 @@
      "affinity": "TEXT",
      "notNull": true,
      "default": "'{}'"
+    },
+    {
+     "name": "aerobicSeconds",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": "0"
+    },
+    {
+     "name": "hadLightActivity",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": "0"
+    },
+    {
+     "name": "peakMET",
+     "affinity": "REAL",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "peakMETSource",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "peakMETSourceDay",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "measuredVO2max",
+     "affinity": "REAL",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "measuredWeightKg",
+     "affinity": "REAL",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "activityLevel",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
     }
    ],
    "primaryKey": [

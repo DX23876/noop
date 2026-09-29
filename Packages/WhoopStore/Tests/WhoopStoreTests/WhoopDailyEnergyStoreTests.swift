@@ -17,6 +17,49 @@ final class WhoopDailyEnergyStoreTests: XCTestCase {
         XCTAssertEqual(stored, [row])
     }
 
+    /// v71: the activity evidence and the ceiling the day was priced with survive a round trip, and a
+    /// change to either alone is a change (the upsert's "anything differs" guard names every column).
+    func testFitnessColumnsRoundTripAndCountAsChanges() async throws {
+        let store = try await WhoopStore.inMemory()
+        let row = WhoopDailyEnergyRow(
+            day: "2026-09-13", rawTotalKcal: 4_200, modelVersion: "whoop-bucket-v8",
+            observedSeconds: 60_000, inferredSeconds: 10_000, modeledSeconds: 16_400,
+            uncertaintyFraction: 0.2, weightKg: 212, weightSource: .history,
+            aerobicSeconds: 6_900, hadLightActivity: true, peakMET: 5.43, peakMETSource: "appleWatch",
+            peakMETSourceDay: "2026-08-24", measuredVO2max: 18.86, measuredWeightKg: 214.2,
+            activityLevel: nil)
+        _ = try await store.upsertWhoopDailyEnergy([row], deviceId: "w")
+        let stored = try await store.whoopDailyEnergy(deviceId: "w", from: row.day, to: row.day)
+        XCTAssertEqual(stored, [row])
+
+        let estimated = WhoopDailyEnergyRow(
+            day: row.day, rawTotalKcal: row.rawTotalKcal, modelVersion: row.modelVersion,
+            observedSeconds: row.observedSeconds, inferredSeconds: row.inferredSeconds,
+            modeledSeconds: row.modeledSeconds, uncertaintyFraction: row.uncertaintyFraction,
+            weightKg: row.weightKg, weightSource: row.weightSource, aerobicSeconds: row.aerobicSeconds,
+            hadLightActivity: true, peakMET: 6.4, peakMETSource: "jurca", activityLevel: 3)
+        let changed = try await store.upsertWhoopDailyEnergy([estimated], deviceId: "w")
+        XCTAssertEqual(changed, 1)
+        let reread = try await store.whoopDailyEnergy(deviceId: "w", from: row.day, to: row.day)
+        XCTAssertEqual(reread, [estimated])
+    }
+
+    /// A row written before v71 reads back with neutral evidence and no ceiling.
+    func testAPreFitnessRowReadsNeutralDefaults() async throws {
+        let store = try await WhoopStore.inMemory()
+        let row = WhoopDailyEnergyRow(
+            day: "2026-09-01", rawTotalKcal: 3_000, modelVersion: "whoop-bucket-v7",
+            observedSeconds: 1, inferredSeconds: 2, modeledSeconds: 3,
+            uncertaintyFraction: 0.2, weightKg: 212, weightSource: .profile)
+        _ = try await store.upsertWhoopDailyEnergy([row], deviceId: "w")
+        let rows = try await store.whoopDailyEnergy(deviceId: "w", from: row.day, to: row.day)
+        let stored = try XCTUnwrap(rows.first)
+        XCTAssertEqual(stored.aerobicSeconds, 0)
+        XCTAssertFalse(stored.hadLightActivity)
+        XCTAssertNil(stored.peakMET)
+        XCTAssertNil(stored.activityLevel)
+    }
+
     func testInvalidRowsAreIgnoredAndDeleteIsDeviceScoped() async throws {
         let store = try await WhoopStore.inMemory()
         let valid = WhoopDailyEnergyRow(

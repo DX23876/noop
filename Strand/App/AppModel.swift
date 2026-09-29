@@ -1240,13 +1240,20 @@ final class AppModel: ObservableObject {
         // curve instead of Keytel — the figure stored here is later shown as the session's own.
         let up = UserProfile(weightKg: profile.weightKg, heightCm: profile.heightCm,
                              age: Double(profile.age), sex: profile.sex)
+        // The ceiling the day's energy model used, so a lifting session saved here is priced on the
+        // same curve its buckets are. None resolved yet keeps Keytel.
+        let peakMET = repo.latestEnergyPeakMET.flatMap { latest in
+            WorkoutEnergyDisplay.peakMET(on: Repository.localDayKey(w.start),
+                                         in: [latest.day: latest.peakMET])
+        }
         let kcal = samples.count >= 2
             // #983: same measured resting HR as the strain above, not nil. The calories model's
             // active-vs-resting threshold sits at resting + 30% HRR, so the default silently shifts what
             // counts as active — and #972 already threads it in the rescore path, so leaving it nil here
             // meant a saved workout's kcal disagreed with its own re-score just as its Effort did.
             ? WorkoutEnergyEstimate.boutKcal(samples, sport: w.sport, profile: up,
-                                             hrMax: Double(profile.hrMax), restingHR: restingHR)
+                                             hrMax: Double(profile.hrMax), restingHR: restingHR,
+                                             peakMET: peakMET)
             : 0
         let startTs = Int(w.start.timeIntervalSince1970)
         let row = WorkoutRow(
