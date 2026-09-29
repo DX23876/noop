@@ -4093,7 +4093,13 @@ final class AICoachEngine: ObservableObject {
     /// screens showed the Uth estimate. Internal rather than private so tests can supply it without a store.
     var vo2maxDisplay: VO2maxDisplay?
 
+    /// Active energy per day from the energy model (`Repository.activeEnergyByDay`), read beside the
+    /// VO₂max before each context is built. The context used to average `DailyMetric.activeKcalEst`,
+    /// the retired whole-day estimate, which is a basal-inclusive total under an "active" label.
+    var activeEnergyByDay: [String: Double] = [:]
+
     private func refreshVO2maxDisplay() async {
+        activeEnergyByDay = await repo.activeEnergyByDay(days: 31)
         let estimates = await repo.exploreSeries(key: "vo2max_est", source: Repository.whoopSource, days: 90)
             .map { VO2maxReading(day: $0.day, value: $0.value, segment: "vo2max_est") }
         let apple = await repo.exploreSeries(key: "vo2max", source: Repository.appleHealthSource, days: 365)
@@ -4915,7 +4921,7 @@ final class AICoachEngine: ObservableObject {
                      + ", respiration: \(avgOne(last30.compactMap { $0.respRateBpm }))/min"
                      + ", skin-temp deviation: \(avgOne(last30.compactMap { $0.skinTempDevC }))°C"
                      + ", steps: \(avgInt(last30.compactMap { $0.steps.map(Double.init) }))/day"
-                     + ", active energy: \(avgInt(last30.compactMap { $0.activeKcalEst }))kcal/day")
+                     + ", active energy: \(avgInt(last30.compactMap { activeEnergyByDay[$0.day] }))kcal/day")
         if let display = vo2maxDisplay, let headline = display.primary {
             let source = headline.segment == Repository.appleHealthSource
                 ? "Apple Watch, measured \(headline.day)" : "NOOP weekly estimate, not a lab test"

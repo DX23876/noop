@@ -478,6 +478,22 @@ extension Repository {
         return earliest
     }
 
+    /// Active energy per local day, from the energy model: the strap first, Apple only on a day the strap
+    /// did not cover (`EnergyEngine`). What every surface that says "active energy" or shows a bare
+    /// calorie figure reads, so none of them can disagree with the Energy screen or quote the retired
+    /// whole-day estimate (`DailyMetric.activeKcalEst`, a Harris-Benedict plus Keytel TOTAL despite its
+    /// name). A day nobody measured is absent, never zero.
+    func activeEnergyByDay(days: Int) async -> [String: Double] {
+        let profile = energyProfile ?? ProfileStore.persistedAnalyticsProfile
+        var out: [String: Double] = [:]
+        for summary in await energySummaries(days: days, profile: profile) {
+            if let active = summary.activeBurnedSoFar, active.isFinite, active >= 0 {
+                out[summary.day] = active
+            }
+        }
+        return out
+    }
+
     /// The day's stored model row of this generation, or nil when none has been computed.
     func whoopEnergyRow(day: String) async -> WhoopDailyEnergyRow? {
         guard let store = await storeHandle() else { return nil }

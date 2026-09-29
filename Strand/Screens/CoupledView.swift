@@ -48,6 +48,8 @@ struct CoupledView: View {
 
     /// Today's all-source workout count materialized onto the same physiological cycle as the other cards.
     @State private var workoutsToday: Int = 0
+    /// Today's active energy from the energy model (`Repository.activeEnergyByDay`).
+    @State private var activeKcalToday: Double?
 
     /// The day the coupled read describes, today's resolved row (the same `resolveToday` #304/#144 boundary
     /// Today anchors on), never a second store read.
@@ -155,9 +157,12 @@ struct CoupledView: View {
         .sheet(isPresented: $showChargeBreakdown) { chargeBreakdownSheet }
         // Loads the SAME learned habitual the Sleep tab hero threads into its main-night pick, so the
         // bed→wake span below resolves identically (#294). Re-runs on a sync/import refresh.
-        .task(id: repo.refreshSeq) {
+        .task(id: "\(repo.refreshSeq)|\(repo.energyPresentationRevision)") {
             habitualMidsleepSec = await repo.habitualMidsleepSec()
             workoutsToday = day?.exerciseCount ?? 0
+            if let key = day?.day {
+                activeKcalToday = await repo.activeEnergyByDay(days: 2)[key]
+            }
         }
     }
 
@@ -388,10 +393,10 @@ struct CoupledView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// Active calories for the day from the stored whole-day estimate. Never fabricated, a day with no
-    /// estimate reads a dash.
+    /// Active calories for the day from the energy model, the figure the Energy screen reads. Never
+    /// fabricated, a day with no estimate reads a dash.
     private var caloriesText: String {
-        guard let k = day?.activeKcalEst else { return "—" }
+        guard let k = activeKcalToday else { return "—" }
         return "\(Int(k.rounded())) kcal"
     }
 

@@ -439,7 +439,8 @@ final class GoalTrackingStore: ObservableObject {
         let activeGoalIds = Set(goals.filter { $0.status == .active }.map(\.id))
         let actionOccurrences = GoalActionEvaluator.occurrences(
             actions: actions, checkoffs: checkoffs, activeGoalIds: activeGoalIds,
-            days: repo.days, workouts: workouts, from: start, through: end, calendar: calendar)
+            days: repo.days, workouts: workouts, from: start, through: end,
+            activeKcalByDay: await repo.activeEnergyByDay(days: 120), calendar: calendar)
         let today = GoalActionEvaluator.dayKey(now, calendar: calendar)
         todayActions = actionOccurrences.filter { $0.day == today }
         if let week = calendar.dateInterval(of: .weekOfYear, for: now) {

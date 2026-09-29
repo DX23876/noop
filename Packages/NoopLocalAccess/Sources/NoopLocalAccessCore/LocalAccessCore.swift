@@ -120,7 +120,12 @@ public struct DailyMetricRow: Equatable, Sendable {
     public let skinTempDevC: Double?
     public let respRateBpm: Double?
     public let steps: Int?
+    /// The retired whole-day estimate: Harris-Benedict plus Keytel, and a basal-inclusive TOTAL despite
+    /// its name. Kept for continuity; `activeKcal` is the figure the app shows.
     public let activeKcalEst: Double?
+    /// The day's active energy from the strap energy model (sum of its five-minute buckets, the device
+    /// with the most buckets that day). Nil when the model has not priced the day.
+    public var activeKcal: Double? = nil
 }
 
 public struct SleepSessionRow: Equatable, Sendable {
@@ -192,11 +197,19 @@ public final class ReadonlyNoopStore {
 
     public func dailyMetrics(deviceId: String, from: String, to: String) throws -> [DailyMetricRow] {
         guard tableNames.contains("dailyMetric") else { return [] }
+        // The model's active energy, from the buckets of the device that priced the day most fully.
+        let modelActive = tableNames.contains("whoopEnergyBucket") ? """
+            (SELECT SUM(b.activeKcal) FROM whoopEnergyBucket b
+             WHERE b.day = dailyMetric.day AND b.deviceId = (
+                SELECT b2.deviceId FROM whoopEnergyBucket b2 WHERE b2.day = dailyMetric.day
+                GROUP BY b2.deviceId ORDER BY COUNT(*) DESC LIMIT 1))
+            """ : "NULL"
         return try dbQueue.read { db in
             try Row.fetchAll(db, sql: """
                 SELECT day, totalSleepMin, efficiency, deepMin, remMin, lightMin, disturbances,
                        restingHr, avgHrv, recovery, strain, exerciseCount,
-                       spo2Pct, skinTempDevC, respRateBpm, steps, activeKcalEst
+                       spo2Pct, skinTempDevC, respRateBpm, steps, activeKcalEst,
+                       \(modelActive) AS activeKcal
                 FROM dailyMetric
                 WHERE deviceId = ? AND day >= ? AND day <= ?
                 ORDER BY day ASC
@@ -210,7 +223,7 @@ public final class ReadonlyNoopStore {
                                    strain: $0["strain"], exerciseCount: $0["exerciseCount"],
                                    spo2Pct: $0["spo2Pct"], skinTempDevC: $0["skinTempDevC"],
                                    respRateBpm: $0["respRateBpm"], steps: $0["steps"],
-                                   activeKcalEst: $0["activeKcalEst"])
+                                   activeKcalEst: $0["activeKcalEst"], activeKcal: $0["activeKcal"])
                 }
         }
     }
@@ -643,6 +656,7 @@ private func dailyJSON(_ row: DailyMetricRow, source: String) -> JSONValue {
         "respRateBpm": optionalDouble(row.respRateBpm),
         "steps": optionalInt(row.steps),
         "activeKcalEst": optionalDouble(row.activeKcalEst),
+        "activeKcal": optionalDouble(row.activeKcal),
     ])
 }
 

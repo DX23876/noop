@@ -97,6 +97,7 @@ enum GoalActionEvaluator {
     static func occurrences(actions: [GoalAction], checkoffs: [GoalActionCheckoff],
                             activeGoalIds: Set<UUID>, days: [DailyMetric], workouts: [WorkoutRow],
                             from start: Date, through end: Date,
+                            activeKcalByDay: [String: Double] = [:],
                             calendar: Calendar = .autoupdatingCurrent) -> [GoalActionOccurrence] {
         let dayMetrics = Dictionary(days.map { ($0.day, $0) }, uniquingKeysWith: { _, latest in latest })
         let manual = Set(checkoffs.map(\.id))
@@ -112,7 +113,8 @@ enum GoalActionEvaluator {
                                                calendar: calendar) {
                 let manualKey = "\(action.id.uuidString):\(key)"
                 let automatic = automaticCompletion(action.requirement, metric: dayMetrics[key],
-                                                    workouts: workoutsByDay[key] ?? [])
+                                                    workouts: workoutsByDay[key] ?? [],
+                                                    activeKcal: activeKcalByDay[key])
                 result.append(.init(action: action, day: key,
                                     isCompleted: automatic || manual.contains(manualKey),
                                     isAutomatic: automatic))
@@ -131,8 +133,11 @@ enum GoalActionEvaluator {
             && action.schedule.includes(date, calendar: calendar)
     }
 
+    /// `activeKcal` is the day's active energy from the energy model (`Repository.activeEnergyByDay`),
+    /// the figure the Energy screen shows; the retired `activeKcalEst` included basal.
     static func automaticCompletion(_ requirement: GoalAction.Requirement,
-                                    metric: DailyMetric?, workouts: [WorkoutRow]) -> Bool {
+                                    metric: DailyMetric?, workouts: [WorkoutRow],
+                                    activeKcal: Double? = nil) -> Bool {
         switch requirement {
         case .steps(let minimum):
             return (metric?.steps ?? 0) >= minimum
@@ -140,7 +145,7 @@ enum GoalActionEvaluator {
             guard let minutes = metric?.totalSleepMin else { return false }
             return minutes >= hours * 60
         case .activeCalories(let minimum):
-            guard let kcal = metric?.activeKcalEst else { return false }
+            guard let kcal = activeKcal else { return false }
             return kcal >= Double(minimum)
         case .manual:
             return false

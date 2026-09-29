@@ -304,10 +304,8 @@ struct HeuteRedesignView: View {
         let stress = stressModel?.score
         let stressSpark = stressModel?.sparkValues ?? []
 
-        // Calories: the same imported-first resolution LiquidTodayView.caloriesCount uses, scoped to the
-        // selected day only (never carried — a daily accumulator, like Steps).
-        let appleRows = await repo.appleDailyRows()
-        let importedActiveKcalDay = appleRows.filter { $0.day == key }.compactMap { $0.activeKcal }.max()
+        // Calories: the energy model's active figure per day, the one every active-energy surface reads.
+        let activeKcalByDay = await repo.activeEnergyByDay(days: 30)
 
         // Weight: same resolution as classic/Liquid Today (`Repository.resolveWeightKg`) — the newest
         // real measurement (weight is sparse and whole-history, not day-scoped like calories/steps),
@@ -338,7 +336,7 @@ struct HeuteRedesignView: View {
                                       fitnessAgeSpark: Array(fitnessSeries.suffix(14)).map(\.value),
                                       vitality: vitality, vitalitySpark: Array(vitalitySeries.suffix(14)).map(\.value),
                                       stress: stress, stressSpark: stressSpark,
-                                      importedActiveKcalDay: importedActiveKcalDay,
+                                      activeKcalByDay: activeKcalByDay,
                                       hydrationMl: hydrationMl, hydrationSpark: hydrationSpark,
                                       resolvedWeight: resolvedWeight, weightSpark: weightSpark)
 
@@ -374,7 +372,7 @@ struct HeuteRedesignView: View {
                                fitnessAge: Double?, fitnessAgeSpark: [Double],
                                vitality: Double?, vitalitySpark: [Double],
                                stress: Double?, stressSpark: [Double],
-                               importedActiveKcalDay: Double?,
+                               activeKcalByDay: [String: Double],
                                hydrationMl: Double?, hydrationSpark: [Double],
                                resolvedWeight: (kg: Double, tier: WeightDisplayTier),
                                weightSpark: [Double]) -> [String: HeuteVitalReading] {
@@ -440,11 +438,15 @@ struct HeuteRedesignView: View {
             asOf: weightAsOf,
             sparkline: weightSpark,
             valueText: UnitFormatter.massFromKilograms(resolvedWeight.kg, system: unitSystem))
-        // Calories: imported-first (Apple Health active energy for the day) falling back to the on-device
-        // estimate, matching LiquidTodayView.caloriesCount — never carried across days, like Steps.
-        if let kcal = importedActiveKcalDay ?? day?.activeKcalEst {
+        // Calories: the day's ACTIVE energy from the energy model — the strap first, Apple only on a day
+        // the strap did not cover — never carried across days, like Steps. It used to put Apple's figure
+        // first (a partial one whenever the Watch was off the wrist) and fall back to the retired
+        // whole-day estimate, a basal-inclusive total under the same label.
+        if let kcal = activeKcalByDay[tkey] {
+            let spark = activeKcalByDay.filter { $0.key <= tkey }.sorted { $0.key < $1.key }
+                .suffix(14).map(\.value)
             out["my-whoop:energy_kcal"] = HeuteVitalReading(value: kcal, asOf: asOfLabel(tkey),
-                                                             sparkline: sparkline({ $0.activeKcalEst }))
+                                                             sparkline: Array(spark))
         }
         // Special tiles (Liquid Today parity). Sleep: the night's asleep duration (not the Rest SCORE,
         // already a ring) as "7h 32m" — per-night, no carry, matching `LiquidTodayView.sleepText`. Its

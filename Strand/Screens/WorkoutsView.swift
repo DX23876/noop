@@ -263,14 +263,11 @@ struct WorkoutsView: View {
                 if let row = r.first(where: { selectionKey($0) == key }) { openDetail(row) }
                 pendingDetailKey = nil
             }
-            // 13-week active-calorie heatmap: pull ~100 days of daily metrics and map day → active kcal.
-            // Loaded AFTER `loaded`/range are set so the secondary heatmap never delays the list's first
-            // paint — the card is hidden until this populates, then appears in place.
+            // 13-week active-calorie heatmap: ~100 days of the energy model's active figure per day, the one
+            // every active-energy surface reads. Loaded AFTER `loaded`/range are set so the secondary
+            // heatmap never delays the list's first paint — the card is hidden until this populates.
             let toDay = todayDayString()
-            let fromDate = Calendar.current.date(byAdding: .day, value: -100, to: Date()) ?? Date()
-            let metrics = await repo.dailyMetrics(fromDay: Self.dayFormatter.string(from: fromDate), toDay: toDay)
-            dailyKcal = Dictionary(metrics.compactMap { m in m.activeKcalEst.map { (m.day, $0) } },
-                                   uniquingKeysWith: max)
+            dailyKcal = await repo.activeEnergyByDay(days: 100)
             // Bounded by the OLDEST row on screen rather than by the heatmap's 100 days: a session
             // from last spring is priced with last spring's resting rate, and the detail screen —
             // which reads that one day directly — must not arrive at a different figure for it.
