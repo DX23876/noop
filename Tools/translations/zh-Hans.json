@@ -1714,5 +1714,6 @@
   "No resting heart rate yet, so workouts are priced from the activity's published energy cost.": "尚无静息心率，因此训练按该活动公布的能量消耗计算。",
   "entered %@": "输入于 %@",
   "Apple Watch, %@": "Apple Watch（%@）",
-  "estimated, activity level %lld": "估算，活动水平 %lld"
+  "estimated, activity level %lld": "估算，活动水平 %lld",
+  "Auto (Tanaka)": "自动（Tanaka）"
 }

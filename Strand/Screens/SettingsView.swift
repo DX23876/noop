@@ -382,6 +382,9 @@ struct SettingsView: View {
     /// HR zone-band editor. Reached from the Profile card's "Heart-rate zones" tap-through; sets where
     /// each zone starts as a share of HRmax. See [HRZoneEditorSheet].
     @State private var showHRZoneEditor = false
+    /// The Profile card opens read-only: its values feed zones, calories and baselines, and a stray tap
+    /// on a stepper while scrolling changed them silently. "Edit" unlocks the controls, "Done" locks them.
+    @State private var profileEditing = false
 
     /// iOS environment-diagnostics sheet (device, iOS+build, Data Protection, background refresh,
     /// low-power, sideload + cert expiry). iOS-only; the macOS strap log already carries OS + version.
@@ -622,7 +625,8 @@ struct SettingsView: View {
         SettingsSection(
             icon: "person.fill",
             title: "Profile",
-            blurb: "These power your heart-rate zones, calorie estimates and recovery baselines. Keep them accurate."
+            blurb: "These power your heart-rate zones, calorie estimates and recovery baselines. Keep them accurate.",
+            headerAction: (profileEditing ? "Done" : "Edit", { profileEditing.toggle() })
         ) {
             VStack(spacing: 0) {
                 profilePhotoRow
@@ -640,6 +644,7 @@ struct SettingsView: View {
                                    displayedComponents: .date)
                             .labelsHidden()
                             .appleInspiredTint("settings.controls")
+                            .disabled(!profileEditing)
                             .accessibilityLabel("Date of birth, age \(profile.age) years")
                     }
                 }
@@ -657,6 +662,7 @@ struct SettingsView: View {
                     // Settings screen users reported. A menu is a compact button that fits any label length.
                     .pickerStyle(.menu)
                     .appleInspiredTint("settings.controls")
+                    .disabled(!profileEditing)
                     .accessibilityLabel("Sex")
                 }
                 // Only when the field above cannot select an equation on its own. The Navy body-fat
@@ -675,6 +681,7 @@ struct SettingsView: View {
                         .labelsHidden()
                         .pickerStyle(.menu)
                         .appleInspiredTint("settings.controls")
+                        .disabled(!profileEditing)
                         .accessibilityLabel("Body composition formula")
                     }
                     Text("Which published equation the body-fat estimate should use. It is a question about body composition rather than about identity, and NOOP has no way to infer it — so it asks instead of assuming.")
@@ -739,9 +746,7 @@ struct SettingsView: View {
                 FormRow(label: "Max heart rate") {
                     VStack(alignment: .trailing, spacing: 6) {
                         hrMaxField
-                        Text(profile.hrMaxOverride > 0
-                             ? "Manual override"
-                             : "Auto · \(profile.hrMax) bpm (Tanaka)")
+                        Text(profile.hrMaxOverride > 0 ? "Manual override" : "Auto (Tanaka)")
                             .font(StrandFont.footnote)
                             .foregroundStyle(profile.hrMaxOverride > 0
                                              ? StrandPalette.accent
@@ -770,6 +775,7 @@ struct SettingsView: View {
                     .labelsHidden()
                     .pickerStyle(.menu)
                     .appleInspiredTint("settings.controls")
+                    .disabled(!profileEditing)
                     .accessibilityLabel("Activity level")
                 }
                 Text("Workout calories are scaled to your aerobic capacity. An entered VO₂max counts for six months and a fresh Apple Watch reading for 30 days. Otherwise it is estimated from resting heart rate, body size and activity level. Changes apply from the next strap sync.")
@@ -816,6 +822,7 @@ struct SettingsView: View {
                     }
                     .labelsHidden()
                     .pickerStyle(.menu)
+                    .disabled(!profileEditing)
                 }
                 Text(dayCycleModeRaw == DayCycleMode.midnight.rawValue
                      ? "Uses a conventional local calendar day from 00:00 to 00:00."
@@ -834,13 +841,15 @@ struct SettingsView: View {
                             .font(StrandFont.bodyNumber)
                             .foregroundStyle(StrandPalette.textPrimary)
                             .frame(minWidth: 44, alignment: .trailing)
-                        Stepper("Step calibration") {
-                            profile.stepTicksPerStep = ProfileStore.steppedStepScale(profile.stepTicksPerStep, up: true)
-                        } onDecrement: {
-                            profile.stepTicksPerStep = ProfileStore.steppedStepScale(profile.stepTicksPerStep, up: false)
+                        if profileEditing {
+                            Stepper("Step calibration") {
+                                profile.stepTicksPerStep = ProfileStore.steppedStepScale(profile.stepTicksPerStep, up: true)
+                            } onDecrement: {
+                                profile.stepTicksPerStep = ProfileStore.steppedStepScale(profile.stepTicksPerStep, up: false)
+                            }
+                                .labelsHidden()
+                                .accessibilityLabel("Step calibration, \(String(format: "%.1f", profile.stepTicksPerStep)) counter ticks per step")
                         }
-                            .labelsHidden()
-                            .accessibilityLabel("Step calibration, \(String(format: "%.1f", profile.stepTicksPerStep)) counter ticks per step")
                     }
                 }
                 Text("Counter ticks per step. Leave at 1.0 unless your steps run high. On a WHOOP 5/MG they can run very high (10× or more), so this goes up to 30. Walk a known 1,000 steps and divide NOOP's count by the real count to get your value.")
@@ -894,8 +903,9 @@ struct SettingsView: View {
                     Text(hasAvatar ? "Change photo" : "Choose photo")
                 }
                 .buttonStyle(NoopButtonStyle(.secondary, fullWidth: true))
+                .disabled(!profileEditing)
 
-                if hasAvatar {
+                if hasAvatar && profileEditing {
                     Button {
                         profile.clearAvatar()
                     } label: {
@@ -1095,9 +1105,11 @@ struct SettingsView: View {
                     .fixedSize()
             }
             .fixedSize()
-            Stepper(accessibility, value: value, in: range, step: step)
-                .labelsHidden()
-                .accessibilityLabel(accessibility)
+            if profileEditing {
+                Stepper(accessibility, value: value, in: range, step: step)
+                    .labelsHidden()
+                    .accessibilityLabel(accessibility)
+            }
         }
         .fixedSize()
     }
@@ -1121,9 +1133,11 @@ struct SettingsView: View {
                     .fixedSize()
             }
             .fixedSize()
-            Stepper("Weight in pounds", value: lb, in: 66...551, step: 1)
-                .labelsHidden()
-                .accessibilityLabel("Weight, \(Int(lb.wrappedValue.rounded())) pounds")
+            if profileEditing {
+                Stepper("Weight in pounds", value: lb, in: 66...551, step: 1)
+                    .labelsHidden()
+                    .accessibilityLabel("Weight, \(Int(lb.wrappedValue.rounded())) pounds")
+            }
         }
         .fixedSize()
     }
@@ -1141,9 +1155,11 @@ struct SettingsView: View {
                 .font(StrandFont.bodyNumber)
                 .foregroundStyle(StrandPalette.textPrimary)
                 .frame(width: NoopMetrics.formWideValueColumnWidth, alignment: .center)
-            Stepper("Height in inches", value: inches, in: 47...91, step: 1)
-                .labelsHidden()
-                .accessibilityLabel("Height, \(parts.feet) feet \(parts.inches) inches")
+            if profileEditing {
+                Stepper("Height in inches", value: inches, in: 47...91, step: 1)
+                    .labelsHidden()
+                    .accessibilityLabel("Height, \(parts.feet) feet \(parts.inches) inches")
+            }
         }
         .fixedSize()
     }
@@ -1167,15 +1183,17 @@ struct SettingsView: View {
                 }
             }
             .fixedSize()
-            Stepper("Waist in centimetres") {
-                waistCm.wrappedValue = min(160, (set ? waistCm.wrappedValue : 79) + 1)
-            } onDecrement: {
-                // Stepping below the 60-cm floor clears it back to unset (optional).
-                let next = waistCm.wrappedValue - 1
-                waistCm.wrappedValue = next < 60 ? 0 : next
+            if profileEditing {
+                Stepper("Waist in centimetres") {
+                    waistCm.wrappedValue = min(160, (set ? waistCm.wrappedValue : 79) + 1)
+                } onDecrement: {
+                    // Stepping below the 60-cm floor clears it back to unset (optional).
+                    let next = waistCm.wrappedValue - 1
+                    waistCm.wrappedValue = next < 60 ? 0 : next
+                }
+                    .labelsHidden()
+                    .accessibilityLabel(set ? "Waist, \(Int(waistCm.wrappedValue.rounded())) centimetres" : "Waist not set")
             }
-                .labelsHidden()
-                .accessibilityLabel(set ? "Waist, \(Int(waistCm.wrappedValue.rounded())) centimetres" : "Waist not set")
         }
         .fixedSize()
     }
@@ -1200,16 +1218,18 @@ struct SettingsView: View {
                 }
             }
             .fixedSize()
-            Stepper("Waist in inches") {
-                let nextIn = (set ? inches : 30) + 1
-                waistCm.wrappedValue = min(160, nextIn * UnitFormatter.centimetersPerInch)
-            } onDecrement: {
-                let nextIn = inches - 1
-                // Stepping below the ~24″ floor clears it back to unset (optional).
-                waistCm.wrappedValue = nextIn < 24 ? 0 : nextIn * UnitFormatter.centimetersPerInch
+            if profileEditing {
+                Stepper("Waist in inches") {
+                    let nextIn = (set ? inches : 30) + 1
+                    waistCm.wrappedValue = min(160, nextIn * UnitFormatter.centimetersPerInch)
+                } onDecrement: {
+                    let nextIn = inches - 1
+                    // Stepping below the ~24″ floor clears it back to unset (optional).
+                    waistCm.wrappedValue = nextIn < 24 ? 0 : nextIn * UnitFormatter.centimetersPerInch
+                }
+                    .labelsHidden()
+                    .accessibilityLabel(set ? "Waist, \(Int(inches)) inches" : "Waist not set")
             }
-                .labelsHidden()
-                .accessibilityLabel(set ? "Waist, \(Int(inches)) inches" : "Waist not set")
         }
         .fixedSize()
     }
@@ -1232,14 +1252,16 @@ struct SettingsView: View {
                 }
             }
             .fixedSize()
-            Stepper("VO₂max") {
-                profile.setManualVO2max(min(90, set ? profile.vo2maxManual + 0.5 : 25))
-            } onDecrement: {
-                let next = profile.vo2maxManual - 0.5
-                profile.setManualVO2max(next < 10 ? nil : next)
+            if profileEditing {
+                Stepper("VO₂max") {
+                    profile.setManualVO2max(min(90, set ? profile.vo2maxManual + 0.5 : 25))
+                } onDecrement: {
+                    let next = profile.vo2maxManual - 0.5
+                    profile.setManualVO2max(next < 10 ? nil : next)
+                }
+                    .labelsHidden()
+                    .accessibilityLabel(set ? "VO₂max, \(String(format: "%.1f", profile.vo2maxManual)) millilitres per kilogram per minute" : "VO₂max automatic")
             }
-                .labelsHidden()
-                .accessibilityLabel(set ? "VO₂max, \(String(format: "%.1f", profile.vo2maxManual)) millilitres per kilogram per minute" : "VO₂max automatic")
         }
         .fixedSize()
     }
@@ -1255,7 +1277,9 @@ struct SettingsView: View {
     private var hrMaxField: some View {
         HStack(spacing: NoopMetrics.space2) {
             HStack(alignment: .firstTextBaseline, spacing: NoopMetrics.space1) {
-                Text(profile.hrMaxOverride > 0 ? "\(profile.hrMaxOverride)" : "Auto")
+                // Always a number: the Tanaka value when automatic (muted), so the column never has to
+                // fit a word, and the caption below says which of the two it is.
+                Text("\(profile.hrMaxOverride > 0 ? profile.hrMaxOverride : profile.hrMax)")
                     .font(StrandFont.bodyNumber)
                     .foregroundStyle(profile.hrMaxOverride > 0
                                      ? StrandPalette.textPrimary
@@ -1267,10 +1291,19 @@ struct SettingsView: View {
                     .fixedSize()
             }
             .fixedSize()
-            Stepper("Max heart rate override",
-                    value: $profile.hrMaxOverride, in: 0...230, step: 1)
-                .labelsHidden()
-                .accessibilityLabel("Max heart rate override, \(profile.hrMaxOverride == 0 ? "automatic" : "\(profile.hrMaxOverride) bpm")")
+            if profileEditing {
+                // Steps from the value on screen: from automatic, one beat either side of the Tanaka
+                // estimate rather than from 0; below 120 it returns to automatic.
+                Stepper("Max heart rate override") {
+                    let current = profile.hrMaxOverride > 0 ? profile.hrMaxOverride : profile.hrMax
+                    profile.hrMaxOverride = min(230, current + 1)
+                } onDecrement: {
+                    let current = profile.hrMaxOverride > 0 ? profile.hrMaxOverride : profile.hrMax
+                    profile.hrMaxOverride = current - 1 < 120 ? 0 : current - 1
+                }
+                    .labelsHidden()
+                    .accessibilityLabel("Max heart rate override, \(profile.hrMaxOverride == 0 ? "automatic" : "\(profile.hrMaxOverride) bpm")")
+            }
         }
         .fixedSize()
     }
@@ -3847,6 +3880,8 @@ private struct SettingsSection<Content: View>: View {
     let icon: String
     let title: LocalizedStringKey
     let blurb: LocalizedStringKey
+    /// An optional button at the trailing end of the title, such as the Profile card's Edit / Done.
+    var headerAction: (label: LocalizedStringKey, perform: () -> Void)? = nil
     @ViewBuilder var content: () -> Content
 
     /// Apple-inspired leading-icon colouring — the same switch that recolours the More tab and Coach.
@@ -3864,6 +3899,11 @@ private struct SettingsSection<Content: View>: View {
                         Text(title)
                             .font(StrandFont.title2)
                             .foregroundStyle(StrandPalette.textPrimary)
+                        if let headerAction {
+                            Spacer(minLength: NoopMetrics.space2)
+                            Button(headerAction.label, action: headerAction.perform)
+                                .buttonStyle(NoopButtonStyle(.tertiary))
+                        }
                     }
                 }
                 Text(blurb)

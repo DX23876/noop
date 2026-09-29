@@ -1614,5 +1614,6 @@
   "No resting heart rate yet, so workouts are priced from the activity's published energy cost.": "Pas encore de fréquence cardiaque au repos : les entraînements sont calculés d’après la dépense énergétique publiée de l’activité.",
   "entered %@": "saisie le %@",
   "Apple Watch, %@": "Apple Watch du %@",
-  "estimated, activity level %lld": "estimée, niveau d’activité %lld"
+  "estimated, activity level %lld": "estimée, niveau d’activité %lld",
+  "Auto (Tanaka)": "Automatique (Tanaka)"
 }

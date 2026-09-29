@@ -2749,5 +2749,6 @@
   "No resting heart rate yet, so workouts are priced from the activity's published energy cost.": "Brak jeszcze tętna spoczynkowego, więc treningi są liczone według opublikowanego wydatku energetycznego aktywności.",
   "entered %@": "wpisano %@",
   "Apple Watch, %@": "Apple Watch, pomiar z %@",
-  "estimated, activity level %lld": "szacowane, poziom aktywności %lld"
+  "estimated, activity level %lld": "szacowane, poziom aktywności %lld",
+  "Auto (Tanaka)": "Automatycznie (Tanaka)"
 }

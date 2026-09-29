@@ -1590,5 +1590,6 @@
   "No resting heart rate yet, so workouts are priced from the activity's published energy cost.": "Пульса покоя пока нет, поэтому тренировки рассчитываются по опубликованному расходу энергии для активности.",
   "entered %@": "введено %@",
   "Apple Watch, %@": "Apple Watch от %@",
-  "estimated, activity level %lld": "оценка, уровень активности %lld"
+  "estimated, activity level %lld": "оценка, уровень активности %lld",
+  "Auto (Tanaka)": "Автоматически (Танака)"
 }
