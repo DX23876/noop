@@ -1616,5 +1616,7 @@
   "estimated, activity level %lld": "estimado, nível de atividade %lld",
   "Auto (Tanaka)": "Automática (Tanaka)",
   "est. from pace": "estimado pelo ritmo",
-  "~%@ kcal, estimated from the session's distance and duration": "~%@ kcal, estimado a partir da distância e da duração da sessão"
+  "~%@ kcal, estimated from the session's distance and duration": "~%@ kcal, estimado a partir da distância e da duração da sessão",
+  "Recommended: your DEXA reading makes this the most accurate formula": "Recomendada: a tua medição DEXA torna esta a fórmula mais precisa",
+  "Your body-fat reading is an estimate, so this is not reliably better than Mifflin–St Jeor": "O teu valor de gordura corporal é uma estimativa, por isso esta fórmula não é de forma fiável melhor do que Mifflin–St Jeor"
 }

@@ -457806,6 +457806,134 @@
           }
         }
       }
+    },
+    "Recommended: your DEXA reading makes this the most accurate formula" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Empfohlen: Mit deinem DEXA-Wert ist dies die genaueste Formel"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recommended: your DEXA reading makes this the most accurate formula"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recomendada: tu medición DEXA hace de esta la fórmula más precisa"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recommandée : votre mesure DEXA en fait la formule la plus précise"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Consigliata: con la tua misurazione DEXA è la formula più precisa"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zalecana: dzięki pomiarowi DEXA to najdokładniejsza formuła"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recomendada: a tua medição DEXA torna esta a fórmula mais precisa"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Рекомендуется: с вашим измерением DEXA это самая точная формула"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "推荐：有了你的 DEXA 测量值，这是最准确的公式"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "推薦：有了你的 DEXA 測量值，這是最準確的公式"
+          }
+        }
+      }
+    },
+    "Your body-fat reading is an estimate, so this is not reliably better than Mifflin–St Jeor" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Körperfettwert ist eine Schätzung, daher ist diese Formel nicht verlässlich besser als Mifflin–St Jeor"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your body-fat reading is an estimate, so this is not reliably better than Mifflin–St Jeor"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu valor de grasa corporal es una estimación, así que esta fórmula no es de forma fiable mejor que Mifflin–St Jeor"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre taux de masse grasse est une estimation : cette formule n’est donc pas fiablement meilleure que Mifflin–St Jeor"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo valore di grasso corporeo è una stima, quindi questa formula non è affidabilmente migliore di Mifflin–St Jeor"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twój odczyt tkanki tłuszczowej jest szacunkiem, więc ta formuła nie jest wiarygodnie lepsza od Mifflin–St Jeor"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O teu valor de gordura corporal é uma estimativa, por isso esta fórmula não é de forma fiável melhor do que Mifflin–St Jeor"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваш процент жира — оценка, поэтому эта формула не надёжнее Mifflin–St Jeor"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的体脂值是估算值，因此该公式并不比 Mifflin–St Jeor 更可靠"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的體脂值是估算值，因此該公式並不比 Mifflin–St Jeor 更可靠"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

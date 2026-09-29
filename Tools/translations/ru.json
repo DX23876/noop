@@ -1593,5 +1593,7 @@
   "estimated, activity level %lld": "оценка, уровень активности %lld",
   "Auto (Tanaka)": "Автоматически (Танака)",
   "est. from pace": "оценка по темпу",
-  "~%@ kcal, estimated from the session's distance and duration": "~%@ ккал, оценка по дистанции и длительности занятия"
+  "~%@ kcal, estimated from the session's distance and duration": "~%@ ккал, оценка по дистанции и длительности занятия",
+  "Recommended: your DEXA reading makes this the most accurate formula": "Рекомендуется: с вашим измерением DEXA это самая точная формула",
+  "Your body-fat reading is an estimate, so this is not reliably better than Mifflin–St Jeor": "Ваш процент жира — оценка, поэтому эта формула не надёжнее Mifflin–St Jeor"
 }

@@ -314,6 +314,22 @@ struct EnergyPlanView: View {
                                 Text("Needs a body-fat reading")
                                     .font(StrandFont.caption)
                                     .foregroundStyle(StrandPalette.textTertiary)
+                            } else if formula.needsBodyFat, formula != model.currentFormula,
+                                      let reading = model.bodyFatToday {
+                                // Katch–McArdle is only as good as the body-fat figure: recommended on a
+                                // scan, and flagged rather than recommended on a scale or tape estimate,
+                                // whose few points of error can make it no better than Mifflin–St Jeor.
+                                if reading.source == "dexa" {
+                                    Text("Recommended: your DEXA reading makes this the most accurate formula")
+                                        .font(StrandFont.caption)
+                                        .foregroundStyle(StrandPalette.accent)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                } else {
+                                    Text("Your body-fat reading is an estimate, so this is not reliably better than Mifflin–St Jeor")
+                                        .font(StrandFont.caption)
+                                        .foregroundStyle(StrandPalette.textTertiary)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
                             }
                         }
                         Spacer()
