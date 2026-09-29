@@ -51,18 +51,24 @@ final class EnergyLoggedSessionTests: XCTestCase {
         XCTAssertEqual(contribution?.isEstimated, false)
     }
 
-    func testAnAverageHeartRateIsUsedBeforeTheTable() {
+    /// With the day's aerobic ceiling a session's average heart rate prices it; without one (a day no
+    /// strap covered) the table does, above the wearer's own basal rate.
+    func testAnAverageHeartRateIsUsedBeforeTheTable() throws {
         let fromHR = Repository.activityContribution(
-            row(avgHr: 150), profile: profile, hrMax: 190, restingHR: 55)
+            row(avgHr: 150), profile: profile, hrMax: 190, restingHR: 55, peakMET: 10)
         let fromTable = Repository.activityContribution(
-            row(), profile: profile, hrMax: 190, restingHR: 55)
+            row(), profile: profile, hrMax: 190, restingHR: 55, peakMET: 10)
         XCTAssertEqual(fromHR?.isEstimated, true)
         XCTAssertEqual(fromTable?.isEstimated, true)
         // A hard hour must not be priced the same as the table's idea of an average one.
         XCTAssertNotEqual(fromHR?.kcal ?? 0, fromTable?.kcal ?? 0, accuracy: 1)
-        XCTAssertEqual(fromTable?.kcal ?? 0,
-                       ActivityMETCatalog.grossKcal(sport: "Strength", seconds: 3_600,
-                                                    weightKg: 80) ?? 0, accuracy: 0.001)
+        let basal = try XCTUnwrap(Calories.bmrKcalPerDay(profile: profile)) / 24
+        let active: Double = (ActivityMETCatalog.met(forSport: "Strength") - 1) * 3.5 * 80 / 200 * 60
+        XCTAssertEqual(fromTable?.kcal ?? 0, basal + active, accuracy: 0.001)
+        // No ceiling: the heart rate cannot be read, and the table answers.
+        let noCeiling = Repository.activityContribution(
+            row(avgHr: 150), profile: profile, hrMax: 190, restingHR: 55)
+        XCTAssertEqual(noCeiling?.kcal ?? 0, basal + active, accuracy: 0.001)
     }
 
     func testASessionThatCannotBePricedAtAllIsDroppedRatherThanZeroed() {

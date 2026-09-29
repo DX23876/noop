@@ -212,3 +212,21 @@ final class WhoopDailyEnergyStoreTests: XCTestCase {
         XCTAssertEqual(hours.map(\.activeKcal), [100])
     }
 }
+
+final class WorkoutEnergySourceStoreTests: XCTestCase {
+    func testASourceIsRecordedReplacedAndCleared() async throws {
+        let store = try await WhoopStore.inMemory()
+        let key = WorkoutKey(deviceId: "w", startTs: 1_000, sport: "Walking")
+        try await store.setWorkoutEnergySource(.computed, for: key)
+        var read = try await store.workoutEnergySources(deviceId: "w", from: 0, to: 2_000)
+        XCTAssertEqual(read[key], .computed)
+        try await store.setWorkoutEnergySource(.entered, for: key)
+        read = try await store.workoutEnergySources(deviceId: "w", from: 0, to: 2_000)
+        XCTAssertEqual(read[key], .entered)
+        let other = try await store.workoutEnergySources(deviceId: "x", from: 0, to: 2_000)
+        XCTAssertTrue(other.isEmpty)
+        try await store.clearWorkoutEnergySource(for: key)
+        read = try await store.workoutEnergySources(deviceId: "w", from: 0, to: 2_000)
+        XCTAssertNil(read[key])
+    }
+}

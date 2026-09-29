@@ -156,7 +156,13 @@ final class IntelligenceEngine: ObservableObject {
     // two copies of a beat into one train (`RRTransportReconciler`, #1118). Per-night derivations inside
     // the engine's window, so the standard bounded 21-day pass; no raw row is rewritten and the cardio
     // ledger is not refilled.
-    static let currentAnalysisRecipeVersion = 12
+    // AI-13 (2026-09-29) corrects stored session energy NOOP computed with Keytel. Keytel was fitted on
+    // 47–120 kg regular exercisers and priced a 212 kg wearer's walks at three times their cost; energy
+    // model v8 prices sessions by pace or by heart rate against the day's aerobic ceiling. The migration
+    // re-prices every manual row whose stored figure reproduces an old formula on the strap's heart rate
+    // (`Repository.correctLegacyWorkoutEnergy`), records it as computed, and has Apple Health rewrite the
+    // corrected span. Typed figures do not reproduce and are left alone. No daily row is re-scored.
+    static let currentAnalysisRecipeVersion = 13
 
     /// The recipe whose migration refills the cardio load ledger.
     static let cardioLedgerRecipe = 9
@@ -174,6 +180,14 @@ final class IntelligenceEngine: ObservableObject {
 
     /// The recipe that chooses a WHOOP's R-R delivery path per five-minute segment.
     static let rrSegmentRecipe = 12
+
+    /// The recipe whose migration corrects stored Keytel session energy.
+    static let workoutEnergyRecipe = 13
+
+    /// Whether a migration crosses the recipe that corrects stored session energy.
+    static func migrationCorrectsWorkoutEnergy(from: Int, to: Int) -> Bool {
+        from < workoutEnergyRecipe && to >= workoutEnergyRecipe
+    }
 
     /// Days of daily rows a migration from `from` must re-score: the standard window while a recipe that
     /// changes daily rows (up to AI-8, AI-10, AI-11 or AI-12) is still owed, none when only AI-9 is — the
@@ -993,6 +1007,13 @@ final class IntelligenceEngine: ObservableObject {
             guard !Task.isCancelled else { return false }
             if case .migrating(let from, let to) = phase, Self.migrationRefillsCardioLedger(from: from, to: to) {
                 await self.repo.fillCardioLoadLedger()
+                guard !Task.isCancelled else { return false }
+            }
+            if case .migrating(let from, let to) = phase, Self.migrationCorrectsWorkoutEnergy(from: from, to: to) {
+                let analytics = Repository.analyticsProfile(self.profile)
+                if let earliest = await self.repo.correctLegacyWorkoutEnergy(profile: analytics) {
+                    HealthWorkoutRewrite.request(from: earliest)
+                }
                 guard !Task.isCancelled else { return false }
             }
             // Publish the repaired daily snapshot before committing the migration cursor. If the
@@ -1903,6 +1924,12 @@ final class IntelligenceEngine: ObservableObject {
             let skinAnchorScanTo = nowLocalMidnight + 18 * 3_600
             var skinAnchorByOwner: [String: Double] = [:]
             var skinAnchorResolvedOwners = Set<String>()
+            // The ceiling each day's energy model used, so a detected bout's calories (which backfill real
+            // rows without energy) are priced on the curve the day's workouts are.
+            let workoutPeakByDay = await self.repo.energyPeakMETByDay(
+                fromDay: Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(
+                    nowLocalMidnight - (maxDays - 1) * 86_400))),
+                toDay: Repository.localDayKey(Date()))
             var paceMark = DispatchTime.now().uptimeNanoseconds
             for offset in 0..<maxDays {
                 // Cooperative hand-off between days (#goal-journey-freeze). Each day below is 10-18 s of
@@ -2282,7 +2309,9 @@ final class IntelligenceEngine: ObservableObject {
                                                      // ring buffer isn't flooded; every night keeps the summary.
                                                      hrvWindowDetail: dayStart == nowLocalMidnight,
                                                      deepHrvWindow: deepHrvWindow,
-                                                     effortMethod: effortMethodGlobal)
+                                                     effortMethod: effortMethodGlobal,
+                                                     workoutPeakMET: WorkoutEnergyDisplay.peakMET(
+                                                        on: day, in: workoutPeakByDay))
                 await Task.yield()
                 // #195: whole-night HRV cleaning-pipeline summary for the always-on strap log, so a "reads ~2x
                 // too high" report is triageable without the HRV test mode: RMSSD vs SDNN (rmssd >> sdnn =
@@ -2843,6 +2872,7 @@ final class IntelligenceEngine: ObservableObject {
         // analytics/enrichment input, but the opt-in confirmation card is now the only creator of a new
         // visible workout; legacy `sport="detected"` rows are preserved rather than reconciled here.
         var backfilledByDevice: [String: [WorkoutRow]] = [:]
+        var backfilledEnergyKeys = Set<WorkoutKey>()
         // Rest composite (0–100) per computed night, persisted as the `sleep_performance` metric
         // series so the dashboard's Rest score reflects the new composite, not raw efficiency.
         var restPoints: [MetricPoint] = []
@@ -3153,6 +3183,11 @@ final class IntelligenceEngine: ObservableObject {
                     let backfilled = WorkoutDetector.backfillWorkout(
                         hit, avgBpm: avgBpm, peakHR: s.peakHR, caloriesKcal: s.caloriesKcal, strain: s.strain)
                     let didBackfill = backfilled != hit
+                    if didBackfill, hit.energyKcal == nil, backfilled.energyKcal != nil {
+                        let owner = hit.source == "apple-health" ? "apple-health" : deviceId
+                        backfilledEnergyKeys.insert(WorkoutKey(deviceId: owner, startTs: hit.startTs,
+                                                               sport: hit.sport))
+                    }
                     if didBackfill {
                         // realWorkouts merges TWO device groups (see above): the strap's own `deviceId`
                         // (imported WHOOP rows AND manual/re-labelled ones) and "apple-health" — the
@@ -3759,7 +3794,15 @@ final class IntelligenceEngine: ObservableObject {
         // #510: still write back any real (manual/imported) rows an analytics bout backfilled, one upsert
         // per owning deviceId.
         for (devId, rows) in backfilledByDevice {
-            _ = try? await store.upsertWorkouts(rows, deviceId: devId)
+            guard (try? await store.upsertWorkouts(rows, deviceId: devId)) != nil else { continue }
+            // A figure the detector filled in is one NOOP computed; recording it keeps the next
+            // correction from having to guess (`workoutEnergySource`).
+            for row in rows {
+                let key = WorkoutKey(deviceId: devId, startTs: row.startTs, sport: row.sport)
+                if backfilledEnergyKeys.contains(key) {
+                    try? await store.setWorkoutEnergySource(.computed, for: key)
+                }
+            }
         }
 
         markPostLoopPhase("sleepHeal")
@@ -3775,8 +3818,10 @@ final class IntelligenceEngine: ObservableObject {
         // today and the tail is the oldest day in the window. Taking the last match would have scored
         // today's workout against a resting HR up to `maxDays` old.
         let measuredResting = out.first(where: { $0.rhr != nil })?.rhr.map(Double.init)
-        await rescoreManualWorkouts(store: store, profile: up, restingHR: measuredResting,
-                                    effortMethod: effortMethodGlobal)
+        // The analytics profile, so a rescored session's basal share is the wearer's chosen formula,
+        // as the live save and the day model price it.
+        await rescoreManualWorkouts(store: store, profile: Repository.analyticsProfile(profile),
+                                    restingHR: measuredResting, effortMethod: effortMethodGlobal)
 
         results = out
         note = out.isEmpty
@@ -3961,12 +4006,13 @@ final class IntelligenceEngine: ObservableObject {
         guard let rows = try? await store.workouts(deviceId: deviceId, from: since, to: now, limit: 200)
         else { return }
         let hrMax = Double(profile.hrMax)
-        // The ceiling each day's energy model used, so a rescored lifting session is priced on the
-        // curve its day was. Days without one keep Keytel, as before.
+        // The ceiling each day's energy model used, so a rescored session is priced on the curve its
+        // day was. Days without one take the sport's table MET.
         let peakByDay = await repo.energyPeakMETByDay(
             fromDay: Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(since))),
             toDay: Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(now))))
         var updated: [WorkoutRow] = []
+        var rescoredEnergyKeys: [WorkoutKey] = []
         // A manual row is eligible when it looks under-scored (negligible kcal, #137) OR it's missing
         // strain (the merged-workout case, where kcal is the SUM of inputs so it never looks under-scored
         // yet Effort stays blank forever). `improves` then accepts a strain-only gain for the latter.
@@ -3977,6 +4023,7 @@ final class IntelligenceEngine: ObservableObject {
                   let s = ManualWorkoutRescore.scored(windowSamples: samples, profile: up, hrMax: hrMax,
                                                       restingHR: restingHR,
                                                       effortMethod: effortMethod, sport: row.sport,
+                                                      distanceM: row.distanceM,
                                                       peakMET: WorkoutEnergyDisplay.peakMET(
                                                         on: Repository.localDayKey(Date(
                                                             timeIntervalSince1970: TimeInterval(row.startTs))),
@@ -3988,13 +4035,19 @@ final class IntelligenceEngine: ObservableObject {
             // value; a strain-only fill (merged row) keeps the existing summed energyKcal.
             let kcalBeatsStored = (s.kcal ?? 0) > (row.energyKcal ?? 0) + ManualWorkoutRescore.improvementMarginKcal
             let energyKcal = kcalBeatsStored ? s.kcal : row.energyKcal
+            if kcalBeatsStored {
+                rescoredEnergyKeys.append(WorkoutKey(deviceId: deviceId, startTs: row.startTs,
+                                                     sport: row.sport))
+            }
             updated.append(WorkoutRow(
                 startTs: row.startTs, endTs: row.endTs, sport: row.sport, source: row.source,
                 durationS: row.durationS, energyKcal: energyKcal, avgHr: s.avgHr, maxHr: s.maxHr,
                 strain: s.strain, distanceM: row.distanceM, zonesJSON: row.zonesJSON, notes: row.notes,
                 steps: row.steps))
         }
-        if !updated.isEmpty { _ = try? await store.upsertWorkouts(updated, deviceId: deviceId) }
+        if !updated.isEmpty, (try? await store.upsertWorkouts(updated, deviceId: deviceId)) != nil {
+            for key in rescoredEnergyKeys { try? await store.setWorkoutEnergySource(.computed, for: key) }
+        }
     }
 
     /// Pass 1 has no seeded skin baseline. Attach the deviation before scoring so the score,

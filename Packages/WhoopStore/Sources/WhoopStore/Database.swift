@@ -1905,6 +1905,20 @@ extension WhoopStore {
                 t.add(column: "activityLevel", .integer)
             }
         }
+        // v72-workout-energy-source: whether a workout's stored energy was computed by NOOP or entered
+        // by the wearer. Manual rows hold both in one column with nothing to tell them apart, which is
+        // what made the one-time Keytel correction guess by reproduction; from here on it is recorded.
+        // Keyed like `workout` itself; a row without an entry is unknown and is never recomputed.
+        migrator.registerMigration("v72-workout-energy-source") { db in
+            try db.create(table: "workoutEnergySource") { t in
+                t.column("deviceId", .text).notNull()
+                t.column("startTs", .integer).notNull()
+                t.column("sport", .text).notNull()
+                t.column("kind", .text).notNull()
+                t.column("updatedAtTs", .integer).notNull()
+                t.primaryKey(["deviceId", "startTs", "sport"])
+            }
+        }
         return migrator
     }
 }

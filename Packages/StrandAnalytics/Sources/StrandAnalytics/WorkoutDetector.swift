@@ -430,6 +430,10 @@ public enum WorkoutDetector {
     ///   - maxHR: HRmax (bpm). nil → estimated via StrainScorer.estimateHRmax.
     ///   - age: used only for the Tanaka fallback when maxHR is nil.
     ///   - profile: when provided, per-bout calories are estimated.
+    /// The sport a bout is priced as: the detector sees heart rate and motion, never what the activity
+    /// was, so a bout takes the generic curve and, without a ceiling, the table's unnamed-session MET.
+    static let detectedSport = "detected"
+
     public static func detect(hr: [HRSample],
                               gravity: [GravitySample],
                               restingHR: Double? = nil,
@@ -441,6 +445,10 @@ public enum WorkoutDetector {
                               // choice so a bout and the day it sits in are never scored by different
                               // recipes, which would be worse than either one being "wrong".
                               effortMethod: StrainScorer.Method = .edwards,
+                              // The day's aerobic ceiling (`PeakMETResolver`), so a detected bout is
+                              // priced on the curve the day's energy model uses. Nil prices it from the
+                              // table MET of an unnamed session.
+                              peakMET: Double? = nil,
                               // #1545: receives the gate-by-gate counts for THIS call. nil (the default)
                               // keeps every existing caller and test byte-identical — nothing is computed
                               // that the detector was not already computing, the counters just record it.
@@ -552,9 +560,10 @@ public enum WorkoutDetector {
             var kcal: Double? = nil
             var kj: Double? = nil
             if let profile = profile {
-                let (k, j) = Calories.estimateBoutCalories(hrSamples, profile: profile,
-                                                           hrmax: effMaxHR, restingHR: restHR)
-                kcal = k; kj = j
+                let k = WorkoutEnergyEstimate.boutKcal(hrSamples, sport: detectedSport, profile: profile,
+                                                       hrMax: effMaxHR, restingHR: restHR,
+                                                       peakMET: peakMET)
+                kcal = k; kj = k * 4.184
             }
 
             guard !bpms.isEmpty else { f.droppedNoHR += 1; continue }   // degenerate bout, no HR samples

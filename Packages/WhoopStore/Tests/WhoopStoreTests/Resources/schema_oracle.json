@@ -72,7 +72,8 @@
   "v68-rr-source-index",
   "v69-lift-log",
   "v70-training-session-load",
-  "v71-whoop-energy-fitness"
+  "v71-whoop-energy-fitness",
+  "v72-workout-energy-source"
  ],
  "divergenceReasons": {
   "android-orphan-synced-column": "REAL COLUMN DRIFT: `synced` exists on Android only. GRDB's v10 note is explicit that stepSample gets no `synced` column ('unused; see StreamStore'), and v12's ppgHrSample never had one either; the Room entities copied the flag from the older per-second entities. Nothing reads it on Android — the per-row upload flag belongs to an upload path that does not exist there — so it is dead width, not divergent data. Removing it needs a Room table rebuild.",
@@ -4645,6 +4646,48 @@
      ]
     }
    ]
+  },
+  "workoutEnergySource": {
+   "platform": "ios_only",
+   "reason": "Where a workout's stored energy came from, computed or entered (GRDB v72). This Apple-only checkout has no Room twin.",
+   "columns": [
+    {
+     "name": "deviceId",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "startTs",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "sport",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "kind",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "updatedAtTs",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "deviceId",
+    "startTs",
+    "sport"
+   ],
+   "indices": []
   }
  }
 }

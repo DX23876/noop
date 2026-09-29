@@ -241,7 +241,8 @@ extension Repository {
             // them only on a day nothing measured, so the decision stays in one place.
             let sessions = (sessionsByDay[day] ?? []).compactMap {
                 Self.activityContribution($0, profile: dayProfile, hrMax: strainProfile?.hrMax,
-                                          restingHR: strap?.restingHr.map(Double.init))
+                                          restingHR: strap?.restingHr.map(Double.init),
+                                          peakMET: derivedByDay[day]?.peakMET)
             }
             let inputs = EnergyEngine.DayInputs(
                 day: day,
@@ -384,6 +385,99 @@ extension Repository {
     /// holds buckets priced under the previous inclusion rules, which is the exact disagreement this
     /// exists to remove. `maxDays` bounds the bucket reads for a long list — rows arrive newest first,
     /// so it is the oldest sessions that keep their fallback.
+    /// Records where a saved manual row's energy came from (`workoutEnergySource`).
+    ///
+    /// A figure the save left unchanged keeps the source it had, so editing a computed walk's notes does
+    /// not turn its energy into a typed one; an unknown source stays unknown. A new or changed figure was
+    /// typed. No figure, no entry. A re-keyed row moves its entry to the new key.
+    func recordManualEnergySource(for row: WorkoutRow, replacing old: WorkoutRow?,
+                                  store: WhoopStore) async {
+        let key = WorkoutKey(deviceId: deviceId, startTs: row.startTs, sport: row.sport)
+        let oldKey = old.map { WorkoutKey(deviceId: deviceId, startTs: $0.startTs, sport: $0.sport) }
+        var carried: WorkoutEnergySource?
+        if let old, let oldKey, old.energyKcal == row.energyKcal {
+            carried = ((try? await store.workoutEnergySources(
+                deviceId: deviceId, from: old.startTs, to: old.startTs)) ?? [:])[oldKey]
+        }
+        if let oldKey, oldKey != key { try? await store.clearWorkoutEnergySource(for: oldKey) }
+        guard let kcal = row.energyKcal, kcal > 0 else {
+            try? await store.clearWorkoutEnergySource(for: key)
+            return
+        }
+        if old != nil, old?.energyKcal == row.energyKcal {
+            if let carried { try? await store.setWorkoutEnergySource(carried, for: key) }
+            return
+        }
+        try? await store.setWorkoutEnergySource(.entered, for: key)
+    }
+
+    /// The one-time correction of stored session figures NOOP computed with Keytel (recipe AI-13).
+    ///
+    /// Every manual row with energy and no recorded source is re-priced when its figure reproduces an
+    /// old formula on the strap's heart rate for its window (`LegacyWorkoutEnergy.looksComputed`), using
+    /// that day's weight and resting rate. A reproduced figure is replaced by the model-v8 session price
+    /// and recorded as computed; anything else (a typed figure, a window without strap heart rate) is left
+    /// as it is. Returns the start of the earliest corrected row, so the caller can have Apple Health
+    /// rewritten from there; nil when nothing changed.
+    func correctLegacyWorkoutEnergy(profile base: UserProfile) async -> Int? {
+        guard let store = await storeHandle() else { return nil }
+        let now = Int(Date().timeIntervalSince1970)
+        let rows = ((try? await store.workouts(deviceId: deviceId, from: 0, to: now, limit: 5_000)) ?? [])
+            .filter { row in
+                guard row.source == "manual", row.endTs > row.startTs else { return false }
+                return (row.energyKcal ?? 0) > 0
+            }
+        guard let first = rows.map(\.startTs).min() else { return nil }
+        let known = (try? await store.workoutEnergySources(deviceId: deviceId, from: first, to: now)) ?? [:]
+        let pending = rows.filter {
+            known[WorkoutKey(deviceId: deviceId, startTs: $0.startTs, sport: $0.sport)] == nil
+        }
+        guard !pending.isEmpty else { return nil }
+        let firstDay = Self.localDayKey(Date(timeIntervalSince1970: TimeInterval(first)))
+        let today = Self.localDayKey(Date())
+        let resting = await restingHrByDay(fromDay: WeeklyDigestEngine.addDays(firstDay, -14), toDay: today)
+        let peaks = await energyPeakMETByDay(fromDay: firstDay, toDay: today)
+        let observations = await weightSeries(days: 4_000).compactMap { point in
+            WeightSeries.date(forDay: point.day).map {
+                CausalWeightObservation(timestamp: Int($0.timeIntervalSince1970), weightKg: point.value,
+                                        source: point.source == .manual ? .manual : .health)
+            }
+        }
+        var corrected: [WorkoutRow] = []
+        for row in pending {
+            let day = Self.localDayKey(Date(timeIntervalSince1970: TimeInterval(row.startTs)))
+            let samples = await hrSamples(deviceIds: importedReadIds, from: row.startTs, to: row.endTs,
+                                          limit: 40_000)
+            guard samples.count >= 2, let stored = row.energyKcal else { continue }
+            var profile = base
+            if let weight = CausalWeightResolver.weight(at: row.startTs, observations: observations) {
+                profile.weightKg = weight
+            }
+            let restingHR = resting[day] ?? resting.filter { $0.key <= day }.max { $0.key < $1.key }?.value
+            guard LegacyWorkoutEnergy.looksComputed(stored: stored, samples: samples, sport: row.sport,
+                                                    profile: profile, hrMax: profile.maxHR,
+                                                    restingHR: restingHR) else { continue }
+            let kcal = WorkoutEnergyEstimate.boutKcal(
+                samples, sport: row.sport, profile: profile, hrMax: profile.maxHR, restingHR: restingHR,
+                peakMET: WorkoutEnergyDisplay.peakMET(on: day, in: peaks), distanceM: row.distanceM)
+            guard kcal > 0 else { continue }
+            corrected.append(WorkoutRow(
+                startTs: row.startTs, endTs: row.endTs, sport: row.sport, source: row.source,
+                durationS: row.durationS, energyKcal: kcal, avgHr: row.avgHr, maxHr: row.maxHr,
+                strain: row.strain, distanceM: row.distanceM, zonesJSON: row.zonesJSON, notes: row.notes,
+                steps: row.steps))
+        }
+        guard !corrected.isEmpty,
+              (try? await store.upsertWorkouts(corrected, deviceId: deviceId)) != nil else { return nil }
+        for row in corrected {
+            try? await store.setWorkoutEnergySource(
+                .computed, for: WorkoutKey(deviceId: deviceId, startTs: row.startTs, sport: row.sport))
+        }
+        let earliest = corrected.map(\.startTs).min()
+        scheduleEnergyRefresh(coveringStart: earliest ?? now)
+        return earliest
+    }
+
     /// The day's stored model row of this generation, or nil when none has been computed.
     func whoopEnergyRow(day: String) async -> WhoopDailyEnergyRow? {
         guard let store = await storeHandle() else { return nil }
@@ -1072,7 +1166,8 @@ extension Repository {
     /// Anything NOOP modelled here is marked `isEstimated`, which both keeps it visibly an estimate on
     /// screen and tells the engine the figure is gross.
     nonisolated static func activityContribution(_ row: WorkoutRow, profile: UserProfile,
-                                                 hrMax: Double?, restingHR: Double?)
+                                                 hrMax: Double?, restingHR: Double?,
+                                                 peakMET: Double? = nil)
         -> ActivityContribution? {
         let source = contributionSource(row.source)
         let seconds = max(0, Double(row.endTs - row.startTs))
@@ -1086,7 +1181,8 @@ extension Repository {
         // energy and the same session's own tile to come to different answers.
         return WorkoutEnergyEstimate.resolve(
             recordedKcal: row.energyKcal, sport: row.sport, durationSeconds: seconds,
-            averageHR: row.avgHr, profile: profile, hrMax: hrMax, restingHR: restingHR)
+            averageHR: row.avgHr, profile: profile, hrMax: hrMax, restingHR: restingHR,
+            peakMET: peakMET, distanceM: row.distanceM)
             .flatMap { contribution($0.kcal, estimated: $0.isEstimated) }
     }
 

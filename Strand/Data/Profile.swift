@@ -241,6 +241,23 @@ final class ProfileStore: ObservableObject {
         UserDefaults.standard.object(forKey: K.weight) as? Double ?? 75
     }
 
+    /// The analytics profile `Repository.analyticsProfile` builds, read the same way `persistedWeightKg`
+    /// is: from the stored keys, without constructing a store. For paths off the main actor that need
+    /// the wearer's basal rate, such as the Apple Health export.
+    nonisolated static var persistedAnalyticsProfile: UserProfile {
+        let d = UserDefaults.standard
+        let dob = d.object(forKey: K.dateOfBirth) as? Date
+        let age = dob.map { years(from: $0, to: Date()) } ?? (d.object(forKey: K.legacyAge) as? Int ?? 30)
+        let override = d.object(forKey: K.hrMax) as? Int ?? 0
+        let hrMax = override > 0 ? override : Int((208 - 0.7 * Double(age)).rounded())
+        return UserProfile(weightKg: persistedWeightKg,
+                           heightCm: d.object(forKey: K.height) as? Double ?? 178,
+                           age: Double(age),
+                           sex: d.string(forKey: K.sex) ?? "male",
+                           maxHR: Double(hrMax),
+                           basalFormula: EnergyPlanStore.formulaLog.current)
+    }
+
     /// The trimmed name, or nil when none is set — what greeting surfaces read so they never have to
     /// repeat the trim-and-check dance (and can never render "Good morning, ").
     var displayName: String? {

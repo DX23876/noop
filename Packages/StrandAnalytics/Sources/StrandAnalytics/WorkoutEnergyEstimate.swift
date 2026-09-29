@@ -26,7 +26,11 @@ public enum WorkoutEnergyEstimate {
         /// The strap's own energy model over the session's window — the same five-minute buckets the
         /// day's total and its training share are built from, heart rate and movement together.
         case strapModel
-        /// Keytel at the session's average heart rate — evidence about the person who did it.
+        /// The session's measured distance over its duration, on the speed curve the day model prices
+        /// every walk with. For walking, running, hiking and rucking only.
+        case pace
+        /// The session's heart rate against the wearer's aerobic ceiling (`exerciseMET`), the curve the
+        /// day model prices confirmed workouts on — evidence about the person who did it.
         case heartRate
         /// The published activity cost for the sport's NAME. A population average, and the last
         /// resort: it knows what the activity usually costs, not what this one did.
@@ -50,9 +54,8 @@ public enum WorkoutEnergyEstimate {
     /// Nil rather than zero, deliberately: a session with no duration and no body mass is a session
     /// nobody can cost, and reporting 0 kcal for it would be a measurement of nothing.
     ///
-    /// **The figure is GROSS** in every estimated branch — `Calories.estimateBoutCalories` integrates
-    /// the resting rate below its activity gate, and a MET is by definition a multiple of resting
-    /// metabolism. That matches what the app's own strap, detected and manual lanes already store,
+    /// **The figure is GROSS** in every estimated branch — the wearer's basal rate for the window plus
+    /// the energy above it, as the day model's buckets are. That matches what the app's own strap, detected and manual lanes already store,
     /// so an estimated row reads on the same scale as a recorded one beside it. An Apple import is
     /// energy ABOVE resting and is returned untouched as `.recorded`: converting it here would
     /// silently restate a figure the wearer can also see in Apple's own app.
@@ -69,7 +72,8 @@ public enum WorkoutEnergyEstimate {
                                hrMax: Double?,
                                restingHR: Double?,
                                strapKcal: Double? = nil,
-                               peakMET: Double? = nil) -> Resolved? {
+                               peakMET: Double? = nil,
+                               distanceM: Double? = nil) -> Resolved? {
         func valid(_ kcal: Double?, _ provenance: Provenance) -> Resolved? {
             guard let kcal, kcal.isFinite, kcal > 0 else { return nil }
             return Resolved(kcal: kcal, provenance: provenance)
@@ -79,14 +83,18 @@ public enum WorkoutEnergyEstimate {
         guard durationSeconds.isFinite, durationSeconds > 0 else { return nil }
         if let resolved = valid(strapKcal, .strapModel) { return resolved }
 
-        if let averageHR, averageHR > 0,
-           let resolved = valid(heartRateKcal(averageHR: averageHR, sport: sport,
-                                              durationSeconds: durationSeconds, profile: profile,
-                                              hrMax: hrMax, restingHR: restingHR, peakMET: peakMET),
+        let pricer = SessionPricer(sport: sport, profile: profile, hrMax: hrMax, restingHR: restingHR,
+                                   peakMET: peakMET)
+        if let pricer, let resolved = valid(pricer.paceKcal(distanceM: distanceM,
+                                                              seconds: durationSeconds), .pace) {
+            return resolved
+        }
+        if let pricer, let averageHR, averageHR > 0,
+           let resolved = valid(pricer.heartRateKcal(bpm: Double(averageHR), seconds: durationSeconds),
                                  .heartRate) {
             return resolved
         }
-
+        if let pricer { return valid(pricer.tableKcal(seconds: durationSeconds), .metTable) }
         return valid(ActivityMETCatalog.grossKcal(sport: sport, seconds: durationSeconds,
                                                   weightKg: profile.weightKg), .metTable)
     }
@@ -94,48 +102,38 @@ public enum WorkoutEnergyEstimate {
 
 extension WorkoutEnergyEstimate {
 
-    /// Gross energy from a session's average heart rate.
+    /// Gross energy from a session's average heart rate, or nil when it cannot be priced from heart
+    /// rate (no aerobic ceiling for the day, or no body data).
     ///
-    /// Keytel (2005) was fitted on steady endurance exercise, and for lifting it reads the pressor
-    /// response as oxygen uptake: the reported 90-minute session at 108 bpm came out at ~783 kcal,
-    /// about 5.7 MET, where the Compendium puts resistance training at 3.5–6. A resistance session is
-    /// therefore priced by `resistanceKcal` — the strap model's own curve plus basal, the same
-    /// arithmetic its buckets use — so a session without strap coverage lands on the scale of one with
-    /// it. Everything else keeps Keytel.
+    /// Linear in heart rate, so the average prices a session exactly as its samples would.
     static func heartRateKcal(averageHR: Int, sport: String, durationSeconds: Double,
                               profile: UserProfile, hrMax: Double?, restingHR: Double?,
                               peakMET: Double? = nil) -> Double? {
-        guard EnergyWorkoutKind.forSport(sport) == .resistance,
-              let price = resistancePricer(profile: profile, hrMax: hrMax, restingHR: restingHR,
-                                           peakMET: peakMET) else {
-            return Calories.estimateBoutCalories(averageHR: averageHR, durationSeconds: durationSeconds,
-                                                 profile: profile, hrmax: hrMax, restingHR: restingHR)
-        }
-        return price(Double(averageHR), durationSeconds)
+        SessionPricer(sport: sport, profile: profile, hrMax: hrMax, restingHR: restingHR,
+                      peakMET: peakMET)?
+            .heartRateKcal(bpm: Double(averageHR), seconds: durationSeconds)
     }
 
-    /// Gross energy of a bout from its heart-rate SAMPLES, priced the way its sport should be.
+    /// Gross energy of a bout from its heart-rate SAMPLES — the figure NOOP stores for a session it
+    /// timed itself: a live save, a detected bout, the rescore of an under-scored manual row.
     ///
-    /// The one entry point for every place NOOP stores a figure it computed itself — a live session at
-    /// save time and the post-sync rescore of an under-scored manual row. Both called Keytel directly,
-    /// so a lifting session recorded live was stored at Keytel's figure and shown as recorded, however
-    /// the rest of the app priced lifting. A resistance sport is integrated sample by sample on
-    /// `resistanceKcal`; every other sport returns exactly `Calories.estimateBoutCalories`.
+    /// Priced the way the day model prices the same time: a session on foot with a measured distance
+    /// by its pace; otherwise sample by sample on `exerciseMET` against the day's aerobic ceiling;
+    /// without a ceiling, the sport's table MET over the samples' span. Keytel, which these paths used
+    /// before, was fitted on 47–120 kg regular exercisers and read a 212 kg wearer's walk at three
+    /// times its cost.
     ///
-    /// Samples are weighted by the time to the next one, capped at `WorkoutDetector.mergeGapS`, the
-    /// same rule the Keytel integration uses, so a sparse stream is not undercounted and a wear gap
-    /// cannot be inflated. Zero with fewer than two samples, like its sibling.
+    /// Samples are weighted by the time to the next one, capped at `WorkoutDetector.mergeGapS`, so a
+    /// sparse stream is not undercounted and a wear gap cannot be inflated. Zero with fewer than two
+    /// samples, or without the body data to price basal.
     public static func boutKcal(_ samples: [HRSample], sport: String, profile: UserProfile,
-                                hrMax: Double?, restingHR: Double?, peakMET: Double? = nil) -> Double {
-        guard EnergyWorkoutKind.forSport(sport) == .resistance,
-              let price = resistancePricer(profile: profile, hrMax: hrMax, restingHR: restingHR,
-                                           peakMET: peakMET) else {
-            return Calories.estimateBoutCalories(samples, profile: profile, hrmax: hrMax,
-                                                 restingHR: restingHR).0
-        }
+                                hrMax: Double?, restingHR: Double?, peakMET: Double? = nil,
+                                distanceM: Double? = nil) -> Double {
         let ordered = samples.sorted { $0.ts < $1.ts }
-        guard ordered.count >= 2 else { return 0 }
-        var kcal = 0.0
+        guard ordered.count >= 2,
+              let pricer = SessionPricer(sport: sport, profile: profile, hrMax: hrMax,
+                                         restingHR: restingHR, peakMET: peakMET) else { return 0 }
+        var weighted: [(bpm: Double, seconds: Double)] = []
         for index in ordered.indices {
             let seconds: Double
             if index < ordered.count - 1 {
@@ -144,29 +142,85 @@ extension WorkoutEnergyEstimate {
             } else {
                 seconds = 1
             }
-            kcal += price(Double(ordered[index].bpm), seconds)
+            weighted.append((Double(ordered[index].bpm), seconds))
         }
-        return kcal
+        let span = weighted.reduce(0.0) { $0 + $1.seconds }
+        if let pace = pricer.paceKcal(distanceM: distanceM, seconds: span) { return pace }
+        if pricer.canPriceHeartRate {
+            return weighted.reduce(0.0) { $0 + (pricer.heartRateKcal(bpm: $1.bpm, seconds: $1.seconds) ?? 0) }
+        }
+        return pricer.tableKcal(seconds: span)
     }
 
-    /// Basal plus resistance-curve active energy for `seconds` at a heart rate, or nil when the
-    /// profile has no body data to price basal with, or no aerobic ceiling is known (the caller then
-    /// keeps Keytel, which carries its own population defaults). Resting and maximum take the bounds
-    /// the bucket model applies; `peakMET` is the ceiling the day's bucket model used, so a session
-    /// without strap coverage lands on the same scale as one with it.
-    private static func resistancePricer(profile: UserProfile, hrMax: Double?, restingHR: Double?,
-                                         peakMET: Double?) -> ((Double, Double) -> Double)? {
-        guard let bmr = Calories.bmrKcalPerDay(profile: profile), profile.weightKg > 0,
-              let peakMET, peakMET.isFinite else { return nil }
-        let resting = min(100, max(35, restingHR ?? 60))
-        let maximum = max(resting + 20, hrMax ?? profile.maxHR
-                          ?? (profile.age > 0 ? StrainScorer.tanakaHRmax(age: profile.age) : 190))
-        let weight = profile.weightKg
-        return { bpm, seconds in
+    /// The part of a gross session figure above the wearer's resting rate, which is what Apple Health
+    /// means by active energy. Nil without the body data to price basal.
+    public static func activeShare(grossKcal: Double, seconds: Double, profile: UserProfile) -> Double? {
+        guard grossKcal.isFinite, seconds.isFinite, seconds > 0,
+              let bmr = Calories.bmrKcalPerDay(profile: profile) else { return nil }
+        return max(0, grossKcal - bmr / 86_400 * seconds)
+    }
+
+    /// One session's inputs, resolved once: the basal rate, the heart-rate bounds the bucket model
+    /// applies, the aerobic ceiling and the sport's curve. Nil without the body data to price basal.
+    struct SessionPricer {
+        let basalPerSecond: Double
+        let weightKg: Double
+        let resting: Double
+        let maximum: Double
+        let peakMET: Double?
+        let kind: EnergyWorkoutKind
+        let onFoot: Bool
+        let tableMET: Double
+
+        init?(sport: String, profile: UserProfile, hrMax: Double?, restingHR: Double?,
+              peakMET: Double?) {
+            guard let bmr = Calories.bmrKcalPerDay(profile: profile), profile.weightKg > 0 else {
+                return nil
+            }
+            basalPerSecond = bmr / 86_400
+            weightKg = profile.weightKg
+            resting = min(100, max(35, restingHR ?? 60))
+            let fallbackMax = profile.age > 0 ? StrainScorer.tanakaHRmax(age: profile.age) : 190
+            maximum = max(resting + 20, hrMax ?? profile.maxHR ?? fallbackMax)
+            self.peakMET = peakMET.flatMap { $0.isFinite && $0 > 0 ? $0 : nil }
+            kind = EnergyWorkoutKind.forSport(sport)
+            onFoot = EnergyWorkoutKind.isOnFoot(sport: sport)
+            tableMET = ActivityMETCatalog.met(forSport: sport)
+        }
+
+        var canPriceHeartRate: Bool { peakMET != nil }
+
+        /// Average speeds a session on foot can plausibly have had. Outside them the distance is taken as
+        /// a failed recording, not a pace: live GPS walks in real data carry 7 m or 47 m for half an hour,
+        /// which would price the session at rest.
+        static let plausibleKmh: ClosedRange<Double> = 1.5...25
+
+        /// Basal plus the energy above it at the session's average speed, for a session on foot with a
+        /// plausible measured distance; nil otherwise.
+        func paceKcal(distanceM: Double?, seconds: Double) -> Double? {
+            guard onFoot, let distanceM, distanceM.isFinite, distanceM > 0,
+                  seconds.isFinite, seconds > 0 else { return nil }
+            let kmh = distanceM / 1_000 / (seconds / 3_600)
+            guard Self.plausibleKmh.contains(kmh) else { return nil }
+            let met = WhoopEnergyModel.metForSpeed(kmh)
+            return basalPerSecond * seconds
+                + WhoopEnergyModel.activeKcal(met: met, seconds: seconds, weightKg: weightKg)
+        }
+
+        /// Basal plus `exerciseMET` energy for `seconds` at `bpm`; nil without an aerobic ceiling.
+        func heartRateKcal(bpm: Double, seconds: Double) -> Double? {
+            guard let peakMET, seconds.isFinite, seconds > 0 else { return nil }
             let met = WhoopEnergyModel.exerciseMET(hr: bpm, resting: resting, maximum: maximum,
-                                                   kind: .resistance, peakMET: peakMET)
-            return bmr / 86_400 * seconds
-                + WhoopEnergyModel.activeKcal(met: met, seconds: seconds, weightKg: weight)
+                                                   kind: kind, peakMET: peakMET)
+            return basalPerSecond * seconds
+                + WhoopEnergyModel.activeKcal(met: met, seconds: seconds, weightKg: weightKg)
+        }
+
+        /// Basal plus the sport's table MET above rest, the bucket model's own table branch.
+        func tableKcal(seconds: Double) -> Double {
+            guard seconds.isFinite, seconds > 0 else { return 0 }
+            return basalPerSecond * seconds
+                + WhoopEnergyModel.activeKcal(met: tableMET, seconds: seconds, weightKg: weightKg)
         }
     }
 
@@ -232,5 +286,49 @@ extension WorkoutEnergyEstimate {
               workout >= covered * strapMinimumWorkoutShare else { return nil }
         let total = kcal * window / covered
         return total.isFinite && total > 0 ? total : nil
+    }
+}
+
+// MARK: - Recognising a figure NOOP computed before model v8
+
+/// Whether a stored session figure is one NOOP computed with a formula it no longer uses.
+///
+/// Manual rows carry no record of where their energy came from: the live recorder, the post-sync
+/// rescore and the detector's backfill all wrote a computed figure, and the manual sheet stores one the
+/// wearer typed, in the same column. The one-time correction of the Keytel figures therefore recognises
+/// a computed value by reproducing it: a figure within `tolerance` of what an old formula gives on the
+/// strap's heart rate for the same window was, with near certainty, produced by that formula. A typed
+/// figure has no reason to land there, and is left alone. The tolerance absorbs what drifted since the
+/// figure was written: body weight, the resting rate of that day, the live stream against the offloaded
+/// one.
+public enum LegacyWorkoutEnergy {
+
+    /// Relative distance within which a stored figure counts as reproduced.
+    public static let tolerance = 0.20
+
+    /// The figures the old formulas give for this window: Keytel (every sport until model v8) and, for
+    /// lifting, the v7 resistance curve with Uth's ceiling bounded to 7–16 MET.
+    public static func candidates(_ samples: [HRSample], sport: String, profile: UserProfile,
+                                  hrMax: Double?, restingHR: Double?) -> [Double] {
+        var out = [Calories.estimateBoutCalories(samples, profile: profile, hrmax: hrMax,
+                                                 restingHR: restingHR).0]
+        if EnergyWorkoutKind.forSport(sport) == .resistance {
+            let resting = min(100, max(35, restingHR ?? 60))
+            let maximum = max(resting + 20, hrMax ?? 190)
+            let uth = Calories.vo2maxFor(hrmax: maximum, restingHR: resting).map { $0 / 3.5 } ?? 10
+            let v7Peak = min(16, max(7, uth))
+            out.append(WorkoutEnergyEstimate.boutKcal(samples, sport: sport, profile: profile,
+                                                      hrMax: hrMax, restingHR: restingHR,
+                                                      peakMET: v7Peak))
+        }
+        return out.filter { $0.isFinite && $0 > 0 }
+    }
+
+    /// True when `stored` is within `tolerance` of any old formula's figure for the window.
+    public static func looksComputed(stored: Double, samples: [HRSample], sport: String,
+                                     profile: UserProfile, hrMax: Double?, restingHR: Double?) -> Bool {
+        guard stored.isFinite, stored > 0, samples.count >= 2 else { return false }
+        return candidates(samples, sport: sport, profile: profile, hrMax: hrMax, restingHR: restingHR)
+            .contains { abs(stored - $0) <= tolerance * $0 }
     }
 }

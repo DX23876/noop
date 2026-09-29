@@ -3917,6 +3917,7 @@ final class Repository: ObservableObject {
             // visibility remain untouched; a failed explicit edit must not turn into data loss.
             do { _ = try await store.upsertWorkouts([row], deviceId: deviceId) }
             catch { return }
+            await recordManualEnergySource(for: row, replacing: old, store: store)
             await dismissDetected(old)
             return
         } else if let old, old.startTs != row.startTs || old.sport != row.sport {
@@ -3925,6 +3926,7 @@ final class Repository: ObservableObject {
             // rows rather than lost history.
             do { _ = try await store.upsertWorkouts([row], deviceId: deviceId) }
             catch { return }
+            await recordManualEnergySource(for: row, replacing: old, store: store)
             // #10: the GPS route lives in RouteStore keyed by the natural key (startTs + sport), NOT in the
             // DB row. Copy it only after the replacement row is durable. Keep the old copy until the old
             // DB row is successfully retired, so a delete failure preserves both complete versions.
@@ -3945,7 +3947,8 @@ final class Repository: ObservableObject {
             }
             return
         }
-        _ = try? await store.upsertWorkouts([row], deviceId: deviceId)
+        guard (try? await store.upsertWorkouts([row], deviceId: deviceId)) != nil else { return }
+        await recordManualEnergySource(for: row, replacing: old, store: store)
     }
 
     /// Re-label a legacy detected bout: copy it to a manual strap row with the chosen sport, then delete

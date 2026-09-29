@@ -51,12 +51,13 @@ public enum ManualWorkoutRescore {
                               restingHR: Double? = nil,
                               // #1545: see WorkoutDetector.detect — Edwards by default, threaded by the app.
                               effortMethod: StrainScorer.Method = .edwards,
-                              // The row's sport, so a lifting session is priced on the resistance
-                              // curve rather than Keytel (`WorkoutEnergyEstimate.boutKcal`). Empty keeps
-                              // Keytel, which is what every caller got before it was threaded.
+                              // The row's sport, which picks its curve and its table MET
+                              // (`WorkoutEnergyEstimate.boutKcal`).
                               sport: String = "",
-                              // The aerobic ceiling the day's energy model used, so a lifting session
-                              // rescored here lands on the same curve as its buckets. Nil keeps Keytel.
+                              // A session on foot with a measured distance is priced by its pace.
+                              distanceM: Double? = nil,
+                              // The aerobic ceiling the day's energy model used, so a session rescored
+                              // here lands on the same curve as its buckets. Nil takes the table MET.
                               peakMET: Double? = nil) -> Scored? {
         guard windowSamples.count >= 2 else { return nil }
         let bpms = windowSamples.map(\.bpm)
@@ -67,7 +68,7 @@ public enum ManualWorkoutRescore {
                                          method: effortMethod, sex: profile.sex)
         let kcalRaw = WorkoutEnergyEstimate.boutKcal(windowSamples, sport: sport, profile: profile,
                                                      hrMax: hrMax, restingHR: restingHR,
-                                                     peakMET: peakMET)
+                                                     peakMET: peakMET, distanceM: distanceM)
         return Scored(avgHr: avg, maxHr: peak, strain: strain, kcal: kcalRaw > 0 ? kcalRaw : nil)
     }
 

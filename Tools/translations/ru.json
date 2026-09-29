@@ -1591,5 +1591,7 @@
   "entered %@": "введено %@",
   "Apple Watch, %@": "Apple Watch от %@",
   "estimated, activity level %lld": "оценка, уровень активности %lld",
-  "Auto (Tanaka)": "Автоматически (Танака)"
+  "Auto (Tanaka)": "Автоматически (Танака)",
+  "est. from pace": "оценка по темпу",
+  "~%@ kcal, estimated from the session's distance and duration": "~%@ ккал, оценка по дистанции и длительности занятия"
 }

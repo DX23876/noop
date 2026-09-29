@@ -1613,5 +1613,7 @@
   "entered %@": "eingetragen am %@",
   "Apple Watch, %@": "Apple Watch vom %@",
   "estimated, activity level %lld": "geschätzt, Aktivitätsstufe %lld",
-  "Auto (Tanaka)": "Automatisch (Tanaka)"
+  "Auto (Tanaka)": "Automatisch (Tanaka)",
+  "est. from pace": "aus Tempo geschätzt",
+  "~%@ kcal, estimated from the session's distance and duration": "~%@ kcal, aus Strecke und Dauer der Einheit geschätzt"
 }

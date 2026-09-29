@@ -39,17 +39,20 @@ final class ManualWorkoutRescoreRestingHrTests: XCTestCase {
         XCTAssertEqual(old, explicit)
     }
 
-    /// The resting HR reaches the calories model too — but there it sets the ACTIVE THRESHOLD
-    /// (resting + 30% HRR), not the burn rate, so it only moves kcal when samples straddle the two
-    /// thresholds. 95 bpm does: active under a 45-resting threshold (88.5) and resting-rate under a
-    /// 60-resting one (99). The first version of this test used an all-hard window and failed on both
-    /// platforms with IDENTICAL kcal — asserting a mechanism the model doesn't have.
-    func testCaloriesSeeTheMeasuredRestingThroughTheActiveThreshold() {
+    /// The resting HR reaches the calories model too: with an aerobic ceiling the session is priced on
+    /// the heart-rate reserve, so a lower measured resting rate reads the same beats as a larger share
+    /// of it. Without a ceiling the session takes its table MET and the resting rate cannot move it.
+    func testCaloriesSeeTheMeasuredRestingThroughTheReserve() {
         let warmup = (0..<40).map { HRSample(ts: $0 * 30, bpm: 95) }
         let mixed = warmup + (40..<160).map { HRSample(ts: $0 * 30, bpm: 148) }
-        let def = ManualWorkoutRescore.scored(windowSamples: mixed, profile: profile, hrMax: hrMax)!
+        let def = ManualWorkoutRescore.scored(windowSamples: mixed, profile: profile, hrMax: hrMax,
+                                              peakMET: 10)!
         let measured = ManualWorkoutRescore.scored(windowSamples: mixed, profile: profile,
-                                                   hrMax: hrMax, restingHR: 45)!
-        XCTAssertNotEqual(def.kcal, measured.kcal)
+                                                   hrMax: hrMax, restingHR: 45, peakMET: 10)!
+        XCTAssertGreaterThan(measured.kcal!, def.kcal!)
+        let tableDefault = ManualWorkoutRescore.scored(windowSamples: mixed, profile: profile, hrMax: hrMax)!
+        let tableMeasured = ManualWorkoutRescore.scored(windowSamples: mixed, profile: profile,
+                                                        hrMax: hrMax, restingHR: 45)!
+        XCTAssertEqual(tableDefault.kcal, tableMeasured.kcal)
     }
 }

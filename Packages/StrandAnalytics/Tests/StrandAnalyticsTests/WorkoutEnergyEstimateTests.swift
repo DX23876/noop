@@ -1,5 +1,6 @@
 import XCTest
 @testable import StrandAnalytics
+import WhoopProtocol
 
 final class WorkoutEnergyEstimateTests: XCTestCase {
     private let profile = UserProfile(weightKg: 80, heightCm: 180, age: 30, sex: "male")
@@ -32,13 +33,50 @@ final class WorkoutEnergyEstimateTests: XCTestCase {
         XCTAssertNotEqual(resolved?.kcal, table?.kcal, "the two branches must not coincide by accident")
     }
 
-    func testTheTableCarriesASessionWithNoHeartRateAtAll() {
-        // A Hevy import or a hand-entered bout: no samples, no average, still an hour of lifting.
+    func testTheTableCarriesASessionWithNoHeartRateAtAll() throws {
+        // A Hevy import or a hand-entered bout: no samples, no average, still an hour of lifting. The
+        // table MET is taken above the wearer's own basal rate, as the day model's table branch does,
+        // not as a multiple of the 3.5 ml/kg/min population resting rate.
         let resolved = resolve(sport: "Strength", seconds: 3_600, avgHR: nil)
         XCTAssertEqual(resolved?.provenance, .metTable)
-        XCTAssertEqual(resolved?.kcal ?? 0,
-                       ActivityMETCatalog.grossKcal(sport: "Strength", seconds: 3_600, weightKg: 80) ?? 0,
-                       accuracy: 0.001)
+        let basal = try XCTUnwrap(Calories.bmrKcalPerDay(profile: profile)) / 24
+        let active: Double = (ActivityMETCatalog.met(forSport: "Strength") - 1) * 3.5 * 80 / 200 * 60
+        XCTAssertEqual(resolved?.kcal ?? 0, basal + active, accuracy: 0.001)
+    }
+
+    /// A walk with a measured distance is priced by its pace, whatever its heart rate was, on the curve
+    /// the day model prices every walk with. Without a distance it falls back to heart rate.
+    func testAWalkWithADistanceIsPricedByPace() throws {
+        let walk = try XCTUnwrap(WorkoutEnergyEstimate.resolve(
+            recordedKcal: nil, sport: "Walking", durationSeconds: 3_600, averageHR: 150,
+            profile: profile, hrMax: 190, restingHR: 55, peakMET: 10, distanceM: 4_800))
+        XCTAssertEqual(walk.provenance, .pace)
+        let basal = try XCTUnwrap(Calories.bmrKcalPerDay(profile: profile)) / 24
+        let active: Double = (WhoopEnergyModel.metForSpeed(4.8) - 1) * 3.5 * 80 / 200 * 60
+        XCTAssertEqual(walk.kcal, basal + active, accuracy: 1e-6)
+        let noDistance = WorkoutEnergyEstimate.resolve(
+            recordedKcal: nil, sport: "Walking", durationSeconds: 3_600, averageHR: 150,
+            profile: profile, hrMax: 190, restingHR: 55, peakMET: 10)
+        XCTAssertEqual(noDistance?.provenance, .heartRate)
+        // A distance no walk could have (GPS lost: 7 m in an hour) is a failed recording, not a pace.
+        let lostGPS = WorkoutEnergyEstimate.resolve(
+            recordedKcal: nil, sport: "Walking", durationSeconds: 3_600, averageHR: 150,
+            profile: profile, hrMax: 190, restingHR: 55, peakMET: 10, distanceM: 7)
+        XCTAssertEqual(lostGPS?.provenance, .heartRate)
+        // Distance on a sport that is not on foot is not a pace.
+        let ride = WorkoutEnergyEstimate.resolve(
+            recordedKcal: nil, sport: "Indoor cycle", durationSeconds: 3_600, averageHR: 150,
+            profile: profile, hrMax: 190, restingHR: 55, peakMET: 10, distanceM: 20_000)
+        XCTAssertEqual(ride?.provenance, .heartRate)
+    }
+
+    func testTheActiveShareRemovesTheWindowsBasal() throws {
+        let basal = try XCTUnwrap(Calories.bmrKcalPerDay(profile: profile)) / 24
+        XCTAssertEqual(try XCTUnwrap(WorkoutEnergyEstimate.activeShare(
+            grossKcal: 600, seconds: 3_600, profile: profile)), 600 - basal, accuracy: 1e-9)
+        XCTAssertEqual(WorkoutEnergyEstimate.activeShare(grossKcal: 10, seconds: 3_600, profile: profile), 0)
+        XCTAssertNil(WorkoutEnergyEstimate.activeShare(
+            grossKcal: 600, seconds: 3_600, profile: UserProfile(weightKg: 0, heightCm: 180, age: 30)))
     }
 
     func testAZeroHeartRateIsNotEvidenceAndFallsThrough() {
@@ -84,27 +122,31 @@ final class WorkoutEnergyEstimateTests: XCTestCase {
             averageHR: 108, durationSeconds: seconds, profile: profile, hrmax: 190, restingHR: 60))
         XCTAssertLessThan(resolved.kcal, keytel)
 
-        // An endurance session keeps Keytel.
+        // An endurance session takes the same curve with the full reserve share.
         let run = try XCTUnwrap(WorkoutEnergyEstimate.resolve(
             recordedKcal: nil, sport: "Running", durationSeconds: 3_600, averageHR: 150,
             profile: profile, hrMax: 190, restingHR: 60, peakMET: 10))
-        XCTAssertEqual(run.kcal, Calories.estimateBoutCalories(
-            averageHR: 150, durationSeconds: 3_600, profile: profile, hrmax: 190, restingHR: 60) ?? 0,
-            accuracy: 1e-6)
+        let runMET = WhoopEnergyModel.exerciseMET(hr: 150, resting: 60, maximum: 190, kind: .endurance,
+                                                  peakMET: 10)
+        let runBasal = try XCTUnwrap(Calories.bmrKcalPerDay(profile: profile)) / 24
+        XCTAssertEqual(run.kcal, runBasal + WhoopEnergyModel.activeKcal(met: runMET, seconds: 3_600,
+                                                                       weightKg: 80), accuracy: 1e-6)
     }
 
     /// The resistance curve is scaled to the ceiling the day's bucket model used. With none known the
-    /// session keeps Keytel rather than a ceiling nobody measured.
-    func testALiftingSessionFollowsTheDaysCeilingAndKeepsKeytelWithoutOne() throws {
+    /// session takes its table MET rather than a ceiling nobody measured.
+    func testALiftingSessionFollowsTheDaysCeilingAndTakesTheTableWithoutOne() throws {
         func kcal(_ peak: Double?) -> Double? {
             WorkoutEnergyEstimate.resolve(
                 recordedKcal: nil, sport: "Strength Training", durationSeconds: 3_600, averageHR: 120,
                 profile: profile, hrMax: 190, restingHR: 60, peakMET: peak)?.kcal
         }
         XCTAssertLessThan(try XCTUnwrap(kcal(6)), try XCTUnwrap(kcal(12)))
-        XCTAssertEqual(try XCTUnwrap(kcal(nil)), try XCTUnwrap(Calories.estimateBoutCalories(
-            averageHR: 120, durationSeconds: 3_600, profile: profile, hrmax: 190, restingHR: 60)),
-            accuracy: 1e-6)
+        XCTAssertEqual(WorkoutEnergyEstimate.resolve(
+            recordedKcal: nil, sport: "Strength Training", durationSeconds: 3_600, averageHR: 120,
+            profile: profile, hrMax: 190, restingHR: 60)?.provenance, .metTable)
+        XCTAssertLessThan(try XCTUnwrap(kcal(nil)), try XCTUnwrap(Calories.estimateBoutCalories(
+            averageHR: 120, durationSeconds: 3_600, profile: profile, hrmax: 190, restingHR: 60)))
     }
 
     // MARK: - Strap model over the session window
@@ -130,10 +172,10 @@ final class WorkoutEnergyEstimateTests: XCTestCase {
         // No strap answer: the heart-rate branch is reached exactly as before.
         XCTAssertEqual(WorkoutEnergyEstimate.resolve(
             recordedKcal: nil, sport: "Strength Training", durationSeconds: 5_400, averageHR: 108,
-            profile: profile, hrMax: 190, restingHR: 60, strapKcal: nil)?.provenance, .heartRate)
+            profile: profile, hrMax: 190, restingHR: 60, strapKcal: nil, peakMET: 10)?.provenance, .heartRate)
         XCTAssertEqual(WorkoutEnergyEstimate.resolve(
             recordedKcal: nil, sport: "Strength Training", durationSeconds: 5_400, averageHR: 108,
-            profile: profile, hrMax: 190, restingHR: 60, strapKcal: 0)?.provenance, .heartRate)
+            profile: profile, hrMax: 190, restingHR: 60, strapKcal: 0, peakMET: 10)?.provenance, .heartRate)
     }
 
     func testTheWindowSumsBasalAndActiveOfTheBucketsInsideIt() throws {
@@ -188,3 +230,32 @@ final class WorkoutEnergyEstimateTests: XCTestCase {
     }
 }
 
+
+final class LegacyWorkoutEnergyTests: XCTestCase {
+    private let heavy = UserProfile(weightKg: 212, heightCm: 196, age: 35, sex: "male",
+                                    basalFormula: .mifflinStJeor)
+    private let walk = (0..<8_040).map { HRSample(ts: $0, bpm: 130 + ($0 / 600) % 40) }
+
+    /// The reported walk: 3,471 kcal stored, and Keytel on the same trace lands beside it.
+    func testAKeytelFigureIsRecognisedAndATypedOneIsNot() {
+        let keytel = Calories.estimateBoutCalories(walk, profile: heavy, hrmax: 195, restingHR: 63).0
+        XCTAssertTrue(LegacyWorkoutEnergy.looksComputed(stored: keytel * 1.1, samples: walk,
+                                                        sport: "Walking", profile: heavy,
+                                                        hrMax: 195, restingHR: 63))
+        XCTAssertFalse(LegacyWorkoutEnergy.looksComputed(stored: 900, samples: walk, sport: "Walking",
+                                                         profile: heavy, hrMax: 195, restingHR: 63))
+        XCTAssertFalse(LegacyWorkoutEnergy.looksComputed(stored: keytel, samples: [], sport: "Walking",
+                                                         profile: heavy, hrMax: 195, restingHR: 63))
+    }
+
+    /// A lifting session saved under v7 was priced on the resistance curve, not Keytel.
+    func testAV7LiftingFigureIsRecognised() throws {
+        let lift = (0..<3_600).map { HRSample(ts: $0, bpm: $0 % 180 < 60 ? 125 : 100) }
+        let candidates = LegacyWorkoutEnergy.candidates(lift, sport: "Strength Training", profile: heavy,
+                                                        hrMax: 195, restingHR: 63)
+        XCTAssertEqual(candidates.count, 2)
+        XCTAssertTrue(LegacyWorkoutEnergy.looksComputed(stored: candidates[1], samples: lift,
+                                                        sport: "Strength Training", profile: heavy,
+                                                        hrMax: 195, restingHR: 63))
+    }
+}

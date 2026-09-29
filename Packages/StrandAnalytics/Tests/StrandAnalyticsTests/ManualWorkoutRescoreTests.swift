@@ -107,9 +107,9 @@ final class ManualWorkoutRescoreTests: XCTestCase {
         XCTAssertFalse(ManualWorkoutRescore.improves(s, over: s.kcal))
     }
 
-    /// A lifting session's stored figure is priced on the resistance curve, not Keytel — this value is
-    /// later shown as the session's own. Every other sport, a caller that passes none, and a day with no
-    /// known aerobic ceiling keep Keytel.
+    /// A rescored figure is priced on the day's curve, never Keytel — this value is later shown as the
+    /// session's own. Lifting takes the resistance share, other sports their own; a day with no known
+    /// aerobic ceiling takes the sport's table MET above the wearer's basal rate.
     func testALiftingSessionIsRescoredOnTheResistanceCurve() throws {
         // 60 minutes, sets at 125 bpm and rests at 100, 1 Hz.
         let samples = (0..<3_600).map { HRSample(ts: 1_000 + $0, bpm: $0 % 180 < 60 ? 125 : 100) }
@@ -121,15 +121,19 @@ final class ManualWorkoutRescoreTests: XCTestCase {
                                                                profile: profile, hrMax: 190,
                                                                restingHR: 60, peakMET: 12), accuracy: 1e-9)
         XCTAssertLessThan(lifting, keytel)
-        XCTAssertEqual(try XCTUnwrap(ManualWorkoutRescore.scored(
+        // Same beats, a sport with a larger reserve share: more energy.
+        let running = try XCTUnwrap(ManualWorkoutRescore.scored(
+            windowSamples: samples, profile: profile, hrMax: 190, restingHR: 60, sport: "Running",
+            peakMET: 12)?.kcal)
+        XCTAssertGreaterThan(running, lifting)
+        // No ceiling: the table, whatever the heart rate did.
+        let table = try XCTUnwrap(ManualWorkoutRescore.scored(
             windowSamples: samples, profile: profile, hrMax: 190, restingHR: 60,
-            sport: "Strength Training")?.kcal), keytel, accuracy: 1e-9)
-        XCTAssertEqual(try XCTUnwrap(ManualWorkoutRescore.scored(
-            windowSamples: samples, profile: profile, hrMax: 190, restingHR: 60)?.kcal), keytel,
-            accuracy: 1e-9)
-        XCTAssertEqual(try XCTUnwrap(ManualWorkoutRescore.scored(
-            windowSamples: samples, profile: profile, hrMax: 190, restingHR: 60, sport: "Running")?.kcal),
-            keytel, accuracy: 1e-9)
+            sport: "Strength Training")?.kcal)
+        let basal = try XCTUnwrap(Calories.bmrKcalPerDay(profile: profile)) / 86_400 * 3_600
+        let tableActive: Double = (ActivityMETCatalog.met(forSport: "Strength Training") - 1) * 3.5
+            * profile.weightKg / 200 * 60
+        XCTAssertEqual(table, basal + tableActive, accuracy: 1e-6)
     }
 
     /// Linear curve: a steady 1 Hz lifting trace integrates to what its average prices, so the stored

@@ -1715,5 +1715,7 @@
   "entered %@": "输入于 %@",
   "Apple Watch, %@": "Apple Watch（%@）",
   "estimated, activity level %lld": "估算，活动水平 %lld",
-  "Auto (Tanaka)": "自动（Tanaka）"
+  "Auto (Tanaka)": "自动（Tanaka）",
+  "est. from pace": "按配速估算",
+  "~%@ kcal, estimated from the session's distance and duration": "~%@ 千卡，按本次训练的距离和时长估算"
 }

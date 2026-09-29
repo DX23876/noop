@@ -1236,12 +1236,12 @@ final class AppModel: ObservableObject {
                                   restingHR: restingHR,
                                   method: PuffinExperiment.effortMethod, sex: profile.sex) : nil
         // Estimate calories from the captured HR window so a manual session shows energy too, not just
-        // duration/strain (#117). Through `boutKcal`, which prices a lifting sport on the resistance
-        // curve instead of Keytel — the figure stored here is later shown as the session's own.
-        let up = UserProfile(weightKg: profile.weightKg, heightCm: profile.heightCm,
-                             age: Double(profile.age), sex: profile.sex)
-        // The ceiling the day's energy model used, so a lifting session saved here is priced on the
-        // same curve its buckets are. None resolved yet keeps Keytel.
+        // duration/strain (#117). Through `boutKcal`, the session price the day model uses — the figure
+        // stored here is later shown as the session's own. The analytics profile, so the basal share is
+        // the wearer's chosen formula like everywhere else.
+        let up = Repository.analyticsProfile(profile)
+        // The ceiling the day's energy model used, so a session saved here is priced on the same curve
+        // its buckets are. None resolved yet takes the sport's table MET; a GPS walk takes its pace.
         let peakMET = repo.latestEnergyPeakMET.flatMap { latest in
             WorkoutEnergyDisplay.peakMET(on: Repository.localDayKey(w.start),
                                          in: [latest.day: latest.peakMET])
@@ -1253,7 +1253,7 @@ final class AppModel: ObservableObject {
             // meant a saved workout's kcal disagreed with its own re-score just as its Effort did.
             ? WorkoutEnergyEstimate.boutKcal(samples, sport: w.sport, profile: up,
                                              hrMax: Double(profile.hrMax), restingHR: restingHR,
-                                             peakMET: peakMET)
+                                             peakMET: peakMET, distanceM: route?.distanceM)
             : 0
         let startTs = Int(w.start.timeIntervalSince1970)
         let row = WorkoutRow(
@@ -1280,7 +1280,14 @@ final class AppModel: ObservableObject {
         Task { [weak self] in
             guard let self else { return }
             if let store = await self.repo.storeHandle() {
-                _ = try? await store.upsertWorkouts([row], deviceId: self.deviceId)
+                if (try? await store.upsertWorkouts([row], deviceId: self.deviceId)) != nil,
+                   (row.energyKcal ?? 0) > 0 {
+                    // Computed here from the session's heart rate; recorded so a later correction never
+                    // has to guess whether the wearer typed it (`workoutEnergySource`).
+                    try? await store.setWorkoutEnergySource(
+                        .computed, for: WorkoutKey(deviceId: self.deviceId, startTs: row.startTs,
+                                                   sport: row.sport))
+                }
                 await self.refreshCurrentDayActivity()
             }
         }

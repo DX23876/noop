@@ -482,7 +482,11 @@ public enum AnalyticsEngine {
                                   // %HRR with no floor. Threaded rather than read from a global so this
                                   // stays a pure function, and defaulted so every existing caller and
                                   // test is byte-identical.
-                                  effortMethod: StrainScorer.Method = .edwards) -> DayResult {
+                                  effortMethod: StrainScorer.Method = .edwards,
+                                  // The day's aerobic ceiling (stored by the energy model), so a detected
+                                  // bout's calories are priced on the same curve as the day's workouts.
+                                  // Nil prices bouts from the table MET of an unnamed session.
+                                  workoutPeakMET: Double? = nil) -> DayResult {
 
         // Precompute the day's UTC bounds ONCE (#996). `dayString(ts, offsetSec:)` formats the UTC
         // calendar day of (ts + offset) with a FIXED offset, so "== day" is exactly membership in
@@ -971,6 +975,7 @@ public enum AnalyticsEngine {
             // A day on Banister whose workouts were still on Edwards would show a session scoring
             // less than the day it sits inside, which is a worse inconsistency than either method.
             effortMethod: effortMethod,
+            peakMET: workoutPeakMET,
             funnel: { detectionFunnel = $0 })
 
         // ── Steps (APPROXIMATE) ───────────────────────────────────────────────

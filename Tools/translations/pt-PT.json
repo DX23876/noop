@@ -1614,5 +1614,7 @@
   "entered %@": "introduzido a %@",
   "Apple Watch, %@": "Apple Watch de %@",
   "estimated, activity level %lld": "estimado, nível de atividade %lld",
-  "Auto (Tanaka)": "Automática (Tanaka)"
+  "Auto (Tanaka)": "Automática (Tanaka)",
+  "est. from pace": "estimado pelo ritmo",
+  "~%@ kcal, estimated from the session's distance and duration": "~%@ kcal, estimado a partir da distância e da duração da sessão"
 }

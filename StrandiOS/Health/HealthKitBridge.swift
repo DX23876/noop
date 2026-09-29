@@ -1105,7 +1105,12 @@ final class HealthKitBridge: ObservableObject {
             return current + migrated
         }
         await attempt("Workouts", types: [.workoutType()]) {
-            try await writeWorkouts(whoopStore: whoopStore, fromTs: fromTs, toTs: nowTs)
+            // A correction of stored session energy further back than this pass (recipe AI-13) asks for
+            // the Health copies of those sessions to be rewritten too; reach back to it once.
+            let rewriteFrom = HealthWorkoutRewrite.pendingFrom.map { min($0, fromTs) } ?? fromTs
+            let written = try await writeWorkouts(whoopStore: whoopStore, fromTs: rewriteFrom, toTs: nowTs)
+            HealthWorkoutRewrite.complete(through: rewriteFrom)
+            return written
         }
         lastWritebackReport = .init(completedAt: Date(), entries: reportEntries)
         if let firstError { throw firstError }
@@ -2063,6 +2068,18 @@ final class HealthKitBridge: ObservableObject {
         ])
         _ = try? await store.deleteObjects(of: .workoutType(), predicate: pred)
 
+        // Apple Health's active energy excludes resting metabolism. NOOP's own session figures (strap,
+        // detected, manual, lifting) are GROSS — basal plus the energy above it — so they are written
+        // as their active share; a lane that already records active energy is written as it is.
+        let energyProfile = ProfileStore.persistedAnalyticsProfile
+        func activeKcal(_ row: WorkoutRow) -> Double? {
+            guard let kcal = row.energyKcal, kcal > 0 else { return nil }
+            guard Repository.contributionSource(row.source).includesRestingEnergy else { return kcal }
+            let seconds = row.durationS ?? Double(row.endTs - row.startTs)
+            return WorkoutEnergyEstimate.activeShare(grossKcal: kcal, seconds: seconds,
+                                                     profile: energyProfile).flatMap { $0 > 0 ? $0 : nil }
+        }
+
         var written = 0
         for row in rows {
             let start = Date(timeIntervalSince1970: TimeInterval(row.startTs))
@@ -2076,7 +2093,7 @@ final class HealthKitBridge: ObservableObject {
                 try await builder.addMetadata([HKMetadataKeyExternalUUID: key(row),
                                                Self.originMetadataKey: Self.originMetadataValue])
                 var extras: [HKSample] = []
-                if let kcal = row.energyKcal, kcal > 0,
+                if let kcal = activeKcal(row),
                    let t = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned),
                    store.authorizationStatus(for: t) == .sharingAuthorized {
                     extras.append(HKQuantitySample(type: t, quantity: .init(unit: .kilocalorie(), doubleValue: kcal),

@@ -22,22 +22,30 @@ final class AnalysisRecipeDecisionTests: XCTestCase {
     }
 
     /// The tests above are written against `current`, so they stay green through a bump without ever
-    /// witnessing one. This one names the numbers: an install carrying AI-11 (the primary session's nadir)
-    /// must ask for AI-12 (R-R delivery paths chosen per five-minute segment), and it must ask for it as
-    /// `11 → 12`.
+    /// witnessing one. This one names the numbers: an install carrying AI-12 (R-R delivery paths per
+    /// five-minute segment) must ask for AI-13 (stored Keytel session energy corrected), as `12 → 13`.
     ///
     /// It is deliberately a LITERAL pin. A future bump is supposed to make this line fail, because that
     /// failure is the prompt to answer CLAUDE.md's "Analysis migration required: yes/no" for whatever
     /// the bump carries — the question this file exists to stop anyone skipping.
-    func testRecipeVersionIsTwelveAndAnAI11InstallMigratesToIt() {
-        XCTAssertEqual(IntelligenceEngine.currentAnalysisRecipeVersion, 12,
+    func testRecipeVersionIsThirteenAndAnAI12InstallMigratesToIt() {
+        XCTAssertEqual(IntelligenceEngine.currentAnalysisRecipeVersion, 13,
                        "recipe version changed — answer 'Analysis migration required' for what moved")
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 12),
+                       .migrate(from: 12, to: 13))
         XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 11),
-                       .migrate(from: 11, to: 12))
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 10),
-                       .migrate(from: 10, to: 12))
+                       .migrate(from: 11, to: 13))
         XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 8),
-                       .migrate(from: 8, to: 12))
+                       .migrate(from: 8, to: 13))
+    }
+
+    /// AI-13 corrects stored session energy and no daily row: an AI-12 install re-scores no day but
+    /// runs the correction, and so does every older install crossing it.
+    func testAI13CorrectsSessionEnergyWithoutRescoringDays() {
+        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 12), 0)
+        XCTAssertTrue(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 12, to: 13))
+        XCTAssertTrue(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 8, to: 13))
+        XCTAssertFalse(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 13, to: 13))
     }
 
     /// AI-10, AI-11 and AI-12 change daily rows, so every install below AI-12 re-scores at least the
@@ -78,10 +86,10 @@ final class AnalysisRecipeDecisionTests: XCTestCase {
     /// build number here would cause. Pinned because the mistake is invisible until someone's phone
     /// spends twenty minutes re-scoring after a cosmetic update.
     func testAnInstallAlreadyAtTheCurrentRecipeNeverRescoresOnRelaunch() {
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 12), .upToDate)
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 13), .upToDate)
         // And a database written by a NEWER build that was rolled back stays put rather than
         // "migrating" backwards into a rescore that would overwrite better values with worse ones.
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 13), .upToDate)
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 14), .upToDate)
     }
 
     // MARK: - The fork's own recipe lineage
