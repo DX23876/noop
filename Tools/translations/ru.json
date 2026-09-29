@@ -1577,5 +1577,18 @@
   "Rest ends in 5 seconds": "Отдых закончится через 5 секунд",
   "Set logged": "Подход записан",
   "Timed set over": "Подход на время завершён",
-  "Turn it off in Settings › Training.": "Отключается в Настройки › Тренировки."
+  "Turn it off in Settings › Training.": "Отключается в Настройки › Тренировки.",
+  "Workout calories are scaled to your aerobic capacity. An entered VO₂max counts for six months and a fresh Apple Watch reading for 30 days. Otherwise it is estimated from resting heart rate, body size and activity level. Changes apply from the next strap sync.": "Калории тренировок масштабируются по вашей аэробной выносливости. Введённый VO₂max действует шесть месяцев, свежее измерение Apple Watch 30 дней. Иначе он оценивается по пульсу покоя, телосложению и уровню активности. Изменения вступают в силу со следующей синхронизации браслета.",
+  "Activity level": "Уровень активности",
+  "Entered %@": "Введено %@",
+  "Level %lld": "Уровень %lld",
+  "VO₂max, %@ millilitres per kilogram per minute": "VO₂max, %@ миллилитров на килограмм в минуту",
+  "VO₂max automatic": "VO₂max автоматически",
+  "Measured %@ ml/kg/min at %@ kg, converted to %@ kg.": "Измерено %@ мл/кг/мин при %@ кг, пересчитано на %@ кг.",
+  "not known yet": "пока неизвестно",
+  "VO₂max for workouts": "VO₂max для тренировок",
+  "No resting heart rate yet, so workouts are priced from the activity's published energy cost.": "Пульса покоя пока нет, поэтому тренировки рассчитываются по опубликованному расходу энергии для активности.",
+  "entered %@": "введено %@",
+  "Apple Watch, %@": "Apple Watch от %@",
+  "estimated, activity level %lld": "оценка, уровень активности %lld"
 }

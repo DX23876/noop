@@ -1701,5 +1701,18 @@
   "Rest ends in 5 seconds": "休息将在 5 秒后结束",
   "Set logged": "已记录该组",
   "Timed set over": "计时组结束",
-  "Turn it off in Settings › Training.": "可在 设置 › 训练 中关闭。"
+  "Turn it off in Settings › Training.": "可在 设置 › 训练 中关闭。",
+  "Workout calories are scaled to your aerobic capacity. An entered VO₂max counts for six months and a fresh Apple Watch reading for 30 days. Otherwise it is estimated from resting heart rate, body size and activity level. Changes apply from the next strap sync.": "训练消耗按你的有氧能力换算。手动输入的最大摄氧量有效六个月，Apple Watch 的最新读数有效 30 天。否则将根据静息心率、体型和活动水平估算。更改将在下次手环同步后生效。",
+  "Activity level": "活动水平",
+  "Entered %@": "输入于 %@",
+  "Level %lld": "等级 %lld",
+  "VO₂max, %@ millilitres per kilogram per minute": "VO₂max，每公斤每分钟 %@ 毫升",
+  "VO₂max automatic": "VO₂max 自动",
+  "Measured %@ ml/kg/min at %@ kg, converted to %@ kg.": "在 %2$@ 公斤时测得 %1$@ ml/kg/min，已换算为 %3$@ 公斤。",
+  "not known yet": "尚未知",
+  "VO₂max for workouts": "训练用 VO₂max",
+  "No resting heart rate yet, so workouts are priced from the activity's published energy cost.": "尚无静息心率，因此训练按该活动公布的能量消耗计算。",
+  "entered %@": "输入于 %@",
+  "Apple Watch, %@": "Apple Watch（%@）",
+  "estimated, activity level %lld": "估算，活动水平 %lld"
 }

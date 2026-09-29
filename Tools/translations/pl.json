@@ -2736,5 +2736,18 @@
   "Rest ends in 5 seconds": "Przerwa kończy się za 5 sekund",
   "Set logged": "Seria zapisana",
   "Timed set over": "Seria na czas zakończona",
-  "Turn it off in Settings › Training.": "Wyłącz w Ustawienia › Trening."
+  "Turn it off in Settings › Training.": "Wyłącz w Ustawienia › Trening.",
+  "Workout calories are scaled to your aerobic capacity. An entered VO₂max counts for six months and a fresh Apple Watch reading for 30 days. Otherwise it is estimated from resting heart rate, body size and activity level. Changes apply from the next strap sync.": "Kalorie z treningów są skalowane do twojej wydolności tlenowej. Wpisane VO₂max obowiązuje przez sześć miesięcy, a świeży odczyt z Apple Watch przez 30 dni. W przeciwnym razie jest szacowane na podstawie tętna spoczynkowego, budowy ciała i poziomu aktywności. Zmiany obowiązują od następnej synchronizacji opaski.",
+  "Activity level": "Poziom aktywności",
+  "Entered %@": "Wpisano %@",
+  "Level %lld": "Poziom %lld",
+  "VO₂max, %@ millilitres per kilogram per minute": "VO₂max, %@ mililitrów na kilogram na minutę",
+  "VO₂max automatic": "VO₂max automatycznie",
+  "Measured %@ ml/kg/min at %@ kg, converted to %@ kg.": "Zmierzono %@ ml/kg/min przy %@ kg, przeliczono na %@ kg.",
+  "not known yet": "jeszcze nieznane",
+  "VO₂max for workouts": "VO₂max dla treningów",
+  "No resting heart rate yet, so workouts are priced from the activity's published energy cost.": "Brak jeszcze tętna spoczynkowego, więc treningi są liczone według opublikowanego wydatku energetycznego aktywności.",
+  "entered %@": "wpisano %@",
+  "Apple Watch, %@": "Apple Watch, pomiar z %@",
+  "estimated, activity level %lld": "szacowane, poziom aktywności %lld"
 }

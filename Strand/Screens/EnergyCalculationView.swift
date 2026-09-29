@@ -1,6 +1,7 @@
 import SwiftUI
 import StrandAnalytics
 import StrandDesign
+import WhoopStore
 
 // EnergyCalculationView.swift — "how do you know?", one level below "how much?".
 //
@@ -92,6 +93,8 @@ struct EnergyCalculationView: View {
     @State private var adaptiveEstimate: AdaptiveExpenditureEstimate?
     @State private var updatingCalibration = false
     @State private var loaded = false
+    /// The day's stored model row, for the aerobic ceiling its workouts were priced with.
+    @State private var modelRow: WhoopDailyEnergyRow?
 
     var body: some View {
         ScrollView {
@@ -145,10 +148,46 @@ struct EnergyCalculationView: View {
         if let uncertainty = summary.uncertaintyFraction {
             row("Confidence", "±\(Int((uncertainty * 100).rounded())) %")
         }
+        if let modelRow { ceilingRows(modelRow) }
         if summary.unresolvedElevatedHRSeconds > 0 {
             let minutes = Int((Double(summary.unresolvedElevatedHRSeconds) / 60).rounded())
             row("Unexplained elevated heart rate", "\(minutes) min")
             note("This time had elevated heart rate without confirmed movement or a workout. NOOP does not count it as activity and widens the uncertainty range.")
+        }
+    }
+
+    /// Which VO₂max the day's workouts were scaled to, and where it came from. The question a wrong
+    /// workout figure raises first, answered on the page that exists for "how do you know?".
+    @ViewBuilder private func ceilingRows(_ model: WhoopDailyEnergyRow) -> some View {
+        if let peak = model.peakMET {
+            let vo2 = (peak * PeakMETResolver.mlPerMET).formatted(.number.precision(.fractionLength(1)))
+            row("VO₂max for workouts", "\(vo2) ml/kg/min · \(ceilingSource(model))")
+            if let measured = model.measuredVO2max, let at = model.measuredWeightKg,
+               abs(at - model.weightKg) >= 0.5 {
+                let measuredText = measured.formatted(.number.precision(.fractionLength(1)))
+                let atText = at.formatted(.number.precision(.fractionLength(1)))
+                let nowText = model.weightKg.formatted(.number.precision(.fractionLength(1)))
+                Text("Measured \(measuredText) ml/kg/min at \(atText) kg, converted to \(nowText) kg.")
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        } else {
+            row("VO₂max for workouts", String(localized: "not known yet"))
+            note("No resting heart rate yet, so workouts are priced from the activity's published energy cost.")
+        }
+    }
+
+    private func ceilingSource(_ model: WhoopDailyEnergyRow) -> String {
+        let date = model.peakMETSourceDay.flatMap(WeightSeries.date(forDay:))
+            .map { $0.formatted(date: .abbreviated, time: .omitted) } ?? ""
+        switch model.peakMETSource {
+        case PeakMETResolution.Source.manual.rawValue:
+            return String(localized: "entered \(date)")
+        case PeakMETResolution.Source.appleWatch.rawValue:
+            return String(localized: "Apple Watch, \(date)")
+        default:
+            return String(localized: "estimated, activity level \(model.activityLevel ?? 1)")
         }
     }
 
@@ -247,6 +286,7 @@ struct EnergyCalculationView: View {
         loaded = true
         calibration = await repo.energyCalibrationState()
         adaptiveEstimate = await repo.adaptiveExpenditureEstimate()
+        modelRow = await repo.whoopEnergyRow(day: summary.day)
     }
 
     private func setCalibration(_ enabled: Bool) async {

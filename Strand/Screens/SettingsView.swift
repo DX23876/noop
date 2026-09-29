@@ -749,6 +749,34 @@ struct SettingsView: View {
                     }
                 }
                 rowDivider
+                // The aerobic capacity the energy model scales workouts to (`PeakMETResolver`). Empty is
+                // the normal state: a fresh Apple Watch reading or the Jurca estimate then applies.
+                FormRow(label: "VO₂max") {
+                    VStack(alignment: .trailing, spacing: 6) {
+                        vo2maxField
+                        if profile.vo2maxManual > 0 {
+                            Text(vo2maxEnteredCaption)
+                                .font(StrandFont.footnote)
+                                .foregroundStyle(StrandPalette.accent)
+                        }
+                    }
+                }
+                rowDivider
+                FormRow(label: "Activity level") {
+                    Picker("Activity level", selection: $profile.activityLevelOverride) {
+                        Text("Auto").tag(0)
+                        ForEach(1...5, id: \.self) { level in Text("Level \(level)").tag(level) }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .appleInspiredTint("settings.controls")
+                    .accessibilityLabel("Activity level")
+                }
+                Text("Workout calories are scaled to your aerobic capacity. An entered VO₂max counts for six months and a fresh Apple Watch reading for 30 days. Otherwise it is estimated from resting heart rate, body size and activity level. Changes apply from the next strap sync.")
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                rowDivider
                 // Tap-through to the zone BANDS — where each zone starts, as a share of the max HR
                 // above. Separate from HRmax because they answer different questions ("how high can I
                 // go" vs "where does Zone 2 begin"), and because only the bands need five values.
@@ -1184,6 +1212,43 @@ struct SettingsView: View {
                 .accessibilityLabel(set ? "Waist, \(Int(inches)) inches" : "Waist not set")
         }
         .fixedSize()
+    }
+
+    /// Entered VO₂max: 0 = auto. Half-unit steps; the first step from auto lands at 25 ml/kg/min, and
+    /// stepping below 10 clears it back to auto. Every change records today's date and weight.
+    private var vo2maxField: some View {
+        let set = profile.vo2maxManual > 0
+        return HStack(spacing: NoopMetrics.space2) {
+            HStack(alignment: .firstTextBaseline, spacing: NoopMetrics.space1) {
+                Text(set ? String(format: "%.1f", profile.vo2maxManual) : String(localized: "Auto"))
+                    .font(StrandFont.bodyNumber)
+                    .foregroundStyle(set ? StrandPalette.textPrimary : StrandPalette.textTertiary)
+                    .frame(minWidth: NoopMetrics.formValueColumnWidth, alignment: .center)
+                if set {
+                    Text("ml/kg/min")
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize()
+                }
+            }
+            .fixedSize()
+            Stepper("VO₂max") {
+                profile.setManualVO2max(min(90, set ? profile.vo2maxManual + 0.5 : 25))
+            } onDecrement: {
+                let next = profile.vo2maxManual - 0.5
+                profile.setManualVO2max(next < 10 ? nil : next)
+            }
+                .labelsHidden()
+                .accessibilityLabel(set ? "VO₂max, \(String(format: "%.1f", profile.vo2maxManual)) millilitres per kilogram per minute" : "VO₂max automatic")
+        }
+        .fixedSize()
+    }
+
+    /// "Entered 29 Sep 2026" under an entered VO₂max.
+    private var vo2maxEnteredCaption: String {
+        let date = WeightSeries.date(forDay: profile.vo2maxManualDay)
+            .map { $0.formatted(date: .abbreviated, time: .omitted) } ?? profile.vo2maxManualDay
+        return String(localized: "Entered \(date)")
     }
 
     /// HR-max override: 0 = auto. Shown as a compact tabular value with a stepper.
