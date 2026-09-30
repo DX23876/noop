@@ -122,14 +122,14 @@ which changes what validates a change:
 | Workflow | Covers | Trigger |
 |---|---|---|
 | `swift-packages.yml` | `swift test` for `Packages/**` (incl. the fork-only `SemanticMemory`) | PR + push touching `Packages/**` |
-| `app-build.yml` | Compile of `Strand` (macOS) + `NOOPiOS` (iOS), **plus `StrandTests` on the macOS leg only** | PR + push touching `Strand/**`, `StrandiOS*/**`, `Packages/**`, `project.yml` |
+| `app-build.yml` | Compile of `Strand` (macOS) + `NOOPiOS` (iOS), **plus `StrandTests` on the macOS leg only** | PR touching `Strand/**`, `StrandiOS*/**`, `Packages/**`, `project.yml`; dispatch; called by `fork-release.yml` before it publishes. **Not on push to `main`** (since 2026-09-30) |
 | `tools-python.yml` | The `Tools/linux-capture` Python suite (≥200 tests) | PR + push touching `Tools/**` |
 | `source-hygiene.yml` | Detached doc comments + **commit attribution** (above) | every PR and push to `main` |
 | `i18n-coverage.yml` | EN source + DE/ES/FR/PT-PT complete (zero-tolerance); IT/RU/ZH-Hans/ZH-Hant ratcheted (see "Localization" below) | every PR and push to `main` |
 | `publish-ios-release.yml` | Cuts a release: unsigned IPA + universal macOS zip, updates the AltStore source, marks it latest | `workflow_dispatch` |
 | `sync-upstream.yml` | Opens a sync PR from `ryanbr/noop` | weekly cron + dispatch |
 
-**`StrandTests` runs in exactly one place** — `app-build.yml`'s macOS leg. `Test Strand` is a later
+**`StrandTests` runs in exactly one place in CI** — `app-build.yml`'s macOS leg. Since a push to `main` no longer triggers it, a change to app-target Swift is built for macOS and iOS and its `StrandTests` run **locally before the push**; a release runs the workflow as its gate. `Test Strand` is a later
 step in the same job, so a red *build* step silently **skips** the tests rather than failing them. A
 red `main` is not a background condition to work around.
 

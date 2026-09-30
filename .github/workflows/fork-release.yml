@@ -38,7 +38,14 @@ concurrency:
   cancel-in-progress: false   # never cancel a release mid-publish
 
 jobs:
+  # The app-target compile and StrandTests gate. app-build.yml no longer runs on every push to main,
+  # so a release is where it must pass: `bump` waits on it, and nothing is committed, tagged or
+  # published when it is red.
+  verify:
+    uses: ./.github/workflows/app-build.yml
+
   bump:
+    needs: verify
     runs-on: ubuntu-latest
     # Pushes the version-bump commit to the dispatched branch and creates the GitHub release.
     permissions:
