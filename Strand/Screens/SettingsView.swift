@@ -778,7 +778,7 @@ struct SettingsView: View {
                     .disabled(!profileEditing)
                     .accessibilityLabel("Activity level")
                 }
-                Text("Workout calories are scaled to your aerobic capacity. An entered VO₂max counts for six months and a fresh Apple Watch reading for 30 days. Otherwise it is estimated from resting heart rate, body size and activity level. Changes apply from the next strap sync.")
+                Text("Workout calories are scaled to your aerobic capacity. An entered VO₂max or an Apple Watch reading counts for six months, converted to your current weight. Otherwise it is estimated from resting heart rate, body size and activity level. Changes apply from the next strap sync.")
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)

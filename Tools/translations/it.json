@@ -1695,7 +1695,7 @@
   "Set logged": "Serie registrata",
   "Timed set over": "Serie a tempo finita",
   "Turn it off in Settings › Training.": "Disattivalo in Impostazioni › Allenamento.",
-  "Workout calories are scaled to your aerobic capacity. An entered VO₂max counts for six months and a fresh Apple Watch reading for 30 days. Otherwise it is estimated from resting heart rate, body size and activity level. Changes apply from the next strap sync.": "Le calorie degli allenamenti sono scalate sulla tua capacità aerobica. Un VO₂max inserito vale sei mesi e una lettura recente dell’Apple Watch 30 giorni. Altrimenti viene stimato da frequenza cardiaca a riposo, corporatura e livello di attività. Le modifiche valgono dalla prossima sincronizzazione della fascia.",
+  "Workout calories are scaled to your aerobic capacity. An entered VO₂max or an Apple Watch reading counts for six months, converted to your current weight. Otherwise it is estimated from resting heart rate, body size and activity level. Changes apply from the next strap sync.": "Le calorie degli allenamenti sono scalate sulla tua capacità aerobica. Un VO₂max inserito o una lettura dell’Apple Watch vale sei mesi, convertito al tuo peso attuale. Altrimenti viene stimato da frequenza cardiaca a riposo, corporatura e livello di attività. Le modifiche valgono dalla prossima sincronizzazione della fascia.",
   "Activity level": "Livello di attività",
   "Entered %@": "Inserito il %@",
   "Level %lld": "Livello %lld",

@@ -456783,66 +456783,66 @@
         }
       }
     },
-    "Workout calories are scaled to your aerobic capacity. An entered VO₂max counts for six months and a fresh Apple Watch reading for 30 days. Otherwise it is estimated from resting heart rate, body size and activity level. Changes apply from the next strap sync." : {
+    "Workout calories are scaled to your aerobic capacity. An entered VO₂max or an Apple Watch reading counts for six months, converted to your current weight. Otherwise it is estimated from resting heart rate, body size and activity level. Changes apply from the next strap sync." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Trainingskalorien richten sich nach deiner aeroben Leistungsfähigkeit. Eine eingetragene VO₂max gilt sechs Monate, ein frischer Apple-Watch-Wert 30 Tage. Sonst wird sie aus Ruhepuls, Körpergröße und Aktivitätsstufe geschätzt. Änderungen gelten ab der nächsten Band-Synchronisierung."
+            "value" : "Trainingskalorien richten sich nach deiner aeroben Leistungsfähigkeit. Eine eingetragene VO₂max oder ein Apple-Watch-Wert gilt sechs Monate, umgerechnet auf dein aktuelles Gewicht. Sonst wird sie aus Ruhepuls, Körpergröße und Aktivitätsstufe geschätzt. Änderungen gelten ab der nächsten Band-Synchronisierung."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Workout calories are scaled to your aerobic capacity. An entered VO₂max counts for six months and a fresh Apple Watch reading for 30 days. Otherwise it is estimated from resting heart rate, body size and activity level. Changes apply from the next strap sync."
+            "value" : "Workout calories are scaled to your aerobic capacity. An entered VO₂max or an Apple Watch reading counts for six months, converted to your current weight. Otherwise it is estimated from resting heart rate, body size and activity level. Changes apply from the next strap sync."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Las calorías de los entrenamientos se ajustan a tu capacidad aeróbica. Un VO₂máx introducido cuenta durante seis meses y una lectura reciente del Apple Watch durante 30 días. Si no, se estima a partir de la frecuencia cardiaca en reposo, el tamaño corporal y el nivel de actividad. Los cambios se aplican desde la próxima sincronización de la banda."
+            "value" : "Las calorías de los entrenamientos se ajustan a tu capacidad aeróbica. Un VO₂máx introducido o una lectura del Apple Watch cuenta durante seis meses, convertido a tu peso actual. Si no, se estima a partir de la frecuencia cardiaca en reposo, el tamaño corporal y el nivel de actividad. Los cambios se aplican desde la próxima sincronización de la banda."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Les calories des entraînements sont ajustées à votre capacité aérobie. Une VO₂max saisie compte pendant six mois et une mesure récente de l’Apple Watch pendant 30 jours. Sinon, elle est estimée à partir de la fréquence cardiaque au repos, de la corpulence et du niveau d’activité. Les modifications s’appliquent à la prochaine synchronisation du bracelet."
+            "value" : "Les calories des entraînements sont ajustées à votre capacité aérobie. Une VO₂max saisie ou une mesure de l’Apple Watch compte pendant six mois, convertie à votre poids actuel. Sinon, elle est estimée à partir de la fréquence cardiaque au repos, de la corpulence et du niveau d’activité. Les modifications s’appliquent à la prochaine synchronisation du bracelet."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Le calorie degli allenamenti sono scalate sulla tua capacità aerobica. Un VO₂max inserito vale sei mesi e una lettura recente dell’Apple Watch 30 giorni. Altrimenti viene stimato da frequenza cardiaca a riposo, corporatura e livello di attività. Le modifiche valgono dalla prossima sincronizzazione della fascia."
+            "value" : "Le calorie degli allenamenti sono scalate sulla tua capacità aerobica. Un VO₂max inserito o una lettura dell’Apple Watch vale sei mesi, convertito al tuo peso attuale. Altrimenti viene stimato da frequenza cardiaca a riposo, corporatura e livello di attività. Le modifiche valgono dalla prossima sincronizzazione della fascia."
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kalorie z treningów są skalowane do twojej wydolności tlenowej. Wpisane VO₂max obowiązuje przez sześć miesięcy, a świeży odczyt z Apple Watch przez 30 dni. W przeciwnym razie jest szacowane na podstawie tętna spoczynkowego, budowy ciała i poziomu aktywności. Zmiany obowiązują od następnej synchronizacji opaski."
+            "value" : "Kalorie z treningów są skalowane do twojej wydolności tlenowej. Wpisane VO₂max lub odczyt z Apple Watch obowiązuje przez sześć miesięcy, przeliczony na twoją obecną wagę. W przeciwnym razie jest szacowane na podstawie tętna spoczynkowego, budowy ciała i poziomu aktywności. Zmiany obowiązują od następnej synchronizacji opaski."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "As calorias dos treinos são ajustadas à tua capacidade aeróbia. Um VO₂máx introduzido conta durante seis meses e uma leitura recente do Apple Watch durante 30 dias. Caso contrário, é estimado a partir da frequência cardíaca em repouso, do tamanho corporal e do nível de atividade. As alterações aplicam-se a partir da próxima sincronização da pulseira."
+            "value" : "As calorias dos treinos são ajustadas à tua capacidade aeróbia. Um VO₂máx introduzido ou uma leitura do Apple Watch conta durante seis meses, convertido para o teu peso atual. Caso contrário, é estimado a partir da frequência cardíaca em repouso, do tamanho corporal e do nível de atividade. As alterações aplicam-se a partir da próxima sincronização da pulseira."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Калории тренировок масштабируются по вашей аэробной выносливости. Введённый VO₂max действует шесть месяцев, свежее измерение Apple Watch 30 дней. Иначе он оценивается по пульсу покоя, телосложению и уровню активности. Изменения вступают в силу со следующей синхронизации браслета."
+            "value" : "Калории тренировок масштабируются по вашей аэробной выносливости. Введённый VO₂max или измерение Apple Watch действует шесть месяцев с пересчётом на ваш текущий вес. Иначе он оценивается по пульсу покоя, телосложению и уровню активности. Изменения вступают в силу со следующей синхронизации браслета."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "训练消耗按你的有氧能力换算。手动输入的最大摄氧量有效六个月，Apple Watch 的最新读数有效 30 天。否则将根据静息心率、体型和活动水平估算。更改将在下次手环同步后生效。"
+            "value" : "训练消耗按你的有氧能力换算。手动输入的最大摄氧量或 Apple Watch 读数有效六个月，并按你当前的体重换算。否则将根据静息心率、体型和活动水平估算。更改将在下次手环同步后生效。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "訓練消耗依你的有氧能力換算。手動輸入的最大攝氧量有效六個月，Apple Watch 的最新讀數有效 30 天。否則將根據靜息心率、體型和活動程度估算。變更將在下次手環同步後生效。"
+            "value" : "訓練消耗依你的有氧能力換算。手動輸入的最大攝氧量或 Apple Watch 讀數有效六個月，並依你目前的體重換算。否則將根據靜息心率、體型和活動程度估算。變更將在下次手環同步後生效。"
           }
         }
       }

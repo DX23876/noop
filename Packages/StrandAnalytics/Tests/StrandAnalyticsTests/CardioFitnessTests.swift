@@ -129,9 +129,12 @@ final class CardioFitnessTests: XCTestCase {
         XCTAssertEqual(resolve(day: "2026-05-31", manual: manual)?.source, .jurca)
     }
 
-    func testAppleCountsOnlyWhileFreshAndNeverFromTheFuture() {
-        XCTAssertEqual(resolve(day: "2026-09-28", apple: [reading("2026-08-29", 19)])?.source, .appleWatch)
-        XCTAssertEqual(resolve(day: "2026-09-28", apple: [reading("2026-08-28", 19)])?.source, .jurca)
+    /// Half a year, like an entered value: a rarely worn Watch must not hand most days to the formula.
+    func testAppleCountsForHalfAYearAndNeverFromTheFuture() {
+        XCTAssertEqual(PeakMETResolver.appleFreshnessDays, 183)
+        XCTAssertEqual(resolve(day: "2026-09-28", apple: [reading("2026-08-28", 19)])?.source, .appleWatch)
+        XCTAssertEqual(resolve(day: "2026-09-28", apple: [reading("2026-03-29", 19)])?.source, .appleWatch)  // day 183
+        XCTAssertEqual(resolve(day: "2026-09-28", apple: [reading("2026-03-28", 19)])?.source, .jurca)       // day 184
         XCTAssertEqual(resolve(day: "2026-09-28", apple: [reading("2026-09-29", 19)])?.source, .jurca)
         let newest = resolve(day: "2026-09-28", apple: [reading("2026-09-01", 25), reading("2026-09-20", 19)])
         XCTAssertEqual(newest?.sourceDay, "2026-09-20")

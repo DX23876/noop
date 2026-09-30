@@ -1702,7 +1702,7 @@
   "Set logged": "已记录该组",
   "Timed set over": "计时组结束",
   "Turn it off in Settings › Training.": "可在 设置 › 训练 中关闭。",
-  "Workout calories are scaled to your aerobic capacity. An entered VO₂max counts for six months and a fresh Apple Watch reading for 30 days. Otherwise it is estimated from resting heart rate, body size and activity level. Changes apply from the next strap sync.": "训练消耗按你的有氧能力换算。手动输入的最大摄氧量有效六个月，Apple Watch 的最新读数有效 30 天。否则将根据静息心率、体型和活动水平估算。更改将在下次手环同步后生效。",
+  "Workout calories are scaled to your aerobic capacity. An entered VO₂max or an Apple Watch reading counts for six months, converted to your current weight. Otherwise it is estimated from resting heart rate, body size and activity level. Changes apply from the next strap sync.": "训练消耗按你的有氧能力换算。手动输入的最大摄氧量或 Apple Watch 读数有效六个月，并按你当前的体重换算。否则将根据静息心率、体型和活动水平估算。更改将在下次手环同步后生效。",
   "Activity level": "活动水平",
   "Entered %@": "输入于 %@",
   "Level %lld": "等级 %lld",

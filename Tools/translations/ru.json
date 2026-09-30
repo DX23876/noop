@@ -1578,7 +1578,7 @@
   "Set logged": "Подход записан",
   "Timed set over": "Подход на время завершён",
   "Turn it off in Settings › Training.": "Отключается в Настройки › Тренировки.",
-  "Workout calories are scaled to your aerobic capacity. An entered VO₂max counts for six months and a fresh Apple Watch reading for 30 days. Otherwise it is estimated from resting heart rate, body size and activity level. Changes apply from the next strap sync.": "Калории тренировок масштабируются по вашей аэробной выносливости. Введённый VO₂max действует шесть месяцев, свежее измерение Apple Watch 30 дней. Иначе он оценивается по пульсу покоя, телосложению и уровню активности. Изменения вступают в силу со следующей синхронизации браслета.",
+  "Workout calories are scaled to your aerobic capacity. An entered VO₂max or an Apple Watch reading counts for six months, converted to your current weight. Otherwise it is estimated from resting heart rate, body size and activity level. Changes apply from the next strap sync.": "Калории тренировок масштабируются по вашей аэробной выносливости. Введённый VO₂max или измерение Apple Watch действует шесть месяцев с пересчётом на ваш текущий вес. Иначе он оценивается по пульсу покоя, телосложению и уровню активности. Изменения вступают в силу со следующей синхронизации браслета.",
   "Activity level": "Уровень активности",
   "Entered %@": "Введено %@",
   "Level %lld": "Уровень %lld",

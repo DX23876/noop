@@ -148,8 +148,14 @@ public enum PeakMETResolver {
     public static let mlPerMET = 3.5
     /// How long a value the wearer entered stands in for a measurement.
     public static let manualValidityDays = 183
-    /// How old an Apple Watch reading may be and still describe today.
-    public static let appleFreshnessDays = 30
+    /// How old an Apple Watch reading may be and still describe today: as long as an entered value.
+    ///
+    /// It was 30 days until 2026-09-30. A Watch worn rarely then left most days to Jurca, which for a
+    /// 212 kg wearer measured at 18.9 ml/kg/min read about 33: the formula's cohorts end near a BMI of
+    /// 40, and its activity score counts brisk walking at full weight. A months-old measurement of the
+    /// wearer's own body, rescaled by the weight at the time, is the better estimate than a population
+    /// formula applied well outside its range.
+    public static let appleFreshnessDays = manualValidityDays
     /// Window over which the activity category is measured, the worksheet's "past four weeks".
     public static let activityWindowDays = 28
     /// Bounds for the formula, a coarse population estimate.

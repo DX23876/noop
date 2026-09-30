@@ -43,9 +43,10 @@ enum WorkoutEnergyDisplay {
             peakMET: peakMET(on: day, in: peakMETByDay), distanceM: row.distanceM)
     }
 
-    /// How far back a day without its own energy row may borrow the ceiling of an earlier one: the
-    /// Apple Watch freshness window, since a ceiling older than that would not be used for the day itself.
-    static let peakMETCarryDays = PeakMETResolver.appleFreshnessDays
+    /// How far back a day without its own energy row may borrow the ceiling of an earlier one. Its own
+    /// constant rather than the measurement windows (half a year): the ceiling of a day also carries its
+    /// activity category, which describes the four weeks before it and nothing older.
+    static let peakMETCarryDays = 30
 
     /// The ceiling in force on `day`: its own, else the newest earlier one within `peakMETCarryDays`.
     /// Nil keeps the session on Keytel, as a day with no ceiling at all would.

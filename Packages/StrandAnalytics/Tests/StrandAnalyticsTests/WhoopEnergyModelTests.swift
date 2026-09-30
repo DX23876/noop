@@ -291,7 +291,7 @@ final class WhoopEnergyModelTests: XCTestCase {
     /// to this exact string, so a silent revert would resurrect pre-movement-corroboration (v1) rows
     /// into a chart that should only ever show one model generation at a time.
     func testModelVersionIsTheContextFirstGeneration() {
-        XCTAssertEqual(WhoopDailyEnergyEstimate.modelVersion, "whoop-bucket-v8")
+        XCTAssertEqual(WhoopDailyEnergyEstimate.modelVersion, "whoop-bucket-v9")
     }
 
     /// MET of one confirmed-workout bucket, read back out of its active energy.

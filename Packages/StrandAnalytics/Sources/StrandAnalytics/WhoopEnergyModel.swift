@@ -147,6 +147,11 @@ public struct WhoopEnergyBucketResult: Equatable, Sendable {
 }
 
 public struct WhoopDailyEnergyEstimate: Equatable, Sendable {
+    /// v9 (2026-09-30): an Apple Watch VO₂max reading stands for 183 days instead of 30
+    /// (`PeakMETResolver.appleFreshnessDays`), so a rarely worn Watch keeps pricing workouts from the
+    /// wearer's own measurement instead of Jurca's estimate. Bumped because stored days after a reading
+    /// expired carry the estimate as their ceiling.
+    ///
     /// v8 (2026-09-29): the aerobic ceiling a confirmed workout is scaled to is an INPUT
     /// (`PeakMETResolver`: an entered value, a fresh Apple Watch reading, else Jurca 2005) instead of
     /// Uth's 15.3 · HRmax / HRrest bounded to 7–16 MET. Uth has no body term and is validated in trained
@@ -175,7 +180,7 @@ public struct WhoopDailyEnergyEstimate: Equatable, Sendable {
     /// v5 (2026-08-29): heart rate without independently confirmed movement or a workout contributes
     /// no active energy. Locomotion is charged only for its observed movement seconds rather than the
     /// entire five-minute bucket. Bumped so every v4 physiological allowance is recomputed away.
-    public static let modelVersion = "whoop-bucket-v8"
+    public static let modelVersion = "whoop-bucket-v9"
 
     public let totalKcal: Double
     public let observedSeconds: Int
