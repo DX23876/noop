@@ -3,6 +3,7 @@ package com.noop.ui
 import com.noop.R
 import com.noop.analytics.BaselineState
 import com.noop.analytics.Baselines
+import com.noop.analytics.ChargeBaselines
 import com.noop.analytics.ChargeDriver
 import com.noop.analytics.RecoveryDrivers
 import com.noop.analytics.RestScorer
@@ -20,7 +21,8 @@ import java.util.Locale
  * <seed>" progress shown in place of "No Data"; null once recovery exists or the baseline has crossed
  * the seed gate. N is the HRV baseline's `nValid` from folding the SAME day-keyed, epoch-aware history
  * the recovery engine folds ([Baselines.foldHistory] with [hrvBaselineEpoch]), NOT a looser per-night
- * bounds count.
+ * bounds count. Callers pass the Charge HRV history ([ChargeBaselines.Resolved.hrvHistory], #2525), the
+ * nights the engine's fold actually reads.
  *
  * The old count advanced on every in-range night, including nights the engine's fold DROPS after a
  * manual "Recalibrate HRV baseline" (each night dated before the epoch is discarded, not skip-and-held).
@@ -28,59 +30,51 @@ import java.util.Locale
  * and the Today score side fell through to [ScoreState.NeedsStrap] while the post-recalibration baseline
  * was still seeding (Bug B, #393 follow-up). `nValid` is the exact count Baselines.computeStatus gates
  * CALIBRATING on, so N now tracks the baseline the Charge ring rides and can never over-state it.
- * [days] is oldest->newest (same order the engine folds). Pure + unit-tested (RecoveryCalibrationTest).
- * (PR #85)
+ * [nightlyHrv] and [dayKeys] are parallel and oldest->newest (same order the engine folds). Mirrors the
+ * Swift `RecoveryScorer.calibrationNights`. Pure + unit-tested (RecoveryCalibrationTest). (PR #85)
  */
 internal fun recoveryCalibrationNights(
-    days: List<DailyMetric>,
+    nightlyHrv: List<Double?>,
+    dayKeys: List<String>,
     hasRecovery: Boolean,
     hrvBaselineEpoch: Double,
     seed: Int = Baselines.minNightsSeed,
 ): Int? {
     if (hasRecovery) return null
-    val n = Baselines.foldHistory(
-        days.map { it.avgHrv }, days.map { it.day }, Baselines.hrvCfg, hrvBaselineEpoch,
-    ).nValid
+    val n = Baselines.foldHistory(nightlyHrv, dayKeys, Baselines.hrvCfg, hrvBaselineEpoch).nValid
     // Include 0: a brand-new user (no banked nights) reads "Calibrating, 0 of N" on Charge, not a
     // bare "No data" that looks broken (#335). Caller gates past days to null; >= seed -> null.
     return n.takeIf { it in 0 until seed }
 }
 
 /**
- * The ordered "What shaped it" Charge driver rows for [displayDay], rebuilt PURELY from the visible
- * [days] history (the same in-memory rows the dashboard already shows, imports win field-by-field in
- * the merge), so no engine round-trip is needed and the bars match the Charge ring's own inputs. Folds
- * the whole history (oldest first) into the four-plus-one personal baselines with [Baselines.foldHistory]
- * (byte-identical to the engine's whole-history fold when no manual Recalibrate epoch is set, the common
- * case), then defers to [RecoveryDrivers.chargeDrivers], which scores each row against the SAME inputs
- * [RestScorer] reads through the Today recovery path. Empty when the displayed day can't score
- * (cold-start / missing input), so the section hides rather than faking rows. Mirrors the iOS
- * chargeDrivers wiring.
+ * The ordered "What shaped it" Charge driver rows for [displayDay], scored against [baselines], the
+ * Charge baselines [AppViewModel.chargeBaselines] resolves with the engine's own rule (#2525), so the bars
+ * describe the baseline the Charge ring was scored against. Before #2525 this folded the whole visible
+ * history itself, which kept every imported night and every stored own night while the headline kept only
+ * the recent own nights plus the import, so the page could show one baseline in the rows and score against
+ * another. (#2315 had already closed the same gap for the recalibration epoch; the resolver applies both
+ * epochs.) Defers to [RecoveryDrivers.chargeDrivers], which scores each row against the SAME inputs
+ * [RestScorer] reads through the Today recovery path. Empty when the displayed day can't score (cold-start /
+ * missing input / no baselines yet), so the section hides rather than faking rows. Mirrors the iOS
+ * `ChargeBreakdownWiring.breakdown`.
  */
 internal fun recoveryChargeDrivers(
-    days: List<DailyMetric>,
+    baselines: ChargeBaselines.Resolved?,
     displayDay: DailyMetric?,
-    hrvBaselineEpoch: Double = 0.0,
 ): List<ChargeDriver> {
+    val resolved = baselines ?: return emptyList()
     val day = displayDay ?: return emptyList()
     val hrv = day.avgHrv ?: return emptyList()
     val rhr = day.restingHr?.toDouble() ?: return emptyList()
 
-    // Whole-history fold (oldest first), exactly as the engine seeds baselines2.
-    val ordered = days.sortedBy { it.day }
-    // #2315: fold with the recalibration epoch, exactly as the engine does. Without it these rows
-    // scored against the WHOLE history while the headline scored against the post-Recalibrate nights,
-    // so the Charge page showed two different baselines for the same metric. `0.0` (no recalibration)
-    // delegates to the plain fold, so a user who never recalibrated sees no change at all.
-    val hrvBase = Baselines.foldHistory(
-        ordered.map { it.avgHrv }, ordered.map { it.day }, Baselines.hrvCfg, hrvBaselineEpoch,
-    )
+    val hrvBase = resolved.hrv
     if (!hrvBase.usable) return emptyList()
     // Passed on ungated, unlike respBase below, and that is deliberate since #1988: chargeDrivers
     // gates this one itself, for its score AND for the row it builds from the baseline directly.
     // Gating again here would be harmless but would suggest the callee does not, which it does.
-    val rhrBase = Baselines.foldHistory(ordered.map { it.restingHr?.toDouble() }, Baselines.restingHRCfg)
-    val respBase = Baselines.foldHistory(ordered.map { it.respRateBpm }, Baselines.respCfg).takeIf { it.usable }
+    val rhrBase = resolved.restingHR
+    val respBase = resolved.resp.takeIf { it.usable }
 
     // sleepPerf: the Rest COMPOSITE (/100) when stages exist, else raw efficiency, the SAME derivation
     // recomputeRecovery uses, so the Sleep driver scores against the headline's own input.
@@ -99,22 +93,17 @@ internal fun recoveryChargeDrivers(
 }
 
 /**
- * The Charge (recovery) [ScoreConfidence] tier for [displayDay] against the HRV baseline folded from
- * [days], surfaced as the confidence dot + tier tag under the "What shaped it" rows. SURFACED, never
- * recomputed differently: it calls [ScoreConfidence.forCharge] with the SAME folded HRV baseline the
- * drivers scored against. Mirrors the iOS surfacing of the existing ScoreConfidence on the recovery screen.
+ * The Charge (recovery) [ScoreConfidence] tier for [displayDay] against the HRV baseline in [baselines],
+ * surfaced as the confidence dot + tier tag under the "What shaped it" rows. SURFACED, never recomputed
+ * differently: it calls [ScoreConfidence.forCharge] with the SAME HRV baseline the drivers scored against.
+ * Before the first resolve it reads an empty fold, exactly as an empty history did. Mirrors the iOS
+ * surfacing of the existing ScoreConfidence on the recovery screen.
  */
 internal fun chargeConfidenceTier(
-    days: List<DailyMetric>,
+    baselines: ChargeBaselines.Resolved?,
     displayDay: DailyMetric?,
-    hrvBaselineEpoch: Double = 0.0,
 ): ScoreConfidence {
-    // #2315: epoch-aware for the same reason as the drivers above. The tier is read off the baseline
-    // the ring rides, so folding a different history here could badge a scored day as CALIBRATING.
-    val ordered = days.sortedBy { it.day }
-    val hrvBase: BaselineState = Baselines.foldHistory(
-        ordered.map { it.avgHrv }, ordered.map { it.day }, Baselines.hrvCfg, hrvBaselineEpoch,
-    )
+    val hrvBase: BaselineState = baselines?.hrv ?: Baselines.foldHistory(emptyList(), Baselines.hrvCfg)
     return ScoreConfidence.forCharge(displayDay?.recovery, hrvBase)
 }
 

@@ -291,6 +291,15 @@
       "identity_sha256": "28fa51ec52e1a418a0c8bd500cceb13c529cf8dc7e8bbe290003fe97602e6dff",
       "platform": "kotlin",
       "rationale": "Formats the reading's day for the Settings caption of the Health Connect weight sync. Apple platforms have no Health Connect, so the opt-in 'Use weight from Health Connect' profile sync exists only on Android and there is no Swift counterpart to pair with, now or later."
+    },
+    {
+      "type": "out_of_scope_twin",
+      "kind": "add-unpaired-function",
+      "identity": "kotlin\u0000android/app/src/main/java/com/noop/data/WhoopRepository.kt::importedDailyUnionFlow/3#1",
+      "identity_sha256": "a1b8ac6c0842e6925e91e66bfb292e599945dff1dcb8e5eb3080e17951c16e21",
+      "platform": "kotlin",
+      "rationale": "Swift Repository.refresh reads the same imported daily union (unionDailyMetrics) in the excluded app layer and hands it, still apart from the computed union, to ChargeBaselines.resolve (#2525); this disposition does not assert behavioral parity.",
+      "twin_path": "Strand/Data/Repository.swift"
     }
   ]
 }

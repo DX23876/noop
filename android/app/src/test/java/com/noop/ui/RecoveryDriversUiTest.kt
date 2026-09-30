@@ -1,5 +1,6 @@
 package com.noop.ui
 
+import com.noop.analytics.ChargeBaselines
 import com.noop.analytics.ScoreConfidence
 import com.noop.analytics.ChargeDriverLabel
 import com.noop.data.DailyMetric
@@ -9,9 +10,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Unit tests for the Today "What shaped it" wiring: [recoveryChargeDrivers] (folds the visible history
- * into baselines, then defers to RecoveryDrivers.chargeDrivers) and [chargeConfidenceTier] (surfaces the
- * existing ScoreConfidence). Pure JVM, no Robolectric. Mirrors the iOS chargeDrivers wiring tests.
+ * Unit tests for the Today "What shaped it" wiring: [recoveryChargeDrivers] (scores against the Charge
+ * baselines [ChargeBaselines.resolve] builds with the engine's rule, #2525, then defers to
+ * RecoveryDrivers.chargeDrivers) and [chargeConfidenceTier] (surfaces the existing ScoreConfidence). Pure
+ * JVM, no Robolectric. Mirrors the iOS chargeDrivers wiring tests.
  */
 class RecoveryDriversUiTest {
 
@@ -29,6 +31,20 @@ class RecoveryDriversUiTest {
         recovery = recovery, efficiency = efficiency, totalSleepMin = sleepMin, skinTempDevC = skinTempDevC,
     )
 
+    /** The Charge baselines for own nights [days] (plus [imported]), anchored on [anchor]. */
+    private fun resolved(
+        days: List<DailyMetric>,
+        anchor: String,
+        imported: List<DailyMetric> = emptyList(),
+        hrvEpoch: Double = 0.0,
+    ) = ChargeBaselines.resolve(imported, days, anchor, hrvEpoch = hrvEpoch, recoveryEpoch = 0.0)
+
+    private fun drivers(days: List<DailyMetric>, day: DailyMetric?, hrvEpoch: Double = 0.0) =
+        recoveryChargeDrivers(resolved(days, day?.day ?: days.last().day, hrvEpoch = hrvEpoch), day)
+
+    private fun tier(days: List<DailyMetric>, day: DailyMetric?, hrvEpoch: Double = 0.0) =
+        chargeConfidenceTier(resolved(days, day?.day ?: days.last().day, hrvEpoch = hrvEpoch), day)
+
     /** A history long enough to make the HRV baseline usable, plus a scored "today". */
     private fun scoredHistory(): List<DailyMetric> {
         val past = (1..10).map { day("2026-01-%02d".format(it), hrv = 50.0 + (it % 3)) }
@@ -38,9 +54,9 @@ class RecoveryDriversUiTest {
 
     @Test fun scoredDayProducesDriverRows() {
         val days = scoredHistory()
-        val drivers = recoveryChargeDrivers(days, days.last())
-        assertTrue("a usable baseline should yield driver rows", drivers.isNotEmpty())
-        val labels = drivers.map { it.label }
+        val rows = drivers(days, days.last())
+        assertTrue("a usable baseline should yield driver rows", rows.isNotEmpty())
+        val labels = rows.map { it.label }
         assertTrue(labels.contains(ChargeDriverLabel.HEART_RATE_VARIABILITY))
         assertTrue(labels.contains(ChargeDriverLabel.RESTING_HEART_RATE))
         // Skin-temp was supplied on the scored day, so its row is present.
@@ -53,20 +69,21 @@ class RecoveryDriversUiTest {
             day("2026-01-01", hrv = 55.0),
             day("2026-01-02", hrv = 58.0, recovery = null),
         )
-        assertTrue(recoveryChargeDrivers(days, days.last()).isEmpty())
+        assertTrue(drivers(days, days.last()).isEmpty())
     }
 
     @Test fun confidenceTierIsSurfaced() {
         val days = scoredHistory()
         // A scored day on a now-usable baseline surfaces a non-calibrating tier.
-        val tier = chargeConfidenceTier(days, days.last())
-        assertTrue(tier == ScoreConfidence.BUILDING || tier == ScoreConfidence.SOLID)
+        val t = tier(days, days.last())
+        assertTrue(t == ScoreConfidence.BUILDING || t == ScoreConfidence.SOLID)
         // A day with no recovery number surfaces CALIBRATING.
-        assertEquals(ScoreConfidence.CALIBRATING, chargeConfidenceTier(days, day("2026-01-21", recovery = null)))
+        assertEquals(ScoreConfidence.CALIBRATING, tier(days, day("2026-01-21", recovery = null)))
     }
 
     @Test fun nullDayProducesNoRows() {
-        assertTrue(recoveryChargeDrivers(scoredHistory(), null).isEmpty())
+        assertTrue(drivers(scoredHistory(), null).isEmpty())
+        assertTrue("no baselines resolved yet means no rows", recoveryChargeDrivers(null, scoredHistory().last()).isEmpty())
     }
 
     // ---- #1988: the RHR row needs a USABLE resting-HR baseline ----------------------------------
@@ -88,8 +105,8 @@ class RecoveryDriversUiTest {
     @Test fun rhrRowIsAbsentWhenTheRestingHrBaselineIsNotUsable() {
         val history = (1..6).map { day("2026-01-0$it", rhr = null) }
         val today = day("2026-01-07", rhr = 55)
-        val drivers = recoveryChargeDrivers(history + today, today)
-        val labels = drivers.map { it.label }
+        val rows = drivers(history + today, today)
+        val labels = rows.map { it.label }
         assertTrue("the HRV baseline is real, so its row must still be there",
             labels.contains(ChargeDriverLabel.HEART_RATE_VARIABILITY))
         assertFalse("no usable resting-HR baseline, so no RHR row: got $labels",
@@ -109,8 +126,8 @@ class RecoveryDriversUiTest {
         val today = day("2026-01-21", hrv = 72.0, recovery = 70.0)
         val days = old + since + today
 
-        val wholeHistory = recoveryChargeDrivers(days, today, hrvBaselineEpoch = 0.0)
-        val fromEpoch = recoveryChargeDrivers(days, today, hrvBaselineEpoch = epochOf("2026-01-11"))
+        val wholeHistory = drivers(days, today, hrvEpoch = 0.0)
+        val fromEpoch = drivers(days, today, hrvEpoch = epochOf("2026-01-11"))
 
         val hrvOf = { rows: List<com.noop.analytics.ChargeDriver> ->
             rows.first { it.label == ChargeDriverLabel.HEART_RATE_VARIABILITY }.baseline
@@ -125,14 +142,18 @@ class RecoveryDriversUiTest {
         )
     }
 
-    @Test fun anAbsentEpochLeavesTheBaselineExactlyAsItWas() {
-        // The common case: nobody who never recalibrated may see any change from this.
-        val days = scoredHistory()
-        val implicit = recoveryChargeDrivers(days, days.last())
-        val explicitZero = recoveryChargeDrivers(days, days.last(), hrvBaselineEpoch = 0.0)
-        assertEquals(implicit.map { it.label }, explicitZero.map { it.label })
-        assertEquals(implicit.map { it.baseline }, explicitZero.map { it.baseline })
-        assertEquals(implicit.map { it.deltaPoints }, explicitZero.map { it.deltaPoints })
+    /** #2525: once the own nights are trusted on their own, the import no longer takes part in the baseline
+     *  the headline is scored against, so the rows must not move with it either. Before #2525 the rows folded
+     *  every imported night and could read a baseline the score never used. */
+    @Test fun anImportTheHeadlineNoLongerUsesDoesNotMoveTheRows() {
+        val own = (1..20).map { day("2026-01-%02d".format(it), hrv = 70.0 + (it % 3)) }
+        val today = day("2026-01-21", hrv = 72.0, recovery = 70.0)
+        // Inside the window and on the same days: only the handoff can keep it out of the baseline.
+        val lowImport = (1..20).map { day("2026-01-%02d".format(it), hrv = 40.0).copy(deviceId = "my-whoop") }
+        val alone = recoveryChargeDrivers(resolved(own + today, today.day), today)
+        val withImport = recoveryChargeDrivers(resolved(own + today, today.day, imported = lowImport), today)
+        assertEquals(alone.map { it.baseline }, withImport.map { it.baseline })
+        assertEquals(alone.map { it.deltaPoints }, withImport.map { it.deltaPoints })
     }
 
     @Test fun theConfidenceTierUsesTheSameEpochAsTheDrivers() {
@@ -144,8 +165,8 @@ class RecoveryDriversUiTest {
         val since = (21..22).map { day("2026-01-%02d".format(it), hrv = 60.0) }
         val today = day("2026-01-23", hrv = 61.0, recovery = 66.0)
         val days = old + since + today
-        val whole = chargeConfidenceTier(days, today, hrvBaselineEpoch = 0.0)
-        val fromEpoch = chargeConfidenceTier(days, today, hrvBaselineEpoch = epochOf("2026-01-21"))
+        val whole = tier(days, today, hrvEpoch = 0.0)
+        val fromEpoch = tier(days, today, hrvEpoch = epochOf("2026-01-21"))
         assertEquals(ScoreConfidence.CALIBRATING, fromEpoch)
         assertFalse("the whole-history fold is what made these disagree", whole == fromEpoch)
     }

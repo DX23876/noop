@@ -1652,8 +1652,8 @@ struct LiquidTodayView: View {
         // classic Today reads, so the two screens agree on when a wearer is genuinely mid-calibration
         // rather than simply lacking a scored night.
         let calNights = (selectedDayOffset == 0)
-            ? RecoveryScorer.calibrationNights(nightlyHrv: repo.days.map(\.avgHrv),
-                                               dayKeys: repo.days.map(\.day),
+            ? RecoveryScorer.calibrationNights(nightlyHrv: repo.chargeBaselines?.hrvHistory.values ?? [],
+                                               dayKeys: repo.chargeBaselines?.hrvHistory.dayKeys ?? [],
                                                hasRecovery: day?.recovery != nil)
             : nil
         let priorScored = TodayView.lastScoredRecoveryDay(
