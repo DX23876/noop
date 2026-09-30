@@ -25,32 +25,109 @@ final class AnalysisRecipeDecisionTests: XCTestCase {
 
     /// The tests above are written against `current`, so they stay green through a bump without ever
     /// witnessing one. This one names the numbers: an install carrying AI-12 (R-R delivery paths per
-    /// five-minute segment) must ask for AI-14 (legacy workout owner repair), as `12 → 14`.
+    /// five-minute segment) must ask for AI-15 (session energy on the real resting rate), as `12 → 15`.
     ///
     /// It is deliberately a LITERAL pin. A future bump is supposed to make this line fail, because that
     /// failure is the prompt to answer CLAUDE.md's "Analysis migration required: yes/no" for whatever
     /// the bump carries — the question this file exists to stop anyone skipping.
-    func testRecipeVersionIsFourteenAndAnAI13InstallMigratesToIt() {
-        XCTAssertEqual(IntelligenceEngine.currentAnalysisRecipeVersion, 14,
+    func testRecipeVersionIsFifteenAndOlderInstallsMigrateToIt() {
+        XCTAssertEqual(IntelligenceEngine.currentAnalysisRecipeVersion, 15,
                        "recipe version changed — answer 'Analysis migration required' for what moved")
         XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 12),
-                       .migrate(from: 12, to: 14))
+                       .migrate(from: 12, to: 15))
         XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 11),
-                       .migrate(from: 11, to: 14))
+                       .migrate(from: 11, to: 15))
         XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 8),
-                       .migrate(from: 8, to: 14))
+                       .migrate(from: 8, to: 15))
         XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 13),
-                       .migrate(from: 13, to: 14))
+                       .migrate(from: 13, to: 15))
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 14),
+                       .migrate(from: 14, to: 15))
     }
 
-    /// AI-14 corrects stored session energy and no daily row: an AI-13 install re-scores no day but
-    /// runs the correction, and so does every older install crossing it.
-    func testAI14CorrectsSessionEnergyWithoutRescoringDays() {
+    /// AI-15 corrects stored session energy and no daily row: an AI-13 or AI-14 install re-scores no
+    /// day but runs the correction again, and so does every older install crossing it.
+    func testAI15CorrectsSessionEnergyWithoutRescoringDays() {
         XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 12), 0)
-        XCTAssertTrue(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 12, to: 14))
-        XCTAssertTrue(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 8, to: 14))
-        XCTAssertTrue(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 13, to: 14))
-        XCTAssertFalse(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 13, to: 13))
+        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 14), 0)
+        XCTAssertTrue(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 12, to: 15))
+        XCTAssertTrue(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 8, to: 15))
+        XCTAssertTrue(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 13, to: 15))
+        XCTAssertTrue(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 14, to: 15))
+        XCTAssertFalse(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 15, to: 15))
+    }
+
+    /// AI-13 and AI-14 read the resting rate from imported daily rows, which end at the last WHOOP
+    /// export. A figure the live save priced with the day's measured rate (NOOP's computed row) then
+    /// failed to reproduce and kept its Keytel value. The correction must read the computed row.
+    func testLegacyCorrectionUsesTheComputedRestingRate() async throws {
+        let store = try await WhoopStore.inMemory()
+        let active = "whoop-a"
+        let repo = Repository(deviceId: active)
+        repo.setStoreForTesting(store)
+        let profile = UserProfile(weightKg: 212, heightCm: 196, age: 35, sex: "male", maxHR: 195)
+        let start = Int(Date().timeIntervalSince1970) - 20_000
+        let hr = (0..<3_600).map { HRSample(ts: start + $0, bpm: 140) }
+        try await store.insert(Streams(hr: hr), deviceId: active)
+        let day = Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(start)))
+        _ = try await store.upsertDailyMetrics([
+            DailyMetric(day: day, totalSleepMin: nil, efficiency: nil, deepMin: nil, remMin: nil,
+                        lightMin: nil, disturbances: nil, restingHr: 50, avgHrv: nil,
+                        recovery: nil, strain: nil, exerciseCount: nil)
+        ], deviceId: active + "-noop")
+        let stored = Calories.estimateBoutCalories(hr, profile: profile, hrmax: 195, restingHR: 50).0
+        let withoutResting = Calories.estimateBoutCalories(hr, profile: profile, hrmax: 195, restingHR: nil).0
+        XCTAssertGreaterThan(abs(stored - withoutResting), LegacyWorkoutEnergy.tolerance * withoutResting,
+                             "precondition: without the resting rate the figure must not reproduce")
+        // Indoor, so no distance and no live-summary witness: only the resting rate can recognise it.
+        try await store.upsertWorkouts([
+            WorkoutRow(startTs: start, endTs: start + 3_600, sport: "Indoor cycle", source: "manual",
+                       durationS: 3_600, energyKcal: stored, avgHr: 140, maxHr: 150, strain: nil,
+                       distanceM: nil, zonesJSON: nil, notes: nil, steps: nil)
+        ], deviceId: "my-whoop")
+
+        let corrected = try await repo.correctLegacyWorkoutEnergy(profile: profile)
+        XCTAssertEqual(corrected, start)
+        let rows = try await store.workouts(deviceId: "my-whoop", from: start, to: start, limit: 1)
+        let expected = WorkoutEnergyEstimate.boutKcal(hr, sport: "Indoor cycle", profile: profile,
+                                                      hrMax: 195, restingHR: 50, peakMET: nil,
+                                                      distanceM: nil)
+        XCTAssertEqual(rows.first?.energyKcal ?? 0, expected, accuracy: 0.001)
+    }
+
+    /// AI-13 and AI-14 also PRICED their corrections without the resting rate. A row they marked
+    /// computed is NOOP's own figure, so AI-15 prices it again; an entered one is never touched.
+    func testComputedRowsArePricedAgainAndEnteredRowsKept() async throws {
+        let store = try await WhoopStore.inMemory()
+        let active = "whoop-b"
+        let repo = Repository(deviceId: active)
+        repo.setStoreForTesting(store)
+        let profile = UserProfile(weightKg: 212, heightCm: 196, age: 35, sex: "male", maxHR: 195)
+        let start = Int(Date().timeIntervalSince1970) - 30_000
+        let other = start + 7_200
+        let hr = (0..<3_600).map { HRSample(ts: start + $0, bpm: 120) }
+            + (0..<3_600).map { HRSample(ts: other + $0, bpm: 120) }
+        try await store.insert(Streams(hr: hr), deviceId: active)
+        func row(_ ts: Int) -> WorkoutRow {
+            WorkoutRow(startTs: ts, endTs: ts + 3_600, sport: "Indoor cycle", source: "manual",
+                       durationS: 3_600, energyKcal: 5_000, avgHr: 120, maxHr: 130, strain: nil,
+                       distanceM: nil, zonesJSON: nil, notes: nil, steps: nil)
+        }
+        try await store.upsertWorkouts([row(start), row(other)], deviceId: "my-whoop")
+        try await store.setWorkoutEnergySource(
+            .computed, for: WorkoutKey(deviceId: "my-whoop", startTs: start, sport: "Indoor cycle"))
+        try await store.setWorkoutEnergySource(
+            .entered, for: WorkoutKey(deviceId: "my-whoop", startTs: other, sport: "Indoor cycle"))
+
+        let corrected = try await repo.correctLegacyWorkoutEnergy(profile: profile)
+        XCTAssertEqual(corrected, start)
+        let rows = try await store.workouts(deviceId: "my-whoop", from: start, to: other, limit: 5)
+        let kcal = Dictionary(uniqueKeysWithValues: rows.map { ($0.startTs, $0.energyKcal ?? 0) })
+        XCTAssertLessThan(kcal[start] ?? 0, 5_000)
+        XCTAssertGreaterThan(kcal[start] ?? 0, 0)
+        XCTAssertEqual(kcal[other], 5_000)
+        let again = try await repo.correctLegacyWorkoutEnergy(profile: profile)
+        XCTAssertNil(again, "an unchanged price is not rewritten")
     }
 
     func testLegacyCorrectionFindsCanonicalWorkoutUnderAnotherActiveStrap() async throws {
@@ -123,10 +200,10 @@ final class AnalysisRecipeDecisionTests: XCTestCase {
     /// build number here would cause. Pinned because the mistake is invisible until someone's phone
     /// spends twenty minutes re-scoring after a cosmetic update.
     func testAnInstallAlreadyAtTheCurrentRecipeNeverRescoresOnRelaunch() {
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 14), .upToDate)
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 15), .upToDate)
         // And a database written by a NEWER build that was rolled back stays put rather than
         // "migrating" backwards into a rescore that would overwrite better values with worse ones.
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 15), .upToDate)
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 16), .upToDate)
     }
 
     // MARK: - The fork's own recipe lineage

@@ -110,6 +110,10 @@ struct WorkoutDetailView: View {
     // MARK: - Load
 
     private func load() async {
+        // Cheap things first, published as soon as they are known: everything below reads the raw
+        // streams, and waiting for all of it held the route, the steps and a recorded calorie figure
+        // back by a second or two behind a blank tile.
+        //
         // #524: the GPS route, if this session recorded one on-device. A cheap UserDefaults read keyed
         // by the row's natural key (startTs + sport); decoded to points only when ≥2 were captured so the
         // map only ever draws a real route.
@@ -118,6 +122,50 @@ struct WorkoutDetailView: View {
             let pts = RouteMath.decode(r.polyline)
             return pts.count >= 2 ? pts : []
         }()
+        let analytics = Repository.analyticsProfile(profile)
+        let recorded = (row.energyKcal ?? 0) > 0
+        await MainActor.run {
+            self.route = routePoints
+            // A recorded figure needs none of the inputs an estimate reads (`resolve` returns it first).
+            if recorded {
+                self.energy = WorkoutEnergyDisplay.resolve(row, profile: analytics,
+                                                           hrMax: Double(profile.hrMax), restingHrByDay: [:])
+            }
+        }
+
+        // Steps for an on-foot session (#398), computed at display time over the exact window so it
+        // "fills in after sync": prefer the strap's own counter (MG/5.0) once it has offloaded the window,
+        // else the phone pedometer (any strap, incl. WHOOP 4.0 / CSV-import). Never shown for non-foot
+        // sports (cycling/rowing/… have no footfalls). Both sources return nil for "no data", so an empty
+        // window stays "–" rather than a fabricated 0.
+        var stepReadout: StepReadout? = nil
+        if WorkoutCatalog.isOnFoot(row.sport) {
+            if let ticks = await repo.strapStepTicks(from: row.startTs, to: row.endTs) {
+                // Same per-user ticks-per-step calibration the daily total applies (#139), floor 0.5.
+                let scaled = Int((Double(ticks) / max(profile.stepTicksPerStep, 0.5)).rounded())
+                if scaled > 0 { stepReadout = StepReadout(count: scaled, fromStrap: true) }
+            }
+            if stepReadout == nil,
+               let ped = await WorkoutPedometer.steps(fromSec: row.startTs, toSec: row.endTs), ped > 0 {
+                stepReadout = StepReadout(count: ped, fromStrap: false)
+            }
+        }
+        await MainActor.run { self.steps = stepReadout }
+
+        if !recorded {
+            // The day's resting rate, not a default: it sets the activity gate the estimate is measured
+            // against, and the wrong one moves this session's figure by hundreds of kcal.
+            let day = Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(row.startTs)))
+            let restingByDay = await repo.restingHrByDay(fromDay: day, toDay: day)
+            // The strap model's own figure for this window, when it covered it — the figure the day's
+            // energy already counts. The list reads the same thing, so the two cannot disagree.
+            let strapByKey = await repo.strapSessionEnergy(for: [row])
+            let peakByDay = await repo.energyPeakMETByDay(fromDay: day, toDay: day)
+            let resolvedEnergy = WorkoutEnergyDisplay.resolve(
+                row, profile: analytics, hrMax: Double(profile.hrMax),
+                restingHrByDay: restingByDay, strapKcalByKey: strapByKey, peakMETByDay: peakByDay)
+            await MainActor.run { self.energy = resolvedEnergy }
+        }
 
         // HR curve over the exact session window — a finer bucket than the 24h chart so a short run
         // still reads as a curve, not a handful of points.
@@ -144,44 +192,11 @@ struct WorkoutDetailView: View {
         let hrr = await repo.workoutHeartRateRecovery(
             from: row.startTs, to: row.endTs, maxHR: Double(profile.hrMax), source: row.source)
 
-        // Steps for an on-foot session (#398), computed at display time over the exact window so it
-        // "fills in after sync": prefer the strap's own counter (MG/5.0) once it has offloaded the window,
-        // else the phone pedometer (any strap, incl. WHOOP 4.0 / CSV-import). Never shown for non-foot
-        // sports (cycling/rowing/… have no footfalls). Both sources return nil for "no data", so an empty
-        // window stays "–" rather than a fabricated 0.
-        var stepReadout: StepReadout? = nil
-        if WorkoutCatalog.isOnFoot(row.sport) {
-            if let ticks = await repo.strapStepTicks(from: row.startTs, to: row.endTs) {
-                // Same per-user ticks-per-step calibration the daily total applies (#139), floor 0.5.
-                let scaled = Int((Double(ticks) / max(profile.stepTicksPerStep, 0.5)).rounded())
-                if scaled > 0 { stepReadout = StepReadout(count: scaled, fromStrap: true) }
-            }
-            if stepReadout == nil,
-               let ped = await WorkoutPedometer.steps(fromSec: row.startTs, toSec: row.endTs), ped > 0 {
-                stepReadout = StepReadout(count: ped, fromStrap: false)
-            }
-        }
-
-        // The day's resting rate, not a default: it sets the activity gate the estimate is measured
-        // against, and the wrong one moves this session's figure by hundreds of kcal.
-        let day = Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(row.startTs)))
-        let restingByDay = await repo.restingHrByDay(fromDay: day, toDay: day)
-        // The strap model's own figure for this window, when it covered it — the figure the day's
-        // energy already counts. The list reads the same thing, so the two cannot disagree.
-        let strapByKey = await repo.strapSessionEnergy(for: [row])
-        let peakByDay = await repo.energyPeakMETByDay(fromDay: day, toDay: day)
-        let resolvedEnergy = WorkoutEnergyDisplay.resolve(
-            row, profile: Repository.analyticsProfile(profile), hrMax: Double(profile.hrMax),
-            restingHrByDay: restingByDay, strapKcalByKey: strapByKey, peakMETByDay: peakByDay)
-
         await MainActor.run {
-            self.energy = resolvedEnergy
-            self.route = routePoints
             self.hrPoints = points
             self.zoneMinutes = minutes
             self.zonesFromImport = fromImport
             self.heartRateRecovery = hrr
-            self.steps = stepReadout
             self.loaded = true
         }
     }

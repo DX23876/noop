@@ -131,16 +131,28 @@ extension WhoopStore {
               days.allSatisfy({ Self.valid($0.daily) }) else { return 0 }
         return try syncWrite { db in
             var changed = 0
+            // Every day's old buckets go before any new one is written. Day by day, a bucket moving to
+            // an earlier day (a 23:55 bucket an older build filed under the next day) collided with its
+            // old row, which was only deleted when the loop reached that next day.
             for item in days {
                 try db.execute(sql: "DELETE FROM whoopEnergyBucket WHERE deviceId = ? AND day = ?",
                                arguments: [deviceId, item.daily.day])
                 changed += db.changesCount
+            }
+            for item in days {
                 for bucket in item.buckets where Self.valid(bucket, day: item.daily.day) {
+                    // A bucket start is unique per device. One still filed under a day outside this
+                    // window moves to the day that now owns it instead of failing the whole window.
                     try db.execute(sql: """
                         INSERT INTO whoopEnergyBucket
                             (deviceId, day, bucketStart, durationSeconds, basalKcal, activeKcal,
                              context, evidence, uncertaintyFraction)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(deviceId, bucketStart) DO UPDATE SET
+                            day = excluded.day, durationSeconds = excluded.durationSeconds,
+                            basalKcal = excluded.basalKcal, activeKcal = excluded.activeKcal,
+                            context = excluded.context, evidence = excluded.evidence,
+                            uncertaintyFraction = excluded.uncertaintyFraction
                         """, arguments: [deviceId, bucket.day, bucket.bucketStart,
                                           bucket.durationSeconds, bucket.basalKcal,
                                           bucket.activeKcal, bucket.context, bucket.evidence,

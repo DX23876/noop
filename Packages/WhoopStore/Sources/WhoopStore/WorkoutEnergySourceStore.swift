@@ -49,6 +49,31 @@ extension WhoopStore {
         }
     }
 
+    /// Reprice one manual row NOOP already computed, when the price it holds came from wrong inputs.
+    /// Only a row still marked `computed` and still holding `oldKcal` changes: one the wearer edited
+    /// or re-entered in the meantime keeps its figure. The marker's timestamp moves with the value.
+    public func repriceComputedWorkoutEnergy(for key: WorkoutKey, matching oldKcal: Double,
+                                             to newKcal: Double) async throws -> Bool {
+        try syncWrite { db in
+            try db.execute(sql: """
+                UPDATE workout SET energyKcal = ?
+                WHERE deviceId = ? AND startTs = ? AND sport = ? AND source = 'manual'
+                  AND energyKcal = ?
+                  AND EXISTS (
+                    SELECT 1 FROM workoutEnergySource e
+                    WHERE e.deviceId = workout.deviceId AND e.startTs = workout.startTs
+                      AND e.sport = workout.sport AND e.kind = ?)
+                """, arguments: [newKcal, key.deviceId, key.startTs, key.sport, oldKcal,
+                                  WorkoutEnergySource.computed.rawValue])
+            guard db.changesCount > 0 else { return false }
+            try db.execute(sql: """
+                UPDATE workoutEnergySource SET updatedAtTs = ?
+                WHERE deviceId = ? AND startTs = ? AND sport = ?
+                """, arguments: [Int(Date().timeIntervalSince1970), key.deviceId, key.startTs, key.sport])
+            return true
+        }
+    }
+
     /// Records where a workout's energy came from. Replaces any earlier entry for the same row.
     public func setWorkoutEnergySource(_ kind: WorkoutEnergySource, for key: WorkoutKey,
                                        at now: Int = Int(Date().timeIntervalSince1970)) async throws {

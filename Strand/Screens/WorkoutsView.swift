@@ -248,7 +248,10 @@ struct WorkoutsView: View {
                 sessionsSection(rows: windowRows)
             }
         }
-        .task(id: repo.refreshSeq) {
+        // Keyed on the energy revision too: a correction of stored session energy (recipes AI-13 to AI-15)
+        // or a re-priced day changes the rows and the heatmap without a strap refresh, and the list kept
+        // showing the old figure until the next one.
+        .task(id: "\(repo.refreshSeq)|\(repo.energyPresentationRevision)") {
             guard !usesPreviewRows else { return }
             // #797: read only the currently-loaded window (bounded on first paint), not the whole history.
             let r = await repo.workoutRows(days: loadedWindowDays ?? 4000)

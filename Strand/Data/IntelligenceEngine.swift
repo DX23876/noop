@@ -164,7 +164,10 @@ final class IntelligenceEngine: ObservableObject {
     // corrected span. Marked entered figures are left alone. No daily row is re-scored.
     // AI-14 (2026-09-29) retries AI-13 across every physical and canonical workout owner and
     // recognizes live GPS summaries when the later offloaded HR trace differs from live capture.
-    static let currentAnalysisRecipeVersion = 14
+    // AI-15 (2026-09-30) runs it again with the day's real resting rate: AI-13/AI-14 read it from
+    // imported rows only, which end at the last WHOOP export, so rows were recognised and priced
+    // without one. Rows already marked computed are priced again as they stand.
+    static let currentAnalysisRecipeVersion = 15
 
     /// The recipe whose migration refills the cardio load ledger.
     static let cardioLedgerRecipe = 9
@@ -184,7 +187,7 @@ final class IntelligenceEngine: ObservableObject {
     static let rrSegmentRecipe = 12
 
     /// The recipe whose migration corrects stored Keytel session energy.
-    static let workoutEnergyRecipe = 14
+    static let workoutEnergyRecipe = 15
 
     /// Whether a migration crosses the recipe that corrects stored session energy.
     static func migrationCorrectsWorkoutEnergy(from: Int, to: Int) -> Bool {
@@ -1013,6 +1016,10 @@ final class IntelligenceEngine: ObservableObject {
             }
             if case .migrating(let from, let to) = phase, Self.migrationCorrectsWorkoutEnergy(from: from, to: to) {
                 let analytics = Repository.analyticsProfile(self.profile)
+                // The correction prices sessions against each day's stored aerobic ceiling, which only
+                // exists on rows of the current energy model; bring the history onto it first.
+                await self.repo.ensureEnergyHistoryCurrent(profile: analytics, waitIfRunning: true)
+                guard !Task.isCancelled else { return false }
                 do {
                     _ = try await self.repo.correctLegacyWorkoutEnergy(profile: analytics)
                 } catch {

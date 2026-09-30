@@ -186,6 +186,12 @@ extension Repository {
             await refreshWhoopEnergyModel(days: 1, profile: profile)
             derivedByDay = await derivedRows()
         }
+        // Older days follow in the background, once per model generation; their readers are keyed on
+        // `energyPresentationRevision`, which the refresh bumps when it writes.
+        if UserDefaults.standard.string(forKey: Self.energyHistoryModelKey)
+            != WhoopDailyEnergyEstimate.modelVersion, !energyHistoryRefreshRunning {
+            Task { @MainActor [weak self] in await self?.ensureEnergyHistoryCurrent(profile: profile) }
+        }
         let calibration = await energyCalibrationState(store: store)
         let calibrationFactor = calibration.status == .active ? calibration.factor : nil
         // Katch–McArdle reads the body fat in force on each day; every other formula skips the read.
@@ -411,14 +417,17 @@ extension Repository {
         try? await store.setWorkoutEnergySource(.entered, for: key)
     }
 
-    /// The versioned correction of stored session figures NOOP computed with Keytel (AI-13/AI-14).
+    /// The versioned correction of stored session figures NOOP computed with Keytel (AI-13 to AI-15).
     ///
     /// Every manual row with energy and no recorded source is re-priced when its figure reproduces an
     /// old formula on the strap's heart rate for its window (`LegacyWorkoutEnergy.looksComputed`), using
     /// that day's weight and resting rate. A reproduced figure is replaced by the model-v8 session price
-    /// and recorded as computed; rows with known entered provenance or without enough strap heart rate
-    /// stay unchanged. Each committed correction queues its Health rewrite and energy refresh immediately,
-    /// so a later read failure does not strand an already-corrected row. Returns the earliest correction.
+    /// and recorded as computed. A row already recorded as computed is priced again as it stands (AI-15:
+    /// AI-13 and AI-14 read the resting rate from imported rows only, so every day after the last WHOOP
+    /// export was priced and recognised without one). Rows with known entered provenance or without
+    /// enough strap heart rate stay unchanged. Each committed correction queues its Health rewrite and
+    /// energy refresh immediately, so a later read failure does not strand an already-corrected row.
+    /// Returns the earliest correction.
     func correctLegacyWorkoutEnergy(profile base: UserProfile) async throws -> Int? {
         guard let store = await storeHandle() else { return nil }
         let now = Int(Date().timeIntervalSince1970)
@@ -451,14 +460,35 @@ extension Repository {
             known.merge(try await store.workoutEnergySources(deviceId: owner, from: first, to: now))
                 { current, _ in current }
         }
-        let pending = ownedRows.filter { owned in
-            known[WorkoutKey(deviceId: owned.owner, startTs: owned.row.startTs,
-                             sport: owned.row.sport)] == nil
-        }
+        let pending: [(owner: String, row: WorkoutRow, source: WorkoutEnergySource?)] =
+            ownedRows.compactMap { owned in
+                let source = known[WorkoutKey(deviceId: owned.owner, startTs: owned.row.startTs,
+                                              sport: owned.row.sport)]
+                return source == .entered ? nil : (owned.owner, owned.row, source)
+            }
         guard !pending.isEmpty else { return nil }
         let firstDay = Self.localDayKey(Date(timeIntervalSince1970: TimeInterval(first)))
         let today = Self.localDayKey(Date())
-        let resting = await restingHrByDay(fromDay: WeeklyDigestEngine.addDays(firstDay, -14), toDay: today)
+        // The day's resting rate as the dashboard shows it: each side unioned as `unionDailyMetrics`
+        // does (active id first, canonical filling), then imported first with computed filling the gaps.
+        // Read with error propagation, since a failed read would price every row without one and still
+        // commit the cursor.
+        let restFrom = WeeklyDigestEngine.addDays(firstDay, -14)
+        var imported: [String: DailyMetric] = [:], computed: [String: DailyMetric] = [:]
+        for id in importedReadIds {
+            for m in try await store.dailyMetrics(deviceId: id, from: restFrom, to: today) {
+                imported[m.day] = imported[m.day].map { Self.coalesceDay($0, m) } ?? m
+            }
+        }
+        for id in computedReadIds {
+            for m in try await store.dailyMetrics(deviceId: id, from: restFrom, to: today) {
+                computed[m.day] = computed[m.day].map { Self.coalesceDay($0, m) } ?? m
+            }
+        }
+        var resting: [String: Double] = [:]
+        for metric in Self.mergeDaily(imported: Array(imported.values), computed: Array(computed.values)) {
+            if let value = metric.restingHr, value > 0 { resting[metric.day] = Double(value) }
+        }
         let peaks = await energyPeakMETByDay(fromDay: firstDay, toDay: today)
         let observations = await weightSeries(days: 4_000).compactMap { point in
             WeightSeries.date(forDay: point.day).map {
@@ -473,7 +503,7 @@ extension Repository {
                 scheduleEnergyRefresh(coveringStart: earliest)
             }
         }
-        for (owner, row) in pending {
+        for (owner, row, source) in pending {
             let day = Self.localDayKey(Date(timeIntervalSince1970: TimeInterval(row.startTs)))
             // The normal chart facade deliberately treats a failed device read as an empty series.
             // A migration cannot: it would skip this row and still commit the recipe cursor.
@@ -492,6 +522,19 @@ extension Repository {
                 profile.weightKg = weight
             }
             let restingHR = resting[day] ?? resting.filter { $0.key <= day }.max { $0.key < $1.key }?.value
+            let kcal = WorkoutEnergyEstimate.boutKcal(
+                samples, sport: row.sport, profile: profile, hrMax: profile.maxHR, restingHR: restingHR,
+                peakMET: WorkoutEnergyDisplay.peakMET(on: day, in: peaks), distanceM: row.distanceM)
+            guard kcal > 0 else { continue }
+            let key = WorkoutKey(deviceId: owner, startTs: row.startTs, sport: row.sport)
+            if source == .computed {
+                // Already NOOP's own figure: no need to recognise it, only to price it on the right inputs.
+                guard abs(kcal - stored) >= 0.5 else { continue }
+                if try await store.repriceComputedWorkoutEnergy(for: key, matching: stored, to: kcal) {
+                    earliest = min(earliest ?? row.startTs, row.startTs)
+                }
+                continue
+            }
             let matchesOffloaded = LegacyWorkoutEnergy.looksComputed(
                 stored: stored, samples: samples, sport: row.sport, profile: profile,
                 hrMax: profile.maxHR, restingHR: restingHR)
@@ -501,11 +544,6 @@ extension Repository {
                 stored: stored, averageHR: row.avgHr, durationSeconds: row.durationS,
                 profile: profile, hrMax: profile.maxHR, restingHR: restingHR)
             guard matchesOffloaded || matchesLiveSummary else { continue }
-            let kcal = WorkoutEnergyEstimate.boutKcal(
-                samples, sport: row.sport, profile: profile, hrMax: profile.maxHR, restingHR: restingHR,
-                peakMET: WorkoutEnergyDisplay.peakMET(on: day, in: peaks), distanceM: row.distanceM)
-            guard kcal > 0 else { continue }
-            let key = WorkoutKey(deviceId: owner, startTs: row.startTs, sport: row.sport)
             if try await store.correctLegacyWorkoutEnergy(for: key, matching: stored, to: kcal) {
                 earliest = min(earliest ?? row.startTs, row.startTs)
             }
@@ -671,9 +709,10 @@ extension Repository {
     /// Rebuilds the auditable WHOOP bucket output and, only after explicit opt-in, learns a bounded
     /// Apple Watch reference factor from time-aligned high-quality buckets. Sources remain separate:
     /// each point compares one WHOOP estimate with one selected Watch source and never adds devices.
-    func refreshWhoopEnergyModel(days: Int = 120, profile: UserProfile) async {
+    @discardableResult
+    func refreshWhoopEnergyModel(days: Int = 120, profile: UserProfile) async -> Bool {
         energyProfile = profile
-        guard let store = await storeHandle() else { return }
+        guard let store = await storeHandle() else { return false }
         let now = Date()
         let calendar = Calendar.current
         // Callers may request a current-day repair after a model-version upgrade. Calibration still
@@ -690,7 +729,7 @@ extension Repository {
         let to = Int(now.timeIntervalSince1970) + 1
         let hr = await hrBuckets(from: from, to: to, bucketSeconds: 300)
             .filter { $0.bpm.isFinite && $0.conf >= 0.5 }
-        guard !hr.isEmpty else { return }
+        guard !hr.isEmpty else { return true }
 
         let observations = await weightSeries(days: max(days + 100, 100)).compactMap { point in
             WeightSeries.date(forDay: point.day).map {
@@ -780,7 +819,12 @@ extension Repository {
             // depending on where a sample happened to fall.
             let dayStrideM = strideTimeline.estimate(onDay: day)?.metersPerStep
             let hrByStart = Dictionary(rows.map { ($0.ts, $0) }, uniquingKeysWith: { a, _ in a })
-            let bucketStarts = Set(hrByStart.keys).union(movement.keys).sorted()
+            // This day's own buckets only. The movement read starts one bucket early (a step delta needs
+            // its predecessor), so it also returns the previous day's 23:55 bucket; kept, that bucket was
+            // priced into both days and written under both, and the second write broke the window's
+            // unique key, which rolled back every multi-day refresh.
+            let bucketStarts = Set(hrByStart.keys).union(movement.keys)
+                .filter { $0 >= dayFrom && $0 < dayTo }.sorted()
             let inputs = bucketStarts.compactMap { start -> WhoopEnergyBucket? in
                 let wallSeconds = min(300, dayTo - start)
                 guard wallSeconds > 0 else { return nil }
@@ -896,16 +940,16 @@ extension Repository {
         // Daily totals and their hourly activity shape describe one model generation. Publish the
         // entire recomputed window in one SQLite transaction so a cancellation or write failure can
         // never expose half v3 / half v4 state.
-        guard !pendingWindow.isEmpty else { return }
+        guard !pendingWindow.isEmpty else { return true }
         do {
             _ = try await store.replaceWhoopEnergyWindow(pendingWindow, deviceId: deviceId)
         } catch {
-            return
+            return false
         }
         // Publish only after the atomic replacement succeeded, including every calibration exit below.
         defer { noteEnergyPresentationChanged() }
 
-        guard EnergyCalibrationPreferences.enabled else { return }
+        guard EnergyCalibrationPreferences.enabled else { return true }
         let referenceRows = (try? await store.healthEnergyBuckets(
             deviceId: Self.appleHealthSource, from: from, to: to, eligibleOnly: true)) ?? []
         // ACTIVE only, both sides. Apple already reports it separately from basal — nothing to derive
@@ -926,7 +970,7 @@ extension Repository {
             return lhs < rhs
         }
         let chosenSource = rankedSources.first
-        guard let chosenSource else { return }
+        guard let chosenSource else { return true }
         let hrByStart = Dictionary(hr.map { ($0.ts, $0) }, uniquingKeysWith: { a, _ in a })
         let points = candidates.compactMap { row -> EnergyCalibrationPoint? in
             guard row.sourceId == chosenSource, let whoopActive = whoopActiveByBucket[row.bucketStart],
@@ -952,13 +996,41 @@ extension Repository {
             return .init(timestamp: row.bucketStart, whoopKcal: normalizedWhoop,
                          appleWatchKcal: apple, overlapQuality: quality, context: context)
         }
-        guard let fit = EnergyCalibrationEngine.fit(points: points, calendar: calendar) else { return }
+        guard let fit = EnergyCalibrationEngine.fit(points: points, calendar: calendar) else { return true }
         let model = EnergyCalibrationModelRow(
             deviceId: deviceId, referenceDeviceId: chosenSource, enabled: true,
             factor: fit.factor, sampleDays: fit.sampleDays, sampleBuckets: fit.sampleBuckets,
             coefficientOfVariation: fit.coefficientOfVariation,
             fittedAt: Int(now.timeIntervalSince1970), modelVersion: EnergyCalibrationFit.modelVersion)
         _ = try? await store.saveEnergyCalibrationModel(model)
+        return true
+    }
+
+    /// The model generation the stored energy history was last recomputed with.
+    static let energyHistoryModelKey = "energy.historyModelVersion"
+
+    /// Recomputes the stored energy history once per model generation.
+    ///
+    /// A model-version bump used to reach only today (the repair in `energySummaries`) and the days a
+    /// later offload spanned. Every older day kept its superseded row, which the readers skip, and fell
+    /// back to the retired whole-day estimate: after v8, the history the wearer scrolled back through was
+    /// still priced by Keytel. This runs the full refresh window once and records the generation only
+    /// when the pass completed, so an interrupted pass runs again on the next launch.
+    ///
+    /// `waitIfRunning` is for the workout-energy migration, which prices sessions against the stored
+    /// daily ceilings and must not read them while a pass is still rewriting them.
+    func ensureEnergyHistoryCurrent(profile: UserProfile, waitIfRunning: Bool = false) async {
+        let current = WhoopDailyEnergyEstimate.modelVersion
+        while waitIfRunning, energyHistoryRefreshRunning, !Task.isCancelled {
+            try? await Task.sleep(nanoseconds: 500_000_000)
+        }
+        guard UserDefaults.standard.string(forKey: Self.energyHistoryModelKey) != current,
+              !energyHistoryRefreshRunning else { return }
+        energyHistoryRefreshRunning = true
+        defer { energyHistoryRefreshRunning = false }
+        if await refreshWhoopEnergyModel(days: Self.energyRefreshMaxDays, profile: profile) {
+            UserDefaults.standard.set(current, forKey: Self.energyHistoryModelKey)
+        }
     }
 
     /// The user's personal time-of-day activity profile, or nil until enough history exists.

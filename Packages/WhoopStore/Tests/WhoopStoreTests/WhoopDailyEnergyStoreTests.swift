@@ -189,6 +189,70 @@ final class WhoopDailyEnergyStoreTests: XCTestCase {
         XCTAssertEqual(buckets, [first], "a recompute must not leave stale timeline buckets")
     }
 
+    /// The 2026-09-30 phone database: single-day repairs had filed each day's 23:55 bucket under the
+    /// NEXT day. A multi-day recompute then wrote that bucket under its own day before the loop reached
+    /// the next one, hit the (deviceId, bucketStart) key, and rolled the whole window back, which kept
+    /// the history on superseded models. The window must land, with the bucket under its own day.
+    func testWindowMovesABucketFiledUnderTheNextDayInsteadOfFailing() async throws {
+        let store = try await WhoopStore.inMemory()
+        func daily(_ day: String, _ version: String) -> WhoopDailyEnergyRow {
+            WhoopDailyEnergyRow(day: day, rawTotalKcal: 2_000, modelVersion: version,
+                                observedSeconds: 80_000, inferredSeconds: 0, modeledSeconds: 0,
+                                uncertaintyFraction: 0.2, weightKg: 80, weightSource: .profile)
+        }
+        func bucket(_ day: String, _ start: Int) -> WhoopEnergyBucketRow {
+            WhoopEnergyBucketRow(day: day, bucketStart: start, durationSeconds: 300, basalKcal: 6,
+                                 activeKcal: 1, context: "rest", evidence: "physiological",
+                                 uncertaintyFraction: 0.3)
+        }
+        let lateBucket = 1_789_000_000
+        // The old single-day repair of the 29th, carrying the 28th's last bucket.
+        try await store.replaceWhoopEnergyWindow(
+            [.init(daily: daily("2026-09-29", "whoop-bucket-v6"), activeKcalByHour: [:],
+                   buckets: [bucket("2026-09-29", lateBucket), bucket("2026-09-29", lateBucket + 300)])],
+            deviceId: "whoop-a")
+
+        let changed = try await store.replaceWhoopEnergyWindow([
+            .init(daily: daily("2026-09-28", "whoop-bucket-v8"), activeKcalByHour: [:],
+                  buckets: [bucket("2026-09-28", lateBucket)]),
+            .init(daily: daily("2026-09-29", "whoop-bucket-v8"), activeKcalByHour: [:],
+                  buckets: [bucket("2026-09-29", lateBucket + 300)]),
+        ], deviceId: "whoop-a")
+
+        XCTAssertGreaterThan(changed, 0)
+        let rows = try await store.whoopDailyEnergy(deviceId: "whoop-a", from: "2026-09-28", to: "2026-09-29")
+        XCTAssertEqual(rows.map(\.modelVersion), ["whoop-bucket-v8", "whoop-bucket-v8"])
+        let day28 = try await store.whoopEnergyBuckets(deviceId: "whoop-a", day: "2026-09-28")
+        let day29 = try await store.whoopEnergyBuckets(deviceId: "whoop-a", day: "2026-09-29")
+        XCTAssertEqual(day28.map(\.bucketStart), [lateBucket])
+        XCTAssertEqual(day29.map(\.bucketStart), [lateBucket + 300])
+    }
+
+    /// A bucket still filed under a day OUTSIDE the window moves to the day now claiming it.
+    func testWindowTakesOverABucketFiledUnderADayOutsideIt() async throws {
+        let store = try await WhoopStore.inMemory()
+        func daily(_ day: String) -> WhoopDailyEnergyRow {
+            WhoopDailyEnergyRow(day: day, rawTotalKcal: 2_000, modelVersion: "whoop-bucket-v8",
+                                observedSeconds: 80_000, inferredSeconds: 0, modeledSeconds: 0,
+                                uncertaintyFraction: 0.2, weightKg: 80, weightSource: .profile)
+        }
+        func bucket(_ day: String) -> WhoopEnergyBucketRow {
+            WhoopEnergyBucketRow(day: day, bucketStart: 1_788_000_000, durationSeconds: 300, basalKcal: 6,
+                                 activeKcal: 1, context: "rest", evidence: "physiological",
+                                 uncertaintyFraction: 0.3)
+        }
+        try await store.replaceWhoopEnergyWindow(
+            [.init(daily: daily("2026-09-11"), activeKcalByHour: [:], buckets: [bucket("2026-09-11")])],
+            deviceId: "whoop-a")
+        try await store.replaceWhoopEnergyWindow(
+            [.init(daily: daily("2026-09-10"), activeKcalByHour: [:], buckets: [bucket("2026-09-10")])],
+            deviceId: "whoop-a")
+        let moved = try await store.whoopEnergyBuckets(deviceId: "whoop-a", day: "2026-09-10")
+        let left = try await store.whoopEnergyBuckets(deviceId: "whoop-a", day: "2026-09-11")
+        XCTAssertEqual(moved.count, 1)
+        XCTAssertTrue(left.isEmpty)
+    }
+
     func testInvalidEnergyWindowDoesNotPartiallyReplaceExistingRows() async throws {
         let store = try await WhoopStore.inMemory()
         let existing = WhoopDailyEnergyRow(

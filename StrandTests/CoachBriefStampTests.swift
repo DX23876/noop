@@ -24,7 +24,15 @@ final class CoachBriefStampTests: XCTestCase {
         super.tearDown()
     }
 
-    private var today: String { Repository.logicalDayKey(Date()) }
+    /// A fixed midday, not `Date()`: "an hour before now" fell on the previous logical day whenever the
+    /// suite ran within an hour after the rollover, and CI runs at any hour.
+    private let now: Date = {
+        var parts = DateComponents()
+        parts.year = 2026; parts.month = 6; parts.day = 15; parts.hour = 12
+        return Calendar.current.date(from: parts)!
+    }()
+
+    private var today: String { Repository.logicalDayKey(now) }
 
     func testStampAndRead() {
         XCTAssertNil(CoachBriefStamp.lastBriefDay(defaults: defaults))
@@ -36,9 +44,10 @@ final class CoachBriefStampTests: XCTestCase {
     /// let the next open write a brief against the corrected recovery.
     func testCorrectingTonightInvalidatesTheBrief() {
         CoachBriefStamp.stamp(day: today, defaults: defaults)
-        let wokeThisMorning = Int(Date().timeIntervalSince1970) - 3600
+        let wokeThisMorning = Int(now.timeIntervalSince1970) - 3600
 
-        XCTAssertTrue(CoachBriefStamp.invalidateAfterSleepCorrection(wakeTs: wokeThisMorning, defaults: defaults))
+        XCTAssertTrue(CoachBriefStamp.invalidateAfterSleepCorrection(wakeTs: wokeThisMorning, now: now,
+                                                                     defaults: defaults))
         XCTAssertNil(CoachBriefStamp.lastBriefDay(defaults: defaults))
         XCTAssertTrue(CoachBriefStamp.isStale(today: today, defaults: defaults))
     }
@@ -47,16 +56,17 @@ final class CoachBriefStampTests: XCTestCase {
     /// for it would be noise, so the stamp survives.
     func testCorrectingAnOldNightLeavesTodaysBriefAlone() {
         CoachBriefStamp.stamp(day: today, defaults: defaults)
-        let lastWeek = Int(Date().timeIntervalSince1970) - 7 * 86_400
+        let lastWeek = Int(now.timeIntervalSince1970) - 7 * 86_400
 
-        XCTAssertFalse(CoachBriefStamp.invalidateAfterSleepCorrection(wakeTs: lastWeek, defaults: defaults))
+        XCTAssertFalse(CoachBriefStamp.invalidateAfterSleepCorrection(wakeTs: lastWeek, now: now,
+                                                                      defaults: defaults))
         XCTAssertEqual(CoachBriefStamp.lastBriefDay(defaults: defaults), today)
         XCTAssertFalse(CoachBriefStamp.isStale(today: today, defaults: defaults))
     }
 
     func testClearStale() {
         CoachBriefStamp.invalidateAfterSleepCorrection(
-            wakeTs: Int(Date().timeIntervalSince1970) - 3600, defaults: defaults)
+            wakeTs: Int(now.timeIntervalSince1970) - 3600, now: now, defaults: defaults)
         XCTAssertTrue(CoachBriefStamp.isStale(today: today, defaults: defaults))
         CoachBriefStamp.clearStale(defaults: defaults)
         XCTAssertFalse(CoachBriefStamp.isStale(today: today, defaults: defaults))

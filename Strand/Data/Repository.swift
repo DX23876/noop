@@ -332,6 +332,10 @@ final class Repository: ObservableObject {
     /// once a day rather than on every screen that asks for energy. See `EnergySeries`.
     var repairedTodayEnergyOn: String?
 
+    /// True while `ensureEnergyHistoryCurrent` recomputes the energy history, so the several screens
+    /// that ask for energy at launch start one pass rather than one each.
+    var energyHistoryRefreshRunning = false
+
     /// The aerobic ceiling (METs) the newest day of the last energy refresh used, keyed by that day.
     /// Read synchronously where a session is saved live, so its stored figure is priced on the curve
     /// its day uses without an extra read on the save path. Nil until a refresh has resolved one.
@@ -1689,9 +1693,16 @@ final class Repository: ObservableObject {
     /// the activity gate the Keytel estimate is measured against, so the same 77-minute session at an
     /// average of 103 bpm prices at 649 kcal against a resting rate of 45 and at 99 kcal against 70,
     /// where the average falls below the gate entirely. A default would not be an approximation.
+    ///
+    /// The rate is the one the dashboard shows for the day: imported rows first, NOOP's computed rows
+    /// filling the days they lack (`mergeDaily`). Reading the imported rows alone left every day after
+    /// the last WHOOP export without a resting rate, so sessions were priced with none at all.
     func restingHrByDay(fromDay: String, toDay: String) async -> [String: Double] {
+        guard let store = await ensureStore() else { return [:] }
+        let imported = await unionDailyMetrics(store: store, from: fromDay, to: toDay)
+        let computed = await unionComputedDailyMetrics(store: store, from: fromDay, to: toDay)
         var byDay: [String: Double] = [:]
-        for metric in await dailyMetrics(fromDay: fromDay, toDay: toDay) {
+        for metric in Self.mergeDaily(imported: imported, computed: computed) {
             if let resting = metric.restingHr, resting > 0 { byDay[metric.day] = Double(resting) }
         }
         return byDay
