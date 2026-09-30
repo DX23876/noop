@@ -26,9 +26,10 @@ class RecoveryCalibrationTest {
     private fun epoch(dayKey: String): Double =
         LocalDate.parse(dayKey).atStartOfDay(ZoneOffset.UTC).toEpochSecond().toDouble()
 
-    /** Call helper pinning `hrvBaselineEpoch = 0.0` (no recalibration → plain fold). */
-    private fun nights(days: List<DailyMetric>, hasRecovery: Boolean): Int? =
-        recoveryCalibrationNights(days, hasRecovery = hasRecovery, hrvBaselineEpoch = 0.0)
+    /** The helper takes the parallel HRV values + day keys the engine folds (#2525 passes the Charge HRV
+     *  history); these cases build them from rows. */
+    private fun nights(days: List<DailyMetric>, hasRecovery: Boolean, epoch: Double = 0.0): Int? =
+        recoveryCalibrationNights(days.map { it.avgHrv }, days.map { it.day }, hasRecovery, hrvBaselineEpoch = epoch)
 
     @Test
     fun nullWhenRecoveryAlreadyExists() {
@@ -94,7 +95,7 @@ class RecoveryCalibrationTest {
         // The old per-night bounds count was 6 (>= seed) and returned null, stranding the score side on
         // "Needs the strap"; N must now read 2 (a genuinely-calibrating baseline).
         val days = (1..6).map { day("2026-01-0$it", 55.0) }
-        assertEquals(2, recoveryCalibrationNights(days, hasRecovery = false, hrvBaselineEpoch = epoch("2026-01-05")))
+        assertEquals(2, nights(days, hasRecovery = false, epoch = epoch("2026-01-05")))
     }
 
     @Test
@@ -103,6 +104,6 @@ class RecoveryCalibrationTest {
         // null recovery is some OTHER gap — so we must not claim "calibrating". Epoch 2026-01-02 drops one
         // night; five post-epoch nights → nValid 5.
         val days = (1..6).map { day("2026-01-0$it", 55.0) }
-        assertNull(recoveryCalibrationNights(days, hasRecovery = false, hrvBaselineEpoch = epoch("2026-01-02")))
+        assertNull(nights(days, hasRecovery = false, epoch = epoch("2026-01-02")))
     }
 }

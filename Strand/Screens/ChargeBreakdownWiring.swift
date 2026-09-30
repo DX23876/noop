@@ -15,12 +15,20 @@ import WhoopStore
 //
 // Pure: no SwiftUI state, no I/O, no store access. Nothing here invents a number. The drivers come from
 // `RecoveryScorer.chargeDrivers` and the tier is SURFACED from `ScoreConfidence.charge` against the same
-// folded HRV baseline the drivers scored with, so the header and the rows agree by construction.
+// HRV baseline the drivers scored with, so the header and the rows agree by construction. The baselines
+// themselves are resolved once per refresh by `Repository.chargeBaselines` (#2525).
 enum ChargeBreakdownWiring {
 
-    /// The ordered Charge driver rows for `row` plus its confidence tier, folded from the visible `days`
-    /// history, or nil when the night cannot honestly score (missing HRV or resting HR, or an HRV
-    /// baseline that is not yet usable) so the sheet hides rather than showing fabricated rows.
+    /// The ordered Charge driver rows for `row` plus its confidence tier, scored against `baselines`, or nil
+    /// when the night cannot honestly score (missing HRV or resting HR, or an HRV baseline that is not yet
+    /// usable) so the sheet hides rather than showing fabricated rows.
+    ///
+    /// `baselines` is `Repository.chargeBaselines`: the baselines resolved with the engine's own rule
+    /// (#2525), so these rows and the tier describe the baseline the Charge headline was scored against.
+    /// Before #2525 this folded the whole visible history itself, which kept every imported night and every
+    /// stored own night while the headline kept only the recent own nights plus the import; the page could
+    /// show one baseline in the rows and score against another. (#2315 had already closed the same gap for
+    /// the recalibration epoch; the resolver now applies both epochs.)
     ///
     /// `sleepPerfPercent` is the Rest composite on a 0-100 scale, divided by 100 here to match
     /// `AnalyticsEngine`'s `sleepPerf` form, so the Sleep row scores against the headline's own input.
@@ -29,23 +37,14 @@ enum ChargeBreakdownWiring {
     /// `chargeDrivers` both apply that gate themselves since #1990, so these are belt-and-braces rather
     /// than load-bearing; they are kept because they say the intent at the call site, which is where a
     /// reader looks first.
-    static func breakdown(days: [DailyMetric],
+    static func breakdown(baselines: ChargeBaselines.Resolved,
                           row: DailyMetric,
-                          sleepPerfPercent: Double?,
-                          hrvBaselineEpoch: Double = 0) -> (drivers: [ChargeDriver], confidence: ScoreConfidence)? {
+                          sleepPerfPercent: Double?) -> (drivers: [ChargeDriver], confidence: ScoreConfidence)? {
         guard let hrv = row.avgHrv, let rhr = row.restingHr else { return nil }
-        // PERF: one pass per series. The two private copies this replaces each re-folded the full history
-        // per body evaluation of the open sheet; the guard above still runs before any fold.
-        // #2315: fold with the recalibration epoch, exactly as the engine does. Without it these rows and
-        // the confidence tier scored against the WHOLE history while the headline scored against the
-        // post-Recalibrate nights, so the Charge page showed two baselines for one metric. `0` (no
-        // recalibration) delegates to the plain fold, so a user who never recalibrated sees no change.
-        let hrvBase = Baselines.foldHistory(days.map(\.avgHrv), dayKeys: days.map(\.day),
-                                            cfg: Baselines.hrvCfg, baselineEpoch: hrvBaselineEpoch)
+        let hrvBase = baselines.hrv
         guard hrvBase.usable else { return nil }
-        let rhrBase = Baselines.foldHistory(days.map { $0.restingHr.map(Double.init) },
-                                            cfg: Baselines.restingHRCfg)
-        let respBase = Baselines.foldHistory(days.map(\.respRateBpm), cfg: Baselines.respCfg)
+        let rhrBase = baselines.restingHR
+        let respBase = baselines.resp
         let drivers = RecoveryScorer.chargeDrivers(
             hrv: hrv, rhr: Double(rhr), resp: row.respRateBpm,
             hrvBaseline: hrvBase,

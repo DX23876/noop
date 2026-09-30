@@ -45,6 +45,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.noop.analytics.Baselines
+import com.noop.analytics.ChargeBaselines
 import com.noop.analytics.ReadinessEngine
 import com.noop.analytics.RestScorer
 import com.noop.data.DailyMetric
@@ -90,6 +91,8 @@ fun CoupledScreen(
 ) {
     val today by vm.today.collectAsStateWithLifecycle()
     val days by vm.recentDays.collectAsStateWithLifecycle()
+    // #2525: the Charge baselines the engine's rule resolves, the SAME source Today reads.
+    val chargeBaselines by vm.chargeBaselines.collectAsStateWithLifecycle()
 
     // Last night's sleep sessions (imported + computed-only), the SAME resolution SleepScreen uses, keyed on
     // `days` so a sync/import reloads. Only needed for the bed-wake span footnote.
@@ -146,14 +149,15 @@ fun CoupledScreen(
     // older night while the card beside it showed today's number. It also missed the #547 upper bound
     // (a future-dated row from a bad strap clock is how that bug read "12 Jul") and the calibrating gate.
     // One helper, one answer: the card and its own detail sheet cannot disagree again.
-    val carriedRecoveryDay = remember(days, todayKey, todayRow, hrvEpoch, logicalKey, localKey) {
+    val carriedRecoveryDay = remember(days, chargeBaselines, todayKey, todayRow, hrvEpoch, logicalKey, localKey) {
         lastScoredRecoveryDay(
             days = days,
             selectedDayKey = todayKey,
             isToday = true,   // the Coupled view has no day selector; it is always today
             todayScored = todayRow?.recovery != null,
             isCalibrating = recoveryCalibrationNights(
-                days, hasRecovery = todayRow?.recovery != null, hrvBaselineEpoch = hrvEpoch,
+                chargeBaselines?.hrvHistory?.values.orEmpty(), chargeBaselines?.hrvHistory?.dayKeys.orEmpty(),
+                hasRecovery = todayRow?.recovery != null, hrvBaselineEpoch = hrvEpoch,
             ) != null,
             today = maxOf(logicalKey, localKey),
         )
@@ -182,8 +186,11 @@ fun CoupledScreen(
     // Recovery cold-start nights (the SAME pure helper Today's ring reads), for the honest calibrating
     // caption + accessibility copy while the HRV baseline still seeds. Threads the persisted
     // "Recalibrate HRV baseline" epoch so N folds the SAME epoch-aware history the engine folds (Bug B).
-    val calibrationNights = remember(days, todayRow, hrvEpoch) {
-        recoveryCalibrationNights(days, hasRecovery = todayRow?.recovery != null, hrvBaselineEpoch = hrvEpoch)
+    val calibrationNights = remember(chargeBaselines, todayRow, hrvEpoch) {
+        recoveryCalibrationNights(
+            chargeBaselines?.hrvHistory?.values.orEmpty(), chargeBaselines?.hrvHistory?.dayKeys.orEmpty(),
+            hasRecovery = todayRow?.recovery != null, hrvBaselineEpoch = hrvEpoch,
+        )
     }
 
     // The Charge breakdown (the hero's tap target, the EXISTING Today sheet) + the scoring guide it
@@ -255,6 +262,7 @@ fun CoupledScreen(
         ) {
             ChargeBreakdownSheet(
                 days = days,
+                chargeBaselines = chargeBaselines,
                 displayDay = todayRow,
                 carriedDay = carriedRecoveryDay,
                 showReadiness = true,

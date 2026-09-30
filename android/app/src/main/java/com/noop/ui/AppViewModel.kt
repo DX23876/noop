@@ -9,7 +9,9 @@ import com.noop.alarm.SmartAlarmScheduler
 import com.noop.alarm.SmartAlarmStore
 import com.noop.alarm.WindDownScheduler
 import com.noop.alarm.WindDownStore
+import com.noop.analytics.AnalyticsEngine
 import com.noop.analytics.Baselines
+import com.noop.analytics.ChargeBaselines
 import com.noop.analytics.IllnessSignalEngine
 import com.noop.analytics.IllnessWatch
 import com.noop.analytics.IntelligenceEngine
@@ -766,6 +768,39 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // Vitality windows) keeps its data. Same oldest-first ordering as before.
         repository.recentDaysMergedFlow(deviceId)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /**
+     * #2525: the Charge baselines (HRV, resting HR, respiration) resolved with the engine's own rule from the
+     * imported and own daily rows, read apart because the rule needs to know which nights are imported. The
+     * single funnel every Charge readout below the headline reads (the "What shaped it" rows, the
+     * calibration count, the confidence tier), so none of them can fold a different history than the score
+     * was computed against. Anchored on today's local day and the two recalibration epochs, read on each
+     * emission exactly as the engine reads them per pass. The read range starts at this ViewModel's first
+     * window start, so it only ever covers MORE days than the window; [ChargeBaselines.history] trims to the
+     * current one. Mirrors the Swift `Repository.chargeBaselines`.
+     */
+    val chargeBaselines: StateFlow<ChargeBaselines.Resolved?> = run {
+        val startSec = System.currentTimeMillis() / 1000L
+        val startTz = java.util.TimeZone.getDefault().getOffset(startSec * 1000L) / 1000L
+        val from = Baselines.cutoffKey(AnalyticsEngine.dayString(startSec, startTz), ChargeBaselines.windowDays - 1)
+        combine(
+            repository.importedDailyUnionFlow(deviceId, from, "9999-12-31"),
+            repository.computedDailyUnionFlow(deviceId, from, "9999-12-31"),
+        ) { imported, own ->
+            val nowSec = System.currentTimeMillis() / 1000L
+            val tz = java.util.TimeZone.getDefault().getOffset(nowSec * 1000L) / 1000L
+            val prefs = NoopPrefs.of(appContext)
+            ChargeBaselines.resolve(
+                imported = imported,
+                own = own,
+                anchorDay = AnalyticsEngine.dayString(nowSec, tz),
+                hrvEpoch = prefs.getLong(Baselines.hrvBaselineEpochKey, 0L).toDouble(),
+                recoveryEpoch = prefs.getLong(Baselines.recoveryBaselineEpochKey, 0L).toDouble(),
+            )
+        }
+            .flowOn(Dispatchers.Default)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    }
 
     /**
      * Today's measured steps follow the newest confirmed sleep-onset cycle, independently of the fixed
