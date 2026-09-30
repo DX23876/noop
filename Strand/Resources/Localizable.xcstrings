@@ -457934,6 +457934,70 @@
           }
         }
       }
+    },
+    "Estimated from a formula that is not validated above a BMI of 40, so it can read well above your real value. A measurement is more accurate: an outdoor walk with an Apple Watch, or a lab value entered here." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geschätzt mit einer Formel, die über einem BMI von 40 nicht geprüft ist. Sie kann deshalb deutlich über deinem echten Wert liegen. Eine Messung ist genauer: ein Spaziergang im Freien mit der Apple Watch oder ein hier eingetragener Laborwert."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimated from a formula that is not validated above a BMI of 40, so it can read well above your real value. A measurement is more accurate: an outdoor walk with an Apple Watch, or a lab value entered here."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimado con una fórmula que no está validada por encima de un IMC de 40, así que puede quedar muy por encima de tu valor real. Una medición es más precisa: un paseo al aire libre con el Apple Watch o un valor de laboratorio introducido aquí."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimée avec une formule qui n’est pas validée au-delà d’un IMC de 40 : elle peut donc être nettement supérieure à votre valeur réelle. Une mesure est plus précise : une marche en extérieur avec l’Apple Watch ou une valeur de laboratoire saisie ici."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stimato con una formula non validata oltre un IMC di 40, quindi può risultare molto più alto del tuo valore reale. Una misurazione è più precisa: una camminata all’aperto con l’Apple Watch o un valore di laboratorio inserito qui."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oszacowane wzorem, który nie jest zweryfikowany powyżej BMI 40, więc może być wyraźnie wyższe od twojej rzeczywistej wartości. Pomiar jest dokładniejszy: spacer na zewnątrz z Apple Watch albo wynik z badania wpisany tutaj."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimado com uma fórmula que não está validada acima de um IMC de 40, por isso pode ficar bem acima do teu valor real. Uma medição é mais precisa: uma caminhada ao ar livre com o Apple Watch ou um valor de laboratório introduzido aqui."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Оценка по формуле, которая не проверена для ИМТ выше 40, поэтому она может быть заметно выше вашего реального значения. Измерение точнее: прогулка на улице с Apple Watch или лабораторное значение, введённое здесь."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此数值由一个未在 BMI 40 以上验证过的公式估算，可能明显高于你的真实数值。实际测量更准确：佩戴 Apple Watch 在户外步行，或在此输入实验室测得的数值。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此數值由一個未在 BMI 40 以上驗證過的公式估算，可能明顯高於你的真實數值。實際測量更準確：配戴 Apple Watch 在戶外步行，或在此輸入實驗室測得的數值。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

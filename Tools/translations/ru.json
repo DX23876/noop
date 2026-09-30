@@ -1595,5 +1595,6 @@
   "est. from pace": "оценка по темпу",
   "~%@ kcal, estimated from the session's distance and duration": "~%@ ккал, оценка по дистанции и длительности занятия",
   "Recommended: your DEXA reading makes this the most accurate formula": "Рекомендуется: с вашим измерением DEXA это самая точная формула",
-  "Your body-fat reading is an estimate, so this is not reliably better than Mifflin–St Jeor": "Ваш процент жира — оценка, поэтому эта формула не надёжнее Mifflin–St Jeor"
+  "Your body-fat reading is an estimate, so this is not reliably better than Mifflin–St Jeor": "Ваш процент жира — оценка, поэтому эта формула не надёжнее Mifflin–St Jeor",
+  "Estimated from a formula that is not validated above a BMI of 40, so it can read well above your real value. A measurement is more accurate: an outdoor walk with an Apple Watch, or a lab value entered here.": "Оценка по формуле, которая не проверена для ИМТ выше 40, поэтому она может быть заметно выше вашего реального значения. Измерение точнее: прогулка на улице с Apple Watch или лабораторное значение, введённое здесь."
 }

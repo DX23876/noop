@@ -1773,5 +1773,6 @@
   "est. from pace": "依配速估算",
   "~%@ kcal, estimated from the session's distance and duration": "~%@ 大卡，依本次訓練的距離與時長估算",
   "Recommended: your DEXA reading makes this the most accurate formula": "推薦：有了你的 DEXA 測量值，這是最準確的公式",
-  "Your body-fat reading is an estimate, so this is not reliably better than Mifflin–St Jeor": "你的體脂值是估算值，因此該公式並不比 Mifflin–St Jeor 更可靠"
+  "Your body-fat reading is an estimate, so this is not reliably better than Mifflin–St Jeor": "你的體脂值是估算值，因此該公式並不比 Mifflin–St Jeor 更可靠",
+  "Estimated from a formula that is not validated above a BMI of 40, so it can read well above your real value. A measurement is more accurate: an outdoor walk with an Apple Watch, or a lab value entered here.": "此數值由一個未在 BMI 40 以上驗證過的公式估算，可能明顯高於你的真實數值。實際測量更準確：配戴 Apple Watch 在戶外步行，或在此輸入實驗室測得的數值。"
 }

@@ -162,6 +162,11 @@ struct EnergyCalculationView: View {
         if let peak = model.peakMET {
             let vo2 = (peak * PeakMETResolver.mlPerMET).formatted(.number.precision(.fractionLength(1)))
             row("VO₂max for workouts", "\(vo2) ml/kg/min · \(ceilingSource(model))")
+            if PeakMETResolver.measurementAdvised(
+                source: model.peakMETSource.flatMap(PeakMETResolution.Source.init(rawValue:)),
+                weightKg: model.weightKg, heightCm: profile.heightCm) {
+                note("Estimated from a formula that is not validated above a BMI of 40, so it can read well above your real value. A measurement is more accurate: an outdoor walk with an Apple Watch, or a lab value entered here.")
+            }
             if let measured = model.measuredVO2max, let at = model.measuredWeightKg,
                abs(at - model.weightKg) >= 0.5 {
                 let measuredText = measured.formatted(.number.precision(.fractionLength(1)))

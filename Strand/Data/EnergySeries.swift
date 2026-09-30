@@ -568,6 +568,17 @@ extension Repository {
     }
 
     /// The day's stored model row of this generation, or nil when none has been computed.
+    /// The newest energy row of this model generation within the last `days` days, for surfaces that
+    /// describe "the current" ceiling (the Profile's VO₂max hint) rather than one chosen day.
+    func latestWhoopEnergyRow(days: Int = 7) async -> WhoopDailyEnergyRow? {
+        guard let store = await storeHandle() else { return nil }
+        let today = Self.localDayKey(Date())
+        return ((try? await store.whoopDailyEnergy(
+            deviceId: deviceId, from: WeeklyDigestEngine.addDays(today, -days), to: today)) ?? [])
+            .filter { $0.modelVersion == WhoopDailyEnergyEstimate.modelVersion }
+            .max { $0.day < $1.day }
+    }
+
     func whoopEnergyRow(day: String) async -> WhoopDailyEnergyRow? {
         guard let store = await storeHandle() else { return nil }
         return ((try? await store.whoopDailyEnergy(deviceId: deviceId, from: day, to: day)) ?? [])

@@ -161,6 +161,16 @@ final class CardioFitnessTests: XCTestCase {
         XCTAssertEqual(jurca.activityLevel, .level3)
     }
 
+    /// The hint belongs to the formula outside its range, and to nothing else.
+    func testMeasurementIsAdvisedOnlyForTheFormulaAboveItsBMIRange() {
+        XCTAssertTrue(PeakMETResolver.measurementAdvised(source: .jurca, weightKg: 212, heightCm: 196))   // BMI 55
+        XCTAssertFalse(PeakMETResolver.measurementAdvised(source: .jurca, weightKg: 150, heightCm: 196))  // BMI 39
+        XCTAssertFalse(PeakMETResolver.measurementAdvised(source: .appleWatch, weightKg: 212, heightCm: 196))
+        XCTAssertFalse(PeakMETResolver.measurementAdvised(source: .manual, weightKg: 212, heightCm: 196))
+        XCTAssertFalse(PeakMETResolver.measurementAdvised(source: nil, weightKg: 212, heightCm: 196))
+        XCTAssertFalse(PeakMETResolver.measurementAdvised(source: .jurca, weightKg: 212, heightCm: 0))
+    }
+
     /// No measurement and no resting HR (the first nights): nothing, so the model prices from the table.
     func testWithoutRestingHeartRateThereIsNoEstimate() {
         XCTAssertNil(resolve(restingHR: nil))

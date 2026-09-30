@@ -385,6 +385,9 @@ struct SettingsView: View {
     /// The Profile card opens read-only: its values feed zones, calories and baselines, and a stray tap
     /// on a stepper while scrolling changed them silently. "Edit" unlocks the controls, "Done" locks them.
     @State private var profileEditing = false
+    /// True when the newest energy day priced workouts from the formula for a body it was not fitted
+    /// on (`PeakMETResolver.measurementAdvised`), so the VO₂max field suggests a measurement.
+    @State private var vo2maxFormulaHint = false
 
     /// iOS environment-diagnostics sheet (device, iOS+build, Data Protection, background refresh,
     /// low-power, sideload + cert expiry). iOS-only; the macOS strap log already carries OS + version.
@@ -765,6 +768,18 @@ struct SettingsView: View {
                                 .foregroundStyle(StrandPalette.accent)
                         }
                     }
+                }
+                .task(id: "\(profile.vo2maxManual)|\(profile.heightCm)|\(model.repo.energyPresentationRevision)") {
+                    let row = await model.repo.latestWhoopEnergyRow()
+                    vo2maxFormulaHint = profile.vo2maxManual <= 0 && PeakMETResolver.measurementAdvised(
+                        source: row?.peakMETSource.flatMap(PeakMETResolution.Source.init(rawValue:)),
+                        weightKg: row?.weightKg ?? profile.weightKg, heightCm: profile.heightCm)
+                }
+                if vo2maxFormulaHint {
+                    Text("Estimated from a formula that is not validated above a BMI of 40, so it can read well above your real value. A measurement is more accurate: an outdoor walk with an Apple Watch, or a lab value entered here.")
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.statusWarning)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 rowDivider
                 FormRow(label: "Activity level") {

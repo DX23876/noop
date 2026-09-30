@@ -156,6 +156,21 @@ public enum PeakMETResolver {
     /// wearer's own body, rescaled by the weight at the time, is the better estimate than a population
     /// formula applied well outside its range.
     public static let appleFreshnessDays = manualValidityDays
+    /// The BMI above which the formula has no support: Jurca's cohorts end near it.
+    public static let formulaBMILimit = 40.0
+
+    /// Whether a ceiling should carry the hint that a measurement would be more accurate: it came from
+    /// the formula, for a body outside the range the formula was fitted on. For a 212 kg wearer measured
+    /// at 18.9 ml/kg/min the formula read about 33. Nil source or missing body data: no hint.
+    public static func measurementAdvised(source: PeakMETResolution.Source?, weightKg: Double,
+                                          heightCm: Double) -> Bool {
+        guard source == .jurca, weightKg.isFinite, weightKg > 0, heightCm.isFinite, heightCm > 0 else {
+            return false
+        }
+        let meters = heightCm / 100
+        return weightKg / (meters * meters) > formulaBMILimit
+    }
+
     /// Window over which the activity category is measured, the worksheet's "past four weeks".
     public static let activityWindowDays = 28
     /// Bounds for the formula, a coarse population estimate.

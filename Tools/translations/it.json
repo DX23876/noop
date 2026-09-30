@@ -1712,5 +1712,6 @@
   "est. from pace": "stimato dal ritmo",
   "~%@ kcal, estimated from the session's distance and duration": "~%@ kcal, stimato da distanza e durata della sessione",
   "Recommended: your DEXA reading makes this the most accurate formula": "Consigliata: con la tua misurazione DEXA è la formula più precisa",
-  "Your body-fat reading is an estimate, so this is not reliably better than Mifflin–St Jeor": "Il tuo valore di grasso corporeo è una stima, quindi questa formula non è affidabilmente migliore di Mifflin–St Jeor"
+  "Your body-fat reading is an estimate, so this is not reliably better than Mifflin–St Jeor": "Il tuo valore di grasso corporeo è una stima, quindi questa formula non è affidabilmente migliore di Mifflin–St Jeor",
+  "Estimated from a formula that is not validated above a BMI of 40, so it can read well above your real value. A measurement is more accurate: an outdoor walk with an Apple Watch, or a lab value entered here.": "Stimato con una formula non validata oltre un IMC di 40, quindi può risultare molto più alto del tuo valore reale. Una misurazione è più precisa: una camminata all’aperto con l’Apple Watch o un valore di laboratorio inserito qui."
 }
