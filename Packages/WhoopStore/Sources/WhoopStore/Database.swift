@@ -1919,6 +1919,30 @@ extension WhoopStore {
                 t.primaryKey(["deviceId", "startTs", "sport"])
             }
         }
+        // v73-workout-heart-rate-fill: the heart rate NOOP adds to a workout its source brought without one
+        // (Apple Health: no average, peak or Effort). Kept beside the row rather than in its columns,
+        // which belong to the source and are rewritten on every sync; laid over the row when it is read,
+        // after twins are resolved, so a filled value never decides which twin represents a session.
+        // `steps` joins the per-workout source metadata: a raw Health figure for the workout's window.
+        migrator.registerMigration("v73-workout-heart-rate-fill") { db in
+            try db.create(table: "workoutHeartRateFill") { t in
+                t.column("deviceId", .text).notNull()
+                t.column("startTs", .integer).notNull()
+                t.column("sport", .text).notNull()
+                t.column("avgHr", .integer).notNull()
+                t.column("maxHr", .integer).notNull()
+                t.column("strain", .double)
+                t.column("hrSource", .text).notNull()
+                t.column("restingHrUsed", .double)
+                t.column("coveredMinutes", .integer).notNull()
+                t.column("possibleMinutes", .integer).notNull()
+                t.column("updatedAtTs", .integer).notNull()
+                t.primaryKey(["deviceId", "startTs", "sport"])
+            }
+            try db.alter(table: "workoutSourceMetadata") { t in
+                t.add(column: "steps", .integer)
+            }
+        }
         return migrator
     }
 }

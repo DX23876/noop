@@ -521,7 +521,8 @@ extension Repository {
             if let weight = CausalWeightResolver.weight(at: row.startTs, observations: observations) {
                 profile.weightKg = weight
             }
-            let restingHR = resting[day] ?? resting.filter { $0.key <= day }.max { $0.key < $1.key }?.value
+            // The day's own rate, else one at most two weeks old: never a rate from a different era.
+            let restingHR = WorkoutHeartRateFill.carriedRestingHR(on: day, in: resting)
             let kcal = WorkoutEnergyEstimate.boutKcal(
                 samples, sport: row.sport, profile: profile, hrMax: profile.maxHR, restingHR: restingHR,
                 peakMET: WorkoutEnergyDisplay.peakMET(on: day, in: peaks), distanceM: row.distanceM)

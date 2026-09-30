@@ -897,6 +897,11 @@ final class HealthKitBridge: ObservableObject {
                 }
             }
             try await writeBack(whoopStore: store)
+            // Average, peak and Effort for the window's Apple Health workouts (recipe AI-16's fill, run
+            // for every sync so a new Watch workout or a later band offload is reflected). Best-effort:
+            // the rows are written; a failed fill leaves them as Health sent them until the next pass.
+            _ = try? await repo.fillAppleWorkoutHeartRate(from: Int(start.timeIntervalSince1970),
+                                                          to: Int(end.timeIntervalSince1970))
             lastSync = Date()
             if importingFullHistory { lastFullHistoryImport = lastSync }
             // Record the window alongside the time: an observer wake may only stand down for a sync that
@@ -910,6 +915,7 @@ final class HealthKitBridge: ObservableObject {
                 .max { $0.day < $1.day }?
                 .weightKg
             progress(1)
+            scheduleWorkoutHistoryBackfill()
             return true
         } catch {
             // A failed sync must never let a later wake skip on the strength of it — the rows it would
@@ -2642,15 +2648,100 @@ final class HealthKitBridge: ObservableObject {
             HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate),
             Self.notNoopAuthored,
         ])
+        let workoutsAndRows = await queryWorkouts(predicate: predicate, newestFirst: false,
+                                                  limit: HKObjectQueryNoLimit) ?? []
+        return await workoutImportBatch(for: workoutsAndRows, includeRoutes: true)
+    }
+
+    // MARK: - Workout history backfill (AI-16)
+
+    /// Workouts older than this timestamp are still to be read by the history backfill.
+    static let workoutBackfillCursorKey = "health.workoutHistoryBackfillBeforeTs"
+    /// Set once the backfill has read the oldest workout Health holds.
+    static let workoutBackfillDoneKey = "health.workoutHistoryBackfillDone"
+    /// Workouts per backfill batch, and batches per sync.
+    static let workoutBackfillBatchSize = 50
+    static let workoutBackfillBatchesPerPass = 4
+    private static var workoutBackfillRunning = false
+
+    /// Reads the workout history the regular window never reaches, newest first, a few batches per sync.
+    ///
+    /// The heart-rate minutes, step counts and source app that the 30-day window stores for every new
+    /// workout were never read for the ones imported before that existed (2026-08-17). Without them an old
+    /// walk has no heart rate to fill, and the calorie model's training-based VO₂max has nothing to be
+    /// checked against. Resumable: the cursor moves only after a batch is written.
+    func scheduleWorkoutHistoryBackfill() {
+        guard !UserDefaults.standard.bool(forKey: Self.workoutBackfillDoneKey),
+              !Self.workoutBackfillRunning else { return }
+        Self.workoutBackfillRunning = true
+        Task { @MainActor [weak self] in
+            await self?.backfillWorkoutHistory(maxBatches: Self.workoutBackfillBatchesPerPass)
+            Self.workoutBackfillRunning = false
+        }
+    }
+
+    private func backfillWorkoutHistory(maxBatches: Int) async {
+        guard auth == .authorized, let db = await repo.storeHandle() else { return }
+        let defaults = UserDefaults.standard
+        // The regular sync covers the last 30 days; the history starts where it ends.
+        var cursor = defaults.object(forKey: Self.workoutBackfillCursorKey) as? Int
+            ?? Int(Calendar.current.startOfDay(for: Date()).timeIntervalSince1970) - 30 * 86_400
+        var batches = 0
+        var freed = false
+        while batches < maxBatches, !syncing, !Task.isCancelled {
+            // By START, like the regular window (`strictStartDate`): a workout belongs to the pass that
+            // holds its start, so one spanning the boundary is read exactly once.
+            let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+                NSPredicate(format: "%K < %@", HKPredicateKeyPathStartDate,
+                            Date(timeIntervalSince1970: TimeInterval(cursor)) as NSDate),
+                Self.notNoopAuthored,
+            ])
+            // A failed read ends this pass with the cursor where it is; only an answer with no workouts
+            // at all means the history has been read.
+            guard let pairs = await queryWorkouts(predicate: predicate, newestFirst: true,
+                                                  limit: Self.workoutBackfillBatchSize) else { break }
+            guard let oldest = pairs.map({ $0.1.startTs }).min(),
+                  let newest = pairs.map({ $0.1.startTs }).max() else {
+                defaults.set(true, forKey: Self.workoutBackfillDoneKey)
+                break
+            }
+            // Routes are left to the regular window and the full import: a decade of GPS tracks is the
+            // one part of a workout this pass does not need.
+            let batch = await workoutImportBatch(for: pairs, includeRoutes: false)
+            do {
+                try await db.upsertWorkouts(batch.rows, deviceId: appleDeviceId)
+                try await db.upsertWorkoutSourceMetadata(batch.metadata)
+                try await db.upsertTrainingSessionLinks(batch.sessionLinks)
+                for (componentKey, buckets) in batch.heartRateBuckets {
+                    try await db.replaceWorkoutHeartRateBuckets(componentKey: componentKey, rows: buckets)
+                }
+                if try await repo.fillAppleWorkoutHeartRate(from: oldest, to: newest) > 0 { freed = true }
+            } catch {
+                break   // the cursor stays; the next sync tries this batch again
+            }
+            // The next batch starts strictly before the oldest start just read.
+            cursor = oldest
+            defaults.set(cursor, forKey: Self.workoutBackfillCursorKey)
+            batches += 1
+        }
+        // Sessions whose Watch trace just arrived were freed from the cardio ledger; price them now.
+        if freed { await repo.fillCardioLoadLedger() }
+    }
+
+    /// The workouts matching `predicate` beside the rows NOOP stores for them. Nil when the query failed
+    /// (a locked device's protected data, a revoked permission), which is not the same as none.
+    private func queryWorkouts(predicate: NSPredicate, newestFirst: Bool,
+                               limit: Int) async -> [(HKWorkout, WorkoutRow)]? {
         // #1205: collect the HKWorkout objects alongside the rows so we can fetch their GPS routes
         // after the sample query completes. Routes are separate HKWorkoutRoute samples associated
         // with each workout; they cannot be read inside the sample query's completion handler
         // (HealthKit does not allow nested queries on the same store), so we hold the workouts and
         // fetch routes in a second pass below.
-        let workoutsAndRows: [(HKWorkout, WorkoutRow)] = await withCheckedContinuation { (cont: CheckedContinuation<[(HKWorkout, WorkoutRow)], Never>) in
-            let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+        await withCheckedContinuation { (cont: CheckedContinuation<[(HKWorkout, WorkoutRow)]?, Never>) in
+            let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: !newestFirst)
             let q = HKSampleQuery(sampleType: HKObjectType.workoutType(), predicate: predicate,
-                                  limit: HKObjectQueryNoLimit, sortDescriptors: [sort]) { _, samples, _ in
+                                  limit: limit, sortDescriptors: [sort]) { _, samples, error in
+                guard error == nil else { cont.resume(returning: nil); return }
                 // The pairs carry the HKWorkout beside the row so the route query (#1205) can ask
                 // Apple Health for THAT workout's GPS track. The authored filter stays where it was:
                 // a workout NOOP itself wrote back must never be read in again as an import.
@@ -2678,6 +2769,12 @@ final class HealthKitBridge: ObservableObject {
             }
             store.execute(q)
         }
+    }
+
+    /// Everything stored beside a set of workouts: GPS routes (optional), source metadata with Health's step
+    /// count for the window, the workout's own heart-rate minutes and strength-session links.
+    private func workoutImportBatch(for workoutsAndRows: [(HKWorkout, WorkoutRow)],
+                                    includeRoutes: Bool) async -> WorkoutImportBatch {
         // #1205: fetch and store GPS routes for each workout. Best-effort — a route read failure
         // (permission not granted, no route data, HealthKit error) leaves the workout intact with
         // no map, which is exactly the pre-change behaviour. Stored via RouteStore under the same
@@ -2687,7 +2784,7 @@ final class HealthKitBridge: ObservableObject {
         // 500-workout first import would decode and re-encode a 400-entry map 500 times, on the order of
         // a gigabyte of JSON through UserDefaults. `storeAll` applies the same eviction, once.
         var importedRoutes: [(route: WorkoutRoute, startTs: Int, sport: String)] = []
-        for (workout, row) in workoutsAndRows {
+        for (workout, row) in workoutsAndRows where includeRoutes {
             if let route = await Self.fetchWorkoutRoute(for: workout, store: store),
                route.count >= 2 {
                 let latLngs = route.map { RouteMath.LatLng($0.lat, $0.lon) }
@@ -2699,7 +2796,7 @@ final class HealthKitBridge: ObservableObject {
                                        row.startTs, row.sport))
             }
         }
-        RouteStore.storeAll(importedRoutes)
+        if includeRoutes { RouteStore.storeAll(importedRoutes) }
         var batch = WorkoutImportBatch()
         batch.rows = workoutsAndRows.map { $0.1 }
         let nowTs = Int(Date().timeIntervalSince1970)
@@ -2719,7 +2816,8 @@ final class HealthKitBridge: ObservableObject {
                                         externalId: workout.uuid.uuidString.lowercased(),
                                         sourceBundleId: sourceBundle,
                                         rawActivityType: Int(workout.workoutActivityType.rawValue),
-                                        activitiesJSON: activitiesJSON, updatedAtTs: nowTs))
+                                        activitiesJSON: activitiesJSON, updatedAtTs: nowTs,
+                                        steps: await workoutSteps(for: workout)))
             if let rawSessionId = workout.metadata?[StrengthWorkoutCompanionState.healthKitSessionMetadataKey] as? String,
                let sessionId = UUID(uuidString: rawSessionId) {
                 batch.sessionLinks.append(.init(
@@ -2730,6 +2828,26 @@ final class HealthKitBridge: ObservableObject {
                 for: workout, componentKey: componentKey)
         }
         return batch
+    }
+
+    /// Steps Health counted over one workout's window, Watch and phone merged by Health's own priority.
+    /// NOOP writes no steps back, but its own samples are excluded all the same. Nil for none or an error.
+    private func workoutSteps(for workout: HKWorkout) async -> Int? {
+        guard let type = HKQuantityType.quantityType(forIdentifier: .stepCount) else { return nil }
+        let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            HKQuery.predicateForSamples(withStart: workout.startDate, end: workout.endDate,
+                                        options: .strictStartDate),
+            Self.notNoopAuthored,
+        ])
+        return await withCheckedContinuation { (cont: CheckedContinuation<Int?, Never>) in
+            let q = HKStatisticsQuery(quantityType: type, quantitySamplePredicate: predicate,
+                                      options: .cumulativeSum) { _, stats, error in
+                guard error == nil, let sum = stats?.sumQuantity()?.doubleValue(for: .count()),
+                      sum.isFinite, sum > 0 else { cont.resume(returning: nil); return }
+                cont.resume(returning: Int(sum.rounded()))
+            }
+            store.execute(q)
+        }
     }
 
     /// External HR explicitly associated with one workout. Own NOOP write-back is excluded so the direct

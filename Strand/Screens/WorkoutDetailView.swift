@@ -67,8 +67,15 @@ struct WorkoutDetailView: View {
     /// Steps over the session window for an on-foot sport (#398): the count plus whether it came from the
     /// strap's own counter (MG/5.0) or the phone pedometer (fallback for WHOOP 4.0 / not-yet-synced / CSV
     /// import). nil = not an on-foot sport, or no step source had data for the window.
-    private struct StepReadout { let count: Int; let fromStrap: Bool }
+    private struct StepReadout {
+        enum Origin { case strap, health, phone }
+        let count: Int
+        let origin: Origin
+    }
     @State private var steps: StepReadout?
+    /// Where an Apple Health row's heart rate came from when NOOP filled it (`workoutHeartRateFill`):
+    /// shown in place of the unit under the average, so a filled value is never mistaken for Health's own.
+    @State private var heartRateOrigin: String?
     /// This session's energy and where it came from. Resolved at display time and never written
     /// back: an estimate that got stored would read as a measurement the next time anything asked.
     @State private var energy: WorkoutEnergyEstimate.Resolved?
@@ -124,8 +131,13 @@ struct WorkoutDetailView: View {
         }()
         let analytics = Repository.analyticsProfile(profile)
         let recorded = (row.energyKcal ?? 0) > 0
+        let fill = await repo.workoutHeartRateFill(for: row)
         await MainActor.run {
             self.route = routePoints
+            self.heartRateOrigin = fill.map {
+                $0.hrSource == WorkoutHeartRateFill.Source.band.rawValue
+                    ? String(localized: "strap") : String(localized: "Apple Watch")
+            }
             // A recorded figure needs none of the inputs an estimate reads (`resolve` returns it first).
             if recorded {
                 self.energy = WorkoutEnergyDisplay.resolve(row, profile: analytics,
@@ -143,11 +155,16 @@ struct WorkoutDetailView: View {
             if let ticks = await repo.strapStepTicks(from: row.startTs, to: row.endTs) {
                 // Same per-user ticks-per-step calibration the daily total applies (#139), floor 0.5.
                 let scaled = Int((Double(ticks) / max(profile.stepTicksPerStep, 0.5)).rounded())
-                if scaled > 0 { stepReadout = StepReadout(count: scaled, fromStrap: true) }
+                if scaled > 0 { stepReadout = StepReadout(count: scaled, origin: .strap) }
+            }
+            // An Apple Health workout's own count (Watch and phone, merged by Health) before the phone's
+            // pedometer alone.
+            if stepReadout == nil, WorkoutSource.isAppleHealth(row.source), let health = row.steps, health > 0 {
+                stepReadout = StepReadout(count: health, origin: .health)
             }
             if stepReadout == nil,
                let ped = await WorkoutPedometer.steps(fromSec: row.startTs, toSec: row.endTs), ped > 0 {
-                stepReadout = StepReadout(count: ped, fromStrap: false)
+                stepReadout = StepReadout(count: ped, origin: .phone)
             }
         }
         await MainActor.run { self.steps = stepReadout }
@@ -289,7 +306,7 @@ struct WorkoutDetailView: View {
                      accent: StrandPalette.effortColor)
             StatTile(label: "Avg HR",
                      value: row.avgHr.map { "\($0)" } ?? "–",
-                     caption: row.avgHr != nil ? "bpm" : nil,
+                     caption: row.avgHr != nil ? (heartRateOrigin ?? "bpm") : nil,
                      accent: row.avgHr != nil ? StrandPalette.metricRose : StrandPalette.textTertiary)
             StatTile(label: "Max HR",
                      value: row.maxHr.map { "\($0)" } ?? "–",
@@ -313,8 +330,13 @@ struct WorkoutDetailView: View {
             if WorkoutCatalog.isOnFoot(row.sport) {
                 StatTile(label: "Steps",
                          value: steps.map { grouped(Double($0.count)) } ?? "–",
-                         caption: steps.map { $0.fromStrap ? String(localized: "strap")
-                                                          : String(localized: "phone") },
+                         caption: steps.map {
+                             switch $0.origin {
+                             case .strap: return String(localized: "strap")
+                             case .health: return String(localized: "Apple Health")
+                             case .phone: return String(localized: "phone")
+                             }
+                         },
                          accent: steps != nil ? StrandPalette.metricCyan : StrandPalette.textTertiary)
             }
         }

@@ -167,7 +167,12 @@ final class IntelligenceEngine: ObservableObject {
     // AI-15 (2026-09-30) runs it again with the day's real resting rate: AI-13/AI-14 read it from
     // imported rows only, which end at the last WHOOP export, so rows were recognised and priced
     // without one. Rows already marked computed are priced again as they stand.
-    static let currentAnalysisRecipeVersion = 15
+    // AI-16 (2026-09-30) fills average, peak and Effort into Apple Health workouts that came without them,
+    // from the band's trace where it covers the session, else the workout's own Watch minutes
+    // (`Repository.fillAppleWorkoutHeartRate`, stored beside the rows in `workoutHeartRateFill`). Effort
+    // uses the day's own resting rate or a Watch reading within three days. Cardio-load rows priced
+    // without a trace are freed for those sessions. No daily row is re-scored.
+    static let currentAnalysisRecipeVersion = 16
 
     /// The recipe whose migration refills the cardio load ledger.
     static let cardioLedgerRecipe = 9
@@ -192,6 +197,14 @@ final class IntelligenceEngine: ObservableObject {
     /// Whether a migration crosses the recipe that corrects stored session energy.
     static func migrationCorrectsWorkoutEnergy(from: Int, to: Int) -> Bool {
         from < workoutEnergyRecipe && to >= workoutEnergyRecipe
+    }
+
+    /// The recipe whose migration fills heart rate into Apple Health workouts.
+    static let workoutHeartRateFillRecipe = 16
+
+    /// Whether a migration crosses the recipe that fills Apple Health workouts' heart rate.
+    static func migrationFillsWorkoutHeartRate(from: Int, to: Int) -> Bool {
+        from < workoutHeartRateFillRecipe && to >= workoutHeartRateFillRecipe
     }
 
     /// Days of daily rows a migration from `from` must re-score: the standard window while a recipe that
@@ -1026,6 +1039,19 @@ final class IntelligenceEngine: ObservableObject {
                     self.analysisMaintenancePhase = .failed(error.localizedDescription)
                     return false
                 }
+                guard !Task.isCancelled else { return false }
+            }
+            if case .migrating(let from, let to) = phase, Self.migrationFillsWorkoutHeartRate(from: from, to: to) {
+                do {
+                    _ = try await self.repo.fillAppleWorkoutHeartRate(
+                        from: 0, to: Int(Date().timeIntervalSince1970) + 86_400)
+                } catch {
+                    self.analysisMaintenancePhase = .failed(error.localizedDescription)
+                    return false
+                }
+                guard !Task.isCancelled else { return false }
+                // Sessions freed by the fill are priced again with their trace, newest first.
+                await self.repo.fillCardioLoadLedger()
                 guard !Task.isCancelled else { return false }
             }
             // Publish the repaired daily snapshot before committing the migration cursor. If the

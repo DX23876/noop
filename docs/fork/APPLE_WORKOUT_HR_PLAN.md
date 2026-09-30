@@ -1,6 +1,6 @@
 # Apple-Health-Workouts: Ø-Puls, Max-Puls, Effort und Schritte
 
-Stand: 2026-09-24 · Status: **Idee aufgenommen, Entscheidungen offen (Q1–Q6), noch nichts umgesetzt**
+Stand: 2026-09-30 · Status: **umgesetzt 2026-09-30 (Rezept AI-16, WhoopStore v73)**
 
 **2026-09-26:** Upstream hat #2440 samt Nachbesserungen gemergt (zugehöriger Puls via
 `predicateForObjects(from:)` + `notNoopAuthored`, Rückfall aufs Band `62e3666e7`, eine Quelle für die ganze
@@ -95,3 +95,53 @@ Folgefragen (nächste Runde, hängen von Q2/Q4 ab):
 > window, and since noop writes the strap hr back to apple health you can end up counting noop's own samples
 > as the workout hr. `HKQuery.predicateForObjects(from: workout)` plus skipping noop authored samples fixes
 > that
+
+---
+
+## 7. Entscheidungen (Grilling 2026-09-30)
+
+Befunde vorab: `collectWorkouts` legt Apple-Zeilen weiter ohne Ø/Max/Effort/Schritte an; der Workout-Puls wird
+schon richtig gelesen (`predicateForObjects(from:)` + `notNoopAuthored`, Minuten-Buckets). Buckets gibt es erst
+seit 2026-08-17 (28 Workouts); über 1.500 Apple-Workouts seit 2022 haben keine. Jede Synchronisierung
+überschreibt `avgHr`/`maxHr`/`strain`/`steps` einer Apple-Zeile mit dem, was Health liefert (`upsertWorkouts`,
+`DO UPDATE SET avgHr = excluded.avgHr …`). Ein Anzeige-Abgleich (`reconcileWorkoutHrWithTrace`) füllt heute
+schon Ø/Max einer importierten Zeile aus der Band-Kurve, nur beim Lesen, ohne Abdeckungsregel und ohne Effort.
+Ledger-Zeilen der Trainingslast gelten nach 7 Tagen als endgültig und werden ohne Anstoß nicht neu gerechnet.
+Band-Ruhepuls fehlt 2023–2025 fast ganz (WHOOP-Pause); Apples Ruhepuls deckt 755 von 792 Walk-Tagen, Median
+gleich dem WHOOP-Wert an 365 gemeinsamen Tagen.
+
+| # | Entscheidung |
+|---|---|
+| Q1 | Felder: Ø-Puls, Max-Puls, Effort, Schritte. Keine Notiz. Zonen bleiben beim Lesen berechnet |
+| Q2 | Puls vom Band bei ≥ 70 % Abdeckung, sonst Apple-Workout-Puls, sonst leer. Nie gemischt |
+| Q3 | Gefüllte Werte zählen bei Zwillingen nicht; welche Zeile ein Training vertritt, bleibt wie heute |
+| Q4 | Apple-Puls immer aus den Minuten-Buckets; Max ist die höchste Minute |
+| Q5 | Füllen ab ≥ 10 gedeckten Minuten und ≥ 70 % (Regel der Trainingslast); Effort mit eingestellter Methode und Profil-HFmax |
+| Q6 | WHOOP-Kopien in Health bleiben unverändert in der Liste, werden nicht gefüllt, in der Prüfung für Kalorien-Etappe 4 ausgeschlossen |
+| Q7 | Ruhepuls: Tageswert WHOOP/NOOP, sonst Apple ±3 Tage, sonst kein Effort. Ein alter Ruhepuls wird allgemein höchstens 14 Tage weitergetragen |
+| Q8 | HFmax über die Jahre fest (Profilwert) |
+| Q9 | Ganze Geschichte seit 2022 nachladen (Buckets, Schritte, Quell-App), fortsetzbar, nur iPhone, Rezeptstufe |
+| Q10 | Detail zeigt die Pulsquelle (Band / Apple Watch) |
+| Q11 | Gefüllte Werte in eigener Tabelle, wie die Kalorienherkunft |
+| Q12 | Neueste zuerst, etwa 50 Workouts pro Durchlauf |
+| Q13 | Trainingslast der Geschichte im selben Durchlauf neu, wo jetzt Puls vorliegt |
+| Q14 | Nur im Fork |
+
+## 8. Technischer Plan
+
+**Warum eine eigene Tabelle statt der Workout-Spalten:** die Spalten gehören der Quelle und werden bei jedem
+Abgleich neu geschrieben. Gefüllte Werte liegen in `workoutHeartRateFill` und werden beim Lesen **nach** der
+Zwillings-Auflösung über die Zeile gelegt. Damit gilt Q3 von selbst, und kein Abgleich löscht sie.
+
+- **StrandAnalytics** `WorkoutHeartRateFill`: eine reine Funktion für Q2/Q4/Q5 (Band vor Uhr, Abdeckung
+  ≥ 10 Minuten und ≥ 70 %, Minuten-Buckets als Kurve, Effort über `StrainScorer.strain`) und die Ruhepuls-Regel
+  Q7. Die Trainingslast nutzt dieselbe Abdeckungsregel.
+- **WhoopStore** v73: Tabelle `workoutHeartRateFill` (Schlüssel wie `workout`: deviceId, startTs, sport;
+  Ø, Max, Effort, Quelle, benutzter Ruhepuls, gedeckte und mögliche Minuten), Spalte `steps` in
+  `workoutSourceMetadata`, Löschen der Trainingslast-Zeilen ohne Puls für einen Zeitraum (Q13).
+- **App:** Füllen nach jeder Health-Synchronisierung für ihr Fenster und nach jedem Nachlade-Paket; Überlagerung
+  in `workoutRows` vor dem Anzeige-Abgleich; Pulsquelle und Health-Schritte im Detail.
+- **iOS:** Nachladen der Geschichte, neueste zuerst, 50 Workouts pro Paket, Cursor in UserDefaults, nach jeder
+  erfolgreichen Synchronisierung einige Pakete. Danach werden die Trainingslast-Zeilen dieser Workouts ohne Puls
+  gelöscht und neu gerechnet.
+- **Rezept AI-16:** füllt alle gespeicherten Apple-Workouts einmal; keine Tageszeile wird neu bewertet.

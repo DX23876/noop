@@ -87,6 +87,18 @@ final class CardioLoadLedgerTests: XCTestCase {
                        StrainScorer.defaultRestingHR)
     }
 
+    /// A week without a band or WHOOP reading takes the Apple Watch's before widening to a month of the
+    /// band's: a year without the band is priced against that year's body.
+    func testAWatchRestingRateStandsInBeforeTheWindowWidens() {
+        let band = ["2026-03-01": 50.0]
+        let watch = ["2026-03-24": 66.0, "2026-03-26": 70]
+        XCTAssertEqual(Repository.cardioLoadRestingHR(day: "2026-03-25", restingByDay: band, appleByDay: watch), 68)
+        XCTAssertEqual(Repository.cardioLoadRestingHR(day: "2026-03-02", restingByDay: band, appleByDay: watch), 50,
+                       "the band's own week still comes first")
+        XCTAssertEqual(Repository.cardioLoadRestingHR(day: "2026-03-10", restingByDay: band, appleByDay: watch), 50,
+                       "no Watch reading that week either: the band's month")
+    }
+
     private func sessionWithAverage(_ bpm: Int?) -> UnifiedTrainingSession {
         let base = session()
         let row = WorkoutRow(startTs: base.row.startTs, endTs: base.row.endTs, sport: "Running", source: "apple-health",

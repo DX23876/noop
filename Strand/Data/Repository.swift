@@ -251,6 +251,11 @@ final class Repository: ObservableObject {
     /// Bumped after an energy-model window commits. Energy is stored outside the merged daily caches,
     /// so `refreshSeq` cannot describe this change; dashboards use this narrow signal to refresh calories.
     @Published private(set) var energyPresentationRevision = 0
+
+    /// Bumped when NOOP's own additions to stored workouts change (the heart rate filled into Apple
+    /// Health rows, `WorkoutHeartRateFillSeries`). The rows themselves are unchanged, so `refreshSeq`
+    /// cannot describe it; the Workouts list keys its reload on this too.
+    @Published var workoutAnnotationRevision = 0
     func noteEnergyPresentationChanged() {
         // A finished day's burn-rate grid is only fixed until the model re-prices it. The memo used to
         // outlive every refresh, so a past day kept the training share of its first read — before a
@@ -3612,7 +3617,10 @@ final class Repository: ObservableObject {
         } else {
             deduped = WorkoutSource.dedupCrossSource(filtered)
         }
-        let visible = deduped.sorted { $0.startTs > $1.startTs }
+        // The heart rate NOOP filled into Apple Health rows goes on AFTER the twins are resolved (a filled
+        // value must not make an imported row the richer twin) and BEFORE the display reconcile, which then
+        // only reaches rows neither source nor fill could describe.
+        let visible = await overlayWorkoutFills(deduped.sorted { $0.startTs > $1.startTs }, store: store)
         let out: [WorkoutRow]
         if let reconcileHrCap {
             out = await reconcileWorkoutHrWithTrace(visible, store: store, cap: reconcileHrCap)

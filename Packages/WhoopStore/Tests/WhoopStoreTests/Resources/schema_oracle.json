@@ -73,7 +73,8 @@
   "v69-lift-log",
   "v70-training-session-load",
   "v71-whoop-energy-fitness",
-  "v72-workout-energy-source"
+  "v72-workout-energy-source",
+  "v73-workout-heart-rate-fill"
  ],
  "divergenceReasons": {
   "android-orphan-synced-column": "REAL COLUMN DRIFT: `synced` exists on Android only. GRDB's v10 note is explicit that stepSample gets no `synced` column ('unused; see StreamStore'), and v12's ppgHrSample never had one either; the Room entities copied the flag from the older per-second entities. Nothing reads it on Android — the per-row upload flag belongs to an upload path that does not exist there — so it is dead width, not divergent data. Removing it needs a Room table rebuild.",
@@ -2970,6 +2971,12 @@
      "affinity": "INTEGER",
      "notNull": true,
      "default": null
+    },
+    {
+     "name": "steps",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
     }
    ],
    "primaryKey": [
@@ -4672,6 +4679,84 @@
     {
      "name": "kind",
      "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "updatedAtTs",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "deviceId",
+    "startTs",
+    "sport"
+   ],
+   "indices": []
+  },
+  "workoutHeartRateFill": {
+   "platform": "ios_only",
+   "reason": "Heart rate NOOP filled into a workout its source brought without one, laid over the row when read (GRDB v73). This Apple-only checkout has no Room twin.",
+   "columns": [
+    {
+     "name": "deviceId",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "startTs",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "sport",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "avgHr",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "maxHr",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "strain",
+     "affinity": "REAL",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "hrSource",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "restingHrUsed",
+     "affinity": "REAL",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "coveredMinutes",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "possibleMinutes",
+     "affinity": "INTEGER",
      "notNull": true,
      "default": null
     },

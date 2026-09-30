@@ -223,6 +223,7 @@ extension Repository {
         // Resting heart rate is read once, and only if something is actually computed: a pass the ledger
         // answers entirely should cost no daily-row read.
         var restingByDay: [String: Double]?
+        var appleRestingByDay: [String: Double] = [:]
 
         // Newest first, and where two sessions describe the same window the better-evidenced one claims
         // it: more components first, then the longer window, then the id so the choice is deterministic.
@@ -276,12 +277,19 @@ extension Repository {
             computed += 1
 
             if restingByDay == nil {
-                restingByDay = await restingHrByDay(
-                    fromDay: Self.dayKey(ordered.last?.row.startTs ?? start, offsetDays: -30),
-                    toDay: Self.dayKey(ordered.first?.row.endTs ?? end, offsetDays: 30))
+                let fromDay = Self.dayKey(ordered.last?.row.startTs ?? start, offsetDays: -30)
+                let toDay = Self.dayKey(ordered.first?.row.endTs ?? end, offsetDays: 30)
+                restingByDay = await restingHrByDay(fromDay: fromDay, toDay: toDay)
+                var apple: [String: Double] = [:]
+                for metric in (try? await store?.dailyMetrics(deviceId: Self.appleHealthSource,
+                                                               from: fromDay, to: toDay)) ?? [] {
+                    if let value = metric.restingHr, value > 0 { apple[metric.day] = Double(value) }
+                }
+                appleRestingByDay = apple
             }
             let resting = Self.cardioLoadRestingHR(day: Self.dayKey(start, offsetDays: 0),
-                                                   restingByDay: restingByDay ?? [:])
+                                                   restingByDay: restingByDay ?? [:],
+                                                   appleByDay: appleRestingByDay)
             let band = await hrSamples(from: start, to: end, limit: 20_000)
             var load = Self.makeCardioLoad(sessionId: session.id, samples: band,
                                            start: start, end: end, source: .noopBand,
@@ -375,11 +383,18 @@ extension Repository {
     /// `cardioLoadRestingWindowDays` of it — the body that did the session, not today's. Widens to a month
     /// and then to every day read before falling back to the population default, so a session is never
     /// left unpriced for want of one night's reading. The value used is stored in the ledger row.
-    nonisolated static func cardioLoadRestingHR(day: String, restingByDay: [String: Double]) -> Double {
-        for radius in [cardioLoadRestingWindowDays, 30] {
-            let values = (-radius...radius).compactMap { restingByDay[WeeklyDigestEngine.addDays(day, $0)] }
-            if let median = median(values) { return median }
+    ///
+    /// `appleByDay` (the Apple Watch's resting rate) stands in for a week with no band or WHOOP reading,
+    /// before the window widens: a year spent without the band otherwise priced its sessions against the
+    /// median of whatever era was read, not the body that did them.
+    nonisolated static func cardioLoadRestingHR(day: String, restingByDay: [String: Double],
+                                                appleByDay: [String: Double] = [:]) -> Double {
+        func weekMedian(_ byDay: [String: Double], radius: Int) -> Double? {
+            median((-radius...radius).compactMap { byDay[WeeklyDigestEngine.addDays(day, $0)] })
         }
+        if let own = weekMedian(restingByDay, radius: cardioLoadRestingWindowDays) { return own }
+        if let apple = weekMedian(appleByDay, radius: cardioLoadRestingWindowDays) { return apple }
+        if let month = weekMedian(restingByDay, radius: 30) { return month }
         return median(Array(restingByDay.values)) ?? StrainScorer.defaultRestingHR
     }
 

@@ -11,14 +11,16 @@ public struct WorkoutSourceMetadataRow: Equatable, Codable, Sendable {
     public let rawActivityType: Int?
     public let activitiesJSON: String?
     public let updatedAtTs: Int
+    /// Steps Health counted over the workout's window (v73); nil when none were recorded or not yet read.
+    public let steps: Int?
 
     public init(componentKey: String, source: String, startTs: Int, sport: String,
                 externalId: String?, sourceBundleId: String?, rawActivityType: Int?,
-                activitiesJSON: String?, updatedAtTs: Int) {
+                activitiesJSON: String?, updatedAtTs: Int, steps: Int? = nil) {
         self.componentKey = componentKey; self.source = source; self.startTs = startTs; self.sport = sport
         self.externalId = externalId; self.sourceBundleId = sourceBundleId
         self.rawActivityType = rawActivityType; self.activitiesJSON = activitiesJSON
-        self.updatedAtTs = updatedAtTs
+        self.updatedAtTs = updatedAtTs; self.steps = steps
     }
 }
 
@@ -74,15 +76,16 @@ extension WhoopStore {
                 try db.execute(sql: """
                     INSERT INTO workoutSourceMetadata
                       (componentKey, source, startTs, sport, externalId, sourceBundleId,
-                       rawActivityType, activitiesJSON, updatedAtTs)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                       rawActivityType, activitiesJSON, updatedAtTs, steps)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(componentKey) DO UPDATE SET
                       source=excluded.source, startTs=excluded.startTs, sport=excluded.sport,
                       externalId=excluded.externalId, sourceBundleId=excluded.sourceBundleId,
                       rawActivityType=excluded.rawActivityType, activitiesJSON=excluded.activitiesJSON,
-                      updatedAtTs=excluded.updatedAtTs
+                      updatedAtTs=excluded.updatedAtTs, steps=excluded.steps
                     """, arguments: [r.componentKey, r.source, r.startTs, r.sport, r.externalId,
-                                      r.sourceBundleId, r.rawActivityType, r.activitiesJSON, r.updatedAtTs])
+                                      r.sourceBundleId, r.rawActivityType, r.activitiesJSON, r.updatedAtTs,
+                                      r.steps])
             }
         }
     }
@@ -95,7 +98,8 @@ extension WhoopStore {
                 WorkoutSourceMetadataRow(componentKey: row["componentKey"], source: row["source"],
                     startTs: row["startTs"], sport: row["sport"], externalId: row["externalId"],
                     sourceBundleId: row["sourceBundleId"], rawActivityType: row["rawActivityType"],
-                    activitiesJSON: row["activitiesJSON"], updatedAtTs: row["updatedAtTs"])
+                    activitiesJSON: row["activitiesJSON"], updatedAtTs: row["updatedAtTs"],
+                    steps: row["steps"])
             }
         }
     }
