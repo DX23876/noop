@@ -191,16 +191,19 @@ enum LiquidRender {
     /// A horizontal capsule tube filled to `frac`; tilt pushes the liquid along it.
     static func tube(_ base: GraphicsContext, _ size: CGSize, _ sim: LiquidSim, now: Double,
                      frac: Double, tint: Color, showsHighlight: Bool = true,
-                     usesCleanFill: Bool = false) {
+                     usesCleanFill: Bool = false, outlined: Bool = true) {
         let w = size.width, h = size.height, r = h / 2
         let outline = Path(roundedRect: CGRect(x: 0.5, y: 0.5, width: w - 1, height: h - 1), cornerRadius: r)
         var ctx = base
         ctx.fill(outline, with: .color(NoopVisualStyle.inset))
-        ctx.stroke(
-            outline,
-            with: .color(NoopVisualStyle.border.opacity(0.72)),
-            lineWidth: NoopMetrics.hairlineWidth
-        )
+        // On a light card the track reads from its fill alone; the grey outline was the last frame left on it.
+        if outlined {
+            ctx.stroke(
+                outline,
+                with: .color(NoopVisualStyle.border.opacity(0.72)),
+                lineWidth: NoopMetrics.hairlineWidth
+            )
+        }
 
         var clip = ctx
         clip.clip(to: outline)
@@ -458,8 +461,13 @@ struct LiquidTube: View {
     var usesCleanFill: Bool = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
     @ObservedObject private var motion = NoopMotionState.shared
     @State private var sim = LiquidSim(target: 0)
+
+    /// Light appearance draws the track without an outline; dark and Increase Contrast keep it.
+    private var outlined: Bool { colorScheme == .dark || colorSchemeContrast == .increased }
 
     @Environment(\.dashboardIsActive) private var dashboardIsActive
     @Environment(\.scenePhase) private var scenePhase
@@ -478,7 +486,7 @@ struct LiquidTube: View {
                 sim.step(now: now, tilt: LiquidMotion.shared.tilt, target: frac)
                 LiquidRender.tube(context, size, sim, now: now, frac: max(0, min(1, frac)),
                                   tint: tint, showsHighlight: showsHighlight,
-                                  usesCleanFill: usesCleanFill)
+                                  usesCleanFill: usesCleanFill, outlined: outlined)
             }
         }
         .frame(height: height)
@@ -490,7 +498,7 @@ struct LiquidTube: View {
         Canvas { context, size in
             LiquidRender.tube(context, size, LiquidSim.posed(frac), now: 0,
                               frac: max(0, min(1, frac)), tint: tint,
-                              showsHighlight: showsHighlight, usesCleanFill: usesCleanFill)
+                              showsHighlight: showsHighlight, usesCleanFill: usesCleanFill, outlined: outlined)
         }
         .frame(height: height)
     }

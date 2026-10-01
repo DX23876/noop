@@ -44,6 +44,15 @@ enum LiquidHeroChrome {
         return min(0.24, 0.08 + (1 - opacity) * 0.18)
     }
 
+    /// True when the hero is an ordinary light card: light appearance on the plain canvas with a solid
+    /// fill (or with Reduce Transparency, which forces a solid fill). Everywhere else (dark, a
+    /// transparent card, a sky or photograph behind it) the hero keeps its dark glass.
+    static func usesLightSurface(isDark: Bool, cardOpacity: Double, hasBackdrop: Bool,
+                                 reduceTransparency: Bool) -> Bool {
+        guard !isDark else { return false }
+        return reduceTransparency || (cardOpacity >= 0.99 && !hasBackdrop)
+    }
+
     static func shadowOpacity(isDark: Bool, cardOpacity: Double, hasBackdrop: Bool,
                               reduceTransparency: Bool, increasedContrast: Bool) -> Double {
         if increasedContrast { return isDark ? 0.42 : 0.30 }
@@ -1154,6 +1163,12 @@ struct LiquidTodayView: View {
             : nil
         let visibleRestScore = dataLoaded ? restScore : nil
         let hasBackdrop = showDayCycleBackground || skyBehindCards || backgroundStore.isActive
+        let lightSurface = LiquidHeroChrome.usesLightSurface(
+            isDark: colorScheme == .dark,
+            cardOpacity: cardOpacity,
+            hasBackdrop: hasBackdrop,
+            reduceTransparency: reduceTransparency
+        )
         let rimOpacity = LiquidHeroChrome.rimOpacity(
             isDark: colorScheme == .dark,
             cardOpacity: cardOpacity,
@@ -1181,7 +1196,7 @@ struct LiquidTodayView: View {
             HeroScoreCell(label: DomainTheme.charge.productName, score: chargeScore,
                           tint: chargeDisplay.pct.map { StrandPalette.chargeRingColor($0) }
                                 ?? StrandPalette.chargeColor,
-                          animated: dataLoaded, onGuide: { guideSection = .charge },
+                          animated: dataLoaded, onGuide: { guideSection = .charge }, onLightSurface: lightSurface,
                           detailRoute: .metric(HeroRingMetric.charge))
             // #45: the hero Effort must honour the user's Effort scale like every other Effort read-out.
             // Show the value on the chosen scale (0–100 or WHOOP 0–21) with the matching vessel max, and
@@ -1190,7 +1205,7 @@ struct LiquidTodayView: View {
             HeroScoreCell(label: DomainTheme.effort.productName,
                           score: effortScore,
                           tint: StrandPalette.effortColor, animated: dataLoaded,
-                          onGuide: { guideSection = .effort },
+                          onGuide: { guideSection = .effort }, onLightSurface: lightSurface,
                           maxValue: effortScale == .whoop ? 21 : 100,
                           decimals: effortScale == .whoop ? 1 : 0,
                           detailRoute: .metric(HeroRingMetric.effort))
@@ -1199,7 +1214,7 @@ struct LiquidTodayView: View {
             // score itself, so it can't drift) and restored its position, centred on the top border and
             // aligned with the Rest vessel.
             HeroScoreCell(label: DomainTheme.rest.productName, score: visibleRestScore, tint: StrandPalette.restColor,
-                          animated: dataLoaded, onGuide: { guideSection = .rest },
+                          animated: dataLoaded, onGuide: { guideSection = .rest }, onLightSurface: lightSurface,
                           detailRoute: .metric(HeroRingMetric.rest))
                 .overlay(alignment: .top) {
                     if let sourceLabel = heroSourceLabel {
@@ -1221,6 +1236,11 @@ struct LiquidTodayView: View {
         // keep the dark backing their on-dark text and colours were tuned against.
         .background {
             let shape = RoundedRectangle(cornerRadius: liquidHeroRadius, style: .continuous)
+            if lightSurface {
+                // The ordinary light card: the same surface, edge and shadow as the data cards below it,
+                // not the dark glass, which read as a grey block on a white page.
+                FrostedCardSurface(cornerRadius: liquidHeroRadius, kind: .hero)
+            } else {
             ZStack {
                 shape
                     .fill(heroFill)
@@ -1232,6 +1252,7 @@ struct LiquidTodayView: View {
                 shape.strokeBorder(.white.opacity(rimOpacity), lineWidth: 1)
             }
             .shadow(color: .black.opacity(shadowOpacity), radius: 18, y: 8)
+            }
         }
     }
 
@@ -3026,6 +3047,8 @@ private struct HeroScoreCell: View {
     let tint: Color
     let animated: Bool
     let onGuide: () -> Void
+    /// The hero is an ordinary light card, so the label follows the page ink instead of the on-dark token.
+    var onLightSurface: Bool = false
     // The scale `score` is already expressed on — 100 for Charge/Rest, or the user's chosen Effort scale
     // max (100 or 21, #45) — so the vessel fill matches the displayed number.
     var maxValue: Double = 100
@@ -3097,7 +3120,7 @@ private struct HeroScoreCell: View {
                     // The hero card fill is pinned dark in BOTH themes, so the CHARGE/EFFORT/REST label must use
                     // the scheme-invariant on-dark token — textSecondary flips to dark ink in Light mode and
                     // went dark-on-near-black here (#1013).
-                    .foregroundStyle(StrandPalette.onDarkSecondary)
+                    .foregroundStyle(onLightSurface ? StrandPalette.textSecondary : StrandPalette.onDarkSecondary)
                 }
                 .buttonStyle(.plain)
             }

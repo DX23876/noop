@@ -184,8 +184,8 @@ public struct NoopPanelSurface: View {
             // Dark keeps its depth shadow; in light the shadow follows the kind.
             .shadow(
                 color: scheme == .dark ? .black.opacity(elevated ? 0.34 : 0.18)
-                                       : (chrome.shadow ? .black.opacity(0.10) : .clear),
-                radius: elevated ? 18 : 9,
+                                       : (chrome.shadow ? .black.opacity(elevated ? 0.10 : NoopCardChrome.lightShadowOpacity) : .clear),
+                radius: elevated ? 18 : (scheme == .dark ? 9 : NoopCardChrome.lightShadowRadius),
                 x: 0,
                 y: elevated ? 10 : 5
             )

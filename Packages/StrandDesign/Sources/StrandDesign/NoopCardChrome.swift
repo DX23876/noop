@@ -32,6 +32,12 @@ public struct NoopCardChrome: Sendable, Equatable {
     /// The soft light-mode drop shadow.
     public var shadow: Bool
 
+    /// The light-mode shadow, shared by every card surface. Low opacity and pushed down rather than
+    /// spread sideways, so a card lifts off the page from below instead of looking outlined in grey.
+    public static let lightShadowOpacity: Double = 0.06
+    public static let lightShadowRadius: CGFloat = 8
+    public static let lightShadowOffsetY: CGFloat = 5
+
     public init(rim: Rim, shadow: Bool) {
         self.rim = rim
         self.shadow = shadow

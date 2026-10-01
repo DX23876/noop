@@ -111,9 +111,9 @@ public struct FrostedCardSurface: View {
             // Today's own card, LiquidTodayView.card, DOES carry a small always-on shadow of its own now —
             // the two surfaces no longer need to match: each screen keeps its own chrome.)
             .shadow(
-                color: chrome.shadow ? Color(hex: "#1A2230").opacity(0.11) : .clear,
-                radius: chrome.shadow ? 10 : 0,
-                x: 0, y: chrome.shadow ? 3 : 0
+                color: chrome.shadow ? Color(hex: "#1A2230").opacity(NoopCardChrome.lightShadowOpacity * 1.2) : .clear,
+                radius: chrome.shadow ? NoopCardChrome.lightShadowRadius : 0,
+                x: 0, y: chrome.shadow ? NoopCardChrome.lightShadowOffsetY : 0
             )
             // "Card transparency": fade the whole glass surface. The card's content sits above this
             // background, so it stays fully readable regardless.

@@ -183,4 +183,18 @@ final class LiquidHeroChromeTests: XCTestCase {
             reduceTransparency: true, increasedContrast: false
         ), 0.04, accuracy: 0.0001)
     }
+
+    func testOnlyAnOrdinarySolidLightHeroUsesTheLightSurface() {
+        func light(dark: Bool = false, opacity: Double = 1, backdrop: Bool = false, reduce: Bool = false) -> Bool {
+            LiquidHeroChrome.usesLightSurface(isDark: dark, cardOpacity: opacity,
+                                              hasBackdrop: backdrop, reduceTransparency: reduce)
+        }
+        XCTAssertTrue(light())
+        XCTAssertFalse(light(dark: true))
+        XCTAssertFalse(light(opacity: 0.7))
+        XCTAssertFalse(light(backdrop: true))
+        // Reduce Transparency forces a solid fill, so it is a light card even over a backdrop.
+        XCTAssertTrue(light(opacity: 0.2, backdrop: true, reduce: true))
+        XCTAssertFalse(light(dark: true, reduce: true))
+    }
 }
