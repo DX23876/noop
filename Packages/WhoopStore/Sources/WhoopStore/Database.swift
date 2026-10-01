@@ -1943,6 +1943,12 @@ extension WhoopStore {
                 t.add(column: "steps", .integer)
             }
         }
+        // v74-rr-whoop5-fill (upstream v47, #2371): mark the WHOOP 5 500 ms fill beats already stored, with
+        // the rule `insert` applies to every new batch (`WhoopStore.whoop5RrFillFlagSQL`). Data only, no
+        // schema change, and a MARK in the v35 form, never a delete: the rows stay on disk.
+        migrator.registerMigration("v74-rr-whoop5-fill") { db in
+            try db.execute(sql: WhoopStore.whoop5RrFillMigrationSQL)
+        }
         return migrator
     }
 }

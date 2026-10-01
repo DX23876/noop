@@ -379,4 +379,41 @@ final class BatteryCriticalAlertTests: XCTestCase {
         XCTAssertTrue(r.fire)
         XCTAssertEqual(try! XCTUnwrap(r.runway).shortfallHours, 9.95, accuracy: 0.15)
     }
+
+    /// The shared bedtime arithmetic, pinned to the same literals as the Kotlin twin's
+    /// `sharedBedtimeArithmeticFixture` (expected values from a standalone `swiftc` oracle of the helpers).
+    /// Covers the midnight wrap both ways, a half-second rounding tie (1/3600 h → 0.5 s → 1) and a
+    /// fractional night. Rows are (midsleepSec, sleepHours, halfNightSec, bedtimeSec).
+    func testSharedBedtimeArithmeticFixture() {
+        let fixture: [(Int, Double, Int, Int)] = [
+            (12600, 8.0, 14400, 84600),
+            (1800, 7.5, 13500, 74700),
+            (0, 8.0, 14400, 72000),
+            (86399, 0.5, 900, 85499),
+            (18000, 7.0, 12600, 5400),
+            (43200, 6.9999, 12600, 30600),
+            (3600, 1.0 / 3600, 1, 3599),
+            (10800, 7.25, 13050, 84150),
+            (82800, 11.99, 21582, 61218),
+            (5400, 9.3333, 16800, 75000),
+        ]
+        for (midsleep, hours, half, bedtime) in fixture {
+            XCTAssertEqual(BatteryEstimator.halfNightSec(sleepHours: hours), half, "half \(midsleep) \(hours)")
+            XCTAssertEqual(BatteryEstimator.bedtimeSec(midsleepSec: midsleep, sleepHours: hours), bedtime,
+                           "bedtime \(midsleep) \(hours)")
+        }
+    }
+
+    /// `bedtimeAlert` must measure its wait to `bedtimeSec`, not to a bedtime of its own: asked AT the
+    /// shared bedtime, the runway reads zero hours to go. Other readers of the learned night
+    /// (`NightStandDown.band`) are only in agreement with the alert while this holds.
+    func testBedtimeAlertMeasuresToTheSharedBedtime() {
+        for (midsleep, hours) in [(midsleep0330, sleep8h), (1_800, 7.5), (82_800, 11.99), (5_400, 9.3333)] {
+            let bedtime = BatteryEstimator.bedtimeSec(midsleepSec: midsleep, sleepHours: hours)
+            let r = BatteryEstimator.bedtimeAlert(nowSecOfDay: bedtime, habitualMidsleepSec: midsleep,
+                                                  typicalSleepHours: hours, usableRemainingHours: 100,
+                                                  charging: false, alerted: false)
+            XCTAssertEqual(try XCTUnwrap(r.runway).hoursUntilBedtime, 0, "\(midsleep) \(hours)")
+        }
+    }
 }

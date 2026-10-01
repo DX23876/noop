@@ -172,7 +172,15 @@ final class IntelligenceEngine: ObservableObject {
     // (`Repository.fillAppleWorkoutHeartRate`, stored beside the rows in `workoutHeartRateFill`). Effort
     // uses the day's own resting rate or a Watch reading within three days. Cardio-load rows priced
     // without a trace are freed for those sessions. No daily row is re-scored.
-    static let currentAnalysisRecipeVersion = 16
+    // AI-17 (2026-10-01) re-scores the standard window after the upstream sync through 7f396e98e. Three
+    // inputs to stored daily rows moved: SleepStagerV2's deep prior drops from 0.18 to 0.15 on PSG evidence
+    // (upstream bbeb20e83), a WHOOP 5/MG's 500 ms filler beats at rest are marked suspect and leave every
+    // R-R read (WhoopStore v74, upstream 2d0b01d8a), and an unmatched WRIST_OFF tail ends where sustained
+    // heart rate resumes instead of at the window end (upstream 7f1e42f7b). The daily resting HR also no
+    // longer falls back to a nap's nadir when the main night has none (upstream 5de051909). Per-night
+    // derivations inside the engine's window, so the standard bounded 21-day pass; no raw row is rewritten
+    // beyond the v74 mark and the cardio ledger is not refilled.
+    static let currentAnalysisRecipeVersion = 17
 
     /// The recipe whose migration refills the cardio load ledger.
     static let cardioLedgerRecipe = 9
@@ -202,16 +210,19 @@ final class IntelligenceEngine: ObservableObject {
     /// The recipe whose migration fills heart rate into Apple Health workouts.
     static let workoutHeartRateFillRecipe = 16
 
+    /// The recipe whose migration re-scores the standard daily window after the 2026-10-01 upstream sync.
+    static let upstreamOct1Recipe = 17
+
     /// Whether a migration crosses the recipe that fills Apple Health workouts' heart rate.
     static func migrationFillsWorkoutHeartRate(from: Int, to: Int) -> Bool {
         from < workoutHeartRateFillRecipe && to >= workoutHeartRateFillRecipe
     }
 
     /// Days of daily rows a migration from `from` must re-score: the standard window while a recipe that
-    /// changes daily rows (up to AI-8, AI-10, AI-11 or AI-12) is still owed, none when only AI-9 is — the
-    /// narrowest interval each change can prove.
+    /// changes daily rows (up to AI-8, AI-10, AI-11, AI-12 or AI-17) is still owed, none when only recipes
+    /// that leave daily rows alone are — the narrowest interval each change can prove.
     static func migrationDailyDays(from: Int, standard: Int = 21) -> Int {
-        from < cardioLedgerRecipe - 1 || from < rrSegmentRecipe ? standard : 0
+        from < cardioLedgerRecipe - 1 || from < upstreamOct1Recipe ? standard : 0
     }
 
     /// The earliest day a build could have scored with #2358's whole-session mean: the upstream commit is
@@ -933,8 +944,7 @@ final class IntelligenceEngine: ObservableObject {
         return !rows.isEmpty
     }
 
-    /// UserDefaults flag guarding the one-shot #313 full-history Effort rescore (below). Set once the
-    /// pass completes so it never re-runs.
+    /// Completion flag for the shared full-history Effort and sleep-wear repair pass.
     static let effortRescoreFlagKey = "intelligence.effortRescore.v313.done"
     static let effortRescoreCursorKey = "intelligence.effortRescore.v313.cursor"
 
@@ -1628,9 +1638,9 @@ final class IntelligenceEngine: ObservableObject {
         let reScoreExpiriesAtStart = RescoreBackgroundScheduler.assertionExpiries
         // #1538: the pass is now past every gate and will do real work. Mark it started durably, so that a
         // process killed mid-pass leaves evidence a LATER process can read — the killed process itself gets
-        // no chance to record anything. Cleared beside the watermark at the end; there is no early return
-        // between here and there, so "started and never finished" means exactly "killed", never a silent
-        // internal skip. `RescoreBackgroundPolicy` reads it to stop re-attempting a pass that cannot
+        // no chance to record anything. Cleared beside the watermark at the end; persistence failures
+        // also leave this mark outstanding so a later pass can retry. `RescoreBackgroundPolicy` stops
+        // re-attempting a pass that cannot
         // finish in the background, which is the livelock in #1538.
         // #1681: keep the token this debt was stamped with. At the end of the pass it is what tells our
         // own debt apart from one a LATER trigger recorded while we were running - the latter must
@@ -2142,7 +2152,7 @@ final class IntelligenceEngine: ObservableObject {
                 // short off-wrist tail survives. Pairing needs WRIST_ON too (to bound each interval); a span
                 // still open at the window end closes at `to`. Empty when the strap emitted no wrist events.
                 let wristEvents = (try? await store.events(deviceId: owner, from: from, to: to, limit: 50_000)) ?? []
-                let wristOff = AnalyticsEngine.offWristIntervals(events: wristEvents, windowEnd: to)
+                let wristOff = AnalyticsEngine.offWristIntervals(events: wristEvents, windowEnd: to, hr: hr)
 
                 // Calendar-day window for the ADDITIVE daily totals (steps + calories). The night window
                 // above is anchored to the current time-of-day and ends at dayStart+12h, so for a PAST
@@ -3701,7 +3711,14 @@ final class IntelligenceEngine: ObservableObject {
         let cachedSleepKept = cachedSleep.filter { s in
             !skipWindows.contains { s.startTs < $0.end && $0.start < s.endTs }   // time-overlap test
         }
-        if !cachedSleepKept.isEmpty { _ = try? await store.upsertSleepSessions(cachedSleepKept, deviceId: computedId) }
+        do {
+            if !cachedSleepKept.isEmpty {
+                _ = try await store.upsertSleepSessions(cachedSleepKept, deviceId: computedId)
+            }
+        } catch {
+            diagnosticSink?("re-score: sleep persistence failed; history repair remains pending", nil)
+            return
+        }
         // ── Persist per-epoch motion (H8) beside each kept session's stagesJSON ──────────────────────────
         // The sleepSession rows exist now (just upserted), so the targeted motion UPDATE lands. Persist ONLY
         // for the sessions actually kept (not edited/dismissed), keyed by the detected start `analyzeDay`

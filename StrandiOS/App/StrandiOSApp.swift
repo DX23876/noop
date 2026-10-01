@@ -113,6 +113,9 @@ struct StrandiOSApp: App {
         // The strap-sync Live Activity (Lock Screen + Dynamic Island). Same placement, same reason — and
         // it must also run in a process the Sync Strap shortcut launched with no scene.
         SyncLiveActivityController.shared.attach(to: model.live)
+        // iOS's own daily report of NOOP's CPU, memory, disk writes, hangs and exits, and its crash/hang reports,
+        // one strap-log line each. Registering is the whole cost; iOS gathers and delivers them (MetricKitLog).
+        MetricKitLog.shared.attach(to: model.live)
         // The live heart rate banner follows the strap from process start (#2422). The Lift Log is dormant in
         // this fork, so there is no gym banner for it to stand aside for.
         let liveActivity = LiveActivityController()
@@ -134,6 +137,12 @@ struct StrandiOSApp: App {
         }, onExpire: { [weak model] in
             model?.live.append(log: "re-score: background processing time expired before the pass finished (#1538)")
         })
+        // #2556: its own wake, because every existing one is conditional on something the missing strap
+        // makes false. Registered unconditionally and re-armed from inside its own handler.
+        StaleBatteryBackgroundScheduler.register(perform: { [weak model] in
+            await model?.checkStrapNotSeen()
+        })
+        StaleBatteryBackgroundScheduler.schedule()
         let bridge = HealthKitBridge(
             repo: model.repo,
             appleDeviceId: model.appleDeviceId,

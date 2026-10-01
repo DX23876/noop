@@ -23,7 +23,7 @@ final class HypnogramAssemblerTests: XCTestCase {
         XCTAssertEqual(laid.last!.ts + 30, 10_000)
     }
 
-    // MARK: - #1246 unwritten (0xFF) epochs excluded, real codes stay timed
+    // MARK: - Unwritten (0xFF) gaps keep time; trailing padding does not
 
     func testUnwrittenEpochsDroppedButRealCodesKeepFullSequenceTimes_middleGap() {
         // A burst with an UNWRITTEN run in the MIDDLE. codesWithTimes lays times over the FULL count (so
@@ -44,6 +44,40 @@ final class HypnogramAssemblerTests: XCTestCase {
         // sits where the unwritten run was, instead of real1 sliding later to meet real2.
         XCTAssertEqual(laid.prefix(4).map { $0.ts }, [9_640, 9_670, 9_700, 9_730])
         XCTAssertEqual(laid.suffix(4).map { $0.ts }, [9_880, 9_910, 9_940, 9_970])
+    }
+
+    func testTrailingPadDoesNotShiftWrittenCodesOrInteriorGap() {
+        let real1 = phases([.deep, .light, .rem, .awake], rt: 1000)
+        let gap = (0..<4).map { OuraSleepPhase(ringTimestamp: 1001, index: $0, stage: .awake, unwritten: true) }
+        let real2 = phases([.light, .deep, .rem, .light], rt: 1002)
+        let pad = (0..<4).map { OuraSleepPhase(ringTimestamp: 1003, index: $0, stage: .awake, unwritten: true) }
+        let burst = OuraHypnogramBurst(records: [
+            OuraHypnogramRecord(ringTimestamp: 1000, phases: real1),
+            OuraHypnogramRecord(ringTimestamp: 1001, phases: gap),
+            OuraHypnogramRecord(ringTimestamp: 1002, phases: real2),
+            OuraHypnogramRecord(ringTimestamp: 1003, phases: pad),
+        ])
+        let laid = burst.codesWithTimes(endUnixSeconds: 10_000)
+        XCTAssertEqual(laid.map { $0.ts }, [9_640, 9_670, 9_700, 9_730, 9_880, 9_910, 9_940, 9_970])
+        XCTAssertEqual(laid.last!.ts + 30, 10_000)
+    }
+
+    func testLaterPassWithTailPadRemainsMoreCompleteAfterOnsetClip() {
+        let onset = 20_360
+        let earlier = OuraHypnogramBurst(records: [OuraHypnogramRecord(
+            ringTimestamp: 1000, phases: phases(Array(repeating: .light, count: 988), rt: 1000)
+        )])
+        let pad = (0..<40).map { OuraSleepPhase(ringTimestamp: 1002, index: $0, stage: .awake, unwritten: true) }
+        let later = OuraHypnogramBurst(records: [
+            OuraHypnogramRecord(ringTimestamp: 1001, phases: phases(Array(repeating: .light, count: 1000), rt: 1001)),
+            OuraHypnogramRecord(ringTimestamp: 1002, phases: pad),
+        ])
+        let first = earlier.codesWithTimes(endUnixSeconds: 50_000, sleepStartUnixSeconds: onset)
+        let final = later.codesWithTimes(endUnixSeconds: 50_360, sleepStartUnixSeconds: onset)
+        XCTAssertEqual(first.count, 988)
+        XCTAssertEqual(final.count, 1000)
+        XCTAssertEqual(final.first!.ts, onset)
+        XCTAssertEqual(final.last!.ts + 30, 50_360)
     }
 
     func testAllUnwrittenBurstReconstructsEmpty() {

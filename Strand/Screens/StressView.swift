@@ -4,6 +4,15 @@ import StrandDesign
 import StrandAnalytics
 import WhoopStore
 
+/// The shared explanation for an activity-masked gap on the Stress screen and hosted Today cards.
+/// Whole-phrase singular/plural variants keep the sentence natural in every catalog locale.
+func stressActivityMaskedHoursCaption(_ count: Int) -> String? {
+    guard count > 0 else { return nil }
+    return count == 1
+        ? String(localized: "1 hour excluded — you were moving.")
+        : String(localized: "\(count) hours excluded — you were moving.")
+}
+
 // MARK: - Stress Monitor
 //
 // A clear, Whoop-style "Stress Monitor": one 0–3 number, a band (LOW/MEDIUM/HIGH),
@@ -68,7 +77,7 @@ struct StressView: View {
     @State private var modelSignature: StressInputs?
 
     var body: some View {
-        ScreenScaffold(title: "Stress", subtitle: "Autonomic load from HRV and resting heart rate",
+        ScreenScaffold(title: "Stress", subtitle: "Autonomic load across your waking day",
                        // PERF (scroll): lazy column — byte-identical layout (LazyVStack == eager VStack
                        // alignment/spacing/header). The content is one inner eager VStack, so the staggered
                        // section reveal is unchanged; this only defers building that stack until it scrolls in.
@@ -250,7 +259,13 @@ struct StressView: View {
 
             // 3. Today's intraday timeline — when in the day stress ran high, + a
             //    passive Breathe suggestion when the recent hours stay elevated.
-            if let daytime, !daytime.scored.isEmpty {
+            // #2535: THREE states, not two. `daytime` is nil only while the read is still running, and this
+            // used to render nothing then, so a fold that takes seconds looked exactly like a day with no
+            // data. An empty `scored` after the read is a fact about the day and still stays silent.
+            if daytime == nil {
+                daytimeLoading()
+                    .staggeredAppear(index: 2)
+            } else if let daytime, !daytime.scored.isEmpty {
                 daytimeSection(daytime)
                     .staggeredAppear(index: 2)
             }
@@ -281,6 +296,27 @@ struct StressView: View {
     }
 
     // MARK: 3 · Daytime timeline (intraday, same 0–3 proxy)
+
+    /// The intraday timeline while its read is still running (#2535).
+    ///
+    /// Deliberately NOT the "no stress history" note: that is a conclusion, this says the answer is still
+    /// being computed, which is what a caller waiting on the thirty-day fold needs to see. Keeps the header
+    /// and tint `daytimeSection` uses, so the section does not appear out of nowhere when the read lands; the
+    /// height is approximate, not equal, since the real card carries a chart. Twin of the Kotlin
+    /// `StressDaytimeLoading`.
+    @ViewBuilder
+    private func daytimeLoading() -> some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+            SectionHeader("Today's Timeline", overline: "Intraday")
+            NoopCard(tint: StressRamp.calm) {
+                Text("Reading today's heart rate…")
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .frame(maxWidth: .infinity, minHeight: 160, alignment: .center)
+                    .multilineTextAlignment(.center)
+            }
+        }
+    }
 
     @ViewBuilder
     private func daytimeSection(_ day: DaytimeStress.Result) -> some View {
@@ -337,6 +373,12 @@ struct StressView: View {
                         .font(StrandFont.footnote)
                         .foregroundStyle(StrandPalette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
+                    if let maskedCaption = stressActivityMaskedHoursCaption(day.activityMaskedHours) {
+                        Text(maskedCaption)
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
             }
 

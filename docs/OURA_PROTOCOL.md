@@ -873,9 +873,10 @@ arrive as a BURST of `0x4E`/`0x5A` (and `0x4B`) records finalized after wake —
 envelope ring-times (the WRITE moment, seconds apart), so arrival order is the code sequence, not a
 sortable time. NOOP:
 1. **Groups** consecutive phase records into one burst (envelope-gap grouping).
-2. **Reconstructs the time axis** by laying the codes BACKWARD from the burst end at the 30 s SleepNet
-   epoch: code *j* of *N* gets `ts = end − (N − j)·30 s` (each ts marks the start of its 30 s interval,
-   the last interval ending exactly at the burst end).
+2. **Reconstructs the time axis** by discarding trailing unwritten (`0xFF`) pad, then laying the
+   remaining codes BACKWARD from the burst end at the 30 s SleepNet epoch: code *j* of *N* gets
+   `ts = end − (N − j)·30 s` (each ts marks the start of its 30 s interval, the last written interval
+   ending exactly at the burst end). Unwritten runs between real codes keep their time slots as gaps.
 3. **Refines BOTH ends with the paired `0x49` window** (closest envelope ring-time within 10 min): the
    END anchors to `event − end_offset·60 s` (the true sleep-end, ahead of the write moment) and the
    START clamps to `event − start_offset·60 s` (the onset), clipping the few pre-window codes. Both use
@@ -974,7 +975,7 @@ edit of the ring's tag.
     on the live stream **cannot** be transplanted onto `0x47` records.
 - **`0x6B` `motion_period`** (variable): byte6 = header — bits`[7:6]`=period_type, bits`[5:4]`=`count` of valid codes in the **FINAL** byte, bits`[3:0]`=a rolling mod-16 sequence counter (record ordering / dedup, not a state); byte7… = 2-bit MOTION_STATE codes, 4 per byte (MSB-first), the last byte carrying `count` codes where **`count == 0` means 4** (a full final byte — the 2-bit field can't hold 4, so 4 wraps to 0; all 81 `count == 0` records in a real capture have a non-zero final byte, never 0x00, confirming 0 ⇒ 4). MOTION_STATE enum: `0 NO_MOTION, 1 RESTLESS, 2 TOSSING, 3 ACTIVE`. Same shape as the `0x4E` sleep-phase layout (header byte, codes from byte7). The header's low-nibble sequence counter increments and wraps mod-16 across consecutive records in a real capture — pinning byte6 as a header and codes at byte7, correcting an earlier reading (byte6/7 a 12-bit period, codes from byte8) that dropped the first code byte and read phantom codes from the final byte's padding. Layout cross-checked against the native `parse_api_motion_period` (attribution, not a port — re-derived from the capture). [ringverse][open_ring]
 - **`0x50` activity_info / `0x51`,`0x52` activity_summary**: activity category + intensity (MET-class). Layout **(UNVERIFIED - partial)**; [ringverse] notes real_steps/activity_info have unresolved constants. Gate on fixtures. [ringverse]
-  - **`0x50` decode formula (PR #960 investigation, live Gen 3, 2026-07-02) [oura-rs]:** byte0 = a `state` code (activity-category, meaning unconfirmed); every following byte = one MET sample, `met = byte × 0.1` for `byte < 0x80`, else `met = 12.8 + (byte − 128) × 0.2` (two-slope: 0.1-MET resolution to 12.7, 0.2 steps above). **Plausible against six real Gen 3 captures** across two sessions - a full day from steady resting (0.9–1.1 MET) through a vigorous-activity burst (7.4 MET), everything physiologically sane, nothing negative or absurd - but **NOT ground-truth-validated** against the Oura app's own MET/step numbers. Stays Tier B: NOOP decodes it (`OuraDecoders.decodeActivityInfo` → `OuraEvent.activityInfo`, both platforms) but gates it behind `allowTierB`, logs it for investigation only, and never folds it into `OuraStreamMapping`/scoring - and NEVER derives a step count from it. `0x51`/`0x52` activity_summary stay fully undecoded (raw Tier-B bytes only).
+  - **`0x50` decode formula (PR #960 investigation, live Gen 3, 2026-07-02) [oura-rs]:** byte0 = a `state` code (activity-category, meaning unconfirmed); every following byte = one MET sample, `met = byte × 0.1` for `byte < 0x80`, else `met = 12.8 + (byte − 128) × 0.2` (two-slope: 0.1-MET resolution to 12.7, 0.2 steps above). **Plausible against six real Gen 3 captures** across two sessions - a full day from steady resting (0.9–1.1 MET) through a vigorous-activity burst (7.4 MET), everything physiologically sane, nothing negative or absurd - and **since validated at DAY scale** against Oura's own MET export (the day-sum bullet below: 10/10 clean days within 1-8 %). Stays Tier B, now for narrower reasons than being unverified - per MINUTE only 85 % of values match the export exactly, a CONFIRMED workout floors that session's minutes so the app's figure can sit well above the wire, and no step count is validated from MET at all: NOOP decodes it (`OuraDecoders.decodeActivityInfo` → `OuraEvent.activityInfo`, both platforms) but gates it behind `allowTierB`, logs it for investigation only, and never folds it into `OuraStreamMapping`/scoring - and NEVER derives a step count from it. `0x51`/`0x52` activity_summary stay fully undecoded (raw Tier-B bytes only).
   - **`0x50` MET cross-device validation (NOOP, 2026-07-15, live Gen 3):** the MET series TRACKS real activity
     intensity - three separate walks read mean ≈ 3.4–4.1 MET (p50 ≈ 4.4) against a sleep floor of ≈ 0.9 MET,
     and per-minute MET vs a Suunto `.fit` speed profile correlates **r = 0.89** (one walk, 13 min); the walk's
@@ -982,8 +983,9 @@ edit of the ring's tag.
     optical/motion degraded). The stream is SPARSE with RING-SIDE cadence gaps (~86 % minute coverage on a
     choppy day; ~6–19 min holes that recur DURING an unbroken drain, so they are the ring's own logging
     cadence, not a decode drop) - so any daily active-minute total derived from it UNDERCOUNTS. This
-    corroborates the "plausible, tracks activity" read while keeping it Tier B: still not a step count, still
-    not ground-truth-validated against Oura's own numbers, still never scored. NOOP has no MET field in its
+    corroborates the "tracks activity" read while keeping it Tier B: still not a step count, still not
+    exact per minute against Oura's own numbers (day scale is another matter, see the day-sum bullet
+    below), still never scored. NOOP has no MET field in its
     HR/strain data model, so `0x50` remains a diagnostic JSONL corpus (`oura-activity-<id>.jsonl`); the ring's
     path into NOOP activity is HR (live push + banked IBI, §6.4), never MET. open_oura consumes this same
     `0x50` `met` as one input to its activity classifier (`activity_model.rs`). [open_oura-act]
@@ -1008,8 +1010,46 @@ edit of the ring's tag.
     below, which collapses 0.912 → 0.256 under the same test). Mean 4.75 MET is physiologically correct for
     4.6 km·h⁻¹. The record count **independently re-confirms the 60 s cadence**: 86 MET samples for an
     86-minute walk, exactly 1·min⁻¹. Two caveats kept explicit: MET has a **~1 min recovery lag**, so it
-    smears activity boundaries; and this validates that MET *tracks intensity*, NOT that the absolute MET
-    scale is calibrated against Oura's own numbers — it stays Tier B and unscored.
+    smears activity boundaries; and this walk alone validates that MET *tracks intensity*, NOT that the
+    absolute MET scale is calibrated against Oura's own numbers (later shown at DAY scale by the export
+    validation in the next bullet; per minute only 85 % of values match, and a workout confirmed in the Oura
+    app overrides the wire) — it stays Tier B and unscored.
+  - **✅ `0x50` DAY-SUM VALIDATED against Oura's own MET export, and its record timestamp is the END of the
+    record (NOOP, 2026-09-15/16, Gen 3, 16 days).** The Oura data export's `dailyactivity.csv` carries a
+    per-day 1440 × 60 s `met` series with one-decimal values — the same object the wire encodes. Over 16,839
+    overlapping minutes, Σ_{MET ≥ 1.5}(MET − 1) computed from the NOOP decode reproduces the export's sum on
+    **10/10 clean days within 1–8 %** (the best exactly); the four days off by 15–25 % are the capture's
+    known coverage holes, not decode error (compare over the minutes BOTH sides have, never raw day totals).
+    That lifts the absolute-scale caveat in the bullet above, at day scale: the two-slope byte formula is
+    right. **Timestamp semantics:** aligning the wire minutes to the export's minute series, every record
+    length *n* (2, 3, …, 13 samples) matches best at a shift of exactly **−n minutes**, i.e. the record's
+    timestamp is the END of its LAST sample and sample *i* covers `[ts − (n − i)·60, ts − (n − i − 1)·60)`.
+    Read that way 85 % of minutes match the export's value exactly (r = 0.90); read forward from the
+    timestamp only 23 % do (r = 0.57), and an earlier "best r at −2 min" figure was an artefact of pooling
+    record lengths. The export also carries a `0.1` value (a server-side non-wear marker) the wire never
+    shows. The minutes the ring does not log (~15–20 % of a day) are rest: the ring does not emit `0x50`
+    while still, so they cost nothing in a MET-based day total.
+  - **Derived: Oura's active-calorie rule, recovered exactly (NOOP, 2026-09-16, Gen 3).** On the export's own
+    complete minute series, `active_calories = k × Σ_{MET ≥ 1.5}(MET − 1.5)` with **r = 1.0000** over 75
+    current-era days (r 0.9999 over 396 pre-2025 days), zero intercept, and **k = 0.0175 × the wearer's body
+    mass in kg** (the fitted k and the profile weight agree within 2 %): the textbook MET→kcal conversion
+    (1 MET = 3.5 ml O₂·kg⁻¹·min⁻¹ at ≈ 5 kcal·L⁻¹). That is Oura's support wording, "the portion that exceeds
+    1.5 MET", taken literally; an earlier `(MET − 1) × k` reading (whose k drifted between eras) was the wrong
+    subtraction absorbing an intercept, and there is no hidden per-account constant. The Oura app's
+    `total_calories` does NOT follow a rule this exact (≈ linear in Σ max(MET, 1) plus a constant, r 0.998).
+    Checked against the app's own activity card on two live-captured days: both within 0.4 %.
+    **A workout CONFIRMED in the Oura app floors its minutes at a per-session MET, `max(wire MET, M)`; it does
+    not replace them.** In the export, every one of 9 confirmed sessions has its lowest in-window minute
+    exactly at the session's value, with departures only upward (two of them read 4.2–4.3 where the wire
+    carries the ring's 2.6–2.9). On a live-captured day with one confirmed 279-min session, one parameter,
+    M = 3.8, reproduces both of the app's numbers: the day's active-calorie lift within 0.4 % (a flat
+    replacement would give a third less), and the session card, `N × (M − 1.5) × 0.0175 × weightKg`, within
+    0.2 %. M is chosen per session (3.8, 4.1, 4.2, 4.3, 4.8 and 5.5 seen; two confirmed walks on one day
+    imply 3.8 and 4.1 and lifted that day's figure by 13 %). This matches Oura's support text ("calculated
+    based on average calorie burn rates for that activity type"): a label, not the sensor, so a client
+    computing from the wire alone reads 10–31 % below the app on such a day and agrees with it on every
+    other day. Still an estimate of true expenditure
+    (Kristiansson et al. 2023: lab MET vs calorimetry r 0.93 / MAPE 21 %, free-living AEE MAPE 46–90 %).
   - **Walking-equivalent step estimate, scored against two reference devices (NOOP, 2026-08-02).** For the
     same walk, `activeMinutes × 100` (MET ≥ 3.0 → 82 active min) gives **8,200** against a measured
     **8,834** (Suunto `.fit` `total_cycles × 2`) and **7,868** (WHOOP, same walk): −7 % and +4 %. The

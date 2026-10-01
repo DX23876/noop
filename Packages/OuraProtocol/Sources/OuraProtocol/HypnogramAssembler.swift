@@ -8,8 +8,9 @@ import Foundation
 // timestamp therefore marks WHEN THE ANALYSIS WAS SAVED, not when the sleep happened; anchoring each
 // record at its envelope collapses an entire night onto a few seconds.
 //
-// THE RECONSTRUCTION: the burst's codes are one contiguous sequence at 30 s/code, ENDING at the burst's
-// envelope time. Laying N codes backward from the anchored burst end recovers the real window. The
+// THE RECONSTRUCTION: the burst's written codes and interior gaps form a sequence at 30 s/code,
+// ENDING at the anchored burst end. Trailing unwritten flash pad has no elapsed time. Laying the
+// remaining codes backward from the end recovers the real window. The
 // 30 s epoch is triple-confirmed: open_oura's sleepnet.md ("DEEP/LIGHT/REM/WAKE classification at
 // 30-second intervals"), the observed window math (1,196 codes over a ~23:35-09:00 night), and the
 // 0x49 summary's 600-minute window over those same 1,196 codes (~30.1 s/code).
@@ -42,7 +43,8 @@ public struct OuraHypnogramBurst: Equatable, Sendable {
         zip(records, records.dropFirst()).contains { $1.ringTimestamp < $0.ringTimestamp }
     }
 
-    /// Lay the burst's codes out backward from `endUnixSeconds` at `secondsPerCode`. Code j of N gets
+    /// Lay the burst's codes out backward from `endUnixSeconds` at `secondsPerCode`. Trailing unwritten
+    /// codes are excluded from N; interior unwritten runs retain their time slots. Code j of N gets
     /// `ts = end - (N - j) * secondsPerCode` — i.e. each ts marks the START of that code's interval and
     /// the final code's interval ends exactly at the burst end. Order: records in arrival order, codes
     /// by their in-record index (the sequence is the ground truth; the spacing is the documented 30 s
@@ -56,21 +58,16 @@ public struct OuraHypnogramBurst: Equatable, Sendable {
     /// full unclamped lay is returned) so a mis-paired window can never empty the night. `nil` = no clip.
     public func codesWithTimes(endUnixSeconds: Int, sleepStartUnixSeconds: Int? = nil, secondsPerCode: Int = 30)
         -> [(phase: OuraSleepPhase, ts: Int)] {
-        let n = totalCodes
+        let phases = records.flatMap(\.phases)
+        let n = (phases.lastIndex { !$0.unwritten } ?? -1) + 1
         var out: [(phase: OuraSleepPhase, ts: Int)] = []
         out.reserveCapacity(n)
-        var j = 0
-        for record in records {
-            for phase in record.phases {
-                out.append((phase, endUnixSeconds - (n - j) * secondsPerCode))
-                j += 1
-            }
+        for (j, phase) in phases.prefix(n).enumerated() {
+            out.append((phase, endUnixSeconds - (n - j) * secondsPerCode))
         }
-        // #1246: drop UNWRITTEN epochs (whole-record `0xFF` erased pages) from the reconstructed hypnogram
-        // — they are a GAP, not `awake`. Done AFTER the lay so `n`/`j` (and thus every WRITTEN code's ts)
-        // are computed over the full sequence: an unwritten run anywhere — head, middle, or tail — leaves
-        // the real codes around it correctly timed. An all-unwritten burst yields [] (an honest no-stage
-        // night), which the caller drops rather than persisting a blank session.
+        // #1246: interior UNWRITTEN epochs occupy their slots, then leave a gap rather than false awake
+        // stages. #2564: trailing pad is removed before layout so the final written code ends at the
+        // anchor. An all-unwritten burst yields [] and is not persisted as a blank session.
         let written = out.filter { !$0.phase.unwritten }
         guard let start = sleepStartUnixSeconds else { return written }
         let clipped = written.filter { $0.ts >= start }

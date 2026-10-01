@@ -59,12 +59,14 @@ final class AnalyticsEnginePrimaryRestingHRTests: XCTestCase {
         XCTAssertLessThan(Double(rhr), mean - 5, "the shipped value is the nadir, not the mean")
     }
 
-    func testFallsBackToTheOtherSessionsWhenThePrimaryHasNoNadir() {
+    /// Upstream #2522, adopted in the 2026-10-01 sync (recipe AI-17): a nap never supplies the daily
+    /// resting HR, not even when the main night carries none. The day reads as having no resting HR.
+    func testANapDoesNotStandInWhenThePrimaryHasNoNadir() {
         let (night, nap, _) = nightAndNap()
         // No HR inside the main night at all, so it carries no resting HR; the nap's is the only one.
         let napOnly = hr(nap.start, nap.end, bpm: 44)
         let res = AnalyticsEngine.analyzeDay(day: day, hr: napOnly, rr: [], profile: profile,
                                              providedSleep: [night, nap])
-        XCTAssertEqual(res.daily.restingHr, 44)
+        XCTAssertNil(res.daily.restingHr)
     }
 }

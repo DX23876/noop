@@ -483,7 +483,26 @@ public final class LiveState: ObservableObject {
         return String(watts)
     }
     /// Rolling log of human-readable lines for the on-device verification checklist.
-    @Published public var log: [String] = []
+    ///
+    /// NOT `@Published`, deliberately (#2547). `LiveState` carries dozens of `@Published` properties on one
+    /// `ObservableObject`, and an `ObservableObject` invalidates EVERY observer on ANY published change, so
+    /// publishing per appended line woke every view in the app for each line. A history drain plus a
+    /// re-score burst emits hundreds a minute and iOS killed the app for sustained background CPU (#2521).
+    ///
+    /// Reads are still SYNCHRONOUS and uncoalesced: this returns the buffer as it is right now, so code that
+    /// appends and then inspects the log in the same turn sees its own line. Only the PUBLISH is coalesced,
+    /// via `logRevision`. Capture is never delayed or dropped.
+    public var log: [String] { logBuffer }
+
+    /// The backing store. Mutated only by `append(log:)`.
+    private var logBuffer: [String] = []
+
+    /// Ticks when the log has changed, at most once per `publishCoalesceSeconds` however fast lines arrive.
+    ///
+    /// This is the property SwiftUI observes for the log. The Android twin is
+    /// `boundedRevision(ble.logRevision, coalesceMs = 250)` in `TestCentreScreen.kt`, which throttles the
+    /// same way; this brings the platforms level.
+    @Published public private(set) var logRevision: UInt64 = 0
 
     // MARK: - Connection status (single source of truth, #266)
 
@@ -746,6 +765,27 @@ public final class LiveState: ObservableObject {
     /// a streaming strap fills it in about 50 minutes, so exports read the whole log from disk (`archive`);
     /// this buffer drives the Live log card and the Test Centre readouts. Each line is a short redacted string
     /// (~100 bytes), so the worst-case buffer is well under ~1 MB — bounded, never unbounded.
+    /// The tail of `log` that the Live screen's card RENDERS: its last `tailLines` lines.
+    ///
+    /// Returns a SLICE, not a range, and that is the load-bearing part. The card draws it in a `LazyVStack`,
+    /// whose row closures can run in a later main-actor turn than the body that produced them (on scroll,
+    /// with no re-evaluation). A range plus `log[idx]` would then read a buffer that `append(log:)` may have
+    /// trimmed in between and crash out of bounds. A slice is a copy-on-write value snapshot, so the rows it
+    /// hands out stay valid however the live buffer moves.
+    ///
+    /// Its `indices` are ABSOLUTE positions in `log`, which is what makes them usable as identity: between
+    /// trims an append shifts only the window edges, so every shared row keeps its id, and
+    /// `scrollTo(log.indices.last)` always addresses a row that is actually rendered, which a LEADING window
+    /// would not. Empty log or a non-positive tail yields an empty slice. (#2521)
+    ///
+    /// `nonisolated` because it is pure over its arguments and touches nothing on the actor, the same way
+    /// `redactPii` and `logSafeDeviceName` below are. Without it the method inherits `LiveState`'s
+    /// `@MainActor` and a plain `XCTestCase` cannot call it at all.
+    nonisolated static func renderedTail(_ log: [String], tailLines: Int) -> ArraySlice<String> {
+        guard tailLines > 0 else { return log[log.endIndex..<log.endIndex] }
+        return log.suffix(tailLines)
+    }
+
     static let maxLogLines = 5_000
 
     /// Amortize the ring trim: let the buffer overrun by this slack, then trim back to the cap in one batch
@@ -770,11 +810,15 @@ public final class LiveState: ObservableObject {
         let stamp = Self.hasLeadingTimestamp(line) ? "" : "[\(Self.logStamp())] "
         let tagged = stamp + (domain.map { "[\($0.id)] " + line } ?? line)
         let safe = Self.redactPii(tagged)
-        log.append(safe)
+        logBuffer.append(safe)
         // Batched trim: overrun by `trimSlack`, then trim back to the cap in one shot (amortized O(1)/line).
-        if log.count > Self.maxLogLines + Self.trimSlack { log.removeFirst(log.count - Self.maxLogLines) }
+        if logBuffer.count > Self.maxLogLines + Self.trimSlack {
+            logBuffer.removeFirst(logBuffer.count - Self.maxLogLines)
+        }
         // Onto disk as it is logged, so a restart loses nothing and an export carries the runs before it.
+        // BEFORE the coalesced publish and never inside it: capture is per line, only the notification waits.
         Self.archive.append(safe)
+        publishLogCoalesced()
         // #990: fold the Backfiller's per-session "session persisted N rows" summary into the persisted
         // ALL-TIME drained-rows tally, right here at the single log sink (no new BLE seam). The summary
         // is emitted unconditionally whenever rows landed (#150), so the cumulative counter accrues on
@@ -813,6 +857,72 @@ public final class LiveState: ObservableObject {
     /// keys on what the line STARTS with is unaffected by stamping.
     static func withoutLeadingTimestamp(_ line: String) -> String {
         hasLeadingTimestamp(line) ? String(line.dropFirst(11)) : line
+    }
+
+    /// How often at most the log publishes, however fast lines arrive. Matches the Android twin's 250ms.
+    ///
+    /// `nonisolated` because a `static let` in a `@MainActor` type IS actor-isolated, and this is the default
+    /// argument of the `nonisolated` decision function below, which could not then reach it. Same reason
+    /// `legacyTailKey` further down carries the keyword.
+    nonisolated static let publishCoalesceSeconds: Double = 0.25
+
+    /// What the coalescer should do, given when it last published and whether a flush is already queued.
+    ///
+    /// Pure, so the policy is tested without a clock or a run loop: the async half below is then a thin
+    /// adapter with no decisions of its own. Leading edge plus a trailing flush, which is what makes the
+    /// contract "the last line of a burst always lands" rather than "the last line is dropped until the next
+    /// one arrives". (#2547)
+    /// `Equatable` compares the `scheduleIn` payload EXACTLY, and it is the result of floating-point
+    /// subtraction, so a test asserting a whole expected case is comparing doubles for equality. Destructure
+    /// and use an accuracy instead: `0.25 - (100.10 - 100)` is `0.15000000000000568`, not `0.15`.
+    enum LogPublishDecision: Equatable {
+        /// Enough time has passed; publish on this line.
+        case publishNow
+        /// Inside the window with nothing queued; publish once after this many seconds.
+        case scheduleIn(Double)
+        /// Inside the window and a flush is already queued, which will cover this line.
+        case alreadyQueued
+    }
+
+    nonisolated static func logPublishDecision(
+        now: Double, lastPublish: Double, flushQueued: Bool, interval: Double = publishCoalesceSeconds,
+    ) -> LogPublishDecision {
+        let elapsed = now - lastPublish
+        if elapsed >= interval { return .publishNow }
+        if flushQueued { return .alreadyQueued }
+        // Clamped into [0, interval]. A clock that went backwards must neither ask for a negative sleep nor
+        // stall the log for longer than one window: without the upper clamp a `lastPublish` in the future
+        // makes `interval - elapsed` exceed the interval, and the log would sit un-notified for that long.
+        return .scheduleIn(min(interval, max(0, interval - elapsed)))
+    }
+
+    private var lastLogPublish: Double = -.greatestFiniteMagnitude
+    private var logFlushQueued = false
+
+    /// Bump `logRevision` now, or once at the end of the current window.
+    private func publishLogCoalesced() {
+        let now = ProcessInfo.processInfo.systemUptime
+        switch Self.logPublishDecision(now: now, lastPublish: lastLogPublish, flushQueued: logFlushQueued) {
+        case .alreadyQueued:
+            return
+        case .publishNow:
+            lastLogPublish = now
+            logRevision &+= 1
+        case .scheduleIn(let wait):
+            logFlushQueued = true
+            Task { @MainActor [weak self] in
+                // `try?` and NOT an early return on failure, deliberately. The flag is what suppresses every
+                // other publish in the window, so the one thing this closure must always do is clear it. A
+                // cancelled sleep throws; swallowing that and falling through still clears the flag and
+                // publishes. Rewriting this as `try await` with the error propagating would leave the flag
+                // set forever, and the log would keep capturing while the UI silently froze.
+                try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
+                guard let self else { return }
+                self.logFlushQueued = false
+                self.lastLogPublish = ProcessInfo.processInfo.systemUptime
+                self.logRevision &+= 1
+            }
+        }
     }
 
     /// The in-app log lines tagged for one test domain (for the Test Centre live readout). Read-only,
@@ -858,7 +968,7 @@ public final class LiveState: ObservableObject {
         #else
         let osName = "macOS"
         #endif
-        var header = "NOOP strap log (scheduled export) — \(osName)\nApp: \(v)\n\(osName): "
+        var header = "NOOP strap log (scheduled export) — \(osName)\nApp: \(Self.appIdentityLine)\n\(osName): "
             + ProcessInfo.processInfo.operatingSystemVersionString + "\n"
         // #453: the BODY is scrubbed as it is appended, but these header lines come from the diagnostics
         // block and never pass through that path - and they carry device ids, which embed a BLE address
@@ -870,6 +980,29 @@ public final class LiveState: ObservableObject {
         // Same earlier-runs-then-current shape as `exportableLogText()`: a scheduled drop that fires after a
         // restart reports the runs before it, not only the (possibly empty) current one.
         return header + archive.exportText()
+    }
+
+    /// `<version> (<build>) <bundle id>` for the export header.
+    ///
+    /// The build number and the bundle id were both absent (#2553). The build matters because a tester is
+    /// routinely asked to confirm they are on a particular staging build, and the version alone cannot say.
+    /// The bundle id matters because the `.ipa` ships unsigned and a re-signer can rewrite it, which changes
+    /// how Apple Health identifies this app as a source and which background-task identifiers iOS accepts.
+    ///
+    /// The version and build identify nobody. The bundle id is the app's own identifier and normally does
+    /// not either, but `Config/BundleId.xcconfig` exists so someone building from source can set their own
+    /// `BUNDLE_ID_PREFIX`, and that string is whatever they chose. It is printed anyway, and NOT routed
+    /// through `redactPii`, because seeing the real id IS the diagnostic and masking it would defeat the
+    /// point on exactly the builds most likely to need it.
+    ///
+    /// Shared by both header builders on purpose: the two used to construct the same `App:` line
+    /// independently, which is how a field goes into one export and not the other.
+    nonisolated static var appIdentityLine: String {
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? "?"
+        let build = info?["CFBundleVersion"] as? String ?? "?"
+        let bundleID = Bundle.main.bundleIdentifier ?? "?"
+        return "\(version) (\(build)) \(bundleID)"
     }
 
     /// Scrub personal identifiers from a strap-log line so it's safe to share publicly (#445): BLE MAC
@@ -1079,7 +1212,7 @@ public final class LiveState: ObservableObject {
         #else
         let osName = "macOS"
         #endif
-        var header = "NOOP strap log - \(osName)\nApp: \(v)\n\(osName): "
+        var header = "NOOP strap log - \(osName)\nApp: \(Self.appIdentityLine)\n\(osName): "
             + ProcessInfo.processInfo.operatingSystemVersionString + "\n"
         #if os(iOS)
         let diagLines = IOSDiagnostics.capture().summaryLines()

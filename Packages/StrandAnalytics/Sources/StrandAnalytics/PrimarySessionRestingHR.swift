@@ -1,11 +1,11 @@
 import Foundation
 
-/// #1169: an alternative headline resting-HR definition — the arithmetic MEAN of valid HR samples in the
-/// LONGEST (primary) sleep session, rather than the lowest-per-session floor `AnalyticsEngine` ships today.
+/// #1169: a shadow resting-HR definition — the arithmetic MEAN of valid HR samples in the longest
+/// (primary) sleep session, rather than the five-minute floor `AnalyticsEngine` ships today.
 ///
 /// ## Why (issue #1169, artemc)
-/// The shipped daily RHR is `restingHRDaily = matched…restingHR.min()` (`AnalyticsEngine`) — a nightly HR
-/// FLOOR, and the `.min()` lets a short low-HR nap replace the main overnight session. A clean-room,
+/// The original daily RHR took the minimum floor across sessions, letting a short low-HR nap replace
+/// the main overnight session. A clean-room,
 /// single-participant 5-night experiment (official WHOOP RHR + a Polar H10 ECG mean as independent
 /// references, a pre-declared dev/holdout split, no fitted offset) found the primary-session sample mean
 /// tracked both references far better: rounded MAE vs the official target 6.0→2.0 (dev) / 7.5→0.8 (holdout).
@@ -19,7 +19,7 @@ import Foundation
 ///
 /// ## Definition (documented per the issue)
 /// - **Primary session**: the LONGEST session by duration; ties resolve to the FIRST (stable). A shorter nap
-///   never replaces the main night — this is the half the shipped `.min()` gets wrong.
+///   never replaces the main night — the selection rule now used by the shipped daily RHR too.
 /// - **Valid sample**: bpm within `validBpm` (default 30…220, matching `AnalyticsEngine`'s worn-HR range).
 ///   Anything outside the range — or a missing sample (simply absent from the array) — is excluded.
 /// - **Mean**: the arithmetic SAMPLE mean (unweighted). The experiment validated the sample mean; a

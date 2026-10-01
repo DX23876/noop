@@ -97,6 +97,42 @@ struct IOSDiagnostics {
         return cal.dateComponents([.day], from: from, to: to).day
     }
 
+    /// Whether this build's background-task identifiers can register at all, as a line, or nil when fine.
+    ///
+    /// `BGTaskSchedulerPermittedIdentifiers` is baked into Info.plist at BUILD time as
+    /// `$(PRODUCT_BUNDLE_IDENTIFIER).<suffix>`, while every scheduler derives its own identifier at RUNTIME
+    /// from `Bundle.main.bundleIdentifier`. That is correct as built, and it is exactly what a re-signer
+    /// breaks: rewriting `CFBundleIdentifier` without rewriting the permitted list leaves the two
+    /// disagreeing, `BGTaskScheduler.register` refuses every one of them, and the scheduled re-score, the
+    /// Health write-back, the Coach brief and the scheduled export all become inert with no visible error.
+    ///
+    /// Reported rather than worked around: the app cannot register an identifier iOS has not permitted, so
+    /// the only fix is on the signing side. Naming it is what turns "background sync stopped" into
+    /// something a wearer can act on. (#2553, from #2514)
+    static func backgroundTaskIdentityFault() -> String? {
+        guard let runtimeID = Bundle.main.bundleIdentifier else { return nil }
+        let permitted = Bundle.main.infoDictionary?["BGTaskSchedulerPermittedIdentifiers"] as? [String] ?? []
+        return backgroundTaskIdentityFault(runtimeID: runtimeID, permitted: permitted)
+    }
+
+    /// The decision alone, so it is testable without a rebuilt Info.plist. Reading `Bundle.main` is the
+    /// adapter's job and it makes no decisions of its own.
+    static func backgroundTaskIdentityFault(runtimeID: String, permitted: [String]) -> String? {
+        guard !permitted.isEmpty else { return nil }
+        // Every permitted identifier is `<bundle id>.<suffix>`; if none sits under the id this build
+        // actually runs as, nothing can register.
+        guard !permitted.contains(where: { $0.hasPrefix(runtimeID + ".") }) else { return nil }
+        let baked = permitted.first.map { String($0.dropLast(($0.split(separator: ".").last?.count ?? 0) + 1)) }
+        // States the MISMATCH and what follows from it, and stops there. Re-signing is the likeliest way a
+        // build reaches this state, but a mis-set BUNDLE_ID_PREFIX or a hand-edited Info.plist produce an
+        // identical one and this cannot tell them apart. Naming a cause it did not observe is the #1635
+        // mistake, where "the strap refused" was printed for a local SecurityException.
+        return "Background tasks: WILL NOT REGISTER - this build runs as \(runtimeID), Info.plist permits "
+            + "identifiers under \(baked ?? "a different prefix") - the derived identifiers are not in the "
+            + "permitted list, so scheduled re-score, Health write-back, Coach brief and scheduled export "
+            + "cannot start"
+    }
+
     /// A formatted, multi-line block describing the environment. Empty on macOS (the macOS strap-log
     /// header already carries OS + app version), so callers can append it unconditionally.
     func summaryLines() -> [String] {
@@ -110,6 +146,8 @@ struct IOSDiagnostics {
         if let bg = backgroundRefresh { lines.append("Background refresh: \(bg)") }
         if let lpm = isLowPowerMode { lines.append("Low Power Mode: \(lpm ? "ON (throttles background BLE)" : "off")") }
         if let side = isSideloaded { lines.append("Sideloaded build: \(side ? "yes" : "no (App Store / TestFlight)")") }
+        // #2553: silent unless it is actually broken, so an ordinary install's export is unchanged.
+        if let broken = Self.backgroundTaskIdentityFault() { lines.append(broken) }
         if let days = expiryDaysRemaining() {
             if days < 0 {
                 lines.append("Sideload expiry: EXPIRED \(-days) day\(abs(days) == 1 ? "" : "s") ago - re-sign to relaunch")

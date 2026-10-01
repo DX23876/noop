@@ -27,7 +27,7 @@ while let k = it.next() {
     case "--seed": a.seed = UInt64(it.next() ?? "") ?? a.seed
     case "-h", "--help":
         print("""
-        usage: sleeppsg --dataset <sleep-accel root> [--section all|port|baseline|strata|rem|variants]
+        usage: sleeppsg --dataset <sleep-accel root> [--section all|port|baseline|strata|rem|variants|priors]
                         [--subjects N] [--csv <path>] [--seed <n>]
 
           --dataset   PhysioNet sleep-accel v1.0.0, extracted. See README.md for the download step and the
@@ -475,6 +475,39 @@ if want("variants") {
     if let path = a.csv {
         try? csvLines.joined(separator: "\n").write(toFile: path, atomically: true, encoding: .utf8)
         print("    per-variant CSV written to \(path)")
+    }
+}
+
+if want("priors") {
+    print("""
+
+    ================================================================================
+    7. BASE PRIORS, SUBJECT BY SUBJECT
+    ================================================================================
+    The pooled table above can be carried by a few long nights. Here every subject counts once: their own
+    kappa, and how far each stage's share of THEIR night is from their own PSG. The deep prior moved 0.18 →
+    0.15 on this section's evidence; the "before" row is that change undone, and #348-A adds the awake half
+    the recipe does not take. `better` counts subjects whose value improved against the incumbent (kappa up,
+    |bias| down); a tie counts as neither.
+    """)
+    func perSubject(_ rows: [Scored]) -> [(kappa: Double, bias: [String: Double])] {
+        rows.map { r in
+            let bias = stageBias(ref: r.truth, pred: r.pred)
+            return (confusion(ref: r.truth, pred: r.pred).kappa, bias)
+        }
+    }
+    let base = perSubject(shipped)
+    print("    variant                     mean κ  better κ   mean|bias| wake  deep   REM  light   better |bias| wake deep  REM light")
+    for v in [Variants.incumbent, Variants.deepPriorBefore, Variants.p348Priors] {
+        let rows = v.name.hasPrefix("incumbent") ? shipped : subjects.map { score($0, using: stageVariant(v.config)) }
+        let ps = perSubject(rows)
+        let n = ps.count
+        let kBetter = zip(ps, base).filter { $0.0.kappa > $0.1.kappa }.count
+        func meanAbs(_ st: String) -> Double { mean(ps.map { abs($0.bias[st] ?? 0) }) }
+        func better(_ st: String) -> Int { zip(ps, base).filter { abs($0.0.bias[st] ?? 0) < abs($0.1.bias[st] ?? 0) }.count }
+        print("    \(v.name.padding(toLength: 26, withPad: " ", startingAt: 0))\(f(mean(ps.map { $0.kappa }), 7, 3))   \(kBetter)/\(n)     "
+              + "\(f(meanAbs("wake"), 5, 2)) \(f(meanAbs("deep"), 5, 2)) \(f(meanAbs("rem"), 5, 2)) \(f(meanAbs("light"), 5, 2))      "
+              + "\(better("wake"))/\(n) \(better("deep"))/\(n) \(better("rem"))/\(n) \(better("light"))/\(n)")
     }
 }
 

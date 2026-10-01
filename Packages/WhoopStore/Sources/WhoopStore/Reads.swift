@@ -257,6 +257,11 @@ extension WhoopStore {
     /// [hrFingerprint] uses, materialising no rows. `COUNT(*)` is the load-bearing half: it moves when a
     /// backfill lands rows INSIDE a window already covered, which `MAX(ts)` alone would miss.
     ///
+    /// The five R-R figures come from ONE walk (the `rr` derived table). Each needs `srcChannel` or
+    /// `tsSuspect`, which the key index does not hold, so every beat in the window costs a table lookup;
+    /// as five sub-selects they paid it up to five times, and on a 54-hour WHOOP 5 window (~280k beats)
+    /// that was 44% of a warm re-score's CPU. The values are unchanged.
+    ///
     /// The streams are exactly the ones the per-day loop reads and hands to `analyzeDay`:
     /// - `ppgHrSample`: the day's HR read is measured ∪ PPG-derived ([hrSamples]), so a PPG row for a second
     ///   with no measured HR changes the scored series while `hrSample` stays put.
@@ -283,19 +288,9 @@ extension WhoopStore {
                 SELECT
                   (SELECT COUNT(*) FROM ppgHrSample WHERE deviceId = :d AND ts >= :f AND ts <= :t) AS pc,
                   (SELECT COALESCE(MAX(ts), 0) FROM ppgHrSample WHERE deviceId = :d AND ts >= :f AND ts <= :t) AS pm,
-                  (SELECT COUNT(*) FROM rrInterval WHERE deviceId = :d AND ts >= :rf AND ts <= :rt
-                     AND (srcChannel IS NULL OR srcChannel <> :rrx)
-                     AND (tsSuspect IS NULL OR tsSuspect <> 1)) AS rc,
-                  (SELECT COALESCE(MAX(ts), 0) FROM rrInterval WHERE deviceId = :d AND ts >= :rf AND ts <= :rt
-                     AND (srcChannel IS NULL OR srcChannel <> :rrx)
-                     AND (tsSuspect IS NULL OR tsSuspect <> 1)) AS rm,
-                  (SELECT COUNT(*) FROM rrInterval WHERE deviceId = :d AND ts >= :rf AND ts <= :rt
-                     AND srcChannel = 5 AND (tsSuspect IS NULL OR tsSuspect <> 1)) AS w5,
-                  (SELECT COUNT(*) FROM rrInterval WHERE deviceId = :d AND ts >= :rf AND ts <= :rt
-                     AND srcChannel = 7 AND (tsSuspect IS NULL OR tsSuspect <> 1)) AS w7,
+                  rr.rc AS rc, rr.rm AS rm, rr.w5 AS w5, rr.w7 AS w7,
                   EXISTS(SELECT 1 FROM rrInterval WHERE deviceId = :d AND srcChannel IN (5, 6, 7)) AS w5owner,
-                  (SELECT COUNT(*) FROM rrInterval WHERE deviceId = :d AND ts >= :rf AND ts <= :rt
-                     AND srcChannel = :whoop4Historical AND (tsSuspect IS NULL OR tsSuspect <> 1)) AS w4h,
+                  rr.w4h AS w4h,
                   COALESCE((SELECT QUOTE(brand) || ':' || QUOTE(model) FROM pairedDevice
                             WHERE id = :d), 'absent') AS registry,
                   (SELECT COUNT(*) FROM respSample WHERE deviceId = :d AND ts >= :f AND ts <= :t) AS xc,
@@ -312,6 +307,14 @@ extension WhoopStore {
                   (SELECT COALESCE(MAX(ts), 0) FROM sleepStateSample WHERE deviceId = :d AND ts >= :f AND ts <= :t) AS bm,
                   (SELECT COUNT(*) FROM event WHERE deviceId = :d AND ts >= :f AND ts <= :t) AS ec,
                   (SELECT COALESCE(MAX(ts), 0) FROM event WHERE deviceId = :d AND ts >= :f AND ts <= :t) AS em
+                FROM (SELECT
+                        COUNT(CASE WHEN srcChannel IS NULL OR srcChannel <> :rrx THEN 1 END) AS rc,
+                        COALESCE(MAX(CASE WHEN srcChannel IS NULL OR srcChannel <> :rrx THEN ts END), 0) AS rm,
+                        COUNT(CASE WHEN srcChannel = 5 THEN 1 END) AS w5,
+                        COUNT(CASE WHEN srcChannel = 7 THEN 1 END) AS w7,
+                        COUNT(CASE WHEN srcChannel = :whoop4Historical THEN 1 END) AS w4h
+                      FROM rrInterval WHERE deviceId = :d AND ts >= :rf AND ts <= :rt
+                        AND (tsSuspect IS NULL OR tsSuspect <> 1)) AS rr
                 """, arguments: ["d": deviceId, "f": from, "t": to,
                                  "rrx": RRSourceChannel.spo2Ibi.rawValue,
                                  "whoop4Historical": RRSourceChannel.whoop4Historical.rawValue,
@@ -507,7 +510,7 @@ extension WhoopStore {
                     SELECT SUM(srcChannel = 1) > SUM(srcChannel <> 1) FROM rrInterval
                     WHERE deviceId = :d AND ts >= :f AND ts <= :t AND srcChannel IN \(Self.scorableOuraChannels)
                     AND (tsSuspect IS NULL OR tsSuspect <> 1)))
-                AND (tsSuspect IS NULL OR tsSuspect <> 1)   -- #1073: exclude future-stamped beats
+                AND (tsSuspect IS NULL OR tsSuspect <> 1)   -- exclude future-stamped (#1073) and 500 ms fill (#2371) beats
                 ORDER BY ts ASC, ord ASC, rrMs ASC, seq ASC LIMIT :lim
                 """, arguments: ["d": deviceId, "f": from, "t": to, "ff": fetchFrom, "ft": fetchTo,
                                  "rrx": RRSourceChannel.spo2Ibi.rawValue, "lim": candidateLimit])
@@ -578,6 +581,24 @@ extension WhoopStore {
                         from: Data(json.utf8))) ?? [:]
                     return WhoopEvent(ts: row["ts"], kind: row["kind"], payload: payload)
                 }
+        }
+    }
+
+    /// The most recent banked battery reading, with its charging bit (#2556).
+    ///
+    /// Separate from `batterySamples` because that one projects `ts, soc, mv` and drops `charging`, which
+    /// the table has carried since the column was added and every insert writes. A stale-battery warning
+    /// has to know whether the strap was last seen ON the charger, so it needs the column the existing read
+    /// leaves behind rather than a new one.
+    ///
+    public func latestBattery(deviceId: String) async throws -> (ts: Int, soc: Double?, charging: Bool?)? {
+        try syncRead { db in
+            try Row.fetchOne(db, sql: """
+                SELECT ts, soc, charging FROM battery
+                WHERE deviceId = ?
+                ORDER BY ts DESC LIMIT 1
+                """, arguments: [deviceId])
+                .map { (ts: $0["ts"], soc: $0["soc"], charging: $0["charging"]) }
         }
     }
 

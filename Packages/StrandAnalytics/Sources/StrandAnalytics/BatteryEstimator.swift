@@ -444,9 +444,7 @@ public enum BatteryEstimator {
               (0..<secondsPerDay).contains(nowSecOfDay) else {
             return (false, alerted, nil)
         }
-        // Bedtime = midsleep - half the typical night, CIRCULAR so a 03:30 midsleep on an 8 h night is
-        // a 23:30 bedtime rather than a negative one.
-        let bedtimeSec = floorMod(midsleep - Int((sleepHours * 1800).rounded()), secondsPerDay)
+        let bedtimeSec = self.bedtimeSec(midsleepSec: midsleep, sleepHours: sleepHours)
         let hoursUntilBedtime = Double(floorMod(bedtimeSec - nowSecOfDay, secondsPerDay)) / 3600.0
         // Outside the pre-bed window — including the moment bedtime passes, when `hoursUntilBedtime`
         // wraps to ~24 — the gate RE-ARMS. That wrap is what makes this once-per-NIGHT rather than
@@ -465,6 +463,23 @@ public enum BatteryEstimator {
         // Charging suppression must NOT consume the gate: unplug still inside the window and the alert
         // must still be able to fire (mirrors `runtimeAlert`'s contract).
         return (fire, fire ? true : alerted, runway)
+    }
+
+    /// Half the typical night in whole seconds: the distance from learned midsleep to bedtime, and from
+    /// midsleep to wake. The ONE place that rounding lives, so every reader of the learned night
+    /// (`bedtimeSec`, `NightStandDown.band`) derives the same edges. Callers guard `sleepHours > 0`;
+    /// the Kotlin twin is `BatteryEstimator.halfNightSec`.
+    public static func halfNightSec(sleepHours: Double) -> Int {
+        Int((sleepHours * 1800).rounded())
+    }
+
+    /// Learned bedtime as local seconds-of-day: midsleep minus half the typical night, CIRCULAR so a
+    /// 03:30 midsleep on an 8 h night is a 23:30 bedtime rather than a negative one. Shared by
+    /// `bedtimeAlert` and `NightStandDown.band` so the battery night guard and the Oura live-HR night
+    /// stand-down cannot disagree about when the user's night starts. The Kotlin twin is
+    /// `BatteryEstimator.bedtimeSec`.
+    public static func bedtimeSec(midsleepSec: Int, sleepHours: Double) -> Int {
+        floorMod(midsleepSec - halfNightSec(sleepHours: sleepHours), secondsPerDay)
     }
 
     private static let secondsPerDay = 86_400

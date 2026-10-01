@@ -837,6 +837,122 @@
         }
       }
     },
+    "%lld hours excluded — you were moving." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Stunden ausgeschlossen — du warst in Bewegung."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se excluyeron %lld horas porque estabas en movimiento."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld heures exclues — vous étiez en mouvement."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld ore escluse — eri in movimento."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wykryty ruch — wykluczone godziny: %lld."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Foram excluídas %lld horas — estiveste em movimento."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Движение: исключённые часы — %lld."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "因你当时在活动，已排除 %lld 小时。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "因你當時在活動，已排除 %lld 小時。"
+          }
+        }
+      }
+    },
+    "%lld%% when NOOP last heard from it, %@ ago. Charge it before tonight." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld%% beim letzten Kontakt von NOOP, vor %@. Lade es vor heute Nacht auf."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld%% en el último contacto de NOOP, hace %@. Cárgalo antes de esta noche."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld%% lors du dernier contact de NOOP, il y a %@. Rechargez-le avant ce soir."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld%% all'ultimo contatto di NOOP, %@ fa. Ricaricalo prima di stanotte."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld%% przy ostatnim kontakcie NOOP, %@ temu. Naładuj go przed wieczorem."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld%% no último contacto do NOOP, há %@. Carrega-o antes desta noite."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld%% при последнем контакте NOOP, %@ назад. Зарядите его до ночи."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 上次连接时为 %lld%%，在 %@前。请在今晚之前充电。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 上次連線時為 %lld%%，在 %@前。請在今晚之前充電。"
+          }
+        }
+      }
+    },
     "**A forgotten session stops asking.** A strength session interrupted before its first completed set had nothing to save, but still asked what to do with it at every launch — and only Discard could end it. It is now closed quietly, and the question is kept for a session that actually logged something." : {
       "localizations" : {
         "de" : {
@@ -953,6 +1069,180 @@
         }
       }
     },
+    "1 hour excluded — you were moving." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 Stunde ausgeschlossen — du warst in Bewegung."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se excluyó 1 hora porque estabas en movimiento."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 heure exclue — vous étiez en mouvement."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 ora esclusa — eri in movimento."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wykluczono 1 godzinę — wykryto ruch."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Foi excluída 1 hora — estiveste em movimento."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Исключён 1 час — вы двигались."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "因你当时在活动，已排除 1 小时。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "因你當時在活動，已排除 1 小時。"
+          }
+        }
+      }
+    },
+    "Autonomic load across your waking day" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autonome Belastung im Verlauf deines wachen Tages"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga autonómica durante las horas de vigilia"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge autonome au fil de votre journée éveillée"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carico autonomico durante le ore di veglia"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obciążenie autonomiczne w ciągu dnia"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga autonómica ao longo do teu dia acordado"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вегетативная нагрузка в течение дня бодрствования"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清醒时段的自主神经负荷"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清醒時段的自主神經負荷"
+          }
+        }
+      }
+    },
+    "Experimental · Oura ring all-day heart rate" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Experimentell · Oura-Ring: Herzfrequenz den ganzen Tag"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Experimental · Anillo Oura: frecuencia cardiaca todo el día"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expérimental · Bague Oura : fréquence cardiaque toute la journée"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Experimental · Anel Oura: frequência cardíaca todo o dia"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sperimentale · Anello Oura: frequenza cardiaca tutto il giorno"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eksperymentalne · Pierścień Oura: tętno przez cały dzień"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Экспериментально · Кольцо Oura: пульс весь день"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "实验性 · Oura 戒指全天心率"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "實驗性 · Oura 戒指全天心率"
+          }
+        }
+      }
+    },
     "Fitness Age %@%@, %@. Tap to see the trend." : {
       "localizations" : {
         "de" : {
@@ -1007,6 +1297,302 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "體能年齡 %1$@%2$@，%3$@。點一下查看趨勢。"
+          }
+        }
+      }
+    },
+    "Generate now" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jetzt erstellen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Generar ahora"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Générer maintenant"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Genera ora"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wygeneruj teraz"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gerar agora"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сгенерировать сейчас"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "立即生成"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "立即生成"
+          }
+        }
+      }
+    },
+    "Generating…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wird erstellt…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Generando…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Génération…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Generazione…"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Generowanie…"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A gerar…"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Генерация…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "生成中…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "生成中…"
+          }
+        }
+      }
+    },
+    "Oura ring only. Keeps your ring measuring heart rate through the day, standing it down only for your night. A WHOOP strap is not affected." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nur für den Oura-Ring. Lässt deinen Ring tagsüber weiter die Herzfrequenz messen und pausiert nur für deine Nacht. Ein WHOOP-Strap ist nicht betroffen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo para el anillo Oura. Mantiene tu anillo midiendo la frecuencia cardiaca durante el día y solo lo deja en reposo para tu noche. No afecta a una pulsera WHOOP."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bague Oura uniquement. Garde ta bague en mesure de fréquence cardiaque toute la journée et ne la met en pause que pour ta nuit. Sans effet sur un bracelet WHOOP."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apenas para o anel Oura. Mantém o teu anel a medir a frequência cardíaca durante o dia, parando apenas para a tua noite. Uma bracelete WHOOP não é afetada."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo per l'anello Oura. Mantiene il tuo anello a misurare la frequenza cardiaca durante il giorno, fermandolo solo per la tua notte. Una fascia WHOOP non è interessata."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tylko dla pierścienia Oura. Utrzymuje pomiar tętna przez twój pierścień w ciągu dnia, wstrzymując go tylko na twoją noc. Nie dotyczy paska WHOOP."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Только для кольца Oura. Кольцо продолжает измерять пульс в течение дня и делает паузу только на вашу ночь. На браслет WHOOP не влияет."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仅限 Oura 戒指。让你的戒指全天持续测量心率，仅在你的夜间停止。不影响 WHOOP 手环。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "僅限 Oura 戒指。讓你的戒指全天持續測量心率，僅在你的夜間停止。不影響 WHOOP 手環。"
+          }
+        }
+      }
+    },
+    "Oura ring: all-day heart rate & HRV" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oura-Ring: Herzfrequenz & HRV den ganzen Tag"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anillo Oura: frecuencia cardiaca y VFC todo el día"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bague Oura : fréquence cardiaque et VFC toute la journée"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anel Oura: frequência cardíaca e VFC todo o dia"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anello Oura: frequenza cardiaca e HRV tutto il giorno"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pierścień Oura: tętno i HRV przez cały dzień"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Кольцо Oura: пульс и ВСР весь день"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oura 戒指：全天心率与 HRV"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oura 戒指：全天心率與 HRV"
+          }
+        }
+      }
+    },
+    "Reading today's heart rate…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Herzfrequenz von heute wird gelesen…"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reading today's heart rate…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leyendo tu frecuencia cardíaca de hoy…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lecture de votre fréquence cardiaque d'aujourd'hui…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lettura della frequenza cardiaca di oggi…"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odczytywanie dzisiejszego tętna…"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leitura da frequência cardíaca de hoje…"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Загружаю сегодняшний пульс…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在读取今天的心率…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在讀取今天的心率…"
           }
         }
       }
@@ -1123,6 +1709,180 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "「今天」重新顯示"
+          }
+        }
+      }
+    },
+    "Which value means “left” and which means “right” comes from WHOOP's own app and the strap firmware, not from a strap NOOP has tested. You can send it again with the other choice at any time, and it changes nothing about your recorded data." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Welcher Wert „links“ und welcher „rechts“ bedeutet, stammt aus WHOOPs eigener App und der Firmware des Straps, nicht von einem Strap, den NOOP getestet hat. Du kannst sie jederzeit erneut mit der anderen Auswahl senden, und an deinen aufgezeichneten Daten ändert das nichts."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qué valor significa «izquierda» y cuál «derecha» procede de la propia app de WHOOP y del firmware de la pulsera, no de una pulsera que NOOP haya probado. Puedes enviarlo de nuevo con la otra opción cuando quieras, y no cambia nada de tus datos registrados."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quelle valeur signifie « gauche » et laquelle « droite » provient de l'application de WHOOP et du micrologiciel du bracelet, pas d'un bracelet testé par NOOP. Vous pouvez le renvoyer avec l'autre choix à tout moment, et cela ne change rien à vos données enregistrées."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quale valore significhi «sinistro» e quale «destro» proviene dall'app di WHOOP e dal firmware della fascia, non da una fascia testata da NOOP. Puoi inviarlo di nuovo con l'altra scelta in qualsiasi momento, e non cambia nulla dei tuoi dati registrati."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Que valor significa «esquerdo» e qual significa «direito» vem da própria app da WHOOP e do firmware da bracelete, não de uma bracelete testada pela NOOP. Podes enviá-lo novamente com a outra opção a qualquer momento, e não altera nada nos teus dados registados."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Какое значение означает «левое», а какое «правое», взято из собственного приложения WHOOP и прошивки браслета, а не из браслета, проверенного NOOP. Вы можете отправить это ещё раз с другим вариантом в любой момент, и на записанные данные это никак не влияет."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "哪个值表示「左」、哪个表示「右」，来自 WHOOP 自家 App 和手环固件，而不是 NOOP 测试过的手环。你随时可以用另一个选项重新发送，这不会改变你已记录的任何数据。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "哪個值表示「左」、哪個表示「右」，來自 WHOOP 自家 App 與手環韌體，而不是 NOOP 測試過的手環。你隨時可以用另一個選項重新傳送，這不會改變你已記錄的任何資料。"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Która wartość oznacza „lewo”, a która „prawo”, pochodzi z własnej aplikacji WHOOP i z oprogramowania paska, a nie z paska przetestowanego przez NOOP. W dowolnym momencie możesz wysłać go ponownie, wybierając inną opcję, i nie zmienia to niczego w zarejestrowanych danych."
+          }
+        }
+      }
+    },
+    "WHOOP last seen low" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WHOOP zuletzt mit wenig Akku"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WHOOP visto con poca batería"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WHOOP vu avec peu de batterie"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WHOOP visto con poca batteria"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WHOOP ostatnio z niskim poziomem baterii"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WHOOP visto com pouca bateria"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WHOOP был с низким зарядом"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WHOOP 上次电量偏低"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WHOOP 上次電量偏低"
+          }
+        }
+      }
+    },
+    "Your Oura ring only measures daytime heart rate while NOOP keeps it in that mode, and NOOP stops asking whenever the screen has been off for five minutes — which protects the ring's own sleep tracking at night, but also leaves a pocketed phone's day blank on the Heart Rate and HRV charts. On, NOOP keeps asking through the day and stops only for your usual night, learned from your sleep history (an hour before your typical bedtime to an hour after your usual wake), so the night is unchanged. Costs ring battery: the ring runs its own optical sensor all day. Until enough nights are learned it behaves as if off. Off by default." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Oura-Ring misst die Herzfrequenz tagsüber nur, solange NOOP ihn in diesem Modus hält, und NOOP hört damit auf, sobald der Bildschirm fünf Minuten aus war – das schützt nachts das eigene Schlaf-Tracking des Rings, lässt aber den Tag eines Telefons in der Tasche in den Diagrammen für Herzfrequenz und HRV leer. Eingeschaltet fragt NOOP den ganzen Tag weiter und pausiert nur für deine übliche Nacht, gelernt aus deinem Schlafverlauf (eine Stunde vor deiner typischen Schlafenszeit bis eine Stunde nach deinem üblichen Aufwachen), die Nacht bleibt also unverändert. Kostet Ringakku: der Ring betreibt seinen optischen Sensor den ganzen Tag. Bis genug Nächte gelernt sind, verhält es sich wie ausgeschaltet. Standardmäßig aus."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu anillo Oura solo mide la frecuencia cardiaca diurna mientras NOOP lo mantiene en ese modo, y NOOP deja de pedirlo cuando la pantalla lleva cinco minutos apagada, lo que protege el propio seguimiento del sueño del anillo por la noche, pero también deja en blanco el día de un teléfono en el bolsillo en las gráficas de frecuencia cardiaca y VFC. Activado, NOOP sigue pidiéndolo durante el día y solo se detiene para tu noche habitual, aprendida de tu historial de sueño (desde una hora antes de tu hora típica de acostarte hasta una hora después de tu despertar habitual), así que la noche no cambia. Consume batería del anillo: su sensor óptico funciona todo el día. Hasta que se aprendan suficientes noches se comporta como si estuviera desactivado. Desactivado por defecto."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ta bague Oura ne mesure la fréquence cardiaque de jour que tant que NOOP la maintient dans ce mode, et NOOP cesse de le demander dès que l'écran est éteint depuis cinq minutes – ce qui protège le suivi du sommeil propre à la bague la nuit, mais laisse aussi la journée d'un téléphone resté en poche vide sur les graphiques Fréquence cardiaque et VFC. Activé, NOOP continue de le demander toute la journée et ne s'arrête que pour ta nuit habituelle, apprise de ton historique de sommeil (d'une heure avant ton heure de coucher typique à une heure après ton réveil habituel), la nuit reste donc inchangée. Consomme la batterie de la bague : son capteur optique fonctionne toute la journée. Tant qu'assez de nuits ne sont pas apprises, se comporte comme désactivé. Désactivé par défaut."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O teu anel Oura só mede a frequência cardíaca diurna enquanto o NOOP o mantém nesse modo, e o NOOP deixa de pedir sempre que o ecrã está apagado há cinco minutos — o que protege o próprio registo de sono do anel à noite, mas também deixa em branco o dia de um telemóvel no bolso nos gráficos de Frequência cardíaca e VFC. Ligado, o NOOP continua a pedir durante o dia e só pára para a tua noite habitual, aprendida do teu histórico de sono (de uma hora antes da tua hora típica de deitar até uma hora depois do teu acordar habitual), pelo que a noite não muda. Gasta bateria do anel: o seu sensor ótico funciona todo o dia. Até serem aprendidas noites suficientes comporta-se como desligado. Desligado por predefinição."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo anello Oura misura la frequenza cardiaca diurna solo finché NOOP lo mantiene in quella modalità, e NOOP smette di chiederla quando lo schermo è spento da cinque minuti: questo protegge il tracciamento del sonno dell'anello di notte, ma lascia anche vuota la giornata di un telefono in tasca nei grafici Frequenza cardiaca e HRV. Attivo, NOOP continua a chiederla per tutto il giorno e si ferma solo per la tua notte abituale, appresa dalla cronologia del sonno (da un'ora prima dell'ora in cui vai a letto di solito a un'ora dopo il tuo risveglio abituale), quindi la notte non cambia. Consuma batteria dell'anello: il suo sensore ottico lavora tutto il giorno. Finché non sono apprese abbastanza notti si comporta come se fosse disattivato. Disattivato per impostazione predefinita."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twój pierścień Oura mierzy tętno w ciągu dnia tylko wtedy, gdy NOOP utrzymuje go w tym trybie, a NOOP przestaje o to prosić, gdy ekran jest wygaszony od pięciu minut – to chroni własne śledzenie snu pierścienia w nocy, ale też zostawia dzień telefonu w kieszeni pusty na wykresach tętna i HRV. Po włączeniu NOOP prosi o to przez cały dzień i zatrzymuje się tylko na twoją zwykłą noc, wyuczoną z historii snu (od godziny przed typową porą zasypiania do godziny po zwykłej pobudce), więc noc pozostaje bez zmian. Zużywa baterię pierścienia: jego czujnik optyczny działa cały dzień. Dopóki nie zostanie wyuczonych dość nocy, zachowuje się jak wyłączone. Domyślnie wyłączone."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваше кольцо Oura измеряет дневной пульс только пока NOOP держит его в этом режиме, а NOOP перестаёт запрашивать его, когда экран выключен пять минут — это защищает собственное отслеживание сна кольца ночью, но оставляет день телефона в кармане пустым на графиках пульса и ВСР. Включено: NOOP запрашивает его весь день и останавливается только на вашу обычную ночь, выученную по истории сна (за час до обычного отхода ко сну и до часа после обычного пробуждения), так что ночь не меняется. Расходует батарею кольца: его оптический датчик работает весь день. Пока не выучено достаточно ночей, ведёт себя как выключенное. По умолчанию выключено."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的 Oura 戒指只有在 NOOP 让它保持该模式时才会测量白天心率，而屏幕关闭五分钟后 NOOP 就会停止请求——这在夜间保护了戒指自身的睡眠追踪，但也会让手机放在口袋里的白天在心率和 HRV 图表上一片空白。开启后，NOOP 全天持续请求，仅在你从睡眠记录中学到的惯常夜间停止（从通常就寝前一小时到通常醒来后一小时），因此夜间不受影响。会消耗戒指电量：戒指的光学传感器全天运行。在学到足够的夜晚之前，其行为与关闭时相同。默认关闭。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的 Oura 戒指只有在 NOOP 讓它保持該模式時才會測量白天心率，而螢幕關閉五分鐘後 NOOP 就會停止請求——這在夜間保護了戒指自身的睡眠追蹤，但也會讓手機放在口袋裡的白天在心率和 HRV 圖表上一片空白。開啟後，NOOP 全天持續請求，僅在你從睡眠紀錄中學到的慣常夜間停止（從通常就寢前一小時到通常醒來後一小時），因此夜間不受影響。會消耗戒指電量：戒指的光學感測器全天運作。在學到足夠的夜晚之前，其行為與關閉時相同。預設關閉。"
           }
         }
       }
@@ -258825,7 +259585,8 @@
             "value" : "Oura"
           }
         }
-      }
+      },
+      "shouldTranslate" : false
     },
     "Oura / Fitbit / Garmin export" : {
       "localizations" : {

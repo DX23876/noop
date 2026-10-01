@@ -5,6 +5,41 @@ import StrandAnalytics
 @testable import Strand
 
 final class RawPhysiologyUnionTests: XCTestCase {
+    func testCrossSourceSleepNightKeepsActiveCopyAndDistinctBlocks() {
+        func block(_ source: String, _ start: Int, _ end: Int) -> CachedSleepSession {
+            CachedSleepSession(startTs: start, endTs: end, efficiency: nil, restingHr: nil,
+                               avgHrv: nil, stagesJSON: nil, deviceId: source)
+        }
+        let active = block("oura-ring", 100_000, 138_400)
+        let sameSourceSplit = block("oura-ring", 101_000, 137_000)
+        let importedTwin = block("my-whoop", 100_574, 137_976)
+        let nap = block("my-whoop", 145_000, 148_600)
+        let shortOverlap = block("my-whoop", 120_000, 123_600)
+
+        let result = Repository.dedupBlocks([active, sameSourceSplit, importedTwin, nap, shortOverlap])
+
+        XCTAssertEqual(result, [active, sameSourceSplit, nap, shortOverlap])
+    }
+
+    @MainActor
+    func testAllSleepSessionsCollapsesRingAndImportedWhoopNight() async throws {
+        let store = try await WhoopStore.inMemory()
+        let start = Int(Date().timeIntervalSince1970) - 86_400
+        let active = CachedSleepSession(startTs: start, endTs: start + 38_400, efficiency: nil,
+                                        restingHr: nil, avgHrv: nil, stagesJSON: nil)
+        let imported = CachedSleepSession(startTs: start + 574, endTs: start + 37_976, efficiency: nil,
+                                          restingHr: nil, avgHrv: nil, stagesJSON: nil)
+        _ = try await store.upsertSleepSessions([active], deviceId: "oura-ring")
+        _ = try await store.upsertSleepSessions([imported], deviceId: "my-whoop")
+        let repo = Repository(deviceId: "oura-ring")
+        repo.setStoreForTesting(store)
+
+        let sessions = await repo.allSleepSessions()
+
+        XCTAssertEqual(sessions.count, 1)
+        XCTAssertEqual(sessions.first?.deviceId, "oura-ring")
+    }
+
     func testRRMergePreservesDistinctSameTimestampBeatsAndDedupesExactIdentityActiveFirst() {
         let active = [RRInterval(ts: 100, rrMs: 800, ord: 8, seq: 0),
                       RRInterval(ts: 100, rrMs: 800, ord: 9, seq: 1)]

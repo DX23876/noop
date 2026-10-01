@@ -18,23 +18,32 @@ public enum AnalyticsEngine {
     /// Pair the strap's WRIST_OFF/WRIST_ON events into off-wrist `[start, end)` intervals for the sleep
     /// detector's fractional wear filter (#500; design credited to j0b-dev's #504). Each WRIST_OFF opens
     /// an interval that closes at the next WRIST_ON, or at `windowEnd` if the strap is still off at the
-    /// end of the read window. Events need not be pre-sorted; kinds are formatted "NAME(n)" (e.g.
+    /// end of the read window. An unmatched tail may end earlier when sustained valid HR resumes;
+    /// explicit OFF/ON pairs are never shortened. Events need not be pre-sorted; kinds are formatted "NAME(n)" (e.g.
     /// "WRIST_OFF(10)"), matched by prefix. Repeated OFFs/ONs without a partner are coalesced.
-    public static func offWristIntervals(events: [WhoopEvent], windowEnd: Int) -> [(start: Int, end: Int)] {
+    /// Kotlin twin: `AnalyticsEngine.offWristIntervals`.
+    public static func offWristIntervals(events: [WhoopEvent], windowEnd: Int,
+                                         hr: [HRSample] = []) -> [(start: Int, end: Int)] {
         let wear = events
             .filter { $0.kind.hasPrefix("WRIST_OFF") || $0.kind.hasPrefix("WRIST_ON") }
             .sorted { $0.ts < $1.ts }
         var intervals: [(start: Int, end: Int)] = []
         var offStart: Int? = nil
-        for e in wear {
+        var lastOff: Int? = nil
+        for e in wear where e.ts <= windowEnd {
             if e.kind.hasPrefix("WRIST_OFF") {
-                if offStart == nil { offStart = e.ts }            // ignore repeated OFFs
+                if offStart == nil { offStart = e.ts }
+                lastOff = e.ts // a repeated OFF invalidates evidence before it
             } else {                                              // WRIST_ON closes an open off-wrist span
                 if let s = offStart, e.ts > s { intervals.append((start: s, end: e.ts)) }
                 offStart = nil
             }
         }
-        if let s = offStart, windowEnd > s { intervals.append((start: s, end: windowEnd)) }
+        if let s = offStart, windowEnd > s {
+            let end = WristWearRecovery.firstSustainedHR(hr, after: lastOff ?? s, before: windowEnd)
+                ?? windowEnd
+            if end > s { intervals.append((start: s, end: end)) }
+        }
         return intervals
     }
 
@@ -714,13 +723,12 @@ public enum AnalyticsEngine {
         // keeps the nadir as the definition instead of #2358's whole-session mean (docs/fork/decisions.md,
         // 2026-09-28; ryanbr/noop#2522). The mean is still recorded beside it as the `rhr_primary_session`
         // shadow metric. #804: a ring/device-provided resting HR for the primary session wins outright.
-        // Falls back to the lowest bin of the day's other sessions when the primary one has none.
+        // No fallback to another session: a shorter nap must not supply the daily RHR when the main night
+        // has no HR (upstream #2522, adopted in the 2026-10-01 sync).
         let primarySession = physiologySessions.max(by: { ($0.end - $0.start) < ($1.end - $1.start) })
         let providedPrimaryRHR = primarySession
             .flatMap { p in providedSleep.first(where: { $0.start == p.start && $0.end == p.end })?.restingHR }
-        let restingHRDaily: Int? = providedPrimaryRHR
-            ?? primarySession?.restingHR
-            ?? physiologySessions.compactMap { $0.restingHR }.min()
+        let restingHRDaily: Int? = providedPrimaryRHR ?? primarySession?.restingHR
         // Daily avg HRV = in-bed-weighted mean of per-session avg HRV.
         let avgHRVDaily: Double? = {
             if deepHrvWindow {

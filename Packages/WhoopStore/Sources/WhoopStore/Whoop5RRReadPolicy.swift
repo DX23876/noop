@@ -7,6 +7,26 @@ extension WhoopStore {
     /// BLE already covers beat for beat, so it does not count as the start of labelled history.
     static let labelledWhoop5Channels = "(5, 7)"
 
+    /// #2371: marks the strap's 500 ms fill beats in one device's ts window. `insert` runs it after a batch
+    /// that carries a 500 ms WHOOP 5 beat, once that batch's heart rate is on disk.
+    ///
+    /// A WHOOP 5/MG emits an exact 500 ms interval (120 bpm) as a filler at rest, on both scored
+    /// transports: v18 history (5) and standard BLE (7). On one 5.0's backup (443,896 beats, 28 Sep 2026),
+    /// split by the strap's own heart rate in the same second, 500 ms occurred 33-37 times as often as its
+    /// neighbours (495-499, 501-505 ms) at 80-94 bpm, 3 times at 95-99, and no more often than them from
+    /// 100 bpm up (1.7x on four beats at 100-104, none at 105-109, 1.0x at 110-124). Below 100 bpm a
+    /// 500 ms beat would be at least 17% shorter than the mean interval of its second.
+    ///
+    /// The row is MARKED `tsSuspect = 1`, the flag every scoring read already filters (#1073), never
+    /// deleted: it stays on disk, so the fill stays inspectable. A beat whose second has no heart rate is
+    /// left alone, since nothing then says it is a fill. One literal, not a composition; upstream's Kotlin
+    /// twin is `WHOOP5_RR_FILL_FLAG_SQL`.
+    static let whoop5RrFillFlagSQL = "UPDATE rrInterval SET tsSuspect = 1 WHERE deviceId = :deviceId AND ts >= :fromTs AND ts <= :toTs AND rrMs = 500 AND srcChannel IN (5, 7) AND tsSuspect IS NULL AND EXISTS (SELECT 1 FROM hrSample h WHERE h.deviceId = rrInterval.deviceId AND h.ts = rrInterval.ts AND h.bpm < 100)"
+
+    /// Marks every stored fill beat once, in `v74-rr-whoop5-fill` (upstream v47): the condition of
+    /// `whoop5RrFillFlagSQL` over the whole table.
+    static let whoop5RrFillMigrationSQL = "UPDATE rrInterval SET tsSuspect = 1 WHERE rrMs = 500 AND srcChannel IN (5, 7) AND tsSuspect IS NULL AND EXISTS (SELECT 1 FROM hrSample h WHERE h.deviceId = rrInterval.deviceId AND h.ts = rrInterval.ts AND h.bpm < 100)"
+
     /// The earliest beat this device has banked on a labelled channel, or nil when it has none.
     ///
     /// A DIAGNOSTIC fact, not a scoring gate: `rrIntervals` scores unlabelled beats too, per beat, wherever
