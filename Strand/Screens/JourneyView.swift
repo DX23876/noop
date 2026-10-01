@@ -278,7 +278,7 @@ struct JourneyView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 8) {
                         Image(systemName: "calendar.badge.exclamationmark")
-                            .foregroundStyle(StrandPalette.statusWarning)
+                            .foregroundStyle(StrandPalette.statusWarningForeground)
                             .accessibilityHidden(true)
                         Text("Your target date has passed")
                             .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)

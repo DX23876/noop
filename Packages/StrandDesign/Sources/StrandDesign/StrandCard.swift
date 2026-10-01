@@ -1,5 +1,31 @@
 import SwiftUI
 
+/// Controls the resting chrome of shared cards without changing their content or layout.
+/// Navigation and settings hubs use the quieter grouped treatment familiar from iOS:
+/// the surface fill separates the group from the page, so it needs neither a rim nor elevation.
+public enum NoopCardChromeStyle: Sendable, Equatable {
+    case standard
+    case grouped
+}
+
+private struct NoopCardChromeStyleKey: EnvironmentKey {
+    static let defaultValue: NoopCardChromeStyle = .standard
+}
+
+public extension EnvironmentValues {
+    var noopCardChromeStyle: NoopCardChromeStyle {
+        get { self[NoopCardChromeStyleKey.self] }
+        set { self[NoopCardChromeStyleKey.self] = newValue }
+    }
+}
+
+public extension View {
+    /// Applies a consistent card treatment to a whole screen subtree.
+    func noopCardChromeStyle(_ style: NoopCardChromeStyle) -> some View {
+        environment(\.noopCardChromeStyle, style)
+    }
+}
+
 // MARK: - Frosted card surface (Titanium & Gold) + StrandCard
 //
 // The card surface: a flat `surfaceRaised` fill, continuous rounded corners and a
@@ -31,6 +57,7 @@ public struct FrostedCardSurface: View {
     public var washStrength: Double
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.noopCardChromeStyle) private var chromeStyle
     // "Card transparency" setting (reactive): fades the whole glass surface toward the background. 100 =
     // solid (default). Reading it here makes every card update live when the Settings slider moves.
     @AppStorage(CardAppearancePrefs.opacityKey) private var cardOpacityPercent = CardAppearancePrefs.defaultPercent
@@ -68,16 +95,21 @@ public struct FrostedCardSurface: View {
             )
             // Liquid redesign (2026-07-02): a 1px resting hairline in BOTH themes so every card
             // matches the liquid home card's edge (LiquidTodayView.card), not just fill contrast.
-            .overlay(shape.strokeBorder(StrandPalette.hairline, lineWidth: 1))
+            .overlay {
+                if chromeStyle == .standard {
+                    shape.strokeBorder(StrandPalette.hairline, lineWidth: 1)
+                }
+            }
             // LIGHT raises white cards off the warm-paper canvas with a soft resting drop shadow; DARK
             // stays flat — the Titanium look reads off the hairline + fill contrast alone, not a shadow,
             // so it doesn't need one to read as "raised" the way a shadow-carrying surface would. (Liquid
             // Today's own card, LiquidTodayView.card, DOES carry a small always-on shadow of its own now —
             // the two surfaces no longer need to match: each screen keeps its own chrome.)
             .shadow(
-                color: scheme == .light ? Color(hex: "#1A2230").opacity(0.11) : .clear,
-                radius: scheme == .light ? 10 : 0,
-                x: 0, y: scheme == .light ? 3 : 0
+                color: scheme == .light && chromeStyle == .standard
+                    ? Color(hex: "#1A2230").opacity(0.11) : .clear,
+                radius: scheme == .light && chromeStyle == .standard ? 10 : 0,
+                x: 0, y: scheme == .light && chromeStyle == .standard ? 3 : 0
             )
             // "Card transparency": fade the whole glass surface. The card's content sits above this
             // background, so it stays fully readable regardless.

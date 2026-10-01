@@ -17,6 +17,16 @@ final class SettingsSearchCatalogTests: XCTestCase {
                        "the catalog carries an entry for an id that no longer exists")
     }
 
+    func testEverySectionBelongsToExactlyOneSettingsPage() {
+        let mapped = SettingsPage.allCases.flatMap(\.sectionIDs)
+        XCTAssertEqual(mapped.count, SettingsSectionID.allCases.count)
+        XCTAssertEqual(Set(mapped), Set(SettingsSectionID.allCases))
+        for id in SettingsSectionID.allCases {
+            XCTAssertEqual(mapped.filter { $0 == id }.count, 1,
+                           "\(id.rawValue) must appear on exactly one Settings page")
+        }
+    }
+
     func testEveryEntryCarriesSearchableText() {
         for entry in SettingsSearchCatalog.entries {
             let terms = entry.searchTerms.filter { !$0.isEmpty }

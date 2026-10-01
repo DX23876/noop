@@ -135,11 +135,11 @@ struct CoachGoalSetupReviewView: View {
             }
             if let warning = safety?.warning {
                 Label(warning, systemImage: "exclamationmark.triangle")
-                    .font(StrandFont.caption).foregroundStyle(StrandPalette.statusWarning)
+                    .font(StrandFont.caption).foregroundStyle(StrandPalette.statusWarningForeground)
             }
             if let warning = volume?.warning {
                 Label(warning, systemImage: "calendar.badge.exclamationmark")
-                    .font(StrandFont.caption).foregroundStyle(StrandPalette.statusWarning)
+                    .font(StrandFont.caption).foregroundStyle(StrandPalette.statusWarningForeground)
             }
         }
         .opacity(includeGoal ? 1 : 0.6)
@@ -168,7 +168,7 @@ struct CoachGoalSetupReviewView: View {
                             .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
                         if unavailable {
                             Text("Select the setup goal or link another active goal.")
-                                .font(StrandFont.caption).foregroundStyle(StrandPalette.statusWarning)
+                                .font(StrandFont.caption).foregroundStyle(StrandPalette.statusWarningForeground)
                         }
                     }
                     Spacer()

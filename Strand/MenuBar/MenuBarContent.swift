@@ -278,7 +278,7 @@ public struct MenuBarContent: View {
             } else if let error = live.lastSyncError {
                 Text(error)
                     .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.statusWarning)
+                    .foregroundStyle(StrandPalette.statusWarningForeground)
                     .fixedSize(horizontal: false, vertical: true)
             } else if let at = live.lastSyncedAt {
                 Text("History synced \(relativeAgo(at))")

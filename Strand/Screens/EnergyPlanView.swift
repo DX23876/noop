@@ -15,10 +15,15 @@ import WhoopStore
 // estimate is a formula calculation with extra steps.
 //
 // It computes no burn of its own. See `EnergyPlanModel`.
+// Analysis migration required: no. The icon, tint, macro-chip and callout treatment below changes
+// presentation only; all nutrition precedence and energy calculations remain unchanged.
 
 struct EnergyPlanView: View {
     @EnvironmentObject var repo: Repository
     @EnvironmentObject private var profile: ProfileStore
+    #if os(iOS)
+    @EnvironmentObject private var health: HealthKitBridge
+    #endif
 
     @StateObject private var model = EnergyPlanModel()
 
@@ -29,6 +34,8 @@ struct EnergyPlanView: View {
     /// What is being typed into today's intake field, as text: an empty field is not zero calories,
     /// and a `Double` binding cannot tell the two apart.
     @State private var todayIntakeDraft = ""
+    @State private var intakeSaveState: IntakeSaveState = .idle
+    @State private var nutritionSources = NutritionSourcePreferences.availableHealthSources
     @FocusState private var intakeFieldFocused: Bool
     @State private var onboarding = false
 
@@ -36,6 +43,10 @@ struct EnergyPlanView: View {
     /// the labels and `CaseIterable` went with the segmented control that used to offer it.
     private enum Page {
         case calculated, measured
+    }
+
+    private enum IntakeSaveState: Equatable {
+        case idle, saving, saved, failed
     }
 
     private enum InfoTopic: String, Identifiable {
@@ -78,6 +89,7 @@ struct EnergyPlanView: View {
         }
         .task {
             await model.load(repo: repo, profile: analyticsProfile)
+            nutritionSources = NutritionSourcePreferences.availableHealthSources
             // Shown once, unprompted. After that it stays reachable from the header — an explanation
             // people want again later is worse than useless if it can only be seen before they had
             // any reason to care.
@@ -104,9 +116,10 @@ struct EnergyPlanView: View {
             }
         }
         .sheet(isPresented: $enteringIntake) {
-            IntakeEntrySheet { kcal, day in
-                await repo.recordIntake(kcal: kcal, on: day)
-                await model.load(repo: repo, profile: analyticsProfile)
+            IntakeEntrySheet { entry in
+                let saved = await repo.recordManualNutrition(entry)
+                if saved { await model.load(repo: repo, profile: analyticsProfile) }
+                return saved
             }
         }
         }
@@ -116,16 +129,11 @@ struct EnergyPlanView: View {
 
     private var corridorCard: some View {
         let corridor = model.corridor(profile: analyticsProfile)
-        return NoopCard {
+        return NoopCard(tint: StrandPalette.metricAmber) {
             VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-                HStack {
-                    SectionHeader("How much you burn a day", overline: "Three routes")
-                    Spacer()
-                    Button { infoTopic = .corridor } label: {
-                        Image(systemName: "info.circle").foregroundStyle(StrandPalette.textTertiary)
-                    }
-                    .buttonStyle(.plain)
-                }
+                energyHeader("How much you burn a day", overline: "Three routes",
+                             icon: "flame.fill", tint: StrandPalette.metricAmber,
+                             info: .corridor)
                 CorridorBar(entries: corridorEntries(corridor))
                 corridorRow(String(localized: "Formula"), corridor.formulaKcal,
                             note: String(localized: "from your height, weight and age"),
@@ -184,14 +192,16 @@ struct EnergyPlanView: View {
 
     private func corridorRowLabel(_ label: String, _ value: Double?, note: String?,
                                   icon: String, tint: Color) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            // The dot colour matches this route's marker on the bar above, so the two read as one
-            // object rather than as a picture with a table under it.
-            Image(systemName: icon)
-                .font(StrandFont.caption)
-                .foregroundStyle(value == nil ? StrandPalette.textTertiary : tint)
-                .frame(width: 16)
-                .accessibilityHidden(true)
+        HStack(alignment: .center, spacing: NoopMetrics.space2) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill((value == nil ? StrandPalette.textTertiary : tint).opacity(0.14))
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(value == nil ? StrandPalette.textTertiary : tint)
+            }
+            .frame(width: 34, height: 34)
+            .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
                 Text(label).font(StrandFont.subhead)
                     .foregroundStyle(StrandPalette.textPrimary)
@@ -235,16 +245,11 @@ struct EnergyPlanView: View {
     // MARK: - Page A
 
     private var calculatedPage: some View {
-        NoopCard {
+        NoopCard(tint: StrandPalette.metricAmber) {
             VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-                HStack {
-                    SectionHeader("From a published formula", overline: "Calculated")
-                    Spacer()
-                    Button { infoTopic = .pal } label: {
-                        Image(systemName: "info.circle").foregroundStyle(StrandPalette.textTertiary)
-                    }
-                    .buttonStyle(.plain)
-                }
+                energyHeader("From a published formula", overline: "Calculated",
+                             icon: "function", tint: StrandPalette.metricAmber,
+                             info: .pal)
                 if let basal = model.basalRate(model.currentFormula, profile: analyticsProfile) {
                     HStack {
                         Text("Basal rate").font(StrandFont.subhead)
@@ -343,18 +348,13 @@ struct EnergyPlanView: View {
     // MARK: - Page B
 
     private var measuredPage: some View {
-        NoopCard {
+        NoopCard(tint: StrandPalette.metricCyan) {
             VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-                HStack {
-                    SectionHeader("What your band recorded", overline: "Your data")
-                    Spacer()
-                    Button { infoTopic = .quality } label: {
-                        Image(systemName: "info.circle").foregroundStyle(StrandPalette.textTertiary)
-                    }
-                    .buttonStyle(.plain)
-                }
-                Text("Average burn").font(StrandFont.subhead)
-                    .foregroundStyle(StrandPalette.textPrimary)
+                energyHeader("What your band recorded", overline: "Your data",
+                             icon: "sensor.tag.radiowaves.forward.fill",
+                             tint: StrandPalette.metricCyan, info: .quality)
+                metricLabel("Average burn", icon: "waveform.path.ecg",
+                            tint: StrandPalette.metricCyan)
                 Text(model.burn.measuredMeanKcal.map { kcalPerDay($0) }
                      ?? String(localized: "Not enough measured days"))
                     .font(StrandFont.number(26)).foregroundStyle(StrandPalette.textPrimary)
@@ -364,8 +364,8 @@ struct EnergyPlanView: View {
 
                 Divider().background(StrandPalette.hairline)
                 HStack {
-                    Text("Energy balance").font(StrandFont.subhead)
-                        .foregroundStyle(StrandPalette.textPrimary)
+                    metricLabel("Energy balance", icon: "scalemass.fill",
+                                tint: StrandPalette.metricPurple)
                     Spacer()
                     Button { infoTopic = .balance } label: {
                         Image(systemName: "info.circle").foregroundStyle(StrandPalette.textTertiary)
@@ -389,8 +389,9 @@ struct EnergyPlanView: View {
                 if let thermic = model.thermicEffectKcal {
                     Divider().background(StrandPalette.hairline)
                     HStack {
-                        Text("Digesting food").font(StrandFont.caption)
-                            .foregroundStyle(StrandPalette.textSecondary)
+                        Label("Digesting food", systemImage: "flame.fill")
+                            .font(StrandFont.caption)
+                            .foregroundStyle(StrandPalette.metricAmber)
                         Spacer()
                         Text("≈\(Int(thermic.rounded())) kcal/day").font(StrandFont.caption)
                             .foregroundStyle(StrandPalette.textPrimary).monospacedDigit()
@@ -404,10 +405,22 @@ struct EnergyPlanView: View {
                 // already uses, synced through Apple Health, so nothing has to be retyped here. The
                 // manual entry below stays as a fallback for a day Health did not receive, not as the
                 // way this is meant to be used.
-                Label("Calories and macros come from Apple Health — whatever you log in another app counts here on its own.",
-                      systemImage: "heart.text.square.fill")
-                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                HStack(alignment: .top, spacing: NoopMetrics.space2) {
+                    ZStack {
+                        Circle().fill(StrandPalette.metricRose.opacity(0.14))
+                        Image(systemName: "heart.text.square.fill")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(StrandPalette.metricRose)
+                    }
+                    .frame(width: 32, height: 32)
+                    Text("Calories and macros come from Apple Health — whatever you log in another app counts here on its own.")
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(NoopMetrics.space2)
+                .background(StrandPalette.surfaceInset,
+                            in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                nutritionSourcePicker
                 Button {
                     enteringIntake = true
                 } label: {
@@ -416,6 +429,34 @@ struct EnergyPlanView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(StrandPalette.textSecondary)
+            }
+        }
+    }
+
+    @ViewBuilder private var nutritionSourcePicker: some View {
+        if nutritionSources.count > 1 {
+            VStack(alignment: .leading, spacing: 4) {
+                Picker("Nutrition source", selection: Binding(
+                    get: { NutritionSourcePreferences.preferredHealthSourceId ?? "" },
+                    set: { newValue in
+                        UserDefaults.standard.set(newValue,
+                                                  forKey: NutritionSourcePreferences.preferredHealthSourceKey)
+                        #if os(iOS)
+                        Task {
+                            _ = await health.sync()
+                            nutritionSources = NutritionSourcePreferences.availableHealthSources
+                            await model.load(repo: repo, profile: analyticsProfile)
+                        }
+                        #endif
+                    })) {
+                    Text("Choose…").tag("")
+                    ForEach(nutritionSources) { source in
+                        Text(source.name).tag(source.id)
+                    }
+                }
+                Text("Several apps supplied nutrition data. Choose one so meals are not counted twice.")
+                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -445,10 +486,12 @@ struct EnergyPlanView: View {
     /// which is the right horizon for whether a plan is working and the wrong one for someone who
     /// just logged lunch. This card is the day.
     private var todayBalanceCard: some View {
-        NoopCard {
+        NoopCard(tint: StrandPalette.metricPurple) {
             VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-                SectionHeader("Where today lands", overline: "Today")
+                energyHeader("Where today lands", overline: "Today",
+                             icon: "sun.max.fill", tint: StrandPalette.metricPurple)
                 intakeRow
+                macroSummary
                 if let balance = model.todayBalance {
                     Divider().background(StrandPalette.hairline)
                     verdictRow(balance)
@@ -471,10 +514,17 @@ struct EnergyPlanView: View {
                         .foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 } else {
-                    Text("No burn forecast yet — the day is still too young to project from. Check back in a few hours.")
-                        .font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    HStack(alignment: .top, spacing: NoopMetrics.space2) {
+                        Image(systemName: "clock.fill")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(StrandPalette.metricPurple)
+                            .frame(width: 28, height: 28)
+                            .background(StrandPalette.metricPurple.opacity(0.14), in: Circle())
+                        Text("No burn forecast yet — the day is still too young to project from. Check back in a few hours.")
+                            .font(StrandFont.caption)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
             }
         }
@@ -484,13 +534,14 @@ struct EnergyPlanView: View {
     /// daily, and making them scroll past the verdict to reach the field is the friction the whole
     /// card exists to remove. It writes to the same manual source the log does.
     private var intakeRow: some View {
-        HStack {
-            Text("Eaten today").font(StrandFont.subhead)
-                .foregroundStyle(StrandPalette.textSecondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-            Spacer(minLength: 8)
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Label("Eaten today", systemImage: "fork.knife").font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Spacer(minLength: 8)
+                HStack(spacing: 6) {
                 // Placeholder "0" rather than "kcal": the unit is printed beside the field, and a
                 // field whose placeholder repeats it reads as two labels and no input.
                 TextField("0", text: $todayIntakeDraft)
@@ -509,15 +560,42 @@ struct EnergyPlanView: View {
                     // Without this the unit is compressed into "k / c / al" when the label and the
                     // save button claim the row's width first.
                     .fixedSize()
+                }
+                .layoutPriority(1)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(StrandPalette.surfaceInset,
+                            in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                Button(intakeSaveState == .saving ? "Saving…" : "Save") { submitIntake() }
+                    .buttonStyle(.borderless)
+                    .disabled((Double(todayIntakeDraft.trimmingCharacters(in: .whitespaces)) ?? 0) <= 0
+                              || intakeSaveState == .saving)
             }
-            .layoutPriority(1)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(StrandPalette.surfaceInset,
-                        in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-            Button("Save") { submitIntake() }
-                .buttonStyle(.borderless)
-                .disabled(Double(todayIntakeDraft.trimmingCharacters(in: .whitespaces)) == nil)
+            if let source = nutritionSourceText {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(source).font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                    Spacer()
+                    if model.todayNutrition?.caloriesSource == .manual {
+                        Button("Remove manual entry") { removeTodayManualNutrition() }
+                            .buttonStyle(.plain)
+                            .font(StrandFont.caption)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                            .disabled(intakeSaveState == .saving)
+                    }
+                }
+            }
+            if let mismatch = macroCalorieMismatchText {
+                Text(mismatch).font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+            }
+            switch intakeSaveState {
+            case .saved:
+                Text("Saved").font(StrandFont.caption).foregroundStyle(.green)
+            case .failed:
+                Text("Could not save. Your input is still here — try again.")
+                    .font(StrandFont.caption).foregroundStyle(.red)
+            default:
+                EmptyView()
+            }
         }
         .onChangeCompat(of: model.todayIntakeKcal) { _ in syncIntakeDraft() }
         .onAppear { syncIntakeDraft() }
@@ -532,11 +610,89 @@ struct EnergyPlanView: View {
         guard let value = Double(todayIntakeDraft.trimmingCharacters(in: .whitespaces)),
               value > 0 else { return }
         intakeFieldFocused = false
-        Task { await model.recordTodayIntake(value, repo: repo, profile: analyticsProfile) }
+        intakeSaveState = .saving
+        Task {
+            intakeSaveState = await model.recordTodayIntake(
+                value, repo: repo, profile: analyticsProfile) ? .saved : .failed
+        }
+    }
+
+    private func removeTodayManualNutrition() {
+        intakeSaveState = .saving
+        Task {
+            if await repo.deleteIntake(on: model.today) {
+                await model.load(repo: repo, profile: analyticsProfile)
+                syncIntakeDraft()
+                intakeSaveState = .saved
+            } else {
+                intakeSaveState = .failed
+            }
+        }
+    }
+
+    private var nutritionSourceText: String? {
+        guard let nutrition = model.todayNutrition else { return nil }
+        func name(_ source: NutritionDay.Source?) -> String? {
+            switch source {
+            case .appleHealth:
+                return nutrition.healthSourceName.map { "Apple Health · \($0)" } ?? "Apple Health"
+            case .csv: return "CSV import"
+            case .manual: return "Manual"
+            case nil: return nil
+            }
+        }
+        let calories = name(nutrition.caloriesSource)
+        let macros = name(nutrition.macrosSource)
+        if let calories, let macros, calories != macros {
+            return String(localized: "Calories: \(calories) · Macros: \(macros)")
+        }
+        return calories.map { String(localized: "Source: \($0)") }
+    }
+
+    private var macroCalorieMismatchText: String? {
+        guard let nutrition = model.todayNutrition,
+              let calories = nutrition.calories,
+              let protein = nutrition.proteinG,
+              let carbs = nutrition.carbsG,
+              let fat = nutrition.fatG else { return nil }
+        let macroCalories = protein * 4 + carbs * 4 + fat * 9
+        guard abs(macroCalories - calories) > max(100, calories * 0.1) else { return nil }
+        return String(localized: "Macros add up to about \(Int(macroCalories.rounded())) kcal; the logged calorie total remains authoritative.")
+    }
+
+    @ViewBuilder private var macroSummary: some View {
+        if let nutrition = model.todayNutrition,
+           nutrition.proteinG != nil || nutrition.carbsG != nil || nutrition.fatG != nil {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 90), spacing: NoopMetrics.space2)],
+                      spacing: NoopMetrics.space2) {
+                macroChip("Protein", value: nutrition.proteinG, tint: StrandPalette.metricCyan)
+                macroChip("Carbs", value: nutrition.carbsG, tint: StrandPalette.metricAmber)
+                macroChip("Fat", value: nutrition.fatG, tint: StrandPalette.metricPurple)
+            }
+        }
+    }
+
+    private func macroChip(_ label: LocalizedStringKey, value: Double?, tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label).font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+            Text(value.map { "\(Int($0.rounded())) g" } ?? "—")
+                .font(StrandFont.bodyNumber).foregroundStyle(StrandPalette.textPrimary)
+        }
+        .padding(.horizontal, NoopMetrics.space2)
+        .padding(.vertical, NoopMetrics.space1)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(tint.opacity(0.10), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
     @ViewBuilder private func verdictRow(_ balance: EnergyPlanning.DailyBalance) -> some View {
-        HStack(alignment: .firstTextBaseline) {
+        HStack(alignment: .center, spacing: NoopMetrics.space2) {
+            ZStack {
+                Circle().fill(verdictColor(balance.verdict).opacity(0.14))
+                Image(systemName: verdictIcon(balance.verdict))
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(verdictColor(balance.verdict))
+            }
+            .frame(width: 34, height: 34)
             VStack(alignment: .leading, spacing: 1) {
                 Text(verdictTitle(balance.verdict))
                     .font(StrandFont.headline)
@@ -572,6 +728,15 @@ struct EnergyPlanView: View {
         case .deficit, .surplus: return StrandPalette.textPrimary
         case .maintenance:       return StrandPalette.statusPositive
         case .tooEarly:          return StrandPalette.textSecondary
+        }
+    }
+
+    private func verdictIcon(_ verdict: EnergyPlanning.DailyBalance.Verdict) -> String {
+        switch verdict {
+        case .deficit:     return "arrow.down.right"
+        case .maintenance: return "equal"
+        case .surplus:     return "arrow.up.right"
+        case .tooEarly:    return "clock"
         }
     }
 
@@ -616,11 +781,12 @@ struct EnergyPlanView: View {
     }
 
     private var planCard: some View {
-        NoopCard {
+        NoopCard(tint: StrandPalette.metricCyan) {
             VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-                SectionHeader("A target", overline: "Plan")
+                energyHeader("A target", overline: "Plan",
+                             icon: "scope", tint: StrandPalette.metricCyan)
                 HStack {
-                    Text("Aim for").font(StrandFont.subhead)
+                    Label("Aim for", systemImage: "flag.checkered").font(StrandFont.subhead)
                         .foregroundStyle(StrandPalette.textSecondary)
                     Spacer()
                     Text(rateText).font(StrandFont.subhead)
@@ -652,6 +818,51 @@ struct EnergyPlanView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
+        }
+    }
+
+    /// Energy uses one compact visual language across its four cards: a semantic symbol in a tinted
+    /// tile, then the ordinary section heading. Keeping the tile local avoids inventing a second app-wide
+    /// header component for a page-specific treatment.
+    private func energyHeader(_ title: LocalizedStringKey, overline: LocalizedStringKey,
+                              icon: String, tint: Color, info: InfoTopic? = nil) -> some View {
+        HStack(alignment: .center, spacing: NoopMetrics.space2) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(tint.opacity(0.16))
+                Image(systemName: icon)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(tint)
+            }
+            .frame(width: 44, height: 44)
+            .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(overline).strandOverline()
+                Text(title).font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .layoutPriority(1)
+            Spacer(minLength: NoopMetrics.space1)
+            if let info {
+                Button { infoTopic = info } label: {
+                    Image(systemName: "info.circle")
+                        .foregroundStyle(StrandPalette.textTertiary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func metricLabel(_ label: LocalizedStringKey, icon: String, tint: Color) -> some View {
+        Label {
+            Text(label).font(StrandFont.subhead)
+                .foregroundStyle(StrandPalette.textPrimary)
+        } icon: {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: 22, height: 22)
+                .background(tint.opacity(0.14), in: Circle())
         }
     }
 

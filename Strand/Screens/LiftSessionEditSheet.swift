@@ -22,8 +22,8 @@ struct LiftSessionEditSheet: View {
     @EnvironmentObject var repo: Repository
     @Environment(\.dismiss) private var dismiss
 
-    @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
-    private var unitSystem: UnitSystem { UnitSystem(rawValue: unitSystemRaw) ?? .metric }
+    @AppStorage(TrainingPreferences.weightUnitKey) private var weightUnitRaw = TrainingWeightUnit.kilograms.rawValue
+    private var unitSystem: UnitSystem { (TrainingWeightUnit(rawValue: weightUnitRaw) ?? .kilograms).system }
 
     /// Exercises in the order they were first performed, each with its rows in set order — and the same
     /// as the sheet opened, to tell whether anything changed.

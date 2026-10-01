@@ -14,6 +14,7 @@ import SwiftUI
 // Labels are sentence-case (never ALL CAPS), single line, optical-centred with the
 // optional leading icon as one unit, and degrade gracefully under Reduce Motion (the
 // press scale drops; only the dim remains).
+// Analysis migration required: no. Multiline labels only change button presentation.
 
 /// The four button roles. Colour + emphasis differ; geometry is identical across all four.
 public enum NoopButtonKind: Sendable {
@@ -117,13 +118,15 @@ private struct NoopButtonBackground: View {
 public struct NoopButtonStyle: ButtonStyle {
     private let kind: NoopButtonKind
     private let fullWidth: Bool
+    private let multiline: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.appleInspiredControlColor) private var interfaceColor
 
-    public init(_ kind: NoopButtonKind = .primary, fullWidth: Bool = false) {
+    public init(_ kind: NoopButtonKind = .primary, fullWidth: Bool = false, multiline: Bool = false) {
         self.kind = kind
         self.fullWidth = fullWidth
+        self.multiline = multiline
     }
 
     public func makeBody(configuration: Configuration) -> some View {
@@ -137,13 +140,15 @@ public struct NoopButtonStyle: ButtonStyle {
             .labelStyle(.titleAndIcon)
             .font(StrandFont.headline.weight(.semibold))
             .tracking(NoopButtonMetrics.tracking)
-            .lineLimit(1)
+            .lineLimit(multiline ? 2 : 1)
+            .multilineTextAlignment(.center)
             .minimumScaleFactor(0.9)
             .foregroundStyle(appearance.label)
             .frame(maxWidth: fullWidth ? .infinity : nil)
             .padding(.horizontal, NoopButtonMetrics.hPadding)
-            .frame(height: NoopButtonMetrics.height)
-            .frame(minHeight: NoopButtonMetrics.minHitTarget)
+            .padding(.vertical, multiline ? 8 : 0)
+            .frame(height: multiline ? nil : NoopButtonMetrics.height)
+            .frame(minHeight: multiline ? 56 : NoopButtonMetrics.minHitTarget)
             .contentShape(Rectangle())
             .background(NoopButtonBackground(appearance: appearance))
             .clipShape(RoundedRectangle(cornerRadius: NoopButtonMetrics.cornerRadius, style: .continuous))
@@ -169,6 +174,7 @@ public struct NoopButton: View {
     private let systemImage: String?
     private let kind: NoopButtonKind
     private let fullWidth: Bool
+    private let multiline: Bool
     private let action: () -> Void
 
     public init(
@@ -176,12 +182,14 @@ public struct NoopButton: View {
         systemImage: String? = nil,
         kind: NoopButtonKind = .primary,
         fullWidth: Bool = false,
+        multiline: Bool = false,
         action: @escaping () -> Void
     ) {
         self.title = title
         self.systemImage = systemImage
         self.kind = kind
         self.fullWidth = fullWidth
+        self.multiline = multiline
         self.action = action
     }
 
@@ -198,7 +206,7 @@ public struct NoopButton: View {
                 Text(title)
             }
         }
-        .buttonStyle(NoopButtonStyle(kind, fullWidth: fullWidth))
+        .buttonStyle(NoopButtonStyle(kind, fullWidth: fullWidth, multiline: multiline))
     }
 }
 

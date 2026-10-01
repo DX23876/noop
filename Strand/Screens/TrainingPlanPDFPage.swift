@@ -9,6 +9,8 @@ struct TrainingPlanPDFPage: View {
     let exercises: [TrainingExercise]
     let generatedOn: String
 
+    private var trainingWeightUnit: TrainingWeightUnit { TrainingPreferences.weightUnit }
+
     private var exerciseById: [String: TrainingExercise] {
         Dictionary(uniqueKeysWithValues: exercises.map { ($0.id, $0) })
     }
@@ -183,7 +185,7 @@ struct TrainingPlanPDFPage: View {
             return set.repsMax.map { low == $0 ? "\(low) reps" : "\(low)–\($0) reps" } ?? "\(low) reps"
         }) { parts.append(range) }
         if let weight = work.compactMap(\.targetWeightKg).first {
-            parts.append("\(weight.formatted(.number.precision(.fractionLength(0...2)))) kg")
+            parts.append(TrainingPreferences.formattedWeight(weight, unit: trainingWeightUnit))
         }
         if planned.supersetId != nil { parts.append(String(localized: "Superset")) }
         return parts.joined(separator: " · ")

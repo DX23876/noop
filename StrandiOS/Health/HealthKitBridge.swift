@@ -712,21 +712,13 @@ final class HealthKitBridge: ObservableObject {
             var a = agg(day); a.waterMl = v; byDay[day] = a
         }
 
-        // Nutrition, as a day SUM like water above — Health re-adds every sample in the day on each
-        // sync, so what this produces is a full replacement rather than a delta. Written under the
-        // apple-health source so the balance tier can tell an imported day from a typed one.
-        var nutritionByDay: [String: [String: Double]] = [:]
-        let nutritionSpecs: [(HKQuantityTypeIdentifier, HKUnit, String)] = [
-            (.dietaryEnergyConsumed, .kilocalorie(), "calories_in"),
-            (.dietaryProtein, .gramUnit(with: .none), "protein_g"),
-            (.dietaryCarbohydrates, .gramUnit(with: .none), "carbs_g"),
-            (.dietaryFatTotal, .gramUnit(with: .none), "fat_g"),
-        ]
-        for (identifier, unit, key) in nutritionSpecs {
-            await collect(identifier, unit: unit, start: start, end: end, op: .cumulativeSum) { day, v in
-                guard v > 0 else { return }
-                nutritionByDay[day, default: [:]][key] = v
-            }
+        // Nutrition is resolved from exactly one Health writer per day. Food apps commonly mirror the
+        // same meal into Health, so adding sources would double-count it. `nil` means at least one of
+        // the four reads failed; only a complete snapshot may replace the stored window.
+        let nutritionSnapshot = await collectNutrition(start: start, end: end)
+        let nutritionResolution = nutritionSnapshot.map {
+            NutritionHealthResolver.resolve(
+                $0, preferredSourceId: NutritionSourcePreferences.preferredHealthSourceId)
         }
 
         // Sleep minutes per day (asleep stages summed; attributed to wake day).
@@ -821,11 +813,20 @@ final class HealthKitBridge: ObservableObject {
             }
             try await store.upsertDailyMetrics(dmRows, deviceId: appleDeviceId)
             try await store.upsertMetricSeries(points, deviceId: appleDeviceId)
-            let nutritionPoints = nutritionByDay.flatMap { day, values in
-                values.map { MetricPoint(day: day, key: $0.key, value: $0.value) }
-            }
-            if !nutritionPoints.isEmpty {
-                try await store.upsertMetricSeries(nutritionPoints, deviceId: appleDeviceId)
+            if let nutritionResolution {
+                let nutritionPoints = nutritionResolution.days.flatMap(\.points)
+                try await store.replaceMetricSeriesWindow(
+                    nutritionPoints, deviceId: appleDeviceId,
+                    keys: [EnergyPlanStore.caloriesKey, EnergyPlanStore.proteinKey,
+                           EnergyPlanStore.carbsKey, EnergyPlanStore.fatKey],
+                    from: HealthKitBridge.dayString(start), to: HealthKitBridge.dayString(end))
+                NutritionSourcePreferences.setAvailableHealthSources(
+                    nutritionResolution.availableSources)
+                NutritionSourcePreferences.mergeHealthSourceNames(
+                    Dictionary(uniqueKeysWithValues: nutritionResolution.days.map {
+                        ($0.day, $0.source.name)
+                    }),
+                    from: HealthKitBridge.dayString(start), to: HealthKitBridge.dayString(end))
             }
             try await store.deleteHealthEnergyBuckets(
                 deviceId: appleDeviceId, from: Int(start.timeIntervalSince1970),
@@ -2337,6 +2338,73 @@ final class HealthKitBridge: ObservableObject {
                 cont.resume(returning: true)
             }
             store.execute(q)
+        }
+    }
+
+    /// Read all four nutrition quantities with HealthKit's source separation intact. Returning nil
+    /// means one query failed, so the caller must retain the prior local snapshot rather than treating
+    /// the failure as four empty series.
+    private func collectNutrition(start: Date, end: Date) async -> [NutritionHealthSourceDay]? {
+        typealias Sample = (day: String, source: NutritionHealthSource, value: Double)
+
+        func metric(_ id: HKQuantityTypeIdentifier, unit: HKUnit) async -> [Sample]? {
+            guard let type = HKQuantityType.quantityType(forIdentifier: id) else { return nil }
+            let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+                HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate),
+                Self.notNoopAuthored,
+            ])
+            return await withCheckedContinuation { continuation in
+                let query = HKStatisticsCollectionQuery(
+                    quantityType: type, quantitySamplePredicate: predicate,
+                    options: [.cumulativeSum, .separateBySource],
+                    anchorDate: Calendar.current.startOfDay(for: start),
+                    intervalComponents: DateComponents(day: 1))
+                query.initialResultsHandler = { _, results, error in
+                    guard error == nil, let results else {
+                        continuation.resume(returning: nil)
+                        return
+                    }
+                    var samples: [Sample] = []
+                    results.enumerateStatistics(from: start, to: end) { statistics, _ in
+                        for source in statistics.sources ?? [] where source != HKSource.default() {
+                            guard let quantity = statistics.sumQuantity(for: source) else { continue }
+                            let value = quantity.doubleValue(for: unit)
+                            guard value.isFinite, value > 0 else { continue }
+                            samples.append((
+                                day: Self.dayString(statistics.startDate),
+                                source: .init(id: source.bundleIdentifier, name: source.name),
+                                value: value))
+                        }
+                    }
+                    continuation.resume(returning: samples)
+                }
+                store.execute(query)
+            }
+        }
+
+        guard let calories = await metric(.dietaryEnergyConsumed, unit: .kilocalorie()),
+              let protein = await metric(.dietaryProtein, unit: .gramUnit(with: .none)),
+              let carbs = await metric(.dietaryCarbohydrates, unit: .gramUnit(with: .none)),
+              let fat = await metric(.dietaryFatTotal, unit: .gramUnit(with: .none))
+        else { return nil }
+
+        struct Key: Hashable { let day: String; let sourceId: String }
+        var rows: [Key: NutritionHealthSourceDay] = [:]
+        func merge(_ samples: [Sample], keyPath: WritableKeyPath<NutritionHealthSourceDay, Double?>) {
+            for sample in samples {
+                let key = Key(day: sample.day, sourceId: sample.source.id)
+                var row = rows[key] ?? .init(day: sample.day, source: sample.source,
+                                             calories: nil, proteinG: nil, carbsG: nil, fatG: nil)
+                row[keyPath: keyPath] = sample.value
+                rows[key] = row
+            }
+        }
+        merge(calories, keyPath: \.calories)
+        merge(protein, keyPath: \.proteinG)
+        merge(carbs, keyPath: \.carbsG)
+        merge(fat, keyPath: \.fatG)
+        return rows.values.sorted {
+            $0.day == $1.day ? $0.source.id < $1.source.id : $0.day < $1.day
         }
     }
 

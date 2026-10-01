@@ -635,7 +635,7 @@ private struct ScanStep: View {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 10) {
                     Image(systemName: "info.circle.fill")
-                        .foregroundStyle(StrandPalette.statusWarning)
+                        .foregroundStyle(StrandPalette.statusWarningForeground)
                     Text("Don't see it? That's normal.")
                         .font(StrandFont.headline)
                         .foregroundStyle(StrandPalette.textPrimary)
@@ -887,7 +887,7 @@ private struct ImportStep: View {
                 if let summary = lastSummary {
                     Text(summary)
                         .font(StrandFont.subhead)
-                        .foregroundStyle(model.importFailed(importKind) ? StrandPalette.statusWarning : StrandPalette.statusPositive)
+                        .foregroundStyle(model.importFailed(importKind) ? StrandPalette.statusWarningForeground : StrandPalette.statusPositive)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: 460)
                 }

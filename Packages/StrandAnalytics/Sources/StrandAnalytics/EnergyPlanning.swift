@@ -239,10 +239,11 @@ public enum EnergyPlanning {
     /// an import that dropped one field) must not be able to invent a thermic cost larger than the
     /// meal it came from.
     ///
-    /// Nil when nothing was logged — an unlogged day has no known intake, and 0 would claim it did.
+    /// Nil when nothing was logged. A supplied zero is an explicitly confirmed fasting day.
     public static func thermicEffect(intakeKcal: Double?, proteinG: Double? = nil,
                                      carbsG: Double? = nil, fatG: Double? = nil) -> Double? {
-        guard let intakeKcal, intakeKcal.isFinite, intakeKcal > 0 else { return nil }
+        guard let intakeKcal, intakeKcal.isFinite, intakeKcal >= 0 else { return nil }
+        if intakeKcal == 0 { return 0 }
         func grams(_ value: Double?) -> Double? {
             guard let value, value.isFinite, value >= 0 else { return nil }
             return value
@@ -323,7 +324,7 @@ public enum EnergyPlanning {
                                     projectedBurnRange: ClosedRange<Double>? = nil,
                                     maintenanceFraction: Double = maintenanceBandFraction)
         -> DailyBalance? {
-        guard let intakeKcal, intakeKcal.isFinite, intakeKcal > 0,
+        guard let intakeKcal, intakeKcal.isFinite, intakeKcal >= 0,
               let projectedBurnKcal, projectedBurnKcal.isFinite, projectedBurnKcal > 0
         else { return nil }
         let thermic = (thermicKcal?.isFinite ?? false) ? max(0, thermicKcal ?? 0) : 0

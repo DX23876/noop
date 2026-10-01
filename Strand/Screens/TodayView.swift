@@ -5923,7 +5923,7 @@ private struct StrapSyncRow: View {
                     if let error = live.lastSyncError {
                         Text(error)
                             .font(StrandFont.captionNumber)
-                            .foregroundStyle(StrandPalette.statusWarning)
+                            .foregroundStyle(StrandPalette.statusWarningForeground)
                             .multilineTextAlignment(.trailing)
                             .fixedSize(horizontal: false, vertical: true)
                     } else if let at = live.lastSyncedAt {

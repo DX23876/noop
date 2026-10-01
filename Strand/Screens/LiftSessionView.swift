@@ -45,8 +45,10 @@ struct LiftSessionView: View {
     private enum UnfinishedChoice: Hashable { case complete, discard }
     private enum ProgramChoice: Hashable { case update, keep }
 
-    @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
-    private var unitSystem: UnitSystem { UnitSystem(rawValue: unitSystemRaw) ?? .metric }
+    @AppStorage(TrainingPreferences.weightUnitKey) private var weightUnitRaw = TrainingWeightUnit.kilograms.rawValue
+    private var unitSystem: UnitSystem {
+        (TrainingWeightUnit(rawValue: weightUnitRaw) ?? .kilograms).system
+    }
 
     @FocusState private var focused: FocusTarget?
     private enum FocusTarget: Hashable {
@@ -97,6 +99,12 @@ struct LiftSessionView: View {
         // two-argument `onChange` is macOS 14+ and this file also builds for macOS 13.
         .onChange(of: focused) { now in
             draft = draft.filter { $0.key == now }
+        }
+        .onChange(of: weightUnitRaw) { _ in
+            // Draft text is expressed in the old display unit. Drop it and redraw from the canonical
+            // kilogram value so a mid-session switch cannot reinterpret 100 lb as 100 kg.
+            focused = nil
+            draft.removeAll()
         }
         .sheet(isPresented: $showingFinish) { finishSheet }
     }
@@ -735,7 +743,7 @@ struct LiftSessionView: View {
                    !LiftSessionController.anyPerformed(session.setsToSave(completingUnfinished: false)) {
                     Text("Every set would be a zero, so discarding saves no session and no workout.")
                         .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.statusWarning)
+                        .foregroundStyle(StrandPalette.statusWarningForeground)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }

@@ -99,11 +99,22 @@ struct FormulaSwitchSheet: View {
 // setup it is the only remaining way to check the level at all.
 
 struct IntakeEntrySheet: View {
-    let onSave: (Double, String) async -> Void
+    let onSave: (ManualNutritionEntry) async -> Bool
 
     @Environment(\.dismiss) private var dismiss
     @State private var day = Date()
     @State private var text = ""
+    @State private var protein = ""
+    @State private var carbs = ""
+    @State private var fat = ""
+    @State private var saving = false
+    @State private var error: String?
+
+    private func number(_ text: String) -> Double? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        return Double(trimmed.replacingOccurrences(of: ",", with: "."))
+    }
 
     var body: some View {
         NavigationStack {
@@ -121,8 +132,18 @@ struct IntakeEntrySheet: View {
                             .keyboardType(.numberPad)
                         #endif
                     }
+                    DisclosureGroup("Macronutrients (optional)") {
+                        nutrientRow("Protein", text: $protein)
+                        nutrientRow("Carbohydrates", text: $carbs)
+                        nutrientRow("Fat", text: $fat)
+                    }
+                    Button("No intake this day") { save(calories: 0, confirmedZero: true) }
+                        .disabled(saving)
                 } footer: {
                     Text("A fallback for a day Apple Health did not receive. NOOP ships no food database and is not trying to be a diary — anything you log in a nutrition app that syncs to Health already counts here without being retyped.")
+                }
+                if let error {
+                    Section { Text(error).foregroundStyle(.red) }
                 }
             }
             .navigationTitle("Intake")
@@ -132,15 +153,48 @@ struct IntakeEntrySheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        guard let kcal = Double(text.replacingOccurrences(of: ",", with: ".")),
-                              kcal > 0 else { return }
-                        Task {
-                            await onSave(kcal, Repository.localDayKey(day))
-                            dismiss()
-                        }
+                        guard let kcal = number(text), kcal > 0 else { return }
+                        save(calories: kcal, confirmedZero: false)
                     }
-                    .disabled(Double(text.replacingOccurrences(of: ",", with: ".")) ?? 0 <= 0)
+                    .disabled((number(text) ?? 0) <= 0 || saving)
                 }
+            }
+        }
+    }
+
+    private func nutrientRow(_ label: LocalizedStringKey, text: Binding<String>) -> some View {
+        HStack {
+            Text(label)
+            Spacer()
+            TextField("g", text: text)
+                .multilineTextAlignment(.trailing)
+                .frame(width: 100)
+            #if os(iOS)
+                .keyboardType(.decimalPad)
+            #endif
+        }
+    }
+
+    private func save(calories: Double, confirmedZero: Bool) {
+        let values = [number(protein), number(carbs), number(fat)]
+        guard values.allSatisfy({ $0.map { $0 >= 0 } ?? true }) else {
+            error = String(localized: "Macronutrients cannot be negative.")
+            return
+        }
+        saving = true
+        error = nil
+        let entry = ManualNutritionEntry(
+            day: Repository.localDayKey(day), calories: calories,
+            proteinG: confirmedZero ? nil : values[0],
+            carbsG: confirmedZero ? nil : values[1],
+            fatG: confirmedZero ? nil : values[2],
+            isConfirmedNoIntake: confirmedZero)
+        Task {
+            if await onSave(entry) {
+                dismiss()
+            } else {
+                saving = false
+                error = String(localized: "Could not save the entry. Your input is still here — try again.")
             }
         }
     }

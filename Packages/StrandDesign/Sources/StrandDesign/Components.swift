@@ -367,6 +367,7 @@ public extension StatTile where Accessory == EmptyView {
 }
 
 // MARK: - Trend chip — a small tinted delta pill with a direction arrow.
+// Analysis migration required: no. Text fitting leaves the represented value unchanged.
 
 /// A compact trend pill: an up/down/flat arrow + the delta text, tinted to `color`.
 /// Inferred direction comes from a leading +/− in the text (else flat). Sits in the
@@ -390,7 +391,12 @@ public struct TrendChip: View {
             if let symbol { Image(systemName: symbol).font(.system(size: 8, weight: .bold)) }
             // One line, always: a long chip (e.g. a workout's kcal) truncates rather than wraps, so
             // the pill never grows a tile past its floor. Matches Android's unconditional ellipsize (#934).
-            Text(text).font(StrandFont.captionNumber).lineLimit(1)
+            Text(text)
+                .font(StrandFont.captionNumber)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+                .allowsTightening(true)
+                .layoutPriority(1)
         }
         .foregroundStyle(color)
         .padding(.horizontal, 6).padding(.vertical, 2)

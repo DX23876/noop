@@ -3,17 +3,13 @@ import XCTest
 @testable import NOOP_Staging
 
 /// The More tab's rows moved out of the view into `MoreCatalog` so the search could read them. That
-/// makes two things worth pinning: the index must still contain every row it used to (a row dropped in
-/// the move is a screen that becomes unreachable on iPhone), and the group titles are UserDefaults keys
-/// on every existing installation, so they are not free to change.
+/// makes two things worth pinning: every final destination must remain reachable or searchable, and the
+/// compact root must keep the approved category order.
 final class MoreCatalogTests: XCTestCase {
 
-    func testGroupTitlesAreTheKeysAlreadyPersistedOnDevice() {
-        // `MoreSectionPrefs` stores the open/closed choice under these exact strings. Renaming or
-        // translating one would silently reset that user's expanded groups.
-        XCTAssertEqual(MoreCatalog.groups.map(\.title), ["Analysis", "Body", "Data", "App"])
-        XCTAssertTrue(MoreSectionPrefs.defaultExpanded.isSubset(of: Set(MoreCatalog.groups.map(\.title))),
-                      "a group seeded open by default is not in the catalog")
+    func testCompactRootCategoryOrder() {
+        XCTAssertEqual(MoreCatalog.groups.map(\.category),
+                       [.analysis, .healthBody, .tools, .data, .app])
     }
 
     func testNoRouteAppearsTwice() {
@@ -26,12 +22,17 @@ final class MoreCatalogTests: XCTestCase {
         // person can no longer reach from the iPhone, which is exactly the #805/#811 regression that
         // dropped Alarms once already.
         let expected: Set<MoreDestination> = [
-            .insightsHub, .intelligence, .goalJourney, .insights, .explore, .compare, .coachSettings,
-            .live, .workouts, .health, .labBook, .stress, .breathe, .intervals, .rhythm,
+            .momentum, .insightsHub, .intelligence, .goalJourney, .insights, .explore, .compare, .coachSettings,
+            .training, .live, .workouts, .strength, .cardio, .trainingLoad, .body, .energyPlan,
+            .health, .labBook, .stress, .breathe, .intervals, .rhythm,
             .fusedRecord, .appleHealth, .miBand, .dataSources, .backupSync, .shortcutsExport, .noopLimitations,
-            .alarms, .automations, .testCentre, .siriShortcuts, .settings,
+            .alarms, .automations, .testCentre, .siriShortcuts, .powerSaving, .settings,
         ]
         XCTAssertEqual(Set(MoreCatalog.allEntries.map(\.route)), expected)
+    }
+
+    func testRootKeepsSettingsAndTestCentreOneTapAway() {
+        XCTAssertEqual(MoreCatalog.rootEntries.map(\.route), [.settings, .testCentre])
     }
 
     func testEveryRowCarriesKeywords() {

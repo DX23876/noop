@@ -147,7 +147,12 @@ struct SleepView: View {
                         // #sleep-layout: the analytical cards render in the user's saved order minus the
                         // hidden set, below the pinned Rest hero. Reordered via the Arrange sheet.
                         ForEach(Array(sleepVisibleSections.enumerated()), id: \.element) { idx, section in
-                            sleepSectionView(section, resolved).staggeredAppear(index: idx + 1)
+                            // These sections can scroll through the fixed night-scene band. Carry the
+                            // normal canvas with each section so its semantic dark headings never land
+                            // directly on the dark sky in Light mode.
+                            sleepSectionView(section, resolved)
+                                .background(StrandPalette.surfaceBase)
+                                .staggeredAppear(index: idx + 1)
                         }
                     }
                 } else if displayedRevision == nil {
@@ -490,13 +495,26 @@ struct SleepView: View {
     /// performance ring, state word, source badge. Night scene lives on ScreenScaffold.topBackground
     /// (fixed under the status bar); this column only owns the readable content. Presentation-only.
     @ViewBuilder
+    /// The night artwork needs its own on-image title treatment in light mode.
+    /// Analysis migration required: no.
     private func restHero(_ model: SleepModel) -> some View {
         let night = heroNight(model)
         let score = performanceScore(for: night)
         VStack(alignment: .leading, spacing: NoopMetrics.gap) {
             // The sleep score is named ONCE here ("Sleep performance"); the old trailing "Rest" chip and the
             // duplicate "Rest" night-detail tile showed the same number under a second name (redesign bug §1).
-            SectionHeader("Sleep performance", overline: nightRelativeLabel)
+            // This heading deliberately sits inside the always-dark night scene in BOTH colour schemes.
+            // Scheme-following text tokens turn black in Light mode, so use the fixed on-dark pair.
+            VStack(alignment: .leading, spacing: 2) {
+                Text(nightRelativeLabel)
+                    .font(StrandFont.overline)
+                    .tracking(StrandFont.overlineTracking)
+                    .foregroundStyle(StrandPalette.onDarkSecondary)
+                Text("Sleep performance")
+                    .font(StrandFont.title2)
+                    .foregroundStyle(StrandPalette.onDarkPrimary)
+            }
+            .padding(.horizontal, NoopMetrics.screenHPadding)
             let content = VStack(spacing: NoopMetrics.space4) {
                 if let score {
                     VStack(spacing: NoopMetrics.space3) {
@@ -565,6 +583,17 @@ struct SleepView: View {
     /// as Home's sky. Tall enough for safe-area + hero; fades to surfaceBase before the first card.
     private var sleepNightTopBackground: some View {
         SleepPerformanceNightScene()
+            // The artwork changes with time and user settings. A fixed protection wash guarantees the
+            // on-dark hero heading stays readable over every possible frame instead of relying on the
+            // current moon/forest composition.
+            .overlay(alignment: .topLeading) {
+                LinearGradient(
+                    colors: [.black.opacity(0.50), .black.opacity(0.18), .clear],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: 250)
+            }
             .frame(maxWidth: .infinity)
             .frame(height: 440, alignment: .top)
             .allowsHitTesting(false)
@@ -2422,11 +2451,11 @@ struct SleepMarkCard: View {
                         // Routed through the unified NoopButton system so the two marks sit identically
                         // (sentence-case label, leading icon at 8pt, controlHeight=48, no glow).
                         NoopButton("Going to sleep", systemImage: "moon.zzz.fill",
-                                   kind: .secondary, fullWidth: true) { logMark(.bedtime) }
+                                   kind: .secondary, fullWidth: true, multiline: true) { logMark(.bedtime) }
                             .accessibilityLabel("Log going to sleep")
 
                         NoopButton("I'm awake", systemImage: "sun.max.fill",
-                                   kind: .secondary, fullWidth: true) { logMark(.wake) }
+                                   kind: .secondary, fullWidth: true, multiline: true) { logMark(.wake) }
                             .accessibilityLabel("Log waking up")
                     }
                     if let lastMark {

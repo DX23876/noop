@@ -143,3 +143,44 @@ final class LiquidChargeCarryTests: XCTestCase {
         XCTAssertNil(Display.noData.calibrationDetail)
     }
 }
+
+final class LiquidHeroChromeTests: XCTestCase {
+    func testSolidLightHeroHasNoVisibleGreyRim() {
+        XCTAssertEqual(LiquidHeroChrome.rimOpacity(
+            isDark: false, cardOpacity: 1, hasBackdrop: false,
+            reduceTransparency: false, increasedContrast: false
+        ), 0)
+    }
+
+    func testTransparentLightHeroKeepsAnIndependentEdge() {
+        let solid = LiquidHeroChrome.rimOpacity(
+            isDark: false, cardOpacity: 1, hasBackdrop: false,
+            reduceTransparency: false, increasedContrast: false
+        )
+        let transparent = LiquidHeroChrome.rimOpacity(
+            isDark: false, cardOpacity: 0.70, hasBackdrop: true,
+            reduceTransparency: false, increasedContrast: false
+        )
+        XCTAssertGreaterThan(transparent, solid)
+    }
+
+    func testDarkAndIncreasedContrastKeepSeparation() {
+        let dark = LiquidHeroChrome.rimOpacity(
+            isDark: true, cardOpacity: 1, hasBackdrop: false,
+            reduceTransparency: false, increasedContrast: false
+        )
+        let increased = LiquidHeroChrome.rimOpacity(
+            isDark: true, cardOpacity: 1, hasBackdrop: false,
+            reduceTransparency: false, increasedContrast: true
+        )
+        XCTAssertGreaterThan(dark, 0)
+        XCTAssertGreaterThan(increased, dark)
+    }
+
+    func testReduceTransparencyReturnsMinimalOpaqueLightEdge() {
+        XCTAssertEqual(LiquidHeroChrome.rimOpacity(
+            isDark: false, cardOpacity: 0.20, hasBackdrop: true,
+            reduceTransparency: true, increasedContrast: false
+        ), 0.04, accuracy: 0.0001)
+    }
+}

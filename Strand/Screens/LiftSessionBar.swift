@@ -16,8 +16,8 @@ import StrandDesign
 struct LiftSessionBar: View {
     @EnvironmentObject var session: LiftSessionController
 
-    @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
-    private var unitSystem: UnitSystem { UnitSystem(rawValue: unitSystemRaw) ?? .metric }
+    @AppStorage(TrainingPreferences.weightUnitKey) private var weightUnitRaw = TrainingWeightUnit.kilograms.rawValue
+    private var unitSystem: UnitSystem { (TrainingWeightUnit(rawValue: weightUnitRaw) ?? .kilograms).system }
 
     var body: some View {
         // `LiftSessionController.presentation`, the same resolution the Lock Screen renders, so the two

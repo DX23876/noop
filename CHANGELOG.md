@@ -17,6 +17,46 @@ approximate; downloads are on the [Releases](https://github.com/NoopApp/noop/rel
 
 ---
 
+## Unreleased: Clearer iPhone navigation and adaptive surfaces
+
+- **More and Settings now use page-based groups.** Profile stays at the top, common destinations remain
+  one tap away, and every existing setting is still reachable and searchable without repeating the
+  word “Settings” throughout search results.
+- **Cards and hero surfaces respond to their surroundings.** Grouped settings lose the heavy grey
+  outline, the Liquid hero adapts its edge to appearance, transparency and contrast settings, and
+  warning text uses a high-contrast foreground while amber remains available for fills and accents.
+- **Dense screens disclose detail when it is useful.** Device caveats, pairing help, workout filters and
+  secondary comparisons remain available without competing with the primary status or action.
+
+**Analysis migration required: no.** These changes affect presentation and navigation only; stored
+samples, settings, source precedence and derived analysis values are unchanged.
+
+## Unreleased: Nutrition totals from Apple Health (Apple platforms)
+
+- **NOOP remains a planner rather than a food diary.** It reads daily calories and macros from the
+  nutrition app already connected to Apple Health, with manual daily totals and CSV as fallbacks.
+- **Duplicate Health writers are never summed.** One source supplies a day's calories and macros; when
+  several overlap, the Energy screen asks which source to use. Manual corrections override only the
+  fields entered and can be removed to reveal imported values again.
+- **Zero, missing and failed syncs stay distinct.** “No intake this day” records a real zero, a blank day
+  stays unknown, and an incomplete Health query cannot erase the last complete import. A save is shown
+  as successful only after the database returns the same entry.
+
+**Analysis migration required: no.** Nutrition and adaptive expenditure are resolved at read time, so
+no persisted analysis row becomes stale; a successful Health sync replaces its own imported window.
+
+## Unreleased: Kilograms or pounds for training (Apple platforms)
+
+- **Training has its own weight-unit setting.** The logger, routines, history, estimated 1RM, increments
+  and plate calculator now use kilograms or pounds independently from body-measurement units.
+- **Changing units does not rewrite workouts.** Weights remain stored in kilograms; an active field is
+  redrawn from that canonical value when the unit changes. Metric and imperial increments, plate lists
+  and equipment profiles remain separate, with native defaults of 2.5 kg and 5 lb.
+- **The choice survives backup and restore.** Existing users continue in kilograms until they change it.
+
+**Analysis migration required: no.** Input and presentation convert around the same stored kilogram
+values, so no derived score or historical strength result becomes stale.
+
 ## Unreleased: One training session across NOOP, Apple Health and Hevy (Apple platforms)
 
 **Training sources now cooperate**

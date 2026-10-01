@@ -217,7 +217,7 @@ private struct StrengthMiniBarContent: View {
                     Spacer()
                     if model.draft.state != .active {
                         Text("Paused").font(StrandFont.caption.weight(.semibold))
-                            .foregroundStyle(StrandPalette.statusWarning)
+                            .foregroundStyle(StrandPalette.statusWarningForeground)
                     }
                     Text(ActiveSessionMiniBar.clock(activeSeconds(now: now)))
                         .font(StrandFont.headline.monospacedDigit())
@@ -249,7 +249,7 @@ private struct CardioMiniBarContent: View {
                 Spacer()
                 if app.activeWorkout?.isPaused == true {
                     Text("Paused").font(StrandFont.caption.weight(.semibold))
-                        .foregroundStyle(StrandPalette.statusWarning)
+                        .foregroundStyle(StrandPalette.statusWarningForeground)
                 }
                 if let workout = app.activeWorkout {
                     Text(ActiveSessionMiniBar.clock(Int(workout.elapsed(at: context.date))))

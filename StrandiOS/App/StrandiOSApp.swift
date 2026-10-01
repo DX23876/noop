@@ -574,6 +574,9 @@ private struct iOSRootView: View {
         // combined terms+version update. Gate on terms being current, and re-check when they're
         // accepted (onAppear already fired before acceptance), so What's New shows right after.
         .onAppear {
+            #if DEBUG
+            IOSDemoProfileSeeder.seedIfRequested(model.profile)
+            #endif
             showWhatsNewIfDue()
             // Seed the current What's New into the Updates inbox (idempotent per version) so the bell
             // collects it even if the user dismisses the auto sheet.
@@ -619,6 +622,24 @@ private struct iOSRootView: View {
 }
 
 #if DEBUG
+/// Adds presentation-only profile data to the deterministic iOS demo. It never replaces a profile
+/// someone has already configured, and the whole path is stripped from Release builds.
+/// Analysis migration required: no. This only seeds local demo presentation data.
+@MainActor
+private enum IOSDemoProfileSeeder {
+    static func seedIfRequested(_ profile: ProfileStore) {
+        guard CommandLine.arguments.contains("--demo-seed") else { return }
+        if profile.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            profile.name = "Mika"
+        }
+        if profile.avatarImageData == nil,
+           let image = UIImage(named: "demo-profile-avatar"),
+           let data = image.pngData() {
+            profile.setAvatar(data)
+        }
+    }
+}
+
 /// DEBUG-only screenshot harness. Maps `--demo-screen <name>` to a single screen so a seeded
 /// simulator build can be captured deterministically (verification + marketing). Stripped from Release.
 enum DemoScreens {
@@ -654,6 +675,23 @@ enum DemoScreens {
         case "explore":  return AnyView(MetricExplorerView())
         case "compare":  return AnyView(CompareView())
         case "settings": return AnyView(SettingsView())
+        // Analysis migration required: no. This DEBUG-only route only makes the existing filtered
+        // Training settings state directly screenshot-able; it changes no stored data or analysis.
+        case "trainingsettings": return AnyView(SettingsView(initialPage: .training))
+        case "settingsprofile": return AnyView(SettingsView(initialPage: .profile))
+        case "settingsunits": return AnyView(SettingsView(initialPage: .units))
+        case "settingsrecovery": return AnyView(SettingsView(initialPage: .recoverySleep))
+        case "settingsappearance": return AnyView(SettingsView(initialPage: .appearance))
+        case "settingsstrap": return AnyView(SettingsView(initialPage: .strap))
+        case "settingsfeatures": return AnyView(SettingsView(initialPage: .features))
+        case "settingsdata": return AnyView(SettingsView(initialPage: .dataBackup))
+        case "settingsadvanced": return AnyView(SettingsView(initialPage: .advanced))
+        case "settingsabout": return AnyView(SettingsView(initialPage: .about))
+        case "moreanalysis": return AnyView(MoreCategoryView(category: .analysis))
+        case "morehealth": return AnyView(MoreCategoryView(category: .healthBody))
+        case "moretools": return AnyView(MoreCategoryView(category: .tools))
+        case "moredata": return AnyView(MoreCategoryView(category: .data))
+        case "moreapp": return AnyView(MoreCategoryView(category: .app))
         case "chargebreakdown": return AnyView(ChargeBreakdownDemoHost())
         case "devices":  return AnyView(DevicesView())
         case "devicescatalog": return AnyView(DeviceCardCatalog())

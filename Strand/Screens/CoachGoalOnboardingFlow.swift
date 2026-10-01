@@ -259,7 +259,7 @@ struct CoachGoalOnboardingFlow: View {
                         Image(systemName: safety.verdict == .veryAggressive
                               ? "exclamationmark.triangle.fill" : "info.circle.fill")
                             .foregroundStyle(safety.verdict == .veryAggressive
-                                             ? StrandPalette.statusWarning : StrandPalette.accent)
+                                             ? StrandPalette.statusWarningForeground : StrandPalette.accent)
                             .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("About that pace").strandOverline()

@@ -18,6 +18,16 @@ enum TrainingMediaPresentation: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+enum TrainingWeightUnit: String, CaseIterable, Identifiable {
+    case kilograms
+    case pounds
+
+    var id: String { rawValue }
+    var system: UnitSystem { self == .pounds ? .imperial : .metric }
+    var label: String { self == .pounds ? "Pounds (lb)" : "Kilograms (kg)" }
+    var symbol: String { self == .pounds ? "lb" : "kg" }
+}
+
 enum TrainingPreferences {
     static let effortKey = "training.effortScale"
     static let sessionRatingPromptKey = "training.sessionRatingPrompt"
@@ -32,10 +42,18 @@ enum TrainingPreferences {
     static let activeLayoutKey = "training.activeWorkout.layout"
     static let equipmentKey = "training.availableEquipment"
     static let weightIncrementKey = "training.weightIncrementKg"
+    static let imperialWeightIncrementKey = "training.weightIncrementLbKg"
+    static let weightUnitKey = "training.weightUnit"
     static let platePairsKey = "training.plateCalculator.available"
+    static let imperialPlatePairsKey = "training.plateCalculator.availableLbKg"
     static let defaultPlatePairs = "25,20,15,10,5,2.5,1.25"
+    static let defaultImperialPlatePairsKg = [55.0, 45, 35, 25, 10, 5, 2.5]
+        .map { String($0 / UnitFormatter.poundsPerKilogram) }.joined(separator: ",")
     static let defaultWeightIncrementKg = 2.5
+    static let defaultImperialWeightIncrementKg = 5 / UnitFormatter.poundsPerKilogram
     static let weightIncrementChoices: [Double] = [0.5, 1, 1.25, 2, 2.5, 5]
+    static let imperialWeightIncrementChoicesKg: [Double] = [1, 2.5, 5, 10]
+        .map { $0 / UnitFormatter.poundsPerKilogram }
 
     static let defaultRestSeconds = 120
     static let defaultWarmupRestSeconds = 60
@@ -67,6 +85,31 @@ enum TrainingPreferences {
         let value = UserDefaults.standard.integer(forKey: restPauseKey)
         return value > 0 ? value : defaultRestPauseSeconds
     }
+    static var weightUnit: TrainingWeightUnit {
+        TrainingWeightUnit(rawValue: UserDefaults.standard.string(forKey: weightUnitKey) ?? "")
+            ?? .kilograms
+    }
+
+    static func displayWeight(_ kilograms: Double, unit: TrainingWeightUnit? = nil) -> Double {
+        LiftFormat.display(fromKilograms: kilograms, system: (unit ?? weightUnit).system)
+    }
+
+    static func kilograms(fromDisplay value: Double, unit: TrainingWeightUnit? = nil) -> Double {
+        LiftFormat.kilograms(fromDisplay: value, system: (unit ?? weightUnit).system)
+    }
+
+    static func formattedWeight(_ kilograms: Double, unit: TrainingWeightUnit? = nil,
+                                signed: Bool = false) -> String {
+        let selected = unit ?? weightUnit
+        // A kg value converted for read-only imperial summaries commonly lands on two noisy decimal
+        // places (127.5 kg -> 281.09 lb). Half-pound precision is enough for plates and dumbbells;
+        // editable fields still use LiftFormat.trim so a value the user typed can round-trip exactly.
+        let maximumFractionDigits = selected == .pounds ? 1 : 2
+        let style = FloatingPointFormatStyle<Double>.number
+            .precision(.fractionLength(0...maximumFractionDigits))
+            .sign(strategy: signed ? .always() : .automatic)
+        return "\(displayWeight(kilograms, unit: selected).formatted(style)) \(selected.symbol)"
+    }
 
     /// An empty selection means that no equipment filter is active.
     static var availableEquipment: Set<String> {
@@ -87,12 +130,17 @@ enum TrainingPreferences {
     /// The − / + step for one exercise: two of the smallest saved plates for a barbell, otherwise the
     /// step chosen in Settings › Training.
     static func weightStep(for equipmentIds: [String]) -> Double {
-        let configured = UserDefaults.standard.double(forKey: weightIncrementKey)
-        let plates = (UserDefaults.standard.string(forKey: platePairsKey) ?? defaultPlatePairs)
+        let unit = weightUnit
+        let incrementKey = unit == .pounds ? imperialWeightIncrementKey : weightIncrementKey
+        let plateKey = unit == .pounds ? imperialPlatePairsKey : platePairsKey
+        let defaultIncrement = unit == .pounds ? defaultImperialWeightIncrementKg : defaultWeightIncrementKg
+        let defaultPlates = unit == .pounds ? defaultImperialPlatePairsKg : defaultPlatePairs
+        let configured = UserDefaults.standard.double(forKey: incrementKey)
+        let plates = (UserDefaults.standard.string(forKey: plateKey) ?? defaultPlates)
             .split(separator: ",").compactMap { Double($0) }
         return WeightIncrement.step(equipmentIds: equipmentIds.map(TrainingDisplayNames.canonicalEquipment),
                                     platePairsKg: plates,
-                                    fallbackKg: configured > 0 ? configured : defaultWeightIncrementKg)
+                                    fallbackKg: configured > 0 ? configured : defaultIncrement)
     }
 
     static func setEquipment(_ values: Set<String>) {

@@ -103,7 +103,11 @@ struct JournalLogCard: View {
     /// Edit mode: swaps the answer controls for rename/group/convert/remove and reveals hidden items.
     @State private var editing = false
     /// Collapsed groups (persisted per group).
-    @AppStorage("journal.collapsedGroups") private var collapsedGroupsRaw = ""
+    /// New installs lead with Nutrition and keep the other categories one tap away. A saved empty value
+    /// still means the user deliberately expanded everything.
+    /// Analysis migration required: no. Journal answers and their attribution are unchanged.
+    @AppStorage("journal.collapsedGroups") private var collapsedGroupsRaw = JournalGroup.displayOrder
+        .dropFirst().map(\.rawValue).joined(separator: ",")
     /// The item being renamed (drives the rename sheet).
     @State private var renaming: JournalCatalogItem?
     @State private var renameDraft = ""
@@ -156,15 +160,26 @@ struct JournalLogCard: View {
                             ForEach(Self.journalDayOffsets, id: \.self) { off in
                                 dayPill(journalDayLabel(off), offset: off).id(off)
                             }
+                            // End breathing room lets Today/Tomorrow align without ScrollView clamping
+                            // the request back into a chopped historical pill at the leading edge.
+                            Color.clear.frame(width: 200)
                         }
                         .padding(.horizontal, 1)   // don't clip the selected pill's ring
                     }
                     // Defer the initial scroll a tick: scrollTo in onAppear can no-op before the pills lay
                     // out, which would leave the picker on the oldest day instead of the selected one.
-                    .onAppear { DispatchQueue.main.async { proxy.scrollTo(dayOffset, anchor: .center) } }
+                    .onAppear {
+                        DispatchQueue.main.async {
+                            proxy.scrollTo(journalLeadingOffset(for: dayOffset), anchor: .leading)
+                        }
+                    }
                     // onChangeCompat, not onChange: the zero/two-arg onChange is macOS 14+, and this card
                     // is shared with the macOS 13 target.
-                    .onChangeCompat(of: dayOffset) { _ in proxy.scrollTo(dayOffset, anchor: .center) }
+                    .onChangeCompat(of: dayOffset) { newValue in
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            proxy.scrollTo(journalLeadingOffset(for: newValue), anchor: .leading)
+                        }
+                    }
                 }
             }
             NoopCard(cornerRadius: NoopMetrics.groupedRadius) {
@@ -731,6 +746,14 @@ struct JournalLogCard: View {
         case 1: return "Yesterday"
         default: return "\(offset) days ago"
         }
+    }
+
+    /// Keep the selected day plus its nearest neighbours fully visible. Centring the selected pill
+    /// placed a chopped historical label against the leading edge on every normal-width iPhone.
+    /// Presentation-only scroll alignment; it does not change journal answers or derived analysis.
+    /// Analysis migration required: no.
+    private func journalLeadingOffset(for selected: Int) -> Int {
+        min(6, max(1, selected + 1))
     }
 
     private func answerPill(_ label: LocalizedStringKey, q: String, value: Bool) -> some View {

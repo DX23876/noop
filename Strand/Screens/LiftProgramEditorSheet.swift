@@ -31,8 +31,8 @@ struct LiftProgramEditorSheet: View {
     @State private var editingItem: ItemEditTarget?
     @State private var confirmingDelete = false
 
-    @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
-    private var unitSystem: UnitSystem { UnitSystem(rawValue: unitSystemRaw) ?? .metric }
+    @AppStorage(TrainingPreferences.weightUnitKey) private var weightUnitRaw = TrainingWeightUnit.kilograms.rawValue
+    private var unitSystem: UnitSystem { (TrainingWeightUnit(rawValue: weightUnitRaw) ?? .kilograms).system }
 
     @FocusState private var focused: Field?
     private enum Field: Hashable { case name, note }

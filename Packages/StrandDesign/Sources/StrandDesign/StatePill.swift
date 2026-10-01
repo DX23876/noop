@@ -26,6 +26,12 @@ public enum StrandTone: Sendable, Equatable {
         case .critical: return StrandPalette.statusCritical
         }
     }
+
+    /// Foreground colour can be darker than the accent used to tint the pill background.
+    /// Analysis migration required: no. This is a contrast-only presentation rule.
+    public var foregroundColor: Color {
+        self == .warning ? StrandPalette.statusWarningForeground : color
+    }
 }
 
 public struct StatePill: View {
@@ -51,7 +57,7 @@ public struct StatePill: View {
             Text(title)
                 .font(StrandFont.overline)
                 .tracking(0.4)
-                .foregroundStyle(tone.color)
+                .foregroundStyle(tone.foregroundColor)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 5)

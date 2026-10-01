@@ -46,25 +46,72 @@ struct MoreEntry: Identifiable, Hashable {
     var searchTerms: [String] { [String(localized: title)] + keywords }
 }
 
-/// One collapsible group in the More index.
+/// A first-level destination on the More hub. Categories navigate like Apple Settings rows instead of
+/// expanding in place, so opening several areas can never turn the root back into a very long list.
+enum MoreCategory: String, CaseIterable, Identifiable, Hashable {
+    case analysis
+    case healthBody
+    case tools
+    case data
+    case app
+
+    var id: String { rawValue }
+
+    var title: LocalizedStringResource {
+        switch self {
+        case .analysis: return "Analysis"
+        case .healthBody: return "Health & Body"
+        case .tools: return "Tools"
+        case .data: return "Data"
+        case .app: return "App"
+        }
+    }
+
+    var subtitle: LocalizedStringResource {
+        switch self {
+        case .analysis: return "Patterns, goals, journaling and your coach"
+        case .healthBody: return "Training, body, energy and health signals"
+        case .tools: return "Live heart rate, breathing and intervals"
+        case .data: return "Sources, Apple Health, backup and portability"
+        case .app: return "Alarms, automations, shortcuts and power"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .analysis: return "wand.and.sparkles"
+        case .healthBody: return "heart.text.square.fill"
+        case .tools: return "wrench.and.screwdriver.fill"
+        case .data: return "square.stack.3d.up.fill"
+        case .app: return "slider.horizontal.3"
+        }
+    }
+
+    var colorKey: String {
+        switch self {
+        case .analysis: return "insightsHub"
+        case .healthBody: return "health"
+        case .tools: return "intervals"
+        case .data: return "fusedRecord"
+        case .app: return "settings"
+        }
+    }
+}
+
+/// One category page in the More hierarchy.
 struct MoreGroup: Identifiable {
-    /// The group's identity AND its displayed overline — and, critically, the key
-    /// `MoreSectionPrefs` persists the open/closed choice under. These four strings are stored in
-    /// UserDefaults on every existing installation, so they are not free to change or to translate.
-    let title: String
+    let category: MoreCategory
     let entries: [MoreEntry]
 
-    var id: String { title }
+    var id: MoreCategory { category }
+    var title: String { String(localized: category.title) }
 }
 
 /// The More tab's index, in screen order.
 enum MoreCatalog {
 
     static let groups: [MoreGroup] = [
-        // "Analysis" (was "Insights", §7) — clearer group name. Coach is intentionally NOT listed
-        // here: it's an action, reachable from the floating button, the Today tile and deep links,
-        // not a place (its .coach destination stays registered so those entry points still push it).
-        MoreGroup(title: "Analysis", entries: [
+        MoreGroup(category: .analysis, entries: [
             // The full ranked feed the Today card shows one entry of. Listed first in Analysis because
             // it answers "what should I look at", which is the question this whole group serves.
             MoreEntry("Momentum", "bolt.horizontal", .momentum,
@@ -93,23 +140,9 @@ enum MoreCatalog {
             MoreEntry("AI Coach", "sparkles", .coachSettings,
                       keywords: ["Svea", "chat", "API key", "provider", "model", "memory"]),
         ]),
-        MoreGroup(title: "Body", entries: [
-            MoreEntry("Live", "waveform.path.ecg", .live,
-                      keywords: ["heart rate", "BPM", "live console", "now"]),
-            MoreEntry("Workouts", "figure.run", .workouts,
-                      keywords: ["training", "sessions", "exercise", "activities"]),
-            // Beside Workouts on purpose: the same question at a different resolution. Workouts says
-            // when you trained, Strength says what the session contained and whether it is moving.
-            MoreEntry("Strength", "dumbbell.fill", .strength,
-                      keywords: ["lifting", "hevy", "sets", "reps", "volume", "1rm", "gym"]),
-            // The endurance half of the same pair. Workouts lists the sessions; Cardio says what they
-            // were made of — pace, distance, and whether any of it is getting faster.
-            MoreEntry("Cardio", "figure.run.circle.fill", .cardio,
-                      keywords: ["running", "cycling", "swimming", "pace", "distance", "endurance",
-                                 "km", "speed", "rowing"]),
-            MoreEntry("Training Load", "chart.bar.xaxis", .trainingLoad,
-                      keywords: ["strength load", "cardio load", "session RPE", "sRPE", "acute",
-                                 "chronic", "training stress", "effort"]),
+        MoreGroup(category: .healthBody, entries: [
+            MoreEntry("Training", "dumbbell.fill", .training,
+                      keywords: ["workouts", "strength", "cardio", "training load", "sessions", "exercise"]),
             // Where every body measurement now lives. Next to Health because it answers the adjacent
             // question: Health is what the body is doing, Body is what it currently is.
             MoreEntry("Body", "figure.stand", .body,
@@ -128,24 +161,26 @@ enum MoreCatalog {
                       keywords: ["blood", "blood pressure", "lab results", "body composition"]),
             MoreEntry("Stress", "bolt.heart.fill", .stress,
                       keywords: ["strain", "load", "tension"]),
-            MoreEntry("Breathe", "wind", .breathe,
-                      keywords: ["breathing", "box breathing", "calm", "biofeedback"]),
-            MoreEntry("Intervals", "timer", .intervals,
-                      keywords: ["interval timer", "rounds", "HIIT"]),
             // Experimental beat-to-beat regularity visualization — self-gates on its own consent.
             // Renamed from "Rhythm": explicit that this is about heartbeat, not daily/circadian rhythm.
             MoreEntry("Beat Rhythm", "waveform.path", .rhythm,
                       keywords: ["beat-to-beat", "R-R", "regularity", "experimental"]),
         ]),
-        MoreGroup(title: "Data", entries: [
+        MoreGroup(category: .tools, entries: [
+            MoreEntry("Live", "waveform.path.ecg", .live,
+                      keywords: ["heart rate", "BPM", "live console", "now"]),
+            MoreEntry("Breathe", "wind", .breathe,
+                      keywords: ["breathing", "box breathing", "calm", "biofeedback"]),
+            MoreEntry("Intervals", "timer", .intervals,
+                      keywords: ["interval timer", "rounds", "HIIT"]),
+        ]),
+        MoreGroup(category: .data, entries: [
             MoreEntry("Your Data, Fused", "square.stack.3d.up.fill", .fusedRecord,
                       keywords: ["merged record", "all sources", "one timeline"]),
             MoreEntry("Apple Health", "heart.fill", .appleHealth,
                       keywords: ["HealthKit", "import", "export", "sync", "iPhone"]),
-            MoreEntry("Mi Band", "figure.walk.motion", .miBand,
-                      keywords: ["Xiaomi", "Mi Fitness", "import"]),
             MoreEntry("Data Sources", "externaldrive.fill", .dataSources,
-                      keywords: ["import", "WHOOP export", "CSV", "zip", "history"]),
+                      keywords: ["import", "WHOOP export", "CSV", "zip", "history", "Mi Band", "Xiaomi", "Mi Fitness"]),
             MoreEntry("Backup & Sync", "externaldrive.fill.badge.icloud", .backupSync,
                       keywords: ["backup", "restore", "noopbak", "folder", "iCloud"]),
             // #155: HealthKit-free Apple Health path for sideloaded installs (Siri Shortcut
@@ -156,7 +191,7 @@ enum MoreCatalog {
             MoreEntry("NOOP Limitations", "list.bullet.rectangle", .noopLimitations,
                       keywords: ["what works", "WHOOP 4.0", "WHOOP 5", "MG", "capabilities"]),
         ]),
-        MoreGroup(title: "App", entries: [
+        MoreGroup(category: .app, entries: [
             // #805/#811: the v7.3.1 #766 alarm consolidation moved Smart Alarm under a single
             // "Alarms" sidebar entry (RootView .smartAlarm) but the regression dropped the row
             // from the iPhone More list, leaving Alarms unreachable on iPhone. Restore it here
@@ -171,23 +206,47 @@ enum MoreCatalog {
                       keywords: ["smart alarm", "wake", "wake-up window"]),
             MoreEntry("Automations", "wand.and.stars", .automations,
                       keywords: ["rules", "notifications", "wrist alerts", "reminders"]),
-            // The Test Centre (the diagnostics + bug-report hub) gets a first-class home here, not
-            // just buried in Settings, so the feedback loop is one tap from the More tab.
-            MoreEntry("Test Centre", "stethoscope", .testCentre,
-                      keywords: ["diagnostics", "bug report", "strap log", "probes"]),
             MoreEntry("Siri & Shortcuts", "mic.fill", .siriShortcuts,
                       keywords: ["voice", "App Intents", "automation"]),
             // #477 lives here rather than inside Settings: the strap-battery levers are the ones
             // people reach for when a strap is running down, so they get their own row.
             MoreEntry("Power saving", "battery.25", .powerSaving,
                       keywords: ["battery", "strap battery", "low power", "sampling"]),
-            MoreEntry("Settings", "gearshape.fill", .settings,
-                      keywords: ["preferences", "options", "configuration"]),
         ]),
     ]
 
-    /// Every row, flattened — the search's haystack.
-    static var allEntries: [MoreEntry] { groups.flatMap(\.entries) }
+    /// Direct root rows stay one tap away instead of being buried under App.
+    static let rootEntries: [MoreEntry] = [
+        MoreEntry("Settings", "gearshape.fill", .settings,
+                  keywords: ["preferences", "options", "configuration"]),
+        MoreEntry("Test Centre", "stethoscope", .testCentre,
+                  keywords: ["diagnostics", "bug report", "strap log", "probes"]),
+    ]
+
+    /// Destinations consolidated behind Training/Data Sources remain globally searchable, so the new
+    /// hierarchy removes duplication without making an existing screen undiscoverable.
+    static let searchOnlyEntries: [MoreEntry] = [
+        MoreEntry("Workouts", "figure.run", .workouts,
+                  keywords: ["training", "sessions", "exercise", "activities"]),
+        MoreEntry("Strength", "dumbbell.fill", .strength,
+                  keywords: ["lifting", "hevy", "sets", "reps", "volume", "1rm", "gym"]),
+        MoreEntry("Cardio", "figure.run.circle.fill", .cardio,
+                  keywords: ["running", "cycling", "swimming", "pace", "distance", "endurance", "km", "speed", "rowing"]),
+        MoreEntry("Training Load", "chart.bar.xaxis", .trainingLoad,
+                  keywords: ["strength load", "cardio load", "session RPE", "sRPE", "acute", "chronic", "training stress"]),
+        MoreEntry("Mi Band", "figure.walk.motion", .miBand,
+                  keywords: ["Xiaomi", "Mi Fitness", "import"]),
+    ]
+
+    /// Every final destination searchable from the More root. Category pages themselves are excluded:
+    /// search jumps directly to the useful endpoint.
+    static var allEntries: [MoreEntry] {
+        groups.flatMap(\.entries) + rootEntries + searchOnlyEntries
+    }
+
+    static func group(for category: MoreCategory) -> MoreGroup {
+        groups.first(where: { $0.category == category })!
+    }
 
     /// Rows matching a raw query, in screen order. An empty query returns everything, so a caller can
     /// pass the field's text straight through.

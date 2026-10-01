@@ -199,7 +199,7 @@ struct AppleWatchSetupView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text("WHERE IT'S LIGHTER THAN A STRAP").font(StrandFont.overline)
                     .tracking(StrandFont.overlineTracking)
-                    .foregroundStyle(StrandPalette.statusWarning)
+                    .foregroundStyle(StrandPalette.statusWarningForeground)
                 bullet("heart.fill", String(localized: "Recovery takes about a week"),
                        String(localized: "A watch samples your heart-rate variability rather than streaming it all night, so your Charge score needs roughly seven nights to calibrate. Until then NOOP shows \u{201C}needs more data\u{201D}, never a guessed number."))
                 bullet("drop.degreesign", String(localized: "A couple of metrics depend on your model"),

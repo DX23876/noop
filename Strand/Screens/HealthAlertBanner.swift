@@ -16,7 +16,7 @@ struct HealthAlertBanner: View {
                 HStack(alignment: .top, spacing: 12) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(StrandPalette.statusWarning)
+                        .foregroundStyle(StrandPalette.statusWarningForeground)
                         .frame(width: 30, height: 30)
                         .background(StrandPalette.statusWarning.opacity(0.16), in: Circle())
                         .accessibilityHidden(true)

@@ -80,8 +80,29 @@ struct EnergyOnboardingFlow: View {
     // MARK: - Steps
 
     private var whyStep: some View {
-        stepBody(title: String(localized: "Three routes to one number"),
-                 body: String(localized: "How much you burn in a day cannot be measured directly outside a laboratory. Everything else is an estimate by another route.\n\nNOOP takes three. A published formula predicts what a body like yours costs. Your strap records what your days actually looked like. And your intake against your weight change says what you must have burned, whatever any device thought.\n\nThey will not agree. The distance between them is the useful part — it tells you how much confidence the plan deserves."))
+        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+            stepBody(title: String(localized: "Three routes to one number"),
+                     body: String(localized: "How much you burn in a day cannot be measured directly outside a laboratory. Everything else is an estimate by another route.\n\nNOOP takes three. A published formula predicts what a body like yours costs. Your strap records what your days actually looked like. And your intake against your weight change says what you must have burned, whatever any device thought.\n\nThey will not agree. The distance between them is the useful part — it tells you how much confidence the plan deserves."))
+            NoopCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    routeRow(id: "energy.formula", symbol: "function",
+                             title: String(localized: "Formula predicts"))
+                    routeRow(id: "energy.wearable", symbol: "applewatch",
+                             title: String(localized: "Your wearable recorded"))
+                    routeRow(id: "energy.balance", symbol: "scalemass",
+                             title: String(localized: "Intake and weight imply"))
+                }
+            }
+        }
+    }
+
+    private func routeRow(id: String, symbol: String, title: String) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: symbol).appleInspiredMenuIcon(id, size: 34)
+            Text(title).font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+            Spacer(minLength: 0)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private var bodyStep: some View {
@@ -90,7 +111,7 @@ struct EnergyOnboardingFlow: View {
                      body: String(localized: "Height, weight, age and sex. These four are all a basal formula uses — it is a population regression, not a measurement of your metabolism, and it cannot see anything else about you.\n\nIf you also have a body-fat figure, a better formula becomes available: Katch-McArdle works from lean mass, so it can tell two people of the same height and weight apart. It is only better when that figure is good, which is why NOOP offers it rather than switching for you."))
             if !hasBody {
                 Text("Your height is not recorded yet. The Body page is where it goes, along with everything else that has a date.")
-                    .font(StrandFont.subhead).foregroundStyle(StrandPalette.statusWarning)
+                    .font(StrandFont.subhead).foregroundStyle(StrandPalette.statusWarningForeground)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }

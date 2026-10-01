@@ -516,7 +516,7 @@ struct BodyView: View {
                                     .foregroundStyle(StrandPalette.textPrimary)
                                 Text(reading.day == newestSiteDay ? "" : dayText(reading.day))
                                     .font(StrandFont.caption)
-                                    .foregroundStyle(StrandPalette.statusWarning)
+                                    .foregroundStyle(StrandPalette.statusWarningForeground)
                                     .frame(width: 52, alignment: .trailing)
                                 Image(systemName: "chevron.right")
                                     .font(StrandFont.caption)
@@ -604,7 +604,7 @@ struct BodyView: View {
                     }
                 if reminderDenied {
                     Text("Notifications are turned off for NOOP in system settings, so a reminder would never arrive. Nothing was scheduled.")
-                        .font(StrandFont.caption).foregroundStyle(StrandPalette.statusWarning)
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.statusWarningForeground)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }

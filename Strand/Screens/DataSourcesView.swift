@@ -161,7 +161,7 @@ struct DataSourcesView: View {
             }
             if let s = model.whoopImportSummary {
                 Text(s).font(StrandFont.subhead)
-                    .foregroundStyle(model.whoopImportFailed ? StrandPalette.statusWarning : StrandPalette.statusPositive)
+                    .foregroundStyle(model.whoopImportFailed ? StrandPalette.statusWarningForeground : StrandPalette.statusPositive)
             }
             Text("\(repo.days.count) days · \(repo.sleeps.count) sleeps stored")
                 .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
@@ -183,7 +183,7 @@ struct DataSourcesView: View {
             }
             if let s = model.appleHealthImportSummary {
                 Text(s).font(StrandFont.subhead)
-                    .foregroundStyle(model.appleHealthImportFailed ? StrandPalette.statusWarning : StrandPalette.statusPositive)
+                    .foregroundStyle(model.appleHealthImportFailed ? StrandPalette.statusWarningForeground : StrandPalette.statusPositive)
             }
             // ah-delete (#616): a destructive "Remove imported data" action wired to
             // DeviceRegistryStore.deleteAllData(deviceId: "apple-health"). Always offered (the user may
@@ -222,7 +222,7 @@ struct DataSourcesView: View {
             }
             if let s = model.xiaomiImportSummary {
                 Text(s).font(StrandFont.subhead)
-                    .foregroundStyle(model.xiaomiImportFailed ? StrandPalette.statusWarning : StrandPalette.statusPositive)
+                    .foregroundStyle(model.xiaomiImportFailed ? StrandPalette.statusWarningForeground : StrandPalette.statusPositive)
             }
         }
     }
@@ -241,7 +241,7 @@ struct DataSourcesView: View {
             }
             if let s = nutritionSummary {
                 Text(s).font(StrandFont.subhead)
-                    .foregroundStyle(nutritionFailed ? StrandPalette.statusWarning : StrandPalette.statusPositive)
+                    .foregroundStyle(nutritionFailed ? StrandPalette.statusWarningForeground : StrandPalette.statusPositive)
             }
         }
     }
@@ -263,7 +263,7 @@ struct DataSourcesView: View {
             }
             if let message = hevy.message {
                 Text(message).font(StrandFont.subhead)
-                    .foregroundStyle(hevy.failed ? StrandPalette.statusWarning : StrandPalette.statusPositive)
+                    .foregroundStyle(hevy.failed ? StrandPalette.statusWarningForeground : StrandPalette.statusPositive)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -355,7 +355,7 @@ struct DataSourcesView: View {
                 }
                 if let error = hevy.status.lastError {
                     Text(error).font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.statusWarning)
+                        .foregroundStyle(StrandPalette.statusWarningForeground)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -376,7 +376,7 @@ struct DataSourcesView: View {
             }
             if let s = liftingSummary {
                 Text(s).font(StrandFont.subhead)
-                    .foregroundStyle(liftingFailed ? StrandPalette.statusWarning : StrandPalette.statusPositive)
+                    .foregroundStyle(liftingFailed ? StrandPalette.statusWarningForeground : StrandPalette.statusPositive)
             }
         }
     }
@@ -395,7 +395,7 @@ struct DataSourcesView: View {
             }
             if let s = activityFileSummary {
                 Text(s).font(StrandFont.subhead)
-                    .foregroundStyle(activityFileFailed ? StrandPalette.statusWarning : StrandPalette.statusPositive)
+                    .foregroundStyle(activityFileFailed ? StrandPalette.statusWarningForeground : StrandPalette.statusPositive)
             }
         }
     }
@@ -414,7 +414,7 @@ struct DataSourcesView: View {
             }
             if let s = wearableSummary {
                 Text(s).font(StrandFont.subhead)
-                    .foregroundStyle(wearableFailed ? StrandPalette.statusWarning : StrandPalette.statusPositive)
+                    .foregroundStyle(wearableFailed ? StrandPalette.statusWarningForeground : StrandPalette.statusPositive)
             }
         }
     }
@@ -630,7 +630,7 @@ struct DataSourcesView: View {
                     ? String(localized: "Imported 1 workout")
                     : String(localized: "Imported \(result.sessionCount) workouts")
                 if totalVolume > 0 {
-                    msg += " · " + String(localized: "\(LiftingImporter.groupedKg(totalVolume)) kg total volume")
+                    msg += " · \(TrainingPreferences.formattedWeight(totalVolume)) " + String(localized: "total volume")
                 }
                 if let a = result.earliest, let b = result.latest {
                     let span = liftingDayFormatter
@@ -1003,7 +1003,7 @@ struct DataSourcesView: View {
                 if let note = hrBroadcaster.statusNote {
                     Text(note)
                         .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.statusWarning)
+                        .foregroundStyle(StrandPalette.statusWarningForeground)
                         .fixedSize(horizontal: false, vertical: true)
                 } else if hrBroadcaster.subscriberCount > 0 {
                     let n = hrBroadcaster.subscriberCount

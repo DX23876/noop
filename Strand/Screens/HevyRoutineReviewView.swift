@@ -97,7 +97,7 @@ struct HevyRoutineReviewView: View {
                         HStack(alignment: .top, spacing: 8) {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .font(.system(size: 12))
-                                .foregroundStyle(StrandPalette.statusWarning)
+                                .foregroundStyle(StrandPalette.statusWarningForeground)
                                 .accessibilityHidden(true)
                             Text(warning)
                                 .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
@@ -242,7 +242,7 @@ struct HevyRoutineReviewView: View {
 
     private func errorBanner(_ text: String) -> some View {
         NoopCard(padding: 12, tint: StrandPalette.statusWarning) {
-            Text(text).font(StrandFont.subhead).foregroundStyle(StrandPalette.statusWarning)
+            Text(text).font(StrandFont.subhead).foregroundStyle(StrandPalette.statusWarningForeground)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }

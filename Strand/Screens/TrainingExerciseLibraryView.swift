@@ -341,6 +341,10 @@ private struct TrainingExerciseDetailView: View {
     let onToggleFavorite: () -> Void
     @ObservedObject private var media = ExerciseMediaStore.shared
     @State private var showingMediaManager = false
+    @AppStorage(TrainingPreferences.weightUnitKey) private var weightUnitRaw = TrainingWeightUnit.kilograms.rawValue
+    private var weightUnit: TrainingWeightUnit {
+        TrainingWeightUnit(rawValue: weightUnitRaw) ?? .kilograms
+    }
 
     var body: some View {
         ScrollView {
@@ -449,9 +453,9 @@ private struct TrainingExerciseDetailView: View {
                                   spacing: 10) {
                             historyFact(String(localized: "Sessions"), records.sessionCount.formatted())
                             historyFact(String(localized: "Heaviest"), records.heaviestSetKg
-                                .map { "\($0.formatted(.number.precision(.fractionLength(0...1)))) kg" } ?? "—")
+                                .map { TrainingPreferences.formattedWeight($0, unit: weightUnit) } ?? "—")
                             historyFact(String(localized: "Best 1RM · est."), records.bestEstimatedOneRepMaxKg
-                                .map { "\($0.formatted(.number.precision(.fractionLength(0...1)))) kg" } ?? "—")
+                                .map { TrainingPreferences.formattedWeight($0, unit: weightUnit) } ?? "—")
                         }
                         if !recent.isEmpty {
                             Divider().overlay(StrandPalette.hairline)
@@ -497,7 +501,7 @@ private struct TrainingExerciseDetailView: View {
         let best = working.compactMap(\.weightKg).filter { $0 > 0 }.max()
         let sets = String(localized: "\(working.count) sets")
         guard let best else { return sets }
-        return "\(sets) · \(best.formatted(.number.precision(.fractionLength(0...1)))) kg"
+        return "\(sets) · \(TrainingPreferences.formattedWeight(best, unit: weightUnit))"
     }
 
     private func muscle(_ value: String?) -> String {
@@ -685,7 +689,7 @@ private struct ExerciseMediaDisclosureView: View {
                 Text(provider.attribution).font(StrandFont.caption)
                 Text(provider.rightsStatus)
                     .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.statusWarning)
+                    .foregroundStyle(StrandPalette.statusWarningForeground)
             }
             Section("Download") {
                 LabeledContent("Approximate size",

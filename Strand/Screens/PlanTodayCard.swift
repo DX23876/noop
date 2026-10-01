@@ -103,7 +103,7 @@ struct PlanTodayCard: View {
                 NoopCard(padding: 14, tint: StrandPalette.statusWarning) {
                     HStack(spacing: 10) {
                         Image(systemName: "questionmark.circle")
-                            .foregroundStyle(StrandPalette.statusWarning)
+                            .foregroundStyle(StrandPalette.statusWarningForeground)
                             .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 1) {
                             Text("Plan needs your check")
