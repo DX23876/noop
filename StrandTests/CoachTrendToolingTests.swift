@@ -1,5 +1,6 @@
 import XCTest
 import WhoopStore
+import WhoopProtocol
 @testable import Strand
 
 /// P15: verifies the trend tools (`get_range_report`, `get_zone_minutes`) are correctly wired end-to-end
@@ -76,13 +77,44 @@ final class CoachTrendToolingTests: XCTestCase {
         XCTAssertEqual(report, "Not enough recorded days for a range report yet.")
     }
 
-    // MARK: - get_zone_minutes fails honestly without workout HR data (no store-seeding test seam here,
+    // MARK: - get_zone_minutes reads workouts only, from an empty in-memory store
 
-    /// same documented limitation as `CoachPlotMetricTests`'s fallback branch): confirms it never crashes
-    /// and returns the exact fallback line its own tool description promises the model.
-    func testZoneMinutesWithNoWorkoutDataReportsHonestly() async {
-        let engine = makeEngine()
-        let result = await engine.zoneMinutesTool(days: 7)
+    /// Fails honestly with the exact fallback line its own tool description promises the model. The store
+    /// is in memory, so heart rate on the machine running the tests cannot reach the answer.
+    func testZoneMinutesWithNoWorkoutDataReportsHonestly() async throws {
+        let store = try await WhoopStore.inMemory()
+        let now = Int(Date().timeIntervalSince1970)
+        // Heart rate without a workout around it is not training time.
+        _ = try await store.insert(Streams(hr: (0..<3_600).map { HRSample(ts: now - 2 * 86_400 + $0, bpm: 150) }),
+                                   deviceId: "my-whoop")
+        let repo = Repository(deviceId: "my-whoop")
+        repo.setStoreForTesting(store)
+        let result = await AICoachEngine(repo: repo).zoneMinutesTool(days: 7)
         XCTAssertEqual(result, "No workout heart-rate data in the last 7 days to compute zone minutes.")
+    }
+
+    /// Only the minutes inside a workout count: three hours of daytime heart rate before a 30-minute
+    /// session must not appear, and the sample cap must not cut the week to its first hours.
+    func testZoneMinutesCountOnlyWorkoutTime() async throws {
+        let store = try await WhoopStore.inMemory()
+        let now = Int(Date().timeIntervalSince1970)
+        let start = now - 2 * 86_400
+        let daytime = (0..<(3 * 3_600)).map { HRSample(ts: start - 4 * 3_600 + $0, bpm: 150) }
+        let session = (0...(30 * 60)).map { HRSample(ts: start + $0, bpm: 130) }
+        _ = try await store.insert(Streams(hr: daytime + session), deviceId: "my-whoop")
+        try await store.upsertWorkouts([
+            WorkoutRow(startTs: start, endTs: start + 30 * 60, sport: "Running", source: "manual",
+                       durationS: 30 * 60, energyKcal: nil, avgHr: nil, maxHr: nil, strain: nil,
+                       distanceM: nil, zonesJSON: nil, notes: nil, steps: nil),
+        ], deviceId: "my-whoop")
+        let repo = Repository(deviceId: "my-whoop")
+        repo.setStoreForTesting(store)
+
+        let result = await AICoachEngine(repo: repo).zoneMinutesTool(days: 7)
+        let total = result.split(separator: "\n")
+            .filter { $0.hasPrefix("  Zone ") }
+            .compactMap { Double($0.split(separator: " ").dropLast().last ?? "") }
+            .reduce(0, +)
+        XCTAssertEqual(total, 30, accuracy: 1, result)
     }
 }

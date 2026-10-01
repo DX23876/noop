@@ -2227,8 +2227,7 @@ final class AICoachEngine: ObservableObject {
         let now = Int(Date().timeIntervalSince1970)
         let from = now - days * 86_400
         let zoneSet = ProfileStore().hrZoneSet
-        guard let minutes = await repo.workoutZoneMinutes(from: from, to: now, zoneSet: zoneSet),
-              minutes.count == 5 else {
+        guard let minutes = await workoutZoneMinutesTotal(from: from, to: now, zoneSet: zoneSet) else {
             return "No workout heart-rate data in the last \(days) days to compute zone minutes."
         }
         var lines = [Self.zoneBandsLine(zoneSet),
@@ -2237,6 +2236,31 @@ final class AICoachEngine: ObservableObject {
             lines.append(String(format: "  Zone %d: %.0f min", i + 1, m))
         }
         return lines.joined(separator: "\n")
+    }
+
+    /// Zone minutes summed over each workout that starts in the window, read per workout exactly as the
+    /// workout detail reads them: the imported zone split where the source carried one, else the
+    /// workout's own heart rate. `workoutZoneMinutes` over the whole window would count every hour of the
+    /// day as training, and its sample cap would keep only the window's first ~2 hours.
+    private func workoutZoneMinutesTotal(from: Int, to: Int, zoneSet: HRZoneSet) async -> [Double]? {
+        let days = max(1, (to - from + 86_399) / 86_400)
+        let rows = await repo.workoutRows(days: days + 1, reconcileHrCap: 0)
+            .filter { $0.startTs >= from && $0.startTs < to && $0.endTs > $0.startTs }
+        var total = [Double](repeating: 0, count: 5)
+        for row in rows {
+            var minutes: [Double]?
+            if let pct = WorkoutZones.percents(row.zonesJSON), pct.count == 5 {
+                let durMin = (row.durationS ?? Double(row.endTs - row.startTs)) / 60.0
+                if durMin > 0 { minutes = pct.map { durMin * $0 / 100.0 } }
+            }
+            if minutes == nil {
+                minutes = await repo.workoutZoneMinutes(from: row.startTs, to: row.endTs,
+                                                        zoneSet: zoneSet, source: row.source)
+            }
+            guard let minutes, minutes.count == 5 else { continue }
+            for i in 0..<5 { total[i] += minutes[i] }
+        }
+        return total.contains(where: { $0 > 0 }) ? total : nil
     }
 
     /// `estimate_session_effort`: what a PLANNED session is worth, so the coach can quote a real figure
