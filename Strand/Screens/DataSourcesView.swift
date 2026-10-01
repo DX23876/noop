@@ -202,7 +202,7 @@ struct DataSourcesView: View {
             }
             if let s = appleHealthDeletedSummary {
                 Text(s).font(StrandFont.subhead)
-                    .foregroundStyle(StrandPalette.statusPositive)
+                    .foregroundStyle(StrandPalette.statusPositive.legibleText)
             }
         }
     }

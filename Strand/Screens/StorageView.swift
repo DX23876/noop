@@ -85,7 +85,7 @@ struct StorageView: View {
                 if let lastCleanedSummary {
                     Text(lastCleanedSummary)
                         .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.statusPositive)
+                        .foregroundStyle(StrandPalette.statusPositive.legibleText)
                 }
 
                 Button {

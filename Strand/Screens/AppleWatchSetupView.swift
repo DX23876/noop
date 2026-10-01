@@ -182,7 +182,7 @@ struct AppleWatchSetupView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text("WHAT IT'S GREAT AT").font(StrandFont.overline)
                     .tracking(StrandFont.overlineTracking)
-                    .foregroundStyle(StrandPalette.statusPositive)
+                    .foregroundStyle(StrandPalette.statusPositive.legibleText)
                 bullet("bed.double.fill", String(localized: "Sleep & Rest"),
                        String(localized: "Apple's sleep stages are strong, and they drive your Rest score directly."))
                 bullet("figure.walk", String(localized: "Steps & workouts"),

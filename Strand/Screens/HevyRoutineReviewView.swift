@@ -216,7 +216,7 @@ struct HevyRoutineReviewView: View {
         VStack(alignment: .leading, spacing: NoopMetrics.space2) {
             if let sentTitle {
                 Text("Sent “\(sentTitle)” to Hevy.")
-                    .font(StrandFont.subhead).foregroundStyle(StrandPalette.statusPositive)
+                    .font(StrandFont.subhead).foregroundStyle(StrandPalette.statusPositive.legibleText)
             } else {
                 HStack(spacing: NoopMetrics.space3) {
                     Button {

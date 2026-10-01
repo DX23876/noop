@@ -1826,7 +1826,7 @@ struct CoachSettingsView: View {
             case .ok(let model):
                 Label("Works — \(model) replied.", systemImage: "checkmark.circle.fill")
                     .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.statusPositive)
+                    .foregroundStyle(StrandPalette.statusPositive.legibleText)
                     .fixedSize(horizontal: false, vertical: true)
             case .failed(let message):
                 Label(message, systemImage: "exclamationmark.triangle.fill")
@@ -2695,7 +2695,7 @@ struct CoachSettingsView: View {
                 if coach.hasKey && keyDraft.isEmpty {
                     Label("Saved", systemImage: "checkmark.circle.fill")
                         .font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.statusPositive)
+                        .foregroundStyle(StrandPalette.statusPositive.legibleText)
                 }
             }
             HStack(spacing: 6) {

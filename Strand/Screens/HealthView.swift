@@ -1330,7 +1330,7 @@ private struct VitalitySection: View {
                 Divider().overlay(StrandPalette.hairline)
                 if let best, best.lnHazard < 0 {
                     Text("Helping most: \(best.label)")
-                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.statusPositive)
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.statusPositive.legibleText)
                 }
                 if let worst, worst.lnHazard > 0 {
                     Text("Holding you back: \(worst.label)")
