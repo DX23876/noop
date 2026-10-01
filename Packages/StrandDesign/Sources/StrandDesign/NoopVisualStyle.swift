@@ -95,7 +95,11 @@ public struct NoopPanelSurface: View {
     public var cornerRadius: CGFloat
     public var elevated: Bool
     public var surfaceOpacity: Double
+    /// nil follows the subtree default (`noopCardKind(_:)`), `.data` unless a screen sets it.
+    public var kind: NoopCardKind?
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.noopCardKind) private var environmentKind
     /// Reduce Transparency is enforced HERE rather than at each caller that passes a `surfaceOpacity`.
     /// The setting was previously honoured in three places (`StrandCard`, `LiquidTodayView`,
     /// `LiquidPrimitives`), which meant it held exactly as long as every future caller remembered it —
@@ -112,16 +116,30 @@ public struct NoopPanelSurface: View {
         tint: Color? = nil,
         cornerRadius: CGFloat = NoopVisualStyle.cardRadius,
         elevated: Bool = false,
-        surfaceOpacity: Double = 1
+        surfaceOpacity: Double = 1,
+        kind: NoopCardKind? = nil
     ) {
         self.tint = tint
         self.cornerRadius = cornerRadius
         self.elevated = elevated
         self.surfaceOpacity = surfaceOpacity
+        self.kind = kind
     }
+
+    #if os(iOS)
+    private static let quietEdges = true
+    #else
+    private static let quietEdges = false
+    #endif
 
     public var body: some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        let chrome = NoopCardChrome.resolve(
+            kind: kind ?? environmentKind,
+            isLight: scheme == .light,
+            isTransparent: resolvedOpacity < 1,
+            increasedContrast: contrast == .increased,
+            quietEdges: Self.quietEdges)
         shape
             .fill(
                 LinearGradient(
@@ -141,19 +159,29 @@ public struct NoopPanelSurface: View {
                     )
                 }
             }
-            .overlay(
-                shape.strokeBorder(
-                    LinearGradient(
-                        colors: [NoopVisualStyle.borderHighlight.opacity(NoopVisualStyle.panelRimHighlightOpacity),
-                                 NoopVisualStyle.border.opacity(NoopVisualStyle.panelRimBorderOpacity)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    ),
-                    lineWidth: 0.8
-                )
-            )
+            .overlay {
+                switch chrome.rim {
+                case .none:
+                    EmptyView()
+                case .hairline, .strong:
+                    shape.strokeBorder(
+                        LinearGradient(
+                            colors: [NoopVisualStyle.borderHighlight.opacity(NoopVisualStyle.panelRimHighlightOpacity),
+                                     NoopVisualStyle.border.opacity(NoopVisualStyle.panelRimBorderOpacity)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        lineWidth: chrome.rim == .strong ? 1.4 : 0.8
+                    )
+                case .tinted, .tintedStrong:
+                    shape.strokeBorder((tint ?? NoopVisualStyle.border).opacity(chrome.rim == .tintedStrong ? 0.85 : 0.45),
+                                       lineWidth: chrome.rim == .tintedStrong ? 1.4 : 1)
+                }
+            }
+            // Dark keeps its depth shadow; in light the shadow follows the kind.
             .shadow(
-                color: scheme == .dark ? .black.opacity(elevated ? 0.34 : 0.18) : .black.opacity(0.10),
+                color: scheme == .dark ? .black.opacity(elevated ? 0.34 : 0.18)
+                                       : (chrome.shadow ? .black.opacity(0.10) : .clear),
                 radius: elevated ? 18 : 9,
                 x: 0,
                 y: elevated ? 10 : 5
@@ -186,14 +214,16 @@ public extension View {
         tint: Color? = nil,
         cornerRadius: CGFloat = NoopVisualStyle.cardRadius,
         elevated: Bool = false,
-        surfaceOpacity: Double = 1
+        surfaceOpacity: Double = 1,
+        kind: NoopCardKind? = nil
     ) -> some View {
         background {
             NoopPanelSurface(
                 tint: tint,
                 cornerRadius: cornerRadius,
                 elevated: elevated,
-                surfaceOpacity: surfaceOpacity
+                surfaceOpacity: surfaceOpacity,
+                kind: kind
             )
         }
     }
