@@ -52,7 +52,7 @@ release identity is plain `X.Y.Z` — the numeric version stays numeric everywhe
 **That suffix is a NAMESPACE, not a quality claim.** Upstream tags `vX.Y.Z` and this repo fetches
 their tags into the same space — `v9.3.0`, `v9.3.1` and `v10.0.0` are all ryanbr's and already sit in
 this clone — so a bare `v10.1.0` here would collide with the tag they will cut for the same version.
-Nothing else carries it: the release title is `NOOP AI X.Y.Z`, the app reports `X.Y.Z`, and
+Nothing else carries it: the release title is `NOOP Grit X.Y.Z` (`NOOP AI X.Y.Z` up to 11.8.3), the app reports `X.Y.Z`, and
 `VersionCheck.displayVersion` strips it before the update sheet prints it.
 
 Releases up to 9.3.3 were branded "DX Beta" in the tag, title and assets. From 10.1.0 that branding

@@ -130,8 +130,8 @@ targets:
     info:
       path: Strand/Resources/Info.plist
       properties:
-        CFBundleName: NOOP
-        CFBundleDisplayName: NOOP
+        CFBundleName: NOOP Grit
+        CFBundleDisplayName: NOOP Grit
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "198"
         LSMinimumSystemVersion: "13.0"
@@ -285,9 +285,9 @@ targets:
     info:
       path: StrandiOS/Resources/Info.plist
       properties:
-        CFBundleName: NOOP
-        # NOOP AI fork: home-screen name (upstream: NOOP).
-        CFBundleDisplayName: NOOP AI
+        CFBundleName: NOOP Grit
+        # NOOP Grit fork: home-screen name (upstream: NOOP; called NOOP AI before 2026-10-01).
+        CFBundleDisplayName: NOOP Grit
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         # Surfaces APP_GROUP_ID to runtime (WidgetSnapshot.suiteName) so the App Group id isn't
@@ -395,7 +395,7 @@ targets:
           - $(APP_GROUP_ID)
     settings:
       base:
-        # NOOP AI fork: the prefix comes from $(BUNDLE_ID_PREFIX) (Config/BundleId.xcconfig), so set your
+        # NOOP Grit fork: the prefix comes from $(BUNDLE_ID_PREFIX) (Config/BundleId.xcconfig), so set your
         # own in the gitignored Config/BundleIdSecrets.xcconfig to sign under a free Apple ID — no personal
         # prefix is committed. Clean checkout falls back to com.noopapp → com.noopapp.noopai.
         PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).noopai
@@ -465,7 +465,7 @@ targets:
     info:
       path: StrandiOSWidgets/Info.plist
       properties:
-        CFBundleDisplayName: NOOP
+        CFBundleDisplayName: NOOP Grit
         # Version keys MUST live here in the generated-Info.plist properties — NOT hand-edited into the
         # file — because xcodegen regenerates StrandiOSWidgets/Info.plist on every `xcodegen generate`
         # (which every release runs for the version bump) and would otherwise rewrite them to its
@@ -518,8 +518,8 @@ targets:
     info:
       path: NOOPWatch/Info.plist
       properties:
-        CFBundleName: NOOP
-        CFBundleDisplayName: NOOP
+        CFBundleName: NOOP Grit
+        CFBundleDisplayName: NOOP Grit
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         # Surfaces APP_GROUP_ID to runtime (WatchScoreStore.suiteName) so the App Group id isn't
@@ -581,7 +581,7 @@ targets:
     info:
       path: NOOPWatchComplications/Info.plist
       properties:
-        CFBundleDisplayName: NOOP
+        CFBundleDisplayName: NOOP Grit
         # Version keys live here as generated-plist properties so xcodegen keeps them lockstep with the
         # parent watch app on every regenerate (mirrors the NOOPiOSWidgets rationale, #416).
         CFBundleShortVersionString: "$(MARKETING_VERSION)"

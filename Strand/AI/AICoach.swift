@@ -1940,7 +1940,7 @@ final class AICoachEngine: ObservableObject {
     }()
     private static func parseDay(_ s: String) -> Date? { dayFormatter.date(from: s) }
 
-    // MARK: - Conversational logging + deep-data tools (NOOP AI)
+    // MARK: - Conversational logging + deep-data tools (NOOP Grit)
 
     /// LOCAL "yyyy-MM-dd" formatter — journal/lab entries key on the user's local day (unlike the UTC
     /// chart parser above).
@@ -4872,7 +4872,7 @@ final class AICoachEngine: ObservableObject {
         let days = repo.days // oldest → newest
         var lines: [String] = [clockLine(), "", "USER BIOMETRIC SUMMARY (the user's own wearable data):"]
 
-        // Profile + goal (NOOP AI): the same values the app's HR zones and calorie math use, so the
+        // Profile + goal (NOOP Grit): the same values the app's HR zones and calorie math use, so the
         // coach can prescribe zones/loads for THIS user. Consent-gated like the rest — buildContext()
         // is only reached with data access on.
         let profile = ProfileStore()

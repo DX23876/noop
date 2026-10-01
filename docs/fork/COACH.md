@@ -1,6 +1,6 @@
 # The Coach — in full
 
-Everything NOOP AI adds on top of [ryanbr/noop](https://github.com/ryanbr/noop) lives here. The
+Everything NOOP Grit adds on top of [ryanbr/noop](https://github.com/ryanbr/noop) lives here. The
 [README](../../README.md) has the friendly tour; this is the technical one.
 
 **Design rule for every line of it:** additive, in its own file, never a rewrite of upstream logic.

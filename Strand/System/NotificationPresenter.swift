@@ -34,7 +34,7 @@ final class NotificationPresenter: NSObject, UNUserNotificationCenterDelegate {
     /// Handle a tap. Two categories route somewhere; every other notification (wind-down,
     /// smart-alarm, battery/illness) just opens the app to wherever it was.
     ///
-    ///  * the NOOP AI daily coach check-in ("coach-checkin") broadcasts an in-app event so the UI can
+    ///  * the NOOP Grit daily coach check-in ("coach-checkin") broadcasts an in-app event so the UI can
     ///    open the Coach tab and run the check-in;
     ///  * the scheduled morning brief routes to Coach through the shared `NavRouter`.
     func userNotificationCenter(

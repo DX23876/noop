@@ -1,4 +1,4 @@
-# NOOP AI · Feature-Spezifikation, Heute-Screen
+# NOOP Grit · Feature-Spezifikation, Heute-Screen
 
 Beschreibt **Verhalten und Daten**, nicht Aussehen. Für Optik siehe `design/design-spec.md`.
 

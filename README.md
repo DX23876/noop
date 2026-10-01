@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/assets/logo.svg" alt="NOOP AI" width="72">
+  <img src="docs/assets/logo.svg" alt="NOOP Grit" width="72">
 </p>
 
-<h1 align="center">NOOP AI</h1>
+<h1 align="center">NOOP Grit</h1>
 
 <p align="center"><b>Your WHOOP data, on your own devices, with a coach that remembers.</b></p>
 
@@ -25,9 +25,9 @@
 
 ---
 
-## Why NOOP AI
+## Why NOOP Grit
 
-A WHOOP strap is remarkable hardware locked to WHOOP's own app, subscription and cloud. NOOP AI
+A WHOOP strap is remarkable hardware locked to WHOOP's own app, subscription and cloud. NOOP Grit
 talks to the strap directly over Bluetooth, computes Charge (recovery), Effort (strain), Rest,
 sleep staging, HRV and training load **on your iPhone or Mac**, and keeps every number there. No
 WHOOP account. No NOOP account either — there's nothing to sign into and nowhere to sign in to.
@@ -204,7 +204,7 @@ Island.
 
 ## Privacy, precisely
 
-NOOP AI is offline-first. Your strap data, database, scores, history, goals, coach memory and
+NOOP Grit is offline-first. Your strap data, database, scores, history, goals, coach memory and
 plans stay on your device. The optional AI Coach contacts only the provider you configure, only
 when you ask it to; an experimental Oura history import and the manual/at-most-daily public-release
 check are the only other network paths, and neither uploads raw sensor streams or gives NOOP a
@@ -217,7 +217,7 @@ More detail: [Privacy and security](docs/PRIVACY_SECURITY.md).
 ### iPhone and iPad
 
 The iOS build is an **unsigned IPA on purpose**. Add the source below in AltStore or SideStore,
-and the sideloader signs the app locally with the Apple ID you choose — NOOP AI never receives
+and the sideloader signs the app locally with the Apple ID you choose — NOOP Grit never receives
 your Apple ID or a signing certificate.
 
 **Source URL:**
@@ -226,8 +226,8 @@ your Apple ID or a signing certificate.
 https://raw.githubusercontent.com/DX23876/noop/main/altstore-source.json
 ```
 
-- **AltStore:** Browse → **+** → paste the source URL → add NOOP AI.
-- **SideStore:** Sources → **+ Add Source** → paste the same URL → install NOOP AI.
+- **AltStore:** Browse → **+** → paste the source URL → add NOOP Grit.
+- **SideStore:** Sources → **+ Add Source** → paste the same URL → install NOOP Grit.
 - Prefer a direct file? Download `NOOP-ios-unsigned-v11.8.1-dx.ipa` from the
   [11.8.1 release](https://github.com/DX23876/noop/releases/tag/v11.8.1-dx). It includes the
   Home/Lock-Screen **widgets**, which AltStore/SideStore sign along with the app.
@@ -302,7 +302,8 @@ training — is kept in its own layer so upstream fixes can keep merging in clea
 
 ## About the project
 
-NOOP AI is a personal fork of [ryanbr/noop](https://github.com/ryanbr/noop). The upstream project
+NOOP Grit is an independent, personal fork of [ryanbr/noop](https://github.com/ryanbr/noop) and not
+the official NOOP app; it was called NOOP Grit until October 2026. The upstream project
 deserves credit for the protocol, analytics and design-system foundations, and continues to
 develop its own coach in parallel; this fork develops the extended coach (memory, tools, goals),
 native training and Apple-first sideload distribution independently. It is an unofficial,
@@ -310,7 +311,7 @@ non-commercial interoperability project and is not affiliated with WHOOP.
 
 ## Disclaimer
 
-NOOP AI is not a medical device. Its health and training values are on-device estimates, not
+NOOP Grit is not a medical device. Its health and training values are on-device estimates, not
 clinical advice or diagnosis. Use it as a personal tool and consult a qualified professional for
 medical decisions.
 

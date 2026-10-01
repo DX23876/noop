@@ -1,4 +1,4 @@
-# NOOP AI — for nerds 🤓
+# NOOP Grit — for nerds 🤓
 
 👈 Looking for the friendly tour? **[Back to the README](../../README.md)**
 
@@ -22,7 +22,7 @@ need — this page is for when you want to know *why*, or you're about to touch 
 
 ## Why a fork, not a contribution upstream?
 
-NOOP AI is a **personal fork** of [ryanbr/noop](https://github.com/ryanbr/noop). Not a competitor,
+NOOP Grit is a **personal fork** of [ryanbr/noop](https://github.com/ryanbr/noop). Not a competitor,
 not a rebrand that hides where it came from. Every protocol decoder, every analytics formula, every
 pixel of the design system comes from upstream NOOP and its own credited sources (see
 [Attribution](#attribution-in-full)). What this fork adds on top is **a much bigger coach** — and
@@ -205,7 +205,7 @@ fork's own additions — Heute, App icon colors — alongside the inherited cont
 
 ## Attribution, in full
 
-NOOP AI is a fork of **[NOOP](https://github.com/ryanbr/noop)** by ryanbr — please treat that
+NOOP Grit is a fork of **[NOOP](https://github.com/ryanbr/noop)** by ryanbr — please treat that
 repository as the canonical project, not this fork. NOOP itself stands on community
 protocol-documentation work:
 
