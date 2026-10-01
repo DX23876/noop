@@ -119,6 +119,10 @@ public enum StrandPalette {
     public static let heroFill   = Color(light: "FFFFFFD9", dark: "0D0E14CC")
     public static let heroBorder = Color(light: "0000001A", dark: "FFFFFF1C")
 
+    // MARK: Forge brand ember — the orange face of the NOOP Forge "F" (app icon, Today mark). Brand only,
+    // never a data colour, so it does not follow the chart style.
+    public static let forgeEmber = Color(light: "#D94A0A", dark: "#FF6A16")
+
     // MARK: Glow — neutral Apple-blue bloom behind heroes / charts. Mint remains an optional user accent,
     // never a default cast over otherwise neutral surfaces.
     public static let glowAmbient    = Color.systemBlue.opacity(0.20)

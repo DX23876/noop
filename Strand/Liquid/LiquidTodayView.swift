@@ -2912,9 +2912,9 @@ private struct PullOffsetKey: PreferenceKey {
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
 
-// MARK: - NOOP wordmark (centred, with a tap easter egg)
+// MARK: - NOOP Forge wordmark (centred, with a tap easter egg)
 
-/// The subtle NOOP wordmark. Built as a row of letters (not `Text(...).tracking()`, which adds a
+/// The subtle NOOP Forge wordmark: NOOP followed by the icon's "F". Built as a row of letters (not `Text(...).tracking()`, which adds a
 /// trailing gap after the last glyph and pushes the word off-centre), so it sits DEAD centre. Tap it
 /// for a little easter egg: it plays one of several random one-shot animations — wiggle, shake, flip,
 /// spin, bounce, or a jelly squash — with a light haptic.
@@ -2929,12 +2929,18 @@ private struct LiquidWordmark: View {
     var body: some View {
         // Smaller AND brighter: the wordmark should cost less height between the header and the scores while
         // reading more like a mark and less like a watermark.
-        HStack(spacing: 10) {
-            ForEach(Array("NOOP".enumerated()), id: \.offset) { _, ch in
-                Text(String(ch))
-                    .font(StrandFont.rounded(13, weight: .bold))
-                    .foregroundStyle(StrandPalette.textPrimary.opacity(0.9))
+        // NOOP Forge: the letters, then the "F" from the app icon at capital height, so it reads
+        // "NOOP Forge". The easter egg below moves both together.
+        HStack(spacing: 12) {
+            HStack(spacing: 10) {
+                ForEach(Array("NOOP".enumerated()), id: \.offset) { _, ch in
+                    Text(String(ch))
+                        .font(StrandFont.rounded(13, weight: .bold))
+                        .foregroundStyle(StrandPalette.textPrimary.opacity(0.9))
+                }
             }
+            ForgeMark(size: 10.5)
+                .opacity(0.9)
         }
         .shadow(color: .black.opacity(0.25), radius: 6, y: 1)
         .rotationEffect(.degrees(rot))
