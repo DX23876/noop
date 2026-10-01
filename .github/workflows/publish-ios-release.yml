@@ -167,7 +167,7 @@ jobs:
 
           if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-              --prerelease --title "NOOP Grit $VERSION" --notes-file "$BODY"
+              --prerelease --title "NOOP Forge $VERSION" --notes-file "$BODY"
           fi
           gh release upload "$TAG" "$IPA" "$FULL_IPA" --repo "$GITHUB_REPOSITORY" --clobber
 
@@ -179,7 +179,7 @@ jobs:
           SIZE=$(stat -f%z "$IPA")
           DATE=$(date -u +%Y-%m-%d)
           URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${IPA}"
-          DESCRIPTION="NOOP Grit ${VERSION}. See the release notes for what changed."
+          DESCRIPTION="NOOP Forge ${VERSION}. See the release notes for what changed."
           tmp=$(mktemp)
 
           jq --arg version "$VERSION" --arg build "$BUILD" --arg date "$DATE" \

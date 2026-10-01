@@ -1,4 +1,4 @@
-# NOOP Grit · Design-Spezifikation, Heute-Screen
+# NOOP Forge · Design-Spezifikation, Heute-Screen
 
 Beschreibt **Aussehen und Bewegung**, nicht Verhalten/Daten. Für Funktion siehe `../feature-spec.md`.
 Visuelle Referenz: `mockup-heute.html` (verbindlich bei Widerspruch zum Text).

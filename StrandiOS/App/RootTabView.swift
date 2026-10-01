@@ -358,7 +358,7 @@ struct RootTabView: View {
                 break
             }
         }
-        // Daily coach check-in tapped (NOOP Grit): jump to the More tab and open Coach on top of it.
+        // Daily coach check-in tapped (NOOP Forge): jump to the More tab and open Coach on top of it.
         // CoachView refreshes the brief itself — it observes the same event.
         .onReceive(NotificationCenter.default.publisher(for: .noopOpenCoachCheckIn)) { _ in
             guard coachFeatureEnabled else { return }

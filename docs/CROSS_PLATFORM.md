@@ -1,6 +1,6 @@
 # Apple-platform architecture — macOS, iOS, and watchOS
 
-NOOP Grit in this fork is Apple-only. macOS and iOS share the same Swift packages and most app-layer
+NOOP Forge in this fork is Apple-only. macOS and iOS share the same Swift packages and most app-layer
 code; the watchOS companion receives a bounded snapshot from the iPhone. The fork no longer carries
 an Android source tree or Kotlin parity contract. For Android, use
 [RyanBR's upstream repository](https://github.com/ryanbr/noop).

@@ -1,6 +1,6 @@
 name: Sync upstream (ryanbr/noop)
 
-# NOOP Grit fork: pulls new commits from the canonical upstream project weekly and opens a PR against
+# NOOP Forge fork: pulls new commits from the canonical upstream project weekly and opens a PR against
 # main for review, instead of silently auto-merging: a bad upstream merge should never land on this
 # fork's public main branch unreviewed. Existing CI (app-build / swift-packages / android, all
 # path-filtered on pull_request) runs automatically on the PR this opens, giving free build/test

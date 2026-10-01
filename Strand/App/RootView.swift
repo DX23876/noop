@@ -395,7 +395,7 @@ struct RootView: View {
         .onReceive(NotificationCenter.default.publisher(for: .noopOpenCoachCard)) { _ in
             selection = .coach
         }
-        // Daily coach check-in tapped (NOOP Grit): select the Coach pane, mirroring the iOS
+        // Daily coach check-in tapped (NOOP Forge): select the Coach pane, mirroring the iOS
         // RootTabView.swift handler — without this the notification was silent whenever the sidebar
         // wasn't already on Coach (CoachView's own .onReceive never fires because it isn't in the
         // hierarchy until selected).
