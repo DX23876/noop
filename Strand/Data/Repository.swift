@@ -270,6 +270,8 @@ final class Repository: ObservableObject {
     /// which five-minute buckets were a confirmed workout, so saving, editing, deleting or importing
     /// one changes that day's stored energy. Nothing re-ran the model on those changes; a session
     /// logged after the last offload stayed priced as unexplained heart rate until the next sync.
+    /// A weigh-in, a height or body-fat reading, a profile edit and a basal-formula switch schedule it
+    /// too: each moves the basal rate the stored days were priced with.
     ///
     /// Coalesced: a merge (save + deletes), a bulk delete or a history import is one pass, from the
     /// earliest start any of them touched. Bounded by `energyRefreshMaxDays`, the window every offload
@@ -291,11 +293,15 @@ final class Repository: ObservableObject {
         energyRefreshScheduled = false
         guard let from = pendingEnergyRefreshFrom else { return }
         pendingEnergyRefreshFrom = nil
-        guard let profile = energyProfile else {
+        guard energyProfile != nil else {
             // The training bands follow the rows even with nothing re-priced.
             noteEnergyPresentationChanged()
             return
         }
+        // Read fresh, not the cached `energyProfile`: that is whatever the last energy reader passed,
+        // and a body-data or basal-formula change is exactly what schedules this pass. Pricing it with
+        // the profile from before the change would store the old basal under a new revision.
+        let profile = ProfileStore.persistedAnalyticsProfile
         let calendar = Calendar.current
         let now = Date()
         let firstDay = calendar.startOfDay(for: Date(timeIntervalSince1970: TimeInterval(max(0, from))))

@@ -90,8 +90,15 @@ extension Repository {
                 source: source, note: note, referenceText: nil)
         }
         guard !rows.isEmpty, (try? await store.upsertLabMarkers(rows)) != nil else { return 0 }
+        if rows.contains(where: { Self.energyInputKeys.contains($0.markerKey) }) {
+            scheduleEnergyRefresh(coveringStart: epoch)
+        }
         return rows.count
     }
+
+    /// The body readings the energy model prices with: body mass, height (both basal formulas) and
+    /// body fat (Katch–McArdle). A change to any of them leaves the stored energy days stale.
+    static let energyInputKeys: Set<String> = [WhoopStore.bodyWeightMetricKey, "height", "body_fat"]
 }
 
 // MARK: - Retiring the undated scalars
@@ -165,13 +172,22 @@ extension Repository {
             day: Self.localDayKey(takenAt), takenAt: Int(takenAt.timeIntervalSince1970),
             value: value, valueText: nil, unit: definition?.canonicalUnit ?? "cm",
             source: "manual", note: nil, referenceText: nil)
-        return (try? await store.upsertLabMarkers([row])) != nil
+        guard (try? await store.upsertLabMarkers([row])) != nil else { return false }
+        // The reading may have moved to another day, so re-price from the start of the window.
+        if Self.energyInputKeys.contains(markerKey) { scheduleEnergyRefresh(coveringStart: 0) }
+        return true
     }
 
     /// Removes one stored reading. The caller confirms first — this does not ask.
     @discardableResult
     func deleteBodyMeasurement(id: String) async -> Bool {
         guard let store = await storeHandle() else { return false }
-        return (try? await store.deleteLabMarker(id: id)) ?? false
+        let deleted = (try? await store.deleteLabMarker(id: id)) ?? false
+        // NOOP's own ids lead with their marker key (`recordBodyMeasurements`), which is enough to
+        // leave a deleted waist or arm reading from re-pricing the energy window.
+        if deleted, Self.energyInputKeys.contains(where: { id.hasPrefix("\($0)-") }) {
+            scheduleEnergyRefresh(coveringStart: 0)
+        }
+        return deleted
     }
 }

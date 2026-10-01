@@ -307,6 +307,10 @@ final class AppModel: ObservableObject {
     /// `setTodayWeight` then no-ops when the value already matches, which is also what stops the
     /// reconciler (series → profile) and this observer (profile → series) writing to each other.
     private var profileWeightCancellable: AnyCancellable?
+    /// Re-prices the stored energy days when a profile input of the basal formulas changes. Weight is
+    /// not listed: it reaches the energy model through the weigh-in series, whose writes schedule the
+    /// same refresh themselves.
+    private var profileEnergyCancellable: AnyCancellable?
 
     /// Keeps Repository's physical WHOOP source union in memory. This prevents visible presentation
     /// requests from synchronously waiting on the registry database while analysis uses its readers.
@@ -1512,7 +1516,8 @@ final class AppModel: ObservableObject {
     /// End the WHOOP present-scan (idempotent). Call on leaving the wizard's pick step / on dismiss.
     func stopWhoopScan() { ble.stopWhoopScan() }
 
-    /// Start the profile-weight → weigh-in bridge. Idempotent; see `profileWeightCancellable`.
+    /// Start the profile-weight → weigh-in bridge and the profile → energy re-price. Idempotent; see
+    /// `profileWeightCancellable` and `profileEnergyCancellable`.
     ///
     /// `dropFirst()` skips the value the publisher replays at subscribe time — that is the stored
     /// scalar, not an edit, and banking a weigh-in for it would date last month's number today.
@@ -1525,6 +1530,18 @@ final class AppModel: ObservableObject {
             .sink { [weak self] kg in
                 guard let self else { return }
                 Task { @MainActor in await self.repo.setTodayWeight(kg: kg) }
+            }
+        guard profileEnergyCancellable == nil else { return }
+        // Each publisher replays its stored value on subscribe; `dropFirst` on each keeps that replay
+        // from re-pricing 120 days on every launch.
+        profileEnergyCancellable = Publishers.Merge3(
+            profile.$heightCm.dropFirst().removeDuplicates().map { _ in () },
+            profile.$sex.dropFirst().removeDuplicates().map { _ in () },
+            profile.$dateOfBirth.dropFirst().removeDuplicates().map { _ in () })
+            .debounce(for: .seconds(1.5), scheduler: RunLoop.main)
+            .sink { [weak self] in
+                guard let self else { return }
+                Task { @MainActor in self.repo.scheduleEnergyRefresh(coveringStart: 0) }
             }
     }
 

@@ -282,6 +282,15 @@ struct StrandiOSApp: App {
                     // so a refresh storm can't burn the ~50/day complication transfer budget.
                     Task { await watch.pushLatest(from: model) }
                 }
+                // Energy is stored outside the daily caches, so a re-price (a body-data or basal-formula
+                // change, a workout edit) bumps only `energyPresentationRevision` and never `refreshSeq`:
+                // the widget kept the old calories until the next sync. Same foreground gate as above;
+                // debounced because one re-price can bump the revision more than once.
+                .onReceive(model.repo.$energyPresentationRevision.dropFirst()
+                    .debounce(for: .seconds(1), scheduler: RunLoop.main)) { _ in
+                    guard scenePhase == .active else { return }
+                    Task { await WidgetSnapshot.publish(from: model) }
+                }
                 // #114: strap battery % and connection are LIVE (model.live), not repo-cache, so they never
                 // bump refreshSeq — the widget's battery would otherwise never move while the app is open
                 // (the "battery not updating" report). Republish on those too, foreground-gated. Both are

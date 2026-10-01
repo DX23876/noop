@@ -274,6 +274,9 @@ extension Repository {
                                 note: note?.isEmpty == true ? nil : note)
         guard (try? await store.upsertBodyWeights([row])) != nil else { return nil }
         await refresh()
+        // The energy model resolves body mass per day from this series, so the stored days from this
+        // weigh-in on were priced with the previous weight.
+        scheduleEnergyRefresh(coveringStart: row.takenAt)
         WeightLogNotification(kg: kg, day: row.day).post()
         return row
     }
@@ -325,6 +328,7 @@ extension Repository {
                                 note: note?.isEmpty == true ? nil : note)
         guard (try? await store.upsertBodyWeights([row])) != nil else { return false }
         await refresh()
+        scheduleEnergyRefresh(coveringStart: min(existing.takenAt, row.takenAt))
         WeightLogNotification(kg: kg, day: row.day).post()
         return true
     }
@@ -334,8 +338,13 @@ extension Repository {
     @discardableResult
     func deleteWeight(id: String) async -> Bool {
         guard let store = await storeHandle() else { return false }
+        let takenAt = (try? await store.bodyWeights(deviceId: WhoopStore.noopWeightSourceId))?
+            .first { $0.id == id }?.takenAt
         let deleted = (try? await store.deleteBodyWeight(id: id)) ?? false
-        if deleted { await refresh() }
+        if deleted {
+            await refresh()
+            scheduleEnergyRefresh(coveringStart: takenAt ?? 0)
+        }
         return deleted
     }
 }
