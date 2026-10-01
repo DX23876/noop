@@ -1067,7 +1067,7 @@ FORMAT_SPECIFIER_PATTERN = re.compile(r"%(?:\d+\$)?[@#0\-+ ]*[\d.]*(?:ll|l|h)?[@
 # Only strings that are ENTIRELY brand are exempted (see `_is_pure_brand_phrase`), so "Apple Health
 # sync" stays gated on its translatable word. CJK locales that DO translate these are unaffected —
 # they differ from the source, so they were never counted as echoes in the first place.
-BRAND_PHRASES = ("iCloud Drive", "Apple Health", "Garmin Connect", "WHOOP Blue")
+BRAND_PHRASES = ("iCloud Drive", "Apple Health", "Garmin Connect", "WHOOP Blue", "NOOP Forge")
 
 
 def _is_pure_brand_phrase(text: str) -> bool:

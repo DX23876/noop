@@ -23,7 +23,7 @@ public struct ForgeMark: View {
             ForgeMarkShape(points: Self.arm).fill(StrandPalette.forgeEmber)
         }
         .frame(width: size * Self.box.width / Self.box.height, height: size)
-        .accessibilityLabel(Text(verbatim: "NOOP Forge"))
+        .accessibilityLabel(Text("NOOP Forge", bundle: .module))
     }
 
     static let box = CGSize(width: 400, height: 410)

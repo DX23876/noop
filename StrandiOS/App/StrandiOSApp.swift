@@ -801,21 +801,26 @@ struct CardKindsDemoScreen: View {
     var body: some View {
         ScreenScaffold(title: "Card kinds", subtitle: "Navigation, data, hero and state.") {
             NoopCard(kind: .navigation) {
-                Text("Navigation card").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                label("Navigation card")
             }
             NoopCard(kind: .data) {
-                Text("Data card").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                label("Data card")
             }
             NoopCard(kind: .hero) {
-                Text("Hero card").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                label("Hero card")
             }
             NoopCard(tint: StrandPalette.statusWarning, kind: .state) {
-                Text("State card, warning").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                label("State card, warning")
             }
             NoopCard(tint: StrandPalette.statusCritical, kind: .state) {
-                Text("State card, critical").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                label("State card, critical")
             }
         }
+    }
+
+    /// Developer-only copy, kept out of the catalog on purpose.
+    private func label(_ text: String) -> some View {
+        Text(verbatim: text).font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
     }
 }
 #endif

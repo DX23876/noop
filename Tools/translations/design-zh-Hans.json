@@ -72,5 +72,6 @@
   "range %@ to %@": "范围%@改为:%@",
   "under your usual": "照旧",
   "well above your usual": "比你平常还好",
-  "well under your usual": "在你的习惯下"
+  "well under your usual": "在你的习惯下",
+  "NOOP Forge": "NOOP Forge"
 }

@@ -11,5 +11,6 @@
   "Hover to read each day's HRV in ms.": "Перетащите, чтобы прочитать HRV за день в миллисекундах.",
   "Reduce Motion renders static at the final frame.": "Сокращение движения фиксирует положение на последнем кадре.",
   "Stretch": "Растянуть",
-  "Tile": "Замостить"
+  "Tile": "Замостить",
+  "NOOP Forge": "NOOP Forge"
 }

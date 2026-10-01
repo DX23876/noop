@@ -34,5 +34,6 @@
   "Sparkline": "Miniwykres",
   "Sample": "Próbka",
   "Sleep stage": "Faza snu",
-  "sample %lld": "próbka %lld"
+  "sample %lld": "próbka %lld",
+  "NOOP Forge": "NOOP Forge"
 }
