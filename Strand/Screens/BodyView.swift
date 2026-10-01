@@ -96,7 +96,15 @@ struct BodyView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.space2) {
             HStack(alignment: .firstTextBaseline) {
-                SectionHeader("Body", overline: "Measurements")
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Body")
+                        .font(StrandFont.title1)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                    Text("Measurements")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                }
+                .accessibilityElement(children: .combine)
                 Spacer()
                 Button {
                     capturing = true

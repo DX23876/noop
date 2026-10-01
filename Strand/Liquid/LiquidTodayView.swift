@@ -487,7 +487,7 @@ struct LiquidTodayView: View {
         case .primed:       return StrandPalette.accent
         case .balanced:     return StrandPalette.statusPositive
         case .strained:     return StrandPalette.statusWarning
-        case .rundown:      return StrandPalette.metricRose
+        case .rundown:      return StrandPalette.statusCritical
         case .insufficient: return StrandPalette.textTertiary
         }
     }
@@ -1588,7 +1588,7 @@ struct LiquidTodayView: View {
         case .weight:
             let weightText = resolvedWeightKg.map { UnitFormatter.massFromKilograms($0.kg, system: unitSystem) } ?? "—"
             cardLink(.weight, icon: card.icon, title: card.title, sub: card.subtitle,
-                     value: weightText, tint: StrandPalette.metricRose, frac: nil)
+                     value: weightText, tint: StrandPalette.metricPurple, frac: nil)
         case .coach:
             // #1862: a sheet rather than a push — the point of the card is to try Coach WITHOUT
             // leaving Today. No "ask coach" sparkle either: the whole row already opens the coach.
