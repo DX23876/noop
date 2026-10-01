@@ -44,13 +44,14 @@ enum LiquidHeroChrome {
         return min(0.24, 0.08 + (1 - opacity) * 0.18)
     }
 
-    /// True when the hero is an ordinary light card: light appearance on the plain canvas with a solid
-    /// fill (or with Reduce Transparency, which forces a solid fill). Everywhere else (dark, a
-    /// transparent card, a sky or photograph behind it) the hero keeps its dark glass.
+    /// True when the hero is an ordinary light card: light appearance with nothing behind the cards (no sky,
+    /// day-cycle scene or photograph). Transparency is then handled by the card surface itself, like every
+    /// other card. With a backdrop, and in dark appearance, the hero keeps its dark glass, which the
+    /// white ring numbers are tuned against.
     static func usesLightSurface(isDark: Bool, cardOpacity: Double, hasBackdrop: Bool,
                                  reduceTransparency: Bool) -> Bool {
         guard !isDark else { return false }
-        return reduceTransparency || (cardOpacity >= 0.99 && !hasBackdrop)
+        return reduceTransparency || !hasBackdrop
     }
 
     static func shadowOpacity(isDark: Bool, cardOpacity: Double, hasBackdrop: Bool,

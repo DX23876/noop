@@ -35,6 +35,10 @@ approximate; downloads are on the [Releases](https://github.com/NoopApp/noop/rel
   to at least 4.5:1 contrast; the bright accents remain for fills, rings and dots.
 - **Explore shows each measurement once.** A measurement available from several sources has one row
   with its sources as chips, and the Energy introduction shows its three routes with icons.
+- **The Liquid hero is a white card in light appearance.** The grey block behind the rings is gone on the
+  plain canvas, with or without card transparency; with a sky or photograph behind the cards, and in dark
+  appearance, the hero keeps its dark glass. Today cards and metric tiles lose their grey rim, share one
+  softer shadow, and the progress tracks lose their outline in light appearance.
 - **Pink is reserved for heart rate.** Weight uses the body-measurement purple and run-down or alert
   states use the status red.
 

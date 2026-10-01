@@ -709,6 +709,8 @@ enum DemoScreens {
         // + self-service pairing guidance, screenshot-able WITHOUT reproducing the bond refusal on real
         // hardware.
         case "bondrefused": return AnyView(BondRefusedDemoScreen())
+        // The four card kinds side by side, so the quiet edges and the tinted state rim can be captured.
+        case "cardkinds": return AnyView(CardKindsDemoScreen())
         default:         return nil
         }
     }
@@ -771,6 +773,31 @@ private struct StrengthSessionDemoHost: View {
             }
         }
         .task { await model.load(repo: repo) }
+    }
+}
+#endif
+
+#if DEBUG
+/// DEBUG-only: one card of each kind on a plain page, for `--demo-screen cardkinds`.
+struct CardKindsDemoScreen: View {
+    var body: some View {
+        ScreenScaffold(title: "Card kinds", subtitle: "Navigation, data, hero and state.") {
+            NoopCard(kind: .navigation) {
+                Text("Navigation card").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+            }
+            NoopCard(kind: .data) {
+                Text("Data card").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+            }
+            NoopCard(kind: .hero) {
+                Text("Hero card").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+            }
+            NoopCard(tint: StrandPalette.statusWarning, kind: .state) {
+                Text("State card, warning").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+            }
+            NoopCard(tint: StrandPalette.statusCritical, kind: .state) {
+                Text("State card, critical").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+            }
+        }
     }
 }
 #endif
