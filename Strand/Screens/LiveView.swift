@@ -106,12 +106,17 @@ struct LiveView: View {
     /// the Session console and is only enabled while bonded (the reading needs the live R-R stream).
     @State private var showHRVSnapshot = false
 
+    private var needsConnection: Bool {
+        if activeIsOura { return ringPhase != .authenticated }
+        if activeIsWhoop { return !live.connected }
+        return true
+    }
+
     var body: some View {
         ScreenScaffold(title: "Live Body Console",
-                       subtitle: "Current physiology, strap trust, and session controls in one working view.",
+                       subtitle: "Your current heart rate and workout controls.",
                        topBackground: liquidScaffoldSky()) {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
-                consoleHeader
                 // Can't-connect-at-all guidance: the strap wiped its bond (firmware update / WHOOP app
                 // re-bond), so connects loop on "Peer removed pairing information". Show the re-pair steps
                 // right here instead of silently retrying. (5/MG firmware reset, 2026-06)
@@ -120,6 +125,16 @@ struct LiveView: View {
                 // also appears in Settings). A 5/MG strap still bonded to the WHOOP app refuses pairing
                 // with "Encryption is insufficient" — this tells the user to free it and re-pair.
                 if let hint = live.pairingHint { pairingHintBanner(hint) }
+                if needsConnection {
+                    WearableConnectionStateCard(
+                        title: "No live connection",
+                        detail: "Choose a wearable in Devices to start the live stream. Connection logs and protocol details are available in Test Centre.",
+                        actionTitle: "Manage devices",
+                        action: { router.openDevices() }
+                    )
+                    manageDevicesRow
+                } else {
+                consoleHeader
                 // Primary Connect affordance, surfaced ABOVE the fold whenever there's no link. The real
                 // Scan & Connect control otherwise lives in `controls` (below the Signal Trust grid), so
                 // an offline user saw only inert copy up top. Gated purely on `!live.connected`, so it
@@ -156,7 +171,7 @@ struct LiveView: View {
                     ringControls
                 }
                 manageDevicesRow
-                LiveLogCard()
+                }
             }
         }
         .onAppear { refreshLiveSession(); consumeActiveWorkoutRequest() }
@@ -461,7 +476,7 @@ struct LiveView: View {
     private func reconnectGuideBanner(_ guide: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(StrandPalette.statusWarning)
+                .foregroundStyle(StrandPalette.statusWarningForeground)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
                 Text("Can't connect: your strap's pairing was reset")
@@ -483,7 +498,7 @@ struct LiveView: View {
     private func pairingHintBanner(_ hint: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(StrandPalette.statusWarning)
+                .foregroundStyle(StrandPalette.statusWarningForeground)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
                 Text("Live HR works. Free the strap to unlock buzz, alarms & sync")

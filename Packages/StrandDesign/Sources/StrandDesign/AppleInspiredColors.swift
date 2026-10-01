@@ -39,24 +39,34 @@ public enum AppleInspiredColors {
         // Navigation and feature families
         case "insightsHub", "coach", "coachSettings", "settings.appearance", "automations",
              "notifications": return .purple
-        case "intelligence", "labBook", "sleep", "settings.sleep", "coach.settings.memory": return .indigo
-        case "goalJourney", "alarms", "settings.units", "training", "caffeine": return .orange
+        case "intelligence", "labBook", "sleep", "settings.sleep", "coach.settings.memory", "body": return .indigo
+        case "goalJourney", "alarms", "settings.units", "training", "caffeine", "energyPlan": return .orange
         case "insights", "journal": return .orange
         case "coach.settings.usage": return .brown
         case "explore", "fusedRecord", "backupSync", "shortcutsExport", "settings.profile", "settings.controls",
              "dashboardEditor", "keyMetricsEditor", "updates": return .blue
+        case "explore.timeline", "explore.heart": return .red
+        case "explore.charge": return .green
+        case "explore.rest": return .indigo
+        case "explore.effort", "explore.nutrition": return .orange
+        case "explore.health": return .teal
+        case "explore.mind": return .purple
+        case "energy.formula": return .blue
+        case "energy.wearable": return .green
+        case "energy.balance": return .orange
         case "compare", "dataSources", "settings", "settings.diagnostics", "settings.about",
              "coach.settings.systemPrompt": return .gray
         case "live", "rhythm", "coach.goal.strength", "coach.info.limits", "coach.persona.commander",
              "coach.firstUse.notMedical": return .red
         case "health", "settings.recovery", "healthControls", "appleHealth", "siriShortcuts",
-             "coach.preset.supportive", "coach.persona.friend", "coach.goal.recovery": return .pink
+             "coach.preset.supportive", "coach.persona.friend", "coach.goal.recovery": return .red
         case "workouts", "coach.settings.coaching", "journey.nextStep", "coach.goalJourney.progress",
              "coach.goal.run": return .green
-        case "stress", "settings.power": return .yellow
+        case "stress", "settings.power", "powerSaving": return .yellow
         case "breathe", "breathing": return .mint
         case "intervals", "settings.features", "coach.settings.autoSummarize", "hrv",
-             "exerciseMedia": return .cyan
+             "exerciseMedia", "cardio", "trainingLoad": return .cyan
+        case "strength": return .blue
         case "miBand", "settings.strap", "deviceSetup", "coach.settings.entry": return .green
         case "testCentre", "settings.testCentre", "coach.settings.privacy", "coach.persona.guardian": return .teal
         case "settings.liveSessions", "settings.experimental", "coach.settings.howItWorks",

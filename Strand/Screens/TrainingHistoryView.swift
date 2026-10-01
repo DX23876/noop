@@ -440,6 +440,11 @@ struct TrainingHistoryBandStrip: View {
 struct TrainingHistoryLiftChart: View {
     let lifts: [TrainingHistoryModel.Lift]
     let range: TrainingHistoryRange
+    @AppStorage(TrainingPreferences.weightUnitKey) private var weightUnitRaw = TrainingWeightUnit.kilograms.rawValue
+
+    private var trainingWeightUnit: TrainingWeightUnit {
+        TrainingWeightUnit(rawValue: weightUnitRaw) ?? .kilograms
+    }
 
     private struct Point: Identifiable {
         let id: String
@@ -452,7 +457,8 @@ struct TrainingHistoryLiftChart: View {
         lifts.flatMap { lift in
             lift.values.compactMap { entry -> Point? in
                 guard let value = entry.value, let mid = TrainingHistoryDates.mid(entry.period) else { return nil }
-                return Point(id: lift.id + entry.period.start, lift: lift.title, date: mid, value: value)
+                return Point(id: lift.id + entry.period.start, lift: lift.title, date: mid,
+                             value: TrainingPreferences.displayWeight(value, unit: trainingWeightUnit))
             }
         }
     }
@@ -465,7 +471,7 @@ struct TrainingHistoryLiftChart: View {
                 .foregroundStyle(StrandPalette.textTertiary)
         } else {
             VStack(alignment: .leading, spacing: NoopMetrics.space1) {
-                Text("e1RM of your lifts (kg)")
+                Text("e1RM of your lifts (\(trainingWeightUnit.symbol))")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textSecondary)
                 Chart(points) { point in

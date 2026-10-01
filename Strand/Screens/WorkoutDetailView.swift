@@ -256,7 +256,7 @@ struct WorkoutDetailView: View {
             Text(value.map { "\($0)" } ?? "–")
                 .font(StrandFont.number(24))
                 .foregroundStyle(value.map { $0 >= 0 ? StrandPalette.statusPositive
-                                                     : StrandPalette.statusWarning }
+                                                     : StrandPalette.statusWarningForeground }
                                  ?? StrandPalette.textTertiary)
             Text("bpm")
                 .font(StrandFont.footnote)

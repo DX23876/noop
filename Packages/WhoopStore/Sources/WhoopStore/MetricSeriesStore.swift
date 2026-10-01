@@ -53,6 +53,34 @@ extension WhoopStore {
         }
     }
 
+    /// Replace a bounded set of metric keys atomically.
+    ///
+    /// Imports use this when their upstream source is authoritative for a time window. Deleting the
+    /// old rows and then upserting the new snapshot in one transaction makes upstream edits and
+    /// deletions converge without exposing an empty half-written window to readers. Callers must only
+    /// invoke this after every upstream query needed for the snapshot succeeded; an I/O failure is not
+    /// an authoritative empty result.
+    @discardableResult
+    public func replaceMetricSeriesWindow(_ rows: [MetricPoint], deviceId: String,
+                                          keys: [String], from: String, to: String) async throws -> Int {
+        try syncWrite { db in
+            var changed = 0
+            if !keys.isEmpty {
+                let placeholders = Array(repeating: "?", count: keys.count).joined(separator: ",")
+                var arguments: [DatabaseValueConvertible?] = [deviceId, from, to]
+                arguments.append(contentsOf: keys)
+                try db.execute(sql: """
+                    DELETE FROM metricSeries
+                    WHERE deviceId = ? AND day >= ? AND day <= ?
+                      AND key IN (\(placeholders))
+                    """, arguments: StatementArguments(arguments))
+                changed += db.changesCount
+            }
+            changed += try Self.upsertMetricSeries(rows, deviceId: deviceId, in: db)
+            return changed
+        }
+    }
+
     /// Transaction-sharing primitive used by computed-score persistence.
     static func upsertMetricSeries(_ rows: [MetricPoint], deviceId: String, in db: Database) throws -> Int {
         var n = 0

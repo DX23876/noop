@@ -30,23 +30,30 @@ struct TrainingHubView: View {
     @AppStorage("training.weekStartsOn") private var weekStartRaw = TrainingWeekStart.monday.rawValue
 
     var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
-                header
-                if !model.loaded {
-                    ProgressView().frame(maxWidth: .infinity).padding(.top, 80)
-                } else {
-                    startCard
-                    weekCard
-                    routinesCard
-                    TrainingActivityHeatmap(days: model.activityDays)
-                    TrainingMuscleMapCard(history: model.resolvedHistory)
-                    analysisCard
-                    recentCard
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
+                    header
+                    if !model.loaded {
+                        ProgressView().frame(maxWidth: .infinity).padding(.top, 80)
+                    } else {
+                        startCard
+                        weekCard
+                        routinesCard
+                        TrainingActivityHeatmap(days: model.activityDays)
+                        TrainingMuscleMapCard(history: model.resolvedHistory)
+                        analysisCard
+                        recentCard
+                    }
+                    DemoScrollBottomAnchor()
                 }
-                DemoScrollBottomAnchor()
+                .padding(NoopMetrics.screenPadding)
             }
-            .padding(NoopMetrics.screenPadding)
+            #if DEBUG
+            // Analysis migration required: no. This only lets screenshot QA reach the existing end
+            // of the Training view; it does not change stored data, scoring, or invalidation.
+            .task { await scrollToDemoBottom(proxy) }
+            #endif
         }
         .navigationTitle(Text("Training"))
         .task(id: "\(repo.refreshSeq)|\(weekStartRaw)") {
@@ -516,7 +523,7 @@ private struct TrainingHistoryImportPreviewView: View {
                     Section("Review") {
                         Label("\(preview.result.skippedRows) incomplete rows will be skipped",
                               systemImage: "exclamationmark.triangle.fill")
-                            .foregroundStyle(StrandPalette.statusWarning)
+                            .foregroundStyle(StrandPalette.statusWarningForeground)
                     }
                 }
                 Section {
@@ -546,6 +553,10 @@ struct StrengthWorkoutSummaryView: View {
     @State private var zoneMinutes: [Double]?
     @State private var loadedPhysiology = false
     @State private var titleSaveTask: Task<Void, Never>?
+    @AppStorage(TrainingPreferences.weightUnitKey) private var weightUnitRaw = TrainingWeightUnit.kilograms.rawValue
+    private var weightUnit: TrainingWeightUnit {
+        TrainingWeightUnit(rawValue: weightUnitRaw) ?? .kilograms
+    }
 
     init(workout: NativeWorkout, exercises: [TrainingExercise], performance: TrainingPerformanceHistory) {
         _workout = State(initialValue: workout)
@@ -677,20 +688,20 @@ struct StrengthWorkoutSummaryView: View {
     }
 
     private func recordText(_ record: StrengthSessionHighlights.Record) -> String {
-        let value = TrainingSetText.weight(record.valueKg)
-        let previous = TrainingSetText.weight(record.previousKg)
+        let value = TrainingSetText.weight(record.valueKg, unit: weightUnit)
+        let previous = TrainingSetText.weight(record.previousKg, unit: weightUnit)
         switch record.kind {
         case .estimatedOneRepMax:
-            return String(localized: "New estimated 1RM: \(value) kg, previously \(previous) kg")
+            return String(localized: "New estimated 1RM: \(value), previously \(previous)")
         case .heaviestSet:
-            return String(localized: "New heaviest set: \(value) kg, previously \(previous) kg")
+            return String(localized: "New heaviest set: \(value), previously \(previous)")
         }
     }
 
     private func changeText(_ change: StrengthSessionHighlights.Change) -> String {
         var parts: [String] = []
         if let delta = change.deltaKg {
-            parts.append("\(delta.formatted(.number.precision(.fractionLength(0...1)).sign(strategy: .always()))) kg")
+            parts.append(TrainingPreferences.formattedWeight(delta, unit: weightUnit, signed: true))
         }
         if let reps = change.deltaReps {
             parts.append(String(localized: "\(reps.formatted(.number.sign(strategy: .always()))) reps"))
@@ -877,8 +888,7 @@ struct StrengthWorkoutSummaryView: View {
     }
 
     private func volume(_ kilograms: Double) -> String {
-        kilograms >= 1_000 ? "\((kilograms / 1_000).formatted(.number.precision(.fractionLength(1)))) t"
-            : "\(Int(kilograms.rounded()).formatted()) kg"
+        TrainingPreferences.formattedWeight(kilograms, unit: weightUnit)
     }
 
     private func summary(_ label: LocalizedStringKey, _ value: String) -> some View {
@@ -1004,6 +1014,10 @@ struct NativeWorkoutLoggerView: View {
     @AppStorage(TrainingPreferences.mediaPresentationKey) private var mediaPresentationRaw = TrainingMediaPresentation.large.rawValue
     @AppStorage(TrainingPreferences.hapticsKey) private var hapticsEnabled = true
     @AppStorage(TrainingPreferences.strapDoubleTapKey) private var strapDoubleTapLogsSet = true
+    @AppStorage(TrainingPreferences.weightUnitKey) private var weightUnitRaw = TrainingWeightUnit.kilograms.rawValue
+    private var weightUnit: TrainingWeightUnit {
+        TrainingWeightUnit(rawValue: weightUnitRaw) ?? .kilograms
+    }
     #if os(macOS)
     @State private var macActivity: NSObjectProtocol?
     #endif
@@ -1391,7 +1405,7 @@ struct NativeWorkoutLoggerView: View {
     private func previousSetSummary(_ set: TrainingPerformanceHistory.PerformedSet,
                                     mode: TrainingMeasurementMode,
                                     unilateral: Bool) -> String {
-        TrainingSetText.summary(set, mode: mode, unilateral: unilateral)
+        TrainingSetText.summary(set, mode: mode, unilateral: unilateral, unit: weightUnit)
     }
 
     /// Whether a set row can move its repetitions onto a second line when one line does not fit.
@@ -1648,14 +1662,17 @@ struct NativeWorkoutLoggerView: View {
                              mode: TrainingMeasurementMode) -> some View {
         let step = weightStep(exerciseIndex)
         let field = TrainingSetField(setId: set.id, metric: .weight)
-        return stepControl(mode == .assistedBodyweight ? String(localized: "Assistance in kilograms")
-                               : String(localized: "Weight in kilograms"),
-                           value: set.weightKg.map { $0.formatted(.number.precision(.fractionLength(0...2))) } ?? "—",
+        let title = mode == .assistedBodyweight
+            ? String(localized: "Assistance in \(weightUnit.symbol)")
+            : String(localized: "Weight in \(weightUnit.symbol)")
+        return stepControl(title,
+                           value: set.weightKg.map { TrainingPreferences.formattedWeight($0, unit: weightUnit) } ?? "—",
                            field: field,
                            minus: { model.adjustWeight(exerciseIndex: exerciseIndex, setIndex: setIndex, by: -step) },
                            plus: { model.adjustWeight(exerciseIndex: exerciseIndex, setIndex: setIndex, by: step) }) {
-            decimalField(set.weightKg, field: field) {
-                model.setWeight(exerciseIndex: exerciseIndex, setIndex: setIndex, kg: $0)
+            decimalField(set.weightKg.map { TrainingPreferences.displayWeight($0, unit: weightUnit) }, field: field) {
+                model.setWeight(exerciseIndex: exerciseIndex, setIndex: setIndex,
+                                kg: $0.map { TrainingPreferences.kilograms(fromDisplay: $0, unit: weightUnit) })
             }
         }
     }
@@ -1886,15 +1903,18 @@ private extension View {
 /// same set can never be written three different ways.
 private enum TrainingSetText {
     static func summary(_ set: TrainingPerformanceHistory.PerformedSet,
-                        mode: TrainingMeasurementMode, unilateral: Bool) -> String {
+                        mode: TrainingMeasurementMode, unilateral: Bool,
+                        unit: TrainingWeightUnit = TrainingPreferences.weightUnit) -> String {
         let reps = repetitions(set, unilateral: unilateral)
         switch mode {
-        case .weightReps: return "\(weight(set.weightKg)) kg × \(reps)"
-        case .weightedBodyweight: return "+\(weight(set.weightKg)) kg × \(reps)"
-        case .assistedBodyweight: return "−\(weight(set.weightKg)) kg × \(reps)"
+        case .weightReps: return "\(weight(set.weightKg, unit: unit)) × \(reps)"
+        case .weightedBodyweight: return "+\(weight(set.weightKg, unit: unit)) × \(reps)"
+        case .assistedBodyweight: return "−\(weight(set.weightKg, unit: unit)) × \(reps)"
         case .bodyweightReps, .repetitions: return String(localized: "\(reps) reps")
         case .duration: return duration(set.durationS)
-        case .distanceDuration: return "\(weight(set.distanceM)) m · \(duration(set.durationS))"
+        case .distanceDuration:
+            let meters = set.distanceM?.formatted(.number.precision(.fractionLength(0...2))) ?? "—"
+            return "\(meters) m · \(duration(set.durationS))"
         }
     }
 
@@ -1910,8 +1930,8 @@ private enum TrainingSetText {
         return rating.scale == .rir ? "RIR \(value)" : "RPE \(value)"
     }
 
-    static func weight(_ value: Double?) -> String {
-        value?.formatted(.number.precision(.fractionLength(0...2))) ?? "—"
+    static func weight(_ value: Double?, unit: TrainingWeightUnit = TrainingPreferences.weightUnit) -> String {
+        value.map { TrainingPreferences.formattedWeight($0, unit: unit) } ?? "—"
     }
 
     static func duration(_ seconds: Int?) -> String {
@@ -1934,6 +1954,10 @@ private struct TrainingExerciseHistorySheet: View {
     let mode: TrainingMeasurementMode
     let unilateral: Bool
     let entries: [TrainingPerformanceHistory.Entry]
+    @AppStorage(TrainingPreferences.weightUnitKey) private var weightUnitRaw = TrainingWeightUnit.kilograms.rawValue
+    private var weightUnit: TrainingWeightUnit {
+        TrainingWeightUnit(rawValue: weightUnitRaw) ?? .kilograms
+    }
 
     var body: some View {
         List {
@@ -1948,7 +1972,8 @@ private struct TrainingExerciseHistorySheet: View {
                             Text((index + 1).formatted())
                                 .font(StrandFont.caption.weight(.bold)).frame(width: 22)
                                 .foregroundStyle(StrandPalette.textTertiary)
-                            Text(TrainingSetText.summary(set, mode: mode, unilateral: unilateral))
+                            Text(TrainingSetText.summary(set, mode: mode, unilateral: unilateral,
+                                                        unit: weightUnit))
                                 .font(StrandFont.subhead.monospacedDigit())
                             Spacer()
                             if let effort = set.effort {
@@ -2021,7 +2046,26 @@ private struct TrainingPlateCalculatorView: View {
     @AppStorage("training.plateCalculator.available") private var availableRaw = "25,20,15,10,5,2.5,1.25"
     @AppStorage("training.plateCalculator.profiles") private var profilesRaw = "[]"
     @AppStorage("training.plateCalculator.selectedProfile") private var selectedProfileId = ""
+    @AppStorage(TrainingPreferences.weightUnitKey) private var weightUnitRaw = TrainingWeightUnit.kilograms.rawValue
+    @AppStorage("training.plateCalculator.barLbKg") private var imperialBarKg = 45 / UnitFormatter.poundsPerKilogram
+    @AppStorage(TrainingPreferences.imperialPlatePairsKey) private var imperialAvailableRaw = TrainingPreferences.defaultImperialPlatePairsKg
+    @AppStorage("training.plateCalculator.profilesLb") private var imperialProfilesRaw = "[]"
+    @AppStorage("training.plateCalculator.selectedProfileLb") private var imperialSelectedProfileId = ""
     @State private var profileName = ""
+
+    private var weightUnit: TrainingWeightUnit {
+        TrainingWeightUnit(rawValue: weightUnitRaw) ?? .kilograms
+    }
+    private var activeBarKg: Double { weightUnit == .pounds ? imperialBarKg : barKg }
+    private var activeAvailableRaw: String {
+        weightUnit == .pounds ? imperialAvailableRaw : availableRaw
+    }
+    private var activeProfilesRaw: String {
+        weightUnit == .pounds ? imperialProfilesRaw : profilesRaw
+    }
+    private var activeSelectedProfileId: String {
+        weightUnit == .pounds ? imperialSelectedProfileId : selectedProfileId
+    }
 
     init(targetKg: Double) { _targetKg = State(initialValue: max(0, targetKg)) }
 
@@ -2035,11 +2079,11 @@ private struct TrainingPlateCalculatorView: View {
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(profile.name)
-                                Text("\(profile.platesKg.count) plate sizes · \(profile.barKg.formatted(.number.precision(.fractionLength(0...2)))) kg bar")
+                                Text("\(profile.platesKg.count) plate sizes · \(TrainingPreferences.formattedWeight(profile.barKg, unit: weightUnit)) bar")
                                     .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                             }
                             Spacer()
-                            if selectedProfileId == profile.id.uuidString {
+                            if activeSelectedProfileId == profile.id.uuidString {
                                 Image(systemName: "checkmark").foregroundStyle(StrandPalette.accent)
                             }
                         }
@@ -2055,21 +2099,21 @@ private struct TrainingPlateCalculatorView: View {
                 HStack {
                     Text("Total weight")
                     Spacer()
-                    TextField("kg", value: $targetKg, format: .number.precision(.fractionLength(0...2)))
+                    TextField(weightUnit.symbol, value: displayBinding($targetKg), format: .number.precision(.fractionLength(0...2)))
                         .multilineTextAlignment(.trailing).frame(width: 90)
-                    Text("kg").foregroundStyle(.secondary)
+                    Text(weightUnit.symbol).foregroundStyle(.secondary)
                 }
                 HStack {
                     Text("Bar")
                     Spacer()
-                    TextField("kg", value: $barKg, format: .number.precision(.fractionLength(0...2)))
+                    TextField(weightUnit.symbol, value: barDisplayBinding, format: .number.precision(.fractionLength(0...2)))
                         .multilineTextAlignment(.trailing).frame(width: 90)
-                    Text("kg").foregroundStyle(.secondary)
+                    Text(weightUnit.symbol).foregroundStyle(.secondary)
                 }
             }
             Section("Available plates") {
                 ForEach(standardPlates, id: \.self) { plate in
-                    Toggle("\(plate.formatted(.number.precision(.fractionLength(0...2)))) kg",
+                    Toggle(TrainingPreferences.formattedWeight(plate, unit: weightUnit),
                            isOn: Binding(get: { available.contains(plate) },
                                          set: { setPlate(plate, enabled: $0) }))
                 }
@@ -2082,7 +2126,8 @@ private struct TrainingPlateCalculatorView: View {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 8) {
                                 ForEach(Array(loading.platesPerSideKg.enumerated()), id: \.offset) { _, plate in
-                                    Text(plate.formatted(.number.precision(.fractionLength(0...2))))
+                                    Text(TrainingPreferences.displayWeight(plate, unit: weightUnit)
+                                        .formatted(.number.precision(.fractionLength(0...2))))
                                         .font(StrandFont.subhead.weight(.bold)).foregroundStyle(.white)
                                         .frame(width: plate >= 20 ? 58 : plate >= 10 ? 50 : 42,
                                                height: plate >= 20 ? 72 : plate >= 10 ? 62 : 52)
@@ -2091,9 +2136,9 @@ private struct TrainingPlateCalculatorView: View {
                             }.padding(.vertical, 4)
                         }
                     }
-                    LabeledContent("Achievable", value: "\(loading.achievableTotalKg.formatted(.number.precision(.fractionLength(0...2)))) kg")
+                    LabeledContent("Achievable", value: TrainingPreferences.formattedWeight(loading.achievableTotalKg, unit: weightUnit))
                     if loading.remainderKg > 0.001 {
-                        Label("\(loading.remainderKg.formatted(.number.precision(.fractionLength(0...2)))) kg cannot be loaded with this equipment.",
+                        Label("\(TrainingPreferences.formattedWeight(loading.remainderKg, unit: weightUnit)) cannot be loaded with this equipment.",
                               systemImage: "info.circle")
                             .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
                     }
@@ -2106,21 +2151,28 @@ private struct TrainingPlateCalculatorView: View {
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
     }
 
-    private let standardPlates = [25.0, 20, 15, 10, 5, 2.5, 1.25, 1, 0.5]
+    private var standardPlates: [Double] {
+        if weightUnit == .pounds {
+            return [55.0, 45, 35, 25, 10, 5, 2.5].map {
+                $0 / UnitFormatter.poundsPerKilogram
+            }
+        }
+        return [25.0, 20, 15, 10, 5, 2.5, 1.25, 1, 0.5]
+    }
     private var available: [Double] {
-        availableRaw.split(separator: ",").compactMap { Double($0) }.filter { $0 > 0 }.sorted(by: >)
+        activeAvailableRaw.split(separator: ",").compactMap { Double($0) }.filter { $0 > 0 }.sorted(by: >)
     }
     private var loading: PlateLoading? {
-        PlateCalculator.loading(totalKg: targetKg, barKg: barKg, availablePairsKg: available)
+        PlateCalculator.loading(totalKg: targetKg, barKg: activeBarKg, availablePairsKg: available)
     }
     private func setPlate(_ plate: Double, enabled: Bool) {
         var values = Set(available)
         if enabled { values.insert(plate) } else { values.remove(plate) }
-        availableRaw = values.sorted(by: >).map { String($0) }.joined(separator: ",")
+        setActiveAvailable(values.sorted(by: >).map { String($0) }.joined(separator: ","))
     }
 
     private var profiles: [TrainingEquipmentProfile] {
-        guard let data = profilesRaw.data(using: .utf8),
+        guard let data = activeProfilesRaw.data(using: .utf8),
               let decoded = try? JSONDecoder().decode([TrainingEquipmentProfile].self, from: data) else {
             return []
         }
@@ -2128,9 +2180,9 @@ private struct TrainingPlateCalculatorView: View {
     }
 
     private func load(_ profile: TrainingEquipmentProfile) {
-        barKg = profile.barKg
-        availableRaw = profile.platesKg.sorted(by: >).map { String($0) }.joined(separator: ",")
-        selectedProfileId = profile.id.uuidString
+        setActiveBarKg(profile.barKg)
+        setActiveAvailable(profile.platesKg.sorted(by: >).map { String($0) }.joined(separator: ","))
+        setActiveSelectedProfileId(profile.id.uuidString)
         profileName = profile.name
     }
 
@@ -2142,17 +2194,17 @@ private struct TrainingPlateCalculatorView: View {
             $0.name.compare(name, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
         }) {
             values[index].name = name
-            values[index].barKg = barKg
+            values[index].barKg = activeBarKg
             values[index].platesKg = available
-            selectedProfileId = values[index].id.uuidString
+            setActiveSelectedProfileId(values[index].id.uuidString)
         } else {
-            let profile = TrainingEquipmentProfile(id: UUID(), name: name, barKg: barKg,
+            let profile = TrainingEquipmentProfile(id: UUID(), name: name, barKg: activeBarKg,
                                                    platesKg: available)
             values.append(profile)
-            selectedProfileId = profile.id.uuidString
+            setActiveSelectedProfileId(profile.id.uuidString)
         }
         if let data = try? JSONEncoder().encode(values), let text = String(data: data, encoding: .utf8) {
-            profilesRaw = text
+            setActiveProfilesRaw(text)
         }
     }
 
@@ -2160,10 +2212,33 @@ private struct TrainingPlateCalculatorView: View {
         var values = profiles
         let removed = offsets.compactMap { values.indices.contains($0) ? values[$0].id.uuidString : nil }
         values.remove(atOffsets: offsets)
-        if removed.contains(selectedProfileId) { selectedProfileId = "" }
+        if removed.contains(activeSelectedProfileId) { setActiveSelectedProfileId("") }
         if let data = try? JSONEncoder().encode(values), let text = String(data: data, encoding: .utf8) {
-            profilesRaw = text
+            setActiveProfilesRaw(text)
         }
+    }
+
+    private var barDisplayBinding: Binding<Double> {
+        Binding(get: { TrainingPreferences.displayWeight(activeBarKg, unit: weightUnit) },
+                set: { setActiveBarKg(TrainingPreferences.kilograms(fromDisplay: $0, unit: weightUnit)) })
+    }
+
+    private func displayBinding(_ kilograms: Binding<Double>) -> Binding<Double> {
+        Binding(get: { TrainingPreferences.displayWeight(kilograms.wrappedValue, unit: weightUnit) },
+                set: { kilograms.wrappedValue = TrainingPreferences.kilograms(fromDisplay: $0, unit: weightUnit) })
+    }
+
+    private func setActiveBarKg(_ value: Double) {
+        if weightUnit == .pounds { imperialBarKg = value } else { barKg = value }
+    }
+    private func setActiveAvailable(_ value: String) {
+        if weightUnit == .pounds { imperialAvailableRaw = value } else { availableRaw = value }
+    }
+    private func setActiveProfilesRaw(_ value: String) {
+        if weightUnit == .pounds { imperialProfilesRaw = value } else { profilesRaw = value }
+    }
+    private func setActiveSelectedProfileId(_ value: String) {
+        if weightUnit == .pounds { imperialSelectedProfileId = value } else { selectedProfileId = value }
     }
 }
 
@@ -2239,6 +2314,10 @@ private struct RoutineEditorView: View {
     let onDelete: (UUID) -> Void
     @State private var showingExercises = false
     @State private var confirmingDelete = false
+    @AppStorage(TrainingPreferences.weightUnitKey) private var weightUnitRaw = TrainingWeightUnit.kilograms.rawValue
+    private var weightUnit: TrainingWeightUnit {
+        TrainingWeightUnit(rawValue: weightUnitRaw) ?? .kilograms
+    }
 
     var body: some View {
         Form {
@@ -2325,8 +2404,10 @@ private struct RoutineEditorView: View {
                     Stepper("Rep range: \(routine.defaultProgression.repsMin)–\(routine.defaultProgression.repsMax)",
                             value: $routine.defaultProgression.repsMax,
                             in: routine.defaultProgression.repsMin...50)
-                    Stepper("Weight step: \(routine.defaultProgression.weightIncrementKg.formatted(.number.precision(.fractionLength(0...2)))) kg",
-                            value: $routine.defaultProgression.weightIncrementKg, in: 0.5...20, step: 0.5)
+                    Stepper("Weight step: \(TrainingPreferences.formattedWeight(routine.defaultProgression.weightIncrementKg, unit: weightUnit))",
+                            value: progressionWeightBinding,
+                            in: weightUnit == .pounds ? 1...50 : 0.5...20,
+                            step: weightUnit == .pounds ? 1 : 0.5)
                     Stepper("Deload after \(routine.defaultProgression.failuresBeforeDeload) misses",
                             value: $routine.defaultProgression.failuresBeforeDeload, in: 1...8)
                 }
@@ -2361,6 +2442,14 @@ private struct RoutineEditorView: View {
         } message: {
             Text("Completed workouts stay in your history.")
         }
+    }
+
+    private var progressionWeightBinding: Binding<Double> {
+        Binding(
+            get: { TrainingPreferences.displayWeight(routine.defaultProgression.weightIncrementKg,
+                                                      unit: weightUnit) },
+            set: { routine.defaultProgression.weightIncrementKg =
+                TrainingPreferences.kilograms(fromDisplay: $0, unit: weightUnit) })
     }
 
     private var exerciseById: [String: TrainingExercise] {
@@ -2486,6 +2575,10 @@ private struct TrainingRoutinePreviewView: View {
 private struct RoutineExerciseEditor: View {
     @Binding var entry: RoutineExercise
     let exercise: TrainingExercise?
+    @AppStorage(TrainingPreferences.weightUnitKey) private var weightUnitRaw = TrainingWeightUnit.kilograms.rawValue
+    private var weightUnit: TrainingWeightUnit {
+        TrainingWeightUnit(rawValue: weightUnitRaw) ?? .kilograms
+    }
 
     var body: some View {
         Form {
@@ -2495,10 +2588,13 @@ private struct RoutineExerciseEditor: View {
                     HStack {
                         Text("Bar weight")
                         Spacer()
-                        TextField("kg", value: Binding(get: { entry.barWeightKg ?? 20 },
-                            set: { entry.barWeightKg = $0 }), format: .number.precision(.fractionLength(0...2)))
+                        TextField(weightUnit.symbol, value: Binding(
+                            get: { TrainingPreferences.displayWeight(entry.barWeightKg ?? 20, unit: weightUnit) },
+                            set: { entry.barWeightKg = TrainingPreferences.kilograms(fromDisplay: $0,
+                                                                                     unit: weightUnit) }),
+                                  format: .number.precision(.fractionLength(0...2)))
                             .multilineTextAlignment(.trailing).frame(width: 90)
-                        Text("kg").foregroundStyle(.secondary)
+                        Text(weightUnit.symbol).foregroundStyle(.secondary)
                     }
                 }
                 TextField("Exercise notes", text: Binding(get: { entry.note ?? "" },
@@ -2535,6 +2631,10 @@ private struct RoutineSetEditor: View {
     @Binding var set: RoutineSetPlan
     let mode: TrainingMeasurementMode
     let number: Int
+    @AppStorage(TrainingPreferences.weightUnitKey) private var weightUnitRaw = TrainingWeightUnit.kilograms.rawValue
+    private var weightUnit: TrainingWeightUnit {
+        TrainingWeightUnit(rawValue: weightUnitRaw) ?? .kilograms
+    }
 
     var body: some View {
         DisclosureGroup("Set \(number) · \(kind)") {
@@ -2551,7 +2651,7 @@ private struct RoutineSetEditor: View {
             }
             switch mode {
             case .weightReps, .weightedBodyweight, .assistedBodyweight:
-                optionalNumber("Target weight", value: $set.targetWeightKg, suffix: "kg")
+                trainingWeight("Target weight", value: $set.targetWeightKg)
                 repRange
             case .bodyweightReps, .repetitions:
                 repRange
@@ -2590,6 +2690,17 @@ private struct RoutineSetEditor: View {
                 .multilineTextAlignment(.trailing).frame(width: 90)
             if !suffix.isEmpty { Text(suffix).foregroundStyle(.secondary) }
         }
+    }
+
+    private func trainingWeight(_ title: LocalizedStringKey, value: Binding<Double?>) -> some View {
+        let displayed = Binding<Double?>(
+            get: { value.wrappedValue.map { TrainingPreferences.displayWeight($0, unit: weightUnit) } },
+            set: { newValue in
+                value.wrappedValue = newValue.map {
+                    TrainingPreferences.kilograms(fromDisplay: $0, unit: weightUnit)
+                }
+            })
+        return optionalNumber(title, value: displayed, suffix: weightUnit.symbol)
     }
 
     private func optionalInteger(_ title: LocalizedStringKey, value: Binding<Int?>,

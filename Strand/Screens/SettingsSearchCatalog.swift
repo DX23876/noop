@@ -26,6 +26,93 @@ enum SettingsSectionID: String, CaseIterable, Hashable, Sendable {
     case about
 }
 
+/// The iPhone Settings hierarchy. Every existing card belongs to exactly one page, so shortening the
+/// root does not remove a control or make it search-only.
+enum SettingsPage: String, CaseIterable, Identifiable, Hashable, Sendable {
+    case profile, units, training, appearance, strap, features, recoverySleep, dataBackup, advanced, about
+
+    var id: String { rawValue }
+
+    var title: LocalizedStringResource {
+        switch self {
+        case .profile: return "Profile"
+        case .units: return "Units & Formats"
+        case .training: return "Training"
+        case .appearance: return "Appearance"
+        case .strap: return "Strap & Live Activities"
+        case .features: return "Features"
+        case .recoverySleep: return "Recovery & Sleep Analysis"
+        case .dataBackup: return "Data & Backup"
+        case .advanced: return "Advanced"
+        case .about: return "About"
+        }
+    }
+
+    var subtitle: LocalizedStringResource {
+        switch self {
+        case .profile: return "Personal details, body metrics, zones and streak"
+        case .units: return "Measurement, temperature and effort formats"
+        case .training: return "Weight unit, timers, equipment and workout display"
+        case .appearance: return "Language, theme, colours and dashboard style"
+        case .strap: return "Connection, sync and Live Activity behaviour"
+        case .features: return "Optional trackers and everyday app behaviour"
+        case .recoverySleep: return "Charge baseline, HRV, staging and reanalysis"
+        case .dataBackup: return "Export, restore and move your local data"
+        case .advanced: return "Live Sessions, diagnostics and device experiments"
+        case .about: return "Version, guides, updates, licences and source code"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .profile: return "person.crop.circle"
+        case .units: return "ruler"
+        case .training: return "dumbbell.fill"
+        case .appearance: return "circle.lefthalf.filled"
+        case .strap: return "antenna.radiowaves.left.and.right"
+        case .features: return "switch.2"
+        case .recoverySleep: return "bed.double.fill"
+        case .dataBackup: return "externaldrive.fill"
+        case .advanced: return "slider.horizontal.3"
+        case .about: return "info.circle.fill"
+        }
+    }
+
+    var colorKey: String {
+        switch self {
+        case .profile: return "settings.profile"
+        case .units: return "settings.units"
+        case .training: return "training"
+        case .appearance: return "settings.appearance"
+        case .strap: return "settings.strap"
+        case .features: return "settings.features"
+        case .recoverySleep: return "settings.sleep"
+        case .dataBackup: return "backupSync"
+        case .advanced: return "settings.diagnostics"
+        case .about: return "settings.about"
+        }
+    }
+
+    var sectionIDs: [SettingsSectionID] {
+        switch self {
+        case .profile: return [.profile, .streak]
+        case .units: return [.units]
+        case .training: return [.training]
+        case .appearance: return [.appearance]
+        case .strap: return [.strap]
+        case .features: return [.features]
+        case .recoverySleep: return [.recovery, .analysisMaintenance, .hrv, .sleepStaging]
+        case .dataBackup: return [.backup]
+        case .advanced: return [.testCentre, .liveSessions, .experimentalWhoop5, .diagnostics]
+        case .about: return [.about]
+        }
+    }
+
+    static func page(containing section: SettingsSectionID) -> SettingsPage {
+        allCases.first(where: { $0.sectionIDs.contains(section) })!
+    }
+}
+
 /// What the search field knows about a Settings section: the name to show as a result row, and the
 /// words a person might actually type looking for something inside it.
 struct SettingsSearchEntry: Identifiable, Sendable {
@@ -195,4 +282,5 @@ extension SettingsSearchEntry {
     /// `rawValue` of the id is deliberately NOT included — an internal identifier is not something a
     /// person types.
     var searchTerms: [String] { [String(localized: title)] + keywords }
+    var page: SettingsPage { SettingsPage.page(containing: id) }
 }

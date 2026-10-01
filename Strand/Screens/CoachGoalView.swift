@@ -223,7 +223,7 @@ struct CoachGoalEditorView: View {
         NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
             HStack(alignment: .top, spacing: 10) {
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(StrandPalette.statusWarning)
+                    .foregroundStyle(StrandPalette.statusWarningForeground)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Start and target are the same").strandOverline()
@@ -244,7 +244,7 @@ struct CoachGoalEditorView: View {
                 Image(systemName: safety.verdict == .veryAggressive
                       ? "exclamationmark.triangle.fill" : "info.circle.fill")
                     .foregroundStyle(safety.verdict == .veryAggressive
-                                     ? StrandPalette.statusWarning : StrandPalette.accent)
+                                     ? StrandPalette.statusWarningForeground : StrandPalette.accent)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("About that pace").strandOverline()

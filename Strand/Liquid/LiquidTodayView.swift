@@ -30,6 +30,39 @@ enum LiquidHeaderMetrics {
     static let control: CGFloat = NoopMetrics.compactControlSize
 }
 
+/// Pure policy for the Liquid hero's edge treatment. The fill follows the user's card-opacity setting,
+/// while the edge stays independently legible against a plain canvas, sky, or custom photograph.
+/// Analysis migration required: no. This resolves presentation chrome only.
+enum LiquidHeroChrome {
+    static func rimOpacity(isDark: Bool, cardOpacity: Double, hasBackdrop: Bool,
+                           reduceTransparency: Bool, increasedContrast: Bool) -> Double {
+        if increasedContrast { return isDark ? 0.42 : 0.34 }
+        if reduceTransparency { return isDark ? 0.14 : 0.04 }
+        if isDark { return 0.14 }
+        let opacity = min(1, max(0, cardOpacity))
+        guard hasBackdrop || opacity < 0.99 else { return 0 }
+        return min(0.24, 0.08 + (1 - opacity) * 0.18)
+    }
+
+    /// True when the hero is an ordinary light card: light appearance with nothing behind the cards (no sky,
+    /// day-cycle scene or photograph). Transparency is then handled by the card surface itself, like every
+    /// other card. With a backdrop, and in dark appearance, the hero keeps its dark glass, which the
+    /// white ring numbers are tuned against.
+    static func usesLightSurface(isDark: Bool, cardOpacity: Double, hasBackdrop: Bool,
+                                 reduceTransparency: Bool) -> Bool {
+        guard !isDark else { return false }
+        return reduceTransparency || !hasBackdrop
+    }
+
+    static func shadowOpacity(isDark: Bool, cardOpacity: Double, hasBackdrop: Bool,
+                              reduceTransparency: Bool, increasedContrast: Bool) -> Double {
+        if increasedContrast { return isDark ? 0.42 : 0.30 }
+        if reduceTransparency { return isDark ? 0.28 : 0.16 }
+        if isDark { return 0.34 }
+        return hasBackdrop || cardOpacity < 0.99 ? 0.24 : 0.18
+    }
+}
+
 struct LiquidTodayView: View {
     @AppStorage(DayCycleMode.storageKey) private var dayCycleModeRaw = DayCycleMode.sleepOnset.rawValue
     private var dayCycleMode: DayCycleMode { DayCycleMode.persisted(dayCycleModeRaw) }
@@ -48,6 +81,8 @@ struct LiquidTodayView: View {
     @EnvironmentObject var updateStore: UpdateStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     /// Low Power Mode poses the sky still too — the behaviour the comment on the sky branch below
     /// has always described. There is no environment key for it, hence the shared monitor.
@@ -463,7 +498,7 @@ struct LiquidTodayView: View {
         case .primed:       return StrandPalette.accent
         case .balanced:     return StrandPalette.statusPositive
         case .strained:     return StrandPalette.statusWarning
-        case .rundown:      return StrandPalette.metricRose
+        case .rundown:      return StrandPalette.statusCritical
         case .insufficient: return StrandPalette.textTertiary
         }
     }
@@ -928,14 +963,14 @@ struct LiquidTodayView: View {
                         // "Yesterday"/weekday title. A greeting over last Tuesday would be a false statement,
                         // and the relative word is the day-swipe's most visible signal — it has to come back
                         // the moment the shown day isn't today.
-                        Text(headlineLine)
-                            .font(StrandFont.rounded(24))
-                            .foregroundStyle(StrandPalette.textPrimary)
-                            .lineLimit(1)
-                            // A long name ("Good afternoon, Konstantin") must scale, not shove the icon
-                            // cluster off the trailing edge on a 375pt phone.
-                            .minimumScaleFactor(0.7)
-                            .shadow(color: .black.opacity(0.4), radius: 10, y: 1)
+                        ViewThatFits(in: .horizontal) {
+                            Text(headlineLine).fixedSize(horizontal: true, vertical: false)
+                            Text(dayTitle).fixedSize(horizontal: true, vertical: false)
+                        }
+                        .font(StrandFont.rounded(24))
+                        .foregroundStyle(StrandPalette.textPrimary)
+                        .lineLimit(1)
+                        .shadow(color: .black.opacity(0.4), radius: 10, y: 1)
                         // The date is the day-picker's trigger, so it needs to READ as tappable without a
                         // second control. Same affordance the classic Today uses (TodayView.dayNavHint): every
                         // ~10s it swaps for ~1.5s to a one-word accent hint, then returns to the date.
@@ -973,13 +1008,13 @@ struct LiquidTodayView: View {
                         .frame(minWidth: 320, minHeight: 360)
                         .liquidPopoverAdaptation()
                 }
-                // Long names fade beneath the trailing controls while an expanded transient control
-                // participates in layout and pushes its preceding siblings left. The reserve is the
-                // cluster's MEASURED width, not a constant: a constant is only ever right for the exact
-                // set of controls it was written against, and this row has already gained one (Customize,
-                // #1207) since. Measuring also means the fade tracks the sync capsule as it expands,
-                // which is the push-left behaviour rather than a separate approximation of it.
-                .headerTrailingControlFadeMask(reserving: headerControlsWidth)
+                // Reserve the cluster's measured width so the greeting is laid out in the real remaining
+                // space and scales before it can run underneath the profile/actions. A fade masked the
+                // collision but still looked like clipped text on compact phones. The measured reserve also
+                // follows the transient sync capsule when it expands.
+                // Analysis migration required: no. Header layout only.
+                .padding(.trailing, headerControlsWidth + headerClusterSpacing)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: headerClusterSpacing) {
                     // (#R-header-coach): the Coach entry leads the trailing cluster as a compact
                     // avatar/sparkle button — the same spot it held before it was ever demoted to a
@@ -1124,7 +1159,34 @@ struct LiquidTodayView: View {
     }
 
     private var heroCard: some View {
-        HStack(alignment: .top, spacing: 4) {
+        let chargeScore = dataLoaded ? chargeDisplay.pct : nil
+        let effortScore = dataLoaded
+            ? effortValue.map { UnitFormatter.effortValue($0, scale: effortScale) }
+            : nil
+        let visibleRestScore = dataLoaded ? restScore : nil
+        let hasBackdrop = showDayCycleBackground || skyBehindCards || backgroundStore.isActive
+        let lightSurface = LiquidHeroChrome.usesLightSurface(
+            isDark: colorScheme == .dark,
+            cardOpacity: cardOpacity,
+            hasBackdrop: hasBackdrop,
+            reduceTransparency: reduceTransparency
+        )
+        let rimOpacity = LiquidHeroChrome.rimOpacity(
+            isDark: colorScheme == .dark,
+            cardOpacity: cardOpacity,
+            hasBackdrop: hasBackdrop,
+            reduceTransparency: reduceTransparency,
+            increasedContrast: colorSchemeContrast == .increased
+        )
+        let shadowOpacity = LiquidHeroChrome.shadowOpacity(
+            isDark: colorScheme == .dark,
+            cardOpacity: cardOpacity,
+            hasBackdrop: hasBackdrop,
+            reduceTransparency: reduceTransparency,
+            increasedContrast: colorSchemeContrast == .increased
+        )
+
+        return HStack(alignment: .top, spacing: 4) {
             // #543 carry: an unscored today shows the last scored night's REAL Charge (labelled as prior by
             // the state pill) rather than an empty vessel, matching the classic Today, the widget/watch/Live
             // Activity (`Repository.widgetAnchor`) and Android. Effort deliberately does NOT carry — it is
@@ -1133,19 +1195,19 @@ struct LiquidTodayView: View {
             // iOS widgets, the watch glance and the complications now use. This is the DEFAULT Today
             // screen, so leaving it on the fixed accent would have kept the contradiction on the surface
             // most people actually see. No score = nothing to sample; the vessel keeps the domain accent.
-            HeroScoreCell(label: DomainTheme.charge.productName, score: chargeDisplay.pct,
+            HeroScoreCell(label: DomainTheme.charge.productName, score: chargeScore,
                           tint: chargeDisplay.pct.map { StrandPalette.chargeRingColor($0) }
                                 ?? StrandPalette.chargeColor,
-                          animated: dataLoaded, onGuide: { guideSection = .charge },
+                          animated: dataLoaded, onGuide: { guideSection = .charge }, onLightSurface: lightSurface,
                           detailRoute: .metric(HeroRingMetric.charge))
             // #45: the hero Effort must honour the user's Effort scale like every other Effort read-out.
             // Show the value on the chosen scale (0–100 or WHOOP 0–21) with the matching vessel max, and
             // one decimal on the compressed 0–21 axis to match the app-wide `effortDisplay` convention
             // (12.6, not a rounded "13"); the 0–100 hero stays a whole number as before.
             HeroScoreCell(label: DomainTheme.effort.productName,
-                          score: effortValue.map { UnitFormatter.effortValue($0, scale: effortScale) },
+                          score: effortScore,
                           tint: StrandPalette.effortColor, animated: dataLoaded,
-                          onGuide: { guideSection = .effort },
+                          onGuide: { guideSection = .effort }, onLightSurface: lightSurface,
                           maxValue: effortScale == .whoop ? 21 : 100,
                           decimals: effortScale == .whoop ? 1 : 0,
                           detailRoute: .metric(HeroRingMetric.effort))
@@ -1153,8 +1215,8 @@ struct LiquidTodayView: View {
             // where NOOP ran the calculation. Upstream #778 fixed its accuracy (persisted alongside the
             // score itself, so it can't drift) and restored its position, centred on the top border and
             // aligned with the Rest vessel.
-            HeroScoreCell(label: DomainTheme.rest.productName, score: restScore, tint: StrandPalette.restColor,
-                          animated: dataLoaded, onGuide: { guideSection = .rest },
+            HeroScoreCell(label: DomainTheme.rest.productName, score: visibleRestScore, tint: StrandPalette.restColor,
+                          animated: dataLoaded, onGuide: { guideSection = .rest }, onLightSurface: lightSurface,
                           detailRoute: .metric(HeroRingMetric.rest))
                 .overlay(alignment: .top) {
                     if let sourceLabel = heroSourceLabel {
@@ -1174,15 +1236,26 @@ struct LiquidTodayView: View {
         // headline card and there is exactly one of it, so the blur pass is affordable — unlike the ten
         // metric tiles, which take a lighter fill instead. `heroFill` stays under the glass so the vessels
         // keep the dark backing their on-dark text and colours were tuned against.
-        .background(
-            RoundedRectangle(cornerRadius: liquidHeroRadius, style: .continuous)
-                .fill(heroFill)
-                .liquidGlass(in: RoundedRectangle(cornerRadius: liquidHeroRadius, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: liquidHeroRadius, style: .continuous)
-                    .strokeBorder(.white.opacity(0.14), lineWidth: 1))
-                .shadow(color: .black.opacity(0.6), radius: 30, y: 16)
-                .opacity(cardOpacity)
-        )
+        .background {
+            let shape = RoundedRectangle(cornerRadius: liquidHeroRadius, style: .continuous)
+            if lightSurface {
+                // The ordinary light card: the same surface, edge and shadow as the data cards below it,
+                // not the dark glass, which read as a grey block on a white page.
+                FrostedCardSurface(cornerRadius: liquidHeroRadius, kind: .hero)
+            } else {
+            ZStack {
+                shape
+                    .fill(heroFill)
+                    .liquidGlass(in: shape)
+                    .opacity(cardOpacity)
+                // The rim must not disappear with the fill: it becomes more valuable as the user makes
+                // the card transparent or places it over a photograph/sky. On the ordinary solid Light
+                // canvas it resolves to zero, removing the unwanted grey frame.
+                shape.strokeBorder(.white.opacity(rimOpacity), lineWidth: 1)
+            }
+            .shadow(color: .black.opacity(shadowOpacity), radius: 18, y: 8)
+            }
+        }
     }
 
     // MARK: - Card-AI contexts (#R-explain): one small "ask coach" sparkle per "Your cards" row, built
@@ -1544,7 +1617,7 @@ struct LiquidTodayView: View {
         case .weight:
             let weightText = resolvedWeightKg.map { UnitFormatter.massFromKilograms($0.kg, system: unitSystem) } ?? "—"
             cardLink(.weight, icon: card.icon, title: card.title, sub: card.subtitle,
-                     value: weightText, tint: StrandPalette.metricRose, frac: nil)
+                     value: weightText, tint: StrandPalette.metricPurple, frac: nil)
         case .coach:
             // #1862: a sheet rather than a push — the point of the card is to try Coach WITHOUT
             // leaving Today. No "ask coach" sparkle either: the whole row already opens the coach.
@@ -2987,6 +3060,8 @@ private struct HeroScoreCell: View {
     let tint: Color
     let animated: Bool
     let onGuide: () -> Void
+    /// The hero is an ordinary light card, so the label follows the page ink instead of the on-dark token.
+    var onLightSurface: Bool = false
     // The scale `score` is already expressed on — 100 for Charge/Rest, or the user's chosen Effort scale
     // max (100 or 21, #45) — so the vessel fill matches the displayed number.
     var maxValue: Double = 100
@@ -3058,7 +3133,7 @@ private struct HeroScoreCell: View {
                     // The hero card fill is pinned dark in BOTH themes, so the CHARGE/EFFORT/REST label must use
                     // the scheme-invariant on-dark token — textSecondary flips to dark ink in Light mode and
                     // went dark-on-near-black here (#1013).
-                    .foregroundStyle(StrandPalette.onDarkSecondary)
+                    .foregroundStyle(onLightSurface ? StrandPalette.textSecondary : StrandPalette.onDarkSecondary)
                 }
                 .buttonStyle(.plain)
             }

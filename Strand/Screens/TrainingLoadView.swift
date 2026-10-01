@@ -1234,32 +1234,22 @@ struct TrainingLoadView: View {
 
     private var statementCard: some View {
         let advice = advice
-        let ink = advice.filled ? StrandPalette.onDarkPrimary : StrandPalette.textPrimary
-        return TrainingWashCard(color: advice.color, watermark: advice.symbol, filled: advice.filled,
-                                secondary: advice.secondary) {
-            VStack(alignment: .leading, spacing: NoopMetrics.space3) {
-                HStack(alignment: .top, spacing: NoopMetrics.space3) {
-                    // On a filled card the glyph stands on its own: a coloured badge on the same colour
-                    // would disappear into it.
-                    if advice.filled {
-                        Image(systemName: advice.symbol)
-                            .font(StrandFont.rounded(30, weight: .bold))
-                            .foregroundStyle(ink)
-                            .trainingSymbolBounce(trigger: adviceBounce)
-                            .accessibilityHidden(true)
-                    } else {
-                        StatusBadge(symbol: advice.symbol, color: advice.color, size: 44,
-                                    bounceTrigger: adviceBounce)
-                    }
+        // Analysis migration required: no. The same tested statement and lane verdicts are presented
+        // in a calmer compact card; no load, adaptation, or recovery decision changes.
+        return NoopCard(tint: advice.color) {
+            VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                HStack(alignment: .top, spacing: NoopMetrics.space2) {
+                    StatusBadge(symbol: advice.symbol, color: advice.color, size: 40,
+                                bounceTrigger: adviceBounce)
                     Text(advice.text)
-                        .font(StrandFont.headline)
-                        .foregroundStyle(ink)
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textPrimary)
                         .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 0)
                 }
                 HStack(spacing: NoopMetrics.space2) {
-                    verdictTile("Strength", verdict: model.strengthVerdict, lane: model.strength, filled: advice.filled)
-                    verdictTile("Cardio", verdict: model.cardioVerdict, lane: model.cardio, filled: advice.filled)
+                    verdictTile("Strength", verdict: model.strengthVerdict, lane: model.strength, filled: false)
+                    verdictTile("Cardio", verdict: model.cardioVerdict, lane: model.cardio, filled: false)
                 }
             }
         }

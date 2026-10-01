@@ -168,6 +168,8 @@ struct CompareView: View {
     /// when the windowed series content actually changes (see `correlationKey`).
     @State private var pairCache: [PairResult] = []
     @State private var pairCacheKey: String = ""
+    /// Analysis migration required: no. This only collapses already-computed relationship cards.
+    @State private var showsAllRelationships = false
 
     private let maxSelection = 4
     private let minSelection = 2
@@ -373,7 +375,7 @@ struct CompareView: View {
                     if selected.count >= minSelection {
                         Text(rangeCaption)
                             .font(StrandFont.footnote)
-                            .foregroundStyle(anyWidened ? StrandPalette.statusWarning : StrandPalette.textTertiary)
+                            .foregroundStyle(anyWidened ? StrandPalette.statusWarningForeground : StrandPalette.textTertiary)
                             .accessibilityLabel(rangeCaption)
                     }
 
@@ -583,8 +585,25 @@ struct CompareView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             } else {
-                ForEach(pairs) { p in
-                    pairCard(p)
+                // Lead with the strongest conclusion. The remaining pair matrix stays available without
+                // making the first useful answer compete with a wall of near-identical cards.
+                pairCard(pairs[0])
+                if pairs.count > 1 {
+                    DisclosureGroup(isExpanded: $showsAllRelationships) {
+                        VStack(spacing: NoopMetrics.gap) {
+                            ForEach(Array(pairs.dropFirst())) { p in pairCard(p) }
+                        }
+                        .padding(.top, NoopMetrics.space2)
+                    } label: {
+                        Label("All relationships (\(pairs.count))",
+                              systemImage: "point.3.connected.trianglepath.dotted")
+                            .font(StrandFont.subhead)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                    }
+                    .padding(NoopMetrics.space3)
+                    .background(StrandPalette.surfaceInset,
+                                in: RoundedRectangle(cornerRadius: NoopMetrics.cardRadius,
+                                                     style: .continuous))
                 }
             }
         }

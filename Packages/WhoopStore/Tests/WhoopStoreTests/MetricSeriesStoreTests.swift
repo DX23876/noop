@@ -184,6 +184,36 @@ final class MetricSeriesStoreTests: XCTestCase {
         XCTAssertEqual(keys, [])
     }
 
+    func testReplaceMetricSeriesWindowRemovesMissingRowsAndLeavesOtherDataAlone() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await store.upsertMetricSeries([
+            .init(day: "2026-09-01", key: "calories_in", value: 2_100),
+            .init(day: "2026-09-01", key: "protein_g", value: 150),
+            .init(day: "2026-09-02", key: "calories_in", value: 2_200),
+            .init(day: "2026-09-02", key: "steps", value: 9_000),
+            .init(day: "2026-08-31", key: "calories_in", value: 2_000),
+        ], deviceId: "apple-health")
+
+        try await store.replaceMetricSeriesWindow([
+            .init(day: "2026-09-01", key: "calories_in", value: 2_300),
+        ], deviceId: "apple-health", keys: ["calories_in", "protein_g"],
+           from: "2026-09-01", to: "2026-09-02")
+
+        let calories = try await store.metricSeries(
+            deviceId: "apple-health", key: "calories_in", from: "2026-08-31", to: "2026-09-02")
+        let protein = try await store.metricSeries(
+            deviceId: "apple-health", key: "protein_g", from: "2026-09-01", to: "2026-09-02")
+        let steps = try await store.metricSeries(
+            deviceId: "apple-health", key: "steps", from: "2026-09-01", to: "2026-09-02")
+
+        XCTAssertEqual(calories, [
+            .init(day: "2026-08-31", key: "calories_in", value: 2_000),
+            .init(day: "2026-09-01", key: "calories_in", value: 2_300),
+        ])
+        XCTAssertTrue(protein.isEmpty)
+        XCTAssertEqual(steps, [.init(day: "2026-09-02", key: "steps", value: 9_000)])
+    }
+
     // MARK: - source discovery by metric key
 
     func testMetricSourcesDiscoversEverySourceHoldingTheKey() async throws {

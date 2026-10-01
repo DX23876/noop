@@ -2092,7 +2092,7 @@ struct TodayView: View {
         case .primed:       return StrandPalette.accent
         case .balanced:     return StrandPalette.statusPositive
         case .strained:     return StrandPalette.statusWarning
-        case .rundown:      return StrandPalette.metricRose
+        case .rundown:      return StrandPalette.statusCritical
         case .insufficient: return StrandPalette.textTertiary
         }
     }
@@ -2102,7 +2102,7 @@ struct TodayView: View {
         case .good:    return StrandPalette.accent
         case .neutral: return StrandPalette.textTertiary
         case .watch:   return StrandPalette.statusWarning
-        case .bad:     return StrandPalette.metricRose
+        case .bad:     return StrandPalette.statusCritical
         }
     }
 
@@ -2945,7 +2945,7 @@ struct TodayView: View {
         case .calories:    return StrandPalette.energyHighlight
         case .hydration:   return StrandPalette.metricCyan
         case .coupled:     return StrandPalette.chargeColor
-        case .weight:      return StrandPalette.metricRose
+        case .weight:      return StrandPalette.metricPurple
         case .coach:       return StrandPalette.accent
         }
     }
@@ -5933,7 +5933,7 @@ private struct StrapSyncRow: View {
                     if let error = live.lastSyncError {
                         Text(error)
                             .font(StrandFont.captionNumber)
-                            .foregroundStyle(StrandPalette.statusWarning)
+                            .foregroundStyle(StrandPalette.statusWarningForeground)
                             .multilineTextAlignment(.trailing)
                             .fixedSize(horizontal: false, vertical: true)
                     } else if let at = live.lastSyncedAt {

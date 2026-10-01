@@ -168,7 +168,7 @@ struct SmartAlarmView: View {
             StrandCard(padding: 20) {
                 HStack(alignment: .top, spacing: 12) {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(StrandPalette.statusWarning)
+                        .foregroundStyle(StrandPalette.statusWarningForeground)
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Your strap isn't accepting the alarm")
@@ -191,7 +191,7 @@ struct SmartAlarmView: View {
         StrandCard(padding: 20) {
             HStack(alignment: .top, spacing: 12) {
                 Image(systemName: "bell.slash")
-                    .foregroundStyle(StrandPalette.statusWarning)
+                    .foregroundStyle(StrandPalette.statusWarningForeground)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 6) {
                     Text("The strap alarm is a silent buzz, not a sound")
@@ -281,7 +281,7 @@ struct SmartAlarmView: View {
                     if model.whoop5Detected && !PuffinExperiment.isEnabled {
                         Text("WHOOP 5/MG strap alarms require Protocol probes (Test Centre → 5/MG protocol diagnostics). Your wake time is saved, but the strap is not armed yet. Keep a backup alarm.")
                             .font(StrandFont.footnote)
-                            .foregroundStyle(StrandPalette.statusWarning)
+                            .foregroundStyle(StrandPalette.statusWarningForeground)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     } else if model.whoop5Detected {
                         // 5/MG with Protocol probes ON: the rev-4 command arms the strap. One wake was

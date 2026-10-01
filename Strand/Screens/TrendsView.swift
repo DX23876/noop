@@ -576,7 +576,7 @@ struct TrendsView: View {
             }
             Text(cap)
                 .font(StrandFont.footnote)
-                .foregroundStyle(isWide ? StrandPalette.statusWarning : StrandPalette.textTertiary)
+                .foregroundStyle(isWide ? StrandPalette.statusWarningForeground : StrandPalette.textTertiary)
                 .accessibilityLabel(cap)
         }
     }

@@ -16,9 +16,11 @@ public extension View {
     func frostedCardSurface(
         tint: Color? = nil,
         cornerRadius: CGFloat = 22,
-        washStrength: Double = 1.0
+        washStrength: Double = 1.0,
+        kind: NoopCardKind? = nil
     ) -> some View {
-        background(FrostedCardSurface(tint: tint, cornerRadius: cornerRadius, washStrength: washStrength))
+        background(FrostedCardSurface(tint: tint, cornerRadius: cornerRadius, washStrength: washStrength,
+                                      kind: kind))
     }
 }
 
@@ -29,16 +31,40 @@ public struct FrostedCardSurface: View {
     public var tint: Color?
     public var cornerRadius: CGFloat
     public var washStrength: Double
+    /// nil follows the subtree default (`noopCardKind(_:)`), which is `.data` unless a screen sets it.
+    public var kind: NoopCardKind?
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.noopCardKind) private var environmentKind
     // "Card transparency" setting (reactive): fades the whole glass surface toward the background. 100 =
     // solid (default). Reading it here makes every card update live when the Settings slider moves.
     @AppStorage(CardAppearancePrefs.opacityKey) private var cardOpacityPercent = CardAppearancePrefs.defaultPercent
 
-    public init(tint: Color? = nil, cornerRadius: CGFloat = 22, washStrength: Double = 1.0) {
+    public init(tint: Color? = nil, cornerRadius: CGFloat = 22, washStrength: Double = 1.0,
+                kind: NoopCardKind? = nil) {
         self.tint = tint
         self.cornerRadius = cornerRadius
         self.washStrength = washStrength
+        self.kind = kind
+    }
+
+    #if os(iOS)
+    private static let quietEdges = true
+    #else
+    private static let quietEdges = false
+    #endif
+
+    private func rimColor(_ rim: NoopCardChrome.Rim) -> Color? {
+        switch rim {
+        case .none: return nil
+        case .hairline: return StrandPalette.hairline
+        // `hairlineStrong` is the top-lit highlight, pure white in light appearance and so invisible there;
+        // "Increase Contrast" needs the real border colour on light and the lighter line on dark.
+        case .strong: return scheme == .light ? StrandPalette.hairline : StrandPalette.hairlineStrong
+        case .tinted: return tint?.opacity(0.45) ?? StrandPalette.hairlineStrong
+        case .tintedStrong: return tint?.opacity(0.85) ?? StrandPalette.hairlineStrong
+        }
     }
 
     public var body: some View {
@@ -51,6 +77,12 @@ public struct FrostedCardSurface: View {
         // neutral cards now share the same flat surface; tint identity is carried by the softened
         // hue wash + the tinted hairline below, not a gradient, so cards stay familiar but flatten.
         let baseFill = AnyShapeStyle(StrandPalette.surfaceRaised)
+        let chrome = NoopCardChrome.resolve(
+            kind: kind ?? environmentKind,
+            isLight: scheme == .light,
+            isTransparent: !reduceTransparency && cardOpacityPercent < 100,
+            increasedContrast: contrast == .increased,
+            quietEdges: Self.quietEdges)
         shape
             .fill(baseFill)
             .overlay(
@@ -68,16 +100,20 @@ public struct FrostedCardSurface: View {
             )
             // Liquid redesign (2026-07-02): a 1px resting hairline in BOTH themes so every card
             // matches the liquid home card's edge (LiquidTodayView.card), not just fill contrast.
-            .overlay(shape.strokeBorder(StrandPalette.hairline, lineWidth: 1))
+            .overlay {
+                if let rim = rimColor(chrome.rim) {
+                    shape.strokeBorder(rim, lineWidth: chrome.rim == .strong ? 1.5 : 1)
+                }
+            }
             // LIGHT raises white cards off the warm-paper canvas with a soft resting drop shadow; DARK
             // stays flat — the Titanium look reads off the hairline + fill contrast alone, not a shadow,
             // so it doesn't need one to read as "raised" the way a shadow-carrying surface would. (Liquid
             // Today's own card, LiquidTodayView.card, DOES carry a small always-on shadow of its own now —
             // the two surfaces no longer need to match: each screen keeps its own chrome.)
             .shadow(
-                color: scheme == .light ? Color(hex: "#1A2230").opacity(0.11) : .clear,
-                radius: scheme == .light ? 10 : 0,
-                x: 0, y: scheme == .light ? 3 : 0
+                color: chrome.shadow ? Color(hex: "#1A2230").opacity(NoopCardChrome.lightShadowOpacity * 1.2) : .clear,
+                radius: chrome.shadow ? NoopCardChrome.lightShadowRadius : 0,
+                x: 0, y: chrome.shadow ? NoopCardChrome.lightShadowOffsetY : 0
             )
             // "Card transparency": fade the whole glass surface. The card's content sits above this
             // background, so it stays fully readable regardless.
@@ -97,17 +133,20 @@ public struct StrandCard<Content: View>: View {
     public var padding: CGFloat
     public var cornerRadius: CGFloat
     public var tint: Color?
+    public var kind: NoopCardKind?
     @ViewBuilder public var content: () -> Content
 
     public init(
         padding: CGFloat = 16,
         cornerRadius: CGFloat = 22,
         tint: Color? = nil,
+        kind: NoopCardKind? = nil,
         @ViewBuilder content: @escaping () -> Content
     ) {
         self.padding = padding
         self.cornerRadius = cornerRadius
         self.tint = tint
+        self.kind = kind
         self.content = content
     }
 
@@ -115,7 +154,7 @@ public struct StrandCard<Content: View>: View {
         content()
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .frostedCardSurface(tint: tint, cornerRadius: cornerRadius)
+            .frostedCardSurface(tint: tint, cornerRadius: cornerRadius, kind: kind)
             .strandCardHover(cornerRadius: cornerRadius)
     }
 }

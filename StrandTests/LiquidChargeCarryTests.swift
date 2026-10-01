@@ -143,3 +143,60 @@ final class LiquidChargeCarryTests: XCTestCase {
         XCTAssertNil(Display.noData.calibrationDetail)
     }
 }
+
+final class LiquidHeroChromeTests: XCTestCase {
+    func testSolidLightHeroHasNoVisibleGreyRim() {
+        XCTAssertEqual(LiquidHeroChrome.rimOpacity(
+            isDark: false, cardOpacity: 1, hasBackdrop: false,
+            reduceTransparency: false, increasedContrast: false
+        ), 0)
+    }
+
+    func testTransparentLightHeroKeepsAnIndependentEdge() {
+        let solid = LiquidHeroChrome.rimOpacity(
+            isDark: false, cardOpacity: 1, hasBackdrop: false,
+            reduceTransparency: false, increasedContrast: false
+        )
+        let transparent = LiquidHeroChrome.rimOpacity(
+            isDark: false, cardOpacity: 0.70, hasBackdrop: true,
+            reduceTransparency: false, increasedContrast: false
+        )
+        XCTAssertGreaterThan(transparent, solid)
+    }
+
+    func testDarkAndIncreasedContrastKeepSeparation() {
+        let dark = LiquidHeroChrome.rimOpacity(
+            isDark: true, cardOpacity: 1, hasBackdrop: false,
+            reduceTransparency: false, increasedContrast: false
+        )
+        let increased = LiquidHeroChrome.rimOpacity(
+            isDark: true, cardOpacity: 1, hasBackdrop: false,
+            reduceTransparency: false, increasedContrast: true
+        )
+        XCTAssertGreaterThan(dark, 0)
+        XCTAssertGreaterThan(increased, dark)
+    }
+
+    func testReduceTransparencyReturnsMinimalOpaqueLightEdge() {
+        XCTAssertEqual(LiquidHeroChrome.rimOpacity(
+            isDark: false, cardOpacity: 0.20, hasBackdrop: true,
+            reduceTransparency: true, increasedContrast: false
+        ), 0.04, accuracy: 0.0001)
+    }
+
+    func testALightHeroWithNothingBehindItUsesTheLightSurface() {
+        func light(dark: Bool = false, opacity: Double = 1, backdrop: Bool = false, reduce: Bool = false) -> Bool {
+            LiquidHeroChrome.usesLightSurface(isDark: dark, cardOpacity: opacity,
+                                              hasBackdrop: backdrop, reduceTransparency: reduce)
+        }
+        XCTAssertTrue(light())
+        // Transparency is the card surface's job; the hero stays a light card without a backdrop.
+        XCTAssertTrue(light(opacity: 0.6))
+        XCTAssertFalse(light(dark: true))
+        XCTAssertFalse(light(backdrop: true))
+        XCTAssertFalse(light(opacity: 0.6, backdrop: true))
+        // Reduce Transparency forces a solid fill, so it is a light card even over a backdrop.
+        XCTAssertTrue(light(opacity: 0.2, backdrop: true, reduce: true))
+        XCTAssertFalse(light(dark: true, reduce: true))
+    }
+}

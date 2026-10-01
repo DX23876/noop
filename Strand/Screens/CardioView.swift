@@ -50,6 +50,7 @@ struct CardioView: View {
         ScrollViewReader { proxy in
         ScrollView {
             LazyVStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
+                analysisHeader
                 if !model.loaded {
                     ProgressView().frame(maxWidth: .infinity)
                 } else if model.sessions.isEmpty {
@@ -74,7 +75,7 @@ struct CardioView: View {
             .padding(NoopMetrics.screenPadding)
             DemoScrollBottomAnchor()
         }
-        .navigationTitle(Text("Cardio"))
+        .navigationTitle("")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 if let context = coachContext { CoachCardButton(context: context) }
@@ -100,6 +101,18 @@ struct CardioView: View {
             Task { await model.load(repo: repo) }
         }
         }
+    }
+
+    private var analysisHeader: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("Cardio")
+                .font(StrandFont.title1)
+                .foregroundStyle(StrandPalette.textPrimary)
+            Text("Pace, distance, zones and cardio load")
+                .font(StrandFont.subhead)
+                .foregroundStyle(StrandPalette.textSecondary)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Empty

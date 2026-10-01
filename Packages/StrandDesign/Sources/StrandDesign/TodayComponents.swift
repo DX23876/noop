@@ -9,21 +9,39 @@ public struct TodayCardSurface: View {
     private let tint: Color?
     private let cornerRadius: CGFloat
     private let surfaceOpacity: Double
+    /// nil follows the subtree default (`noopCardKind(_:)`), `.data` unless a screen sets it.
+    private let kind: NoopCardKind?
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.noopCardKind) private var environmentKind
 
     public init(tint: Color? = nil,
                 cornerRadius: CGFloat = NoopMetrics.cardRadius,
-                surfaceOpacity: Double = 1) {
+                surfaceOpacity: Double = 1,
+                kind: NoopCardKind? = nil) {
         self.tint = tint
         self.cornerRadius = cornerRadius
         self.surfaceOpacity = surfaceOpacity
+        self.kind = kind
     }
+
+    #if os(iOS)
+    private static let quietEdges = true
+    #else
+    private static let quietEdges = false
+    #endif
 
     public var body: some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         let opacity = reduceTransparency ? 1 : max(0, min(1, surfaceOpacity))
+        let chrome = NoopCardChrome.resolve(
+            kind: kind ?? environmentKind,
+            isLight: colorScheme == .light,
+            isTransparent: opacity < 0.99,
+            increasedContrast: contrast == .increased,
+            quietEdges: Self.quietEdges)
 
         shape
             .fill(StrandPalette.surfaceRaised.opacity(opacity))
@@ -32,12 +50,26 @@ public struct TodayCardSurface: View {
                     shape.fill(tint.opacity((colorScheme == .dark ? 0.075 : 0.045) * opacity))
                 }
             }
-            .overlay(shape.strokeBorder(StrandPalette.hairline, lineWidth: NoopMetrics.hairlineWidth))
+            .overlay {
+                switch chrome.rim {
+                case .none:
+                    EmptyView()
+                case .hairline:
+                    shape.strokeBorder(StrandPalette.hairline, lineWidth: NoopMetrics.hairlineWidth)
+                case .strong:
+                    shape.strokeBorder(colorScheme == .light ? StrandPalette.hairline : StrandPalette.hairlineStrong,
+                                       lineWidth: 1.5)
+                case .tinted, .tintedStrong:
+                    shape.strokeBorder((tint ?? StrandPalette.hairlineStrong).opacity(chrome.rim == .tintedStrong ? 0.85 : 0.45),
+                                       lineWidth: chrome.rim == .tintedStrong ? 1.5 : 1)
+                }
+            }
             .shadow(
-                color: .black.opacity(colorScheme == .dark ? 0.18 : 0.075),
-                radius: colorScheme == .dark ? 12 : 10,
+                color: colorScheme == .dark ? .black.opacity(0.18)
+                                            : (chrome.shadow ? .black.opacity(NoopCardChrome.lightShadowOpacity) : .clear),
+                radius: colorScheme == .dark ? 12 : NoopCardChrome.lightShadowRadius,
                 x: 0,
-                y: colorScheme == .dark ? 6 : 4
+                y: colorScheme == .dark ? 6 : NoopCardChrome.lightShadowOffsetY
             )
     }
 }

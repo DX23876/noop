@@ -291,7 +291,7 @@ struct CoupledView: View {
         case .primed:       return StrandPalette.accent
         case .balanced:     return StrandPalette.statusPositive
         case .strained:     return StrandPalette.statusWarning
-        case .rundown:      return StrandPalette.metricRose
+        case .rundown:      return StrandPalette.statusCritical
         case .insufficient: return StrandPalette.textTertiary
         }
     }

@@ -187,9 +187,9 @@ final class EnergyPlanningTests: XCTestCase {
     func testThermicEffectFallsBackToTheMixedDietFigureWithoutMacros() {
         XCTAssertEqual(EnergyPlanning.thermicEffect(intakeKcal: 2_500) ?? 0,
                        250, accuracy: 0.001)
-        // An unlogged day has no known intake, and zero would claim it did.
+        // Nil is unknown; zero is an explicitly confirmed fasting day.
         XCTAssertNil(EnergyPlanning.thermicEffect(intakeKcal: nil))
-        XCTAssertNil(EnergyPlanning.thermicEffect(intakeKcal: 0))
+        XCTAssertEqual(EnergyPlanning.thermicEffect(intakeKcal: 0), 0)
         XCTAssertNil(EnergyPlanning.thermicEffect(intakeKcal: .nan))
     }
 
@@ -271,7 +271,13 @@ final class EnergyPlanningTests: XCTestCase {
         // number in it.
         XCTAssertNil(balance(intake: nil))
         XCTAssertNil(balance(burn: nil))
-        XCTAssertNil(balance(intake: 0))
         XCTAssertNil(balance(intake: .nan))
+    }
+
+    func testExplicitZeroIntakeStillProducesADeficitVerdict() {
+        let result = balance(intake: 0, thermic: 0, burn: 2_000)
+
+        XCTAssertEqual(result?.balanceKcal, -2_000)
+        XCTAssertEqual(result?.verdict, .deficit)
     }
 }

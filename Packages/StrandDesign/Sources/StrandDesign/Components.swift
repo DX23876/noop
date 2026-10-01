@@ -154,14 +154,17 @@ public struct NoopCard<Content: View>: View {
     private let padding: CGFloat
     private let tint: Color?
     private let cornerRadius: CGFloat
+    private let kind: NoopCardKind?
     @ViewBuilder private let content: () -> Content
     #if os(macOS)
     @State private var hover = false
     #endif
+    /// `kind` nil follows the subtree default (`noopCardKind(_:)`), `.data` unless a screen sets it.
     public init(padding: CGFloat = NoopMetrics.cardPadding, tint: Color? = nil,
-                cornerRadius: CGFloat = NoopMetrics.cardRadius,
+                cornerRadius: CGFloat = NoopMetrics.cardRadius, kind: NoopCardKind? = nil,
                 @ViewBuilder content: @escaping () -> Content) {
-        self.padding = padding; self.tint = tint; self.cornerRadius = cornerRadius; self.content = content
+        self.padding = padding; self.tint = tint; self.cornerRadius = cornerRadius
+        self.kind = kind; self.content = content
     }
     public var body: some View {
         content()
@@ -183,13 +186,13 @@ public struct NoopCard<Content: View>: View {
     @ViewBuilder private var cardSurface: some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         #if os(macOS)
-        FrostedCardSurface(tint: tint, cornerRadius: cornerRadius)
+        FrostedCardSurface(tint: tint, cornerRadius: cornerRadius, kind: kind)
             .overlay(
                 shape.strokeBorder(StrandPalette.hairlineStrong, lineWidth: 1).opacity(hover ? 1 : 0)
             )
             .animation(.easeOut(duration: 0.16), value: hover)
         #else
-        FrostedCardSurface(tint: tint, cornerRadius: cornerRadius)
+        FrostedCardSurface(tint: tint, cornerRadius: cornerRadius, kind: kind)
         #endif
     }
 }
@@ -367,6 +370,7 @@ public extension StatTile where Accessory == EmptyView {
 }
 
 // MARK: - Trend chip — a small tinted delta pill with a direction arrow.
+// Analysis migration required: no. Text fitting leaves the represented value unchanged.
 
 /// A compact trend pill: an up/down/flat arrow + the delta text, tinted to `color`.
 /// Inferred direction comes from a leading +/− in the text (else flat). Sits in the
@@ -390,7 +394,12 @@ public struct TrendChip: View {
             if let symbol { Image(systemName: symbol).font(.system(size: 8, weight: .bold)) }
             // One line, always: a long chip (e.g. a workout's kcal) truncates rather than wraps, so
             // the pill never grows a tile past its floor. Matches Android's unconditional ellipsize (#934).
-            Text(text).font(StrandFont.captionNumber).lineLimit(1)
+            Text(text)
+                .font(StrandFont.captionNumber)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+                .allowsTightening(true)
+                .layoutPriority(1)
         }
         .foregroundStyle(color)
         .padding(.horizontal, 6).padding(.vertical, 2)

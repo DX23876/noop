@@ -437,7 +437,7 @@ private struct BreathingContent: View {
                         if let caution = proto.caution {
                             Text(String(localized: String.LocalizationValue(caution)))
                                 .font(StrandFont.footnote)
-                                .foregroundStyle(StrandPalette.statusWarning)
+                                .foregroundStyle(StrandPalette.statusWarningForeground)
                         }
                         Text(String(localized: "Estimate only — not medical advice. Stop if you feel unwell."))
                             .font(StrandFont.caption)
@@ -697,7 +697,7 @@ private struct BreathingContent: View {
     private var hapticHint: some View {
         HStack(spacing: 10) {
             Image(systemName: "applewatch.radiowaves.left.and.right")
-                .foregroundStyle(StrandPalette.statusWarning)
+                .foregroundStyle(StrandPalette.statusWarningForeground)
             Text("Connect your strap for haptic guidance. You'll feel one pulse on the inhale, two on the exhale, so you can breathe with your eyes closed.")
                 .font(StrandFont.footnote)
                 .foregroundStyle(StrandPalette.textSecondary)
@@ -1217,7 +1217,7 @@ private struct ResonanceModeView: View {
     private var connectHint: some View {
         HStack(spacing: 10) {
             Image(systemName: "applewatch.radiowaves.left.and.right")
-                .foregroundStyle(StrandPalette.statusWarning)
+                .foregroundStyle(StrandPalette.statusWarningForeground)
             Text("Connect your strap for the felt cue. The sweep paces you with one buzz on the inhale, two on the exhale.")
                 .font(StrandFont.footnote)
                 .foregroundStyle(StrandPalette.textSecondary)

@@ -53,6 +53,11 @@ import StrandTraining
 
 struct StrengthView: View {
     @EnvironmentObject var repo: Repository
+    @AppStorage(TrainingPreferences.weightUnitKey) private var weightUnitRaw = TrainingWeightUnit.kilograms.rawValue
+
+    var trainingWeightUnit: TrainingWeightUnit {
+        TrainingWeightUnit(rawValue: weightUnitRaw) ?? .kilograms
+    }
 
     /// Everything this screen shows and the work that derives it. See `StrengthModel` for why it is
     /// not twenty pieces of `@State` in here any more.
@@ -129,6 +134,7 @@ struct StrengthView: View {
         ScrollViewReader { proxy in
         ScrollView {
             LazyVStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
+                analysisHeader
                 if !loaded {
                     ProgressView().frame(maxWidth: .infinity)
                 } else if workouts.isEmpty && model.genericSessions.isEmpty {
@@ -156,7 +162,7 @@ struct StrengthView: View {
             .padding(NoopMetrics.screenPadding)
             DemoScrollBottomAnchor()
         }
-        .navigationTitle(Text("Strength"))
+        .navigationTitle("")
         .safeAreaInset(edge: .top) { syncStatusBar }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -184,6 +190,18 @@ struct StrengthView: View {
             Task { await model.load(repo: repo) }
         }
         }
+    }
+
+    private var analysisHeader: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("Strength")
+                .font(StrandFont.title1)
+                .foregroundStyle(StrandPalette.textPrimary)
+            Text("Records, progression, muscles and balance")
+                .font(StrandFont.subhead)
+                .foregroundStyle(StrandPalette.textSecondary)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private var selectedRangeOverview: some View {
@@ -223,7 +241,7 @@ struct StrengthView: View {
                                         .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                                 }
                                 Spacer()
-                                Text("\(record.estimatedOneRepMaxKg.formatted(.number.precision(.fractionLength(1)))) kg e1RM")
+                                Text("\(TrainingPreferences.formattedWeight(record.estimatedOneRepMaxKg, unit: trainingWeightUnit)) e1RM")
                                     .font(StrandFont.bodyNumber).foregroundStyle(StrandPalette.textPrimary)
                             }
                             .accessibilityElement(children: .combine)
@@ -896,7 +914,7 @@ struct StrengthView: View {
                                                         DomainTheme.effort.color]),
                             valueRange: chartRange,
                             height: 150,
-                            valueFormat: { String(format: "%.0f kg", $0) },
+                            valueFormat: { "\($0.formatted(.number.precision(.fractionLength(0)))) \(trainingWeightUnit.symbol)" },
                             dateFormat: { $0.formatted(date: .abbreviated, time: .omitted) },
                             accessibilityLabel: model.trendIsVolume
                                 ? String(localized: "Volume per session trend")
@@ -968,9 +986,10 @@ struct StrengthView: View {
     /// session happened to be a bad one.
     private func trendChipText(_ line: StrengthTrendLine) -> String {
         guard !line.directionIsUnclear else { return String(localized: "no clear direction") }
+        let slope = TrainingPreferences.displayWeight(line.slopePerWeek, unit: trainingWeightUnit)
         return model.trendIsVolume
-            ? String(format: "%+.0f kg/wk", line.slopePerWeek)
-            : String(format: "%+.1f kg/wk", line.slopePerWeek)
+            ? String(format: "%+.0f %@/wk", slope, trainingWeightUnit.symbol)
+            : String(format: "%+.1f %@/wk", slope, trainingWeightUnit.symbol)
     }
 
     private func trendChipColor(_ line: StrengthTrendLine) -> Color {
@@ -1125,7 +1144,7 @@ struct StrengthView: View {
                          : String(localized: "\(s.exerciseCount) exercises"))
         }
         if s.volumeLoadKg > 0 {
-            var volume = String(localized: "\(HevySource.groupedKg(s.volumeLoadKg)) kg")
+            var volume = TrainingPreferences.formattedWeight(s.volumeLoadKg, unit: trainingWeightUnit)
             if s.volumeSetCount < s.workingSetCount {
                 volume += " (\(s.volumeSetCount)/\(s.workingSetCount))"
             }
@@ -1586,7 +1605,8 @@ struct StrengthView: View {
             let value = model.trendIsVolume ? (point.volumeLoadKg > 0 ? point.volumeLoadKg : nil)
                                             : point.bestE1RMKg
             return value.map {
-                TrendPoint(date: Date(timeIntervalSince1970: TimeInterval(point.startTs)), value: $0)
+                TrendPoint(date: Date(timeIntervalSince1970: TimeInterval(point.startTs)),
+                           value: TrainingPreferences.displayWeight($0, unit: trainingWeightUnit))
             }
         }
     }
@@ -1606,9 +1626,10 @@ struct StrengthView: View {
     }
 
     private func bestSetText(_ kg: Double) -> String {
+        let weight = TrainingPreferences.formattedWeight(kg, unit: trainingWeightUnit)
         guard let point = trend.first(where: { $0.heaviestSetKg == kg }),
-              point.workingSetCount > 0 else { return "\(kg.formatted(.number.precision(.fractionLength(1)))) kg" }
-        return "\(kg.formatted(.number.precision(.fractionLength(1)))) kg × \(point.totalReps / point.workingSetCount)"
+              point.workingSetCount > 0 else { return weight }
+        return "\(weight) × \(point.totalReps / point.workingSetCount)"
     }
 
     /// Rising / steady / easing, or an honest note when RPE was rarely logged. Compares the mean RPE of
@@ -1628,7 +1649,7 @@ struct StrengthView: View {
     // MARK: - Wording
 
     func volumeText(_ kg: Double) -> String {
-        kg >= 1000 ? "\((kg / 1000).formatted(.number.precision(.fractionLength(1)))) t" : "\(HevySource.groupedKg(kg)) kg"
+        TrainingPreferences.formattedWeight(kg, unit: trainingWeightUnit)
     }
 
     private func exerciseTitle(_ id: String) -> String {
@@ -1708,12 +1729,13 @@ struct StrengthView: View {
                                 load.percentChange))
         }
         if let line = model.trendLine, let id = model.selectedTemplateId {
-            parts.append(String(format: "%@ trend %+.1f kg/week%@", exerciseTitle(id),
-                                line.slopePerWeek,
+            let slope = TrainingPreferences.displayWeight(line.slopePerWeek, unit: trainingWeightUnit)
+            parts.append(String(format: "%@ trend %+.1f %@/week%@", exerciseTitle(id),
+                                slope, trainingWeightUnit.symbol,
                                 line.directionIsUnclear ? " (direction unclear)" : ""))
         }
         if model.weekBodyweightKg > 0 {
-            parts.append("bodyweight volume \(HevySource.groupedKg(model.weekBodyweightKg)) kg")
+            parts.append("bodyweight volume \(volumeText(model.weekBodyweightKg))")
         }
         if let rpe = latest.meanRpe {
             parts.append(String(format: "last session mean RPE %.1f", rpe))

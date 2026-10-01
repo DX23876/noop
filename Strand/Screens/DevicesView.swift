@@ -118,7 +118,7 @@ private struct DevicesContent: View {
     private func repairGuideBanner(_ guide: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(StrandPalette.statusWarning)
+                .foregroundStyle(StrandPalette.statusWarningForeground)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
                 Text("Can't connect: your strap's pairing was reset")
@@ -728,6 +728,8 @@ struct DevicePillState: Equatable {
 /// One paired device as a card: name, brand/model, capabilities line, a state pill, last-seen, and a
 /// per-device actions menu. The active device is tinted with the accent (WHOOP blue) and carries an "Active" pill.
 private struct DeviceCard: View {
+    @State private var showsDeviceDetails = false
+    @State private var showsPairingHelp = false
     let device: PairedDevice
     let isActive: Bool
     let isLiveConnected: Bool
@@ -821,33 +823,35 @@ private struct DeviceCard: View {
                 // active+connected source right now. States the single-owner reality plainly (if the ring
                 // was reset again or re-claimed in the Oura app, NOOP no longer owns it) without faking a
                 // live reading. Suppressed for the active+connected ring and for removed rings.
-                if device.sourceKind == .oura && !isLiveConnected && device.status == .paired {
-                    ouraLocalStateNote
-                }
-
-                // What this device CAPTURES — honest, per-model (not the generic stored set, which would
-                // mislabel e.g. a "Blood oxygen" chip when no SpO₂ % ever comes off the strap).
-                capabilityRow(symbol: "waveform.path.ecg", text: profile.captures,
-                              tint: StrandPalette.textSecondary)
-                // What NOOP USES it for — the scores/screens this device drives.
-                capabilityRow(symbol: "bolt.fill", text: profile.powers,
-                              tint: StrandPalette.textSecondary)
-                // Honest footnote: the "*" estimates + the SpO₂/steps caveats.
-                if !profile.footnote.isEmpty {
-                    Text(profile.footnote)
-                        .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.textTertiary)
-                        .fixedSize(horizontal: false, vertical: true)
+                if device.sourceKind == .oura {
+                    DisclosureGroup("More about this device", isExpanded: $showsDeviceDetails) {
+                        deviceCapabilityDetails.padding(.top, NoopMetrics.space2)
+                    }
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                } else {
+                    deviceCapabilityDetails
                 }
 
                 // #221: the full #78 pairing-refusal guidance, self-service right on the card instead of
                 // buried in the strap log — only when the bond was genuinely refused.
                 if bondRefused, let hint = pairingHint {
-                    Text(hint)
-                        .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.statusWarning)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityLabel(hint)
+                    HStack(spacing: 7) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                        Text("Pairing needs attention")
+                    }
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.statusWarningForeground)
+                    DisclosureGroup("How to fix pairing", isExpanded: $showsPairingHelp) {
+                        Text(hint)
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.top, NoopMetrics.space2)
+                    }
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .accessibilityLabel(hint)
                 }
 
                 // Live battery for the active+connected device, shown as a liquid tube that fills to the
@@ -868,7 +872,7 @@ private struct DeviceCard: View {
                 if let warning = liveClockWarning {
                     Text(warning)
                         .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.statusWarning)
+                        .foregroundStyle(StrandPalette.statusWarningForeground)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityLabel(warning)
                 }
@@ -918,6 +922,24 @@ private struct DeviceCard: View {
         }
         .opacity(dimmed ? 0.6 : 1)
         .accessibilityElement(children: .contain)
+    }
+
+    /// Analysis migration required: no. Long capability and protocol copy is disclosed on demand;
+    /// device state, actions, and captured data remain unchanged.
+    @ViewBuilder private var deviceCapabilityDetails: some View {
+        if device.sourceKind == .oura && !isLiveConnected && device.status == .paired {
+            ouraLocalStateNote
+        }
+        capabilityRow(symbol: "waveform.path.ecg", text: profile.captures,
+                      tint: StrandPalette.textSecondary)
+        capabilityRow(symbol: "bolt.fill", text: profile.powers,
+                      tint: StrandPalette.textSecondary)
+        if !profile.footnote.isEmpty {
+            Text(profile.footnote)
+                .font(StrandFont.footnote)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     /// The whole-card liquid press wrapper: tapping the card performs its PRIMARY action (make active for a
@@ -1126,12 +1148,12 @@ private struct DeviceCard: View {
         HStack(alignment: .top, spacing: 6) {
             Image(systemName: "info.circle")
                 .font(StrandFont.caption)
-                .foregroundStyle(StrandPalette.statusWarning)
+                .foregroundStyle(StrandPalette.statusWarningForeground)
                 .frame(width: 14)
                 .accessibilityHidden(true)
             Text("Paired locally. NOOP owns this ring while it holds the key. If you reset it again or set it up in the Oura app, NOOP no longer owns it and you would re-add it to take it over.")
                 .font(StrandFont.caption)
-                .foregroundStyle(StrandPalette.statusWarning)
+                .foregroundStyle(StrandPalette.statusWarningForeground)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -1579,7 +1601,7 @@ private struct EcgWristSheet: View {
                 .foregroundStyle(StrandPalette.textPrimary)
             Text("This one is different from the other ECG controls: it is a setting written to the strap, and it stays there after you disconnect until you change it again.")
                 .font(StrandFont.subhead)
-                .foregroundStyle(StrandPalette.statusWarning)
+                .foregroundStyle(StrandPalette.statusWarningForeground)
                 .fixedSize(horizontal: false, vertical: true)
             Text("Which value means “left” and which means “right” comes from WHOOP's own app and the strap firmware, not from a strap NOOP has tested. You can send it again with the other choice at any time, and it changes nothing about your recorded data.")
                 .font(StrandFont.caption)
@@ -1613,7 +1635,7 @@ private struct EcgProbeResultView: View {
                 .foregroundStyle(StrandPalette.textPrimary)
             Text("Unvalidated instrumentation, not a medical measurement and not a diagnosis.")
                 .font(StrandFont.caption)
-                .foregroundStyle(StrandPalette.statusWarning)
+                .foregroundStyle(StrandPalette.statusWarningForeground)
                 .fixedSize(horizontal: false, vertical: true)
             if waiting {
                 Text("Listening for the strap's reply…")

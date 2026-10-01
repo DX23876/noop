@@ -727,7 +727,7 @@ struct OverviewDashboardView: View {
                               dimmed: Bool = false,
                               emptyTitle: String? = nil, emptySubtitle: String? = nil) -> some View {
         VStack(spacing: 6) {
-            Text(label).font(StrandFont.footnote.weight(.semibold)).foregroundStyle(color)
+            Text(label).font(StrandFont.footnote.weight(.semibold)).foregroundStyle(color.legibleText)
             if let value {
                 ZStack {
                     GlowRing(fraction: value / 100, value: value, format: { _ in "" },
@@ -773,7 +773,7 @@ struct OverviewDashboardView: View {
             if let word {
                 Text(word)
                     .font(StrandFont.footnote.weight(.semibold))
-                    .foregroundStyle(color)
+                    .foregroundStyle(color.legibleText)
                     .padding(.horizontal, 6).padding(.vertical, 1.5)
                     .background(Capsule().fill(color.opacity(0.16)))
             }
@@ -906,7 +906,7 @@ struct OverviewDashboardView: View {
                 } else {
                     Text("Set step goal")
                         .font(StrandFont.footnote.weight(.semibold))
-                        .foregroundStyle(StrandPalette.chargeColor)
+                        .foregroundStyle(StrandPalette.chargeColor.legibleText)
                     Text("Settings · Features")
                         .font(StrandFont.caption)
                         .foregroundStyle(StrandPalette.textTertiary)
@@ -1217,7 +1217,7 @@ private struct OverviewHealthRow: View {
                 if let status = OverviewHealthStatus.status(for: card, day: day, recentDays: recentDays) {
                     HStack(spacing: 4) {
                         Circle().fill(status.tone.color).frame(width: 5, height: 5)
-                        Text(status.word).font(StrandFont.footnote).foregroundStyle(status.tone.color)
+                        Text(status.word).font(StrandFont.footnote).foregroundStyle(status.tone.color.legibleText)
                     }
                 }
                 Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold))

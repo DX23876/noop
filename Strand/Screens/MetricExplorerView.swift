@@ -511,15 +511,18 @@ struct MetricExplorerView: View {
 
             ForEach(MetricCatalog.categories, id: \.self) { category in
                 let metrics = MetricCatalog.inCategory(category)
+                let groups = MetricCatalog.groupedByMeasurement(metrics)
                 if !metrics.isEmpty {
                     VStack(alignment: .leading, spacing: NoopMetrics.gap) {
                         // Localized at the render site only; `category` itself stays the raw
                         // English identifier that `inCategory` filters on.
                         SectionHeader("\(MetricCatalog.categoryDisplayName(category))", overline: "Category",
-                                      trailing: "\(metrics.count)")
+                                      trailing: "\(groups.count)")
                         NoopCard(padding: 0) {
                             VStack(spacing: 0) {
-                                ForEach(Array(metrics.enumerated()), id: \.element.id) { idx, metric in
+                                ForEach(Array(groups.enumerated()), id: \.element.first?.id) { idx, group in
+                                  if let metric = group.first {
+                                    VStack(alignment: .leading, spacing: 0) {
                                     // Push the detail directly (closure-based), like every other More-tab
                                     // screen. The old value + .navigationDestination(for:) pairing resolved
                                     // against TWO registered destinations and double-pushed — the detail
@@ -529,7 +532,8 @@ struct MetricExplorerView: View {
                                             .zoomDestination(id: "metric.zoom.\(metric.id)", namespace: zoom)
                                     } label: {
                                         MetricRow(metric: metric,
-                                                  isEmpty: emptyByID[metric.id] ?? false)
+                                                  isEmpty: emptyByID[metric.id] ?? false,
+                                                  showsSource: group.count == 1)
                                     }
                                     // Full-row press-down feedback in the liquid language — the settle-inward
                                     // LiquidPressStyle (a transform, so it works edge-to-edge with dividers
@@ -544,14 +548,20 @@ struct MetricExplorerView: View {
                                         StrandHaptic.selection.play()
                                     })
                                     #endif
-                                    if idx < metrics.count - 1 {
+                                    if group.count > 1 {
+                                        sourceChips(for: group)
+                                    }
+                                    }
+                                    if idx < groups.count - 1 {
                                         Divider().overlay(StrandPalette.hairline)
                                             .padding(.leading, 56)
                                     }
+                                  }
                                 }
                             }
                         }
                     }
+                    .id("category-\(category.lowercased())")
                     .padding(.bottom, NoopMetrics.sectionGap - 20)
                 }
             }
@@ -560,19 +570,35 @@ struct MetricExplorerView: View {
         // pairing, which is what double-pushed (#38). Nothing else registers a MetricDescriptor destination.
     }
 
+    /// The sources of one measurement as tappable chips under its row; each opens that source's detail.
+    private func sourceChips(for group: [MetricDescriptor]) -> some View {
+        HStack(spacing: 8) {
+            ForEach(group) { source in
+                NavigationLink {
+                    MetricDetailView(metric: source)
+                } label: {
+                    Text(source.sourceLabel)
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .padding(.horizontal, 10).padding(.vertical, 4)
+                        .background(Capsule().fill(StrandPalette.surfaceInset))
+                }
+                .buttonStyle(.plain)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.leading, 62)
+        .padding(.trailing, 14)
+        .padding(.bottom, 10)
+    }
+
     /// The hero entry that opens the Deep Timeline (#575). A full-bleed card, not a list row, so it reads
     /// as the headline above the per-metric catalog.
     private var deepTimelineRow: some View {
         NoopCard {
             HStack(spacing: 14) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 11, style: .continuous)
-                        .fill(StrandPalette.metricRose.opacity(0.16))
-                    Image(systemName: "waveform.path.ecg")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(StrandPalette.metricRose)
-                }
-                .frame(width: 42, height: 42)
+                Image(systemName: "waveform.path.ecg")
+                    .appleInspiredMenuIcon("explore.timeline", size: 42)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Deep Timeline")
@@ -625,6 +651,7 @@ struct MetricExplorerView: View {
 private struct MetricRow: View {
     let metric: MetricDescriptor
     let isEmpty: Bool
+    var showsSource = true
 
     // Trailing unit chip follows the Imperial/Metric preference (kg→lb, °C→°F) and the Effort scale
     // (/100→/21, #268).
@@ -640,22 +667,18 @@ private struct MetricRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(StrandPalette.surfaceInset)
-                Image(systemName: metric.icon)
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(metricAccent(metric))
-            }
-            .frame(width: 34, height: 34)
+            Image(systemName: metric.icon)
+                .appleInspiredMenuIcon(exploreIconColorID, size: 34)
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(metric.title)
                     .font(StrandFont.body)
                     .foregroundStyle(StrandPalette.textPrimary)
-                Text(metric.sourceLabel)
-                    .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                if showsSource {
+                    Text(metric.sourceLabel)
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                }
             }
 
             Spacer(minLength: 8)
@@ -685,6 +708,10 @@ private struct MetricRow: View {
             ? "\(metric.title), \(unitLabel.isEmpty ? MetricCatalog.categoryDisplayName(metric.category) : unitLabel), no data"
             : "\(metric.title), \(unitLabel.isEmpty ? MetricCatalog.categoryDisplayName(metric.category) : unitLabel)")
         .accessibilityAddTraits(.isButton)
+    }
+
+    private var exploreIconColorID: String {
+        "explore.\(metric.category.lowercased())"
     }
 }
 
@@ -1375,7 +1402,7 @@ struct MetricDetailView: View {
                                   windowed: windowed,
                                   windowFellBack: windowFellBack))
                     .font(StrandFont.footnote)
-                    .foregroundStyle(windowFellBack ? StrandPalette.statusWarning : StrandPalette.textTertiary)
+                    .foregroundStyle(windowFellBack ? StrandPalette.statusWarningForeground : StrandPalette.textTertiary)
                     .accessibilityLabel(rangeCaption(effectiveRange: effectiveRange,
                                                      windowed: windowed,
                                                      windowFellBack: windowFellBack))
@@ -1427,7 +1454,7 @@ struct MetricDetailView: View {
                 .frame(maxWidth: .infinity, alignment: .trailing)
             Text(caption)
                 .font(StrandFont.footnote)
-                .foregroundStyle(windowFellBack ? StrandPalette.statusWarning : StrandPalette.textTertiary)
+                .foregroundStyle(windowFellBack ? StrandPalette.statusWarningForeground : StrandPalette.textTertiary)
                 .accessibilityLabel(caption)
         }
     }

@@ -135,11 +135,11 @@ struct CaffeineLogCard: View {
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "moon.zzz")
                     .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.statusWarning)
+                    .foregroundStyle(StrandPalette.statusWarningForeground)
                     .accessibilityHidden(true)
                 Text(lateNudgeText)
                     .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.statusWarning)
+                    .foregroundStyle(StrandPalette.statusWarningForeground)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(10)

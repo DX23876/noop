@@ -38,6 +38,8 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
     /// at-root re-tap of the active tab (#198 follow-up). Default 0 never changes, so macOS and every
     /// non-tab screen keep their exact prior scroll behaviour.
     @Environment(\.scrollToTopSignal) private var scrollToTopSignal
+    @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = false
+    @ObservedObject private var backgroundStore = BackgroundImageStore.shared
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -83,6 +85,23 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
             }
             .ignoresSafeArea()
         }
+        #if os(iOS)
+        // Keep long pages legible beneath the status bar. Content is allowed to scroll under it, but a
+        // short adaptive fade prevents a large title or form row from competing with the clock and
+        // system icons. At rest this sits entirely in the scaffold's empty top inset.
+        .overlay(alignment: .top) {
+            LinearGradient(
+                colors: [StrandPalette.surfaceBase.opacity(0.98),
+                         StrandPalette.surfaceBase.opacity(0.72), .clear],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: 54)
+            .ignoresSafeArea(edges: .top)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+        }
+        #endif
         .modifier(RefreshableIfNeeded(onRefresh: onRefresh))
         #if DEBUG
         .task {
@@ -126,7 +145,10 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
         // A scaffold that draws a topBackground puts this header over the sky, where the normal
         // scheme-following title tokens go dark-on-dark in Light mode. Pin them to the on-dark pair
         // there and leave every other screen on the semantic tokens.
-        let overSky = topBackground != nil
+        // `liquidScaffoldSky()` is still a non-nil view while the Appearance switch is off, but it
+        // intentionally renders nothing then. Treating that empty slot as a dark sky made every title
+        // white on the light canvas. Only use the on-dark pair when pixels are actually drawn there.
+        let overSky = topBackground != nil && (showDayCycleBackground || backgroundStore.isActive)
         let titleColor = overSky ? StrandPalette.onDarkPrimary : StrandPalette.textPrimary
         let subtitleColor = overSky ? StrandPalette.onDarkSecondary : StrandPalette.textSecondary
         return HStack(alignment: .center, spacing: 12) {

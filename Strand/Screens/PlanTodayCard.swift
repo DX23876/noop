@@ -100,10 +100,10 @@ struct PlanTodayCard: View {
     var body: some View {
         if let (resolution, proposal) = unresolved {
             Button { showPlan = true } label: {
-                NoopCard(padding: 14, tint: StrandPalette.statusWarning) {
+                NoopCard(padding: 14, tint: StrandPalette.statusWarning, kind: .state) {
                     HStack(spacing: 10) {
                         Image(systemName: "questionmark.circle")
-                            .foregroundStyle(StrandPalette.statusWarning)
+                            .foregroundStyle(StrandPalette.statusWarningForeground)
                             .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 1) {
                             Text("Plan needs your check")

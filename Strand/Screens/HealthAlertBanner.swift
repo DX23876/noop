@@ -12,11 +12,11 @@ struct HealthAlertBanner: View {
             let copy = localizedHealthAlertCopy(alert)
             // A frosted, warning-tinted alert card (not a flat coloured bar) — prominent but on-brand.
             // The amber wash + a glyph in a soft amber chip read as an early-warning without a hard rule.
-            NoopCard(padding: 14, tint: StrandPalette.statusWarning) {
+            NoopCard(padding: 14, tint: StrandPalette.statusWarning, kind: .state) {
                 HStack(alignment: .top, spacing: 12) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(StrandPalette.statusWarning)
+                        .foregroundStyle(StrandPalette.statusWarningForeground)
                         .frame(width: 30, height: 30)
                         .background(StrandPalette.statusWarning.opacity(0.16), in: Circle())
                         .accessibilityHidden(true)

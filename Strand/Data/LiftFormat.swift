@@ -3,9 +3,7 @@ import Foundation
 // Number and unit formatting for the Lift Log.
 //
 // WEIGHT IS ALWAYS STORED IN KILOGRAMS. Only display and typed input are converted, using the
-// unit system the user already picked for the whole app (`UnitPrefs.systemKey`) — the Lift Log
-// deliberately does not add a second weight-unit setting of its own, so a pounds user gets pounds
-// here for free and never has two settings that can disagree.
+// training weight unit selected under Settings → Training. Body measurements remain independent.
 //
 // Conversion goes through ONE constant in BOTH directions (`UnitFormatter.poundsPerKilogram`), so a typed
 // value round-trips: enter 225 lb, store 102.058… kg, read it back and it renders 225 lb again.

@@ -15,6 +15,7 @@ import WhoopStore
 // create — programs, their exercises, and every warning — and only then imported. A file picked by
 // mistake, or a sheet with the wrong columns, costs a glance rather than a mess to undo.
 struct LiftProgramImportSheet: View {
+    @AppStorage(TrainingPreferences.weightUnitKey) private var weightUnitRaw = TrainingWeightUnit.kilograms.rawValue
     /// Called after programs have been written, so the hub can reload.
     var onImported: () async -> Void
 
@@ -172,7 +173,10 @@ struct LiftProgramImportSheet: View {
         var parts: [String] = []
         if let sets = line.targetSets, let reps = line.targetReps { parts.append("\(sets) x \(reps)") }
         else if let sets = line.targetSets { parts.append("\(sets) x") }
-        if let kg = line.targetWeightKg { parts.append(LiftFormat.trim(kg) + " kg") }
+        if let kg = line.targetWeightKg {
+            let unit = TrainingWeightUnit(rawValue: weightUnitRaw) ?? .kilograms
+            parts.append(TrainingPreferences.formattedWeight(kg, unit: unit))
+        }
         if let rpe = line.targetMaxRpe { parts.append("RPE ≤" + LiftFormat.trim(rpe)) }
         if let rest = line.restSec { parts.append("\(rest)s") }
         return parts.joined(separator: " · ")

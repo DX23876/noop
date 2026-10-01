@@ -116,6 +116,19 @@ struct MetricDescriptor: Identifiable, Hashable {
 /// Canonical catalog — mirrors the WHOOP "Trend View" plus Apple Health body metrics.
 /// Keys match exactly what the importers write into metricSeries.
 enum MetricCatalog {
+    /// One entry per measurement: descriptors that share a `key` (the same quantity read from different
+    /// sources) collapse into one group, in catalog order, so Explore shows the measurement once with
+    /// its sources as chips instead of repeating the row.
+    static func groupedByMeasurement(_ metrics: [MetricDescriptor]) -> [[MetricDescriptor]] {
+        var order: [String] = []
+        var groups: [String: [MetricDescriptor]] = [:]
+        for metric in metrics {
+            if groups[metric.key] == nil { order.append(metric.key) }
+            groups[metric.key, default: []].append(metric)
+        }
+        return order.compactMap { groups[$0] }
+    }
+
     static let categories = ["Heart", "Charge", "Rest", "Effort", "Health", "Nutrition", "Mind"]
 
     static let all: [MetricDescriptor] = [

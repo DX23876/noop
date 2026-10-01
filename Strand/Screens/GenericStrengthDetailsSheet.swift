@@ -55,7 +55,7 @@ struct GenericStrengthDetailsSheet: View {
                         if let saveError {
                             Label(saveError, systemImage: "exclamationmark.triangle.fill")
                                 .font(StrandFont.subhead)
-                                .foregroundStyle(StrandPalette.statusWarning)
+                                .foregroundStyle(StrandPalette.statusWarningForeground)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     }

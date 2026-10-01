@@ -364,7 +364,7 @@ struct AutomationsView: View {
                     if !notifMasterOn {
                         Text("Notifications are off, so this can't buzz yet. Turn on the master switch in Notifications to let it through.")
                             .font(StrandFont.footnote)
-                            .foregroundStyle(StrandPalette.statusWarning)
+                            .foregroundStyle(StrandPalette.statusWarningForeground)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.top, 6)
                     }

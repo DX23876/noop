@@ -301,7 +301,7 @@ struct HRVSnapshotView: View {
                 if result.rmssd == nil {
                     HStack(spacing: 10) {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(StrandPalette.statusWarning)
+                            .foregroundStyle(StrandPalette.statusWarningForeground)
                             .accessibilityHidden(true)
                         Text("Not enough clean beats. Sit still and try again. \(result.nClean) of \(result.nInput) beats survived filtering (need \(HRVAnalyzer.minBeats)).")
                             .font(StrandFont.footnote)
@@ -367,7 +367,7 @@ struct HRVSnapshotView: View {
     private var notBondedHint: some View {
         HStack(spacing: 10) {
             Image(systemName: "applewatch.radiowaves.left.and.right")
-                .foregroundStyle(StrandPalette.statusWarning)
+                .foregroundStyle(StrandPalette.statusWarningForeground)
                 .accessibilityHidden(true)
             Text("An HRV reading needs the live R-R stream. Open the Live screen and connect your strap, then come back.")
                 .font(StrandFont.footnote)

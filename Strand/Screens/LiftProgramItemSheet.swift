@@ -44,8 +44,8 @@ struct LiftProgramItemSheet: View {
 
     /// The app's existing metric/imperial preference — the Lift Log never adds a second weight unit
     /// setting of its own, so the plan is typed in the same unit the session records in.
-    @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
-    private var unitSystem: UnitSystem { UnitSystem(rawValue: unitSystemRaw) ?? .metric }
+    @AppStorage(TrainingPreferences.weightUnitKey) private var weightUnitRaw = TrainingWeightUnit.kilograms.rawValue
+    private var unitSystem: UnitSystem { (TrainingWeightUnit(rawValue: weightUnitRaw) ?? .kilograms).system }
     private var weightLabel: LocalizedStringKey {
         unitSystem == .imperial ? "Weight (lb)" : "Weight (kg)"
     }
@@ -202,7 +202,7 @@ struct LiftProgramItemSheet: View {
                     if maxRpeInvalid {
                         Text("Max RPE must be between 1 and 10.")
                             .font(StrandFont.footnote)
-                            .foregroundStyle(StrandPalette.statusWarning)
+                            .foregroundStyle(StrandPalette.statusWarningForeground)
                     }
                     Text("Max RPE is a ceiling: the hardest a set should feel, where 10 means nothing left. It shows grey during the session, and a set you leave unrated saves it as its rating.")
                         .font(StrandFont.footnote)

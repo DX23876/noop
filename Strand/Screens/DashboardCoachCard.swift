@@ -29,7 +29,7 @@ struct DashboardCoachCard: View {
                         Text("\(String(localized: "Your coach")) \(identityStore.identity.name)".uppercased())
                             .font(StrandFont.overline)
                             .tracking(StrandFont.overlineTracking)
-                            .foregroundStyle(StrandPalette.statusPositive)
+                            .foregroundStyle(StrandPalette.statusPositive.legibleText)
                         Text(greetingLine)
                             .font(compact ? StrandFont.headline : StrandFont.title2)
                             .foregroundStyle(StrandPalette.textPrimary)
@@ -42,7 +42,7 @@ struct DashboardCoachCard: View {
                             Text("Today's recommendation")
                         }
                         .font(StrandFont.footnote.weight(.semibold))
-                        .foregroundStyle(StrandPalette.statusPositive)
+                        .foregroundStyle(StrandPalette.statusPositive.legibleText)
                         .padding(.horizontal, 10).padding(.vertical, 5)
                         .background(Capsule().fill(StrandPalette.statusPositive.opacity(0.14)))
                     }

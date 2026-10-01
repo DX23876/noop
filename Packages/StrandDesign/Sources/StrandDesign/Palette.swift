@@ -502,6 +502,18 @@ public enum StrandPalette {
         case .titanium, .signature: return Color(light: "#C2792E", dark: "#F0A020")
         }
     }
+    /// Warning foregrounds need stronger contrast than the brighter accent used for fills and charts.
+    /// Analysis migration required: no. This only changes presentation colours.
+    public static var statusWarningForeground: Color {
+        switch chartStyle {
+        case .classic: return Color(light: "#725500", dark: "#F2C53D")
+        case .health:  return Color(light: "#754B00", dark: "#FFD60A")
+        case .aurora:  return Color(light: "#665018", dark: "#EBCB8B")
+        case .sunset:  return Color(light: "#7A3F00", dark: "#FFB74D")
+        case .forest:  return Color(light: "#684514", dark: "#D8A657")
+        case .titanium, .signature: return Color(light: "#713B00", dark: "#F0A020")
+        }
+    }
     public static var statusCritical: Color {
         switch chartStyle {
         case .classic: return Color(light: "#CB3A2F", dark: "#E5483B")

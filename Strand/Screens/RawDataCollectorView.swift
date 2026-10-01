@@ -166,7 +166,7 @@ struct RawDataCollectorView: View {
                 Text(session.active ? String(localized: "Export status: recording")
                      : String(localized: "IMU: \(coverageText)"))
                     .font(StrandFont.caption)
-                    .foregroundStyle(session.active ? StrandPalette.statusWarning : StrandPalette.statusPositive)
+                    .foregroundStyle(session.active ? StrandPalette.statusWarningForeground : StrandPalette.statusPositive)
                 if let exportedAt = session.lastExportedAtMs {
                     Text(String(localized: "Last exported \(Self.time(exportedAt)) · export remains available"))
                         .font(StrandFont.caption)

@@ -652,16 +652,16 @@ struct AddDeviceWizard: View {
         // One-owner heads-up, amber (mirrors the WHOOP single-connection warning).
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(StrandPalette.statusWarning)
+                .foregroundStyle(StrandPalette.statusWarningForeground)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 4) {
                 Text("A ring talks to one owner at a time.")
                     .font(StrandFont.subhead)
-                    .foregroundStyle(StrandPalette.statusWarning)
+                    .foregroundStyle(StrandPalette.statusWarningForeground)
                     .fixedSize(horizontal: false, vertical: true)
                 Text("If the Oura app is still running it will hold the ring and adoption will fail. Force-quit Oura, then scan.")
                     .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.statusWarning)
+                    .foregroundStyle(StrandPalette.statusWarningForeground)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
@@ -712,11 +712,11 @@ struct AddDeviceWizard: View {
 
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "key.horizontal")
-                .foregroundStyle(StrandPalette.statusWarning)
+                .foregroundStyle(StrandPalette.statusWarningForeground)
                 .accessibilityHidden(true)
             Text("If you extracted your ring's 16-byte key from a previous Oura setup, NOOP can talk to the ring with that key without resetting it, so the Oura app keeps working too. NOOP does not extract keys for you and cannot help you find one. If you do not know what this means, go back and use the standard setup or file import.")
                 .font(StrandFont.footnote)
-                .foregroundStyle(StrandPalette.statusWarning)
+                .foregroundStyle(StrandPalette.statusWarningForeground)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(12)
@@ -979,15 +979,15 @@ struct AddDeviceWizard: View {
     private var ouraBetaBanner: some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "flask")
-                .foregroundStyle(StrandPalette.statusWarning)
+                .foregroundStyle(StrandPalette.statusWarningForeground)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 4) {
                 Text("Beta. Read this first.")
                     .font(StrandFont.subhead)
-                    .foregroundStyle(StrandPalette.statusWarning)
+                    .foregroundStyle(StrandPalette.statusWarningForeground)
                 Text("Local Oura support is new and we cannot test every ring here. It may not connect on your ring, and it can change between updates. NOOP never makes up a number. If something does not work, it will tell you plainly.")
                     .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.statusWarning)
+                    .foregroundStyle(StrandPalette.statusWarningForeground)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -1412,11 +1412,11 @@ struct AddDeviceWizard: View {
     private var experimentalTierNote: some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "flask")
-                .foregroundStyle(StrandPalette.statusWarning)
+                .foregroundStyle(StrandPalette.statusWarningForeground)
                 .accessibilityHidden(true)
             Text("Experimental, best-effort support. We're still testing these, so they might not connect on every device. They never make up data, and they'll tell you honestly when live isn't possible.")
                 .font(StrandFont.footnote)
-                .foregroundStyle(StrandPalette.statusWarning)
+                .foregroundStyle(StrandPalette.statusWarningForeground)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(12)
@@ -1428,11 +1428,11 @@ struct AddDeviceWizard: View {
     private var experimentalNote: some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "flask")
-                .foregroundStyle(StrandPalette.statusWarning)
+                .foregroundStyle(StrandPalette.statusWarningForeground)
                 .accessibilityHidden(true)
             Text("WHOOP 5.0 / MG supports live data and strap history. Protocol-research tools are available separately in Test Centre.")
                 .font(StrandFont.footnote)
-                .foregroundStyle(StrandPalette.statusWarning)
+                .foregroundStyle(StrandPalette.statusWarningForeground)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(12)
@@ -1448,16 +1448,16 @@ struct AddDeviceWizard: View {
     private var singleConnectionWarning: some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(StrandPalette.statusWarning)
+                .foregroundStyle(StrandPalette.statusWarningForeground)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 4) {
                 Text("Your WHOOP only talks to one phone at a time.")
                     .font(StrandFont.subhead)
-                    .foregroundStyle(StrandPalette.statusWarning)
+                    .foregroundStyle(StrandPalette.statusWarningForeground)
                     .fixedSize(horizontal: false, vertical: true)
                 Text("Force-quit the official WHOOP app first, or pairing may fail.")
                     .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.statusWarning)
+                    .foregroundStyle(StrandPalette.statusWarningForeground)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
@@ -1618,7 +1618,7 @@ private struct OuraPickList: View {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(alignment: .top, spacing: 10) {
                         Image(systemName: "info.circle")
-                            .foregroundStyle(StrandPalette.statusWarning)
+                            .foregroundStyle(StrandPalette.statusWarningForeground)
                             .accessibilityHidden(true)
                         Text(msg)
                             .font(StrandFont.body)
@@ -1691,7 +1691,7 @@ private struct SearchingCard: View {
             if whoopHint {
                 Text("Not showing up? The official WHOOP app may still be holding it. Force-quit that app, then tap Rescan.")
                     .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.statusWarning)
+                    .foregroundStyle(StrandPalette.statusWarningForeground)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }

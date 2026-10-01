@@ -107,6 +107,14 @@ records, beside a past-year consistency heatmap that follows the chosen week sta
 previewed with their muscle involvement and edited with exercise order, supersets, progression rules
 and scheduled weekdays. Settings › Training collects effort entry, rest timers, timer sound, haptics,
 keeping the screen awake, exercise-media display and download, equipment and the training week start.
+Training weight has its own **Kilograms / Pounds** choice there, independent of body-measurement units.
+The active logger, routines, prior sessions, estimated 1RM, increments and plate calculator all follow
+it while values remain stored canonically in kilograms. Switching during a workout redraws the fields
+from the stored value instead of reinterpreting typed digits. Metric and imperial increments and plate
+inventories are kept separately (defaults: 2.5 kg and 5 lb), and the unit preference travels in backups.
+
+**Analysis migration required: no.** This is display and input conversion only; stored workout weights,
+progression calculations, e1RM inputs and historical analysis remain the same kilogram values.
 
 ---
 
@@ -220,6 +228,16 @@ would otherwise become two more Key Metric tiles that only ever move together.
     complete intake logging and enough weigh-ins). This is explicitly **not** today's measurement
     and never calibrates or replaces the WHOOP figure — it's a second, independent way to sanity-check
     maintenance calories over time.
+  - **Nutrition input without a food diary** — daily calorie, protein, carbohydrate and fat totals
+    are read automatically from Apple Health when another nutrition app writes them there. NOOP
+    never adds two Health writers together: one app supplies all four fields for a day, with a source
+    picker when several apps overlap. A manual daily total (calories required, macros optional) or CSV
+    import remains available as fallback. Precedence is per field: **manual → CSV → Apple Health**, so
+    correcting calories does not discard imported macros. Blank means unknown; **No intake this day**
+    is an explicit zero. Manual saves are read back before success is shown and can be removed to reveal
+    the imported value again. Sync covers the latest 30 days on open, foreground and manual refresh;
+    full Health history import covers older days. Health query failures retain the last complete data.
+    Calories remain authoritative when their total and the macros disagree.
   - **Daily burn chart** — last 30 days of completed-day totals (today is excluded — it's still
     "so far", not a finished number).
 - **Coach** — `get_energy_balance` (see [docs/fork/COACH.md](fork/COACH.md)) reports the same
@@ -230,6 +248,11 @@ would otherwise become two more Key Metric tiles that only ever move together.
 - **Privacy** — the Apple Watch reference data used for calibration is a bounded, on-device,
   five-minute aggregate (kcal/HR/steps/distance/stride/workout flag per source) — never raw
   HealthKit samples, and never anything that leaves the device.
+
+**Analysis migration required: no.** Nutrition totals and the adaptive expenditure range are resolved
+at read time; no persisted Charge, Effort, Rest or other derived score can become stale. The next
+successful Health sync transactionally replaces the affected imported nutrition window, including
+source corrections and deletions, while raw Health data and manual entries remain intact.
 
 ---
 

@@ -21,7 +21,7 @@ struct WorkoutLoggerHeader: View {
                     }
                     if model.draft.state != .active {
                         Text("Paused").font(StrandFont.caption.weight(.semibold))
-                            .foregroundStyle(StrandPalette.statusWarning)
+                            .foregroundStyle(StrandPalette.statusWarningForeground)
                     }
                     Spacer()
                     if !model.isRetrospective {

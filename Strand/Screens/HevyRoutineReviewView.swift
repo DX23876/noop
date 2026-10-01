@@ -91,13 +91,13 @@ struct HevyRoutineReviewView: View {
     private func warnings(_ proposal: HevyRoutineProposal) -> some View {
         VStack(alignment: .leading, spacing: NoopMetrics.gap) {
             SectionHeader("Worth a look", overline: "Check")
-            NoopCard(tint: StrandPalette.statusWarning) {
+            NoopCard(tint: StrandPalette.statusWarning, kind: .state) {
                 VStack(alignment: .leading, spacing: NoopMetrics.space2) {
                     ForEach(proposal.warnings, id: \.self) { warning in
                         HStack(alignment: .top, spacing: 8) {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .font(.system(size: 12))
-                                .foregroundStyle(StrandPalette.statusWarning)
+                                .foregroundStyle(StrandPalette.statusWarningForeground)
                                 .accessibilityHidden(true)
                             Text(warning)
                                 .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
@@ -126,7 +126,8 @@ struct HevyRoutineReviewView: View {
 
         return VStack(alignment: .leading, spacing: NoopMetrics.gap) {
             SectionHeader("What changes", overline: "Before and after")
-            NoopCard(tint: dropped.isEmpty ? StrandPalette.chargeColor : StrandPalette.statusWarning) {
+            NoopCard(tint: dropped.isEmpty ? StrandPalette.chargeColor : StrandPalette.statusWarning,
+                     kind: dropped.isEmpty ? .data : .state) {
                 VStack(alignment: .leading, spacing: NoopMetrics.space2) {
                     Text("Sending this replaces the whole routine in Hevy — the exercises below are the routine afterwards.")
                         .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
@@ -215,7 +216,7 @@ struct HevyRoutineReviewView: View {
         VStack(alignment: .leading, spacing: NoopMetrics.space2) {
             if let sentTitle {
                 Text("Sent “\(sentTitle)” to Hevy.")
-                    .font(StrandFont.subhead).foregroundStyle(StrandPalette.statusPositive)
+                    .font(StrandFont.subhead).foregroundStyle(StrandPalette.statusPositive.legibleText)
             } else {
                 HStack(spacing: NoopMetrics.space3) {
                     Button {
@@ -241,8 +242,8 @@ struct HevyRoutineReviewView: View {
     }
 
     private func errorBanner(_ text: String) -> some View {
-        NoopCard(padding: 12, tint: StrandPalette.statusWarning) {
-            Text(text).font(StrandFont.subhead).foregroundStyle(StrandPalette.statusWarning)
+        NoopCard(padding: 12, tint: StrandPalette.statusWarning, kind: .state) {
+            Text(text).font(StrandFont.subhead).foregroundStyle(StrandPalette.statusWarningForeground)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }

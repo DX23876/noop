@@ -104,7 +104,7 @@ extension StrengthView {
                         ForEach(StrengthRepBand.allCases, id: \.self) { band in
                             if let record = records.bestByRepBand[band] {
                                 recordChip(String(localized: "Best \(band.label) reps"),
-                                           value: "\(record.value.formatted(.number.precision(.fractionLength(1)))) kg",
+                                           value: TrainingPreferences.formattedWeight(record.value, unit: trainingWeightUnit),
                                            day: record.day, tint: StrandPalette.accent)
                             }
                         }
@@ -115,7 +115,7 @@ extension StrengthView {
                         }
                         if let estimate = records.bestE1RM {
                             recordChip(String(localized: "Best 1RM · est."),
-                                       value: "\(estimate.value.formatted(.number.precision(.fractionLength(1)))) kg",
+                                       value: TrainingPreferences.formattedWeight(estimate.value, unit: trainingWeightUnit),
                                        day: estimate.day, tint: StrandPalette.textSecondary)
                         }
                     }
@@ -154,9 +154,9 @@ extension StrengthView {
     }
 
     private func setText(_ record: StrengthRecordPoint) -> String {
-        let weight = record.value.formatted(.number.precision(.fractionLength(1)))
-        guard let reps = record.reps else { return "\(weight) kg" }
-        return "\(weight) kg × \(reps)"
+        let weight = TrainingPreferences.formattedWeight(record.value, unit: trainingWeightUnit)
+        guard let reps = record.reps else { return weight }
+        return "\(weight) × \(reps)"
     }
 
     /// How long the heaviest set has stood. A FACT about the record, never phrased as a plateau — how

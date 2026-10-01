@@ -39,6 +39,11 @@ struct StrengthSessionDetailView: View {
     @State private var zoneMinutes: [Double]?
     @State private var loadedHR = false
     @StateObject private var profile = ProfileStore()
+    @AppStorage(TrainingPreferences.weightUnitKey) private var weightUnitRaw = TrainingWeightUnit.kilograms.rawValue
+
+    private var trainingWeightUnit: TrainingWeightUnit {
+        TrainingWeightUnit(rawValue: weightUnitRaw) ?? .kilograms
+    }
 
     var body: some View {
         NavigationStack {
@@ -174,7 +179,8 @@ struct StrengthSessionDetailView: View {
         guard summary.workingSetCount > 0,
               Double(summary.volumeSetCount) / Double(summary.workingSetCount) >= 0.6,
               let density = breakdown.densityKgPerMinute else { return nil }
-        return String(localized: "\(HevySource.groupedKg(density)) kg/min")
+        let value = TrainingPreferences.displayWeight(density, unit: trainingWeightUnit)
+        return "\(value.formatted(.number.precision(.fractionLength(0...1)))) \(trainingWeightUnit.symbol)/min"
     }
 
     // MARK: - Heart rate
@@ -437,10 +443,11 @@ struct StrengthSessionDetailView: View {
             if let estimate = line.e1rmKg, line.isWorking {
                 // The ≈ carries the "this is an estimate" meaning, so the whole token is translatable
                 // rather than a bare number with a symbol glued on in code.
-                Text(String(localized: "≈\(Int(estimate.rounded()))"))
+                let displayedEstimate = TrainingPreferences.displayWeight(estimate, unit: trainingWeightUnit)
+                Text("≈\(Int(displayedEstimate.rounded()))")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
-                    .accessibilityLabel(String(localized: "estimated one-rep max \(Int(estimate)) kilograms"))
+                    .accessibilityLabel("estimated one-rep max \(Int(displayedEstimate.rounded())) \(trainingWeightUnit.symbol)")
             }
             if line.type == .dropset || line.type == .failure {
                 Text(setTypeLabel(line.type))
@@ -455,10 +462,11 @@ struct StrengthSessionDetailView: View {
 
     /// The heaviest working set, in the same notation its rows use.
     private func topSetText(_ kg: Double, kind: StrengthMovementKind) -> String {
+        let weight = TrainingPreferences.formattedWeight(kg, unit: trainingWeightUnit)
         switch kind {
-        case .assistedBodyweight: return "−\(Self.oneDecimal(kg)) kg"
-        case .weightedBodyweight, .bodyweightReps: return "+\(Self.oneDecimal(kg)) kg"
-        default: return "\(Self.oneDecimal(kg)) kg"
+        case .assistedBodyweight: return "−\(weight)"
+        case .weightedBodyweight, .bodyweightReps: return "+\(weight)"
+        default: return weight
         }
     }
 
@@ -476,13 +484,14 @@ struct StrengthSessionDetailView: View {
     private func loadText(_ line: StrengthSetLine, kind: StrengthMovementKind) -> String {
         var parts: [String] = []
         if let weight = line.weightKg, weight > 0 {
+            let displayed = TrainingPreferences.formattedWeight(weight, unit: trainingWeightUnit)
             switch kind {
-            case .assistedBodyweight: parts.append("−\(Self.oneDecimal(weight)) kg")
-            case .bodyweightReps, .weightedBodyweight: parts.append("+\(Self.oneDecimal(weight)) kg")
-            default: parts.append("\(Self.oneDecimal(weight)) kg")
+            case .assistedBodyweight: parts.append("−\(displayed)")
+            case .bodyweightReps, .weightedBodyweight: parts.append("+\(displayed)")
+            default: parts.append(displayed)
             }
         } else if kind.carriesBodyweight, let load = line.bodyweightLoadKg {
-            parts.append(String(format: "%.0f kg %@", load, String(localized: "bodyweight")))
+            parts.append("\(TrainingPreferences.formattedWeight(load, unit: trainingWeightUnit)) \(String(localized: "bodyweight"))")
         }
         if let reps = line.reps { parts.append("× \(reps)") }
         if let seconds = line.durationS, seconds > 0 {
@@ -528,6 +537,6 @@ struct StrengthSessionDetailView: View {
     }
 
     private func volumeText(_ kg: Double) -> String {
-        kg >= 1000 ? "\(Self.oneDecimal(kg / 1000)) t" : "\(HevySource.groupedKg(kg)) kg"
+        TrainingPreferences.formattedWeight(kg, unit: trainingWeightUnit)
     }
 }

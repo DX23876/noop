@@ -8,6 +8,11 @@ struct HevyWorkoutReviewView: View {
     @EnvironmentObject private var repo: Repository
     @ObservedObject private var proposals = HevyWorkoutProposalStore.shared
     @State private var sending = false
+    @AppStorage(TrainingPreferences.weightUnitKey) private var weightUnitRaw = TrainingWeightUnit.kilograms.rawValue
+
+    private var trainingWeightUnit: TrainingWeightUnit {
+        TrainingWeightUnit(rawValue: weightUnitRaw) ?? .kilograms
+    }
 
     var body: some View {
         NavigationStack {
@@ -23,7 +28,7 @@ struct HevyWorkoutReviewView: View {
                                     ? String(localized: "After") : String(localized: "Workout"))
                         if proposal.operation == .create {
                             Text("The documented Hevy API does not provide workout deletion. Check this new workout carefully before sending.")
-                                .font(StrandFont.caption).foregroundStyle(StrandPalette.statusWarning)
+                                .font(StrandFont.caption).foregroundStyle(StrandPalette.statusWarningForeground)
                         }
                         if let error = proposal.lastError {
                             Text(error).font(StrandFont.caption).foregroundStyle(StrandPalette.statusCritical)
@@ -62,7 +67,7 @@ struct HevyWorkoutReviewView: View {
                     }
                 }
                 let volume = workout.exercises.flatMap(\.workingSets).compactMap(\.volumeLoadKg).reduce(0, +)
-                let volumeValue = ": \(String(format: "%.0f", volume)) kg"
+                let volumeValue = ": \(TrainingPreferences.formattedWeight(volume, unit: trainingWeightUnit))"
                 (Text("Volume") + Text(verbatim: volumeValue))
                     .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
             }
@@ -70,7 +75,7 @@ struct HevyWorkoutReviewView: View {
     }
 
     private func setText(_ set: HevySet) -> String {
-        var text = "\(set.weightKg.map { String(format: "%.1f kg", $0) } ?? "bodyweight") × \(set.reps.map(String.init) ?? "—")"
+        var text = "\(set.weightKg.map { TrainingPreferences.formattedWeight($0, unit: trainingWeightUnit) } ?? "bodyweight") × \(set.reps.map(String.init) ?? "—")"
         if let rpe = set.rpe { text += " @ RPE \(String(format: "%.1f", rpe))" }
         return text
     }

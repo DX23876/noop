@@ -182,7 +182,7 @@ struct AppleWatchSetupView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text("WHAT IT'S GREAT AT").font(StrandFont.overline)
                     .tracking(StrandFont.overlineTracking)
-                    .foregroundStyle(StrandPalette.statusPositive)
+                    .foregroundStyle(StrandPalette.statusPositive.legibleText)
                 bullet("bed.double.fill", String(localized: "Sleep & Rest"),
                        String(localized: "Apple's sleep stages are strong, and they drive your Rest score directly."))
                 bullet("figure.walk", String(localized: "Steps & workouts"),
@@ -195,11 +195,11 @@ struct AppleWatchSetupView: View {
     }
 
     private var lighterCard: some View {
-        NoopCard(tint: StrandPalette.statusWarning) {
+        NoopCard(tint: StrandPalette.statusWarning, kind: .state) {
             VStack(alignment: .leading, spacing: 12) {
                 Text("WHERE IT'S LIGHTER THAN A STRAP").font(StrandFont.overline)
                     .tracking(StrandFont.overlineTracking)
-                    .foregroundStyle(StrandPalette.statusWarning)
+                    .foregroundStyle(StrandPalette.statusWarningForeground)
                 bullet("heart.fill", String(localized: "Recovery takes about a week"),
                        String(localized: "A watch samples your heart-rate variability rather than streaming it all night, so your Charge score needs roughly seven nights to calibrate. Until then NOOP shows \u{201C}needs more data\u{201D}, never a guessed number."))
                 bullet("drop.degreesign", String(localized: "A couple of metrics depend on your model"),

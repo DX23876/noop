@@ -232,6 +232,7 @@ Fork-only docs, under [`fork/`](fork/):
 | [`fork/EXERCISE_CONTENT_AND_MEDIA.md`](fork/EXERCISE_CONTENT_AND_MEDIA.md) | Exercise identity, instructions and the optional user-initiated media download |
 | [`fork/THIRD_PARTY_NOTICES.md`](fork/THIRD_PARTY_NOTICES.md) | Provenance and rights status of exercise geometry, metadata and media |
 | [`fork/research/sideload-folder-picker.md`](fork/research/sideload-folder-picker.md) | Why re-signed iOS builds can fail to grant an external backup folder, and the staged fix strategy |
+| [`fork/research/openstrap-ecg-adaptation.md`](fork/research/openstrap-ecg-adaptation.md) | OpenStrap's released MG ECG implementation, NOOP's remaining integration gaps, and a source-backed adaptation plan |
 | [`fork/releases/`](fork/releases/) | Release notes — `publish-ios-release.yml` reads `fork/releases/v<VERSION>.md` and refuses to publish without it. NOT tag-named: `Tools/appchangelog-gen.py` derives the in-app "What's New" version from the filename |
 
 When you add a doc, file it into the matching group in the same change — this map stays current

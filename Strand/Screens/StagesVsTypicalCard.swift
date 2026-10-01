@@ -72,7 +72,7 @@ struct StagesVsTypicalCard: View {
                 if !deltaText.isEmpty {
                     Text(deltaText)
                         .font(StrandFont.footnote)
-                        .foregroundStyle(last >= (typical ?? last) ? StrandPalette.statusPositive : StrandPalette.statusWarning)
+                        .foregroundStyle(last >= (typical ?? last) ? StrandPalette.statusPositive : StrandPalette.statusWarningForeground)
                 }
             }
             GeometryReader { geo in

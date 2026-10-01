@@ -220,7 +220,7 @@ struct LabBookView: View {
                 }
                 if let s = csvSummary {
                     Text(s).font(StrandFont.subhead)
-                        .foregroundStyle(csvFailed ? StrandPalette.statusWarning : StrandPalette.statusPositive)
+                        .foregroundStyle(csvFailed ? StrandPalette.statusWarningForeground : StrandPalette.statusPositive)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Divider().overlay(StrandPalette.hairline)
@@ -241,7 +241,7 @@ struct LabBookView: View {
                 }
                 if let s = reportSummary {
                     Text(s).font(StrandFont.subhead)
-                        .foregroundStyle(reportFailed ? StrandPalette.statusWarning : StrandPalette.statusPositive)
+                        .foregroundStyle(reportFailed ? StrandPalette.statusWarningForeground : StrandPalette.statusPositive)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }

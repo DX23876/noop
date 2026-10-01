@@ -143,6 +143,8 @@ struct WorkoutsView: View {
     @State private var sportFilter: String?
     @State private var sourceFilter: WorkoutSource?
     @State private var searchText = ""
+    /// Analysis migration required: no. Advanced filters are merely disclosed on demand.
+    @State private var showingFilters = false
 
     /// Multi-select + merge mode. `selectionMode` toggles the leading checkmarks + the toolbar strip;
     /// `selected` holds the natural keys ("startTs|sport") of the chosen rows. Only MANUAL / DETECTED rows
@@ -565,13 +567,45 @@ struct WorkoutsView: View {
                 fillsAvailableWidth: true
             ) { $0.label }
                 .frame(maxWidth: .infinity, alignment: .leading)
-            filterBar
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) { showingFilters.toggle() }
+            } label: {
+                HStack(spacing: 7) {
+                    Image(systemName: filter.isActive
+                          ? "line.3.horizontal.decrease.circle.fill"
+                          : "line.3.horizontal.decrease.circle")
+                    Text(filterButtonTitle)
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 10, weight: .semibold))
+                        .rotationEffect(.degrees(showingFilters ? 180 : 0))
+                }
+                .font(StrandFont.subhead)
+                .foregroundStyle(filter.isActive ? StrandPalette.effortColor : StrandPalette.textSecondary)
+                .padding(.horizontal, NoopMetrics.space3)
+                .frame(minHeight: 44)
+                .background(StrandPalette.surfaceInset,
+                            in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .accessibilityValue(showingFilters ? "Expanded" : "Collapsed")
+            if showingFilters {
+                filterBar.transition(.opacity.combined(with: .move(edge: .top)))
+            }
             Text(caption)
                 .font(StrandFont.footnote)
-                .foregroundStyle(fellBack ? StrandPalette.statusWarning : StrandPalette.textTertiary)
+                .foregroundStyle(fellBack ? StrandPalette.statusWarningForeground : StrandPalette.textTertiary)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityLabel(caption)
         }
+    }
+
+    private var filterButtonTitle: String {
+        var count = 0
+        if sportFilter != nil { count += 1 }
+        if sourceFilter != nil { count += 1 }
+        if !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { count += 1 }
+        return count == 0 ? String(localized: "Filters") : String(localized: "Filters (\(count))")
     }
 
     /// #64: filter controls beside the range pill — a Sport menu, a Source menu, and a search field, with

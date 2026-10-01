@@ -3,6 +3,7 @@ import SwiftUI
 import Combine
 import UIKit
 import StrandDesign
+import WhoopStore
 
 /// iOS navigation shell. macOS uses a `NavigationSplitView` sidebar (`RootView`); on iPhone the
 /// natural analogue is a `TabView` with the most-used screens as tabs and everything else under a
@@ -69,14 +70,6 @@ struct RootTabView: View {
     /// a no-op). Threaded into each tab's root via `\.scrollToTopSignal`; ScreenScaffold / LiquidTodayView
     /// scroll to their top anchor when their tab's token changes.
     @State private var scrollTop: [Int] = Array(repeating: 0, count: 5)
-    /// Which More-tab groups are expanded (S2). Insights + Body stay open at rest; Data + App collapse to
-    /// just their header until tapped. Persisted (#860 item 2): the user's open/closed choice must SURVIVE
-    /// leaving and re-entering the More tab (and relaunch), not reset to the seed every visit. Backed by an
-    /// `@AppStorage` CSV string (keyed identically to the Android `MoreSectionPrefs`), bridged to a
-    /// `Set<String>` through `MoreSectionPrefs` so the section logic below is unchanged.
-    @AppStorage(MoreSectionPrefs.storageKey) private var expandedMoreSectionsCSV = MoreSectionPrefs.defaultCSV
-    private var expandedMoreSections: Set<String> { MoreSectionPrefs.decode(expandedMoreSectionsCSV) }
-
     /// The More index's filter text. Deliberately NOT persisted: a search is a momentary question,
     /// and coming back to the tab to find it still filtered would read as the app having lost rows.
     @State private var moreQuery = ""
@@ -116,6 +109,17 @@ struct RootTabView: View {
     init(model: AppModel, homeScreenQuickActionsEnabled: Bool) {
         self.model = model
         self.homeScreenQuickActionsEnabled = homeScreenQuickActionsEnabled
+        #if DEBUG
+        // Analysis migration required: no. This DEBUG-only selector opens an existing tab for
+        // deterministic screenshots and does not affect production navigation or derived values.
+        let args = CommandLine.arguments
+        if let i = args.firstIndex(of: "--demo-tab"), i + 1 < args.count {
+            let demoTabs = ["today": 0, "trends": 1, "training": 2, "sleep": 3, "more": 4]
+            if let tab = demoTabs[args[i + 1].lowercased()] {
+                _selectedTab = State(initialValue: tab)
+            }
+        }
+        #endif
         let appearance = UITabBarAppearance()
         appearance.selectionIndicatorTintColor = .clear
         UITabBar.appearance().standardAppearance = appearance
@@ -578,20 +582,16 @@ struct RootTabView: View {
         .tabItem { Label(title, systemImage: icon) }
     }
 
-    // The "More" tab is the app's catch-all index. It was a plain SwiftUI `List` with system large-title
-    // + system title-case section headers, so it didn't match any other page (which all use ScreenScaffold
-    // + SectionHeader's UPPERCASE overline + the 28pt section rhythm). Rebuilt on the shared page chrome:
-    // ScreenScaffold for the title1 "More" + subtitle, a `SectionHeader` overline per group, and the group's
-    // rows in a single grouped NoopCard with hairline dividers — the same row idiom Settings/Health use.
+    // Analysis migration required: no. This is navigation and presentation only; stored health inputs,
+    // derived values and their invalidation semantics are unchanged.
     private func moreTab(path: Binding<NavigationPath>, scrollSignal: Int) -> some View {
         NavigationStack(path: path) {
             ScreenScaffold(title: "More", subtitle: "Everything else, one tap away",
                            onRefresh: { await repo.refresh() },
                            topBackground: liquidScaffoldSky()) {
-                // The index is a lot of rows across four groups, two of which rest collapsed — so the
-                // field comes FIRST, before the reader has to decide which group a screen lives in.
-                // It also reaches into Settings (see `moreSearchResults`), which is where "where do I
-                // turn X on?" actually ends.
+                MoreProfileRow()
+                MoreDeviceRow(model: model)
+
                 NoopLiquidGlassSearchField(
                     text: $moreQuery,
                     prompt: String(localized: "Search screens and settings"),
@@ -601,14 +601,28 @@ struct RootTabView: View {
                 if isSearchingMore {
                     moreSearchResults
                 } else {
-                    // The rows themselves live in `MoreCatalog` — the search has to read them, and a
-                    // @ViewBuilder closure cannot be read. Group order, titles and the persisted
-                    // open/closed state are unchanged.
-                    ForEach(MoreCatalog.groups) { group in
-                        moreSection(group)
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Browse").strandOverline()
+                        VStack(spacing: 12) {
+                            ForEach(MoreCatalog.groups) { group in
+                                MoreCategoryRow(category: group.category)
+                            }
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Quick access").strandOverline()
+                        NoopCard(padding: 0, cornerRadius: NoopMetrics.groupedRadius) {
+                            VStack(spacing: 0) {
+                                ForEach(MoreCatalog.rootEntries) { entry in MoreRow(entry) }
+                            }
+                            .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius,
+                                                        style: .continuous))
+                        }
                     }
                 }
             }
+            .noopCardKind(.navigation)
             // The rows push MoreDestination VALUES so a re-tap of the More tab can pop them off the
             // bound path (#135/#198). Each destination keeps the per-screen wrapper the rows used to
             // apply inline (surfaceBase background, inline title bar, hidden bar background):
@@ -626,62 +640,6 @@ struct RootTabView: View {
         // Scroll the More index to the top on an at-root re-tap (#198 follow-up); read by its ScreenScaffold.
         .environment(\.scrollToTopSignal, scrollSignal)
         .tabItem { Label("More", systemImage: "ellipsis") }
-    }
-
-    /// One titled, COLLAPSIBLE group in the More index (S2): the app's overline (UPPERCASE) becomes a
-    /// tappable header with a disclosure chevron; tapping it expands/collapses the grouped rows card.
-    /// Insights + Body default open, Data + App default collapsed (the `expandedMoreSections` seed) so the
-    /// list is shorter at rest without dropping a single row. The grouped card is unchanged: a single
-    /// `NoopCard` holding a `VStack(spacing: 0)` whose `MoreRow`s draw their own hairlines, clipped to the
-    /// card's rounded shape so the last divider is trimmed inside the corners. Same idiom Settings/Health use.
-    @ViewBuilder
-    private func moreSection(_ group: MoreGroup) -> some View {
-        let title = group.title
-        let isOpen = expandedMoreSections.contains(title)
-        VStack(alignment: .leading, spacing: 10) {
-            // Tappable overline header: the same ALL-CAPS tracked label as before, now with a trailing
-            // chevron that rotates open. A plain Button (not a SwiftUI DisclosureGroup) so the header keeps
-            // the exact strandOverline styling and the card layout below stays identical to before.
-            Button {
-                withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) {
-                    // Persist the toggle via the CSV-backed @AppStorage so the choice survives leaving and
-                    // re-entering the More tab and relaunch (#860 item 2). MoreSectionPrefs owns encode/decode.
-                    var open = expandedMoreSections
-                    if isOpen { open.remove(title) } else { open.insert(title) }
-                    expandedMoreSectionsCSV = MoreSectionPrefs.encode(open)
-                }
-            } label: {
-                HStack(spacing: 6) {
-                    Text(title).strandOverline()
-                    Spacer(minLength: 8)
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(StrandPalette.textTertiary)
-                        .rotationEffect(.degrees(isOpen ? 0 : -90))
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(Text(title))
-            .accessibilityValue(Text(isOpen ? String(localized: "Expanded") : String(localized: "Collapsed")))
-            .accessibilityHint(Text(isOpen ? String(localized: "Double tap to collapse") : String(localized: "Double tap to expand")))
-
-            if isOpen {
-                // Zero internal padding so each MoreRow owns its own comfortable insets + height; the rows
-                // supply their own hairline separators (drawn at the bottom of every row but the last via the
-                // divider overlay) so the group reads as one continuous grouped list, matching Settings/Health.
-                NoopCard(padding: 0, cornerRadius: NoopMetrics.groupedRadius) {
-                    VStack(spacing: 0) {
-                        ForEach(group.entries) { entry in MoreRow(entry) }
-                    }
-                        // Clip the rows column to the card's rounded shape so the last row's bottom hairline is
-                        // trimmed inside the corners (the card draws its surface in the BACKGROUND and doesn't
-                        // clip content itself, so without this the final divider would run past the rounded edge).
-                        .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous))
-                }
-            }
-        }
     }
 
     /// The flat result list shown while the field has text.
@@ -720,16 +678,21 @@ struct RootTabView: View {
                 }
             }
             if !settings.isEmpty {
+                let settingPages = SettingsPage.allCases.filter { page in
+                    settings.contains(where: { $0.page == page })
+                }
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Settings").strandOverline()
                     NoopCard(padding: 0, cornerRadius: NoopMetrics.groupedRadius) {
                         VStack(spacing: 0) {
-                            ForEach(settings) { entry in
+                            ForEach(settingPages) { page in
+                                let matches = settings.filter { $0.page == page }
+                                    .map { String(localized: $0.title) }
+                                    .joined(separator: " · ")
                                 // Carry the query into Settings so the pushed screen opens already
-                                // filtered to this section — otherwise the tap would land the reader
-                                // back in the same 15-card wall they were searching to avoid.
-                                MoreRow(entry.title, "gearshape.fill", .settingsSearch(moreQuery),
-                                        caption: "in Settings", colorKey: "settings")
+                                // filtered. Each page appears once even if several controls match it.
+                                MoreRow(matches, page.icon, .settingsSearch(moreQuery),
+                                        caption: String(localized: page.title), colorKey: page.colorKey)
                             }
                         }
                         .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous))
@@ -745,6 +708,8 @@ struct RootTabView: View {
 /// per-screen chrome the old inline links applied lives at the single `navigationDestination(for:)`
 /// registration in `moreTab`.
 enum MoreDestination: Hashable {
+    case category(MoreCategory)
+    case profile, devices, training
     case momentum
     case insightsHub, intelligence, coach, coachSettings, goalJourney, insights, explore, compare
     case live, workouts, health, labBook, stress, breathe, intervals, rhythm, strength, cardio, trainingLoad
@@ -758,6 +723,10 @@ enum MoreDestination: Hashable {
 
     @ViewBuilder var destination: some View {
         switch self {
+        case .category(let category): MoreCategoryView(category: category)
+        case .profile:         SettingsView(initialPage: .profile)
+        case .devices:         DevicesView()
+        case .training:        TrainingHubView()
         case .momentum:        MomentumScreen()
         case .insightsHub:     InsightsHubView()
         case .intelligence:    IntelligenceView()
@@ -806,25 +775,25 @@ enum MoreDestination: Hashable {
 /// trailing `chevron.right` in `textTertiary`. ~44pt min height + the card's row insets keep the whole row a
 /// comfortable tap target.
 struct MoreRow: View {
-    let title: LocalizedStringResource
+    let title: String
     let icon: String
     let route: MoreDestination
     /// Secondary line under the title. Only the search results use it — to say WHERE a hit lives
     /// ("in Settings"), which a flat result list otherwise leaves the reader to guess.
-    var caption: LocalizedStringResource?
+    var caption: String?
     /// Key for the semantic icon colour. Defaults to the route's own name, which is what every
     /// grouped row uses; a search result whose route carries an associated value (`.settingsSearch`)
     /// passes the plain key so it keeps the Settings colour instead of falling off the lookup.
     var colorKey: String?
 
     init(_ entry: MoreEntry) {
-        self.init(entry.title, entry.icon, entry.route)
+        self.init(String(localized: entry.title), entry.icon, entry.route)
     }
 
-    init(_ title: LocalizedStringResource,
+    init(_ title: String,
          _ icon: String,
          _ route: MoreDestination,
-         caption: LocalizedStringResource? = nil,
+         caption: String? = nil,
          colorKey: String? = nil) {
         self.title = title; self.icon = icon; self.route = route
         self.caption = caption; self.colorKey = colorKey
@@ -870,8 +839,8 @@ struct MoreRow: View {
             // edge stays clean (the divider sits inside the card's rounded corners).
             .overlay(alignment: .bottom) {
                 Rectangle()
-                    .fill(StrandPalette.hairline)
-                    .frame(height: 1)
+                    .fill(StrandPalette.hairline.opacity(0.32))
+                    .frame(height: 0.5)
                     .padding(.leading, 16)
             }
         }
@@ -982,6 +951,135 @@ private struct QuickActionSheet: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+}
+
+/// Profile and device status stay visible at the top of More, matching the hierarchy people already
+/// know from Apple Health and the major fitness apps. Both rows are deliberately compact: the details
+/// live on their destination pages.
+private struct MoreProfileRow: View {
+    @EnvironmentObject private var profile: ProfileStore
+
+    var body: some View {
+        NavigationLink(value: MoreDestination.profile) {
+            StrandCard(padding: 16, cornerRadius: NoopMetrics.groupedRadius) {
+                HStack(spacing: 14) {
+                    ProfileAvatarView(imageData: profile.avatarImageData, size: 64)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(profile.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                             ? String(localized: "Set up your profile") : profile.name)
+                            .font(StrandFont.headline)
+                            .foregroundStyle(StrandPalette.textPrimary)
+                        Text("Personal details, body metrics and heart-rate zones")
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                            .lineLimit(2)
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(StrandPalette.textTertiary)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct MoreDeviceRow: View {
+    @ObservedObject var model: AppModel
+    @EnvironmentObject private var live: LiveState
+
+    private var activeDevice: PairedDevice? {
+        model.deviceRegistry?.devices.first { $0.status == .active && !$0.isImportSource }
+    }
+
+    private var status: String {
+        guard activeDevice != nil else { return String(localized: "Connect a wearable or sensor") }
+        guard live.connected else { return String(localized: "Not connected") }
+        if let battery = live.batteryPct {
+            return String(localized: "Connected · Battery \(Int(battery.rounded()))%")
+        }
+        return String(localized: "Connected")
+    }
+
+    var body: some View {
+        NavigationLink(value: MoreDestination.devices) {
+            NoopCard(padding: 16, cornerRadius: NoopMetrics.groupedRadius) {
+                HStack(spacing: 14) {
+                    Image(systemName: live.connected ? "sensor.tag.radiowaves.forward.fill" : "sensor.tag.radiowaves.forward")
+                        .appleInspiredMenuIcon("deviceSetup", size: 42)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(activeDevice?.displayName ?? String(localized: "Devices"))
+                            .font(StrandFont.headline)
+                            .foregroundStyle(StrandPalette.textPrimary)
+                        HStack(spacing: 5) {
+                            Circle()
+                                .fill(live.connected ? StrandPalette.statusPositive : StrandPalette.textTertiary)
+                                .frame(width: 7, height: 7)
+                                .accessibilityHidden(true)
+                            Text(status)
+                                .font(StrandFont.footnote)
+                                .foregroundStyle(StrandPalette.textSecondary)
+                        }
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(StrandPalette.textTertiary)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct MoreCategoryRow: View {
+    let category: MoreCategory
+
+    var body: some View {
+        NavigationLink(value: MoreDestination.category(category)) {
+            NoopCard(padding: 16, cornerRadius: NoopMetrics.groupedRadius) {
+                HStack(spacing: 14) {
+                    Image(systemName: category.icon)
+                        .appleInspiredMenuIcon(category.colorKey, size: 42)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(category.title)
+                            .font(StrandFont.headline)
+                            .foregroundStyle(StrandPalette.textPrimary)
+                        Text(category.subtitle)
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                            .lineLimit(2)
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(StrandPalette.textTertiary)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct MoreCategoryView: View {
+    let category: MoreCategory
+
+    var body: some View {
+        ScreenScaffold(
+            title: LocalizedStringKey(String(localized: category.title)),
+            subtitle: LocalizedStringKey(String(localized: category.subtitle)),
+            topBackground: liquidScaffoldSky()
+        ) {
+            NoopCard(padding: 0, cornerRadius: NoopMetrics.groupedRadius) {
+                VStack(spacing: 0) {
+                    ForEach(MoreCatalog.group(for: category).entries) { entry in MoreRow(entry) }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous))
+            }
+        }
+        .noopCardKind(.navigation)
     }
 }
 

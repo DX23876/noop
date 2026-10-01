@@ -196,7 +196,7 @@ struct LoadHeroCard: View {
                 Label {
                     Text(caveat).foregroundStyle(StrandPalette.textPrimary)
                 } icon: {
-                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(StrandPalette.statusWarning)
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(StrandPalette.statusWarningForeground)
                 }
                 .font(StrandFont.caption)
                 .fixedSize(horizontal: false, vertical: true)

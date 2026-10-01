@@ -37,6 +37,7 @@ final class EnergyPlanModel: ObservableObject {
     /// What today's intake currently reads, from Health, a CSV import or typed in here. Nil means
     /// nothing has been logged for today, which the card says rather than guessing.
     @Published private(set) var todayIntakeKcal: Double?
+    @Published private(set) var todayNutrition: NutritionDay?
     /// Today's projected total burn, so the card can show the denominator even before an intake
     /// figure exists.
     @Published private(set) var todayProjectedBurnKcal: Double?
@@ -69,16 +70,19 @@ final class EnergyPlanModel: ObservableObject {
 
         let from = Repository.localDayKey(
             Calendar.current.date(byAdding: .day, value: -Self.windowDays, to: Date()) ?? Date())
-        let intake = await repo.intakeByDay(from: from, to: today)
+        let nutrition = await repo.nutritionByDay(from: from, to: today)
+        let intake = nutrition.compactMapValues(\.calories)
         intakeDays = intake.count
-        let macros = await repo.macrosByDay(from: from, to: today)
+        let macros = nutrition.mapValues {
+            (protein: $0.proteinG, carbs: $0.carbsG, fat: $0.fatG)
+        }
         let thermic = intake.compactMap { day, kcal in
             EnergyPlanning.thermicEffect(intakeKcal: kcal, proteinG: macros[day]?.protein,
                                          carbsG: macros[day]?.carbs, fatG: macros[day]?.fat)
         }
         thermicEffectKcal = thermic.isEmpty ? nil : thermic.reduce(0, +) / Double(thermic.count)
 
-        await loadTodayBalance(repo: repo, profile: profile, intake: intake, macros: macros)
+        await loadTodayBalance(repo: repo, profile: profile, nutrition: nutrition)
         loaded = true
     }
 
@@ -89,30 +93,36 @@ final class EnergyPlanModel: ObservableObject {
     /// in the afternoon the burn-so-far is half a day and the food is most of one, so every
     /// afternoon would read as a surplus — a verdict that says more about the clock than the diet.
     private func loadTodayBalance(repo: Repository, profile: UserProfile,
-                                  intake: [String: Double],
-                                  macros: [String: (protein: Double?, carbs: Double?, fat: Double?)]) async {
-        todayIntakeKcal = intake[today]
+                                  nutrition: [String: NutritionDay]) async {
+        todayNutrition = nutrition[today]
+        todayIntakeKcal = todayNutrition?.calories
         let summary = await repo.todayEnergy(profile: profile)
         todayProjectedBurnKcal = summary?.projectedTotalBurn
         todayBalance = EnergyPlanning.dailyBalance(
-            intakeKcal: intake[today],
-            thermicKcal: EnergyPlanning.thermicEffect(intakeKcal: intake[today],
-                                                      proteinG: macros[today]?.protein,
-                                                      carbsG: macros[today]?.carbs,
-                                                      fatG: macros[today]?.fat),
+            intakeKcal: todayNutrition?.calories,
+            thermicKcal: EnergyPlanning.thermicEffect(intakeKcal: todayNutrition?.calories,
+                                                      proteinG: todayNutrition?.proteinG,
+                                                      carbsG: todayNutrition?.carbsG,
+                                                      fatG: todayNutrition?.fatG),
             projectedBurnKcal: summary?.projectedTotalBurn,
             projectedBurnRange: summary?.projectedRangeKcal)
     }
 
     /// Records what was eaten today and recomputes the verdict, without reloading the whole page.
-    func recordTodayIntake(_ kcal: Double, repo: Repository, profile: UserProfile) async {
-        guard await repo.recordIntake(kcal: kcal, on: today) else { return }
+    @discardableResult
+    func recordTodayIntake(_ kcal: Double, repo: Repository, profile: UserProfile) async -> Bool {
+        let existing = await repo.manualNutrition(on: today)
+        let entry = ManualNutritionEntry(
+            day: today, calories: kcal, proteinG: existing?.proteinG,
+            carbsG: existing?.carbsG, fatG: existing?.fatG,
+            isConfirmedNoIntake: kcal == 0)
+        guard await repo.recordManualNutrition(entry) else { return false }
         let from = Repository.localDayKey(
             Calendar.current.date(byAdding: .day, value: -Self.windowDays, to: Date()) ?? Date())
-        let intake = await repo.intakeByDay(from: from, to: today)
-        intakeDays = intake.count
-        await loadTodayBalance(repo: repo, profile: profile, intake: intake,
-                               macros: await repo.macrosByDay(from: from, to: today))
+        let nutrition = await repo.nutritionByDay(from: from, to: today)
+        intakeDays = nutrition.values.filter { $0.calories != nil }.count
+        await loadTodayBalance(repo: repo, profile: profile, nutrition: nutrition)
+        return true
     }
 
     /// The daily deficit or surplus the wearer's own target rate implies, or nil when they hold.

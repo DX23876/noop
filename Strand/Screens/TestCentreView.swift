@@ -241,7 +241,7 @@ struct TestCentreView: View {
                 .buttonStyle(NoopButtonStyle(.primary, fullWidth: true))
                 Text(live.connected ? "WHOOP 5/MG connected." : "Connect your WHOOP 5/MG to start a raw-data session.")
                     .font(StrandFont.caption)
-                    .foregroundStyle(live.connected ? StrandPalette.textSecondary : StrandPalette.statusWarning)
+                    .foregroundStyle(live.connected ? StrandPalette.textSecondary : StrandPalette.statusWarningForeground)
             }
         }
     }
@@ -1100,7 +1100,7 @@ private struct ConnectionReadoutPanel: View {
                 // single most common "no history" root cause and the fix is in the sentence.
                 Text(rtcWarning)
                     .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.statusWarning)
+                    .foregroundStyle(StrandPalette.statusWarningForeground)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityLabel(rtcWarning)
             }
@@ -1249,7 +1249,7 @@ private struct ReportReviewSheet: View {
                     // the fix, BEFORE the user ships a report a maintainer can't act on.
                     Text("Heads up: this test mode is off, so the report has no capture for it. For a useful report, turn the mode on, reproduce the problem while wearing the strap, then report again.")
                         .font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.statusWarning)
+                        .foregroundStyle(StrandPalette.statusWarningForeground)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 NoopCard {

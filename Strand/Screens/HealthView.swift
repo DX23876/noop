@@ -4,6 +4,41 @@ import StrandDesign
 import StrandAnalytics
 import WhoopStore
 
+/// One calm disconnected state shared by Health and Live. It keeps the status and the next action
+/// above the fold while connection diagnostics remain in Test Centre.
+/// Analysis migration required: no. This only changes navigation and presentation.
+struct WearableConnectionStateCard: View {
+    let title: LocalizedStringKey
+    let detail: LocalizedStringKey
+    let actionTitle: LocalizedStringKey
+    let action: () -> Void
+
+    var body: some View {
+        NoopCard(tint: StrandPalette.metricCyan) {
+            VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                HStack(spacing: NoopMetrics.space3) {
+                    Image(systemName: "sensor.tag.radiowaves.forward")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(StrandPalette.metricCyan)
+                        .frame(width: 44, height: 44)
+                        .background(StrandPalette.metricCyan.opacity(0.14), in: Circle())
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(title).font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                        StatePill("Offline", tone: .neutral, showsDot: false)
+                    }
+                }
+                Text(detail)
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                NoopButton(actionTitle, systemImage: "arrow.right", kind: .primary,
+                           fullWidth: true, action: action)
+            }
+        }
+    }
+}
+
 /// NOOP — Health Monitor.
 /// Live heart rate hero (ChartCard with a streaming sparkline + HR-zone footer),
 /// then a uniform LazyVGrid of the body's vital signs (respiratory rate, blood
@@ -113,13 +148,12 @@ private struct HealthFirstRunContent: View {
 
     var body: some View {
         if !hasLiveHR {
-            VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
-                // Even with no history yet, a freshly-connected strap can be told to sync now (#364) —
-                // so the control is reachable before the screen has any data to show.
-                SyncStatusSection()
-                ComingSoon(what: "No biometrics yet. Import your WHOOP export (and Apple Health if you have it) in Data Sources to fill this in.",
-                           action: ("Open Data Sources", { router.openDataSources() }))
-            }
+            WearableConnectionStateCard(
+                title: "No biometrics yet",
+                detail: "Connect a wearable to begin collecting live vitals and history. Existing records can still be imported from Data Sources.",
+                actionTitle: "Connect a device",
+                action: { router.openDevices() }
+            )
         } else {
             HealthSectionsStack()
         }
@@ -932,7 +966,7 @@ private struct FitnessAgeSection: View {
                         Text("Fitness Age").strandOverline()
                         Text(ageDeltaLine(years: years, younger: younger, bound: bound))
                             .font(StrandFont.subhead)
-                            .foregroundStyle(younger ? StrandPalette.statusPositive : StrandPalette.statusWarning)
+                            .foregroundStyle(younger ? StrandPalette.statusPositive : StrandPalette.statusWarningForeground)
                     }
                     Spacer(minLength: 0)
                     if let vo2 = vo2max {
@@ -1289,18 +1323,18 @@ private struct VitalitySection: View {
                                 color: StrandPalette.textPrimary)
                     Text(bodyAgeDeltaLine(yrs: yrs, younger: younger))
                         .font(StrandFont.footnote)
-                        .foregroundStyle(younger ? StrandPalette.statusPositive : StrandPalette.statusWarning)
+                        .foregroundStyle(younger ? StrandPalette.statusPositive : StrandPalette.statusWarningForeground)
                 }
             }
             if (best?.lnHazard ?? 0) < 0 || (worst?.lnHazard ?? 0) > 0 {
                 Divider().overlay(StrandPalette.hairline)
                 if let best, best.lnHazard < 0 {
                     Text("Helping most: \(best.label)")
-                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.statusPositive)
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.statusPositive.legibleText)
                 }
                 if let worst, worst.lnHazard > 0 {
                     Text("Holding you back: \(worst.label)")
-                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.statusWarning)
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.statusWarningForeground)
                 }
             }
             Text("A wellness estimate from your habits, not a clinical biological age.")
