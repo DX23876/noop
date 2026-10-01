@@ -27,6 +27,16 @@ approximate; downloads are on the [Releases](https://github.com/NoopApp/noop/rel
   warning text uses a high-contrast foreground while amber remains available for fills and accents.
 - **Dense screens disclose detail when it is useful.** Device caveats, pairing help, workout filters and
   secondary comparisons remain available without competing with the primary status or action.
+- **Cards have four kinds.** Navigation cards rest on their fill alone, data cards lose the grey rim
+  in light mode and keep a soft shadow, hero cards keep their adaptive edge, and warning cards carry a
+  thin rim in their own tint. Transparent cards get a hairline back so their edge survives, and
+  Increase Contrast strengthens the edge of every kind. Dark appearance and macOS are unchanged.
+- **Accent colours stay readable as text.** Yellow, orange and green labels on light cards are darkened
+  to at least 4.5:1 contrast; the bright accents remain for fills, rings and dots.
+- **Explore shows each measurement once.** A measurement available from several sources has one row
+  with its sources as chips, and the Energy introduction shows its three routes with icons.
+- **Pink is reserved for heart rate.** Weight uses the body-measurement purple and run-down or alert
+  states use the status red.
 
 **Analysis migration required: no.** These changes affect presentation and navigation only; stored
 samples, settings, source precedence and derived analysis values are unchanged.

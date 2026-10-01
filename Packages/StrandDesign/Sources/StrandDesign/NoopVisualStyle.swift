@@ -163,6 +163,9 @@ public struct NoopPanelSurface: View {
                 switch chrome.rim {
                 case .none:
                     EmptyView()
+                case .strong where scheme == .light:
+                    // The gradient's top stop is white in light appearance; use the real border colour.
+                    shape.strokeBorder(NoopVisualStyle.border, lineWidth: 1.5)
                 case .hairline, .strong:
                     shape.strokeBorder(
                         LinearGradient(

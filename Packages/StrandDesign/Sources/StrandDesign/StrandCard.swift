@@ -59,7 +59,9 @@ public struct FrostedCardSurface: View {
         switch rim {
         case .none: return nil
         case .hairline: return StrandPalette.hairline
-        case .strong: return StrandPalette.hairlineStrong
+        // `hairlineStrong` is the top-lit highlight, pure white in light appearance and so invisible there;
+        // "Increase Contrast" needs the real border colour on light and the lighter line on dark.
+        case .strong: return scheme == .light ? StrandPalette.hairline : StrandPalette.hairlineStrong
         case .tinted: return tint?.opacity(0.45) ?? StrandPalette.hairlineStrong
         case .tintedStrong: return tint?.opacity(0.85) ?? StrandPalette.hairlineStrong
         }
@@ -100,7 +102,7 @@ public struct FrostedCardSurface: View {
             // matches the liquid home card's edge (LiquidTodayView.card), not just fill contrast.
             .overlay {
                 if let rim = rimColor(chrome.rim) {
-                    shape.strokeBorder(rim, lineWidth: 1)
+                    shape.strokeBorder(rim, lineWidth: chrome.rim == .strong ? 1.5 : 1)
                 }
             }
             // LIGHT raises white cards off the warm-paper canvas with a soft resting drop shadow; DARK
