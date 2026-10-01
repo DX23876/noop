@@ -254,7 +254,7 @@ struct CoachGoalOnboardingFlow: View {
                 }
             }
             if let warning = safety.warning {
-                NoopCard(padding: 14, tint: StrandPalette.statusWarning) {
+                NoopCard(padding: 14, tint: StrandPalette.statusWarning, kind: .state) {
                     HStack(alignment: .top, spacing: 10) {
                         Image(systemName: safety.verdict == .veryAggressive
                               ? "exclamationmark.triangle.fill" : "info.circle.fill")

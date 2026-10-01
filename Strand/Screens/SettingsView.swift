@@ -495,7 +495,7 @@ struct SettingsView: View {
             }
         }
         #if os(iOS)
-        .noopCardChromeStyle(.grouped)
+        .noopCardKind(.navigation)
         #endif
         .navigationDestination(for: SettingsPage.self) { page in
             SettingsView(initialPage: page)

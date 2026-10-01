@@ -154,14 +154,17 @@ public struct NoopCard<Content: View>: View {
     private let padding: CGFloat
     private let tint: Color?
     private let cornerRadius: CGFloat
+    private let kind: NoopCardKind?
     @ViewBuilder private let content: () -> Content
     #if os(macOS)
     @State private var hover = false
     #endif
+    /// `kind` nil follows the subtree default (`noopCardKind(_:)`), `.data` unless a screen sets it.
     public init(padding: CGFloat = NoopMetrics.cardPadding, tint: Color? = nil,
-                cornerRadius: CGFloat = NoopMetrics.cardRadius,
+                cornerRadius: CGFloat = NoopMetrics.cardRadius, kind: NoopCardKind? = nil,
                 @ViewBuilder content: @escaping () -> Content) {
-        self.padding = padding; self.tint = tint; self.cornerRadius = cornerRadius; self.content = content
+        self.padding = padding; self.tint = tint; self.cornerRadius = cornerRadius
+        self.kind = kind; self.content = content
     }
     public var body: some View {
         content()
@@ -183,13 +186,13 @@ public struct NoopCard<Content: View>: View {
     @ViewBuilder private var cardSurface: some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         #if os(macOS)
-        FrostedCardSurface(tint: tint, cornerRadius: cornerRadius)
+        FrostedCardSurface(tint: tint, cornerRadius: cornerRadius, kind: kind)
             .overlay(
                 shape.strokeBorder(StrandPalette.hairlineStrong, lineWidth: 1).opacity(hover ? 1 : 0)
             )
             .animation(.easeOut(duration: 0.16), value: hover)
         #else
-        FrostedCardSurface(tint: tint, cornerRadius: cornerRadius)
+        FrostedCardSurface(tint: tint, cornerRadius: cornerRadius, kind: kind)
         #endif
     }
 }

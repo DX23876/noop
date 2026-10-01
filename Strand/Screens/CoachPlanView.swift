@@ -114,7 +114,7 @@ struct CoachPlanView: View {
     @ViewBuilder
     private func reconciliationCard(_ resolution: PlanReconciliationResolution) -> some View {
         if let proposal = store.proposals.first(where: { $0.id == resolution.proposalId }) {
-            NoopCard(padding: 14, tint: StrandPalette.statusWarning) {
+            NoopCard(padding: 14, tint: StrandPalette.statusWarning, kind: .state) {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 8) {
                         Image(systemName: "questionmark.circle.fill")

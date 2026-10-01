@@ -195,7 +195,7 @@ struct AppleWatchSetupView: View {
     }
 
     private var lighterCard: some View {
-        NoopCard(tint: StrandPalette.statusWarning) {
+        NoopCard(tint: StrandPalette.statusWarning, kind: .state) {
             VStack(alignment: .leading, spacing: 12) {
                 Text("WHERE IT'S LIGHTER THAN A STRAP").font(StrandFont.overline)
                     .tracking(StrandFont.overlineTracking)

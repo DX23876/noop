@@ -622,7 +622,7 @@ struct RootTabView: View {
                     }
                 }
             }
-            .noopCardChromeStyle(.grouped)
+            .noopCardKind(.navigation)
             // The rows push MoreDestination VALUES so a re-tap of the More tab can pop them off the
             // bound path (#135/#198). Each destination keeps the per-screen wrapper the rows used to
             // apply inline (surfaceBase background, inline title bar, hidden bar background):
@@ -1079,7 +1079,7 @@ struct MoreCategoryView: View {
                 .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous))
             }
         }
-        .noopCardChromeStyle(.grouped)
+        .noopCardKind(.navigation)
     }
 }
 
