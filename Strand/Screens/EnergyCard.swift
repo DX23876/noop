@@ -44,8 +44,13 @@ struct EnergyCard: View {
         NoopCard(tint: StrandPalette.energyResting) {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 8) {
-                    Label("Energy", systemImage: "flame.fill")
-                        .strandOverlineLabel(color: StrandPalette.energyHighlight)
+                    // Neutral words, coloured glyph: the hero's label rule.
+                    Label {
+                        Text("Energy")
+                    } icon: {
+                        Image(systemName: "flame.fill").foregroundStyle(StrandPalette.energyHighlight)
+                    }
+                        .strandOverlineLabel(color: StrandPalette.textSecondary)
                     Spacer(minLength: 8)
                     confidencePill
                 }
@@ -272,31 +277,46 @@ struct EnergyCompositionMark: View {
         Self.fractions(resting: restingKcal, active: activeKcal)
     }
 
+    /// Static, but in the hero rings' light: gradient arcs with a soft glow beneath them and a warm
+    /// core, instead of two flat ochre strokes (2026-10-02).
     var body: some View {
         ZStack {
-            Circle().stroke(StrandPalette.energyTrack, style: .init(lineWidth: 10, lineCap: .round))
+            Circle().stroke(StrandPalette.energyTrack, style: .init(lineWidth: 11, lineCap: .round))
             if hasTotal, let fractions {
-                Circle()
-                    .trim(from: 0, to: fractions.resting)
-                    .stroke(StrandPalette.energyResting,
-                            style: .init(lineWidth: 10, lineCap: .butt))
-                    .rotationEffect(.degrees(-90))
-                if fractions.active > 0 {
-                    Circle()
-                        .trim(from: fractions.resting, to: 1)
-                        .stroke(StrandPalette.energyActive,
-                                style: .init(lineWidth: 10, lineCap: .round))
-                        .rotationEffect(.degrees(-90))
-                }
+                arcs(fractions)
+                    .blur(radius: 7)
+                    .opacity(0.55)
+                    .accessibilityHidden(true)
+                arcs(fractions)
             }
             Circle()
-                .fill(StrandPalette.energyHighlight.opacity(0.12))
-                .frame(width: 62, height: 62)
+                .fill(RadialGradient(colors: [StrandPalette.energyHighlight.opacity(0.26),
+                                              StrandPalette.energyHighlight.opacity(0.06)],
+                                     center: .center, startRadius: 2, endRadius: 34))
+                .frame(width: 64, height: 64)
             Image(systemName: "flame.fill")
                 .font(.system(size: 28, weight: .semibold))
                 .foregroundStyle(LinearGradient(gradient: StrandPalette.energyGradient,
                                                 startPoint: .top, endPoint: .bottom))
         }
+    }
+
+    @ViewBuilder
+    private func arcs(_ fractions: (resting: Double, active: Double)) -> some View {
+        ZStack {
+            Circle()
+                .trim(from: 0, to: fractions.resting)
+                .stroke(AngularGradient(colors: [StrandPalette.energyResting, StrandPalette.energyHighlight],
+                                        center: .center,
+                                        startAngle: .degrees(0), endAngle: .degrees(360 * fractions.resting)),
+                        style: .init(lineWidth: 11, lineCap: .butt))
+            if fractions.active > 0 {
+                Circle()
+                    .trim(from: fractions.resting, to: 1)
+                    .stroke(StrandPalette.energyActive, style: .init(lineWidth: 11, lineCap: .round))
+            }
+        }
+        .rotationEffect(.degrees(-90))
     }
 }
 
@@ -354,7 +374,9 @@ private struct EnergyStat: View {
     }
 }
 
-private extension Label where Title == Text, Icon == Image {
+private extension View {
+    /// Overline type for a section label. The colour applies to whatever does not set its own, so a
+    /// label can keep neutral words beside a coloured glyph.
     func strandOverlineLabel(color: Color) -> some View {
         self
             .font(StrandFont.overline)
