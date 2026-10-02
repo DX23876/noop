@@ -407,6 +407,13 @@ struct LiquidTodayView: View {
     /// Measured width of the trailing header-control cluster, feeding the day title's fade mask. Seeded
     /// with the design-system default so the first frame is not laid out against a reserve of zero.
     @State private var headerControlsWidth = NoopMetrics.headerControlReserveWidth
+    /// Measured height of the same cluster. At accessibility text sizes the title moves below the controls
+    /// instead of beside them, and this is how far down it starts.
+    @State private var headerControlsHeight = NoopMetrics.compactControlSize
+
+    /// Accessibility text sizes grow the round controls until the column beside them is too narrow for
+    /// the date ("Frei-tag" hyphenated over three lines). There the title takes the full width below them.
+    private var headerStacksTitle: Bool { dynamicTypeSize.isAccessibilitySize }
 
     /// Mock Vitality purple (#9b7bff) has no exact StrandPalette token in this theme.
     private let liquidPurple = Color(.sRGB, red: 0x9b / 255, green: 0x7b / 255, blue: 0xff / 255, opacity: 1)
@@ -1047,7 +1054,8 @@ struct LiquidTodayView: View {
                 // collision but still looked like clipped text on compact phones. The measured reserve also
                 // follows the transient sync capsule when it expands.
                 // Analysis migration required: no. Header layout only.
-                .padding(.trailing, headerControlsWidth + headerClusterSpacing)
+                .padding(.trailing, headerStacksTitle ? 0 : headerControlsWidth + headerClusterSpacing)
+                .padding(.top, headerStacksTitle ? headerControlsHeight + NoopMetrics.space2 : 0)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: headerClusterSpacing) {
                     // (#R-header-coach): the Coach entry leads the trailing cluster as a compact
@@ -1120,10 +1128,9 @@ struct LiquidTodayView: View {
                 }
                 .background(
                     GeometryReader { proxy in
-                        Color.clear.preference(
-                            key: HeaderControlsWidthKey.self,
-                            value: proxy.size.width
-                        )
+                        Color.clear
+                            .preference(key: HeaderControlsWidthKey.self, value: proxy.size.width)
+                            .preference(key: HeaderControlsHeightKey.self, value: proxy.size.height)
                     }
                 )
                 .zIndex(1)
@@ -1133,6 +1140,12 @@ struct LiquidTodayView: View {
                     // Ignore sub-point churn so a rounding wobble cannot re-render the mask every frame.
                     guard measured > 0, abs(measured - headerControlsWidth) > 0.5 else { return }
                     headerControlsWidth = measured
+                }
+            }
+            .onPreferenceChange(HeaderControlsHeightKey.self) { measured in
+                Task { @MainActor in
+                    guard measured > 0, abs(measured - headerControlsHeight) > 0.5 else { return }
+                    headerControlsHeight = measured
                 }
             }
             // Subtle NOOP wordmark in the sky between header and hero. Perfectly centred (a letter row has
@@ -3345,6 +3358,14 @@ private extension View {
 /// Carries the trailing header cluster's measured width out to the day title's fade mask, so the reserve
 /// is whatever the controls actually occupy — including the sync capsule mid-expansion.
 private struct HeaderControlsWidthKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+/// The same cluster's measured height, so an accessibility-size title can start below it.
+private struct HeaderControlsHeightKey: PreferenceKey {
     static let defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = max(value, nextValue())
