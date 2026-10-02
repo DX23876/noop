@@ -37,7 +37,9 @@ struct UpdatesInboxView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .noopSheetPresentation(largeFirst: true)
         #endif
-        .background(StrandPalette.surfaceBase)
+        // Today's backdrop, so lowering Card transparency reveals the same photo or day-cycle scene here
+        // as on Today, instead of a plain canvas that made the cards look as if the setting did nothing.
+        .background(UpdatesInboxBackdrop())
         .onAppear { updateStore.pruneExpired() }
     }
 
@@ -343,4 +345,24 @@ private struct UpdateRow: View {
 enum TodayCardDismissal {
     /// The `@AppStorage` bool key for a Today info-card's dismissed flag, by stable card id.
     static func flagKey(_ cardID: String) -> String { "noop.todayCard.\(cardID).dismissed" }
+}
+
+/// The inbox's page backdrop: the custom background photo when one is set, else the day-cycle scene
+/// when that switch is on, else the plain canvas. The same order Today uses.
+private struct UpdatesInboxBackdrop: View {
+    @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = SceneBackgroundPrefs.defaultEnabled
+    @AppStorage(SkyBehindCardsPrefs.enabledKey) private var skyBehindCards = false
+    @ObservedObject private var backgroundStore = BackgroundImageStore.shared
+
+    var body: some View {
+        ZStack(alignment: .top) {
+            StrandPalette.surfaceBase
+            if backgroundStore.isActive {
+                BackgroundImageBackdrop()
+            } else if showDayCycleBackground {
+                SceneScreenBackground(height: skyBehindCards ? 1100 : 600)
+            }
+        }
+        .ignoresSafeArea()
+    }
 }
