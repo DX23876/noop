@@ -745,6 +745,10 @@ struct LiquidTodayView: View {
                                     EnergyCard(summary: energySummary, compact: true)
                                 }
                                 .buttonStyle(.plain)
+                            } else if selectedDayOffset == 0 {
+                                // Holds the slot while today's summary loads, instead of the section
+                                // vanishing until the next restart (seen on device 2026-10-02).
+                                energyLoadingCard
                             }
                         case .workouts: lastWorkoutsSection
                         // A temporary section: only today, and only while a strap is actually streaming
@@ -854,6 +858,26 @@ struct LiquidTodayView: View {
         .task(id: loadKey) {
             DashboardCardPrefs.migrateLegacyStepsAverage()
             await load()
+        }
+        // Today's energy must not stay missing for the session: a load can finish before the energy
+        // pipeline has produced today's summary, and nothing else asks again until the day or the model
+        // revision changes. Retry a few times while the slot shows its loading state.
+        .task(id: "\(selectedDayKey)-\(selectedDayOffset == 0 && selectedEnergySummary == nil)") {
+            guard selectedDayOffset == 0, selectedEnergySummary == nil else { return }
+            for attempt in 0..<6 {
+                try? await Task.sleep(nanoseconds: UInt64(2 + attempt * 2) * 1_000_000_000)
+                guard !Task.isCancelled, selectedEnergySummary == nil else { return }
+                let values = await repo.energySummaries(days: 30, profile: Repository.analyticsProfile(profile))
+                guard !Task.isCancelled else { return }
+                let day = selectedDayKey
+                if let today = values.first(where: { $0.day == day }) {
+                    var merged = energySummariesByDay
+                    for value in values { merged[value.day] = value }
+                    merged[day] = today
+                    energySummariesByDay = merged
+                    return
+                }
+            }
         }
         .task(id: repo.energyPresentationRevision) {
             guard repo.energyPresentationRevision > 0 else { return }
@@ -3025,6 +3049,33 @@ struct LiquidTodayView: View {
 
     private var selectedEnergySummary: DailyEnergySummary? {
         energySummariesByDay[selectedDayKey]
+    }
+
+    /// The Energy slot while today's summary has not arrived yet: same surface and label as the card,
+    /// with a spinner instead of figures.
+    private var energyLoadingCard: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+            HStack(spacing: 8) {
+                Label {
+                    Text("Energy")
+                } icon: {
+                    Image(systemName: "flame.fill").foregroundStyle(StrandPalette.energyHighlight)
+                }
+                .font(StrandFont.overline)
+                .tracking(StrandFont.overlineTracking)
+                .textCase(.uppercase)
+                .foregroundStyle(StrandPalette.textSecondary)
+                Spacer(minLength: 8)
+                ProgressView().controlSize(.small)
+            }
+            Text("Loading energy…")
+                .font(StrandFont.subhead)
+                .foregroundStyle(StrandPalette.textSecondary)
+        }
+        .padding(NoopMetrics.cardPadding)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(TodayCardSurface(tint: StrandPalette.energyHighlight, surfaceOpacity: cardOpacity))
+        .accessibilityElement(children: .combine)
     }
 
     /// The hour that picks the day-cycle scene. DEBUG: a pinned `--demo-hour` frame overrides it, the
