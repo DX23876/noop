@@ -314,8 +314,11 @@ public enum AppearanceMode: String, CaseIterable, Identifiable, Sendable {
 /// `@AppStorage(SceneBackgroundPrefs.enabledKey)` and toggled from Settings → Appearance. Mirror in
 /// Kotlin via `NoopPrefs.showDayCycleBackground`.
 public enum SceneBackgroundPrefs {
-    /// The @AppStorage key shared by TodayView and the Settings toggle. Default value is `false`.
+    /// The @AppStorage key shared by TodayView and the Settings toggle.
     public static let enabledKey = "noop.showDayCycleBackground"
+    /// On (2026-10-02). Every reader uses this one default: Today used to assume off while the Sleep tab
+    /// assumed on, so someone who never touched the switch saw the night scene on Sleep and none on Today.
+    public static let defaultEnabled = true
 }
 
 /// Card-surface opacity as a PERCENT (0 = fully see-through, 100 = solid; default 100). `FrostedCardSurface`

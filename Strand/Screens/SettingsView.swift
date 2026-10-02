@@ -280,7 +280,7 @@ struct SettingsView: View {
     // Day-cycle scene backdrop behind Today (#698). Default OFF. On adds the moving time-of-day scene;
     // off (the default) keeps the plain dark canvas. TodayView reads the same key to gate its
     // SceneScreenBackground.
-    @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = false
+    @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = SceneBackgroundPrefs.defaultEnabled
     // "Sky behind cards" (default OFF): extend the day-cycle sky behind the whole Today scroll so
     // Card transparency reveals it under every card. User-toggleable below. Mirrors Kotlin NoopPrefs.skyBehindCards.
     @AppStorage(SkyBehindCardsPrefs.enabledKey) private var skyBehindCards = false

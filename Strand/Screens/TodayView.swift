@@ -271,7 +271,7 @@ struct TodayView: View {
     // Day-cycle scene backdrop (#698). Default OFF. When the user turns it on in Settings → Appearance,
     // Today adds the SceneScreenBackground; off (the default) keeps the plain dark surfaceBase canvas.
     // The cards already sit on an opaque canvas, so readability is unchanged either way.
-    @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = false
+    @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = SceneBackgroundPrefs.defaultEnabled
     // Effort display scale (#268), drives the Effort tile's value + caption. Display-only.
     @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
     private var effortScale: EffortScale { UnitPrefs.resolveEffortScale(effortScaleRaw) }
