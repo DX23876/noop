@@ -93,7 +93,7 @@ public struct OrganicScoreVisualModel: Equatable, Sendable {
     public let intensity: OrganicScoreIntensity
     public let seed: UInt64
     /// Effort only: how far today's load is into the Moderate-and-above range, `0...1`. Zero for Light
-    /// effort and for the other metrics. Drives a stronger, faster pulse and extra glow.
+    /// effort and for the other metrics. Drives a deeper (not faster) pulse and extra glow.
     public var effortLoad: Double = 0
 
     /// Effort's band edges on the normalised axis, the same as the app's Effort words on the 0–21 scale:
@@ -137,9 +137,9 @@ public struct OrganicScoreVisualModel: Equatable, Sendable {
             intensity = OrganicScoreIntensity(
                 particleDensity: intensity.particleDensity,
                 waveStrength: intensity.waveStrength,
-                pulseStrength: min(1, intensity.pulseStrength + load * 0.55),
-                glowStrength: min(1, intensity.glowStrength + load * 0.4),
-                smokeStrength: min(1, intensity.smokeStrength + load * 0.3),
+                pulseStrength: min(1, intensity.pulseStrength + load * 0.3),
+                glowStrength: min(1, intensity.glowStrength + load * 0.2),
+                smokeStrength: min(1, intensity.smokeStrength + load * 0.15),
                 echoLevel: intensity.echoLevel
             )
         }
@@ -235,8 +235,8 @@ public struct OrganicScoreVisualModel: Equatable, Sendable {
     /// A slow, soft breath in `0...1` (about four seconds a cycle, slightly different per metric so the
     /// three rings do not pulse in lockstep). Drives brightness and wave height, never size or position.
     public func breath(time: Double) -> Double {
-        // A loaded Effort breathes faster, closer to a pulse.
-        let period = (3.6 + particleUnit(index: 0, channel: 14) * 0.9) / (1 + effortLoad * 0.7)
+        // Same slow tempo for every load: a loaded Effort breathes deeper, never faster.
+        let period = 3.6 + particleUnit(index: 0, channel: 14) * 0.9
         let phase = particleUnit(index: 0, channel: 15) * .pi * 2
         let raw = 0.5 + 0.5 * sin(time * .pi * 2 / period + phase)
         return raw * raw * (3 - 2 * raw)   // eased, so it lingers at full and empty like a breath
@@ -245,7 +245,7 @@ public struct OrganicScoreVisualModel: Equatable, Sendable {
     /// Brightness multiplier for glow, haze and bloom at `time`: a dim score barely breathes, a full one
     /// breathes visibly.
     public func breathBrightness(time: Double) -> Double {
-        1 + intensity.pulseStrength * (0.45 + effortLoad * 0.45) * (breath(time: time) - 0.5) * 2
+        1 + intensity.pulseStrength * (0.45 + effortLoad * 0.2) * (breath(time: time) - 0.5) * 2
     }
 
     /// The model a value change passes through, `fraction` of the way from `self` to `target`.

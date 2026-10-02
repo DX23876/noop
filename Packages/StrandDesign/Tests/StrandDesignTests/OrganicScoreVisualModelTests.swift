@@ -153,15 +153,21 @@ final class OrganicScoreVisualModelTests: XCTestCase {
         let loads = [7.0, 11, 15, 19].map { effort($0).effortLoad }
         for (lower, higher) in zip(loads, loads.dropFirst()) { XCTAssertGreaterThan(higher, lower) }
         XCTAssertEqual(effort(20).effortLoad, 1, accuracy: 1e-9)
-        XCTAssertGreaterThan(effort(15).intensity.glowStrength, rest(15).intensity.glowStrength + 0.2)
-        XCTAssertGreaterThan(effort(15).intensity.pulseStrength, rest(15).intensity.pulseStrength + 0.3)
+        XCTAssertGreaterThan(effort(15).intensity.glowStrength, rest(15).intensity.glowStrength + 0.1)
+        XCTAssertGreaterThan(effort(15).intensity.pulseStrength, rest(15).intensity.pulseStrength + 0.15)
 
-        // A high Effort breathes faster and deeper than the same normalised Rest.
+        // Load never changes the tempo: a Light and a High Effort breathe on the same slow clock.
+        for step in 0..<50 {
+            let t = Double(step) * 0.37
+            XCTAssertEqual(effort(4).breath(time: t), effort(19).breath(time: t), accuracy: 1e-12)
+        }
+
+        // A high Effort breathes deeper than the same normalised Rest.
         func swing(_ model: OrganicScoreVisualModel) -> Double {
             let values = (0..<300).map { model.breathBrightness(time: Double($0) * 0.05) }
             return (values.max() ?? 0) - (values.min() ?? 0)
         }
-        XCTAssertGreaterThan(swing(effort(17)), swing(rest(17)) * 1.4)
+        XCTAssertGreaterThan(swing(effort(17)), swing(rest(17)) * 1.15)
 
         // Charge and Rest never carry Effort's load.
         XCTAssertEqual(OrganicScoreVisualModel.resolve(metric: .charge, value: 90).effortLoad, 0)
