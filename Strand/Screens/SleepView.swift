@@ -1956,7 +1956,7 @@ struct SleepView: View {
                                 .fill(StrandPalette.surfaceInset)
                                 .overlay {
                                     Capsule(style: .continuous)
-                                        .stroke(StrandPalette.hairline, lineWidth: 1)
+                                        .noopRestingRim()
                                 }
                         )
                         .padding(.bottom, 1)
