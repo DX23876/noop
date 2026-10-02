@@ -3148,6 +3148,7 @@ private struct HeroScoreCell: View {
     var detailRoute: TabRoute? = nil
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
 
     private var model: OrganicScoreVisualModel {
         OrganicScoreVisualModel.resolve(metric: metric, value: score, scaleMaximum: maxValue)
@@ -3217,6 +3218,16 @@ private struct HeroScoreCell: View {
             // says what it opens instead of repeating the number.
             .accessibilityLabel(Text(label))
             .accessibilityHint(Text("See how it is scored"))
+            // Charge's band is otherwise carried by colour alone on screen. With Differentiate Without
+            // Color on, the band word is written out (VoiceOver already hears it from the ring).
+            if differentiateWithoutColor, let band = model.chargeBand {
+                Text(band.word)
+                    .font(StrandFont.overlineScaled(9))
+                    .tracking(StrandFont.overlineTracking)
+                    .foregroundStyle(colorScheme == .light ? StrandPalette.textSecondary : StrandPalette.onDarkSecondary)
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                    .accessibilityHidden(true)
+            }
         }
         .frame(maxWidth: .infinity)
     }
