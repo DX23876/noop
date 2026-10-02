@@ -156,12 +156,13 @@ struct OrganicScoreRing: View {
                     var old = context
                     old.opacity = 1 - fade
                     OrganicScoreRingRenderer.draw(context: &old, size: size, model: current, tint: previousTint,
-                                                  time: time, motion: frame.motion, quality: frame.quality, onLight: onLight)
+                                                  time: time, motion: frame.motion, quality: frame.quality, onLight: onLight,
+                                                  live: frame.isAnimating)
                     context.opacity = fade
                 }
                 OrganicScoreRingRenderer.draw(context: &context, size: size, model: current, tint: resolvedTint,
                                               time: time, motion: frame.motion, quality: frame.quality,
-                                              onLight: onLight)
+                                              onLight: onLight, live: frame.isAnimating)
             }
             // Echoes and smoke reach past the ring's own square; the canvas overscans so they fade out
             // instead of being cut at its edge. Layout and the hit target stay at `diameter`.
@@ -246,7 +247,8 @@ private enum OrganicScoreRingRenderer {
         time: Double,
         motion: OrganicScoreMotionInput,
         quality: OrganicScoreQuality,
-        onLight: Bool
+        onLight: Bool,
+        live: Bool
     ) {
         let side = min(size.width, size.height) / overscan
         guard side > 0 else { return }
@@ -259,6 +261,8 @@ private enum OrganicScoreRingRenderer {
         }
         let isMissing = model.state == .missing
         let glow = model.intensity.glowStrength
+        // The static path (Reduce Motion, quiet motion, off screen) sits at a neutral breath.
+        let breathe = live ? model.breathBrightness(time: time) : 1
         let band = CGFloat(model.bandHalfWidth) * radius
         // Light on dark adds up (the reference's luminous look); on the light card that would wash out
         // to white, so it blends normally there.
@@ -271,8 +275,9 @@ private enum OrganicScoreRingRenderer {
         if !isMissing {
             context.drawLayer { layer in
                 layer.addFilter(.blur(radius: 5 + glow * 9))
-                layer.stroke(primary, with: .color(tint.opacity((onLight ? 0.22 : 0.35) + glow * 0.4)),
-                             lineWidth: band * 2.6 + 4)
+                layer.stroke(primary,
+                             with: .color(tint.opacity(min(1, ((onLight ? 0.22 : 0.35) + glow * 0.4) * breathe))),
+                             lineWidth: (band * 2.6 + 4) * (0.9 + 0.1 * breathe))
             }
         }
 
@@ -301,7 +306,8 @@ private enum OrganicScoreRingRenderer {
             context.drawLayer { layer in
                 layer.blendMode = blend
                 layer.addFilter(.blur(radius: 1.5 + glow * 2.5))
-                layer.stroke(primary, with: .color(tint.opacity((onLight ? 0.18 : 0.22) + glow * 0.3)),
+                layer.stroke(primary,
+                             with: .color(tint.opacity(min(1, ((onLight ? 0.18 : 0.22) + glow * 0.3) * breathe))),
                              lineWidth: band * 2)
             }
         }

@@ -56,6 +56,25 @@ final class OrganicScoreGeometryTests: XCTestCase {
         XCTAssertGreaterThan(Double(interiorCount(100)), 100, "a full score fills the circle")
     }
 
+    func testBreathIsBoundedDephasedAndStrongerForHighScores() {
+        let high = OrganicScoreVisualModel.resolve(metric: .rest, value: 95)
+        let low = OrganicScoreVisualModel.resolve(metric: .rest, value: 15)
+        let charge = OrganicScoreVisualModel.resolve(metric: .charge, value: 95)
+        var highRange = (min: 9.0, max: -9.0), lowRange = (min: 9.0, max: -9.0)
+        var differs = false
+        for step in 0..<400 {
+            let t = Double(step) * 0.05
+            let b = high.breath(time: t)
+            XCTAssertTrue((0...1).contains(b))
+            highRange = (min(highRange.min, high.breathBrightness(time: t)), max(highRange.max, high.breathBrightness(time: t)))
+            lowRange = (min(lowRange.min, low.breathBrightness(time: t)), max(lowRange.max, low.breathBrightness(time: t)))
+            if abs(b - charge.breath(time: t)) > 0.2 { differs = true }
+        }
+        XCTAssertGreaterThan(highRange.max - highRange.min, 0.6, "a full score breathes visibly")
+        XCTAssertLessThan(lowRange.max - lowRange.min, highRange.max - highRange.min)
+        XCTAssertTrue(differs, "the rings do not breathe in lockstep")
+    }
+
     func testQuietCentreClearsTheValueBox() {
         // The number is wider than tall: the zone must reach further sideways than vertically.
         XCTAssertEqual(OrganicScoreVisualModel.quietCentreRadius(angle: 0), 0.62, accuracy: 1e-9)

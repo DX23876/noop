@@ -155,13 +155,30 @@ public struct OrganicScoreVisualModel: Equatable, Sendable {
         // Eight soft lobes carry the shape (the approved reference reads as a rounded eight-point
         // bloom); five and thirteen break its symmetry so no two rings, or two moments, look alike.
         let waveform = (
-            sin(angle * 8 + phaseA + time * 0.31)
-            + sin(angle * 5 + phaseB - time * 0.23) * 0.38
-            + sin(angle * 13 + phaseC + time * 0.17) * 0.22
+            sin(angle * 8 + phaseA + time * 0.62)
+            + sin(angle * 5 + phaseB - time * 0.47) * 0.38
+            + sin(angle * 13 + phaseC + time * 0.36) * 0.22
         ) / 1.60
-        let localPulse = 0.78 + 0.22 * intensity.pulseStrength
-            * cos(angle * 2 + pulsePhase + time * 0.19)
-        return waveform * localPulse * intensity.waveStrength
+        let localPulse = 0.72 + 0.28 * intensity.pulseStrength
+            * cos(angle * 2 + pulsePhase + time * 0.41)
+        // The breath swells the waves, never the ring: amplitude only, so the mean radius stays put.
+        let swell = 1 - intensity.pulseStrength * 0.35 * (1 - breath(time: time))
+        return waveform * localPulse * swell * intensity.waveStrength
+    }
+
+    /// A slow, soft breath in `0...1` (about four seconds a cycle, slightly different per metric so the
+    /// three rings do not pulse in lockstep). Drives brightness and wave height, never size or position.
+    public func breath(time: Double) -> Double {
+        let period = 3.6 + particleUnit(index: 0, channel: 14) * 0.9
+        let phase = particleUnit(index: 0, channel: 15) * .pi * 2
+        let raw = 0.5 + 0.5 * sin(time * .pi * 2 / period + phase)
+        return raw * raw * (3 - 2 * raw)   // eased, so it lingers at full and empty like a breath
+    }
+
+    /// Brightness multiplier for glow, haze and bloom at `time`: a dim score barely breathes, a full one
+    /// breathes visibly.
+    public func breathBrightness(time: Double) -> Double {
+        1 + intensity.pulseStrength * 0.45 * (breath(time: time) - 0.5) * 2
     }
 
     /// The model a value change passes through, `fraction` of the way from `self` to `target`.
@@ -355,7 +372,7 @@ public extension OrganicScoreVisualModel {
         // cross and part across the band instead of running as parallel copies of one line.
         let lobes = Double(6 + Int(particleUnit(index: index, channel: 22) * 6))
         let phase = particleUnit(index: index, channel: 21) * .pi * 2
-        let speed = 0.15 + particleUnit(index: index, channel: 23) * 0.35
+        let speed = 0.4 + particleUnit(index: index, channel: 23) * 0.7
         let ripple = sin(angle * lobes + phase + time * speed) * bandHalfWidth * 0.55
         return base + spread * bandHalfWidth * 0.6 + ripple
     }
@@ -383,9 +400,9 @@ public extension OrganicScoreVisualModel {
     func particle(index: Int, time: Double, motion: OrganicScoreMotionInput = .still) -> OrganicScoreParticle? {
         let tau = Double.pi * 2
         let phase = particleUnit(index: index, channel: 1) * tau
-        let speed = 0.055 + particleUnit(index: index, channel: 2) * 0.055
+        let speed = 0.12 + particleUnit(index: index, channel: 2) * 0.22
         var angle = particleUnit(index: index, channel: 0) * tau
-            + sin(time * speed + phase) * (0.025 + intensity.pulseStrength * 0.018)
+            + sin(time * speed + phase) * (0.05 + intensity.pulseStrength * 0.06)
 
         // Slow tilt: each particle leans a little toward where gravity points, by its own amount,
         // so the field settles downhill without moving as one block.
@@ -400,7 +417,7 @@ public extension OrganicScoreVisualModel {
         let inner = Self.quietCentreRadius(angle: angle) + 0.03
         let contour = contourRadius(angle: angle, time: time, motion: motion)
         let lean = pull > 0 ? (gravity.x * cos(angle) + gravity.y * sin(angle)) : 0
-        let current = cos(time * 0.08 + phase * 1.7) * 0.05
+        let current = cos(time * 0.22 + phase * 1.7) * 0.07
         let radius: Double
         // A higher score fills the circle: the interior's share rises from ~15 % to ~60 % on top of the
         // overall count rising with the value. A low score keeps its few particles on the band.
