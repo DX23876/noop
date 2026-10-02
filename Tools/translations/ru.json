@@ -1670,5 +1670,9 @@
   "Filters (%lld)": "Фильтры (%lld)",
   "Set up your profile": "Настройте профиль",
   "Connected · Battery %lld%%": "Подключено · Батарея %lld%%",
-  "Connect a wearable or sensor": "Подключите носимое устройство или датчик"
+  "Connect a wearable or sensor": "Подключите носимое устройство или датчик",
+  "NOOP Forge, with honest calories": "NOOP Forge с честными калориями",
+  "**Calories that fit your body.** Walks are priced by pace, workouts by a VO₂max that matches you, and stored figures from the old formula are corrected once.": "**Калории под ваше тело.** Прогулки считаются по темпу, тренировки по подходящему вам МПК, а сохранённые значения по старой формуле один раз исправляются.",
+  "**Training Load, rebuilt.** Cardio is priced by heart-rate reserve, each lane keeps its history over months and years, and a strap double-tap logs your next set.": "**Тренировочная нагрузка заново.** Кардио оценивается по резерву пульса, каждая линия хранит историю за месяцы и годы, а двойное касание браслета записывает следующий подход.",
+  "**A calmer look.** Clearer cards, page-based Settings and nutrition from Apple Health, under the new name NOOP Forge.": "**Более спокойный вид.** Понятные карточки, настройки по страницам и питание из Apple Health под новым названием NOOP Forge."
 }

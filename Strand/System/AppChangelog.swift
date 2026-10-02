@@ -7,7 +7,7 @@ enum AppChangelog {
 
     /// Bump this when you add a release below. The "What's New" sheet shows automatically when the
     /// stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
-    static let currentVersion = "11.8.3"
+    static let currentVersion = "11.8.4"
 
     struct Release: Identifiable {
         let version: String
@@ -19,6 +19,16 @@ enum AppChangelog {
 
     /// Newest first.
     static let releases: [Release] = [
+        Release(
+            version: "11.8.4",
+            title: "NOOP Forge, with honest calories",
+            date: "October 2026",
+            items: [
+                "**Calories that fit your body.** Walks are priced by pace, workouts by a VO₂max that matches you, and stored figures from the old formula are corrected once.",
+                "**Training Load, rebuilt.** Cardio is priced by heart-rate reserve, each lane keeps its history over months and years, and a strap double-tap logs your next set.",
+                "**A calmer look.** Clearer cards, page-based Settings and nutrition from Apple Health, under the new name NOOP Forge.",
+            ]
+        ),
         Release(
             version: "11.8.3",
             title: "A steadier sync and clearer readings",

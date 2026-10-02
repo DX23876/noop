@@ -1794,5 +1794,9 @@
   "Filters (%lld)": "筛选 (%lld)",
   "Set up your profile": "设置你的个人资料",
   "Connected · Battery %lld%%": "已连接 · 电量 %lld%%",
-  "Connect a wearable or sensor": "连接可穿戴设备或传感器"
+  "Connect a wearable or sensor": "连接可穿戴设备或传感器",
+  "NOOP Forge, with honest calories": "NOOP Forge，热量更真实",
+  "**Calories that fit your body.** Walks are priced by pace, workouts by a VO₂max that matches you, and stored figures from the old formula are corrected once.": "**符合你身体的热量。** 步行按配速计算，训练按适合你的最大摄氧量计算，旧公式保存的数值会一次性修正。",
+  "**Training Load, rebuilt.** Cardio is priced by heart-rate reserve, each lane keeps its history over months and years, and a strap double-tap logs your next set.": "**训练负荷全新打造。** 有氧按心率储备计算，每条通道保留数月乃至数年的历史，轻点手环两下即可记录下一组。",
+  "**A calmer look.** Clearer cards, page-based Settings and nutrition from Apple Health, under the new name NOOP Forge.": "**更沉静的外观。** 更清晰的卡片、分页式设置以及来自 Apple Health 的营养数据，新名称为 NOOP Forge。"
 }

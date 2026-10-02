@@ -463131,6 +463131,238 @@
           }
         }
       }
+    },
+    "NOOP Forge, with honest calories" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP Forge, mit ehrlichen Kalorien"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP Forge, con calorías honestas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP Forge, avec des calories honnêtes"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP Forge, con calorie oneste"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP Forge z uczciwymi kaloriami"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP Forge, com calorias honestas"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP Forge с честными калориями"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP Forge，热量更真实"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP Forge，熱量更真實"
+          }
+        }
+      }
+    },
+    "**Calories that fit your body.** Walks are priced by pace, workouts by a VO₂max that matches you, and stored figures from the old formula are corrected once." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Kalorien, die zu deinem Körper passen.** Spaziergänge werden nach Tempo berechnet, Workouts nach einer VO₂max, die zu dir passt, und gespeicherte Werte der alten Formel werden einmalig korrigiert."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Calorías a la medida de tu cuerpo.** Las caminatas se calculan por ritmo, los entrenamientos con un VO₂máx acorde a ti, y las cifras guardadas con la fórmula antigua se corrigen una vez."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Des calories adaptées à votre corps.** Les marches sont calculées selon l'allure, les séances selon une VO₂max qui vous correspond, et les valeurs enregistrées avec l'ancienne formule sont corrigées une fois."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Calorie su misura per il tuo corpo.** Le camminate sono calcolate in base al ritmo, gli allenamenti con un VO₂max adatto a te, e i valori salvati con la vecchia formula vengono corretti una volta."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Kalorie dopasowane do twojego ciała.** Spacery liczone są według tempa, treningi według VO₂max dopasowanego do ciebie, a zapisane wartości ze starego wzoru są jednorazowo poprawiane."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Calorias à medida do seu corpo.** As caminhadas são calculadas pelo ritmo, os treinos por um VO₂máx adequado a si, e os valores guardados com a fórmula antiga são corrigidos uma vez."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Калории под ваше тело.** Прогулки считаются по темпу, тренировки по подходящему вам МПК, а сохранённые значения по старой формуле один раз исправляются."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**符合你身体的热量。** 步行按配速计算，训练按适合你的最大摄氧量计算，旧公式保存的数值会一次性修正。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**符合你身體的熱量。** 步行按配速計算，訓練按適合你的最大攝氧量計算，舊公式儲存的數值會一次性修正。"
+          }
+        }
+      }
+    },
+    "**Training Load, rebuilt.** Cardio is priced by heart-rate reserve, each lane keeps its history over months and years, and a strap double-tap logs your next set." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Trainingslast, neu gebaut.** Cardio wird über die Herzfrequenzreserve bewertet, jede Spur behält ihren Verlauf über Monate und Jahre, und ein Doppeltippen aufs Band trägt deinen nächsten Satz ein."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Carga de entrenamiento, renovada.** El cardio se valora por la reserva de frecuencia cardíaca, cada línea conserva su historial durante meses y años, y un doble toque en la correa registra tu siguiente serie."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**La charge d'entraînement, repensée.** Le cardio est évalué selon la réserve cardiaque, chaque voie garde son historique sur des mois et des années, et un double appui sur le bracelet enregistre votre série suivante."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Carico di allenamento, ricostruito.** Il cardio è valutato sulla riserva di frequenza cardiaca, ogni corsia conserva la sua cronologia per mesi e anni, e un doppio tocco sulla fascia registra la serie successiva."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Obciążenie treningowe od nowa.** Cardio oceniane jest według rezerwy tętna, każda ścieżka zachowuje historię z miesięcy i lat, a podwójne stuknięcie w opaskę zapisuje kolejną serię."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Carga de treino, reconstruída.** O cardio é avaliado pela reserva de frequência cardíaca, cada linha guarda o histórico de meses e anos, e um toque duplo no bracelete regista a série seguinte."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Тренировочная нагрузка заново.** Кардио оценивается по резерву пульса, каждая линия хранит историю за месяцы и годы, а двойное касание браслета записывает следующий подход."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**训练负荷全新打造。** 有氧按心率储备计算，每条通道保留数月乃至数年的历史，轻点手环两下即可记录下一组。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**訓練負荷全新打造。** 有氧按心率儲備計算，每條通道保留數月乃至數年的歷史，輕點手環兩下即可記錄下一組。"
+          }
+        }
+      }
+    },
+    "**A calmer look.** Clearer cards, page-based Settings and nutrition from Apple Health, under the new name NOOP Forge." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Ein ruhigeres Aussehen.** Klarere Karten, Einstellungen als Seiten und Ernährung aus Apple Health, unter dem neuen Namen NOOP Forge."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Un aspecto más sereno.** Tarjetas más claras, Ajustes por páginas y nutrición desde Apple Health, con el nuevo nombre NOOP Forge."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Une apparence plus calme.** Des cartes plus claires, des Réglages en pages et la nutrition depuis Apple Health, sous le nouveau nom NOOP Forge."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Un aspetto più calmo.** Schede più chiare, Impostazioni a pagine e nutrizione da Apple Health, con il nuovo nome NOOP Forge."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Spokojniejszy wygląd.** Czytelniejsze karty, Ustawienia w formie stron i żywienie z Apple Health, pod nową nazwą NOOP Forge."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Um visual mais calmo.** Cartões mais claros, Definições por páginas e nutrição do Apple Health, com o novo nome NOOP Forge."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Более спокойный вид.** Понятные карточки, настройки по страницам и питание из Apple Health под новым названием NOOP Forge."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**更沉静的外观。** 更清晰的卡片、分页式设置以及来自 Apple Health 的营养数据，新名称为 NOOP Forge。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**更沉靜的外觀。** 更清晰的卡片、分頁式設定以及來自 Apple Health 的營養資料，新名稱為 NOOP Forge。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
