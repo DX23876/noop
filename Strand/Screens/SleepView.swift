@@ -520,8 +520,8 @@ struct SleepView: View {
                     VStack(spacing: NoopMetrics.space3) {
                         if heroUsesLiquidStyle {
                             // The signature liquid gauge: a filling vessel tinted Rest, with the 0–100
-                            // score counting up over it — the same `LiquidScoreGauge` Liquid Today's
-                            // HeroScoreCell draws, so both heroes fill and roll up identically.
+                            // score counting up over it. Liquid Today's hero moved to organic rings; this
+                            // detail hero keeps the vessel.
                             LiquidScoreGauge(
                                 score: score,
                                 tint: StrandPalette.restColor,

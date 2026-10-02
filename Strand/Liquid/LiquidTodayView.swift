@@ -44,16 +44,6 @@ enum LiquidHeroChrome {
         return min(0.24, 0.08 + (1 - opacity) * 0.18)
     }
 
-    /// True when the hero is an ordinary light card: light appearance with nothing behind the cards (no sky,
-    /// day-cycle scene or photograph). Transparency is then handled by the card surface itself, like every
-    /// other card. With a backdrop, and in dark appearance, the hero keeps its dark glass, which the
-    /// white ring numbers are tuned against.
-    static func usesLightSurface(isDark: Bool, cardOpacity: Double, hasBackdrop: Bool,
-                                 reduceTransparency: Bool) -> Bool {
-        guard !isDark else { return false }
-        return reduceTransparency || !hasBackdrop
-    }
-
     static func shadowOpacity(isDark: Bool, cardOpacity: Double, hasBackdrop: Bool,
                               reduceTransparency: Bool, increasedContrast: Bool) -> Double {
         if increasedContrast { return isDark ? 0.42 : 0.30 }
@@ -395,7 +385,6 @@ struct LiquidTodayView: View {
     /// The liquid heart pink (matches LiquidThread's default + the mockup #ff6b81).
     private let liquidHeart = Color(.sRGB, red: 1, green: 107 / 255, blue: 129 / 255, opacity: 1)
     /// Hero card fill: a translucent near-black so it floats over the sky (mock rgba(13,14,20,.78)).
-    private let heroFill = Color(.sRGB, red: 13 / 255, green: 14 / 255, blue: 20 / 255, opacity: 0.80)
     /// Slightly tighter than the app-wide 30pt hero radius. Liquid Today's three 96pt vessels already
     /// provide the soft focal shape, so 28pt keeps the surrounding card visually proportional.
     private let liquidHeroRadius: CGFloat = 28
@@ -1165,12 +1154,6 @@ struct LiquidTodayView: View {
             : nil
         let visibleRestScore = dataLoaded ? restScore : nil
         let hasBackdrop = showDayCycleBackground || skyBehindCards || backgroundStore.isActive
-        let lightSurface = LiquidHeroChrome.usesLightSurface(
-            isDark: colorScheme == .dark,
-            cardOpacity: cardOpacity,
-            hasBackdrop: hasBackdrop,
-            reduceTransparency: reduceTransparency
-        )
         let rimOpacity = LiquidHeroChrome.rimOpacity(
             isDark: colorScheme == .dark,
             cardOpacity: cardOpacity,
@@ -1186,7 +1169,8 @@ struct LiquidTodayView: View {
             increasedContrast: colorSchemeContrast == .increased
         )
 
-        return HStack(alignment: .top, spacing: 4) {
+        return OrganicScoreHeroClock(dataReady: dataLoaded) { frame in
+        HStack(alignment: .top, spacing: 2) {
             // #543 carry: an unscored today shows the last scored night's REAL Charge (labelled as prior by
             // the state pill) rather than an empty vessel, matching the classic Today, the widget/watch/Live
             // Activity (`Repository.widgetAnchor`) and Android. Effort deliberately does NOT carry — it is
@@ -1195,28 +1179,35 @@ struct LiquidTodayView: View {
             // iOS widgets, the watch glance and the complications now use. This is the DEFAULT Today
             // screen, so leaving it on the fixed accent would have kept the contradiction on the surface
             // most people actually see. No score = nothing to sample; the vessel keeps the domain accent.
-            HeroScoreCell(label: DomainTheme.charge.productName, score: chargeScore,
+            HeroScoreCell(metric: .charge, label: DomainTheme.charge.productName, score: chargeScore,
                           tint: chargeDisplay.pct.map { StrandPalette.chargeRingColor($0) }
-                                ?? StrandPalette.chargeColor,
-                          animated: dataLoaded, onGuide: { guideSection = .charge }, onLightSurface: lightSurface,
+                                ?? StrandPalette.organicMissing,
+                          frame: frame,
+                          onGuide: { guideSection = .charge },
+                          state: dataLoaded ? chargeDisplay.carriedCaption : nil,
+                          provenance: ringSourceLabel("recovery"),
                           detailRoute: .metric(HeroRingMetric.charge))
             // #45: the hero Effort must honour the user's Effort scale like every other Effort read-out.
             // Show the value on the chosen scale (0–100 or WHOOP 0–21) with the matching vessel max, and
             // one decimal on the compressed 0–21 axis to match the app-wide `effortDisplay` convention
             // (12.6, not a rounded "13"); the 0–100 hero stays a whole number as before.
-            HeroScoreCell(label: DomainTheme.effort.productName,
+            HeroScoreCell(metric: .effort, label: DomainTheme.effort.productName,
                           score: effortScore,
-                          tint: StrandPalette.effortColor, animated: dataLoaded,
-                          onGuide: { guideSection = .effort }, onLightSurface: lightSurface,
+                          tint: StrandPalette.organicEffort, frame: frame,
+                          onGuide: { guideSection = .effort },
                           maxValue: effortScale == .whoop ? 21 : 100,
                           decimals: effortScale == .whoop ? 1 : 0,
+                          provenance: ringSourceLabel("strain"),
                           detailRoute: .metric(HeroRingMetric.effort))
             // The hero's provenance badge — which device/import actually supplied the inputs, not just
             // where NOOP ran the calculation. Upstream #778 fixed its accuracy (persisted alongside the
             // score itself, so it can't drift) and restored its position, centred on the top border and
             // aligned with the Rest vessel.
-            HeroScoreCell(label: DomainTheme.rest.productName, score: visibleRestScore, tint: StrandPalette.restColor,
-                          animated: dataLoaded, onGuide: { guideSection = .rest }, onLightSurface: lightSurface,
+            HeroScoreCell(metric: .rest, label: DomainTheme.rest.productName, score: visibleRestScore,
+                          tint: StrandPalette.organicRest,
+                          frame: frame,
+                          onGuide: { guideSection = .rest },
+                          provenance: ringSourceLabel("sleep_performance"),
                           detailRoute: .metric(HeroRingMetric.rest))
                 .overlay(alignment: .top) {
                     if let sourceLabel = heroSourceLabel {
@@ -1226,35 +1217,36 @@ struct LiquidTodayView: View {
                             .frame(width: HeroScoreCell.vesselDiameter, alignment: .trailing)
                             .offset(y: -(NoopMetrics.space4 + NoopMetrics.sourceBadgeHeight / 2))
                             .allowsHitTesting(false)
-                            .accessibilityLabel(Text("Source: \(sourceLabel)"))
+                            // Each ring speaks its own source with its value, so the badge would only
+                            // repeat it as a fourth stop.
+                            .accessibilityHidden(true)
                     }
                 }
+        }
         }
         .padding(.vertical, NoopMetrics.space4)
         .padding(.horizontal, NoopMetrics.space3)
         // The ONE content surface that gets real iOS 26 glass (material below 26): it is the screen's
         // headline card and there is exactly one of it, so the blur pass is affordable — unlike the ten
-        // metric tiles, which take a lighter fill instead. `heroFill` stays under the glass so the vessels
-        // keep the dark backing their on-dark text and colours were tuned against.
+        // metric tiles, which take a lighter fill instead. The dark chamber stays under the glass so the
+        // rings keep the backing their on-dark text and colours were tuned against.
         .background {
             let shape = RoundedRectangle(cornerRadius: liquidHeroRadius, style: .continuous)
-            if lightSurface {
-                // The ordinary light card: the same surface, edge and shadow as the data cards below it,
-                // not the dark glass, which read as a grey block on a white page.
-                FrostedCardSurface(cornerRadius: liquidHeroRadius, kind: .hero)
-            } else {
             ZStack {
                 shape
-                    .fill(heroFill)
+                    .fill(StrandPalette.organicHeroChamber.opacity(0.78 + cardOpacity * 0.22))
+                shape
+                    .fill(StrandPalette.organicHeroChamberLift.opacity(0.16 + cardOpacity * 0.12))
                     .liquidGlass(in: shape)
-                    .opacity(cardOpacity)
-                // The rim must not disappear with the fill: it becomes more valuable as the user makes
-                // the card transparent or places it over a photograph/sky. On the ordinary solid Light
-                // canvas it resolves to zero, removing the unwanted grey frame.
-                shape.strokeBorder(.white.opacity(rimOpacity), lineWidth: 1)
+                    .opacity(reduceTransparency ? 0 : cardOpacity)
+                // The dark chamber is deliberate in Light too: it gives the luminous organic contours
+                // a controlled optical field. Its minimum contrast survives a 0% card-opacity setting.
+                shape.strokeBorder(
+                    StrandPalette.organicHeroBorder.opacity(max(0.66, rimOpacity)),
+                    lineWidth: colorSchemeContrast == .increased ? 1.5 : 1
+                )
             }
             .shadow(color: .black.opacity(shadowOpacity), radius: 18, y: 8)
-            }
         }
     }
 
@@ -2773,6 +2765,14 @@ struct LiquidTodayView: View {
             providers: ["recovery", "strain", "sleep_performance"].compactMap { heroProviderByMetric[$0] })
     }
 
+    /// The one provider behind a single ring, for that ring's spoken provenance. The visible badge keeps
+    /// the card-level aggregate above; VoiceOver hears each ring's own source with its value instead.
+    private func ringSourceLabel(_ metric: String) -> String? {
+        heroProviderByMetric[metric].map {
+            TodayView.todayScoreProviderLabel(sourceId: $0.sourceId, brand: $0.brand)
+        }
+    }
+
     /// Pure aggregation seam for the Liquid hero. The provider mapper names the sensors/imports that
     /// supplied the score inputs; identical names collapse and the compact badge is capped at two.
     static func heroSourceLabel(providers: [ScoreInputProvider]) -> String? {
@@ -3053,99 +3053,106 @@ private struct LiquidWordmark: View {
     }
 }
 
-// MARK: - Hero score cell (count-up number over a filling vessel, tap-to-splash)
+// MARK: - Hero score cell (count-up number inside an organic waveform ring)
 
-/// One of the three hero scores (Charge / Effort / Rest). The vessel fills from empty and the number
-/// COUNTS UP to the value when data lands; tapping the gauge itself splashes (the number is
-/// hit-transparent so the tap reaches the vessel). The label row taps through to the scoring guide.
+/// One of the three hero scores (Charge / Effort / Rest). The number COUNTS UP to the value when data
+/// lands while the ring morphs to the matching intensity; tapping the ring opens the metric's detail.
+/// The label row taps through to the scoring guide.
 private struct HeroScoreCell: View {
-    static let vesselDiameter: CGFloat = 96
+    static let vesselDiameter: CGFloat = 104
 
+    let metric: OrganicScoreMetric
     let label: String
     let score: Double?            // on whatever scale the caller passes (nil = no data yet)
     let tint: Color
-    let animated: Bool
+    let frame: OrganicScoreFrame
     let onGuide: () -> Void
-    /// The hero is an ordinary light card, so the label follows the page ink instead of the on-dark token.
-    var onLightSurface: Bool = false
     // The scale `score` is already expressed on — 100 for Charge/Rest, or the user's chosen Effort scale
-    // max (100 or 21, #45) — so the vessel fill matches the displayed number.
+    // max (100 or 21, #45). The ring normalises against it, so 8.4/21 and 40/100 look identical.
     var maxValue: Double = 100
     // Decimal places for the displayed number. 0 keeps the whole-number scores; the WHOOP 0–21 Effort
     // scale passes 1 to match the app-wide one-decimal `effortDisplay` convention (#45).
     var decimals: Int = 0
-    /// Where the GAUGE taps through to, or nil to keep the ring inert (#1995).
+    /// A non-colour statement of where the number comes from in time (a carried night's stamp).
+    var state: String? = nil
+    /// The device/import that supplied this score's inputs, spoken with the value.
+    var provenance: String? = nil
+    /// Where the RING taps through to, or nil to keep it inert (#1995).
     ///
     /// Same `TabRoute.metric(key)` the Recovery Vitals rows use, so a ring and the Key-Metrics tile for
     /// the same score land on the identical dossier rather than diverging. The LABEL keeps its own job:
     /// it opens the scoring guide, which is this screen's only route to that explainer.
     var detailRoute: TabRoute? = nil
 
-    /// The gauge, linked when there is somewhere to go.
-    ///
-    /// Built here rather than inline so the linked and plain forms stay in one place and the body reads
-    /// as three stacked elements rather than a branch.
+    private var model: OrganicScoreVisualModel {
+        OrganicScoreVisualModel.resolve(metric: metric, value: score, scaleMaximum: maxValue)
+    }
+
     @ViewBuilder
     private var gaugeView: some View {
-        let gauge = LiquidScoreGauge(
-            score: score,
+        let ring = OrganicScoreRing(
+            model: model,
             tint: tint,
-            diameter: Self.vesselDiameter,
-            animated: animated,
-            maxValue: maxValue,
+            score: score,
             decimals: decimals,
-            // Pinned white: this card's fill stays dark in BOTH themes, so the scheme-following
-            // number token went dark-on-near-black here.
-            numberColor: .white,
-            tapPassesThrough: detailRoute != nil
+            frame: frame,
+            diameter: Self.vesselDiameter
         )
         if let detailRoute {
-            NavigationLink(value: detailRoute) { gauge }
+            NavigationLink(value: detailRoute) { ring }
                 .buttonStyle(LiquidPressStyle())
-                // The ring is what shows the NUMBER, so its spoken label carries the number too. Without
-                // this a VoiceOver user hears only the metric name on the element displaying the value,
-                // while the label below it reads the score, which is backwards.
-                .accessibilityLabel(Text("\(label), \(spokenScore)"))
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(Text(label))
+                .accessibilityValue(Text(spokenValue))
                 .accessibilityHint(Text("Opens the trend and readings"))
+                .accessibilityAddTraits(.isButton)
         } else {
-            gauge
+            ring
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(Text(label))
+                .accessibilityValue(Text(spokenValue))
         }
     }
 
-    /// The score as VoiceOver should say it, matching the label row's own phrasing.
-    private var spokenScore: String {
+    /// The number with its unit, then the band word for Charge (so its meaning never rests on colour),
+    /// then the carried-night stamp and the source. Missing data says so rather than "zero".
+    private var spokenValue: String {
         guard let score else { return String(localized: "no data yet") }
-        return decimals > 0
-            ? String(format: "%.\(decimals)f", locale: AppLanguage.activeLocale, score)
-            : String(Int(score.rounded()))
+        var parts: [String] = []
+        if maxValue == 100 {
+            parts.append(String(localized: "\(Int(score.rounded())) percent"))
+        } else {
+            let number = String(format: "%.\(decimals)f", locale: AppLanguage.activeLocale, score)
+            parts.append(String(localized: "\(number) out of \(Int(maxValue))"))
+        }
+        if let band = model.chargeBand { parts.append(band.word.capitalized(with: AppLanguage.activeLocale)) }
+        if let state { parts.append(state) }
+        if let provenance { parts.append(String(localized: "Source: \(provenance)")) }
+        return parts.joined(separator: ", ")
     }
 
     var body: some View {
         VStack(spacing: 7) {
-            // The vessel + count-up read-out come from the shared `LiquidScoreGauge`
-            // (LiquidPrimitives.swift) via `gaugeView`, which wraps it in the #1995 detail link when the
-            // caller gave one. Sleep's hero uses the same primitive, so geometry and the hit-transparent
-            // number match, and a tap with no route still falls through to the vessel → splash.
             gaugeView
-            HStack(spacing: 4) {
-                Button(action: onGuide) {
-                    HStack(spacing: 3) {
-                        // #74: one line, shrink-to-fit rather than wrap under large Dynamic Type (mirrors the
-                        // score number above) so CHARGE/EFFORT/REST never grow the hero card to two lines.
-                        Text(label.uppercased()).font(StrandFont.overline).tracking(StrandFont.overlineTracking)
-                            .lineLimit(1).minimumScaleFactor(0.7)
-                        Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold)).opacity(0.6)
-                    }
-                    // The hero card fill is pinned dark in BOTH themes, so the CHARGE/EFFORT/REST label must use
-                    // the scheme-invariant on-dark token — textSecondary flips to dark ink in Light mode and
-                    // went dark-on-near-black here (#1013).
-                    .foregroundStyle(onLightSurface ? StrandPalette.textSecondary : StrandPalette.onDarkSecondary)
+            Button(action: onGuide) {
+                HStack(spacing: 3) {
+                    // #74: one line, shrink-to-fit rather than wrap under large Dynamic Type (mirrors the
+                    // score number above) so CHARGE/EFFORT/REST never grow the hero card to two lines.
+                    Text(label.uppercased()).font(StrandFont.overline).tracking(StrandFont.overlineTracking)
+                        .lineLimit(1).minimumScaleFactor(0.7)
+                    Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold)).opacity(0.6)
                 }
-                .buttonStyle(.plain)
+                // The optical chamber remains dark in both appearances, so this is always the fixed
+                // on-dark token rather than the scheme-following page label.
+                .foregroundStyle(StrandPalette.onDarkSecondary)
+                .frame(minHeight: 28)
+                .contentShape(Rectangle())
             }
-            // `spokenScore` is the shared phrasing `gaugeView` also speaks, so the ring and its label
-            // never read the same number two different ways.
-            .accessibilityLabel(Text("\(label), \(spokenScore). See how it is scored."))
+            .buttonStyle(.plain)
+            // The ring already speaks the value; the label is only the way into the scoring guide, so it
+            // says what it opens instead of repeating the number.
+            .accessibilityLabel(Text(label))
+            .accessibilityHint(Text("See how it is scored"))
         }
         .frame(maxWidth: .infinity)
     }

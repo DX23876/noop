@@ -77,6 +77,16 @@ final class LiquidMotion {
         set { tiltLock.lock(); defer { tiltLock.unlock() }; storedTilt = newValue }
     }
 
+    /// The organic hero's two-dimensional input: smoothed gravity plus a damped counter-impulse, in
+    /// SCREEN space (x right, y down). Same lock discipline as `tilt`: written on the motion queue, read
+    /// from the Canvas draw. Ephemeral by design — never persisted, logged or exported.
+    private var storedOrganicFilter = OrganicScoreMotionFilter()
+    private var lastOrganicTimestamp: TimeInterval?
+    var organicMotion: OrganicScoreMotionInput {
+        tiltLock.lock(); defer { tiltLock.unlock() }
+        return OrganicScoreMotionInput(gravity: storedOrganicFilter.gravity, impulse: storedOrganicFilter.impulse)
+    }
+
     #if os(iOS)   // CMMotionManager is iOS/Catalyst only; CoreMotion imports on macOS but the class is unavailable there
     private let manager = CMMotionManager()
     /// Device-motion callbacks land here, OFF the main thread, so 60Hz sensor updates don't contend with
@@ -154,8 +164,27 @@ final class LiquidMotion {
             let upright = LiquidMotion.uprightAttenuation(-m.gravity.y)
             let raw = max(-0.62, min(0.62, m.attitude.roll)) * upright
             self.tilt += (raw - self.tilt) * 0.18   // light smoothing
+            // Device coordinates are y-up; the Canvas is y-down, hence the sign flips.
+            self.updateOrganic(
+                gravity: OrganicScoreVector(x: m.gravity.x, y: -m.gravity.y),
+                acceleration: OrganicScoreVector(x: m.userAcceleration.x, y: -m.userAcceleration.y),
+                timestamp: m.timestamp
+            )
         }
         #endif
+    }
+
+    private func updateOrganic(gravity: OrganicScoreVector, acceleration: OrganicScoreVector, timestamp: TimeInterval) {
+        tiltLock.lock(); defer { tiltLock.unlock() }
+        let delta = lastOrganicTimestamp.map { timestamp - $0 } ?? (1.0 / 60.0)
+        lastOrganicTimestamp = timestamp
+        storedOrganicFilter.update(gravity: gravity, acceleration: acceleration, deltaTime: delta)
+    }
+
+    private func resetOrganic() {
+        tiltLock.lock(); defer { tiltLock.unlock() }
+        storedOrganicFilter.reset()
+        lastOrganicTimestamp = nil
     }
 
     /// #1004 — pure uprightness → tilt-response attenuation, mirrored bit-for-bit on Android
@@ -185,6 +214,7 @@ final class LiquidMotion {
         manager.stopDeviceMotionUpdates()
         #endif
         tilt = 0
+        resetOrganic()
     }
 
     /// Re-evaluate after a Low Power Mode / Reduce Motion / in-app-toggle change.

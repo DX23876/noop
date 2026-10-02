@@ -119,6 +119,16 @@ public enum StrandPalette {
     public static let heroFill   = Color(light: "FFFFFFD9", dark: "0D0E14CC")
     public static let heroBorder = Color(light: "0000001A", dark: "FFFFFF1C")
 
+    // MARK: Organic score hero
+    // The luminous waveform rings need one controlled dark optical chamber in BOTH appearances. This
+    // is intentionally not a second app theme: Light keeps its paper canvas everywhere around the hero.
+    public static let organicHeroChamber = Color(light: "#090B12", dark: "#07080D")
+    public static let organicHeroChamberLift = Color(light: "#171B25", dark: "#11141C")
+    public static let organicHeroBorder = Color(light: "#FFFFFF29", dark: "#FFFFFF24")
+    public static let organicEffort = Color(light: "#FF8A1F", dark: "#FF9F36")
+    public static let organicRest = Color(light: "#7265FF", dark: "#8B80FF")
+    public static let organicMissing = Color(light: "#AAB2C0", dark: "#8A94A4")
+
     // MARK: Forge brand ember — the orange face of the NOOP Forge "F" (app icon, Today mark). Brand only,
     // never a data colour, so it does not follow the chart style.
     public static let forgeEmber = Color(light: "#D94A0A", dark: "#FF6A16")

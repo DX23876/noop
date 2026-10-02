@@ -463363,6 +463363,180 @@
           }
         }
       }
+    },
+    "See how it is scored" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zeigt, wie der Wert berechnet wird"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muestra cómo se calcula"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Montre comment il est calculé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra come viene calcolato"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pokazuje, jak jest obliczany"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra como é calculado"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показывает, как он рассчитывается"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看计算方式"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看計算方式"
+          }
+        }
+      }
+    },
+    "React to device movement" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auf Gerätebewegung reagieren"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reaccionar al movimiento del dispositivo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réagir aux mouvements de l'appareil"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reagisci al movimento del dispositivo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reaguj na ruch urządzenia"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reagir ao movimento do dispositivo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Реагировать на движение устройства"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "响应设备移动"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "回應裝置移動"
+          }
+        }
+      }
+    },
+    "Lets the Today rings lean and ripple as you move your phone. Off, they keep their own slow movement." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Ringe auf „Heute“ neigen sich und wogen mit, wenn du dein Telefon bewegst. Ausgeschaltet bewegen sie sich nur langsam von selbst."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los anillos de Hoy se inclinan y ondulan al mover el teléfono. Desactivado, mantienen su propio movimiento lento."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les anneaux d'Aujourd'hui s'inclinent et ondulent quand vous bougez votre téléphone. Désactivé, ils gardent leur propre mouvement lent."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gli anelli di Oggi si inclinano e ondeggiano quando muovi il telefono. Disattivato, mantengono il loro lento movimento."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pierścienie na ekranie Dzisiaj przechylają się i falują, gdy poruszasz telefonem. Po wyłączeniu zachowują własny, powolny ruch."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os anéis de Hoje inclinam-se e ondulam quando move o telemóvel. Desligado, mantêm o seu próprio movimento lento."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Кольца на экране «Сегодня» наклоняются и колышутся, когда вы двигаете телефон. Если выключено, они сохраняют собственное медленное движение."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移动手机时，“今天”圆环会随之倾斜和波动。关闭后，它们保持自身的缓慢运动。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移動手機時，「今天」圓環會隨之傾斜與波動。關閉後，它們保持自身的緩慢運動。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
