@@ -107,4 +107,19 @@ enum LiquidTodayDefaults {
 
     /// How many of the newest workouts the grouped card lists; `All` opens the full history.
     static let workoutRows = 5
+
+    /// The Effort band word for a stored 0–100 Effort, uppercased for a row's overline: the same edges as
+    /// the app's other Effort words (on 0–21: Light below 6, Moderate from 6, Strenuous from 10, High from
+    /// 14), whichever display scale is chosen. nil when there is no Effort.
+    static func effortBandWord(stored: Double?) -> String? {
+        guard let stored, stored.isFinite else { return nil }
+        let word: String
+        switch stored * 21 / 100 {
+        case ..<6:  word = String(localized: "Light")
+        case ..<10: word = String(localized: "Moderate")
+        case ..<14: word = String(localized: "Strenuous")
+        default:    word = String(localized: "High")
+        }
+        return word.uppercased(with: AppLanguage.activeLocale)
+    }
 }

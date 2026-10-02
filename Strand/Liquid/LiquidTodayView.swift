@@ -59,6 +59,12 @@ enum LiquidHeroChrome {
     }
 }
 
+/// Page rhythm for Liquid Today; Classic keeps the app-wide card gap.
+enum LiquidTodayLayout {
+    /// Vertical gap between the Today sections (hero, Momentum, Goals, Key Metrics, Energy, …).
+    static let sectionSpacing: CGFloat = NoopMetrics.space6
+}
+
 /// Pure sizing for the hero's three organic rings. Each ring owns a third of the hero row; the drawn ring
 /// is a little larger than its slot, because the principal contour sits at only 0.37 of the diameter and the
 /// glow and echoes outside it may overlap a neighbour's. Tap targets stay inside the slot.
@@ -67,6 +73,8 @@ enum LiquidHeroRingLayout {
     /// Gap between the three slots and the card's inner horizontal padding.
     static let slotSpacing: CGFloat = 0
     static let horizontalPadding: CGFloat = NoopMetrics.space2
+    /// Above and below the rings, so their glow and echoes do not crowd the card's top and bottom edge.
+    static let verticalPadding: CGFloat = NoopMetrics.space6
     /// How much larger the drawn ring is than its slot.
     static let overdraw: CGFloat = 1.08
     /// The size before the row is first measured, and the floor/ceiling for any width.
@@ -120,7 +128,6 @@ struct LiquidTodayView: View {
     /// behaviour the comment on the sky branch below has always described. Neither has a SwiftUI
     /// environment key, hence the shared monitor.
     @ObservedObject private var motion = NoopMotionState.shared
-    private var poseStill: Bool { motion.poseStill(reduceMotion) }
 
     /// Shared with the real Today's card-customise editor so the two stay in sync.
     /// Optional so an unset key is distinguishable: it reads as Liquid's own fresh default
@@ -472,7 +479,7 @@ struct LiquidTodayView: View {
     /// Day-cycle scene backdrop (#698). Default OFF. When on, the liquid Today adds the moving sky; off
     /// (the default) keeps the plain dark canvas — parity with the classic TodayView, which already
     /// honours this pref. Mirrors Kotlin `NoopPrefs.showDayCycleBackground`.
-    @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = false
+    @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = SceneBackgroundPrefs.defaultEnabled
     /// Custom background image (#custom-background): when active it overrides the sky in the backdrop below.
     @ObservedObject private var backgroundStore = BackgroundImageStore.shared
 
@@ -675,7 +682,9 @@ struct LiquidTodayView: View {
 
                 liquidRefreshIndicator   // grows in the revealed space; a vessel filling with the pull
 
-                VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+                // Sections sit a clear step apart: at the 12pt card gap the borderless sections ran into one
+                // another (2026-10-02, on device).
+                VStack(alignment: .leading, spacing: LiquidTodayLayout.sectionSpacing) {
                     scene
                     // The coach entry is NOT here any more: a full-width row between the wordmark and the
                     // scores both dominated the screen and pushed Charge/Effort/Rest down the page. It is now
@@ -822,18 +831,12 @@ struct LiquidTodayView: View {
                 // Day-cycle scene (#698): the sky only paints when the toggle is ON AND no custom image is
                 // active; off = the plain surfaceBase canvas above (parity with Android + classic TodayView).
                 else if showDayCycleBackground {
-                    // Reduce-motion (and low-power) users get the same sky posed still — no twinkle/breath.
-                    // Also static until the first data load settles, so launch isn't fighting a live sky too.
-                    // "Sky behind cards" (opt-in): fill the whole backdrop with a softer settle so the sky
-                    // reads under every card, instead of the default 340 top band that dissolves to canvas.
-                    Group {
-                        if poseStill || !dataLoaded { LiquidSkyStatic(hour: liveHour, settleStrength: skyBehindCards ? 0.78 : 1) }
-                        else { LiquidSky(hour: liveHour, settleStrength: skyBehindCards ? 0.78 : 1) }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: skyBehindCards ? nil : 340, alignment: .top)
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
+                    // The same illustrated sunrise / day / dusk / night scenes Classic Today paints
+                    // (2026-10-02). The procedural liquid sky was so faint that, in the evening, it read as
+                    // a flat grey and the switch seemed to do nothing. Static artwork: nothing to animate.
+                    // "Sky behind cards" lets it reach down the whole page so lower card opacity shows it
+                    // under every card; otherwise it fades out behind the hero.
+                    SceneScreenBackground(hour: sceneHour, height: skyBehindCards ? 1100 : 600)
                 }
             }
             .ignoresSafeArea()
@@ -1043,6 +1046,9 @@ struct LiquidTodayView: View {
                         ViewThatFits(in: .horizontal) {
                             Text(headlineLine).fixedSize(horizontal: true, vertical: false)
                             Text(dayTitle).fixedSize(horizontal: true, vertical: false)
+                            // Last resort when even the day name does not fit beside the controls (a
+                            // narrow phone, a long weekday, the sync capsule expanding): shrink, never clip.
+                            Text(dayTitle).minimumScaleFactor(0.6)
                         }
                         .font(StrandFont.rounded(24))
                         .foregroundStyle(StrandPalette.textPrimary)
@@ -1053,6 +1059,9 @@ struct LiquidTodayView: View {
                         // ~10s it swaps for ~1.5s to a one-word accent hint, then returns to the date.
                         Text(dayNavHint ?? dateLine)
                             .font(StrandFont.caption)
+                            // Two lines beside the controls ("Freitag, 2." / "Oktober"); shrink before clipping.
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.85)
                             .foregroundStyle(dayNavHint != nil ? StrandPalette.accent : StrandPalette.textSecondary)
                             .contentTransition(.opacity)
                             .shadow(color: .black.opacity(0.35), radius: 8, y: 1)
@@ -1144,7 +1153,8 @@ struct LiquidTodayView: View {
                         }
                         .allowsHitTesting(false)
                     }
-                    .nativeLiquidGlassPhotoFinish()
+                    // No glass finish layer over the photo: on iOS 26 it showed only as a light rim around
+                    // the picture, the one control in the row with an outline.
                     .accessibilityLabel("Profile and settings")
                     LiquidAddButton()
                     LiquidBatteryButton()
@@ -1322,7 +1332,7 @@ struct LiquidTodayView: View {
                             // Match the badge's trailing edge to the Rest vessel and centre it on the card border.
                             .fixedSize()
                             .frame(width: ringHitDiameter, alignment: .trailing)
-                            .offset(y: -(NoopMetrics.space4 + NoopMetrics.sourceBadgeHeight / 2))
+                            .offset(y: -(LiquidHeroRingLayout.verticalPadding + NoopMetrics.sourceBadgeHeight / 2))
                             .allowsHitTesting(false)
                             // Each ring speaks its own source with its value, so the badge would only
                             // repeat it as a fourth stop.
@@ -1343,7 +1353,7 @@ struct LiquidTodayView: View {
                 heroRowWidth = measured
             }
         }
-        .padding(.vertical, NoopMetrics.space4)
+        .padding(.vertical, LiquidHeroRingLayout.verticalPadding)
         .padding(.horizontal, LiquidHeroRingLayout.horizontalPadding)
         // The ONE content surface that gets real iOS 26 glass (material below 26): it is the screen's
         // headline card and there is exactly one of it, so the blur pass is affordable — unlike the ten
@@ -2503,21 +2513,35 @@ struct LiquidTodayView: View {
 
     /// A workout without a stored Effort says so in words and draws no bar: a zero-length bar would read
     /// as "no effort" rather than "not measured".
+    /// One workout: the sport's glyph in its family colour, name and summary, and the Effort number with its
+    /// band word. No progress bar (2026-10-02): five orange tubes stacked in a list read as loading bars, and
+    /// the colour now says what kind of session it was instead.
     private func workoutRow(_ w: WorkoutRow) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(WorkoutSource.displaySport(w.sport)).font(StrandFont.number(15))
-                        .foregroundStyle(StrandPalette.textPrimary)
-                    Text(workoutSub(w)).font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-                }
-                Spacer()
-                (Text(effortText(w.strain)).font(StrandFont.number(15))
-                    + Text(" EFFORT").font(StrandFont.overlineScaled(9)))
-                    .foregroundStyle(w.strain == nil ? StrandPalette.textTertiary : StrandPalette.textPrimary)
+        let sportTint = AppleInspiredColors.role(forSport: w.sport).color
+        return HStack(alignment: .center, spacing: NoopMetrics.space3) {
+            ZStack {
+                Circle().fill(sportTint.opacity(0.16))
+                WorkoutTypeIcon(workoutType: w.sport, size: 17, weight: .semibold, color: sportTint)
             }
-            if let strain = w.strain {
-                LiquidTube(frac: strain / 100, tint: StrandPalette.effortColor, height: 8, animated: false)
+            .frame(width: 38, height: 38)
+            .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(WorkoutSource.displaySport(w.sport)).font(StrandFont.number(15))
+                    .foregroundStyle(StrandPalette.textPrimary)
+                    .lineLimit(1)
+                Text(workoutSub(w)).font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                    .lineLimit(2)
+            }
+            Spacer(minLength: NoopMetrics.space2)
+            VStack(alignment: .trailing, spacing: 1) {
+                Text(effortText(w.strain)).font(StrandFont.number(17))
+                    .foregroundStyle(w.strain == nil ? StrandPalette.textTertiary : StrandPalette.textPrimary)
+                Text(LiquidTodayDefaults.effortBandWord(stored: w.strain)
+                        ?? DomainTheme.effort.productName.uppercased())
+                    .font(StrandFont.overlineScaled(9))
+                    .tracking(StrandFont.overlineTracking)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .lineLimit(1)
             }
         }
         .padding(.vertical, 10)
@@ -3002,9 +3026,14 @@ struct LiquidTodayView: View {
         energySummariesByDay[selectedDayKey]
     }
 
-    private var liveHour: Double {
-        let c = Calendar.current.dateComponents([.hour, .minute], from: Date())
-        return Double(c.hour ?? 0) + Double(c.minute ?? 0) / 60
+    /// The hour that picks the day-cycle scene. DEBUG: a pinned `--demo-hour` frame overrides it, the
+    /// same harness Classic Today uses; Release always reads the clock.
+    private var sceneHour: Int {
+        #if DEBUG
+        return DemoDayHarness.hour ?? Calendar.current.component(.hour, from: Date())
+        #else
+        return Calendar.current.component(.hour, from: Date())
+        #endif
     }
 
     // MARK: - Formatting
@@ -3084,7 +3113,10 @@ struct LiquidTodayView: View {
         guard let s else { return Self.noValueDash }
         // Route through the shared formatter instead of hardcoding *21: a default (0–100) user was shown the
         // WHOOP-scaled number here while the hero + Workouts table showed 0–100, two numbers for one workout.
-        return UnitFormatter.effortDisplay(s, scale: effortScale)
+        // Same rounding as the Effort ring and tile: whole number on 0–100, one decimal on 0–21.
+        return effortScale == .whoop
+            ? UnitFormatter.effortDisplay(s, scale: .whoop)
+            : String(format: "%.0f", locale: AppLanguage.activeLocale, s)
     }
 
     private func workoutSub(_ w: WorkoutRow) -> String {
@@ -3477,28 +3509,29 @@ private struct LiquidUpdatesBellButton: View {
     @EnvironmentObject var updateStore: UpdateStore
     @Binding var showUpdatesInbox: Bool
     var body: some View {
+        // Same glass chrome and size as its neighbours; it used to be a smaller, plain inset circle.
         Button { showUpdatesInbox = true } label: {
-            Image(systemName: updateStore.unreadCount > 0 ? "bell.badge" : "bell")
-                .font(.system(size: 13, weight: .semibold))
-                .symbolRenderingMode(.hierarchical)
+            Image(systemName: "bell")
+                .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(StrandPalette.textPrimary)
                 .frame(width: LiquidHeaderMetrics.control, height: LiquidHeaderMetrics.control)
-                .background(Circle().fill(StrandPalette.surfaceInset.opacity(0.6)))
-                .overlay(alignment: .topTrailing) {
-                    if updateStore.unreadCount > 0 {
-                        Text("\(min(updateStore.unreadCount, 99))")
-                            .font(.system(size: 8, weight: .bold, design: .rounded))
-                            .monospacedDigit()
-                            .foregroundStyle(.white)
-                            .frame(minWidth: 12, minHeight: 12)
-                            .background(Circle().fill(StrandPalette.statusCritical))
-                            .offset(x: 3, y: -3)
-                    }
-                }
-                .contentShape(Circle())
         }
-        .buttonStyle(LiquidPressStyle())
+        .nativeLiquidGlassHeaderButton()
+        .overlay(alignment: .topTrailing) {
+            if updateStore.unreadCount > 0 {
+                Text("\(min(updateStore.unreadCount, 99))")
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 3)
+                    .frame(minWidth: 15, minHeight: 15)
+                    .background(Capsule().fill(StrandPalette.statusCritical))
+                    .offset(x: 2, y: -2)
+                    .allowsHitTesting(false)
+            }
+        }
         .accessibilityLabel("Updates")
+        .accessibilityValue(updateStore.unreadCount > 0 ? Text("\(updateStore.unreadCount) unread") : Text(""))
     }
 }
 
@@ -3778,15 +3811,6 @@ private struct LiquidBatteryButton: View {
 }
 
 private extension View {
-    /// The edge-to-edge photo is overlaid after the native button style so it can fill the face. Finish
-    /// the composed control with interactive system glass as the topmost visual layer; otherwise the
-    /// opaque photo would conceal the button style's refraction and highlight. macOS keeps the photo
-    /// as-is (Liquid Glass is iOS-only).
-    @ViewBuilder
-    func nativeLiquidGlassPhotoFinish() -> some View {
-        self.nativeLiquidGlassCircleFinish()
-    }
-
     /// Platform-owned Home-header button chrome. iOS 26 supplies the interactive Liquid Glass button
     /// material; macOS and older iOS keep the same circular geometry with a native system material.
     @ViewBuilder

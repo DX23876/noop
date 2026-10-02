@@ -85,4 +85,18 @@ final class LiquidTodayDefaultsTests: XCTestCase {
         XCTAssertEqual(LiquidTodayDefaults.dashboardCards(DashboardCardPrefs.encode([.hrv, .restingHr])),
                        [.hrv, .restingHr])
     }
+
+    /// Last Workouts writes the Effort band under the number; its edges are the app's Effort words.
+    func testEffortBandWordFollowsTheEffortEdges() {
+        func word(_ key: String) -> String { String(localized: String.LocalizationValue(key)).uppercased(with: AppLanguage.activeLocale) }
+        XCTAssertNil(LiquidTodayDefaults.effortBandWord(stored: nil))
+        XCTAssertEqual(LiquidTodayDefaults.effortBandWord(stored: 0), word("Light"))
+        XCTAssertEqual(LiquidTodayDefaults.effortBandWord(stored: 28), word("Light"))
+        XCTAssertEqual(LiquidTodayDefaults.effortBandWord(stored: 29), word("Moderate"))
+        XCTAssertEqual(LiquidTodayDefaults.effortBandWord(stored: 47), word("Moderate"))
+        XCTAssertEqual(LiquidTodayDefaults.effortBandWord(stored: 48), word("Strenuous"))
+        XCTAssertEqual(LiquidTodayDefaults.effortBandWord(stored: 66), word("Strenuous"))
+        XCTAssertEqual(LiquidTodayDefaults.effortBandWord(stored: 67), word("High"))
+        XCTAssertEqual(LiquidTodayDefaults.effortBandWord(stored: 100), word("High"))
+    }
 }
