@@ -75,6 +75,28 @@ final class OrganicScoreGeometryTests: XCTestCase {
         XCTAssertTrue(differs, "the rings do not breathe in lockstep")
     }
 
+    func testLocalSwellsMoveTheEdgeButNeverTheSizeOrCentre() {
+        let model = OrganicScoreVisualModel.resolve(metric: .charge, value: 92)
+        let samples = 2880
+        var largestLocalChange = 0.0
+        for time in stride(from: 0.0, through: 60, by: 3.7) {
+            var sum = 0.0, cx = 0.0, cy = 0.0
+            for index in 0..<samples {
+                let angle = Double(index) / Double(samples) * .pi * 2
+                let offset = model.contourOffset(angle: angle, time: time)
+                sum += offset
+                cx += offset * cos(angle)
+                cy += offset * sin(angle)
+                let later = model.contourOffset(angle: angle, time: time + 1.5)
+                largestLocalChange = max(largestLocalChange, abs(later - offset))
+            }
+            XCTAssertEqual(sum / Double(samples), 0, accuracy: 1e-9, "size changed at t=\(time)")
+            XCTAssertEqual(cx / Double(samples), 0, accuracy: 1e-9, "centre moved at t=\(time)")
+            XCTAssertEqual(cy / Double(samples), 0, accuracy: 1e-9, "centre moved at t=\(time)")
+        }
+        XCTAssertGreaterThan(largestLocalChange, 0.2, "the edge visibly moves in places")
+    }
+
     func testQuietCentreClearsTheValueBox() {
         // The number is wider than tall: the zone must reach further sideways than vertically.
         XCTAssertEqual(OrganicScoreVisualModel.quietCentreRadius(angle: 0), 0.62, accuracy: 1e-9)

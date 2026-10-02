@@ -163,7 +163,42 @@ public struct OrganicScoreVisualModel: Equatable, Sendable {
             * cos(angle * 2 + pulsePhase + time * 0.41)
         // The breath swells the waves, never the ring: amplitude only, so the mean radius stays put.
         let swell = 1 - intensity.pulseStrength * 0.35 * (1 - breath(time: time))
-        return waveform * localPulse * swell * intensity.waveStrength
+        return (waveform * localPulse * swell * 0.78 + localSwells(angle: angle, time: time))
+            * intensity.waveStrength
+    }
+
+    /// Small, fine regions of the contour that bulge out (now and then pull in) on their own: each a
+    /// narrow bump that wanders slowly round the ring, grows, recedes and resurfaces elsewhere. More
+    /// and stronger at higher scores; a low score shows one or two faint ones.
+    ///
+    /// Each bump is a Gaussian with its own mean AND first circular harmonic subtracted analytically.
+    /// Without that, a bump would inflate the mean radius and pull the visual centre toward itself;
+    /// with it, the ring keeps its size and centre exactly while the local edge moves.
+    private func localSwells(angle: Double, time: Double) -> Double {
+        let count = 2 + Int((intensity.pulseStrength * 3).rounded())   // 2 ... 5
+        let tau = Double.pi * 2
+        var total = 0.0
+        for index in 0..<count {
+            let u = { (channel: Int) in particleUnit(index: 100 + index, channel: channel) }
+            let width = 0.09 + u(30) * 0.10                       // radians: a fine, narrow region
+            let drift = (u(31) - 0.5) * 0.24                       // rad/s, either way round
+            let centre = u(32) * tau + time * drift
+            // Lifecycle: rises, holds briefly, recedes, rests; each bump on its own period and phase.
+            let cycle = max(0, sin(time * (0.35 + u(33) * 0.45) + u(34) * tau))
+            let sign = u(35) < 0.8 ? 1.0 : -1.0                    // mostly outward, sometimes inward
+            let amplitude = sign * (0.18 + u(36) * 0.22) * cycle * cycle
+                * (0.5 + 0.5 * intensity.pulseStrength)
+            guard amplitude != 0 else { continue }
+
+            var delta = (angle - centre).truncatingRemainder(dividingBy: tau)
+            if delta > .pi { delta -= tau } else if delta < -.pi { delta += tau }
+            let bump = exp(-(delta * delta) / (2 * width * width))
+            let area = width * (2 * Double.pi).squareRoot()      // ∫ bump over the circle
+            let mean = area / tau
+            let firstHarmonic = area * exp(-width * width / 2) / Double.pi
+            total += amplitude * (bump - mean - firstHarmonic * cos(delta))
+        }
+        return total
     }
 
     /// A slow, soft breath in `0...1` (about four seconds a cycle, slightly different per metric so the
@@ -268,9 +303,9 @@ public enum OrganicScoreQuality: Int, CaseIterable, Comparable, Sendable {
 
     public var contourSamples: Int {
         switch self {
-        case .full: return 144
-        case .reduced: return 108
-        case .minimal: return 72
+        case .full: return 192
+        case .reduced: return 132
+        case .minimal: return 84
         }
     }
 }
