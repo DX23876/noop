@@ -21,14 +21,18 @@ struct EnergyCard: View {
     /// two states the card used to report with one sentence, which was a lie to anyone wearing a strap.
     let strapPaired: Bool
     let lastStrapSync: Date?
+    /// Liquid Today's short form: the same figures, confidence and caveat, without the large composition
+    /// mark. A thin resting/active bar keeps the split visible. Values and selection logic are identical.
+    let compact: Bool
 
     /// The pair is resolved from the app's live state by DEFAULT rather than threaded through the
     /// three call sites, because all three sit in view hierarchies that deliberately do not observe
     /// `LiveState`: it publishes at ~1 Hz while a strap streams, and Today explicitly avoids an
     /// `@EnvironmentObject live` for exactly that reason. Reading a snapshot here subscribes to
     /// nothing. Tests and previews pass the pair explicitly.
-    init(summary: DailyEnergySummary, strapSync: (paired: Bool, lastSync: Date?)? = nil) {
+    init(summary: DailyEnergySummary, strapSync: (paired: Bool, lastSync: Date?)? = nil, compact: Bool = false) {
         self.summary = summary
+        self.compact = compact
         let resolved = strapSync ?? AppModel.shared?.strapSyncSnapshot
         self.strapPaired = resolved?.paired ?? false
         self.lastStrapSync = resolved?.lastSync
@@ -46,7 +50,14 @@ struct EnergyCard: View {
                     confidencePill
                 }
 
-                if dynamicTypeSize.isAccessibilitySize {
+                if compact {
+                    headline
+                    if summary.totalBurnedSoFar != nil {
+                        EnergyCompositionBar(restingKcal: summary.basalBurnedSoFar,
+                                             activeKcal: summary.activeBurnedSoFar)
+                            .accessibilityHidden(true)
+                    }
+                } else if dynamicTypeSize.isAccessibilitySize {
                     VStack(alignment: .leading, spacing: 16) { energyMark; headline }
                 } else {
                     HStack(spacing: 18) { energyMark; headline }
@@ -140,6 +151,14 @@ struct EnergyCard: View {
         }
     }
 
+    private var confidenceText: String {
+        switch summary.confidence {
+        case .solid: return String(localized: "Measured")
+        case .building: return String(localized: "Partly estimated")
+        case .calibrating: return String(localized: "Estimated")
+        }
+    }
+
     private var confidenceColor: Color {
         switch summary.confidence {
         case .solid: return StrandPalette.statusPositive
@@ -214,6 +233,11 @@ struct EnergyCard: View {
         if let resting = kcal(summary.basalBurnedSoFar ?? summary.estimatedBMR24h) {
             parts.append("\(String(localized: "Resting")): \(resting)")
         }
+        // The pill and the projection were visible but never spoken.
+        if let projected = kcal(summary.projectedTotalBurn) {
+            parts.append("\(String(localized: "Projected")): ~\(projected)")
+        }
+        parts.append(confidenceText)
         return parts.joined(separator: ", ")
     }
 }
@@ -273,6 +297,28 @@ struct EnergyCompositionMark: View {
                 .foregroundStyle(LinearGradient(gradient: StrandPalette.energyGradient,
                                                 startPoint: .top, endPoint: .bottom))
         }
+    }
+}
+
+/// The resting/active split as one thin bar, for the compact card.
+struct EnergyCompositionBar: View {
+    let restingKcal: Double?
+    let activeKcal: Double?
+
+    var body: some View {
+        GeometryReader { proxy in
+            let fractions = EnergyCompositionMark.fractions(resting: restingKcal, active: activeKcal)
+            HStack(spacing: fractions.map { $0.active > 0 && $0.resting > 0 } == true ? 2 : 0) {
+                if let fractions {
+                    Capsule().fill(StrandPalette.energyResting)
+                        .frame(width: max(0, proxy.size.width * fractions.resting - 1))
+                    Capsule().fill(StrandPalette.energyActive)
+                } else {
+                    Capsule().fill(StrandPalette.energyTrack)
+                }
+            }
+        }
+        .frame(height: 6)
     }
 }
 
