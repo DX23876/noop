@@ -1,7 +1,14 @@
 # Liquid Today redesign
 
-Status: product decisions approved on 2026-10-02. Implementation in progress: stages 2–5 (visual
-model, renderer, motion/accessibility, hero replacement) landed on 2026-10-02; stage 6 has started.
+Status: product decisions approved on 2026-10-02. Implemented on branch `codex/liquid-today-redesign`
+on 2026-10-02: stages 2 to 8 (rings, motion, accessibility, hero, Today composition and surfaces,
+Energy, Explore). Open: the stage 9 QA matrix (screenshot set, accessibility sizes, physical iPhone
+for motion, frame pacing and energy impact) and the shared Classic fixes listed under Key Metrics.
+
+Tuning decided with the user after the first device look (2026-10-02): the rings follow the approved
+reference more literally (eight soft lobes, band of crossing filaments, bloom, interior particles
+rising with the value), plus small wandering local swells; Effort gains extra glow and breath depth
+from Moderate (6/21) up, never extra tempo; the breath is gentle (brightness about ±22 %).
 
 This document is the canonical implementation specification for the Liquid Today redesign. It
 replaces the earlier session plan under `docs/superpowers/specs/`. When code, chat history, or a
