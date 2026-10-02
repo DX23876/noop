@@ -1779,7 +1779,10 @@ struct LiquidTodayView: View {
                 .padding(.horizontal, NoopMetrics.space3)
                 .padding(.vertical, 5)
                 .background(Capsule(style: .continuous).fill(readinessColor(readiness.level).opacity(0.12)))
-                .overlay(Capsule(style: .continuous).stroke(readinessColor(readiness.level).opacity(0.32), lineWidth: 1))
+                // Restrained surfaces: the tinted fill carries the pill; only Increase Contrast adds an edge.
+                .overlay(Capsule(style: .continuous).stroke(
+                    readinessColor(readiness.level).opacity(colorSchemeContrast == .increased ? 0.6 : 0),
+                    lineWidth: 1))
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)

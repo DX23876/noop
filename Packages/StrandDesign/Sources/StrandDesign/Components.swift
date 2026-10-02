@@ -828,6 +828,10 @@ public struct ScoreStatePill: View {
     public init(_ state: ScoreState, text: LocalizedStringKey? = nil) {
         self.state = state; self.text = text
     }
+    /// Under `noopQuietCardRims` (Liquid Today) the chip rests on its tinted fill alone; Increase
+    /// Contrast brings the border back.
+    @Environment(\.noopQuietCardRims) private var quietRims
+    @Environment(\.colorSchemeContrast) private var contrast
     public var body: some View {
         let hue = state.color
         return HStack(spacing: 6) {
@@ -839,7 +843,8 @@ public struct ScoreStatePill: View {
         }
         .padding(.horizontal, 10).padding(.vertical, 5)
         .background(Capsule(style: .continuous).fill(hue.opacity(0.12)))
-        .overlay(Capsule(style: .continuous).stroke(hue.opacity(0.32), lineWidth: 1))
+        .overlay(Capsule(style: .continuous)
+            .stroke(hue.opacity(quietRims && contrast != .increased ? 0 : 0.32), lineWidth: 1))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(text ?? state.label)
     }
