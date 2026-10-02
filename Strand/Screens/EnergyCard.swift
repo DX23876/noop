@@ -41,7 +41,7 @@ struct EnergyCard: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        NoopCard(tint: StrandPalette.energyResting) {
+        NoopCard(tint: StrandPalette.energyHighlight) {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 8) {
                     // Neutral words, coloured glyph: the hero's label rule.
@@ -306,10 +306,7 @@ struct EnergyCompositionMark: View {
         ZStack {
             Circle()
                 .trim(from: 0, to: fractions.resting)
-                .stroke(AngularGradient(colors: [StrandPalette.energyResting, StrandPalette.energyHighlight],
-                                        center: .center,
-                                        startAngle: .degrees(0), endAngle: .degrees(360 * fractions.resting)),
-                        style: .init(lineWidth: 11, lineCap: .butt))
+                .stroke(StrandPalette.energyResting, style: .init(lineWidth: 11, lineCap: .butt))
             if fractions.active > 0 {
                 Circle()
                     .trim(from: fractions.resting, to: 1)

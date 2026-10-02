@@ -589,15 +589,16 @@ public enum StrandPalette {
     /// Apple's workout green since 2026-10-02 (the Exercise ring and Workout app lime), chosen by the user
     /// after gold/coral read brown and cold in Light and a magenta trial was rejected. Dark uses the neon
     /// lime itself; Light uses deeper greens of the same hue, because neon lime vanishes on white.
-    /// Resting burn is the softer lime foundation, active burn the full workout green. Fills and glyphs
-    /// only: energy TEXT stays on the neutral text tokens, like the hero's CHARGE / EFFORT / REST labels.
-    public static let energyResting = Color(light: "#8CC63A", dark: "#C4F75A")
+    /// The four parts of the day's burn are told apart like Apple's activity rings: resting burn in the
+    /// Stand ring's cyan, daily movement in yellow, active burn and training in the workout green. Fills
+    /// and glyphs only: energy TEXT stays on the neutral text tokens, like the hero's CHARGE / EFFORT /
+    /// REST labels.
+    public static let energyResting = Color(light: "#0A9DB5", dark: "#2EE6F5")
     public static let energyActive = Color(light: "#4FA300", dark: "#A6FF00")
     public static let energyHighlight = Color(light: "#6AB80F", dark: "#B4FF2E")
-    /// The two halves of active burn on the Energy detail card: the walking-about kind and the
-    /// deliberate kind. They sit either side of `energyActive` in lightness rather than beside it,
-    /// because the card shows all three at once and two neighbouring greens would read as one bar.
-    public static let energyMovement = Color(light: "#B2DC6E", dark: "#DAFF8F")
+    /// The two halves of active burn on the Energy detail card: the walking-about kind (yellow) and the
+    /// deliberate kind (a deeper workout green), distinct from each other and from resting cyan.
+    public static let energyMovement = Color(light: "#D9A300", dark: "#FFD60A")
     public static let energyTraining = Color(light: "#2F7A00", dark: "#7ED400")
     /// The dotted "what a normal day looks like" curve. A warm grey (2026-10-02, was a cool blue): it
     /// stays apart from today's line by being muted and dotted, without pulling the chart cold.
@@ -605,7 +606,8 @@ public enum StrandPalette {
     /// The empty part of energy rings and bars: a faint warm wash rather than a grey.
     public static var energyTrack: Color { energyHighlight.opacity(0.16) }
     public static var energyGradient: Gradient {
-        Gradient(colors: [energyResting, energyHighlight, energyActive])
+        // Energy's own green only: the flame and other single-colour marks are not the resting/active split.
+        Gradient(colors: [energyHighlight, energyActive])
     }
 
     // MARK: - Titanium & Gold domain "colour worlds" (NEW)

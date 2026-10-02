@@ -217,7 +217,7 @@ struct EnergyDetailView: View {
     }
 
     private var emptyState: some View {
-        NoopCard(tint: StrandPalette.energyResting) {
+        NoopCard(tint: StrandPalette.energyHighlight) {
             HStack(spacing: 14) {
                 Image(systemName: "flame.fill")
                     .font(.system(size: 24, weight: .semibold))
@@ -237,7 +237,7 @@ struct EnergyDetailView: View {
     }
 
     private func calculationLink(_ s: DailyEnergySummary) -> some View {
-        NoopCard(tint: StrandPalette.energyResting) {
+        NoopCard(tint: StrandPalette.energyHighlight) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .firstTextBaseline) {
                     Text("Data quality & calculation")

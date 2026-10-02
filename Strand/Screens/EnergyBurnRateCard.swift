@@ -140,7 +140,7 @@ struct EnergyBurnRateCard: View {
                              series: .value("Series", "today-\(index)"))
                         .foregroundStyle(LinearGradient(
                             colors: [StrandPalette.energyHighlight.opacity(0.42),
-                                     StrandPalette.energyResting.opacity(0.04)],
+                                     StrandPalette.energyHighlight.opacity(0.04)],
                             startPoint: .top, endPoint: .bottom))
                     LineMark(x: .value("Time", date(point)),
                              y: .value("kcal/min", point.kcalPerMinute),

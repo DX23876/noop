@@ -37,7 +37,7 @@ struct EnergyHeroCard: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        NoopCard(tint: StrandPalette.energyResting) {
+        NoopCard(tint: StrandPalette.energyHighlight) {
             VStack(alignment: .leading, spacing: 18) {
                 HStack(spacing: 8) {
                     Label {

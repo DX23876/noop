@@ -102,7 +102,7 @@ struct EnergyCalculationView: View {
                 SectionHeader("How this was calculated",
                               overline: "Energy",
                               trailing: EnergyProvenance.confidenceLabel(summary.confidence))
-                NoopCard(tint: StrandPalette.energyResting) {
+                NoopCard(tint: StrandPalette.energyHighlight) {
                     VStack(alignment: .leading, spacing: 10) { provenanceRows }
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
