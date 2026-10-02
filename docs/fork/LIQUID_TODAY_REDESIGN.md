@@ -8,7 +8,9 @@ for motion, frame pacing and energy impact) and the shared Classic fixes listed 
 Tuning decided with the user after the first device look (2026-10-02): the rings follow the approved
 reference more literally (eight soft lobes, band of crossing filaments, bloom, interior particles
 rising with the value), plus small wandering local swells; Effort gains extra glow and breath depth
-from Moderate (6/21) up, never extra tempo; the breath is gentle (brightness about ±22 %).
+from Moderate (6/21) up, never extra tempo; the breath is gentle (brightness about ±22 %). Later the same day the rings grew with the phone: each is drawn
+1.08 times its third of the hero row (clamped 100 to 150 pt, about 127 pt on a 17 Pro, 141 pt on a 17 Pro
+Max) instead of a fixed 108 pt, while its layout and tap target stay inside its own third.
 
 This document is the canonical implementation specification for the Liquid Today redesign. It
 replaces the earlier session plan under `docs/superpowers/specs/`. When code, chat history, or a
