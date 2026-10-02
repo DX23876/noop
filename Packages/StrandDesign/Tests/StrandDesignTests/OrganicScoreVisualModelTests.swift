@@ -136,4 +136,34 @@ final class OrganicScoreVisualModelTests: XCTestCase {
                           rest.contourOffset(angle: 1.2, time: 3.4))
         XCTAssertEqual(missing.contourOffset(angle: 1.2, time: 3.4), 0)
     }
+
+    func testEffortGlowsAndPulsesHarderOnlyFromModerate() {
+        func effort(_ value: Double) -> OrganicScoreVisualModel {
+            OrganicScoreVisualModel.resolve(metric: .effort, value: value, scaleMaximum: 21)
+        }
+        func rest(_ value: Double) -> OrganicScoreVisualModel {
+            OrganicScoreVisualModel.resolve(metric: .rest, value: value, scaleMaximum: 21)
+        }
+
+        // Light (below 6/21): identical to the shared curve, no extra pulse.
+        XCTAssertEqual(effort(5).effortLoad, 0)
+        XCTAssertEqual(effort(5).intensity, rest(5).intensity)
+
+        // Moderate and up: load rises, and with it glow and pulse beyond the shared curve.
+        let loads = [7.0, 11, 15, 19].map { effort($0).effortLoad }
+        for (lower, higher) in zip(loads, loads.dropFirst()) { XCTAssertGreaterThan(higher, lower) }
+        XCTAssertEqual(effort(20).effortLoad, 1, accuracy: 1e-9)
+        XCTAssertGreaterThan(effort(15).intensity.glowStrength, rest(15).intensity.glowStrength + 0.2)
+        XCTAssertGreaterThan(effort(15).intensity.pulseStrength, rest(15).intensity.pulseStrength + 0.3)
+
+        // A high Effort breathes faster and deeper than the same normalised Rest.
+        func swing(_ model: OrganicScoreVisualModel) -> Double {
+            let values = (0..<300).map { model.breathBrightness(time: Double($0) * 0.05) }
+            return (values.max() ?? 0) - (values.min() ?? 0)
+        }
+        XCTAssertGreaterThan(swing(effort(17)), swing(rest(17)) * 1.4)
+
+        // Charge and Rest never carry Effort's load.
+        XCTAssertEqual(OrganicScoreVisualModel.resolve(metric: .charge, value: 90).effortLoad, 0)
+    }
 }

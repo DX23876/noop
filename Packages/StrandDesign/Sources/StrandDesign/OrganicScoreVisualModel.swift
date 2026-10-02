@@ -92,6 +92,21 @@ public struct OrganicScoreVisualModel: Equatable, Sendable {
     public let chargeBand: ChargeBand?
     public let intensity: OrganicScoreIntensity
     public let seed: UInt64
+    /// Effort only: how far today's load is into the Moderate-and-above range, `0...1`. Zero for Light
+    /// effort and for the other metrics. Drives a stronger, faster pulse and extra glow.
+    public var effortLoad: Double = 0
+
+    /// Effort's band edges on the normalised axis, the same as the app's Effort words on the 0–21 scale:
+    /// Light below 6, Moderate from 6, Strenuous from 10, High from 14.
+    public static let effortModerateStart = 6.0 / 21.0
+    public static let effortHighStart = 14.0 / 21.0
+
+    /// `0` up to the start of Moderate, then rising (eased) to `1` a little past the start of High.
+    public static func effortLoad(normalized: Double) -> Double {
+        let span = (effortHighStart + 0.12) - effortModerateStart
+        let t = min(max((normalized - effortModerateStart) / span, 0), 1)
+        return t * t * (3 - 2 * t)
+    }
 
     /// Resolves a displayed score against its displayed maximum. The renderer consumes only this
     /// normalised result, which makes Effort's 0-21 and 0-100 presentation scales visually identical.
@@ -114,14 +129,30 @@ public struct OrganicScoreVisualModel: Equatable, Sendable {
         }
 
         let normalized = min(max(value / scaleMaximum, 0), 1)
-        return OrganicScoreVisualModel(
+        var intensity = OrganicScoreIntensity.interpolated(at: normalized)
+        let load = metric == .effort ? effortLoad(normalized: normalized) : 0
+        if load > 0 {
+            // A loaded day glows and pulses clearly more than the value alone would; Light effort is
+            // left exactly as the shared curve draws it.
+            intensity = OrganicScoreIntensity(
+                particleDensity: intensity.particleDensity,
+                waveStrength: intensity.waveStrength,
+                pulseStrength: min(1, intensity.pulseStrength + load * 0.55),
+                glowStrength: min(1, intensity.glowStrength + load * 0.4),
+                smokeStrength: min(1, intensity.smokeStrength + load * 0.3),
+                echoLevel: intensity.echoLevel
+            )
+        }
+        var model = OrganicScoreVisualModel(
             metric: metric,
             state: .value,
             normalizedValue: normalized,
             chargeBand: metric == .charge ? ChargeBand.of(score: normalized * 100) : nil,
-            intensity: .interpolated(at: normalized),
+            intensity: intensity,
             seed: seed
         )
+        model.effortLoad = load
+        return model
     }
 
     /// A stable pseudo-random word for one particle attribute. Score changes intentionally do not enter
@@ -204,7 +235,8 @@ public struct OrganicScoreVisualModel: Equatable, Sendable {
     /// A slow, soft breath in `0...1` (about four seconds a cycle, slightly different per metric so the
     /// three rings do not pulse in lockstep). Drives brightness and wave height, never size or position.
     public func breath(time: Double) -> Double {
-        let period = 3.6 + particleUnit(index: 0, channel: 14) * 0.9
+        // A loaded Effort breathes faster, closer to a pulse.
+        let period = (3.6 + particleUnit(index: 0, channel: 14) * 0.9) / (1 + effortLoad * 0.7)
         let phase = particleUnit(index: 0, channel: 15) * .pi * 2
         let raw = 0.5 + 0.5 * sin(time * .pi * 2 / period + phase)
         return raw * raw * (3 - 2 * raw)   // eased, so it lingers at full and empty like a breath
@@ -213,7 +245,7 @@ public struct OrganicScoreVisualModel: Equatable, Sendable {
     /// Brightness multiplier for glow, haze and bloom at `time`: a dim score barely breathes, a full one
     /// breathes visibly.
     public func breathBrightness(time: Double) -> Double {
-        1 + intensity.pulseStrength * 0.45 * (breath(time: time) - 0.5) * 2
+        1 + intensity.pulseStrength * (0.45 + effortLoad * 0.45) * (breath(time: time) - 0.5) * 2
     }
 
     /// The model a value change passes through, `fraction` of the way from `self` to `target`.
@@ -239,7 +271,8 @@ public struct OrganicScoreVisualModel: Equatable, Sendable {
                 smokeStrength: mix(from.smokeStrength, to.smokeStrength),
                 echoLevel: mix(from.echoLevel, to.echoLevel)
             ),
-            seed: target.seed
+            seed: target.seed,
+            effortLoad: effortLoad + (target.effortLoad - effortLoad) * fraction
         )
     }
 
