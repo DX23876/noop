@@ -52,31 +52,57 @@ extension Repository {
 /// Loads only when explicitly enabled. Task identity follows the selected day and repository refresh.
 struct RollingStepsAverageCard: View {
     let day: String
+    /// The Card-transparency setting, as the caller resolved it; 1 (opaque) where a screen has none.
+    var surfaceOpacity: Double = 1
+    /// Liquid Today draws "Your cards" with `TodayDashboardRow` on `TodayCardSurface`; this card joins
+    /// them there instead of keeping its own layout. Classic keeps the original.
+    var dashboardRowStyle = false
     @EnvironmentObject private var repo: Repository
     @State private var result: RollingStepsAverage?
     @State private var resultDay: String?
 
     var body: some View {
         let current = resultDay == day ? result : nil
+        let meanText = current?.mean.map {
+            $0.formatted(.number.locale(AppLanguage.activeLocale).precision(.fractionLength(0)))
+        } ?? "—"
+        let daysText = current.map { String(localized: "\($0.observedDays) of 30 days") } ?? "—"
         NavigationLink(value: TabRoute.metricSourced(key: "steps", source: MetricCatalog.combinedStepsSource)) {
+            if dashboardRowStyle {
+                TodayDashboardRow(
+                    systemImage: DashboardCard.stepsAverage30.icon,
+                    title: DashboardCard.stepsAverage30.title,
+                    subtitle: daysText,
+                    value: meanText,
+                    tint: StrandPalette.metricCyan,
+                    progress: current.map { Double($0.observedDays) / 30 },
+                    isPlaceholder: meanText == "—"
+                )
+                .padding(.horizontal, NoopMetrics.space4)
+                .padding(.vertical, NoopMetrics.space3)
+                .contentShape(Rectangle())
+                .background(TodayCardSurface(tint: StrandPalette.metricCyan, surfaceOpacity: surfaceOpacity))
+            } else {
             HStack(spacing: 12) {
                 Image(systemName: DashboardCard.stepsAverage30.icon)
                     .foregroundStyle(StrandPalette.metricCyan)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(DashboardCard.stepsAverage30.title)
                         .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                    Text(current.map { String(localized: "\($0.observedDays) of 30 days") } ?? "—")
+                    Text(daysText)
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
                 }
                 Spacer(minLength: 8)
-                Text(current?.mean.map { $0.formatted(.number.locale(AppLanguage.activeLocale).precision(.fractionLength(0))) } ?? "—")
+                Text(meanText)
                     .font(StrandFont.number(20)).foregroundStyle(StrandPalette.textPrimary)
                     .fixedSize(horizontal: true, vertical: false)
                 Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(StrandPalette.textTertiary)
             }
             .padding(14)
-            .background(NoopPanelSurface(tint: StrandPalette.metricCyan, cornerRadius: 20))
+            .background(NoopPanelSurface(tint: StrandPalette.metricCyan, cornerRadius: 20,
+                                         surfaceOpacity: surfaceOpacity))
+            }
         }
         .buttonStyle(.plain)
         .task(id: "\(day)|\(repo.refreshSeq)") {

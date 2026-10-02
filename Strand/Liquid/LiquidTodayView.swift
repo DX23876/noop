@@ -1639,7 +1639,8 @@ struct LiquidTodayView: View {
     private func liquidCard(for card: DashboardCard) -> some View {
         switch card {
         case .stepsAverage30:
-            RollingStepsAverageCard(day: selectedDayKey)
+            // Follows Card transparency like every other card here (it used to stay opaque).
+            RollingStepsAverageCard(day: selectedDayKey, surfaceOpacity: cardOpacity, dashboardRowStyle: true)
         case .stress:
             cardLink(.stress, icon: card.icon, title: card.title, sub: card.subtitle,
                      value: stressText, tint: StrandPalette.accent, frac: fracOver(stress, 3))
