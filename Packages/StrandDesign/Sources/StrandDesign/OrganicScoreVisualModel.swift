@@ -193,7 +193,7 @@ public struct OrganicScoreVisualModel: Equatable, Sendable {
         let localPulse = 0.72 + 0.28 * intensity.pulseStrength
             * cos(angle * 2 + pulsePhase + time * 0.41)
         // The breath swells the waves, never the ring: amplitude only, so the mean radius stays put.
-        let swell = 1 - intensity.pulseStrength * 0.35 * (1 - breath(time: time))
+        let swell = 1 - intensity.pulseStrength * 0.18 * (1 - breath(time: time))
         return (waveform * localPulse * swell * 0.78 + localSwells(angle: angle, time: time))
             * intensity.waveStrength
     }
@@ -245,7 +245,7 @@ public struct OrganicScoreVisualModel: Equatable, Sendable {
     /// Brightness multiplier for glow, haze and bloom at `time`: a dim score barely breathes, a full one
     /// breathes visibly.
     public func breathBrightness(time: Double) -> Double {
-        1 + intensity.pulseStrength * (0.45 + effortLoad * 0.2) * (breath(time: time) - 0.5) * 2
+        1 + intensity.pulseStrength * (0.22 + effortLoad * 0.1) * (breath(time: time) - 0.5) * 2
     }
 
     /// The model a value change passes through, `fraction` of the way from `self` to `target`.

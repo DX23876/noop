@@ -70,7 +70,8 @@ final class OrganicScoreGeometryTests: XCTestCase {
             lowRange = (min(lowRange.min, low.breathBrightness(time: t)), max(lowRange.max, low.breathBrightness(time: t)))
             if abs(b - charge.breath(time: t)) > 0.2 { differs = true }
         }
-        XCTAssertGreaterThan(highRange.max - highRange.min, 0.6, "a full score breathes visibly")
+        XCTAssertGreaterThan(highRange.max - highRange.min, 0.25, "a full score still breathes visibly")
+        XCTAssertLessThan(highRange.max - highRange.min, 0.5, "but gently")
         XCTAssertLessThan(lowRange.max - lowRange.min, highRange.max - highRange.min)
         XCTAssertTrue(differs, "the rings do not breathe in lockstep")
     }
