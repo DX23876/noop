@@ -2304,7 +2304,13 @@ struct LiquidTodayView: View {
             // the SAME scale as the Effort hero (0–21 WHOOP vs 0–100), instead of always the raw 0–100
             // stored value — the two used to disagree whenever the user picked the WHOOP scale. #492: Effort
             // is a load index, NOT a percentage, so the tile carries no unit.
-            let effortTileText = effortValue.map { UnitFormatter.effortDisplay($0, scale: effortScale) } ?? "–"
+            // Rounded exactly like the hero ring (whole number on 0–100, one decimal on 0–21), so the
+            // tile never reads 29.8 under a ring that says 30.
+            let effortTileText = effortValue.map {
+                effortScale == .whoop
+                    ? UnitFormatter.effortDisplay($0, scale: .whoop)
+                    : String(format: "%.0f", locale: AppLanguage.activeLocale, $0)
+            } ?? "–"
             ktile(DomainTheme.effort.productName, icon: metric.customizationIcon, effortTileText, "", StrandPalette.effortColor, frac(effortValue), key: HeroRingMetric.effort)
         case .rest:
             ktile(DomainTheme.rest.productName, icon: metric.customizationIcon, intText(restScore), "%", StrandPalette.restColor, frac(restScore), key: HeroRingMetric.rest)
