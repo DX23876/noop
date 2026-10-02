@@ -294,8 +294,8 @@ private enum OrganicScoreRingRenderer {
 
         if quality.drawsSmoke, model.intensity.smokeStrength > 0 {
             let smoke = model.intensity.smokeStrength
-            // Smoke drifts a couple of points downhill; the contour it surrounds does not.
-            let drift = CGSize(width: motion.gravity.x * 2.2, height: motion.gravity.y * 2.2)
+            // Smoke drifts a few points downhill; the contour it surrounds does not.
+            let drift = CGSize(width: motion.gravity.x * 6, height: motion.gravity.y * 6)
             context.drawLayer { layer in
                 layer.translateBy(x: drift.width, y: drift.height)
                 layer.addFilter(.blur(radius: 3 + smoke * 4))

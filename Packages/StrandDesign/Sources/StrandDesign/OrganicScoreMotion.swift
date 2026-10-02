@@ -47,9 +47,11 @@ public struct OrganicScoreMotionFilter: Equatable, Sendable {
             y: gravity.y + (gravityTarget.y - gravity.y) * gravityBlend
         ).clamped(to: 1)
 
+        // A hand movement is a few tenths of a g; the gain makes that a clearly visible counter-push
+        // (it was 0.45, which left the response under a pixel and read as "no reaction" on device).
         let counterTarget = OrganicScoreVector(
-            x: -acceleration.x * 0.45,
-            y: -acceleration.y * 0.45
+            x: -acceleration.x * 1.6,
+            y: -acceleration.y * 1.6
         ).clamped(to: 1)
         let impulseBlend = 1 - exp(-deltaTime / 0.06)
         impulse = OrganicScoreVector(

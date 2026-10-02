@@ -388,7 +388,7 @@ public extension OrganicScoreVisualModel {
         if magnitude > 0 {
             let direction = atan2(impulse.y, impulse.x)
             let responsiveness = state == .value ? 1.0 : 0.25
-            squash = magnitude * 0.35 * responsiveness * cos(2 * (angle - direction))
+            squash = magnitude * 0.6 * responsiveness * cos(2 * (angle - direction))
         }
         return 1 + Self.deformationRatio * (wave + squash)
     }
@@ -459,7 +459,7 @@ public extension OrganicScoreVisualModel {
         let lagged = contourRadius(angle: angle, time: time - Double(index + 1) * 0.36, motion: motion)
         let gravity = motion.gravity
         let lean = gravity.x * cos(angle) + gravity.y * sin(angle)
-        let spacing = 0.063 * Double(index + 1) * (1 + 0.35 * lean)
+        let spacing = 0.063 * Double(index + 1) * (1 + 0.9 * lean)
         return lagged + spacing
     }
 
@@ -478,7 +478,8 @@ public extension OrganicScoreVisualModel {
         let pull = min(gravity.magnitude, 1)
         if pull > 0 {
             let downhill = atan2(gravity.y, gravity.x)
-            let personal = 0.06 + particleUnit(index: index, channel: 6) * 0.08
+            // Strong enough to see the field swing as the phone tilts (was 0.06 to 0.14 rad).
+            let personal = 0.18 + particleUnit(index: index, channel: 6) * 0.22
             angle += sin(downhill - angle) * personal * pull
         }
 
