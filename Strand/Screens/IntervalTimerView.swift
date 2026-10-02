@@ -252,7 +252,7 @@ struct IntervalTimerView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
         .background(StrandPalette.surfaceInset, in: Capsule(style: .continuous))
-        .overlay(Capsule(style: .continuous).strokeBorder(StrandPalette.hairline, lineWidth: 1))
+        .overlay(Capsule(style: .continuous).noopRestingRim())
     }
 
     private var controls: some View {

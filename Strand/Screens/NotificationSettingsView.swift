@@ -201,7 +201,7 @@ struct NotificationSettingsView: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
             .background(StrandPalette.surfaceInset, in: Capsule())
-            .overlay(Capsule().strokeBorder(StrandPalette.hairline, lineWidth: 1))
+            .overlay(Capsule().noopRestingRim())
             .foregroundStyle(StrandPalette.textSecondary)
         }
         .menuStyle(.borderlessButton)

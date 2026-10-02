@@ -1222,7 +1222,7 @@ struct CoachView: View {
             .padding(.horizontal, 9)
             .padding(.vertical, 5)
             .background(StrandPalette.surfaceInset, in: Capsule(style: .continuous))
-            .overlay(Capsule(style: .continuous).strokeBorder(StrandPalette.hairline, lineWidth: 1))
+            .overlay(Capsule(style: .continuous).noopRestingRim())
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
@@ -1370,7 +1370,7 @@ struct CoachView: View {
                         .padding(.horizontal, 13)
                         .padding(.vertical, 8)
                         .liquidGlass(in: Capsule(style: .continuous))
-                        .overlay(Capsule(style: .continuous).strokeBorder(StrandPalette.hairline, lineWidth: 1))
+                        .overlay(Capsule(style: .continuous).noopRestingRim())
                 }
                 .buttonStyle(LiquidPressStyle())
                 .disabled(coach.sending)

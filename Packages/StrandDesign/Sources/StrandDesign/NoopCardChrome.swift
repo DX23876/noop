@@ -129,3 +129,33 @@ public extension View {
         environment(\.noopCardKind, kind)
     }
 }
+
+// MARK: - Resting rim for pills, frames and secondary surfaces
+
+/// The hairline a pill, frame or secondary button used to draw unconditionally. Under the app-wide
+/// quiet edges it is drawn only for Increase Contrast (or where a subtree opts out of quiet rims).
+/// Input fields and selection outlines do NOT use this: their edge carries meaning.
+public struct NoopRestingRim<S: InsettableShape>: View {
+    let shape: S
+    let lineWidth: CGFloat
+    @Environment(\.noopQuietCardRims) private var quietRims
+    @Environment(\.colorSchemeContrast) private var contrast
+
+    public init(_ shape: S, lineWidth: CGFloat = 1) {
+        self.shape = shape
+        self.lineWidth = lineWidth
+    }
+
+    public var body: some View {
+        if !quietRims || contrast == .increased {
+            shape.strokeBorder(StrandPalette.hairline, lineWidth: lineWidth)
+        }
+    }
+}
+
+public extension InsettableShape {
+    /// See `NoopRestingRim`.
+    func noopRestingRim(lineWidth: CGFloat = 1) -> NoopRestingRim<Self> {
+        NoopRestingRim(self, lineWidth: lineWidth)
+    }
+}
