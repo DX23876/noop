@@ -100,6 +100,7 @@ public struct NoopPanelSurface: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.noopCardKind) private var environmentKind
+    @Environment(\.noopQuietCardRims) private var quietRims
     /// Reduce Transparency is enforced HERE rather than at each caller that passes a `surfaceOpacity`.
     /// The setting was previously honoured in three places (`StrandCard`, `LiquidTodayView`,
     /// `LiquidPrimitives`), which meant it held exactly as long as every future caller remembered it —
@@ -139,7 +140,8 @@ public struct NoopPanelSurface: View {
             isLight: scheme == .light,
             isTransparent: resolvedOpacity < 1,
             increasedContrast: contrast == .increased,
-            quietEdges: Self.quietEdges)
+            quietEdges: Self.quietEdges,
+            quietRims: quietRims)
         shape
             .fill(
                 LinearGradient(

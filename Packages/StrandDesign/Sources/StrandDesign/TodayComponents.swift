@@ -16,6 +16,7 @@ public struct TodayCardSurface: View {
     @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.noopCardKind) private var environmentKind
+    @Environment(\.noopQuietCardRims) private var quietRims
 
     public init(tint: Color? = nil,
                 cornerRadius: CGFloat = NoopMetrics.cardRadius,
@@ -41,7 +42,8 @@ public struct TodayCardSurface: View {
             isLight: colorScheme == .light,
             isTransparent: opacity < 0.99,
             increasedContrast: contrast == .increased,
-            quietEdges: Self.quietEdges)
+            quietEdges: Self.quietEdges,
+            quietRims: quietRims)
 
         shape
             .fill(StrandPalette.surfaceRaised.opacity(opacity))

@@ -37,6 +37,7 @@ public struct FrostedCardSurface: View {
     @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.noopCardKind) private var environmentKind
+    @Environment(\.noopQuietCardRims) private var quietRims
     // "Card transparency" setting (reactive): fades the whole glass surface toward the background. 100 =
     // solid (default). Reading it here makes every card update live when the Settings slider moves.
     @AppStorage(CardAppearancePrefs.opacityKey) private var cardOpacityPercent = CardAppearancePrefs.defaultPercent
@@ -82,7 +83,8 @@ public struct FrostedCardSurface: View {
             isLight: scheme == .light,
             isTransparent: !reduceTransparency && cardOpacityPercent < 100,
             increasedContrast: contrast == .increased,
-            quietEdges: Self.quietEdges)
+            quietEdges: Self.quietEdges,
+            quietRims: quietRims)
         shape
             .fill(baseFill)
             .overlay(

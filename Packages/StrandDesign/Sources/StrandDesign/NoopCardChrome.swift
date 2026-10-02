@@ -50,11 +50,28 @@ public struct NoopCardChrome: Sendable, Equatable {
     ///   - increasedContrast: the system "Increase Contrast" setting.
     ///   - quietEdges: the iPhone treatment. Other platforms keep the original hairline plus
     ///     light-mode shadow on every card except navigation cards.
+    ///   - quietRims: a screen that wants restrained surfaces (Liquid Today) drops the resting rim on
+    ///     opaque cards; the fill separates them. A see-through card keeps its hairline, a `.state`
+    ///     card keeps its signal, and Increase Contrast keeps every edge.
     public static func resolve(kind: NoopCardKind,
                                isLight: Bool,
                                isTransparent: Bool,
                                increasedContrast: Bool,
-                               quietEdges: Bool) -> NoopCardChrome {
+                               quietEdges: Bool,
+                               quietRims: Bool = false) -> NoopCardChrome {
+        let chrome = resolveEdges(kind: kind, isLight: isLight, isTransparent: isTransparent,
+                                  increasedContrast: increasedContrast, quietEdges: quietEdges)
+        guard quietRims, !increasedContrast, !isTransparent, kind != .state, chrome.rim == .hairline else {
+            return chrome
+        }
+        return NoopCardChrome(rim: .none, shadow: chrome.shadow)
+    }
+
+    private static func resolveEdges(kind: NoopCardKind,
+                                     isLight: Bool,
+                                     isTransparent: Bool,
+                                     increasedContrast: Bool,
+                                     quietEdges: Bool) -> NoopCardChrome {
         guard quietEdges else {
             // Other platforms keep the original treatment; only navigation cards were ever quiet there.
             return kind == .navigation ? NoopCardChrome(rim: .none, shadow: false)
@@ -86,7 +103,17 @@ private struct NoopCardKindKey: EnvironmentKey {
     static let defaultValue: NoopCardKind = .data
 }
 
+private struct NoopQuietCardRimsKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
 public extension EnvironmentValues {
+    /// True for a subtree whose cards should rest without a rim (see `NoopCardChrome.resolve`).
+    var noopQuietCardRims: Bool {
+        get { self[NoopQuietCardRimsKey.self] }
+        set { self[NoopQuietCardRimsKey.self] = newValue }
+    }
+
     /// The kind of every card in a subtree that does not name one itself.
     var noopCardKind: NoopCardKind {
         get { self[NoopCardKindKey.self] }

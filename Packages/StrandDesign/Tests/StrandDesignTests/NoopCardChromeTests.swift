@@ -70,4 +70,19 @@ final class NoopCardChromeTests: XCTestCase {
             }
         }
     }
+
+    func testQuietRimsDropOnlyTheRestingHairlineOfOpaqueCards() {
+        func chrome(_ kind: NoopCardKind, light: Bool = false, transparent: Bool = false,
+                    contrast: Bool = false, quiet: Bool = true) -> NoopCardChrome {
+            NoopCardChrome.resolve(kind: kind, isLight: light, isTransparent: transparent,
+                                   increasedContrast: contrast, quietEdges: true, quietRims: quiet)
+        }
+        XCTAssertEqual(chrome(.data, quiet: false).rim, .hairline, "the default is unchanged")
+        XCTAssertEqual(chrome(.data).rim, .none)
+        XCTAssertEqual(chrome(.hero).rim, .none)
+        XCTAssertEqual(chrome(.data, transparent: true).rim, .hairline, "a see-through card keeps its edge")
+        XCTAssertEqual(chrome(.data, contrast: true).rim, .strong, "Increase Contrast keeps every edge")
+        XCTAssertEqual(chrome(.state).rim, .tinted, "a state card keeps its signal")
+        XCTAssertEqual(chrome(.data, light: true).shadow, true, "light cards keep their lift")
+    }
 }

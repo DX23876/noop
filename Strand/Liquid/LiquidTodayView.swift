@@ -735,6 +735,9 @@ struct LiquidTodayView: View {
                     AutoWorkoutCard()
                 }
                 .padding(.horizontal, NoopMetrics.screenHPadding)
+                // Restrained surfaces (2026-10 redesign): below the hero, opaque cards rest on their fill
+                // alone instead of each carrying the slate-blue hairline. Liquid only; Classic keeps its edges.
+                .environment(\.noopQuietCardRims, true)
                 // The scroll view honours the safe area (only the sky behind it ignores it), and the native
                 // tab bar is part of that area, normal or minimised. A fixed 90 pt spacer for a bar drawn
                 // over the content left a second, empty gap; this is the same end margin ScreenScaffold uses.
