@@ -44,6 +44,12 @@ enum LiquidHeroChrome {
         return min(0.24, 0.08 + (1 - opacity) * 0.18)
     }
 
+    /// The light hero's fill: the card-opacity setting, but never below 0.72, the floor at which the
+    /// dark numbers and the rings' glow stay legible over a sky or photograph.
+    static func lightFillOpacity(cardOpacity: Double) -> Double {
+        max(0.72, min(1, cardOpacity))
+    }
+
     static func shadowOpacity(isDark: Bool, cardOpacity: Double, hasBackdrop: Bool,
                               reduceTransparency: Bool, increasedContrast: Bool) -> Double {
         if increasedContrast { return isDark ? 0.42 : 0.30 }
@@ -684,7 +690,7 @@ struct LiquidTodayView: View {
                         case .energy:
                             if selectedDayOffset == 0, let energySummary = selectedEnergySummary {
                                 NavigationLink(value: TabRoute.energy) {
-                                    EnergyCard(summary: energySummary)
+                                    EnergyCard(summary: energySummary, compact: true)
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -1184,11 +1190,19 @@ struct LiquidTodayView: View {
     }
 
     private var heroCard: some View {
-        let chargeScore = dataLoaded ? chargeDisplay.pct : nil
-        let effortScore = dataLoaded
+        var chargeScore = dataLoaded ? chargeDisplay.pct : nil
+        var effortScore = dataLoaded
             ? effortValue.map { UnitFormatter.effortValue($0, scale: effortScale) }
             : nil
-        let visibleRestScore = dataLoaded ? restScore : nil
+        var visibleRestScore = dataLoaded ? restScore : nil
+        #if DEBUG
+        // `--demo-hero c,e,r`: pins what the rings draw for renderer QA (see DemoHeroHarness).
+        if let fixture = DemoHeroHarness.active {
+            chargeScore = fixture.charge
+            effortScore = fixture.effort.map { UnitFormatter.effortValue($0, scale: effortScale) }
+            visibleRestScore = fixture.rest
+        }
+        #endif
         let hasBackdrop = showDayCycleBackground || skyBehindCards || backgroundStore.isActive
         let rimOpacity = LiquidHeroChrome.rimOpacity(
             isDark: colorScheme == .dark,
@@ -1216,7 +1230,7 @@ struct LiquidTodayView: View {
             // screen, so leaving it on the fixed accent would have kept the contradiction on the surface
             // most people actually see. No score = nothing to sample; the vessel keeps the domain accent.
             HeroScoreCell(metric: .charge, label: DomainTheme.charge.productName, score: chargeScore,
-                          tint: chargeDisplay.pct.map { StrandPalette.chargeRingColor($0) }
+                          tint: chargeScore.map { StrandPalette.chargeRingColor($0) }
                                 ?? StrandPalette.organicMissing,
                           frame: frame,
                           onGuide: { guideSection = .charge },
@@ -1268,6 +1282,20 @@ struct LiquidTodayView: View {
         // rings keep the backing their on-dark text and colours were tuned against.
         .background {
             let shape = RoundedRectangle(cornerRadius: liquidHeroRadius, style: .continuous)
+            if colorScheme == .light {
+                // Light: a light card like the rest of the page (approved 2026-10-02, replacing the
+                // earlier dark-chamber rule). Its fill never drops below a readable floor, so a 0 %
+                // card-opacity setting over a sky or photo still leaves the rings and numbers legible.
+                ZStack {
+                    shape.fill(StrandPalette.surfaceRaised.opacity(
+                        reduceTransparency ? 1 : LiquidHeroChrome.lightFillOpacity(cardOpacity: cardOpacity)))
+                    shape.strokeBorder(
+                        colorSchemeContrast == .increased ? StrandPalette.hairlineStrong : StrandPalette.hairline,
+                        lineWidth: colorSchemeContrast == .increased ? 1.5 : NoopMetrics.hairlineWidth)
+                }
+                .shadow(color: .black.opacity(NoopCardChrome.lightShadowOpacity),
+                        radius: NoopCardChrome.lightShadowRadius, y: NoopCardChrome.lightShadowOffsetY)
+            } else {
             ZStack {
                 shape
                     .fill(StrandPalette.organicHeroChamber.opacity(0.78 + cardOpacity * 0.22))
@@ -1275,14 +1303,15 @@ struct LiquidTodayView: View {
                     .fill(StrandPalette.organicHeroChamberLift.opacity(0.16 + cardOpacity * 0.12))
                     .liquidGlass(in: shape)
                     .opacity(reduceTransparency ? 0 : cardOpacity)
-                // The dark chamber is deliberate in Light too: it gives the luminous organic contours
-                // a controlled optical field. Its minimum contrast survives a 0% card-opacity setting.
+                // Dark keeps the optical chamber for the luminous contours. Its minimum contrast
+                // survives a 0 % card-opacity setting.
                 shape.strokeBorder(
                     StrandPalette.organicHeroBorder.opacity(max(0.66, rimOpacity)),
                     lineWidth: colorSchemeContrast == .increased ? 1.5 : 1
                 )
             }
             .shadow(color: .black.opacity(shadowOpacity), radius: 18, y: 8)
+            }
         }
     }
 
@@ -3090,7 +3119,7 @@ private struct LiquidWordmark: View {
 /// lands while the ring morphs to the matching intensity; tapping the ring opens the metric's detail.
 /// The label row taps through to the scoring guide.
 private struct HeroScoreCell: View {
-    static let vesselDiameter: CGFloat = 104
+    static let vesselDiameter: CGFloat = 108
 
     let metric: OrganicScoreMetric
     let label: String
@@ -3114,6 +3143,8 @@ private struct HeroScoreCell: View {
     /// the same score land on the identical dossier rather than diverging. The LABEL keeps its own job:
     /// it opens the scoring guide, which is this screen's only route to that explainer.
     var detailRoute: TabRoute? = nil
+
+    @Environment(\.colorScheme) private var colorScheme
 
     private var model: OrganicScoreVisualModel {
         OrganicScoreVisualModel.resolve(metric: metric, value: score, scaleMaximum: maxValue)
@@ -3173,9 +3204,8 @@ private struct HeroScoreCell: View {
                         .lineLimit(1).minimumScaleFactor(0.7)
                     Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold)).opacity(0.6)
                 }
-                // The optical chamber remains dark in both appearances, so this is always the fixed
-                // on-dark token rather than the scheme-following page label.
-                .foregroundStyle(StrandPalette.onDarkSecondary)
+                // Dark sits in the optical chamber (fixed on-dark ink); Light is an ordinary light card.
+                .foregroundStyle(colorScheme == .light ? StrandPalette.textSecondary : StrandPalette.onDarkSecondary)
                 .frame(minHeight: 28)
                 .contentShape(Rectangle())
             }

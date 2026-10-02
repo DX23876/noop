@@ -22,13 +22,38 @@ final class OrganicScoreGeometryTests: XCTestCase {
                         let radius = hypot(particle.x, particle.y)
                         XCTAssertGreaterThan(radius, OrganicScoreVisualModel.quietCentreRadius(angle: angle),
                                              "a particle entered the value's clear zone")
-                        XCTAssertLessThan(radius, model.contourRadius(angle: angle, time: time, motion: motion),
-                                          "a particle escaped the contour")
+                        XCTAssertLessThan(radius, model.contourRadius(angle: angle, time: time, motion: motion)
+                                              + model.bandHalfWidth,
+                                          "a particle escaped the luminous band")
                     }
                 }
             }
         }
         XCTAssertGreaterThan(drawn, 10_000)
+    }
+
+    func testBandAndFilamentsGrowWithTheValue() {
+        let values = [20.0, 50, 80, 94, 100].map { OrganicScoreVisualModel.resolve(metric: .rest, value: $0) }
+        for (lower, higher) in zip(values, values.dropFirst()) {
+            XCTAssertGreaterThan(higher.bandHalfWidth, lower.bandHalfWidth)
+            XCTAssertGreaterThanOrEqual(higher.filamentCount(quality: .full), lower.filamentCount(quality: .full))
+        }
+        XCTAssertEqual(values.last?.filamentCount(quality: .full), OrganicScoreQuality.full.filamentBudget)
+        XCTAssertEqual(OrganicScoreVisualModel.resolve(metric: .rest, value: nil).filamentCount(quality: .full), 1)
+    }
+
+    func testHigherValuesPutMoreParticlesInsideTheCircle() {
+        func interiorCount(_ value: Double) -> Int {
+            let model = OrganicScoreVisualModel.resolve(metric: .charge, value: value)
+            return (0..<model.particleCount(quality: .full)).compactMap { model.particle(index: $0, time: 12) }
+                .filter { p in
+                    let angle = atan2(p.y, p.x)
+                    return hypot(p.x, p.y) < model.contourRadius(angle: angle, time: 12) - model.bandHalfWidth
+                }.count
+        }
+        XCTAssertLessThan(interiorCount(20), interiorCount(50))
+        XCTAssertLessThan(interiorCount(50), interiorCount(94))
+        XCTAssertGreaterThan(Double(interiorCount(100)), 100, "a full score fills the circle")
     }
 
     func testQuietCentreClearsTheValueBox() {

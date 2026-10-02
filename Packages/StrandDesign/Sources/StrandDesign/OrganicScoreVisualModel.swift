@@ -152,11 +152,13 @@ public struct OrganicScoreVisualModel: Equatable, Sendable {
         let phaseC = particleUnit(index: 0, channel: 12) * tau
         let pulsePhase = particleUnit(index: 0, channel: 13) * tau
 
+        // Eight soft lobes carry the shape (the approved reference reads as a rounded eight-point
+        // bloom); five and thirteen break its symmetry so no two rings, or two moments, look alike.
         let waveform = (
-            sin(angle * 5 + phaseA + time * 0.31)
-            + sin(angle * 9 + phaseB - time * 0.23) * 0.43
+            sin(angle * 8 + phaseA + time * 0.31)
+            + sin(angle * 5 + phaseB - time * 0.23) * 0.38
             + sin(angle * 13 + phaseC + time * 0.17) * 0.22
-        ) / 1.65
+        ) / 1.60
         let localPulse = 0.78 + 0.22 * intensity.pulseStrength
             * cos(angle * 2 + pulsePhase + time * 0.19)
         return waveform * localPulse * intensity.waveStrength
@@ -222,9 +224,18 @@ public enum OrganicScoreQuality: Int, CaseIterable, Comparable, Sendable {
 
     public var particleBudget: Int {
         switch self {
-        case .full: return 82
-        case .reduced: return 48
-        case .minimal: return 24
+        case .full: return 320
+        case .reduced: return 180
+        case .minimal: return 80
+        }
+    }
+
+    /// Upper bound on the fine wave filaments that make up the luminous band.
+    public var filamentBudget: Int {
+        switch self {
+        case .full: return 9
+        case .reduced: return 6
+        case .minimal: return 3
         }
     }
 
@@ -272,9 +283,9 @@ public struct OrganicScoreParticle: Equatable, Sendable {
 
 public extension OrganicScoreVisualModel {
     /// Mean contour radius as a fraction of the ring's square frame.
-    static let baseRadiusFraction = 0.335
+    static let baseRadiusFraction = 0.37
     /// Largest radial deformation, in units of the mean contour radius.
-    static let deformationRatio = 0.22
+    static let deformationRatio = 0.19
     /// The value's clear zone: an ellipse (semi-axes in units of the mean contour radius), wider than
     /// tall because the number is. No particle is ever placed inside it.
     static let quietCentre = (horizontal: 0.62, vertical: 0.44)
@@ -297,6 +308,11 @@ public extension OrganicScoreVisualModel {
         return 1 + Self.deformationRatio * (wave + squash)
     }
 
+    /// Fraction of particles placed inside the circle rather than on the band, by particle density.
+    static func interiorShare(_ density: Double) -> Double {
+        0.15 + min(max(density, 0), 1) * 0.45
+    }
+
     /// Radius of the value's clear zone at `angle`, in units of the mean contour radius.
     static func quietCentreRadius(angle: Double) -> Double {
         let a = quietCentre.horizontal
@@ -310,8 +326,38 @@ public extension OrganicScoreVisualModel {
     func particleCount(quality: OrganicScoreQuality) -> Int {
         guard intensity.particleDensity > 0 else { return 0 }
         let budget = quality.particleBudget
-        let scaled = 3 + intensity.particleDensity * Double(budget - 3)
-        return min(budget, max(3, Int(scaled.rounded())))
+        let scaled = 8 + intensity.particleDensity * Double(budget - 8)
+        return min(budget, max(8, Int(scaled.rounded())))
+    }
+
+    /// Half the luminous band's radial thickness, in units of the mean radius. A low score is a thin
+    /// line; a high one a broad band of interleaved filaments.
+    var bandHalfWidth: Double {
+        0.03 + intensity.glowStrength * 0.16
+    }
+
+    /// How many filaments weave the band at `quality`: one for a missing value, up to the budget.
+    func filamentCount(quality: OrganicScoreQuality) -> Int {
+        guard intensity.waveStrength > 0 else { return 1 }
+        let scaled = 2 + intensity.glowStrength * Double(quality.filamentBudget - 2)
+        return min(quality.filamentBudget, max(2, Int(scaled.rounded())))
+    }
+
+    /// Radius of filament `index` of `count` at `angle`: the contour slightly earlier or later in time,
+    /// spread across the band, so the strands cross and separate like the reference's interleaved lines.
+    func filamentRadius(index: Int, count: Int, angle: Double, time: Double,
+                        motion: OrganicScoreMotionInput = .still) -> Double {
+        guard count > 1 else { return contourRadius(angle: angle, time: time, motion: motion) }
+        let spread = Double(index) / Double(count - 1) * 2 - 1           // -1 ... 1 across the band
+        let lag = (particleUnit(index: index, channel: 20) - 0.5) * 2.4  // seconds, per strand
+        let base = contourRadius(angle: angle, time: time + lag, motion: motion)
+        // Each strand has its own slow ripple (6 to 11 lobes, own phase and speed), so neighbouring strands
+        // cross and part across the band instead of running as parallel copies of one line.
+        let lobes = Double(6 + Int(particleUnit(index: index, channel: 22) * 6))
+        let phase = particleUnit(index: index, channel: 21) * .pi * 2
+        let speed = 0.15 + particleUnit(index: index, channel: 23) * 0.35
+        let ripple = sin(angle * lobes + phase + time * speed) * bandHalfWidth * 0.55
+        return base + spread * bandHalfWidth * 0.6 + ripple
     }
 
     /// How many echo contours draw at `quality`, and the opacity of each (`0...1`).
@@ -352,20 +398,35 @@ public extension OrganicScoreVisualModel {
         }
 
         let inner = Self.quietCentreRadius(angle: angle) + 0.03
-        let outer = contourRadius(angle: angle, time: time, motion: motion) * Self.particleContainment
-        guard outer > inner + 0.02 else { return nil }
-
+        let contour = contourRadius(angle: angle, time: time, motion: motion)
         let lean = pull > 0 ? (gravity.x * cos(angle) + gravity.y * sin(angle)) : 0
-        let base = particleUnit(index: index, channel: 3).squareRoot()
         let current = cos(time * 0.08 + phase * 1.7) * 0.05
-        let unit = min(max(base + lean * 0.18 + current, 0), 1)
-        let radius = inner + unit * (outer - inner)
+        let radius: Double
+        // A higher score fills the circle: the interior's share rises from ~15 % to ~60 % on top of the
+        // overall count rising with the value. A low score keeps its few particles on the band.
+        if particleUnit(index: index, channel: 7) >= Self.interiorShare(intensity.particleDensity) {
+            // Particles in the luminous band, scattered across its width.
+            let band = bandHalfWidth
+            let offset = (particleUnit(index: index, channel: 3) * 2 - 1 + current + lean * 0.3) * band
+            radius = max(inner, contour + min(max(offset, -band), band) * 0.98)
+        } else {
+            // The rest drift loosely inside, between the clear zone and the band.
+            let outer = (contour - bandHalfWidth) * Self.particleContainment
+            guard outer > inner + 0.02 else { return nil }
+            let base = particleUnit(index: index, channel: 3).squareRoot()
+            let unit = min(max(base + lean * 0.18 + current, 0), 1)
+            radius = inner + unit * (outer - inner)
+        }
+        // Each particle twinkles on its own slow cycle; the field never flashes as one.
+        let twinkle = 0.65 + 0.35 * sin(time * (0.6 + particleUnit(index: index, channel: 8)) + phase * 3)
 
         return OrganicScoreParticle(
             x: cos(angle) * radius,
             y: sin(angle) * radius,
-            size: 0.55 + particleUnit(index: index, channel: 4) * 0.75,
-            alpha: 0.30 + particleUnit(index: index, channel: 5) * 0.58
+            size: particleUnit(index: index, channel: 9) < 0.08
+                ? 1.8 + particleUnit(index: index, channel: 4) * 0.8      // the occasional sparkle
+                : 0.5 + particleUnit(index: index, channel: 4) * 0.9,
+            alpha: (0.35 + particleUnit(index: index, channel: 5) * 0.6) * twinkle
         )
     }
 }

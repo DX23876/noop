@@ -134,10 +134,12 @@ quality before compromising the number, primary contour, or interaction. Do not 
 
 - Keep one visually dominant hero. Other sections use restrained tonal fills, spacing, and dividers;
   remove repeated strong blue rims.
-- In Light Mode, place the luminous rings in a dark optical chamber while the surrounding dashboard
-  remains light. This is intentional, not a missing light variant.
+- In Light Mode the hero is a light card like the rest of the page, with dark numbers and labels
+  (changed on 2026-10-02 after the final mockups; the earlier rule was a dark optical chamber in Light
+  too). Dark and graphite keep the dark optical chamber for the luminous rings.
 - The hero always retains an adaptive minimum contrast layer. A card-opacity setting of 0% may soften
-  the chamber but may not make values, smoke, or controls illegible on light or custom backgrounds.
+  the surface (the light fill never drops below 72%) but may not make values, smoke, or controls
+  illegible on light or custom backgrounds.
 - Support the existing Light and graphite Dark appearances plus black/plain backgrounds. Do not add a
   fourth global True Black appearance in this project.
 - Restrict native iOS 26 Liquid Glass to appropriate container, navigation, control, and search
@@ -337,7 +339,7 @@ Test the built app, not only previews:
 
 - Hero values: `nil`, 0, 20, 50, 80, 89, 90, 94, 100.
 - Both Effort scales and every Charge band boundary.
-- Light with dark hero chamber, graphite Dark, and black/plain background.
+- Light with the light hero card, graphite Dark, and black/plain background.
 - Card opacity 0/30/70/100%, plain/sky/custom backgrounds.
 - Reduce Transparency, Increased Contrast, Differentiate Without Color, Bold Text, Reduce Motion,
   Quiet Motion, and accessibility Dynamic Type.

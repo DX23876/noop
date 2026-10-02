@@ -183,4 +183,11 @@ final class LiquidHeroChromeTests: XCTestCase {
             reduceTransparency: true, increasedContrast: false
         ), 0.04, accuracy: 0.0001)
     }
+
+    func testLightHeroFillKeepsAReadableFloor() {
+        XCTAssertEqual(LiquidHeroChrome.lightFillOpacity(cardOpacity: 0), 0.72, accuracy: 0.0001)
+        XCTAssertEqual(LiquidHeroChrome.lightFillOpacity(cardOpacity: 0.5), 0.72, accuracy: 0.0001)
+        XCTAssertEqual(LiquidHeroChrome.lightFillOpacity(cardOpacity: 0.9), 0.9, accuracy: 0.0001)
+        XCTAssertEqual(LiquidHeroChrome.lightFillOpacity(cardOpacity: 3), 1, accuracy: 0.0001)
+    }
 }

@@ -134,6 +134,7 @@ struct OrganicScoreRing: View {
     var diameter: CGFloat = 104
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
     @State private var shown: Double = 0
     @State private var morph: OrganicScoreMorph?
     @State private var previousTint: Color?
@@ -150,16 +151,23 @@ struct OrganicScoreRing: View {
                     : model
                 let time = frame.isAnimating ? frame.time : 0
                 let fade = frame.isAnimating ? tintProgress(at: frame.time) : 1
+                let onLight = colorScheme == .light
                 if let previousTint, fade < 1 {
                     var old = context
                     old.opacity = 1 - fade
                     OrganicScoreRingRenderer.draw(context: &old, size: size, model: current, tint: previousTint,
-                                                  time: time, motion: frame.motion, quality: frame.quality)
+                                                  time: time, motion: frame.motion, quality: frame.quality, onLight: onLight)
                     context.opacity = fade
                 }
                 OrganicScoreRingRenderer.draw(context: &context, size: size, model: current, tint: resolvedTint,
-                                              time: time, motion: frame.motion, quality: frame.quality)
+                                              time: time, motion: frame.motion, quality: frame.quality,
+                                              onLight: onLight)
             }
+            // Echoes and smoke reach past the ring's own square; the canvas overscans so they fade out
+            // instead of being cut at its edge. Layout and the hit target stay at `diameter`.
+            .frame(width: diameter * OrganicScoreRingRenderer.overscan,
+                   height: diameter * OrganicScoreRingRenderer.overscan)
+            .allowsHitTesting(false)
 
             Group {
                 if score != nil {
@@ -174,8 +182,10 @@ struct OrganicScoreRing: View {
                         .monospacedDigit()
                 }
             }
-            .foregroundStyle(StrandPalette.onDarkPrimary)
-            .shadow(color: .black.opacity(0.72), radius: 4, y: 1)
+            // Light hero card: page ink with a faint paper halo; dark chamber: on-dark ink with a shadow.
+            .foregroundStyle(colorScheme == .light ? StrandPalette.textPrimary : StrandPalette.onDarkPrimary)
+            .shadow(color: colorScheme == .light ? .white.opacity(0.85) : .black.opacity(0.72),
+                    radius: colorScheme == .light ? 3 : 4, y: colorScheme == .light ? 0 : 1)
             .lineLimit(1)
             .minimumScaleFactor(0.62)
             .frame(width: diameter * 0.56)
@@ -225,6 +235,9 @@ struct OrganicScoreRing: View {
 }
 
 private enum OrganicScoreRingRenderer {
+    /// Canvas size relative to the ring's layout square.
+    static let overscan: CGFloat = 1.3
+
     static func draw(
         context: inout GraphicsContext,
         size: CGSize,
@@ -232,9 +245,10 @@ private enum OrganicScoreRingRenderer {
         tint: Color,
         time: Double,
         motion: OrganicScoreMotionInput,
-        quality: OrganicScoreQuality
+        quality: OrganicScoreQuality,
+        onLight: Bool
     ) {
-        let side = min(size.width, size.height)
+        let side = min(size.width, size.height) / overscan
         guard side > 0 else { return }
 
         let centre = CGPoint(x: size.width / 2, y: size.height / 2)
@@ -244,16 +258,30 @@ private enum OrganicScoreRingRenderer {
             model.contourRadius(angle: angle, time: time, motion: motion)
         }
         let isMissing = model.state == .missing
+        let glow = model.intensity.glowStrength
+        let band = CGFloat(model.bandHalfWidth) * radius
+        // Light on dark adds up (the reference's luminous look); on the light card that would wash out
+        // to white, so it blends normally there.
+        let blend: GraphicsContext.BlendMode = onLight ? .normal : .plusLighter
 
         drawInnerAtmosphere(context: &context, centre: centre, radius: radius, tint: tint,
                             intensity: model.intensity)
+
+        // Bloom: the whole band, thick and blurred, behind everything else.
+        if !isMissing {
+            context.drawLayer { layer in
+                layer.addFilter(.blur(radius: 5 + glow * 9))
+                layer.stroke(primary, with: .color(tint.opacity((onLight ? 0.22 : 0.35) + glow * 0.4)),
+                             lineWidth: band * 2.6 + 4)
+            }
+        }
 
         for (index, visibility) in model.echoVisibilities(quality: quality).enumerated() {
             let echo = closedPath(centre: centre, radius: radius, samples: samples) { angle in
                 model.echoRadius(index: index, angle: angle, time: time, motion: motion)
             }
-            context.stroke(echo, with: .color(tint.opacity((0.18 - Double(index) * 0.035) * visibility)),
-                           lineWidth: 1.15)
+            context.stroke(echo, with: .color(tint.opacity((0.16 - Double(index) * 0.03) * visibility)),
+                           lineWidth: 0.9)
         }
 
         if quality.drawsSmoke, model.intensity.smokeStrength > 0 {
@@ -262,29 +290,63 @@ private enum OrganicScoreRingRenderer {
             let drift = CGSize(width: motion.gravity.x * 2.2, height: motion.gravity.y * 2.2)
             context.drawLayer { layer in
                 layer.translateBy(x: drift.width, y: drift.height)
-                layer.addFilter(.blur(radius: 3.5 + smoke * 3.5))
-                layer.stroke(primary, with: .color(tint.opacity(0.10 + smoke * 0.14)),
-                             lineWidth: 3 + smoke * 4.5)
+                layer.addFilter(.blur(radius: 3 + smoke * 4))
+                layer.stroke(primary, with: .color(tint.opacity((onLight ? 0.10 : 0.16) + smoke * 0.2)),
+                             lineWidth: band * 1.6 + 3)
+            }
+        }
+
+        // Haze filling the band, so the strands sit in luminous volume rather than reading as wires.
+        if !isMissing {
+            context.drawLayer { layer in
+                layer.blendMode = blend
+                layer.addFilter(.blur(radius: 1.5 + glow * 2.5))
+                layer.stroke(primary, with: .color(tint.opacity((onLight ? 0.18 : 0.22) + glow * 0.3)),
+                             lineWidth: band * 2)
+            }
+        }
+
+        // The band itself: fine strands weaving across its width, brightest in the middle.
+        let strands = model.filamentCount(quality: quality)
+        context.drawLayer { layer in
+            layer.blendMode = blend
+            for index in 0..<strands {
+                let strand = strands == 1 ? primary
+                    : closedPath(centre: centre, radius: radius, samples: samples) { angle in
+                        model.filamentRadius(index: index, count: strands, angle: angle, time: time, motion: motion)
+                    }
+                let middle = strands == 1 ? 1 : 1 - abs(Double(index) / Double(strands - 1) * 2 - 1)
+                let alpha = isMissing ? 0.5 : (0.28 + 0.5 * middle) * (0.55 + glow * 0.45)
+                layer.stroke(strand, with: .color(tint.opacity(alpha)),
+                             lineWidth: isMissing ? 1.15 : 0.7 + middle * 0.8)
             }
         }
 
         let particleScale = side / 104
-        for index in 0..<model.particleCount(quality: quality) {
-            guard let particle = model.particle(index: index, time: time, motion: motion) else { continue }
-            let size = particle.size * particleScale
-            let rect = CGRect(x: centre.x + particle.x * radius - size / 2,
-                              y: centre.y + particle.y * radius - size / 2,
-                              width: size, height: size)
-            context.fill(Path(ellipseIn: rect), with: .color(tint.opacity(particle.alpha)))
+        let core = onLight ? tint : tint.liquidLighter(0.55)   // resolved once, not per particle
+        context.drawLayer { layer in
+            layer.blendMode = blend
+            for index in 0..<model.particleCount(quality: quality) {
+                guard let particle = model.particle(index: index, time: time, motion: motion) else { continue }
+                let size = particle.size * particleScale
+                let point = CGPoint(x: centre.x + particle.x * radius, y: centre.y + particle.y * radius)
+                if size > 1.7 {
+                    // A sparkle carries a soft halo.
+                    let halo = size * 2.6
+                    layer.fill(Path(ellipseIn: CGRect(x: point.x - halo / 2, y: point.y - halo / 2,
+                                                      width: halo, height: halo)),
+                               with: .color(tint.opacity(particle.alpha * 0.25)))
+                }
+                layer.fill(Path(ellipseIn: CGRect(x: point.x - size / 2, y: point.y - size / 2,
+                                                  width: size, height: size)),
+                           with: .color(core.opacity(min(1, particle.alpha * (onLight ? 1 : 1.25)))))
+            }
         }
 
-        context.drawLayer { layer in
-            layer.addFilter(.shadow(color: tint.opacity(0.55 + model.intensity.glowStrength * 0.35),
-                                    radius: 3 + model.intensity.glowStrength * 3))
-            layer.stroke(primary, with: .color(tint.opacity(isMissing ? 0.52 : 0.96)),
-                         lineWidth: isMissing ? 1.15 : 1.7)
+        // A bright filament core on the principal contour, so the shape stays crisp inside the haze.
+        if !isMissing && !onLight {
+            context.stroke(primary, with: .color(.white.opacity(0.18 + glow * 0.35)), lineWidth: 0.6)
         }
-        context.stroke(primary, with: .color(.white.opacity(isMissing ? 0.12 : 0.46)), lineWidth: 0.55)
     }
 
     private static func drawInnerAtmosphere(
@@ -295,11 +357,16 @@ private enum OrganicScoreRingRenderer {
         intensity: OrganicScoreIntensity
     ) {
         let rect = CGRect(x: centre.x - radius, y: centre.y - radius, width: radius * 2, height: radius * 2)
-        let glow = 0.055 + intensity.glowStrength * 0.14
+        let glow = 0.05 + intensity.glowStrength * 0.16
         context.fill(
             Path(ellipseIn: rect),
             with: .radialGradient(
-                Gradient(colors: [tint.opacity(glow * 0.42), tint.opacity(glow), .clear]),
+                Gradient(stops: [
+                    .init(color: .clear, location: 0),
+                    .init(color: tint.opacity(glow * 0.25), location: 0.55),
+                    .init(color: tint.opacity(glow), location: 0.92),
+                    .init(color: .clear, location: 1),
+                ]),
                 center: centre,
                 startRadius: 0,
                 endRadius: radius
