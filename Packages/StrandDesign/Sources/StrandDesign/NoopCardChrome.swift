@@ -103,12 +103,14 @@ private struct NoopCardKindKey: EnvironmentKey {
     static let defaultValue: NoopCardKind = .data
 }
 
+/// On by default app-wide since 2026-10-02 (user decision): opaque cards everywhere rest on their
+/// fill without the slate hairline. A screen can still opt back in with `.environment(…, false)`.
 private struct NoopQuietCardRimsKey: EnvironmentKey {
-    static let defaultValue = false
+    static let defaultValue = true
 }
 
 public extension EnvironmentValues {
-    /// True for a subtree whose cards should rest without a rim (see `NoopCardChrome.resolve`).
+    /// True (the default) for a subtree whose cards rest without a rim (see `NoopCardChrome.resolve`).
     var noopQuietCardRims: Bool {
         get { self[NoopQuietCardRimsKey.self] }
         set { self[NoopQuietCardRimsKey.self] = newValue }

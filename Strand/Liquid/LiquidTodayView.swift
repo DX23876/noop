@@ -1292,9 +1292,11 @@ struct LiquidTodayView: View {
                 ZStack {
                     shape.fill(StrandPalette.surfaceRaised.opacity(
                         reduceTransparency ? 1 : LiquidHeroChrome.lightFillOpacity(cardOpacity: cardOpacity)))
-                    shape.strokeBorder(
-                        colorSchemeContrast == .increased ? StrandPalette.hairlineStrong : StrandPalette.hairline,
-                        lineWidth: colorSchemeContrast == .increased ? 1.5 : NoopMetrics.hairlineWidth)
+                    if colorSchemeContrast == .increased || cardOpacity < 0.99 {
+                        shape.strokeBorder(
+                            colorSchemeContrast == .increased ? StrandPalette.hairlineStrong : StrandPalette.hairline,
+                            lineWidth: colorSchemeContrast == .increased ? 1.5 : NoopMetrics.hairlineWidth)
+                    }
                 }
                 .shadow(color: .black.opacity(NoopCardChrome.lightShadowOpacity),
                         radius: NoopCardChrome.lightShadowRadius, y: NoopCardChrome.lightShadowOffsetY)
@@ -1302,16 +1304,24 @@ struct LiquidTodayView: View {
             ZStack {
                 shape
                     .fill(StrandPalette.organicHeroChamber.opacity(0.78 + cardOpacity * 0.22))
-                shape
-                    .fill(StrandPalette.organicHeroChamberLift.opacity(0.16 + cardOpacity * 0.12))
-                    .liquidGlass(in: shape)
-                    .opacity(reduceTransparency ? 0 : cardOpacity)
-                // Dark keeps the optical chamber for the luminous contours. Its minimum contrast
-                // survives a 0 % card-opacity setting.
-                shape.strokeBorder(
-                    StrandPalette.organicHeroBorder.opacity(max(0.66, rimOpacity)),
-                    lineWidth: colorSchemeContrast == .increased ? 1.5 : 1
-                )
+                // Real glass only when the card is see-through: on an opaque chamber the glass itself is
+                // invisible and all that survives is its edge highlight, i.e. the rim the redesign removes.
+                if cardOpacity < 0.99 && !reduceTransparency {
+                    shape
+                        .fill(StrandPalette.organicHeroChamberLift.opacity(0.16 + cardOpacity * 0.12))
+                        .liquidGlass(in: shape)
+                        .opacity(cardOpacity)
+                } else {
+                    shape.fill(StrandPalette.organicHeroChamberLift.opacity(0.16 + cardOpacity * 0.12))
+                }
+                // Dark keeps the optical chamber for the luminous contours. No resting rim (app-wide
+                // quiet edges); a see-through card or Increase Contrast brings one back.
+                if colorSchemeContrast == .increased || cardOpacity < 0.99 {
+                    shape.strokeBorder(
+                        StrandPalette.organicHeroBorder.opacity(max(0.66, rimOpacity)),
+                        lineWidth: colorSchemeContrast == .increased ? 1.5 : 1
+                    )
+                }
             }
             .shadow(color: .black.opacity(shadowOpacity), radius: 18, y: 8)
             }

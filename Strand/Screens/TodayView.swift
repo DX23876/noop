@@ -4392,7 +4392,10 @@ struct TodayView: View {
                                 label: "\(WorkoutSource.displaySport(w.sport))",
                                 value: workoutDuration(w),
                                 caption: Self.workoutCaption(w),
-                                accent: StrandPalette.effortTint(fraction: (w.strain ?? 0) / StrainScorer.maxStrain)
+                                // A workout without a stored Effort gets a neutral accent: the lowest-effort
+                                // tint would claim a zero load that was never measured.
+                                accent: w.strain.map { StrandPalette.effortTint(fraction: $0 / StrainScorer.maxStrain) }
+                                    ?? StrandPalette.textTertiary
                                 // No kcal chip here. In a three-column tile the chip and the duration
                                 // cannot both fit: letting the chip compress rendered "327 kcal" as
                                 // "3…", and giving it its natural width instead pushed the DURATION —
