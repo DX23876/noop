@@ -6,7 +6,7 @@ import StrandDesign
 // The other two Today screens footer a "where the numbers came from" card (strap battery + sync status,
 // tap → Data Sources). Heute had none — the on-device provenance was reachable only from Settings. This
 // reproduces it in the redesign's OWN token set (`HeuteRedesignPalette`), NOT the private Liquid rows
-// (`LiquidStrapBatteryRow`/`LiquidSyncStatusRow`), which are `StrandPalette`-styled — Heute has a fixed
+// (the strap-battery and sync rows Liquid Today's card carried until 2026-10), which are `StrandPalette`-styled — Heute has a fixed
 // near-black palette and the CLAUDE.md design rule keeps the two from mixing. The underlying signals are
 // the same `LiveState` the Liquid rows read, so the data is identical; only the chrome differs.
 

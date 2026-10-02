@@ -83,7 +83,9 @@ struct LiquidTodayView: View {
     private var poseStill: Bool { motion.poseStill(reduceMotion) }
 
     /// Shared with the real Today's card-customise editor so the two stay in sync.
-    @AppStorage(DashboardCardPrefs.selectionKey) private var dashboardCardsRaw = ""
+    /// Optional so an unset key is distinguishable: it reads as Liquid's own fresh default
+    /// (`LiquidTodayDefaults`), while any saved selection wins.
+    @AppStorage(DashboardCardPrefs.selectionKey) private var dashboardCardsRaw: String?
     /// #today-hosted-cards: the ordered Trends/Sleep cards the user has hosted in Today. Empty by default
     /// (opt-in); rendered by the `.addedCards` section. Shared @AppStorage key with Android.
     @AppStorage(HostedCardPrefs.selectionKey) private var hostedCardsRaw = ""
@@ -255,29 +257,49 @@ struct LiquidTodayView: View {
     // #today-layout: the user-chosen section order, persisted under the "today.sectionOrder" key. Order and
     // visibility are both edited in `TodayCustomizationSheet` (#940); every section always renders (decode
     // inserts a missing one at its default spot) unless it is in the explicit hidden set.
-    @AppStorage(TodayLayoutPrefs.orderKey) private var sectionOrderRaw = ""
-    @AppStorage(TodayLayoutPrefs.hiddenKey) private var hiddenSectionsRaw = ""
+    // Optional, like the other `today.*` reads below: nil means "never customised", which Liquid answers
+    // with its own fresh layout while Classic keeps its long-standing one (`LiquidTodayDefaults`).
+    @AppStorage(TodayLayoutPrefs.orderKey) private var sectionOrderRaw: String?
+    @AppStorage(TodayLayoutPrefs.hiddenKey) private var hiddenSectionsRaw: String?
     private var sectionOrder: [TodaySection] {
-        TodayLayoutPrefs.visibleOrder(orderRaw: sectionOrderRaw, hiddenRaw: hiddenSectionsRaw)
+        LiquidTodayDefaults.visibleSections(orderRaw: sectionOrderRaw, hiddenRaw: hiddenSectionsRaw)
+    }
+    /// The editor sees the layout Liquid actually shows; only a changed section group is written back.
+    private var editorSectionOrderRaw: Binding<String> {
+        Binding(
+            get: {
+                LiquidTodayDefaults.isLayoutCustomised(orderRaw: sectionOrderRaw, hiddenRaw: hiddenSectionsRaw)
+                    ? (sectionOrderRaw ?? "") : TodayLayoutPrefs.encode(LiquidTodayDefaults.sectionOrder)
+            },
+            set: { sectionOrderRaw = $0 })
+    }
+    private var editorHiddenSectionsRaw: Binding<String> {
+        Binding(
+            get: {
+                LiquidTodayDefaults.isLayoutCustomised(orderRaw: sectionOrderRaw, hiddenRaw: hiddenSectionsRaw)
+                    ? (hiddenSectionsRaw ?? "") : TodayLayoutPrefs.encodeHidden(LiquidTodayDefaults.hiddenSections)
+            },
+            set: { hiddenSectionsRaw = $0 })
     }
     // #430 parity: the Key-Metrics grid honours the SAME editor selection/order + Detailed-tiles switch as
     // Android (byte-identical @AppStorage keys). `kSparks` holds the trailing-30-day series the detailed
     // tiles graph (keyed by metric-catalog key), filled by the loader alongside everything else.
-    @AppStorage(KeyMetricPrefs.layoutKey) private var keyMetricsRaw = ""
+    @AppStorage(KeyMetricPrefs.layoutKey) private var keyMetricsRaw: String?
     @AppStorage("today.keyMetricsDetailed") private var keyMetricsDetailed = false
     /// The detailed graphs' trailing window — 1 week / 2 weeks / 1 month (shared key with Android). The
     /// loader banks a day-keyed 30-day superset; render filters down, so a window change applies instantly.
     @AppStorage("today.keyMetricsWindowDays") private var keyMetricsWindowDays = 14
     /// Tiles per row (2 or 3; 3 = the original layout). Set on the Key Metrics page of the customization sheet.
-    @AppStorage(KeyMetricPrefs.columnsKey) private var keyMetricsColumnsRaw = 3
+    @AppStorage(KeyMetricPrefs.columnsKey) private var keyMetricsColumnsRaw: Int?
     private var keyMetricsColumns: Int {
-        dynamicTypeSize.isAccessibilitySize ? 1 : KeyMetricPrefs.columns(keyMetricsColumnsRaw)
+        LiquidTodayDefaults.keyMetricsColumns(keyMetricsColumnsRaw,
+                                              accessibilitySize: dynamicTypeSize.isAccessibilitySize)
     }
     private var kSparks: [String: [(String, Double)]] {
         get { snapshot.kSparks }
         nonmutating set { snapshot.kSparks = newValue }
     }
-    private var enabledKeyMetrics: [KeyMetric] { KeyMetricPrefs.decodeEnabled(keyMetricsRaw) }
+    private var keyMetricSelection: LiquidKeyMetricSelection { LiquidTodayDefaults.keyMetricSelection(keyMetricsRaw) }
 
     // day navigation (0 = today, 1 = yesterday, …)
     @State private var selectedDayOffset = 0
@@ -667,7 +689,11 @@ struct LiquidTodayView: View {
                                 .buttonStyle(.plain)
                             }
                         case .workouts: lastWorkoutsSection
-                        case .heartRate: heartRateSection
+                        // A temporary section: only today, and only while a strap is actually streaming
+                        // heart rate. The gate is its own LiveState leaf so the ~1 Hz notifies never
+                        // re-render the rest of Today.
+                        case .heartRate:
+                            if selectedDayOffset == 0 { LiquidLiveHeartRateGate { heartRateSection } }
                         case .recoveryVitals: recoveryVitalsSection
                         case .yourCards: yourCardsSection
                         case .menstrualCycle:
@@ -677,9 +703,10 @@ struct LiquidTodayView: View {
                         // the card self-hides when the reminder toggle is off (an empty branch renders
                         // nothing yet keeps its slot). Twin of Android TodayScreen's JOURNAL arm.
                         case .journal: if selectedDayOffset == 0 { JournalReminderCard() }
-                        // Data Sources is now a reorderable, hideable section (hidden by default, §4) rather
-                        // than a fixed card pinned to the bottom.
-                        case .dataSources: dataSourcesSection
+                        // Data Sources is not part of Liquid Today (2026-10 redesign); its management
+                        // route stays in Settings and Classic Today still renders it.
+                        // `LiquidTodayDefaults.excludedSections` already filters it from `sectionOrder`.
+                        case .dataSources: EmptyView()
                         // #today-hosted-cards: cards the user pulled in from the Trends/Sleep tabs, in the
                         // order they arranged. Empty (renders nothing) until they add one in Customise.
                         // Today-only, matching Android's addedCards section gate + the classic TodayView.
@@ -697,13 +724,15 @@ struct LiquidTodayView: View {
                     // DEFAULT screen: the card's only mount was classic TodayView, so a user could switch
                     // auto-detect on and never be shown a single suggestion. Self-gates on the toggle AND
                     // on the detector finding an unsaved, un-dismissed window, so it renders nothing by
-                    // default. Upstream also re-mounts `dataSourcesSection` here; this fork does not —
-                    // it is already rendered through the reorderable card block above (`case .dataSources`),
-                    // so a second mount would show the section twice.
+                    // default. Upstream also re-mounts `dataSourcesSection` here; this fork does not:
+                    // Liquid Today no longer carries a Data Sources card at all.
                     AutoWorkoutCard()
-                    Color.clear.frame(height: 90) // floating tab-bar clearance
                 }
                 .padding(.horizontal, NoopMetrics.screenHPadding)
+                // The scroll view honours the safe area (only the sky behind it ignores it), and the native
+                // tab bar is part of that area, normal or minimised. A fixed 90 pt spacer for a bar drawn
+                // over the content left a second, empty gap; this is the same end margin ScreenScaffold uses.
+                .padding(.bottom, 24)
                 .padding(.top, 30) // sit the title lower into the sky, not jammed under the status bar
             }
             #if os(macOS)
@@ -814,14 +843,21 @@ struct LiquidTodayView: View {
         .sheet(item: $customizationDestination) { destination in
             TodayCustomizationSheet(
                 initialDestination: destination,
-                sectionOrderRaw: $sectionOrderRaw,
-                hiddenSectionsRaw: $hiddenSectionsRaw,
-                keyMetricsRaw: $keyMetricsRaw,
+                sectionOrderRaw: editorSectionOrderRaw,
+                hiddenSectionsRaw: editorHiddenSectionsRaw,
+                keyMetricsRaw: Binding(
+                    get: { keyMetricsRaw ?? KeyMetricPrefs.encode(LiquidTodayDefaults.keyMetrics) },
+                    set: { keyMetricsRaw = $0 }),
                 keyMetricsDetailed: $keyMetricsDetailed,
                 keyMetricsWindowDays: $keyMetricsWindowDays,
-                keyMetricsColumns: $keyMetricsColumnsRaw,
-                dashboardCardsRaw: $dashboardCardsRaw,
-                hostedCardsRaw: $hostedCardsRaw
+                keyMetricsColumns: Binding(
+                    get: { keyMetricsColumnsRaw ?? LiquidTodayDefaults.keyMetricsColumns },
+                    set: { keyMetricsColumnsRaw = $0 }),
+                dashboardCardsRaw: Binding(
+                    get: { DashboardCardPrefs.encode(LiquidTodayDefaults.dashboardCards(dashboardCardsRaw)) },
+                    set: { dashboardCardsRaw = $0 }),
+                hostedCardsRaw: $hostedCardsRaw,
+                defaults: .liquid
             )
         }
         .sheet(isPresented: $showCoachLauncher) {
@@ -1335,7 +1371,7 @@ struct LiquidTodayView: View {
             // Data-driven off the SAME @AppStorage the CUSTOMISE editor writes, so add / remove /
             // reorder in Customise reflects on the home screen live. The hydration filter mirrors classic
             // TodayView's `enabledDashboardCards` and Android's `it != HYDRATION || hydrationEnabled`.
-            ForEach(DashboardCardPrefs.decodeEnabled(dashboardCardsRaw)
+            ForEach(LiquidTodayDefaults.dashboardCards(dashboardCardsRaw)
                         .filter { hydrationEnabled || $0 != .hydration }
                         // Coach off means the AI is off, so the launcher card goes with the tab: leaving it
                         // on Today would offer a feature the wearer has just switched off. Same gate shape
@@ -2152,8 +2188,11 @@ struct LiquidTodayView: View {
             // Tiles WITH a value first, valueless ones after — each group keeping the user's own saved
             // order (a stable partition, not a sort). A "—" tile holds a full slot either way; it just
             // shouldn't hold a PRIME slot and push real numbers below the fold.
-            let ordered = enabledKeyMetrics.filter { keyMetricHasValue($0, hrv: hrv, rhr: rhr) }
-                + enabledKeyMetrics.filter { !keyMetricHasValue($0, hrv: hrv, rhr: rhr) }
+            // An automatic selection drops valueless tiles; explicitly chosen ones stay, after the
+            // populated ones, as "—" (`LiquidTodayDefaults.arrangedKeyMetrics`).
+            let ordered = LiquidTodayDefaults.arrangedKeyMetrics(keyMetricSelection) {
+                keyMetricHasValue($0, hrv: hrv, rhr: rhr)
+            }
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8),
                                      count: keyMetricsColumns), spacing: 8) {
                 ForEach(ordered) { metric in
@@ -2307,73 +2346,65 @@ struct LiquidTodayView: View {
 
     // MARK: - Last workouts
 
+    /// One grouped card: the five newest workouts, each opening its own detail, and `All` for the full
+    /// chronological history. Renders nothing until there is a workout (the section has no empty state).
+    @ViewBuilder
     private var lastWorkoutsSection: some View {
-        VStack(spacing: NoopMetrics.space2) {
-            sectionHead("LAST WORKOUTS", trailing: "\(workouts.count) total")
-            if workouts.isEmpty == false {
-                // Up to six, like classic Today (`TodayView.lastWorkoutsSection`) and the plural heading
-                // promise — this rendered `workouts.first` alone, so "1998 total" stood over one card.
-                // `WorkoutRow` isn't Identifiable, hence the offset key.
-                ForEach(Array(workouts.prefix(6).enumerated()), id: \.offset) { _, w in
-                    // Opens THIS workout's detail directly as a sheet — not a push through the Workouts
-                    // overview screen (see `workoutDetailTarget`'s doc comment).
-                    Button { workoutDetailTarget = WorkoutDetailTarget(row: w) } label: { workoutCard(w) }
-                        .buttonStyle(LiquidPressStyle())
-                }
-            } else {
-                card {
-                    Text("No workouts yet")
-                        .font(StrandFont.subhead)
-                        .foregroundStyle(StrandPalette.textTertiary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-            }
-        }
-    }
-
-    private func workoutCard(_ w: WorkoutRow) -> some View {
-        card {
-            VStack(alignment: .leading, spacing: 10) {
+        if !workouts.isEmpty {
+            let rows = Array(workouts.prefix(LiquidTodayDefaults.workoutRows))
+            VStack(spacing: NoopMetrics.space2) {
                 HStack(alignment: .firstTextBaseline) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(WorkoutSource.displaySport(w.sport)).font(StrandFont.number(15))
-                            .foregroundStyle(StrandPalette.textPrimary)
-                        Text(workoutSub(w)).font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                    sectionHead("LAST WORKOUTS")
+                    NavigationLink(value: TabRoute.workouts) {
+                        HStack(spacing: 3) {
+                            Text("All").font(StrandFont.caption)
+                            Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold))
+                        }
+                        .foregroundStyle(StrandPalette.accent)
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
                     }
-                    Spacer()
-                    (Text(effortText(w.strain)).font(StrandFont.number(15))
-                        + Text(" EFFORT").font(StrandFont.overlineScaled(9)))
-                        .foregroundStyle(StrandPalette.textPrimary)
+                    .buttonStyle(.plain)
                 }
-                LiquidTube(frac: (w.strain ?? 0) / 100, tint: StrandPalette.effortColor, height: 12, animated: false)
-            }
-        }
-    }
-
-    // MARK: - Data sources
-
-    private var dataSourcesSection: some View {
-        VStack(spacing: NoopMetrics.space2) {
-            sectionHead("DATA SOURCES", trailing: "Provenance")
-            NavigationLink(value: TabRoute.dataSources) {
                 card {
-                    VStack(spacing: 12) {
-                        HStack {
-                            Text("Synced from").font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
-                            Spacer()
-                            HStack(spacing: 4) {
-                                Text("View sources").font(StrandFont.subhead).foregroundStyle(StrandPalette.textTertiary)
-                                Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(StrandPalette.textTertiary)
+                    VStack(spacing: 0) {
+                        // `WorkoutRow` isn't Identifiable, hence the offset key.
+                        ForEach(Array(rows.enumerated()), id: \.offset) { index, w in
+                            // Opens THIS workout's detail directly as a sheet — not a push through the
+                            // Workouts overview screen (see `workoutDetailTarget`'s doc comment).
+                            Button { workoutDetailTarget = WorkoutDetailTarget(row: w) } label: { workoutRow(w) }
+                                .buttonStyle(LiquidPressStyle())
+                            if index < rows.count - 1 {
+                                Divider().overlay(StrandPalette.hairline)
                             }
                         }
-                        LiquidStrapBatteryRow()
-                        LiquidSyncStatusRow()
                     }
                 }
             }
-            .buttonStyle(LiquidPressStyle())
         }
+    }
+
+    /// A workout without a stored Effort says so in words and draws no bar: a zero-length bar would read
+    /// as "no effort" rather than "not measured".
+    private func workoutRow(_ w: WorkoutRow) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(WorkoutSource.displaySport(w.sport)).font(StrandFont.number(15))
+                        .foregroundStyle(StrandPalette.textPrimary)
+                    Text(workoutSub(w)).font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                }
+                Spacer()
+                (Text(effortText(w.strain)).font(StrandFont.number(15))
+                    + Text(" EFFORT").font(StrandFont.overlineScaled(9)))
+                    .foregroundStyle(w.strain == nil ? StrandPalette.textTertiary : StrandPalette.textPrimary)
+            }
+            if let strain = w.strain {
+                LiquidTube(frac: strain / 100, tint: StrandPalette.effortColor, height: 8, animated: false)
+            }
+        }
+        .padding(.vertical, 10)
+        .contentShape(Rectangle())
     }
 
     // MARK: - Reusable chrome
@@ -3396,8 +3427,7 @@ extension LiquidTodayView {
     /// was on the charger, which reads as "battery dead". And it drew the ring on `batteryPct` alone with
     /// no `connected` gate: `LiveState.batteryPct` is never cleared (`clearBiometrics` deliberately leaves
     /// it), so a dead strap kept showing its last % as if live — a 21 h old reading rendered identically
-    /// to a fresh one. Gating on `connected` here also makes this ring agree with `LiquidStrapBatteryRow`
-    /// directly below it, which already required `live.connected`.
+    /// to a fresh one. Gating on `connected` here matches what the strap-battery readouts elsewhere require.
     /// The Effort hero's "no cardio load yet" honest note (#530 follow-up — Liquid parity with classic
     /// `TodayView.effortZeroNote`). Pure + static so the gate is testable with no view: the note shows
     /// ONLY for today when a strain value exists and is ~0 — a genuinely calm day reads near zero, while a
@@ -3650,81 +3680,14 @@ private extension View {
     }
 }
 
-/// Strap-history sync state inside the Data Sources card. Owns LiveState; display-only.
-///
-/// B1 (docs/bugs/2026-07-15-strap-battery-backfill-observability.md): the v8 Liquid redesign shipped no
-/// backfill indication AT ALL, so on the iOS default Today a multi-hour history recovery was completely
-/// invisible — the wearer could not tell a working strap mid-drain from a dead one. The classic
-/// `TodayView` has always had this (`SyncStatusChip`), as do the Mac Sleep/Intelligence screens and the
-/// menu bar (`SyncingHistoryNote`); Liquid simply dropped it. Same class of regression as #992, which
-/// dropped the "~X days left" runtime estimate from the row directly above this one.
-///
-/// Deliberately scoped to what LiveState can honestly answer: THAT a drain is running, how many chunks
-/// it has pulled, and when one last completed. It does NOT yet say "~15h behind" — that needs the
-/// persisted data frontier (max HR ts) compared against `strapRange.newestUnix`, and the frontier is a
-/// Repository read that LiveState does not carry. That remains open in B1. Kept here in the Data Sources
-/// card as the detailed view; `LiquidBatteryButton` above is the header's ambient at-a-glance signal.
-private struct LiquidSyncStatusRow: View {
+/// Shows its content only while the strap is connected AND delivering a live heart rate. Owns the
+/// LiveState observation so the parent Today view does not.
+private struct LiquidLiveHeartRateGate<Content: View>: View {
     @EnvironmentObject var live: LiveState
+    @ViewBuilder let content: () -> Content
+
     var body: some View {
-        if live.backfilling {
-            row(String(localized: "Strap history"), value: chunks, tone: StrandPalette.accent)
-        } else if let ts = live.lastSyncedAt {
-            row(String(localized: "Strap history"),
-                value: String(localized: "Synced \(relativeAgo(ts))"), tone: StrandPalette.textPrimary)
-        }
-    }
-
-    /// "Syncing…" alone reads as a spinner that might be stuck; the chunk count is the cheapest available
-    /// proof that the drain is actually moving. Suppressed at zero — a session that has pulled nothing yet
-    /// should not claim "0 chunks pulled" as if that were progress.
-    private var chunks: String {
-        live.syncChunksThisSession > 0
-            ? String(localized: "Syncing… \(live.syncChunksThisSession) chunks")
-            : String(localized: "Syncing…")
-    }
-
-    private func row(_ label: String, value: String, tone: Color) -> some View {
-        HStack {
-            Text(label).font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
-            Spacer()
-            Text(value).font(StrandFont.subhead).foregroundStyle(tone)
-        }
-        .accessibilityElement(children: .combine)
-    }
-}
-
-/// The strap-battery readout inside the Data Sources card. Owns LiveState; display-only.
-private struct LiquidStrapBatteryRow: View {
-    @EnvironmentObject var live: LiveState
-    var body: some View {
-        // #2208: the strap's charge only when the strap is the active device.
-        if live.connected, live.activeIsWhoop, let pct = live.batteryPct {
-            HStack {
-                Text("Strap battery").font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
-                Spacer()
-                // #972: append "· Charging"; #992: append the "~X days left" runtime the v8 redesign dropped.
-                Text(batteryText(pct: pct))
-                    .font(StrandFont.number(15)).foregroundStyle(StrandPalette.textPrimary)
-            }
-        }
-    }
-
-    /// "87%" plus a trailing "· Charging" (#972) or "· ~9 days left" runtime (#992), matching the Settings /
-    /// Mac / Android pill and the classic Today badge.
-    private func batteryText(pct: Double) -> String {
-        let base = "\(Int(pct.rounded()))%"
-        if live.charging == true { return "\(base) · \(String(localized: "Charging"))" }
-        if let est = estimateText { return "\(base) · \(est)" }
-        return base
-    }
-
-    /// #992: the v8 Liquid redesign dropped the "~X days left" estimate the classic Today showed (#713).
-    /// This was a verbatim copy of `TodayView.estimateText`; both now call the shared
-    /// `StrapBatteryCopy.runtimeBadge`, so the wording and the 48-hour boundary have one home.
-    private var estimateText: String? {
-        StrapBatteryCopy.runtimeBadge(hoursRemaining: live.batteryEstimate?.hoursRemaining,
-                                      charging: live.charging == true)
+        if live.connected, live.heartRate != nil { content() }
     }
 }
 
