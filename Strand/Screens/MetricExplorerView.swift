@@ -807,8 +807,10 @@ private struct MetricRow: View {
         .accessibilityAddTraits(.isButton)
     }
 
+    /// The metric's own colour: its category's family, at its place in that category (see
+    /// `AppleInspiredColors.exploreMetricRole`).
     private var exploreIconColorID: String {
-        "explore.\(metric.category.lowercased())"
+        "explore.\(metric.category.lowercased()).\(exploreIndexInCategory[metric.key] ?? 0)"
     }
 }
 
@@ -827,7 +829,7 @@ struct MetricDetailView: View {
     /// when the setting is on, the plain canvas when off — so a Key-Metrics tile tap doesn't jar from the
     /// liquid Today's sky to a flat page. Same keys TodayView/LiquidTodayView gate on; "Sky behind cards"
     /// extends the sky to the full viewport (softer settle) so the transparent cards reveal it throughout.
-    @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = false
+    @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = SceneBackgroundPrefs.defaultEnabled
     @AppStorage(SkyBehindCardsPrefs.enabledKey) private var skyBehindCards = false
     /// Custom background image (#custom-background): when active it overrides the sky in the backdrop.
     @ObservedObject private var backgroundStore = BackgroundImageStore.shared
@@ -2108,3 +2110,16 @@ private func explorerPreviewRepo() -> Repository {
     .preferredColorScheme(.dark)
 }
 #endif
+
+/// Each metric's position within its category in catalogue order. Built once; the catalogue is static,
+/// so a metric's Explore colour does not change with search or the With Data filter.
+private let exploreIndexInCategory: [String: Int] = {
+    var next: [String: Int] = [:]
+    var index: [String: Int] = [:]
+    for metric in MetricCatalog.all where index[metric.key] == nil {
+        let n = next[metric.category, default: 0]
+        index[metric.key] = n
+        next[metric.category] = n + 1
+    }
+    return index
+}()
