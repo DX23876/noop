@@ -2946,16 +2946,18 @@ private struct SleepBodyClockCard: View {
 // MARK: - Organic Rest ring (Liquid style)
 
 /// Liquid Today's organic Rest ring at Sleep-hero size. It measures the width it is given and draws the
-/// ring at about two thirds of it (clamped), so it grows from a small phone to a Pro Max. It follows the
+/// ring at about three quarters of it (clamped), so it grows from a small phone to a Pro Max. It follows the
 /// colour scheme like the Today hero: the Light hero background is light, so dark ink there.
 /// Analysis migration required: no. Presentation only; the score is the same `sleep_performance` value.
 struct SleepOrganicRestRing: View {
     let score: Double
     @State private var width: CGFloat = 0
 
-    static let widthFraction: CGFloat = 0.66
+    /// Three quarters of the card: as large as it goes while its glow (1.3 times the ring) still fits
+    /// inside the clipped card on a phone.
+    static let widthFraction: CGFloat = 0.76
     static let minDiameter: CGFloat = 184
-    static let maxDiameter: CGFloat = 300
+    static let maxDiameter: CGFloat = 320
 
     static func diameter(width: CGFloat) -> CGFloat {
         guard width > 0 else { return minDiameter }
