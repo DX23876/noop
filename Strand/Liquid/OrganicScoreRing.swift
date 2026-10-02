@@ -132,6 +132,9 @@ struct OrganicScoreRing: View {
     let decimals: Int
     let frame: OrganicScoreFrame
     var diameter: CGFloat = 104
+    /// Tap target diameter; nil = the full ring. The hero passes its slot width so a ring drawn larger
+    /// than its slot never takes a neighbour's taps.
+    var hitDiameter: CGFloat? = nil
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
@@ -193,7 +196,7 @@ struct OrganicScoreRing: View {
             .allowsHitTesting(false)
         }
         .frame(width: diameter, height: diameter)
-        .contentShape(Circle())
+        .contentShape(Circle().inset(by: max(0, (diameter - (hitDiameter ?? diameter)) / 2)))
         .onAppear {
             morph = .settled(model)
             settledTint = resolvedTint

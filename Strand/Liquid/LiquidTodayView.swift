@@ -59,6 +59,40 @@ enum LiquidHeroChrome {
     }
 }
 
+/// Pure sizing for the hero's three organic rings. Each ring owns a third of the hero row; the drawn ring
+/// is a little larger than its slot, because the principal contour sits at only 0.37 of the diameter and the
+/// glow and echoes outside it may overlap a neighbour's. Tap targets stay inside the slot.
+/// Analysis migration required: no. Layout only.
+enum LiquidHeroRingLayout {
+    /// Gap between the three slots and the card's inner horizontal padding.
+    static let slotSpacing: CGFloat = 0
+    static let horizontalPadding: CGFloat = NoopMetrics.space2
+    /// How much larger the drawn ring is than its slot.
+    static let overdraw: CGFloat = 1.08
+    /// The size before the row is first measured, and the floor/ceiling for any width.
+    static let fallbackDiameter: CGFloat = 108
+    static let minDiameter: CGFloat = 100
+    static let maxDiameter: CGFloat = 150
+
+    /// One slot's width for a measured row width (the row inside the card's padding).
+    static func slotWidth(rowWidth: CGFloat) -> CGFloat {
+        max(0, (rowWidth - slotSpacing * 2) / 3)
+    }
+
+    /// The drawn ring diameter for a measured row width: grows with the phone, clamped so a narrow phone
+    /// keeps readable rings and an iPad or Mac window does not inflate them.
+    static func diameter(rowWidth: CGFloat) -> CGFloat {
+        guard rowWidth > 0 else { return fallbackDiameter }
+        return min(maxDiameter, max(minDiameter, slotWidth(rowWidth: rowWidth) * overdraw))
+    }
+
+    /// The tap target: the slot, never wider than the drawn ring, so neighbouring rings never share a tap.
+    static func hitDiameter(rowWidth: CGFloat) -> CGFloat {
+        guard rowWidth > 0 else { return fallbackDiameter }
+        return min(diameter(rowWidth: rowWidth), slotWidth(rowWidth: rowWidth))
+    }
+}
+
 struct LiquidTodayView: View {
     @AppStorage(DayCycleMode.storageKey) private var dayCycleModeRaw = DayCycleMode.sleepOnset.rawValue
     private var dayCycleMode: DayCycleMode { DayCycleMode.persisted(dayCycleModeRaw) }
@@ -410,6 +444,8 @@ struct LiquidTodayView: View {
     /// Measured height of the same cluster. At accessibility text sizes the title moves below the controls
     /// instead of beside them, and this is how far down it starts.
     @State private var headerControlsHeight = NoopMetrics.compactControlSize
+    /// Measured width of the hero's ring row; the ring size follows it (`LiquidHeroRingLayout`).
+    @State private var heroRowWidth: CGFloat = 0
 
     /// Accessibility text sizes grow the round controls until the column beside them is too narrow for
     /// the date ("Frei-tag" hyphenated over three lines). There the title takes the full width below them.
@@ -1235,8 +1271,10 @@ struct LiquidTodayView: View {
             increasedContrast: colorSchemeContrast == .increased
         )
 
+        let ringDiameter = LiquidHeroRingLayout.diameter(rowWidth: heroRowWidth)
+        let ringHitDiameter = LiquidHeroRingLayout.hitDiameter(rowWidth: heroRowWidth)
         return OrganicScoreHeroClock(dataReady: dataLoaded) { frame in
-        HStack(alignment: .top, spacing: 2) {
+        HStack(alignment: .top, spacing: LiquidHeroRingLayout.slotSpacing) {
             // #543 carry: an unscored today shows the last scored night's REAL Charge (labelled as prior by
             // the state pill) rather than an empty vessel, matching the classic Today, the widget/watch/Live
             // Activity (`Repository.widgetAnchor`) and Android. Effort deliberately does NOT carry — it is
@@ -1249,6 +1287,7 @@ struct LiquidTodayView: View {
                           tint: chargeScore.map { StrandPalette.chargeRingColor($0) }
                                 ?? StrandPalette.organicMissing,
                           frame: frame,
+                          diameter: ringDiameter, hitDiameter: ringHitDiameter,
                           onGuide: { guideSection = .charge },
                           state: dataLoaded ? chargeDisplay.carriedCaption : nil,
                           provenance: ringSourceLabel("recovery"),
@@ -1260,6 +1299,7 @@ struct LiquidTodayView: View {
             HeroScoreCell(metric: .effort, label: DomainTheme.effort.productName,
                           score: effortScore,
                           tint: StrandPalette.organicEffort, frame: frame,
+                          diameter: ringDiameter, hitDiameter: ringHitDiameter,
                           onGuide: { guideSection = .effort },
                           maxValue: effortScale == .whoop ? 21 : 100,
                           decimals: effortScale == .whoop ? 1 : 0,
@@ -1272,6 +1312,7 @@ struct LiquidTodayView: View {
             HeroScoreCell(metric: .rest, label: DomainTheme.rest.productName, score: visibleRestScore,
                           tint: StrandPalette.organicRest,
                           frame: frame,
+                          diameter: ringDiameter, hitDiameter: ringHitDiameter,
                           onGuide: { guideSection = .rest },
                           provenance: ringSourceLabel("sleep_performance"),
                           detailRoute: .metric(HeroRingMetric.rest))
@@ -1280,7 +1321,7 @@ struct LiquidTodayView: View {
                         SourceBadge("\(sourceLabel)", tint: StrandPalette.textSecondary)
                             // Match the badge's trailing edge to the Rest vessel and centre it on the card border.
                             .fixedSize()
-                            .frame(width: HeroScoreCell.vesselDiameter, alignment: .trailing)
+                            .frame(width: ringHitDiameter, alignment: .trailing)
                             .offset(y: -(NoopMetrics.space4 + NoopMetrics.sourceBadgeHeight / 2))
                             .allowsHitTesting(false)
                             // Each ring speaks its own source with its value, so the badge would only
@@ -1290,8 +1331,20 @@ struct LiquidTodayView: View {
                 }
         }
         }
+        .frame(maxWidth: .infinity)
+        .background(
+            GeometryReader { proxy in
+                Color.clear.preference(key: HeroRowWidthKey.self, value: proxy.size.width)
+            }
+        )
+        .onPreferenceChange(HeroRowWidthKey.self) { measured in
+            Task { @MainActor in
+                guard measured > 0, abs(measured - heroRowWidth) > 0.5 else { return }
+                heroRowWidth = measured
+            }
+        }
         .padding(.vertical, NoopMetrics.space4)
-        .padding(.horizontal, NoopMetrics.space3)
+        .padding(.horizontal, LiquidHeroRingLayout.horizontalPadding)
         // The ONE content surface that gets real iOS 26 glass (material below 26): it is the screen's
         // headline card and there is exactly one of it, so the blur pass is affordable — unlike the ten
         // metric tiles, which take a lighter fill instead. The dark chamber stays under the glass so the
@@ -3154,13 +3207,14 @@ private struct LiquidWordmark: View {
 /// lands while the ring morphs to the matching intensity; tapping the ring opens the metric's detail.
 /// The label row taps through to the scoring guide.
 private struct HeroScoreCell: View {
-    static let vesselDiameter: CGFloat = 108
-
     let metric: OrganicScoreMetric
     let label: String
     let score: Double?            // on whatever scale the caller passes (nil = no data yet)
     let tint: Color
     let frame: OrganicScoreFrame
+    /// Drawn ring size and tap target, from `LiquidHeroRingLayout` for the measured hero width.
+    var diameter: CGFloat = LiquidHeroRingLayout.fallbackDiameter
+    var hitDiameter: CGFloat = LiquidHeroRingLayout.fallbackDiameter
     let onGuide: () -> Void
     // The scale `score` is already expressed on — 100 for Charge/Rest, or the user's chosen Effort scale
     // max (100 or 21, #45). The ring normalises against it, so 8.4/21 and 40/100 look identical.
@@ -3194,7 +3248,8 @@ private struct HeroScoreCell: View {
             score: score,
             decimals: decimals,
             frame: frame,
-            diameter: Self.vesselDiameter
+            diameter: diameter,
+            hitDiameter: hitDiameter
         )
         if let detailRoute {
             NavigationLink(value: detailRoute) { ring }
@@ -3231,7 +3286,10 @@ private struct HeroScoreCell: View {
 
     var body: some View {
         VStack(spacing: 7) {
+            // Laid out at the slot's width; the larger ring is drawn centred over it, so its glow may
+            // reach into a neighbour's slot without pushing the three apart.
             gaugeView
+                .frame(width: hitDiameter, height: diameter)
             Button(action: onGuide) {
                 HStack(spacing: 3) {
                     // #74: one line, shrink-to-fit rather than wrap under large Dynamic Type (mirrors the
@@ -3364,6 +3422,14 @@ private extension View {
 /// Carries the trailing header cluster's measured width out to the day title's fade mask, so the reserve
 /// is whatever the controls actually occupy — including the sync capsule mid-expansion.
 private struct HeaderControlsWidthKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+/// The hero ring row's measured width, which sizes the rings.
+private struct HeroRowWidthKey: PreferenceKey {
     static let defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = max(value, nextValue())
