@@ -269,6 +269,9 @@ sidebar. The Today tab hosts one of three interchangeable home-screen presentati
   sleep was consistent") with day-scoped readiness pills, a scrubbable live/banked heart-rate
   thread, "Your Cards" (swipeable coach training suggestions), Key Metrics, Recovery Vitals, Last
   Workouts and Data Sources — the same content as Control Center, restyled.
+  Its hero is being replaced by three organic waveform rings (Charge, Effort, Rest); the surrounding
+  dashboard cleanup is in progress.
+  [`fork/LIQUID_TODAY_REDESIGN.md`](fork/LIQUID_TODAY_REDESIGN.md) is the canonical delivery spec.
 - **Classic Today** (`TodayView.swift`) — the same screen macOS shows as Control Center (tight
   tile grid, no hero animation), reused verbatim as an iOS fallback. As of 2026-07-25 it has full
   functional parity with Liquid Today (design stays its own): reorderable/hideable sections over a
