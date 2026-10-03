@@ -36,8 +36,12 @@ enum LiquidTodayDefaults {
     /// Settings; the Arrange sheet opened from Liquid does not offer it.
     static let excludedSections: Set<TodaySection> = [.dataSources]
 
-    /// Calories is left out because the Energy card already leads with the same total.
-    static let keyMetrics: [KeyMetric] = KeyMetric.defaultOrder.filter { $0 != .calories }
+    /// Calories is left out because the Energy card already leads with the same total, and Charge,
+    /// Effort and Rest because the hero rings directly above already show them. Only an untouched layout
+    /// uses this; an explicit selection keeps every tile it names.
+    static let keyMetrics: [KeyMetric] = KeyMetric.defaultOrder.filter {
+        ![.calories, .charge, .effort, .rest].contains($0)
+    }
 
     static let keyMetricsColumns = 2
 

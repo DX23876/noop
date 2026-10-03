@@ -55,21 +55,27 @@ struct EnergyCard: View {
                     confidencePill
                 }
 
-                if compact {
-                    headline
-                    if summary.totalBurnedSoFar != nil {
+                if compact, summary.totalBurnedSoFar == nil {
+                    // Nothing measured yet: one estimate instead of a large dash, two empty stats and a
+                    // divider. The note below says why.
+                    EnergyStat(label: restingLabel, value: kcal(summary.basalBurnedSoFar ?? summary.estimatedBMR24h),
+                               symbol: "bed.double.fill", color: StrandPalette.energyResting,
+                               approximate: summary.basalBurnedSoFar == nil)
+                } else {
+                    if compact {
+                        headline
                         EnergyCompositionBar(restingKcal: summary.basalBurnedSoFar,
                                              activeKcal: summary.activeBurnedSoFar)
                             .accessibilityHidden(true)
+                    } else if dynamicTypeSize.isAccessibilitySize {
+                        VStack(alignment: .leading, spacing: 16) { energyMark; headline }
+                    } else {
+                        HStack(spacing: 18) { energyMark; headline }
                     }
-                } else if dynamicTypeSize.isAccessibilitySize {
-                    VStack(alignment: .leading, spacing: 16) { energyMark; headline }
-                } else {
-                    HStack(spacing: 18) { energyMark; headline }
-                }
 
-                Divider().overlay(StrandPalette.hairline)
-                statStrip
+                    Divider().overlay(StrandPalette.hairline)
+                    statStrip
+                }
 
                 if let note = qualityNote {
                     Label(note, systemImage: "info.circle")

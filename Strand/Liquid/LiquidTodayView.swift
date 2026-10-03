@@ -1807,7 +1807,9 @@ struct LiquidTodayView: View {
                     .padding(.trailing, NoopMetrics.space4)
             }
         }
-        .background(TodayCardSurface(tint: tint, surfaceOpacity: cardOpacity))
+        // Neutral surface: the metric colour stays on the icon ring, where it identifies the row. Tinted
+        // fills on every row competed with the hero rings for colour.
+        .background(TodayCardSurface(tint: nil, surfaceOpacity: cardOpacity))
     }
 
     /// The same dashboard row, running `action` instead of pushing a route (#1862). Coach is the one card
@@ -1833,7 +1835,7 @@ struct LiquidTodayView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(LiquidPressStyle())
-        .background(TodayCardSurface(tint: tint, surfaceOpacity: cardOpacity))
+        .background(TodayCardSurface(tint: nil, surfaceOpacity: cardOpacity))
     }
 
     // MARK: - Synthesis (greeting + readiness pills + one-liner)
@@ -2428,9 +2430,11 @@ struct LiquidTodayView: View {
         case .rest:
             ktile(DomainTheme.rest.productName, icon: metric.customizationIcon, intText(restScore), "%", StrandPalette.restColor, frac(restScore), key: HeroRingMetric.rest)
         case .hrv:
-            ktile("HRV", icon: metric.customizationIcon, intText(hrv), "ms", StrandPalette.metricCyan, fracOver(hrv, 120), key: "hrv")
+            // Vitals have no 0…max: a bar against a fixed ceiling (HRV / 120 ms, RHR / 100) said nothing
+            // personal, and for resting HR a longer bar was worse. Scores and steps keep theirs.
+            ktile("HRV", icon: metric.customizationIcon, intText(hrv), "ms", StrandPalette.metricCyan, nil, key: "hrv")
         case .restingHr:
-            ktile(String(localized: "Rest HR"), icon: metric.customizationIcon, intText(rhr), "bpm", StrandPalette.metricRose, fracOver(rhr, 100), key: "rhr")
+            ktile(String(localized: "Rest HR"), icon: metric.customizationIcon, intText(rhr), "bpm", StrandPalette.metricRose, nil, key: "rhr")
         case .bloodOxygen:
             // Same order as the card above — see `Spo2Display`.
             let resolved = Spo2Display.resolve(
@@ -2441,14 +2445,14 @@ struct LiquidTodayView: View {
             let candidate = resolved?.provenance == .candidate ? resolved?.percent : nil
             let spo2 = resolved?.percent
             ktile("SpO₂", icon: metric.customizationIcon, intText(spo2), "%",
-                  StrandPalette.metricCyan, fracOver(spo2, 100),
+                  StrandPalette.metricCyan, nil,
                   key: candidate == nil ? "spo2" : "spo2_candidate",
                   caption: candidate == nil ? nil : String(localized: "strap estimate (unverified)"))
         case .respiratory:
             let resp = displayDay?.respRateBpm ?? vitalsDay?.respRateBpm ?? respDay?.respRateBpm
             ktile(String(localized: "Respiratory"), icon: metric.customizationIcon,
                   resp.map { String(format: "%.1f", locale: AppLanguage.activeLocale, $0) } ?? "—",
-                  "rpm", StrandPalette.accent, fracOver(resp, 24), key: "resp_rate")
+                  "rpm", StrandPalette.accent, nil, key: "resp_rate")
         case .steps:
             ktile(String(localized: "Steps"), icon: metric.customizationIcon, stepsText, "", StrandPalette.chargeColor,
                   fracOver(stepCount, 10000), key: stepsDetailKey, detailMetric: stepsDetailMetric)
@@ -2497,7 +2501,9 @@ struct LiquidTodayView: View {
             sparkColor: tint,
             sparklineHeight: keyMetricsDetailed ? (wide ? 28 : 22) : nil,
             dense: !wide,
-            surfaceOpacity: cardOpacity
+            surfaceOpacity: cardOpacity,
+            // Neutral tiles: colour on the icon and bar only, so the grid does not out-shout the hero.
+            tintsSurface: false
         )
         // #430 parity: tap -> the metric's trend detail (the same Explore dossier its MetricRow pushes,
         // closure-based NavigationLink per #38). A metric with no catalog entry stays inert.
@@ -3145,7 +3151,7 @@ struct LiquidTodayView: View {
 
     /// Stress is a 0–3 scale, so a whole number throws away most of it (0.4 read as "0", 1.4 as "1").
     /// One decimal, formatted exactly as the Stress screen shows the same value.
-    private var stressText: String { stress.map(StressTrace.formatLevel) ?? String(localized: "Calibrating") }
+    private var stressText: String { stress.map { "\(StressTrace.formatLevel($0)) / 3" } ?? String(localized: "Calibrating") }
 
     private var sleepText: String {
         guard let m = displayDay?.totalSleepMin else { return "–" }
@@ -3201,7 +3207,8 @@ struct LiquidTodayView: View {
     }
 
     private func workoutSub(_ w: WorkoutRow) -> String {
-        var parts: [String] = []
+        // When, first: five rows of the same sport read as one session repeated without it.
+        var parts: [String] = [Self.workoutDayText(Date(timeIntervalSince1970: TimeInterval(w.startTs)))]
         let secs = w.durationS ?? Double(max(w.endTs - w.startTs, 0))
         parts.append("\(Int(secs / 60)) min")
         if let dm = w.distanceM, dm > 0 {
@@ -3209,6 +3216,19 @@ struct LiquidTodayView: View {
         }
         if let k = w.energyKcal { parts.append("\(Int(k.rounded())) kcal") }
         return parts.joined(separator: " · ")
+    }
+
+    /// "Today" / "Yesterday" / weekday within the week / short date beyond it, in the app language.
+    static func workoutDayText(_ start: Date, now: Date = Date(), calendar: Calendar = .current) -> String {
+        if calendar.isDate(start, inSameDayAs: now) { return String(localized: "Today") }
+        if let yesterday = calendar.date(byAdding: .day, value: -1, to: now),
+           calendar.isDate(start, inSameDayAs: yesterday) { return String(localized: "Yesterday") }
+        let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: start),
+                                           to: calendar.startOfDay(for: now)).day ?? 0
+        let style: Date.FormatStyle = days < 7
+            ? .dateTime.weekday(.abbreviated)
+            : .dateTime.day().month(.abbreviated)
+        return start.formatted(style.locale(AppLanguage.activeLocale))
     }
 
     private var dateLine: String {

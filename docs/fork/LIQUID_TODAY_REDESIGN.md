@@ -184,8 +184,11 @@ positions are always visible regardless of data.
 - Use two columns by default in Liquid Today, keep three as an option, and use one column for
   accessibility sizes.
 - Prevent clipped labels and keep explicitly selected empty metrics after populated metrics.
-- Remove Calories from Liquid Today's fresh default because Energy already presents it. Calories stays
-  available in the editor.
+- Remove Calories from Liquid Today's fresh default because Energy already presents it, and (2026-10-03)
+  Charge, Effort and Rest because the hero rings show them directly above. All stay available in the
+  editor; an explicit selection is never rewritten.
+- (2026-10-03) Tiles rest on a neutral surface with the metric colour on the icon and bar. Vitals with
+  no 0…max scale (HRV, resting HR, SpO₂, respiration) draw no bar; the scores and steps keep theirs.
 - Apply shared component bug fixes, accessibility improvements, safe-area fixes, missing-Effort
   behaviour, and performance improvements to Classic where appropriate. Keep Liquid-specific defaults,
   composition, surfaces, columns, and ring animation out of Classic.

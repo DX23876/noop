@@ -96,6 +96,8 @@ public struct TodayMetricTile<Accessory: View>: View {
     private let sparklineHeight: CGFloat?
     private let dense: Bool
     private let surfaceOpacity: Double
+    /// False keeps the tile's surface neutral and the tint on the icon, bar and sparkline only.
+    private let tintsSurface: Bool
     @ViewBuilder private let accessory: () -> Accessory
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -117,7 +119,9 @@ public struct TodayMetricTile<Accessory: View>: View {
                 sparklineHeight: CGFloat? = nil,
                 dense: Bool = false,
                 surfaceOpacity: Double = 1,
+                tintsSurface: Bool = true,
                 @ViewBuilder accessory: @escaping () -> Accessory) {
+        self.tintsSurface = tintsSurface
         self.label = label
         self.systemImage = systemImage
         self.value = value
@@ -232,7 +236,7 @@ public struct TodayMetricTile<Accessory: View>: View {
         // the content only, inside a taller frame.
         .frame(maxWidth: .infinity, minHeight: NoopMetrics.tileHeight, maxHeight: .infinity,
                alignment: .topLeading)
-        .background(TodayCardSurface(tint: tint, cornerRadius: NoopMetrics.groupedRadius,
+        .background(TodayCardSurface(tint: tintsSurface ? tint : nil, cornerRadius: NoopMetrics.groupedRadius,
                                      surfaceOpacity: surfaceOpacity))
         .accessibilityElement(children: .combine)
     }
@@ -253,7 +257,8 @@ public extension TodayMetricTile where Accessory == EmptyView {
          sparkColor: Color? = nil,
          sparklineHeight: CGFloat? = nil,
          dense: Bool = false,
-         surfaceOpacity: Double = 1) {
+         surfaceOpacity: Double = 1,
+         tintsSurface: Bool = true) {
         self.init(
             label: label,
             systemImage: systemImage,
@@ -270,6 +275,7 @@ public extension TodayMetricTile where Accessory == EmptyView {
             sparklineHeight: sparklineHeight,
             dense: dense,
             surfaceOpacity: surfaceOpacity,
+            tintsSurface: tintsSurface,
             accessory: { EmptyView() }
         )
     }

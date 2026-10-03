@@ -57,6 +57,10 @@ final class LiquidTodayDefaultsTests: XCTestCase {
         let fresh = LiquidTodayDefaults.keyMetricSelection(nil)
         XCTAssertFalse(fresh.isExplicit)
         XCTAssertFalse(fresh.metrics.contains(.calories))
+        // The hero rings already show the three scores.
+        XCTAssertFalse(fresh.metrics.contains(.charge))
+        XCTAssertFalse(fresh.metrics.contains(.effort))
+        XCTAssertFalse(fresh.metrics.contains(.rest))
         XCTAssertEqual(LiquidTodayDefaults.keyMetricsColumns(nil, accessibilitySize: false), 2)
         XCTAssertEqual(LiquidTodayDefaults.keyMetricsColumns(3, accessibilitySize: false), 3)
         XCTAssertEqual(LiquidTodayDefaults.keyMetricsColumns(3, accessibilitySize: true), 1)

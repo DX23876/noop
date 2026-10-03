@@ -3050,7 +3050,7 @@ struct TodayView: View {
             // broken card; show the honest calibrating state instead, matching StressView's empty/calibrating
             // copy and the owner's reply on #706.
             // One decimal on the 0–3 scale, as the Stress screen shows it: a whole number read 0.4 as "0".
-            return stressToday.map(StressTrace.formatLevel) ?? Self.calibratingPlaceholder
+            return stressToday.map { "\(StressTrace.formatLevel($0)) / 3" } ?? Self.calibratingPlaceholder
         case .fitnessAge:
             // Bound symbol as on the Health hero (#2173).
             return withUnit(fitnessAgeToday.map { "\(fitnessAgeBoundSymbol($0))\(Int($0.rounded()))" } ?? "—")

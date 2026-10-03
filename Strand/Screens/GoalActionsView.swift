@@ -79,6 +79,8 @@ struct GoalsTodaySection: View {
                     }
 
                     if let suggestion = tracking.pendingWorkoutAttributions.first {
+                        // A question to answer, so it sits on its own inset surface rather than reading
+                        // as a third goal row.
                         Button { sheet = .attribution(suggestion) } label: {
                             HStack(spacing: 8) {
                                 Image(systemName: "link.badge.plus")
@@ -93,6 +95,11 @@ struct GoalsTodaySection: View {
                                 Image(systemName: "chevron.right")
                                     .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                             }
+                            .padding(NoopMetrics.space3)
+                            .background(StrandPalette.surfaceInset,
+                                        in: RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius,
+                                                             style: .continuous))
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                     }
@@ -101,7 +108,9 @@ struct GoalsTodaySection: View {
                         actionRow(occurrence)
                     }
 
-                    if tracking.todayActions.isEmpty {
+                    // The invitation only while no goal is tracked yet: under a tracked goal it was a fourth,
+                    // untappable line in an already busy card.
+                    if tracking.todayActions.isEmpty, ranked.isEmpty {
                         Text("Add a daily action to turn a long-term goal into something concrete today.")
                             .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                             .fixedSize(horizontal: false, vertical: true)
