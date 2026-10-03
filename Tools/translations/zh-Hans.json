@@ -1829,5 +1829,9 @@
   "Day-cycle motif": "日循环主题",
   "Alps": "阿尔卑斯山",
   "Coast": "海岸",
-  "Meadow": "草地"
+  "Meadow": "草地",
+  "A new Today, with living rings": "全新的今日页，带有灵动圆环",
+  "**Today, redesigned.** Living score rings, a one-line header with a sync line and vitals compared with your own normal.": "**今日页全新设计。** 灵动的评分圆环、带同步线的单行标题，以及与你个人常态对比的生命体征。",
+  "**Training Load on Today.** Strength and cardio each show their current band on one scale, with Alps and Coast scenes that follow the time of day.": "**今日页显示训练负荷。** 力量和有氧各自在一条刻度上显示当前区间，阿尔卑斯和海岸场景随一天中的时间变化。",
+  "**One WHOOP entry.** A new strap takes over your WHOOP history instead of starting a second card, and extra entries merge after a backup.": "**只有一个 WHOOP 条目。** 新手环会接管你的 WHOOP 历史，而不是新建第二张卡片；多余的条目可在备份后合并。"
 }

@@ -1705,5 +1705,9 @@
   "Day-cycle motif": "Тема суточного цикла",
   "Alps": "Альпы",
   "Coast": "Побережье",
-  "Meadow": "Луг"
+  "Meadow": "Луг",
+  "A new Today, with living rings": "Новый экран «Сегодня» с живыми кольцами",
+  "**Today, redesigned.** Living score rings, a one-line header with a sync line and vitals compared with your own normal.": "**«Сегодня» в новом виде.** Живые кольца оценок, однострочный заголовок с линией синхронизации и показатели в сравнении с вашей личной нормой.",
+  "**Training Load on Today.** Strength and cardio each show their current band on one scale, with Alps and Coast scenes that follow the time of day.": "**Тренировочная нагрузка на «Сегодня».** Сила и кардио показывают текущую зону на одной шкале, а сцены «Альпы» и «Побережье» следуют времени суток.",
+  "**One WHOOP entry.** A new strap takes over your WHOOP history instead of starting a second card, and extra entries merge after a backup.": "**Одна запись WHOOP.** Новый браслет перенимает вашу историю WHOOP вместо второй карточки, а лишние записи объединяются после резервной копии."
 }

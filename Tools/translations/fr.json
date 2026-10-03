@@ -1729,5 +1729,9 @@
   "Day-cycle motif": "Motif du cycle journalier",
   "Alps": "Alpes",
   "Coast": "Côte",
-  "Meadow": "Prairie"
+  "Meadow": "Prairie",
+  "A new Today, with living rings": "Un nouvel Aujourd’hui, avec des anneaux vivants",
+  "**Today, redesigned.** Living score rings, a one-line header with a sync line and vitals compared with your own normal.": "**Aujourd’hui, repensé.** Des anneaux de score vivants, un en-tête sur une ligne avec une ligne de synchronisation et des signes vitaux comparés à votre propre norme.",
+  "**Training Load on Today.** Strength and cardio each show their current band on one scale, with Alps and Coast scenes that follow the time of day.": "**Charge d’entraînement sur Aujourd’hui.** Force et cardio affichent chacun leur zone actuelle sur une échelle, avec des scènes Alpes et Côte qui suivent l’heure de la journée.",
+  "**One WHOOP entry.** A new strap takes over your WHOOP history instead of starting a second card, and extra entries merge after a backup.": "**Une seule entrée WHOOP.** Un nouveau bracelet reprend votre historique WHOOP au lieu de créer une deuxième carte, et les entrées en trop fusionnent après une sauvegarde."
 }

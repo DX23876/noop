@@ -465292,6 +465292,238 @@
           }
         }
       }
+    },
+    "A new Today, with living rings" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein neues Heute, mit lebendigen Ringen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un nuevo Hoy, con anillos vivos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un nouvel Aujourd’hui, avec des anneaux vivants"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un nuovo Oggi, con anelli vivi"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nowy ekran Dziś z żywymi pierścieniami"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um novo Hoje, com anéis vivos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Новый экран «Сегодня» с живыми кольцами"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全新的今日页，带有灵动圆环"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全新的今日頁，帶有靈動圓環"
+          }
+        }
+      }
+    },
+    "**Today, redesigned.** Living score rings, a one-line header with a sync line and vitals compared with your own normal." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Heute, neu gestaltet.** Lebendige Score-Ringe, eine einzeilige Kopfzeile mit Sync-Linie und Vitalwerte im Vergleich zu deinem eigenen Normalwert."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Hoy, rediseñado.** Anillos de puntuación vivos, un encabezado de una línea con línea de sincronización y constantes vitales comparadas con tu propia normalidad."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Aujourd’hui, repensé.** Des anneaux de score vivants, un en-tête sur une ligne avec une ligne de synchronisation et des signes vitaux comparés à votre propre norme."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Oggi, ridisegnato.** Anelli di punteggio vivi, un’intestazione su una riga con linea di sincronizzazione e parametri vitali confrontati con la tua normalità."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Dziś w nowej odsłonie.** Żywe pierścienie wyników, jednowierszowy nagłówek z linią synchronizacji oraz parametry życiowe porównane z Twoją własną normą."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Hoje, redesenhado.** Anéis de pontuação vivos, um cabeçalho numa linha com linha de sincronização e sinais vitais comparados com o teu próprio normal."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**«Сегодня» в новом виде.** Живые кольца оценок, однострочный заголовок с линией синхронизации и показатели в сравнении с вашей личной нормой."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**今日页全新设计。** 灵动的评分圆环、带同步线的单行标题，以及与你个人常态对比的生命体征。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**今日頁全新設計。** 靈動的評分圓環、帶同步線的單行標題，以及與你個人常態對比的生命徵象。"
+          }
+        }
+      }
+    },
+    "**Training Load on Today.** Strength and cardio each show their current band on one scale, with Alps and Coast scenes that follow the time of day." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Trainingslast auf Heute.** Kraft und Cardio zeigen ihren aktuellen Bereich jeweils auf einer Skala, dazu Alpen- und Küstenszenen, die der Tageszeit folgen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Carga de entrenamiento en Hoy.** Fuerza y cardio muestran cada uno su franja actual en una escala, con escenas de Alpes y Costa que siguen la hora del día."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Charge d’entraînement sur Aujourd’hui.** Force et cardio affichent chacun leur zone actuelle sur une échelle, avec des scènes Alpes et Côte qui suivent l’heure de la journée."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Carico di allenamento in Oggi.** Forza e cardio mostrano ciascuno la fascia attuale su una scala, con scene Alpi e Costa che seguono l’ora del giorno."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Obciążenie treningowe na ekranie Dziś.** Siła i cardio pokazują swój bieżący zakres na jednej skali, a sceny Alp i Wybrzeża podążają za porą dnia."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Carga de treino no Hoje.** Força e cardio mostram cada um a sua faixa atual numa escala, com cenas Alpes e Costa que acompanham a hora do dia."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Тренировочная нагрузка на «Сегодня».** Сила и кардио показывают текущую зону на одной шкале, а сцены «Альпы» и «Побережье» следуют времени суток."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**今日页显示训练负荷。** 力量和有氧各自在一条刻度上显示当前区间，阿尔卑斯和海岸场景随一天中的时间变化。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**今日頁顯示訓練負荷。** 肌力與有氧各自在一條刻度上顯示目前區間，阿爾卑斯與海岸場景隨一天中的時間變化。"
+          }
+        }
+      }
+    },
+    "**One WHOOP entry.** A new strap takes over your WHOOP history instead of starting a second card, and extra entries merge after a backup." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Ein WHOOP-Eintrag.** Ein neues Band übernimmt deinen WHOOP-Verlauf, statt eine zweite Karte anzulegen, und zusätzliche Einträge lassen sich nach einem Backup zusammenführen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Una sola entrada WHOOP.** Una nueva pulsera asume tu historial WHOOP en lugar de crear una segunda tarjeta, y las entradas adicionales se fusionan tras una copia de seguridad."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Une seule entrée WHOOP.** Un nouveau bracelet reprend votre historique WHOOP au lieu de créer une deuxième carte, et les entrées en trop fusionnent après une sauvegarde."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Una sola voce WHOOP.** Una nuova fascia eredita la tua cronologia WHOOP invece di creare una seconda scheda, e le voci in più si uniscono dopo un backup."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Jeden wpis WHOOP.** Nowa opaska przejmuje Twoją historię WHOOP zamiast tworzyć drugą kartę, a dodatkowe wpisy łączą się po wykonaniu kopii zapasowej."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Uma só entrada WHOOP.** Uma nova pulseira assume o teu histórico WHOOP em vez de criar um segundo cartão, e as entradas extra fundem-se após uma cópia de segurança."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Одна запись WHOOP.** Новый браслет перенимает вашу историю WHOOP вместо второй карточки, а лишние записи объединяются после резервной копии."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**只有一个 WHOOP 条目。** 新手环会接管你的 WHOOP 历史，而不是新建第二张卡片；多余的条目可在备份后合并。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**只有一個 WHOOP 項目。** 新手環會接管你的 WHOOP 歷史，而不是新增第二張卡片；多餘的項目可在備份後合併。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

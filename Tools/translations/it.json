@@ -1822,5 +1822,9 @@
   "Day-cycle motif": "Motivo del ciclo giornaliero",
   "Alps": "Alpi",
   "Coast": "Costa",
-  "Meadow": "Prato"
+  "Meadow": "Prato",
+  "A new Today, with living rings": "Un nuovo Oggi, con anelli vivi",
+  "**Today, redesigned.** Living score rings, a one-line header with a sync line and vitals compared with your own normal.": "**Oggi, ridisegnato.** Anelli di punteggio vivi, un’intestazione su una riga con linea di sincronizzazione e parametri vitali confrontati con la tua normalità.",
+  "**Training Load on Today.** Strength and cardio each show their current band on one scale, with Alps and Coast scenes that follow the time of day.": "**Carico di allenamento in Oggi.** Forza e cardio mostrano ciascuno la fascia attuale su una scala, con scene Alpi e Costa che seguono l’ora del giorno.",
+  "**One WHOOP entry.** A new strap takes over your WHOOP history instead of starting a second card, and extra entries merge after a backup.": "**Una sola voce WHOOP.** Una nuova fascia eredita la tua cronologia WHOOP invece di creare una seconda scheda, e le voci in più si uniscono dopo un backup."
 }
