@@ -137,7 +137,7 @@ extension Theme {
             .background(StrandPalette.surfaceInset)
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .strokeBorder(StrandPalette.hairline, lineWidth: 1))
+                .noopRestingRim())
             .markdownMargin(top: 4, bottom: 8)
         }
         .thematicBreak {

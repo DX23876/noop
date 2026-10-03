@@ -264,11 +264,19 @@ iOS uses a bottom tab bar (`RootTabView.swift`: Today, Trends, Sleep, More) inst
 sidebar. The Today tab hosts one of three interchangeable home-screen presentations, picked under
 **Settings → Appearance → Experimental**:
 
-- **Liquid Today** (default, `LiquidTodayView.swift`) — a sky-gradient hero with three fluid,
-  count-up "vessel" circles for Charge / Effort / Rest, a synthesis line ("Charge is strong and
-  sleep was consistent") with day-scoped readiness pills, a scrubbable live/banked heart-rate
-  thread, "Your Cards" (swipeable coach training suggestions), Key Metrics, Recovery Vitals, Last
-  Workouts and Data Sources — the same content as Control Center, restyled.
+- **Liquid Today** (default, `LiquidTodayView.swift`) — a sky-gradient page led by one hero of three
+  organic waveform rings for Charge / Effort / Rest (`OrganicScoreRing`, pure model in
+  `OrganicScoreVisualModel`): a luminous band of crossing filaments with bloom, twinkling particles
+  that fill the circle more the higher the value, small wandering local swells and a slow breath.
+  Charge takes its band colour; Effort glows and breathes deeper from Moderate up. The rings react
+  to device tilt and movement (Settings → "React to device movement", default on), and stand still
+  under Reduce Motion, NOOP's quiet-motion switch, Low Power Mode or when off screen. Light mode
+  shows a light hero card, Dark an optical chamber. Below it: readiness pills, Momentum, Goals,
+  Key Metrics (two columns and no empty automatic tiles on a fresh layout), a compact Energy
+  summary, one Last Workouts card of five, live heart rate only while a strap streams, and Your
+  Cards (Stress, Fitness Age, Vitality by default). Recovery Vitals is available but starts hidden;
+  Data Sources lives in Settings. Saved layouts are never rewritten. Cards rest on their fill
+  without the slate rim. Spec: [`fork/LIQUID_TODAY_REDESIGN.md`](fork/LIQUID_TODAY_REDESIGN.md).
 - **Classic Today** (`TodayView.swift`) — the same screen macOS shows as Control Center (tight
   tile grid, no hero animation), reused verbatim as an iOS fallback. As of 2026-07-25 it has full
   functional parity with Liquid Today (design stays its own): reorderable/hideable sections over a

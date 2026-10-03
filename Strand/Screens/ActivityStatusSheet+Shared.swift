@@ -169,7 +169,7 @@ private struct DurationPillStyle: ButtonStyle {
             .padding(.vertical, 8)
             .foregroundStyle(selected ? StrandPalette.textPrimary : StrandPalette.textSecondary)
             .background(selected ? StrandPalette.accentMuted : StrandPalette.surfaceRaised, in: Capsule())
-            .overlay(Capsule().strokeBorder(StrandPalette.hairline, lineWidth: 1))
+            .overlay(Capsule().noopRestingRim())
             .opacity(configuration.isPressed ? 0.7 : 1)
     }
 }

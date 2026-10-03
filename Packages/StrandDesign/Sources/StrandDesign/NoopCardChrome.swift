@@ -50,11 +50,28 @@ public struct NoopCardChrome: Sendable, Equatable {
     ///   - increasedContrast: the system "Increase Contrast" setting.
     ///   - quietEdges: the iPhone treatment. Other platforms keep the original hairline plus
     ///     light-mode shadow on every card except navigation cards.
+    ///   - quietRims: a screen that wants restrained surfaces (Liquid Today) drops the resting rim on
+    ///     opaque cards; the fill separates them. A see-through card keeps its hairline, a `.state`
+    ///     card keeps its signal, and Increase Contrast keeps every edge.
     public static func resolve(kind: NoopCardKind,
                                isLight: Bool,
                                isTransparent: Bool,
                                increasedContrast: Bool,
-                               quietEdges: Bool) -> NoopCardChrome {
+                               quietEdges: Bool,
+                               quietRims: Bool = false) -> NoopCardChrome {
+        let chrome = resolveEdges(kind: kind, isLight: isLight, isTransparent: isTransparent,
+                                  increasedContrast: increasedContrast, quietEdges: quietEdges)
+        guard quietRims, !increasedContrast, !isTransparent, kind != .state, chrome.rim == .hairline else {
+            return chrome
+        }
+        return NoopCardChrome(rim: .none, shadow: chrome.shadow)
+    }
+
+    private static func resolveEdges(kind: NoopCardKind,
+                                     isLight: Bool,
+                                     isTransparent: Bool,
+                                     increasedContrast: Bool,
+                                     quietEdges: Bool) -> NoopCardChrome {
         guard quietEdges else {
             // Other platforms keep the original treatment; only navigation cards were ever quiet there.
             return kind == .navigation ? NoopCardChrome(rim: .none, shadow: false)
@@ -86,7 +103,19 @@ private struct NoopCardKindKey: EnvironmentKey {
     static let defaultValue: NoopCardKind = .data
 }
 
+/// On by default app-wide since 2026-10-02 (user decision): opaque cards everywhere rest on their
+/// fill without the slate hairline. A screen can still opt back in with `.environment(…, false)`.
+private struct NoopQuietCardRimsKey: EnvironmentKey {
+    static let defaultValue = true
+}
+
 public extension EnvironmentValues {
+    /// True (the default) for a subtree whose cards rest without a rim (see `NoopCardChrome.resolve`).
+    var noopQuietCardRims: Bool {
+        get { self[NoopQuietCardRimsKey.self] }
+        set { self[NoopQuietCardRimsKey.self] = newValue }
+    }
+
     /// The kind of every card in a subtree that does not name one itself.
     var noopCardKind: NoopCardKind {
         get { self[NoopCardKindKey.self] }
@@ -98,5 +127,35 @@ public extension View {
     /// Sets the default card kind for a whole screen subtree, for example `.navigation` on a hub.
     func noopCardKind(_ kind: NoopCardKind) -> some View {
         environment(\.noopCardKind, kind)
+    }
+}
+
+// MARK: - Resting rim for pills, frames and secondary surfaces
+
+/// The hairline a pill, frame or secondary button used to draw unconditionally. Under the app-wide
+/// quiet edges it is drawn only for Increase Contrast (or where a subtree opts out of quiet rims).
+/// Input fields and selection outlines do NOT use this: their edge carries meaning.
+public struct NoopRestingRim<S: InsettableShape>: View {
+    let shape: S
+    let lineWidth: CGFloat
+    @Environment(\.noopQuietCardRims) private var quietRims
+    @Environment(\.colorSchemeContrast) private var contrast
+
+    public init(_ shape: S, lineWidth: CGFloat = 1) {
+        self.shape = shape
+        self.lineWidth = lineWidth
+    }
+
+    public var body: some View {
+        if !quietRims || contrast == .increased {
+            shape.strokeBorder(StrandPalette.hairline, lineWidth: lineWidth)
+        }
+    }
+}
+
+public extension InsettableShape {
+    /// See `NoopRestingRim`.
+    func noopRestingRim(lineWidth: CGFloat = 1) -> NoopRestingRim<Self> {
+        NoopRestingRim(self, lineWidth: lineWidth)
     }
 }

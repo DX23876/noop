@@ -300,7 +300,7 @@ struct LiveView: View {
         }
         .padding(.horizontal, 14).padding(.vertical, 8)
         .background(StrandPalette.surfaceInset, in: Capsule())
-        .overlay(Capsule().strokeBorder(StrandPalette.hairline, lineWidth: 1))
+        .overlay(Capsule().noopRestingRim())
     }
 
     // MARK: - Body console (live BPM vessel + live physiology)

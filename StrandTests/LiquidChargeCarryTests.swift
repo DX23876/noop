@@ -184,19 +184,35 @@ final class LiquidHeroChromeTests: XCTestCase {
         ), 0.04, accuracy: 0.0001)
     }
 
-    func testALightHeroWithNothingBehindItUsesTheLightSurface() {
-        func light(dark: Bool = false, opacity: Double = 1, backdrop: Bool = false, reduce: Bool = false) -> Bool {
-            LiquidHeroChrome.usesLightSurface(isDark: dark, cardOpacity: opacity,
-                                              hasBackdrop: backdrop, reduceTransparency: reduce)
+    func testLightHeroFillKeepsAReadableFloor() {
+        XCTAssertEqual(LiquidHeroChrome.lightFillOpacity(cardOpacity: 0), 0.72, accuracy: 0.0001)
+        XCTAssertEqual(LiquidHeroChrome.lightFillOpacity(cardOpacity: 0.5), 0.72, accuracy: 0.0001)
+        XCTAssertEqual(LiquidHeroChrome.lightFillOpacity(cardOpacity: 0.9), 0.9, accuracy: 0.0001)
+        XCTAssertEqual(LiquidHeroChrome.lightFillOpacity(cardOpacity: 3), 1, accuracy: 0.0001)
+    }
+}
+
+/// The hero rings follow the phone's width instead of a fixed 108pt (2026-10-02, on request: bigger rings
+/// that still fit narrow phones). Pins the clamp, the growth with width, and that taps never overlap.
+final class LiquidHeroRingLayoutTests: XCTestCase {
+    func testRingsGrowWithTheRowAndStayClamped() {
+        let se = LiquidHeroRingLayout.diameter(rowWidth: 375 - 32 - 16)
+        let pro = LiquidHeroRingLayout.diameter(rowWidth: 402 - 32 - 16)
+        let proMax = LiquidHeroRingLayout.diameter(rowWidth: 440 - 32 - 16)
+        XCTAssertGreaterThan(pro, 108)
+        XCTAssertLessThan(se, pro)
+        XCTAssertLessThan(pro, proMax)
+        XCTAssertEqual(LiquidHeroRingLayout.diameter(rowWidth: 200), LiquidHeroRingLayout.minDiameter)
+        XCTAssertEqual(LiquidHeroRingLayout.diameter(rowWidth: 1400), LiquidHeroRingLayout.maxDiameter)
+        XCTAssertEqual(LiquidHeroRingLayout.diameter(rowWidth: 0), LiquidHeroRingLayout.fallbackDiameter)
+    }
+
+    func testTapTargetsNeverOverlapNeighbours() {
+        for width in stride(from: CGFloat(240), through: 1400, by: 20) {
+            let slot = LiquidHeroRingLayout.slotWidth(rowWidth: width)
+            let hit = LiquidHeroRingLayout.hitDiameter(rowWidth: width)
+            XCTAssertLessThanOrEqual(hit, slot + 0.001)
+            XCTAssertLessThanOrEqual(hit, LiquidHeroRingLayout.diameter(rowWidth: width))
         }
-        XCTAssertTrue(light())
-        // Transparency is the card surface's job; the hero stays a light card without a backdrop.
-        XCTAssertTrue(light(opacity: 0.6))
-        XCTAssertFalse(light(dark: true))
-        XCTAssertFalse(light(backdrop: true))
-        XCTAssertFalse(light(opacity: 0.6, backdrop: true))
-        // Reduce Transparency forces a solid fill, so it is a light card even over a backdrop.
-        XCTAssertTrue(light(opacity: 0.2, backdrop: true, reduce: true))
-        XCTAssertFalse(light(dark: true, reduce: true))
     }
 }

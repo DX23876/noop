@@ -13,6 +13,35 @@ enum TodayCustomizationDestination: String, Identifiable, Hashable {
     var id: String { rawValue }
 }
 
+/// What "Reset" restores and which sections the editor leaves out, per Today style. Classic keeps the
+/// long-standing defaults; Liquid uses `LiquidTodayDefaults`.
+struct TodayCustomizationDefaults {
+    var sectionOrder: [TodaySection]
+    var hiddenSections: [TodaySection]
+    var excludedSections: Set<TodaySection>
+    var keyMetrics: [KeyMetric]
+    var keyMetricsColumns: Int
+    var dashboardCards: [DashboardCard]
+
+    static let classic = TodayCustomizationDefaults(
+        sectionOrder: TodaySection.defaultOrder,
+        hiddenSections: TodaySection.defaultOrder.filter { TodaySection.defaultHidden.contains($0) },
+        excludedSections: [],
+        keyMetrics: KeyMetric.defaultOrder,
+        keyMetricsColumns: 3,
+        dashboardCards: DashboardCard.defaultSelection
+    )
+
+    static let liquid = TodayCustomizationDefaults(
+        sectionOrder: LiquidTodayDefaults.sectionOrder,
+        hiddenSections: LiquidTodayDefaults.hiddenSections,
+        excludedSections: LiquidTodayDefaults.excludedSections,
+        keyMetrics: LiquidTodayDefaults.keyMetrics,
+        keyMetricsColumns: LiquidTodayDefaults.keyMetricsColumns,
+        dashboardCards: LiquidTodayDefaults.dashboardCards
+    )
+}
+
 struct TodayCustomizationSheet: View {
     @Environment(\.dismiss) private var dismiss
 
@@ -29,6 +58,11 @@ struct TodayCustomizationSheet: View {
     private let initialDetailed: Bool
     private let initialWindowDays: Int
     private let initialColumns: Int
+    /// Sections the presenting Today style never renders (Liquid: Data Sources). Left out of the editor,
+    /// but their stored position and visibility survive a save so the other style keeps them as they were.
+    private let excludedSections: Set<TodaySection>
+    private let defaults: TodayCustomizationDefaults
+    private let storedHiddenSections: Set<TodaySection>
 
     @Binding private var sectionOrderRaw: String
     @Binding private var hiddenSectionsRaw: String
@@ -79,8 +113,11 @@ struct TodayCustomizationSheet: View {
         keyMetricsWindowDays: Binding<Int>,
         keyMetricsColumns: Binding<Int>,
         dashboardCardsRaw: Binding<String>,
-        hostedCardsRaw: Binding<String>
+        hostedCardsRaw: Binding<String>,
+        defaults: TodayCustomizationDefaults = .classic
     ) {
+        let excludedSections = defaults.excludedSections
+        self.defaults = defaults
         _sectionOrderRaw = sectionOrderRaw
         _hiddenSectionsRaw = hiddenSectionsRaw
         _keyMetricsRaw = keyMetricsRaw
@@ -91,7 +128,10 @@ struct TodayCustomizationSheet: View {
         _hostedCardsRaw = hostedCardsRaw
 
         let fullSectionOrder = TodayLayoutPrefs.decodeOrder(sectionOrderRaw.wrappedValue)
+            .filter { !excludedSections.contains($0) }
         let hiddenSectionSet = Set(TodayLayoutPrefs.decodeHidden(hiddenSectionsRaw.wrappedValue))
+        self.excludedSections = excludedSections
+        storedHiddenSections = hiddenSectionSet
         let sections = EditableLayoutDraft(
             visible: fullSectionOrder.filter { !hiddenSectionSet.contains($0) },
             hidden: fullSectionOrder.filter { hiddenSectionSet.contains($0) }
@@ -209,21 +249,22 @@ struct TodayCustomizationSheet: View {
     private func resetCurrentLayout() {
         switch currentDestination {
         case .today:
+            let order = defaults.sectionOrder.filter { !excludedSections.contains($0) }
             sectionDraft = EditableLayoutDraft(
-                visible: TodaySection.defaultOrder,
-                allItems: TodaySection.defaultOrder
+                visible: order.filter { !defaults.hiddenSections.contains($0) },
+                hidden: order.filter { defaults.hiddenSections.contains($0) }
             )
         case .keyMetrics:
             keyMetricDraft = EditableLayoutDraft(
-                visible: KeyMetric.defaultOrder,
+                visible: defaults.keyMetrics,
                 allItems: KeyMetric.defaultOrder
             )
             detailed = false
             windowDays = 14
-            columns = 3
+            columns = defaults.keyMetricsColumns
         case .yourCards:
             dashboardDraft = EditableLayoutDraft(
-                visible: DashboardCard.defaultSelection,
+                visible: defaults.dashboardCards,
                 allItems: DashboardCard.canonicalOrder
             )
         case .addedCards:
@@ -238,15 +279,23 @@ struct TodayCustomizationSheet: View {
         dismiss()
     }
 
+    /// Writes only the groups the user actually changed. An untouched group keeps its key as it was,
+    /// including UNSET, which is what lets each Today style keep its own fresh default for it.
     private func save() {
-        sectionOrderRaw = TodayLayoutPrefs.encode(sectionDraft.visible + sectionDraft.hidden)
-        hiddenSectionsRaw = TodayLayoutPrefs.encodeHidden(sectionDraft.hidden)
-        keyMetricsRaw = KeyMetricPrefs.encode(keyMetricDraft.visible)
-        keyMetricsDetailed = detailed
-        keyMetricsWindowDays = windowDays
-        keyMetricsColumns = columns
-        dashboardCardsRaw = DashboardCardPrefs.encode(dashboardDraft.visible)
-        hostedCardsRaw = HostedCardPrefs.encode(hostedDraft.visible)
+        if sectionDraft != initialSectionDraft {
+            let excluded = TodaySection.defaultOrder.filter { excludedSections.contains($0) }
+            sectionOrderRaw = TodayLayoutPrefs.encode(sectionDraft.visible + sectionDraft.hidden + excluded)
+            hiddenSectionsRaw = TodayLayoutPrefs.encodeHidden(
+                sectionDraft.hidden + excluded.filter { storedHiddenSections.contains($0) })
+        }
+        if keyMetricDraft != initialKeyMetricDraft { keyMetricsRaw = KeyMetricPrefs.encode(keyMetricDraft.visible) }
+        if detailed != initialDetailed { keyMetricsDetailed = detailed }
+        if windowDays != initialWindowDays { keyMetricsWindowDays = windowDays }
+        if columns != initialColumns { keyMetricsColumns = columns }
+        if dashboardDraft != initialDashboardDraft {
+            dashboardCardsRaw = DashboardCardPrefs.encode(dashboardDraft.visible)
+        }
+        if hostedDraft != initialHostedDraft { hostedCardsRaw = HostedCardPrefs.encode(hostedDraft.visible) }
         dismiss()
     }
 

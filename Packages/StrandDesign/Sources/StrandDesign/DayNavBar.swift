@@ -87,7 +87,7 @@ public struct DayNavBar: View {
                 // surfaceRaised (the card fill) lifts it to card level so it matches the dashboard
                 // cards. No gold wash behind the date — the gold pop lives only on the date text.
                 .background(blockFill, in: blockShape)
-                .overlay(blockShape.strokeBorder(StrandPalette.hairline, lineWidth: 1))
+                .overlay(blockShape.noopRestingRim())
             }
             .buttonStyle(.plain)
             .accessibilityLabel(Text("Pick a date", bundle: .module))

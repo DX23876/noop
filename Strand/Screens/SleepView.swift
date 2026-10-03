@@ -519,18 +519,9 @@ struct SleepView: View {
                 if let score {
                     VStack(spacing: NoopMetrics.space3) {
                         if heroUsesLiquidStyle {
-                            // The signature liquid gauge: a filling vessel tinted Rest, with the 0–100
-                            // score counting up over it — the same `LiquidScoreGauge` Liquid Today's
-                            // HeroScoreCell draws, so both heroes fill and roll up identically.
-                            LiquidScoreGauge(
-                                score: score,
-                                tint: StrandPalette.restColor,
-                                diameter: 184,
-                                animated: true,
-                                captionText: String(localized: "of 100"),
-                                numberColor: StrandPalette.textPrimary,
-                                captionColor: StrandPalette.textSecondary
-                            )
+                            // The same organic Rest ring as Liquid Today's hero, drawn large and sized to
+                            // the phone (2026-10-02, replacing the filling vessel).
+                            SleepOrganicRestRing(score: score)
                         } else {
                             // Classic, Trends and Overview draw Today's ring, not the liquid vessel: the
                             // hero follows the one dashboard-style setting like every other screen.
@@ -1956,7 +1947,7 @@ struct SleepView: View {
                                 .fill(StrandPalette.surfaceInset)
                                 .overlay {
                                     Capsule(style: .continuous)
-                                        .stroke(StrandPalette.hairline, lineWidth: 1)
+                                        .noopRestingRim()
                                 }
                         )
                         .padding(.bottom, 1)
@@ -2165,7 +2156,7 @@ private struct SleepPerformanceNightScene: View {
     /// #1319: honour the Settings "Day-cycle background" toggle on the Sleep tab too. The bundled
     /// moonlit-lake scene used to draw unconditionally here, so an iOS user who turned the toggle off
     /// still saw it on Sleep — while Home/Today (and the Android Sleep screen) already went plain.
-    @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = true
+    @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = SceneBackgroundPrefs.defaultEnabled
 
     var body: some View {
         if showDayCycleBackground { nightScene } else { StrandPalette.surfaceBase }
@@ -2949,5 +2940,62 @@ private struct SleepBodyClockCard: View {
                 actualBedHour: SleepView.localClockHour(night.session.effectiveStartTs),
                 actualWakeHour: SleepView.localClockHour(night.session.endTs))
         }
+    }
+}
+
+// MARK: - Organic Rest ring (Liquid style)
+
+/// Liquid Today's organic Rest ring at Sleep-hero size. It measures the width it is given and draws the
+/// ring at about three quarters of it (clamped), so it grows from a small phone to a Pro Max. It follows the
+/// colour scheme like the Today hero: the Light hero background is light, so dark ink there.
+/// Analysis migration required: no. Presentation only; the score is the same `sleep_performance` value.
+struct SleepOrganicRestRing: View {
+    let score: Double
+    @State private var width: CGFloat = 0
+
+    /// Three quarters of the card: as large as it goes while its glow (1.3 times the ring) still fits
+    /// inside the clipped card on a phone.
+    static let widthFraction: CGFloat = 0.76
+    static let minDiameter: CGFloat = 184
+    static let maxDiameter: CGFloat = 320
+
+    static func diameter(width: CGFloat) -> CGFloat {
+        guard width > 0 else { return minDiameter }
+        return min(maxDiameter, max(minDiameter, width * widthFraction))
+    }
+
+    var body: some View {
+        let diameter = Self.diameter(width: width)
+        OrganicScoreHeroClock(dataReady: true) { frame in
+            OrganicScoreRing(
+                model: OrganicScoreVisualModel.resolve(metric: .rest, value: score, scaleMaximum: 100),
+                tint: StrandPalette.organicRest,
+                score: score,
+                decimals: 0,
+                frame: frame,
+                diameter: diameter
+            )
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, diameter * 0.08)
+        .background(
+            GeometryReader { proxy in
+                Color.clear.preference(key: SleepRingWidthKey.self, value: proxy.size.width)
+            }
+        )
+        .onPreferenceChange(SleepRingWidthKey.self) { measured in
+            Task { @MainActor in
+                guard measured > 0, abs(measured - width) > 0.5 else { return }
+                width = measured
+            }
+        }
+    }
+}
+
+/// The width the Sleep hero gives its organic ring.
+private struct SleepRingWidthKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }

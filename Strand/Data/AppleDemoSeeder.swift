@@ -22,6 +22,8 @@ enum AppleDemoSeeder {
     static let whoop = "my-whoop"
     static let apple = "apple-health"
     private static let DAYS = 120
+    /// Registry id of the demo chest strap. Only this seeder writes it, which makes it the demo marker.
+    private static let demoPolarId = "polar-h10-demo"
     /// Effort rescale factor: the old 0–21 strain scale → the new 0–100 Effort scale.
     private static let STRAIN_SCALE = 100.0 / 21.0
 
@@ -61,9 +63,84 @@ enum AppleDemoSeeder {
         seedDemoDeviceIfNeeded(into: store)
         await seedDemoGoalIfNeeded()
         let existing = (try? await store.dailyMetrics(deviceId: whoop, from: "0000-00-00", to: "9999-99-99")) ?? []
-        guard existing.isEmpty else { return }
+        guard existing.isEmpty else {
+            await topUpIfDemoStore(store, newestDay: existing.map(\.day).max())
+            return
+        }
         do { try await seed(into: store) }
         catch { NSLog("AppleDemoSeeder: seed failed — \(error)") }
+    }
+
+    /// A demo store seeded on an earlier date ends before today, so Today shows a carried Charge and an
+    /// empty Effort and Rest. This appends the missing days up to today in the same physiological ranges.
+    ///
+    /// Additive only (upserts of days that have no row), and only when the registry holds the demo Polar
+    /// strap that `seedDemoDeviceIfNeeded` alone creates, so a real store launched with `--demo-seed` is
+    /// never touched. (The device row's "WHOOP (demo)" name is not a usable marker: a later launch
+    /// renames it.) Deterministic per day: the RNG is keyed on the day string with FNV-1a, never `hashValue`.
+    private static func topUpIfDemoStore(_ store: WhoopStore, newestDay: String?) async {
+        let registry = DeviceRegistryStore(dbQueue: store.registryWriter)
+        guard let newestDay,
+              let devices = try? registry.all(), devices.contains(where: { $0.id == demoPolarId }) else { return }
+        let cal = Calendar.current
+        let isoFmt = DateFormatter()
+        isoFmt.locale = Locale(identifier: "en_US_POSIX")
+        isoFmt.timeZone = TimeZone.current
+        isoFmt.dateFormat = "yyyy-MM-dd"
+        guard let newest = isoFmt.date(from: newestDay) else { return }
+        let today = cal.startOfDay(for: Date())
+
+        var daily: [DailyMetric] = []
+        var sleeps: [CachedSleepSession] = []
+        var series: [MetricPoint] = []
+        var date = cal.date(byAdding: .day, value: 1, to: newest)!
+        while date <= today {
+            let day = isoFmt.string(from: date)
+            var rng = SplitMix64(seed: fnv1a(day))
+            let totalSleep = gauss(&rng, 440.0, 30.0).clamped(330.0, 530.0)
+            let efficiency = gauss(&rng, 90.0, 3.0).clamped(78.0, 98.0)
+            let deep = totalSleep * 0.21
+            let rem = totalSleep * 0.23
+            let light = totalSleep - deep - rem
+            let hrv = gauss(&rng, 82.0, 10.0).clamped(40.0, 140.0)
+            let rhr = Int(gauss(&rng, 53.0, 2.5).clamped(44.0, 64.0))
+            let recovery = (45 + (hrv - 70) * 0.9 + (efficiency - 85) * 0.8 + gauss(&rng, 0.0, 6.0)).clamped(12.0, 98.0)
+            let strain = (gauss(&rng, 11.0, 2.5) * STRAIN_SCALE).clamped(3.0 * STRAIN_SCALE, 100.0)
+            daily.append(DailyMetric(
+                day: day, totalSleepMin: round1(totalSleep), efficiency: round1(efficiency),
+                deepMin: round1(deep), remMin: round1(rem), lightMin: round1(light),
+                disturbances: 5, restingHr: rhr, avgHrv: round1(hrv),
+                recovery: round1(recovery), strain: round1(strain), exerciseCount: 1,
+                spo2Pct: 96.5, skinTempDevC: 0.1, respRateBpm: 14.6))
+            let onsetDay = cal.startOfDay(for: cal.date(byAdding: .day, value: -1, to: date)!)
+            let onset = Int(onsetDay.timeIntervalSince1970) + 23 * 3600 + rng.nextInt(-1200, 1200)
+            let inBedSec = Int((totalSleep + totalSleep * (100 - efficiency) / 100) * 60)
+            sleeps.append(CachedSleepSession(
+                startTs: onset, endTs: onset + inBedSec, efficiency: round1(efficiency),
+                restingHr: rhr, avgHrv: round1(hrv),
+                stagesJSON: segmentsJSON(onset: onset, deep: deep, rem: rem, light: light, awakeMin: 8)))
+            let need = (totalSleep + gauss(&rng, 20.0, 15.0)).clamped(420.0, 540.0)
+            series.append(MetricPoint(day: day, key: "sleep_performance",
+                                      value: round1(min(totalSleep / need * 100.0, 100.0))))
+            series.append(MetricPoint(day: day, key: "sleep_need_min", value: round1(need)))
+            date = cal.date(byAdding: .day, value: 1, to: date)!
+        }
+        guard !daily.isEmpty else { return }
+        do {
+            _ = try await store.upsertDailyMetrics(daily, deviceId: whoop)
+            _ = try await store.upsertSleepSessions(sleeps, deviceId: whoop)
+            _ = try await store.upsertMetricSeries(series, deviceId: whoop)
+            NSLog("AppleDemoSeeder: topped up \(daily.count) demo day(s) through today")
+        } catch {
+            NSLog("AppleDemoSeeder: top-up failed — \(error)")
+        }
+    }
+
+    /// FNV-1a over the UTF-8 bytes: a platform-stable seed (Swift's `hashValue` is randomised per run).
+    private static func fnv1a(_ text: String) -> UInt64 {
+        var hash: UInt64 = 0xcbf2_9ce4_8422_2325
+        for byte in text.utf8 { hash = (hash ^ UInt64(byte)) &* 0x0000_0100_0000_01B3 }
+        return hash
     }
 
     /// DEBUG/demo-only: a weight goal with runway behind it, so the goal screens have something to
@@ -104,10 +181,12 @@ enum AppleDemoSeeder {
                       target: 91,
                       targetDate: now.addingTimeInterval(120 * 86_400),
                       createdAt: now.addingTimeInterval(-60 * 86_400)),
+            // The demo athlete logs about thirteen sessions a week (conditioning plus lifting), so a
+            // "three a week" goal read as 13.2 against 3. Twelve a week is the believable version.
             CoachGoal(kind: .consistency,
-                      title: "Train three times a week",
-                      baseline: 1,
-                      target: 3,
+                      title: "Train twelve times a week",
+                      baseline: 8,
+                      target: 12,
                       targetDate: now.addingTimeInterval(90 * 86_400),
                       createdAt: now.addingTimeInterval(-40 * 86_400))
         ]
@@ -141,7 +220,7 @@ enum AppleDemoSeeder {
             try? registry.setActive(whoop)
         }
         let polar = PairedDevice(
-            id: "polar-h10-demo", brand: "Polar", model: "H10", nickname: nil,
+            id: demoPolarId, brand: "Polar", model: "H10", nickname: nil,
             sourceKind: .liveBLE, capabilities: [.hr, .hrv], status: .paired,
             addedAt: now - 86_400, lastSeenAt: now - 3_600)
         try? registry.add(polar)
@@ -189,26 +268,38 @@ enum AppleDemoSeeder {
             let nWorkouts = !trains ? 0 : (rng.nextDouble() < 0.22 ? 2 : 1)
 
             // --- sleep architecture ---
-            let totalSleep = gauss(&rng, 430.0, 35.0).clamped(300.0, 540.0)
-            let efficiency = gauss(&rng, 89.0, 4.0).clamped(72.0, 98.0)
+            var totalSleep = gauss(&rng, 430.0, 35.0).clamped(300.0, 540.0)
+            var efficiency = gauss(&rng, 89.0, 4.0).clamped(72.0, 98.0)
             let deep = (totalSleep * gauss(&rng, 0.20, 0.03)).clamped(35.0, 130.0)
             let rem = (totalSleep * gauss(&rng, 0.23, 0.03)).clamped(45.0, 150.0)
             let light = (totalSleep - deep - rem).atLeast(60.0)
-            let disturbances = Int(gauss(&rng, 6.0, 3.0).clamped(0.0, 18.0))
+            var disturbances = Int(gauss(&rng, 6.0, 3.0).clamped(0.0, 18.0))
 
             // --- autonomic markers ---
-            let hrv = (gauss(&rng, 78.0 + fitness * 1.5, 12.0) + (weekend ? 6 : 0) - Double(nWorkouts) * 4)
+            var hrv = (gauss(&rng, 78.0 + fitness * 1.5, 12.0) + (weekend ? 6 : 0) - Double(nWorkouts) * 4)
                 .clamped(28.0, 150.0)
-            let rhr = Int((gauss(&rng, 56.0 - fitness * 0.4, 3.0) + Double(nWorkouts) * 1.2).clamped(42.0, 70.0))
+            var rhr = Int((gauss(&rng, 56.0 - fitness * 0.4, 3.0) + Double(nWorkouts) * 1.2).clamped(42.0, 70.0))
             let spo2 = gauss(&rng, 96.5, 0.8).clamped(93.0, 100.0)
             let skinTempDev = gauss(&rng, 0.0, 0.25).clamped(-1.2, 1.4)
             let resp = gauss(&rng, 14.6, 0.9).clamped(11.0, 19.0)
 
+            // Today is a strong, well-recovered morning, so the hero, Momentum and the vitals agree on a
+            // good day in captures instead of whatever the RNG drew last (it drew a 32 % Charge).
+            // Overrides only; the RNG has already been advanced, so every earlier day is unchanged.
+            if i == DAYS - 1 {
+                hrv = max(hrv, 78.0 + fitness * 1.5 + 16)
+                rhr = min(rhr, 51)
+                efficiency = max(efficiency, 93.0)
+                totalSleep = max(totalSleep, 465.0)
+                disturbances = min(disturbances, 3)
+            }
+
             // --- recovery: a function of HRV, sleep quality and resting-HR ---
-            let recovery = (
+            var recovery = (
                 40 + (hrv - 70) * 0.55 + (efficiency - 85) * 0.6 + (totalSleep - 420) * 0.03 -
                     (Double(rhr) - 55) * 1.4 - Double(disturbances) * 0.8 + gauss(&rng, 0.0, 5.0)
             ).clamped(8.0, 99.0)
+            if i == DAYS - 1 { recovery = max(recovery, 84.0) }
 
             // --- strain (Effort): workout-driven, rescaled 0–21 → 0–100 ---
             let strain = (
@@ -348,6 +439,7 @@ enum AppleDemoSeeder {
         if !workoutHeartRate.isEmpty {
             _ = try await store.insert(Streams(hr: workoutHeartRate), deviceId: whoop)
         }
+        _ = try await store.insert(Streams(hr: todayHeartRate(cal: cal)), deviceId: whoop)
         if !journal.isEmpty { _ = try await store.upsertJournal(journal, deviceId: whoop) }
         let lifts = try await seedStrength(into: store, startDay: startDay, cal: cal, isoFmt: isoFmt)
         let native = try await seedNativeTraining(into: store, startDay: startDay, cal: cal, isoFmt: isoFmt)
@@ -556,7 +648,9 @@ enum AppleDemoSeeder {
                 startTs: start, endTs: start + duration, sport: "Strength Training", source: "manual",
                 durationS: Double(duration), energyKcal: Double(520 + rng.nextInt(0, 180)),
                 avgHr: averageHR, maxHr: averageHR + 32 + rng.nextInt(0, 14),
-                strain: nil, distanceM: nil, zonesJSON: nil, notes: nil, steps: nil))
+                // A strap-recorded lifting session carries Effort like any other; without it the Today
+                // list showed "0" beside a 589 kcal session in captures.
+                strain: Double(38 + rng.nextInt(0, 16)), distanceM: nil, zonesJSON: nil, notes: nil, steps: nil))
         }
 
         guard !workouts.isEmpty else { return 0 }
@@ -816,7 +910,8 @@ enum AppleDemoSeeder {
             mirrored.append(WorkoutRow(
                 startTs: start, endTs: start + duration, sport: "Strength Training", source: "hevy",
                 durationS: Double(duration), energyKcal: nil, avgHr: nil, maxHr: nil,
-                strain: nil, distanceM: nil, zonesJSON: nil, notes: nil, steps: nil))
+                // Effort as the strap worn through the session would have scored it (demo only).
+                strain: Double(36 + rng.nextInt(0, 18)), distanceM: nil, zonesJSON: nil, notes: nil, steps: nil))
         }
 
         guard !sessions.isEmpty else { return 0 }
@@ -829,7 +924,7 @@ enum AppleDemoSeeder {
             let row = WorkoutRow(startTs: start, endTs: start + 2_700,
                                  sport: "Functional strength training", source: "apple-health",
                                  durationS: 2_700, energyKcal: 260, avgHr: 118, maxHr: 157,
-                                 strain: nil, distanceM: nil, zonesJSON: nil, notes: nil, steps: nil)
+                                 strain: 34, distanceM: nil, zonesJSON: nil, notes: nil, steps: nil)
             _ = try await store.upsertWorkouts([row], deviceId: "apple-health")
         }
         try await seedCrossSourceRides(into: store, startDay: startDay, cal: cal)
@@ -904,6 +999,33 @@ enum AppleDemoSeeder {
             t("demo-legpress", "Leg Press", "weight_reps", .quadriceps, [.glutes], .machine),
             t("demo-plank", "Plank", "duration", .abdominals, [], .none),
         ]
+    }
+
+    /// One heart-rate sample a minute for the last week up to now, so Today's Energy has a measured curve
+    /// (instead of "your strap hasn't synced today") and enough recent days for its forecast. Each day:
+    /// asleep until about 06:40 near resting rate, then a calm day with a short walk mid-morning, and
+    /// back near resting rate from 23:00. Deterministic (fixed seed).
+    private static func todayHeartRate(cal: Calendar) -> [HRSample] {
+        var rng = SplitMix64(seed: 0x70DA7)
+        let today = cal.startOfDay(for: Date())
+        let start = Int((cal.date(byAdding: .day, value: -7, to: today) ?? today).timeIntervalSince1970)
+        let now = Int(Date().timeIntervalSince1970)
+        var samples: [HRSample] = []
+        var ts = start
+        while ts < now {
+            let minute = ((ts - start) / 60) % 1440
+            let base: Double
+            switch minute {
+            case ..<400:     base = 50
+            case ..<540:     base = 72
+            case 540..<580:  base = 104      // a brisk walk around 09:00
+            case 1380...:    base = 54
+            default:         base = 76
+            }
+            samples.append(HRSample(ts: ts, bpm: Int(gauss(&rng, base, 3.0).clamped(44, 170).rounded())))
+            ts += 60
+        }
+        return samples
     }
 
     // MARK: - helpers

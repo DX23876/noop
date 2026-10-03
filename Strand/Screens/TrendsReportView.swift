@@ -531,7 +531,7 @@ struct TrendsReportSheet: View {
                         .frame(maxWidth: .infinity, alignment: .center)
                         .overlay(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .strokeBorder(StrandPalette.hairline, lineWidth: 1)
+                                .noopRestingRim()
                         )
                 }
 

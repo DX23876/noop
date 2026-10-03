@@ -493,7 +493,8 @@ class HomeLocalizationTest(unittest.TestCase):
             'private var stressText: String { stress.map { String(Int($0.rounded())) } ?? String(localized: "Calibrating") }',
             source,
         )
-        self.assertIn('return "\\(base) · \\(String(localized: \"Charging\"))"', source)
+        # The strap-battery "· Charging" line lived in Liquid's Data Sources card, which the Liquid Today
+        # redesign removed from Today (6f6068672); the battery screen keeps the localized word.
 
         strings = audit.load_catalog(ROOT / "Strand/Resources/Localizable.xcstrings")["strings"]
         expected = {

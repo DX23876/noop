@@ -326,7 +326,7 @@ struct WorkoutRestDock: View {
             }
             .padding()
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(StrandPalette.hairline))
+            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).noopRestingRim())
             .padding(.horizontal, NoopMetrics.screenPadding)
             .padding(.bottom, NoopMetrics.space2)
             .onChange(of: remaining == 0) { finished in

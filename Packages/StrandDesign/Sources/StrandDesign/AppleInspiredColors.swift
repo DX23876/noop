@@ -34,7 +34,58 @@ public enum AppleInspiredColorRole: String, Equatable, Sendable {
 /// Central semantic palette for leading identity icons and their primary controls. IDs describe a
 /// stable meaning rather than an SF Symbol, so changing a glyph cannot accidentally change its colour.
 public enum AppleInspiredColors {
+    /// A workout's identity colour by sport family, so a list of workouts reads by kind at a glance
+    /// (Liquid Today's Last Workouts). Families share a hue: every run is green, every ride yellow.
+    /// Orange is deliberately absent: it is Effort's colour, and a workout list is not a load chart.
+    public static func role(forSport sport: String) -> AppleInspiredColorRole {
+        let s = sport.lowercased()
+        func has(_ tokens: String...) -> Bool { tokens.contains { s.contains($0) } }
+        if has("walk", "hik", "stroll", "rucking") { return .mint }
+        if has("run", "jog", "sprint") { return .green }
+        if has("cycl", "bike", "biking", "spin") { return .yellow }
+        if has("swim", "row", "paddl", "kayak", "canoe", "surf", "water", "sail", "dive", "diving") { return .cyan }
+        if has("strength", "weight", "lift", "bodybuild", "functional", "crossfit", "powerlift", "calisthen") {
+            return .blue
+        }
+        if has("hiit", "interval", "box", "kick", "martial", "muay", "judo", "jiu", "karate", "wrestl", "mma") {
+            return .pink
+        }
+        if has("yoga", "pilates", "stretch", "barre", "ballet", "danc", "mobility", "meditat", "tai chi") {
+            return .purple
+        }
+        if has("ball", "tennis", "padel", "squash", "golf", "hockey", "cricket", "rugby", "lacrosse", "badminton",
+               "racquet", "pickle", "volley", "soccer", "football") {
+            return .indigo
+        }
+        if has("ski", "snowboard", "skat", "climb", "boulder") { return .teal }
+        return .gray
+    }
+
+    /// Explore's per-metric colours: each category keeps a family of related hues (warm for Heart, cool
+    /// for Rest), and its metrics take them in catalogue order, so neighbours never share a colour and a
+    /// metric always keeps the same one. Replaces the single colour per category that turned a long list
+    /// into same-coloured blocks (2026-10-02).
+    public static func exploreMetricRole(category: String, index: Int) -> AppleInspiredColorRole {
+        let family: [AppleInspiredColorRole]
+        switch category.lowercased() {
+        case "heart":     family = [.red, .pink, .orange, .purple, .brown]
+        case "charge":    family = [.green, .mint, .teal, .yellow]
+        case "rest":      family = [.indigo, .purple, .blue, .cyan]
+        case "effort":    family = [.orange, .yellow, .red, .pink]
+        case "health":    family = [.teal, .cyan, .mint, .blue, .green]
+        case "nutrition": family = [.orange, .green, .yellow, .brown]
+        case "mind":      family = [.purple, .pink, .indigo, .blue]
+        default:          family = [.blue, .teal, .green, .pink, .purple, .indigo, .yellow, .mint, .cyan]
+        }
+        return family[((index % family.count) + family.count) % family.count]
+    }
+
     public static func role(for id: String) -> AppleInspiredColorRole {
+        // "explore.<category>.<index>": one metric's place in its category (see `exploreMetricRole`).
+        let parts = id.split(separator: ".")
+        if parts.count == 3, parts[0] == "explore", let index = Int(parts[2]) {
+            return exploreMetricRole(category: String(parts[1]), index: index)
+        }
         switch id {
         // Navigation and feature families
         case "insightsHub", "coach", "coachSettings", "settings.appearance", "automations",

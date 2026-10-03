@@ -225,6 +225,7 @@ Fork-only docs, under [`fork/`](fork/):
 | [`fork/design/design-spec.md`](fork/design/design-spec.md) | How it looks (colour, spacing, animation) |
 | [`fork/design/mockup-today.html`](fork/design/mockup-today.html) | Binding visual reference where text and image disagree |
 | [`fork/redesign-briefing.md`](fork/redesign-briefing.md) | Redesign specs |
+| [`fork/LIQUID_TODAY_REDESIGN.md`](fork/LIQUID_TODAY_REDESIGN.md) | Approved replacement plan for Liquid Today's hero and surrounding dashboard |
 | [`fork/opengym-integration.md`](fork/opengym-integration.md) | Native training: routines, logger, resolved strength history, long-term statistics, settings and accessibility |
 | [`fork/LIVE_STRENGTH_WORKOUTS.md`](fork/LIVE_STRENGTH_WORKOUTS.md) | Active-workout lifecycle, tracker selection, Apple Watch and resume |
 | [`fork/MUSCLE_ANALYTICS.md`](fork/MUSCLE_ANALYTICS.md) | Public methodology for Muscle Balance, Fatigue and Strength, including limits and imports |

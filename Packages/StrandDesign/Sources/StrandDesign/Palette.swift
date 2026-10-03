@@ -119,6 +119,16 @@ public enum StrandPalette {
     public static let heroFill   = Color(light: "FFFFFFD9", dark: "0D0E14CC")
     public static let heroBorder = Color(light: "0000001A", dark: "FFFFFF1C")
 
+    // MARK: Organic score hero
+    // The luminous waveform rings need one controlled dark optical chamber in BOTH appearances. This
+    // is intentionally not a second app theme: Light keeps its paper canvas everywhere around the hero.
+    public static let organicHeroChamber = Color(light: "#090B12", dark: "#07080D")
+    public static let organicHeroChamberLift = Color(light: "#171B25", dark: "#11141C")
+    public static let organicHeroBorder = Color(light: "#FFFFFF29", dark: "#FFFFFF24")
+    public static let organicEffort = Color(light: "#FF8A1F", dark: "#FF9F36")
+    public static let organicRest = Color(light: "#7265FF", dark: "#8B80FF")
+    public static let organicMissing = Color(light: "#AAB2C0", dark: "#8A94A4")
+
     // MARK: Forge brand ember — the orange face of the NOOP Forge "F" (app icon, Today mark). Brand only,
     // never a data colour, so it does not follow the chart style.
     public static let forgeEmber = Color(light: "#D94A0A", dark: "#FF6A16")
@@ -576,21 +586,28 @@ public enum StrandPalette {
 
     /// A small, fixed colour world for expenditure. These colours intentionally do not follow the
     /// selected score-chart style: calories should keep the same meaning beside Charge, Effort and Rest.
-    /// Resting burn is the quieter gold foundation; active burn is the hotter coral layer.
-    public static let energyResting = Color(light: "#B7791F", dark: "#F2B84B")
-    public static let energyActive = Color(light: "#D94F2B", dark: "#FF7452")
-    public static let energyHighlight = Color(light: "#D98A20", dark: "#FFB347")
-    /// The two halves of active burn on the Energy detail card: the walking-about kind and the
-    /// deliberate kind. They sit either side of `energyActive` in temperature rather than beside it,
-    /// because the card shows all three at once and two neighbouring corals would read as one bar.
-    public static let energyMovement = Color(light: "#C68A12", dark: "#FFC93C")
-    public static let energyTraining = Color(light: "#C0392B", dark: "#FF5A5F")
-    /// The dotted "what a normal day looks like" curve. Cool on purpose — it is the one line on that
-    /// chart that is not today, and every warm tone there is.
-    public static let energyReference = Color(light: "#2A7FA8", dark: "#4FC3F7")
-    public static var energyTrack: Color { textTertiary.opacity(0.16) }
+    /// Apple's workout green since 2026-10-02 (the Exercise ring and Workout app lime), chosen by the user
+    /// after gold/coral read brown and cold in Light and a magenta trial was rejected. Dark uses the neon
+    /// lime itself; Light uses deeper greens of the same hue, because neon lime vanishes on white.
+    /// The four parts of the day's burn are told apart like Apple's activity rings: resting burn in the
+    /// Stand ring's cyan, daily movement in yellow, active burn and training in the workout green. Fills
+    /// and glyphs only: energy TEXT stays on the neutral text tokens, like the hero's CHARGE / EFFORT /
+    /// REST labels.
+    public static let energyResting = Color(light: "#0A9DB5", dark: "#2EE6F5")
+    public static let energyActive = Color(light: "#4FA300", dark: "#A6FF00")
+    public static let energyHighlight = Color(light: "#6AB80F", dark: "#B4FF2E")
+    /// The two halves of active burn on the Energy detail card: the walking-about kind (yellow) and the
+    /// deliberate kind (a deeper workout green), distinct from each other and from resting cyan.
+    public static let energyMovement = Color(light: "#D9A300", dark: "#FFD60A")
+    public static let energyTraining = Color(light: "#2F7A00", dark: "#7ED400")
+    /// The dotted "what a normal day looks like" curve. A warm grey (2026-10-02, was a cool blue): it
+    /// stays apart from today's line by being muted and dotted, without pulling the chart cold.
+    public static let energyReference = Color(light: "#9A8A7C", dark: "#BFB2A6")
+    /// The empty part of energy rings and bars: a faint warm wash rather than a grey.
+    public static var energyTrack: Color { energyHighlight.opacity(0.16) }
     public static var energyGradient: Gradient {
-        Gradient(colors: [energyResting, energyHighlight, energyActive])
+        // Energy's own green only: the flame and other single-colour marks are not the resting/active split.
+        Gradient(colors: [energyHighlight, energyActive])
     }
 
     // MARK: - Titanium & Gold domain "colour worlds" (NEW)

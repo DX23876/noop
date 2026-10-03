@@ -287,7 +287,7 @@ private struct ActiveSessionMiniBarHost: ViewModifier {
                 if visible {
                     ActiveSessionMiniBar()
                         .background(StrandPalette.surfaceRaised, in: Capsule())
-                        .overlay(Capsule().strokeBorder(StrandPalette.hairline, lineWidth: 1))
+                        .overlay(Capsule().noopRestingRim())
                         .padding(.horizontal, NoopMetrics.screenPadding)
                         .padding(.bottom, 58)
                         .transition(.move(edge: .bottom).combined(with: .opacity))

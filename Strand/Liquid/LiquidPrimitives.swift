@@ -813,7 +813,7 @@ struct FlowLayout: Layout {
 /// The liquid score gauge used on Today (`HeroScoreCell`): a `LiquidVessel` fill with a count-up centre
 /// read-out. Callers supply diameter/tint/scale; optional caption sits under the number (Sleep: "of 100").
 struct LiquidScoreGauge: View {
-    /// Matches `HeroScoreCell.vesselDiameter` — the Home hero trio size.
+    /// The former Home hero trio size (the hero now sizes its rings with `LiquidHeroRingLayout`).
     private static let homeHeroDiameter: CGFloat = 96
 
     let score: Double?

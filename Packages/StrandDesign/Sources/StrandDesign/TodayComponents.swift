@@ -16,6 +16,7 @@ public struct TodayCardSurface: View {
     @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.noopCardKind) private var environmentKind
+    @Environment(\.noopQuietCardRims) private var quietRims
 
     public init(tint: Color? = nil,
                 cornerRadius: CGFloat = NoopMetrics.cardRadius,
@@ -41,7 +42,8 @@ public struct TodayCardSurface: View {
             isLight: colorScheme == .light,
             isTransparent: opacity < 0.99,
             increasedContrast: contrast == .increased,
-            quietEdges: Self.quietEdges)
+            quietEdges: Self.quietEdges,
+            quietRims: quietRims)
 
         shape
             .fill(StrandPalette.surfaceRaised.opacity(opacity))
@@ -225,10 +227,13 @@ public struct TodayMetricTile<Accessory: View>: View {
         }
         .padding(.horizontal, dense ? 12 : 14)
         .padding(.vertical, dense ? 11 : 12)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        // The surface fills the whole slot, so in a grid every tile of a row is as tall as the tallest
+        // (a captioned SpO₂ tile no longer stands taller than its neighbour). It used to be drawn around
+        // the content only, inside a taller frame.
+        .frame(maxWidth: .infinity, minHeight: NoopMetrics.tileHeight, maxHeight: .infinity,
+               alignment: .topLeading)
         .background(TodayCardSurface(tint: tint, cornerRadius: NoopMetrics.groupedRadius,
                                      surfaceOpacity: surfaceOpacity))
-        .frame(minHeight: NoopMetrics.tileHeight, maxHeight: .infinity)
         .accessibilityElement(children: .combine)
     }
 }

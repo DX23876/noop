@@ -271,7 +271,7 @@ struct TodayView: View {
     // Day-cycle scene backdrop (#698). Default OFF. When the user turns it on in Settings → Appearance,
     // Today adds the SceneScreenBackground; off (the default) keeps the plain dark surfaceBase canvas.
     // The cards already sit on an opaque canvas, so readability is unchanged either way.
-    @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = false
+    @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = SceneBackgroundPrefs.defaultEnabled
     // Effort display scale (#268), drives the Effort tile's value + caption. Display-only.
     @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
     private var effortScale: EffortScale { UnitPrefs.resolveEffortScale(effortScaleRaw) }
@@ -4394,7 +4394,10 @@ struct TodayView: View {
                                 label: "\(WorkoutSource.displaySport(w.sport))",
                                 value: workoutDuration(w),
                                 caption: Self.workoutCaption(w),
-                                accent: StrandPalette.effortTint(fraction: (w.strain ?? 0) / StrainScorer.maxStrain)
+                                // A workout without a stored Effort gets a neutral accent: the lowest-effort
+                                // tint would claim a zero load that was never measured.
+                                accent: w.strain.map { StrandPalette.effortTint(fraction: $0 / StrainScorer.maxStrain) }
+                                    ?? StrandPalette.textTertiary
                                 // No kcal chip here. In a three-column tile the chip and the duration
                                 // cannot both fit: letting the chip compress rendered "327 kcal" as
                                 // "3…", and giving it its natural width instead pushed the DURATION —

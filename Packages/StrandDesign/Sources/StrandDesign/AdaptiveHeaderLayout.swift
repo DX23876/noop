@@ -2,11 +2,15 @@ import SwiftUI
 
 /// Keeps a date/title and its controls inside the offered width. When the controls expand,
 /// they move below the title and wrap as needed without recreating their stateful views.
+/// `stacksControls` always gives the title the full width with the controls below it, for text
+/// sizes at which a column beside the controls is too narrow to read.
 public struct AdaptiveHeaderLayout: Layout {
     private let spacing: CGFloat
+    private let stacksControls: Bool
 
-    public init(spacing: CGFloat = NoopMetrics.space1) {
+    public init(spacing: CGFloat = NoopMetrics.space1, stacksControls: Bool = false) {
         self.spacing = spacing
+        self.stacksControls = stacksControls
     }
 
     struct Arrangement {
@@ -15,11 +19,11 @@ public struct AdaptiveHeaderLayout: Layout {
     }
 
     static func arrange(title: CGSize, controls: [CGSize], width: CGFloat,
-                        spacing: CGFloat) -> Arrangement {
+                        spacing: CGFloat, stacked: Bool = false) -> Arrangement {
         let controlsWidth = controls.reduce(0) { $0 + $1.width }
             + CGFloat(max(0, controls.count - 1)) * spacing
         let gap = controls.isEmpty ? 0 : spacing
-        if title.width + gap + controlsWidth <= width {
+        if !stacked, title.width + gap + controlsWidth <= width {
             var frames = [CGRect(origin: .zero, size: title)]
             var x = width - controlsWidth
             for control in controls {
@@ -61,10 +65,11 @@ public struct AdaptiveHeaderLayout: Layout {
         let controlsWidth = controls.reduce(0) { $0 + $1.width } + CGFloat(controls.count) * spacing
         let width = max(0, proposal.width ?? (title.sizeThatFits(.unspecified).width + controlsWidth))
         var titleSize = title.sizeThatFits(ProposedViewSize(width: max(0, width - controlsWidth), height: nil))
-        if titleSize.width + controlsWidth > width {
+        if stacksControls || titleSize.width + controlsWidth > width {
             titleSize = title.sizeThatFits(ProposedViewSize(width: width, height: nil))
         }
-        return Self.arrange(title: titleSize, controls: controls, width: width, spacing: spacing)
+        return Self.arrange(title: titleSize, controls: controls, width: width, spacing: spacing,
+                            stacked: stacksControls)
     }
 
     public func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {

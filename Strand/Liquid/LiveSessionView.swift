@@ -184,7 +184,7 @@ struct LiveSessionView: View {
             .foregroundStyle(StrandPalette.textSecondary)
             .padding(.horizontal, 8).padding(.vertical, 2.5)
             .background(Capsule().fill(StrandPalette.surfaceInset)
-                .overlay(Capsule().strokeBorder(StrandPalette.hairline, lineWidth: 1)))
+                .overlay(Capsule().noopRestingRim()))
             .accessibilityLabel("Beta feature")
     }
 

@@ -122,7 +122,7 @@ struct DashboardBatteryButton: View {
                 .background {
                     if isCharge {
                         Capsule().fill(StrandPalette.surfaceInset)
-                            .overlay(Capsule().stroke(StrandPalette.hairline, lineWidth: 1))
+                            .overlay(Capsule().noopRestingRim())
                     }
                 }
             }

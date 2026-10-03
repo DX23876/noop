@@ -37,14 +37,19 @@ struct EnergyHeroCard: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        NoopCard(tint: StrandPalette.energyResting) {
+        NoopCard(tint: StrandPalette.energyHighlight) {
             VStack(alignment: .leading, spacing: 18) {
                 HStack(spacing: 8) {
-                    Label("Energy", systemImage: "flame.fill")
+                    Label {
+                        Text("Energy")
+                    } icon: {
+                        Image(systemName: "flame.fill").foregroundStyle(StrandPalette.energyHighlight)
+                    }
                         .font(StrandFont.overline)
                         .tracking(StrandFont.overlineTracking)
                         .textCase(.uppercase)
-                        .foregroundStyle(StrandPalette.energyHighlight)
+                        // Neutral words, coloured glyph: the hero's label rule.
+                        .foregroundStyle(StrandPalette.textSecondary)
                     Spacer(minLength: 8)
                     confidencePill
                 }
@@ -160,8 +165,9 @@ struct EnergyHeroCard: View {
         }
     }
 
+    /// Space, not a rule, between the figures (restrained surfaces; the coloured icons already group them).
     private var rowDivider: some View {
-        Divider().frame(height: 46).overlay(StrandPalette.hairline).padding(.trailing, 9)
+        Color.clear.frame(width: 9, height: 46)
     }
 
     private var stats: [EnergyHeroStat.Model] {

@@ -139,14 +139,14 @@ struct EnergyBurnRateCard: View {
                              y: .value("kcal/min", point.kcalPerMinute),
                              series: .value("Series", "today-\(index)"))
                         .foregroundStyle(LinearGradient(
-                            colors: [StrandPalette.energyActive.opacity(0.28),
-                                     StrandPalette.energyActive.opacity(0.02)],
+                            colors: [StrandPalette.energyHighlight.opacity(0.42),
+                                     StrandPalette.energyHighlight.opacity(0.04)],
                             startPoint: .top, endPoint: .bottom))
                     LineMark(x: .value("Time", date(point)),
                              y: .value("kcal/min", point.kcalPerMinute),
                              series: .value("Series", "today-\(index)"))
                         .foregroundStyle(StrandPalette.energyHighlight)
-                        .lineStyle(.init(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                        .lineStyle(.init(lineWidth: 3, lineCap: .round, lineJoin: .round))
                 }
             }
         }

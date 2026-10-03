@@ -65,6 +65,9 @@ struct EnergyDetailView: View {
                 if loaded, let selectedSummary { calculationLink(selectedSummary) }
             }
             .padding(NoopMetrics.screenPadding)
+            // Restrained surfaces (Liquid Today redesign): the cards rest on their fill, without the
+            // slate hairline. Presentation only; every value and source below is unchanged.
+            .environment(\.noopQuietCardRims, true)
         }
         .navigationTitle(Text("Energy"))
         // The day control belongs in the bar, beside the title it qualifies — a second large
@@ -214,7 +217,7 @@ struct EnergyDetailView: View {
     }
 
     private var emptyState: some View {
-        NoopCard(tint: StrandPalette.energyResting) {
+        NoopCard(tint: StrandPalette.energyHighlight) {
             HStack(spacing: 14) {
                 Image(systemName: "flame.fill")
                     .font(.system(size: 24, weight: .semibold))
@@ -234,7 +237,7 @@ struct EnergyDetailView: View {
     }
 
     private func calculationLink(_ s: DailyEnergySummary) -> some View {
-        NoopCard(tint: StrandPalette.energyResting) {
+        NoopCard(tint: StrandPalette.energyHighlight) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .firstTextBaseline) {
                     Text("Data quality & calculation")

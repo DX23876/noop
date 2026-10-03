@@ -454,6 +454,11 @@ struct MetricExplorerView: View {
     /// hint in the header, never gating the rows: the catalog is static, so every row's label/icon/unit
     /// must paint immediately even before any series read returns (#199).
     @State private var probing = true
+    /// Search text. Not persisted: a search is a momentary question, the filter below is a preference.
+    @State private var query = ""
+    @AppStorage(MetricExplorerFilter.availabilityKey) private var availabilityRaw = MetricExplorerAvailability.all.rawValue
+    @AppStorage(MetricExplorerFilter.collapsedKey) private var collapsedRaw = ""
+    @FocusState private var searchFocused: Bool
     /// Shared zoom namespace (iOS 18+, no-op elsewhere) so a tapped metric row visually grows into its
     /// detail instead of sliding up from nowhere — the Liquid Glass tile→detail language.
     @Namespace private var zoom
@@ -470,6 +475,81 @@ struct MetricExplorerView: View {
         exploreScaffold
             .task(id: repo.refreshSeq) { await probeEmptiness(refreshSeq: repo.refreshSeq) }
         #endif
+    }
+
+    private var availability: MetricExplorerAvailability { MetricExplorerFilter.availability(availabilityRaw) }
+    private var collapsed: Set<String> { MetricExplorerFilter.decodeCollapsed(collapsedRaw) }
+    /// nil until the cheap probe has answered, so `With Data` never blanks the list while it scans.
+    private var nonEmptyIDs: Set<String>? {
+        emptyByID.isEmpty ? nil : Set(emptyByID.filter { !$0.value }.map(\.key))
+    }
+
+    private func toggle(_ category: String) {
+        var next = collapsed
+        if next.contains(category) { next.remove(category) } else { next.insert(category) }
+        collapsedRaw = MetricExplorerFilter.encodeCollapsed(next, order: MetricCatalog.categories)
+    }
+
+    /// Search field and the remembered `All` / `With Data` filter. Sits under Deep Timeline, which stays
+    /// the first thing on the screen whatever is typed or filtered.
+    private var filterBar: some View {
+        VStack(spacing: NoopMetrics.gap) {
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .accessibilityHidden(true)
+                TextField(String(localized: "Search metrics"), text: $query)
+                    .font(StrandFont.body)
+                    .foregroundStyle(StrandPalette.textPrimary)
+                    .focused($searchFocused)
+                    .submitLabel(.search)
+                    #if os(iOS)
+                    .textInputAutocapitalization(.never)
+                    #endif
+                    .autocorrectionDisabled()
+                if !query.isEmpty {
+                    Button { query = "" } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(StrandPalette.textTertiary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Text("Clear"))
+                }
+            }
+            .padding(.horizontal, 12)
+            .frame(minHeight: 44)
+            .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+            Picker(String(localized: "Show"), selection: $availabilityRaw) {
+                ForEach(MetricExplorerAvailability.allCases) { option in
+                    Text(option.label).tag(option.rawValue)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+        }
+    }
+
+    /// The collapsible category heading: one button with an explicit expanded/collapsed state.
+    private func categoryHeader(_ category: String, count: Int, expanded: Bool, searching: Bool) -> some View {
+        Button { toggle(category) } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                SectionHeader("\(MetricCatalog.categoryDisplayName(category))", overline: "Category",
+                              trailing: "\(count)")
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .rotationEffect(.degrees(expanded ? 0 : -90))
+                    .accessibilityHidden(true)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        // While searching every matching category is open, so the toggle would do nothing visible.
+        .disabled(searching)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(MetricCatalog.categoryDisplayName(category)))
+        .accessibilityValue(Text(expanded ? String(localized: "Expanded") : String(localized: "Collapsed")))
+        .accessibilityAddTraits([.isHeader, .isButton])
     }
 
     private var exploreScaffold: some View {
@@ -507,17 +587,33 @@ struct MetricExplorerView: View {
             #if os(iOS)
             .simultaneousGesture(TapGesture().onEnded { StrandHaptic.selection.play() })
             #endif
-            .padding(.bottom, NoopMetrics.sectionGap - 20)
+            .padding(.bottom, NoopMetrics.gap)
 
-            ForEach(MetricCatalog.categories, id: \.self) { category in
-                let metrics = MetricCatalog.inCategory(category)
-                let groups = MetricCatalog.groupedByMeasurement(metrics)
-                if !metrics.isEmpty {
+            filterBar
+                .padding(.bottom, NoopMetrics.sectionGap - 20)
+
+            let searching = !MetricExplorerFilter.normalised(query).isEmpty
+            let visibleByCategory: [(String, [[MetricDescriptor]])] = MetricCatalog.categories.map { category in
+                // Localized at the render site only; `category` itself stays the raw English identifier
+                // that `inCategory` filters on.
+                let groups = MetricCatalog.groupedByMeasurement(MetricCatalog.inCategory(category))
+                return (category, MetricExplorerFilter.visibleGroups(
+                    groups, query: query, categoryName: MetricCatalog.categoryDisplayName(category),
+                    availability: availability, nonEmptyIDs: nonEmptyIDs))
+            }
+            if visibleByCategory.allSatisfy({ $0.1.isEmpty }) {
+                Text("No matching metrics")
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            ForEach(visibleByCategory, id: \.0) { category, groups in
+                let expanded = MetricExplorerFilter.isExpanded(category: category, collapsed: collapsed, query: query)
+                if !groups.isEmpty {
                     VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-                        // Localized at the render site only; `category` itself stays the raw
-                        // English identifier that `inCategory` filters on.
-                        SectionHeader("\(MetricCatalog.categoryDisplayName(category))", overline: "Category",
-                                      trailing: "\(groups.count)")
+                        categoryHeader(category, count: groups.count, expanded: expanded, searching: searching)
+                        if expanded {
                         NoopCard(padding: 0) {
                             VStack(spacing: 0) {
                                 ForEach(Array(groups.enumerated()), id: \.element.first?.id) { idx, group in
@@ -559,6 +655,7 @@ struct MetricExplorerView: View {
                                   }
                                 }
                             }
+                        }
                         }
                     }
                     .id("category-\(category.lowercased())")
@@ -710,8 +807,10 @@ private struct MetricRow: View {
         .accessibilityAddTraits(.isButton)
     }
 
+    /// The metric's own colour: its category's family, at its place in that category (see
+    /// `AppleInspiredColors.exploreMetricRole`).
     private var exploreIconColorID: String {
-        "explore.\(metric.category.lowercased())"
+        "explore.\(metric.category.lowercased()).\(exploreIndexInCategory[metric.key] ?? 0)"
     }
 }
 
@@ -730,7 +829,7 @@ struct MetricDetailView: View {
     /// when the setting is on, the plain canvas when off — so a Key-Metrics tile tap doesn't jar from the
     /// liquid Today's sky to a flat page. Same keys TodayView/LiquidTodayView gate on; "Sky behind cards"
     /// extends the sky to the full viewport (softer settle) so the transparent cards reveal it throughout.
-    @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = false
+    @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = SceneBackgroundPrefs.defaultEnabled
     @AppStorage(SkyBehindCardsPrefs.enabledKey) private var skyBehindCards = false
     /// Custom background image (#custom-background): when active it overrides the sky in the backdrop.
     @ObservedObject private var backgroundStore = BackgroundImageStore.shared
@@ -2011,3 +2110,16 @@ private func explorerPreviewRepo() -> Repository {
     .preferredColorScheme(.dark)
 }
 #endif
+
+/// Each metric's position within its category in catalogue order. Built once; the catalogue is static,
+/// so a metric's Explore colour does not change with search or the With Data filter.
+private let exploreIndexInCategory: [String: Int] = {
+    var next: [String: Int] = [:]
+    var index: [String: Int] = [:]
+    for metric in MetricCatalog.all where index[metric.key] == nil {
+        let n = next[metric.category, default: 0]
+        index[metric.key] = n
+        next[metric.category] = n + 1
+    }
+    return index
+}()

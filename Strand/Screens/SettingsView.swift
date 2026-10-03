@@ -280,7 +280,7 @@ struct SettingsView: View {
     // Day-cycle scene backdrop behind Today (#698). Default OFF. On adds the moving time-of-day scene;
     // off (the default) keeps the plain dark canvas. TodayView reads the same key to gate its
     // SceneScreenBackground.
-    @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = false
+    @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = SceneBackgroundPrefs.defaultEnabled
     // "Sky behind cards" (default OFF): extend the day-cycle sky behind the whole Today scroll so
     // Card transparency reveals it under every card. User-toggleable below. Mirrors Kotlin NoopPrefs.skyBehindCards.
     @AppStorage(SkyBehindCardsPrefs.enabledKey) private var skyBehindCards = false
@@ -292,6 +292,8 @@ struct SettingsView: View {
     // tilt sensor, without needing system Low Power Mode or system Reduce Motion. Apple-only so far —
     // Android has no such toggle yet and its gate reads two signals, not three (#941).
     @AppStorage(QuietMotionPrefs.enabledKey) private var quietMotion = false
+    @AppStorage(OrganicScoreMotionPrefs.reactsToMovementKey)
+    private var heroReactsToMovement = OrganicScoreMotionPrefs.reactsToMovementDefault
     // Hydration tracker (opt-in, MVP). Default OFF — when off the hydration dashboard card + detail are
     // hidden. Mirrors the Android pref so the toggle reads the same on both platforms.
     @AppStorage(HydrationStore.enabledKey) private var hydrationEnabled = false
@@ -1975,6 +1977,25 @@ struct SettingsView: View {
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
+
+                #if os(iOS)
+                rowDivider
+                // MARK: Hero device movement — display only. Off keeps the Today rings breathing on their
+                // own but stops them leaning with the phone; the global switch above still wins.
+                Toggle(isOn: $heroReactsToMovement) {
+                    Text("React to device movement")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                }
+                .toggleStyle(.switch)
+                .tint(StrandPalette.accent)
+                .disabled(quietMotion)
+                Text("Lets the Today rings lean and ripple as you move your phone. Off, they keep their own slow movement.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                #endif
 
                 rowDivider
                 // MARK: Day-cycle background — the time-of-day scene behind Today (#698). On by default.

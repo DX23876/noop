@@ -36,4 +36,14 @@ final class AdaptiveHeaderLayoutTests: XCTestCase {
         XCTAssertTrue(result.frames.allSatisfy { $0.minY == 0 })
         XCTAssertEqual(result.size.height, 60)
     }
+
+    func testStackedHeaderGivesTheTitleItsOwnRowEvenWhenItWouldFit() {
+        let result = AdaptiveHeaderLayout.arrange(
+            title: CGSize(width: 140, height: 60),
+            controls: Array(repeating: CGSize(width: 46, height: 46), count: 5),
+            width: 800, spacing: NoopMetrics.space1, stacked: true)
+        XCTAssertEqual(result.frames[0].minY, 0)
+        XCTAssertTrue(result.frames.dropFirst().allSatisfy { $0.minY >= result.frames[0].maxY })
+        XCTAssertTrue(result.frames.allSatisfy { $0.maxX <= 800 })
+    }
 }
