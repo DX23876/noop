@@ -28,10 +28,9 @@ enum DemoSyncHarness {
     static let charging = false
 
     /// Idle stretch between sync bursts. MUST comfortably exceed
-    /// `StrandMotion.syncIndicatorSignalDebounceNanoseconds` (3s): LiquidBatteryButton debounces the
-    /// falling edge by that much, so a shorter idle cancels the pending collapse and the capsule never
-    /// morphs back — it just sits expanded with the spinner looping. 3s of debounce + ~2s visibly
-    /// collapsed.
+    /// `StrandMotion.syncIndicatorSignalDebounceNanoseconds` (3s): the sync line debounces the falling
+    /// edge by that much, so a shorter idle would keep it running without a visible pause. 3s of debounce
+    /// + ~2s visibly idle.
     static let idleSeconds: Double = 5.0
 
     /// Chunks "pulled" per burst, and the gap between them, so the expanded read-out ticks 1 → 2 → 3

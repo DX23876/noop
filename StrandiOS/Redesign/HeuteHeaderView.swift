@@ -335,9 +335,8 @@ private struct FlowRow<Content: View>: View {
 // MARK: - Battery chip
 
 /// Icon-only strap-battery chip (design-spec §1: "Icon-only, kein Zahlenwert nötig im Ruhezustand").
-/// Reads the SAME state `LiquidBatteryButton` (Strand/Liquid/LiquidTodayView.swift) reads — that type is
-/// `private` to its file so it can't be reused directly, but `LiveState`/`NavRouter` are the real shared
-/// state, not new logic.
+/// Reads the shared `LiveState`/`NavRouter` state, the same source as Liquid Today's sync line and the
+/// quick-action device row — not new logic.
 struct HeuteBatteryChip: View {
     @EnvironmentObject private var live: LiveState
     @EnvironmentObject private var router: NavRouter

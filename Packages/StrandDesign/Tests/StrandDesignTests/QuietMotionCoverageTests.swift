@@ -38,7 +38,7 @@ final class QuietMotionCoverageTests: XCTestCase {
     ///         .animation(
     ///
     /// scored zero hits and the file was never censused at all. That is not hypothetical: it is how the
-    /// first version of `ChargeSyncIndicator` shipped two ungated 60 Hz clocks with this suite green. A
+    /// first version of the (since retired) header charge/sync indicator shipped two ungated 60 Hz clocks with this suite green. A
     /// census whose blind spot is "the author let the formatter wrap the call" is worse than none,
     /// because the green tick is read as coverage.
     private static let loopMarkers = ["repeatForever(", "TimelineView(.animation"]
@@ -158,7 +158,7 @@ final class QuietMotionCoverageTests: XCTestCase {
     /// A `TimelineView(.animation(…, paused: true))` is not a still view. Measured on Today (iPhone 17 Pro
     /// simulator, Release), a paused one kept the render server busy: the sky's cost 46 CPU-seconds a minute
     /// against 22 while it animated, and the header sync ring's 15 to 51 against 0.07 once drawn as a still
-    /// frame. So the resting frame is drawn with no timeline behind it (`LiquidSky`, `ChargeSyncMorph`), and
+    /// frame. So the resting frame is drawn with no timeline behind it (`LiquidSky`), and
     /// the gate picks the view rather than pausing the clock.
     func testNoAnimationTimelineIsMerelyPaused() throws {
         let root = try repoRoot()

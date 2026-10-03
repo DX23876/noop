@@ -243,8 +243,8 @@ private struct FloatingLayer: View {
     var body: some View {
         // One animation clock drives every shape's horizontal phase. The system pauses this
         // TimelineView while off-screen, so it costs nothing when not visible. Without drift the shapes rest
-        // at phase 0 with no timeline at all: a `paused:` one keeps the render server busy (see
-        // `ChargeSyncMorph.body`).
+        // at phase 0 with no timeline at all: a `paused:` one keeps the render server busy (measured on
+        // the since-retired header sync ring; see `QuietMotionCoverageTests`).
         if drift {
             TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { timeline in
                 shapesLayer(t: timeline.date.timeIntervalSinceReferenceDate)

@@ -8,8 +8,7 @@ import SwiftUI
 ///
 /// These pin the THRESHOLDS, never the colour: a SwiftUI `Color` wraps a dynamic catalog colour in a
 /// fresh provider per access, so two reads of one palette token are not `==` and an assertion on the
-/// colour would compare identities instead of the banding it means to check. That lesson is already
-/// written down at `ChargeSyncIndicator.chargeBand(_:)`; this follows it.
+/// colour would compare identities instead of the banding it means to check.
 final class ChargeBandTests: XCTestCase {
 
     /// The bands must stay on the values that SHIPPED (25 / 50 / 70 / 88). Moving them to WHOOP's

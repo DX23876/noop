@@ -14,8 +14,8 @@ import Foundation
 // five words are already translated in the catalog and quoted by the Charge explanation, so moving the
 // boundaries would silently change what existing, already-translated sentences mean.
 //
-// Split from the colour lookup on purpose, and for a reason the codebase learned once already at
-// `ChargeSyncIndicator.chargeBand(_:)`: a SwiftUI `Color` wraps a dynamic catalog colour in a fresh
+// Split from the colour lookup on purpose, and for a reason the codebase learned once already (in the
+// since-retired header battery indicator): a SwiftUI `Color` wraps a dynamic catalog colour in a fresh
 // provider per access, so two reads of one palette token are not `==`. A test asserting on the colour
 // would compare identities rather than the banding it means to check. So the BAND is what is pinned by
 // tests; the colour hangs off it.
