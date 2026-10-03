@@ -273,6 +273,8 @@ struct LiquidTodayView: View {
     @AppStorage("momentum.stepGoal") private var momentumStepGoal = 0
     @State private var momentumFeed: [MomentumMessage] = []
     @State private var momentumFeedRevision = 0
+    /// The day's full feed, hidden messages included — what the Momentum page shows.
+    @State private var momentumAllFeed: [MomentumMessage] = []
     @State private var showMomentumMore = false
     @State private var showLiveSession = false
     @State private var showUpdatesInbox = false
@@ -1001,7 +1003,7 @@ struct LiquidTodayView: View {
         // The Momentum dashboard — the same feed at full size, same host shape as classic Today.
         .sheet(isPresented: $showMomentumMore) {
             NavigationStack {
-                MomentumView(messages: momentumFeed, recentDays: repo.days,
+                MomentumView(messages: momentumAllFeed, recentDays: repo.days,
                              onAction: { if $0 == .chargeBreakdown {
                                  showMomentumMore = false; showChargeBreakdown = true
                              } })
@@ -2034,6 +2036,13 @@ struct LiquidTodayView: View {
                                              lastAt: momentumLastAt,
                                              retrospective: selectedDayOffset != 0)
         momentumFeed = messages
+        // The Momentum page lists everything, including messages hidden from today's card: hiding is
+        // "not on Today", not "gone", and once all were hidden the page was otherwise unreachable.
+        momentumAllFeed = MomentumResolver.feed(context: momentumContext(),
+                                                snoozedRaw: "",
+                                                lastKind: momentumLastKind,
+                                                lastAt: momentumLastAt,
+                                                retrospective: selectedDayOffset != 0)
         momentumFeedRevision = committedLoadGeneration
         MomentumStore.shared.publish(messages, recentDays: repo.days)
     }
@@ -2066,6 +2075,13 @@ struct LiquidTodayView: View {
                 .simultaneousGesture(momentumSwipeGesture(top.kind))
                 .onAppear { noteMomentumShown(top.kind) }
                 .onChangeCompat(of: top.kind.rawValue) { _ in noteMomentumShown(top.kind) }
+        } else if momentumSnapshotReady, momentumFeedRevision == committedLoadGeneration,
+                  !momentumAllFeed.isEmpty {
+            // Every message is hidden for today: keep the way to the page, without a card to read.
+            Button { showMomentumMore = true } label: {
+                LiquidFullWidthNavigationAction("Momentum")
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -2446,10 +2462,13 @@ struct LiquidTodayView: View {
             ktile(DomainTheme.rest.productName, icon: metric.customizationIcon, intText(restScore), "%", StrandPalette.restColor, frac(restScore), key: HeroRingMetric.rest)
         case .hrv:
             // Vitals have no 0…max: a bar against a fixed ceiling (HRV / 120 ms, RHR / 100) said nothing
-            // personal, and for resting HR a longer bar was worse. Scores and steps keep theirs.
-            ktile("HRV", icon: metric.customizationIcon, intText(hrv), "ms", StrandPalette.metricCyan, nil, key: "hrv")
+            // personal, and for resting HR a longer bar was worse. Scores and steps keep theirs; vitals
+            // say how they stand against the wearer's own normal instead (`PersonalNormal`).
+            ktile("HRV", icon: metric.customizationIcon, intText(hrv), "ms", StrandPalette.metricCyan, nil, key: "hrv",
+                  comparison: normalComparison("hrv", today: hrv, polarity: .higherIsBetter))
         case .restingHr:
-            ktile(String(localized: "Rest HR"), icon: metric.customizationIcon, intText(rhr), "bpm", StrandPalette.metricRose, nil, key: "rhr")
+            ktile(String(localized: "Rest HR"), icon: metric.customizationIcon, intText(rhr), "bpm", StrandPalette.metricRose, nil, key: "rhr",
+                  comparison: normalComparison("rhr", today: rhr, polarity: .lowerIsBetter))
         case .bloodOxygen:
             // Same order as the card above — see `Spo2Display`.
             let resolved = Spo2Display.resolve(
@@ -2462,12 +2481,15 @@ struct LiquidTodayView: View {
             ktile("SpO₂", icon: metric.customizationIcon, intText(spo2), "%",
                   StrandPalette.metricCyan, nil,
                   key: candidate == nil ? "spo2" : "spo2_candidate",
-                  caption: candidate == nil ? nil : String(localized: "strap estimate (unverified)"))
+                  caption: candidate == nil ? nil : String(localized: "strap estimate (unverified)"),
+                  // An unverified strap estimate is not compared against a normal built from it.
+                  comparison: candidate == nil ? normalComparison("spo2", today: spo2, polarity: .higherIsBetter) : nil)
         case .respiratory:
             let resp = displayDay?.respRateBpm ?? vitalsDay?.respRateBpm ?? respDay?.respRateBpm
             ktile(String(localized: "Respiratory"), icon: metric.customizationIcon,
                   resp.map { String(format: "%.1f", locale: AppLanguage.activeLocale, $0) } ?? "—",
-                  "rpm", StrandPalette.accent, nil, key: "resp_rate")
+                  "rpm", StrandPalette.accent, nil, key: "resp_rate",
+                  comparison: normalComparison("resp_rate", today: resp, polarity: .neutral), comparisonDecimals: 1)
         case .steps:
             ktile(String(localized: "Steps"), icon: metric.customizationIcon, stepsText, "", StrandPalette.chargeColor,
                   fracOver(stepCount, 10000), key: stepsDetailKey, detailMetric: stepsDetailMetric)
@@ -2498,7 +2520,8 @@ struct LiquidTodayView: View {
 
     private func ktile(_ label: String, icon: String, _ value: String, _ unit: String, _ tint: Color, _ frac: Double?,
                        key: String? = nil, detailMetric: MetricDescriptor? = nil,
-                       caption: String? = nil, route: TabRoute? = nil) -> some View {
+                       caption: String? = nil, route: TabRoute? = nil,
+                       comparison: PersonalNormal.Comparison? = nil, comparisonDecimals: Int = 0) -> some View {
         // Two columns means ~50pt more width per tile — spend it on legibility (a bigger number, a taller
         // trend) instead of leaving it as empty card.
         let wide = keyMetricsColumns <= 2
@@ -2508,10 +2531,13 @@ struct LiquidTodayView: View {
             systemImage: icon,
             value: value,
             unit: unit,
-            caption: caption,
+            caption: caption ?? (comparison != nil ? String(localized: "vs. your usual") : nil),
             tint: tint,
             progress: frac,
-            reservesProgressSpace: true,
+            // A compared vital says how it stands in its caption, so it needs no empty bar slot.
+            reservesProgressSpace: comparison == nil,
+            delta: comparison.map { PersonalNormal.signedText($0.delta, decimals: comparisonDecimals) },
+            deltaColor: comparison.map { Self.comparisonColor($0.tone) } ?? StrandPalette.textTertiary,
             sparkline: spark,
             sparkColor: tint,
             sparklineHeight: keyMetricsDetailed ? (wide ? 28 : 22) : nil,
@@ -2539,6 +2565,23 @@ struct LiquidTodayView: View {
             } else {
                 tile
             }
+        }
+    }
+
+    /// The selected day's vital against the prior days of its own series (`kSparks`).
+    private func normalComparison(_ key: String, today: Double?,
+                                  polarity: PersonalNormal.Polarity) -> PersonalNormal.Comparison? {
+        guard let today else { return nil }
+        let prior = (kSparks[key] ?? []).filter { $0.0 < selectedDayKey }.map(\.1)
+        return PersonalNormal.compare(today: today, prior: prior, polarity: polarity)
+    }
+
+    /// Colour only for a notable change; ordinary night-to-night variation stays quiet.
+    static func comparisonColor(_ tone: PersonalNormal.Tone) -> Color {
+        switch tone {
+        case .ordinary: return StrandPalette.textTertiary
+        case .favourable: return StrandPalette.statusPositive
+        case .unfavourable: return StrandPalette.statusWarningForeground
         }
     }
 
