@@ -79,4 +79,10 @@ final class GoalSummaryLinesTests: XCTestCase {
         XCTAssertFalse(s.displayTitle.isEmpty)
         XCTAssertEqual(s.displayTitle, CoachGoal.Kind.sleep.label.localizedCatalogValue)
     }
+
+    func testCountedGoalUnitsReadAsWholeNumbers() {
+        XCTAssertEqual(GoalTrackingSnapshot.amountText(12, .consistency), "12")
+        XCTAssertEqual(GoalTrackingSnapshot.amountText(3, .hardSets), "3")
+        XCTAssertEqual(GoalTrackingSnapshot.amountText(78, .weight), "78.0")
+    }
 }

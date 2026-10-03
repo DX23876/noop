@@ -146,7 +146,7 @@ struct MomentumCard: View {
                 if let p = message.progress {
                     // The percentage, not the raw counts: the detail line above already carries those,
                     // and a chip repeating them made the card say one thing twice.
-                    chip(text: p.percentText, tint: tint)
+                    chip(text: p.chipText ?? p.percentText, tint: tint)
                 }
                 if let delta = message.deltaText {
                     chip(text: delta, tint: tint)

@@ -18,11 +18,21 @@ extension GoalTrackingSnapshot {
     /// there is no measurement at all — there is nothing honest to put on the line.
     var measurementLine: String? {
         guard let value = measurement?.value else { return nil }
+        let amount = Self.amountText
         if let target = goal.target {
-            return String(format: "%.1f %@ now · target %.1f %@",
-                          value, goal.kind.unit, target, goal.kind.unit)
+            return String(format: "%@ %@ now · target %@ %@",
+                          amount(value, goal.kind), goal.kind.unit, amount(target, goal.kind), goal.kind.unit)
         }
-        return String(format: "%.1f %@ now", value, goal.kind.unit)
+        return String(format: "%@ %@ now", amount(value, goal.kind), goal.kind.unit)
+    }
+
+    /// Counted units (sessions, sets, minutes per week) read as whole numbers: "12.0 sessions/week"
+    /// suggested a fraction of a session. Measured units keep one decimal ("78.0 kg").
+    static func amountText(_ value: Double, _ kind: CoachGoal.Kind) -> String {
+        switch kind {
+        case .consistency, .hardSets, .strength: return String(format: "%.0f", value)
+        default: return String(format: "%.1f", value)
+        }
     }
 
     /// Next waypoint plus the course verdict, or nil when the goal has no route.

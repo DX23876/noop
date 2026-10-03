@@ -133,9 +133,13 @@ public struct MomentumAction: Equatable, Sendable {
 public struct MomentumProgress: Equatable, Sendable {
     public let fraction: Double
     public let label: String
-    public init(fraction: Double, label: String) {
+    /// What the card's chip says instead of the bare percentage, for a progress that is a named score
+    /// ("Charge 72"): a lone "72 %" next to a headline about something else did not say what it was.
+    public let chipText: String?
+    public init(fraction: Double, label: String, chipText: String? = nil) {
         self.fraction = min(max(fraction, 0), 1)
         self.label = label
+        self.chipText = chipText
     }
 
     /// The fraction as a whole percent ("76 %"). Locale-independent formatting; the space before the

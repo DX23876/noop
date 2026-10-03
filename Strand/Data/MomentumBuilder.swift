@@ -198,8 +198,12 @@ enum MomentumBuilder {
                 headline: r.headline,
                 detail: r.detail,
                 actionLine: score.flatMap(recoveryActionLine),
-                progress: score.map { MomentumProgress(fraction: $0 / 100, label: "\(Int($0.rounded())) / 100") },
-                deltaText: i.hrvDeltaPct.map { $0 >= 0 ? "+\($0)%" : "\($0)%" },
+                progress: score.map {
+                    MomentumProgress(fraction: $0 / 100, label: "\(Int($0.rounded())) / 100",
+                                     chipText: "\(DomainTheme.charge.productName) \(Int($0.rounded()))")
+                },
+                // Named like the score chip beside it: the headline is not always the HRV one.
+                deltaText: i.hrvDeltaPct.map { "HRV " + ($0 >= 0 ? "+\($0)%" : "\($0)%") },
                 action: MomentumAction(title: String(localized: "See what shaped it"),
                                        destination: .chargeBreakdown)))
         }
