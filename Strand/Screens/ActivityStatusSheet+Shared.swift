@@ -194,12 +194,10 @@ struct ActivityStatusChipCompact: View {
     @Binding var status: ActivityStatus
     @State private var showSheet = false
 
-    /// "Active" is the everyday state and a setting, not a verdict, so it reads neutral beside the
-    /// readiness pill; sick, injured and on break keep their colour because they change the advice.
-    private var isEveryday: Bool { status.state == .active }
-
+    /// Every state keeps its own colour: these are states of the wearer (active, sick, injured, on
+    /// break), and a grey "Active" read as inactive.
     private var tint: Color {
-        isEveryday ? StrandPalette.textSecondary : ActivityStatusColors.color(for: status.state.rawValue)
+        ActivityStatusColors.color(for: status.state.rawValue)
     }
 
     var body: some View {
@@ -208,22 +206,16 @@ struct ActivityStatusChipCompact: View {
                 Image(systemName: status.state.symbolName)
                 Text(status.state.displayName)
                     .tracking(0.6)
-                // The pencil says it is editable; the coloured states already draw the eye.
-                if isEveryday {
-                    Image(systemName: "pencil")
-                        .accessibilityHidden(true)
-                }
+                // The pencil says it can be changed — it is a choice, unlike the readiness verdict beside it.
+                Image(systemName: "pencil")
+                    .accessibilityHidden(true)
             }
             // Scales with Dynamic Type like the readiness pill beside it.
             .font(StrandFont.overline)
             .foregroundStyle(tint)
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
-            .background(isEveryday ? StrandPalette.surfaceInset : tint.opacity(0.14), in: Capsule())
-            // The neutral fill nearly vanishes on a light page; a hairline keeps the capsule visible.
-            .overlay {
-                if isEveryday { Capsule().strokeBorder(StrandPalette.hairline, lineWidth: NoopMetrics.hairlineWidth) }
-            }
+            .background(tint.opacity(0.14), in: Capsule())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(Text("Activity status: \(status.state.displayName)"))
