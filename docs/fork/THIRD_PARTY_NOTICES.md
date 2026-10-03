@@ -14,3 +14,6 @@ If an upstream source becomes unavailable, incompatible or legally unsuitable, i
 
 For every installed pack NOOP records the source URL, attribution, rights holder, the rights status as known at download time, the SHA-256 of the archive and of each extracted file. That record is integrity and provenance evidence; it neither asserts nor creates a licence.
 
+## Day-cycle scene artwork
+
+The Alps day-cycle set (`alps1`...`alps10` in `Strand/Resources/Assets.xcassets` and `StrandiOS/Resources/Assets.xcassets`) is ten AI-generated images of one imaginary Alpine lake scene, lit for ten times of day, produced with ChatGPT image generation from a text prompt by the fork's owner. It contains no photograph, no third-party artwork and no real place, and it is not derived from any source image. The Coast set (`coast1`...`coast10`) is made the same way: ten AI-generated images of one imaginary dune path to the sea, lit for ten times of day. The painted meadow set (`scene1`...`scene10`) predates it and is unchanged.

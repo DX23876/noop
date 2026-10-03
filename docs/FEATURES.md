@@ -1041,7 +1041,10 @@ informational only, **not** a diagnosis.
   to an Apple Health-style palette instead of plain blue. Purely cosmetic — chevrons, checkmarks and
   state icons (e.g. bell vs. bell with a badge) are unaffected either way. Also here: chart colours
   (Apple Health palette by default) and the day-cycle sky backdrop / "sky behind cards" (both off by
-  default).
+  default). The **Day-cycle motif** picker chooses the artwork behind the day-cycle backdrop: an
+  Alpine lake and hut at ten times of day (default), a dune path to the sea at ten times of day, or the
+  original painted meadow. All three sets share one hour mapping (`DayCycleScene`), so a given hour
+  shows the same light whichever you pick.
 - **Strap** — connection status, battery, and Re-scan / Disconnect controls.
 - **Sync (iOS)** — its own section with **Keep screen on while syncing**: opt-in (off by default). Holds
   the screen awake for as long as a strap history sync runs while NOOP is open, then lets it sleep

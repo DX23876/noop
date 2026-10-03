@@ -281,6 +281,8 @@ struct SettingsView: View {
     // off (the default) keeps the plain dark canvas. TodayView reads the same key to gate its
     // SceneScreenBackground.
     @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = SceneBackgroundPrefs.defaultEnabled
+    // Which artwork the day-cycle scene draws: the Alps set (default), the Coast set or the painted meadow.
+    @AppStorage(SceneMotif.storageKey) private var sceneMotifRaw = SceneMotif.defaultMotif.rawValue
     // "Sky behind cards" (default OFF): extend the day-cycle sky behind the whole Today scroll so
     // Card transparency reveals it under every card. User-toggleable below. Mirrors Kotlin NoopPrefs.skyBehindCards.
     @AppStorage(SkyBehindCardsPrefs.enabledKey) private var skyBehindCards = false
@@ -2012,6 +2014,20 @@ struct SettingsView: View {
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
+
+                // MARK: Day-cycle motif — which artwork the scene shows. Same ten times of day either way.
+                FormRow(label: "Day-cycle motif") {
+                    Picker("Day-cycle motif", selection: $sceneMotifRaw) {
+                        Text("Alps").tag(SceneMotif.alps.rawValue)
+                        Text("Coast").tag(SceneMotif.coast.rawValue)
+                        Text("Meadow").tag(SceneMotif.meadow.rawValue)
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .appleInspiredTint("settings.controls")
+                    .accessibilityLabel("Day-cycle motif")
+                }
+                .disabled(!showDayCycleBackground)
 
                 // MARK: Sky behind cards — extend the day-cycle sky behind the WHOLE Today scroll so the
                 // Card-transparency slider reveals it under every card (not just the hero). Opt-in, off by

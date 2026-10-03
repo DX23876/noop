@@ -1725,5 +1725,9 @@
   "Recovery is keeping up": "La récupération suit",
   "Recovery is lagging behind": "La récupération est à la traîne",
   "TRAINING LOAD": "CHARGE D'ENTRAÎNEMENT",
-  "in 30 days": "en 30 jours"
+  "in 30 days": "en 30 jours",
+  "Day-cycle motif": "Motif du cycle journalier",
+  "Alps": "Alpes",
+  "Coast": "Côte",
+  "Meadow": "Prairie"
 }

@@ -3,7 +3,8 @@ import SwiftUI
 // MARK: - Scene Hero Background — the day-cycle illustration behind the hero rings
 //
 // A premium atmospheric wash that fades from the top down behind the top hero cards, picked from
-// ten hand-painted day-cycle illustrations by the CURRENT local hour. It REPLACES the procedural
+// ten day-cycle scenes (a photographic Alps set or the hand-painted meadow set, see `SceneMotif`) by the
+// CURRENT local hour. It REPLACES the procedural
 // `TimeOfDayBackground` on the HERO only — the scene IS the atmosphere there now — while the rest of
 // the screen stays on the flat canvas.
 //
@@ -19,31 +20,69 @@ import SwiftUI
 
 // MARK: - Hour → scene
 
-/// Maps a local hour (0...23) to one of the ten day-cycle illustration asset names ("scene1"..."scene10").
+/// The artwork set a day-cycle scene is drawn from. Every set has the same ten time-of-day slots, so the
+/// hour mapping in `DayCycleScene` is shared and only the asset prefix differs.
+public enum SceneMotif: String, CaseIterable, Identifiable, Sendable {
+    /// Photographic Alpine summer lake with a hut, shot at ten times of day (`alps1`...`alps10`).
+    case alps
+    /// A dune path down to a calm sea with a small island, lit for ten times of day (`coast1`...`coast10`).
+    case coast
+    /// The original hand-painted meadow illustrations (`scene1`...`scene10`).
+    case meadow
+
+    public var id: String { rawValue }
+
+    /// The @AppStorage key shared by the scene views and the Settings picker.
+    public static let storageKey = "noop.sceneMotif"
+    /// Alps are the default; an unknown or missing stored value resolves to it too.
+    public static let defaultMotif: SceneMotif = .alps
+
+    /// Resolve a stored raw value (tolerant of an unknown/missing value).
+    public static func resolve(_ raw: String) -> SceneMotif {
+        SceneMotif(rawValue: raw) ?? defaultMotif
+    }
+
+    /// Asset-name prefix; the slot number 1...10 follows it.
+    var assetPrefix: String {
+        switch self {
+        case .alps: return "alps"
+        case .coast: return "coast"
+        case .meadow: return "scene"
+        }
+    }
+}
+
+/// Maps a local hour (0...23) to one of the ten time-of-day slots, then to that slot's asset in a motif.
 /// Hand-tuned so the sky's light matches the time of day:
 ///   0–4 deep night · 5 first light · 6 dawn · 7 early morning · 8–9 sunrise · 10–11 day ·
 ///   12–16 bright midday · 17–18 sunset · 19–20 dusk · 21–23 night + moon.
 public enum DayCycleScene {
-    /// The asset name for a given hour. Defensive modulo so any hour value is safe.
-    public static func assetName(hour: Int) -> String {
+    /// The slot (1...10) for a given hour. Defensive modulo so any hour value is safe. The numbering is the
+    /// meadow set's historical one, which the alps set follows slot for slot.
+    public static func slot(hour: Int) -> Int {
         let h = ((hour % 24) + 24) % 24
         switch h {
-        case 0, 1, 2, 3, 4: return "scene1"   // deep night
-        case 5:             return "scene2"   // first light
-        case 6:             return "scene3"   // dawn
-        case 7:             return "scene6"   // early morning
-        case 8, 9:          return "scene7"   // sunrise
-        case 10, 11:        return "scene8"   // day
-        case 12, 13, 14, 15, 16: return "scene10" // bright midday
-        case 17, 18:        return "scene9"   // sunset
-        case 19, 20:        return "scene5"   // dusk
-        default:            return "scene4"   // 21–23 night + moon
+        case 0, 1, 2, 3, 4: return 1   // deep night
+        case 5:             return 2   // first light
+        case 6:             return 3   // dawn
+        case 7:             return 6   // early morning
+        case 8, 9:          return 7   // sunrise
+        case 10, 11:        return 8   // day
+        case 12, 13, 14, 15, 16: return 10 // bright midday
+        case 17, 18:        return 9   // sunset
+        case 19, 20:        return 5   // dusk
+        default:            return 4   // 21–23 night + moon
         }
     }
 
+    /// The asset name for a given hour in a motif (the meadow set unless told otherwise).
+    public static func assetName(hour: Int, motif: SceneMotif = .meadow) -> String {
+        "\(motif.assetPrefix)\(slot(hour: hour))"
+    }
+
     /// The asset name for *now*, from the system clock.
-    public static var current: String {
-        assetName(hour: Calendar.current.component(.hour, from: Date()))
+    public static func current(motif: SceneMotif = .meadow) -> String {
+        assetName(hour: Calendar.current.component(.hour, from: Date()), motif: motif)
     }
 
     /// Whether the hour's scene is a bright one (midday/day) — the hero then warrants a slightly firmer
@@ -64,6 +103,7 @@ public struct SceneHeroBackground: View {
 
     /// The local hour driving which scene shows (0...23). Defaults to the current clock hour.
     private let hour: Int
+    @AppStorage(SceneMotif.storageKey) private var motifRaw = SceneMotif.defaultMotif.rawValue
 
     public init(hour: Int = Calendar.current.component(.hour, from: Date())) {
         self.hour = hour
@@ -81,7 +121,7 @@ public struct SceneHeroBackground: View {
             ZStack {
                 // The day-cycle scene: aspect-FILL the width, TOP-aligned so the sky shows; overflow is
                 // cropped by the clip below. A flat image — no blur, no glow.
-                Image(DayCycleScene.assetName(hour: hour))
+                Image(DayCycleScene.assetName(hour: hour, motif: SceneMotif.resolve(motifRaw)))
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .frame(width: w, alignment: .top)
@@ -127,6 +167,7 @@ public struct SceneHeroBackground: View {
 /// Place it edge-to-edge as a top-anchored screen background (the caller ignores safe area). No glow.
 public struct SceneScreenBackground: View {
     private let hour: Int
+    @AppStorage(SceneMotif.storageKey) private var motifRaw = SceneMotif.defaultMotif.rawValue
     /// How far down the screen the scene reaches before it has fully faded into the canvas.
     public var height: CGFloat
 
@@ -140,7 +181,7 @@ public struct SceneScreenBackground: View {
     private let imageOpacityCap: Double = 0.95
 
     public var body: some View {
-        Image(DayCycleScene.assetName(hour: hour))
+        Image(DayCycleScene.assetName(hour: hour, motif: SceneMotif.resolve(motifRaw)))
             .resizable()
             .aspectRatio(contentMode: .fill)
             .frame(maxWidth: .infinity)
