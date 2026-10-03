@@ -1109,7 +1109,7 @@ struct LiquidTodayView: View {
         VStack(spacing: 6) {
             LiquidWordmark(onOpen: { showUpdatesInbox = true })
             LiquidSyncLine()
-                .frame(width: 92)
+                .frame(width: 120)
         }
         .fixedSize()
     }
@@ -1128,7 +1128,7 @@ struct LiquidTodayView: View {
                     // narrow phone, a long weekday, the sync capsule expanding): shrink, never clip.
                     Text(dayTitle).minimumScaleFactor(0.6)
                 }
-                .font(StrandFont.rounded(24))
+                .font(StrandFont.rounded(20))
                 .foregroundStyle(StrandPalette.textPrimary)
                 .lineLimit(1)
                 .shadow(color: .black.opacity(0.4), radius: 10, y: 1)
@@ -1308,10 +1308,6 @@ struct LiquidTodayView: View {
                           decimals: effortScale == .whoop ? 1 : 0,
                           provenance: ringSourceLabel("strain"),
                           detailRoute: .metric(HeroRingMetric.effort))
-            // The hero's provenance badge — which device/import actually supplied the inputs, not just
-            // where NOOP ran the calculation. Upstream #778 fixed its accuracy (persisted alongside the
-            // score itself, so it can't drift) and restored its position, centred on the top border and
-            // aligned with the Rest vessel.
             HeroScoreCell(metric: .rest, label: DomainTheme.rest.productName, score: visibleRestScore,
                           tint: StrandPalette.organicRest,
                           frame: frame,
@@ -1319,19 +1315,6 @@ struct LiquidTodayView: View {
                           onGuide: { guideSection = .rest },
                           provenance: ringSourceLabel("sleep_performance"),
                           detailRoute: .metric(HeroRingMetric.rest))
-                .overlay(alignment: .top) {
-                    if let sourceLabel = heroSourceLabel {
-                        SourceBadge("\(sourceLabel)", tint: StrandPalette.textSecondary)
-                            // Match the badge's trailing edge to the Rest vessel and centre it on the card border.
-                            .fixedSize()
-                            .frame(width: ringHitDiameter, alignment: .trailing)
-                            .offset(y: -(LiquidHeroRingLayout.verticalPadding + NoopMetrics.sourceBadgeHeight / 2))
-                            .allowsHitTesting(false)
-                            // Each ring speaks its own source with its value, so the badge would only
-                            // repeat it as a fourth stop.
-                            .accessibilityHidden(true)
-                    }
-                }
         }
         }
         .frame(maxWidth: .infinity)
@@ -1348,6 +1331,23 @@ struct LiquidTodayView: View {
         }
         .padding(.vertical, LiquidHeroRingLayout.verticalPadding)
         .padding(.horizontal, LiquidHeroRingLayout.horizontalPadding)
+        // The hero's provenance — which device/import actually supplied the inputs (upstream #778 keeps it
+        // accurate). A quiet caption inside the card's top corner since 2026-10-03; the badge straddling the
+        // card's border read as a misplaced element. Each ring speaks its own source with its value, so
+        // VoiceOver skips this repeat.
+        .overlay(alignment: .topTrailing) {
+            if let sourceLabel = heroSourceLabel {
+                Text(verbatim: sourceLabel.uppercased())
+                    .font(StrandFont.overline)
+                    .tracking(StrandFont.overlineTracking)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .lineLimit(1)
+                    .padding(.top, NoopMetrics.space2)
+                    .padding(.trailing, NoopMetrics.space4)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+        }
         // The ONE content surface that gets real iOS 26 glass (material below 26): it is the screen's
         // headline card and there is exactly one of it, so the blur pass is affordable — unlike the ten
         // metric tiles, which take a lighter fill instead. The dark chamber stays under the glass so the
@@ -3287,19 +3287,19 @@ private struct LiquidWordmark: View {
     @State private var token = 0      // drives the tap haptic
 
     var body: some View {
-        // Smaller AND brighter: the wordmark should cost less height between the header and the scores while
-        // reading more like a mark and less like a watermark.
+        // The header's centrepiece: it shares one line with the title, so it can be the larger of the two
+        // without costing height between the header and the scores.
         // NOOP Forge: the letters, then the "F" from the app icon at capital height, so it reads
         // "NOOP Forge". The easter egg below moves both together.
-        HStack(spacing: 12) {
-            HStack(spacing: 10) {
+        HStack(spacing: 15) {
+            HStack(spacing: 13) {
                 ForEach(Array("NOOP".enumerated()), id: \.offset) { _, ch in
                     Text(String(ch))
-                        .font(StrandFont.rounded(13, weight: .bold))
+                        .font(StrandFont.rounded(17, weight: .bold))
                         .foregroundStyle(StrandPalette.textPrimary.opacity(0.9))
                 }
             }
-            ForgeMark(size: 10.5)
+            ForgeMark(size: 14)
                 .opacity(0.9)
                 .shadow(color: StrandPalette.forgeEmber.opacity(glowOpacity), radius: 3)
                 .shadow(color: StrandPalette.forgeEmber.opacity(glowOpacity * 0.8), radius: 9)
