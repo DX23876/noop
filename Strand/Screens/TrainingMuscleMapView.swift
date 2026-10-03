@@ -157,7 +157,6 @@ struct TrainingActivityDay: Hashable, Sendable {
 
 struct TrainingActivityHeatmap: View {
     let days: [TrainingActivityDay]
-    private let rows = Array(repeating: GridItem(.fixed(7), spacing: NoopMetrics.space1), count: 7)
 
     var body: some View {
         let values = days
@@ -168,25 +167,23 @@ struct TrainingActivityHeatmap: View {
             NoopCard {
                 VStack(alignment: .leading, spacing: 8) {
                     // Each column is one calendar week starting on the chosen training week start, so a
-                    // row always holds the same weekday.
-                    // Opens on the current week: the most recent training is what a glance is for, and a
-                    // year that starts at its oldest edge looked empty whenever history was shorter.
-                    ScrollViewReader { proxy in
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            LazyHGrid(rows: rows, spacing: NoopMetrics.space1) {
-                                ForEach(values, id: \.day) { value in
-                                    RoundedRectangle(cornerRadius: 2)
-                                        .fill(color(minutes: value.minutes))
-                                        .frame(width: 7, height: 7)
-                                        .id(value.day)
-                                }
-                            }.frame(height: 67)
-                        }
-                        .onAppear { if let last = values.last { proxy.scrollTo(last.day, anchor: .trailing) } }
-                        .onChange(of: values.count) { _ in
-                            if let last = values.last { proxy.scrollTo(last.day, anchor: .trailing) }
+                    // row always holds the same weekday. The whole year fits the card's width: fixed 7 pt
+                    // squares made it ~580 pt wide, so every phone showed a cut-off strip that had to be
+                    // scrolled, a small one most of all. The squares scale with the width instead.
+                    let columns = max(1, Int((Double(values.count) / 7).rounded(.up)))
+                    Canvas { context, size in
+                        let pitch = size.width / CGFloat(columns)
+                        let gap = max(1, pitch * 0.22)
+                        let cell = pitch - gap
+                        for (index, value) in values.enumerated() {
+                            let rect = CGRect(x: CGFloat(index / 7) * pitch,
+                                              y: CGFloat(index % 7) * pitch,
+                                              width: cell, height: cell)
+                            context.fill(Path(roundedRect: rect, cornerRadius: min(2, cell * 0.25)),
+                                         with: .color(color(minutes: value.minutes)))
                         }
                     }
+                    .aspectRatio(CGFloat(columns) / 7, contentMode: .fit)
                     // 370 unlabeled squares are not navigable with VoiceOver; one summary carries the facts.
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel(Text("Training days in the past year: \(activeDays). Time logged: \(durationText(totalMinutes))."))
