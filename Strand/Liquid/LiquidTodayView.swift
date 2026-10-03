@@ -608,11 +608,13 @@ struct LiquidTodayView: View {
     /// owns the touch: whichever `onEnded` runs first, the other is suppressed (the flag is still set
     /// if this one wins the race, the timestamp catches it if the thread's does). Both are written
     /// SYNCHRONOUSLY from the thread's gesture callback, not via `onChange`, so there is no render
-    /// pass in between where the guard could read stale state. Swipes anywhere else are untouched.
+    /// pass in between where the guard could read stale state. A swipe on the Momentum card is held back
+    /// the same way (`momentumSwiping`). Swipes anywhere else are untouched.
     private var daySwipeGesture: some Gesture {
         DragGesture(minimumDistance: 24)
             .onEnded { value in
-                guard !hrScrubbing, Date().timeIntervalSince(hrScrubEndedAt) > 0.4 else { return }
+                guard !hrScrubbing, Date().timeIntervalSince(hrScrubEndedAt) > 0.4,
+                      !momentumSwiping, Date().timeIntervalSince(momentumSwipeEndedAt) > 0.4 else { return }
                 let dx = value.translation.width, dy = value.translation.height
                 guard abs(dx) > abs(dy) * 1.5, abs(dx) > 50 else { return }
                 let delta = TodayView.daySwipeDelta(dx: dx)
@@ -781,6 +783,13 @@ struct LiquidTodayView: View {
                     // default. Upstream also re-mounts `dataSourcesSection` here; this fork does not:
                     // Liquid Today no longer carries a Data Sources card at all.
                     AutoWorkoutCard()
+                    // Section order and visibility, plus both nested card editors. It used to be a header
+                    // button; the header now keeps only the controls used every day.
+                    Button { customizationDestination = .today } label: {
+                        LiquidFullWidthNavigationAction("Customize Today")
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, NoopMetrics.space2)
                 }
                 .padding(.horizontal, NoopMetrics.screenHPadding)
                 // Restrained surfaces (2026-10 redesign): below the hero, opaque cards rest on their fill
@@ -1063,6 +1072,10 @@ struct LiquidTodayView: View {
 
     private var scene: some View {
         VStack(alignment: .leading, spacing: 0) {
+            // The NOOP Forge wordmark heads the screen and doubles as the way into Updates: its F pulses
+            // while something is unread (faster with more), replacing the separate bell button.
+            LiquidWordmark(onOpen: { showUpdatesInbox = true })
+                .padding(.bottom, NoopMetrics.space3)
             AdaptiveHeaderLayout(spacing: headerClusterSpacing, stacksControls: headerStacksTitle) {
                 Button { showDayPicker = true } label: {
                     VStack(alignment: .leading, spacing: 2) {
@@ -1121,6 +1134,8 @@ struct LiquidTodayView: View {
                         .frame(minWidth: 320, minHeight: 360)
                         .liquidPopoverAdaptation()
                 }
+                LiquidAddButton()
+                LiquidBatteryButton()
                 // Profile pic (the one set in Settings) → opens Settings, matching the classic Today.
                 Button { showSettings = true } label: {
                     Color.clear.frame(
@@ -1141,30 +1156,10 @@ struct LiquidTodayView: View {
                 // No glass finish layer over the photo: on iOS 26 it showed only as a light rim around
                 // the picture, the one control in the row with an outline.
                 .accessibilityLabel("Profile and settings")
-                LiquidAddButton()
-                LiquidBatteryButton()
-                LiquidUpdatesBellButton(showUpdatesInbox: $showUpdatesInbox)
-                // One entry point for section order/visibility and both nested card editors.
-                Button { customizationDestination = .today } label: {
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(StrandPalette.textPrimary)
-                        .frame(
-                            width: NoopMetrics.compactControlSize,
-                            height: NoopMetrics.compactControlSize
-                        )
-                }
-                .nativeLiquidGlassHeaderButton()
-                .accessibilityLabel("Customize Today")
             }
-            // Subtle NOOP wordmark in the sky between header and hero. Perfectly centred (a letter row has
-            // no trailing tracking gap the way `Text(...).tracking()` does), with a tap easter egg.
-            // #today-layout: the hero + Start-session row moved OUT of the scene into the reorderable
-            // section block below. The wordmark's bottom pad (10) + the section VStack's 12 spacing keeps
-            // the default hero-under-wordmark gap at the original 22.
-            LiquidWordmark()
-                .padding(.top, 30)
-                .padding(.bottom, 10)
+            // #today-layout: the hero + Start-session row live in the reorderable section block below;
+            // this pad plus the section VStack's 12 spacing keeps a 22 pt gap above the hero.
+            .padding(.bottom, 10)
         }
     }
 
@@ -1898,18 +1893,20 @@ struct LiquidTodayView: View {
         // the Momentum name — same label, different behaviour, which is the kind of split this whole
         // feature exists to remove.
         VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+            // Leading-aligned, the day's verdict first: the readiness word (a Button → Charge breakdown)
+            // is what the row is for, the activity status (own sheet) is a setting beside it. The
+            // data-confidence chip only speaks up while the score is still calibrating; "Solid" every
+            // day was noise.
             HStack(spacing: 6) {
-                Spacer(minLength: 4)
-                // Own tap target with its own `.sheet` — sits left of the readiness pill so it doesn't
-                // collide with anything at the row's trailing edge.
-                ActivityStatusChipCompact(status: $status)
-                // Maintain and Solid are SEPARATE elements: the readiness word is a Button → Charge
-                // breakdown; the data-confidence chip is a display-only ScoreStatePill.
                 if let word = readinessWord {
                     readinessHeroPill(word)
                 }
-                solidStatePill
-                    .layoutPriority(1)
+                ActivityStatusChipCompact(status: $status)
+                if chargeDisplay.pct == nil {
+                    solidStatePill
+                        .layoutPriority(1)
+                }
+                Spacer(minLength: 0)
             }
             momentumSection()
             // #530 follow-up: the classic hero's "no cardio load yet" note, shown on a calm day so
@@ -2002,21 +1999,64 @@ struct LiquidTodayView: View {
             MomentumCard(
                 message: top,
                 remainingCount: max(0, momentumFeed.count - 1),
-                onOpenMore: { showMomentumMore = true },
+                // The card follows the finger while it is swiped, so the lift still lands on its button;
+                // a swipe must not also open the page.
+                onOpenMore: {
+                    guard !momentumSwiping, Date().timeIntervalSince(momentumSwipeEndedAt) > 0.4 else { return }
+                    showMomentumMore = true
+                },
                 onAction: { destination in
                     switch destination {
                     case .chargeBreakdown: showChargeBreakdown = true
                     case .goalJourney, .plan, .liveSession, .none: break
                     }
                 },
-                onDismiss: {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        momentumSnoozedRaw = MomentumResolver.snoozing(top.kind, into: momentumSnoozedRaw)
-                    }
-                },
+                onDismiss: { snoozeMomentum(top.kind) },
                 compact: true)
+                .offset(x: momentumDragX)
+                .opacity(1 - min(0.6, Double(abs(momentumDragX)) / 300))
+                // Swipe left hides the message for today, like its ×. While a finger swipes the card,
+                // the day swipe stands down (see `daySwipeGesture`) in either direction.
+                .simultaneousGesture(momentumSwipeGesture(top.kind))
                 .onAppear { noteMomentumShown(top.kind) }
                 .onChangeCompat(of: top.kind.rawValue) { _ in noteMomentumShown(top.kind) }
+        }
+    }
+
+    @State private var momentumDragX: CGFloat = 0
+    /// True while a horizontal swipe on the Momentum card owns the touch, and when it last let go —
+    /// the same race guard the HR thread uses against the day swipe.
+    @State private var momentumSwiping = false
+    @State private var momentumSwipeEndedAt = Date.distantPast
+
+    private func momentumSwipeGesture(_ kind: MomentumKind) -> some Gesture {
+        DragGesture(minimumDistance: 16)
+            .onChanged { value in
+                let dx = value.translation.width, dy = value.translation.height
+                guard momentumSwiping || abs(dx) > abs(dy) * 1.5 else { return }
+                momentumSwiping = true
+                momentumDragX = min(0, dx)
+            }
+            .onEnded { value in
+                momentumSwipeEndedAt = Date()
+                let dismiss = momentumSwiping && value.translation.width < -110
+                momentumSwiping = false
+                if dismiss {
+                    withAnimation(.easeOut(duration: 0.18)) { momentumDragX = -420 }
+                    Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: 180_000_000)
+                        snoozeMomentum(kind)
+                        momentumDragX = 0
+                    }
+                } else {
+                    withAnimation(StrandMotion.interactive) { momentumDragX = 0 }
+                }
+            }
+    }
+
+    private func snoozeMomentum(_ kind: MomentumKind) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            momentumSnoozedRaw = MomentumResolver.snoozing(kind, into: momentumSnoozedRaw)
         }
     }
 
@@ -3178,6 +3218,12 @@ private struct PullOffsetKey: PreferenceKey {
 /// for a little easter egg: it plays one of several random one-shot animations — wiggle, shake, flip,
 /// spin, bounce, or a jelly squash — with a light haptic.
 private struct LiquidWordmark: View {
+    /// Opens the Updates inbox. Always available, not only while something is unread.
+    let onOpen: () -> Void
+    @EnvironmentObject private var updateStore: UpdateStore
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Drives the F's pulse; flipped inside a repeating animation whose period follows the unread count.
+    @State private var pulse = false
     @State private var rot = 0.0      // z-rotation (wiggle / spin)
     @State private var scaleX = 1.0   // horizontal scale (jelly squash)
     @State private var scaleY = 1.0   // vertical scale (bounce / jelly)
@@ -3200,17 +3246,57 @@ private struct LiquidWordmark: View {
             }
             ForgeMark(size: 10.5)
                 .opacity(0.9)
+                .shadow(color: StrandPalette.forgeEmber.opacity(glowOpacity), radius: 3)
+                .shadow(color: StrandPalette.forgeEmber.opacity(glowOpacity * 0.8), radius: 9)
         }
         .shadow(color: .black.opacity(0.25), radius: 6, y: 1)
         .rotationEffect(.degrees(rot))
         .scaleEffect(x: scaleX, y: scaleY)
         .offset(x: dx)
         .rotation3DEffect(.degrees(flip), axis: (x: 0, y: 1, z: 0), perspective: 0.5)
+        // A full control-sized target around a small mark.
+        .frame(minHeight: NoopMetrics.compactControlSize)
         .contentShape(Rectangle())
-        .onTapGesture { playRandomEgg() }
+        // The easter egg now plays as the tap's own feedback (a long-press variant held every tap back
+        // until the long press had failed).
+        .onTapGesture {
+            playRandomEgg()
+            onOpen()
+        }
         .liquidTapHaptic(trigger: token)
         .frame(maxWidth: .infinity)
-        .accessibilityHidden(true)
+        .task(id: pulsePeriod) { restartPulse() }
+        .accessibilityElement(children: .ignore)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityLabel("Updates")
+        .accessibilityValue(updateStore.unreadCount > 0 ? Text("\(updateStore.unreadCount) unread") : Text(""))
+        .accessibilityAction { onOpen() }
+    }
+
+    /// Seconds per glow cycle, or nil when nothing is unread. More unread, faster pulse: the count
+    /// itself is in the inbox, the mark only has to be hard to overlook.
+    private var pulsePeriod: Double? {
+        switch updateStore.unreadCount {
+        case 0: return nil
+        case 1: return 3.5
+        case 2...3: return 2.5
+        default: return 1.6
+        }
+    }
+
+    /// Unread with Reduce Motion: a steady glow instead of a pulse. Nothing unread: no glow at all.
+    private var glowOpacity: Double {
+        guard pulsePeriod != nil else { return 0 }
+        if reduceMotion { return 0.8 }
+        return pulse ? 0.95 : 0.15
+    }
+
+    private func restartPulse() {
+        var reset = Transaction()
+        reset.disablesAnimations = true
+        withTransaction(reset) { pulse = false }
+        guard let period = pulsePeriod, !reduceMotion else { return }
+        withAnimation(.easeInOut(duration: period / 2).repeatForever(autoreverses: true)) { pulse = true }
     }
 
     /// The easter egg: one of several one-shot animations at random. The oscillating ones (wiggle/shake/
@@ -3494,36 +3580,6 @@ private struct LiquidAddButton: View {
 /// The Updates-inbox bell — brings the classic Today's bell (`TodayView.swift`'s `updateBell`) to Liquid
 /// Today, same store, same inbox, matching this row's existing icon pattern rather than the classic
 /// bell's larger 36pt one.
-private struct LiquidUpdatesBellButton: View {
-    @EnvironmentObject var updateStore: UpdateStore
-    @Binding var showUpdatesInbox: Bool
-    var body: some View {
-        // Same glass chrome and size as its neighbours; it used to be a smaller, plain inset circle.
-        Button { showUpdatesInbox = true } label: {
-            Image(systemName: "bell")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(StrandPalette.textPrimary)
-                .frame(width: LiquidHeaderMetrics.control, height: LiquidHeaderMetrics.control)
-        }
-        .nativeLiquidGlassHeaderButton()
-        .overlay(alignment: .topTrailing) {
-            if updateStore.unreadCount > 0 {
-                Text("\(min(updateStore.unreadCount, 99))")
-                    .font(.system(size: 9, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 3)
-                    .frame(minWidth: 15, minHeight: 15)
-                    .background(Capsule().fill(StrandPalette.statusCritical))
-                    .offset(x: 2, y: -2)
-                    .allowsHitTesting(false)
-            }
-        }
-        .accessibilityLabel("Updates")
-        .accessibilityValue(updateStore.unreadCount > 0 ? Text("\(updateStore.unreadCount) unread") : Text(""))
-    }
-}
-
 /// Shared quiet, full-width navigation affordance used for a secondary dashboard destination.
 /// The containing NavigationLink owns the destination and pressed interaction; this view owns one
 /// consistent token-based surface, typography, geometry, and trailing chevron.
