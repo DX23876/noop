@@ -135,6 +135,9 @@ struct OrganicScoreRing: View {
     /// Tap target diameter; nil = the full ring. The hero passes its slot width so a ring drawn larger
     /// than its slot never takes a neighbour's taps.
     var hitDiameter: CGFloat? = nil
+    /// Which remembered number this ring continues from (see `OrganicScoreShownMemo`). Defaults to the
+    /// metric, so the three hero rings each keep their own; a ring showing another day passes its own.
+    var memoKey: String? = nil
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
@@ -207,6 +210,11 @@ struct OrganicScoreRing: View {
             preparation = OrganicScorePreparation(model: model)
             morph = .settled(model)
             settledTint = resolvedTint
+            // Scrolling back or returning to the tab recreates the ring; continue from the number it
+            // last showed instead of counting up from zero again. Only a new value animates.
+            if let last = OrganicScoreShownMemo.values[resolvedMemoKey] {
+                shown = last
+            }
             roll(to: score)
         }
         .onChangeCompat(of: model) { retarget(to: $0) }
@@ -238,12 +246,24 @@ struct OrganicScoreRing: View {
         return min(max((time - tintStart) / OrganicScoreMorph.duration, 0), 1)
     }
 
+    private var resolvedMemoKey: String { memoKey ?? model.metric.rawValue }
+
     private func roll(to value: Double?) {
         guard let value else { shown = 0; return }
+        OrganicScoreShownMemo.values[resolvedMemoKey] = value
+        guard shown != value else { return }
         withAnimation(reduceMotion ? nil : .easeOut(duration: OrganicScoreMorph.duration)) {
             shown = value
         }
     }
+}
+
+/// The number each score ring last showed, for the life of the process. A ring is recreated whenever it
+/// scrolls back into view or its tab returns, and its `@State` starts at zero again, so without this the
+/// count-up replayed every time. It now plays once per launch and then only when the value changes.
+@MainActor
+enum OrganicScoreShownMemo {
+    static var values: [String: Double] = [:]
 }
 
 private enum OrganicScoreRingRenderer {

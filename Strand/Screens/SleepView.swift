@@ -2970,7 +2970,8 @@ struct SleepOrganicRestRing: View {
                 score: score,
                 decimals: 0,
                 frame: frame,
-                diameter: diameter
+                diameter: diameter,
+                memoKey: "sleep-rest"
             )
         }
         .frame(maxWidth: .infinity)
