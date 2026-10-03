@@ -1745,7 +1745,7 @@ struct LiquidTodayView: View {
                 todayPct: displayDay?.spo2Pct,
                 candidatePct: spo2CandidateByDay[cachedDisplayDay?.day ?? selectedDayKey],
                 candidateEnabled: PuffinExperiment.spo2CandidateDisplayEnabled,
-                carriedPct: vitalsDay?.spo2Pct)
+                carriedPct: vitalsDay?.spo2Pct ?? spo2Day?.spo2Pct)
             let spo2Candidate = spo2Resolved?.provenance == .candidate ? spo2Resolved?.percent : nil
             let spo2 = spo2Resolved?.percent
             // ALWAYS routes to "spo2", never "spo2_candidate". The Key Metrics tile switches that string,
@@ -2466,8 +2466,12 @@ struct LiquidTodayView: View {
         case .hrv:          return hrv != nil
         case .restingHr:    return rhr != nil
         case .weight:       return resolvedWeightKg != nil
-        case .bloodOxygen:  return (displayDay?.spo2Pct ?? vitalsDay?.spo2Pct) != nil
-        case .respiratory:  return (displayDay?.respRateBpm ?? vitalsDay?.respRateBpm) != nil
+        case .bloodOxygen:  return Spo2Display.resolve(
+                                todayPct: displayDay?.spo2Pct,
+                                candidatePct: spo2CandidateByDay[cachedDisplayDay?.day ?? selectedDayKey],
+                                candidateEnabled: PuffinExperiment.spo2CandidateDisplayEnabled,
+                                carriedPct: vitalsDay?.spo2Pct ?? spo2Day?.spo2Pct) != nil
+        case .respiratory:  return (displayDay?.respRateBpm ?? vitalsDay?.respRateBpm ?? respDay?.respRateBpm) != nil
         case .steps:        return stepCount != nil
         case .calories:     return selectedEnergySummary?.totalBurnedSoFar != nil
         case .skinTemp:     return (displayDay?.skinTempC ?? vitalsDay?.skinTempC
@@ -2531,7 +2535,7 @@ struct LiquidTodayView: View {
                 todayPct: displayDay?.spo2Pct,
                 candidatePct: spo2CandidateByDay[cachedDisplayDay?.day ?? selectedDayKey],
                 candidateEnabled: PuffinExperiment.spo2CandidateDisplayEnabled,
-                carriedPct: vitalsDay?.spo2Pct)
+                carriedPct: vitalsDay?.spo2Pct ?? spo2Day?.spo2Pct)
             let candidate = resolved?.provenance == .candidate ? resolved?.percent : nil
             let spo2 = resolved?.percent
             ktile("SpO₂", icon: metric.customizationIcon, intText(spo2), "%",

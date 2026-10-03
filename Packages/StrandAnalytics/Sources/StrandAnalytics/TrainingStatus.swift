@@ -606,14 +606,19 @@ public enum TrainingStatusModel {
         for _ in 0..<recoveryNights {
             let readiness = ReadinessEngine.evaluate(days: days, today: cursor)
             let signals = readiness.signals.filter { recoveryKeys.contains($0.key) }
-            if !signals.isEmpty {
+            // A normal respiratory rate emits no signal, so it is added to the keys read here.
+            var readKeys = signals.map(\.key)
+            if !readKeys.contains("respRate"), ReadinessEngine.respiratoryJudged(days: days, today: cursor) {
+                readKeys.append("respRate")
+            }
+            if !readKeys.isEmpty {
                 nightsRead += 1
                 let bad = signals.filter { $0.flag == .bad }.count
                 let watch = signals.filter { $0.flag == .watch }.count
                 if bad >= 1 || watch >= 2 { strainedNights += 1 }
                 if latestFlagging == nil {
                     latestFlagging = signals.filter { $0.flag == .bad || $0.flag == .watch }.map(\.key)
-                    latestRead = signals.map(\.key)
+                    latestRead = readKeys
                 }
             }
             cursor = WeeklyDigestEngine.addDays(cursor, -1)

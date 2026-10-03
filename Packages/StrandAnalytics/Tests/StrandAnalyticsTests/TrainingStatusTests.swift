@@ -219,6 +219,21 @@ final class TrainingStatusTests: XCTestCase {
         return (rows, last)
     }
 
+    /// A normal breathing rate emits no readiness signal, yet it was measured: the Training Load screen
+    /// must list it as read (not "No data") and not flagging.
+    func testNormalRespiratoryRateCountsAsRead() {
+        var n = nights(final: [(60, 52)])
+        n.days = n.days.enumerated().map { index, row in
+            DailyMetric(day: row.day, totalSleepMin: nil, efficiency: nil, deepMin: nil, remMin: nil, lightMin: nil,
+                        disturbances: nil, restingHr: row.restingHr, avgHrv: row.avgHrv, recovery: nil, strain: 10,
+                        exerciseCount: nil, spo2Pct: nil, skinTempDevC: nil,
+                        respRateBpm: index % 2 == 0 ? 14.0 : 14.4)
+        }
+        let reading = TrainingStatusModel.recovery(days: n.days, through: n.last)
+        XCTAssertTrue(reading.readOnLatestNight.contains("respRate"))
+        XCTAssertFalse(reading.flaggingOnLatestNight.contains("respRate"))
+    }
+
     /// Half a week of suppressed nights is a strained week.
     func testHalfAWeekOfSuppressedNightsIsStrained() {
         let n = nights(final: [(60, 52), (35, 64), (34, 65), (33, 66), (35, 64)])

@@ -199,22 +199,17 @@ public enum ReadinessEngine {
         // BOTH the latest value and the baseline mean to the plausible sleeping-RR band (8–25 bpm) and
         // use wider resp-only z thresholds (WATCH 1.5 / BAD 2.0) than HRV/RHR so a single noisy night
         // can't flip RUNDOWN. Mirrors the Kotlin reference (#78) for cross-platform parity.
-        if let rr = latest.respRateBpm, SleepStager.respPlausibleRangeBpm.contains(rr) {
-            let base = history.suffix(baselineWindow).compactMap { $0.respRateBpm }
-            if base.count >= minBaseline, let m = mean(base),
-               SleepStager.respPlausibleRangeBpm.contains(m), let sd = sampleSD(base), sd > 0 {
-                let z = (rr - m) / sd
-                if z >= 2.0 {
-                    signals.append(Signal(key: "respRate", label: "Respiratory rate",
-                        evidence: evidence(value: rr, baseline: m, unit: "rpm", decimals: 1),
-                        evidenceData: .metric(value: rr, baseline: m, unit: "rpm", decimals: 1),
-                        detail: "up vs baseline - sometimes an early sign of getting sick", flag: .bad))
-                } else if z >= 1.5 {
-                    signals.append(Signal(key: "respRate", label: "Respiratory rate",
-                        evidence: evidence(value: rr, baseline: m, unit: "rpm", decimals: 1),
-                        evidenceData: .metric(value: rr, baseline: m, unit: "rpm", decimals: 1),
-                        detail: "slightly raised vs baseline", flag: .watch))
-                }
+        if let (rr, m, z) = respiratoryZ(latest: latest, history: history) {
+            if z >= 2.0 {
+                signals.append(Signal(key: "respRate", label: "Respiratory rate",
+                    evidence: evidence(value: rr, baseline: m, unit: "rpm", decimals: 1),
+                    evidenceData: .metric(value: rr, baseline: m, unit: "rpm", decimals: 1),
+                    detail: "up vs baseline - sometimes an early sign of getting sick", flag: .bad))
+            } else if z >= 1.5 {
+                signals.append(Signal(key: "respRate", label: "Respiratory rate",
+                    evidence: evidence(value: rr, baseline: m, unit: "rpm", decimals: 1),
+                    evidenceData: .metric(value: rr, baseline: m, unit: "rpm", decimals: 1),
+                    detail: "slightly raised vs baseline", flag: .watch))
             }
         }
 
@@ -318,6 +313,24 @@ public enum ReadinessEngine {
         }
         return Signal(key: "trainingLoad", label: "Training load", evidenceData: .lanes(context.lanes),
                       detail: detail, flag: .neutral)
+    }
+
+    /// Latest respiratory rate, its baseline mean and z-score, or nil when the night cannot be judged
+    /// (no reading, too short a baseline, an implausible value or a flat baseline).
+    private static func respiratoryZ(latest: DailyMetric, history: [DailyMetric]) -> (rr: Double, mean: Double, z: Double)? {
+        guard let rr = latest.respRateBpm, SleepStager.respPlausibleRangeBpm.contains(rr) else { return nil }
+        let base = history.suffix(baselineWindow).compactMap { $0.respRateBpm }
+        guard base.count >= minBaseline, let m = mean(base),
+              SleepStager.respPlausibleRangeBpm.contains(m), let sd = sampleSD(base), sd > 0 else { return nil }
+        return (rr, m, (rr - m) / sd)
+    }
+
+    /// Whether `today`'s respiratory rate was judged against its baseline. The `respRate` signal only
+    /// exists while the rate is raised, so a normal night is otherwise indistinguishable from no data.
+    public static func respiratoryJudged(days: [DailyMetric], today: String) -> Bool {
+        let sorted = days.sorted { $0.day < $1.day }
+        guard let latest = sorted.first(where: { $0.day == today }) else { return false }
+        return respiratoryZ(latest: latest, history: sorted.filter { $0.day < today }) != nil
     }
 
     private static func evidence(value: Double, baseline: Double, unit: String, decimals: Int) -> String {
