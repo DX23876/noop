@@ -2013,7 +2013,8 @@ struct LiquidTodayView: View {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         momentumSnoozedRaw = MomentumResolver.snoozing(top.kind, into: momentumSnoozedRaw)
                     }
-                })
+                },
+                compact: true)
                 .onAppear { noteMomentumShown(top.kind) }
                 .onChangeCompat(of: top.kind.rawValue) { _ in noteMomentumShown(top.kind) }
         }

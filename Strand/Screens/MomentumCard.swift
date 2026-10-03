@@ -30,8 +30,63 @@ struct MomentumCard: View {
     /// the Momentum sheet), and the control is then not drawn at all — a visible × that does nothing
     /// reads as broken.
     var onDismiss: (() -> Void)?
+    /// Liquid Today's slim form: the headline and what to do about it, nothing else. The explanation,
+    /// chips and action live one tap away on the Momentum page, so the card no longer competes with
+    /// the hero above it. Classic Today keeps the full card.
+    var compact: Bool = false
 
     var body: some View {
+        if compact { compactBody } else { fullBody }
+    }
+
+    private var compactBody: some View {
+        NoopCard(padding: NoopMetrics.space3, tint: tint) {
+            VStack(alignment: .leading, spacing: NoopMetrics.space1) {
+                HStack(alignment: .center, spacing: NoopMetrics.space2) {
+                    Button(action: onOpenMore) {
+                        HStack(spacing: 6) {
+                            Image(systemName: symbol)
+                                .font(StrandFont.footnote)
+                                .foregroundStyle(tint)
+                                .accessibilityHidden(true)
+                            momentumLabel
+                            Spacer(minLength: NoopMetrics.space2)
+                            Text("All")
+                                .font(StrandFont.footnote)
+                                .foregroundStyle(StrandPalette.accent)
+                            Image(systemName: "chevron.right")
+                                .font(StrandFont.footnote)
+                                .foregroundStyle(StrandPalette.textTertiary)
+                                .accessibilityHidden(true)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Momentum — open all \(remainingCount + 1) insights")
+                    dismissButton
+                }
+                Button(action: onOpenMore) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(message.headline)
+                            .font(StrandFont.subhead.weight(.semibold))
+                            .foregroundStyle(StrandPalette.textPrimary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text(message.actionLine ?? message.detail)
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .accessibilityElement(children: .contain)
+    }
+
+    private var fullBody: some View {
         NoopCard(padding: NoopMetrics.cardPadding, tint: tint) {
             HStack(alignment: .top, spacing: 12) {
                 iconTile
