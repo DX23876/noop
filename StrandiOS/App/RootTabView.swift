@@ -499,10 +499,16 @@ struct RootTabView: View {
                     // The guardian is a full-screen cover, not one of the sheet destinations — route it to
                     // its own presentation flag rather than back through `quickAction`.
                     if picked == .liveSession { showLiveSession = true }
+                    else if picked == .battery {
+                        // A Today-stack screen, not a sheet destination: push it where the old header
+                        // battery button used to.
+                        withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 0 }
+                        tabPaths[0].append(TabRoute.battery)
+                    }
                     else { withAnimation(Self.sheetEase) { quickAction = picked } }
                 }
             }
-            .presentationDetents([.height(416)])
+            .presentationDetents([.height(496)])
             .presentationDragIndicator(.hidden)
         case .live:
             quickScreen(LiveView())
@@ -512,9 +518,9 @@ struct RootTabView: View {
             quickScreen(InsightsView())
         case .breathe:
             quickScreen(BreathingView())
-        case .liveSession:
-            // Never reached: the picker routes the guardian to `showLiveSession` (a full-screen cover), so
-            // this arm only keeps the switch exhaustive.
+        case .liveSession, .battery:
+            // Never reached: the picker routes the guardian to `showLiveSession` (a full-screen cover) and
+            // the device row to the Today stack, so this arm only keeps the switch exhaustive.
             EmptyView()
         }
     }
@@ -851,6 +857,8 @@ struct MoreRow: View {
 /// route to existing screens. `Identifiable` so it drives `.sheet(item:)`.
 private enum QuickAction: Int, Identifiable {
     case menu, live, workout, journal, breathe, liveSession
+    /// The device row at the top of the menu: opens the battery screen on the Today stack.
+    case battery
     var id: Int { rawValue }
 }
 
@@ -865,6 +873,31 @@ private struct QuickActionSheet: View {
     @AppStorage(LiveSessionPrefs.betaKey) private var liveSessionsBeta = true
     @AppStorage(AppleInspiredColorsPrefs.enabledKey)
     private var appleInspiredColors = AppleInspiredColorsPrefs.defaultEnabled
+    @EnvironmentObject private var live: LiveState
+
+    /// One line for the device row, or nil when the active device has no charge of its own to report
+    /// (the same rule that hid the old header control, #2208).
+    private var deviceStatus: String? {
+        #if DEBUG
+        // `--demo-sync` stands in for a connected strap on Today; the row answers the same way.
+        if DemoSyncHarness.active {
+            return String(localized: "Connected · Battery \(Int(DemoSyncHarness.batteryPercent.rounded()))%")
+        }
+        #endif
+        let display = StrapBatteryDisplayState.resolve(
+            activeIsWhoop: live.activeIsWhoop, connected: live.connected,
+            batteryPct: live.batteryPct, charging: live.charging,
+            ringPct: live.ouraBatteryPct, ringCharging: live.ouraWearState == .charging)
+        switch display {
+        case .notActiveDevice: return nil
+        case .offline: return String(localized: "Not connected")
+        case .pending: return live.backfilling ? String(localized: "Syncing") : String(localized: "Connected")
+        case .charge(let pct, let charging, _):
+            if live.backfilling { return String(localized: "Syncing") }
+            return charging ? String(localized: "Charging")
+                : String(localized: "Connected · Battery \(Int(pct.rounded()))%")
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -874,6 +907,15 @@ private struct QuickActionSheet: View {
                 .frame(width: 36, height: 4)
                 .padding(.top, 10)
                 .padding(.bottom, 14)
+
+            // The active wearable's charge and link, moved here from Today's header. Tapping it opens the
+            // battery screen, as the header control did.
+            if let status = deviceStatus {
+                row("Battery", icon: "battery.75percent", tint: StrandPalette.statusPositive,
+                    subtitle: LocalizedStringKey(status)) { onPick(.battery) }
+                    .padding(.horizontal, NoopMetrics.screenHPadding)
+                    .padding(.bottom, 14)
+            }
 
             Text("QUICK ACTIONS")
                 .font(StrandFont.overline)

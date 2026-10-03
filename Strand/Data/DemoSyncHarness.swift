@@ -3,20 +3,17 @@ import Foundation
 
 // MARK: - DEBUG-only sync-indicator harness
 //
-// A companion to DemoDayHarness for the Today header's charge→sync control. Neither `--demo-seed` nor
-// `--demo-hour` can drive that control: it reads LiveState (strap connection, battery percentage,
-// backfill progress), none of which the synthetic dataset supplies. Without a paired strap the control
-// therefore renders the offline `bolt.slash` and the charge→sync morph never plays — so the morph, which
-// is the whole point of the control, cannot be watched or captured in a simulator.
+// A companion to DemoDayHarness for Liquid Today's sync line and the quick-action device row. Neither
+// `--demo-seed` nor `--demo-hour` can drive them: they read LiveState (strap connection, battery
+// percentage, backfill progress), none of which the synthetic dataset supplies, so without a paired strap
+// the line never runs and the row reads "Not connected".
 //
-// `--demo-sync` closes that gap on two fronts: it supplies a synthetic battery reading, so the control
-// takes the `.charge` path that owns ChargeSyncMorph rather than the plain offline crossfade, and it
-// cycles the syncing signal so the capsule expands and collapses on a loop instead of needing a real
-// offload to be timed by hand.
+// `--demo-sync` supplies a synthetic battery reading for the device row and cycles the syncing signal so
+// the line runs on a loop instead of needing a real offload to be timed by hand.
 //
 // Gating: the WHOLE file is `#if DEBUG`, so it is stripped from every Release build. At runtime nothing
-// changes unless `--demo-sync` is present: `active` stays false and LiquidBatteryButton reads LiveState
-// exactly as before, so the shipped control is untouched. Everything here is SYNTHETIC — this is not a
+// changes unless `--demo-sync` is present: `active` stays false and Liquid Today's sync line and the
+// quick-action device row read LiveState exactly as before, so the shipped controls are untouched. Everything here is SYNTHETIC — this is not a
 // real battery reading and no strap is contacted.
 
 enum DemoSyncHarness {
