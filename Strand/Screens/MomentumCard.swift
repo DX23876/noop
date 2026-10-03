@@ -56,21 +56,25 @@ struct MomentumCard: View {
             }
         }
         .background(alignment: .top) { illustration }
-        .overlay(alignment: .topTrailing) {
-            if let onDismiss {
-                Button(action: onDismiss) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(StrandPalette.textTertiary)
-                        .padding(8)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                // "this message", not "this card": the card keeps working, one message stops appearing.
-                .accessibilityLabel("Hide this message for today")
-            }
-        }
         .accessibilityElement(children: .contain)
+    }
+
+    /// Snoozes this message. It sits in the header row after "All ›" rather than as an overlay on the
+    /// card's corner: the overlay landed on top of that chevron, two controls in one spot.
+    @ViewBuilder
+    private var dismissButton: some View {
+        if let onDismiss {
+            Button(action: onDismiss) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .padding(NoopMetrics.space1)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            // "this message", not "this card": the card keeps working, one message stops appearing.
+            .accessibilityLabel("Hide this message for today")
+        }
     }
 
     // MARK: - Pieces
@@ -84,8 +88,16 @@ struct MomentumCard: View {
     ///
     /// "MOMENTUM" itself is a product name, not a description, so it stays out of the string catalog
     /// exactly as the CHARGE / EFFORT / REST hero labels do (`DomainTheme.productName`).
-    @ViewBuilder
     private var headerRow: some View {
+        HStack(alignment: .center, spacing: NoopMetrics.space2) {
+            headerLink
+                .frame(maxWidth: .infinity, alignment: .leading)
+            dismissButton
+        }
+    }
+
+    @ViewBuilder
+    private var headerLink: some View {
         if remainingCount > 0 {
             Button(action: onOpenMore) {
                 HStack(spacing: 6) {

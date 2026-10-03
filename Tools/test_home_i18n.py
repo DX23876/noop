@@ -490,7 +490,7 @@ class HomeLocalizationTest(unittest.TestCase):
     def test_apple_liquid_runtime_copy_and_pt_terms_are_localized(self) -> None:
         source = (ROOT / "Strand/Liquid/LiquidTodayView.swift").read_text(encoding="utf-8")
         self.assertIn(
-            'private var stressText: String { stress.map { String(Int($0.rounded())) } ?? String(localized: "Calibrating") }',
+            'private var stressText: String { stress.map(StressTrace.formatLevel) ?? String(localized: "Calibrating") }',
             source,
         )
         # The strap-battery "· Charging" line lived in Liquid's Data Sources card, which the Liquid Today

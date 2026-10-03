@@ -1615,10 +1615,11 @@ struct LiquidTodayView: View {
                      // exact here and bounded there.
                      value: fitnessAge.map { "\(fitnessAgeBoundSymbol($0))" + unitText($0, card.unit) }
                          ?? unitText(fitnessAge, card.unit),
-                     tint: StrandPalette.chargeColor, frac: 0.5)
+                     // No arc: these rows have no 0…max scale, and a fixed half arc read as progress.
+                     tint: StrandPalette.chargeColor, frac: nil)
         case .vo2max:
             cardLink(.metric("vo2max_est"), icon: card.icon, title: card.title, sub: card.subtitle,
-                     value: unitText(vo2max, card.unit), tint: StrandPalette.chargeColor, frac: 0.5)
+                     value: unitText(vo2max, card.unit), tint: StrandPalette.chargeColor, frac: nil)
         case .vitality:
             cardLink(.metric("vitality"), icon: card.icon, title: card.title, sub: card.subtitle,
                      value: intText(vitality), tint: liquidPurple, frac: frac(vitality))
@@ -1725,7 +1726,7 @@ struct LiquidTodayView: View {
         case .coupled:
             // A tap-through to the full Coupled day screen. No value, so no coach button either.
             cardLink(.coupled, icon: card.icon, title: card.title, sub: card.subtitle,
-                     value: "", tint: StrandPalette.chargeColor, frac: 0.6, showsCoachButton: false)
+                     value: "", tint: StrandPalette.chargeColor, frac: nil, showsCoachButton: false)
         case .weight:
             let weightText = resolvedWeightKg.map { UnitFormatter.massFromKilograms($0.kg, system: unitSystem) } ?? "—"
             cardLink(.weight, icon: card.icon, title: card.title, sub: card.subtitle,
@@ -1734,7 +1735,7 @@ struct LiquidTodayView: View {
             // #1862: a sheet rather than a push — the point of the card is to try Coach WITHOUT
             // leaving Today. No "ask coach" sparkle either: the whole row already opens the coach.
             cardAction(icon: card.icon, title: card.title, sub: card.subtitle, value: "",
-                       tint: StrandPalette.accent, frac: 0.5) { showCoachLauncher = true }
+                       tint: StrandPalette.accent, frac: nil) { showCoachLauncher = true }
         }
     }
 
@@ -3066,7 +3067,9 @@ struct LiquidTodayView: View {
         return unit.isEmpty ? n : "\(n) \(unit)"
     }
 
-    private var stressText: String { stress.map { String(Int($0.rounded())) } ?? String(localized: "Calibrating") }
+    /// Stress is a 0–3 scale, so a whole number throws away most of it (0.4 read as "0", 1.4 as "1").
+    /// One decimal, formatted exactly as the Stress screen shows the same value.
+    private var stressText: String { stress.map(StressTrace.formatLevel) ?? String(localized: "Calibrating") }
 
     private var sleepText: String {
         guard let m = displayDay?.totalSleepMin else { return "–" }

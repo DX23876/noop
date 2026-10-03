@@ -3049,7 +3049,8 @@ struct TodayView: View {
             // the 30-day RHR/HRV baseline StressView reads, there's no number to show. A bare ", " read like a
             // broken card; show the honest calibrating state instead, matching StressView's empty/calibrating
             // copy and the owner's reply on #706.
-            return stressToday.map { "\(Int($0.rounded()))" } ?? Self.calibratingPlaceholder
+            // One decimal on the 0–3 scale, as the Stress screen shows it: a whole number read 0.4 as "0".
+            return stressToday.map(StressTrace.formatLevel) ?? Self.calibratingPlaceholder
         case .fitnessAge:
             // Bound symbol as on the Health hero (#2173).
             return withUnit(fitnessAgeToday.map { "\(fitnessAgeBoundSymbol($0))\(Int($0.rounded()))" } ?? "—")
