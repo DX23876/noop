@@ -33,14 +33,14 @@ enum LiveEffort {
     /// COST: one indexed HR read over the whole elapsed day — up to ~18 k rows on a worn day, bounded by
     /// the explicit 200_000 cap at the call site (NOT `hrSamples`' 8000-row default, which used to
     /// truncate this read; see the note there) — plus an O(n) accumulation. It is the single heaviest
-    /// read on the classic Today day-scoped pass, which is why every caller runs it LAST — after the
-    /// state its rings already draw from is set — so the screen
-    /// paints on the stored row and only refines afterwards. Because `effectiveEffort` takes the MAX,
-    /// that refinement can only ever raise the number, never flicker it downward.
-    static func today(repo: Repository, profile: ProfileStore, restingHr: Int?) async -> Double? {
-        let dayStart = Calendar.current.startOfDay(for: Repository.logicalDay(Date()))
+    /// read on the classic Today day-scoped pass, which runs it after the stored readouts are available.
+    /// Liquid Today reads it independently and retries while active, so the rest of its dashboard load
+    /// cannot delay Effort. Because `effectiveEffort` takes the MAX with the same day's stored row,
+    /// refinement cannot lower that stored floor. `now` supplies one clock sample for both window ends.
+    static func today(repo: Repository, profile: ProfileStore, restingHr: Int?, now: Date = Date()) async -> Double? {
+        let dayStart = Calendar.current.startOfDay(for: Repository.logicalDay(now))
         let from = Int(dayStart.timeIntervalSince1970)
-        let to = Int(Date().timeIntervalSince1970)
+        let to = Int(now.timeIntervalSince1970)
         // #2460: the manual HR-max override, then Tanaka, exactly as AnalyticsEngine resolves it for the
         // STORED day. The two meet in `effectiveEffort`, which takes the larger, so a live value on the
         // formula's yardstick would outvote an override set because the real maximum is above it.

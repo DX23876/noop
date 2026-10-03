@@ -24,6 +24,8 @@ enum TabRoute: Hashable {
     /// Trends' small-multiples share. Each card opens ITS metric (2026-07-02: not the shared
     /// Health screen).
     case metric(String)
+    /// Effort tapped on Today, including an explicitly uncomputed selected day.
+    case effort(DashboardEffortReadout)
     /// One metric's detail by BOTH key and source. `steps` exists under several sources (my-whoop,
     /// apple-health, xiaomi-band); routing by bare key alone resolves whichever catalog entry is
     /// declared first, so a card's tap-through would silently depend on declaration order. This pins
@@ -75,6 +77,10 @@ extension View {
                     MetricDetailView(metric: m)
                 } else {
                     HealthView()
+                }
+            case .effort(let readout):
+                if let metric = MetricCatalog.all.first(where: { $0.key == HeroRingMetric.effort }) {
+                    MetricDetailView(metric: metric, effortReadout: readout)
                 }
             case .metricSourced(let key, let source):
                 // Exact (key, source) resolution, order-independent. Fall back to the bare-key entry,

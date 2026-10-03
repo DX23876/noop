@@ -854,6 +854,8 @@ private struct MetricRow: View {
 /// StatTile row (Average / Min / Max / Latest / Δ), and a "What correlates" NoopCard.
 struct MetricDetailView: View {
     let metric: MetricDescriptor
+    /// The readout at the originating tap; the history below remains independently explorable.
+    var effortReadout: DashboardEffortReadout? = nil
     @EnvironmentObject var repo: Repository
     /// The empty state's "Open Data Sources" button routes through the shell (`NavRouter`), because
     /// neither shell exposes a selection this screen could set directly.
@@ -1096,7 +1098,8 @@ struct MetricDetailView: View {
     }
 
     private func latest(in presented: [(day: String, value: Double)]) -> (day: String, value: Double)? {
-        isStepsDetail ? presented.last : series.last
+        if metric.key == HeroRingMetric.effort, let effortReadout { return effortReadout.point }
+        return isStepsDetail ? presented.last : series.last
     }
 
     // MARK: Body
@@ -1112,6 +1115,9 @@ struct MetricDetailView: View {
         return ScrollView {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
                 if loaded && win.isEmpty {
+                    if effortReadout != nil {
+                        heroHeader(effectiveRange: effRange, windowed: win, windowFellBack: fellBack)
+                    }
                     // No data in the entire history — keep the range bar for context, then the
                     // honest empty state (no scenic hero floating over nothing). Deliberately
                     // NOT gated by the #943 chip locking: with zero data there is no chart for
@@ -1431,7 +1437,7 @@ struct MetricDetailView: View {
         let value = latestPoint?.value
         let heroValue = latestPoint.map { fmt($0.value) } ?? "—"
         let asOf: String = {
-            guard let day = latestPoint?.day else { return "—" }
+            guard let day = latestPoint?.day ?? effortReadout?.day else { return "—" }
             if isStepsDetail {
                 return MetricDetailSteps.periodLabel(
                     day: day, resolution: MetricDetailSteps.resolution(for: effectiveRange))

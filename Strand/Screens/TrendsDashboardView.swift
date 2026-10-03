@@ -131,6 +131,13 @@ struct TrendsDashboardView: View {
     @State private var showUpdatesInbox = false
     @State private var showSettings = false
     @State private var showExtraSections = false
+
+    private func consumeCustomizationRequest() {
+        guard router.presentTodayCustomization else { return }
+        router.presentTodayCustomization = false
+        showExtraSections = true
+    }
+
     @State private var showPlan = false
     @State private var showLiveSession = false
     @AppStorage(DashboardArrangeHint.seenKey("trends")) private var arrangeHintSeen = false
@@ -225,6 +232,8 @@ struct TrendsDashboardView: View {
         .dashboardArrangeHint(dashboard: "trends", isPresented: $showArrangeHint)
         .sheet(isPresented: $showPlan) { CoachPlanView().environmentObject(coach) }
         .sheet(isPresented: $showUpdatesInbox) { UpdatesInboxView(onClose: { showUpdatesInbox = false }) }
+        .onAppear { consumeCustomizationRequest() }
+        .onChangeCompat(of: router.presentTodayCustomization) { _ in consumeCustomizationRequest() }
         .sheet(isPresented: $showExtraSections) {
             DashboardExtraSectionsSheet(dashboard: "trends", title: String(localized: "Dashboard sections"))
         }

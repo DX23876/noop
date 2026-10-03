@@ -268,6 +268,8 @@ sidebar. The Today tab hosts one of three interchangeable home-screen presentati
   organic waveform rings for Charge / Effort / Rest (`OrganicScoreRing`, pure model in
   `OrganicScoreVisualModel`): a luminous band of crossing filaments with bloom, twinkling particles
   that fill the circle more the higher the value, small wandering local swells and a slow breath.
+  Fixed geometry parameters are prepared once per particle seed and common frame calculations are
+  reused across contour points. Full-quality contours use 256 points for finer edges at the same size.
   Charge takes its band colour; Effort glows and breathes deeper from Moderate up. The rings react
   to device tilt and movement (Settings → "React to device movement", default on), and stand still
   under Reduce Motion, NOOP's quiet-motion switch, Low Power Mode or when off screen. Light mode
@@ -1083,3 +1085,8 @@ feed, refresh battery, scan/reconnect, or disconnect.
 - **On-device storage.** All history (imported and live-captured) is stored locally in SQLite
   via GRDB.
 - **Your data is yours.** Imports happen once and stay on this Mac; nothing is uploaded.
+
+- Liquid Today: profile beside the outer plus; “Customize home” in its menu; an unfilled Momentum link
+  after dismissing every message; metric navigation follows card opacity. Effort loads independently,
+  retains the selected day in detail, and waits with a faint orange ring and blank centre.
+  Analysis migration required: no.

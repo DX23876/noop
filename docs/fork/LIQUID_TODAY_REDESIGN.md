@@ -139,6 +139,25 @@ Target a stable 60 frames per second while the hero is visible and active. Use o
 than three independent 60 Hz loops. Under pressure, reduce smoke resolution, particle count, and echo
 quality before compromising the number, primary contour, or interaction. Do not target 120 Hz.
 
+`OrganicScorePreparation` prepares fixed seeded phases, swell parameters, filament attributes and
+particle attributes once per ring seed. Each rendered frame prepares its breathing, active swells
+and motion quantities once; lagged filament and echo frames reuse these quantities across their
+sampled points. The Canvas also reuses fixed angle/sine/cosine grids. Full quality uses 256 contour
+points rather than 192 for finer edges; radius, particle count, brightness and animation timing stay
+the same. Scalar geometry is compared with the original model across values, motion and morphs.
+
+`Tools/organic-ring-benchmark.swift` compares the original 192-point geometry, prepared 192-point
+geometry, and prepared full-quality geometry over 180 frames of all three rings. Compile with
+`swiftc -O` alongside `ChargeBand.swift`, `OrganicScoreMotion.swift`, `OrganicScoreVisualModel.swift`
+and `OrganicScorePreparation.swift` from `Packages/StrandDesign/Sources/StrandDesign/`. Its timings
+exclude Canvas drawing, GPU blur/compositing and SwiftUI updates; they are not iPhone CPU or battery
+measurements. Analysis migration required: no — presentation only.
+
+The local macOS `-O` comparison on 2026-10-03 (median of five interleaved runs, three rings at
+20/94/100, 180 frames, fixed tilt/impulse) measured 41–50% less geometry time at 192 points and
+25–40% less at the shipped 256 points, compared with the original 192-point path. These are
+geometry-only measurements; full renderer cost and iPhone energy use require device profiling.
+
 ## Surfaces, themes, and system fallbacks
 
 - Keep one visually dominant hero. Other sections use restrained tonal fills, spacing, and dividers;
@@ -388,3 +407,18 @@ the real renderer and layout.
 - A global True Black appearance.
 - Android, widgets, complications, watch surfaces, or expensive background animation.
 - A permanent selector between old and new Liquid heroes.
+
+### Today control and empty-state follow-up (2026-10-03)
+
+The plus remains the quick-action symbol and sits outside the profile button. “Customize home” is a
+separated final menu item on iOS and opens the existing draft editor after dismissal. The macOS bottom
+entry remains because the iOS quick-action shell is not available there. Populated Momentum keeps its
+normal card-opacity behavior; the all-dismissed fallback is only an unfilled text link. The broad
+“Show all metrics” row uses the shared card opacity and muted text.
+
+Effort uses one day-gated readout for its hero, tile and tapped detail; explicitly missing values cannot
+fall back to the last historical series point. Live scoring is read independently of the full dashboard,
+with one supplied timestamp and a two-minute foreground retry for raw-HR arrivals that do not change a
+cached daily row. The duplicate temporary scoring window was removed; the existing canonical LiveEffort
+window and scoring remain unchanged. Missing Effort draws a static faint orange contour/bloom and no
+centre placeholder, weaker than the first computed band. Analysis migration required: no.

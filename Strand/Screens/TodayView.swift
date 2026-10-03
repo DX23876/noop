@@ -323,6 +323,13 @@ struct TodayView: View {
         TodayLayoutPrefs.visibleOrder(orderRaw: sectionOrderRaw, hiddenRaw: hiddenSectionsRaw)
     }
     @State private var customizationDestination: TodayCustomizationDestination?
+
+    private func consumeCustomizationRequest() {
+        guard router.presentTodayCustomization else { return }
+        router.presentTodayCustomization = false
+        customizationDestination = .today
+    }
+
     // Hydration tracker (opt-in, default OFF). When off the hydration dashboard card is hidden even if a
     // user had it in their saved selection, the feature owns its own gate.
     /// The Coach master switch (`noop.coachEnabled`, shared by name with Android). Default ON. Gates the
@@ -1798,6 +1805,8 @@ struct TodayView: View {
         }
         // Every Today layout/card affordance presents the same draft-based editor. Section-level buttons
         // deep-link to their child page; Cancel/Save semantics and Shown/Hidden rows stay identical.
+        .onAppear { consumeCustomizationRequest() }
+        .onChangeCompat(of: router.presentTodayCustomization) { _ in consumeCustomizationRequest() }
         .sheet(item: $customizationDestination) { destination in
             TodayCustomizationSheet(
                 initialDestination: destination,

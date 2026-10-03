@@ -145,8 +145,10 @@ struct OrganicScoreRing: View {
     /// The tint the ring last settled on. `tint` itself already holds the NEW colour by the time a
     /// change is observed, so the old one has to be remembered here to fade out of.
     @State private var settledTint: Color?
+    @State private var preparation: OrganicScorePreparation?
 
     var body: some View {
+        let frame = model.awaitsEffort ? OrganicScoreFrame.still : self.frame
         ZStack {
             Canvas(opaque: false, rendersAsynchronously: true) { context, size in
                 let current = frame.isAnimating
@@ -155,17 +157,20 @@ struct OrganicScoreRing: View {
                 let time = frame.isAnimating ? frame.time : 0
                 let fade = frame.isAnimating ? tintProgress(at: frame.time) : 1
                 let onLight = colorScheme == .light
+                let prepared = preparation.flatMap { $0.seed == current.seed ? $0 : nil }
+                    ?? OrganicScorePreparation(model: current)
+                let geometry = prepared.frame(model: current, time: time, motion: frame.motion)
                 if let previousTint, fade < 1 {
                     var old = context
                     old.opacity = 1 - fade
                     OrganicScoreRingRenderer.draw(context: &old, size: size, model: current, tint: previousTint,
-                                                  time: time, motion: frame.motion, quality: frame.quality, onLight: onLight,
-                                                  live: frame.isAnimating)
+                                                  motion: frame.motion, quality: frame.quality, onLight: onLight,
+                                                  live: frame.isAnimating, geometry: geometry)
                     context.opacity = fade
                 }
                 OrganicScoreRingRenderer.draw(context: &context, size: size, model: current, tint: resolvedTint,
-                                              time: time, motion: frame.motion, quality: frame.quality,
-                                              onLight: onLight, live: frame.isAnimating)
+                                              motion: frame.motion, quality: frame.quality,
+                                              onLight: onLight, live: frame.isAnimating, geometry: geometry)
             }
             // Echoes and smoke reach past the ring's own square; the canvas overscans so they fade out
             // instead of being cut at its edge. Layout and the hit target stay at `diameter`.
@@ -180,7 +185,7 @@ struct OrganicScoreRing: View {
                         font: StrandFont.rounded(diameter * 0.27),
                         decimals: decimals
                     )
-                } else {
+                } else if !model.awaitsEffort {
                     Text(verbatim: "–")
                         .font(StrandFont.rounded(diameter * 0.27))
                         .monospacedDigit()
@@ -198,15 +203,17 @@ struct OrganicScoreRing: View {
         .frame(width: diameter, height: diameter)
         .contentShape(Circle().inset(by: max(0, (diameter - (hitDiameter ?? diameter)) / 2)))
         .onAppear {
+            preparation = OrganicScorePreparation(model: model)
             morph = .settled(model)
             settledTint = resolvedTint
             roll(to: score)
         }
         .onChangeCompat(of: model) { retarget(to: $0) }
         .onChangeCompat(of: score) { roll(to: $0) }
+        .onChangeCompat(of: model.seed) { _ in preparation = OrganicScorePreparation(model: model) }
     }
 
-    private var resolvedTint: Color { model.state == .missing ? StrandPalette.organicMissing : tint }
+    private var resolvedTint: Color { model.state == .missing && !model.awaitsEffort ? StrandPalette.organicMissing : tint }
 
     private var animatesChanges: Bool { frame.isAnimating && !reduceMotion }
 
@@ -247,11 +254,11 @@ private enum OrganicScoreRingRenderer {
         size: CGSize,
         model: OrganicScoreVisualModel,
         tint: Color,
-        time: Double,
         motion: OrganicScoreMotionInput,
         quality: OrganicScoreQuality,
         onLight: Bool,
-        live: Bool
+        live: Bool,
+        geometry: OrganicScorePreparation.Frame
     ) {
         let side = min(size.width, size.height) / overscan
         guard side > 0 else { return }
@@ -260,12 +267,20 @@ private enum OrganicScoreRingRenderer {
         let radius = side * OrganicScoreVisualModel.baseRadiusFraction
         let samples = quality.contourSamples
         let primary = closedPath(centre: centre, radius: radius, samples: samples) { angle in
-            model.contourRadius(angle: angle, time: time, motion: motion)
+            geometry.contourRadius(angle: angle)
+        }
+        if model.awaitsEffort {
+            context.drawLayer { layer in
+                layer.addFilter(.blur(radius: 5))
+                layer.stroke(primary, with: .color(tint.opacity(onLight ? 0.06 : 0.08)), lineWidth: 3)
+            }
+            context.stroke(primary, with: .color(tint.opacity(onLight ? 0.22 : 0.25)), lineWidth: 1)
+            return
         }
         let isMissing = model.state == .missing
         let glow = model.intensity.glowStrength
         // The static path (Reduce Motion, quiet motion, off screen) sits at a neutral breath.
-        let breathe = live ? model.breathBrightness(time: time) : 1
+        let breathe = live ? geometry.brightness : 1
         let band = CGFloat(model.bandHalfWidth) * radius
         // Light on dark adds up (the reference's luminous look); on the light card that would wash out
         // to white, so it blends normally there.
@@ -285,8 +300,9 @@ private enum OrganicScoreRingRenderer {
         }
 
         for (index, visibility) in model.echoVisibilities(quality: quality).enumerated() {
+            let echoGeometry = geometry.echoFrame(index: index)
             let echo = closedPath(centre: centre, radius: radius, samples: samples) { angle in
-                model.echoRadius(index: index, angle: angle, time: time, motion: motion)
+                echoGeometry.echoRadius(index: index, angle: angle)
             }
             context.stroke(echo, with: .color(tint.opacity((0.16 - Double(index) * 0.03) * visibility)),
                            lineWidth: 0.9)
@@ -320,9 +336,10 @@ private enum OrganicScoreRingRenderer {
         context.drawLayer { layer in
             layer.blendMode = blend
             for index in 0..<strands {
+                let filamentGeometry = geometry.filamentFrame(index: index)
                 let strand = strands == 1 ? primary
                     : closedPath(centre: centre, radius: radius, samples: samples) { angle in
-                        model.filamentRadius(index: index, count: strands, angle: angle, time: time, motion: motion)
+                        geometry.filamentRadius(index: index, count: strands, angle: angle, base: filamentGeometry)
                     }
                 let middle = strands == 1 ? 1 : 1 - abs(Double(index) / Double(strands - 1) * 2 - 1)
                 let alpha = isMissing ? 0.5 : (0.28 + 0.5 * middle) * (0.55 + glow * 0.45)
@@ -336,7 +353,7 @@ private enum OrganicScoreRingRenderer {
         context.drawLayer { layer in
             layer.blendMode = blend
             for index in 0..<model.particleCount(quality: quality) {
-                guard let particle = model.particle(index: index, time: time, motion: motion) else { continue }
+                guard let particle = geometry.particle(index: index) else { continue }
                 let size = particle.size * particleScale
                 let point = CGPoint(x: centre.x + particle.x * radius, y: centre.y + particle.y * radius)
                 if size > 1.7 {
@@ -390,13 +407,29 @@ private enum OrganicScoreRingRenderer {
         radiusAt: (Double) -> Double
     ) -> Path {
         var path = Path()
-        for index in 0..<samples {
-            let angle = Double(index) / Double(samples) * Double.pi * 2
-            let r = radius * radiusAt(angle)
-            let point = CGPoint(x: centre.x + cos(angle) * r, y: centre.y + sin(angle) * r)
+        for (index, sample) in contourGrid(samples: samples).enumerated() {
+            let r = radius * radiusAt(sample.angle)
+            let point = CGPoint(x: centre.x + sample.cosine * r, y: centre.y + sample.sine * r)
             if index == 0 { path.move(to: point) } else { path.addLine(to: point) }
         }
         path.closeSubpath()
         return path
+    }
+
+    private struct ContourSample {
+        let angle, cosine, sine: Double
+    }
+
+    private static let contourGrids: [Int: [ContourSample]] = Dictionary(uniqueKeysWithValues:
+        [OrganicScoreQuality.minimal, .reduced, .full].map { quality in
+            let count = quality.contourSamples
+            return (count, (0..<count).map { index in
+                let angle = Double(index) / Double(count) * Double.pi * 2
+                return ContourSample(angle: angle, cosine: cos(angle), sine: sin(angle))
+            })
+        })
+
+    private static func contourGrid(samples: Int) -> [ContourSample] {
+        contourGrids[samples]!
     }
 }

@@ -259,6 +259,13 @@ struct LiquidTodayView: View {
     // sheets / expanders
     @State private var guideSection: ScoreSection?
     @State private var customizationDestination: TodayCustomizationDestination?
+
+    private func consumeCustomizationRequest() {
+        guard router.presentTodayCustomization else { return }
+        router.presentTodayCustomization = false
+        customizationDestination = .today
+    }
+
     /// #1862: the optional Coach launcher sheet. Presentation state only — opening it requests nothing.
     @State private var showCoachLauncher = false
     @State private var showSettings = false
@@ -405,21 +412,27 @@ struct LiquidTodayView: View {
         get { snapshot.cachedSkinTempReadingDay }
         nonmutating set { snapshot.cachedSkinTempReadingDay = newValue }
     }
+    @State private var liveEffortReadout: DashboardEffortReadout?
+    /// One clock sample shared by all Effort readouts in the current presentation pass.
+    @State private var effortPresentationNow = Date()
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dashboardIsActive) private var dashboardIsActive
+
     /// The Charge hero's resolved state (#543 carry + the honest label), resolved ONCE in load() alongside
     /// the other caches. It composes `TodayView.lastScoredRecoveryDay`, which is O(days) — exactly the scan
     /// this cache exists to keep out of body. Never resolved in body.
-    /// Today's in-progress Effort (#402), re-scored from the raw HR stream because the stored daily row
-    /// lags. Read LAST in load() (see the assignment) so the hero paints on the stored row first and this
-    /// only ever raises it — `StrainScorer.effectiveEffort` takes the max, so it cannot flicker downward.
-    /// nil on a navigated past day, which has no in-progress figure.
-    private var liveTodayStrain: Double? {
-        get { snapshot.liveTodayStrain }
-        nonmutating set { snapshot.liveTodayStrain = newValue }
-    }
     private var cachedChargeDisplay: ChargeDisplay {
         get { snapshot.cachedChargeDisplay }
         nonmutating set { snapshot.cachedChargeDisplay = newValue }
     }
+    private var effortReadout: DashboardEffortReadout {
+        let day = selectedDayKey
+        let stored = resolveDisplayDay()
+        return .resolve(day: day, storedDay: stored?.day, stored: stored?.strain,
+                        live: liveEffortReadout, currentDay: Repository.logicalDayKey(effortPresentationNow),
+                        isToday: selectedDayOffset == 0)
+    }
+
     /// The last fully-scored prior recovery day, cached in load() so the Charge-breakdown sheet can read
     /// the same `chargeBreakdownRow` classic Today uses (today's own row, else the carried last-scored)
     /// without an O(days) scan in body. Mirrors `TodayView.lastScoredRecoveryDay`.
@@ -527,8 +540,7 @@ struct LiquidTodayView: View {
     /// screen agrees with classic Today, which has resolved Effort this way all along. A past day has no
     /// live figure and reads its stored row verbatim.
     private var effortValue: Double? {
-        StrainScorer.effectiveEffort(live: selectedDayOffset == 0 ? liveTodayStrain : nil,
-                                     stored: displayDay?.strain)
+        effortReadout.value
     }
     /// The last fully-scored prior recovery day (see `cachedPriorScored`), read O(1) from the cache.
     /// Used by `chargeBreakdownRow` so the breakdown sheet reads the same carried row the ring shows.
@@ -794,11 +806,13 @@ struct LiquidTodayView: View {
                     AutoWorkoutCard()
                     // Section order and visibility, plus both nested card editors. It used to be a header
                     // button; the header now keeps only the controls used every day.
+                    #if os(macOS)
                     Button { customizationDestination = .today } label: {
                         LiquidFullWidthNavigationAction("Customize Today")
                     }
                     .buttonStyle(.plain)
                     .padding(.top, NoopMetrics.space2)
+                    #endif
                 }
                 .padding(.horizontal, NoopMetrics.screenHPadding)
                 // Restrained surfaces (2026-10 redesign): below the hero, opaque cards rest on their fill
@@ -876,6 +890,23 @@ struct LiquidTodayView: View {
         .liquidMediumHaptic(trigger: pullHaptic)
         // hydrationSeq joins the id so logging a drink re-reads the card immediately, the same trigger set
         // classic TodayView's reloadHydration() uses.
+        .task(id: DashboardEffortLoadKey(load: loadKey, active: dashboardIsActive && scenePhase == .active)) {
+            guard dashboardIsActive, scenePhase == .active, selectedDayOffset == 0 else { return }
+            let key = loadKey
+            while !Task.isCancelled {
+                let now = Date()
+                let day = Repository.logicalDayKey(now)
+                guard day == selectedDayKey else { return }
+                let value = await LiveEffort.today(repo: repo, profile: profile,
+                                                 restingHr: resolveDisplayDay()?.restingHr, now: now)
+                guard !Task.isCancelled, key == loadKey, day == selectedDayKey else { return }
+                effortPresentationNow = now
+                liveEffortReadout = DashboardEffortReadout(day: day, value: value)
+                // Raw HR can arrive without changing any cached daily row or refreshSeq.
+                // Retry only this narrow read, while Today is foregrounded, every two minutes.
+                do { try await Task.sleep(nanoseconds: 120_000_000_000) } catch { return }
+            }
+        }
         .task(id: loadKey) {
             DashboardCardPrefs.migrateLegacyStepsAverage()
             await load()
@@ -940,6 +971,8 @@ struct LiquidTodayView: View {
                 #endif
         }
         // Every Today layout/card affordance presents the same draft-based editor (#940).
+        .onAppear { consumeCustomizationRequest() }
+        .onChangeCompat(of: router.presentTodayCustomization) { _ in consumeCustomizationRequest() }
         .sheet(item: $customizationDestination) { destination in
             TodayCustomizationSheet(
                 initialDestination: destination,
@@ -1091,8 +1124,8 @@ struct LiquidTodayView: View {
                     headerMark.frame(maxWidth: .infinity)
                     headerTitle
                     HStack(spacing: headerClusterSpacing) {
-                        LiquidAddButton()
                         headerProfileButton
+                        LiquidAddButton()
                     }
                     .frame(maxWidth: .infinity, alignment: .trailing)
                 }
@@ -1103,8 +1136,8 @@ struct LiquidTodayView: View {
                     headerMark
                         .padding(.top, NoopMetrics.space2)
                     HStack(spacing: headerClusterSpacing) {
-                        LiquidAddButton()
                         headerProfileButton
+                        LiquidAddButton()
                     }
                     .frame(maxWidth: .infinity, alignment: .trailing)
                 }
@@ -1257,9 +1290,7 @@ struct LiquidTodayView: View {
 
     private var heroCard: some View {
         var chargeScore = dataLoaded ? chargeDisplay.pct : nil
-        var effortScore = dataLoaded
-            ? effortValue.map { UnitFormatter.effortValue($0, scale: effortScale) }
-            : nil
+        var effortScore = effortValue.map { UnitFormatter.effortValue($0, scale: effortScale) }
         var visibleRestScore = dataLoaded ? restScore : nil
         #if DEBUG
         // `--demo-hero c,e,r`: pins what the rings draw for renderer QA (see DemoHeroHarness).
@@ -1287,7 +1318,8 @@ struct LiquidTodayView: View {
 
         let ringDiameter = LiquidHeroRingLayout.diameter(rowWidth: heroRowWidth)
         let ringHitDiameter = LiquidHeroRingLayout.hitDiameter(rowWidth: heroRowWidth)
-        return OrganicScoreHeroClock(dataReady: dataLoaded) { frame in
+        // Effort can be ready before the history-wide dashboard load finishes.
+        return OrganicScoreHeroClock(dataReady: dataLoaded || effortScore != nil) { frame in
         HStack(alignment: .top, spacing: LiquidHeroRingLayout.slotSpacing) {
             // #543 carry: an unscored today shows the last scored night's REAL Charge (labelled as prior by
             // the state pill) rather than an empty vessel, matching the classic Today, the widget/watch/Live
@@ -1318,7 +1350,7 @@ struct LiquidTodayView: View {
                           maxValue: effortScale == .whoop ? 21 : 100,
                           decimals: effortScale == .whoop ? 1 : 0,
                           provenance: ringSourceLabel("strain"),
-                          detailRoute: .metric(HeroRingMetric.effort))
+                          detailRoute: .effort(effortReadout))
             HeroScoreCell(metric: .rest, label: DomainTheme.rest.productName, score: visibleRestScore,
                           tint: StrandPalette.organicRest,
                           frame: frame,
@@ -2079,7 +2111,14 @@ struct LiquidTodayView: View {
                   !momentumAllFeed.isEmpty {
             // Every message is hidden for today: keep the way to the page, without a card to read.
             Button { showMomentumMore = true } label: {
-                LiquidFullWidthNavigationAction("Momentum")
+                HStack(spacing: NoopMetrics.space2) {
+                    Text("View Momentum").font(StrandFont.caption)
+                    Image(systemName: "chevron.right").font(StrandFont.caption)
+                        .accessibilityHidden(true)
+                }
+                .foregroundStyle(StrandPalette.textSecondary)
+                .frame(minHeight: NoopButtonMetrics.minHitTarget)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         }
@@ -2457,7 +2496,7 @@ struct LiquidTodayView: View {
                     ? UnitFormatter.effortDisplay($0, scale: .whoop)
                     : String(format: "%.0f", locale: AppLanguage.activeLocale, $0)
             } ?? "–"
-            ktile(DomainTheme.effort.productName, icon: metric.customizationIcon, effortTileText, "", StrandPalette.effortColor, frac(effortValue), key: HeroRingMetric.effort)
+            ktile(DomainTheme.effort.productName, icon: metric.customizationIcon, effortTileText, "", StrandPalette.effortColor, frac(effortValue), key: HeroRingMetric.effort, route: .effort(effortReadout))
         case .rest:
             ktile(DomainTheme.rest.productName, icon: metric.customizationIcon, intText(restScore), "%", StrandPalette.restColor, frac(restScore), key: HeroRingMetric.rest)
         case .hrv:
@@ -2720,7 +2759,6 @@ struct LiquidTodayView: View {
         var cachedHrvDay: DailyMetric?
         var cachedRestingHrDay: DailyMetric?
         var cachedSkinTempReadingDay: DailyMetric?
-        var liveTodayStrain: Double?
         var cachedChargeDisplay: ChargeDisplay = .noData
         var cachedPriorScored: DailyMetric?
     }
@@ -2736,6 +2774,7 @@ struct LiquidTodayView: View {
 
     private func load() async {
         let key = loadKey
+        effortPresentationNow = Date()
         guard lastLoadedKey != key || (selectedDayOffset == 0 && Date().timeIntervalSince(lastLoadedAt) >= 120) else { return }
         loadGeneration &+= 1
         let generation = loadGeneration
@@ -2819,33 +2858,6 @@ struct LiquidTodayView: View {
         let from = cycleMarkers.last(where: { $0.day == selectedDayKey }).map { Int($0.value) } ?? calendarFrom
         let toExclusive = cycleMarkers.last(where: { $0.day == nextDayKey }).map { Int($0.value) } ?? calendarTo
         let to = max(from, toExclusive - 1)
-        // #1001: in-progress Effort for TODAY, over the SAME window resolved just above (the day-cycle
-        // onset when that mode is on, else calendar midnight → now) with the identical params the daily
-        // pass uses, so the live number matches what the engine will eventually persist. Below
-        // `StrainScorer.minReadings` the scorer returns nil and the read-outs fall back to the stored row
-        // — never a fabricated value. A navigated past day clears it.
-        let liveStrainLocal: Double?
-        if selectedDayOffset == 0 {
-            // An EXPLICIT limit, not the 8000 default: that default is chart-sized, and this read is
-            // whole-window. `hrSamples` is `ORDER BY ts ASC LIMIT`, so truncation drops the NEWEST rows —
-            // at the ~18k HR rows a real day banks, the default covered roughly the first ten hours and the
-            // live score silently stopped climbing after that. It failed safe (`effectiveEffort` takes the
-            // max, so the stored row simply won) which is why it went unnoticed. 200_000 is what every
-            // other whole-window HR consumer already passes.
-            let todayHr = await repo.hrSamples(from: from, to: to, limit: 200_000)
-            // #2460: the manual HR-max override, then Tanaka, exactly as AnalyticsEngine resolves it
-            // for the STORED day. These two numbers meet in `effectiveEffort`, which takes the larger,
-            // so a live value on the formula's yardstick outvoted an override set because the real
-            // maximum is above it. See `ProfileStore.effortHRmax`.
-            let maxHR = profile.effortHRmax
-            let restHR = day?.restingHr.map(Double.init) ?? StrainScorer.defaultRestingHR
-            liveStrainLocal = StrainScorer.strain(todayHr, maxHR: maxHR, restingHR: restHR,
-                                                  method: PuffinExperiment.effortMethod, sex: profile.sex)
-        } else {
-            liveStrainLocal = nil
-        }
-        liveTodayStrain = liveStrainLocal
-
         async let restA = repo.exploreSeries(key: "sleep_performance", source: "my-whoop")
         async let stressA = repo.series(key: "stress", source: "my-whoop")
         async let fitA = repo.exploreSeries(key: "fitness_age", source: "my-whoop")
@@ -3003,13 +3015,6 @@ struct LiquidTodayView: View {
         } else {
             next.hostedSleepModel = nil
         }
-
-        // Today's in-progress Effort, DELIBERATELY last: it is the heaviest read on this pass, and every
-        // surface it feeds already has a value drawn from the stored row by the time it lands. Because
-        // `effectiveEffort` floors at that row, the refinement can only raise the number.
-        next.liveTodayStrain = selectedDayOffset == 0
-            ? await LiveEffort.today(repo: repo, profile: profile, restingHr: next.cachedDisplayDay?.restingHr)
-            : nil
 
         // #2040: and today's stress, on the same "only when hosted" rule.
         if HostedCardPrefs.decodeEnabled(hostedCardsRaw).contains(.stressToday) {
@@ -3234,15 +3239,6 @@ struct LiquidTodayView: View {
     // preference the Workouts screen + Trends read, so a workout's Effort number is identical everywhere.
     @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
     private var effortScale: EffortScale { UnitPrefs.resolveEffortScale(effortScaleRaw) }
-
-    /// The Effort this view should show: the live in-progress score when it beats the stored row, else the
-    /// row (#1001). `StrainScorer.effectiveEffort` holds the never-drop floor and the live/stored
-    /// preference and is shared with the Kotlin twin, so the two platforms cannot resolve Effort
-    /// differently. `d` for today is always today's row or nil, never a prior day, so the floor cannot
-    /// resurrect a stale day — it only stops a read-out dropping below what today has already earned.
-    private func effortStrain(_ d: DailyMetric?) -> Double? {
-        StrainScorer.effectiveEffort(live: selectedDayOffset == 0 ? liveTodayStrain : nil, stored: d?.strain)
-    }
 
     private func effortText(_ s: Double?) -> String {
         guard let s else { return Self.noValueDash }
@@ -3694,6 +3690,7 @@ private struct LiquidAddButton: View {
 /// The containing NavigationLink owns the destination and pressed interaction; this view owns one
 /// consistent token-based surface, typography, geometry, and trailing chevron.
 private struct LiquidFullWidthNavigationAction: View {
+    @AppStorage(CardAppearancePrefs.opacityKey) private var opacityPercent = CardAppearancePrefs.defaultPercent
     let title: LocalizedStringKey
 
     init(_ title: LocalizedStringKey) {
@@ -3709,13 +3706,14 @@ private struct LiquidFullWidthNavigationAction: View {
                 .font(.system(size: 11, weight: .semibold))
                 .accessibilityHidden(true)
         }
-        .foregroundStyle(StrandPalette.accent)
+        .foregroundStyle(StrandPalette.textSecondary)
         .padding(.horizontal, NoopButtonMetrics.hPadding)
         .frame(maxWidth: .infinity)
         .frame(height: NoopButtonMetrics.height)
         .frame(minHeight: NoopButtonMetrics.minHitTarget)
         .contentShape(Rectangle())
-        .background(NoopPanelSurface(cornerRadius: NoopButtonMetrics.cornerRadius))
+        .background(NoopPanelSurface(cornerRadius: NoopButtonMetrics.cornerRadius,
+                                     surfaceOpacity: Double(opacityPercent) / 100))
         .clipShape(RoundedRectangle(cornerRadius: NoopButtonMetrics.cornerRadius, style: .continuous))
     }
 }

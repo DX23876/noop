@@ -91,6 +91,9 @@ public struct OrganicScoreVisualModel: Equatable, Sendable {
     public let normalizedValue: Double?
     public let chargeBand: ChargeBand?
     public let intensity: OrganicScoreIntensity
+
+    /// Waiting Effort is a faint static domain ring, with no numeric placeholder.
+    public var awaitsEffort: Bool { metric == .effort && state == .missing }
     public let seed: UInt64
     /// Effort only: how far today's load is into the Moderate-and-above range, `0...1`. Zero for Light
     /// effort and for the other metrics. Drives a deeper (not faster) pulse and extra glow.
@@ -336,7 +339,7 @@ public enum OrganicScoreQuality: Int, CaseIterable, Comparable, Sendable {
 
     public var contourSamples: Int {
         switch self {
-        case .full: return 192
+        case .full: return 256
         case .reduced: return 132
         case .minimal: return 84
         }

@@ -64,6 +64,9 @@ final class NavRouter: ObservableObject {
     /// in the iOS shell). The shell presents it, then resets this to false.
     @Published var quickActionsRequested = false
 
+    /// Consumed by the active Today design to present its existing draft-based editor.
+    @Published var presentTodayCustomization = false
+
     /// One-shot: `LiveView` reads this on appear to present the in-exercise screen for an already-running
     /// workout (routing alone only reaches the Live root), then clears it. A normal Live visit is
     /// unaffected, since the flag is only raised by `openActiveWorkout()` from the Today indicator card.

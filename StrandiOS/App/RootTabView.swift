@@ -59,6 +59,7 @@ struct RootTabView: View {
     /// Selected tab — bound so tab switches can crossfade (README §Motion: ~240ms opacity swap
     /// between tab roots, calm easing). Defaults to Today.
     @State private var selectedTab: Int = 0
+    @State private var customizeTodayAfterDismissal = false
     /// One `NavigationPath` per tab, indexed by tab tag. Re-tapping the already-active tab pops
     /// that tab's stack to its root (#135) by clearing its path — an animated pop that leaves the
     /// root view alive, so an at-root re-tap keeps scroll position and never re-runs `.task`
@@ -275,7 +276,13 @@ struct RootTabView: View {
         // Quick-action sheet presents with the calm easing (~0.42s) per the README sheet spec —
         // the easing is applied where `quickAction` is set (see `presentQuickAction`), keeping the
         // animation scoped to the sheet rather than the whole shell.
-        .sheet(item: $quickAction) { action in
+        .sheet(item: $quickAction, onDismiss: {
+            guard customizeTodayAfterDismissal else { return }
+            customizeTodayAfterDismissal = false
+            tabPaths[0] = NavigationPath()
+            selectedTab = 0
+            router.presentTodayCustomization = true
+        }) { action in
             quickActionDestination(action)
         }
         // Live's "Manage devices" affordance (and any future cross-screen link to Devices) routes here:
@@ -494,6 +501,11 @@ struct RootTabView: View {
             QuickActionSheet { picked in
                 // Swap the menu for the chosen destination on the next runloop so the sheet
                 // re-presents cleanly (avoids dismiss/re-present races). Calm easing on re-present.
+                if picked == .customizeToday {
+                    customizeTodayAfterDismissal = true
+                    quickAction = nil
+                    return
+                }
                 quickAction = nil
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                     // The guardian is a full-screen cover, not one of the sheet destinations — route it to
@@ -508,7 +520,7 @@ struct RootTabView: View {
                     else { withAnimation(Self.sheetEase) { quickAction = picked } }
                 }
             }
-            .presentationDetents([.height(496)])
+            .presentationDetents([.height(600), .large])
             .presentationDragIndicator(.hidden)
         case .live:
             quickScreen(LiveView())
@@ -518,7 +530,7 @@ struct RootTabView: View {
             quickScreen(InsightsView())
         case .breathe:
             quickScreen(BreathingView())
-        case .liveSession, .battery:
+        case .liveSession, .battery, .customizeToday:
             // Never reached: the picker routes the guardian to `showLiveSession` (a full-screen cover) and
             // the device row to the Today stack, so this arm only keeps the switch exhaustive.
             EmptyView()
@@ -858,7 +870,7 @@ struct MoreRow: View {
 private enum QuickAction: Int, Identifiable {
     case menu, live, workout, journal, breathe, liveSession
     /// The device row at the top of the menu: opens the battery screen on the Today stack.
-    case battery
+    case battery, customizeToday
     var id: Int { rawValue }
 }
 
@@ -908,39 +920,50 @@ private struct QuickActionSheet: View {
                 .padding(.top, 10)
                 .padding(.bottom, 14)
 
-            // The active wearable's charge and link, moved here from Today's header. Tapping it opens the
-            // battery screen, as the header control did.
-            if let status = deviceStatus {
-                row("Battery", icon: "battery.75percent", tint: StrandPalette.statusPositive,
-                    subtitle: LocalizedStringKey(status)) { onPick(.battery) }
+            ScrollView {
+                VStack(spacing: 0) {
+                    // The active wearable's charge and link, moved here from Today's header. Tapping it opens the
+                    // battery screen, as the header control did.
+                    if let status = deviceStatus {
+                        row("Battery", icon: "battery.75percent", tint: StrandPalette.statusPositive,
+                            subtitle: LocalizedStringKey(status)) { onPick(.battery) }
+                            .padding(.horizontal, NoopMetrics.screenHPadding)
+                            .padding(.bottom, 14)
+                    }
+
+                    Text("QUICK ACTIONS")
+                        .font(StrandFont.overline)
+                        .tracking(StrandFont.overlineTracking)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, NoopMetrics.screenHPadding)
+                        .padding(.bottom, 10)
+
+                    VStack(spacing: 8) {
+                        row("Live HR", icon: "waveform.path.ecg", tint: StrandPalette.metricRose) { onPick(.live) }
+                        row("Start workout", icon: "figure.run", tint: StrandPalette.effortColor) { onPick(.workout) }
+                        row("Log journal", icon: "square.and.pencil",
+                            tint: AppleInspiredColors.color(for: "journal", enabled: appleInspiredColors)) { onPick(.journal) }
+                        row("Breathe", icon: "wind", tint: StrandPalette.restColor) { onPick(.breathe) }
+                        if liveSessionsBeta {
+                            // A Live Session is NOT a breathing exercise — it is quiet strap coaching against
+                            // today's Charge — so it carries a subtitle here. Sitting one row under "Breathe"
+                            // without one, the two would read as duplicates of each other.
+                            row("Silent Guardian", icon: "shield.lefthalf.filled", tint: StrandPalette.metricCyan,
+                                subtitle: "Quiet strap coaching against today's Charge") { onPick(.liveSession) }
+                        }
+                    }
                     .padding(.horizontal, NoopMetrics.screenHPadding)
-                    .padding(.bottom, 14)
-            }
 
-            Text("QUICK ACTIONS")
-                .font(StrandFont.overline)
-                .tracking(StrandFont.overlineTracking)
-                .foregroundStyle(StrandPalette.textSecondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, NoopMetrics.screenHPadding)
-                .padding(.bottom, 10)
-
-            VStack(spacing: 8) {
-                row("Live HR", icon: "waveform.path.ecg", tint: StrandPalette.metricRose) { onPick(.live) }
-                row("Start workout", icon: "figure.run", tint: StrandPalette.effortColor) { onPick(.workout) }
-                row("Log journal", icon: "square.and.pencil",
-                    tint: AppleInspiredColors.color(for: "journal", enabled: appleInspiredColors)) { onPick(.journal) }
-                row("Breathe", icon: "wind", tint: StrandPalette.restColor) { onPick(.breathe) }
-                if liveSessionsBeta {
-                    // A Live Session is NOT a breathing exercise — it is quiet strap coaching against
-                    // today's Charge — so it carries a subtitle here. Sitting one row under "Breathe"
-                    // without one, the two would read as duplicates of each other.
-                    row("Silent Guardian", icon: "shield.lefthalf.filled", tint: StrandPalette.metricCyan,
-                        subtitle: "Quiet strap coaching against today's Charge") { onPick(.liveSession) }
+                    Divider().padding(.vertical, NoopMetrics.space4)
+                        .padding(.horizontal, NoopMetrics.screenHPadding)
+                    row("Customize home", icon: "slider.horizontal.3", tint: StrandPalette.textSecondary) {
+                        onPick(.customizeToday)
+                    }
+                    .padding(.horizontal, NoopMetrics.screenHPadding)
+                    .padding(.bottom, NoopMetrics.space4)
                 }
             }
-            .padding(.horizontal, NoopMetrics.screenHPadding)
-
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

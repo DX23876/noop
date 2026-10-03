@@ -115,6 +115,13 @@ struct OverviewDashboardView: View {
     @State private var showUpdatesInbox = false
     @State private var showAllMetrics = false
     @State private var showExtraSections = false
+
+    private func consumeCustomizationRequest() {
+        guard router.presentTodayCustomization else { return }
+        router.presentTodayCustomization = false
+        showExtraSections = true
+    }
+
     private var recentWorkouts: [WorkoutRow] {
         get { snapshot.recentWorkouts }
         nonmutating set { snapshot.recentWorkouts = newValue }
@@ -241,6 +248,8 @@ struct OverviewDashboardView: View {
         .dashboardArrangeHint(dashboard: "overview", isPresented: $showArrangeHint)
         .sheet(isPresented: $showPlan) { CoachPlanView().environmentObject(coach) }
         .sheet(isPresented: $showUpdatesInbox) { UpdatesInboxView(onClose: { showUpdatesInbox = false }) }
+        .onAppear { consumeCustomizationRequest() }
+        .onChangeCompat(of: router.presentTodayCustomization) { _ in consumeCustomizationRequest() }
         .sheet(isPresented: $showExtraSections) {
             DashboardExtraSectionsSheet(dashboard: "overview", title: String(localized: "Dashboard sections"))
         }

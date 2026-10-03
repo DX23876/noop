@@ -78,3 +78,26 @@ extension View {
         modifier(DashboardAnimationVisibility(visible: visible))
     }
 }
+
+/// A tapped Effort readout keeps its day even when that day has no computed value.
+/// Analysis migration required: no. This gates presentation; scoring and persisted values are unchanged.
+struct DashboardEffortReadout: Hashable {
+    let day: String
+    let value: Double?
+
+    static func resolve(day: String, storedDay: String?, stored: Double?,
+                        live: DashboardEffortReadout?, currentDay: String, isToday: Bool = true) -> Self {
+        let liveValue = isToday && day == currentDay && live?.day == day ? live?.value : nil
+        return Self(day: day, value: StrainScorer.effectiveEffort(
+            live: liveValue, stored: storedDay == day ? stored : nil))
+    }
+
+    /// Explicitly missing selected-day values never fall back to a historical point.
+    var point: (day: String, value: Double)? { value.map { (day, $0) } }
+}
+
+/// Restart the lightweight Effort read on data/profile/day changes and when Today becomes active.
+struct DashboardEffortLoadKey: Hashable {
+    let load: DashboardLoadKey
+    let active: Bool
+}

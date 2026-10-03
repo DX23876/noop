@@ -2,6 +2,13 @@ import XCTest
 @testable import StrandDesign
 
 final class OrganicScoreVisualModelTests: XCTestCase {
+    func testOnlyMissingEffortUsesTheStaticBlankRing() {
+        XCTAssertTrue(OrganicScoreVisualModel.resolve(metric: .effort, value: nil).awaitsEffort)
+        XCTAssertFalse(OrganicScoreVisualModel.resolve(metric: .effort, value: 0).awaitsEffort)
+        XCTAssertFalse(OrganicScoreVisualModel.resolve(metric: .charge, value: nil).awaitsEffort)
+        XCTAssertFalse(OrganicScoreVisualModel.resolve(metric: .rest, value: nil).awaitsEffort)
+    }
+
     func testMissingValueProducesAQuietNeutralState() {
         let model = OrganicScoreVisualModel.resolve(metric: .charge, value: nil)
 
