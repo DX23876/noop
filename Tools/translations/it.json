@@ -1812,5 +1812,11 @@
   "This strap gets its own entry, for example a second person's strap.": "Questa fascia avrà una voce propria, ad esempio quella di un'altra persona.",
   "Type %@ to confirm.": "Digita %@ per confermare.",
   "Your WHOOP entry and its history carry over to this strap.": "La tua voce WHOOP e la sua cronologia passano a questa fascia.",
-  "Your strap's history is moving into one WHOOP entry. Nothing is deleted. %lld readings so far.": "La cronologia della fascia viene spostata in un'unica voce WHOOP. Non viene eliminato nulla. Finora %lld misurazioni."
+  "Your strap's history is moving into one WHOOP entry. Nothing is deleted. %lld readings so far.": "La cronologia della fascia viene spostata in un'unica voce WHOOP. Non viene eliminato nulla. Finora %lld misurazioni.",
+  "Learning your usual": "Sta imparando il tuo livello abituale",
+  "Log a workout and NOOP compares your training with your usual load.": "Registra un allenamento e NOOP confronterà il tuo allenamento con il carico abituale.",
+  "Recovery is keeping up": "Il recupero tiene il passo",
+  "Recovery is lagging behind": "Il recupero resta indietro",
+  "TRAINING LOAD": "CARICO DI ALLENAMENTO",
+  "in 30 days": "in 30 giorni"
 }

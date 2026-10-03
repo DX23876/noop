@@ -1695,5 +1695,11 @@
   "This strap gets its own entry, for example a second person's strap.": "Этот браслет получит отдельную запись, например браслет другого человека.",
   "Type %@ to confirm.": "Введите %@ для подтверждения.",
   "Your WHOOP entry and its history carry over to this strap.": "Ваша запись WHOOP вместе с историей переходит на этот браслет.",
-  "Your strap's history is moving into one WHOOP entry. Nothing is deleted. %lld readings so far.": "История браслета переносится в одну запись WHOOP. Ничего не удаляется. Пока перенесено показаний: %lld."
+  "Your strap's history is moving into one WHOOP entry. Nothing is deleted. %lld readings so far.": "История браслета переносится в одну запись WHOOP. Ничего не удаляется. Пока перенесено показаний: %lld.",
+  "Learning your usual": "Изучает ваш обычный уровень",
+  "Log a workout and NOOP compares your training with your usual load.": "Запишите тренировку, и NOOP сравнит её с вашей обычной нагрузкой.",
+  "Recovery is keeping up": "Восстановление успевает",
+  "Recovery is lagging behind": "Восстановление отстаёт",
+  "TRAINING LOAD": "ТРЕНИРОВОЧНАЯ НАГРУЗКА",
+  "in 30 days": "за 30 дней"
 }

@@ -13,6 +13,7 @@ extension TodaySection {
         case .synthesis: return "sparkles"
         case .goals: return "target"
         case .keyMetrics: return "square.grid.2x2"
+        case .trainingLoad: return "chart.bar.xaxis"
         case .energy: return "flame.fill"
         case .workouts: return "figure.run"
         case .heartRate: return "waveform.path.ecg"
@@ -33,6 +34,7 @@ extension TodaySection {
         case .synthesis: return StrandPalette.accent
         case .goals: return StrandPalette.chargeColor
         case .keyMetrics: return StrandPalette.metricPurple
+        case .trainingLoad: return StrandPalette.metricCyan
         case .energy: return StrandPalette.metricAmber
         case .workouts: return StrandPalette.effortColor
         case .heartRate: return StrandPalette.metricRose

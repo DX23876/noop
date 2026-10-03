@@ -1819,5 +1819,11 @@
   "This strap gets its own entry, for example a second person's strap.": "此手环将获得单独的条目，例如另一个人的手环。",
   "Type %@ to confirm.": "输入 %@ 以确认。",
   "Your WHOOP entry and its history carry over to this strap.": "你的 WHOOP 条目及其历史记录将转移到此手环。",
-  "Your strap's history is moving into one WHOOP entry. Nothing is deleted. %lld readings so far.": "手环的历史记录正在移入一个 WHOOP 条目。不会删除任何内容。目前已处理 %lld 条读数。"
+  "Your strap's history is moving into one WHOOP entry. Nothing is deleted. %lld readings so far.": "手环的历史记录正在移入一个 WHOOP 条目。不会删除任何内容。目前已处理 %lld 条读数。",
+  "Learning your usual": "正在了解你的常规水平",
+  "Log a workout and NOOP compares your training with your usual load.": "记录一次训练，NOOP 就会将你的训练与常规负荷进行比较。",
+  "Recovery is keeping up": "恢复跟得上",
+  "Recovery is lagging behind": "恢复跟不上",
+  "TRAINING LOAD": "训练负荷",
+  "in 30 days": "30 天内"
 }

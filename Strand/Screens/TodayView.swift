@@ -2137,6 +2137,9 @@ struct TodayView: View {
             synthesisSection
         case .goals:
             if selectedDayOffset == 0 { GoalsTodaySection(showGoalJourney: $showGoalJourney) }
+        case .trainingLoad:
+            // The same card as Liquid Today, so a layout arranged in one Today style reads in the other.
+            if selectedDayOffset == 0 { LiquidTrainingLoadSection(surfaceOpacity: 1) }
         case .keyMetrics:
             // S4: the SEPARATE Readiness block is no longer a home-screen card, it folded into the
             // Charge-ring tap (chargeBreakdownSheet). A one-word readiness read (Push / Maintain / Rest,

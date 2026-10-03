@@ -748,6 +748,10 @@ struct LiquidTodayView: View {
                                 GoalsTodaySection(showGoalJourney: $showGoalJourney, headerOutside: true)
                             }
                         case .keyMetrics: keyMetricsSection
+                        case .trainingLoad:
+                            if selectedDayOffset == 0 {
+                                LiquidTrainingLoadSection(surfaceOpacity: cardOpacity)
+                            }
                         case .energy:
                             if selectedDayOffset == 0 {
                                 // Section head above the card, like Key Metrics, Last Workouts and Your Cards.
@@ -2483,7 +2487,11 @@ struct LiquidTodayView: View {
             // hero are the same number, so a carry that reached only one of them would put two answers for
             // Charge on one screen. (#543: one prior row feeds every recovery-derived read-out.) Strain below
             // stays raw, matching the Effort hero, which correctly does not carry.
-            ktile(DomainTheme.charge.productName, icon: metric.customizationIcon, intText(chargeDisplay.pct), "%", StrandPalette.chargeColor, frac(chargeDisplay.pct), key: HeroRingMetric.charge)
+            // Compared only when the selected day scored its own Charge; a carried prior night is that
+            // night's number, already part of the normal it would be compared against.
+            let ownCharge: Double? = { if case .scored(let pct) = chargeDisplay { return pct }; return nil }()
+            ktile(DomainTheme.charge.productName, icon: metric.customizationIcon, intText(chargeDisplay.pct), "%", StrandPalette.chargeColor, frac(chargeDisplay.pct), key: HeroRingMetric.charge,
+                  comparison: normalComparison("recovery", today: ownCharge, polarity: .higherIsBetter))
         case .effort:
             // #45 parity with the hero: route through effortDisplay so this tile shows the SAME number on
             // the SAME scale as the Effort hero (0–21 WHOOP vs 0–100), instead of always the raw 0–100
@@ -2496,9 +2504,18 @@ struct LiquidTodayView: View {
                     ? UnitFormatter.effortDisplay($0, scale: .whoop)
                     : String(format: "%.0f", locale: AppLanguage.activeLocale, $0)
             } ?? "–"
-            ktile(DomainTheme.effort.productName, icon: metric.customizationIcon, effortTileText, "", StrandPalette.effortColor, frac(effortValue), key: HeroRingMetric.effort, route: .effort(effortReadout))
+            // Effort builds through the day and has no good direction, so the note is neutral (see
+            // `accumulatingNote`), on the scale the tile shows.
+            ktile(DomainTheme.effort.productName, icon: metric.customizationIcon, effortTileText, "", StrandPalette.effortColor, frac(effortValue), key: HeroRingMetric.effort, route: .effort(effortReadout),
+                  note: accumulatingNote("strain", today: effortValue, polarity: .neutral,
+                                         format: { value in
+                                             let shown = UnitFormatter.effortValue(value, scale: effortScale)
+                                             return String(format: effortScale == .whoop ? "%.1f" : "%.0f",
+                                                           locale: AppLanguage.activeLocale, shown)
+                                         }))
         case .rest:
-            ktile(DomainTheme.rest.productName, icon: metric.customizationIcon, intText(restScore), "%", StrandPalette.restColor, frac(restScore), key: HeroRingMetric.rest)
+            ktile(DomainTheme.rest.productName, icon: metric.customizationIcon, intText(restScore), "%", StrandPalette.restColor, frac(restScore), key: HeroRingMetric.rest,
+                  comparison: normalComparison("sleep_performance", today: restScore, polarity: .higherIsBetter))
         case .hrv:
             // Vitals have no 0…max: a bar against a fixed ceiling (HRV / 120 ms, RHR / 100) said nothing
             // personal, and for resting HR a longer bar was worse. Scores and steps keep theirs; vitals
@@ -2520,9 +2537,8 @@ struct LiquidTodayView: View {
             ktile("SpO₂", icon: metric.customizationIcon, intText(spo2), "%",
                   StrandPalette.metricCyan, nil,
                   key: candidate == nil ? "spo2" : "spo2_candidate",
-                  caption: candidate == nil ? nil : String(localized: "strap estimate (unverified)"),
-                  // An unverified strap estimate is not compared against a normal built from it.
-                  comparison: candidate == nil ? normalComparison("spo2", today: spo2, polarity: .higherIsBetter) : nil)
+                  // No "vs. your usual": nightly SpO₂ moves so little that the note read "±0" nearly always.
+                  caption: candidate == nil ? nil : String(localized: "strap estimate (unverified)"))
         case .respiratory:
             let resp = displayDay?.respRateBpm ?? vitalsDay?.respRateBpm ?? respDay?.respRateBpm
             ktile(String(localized: "Respiratory"), icon: metric.customizationIcon,
@@ -2531,15 +2547,22 @@ struct LiquidTodayView: View {
                   comparison: normalComparison("resp_rate", today: resp, polarity: .neutral), comparisonDecimals: 1)
         case .steps:
             ktile(String(localized: "Steps"), icon: metric.customizationIcon, stepsText, "", StrandPalette.chargeColor,
-                  fracOver(stepCount, 10000), key: stepsDetailKey, detailMetric: stepsDetailMetric)
+                  fracOver(stepCount, 10000), key: stepsDetailKey, detailMetric: stepsDetailMetric,
+                  note: accumulatingNote(kSparks[stepsDetailKey] == nil ? "steps" : stepsDetailKey, today: stepCount,
+                                         polarity: .higherIsBetter,
+                                         format: { Int($0.rounded()).formatted(.number.locale(AppLanguage.activeLocale)) }))
         case .weight:
             let weightText = resolvedWeightKg.map { UnitFormatter.massFromKilograms($0.kg, system: unitSystem) } ?? "—"
-            ktile(String(localized: "Weight"), icon: metric.customizationIcon, weightText, "", StrandPalette.metricAmber, nil, key: "weight")
+            ktile(String(localized: "Weight"), icon: metric.customizationIcon, weightText, "", StrandPalette.metricAmber, nil, key: "weight",
+                  note: weightChangeNote)
         case .calories:
             ktile(String(localized: "Calories"), icon: metric.customizationIcon,
                   EnergyDisplay.totalText(selectedEnergySummary), "kcal", StrandPalette.energyHighlight,
                   nil, key: "energy_total", caption: String(localized: "total burned so far"),
-                  route: .energy)
+                  route: .energy,
+                  note: accumulatingNote("energy_total", today: selectedEnergySummary?.totalBurnedSoFar,
+                                         polarity: .neutral,
+                                         format: { Int($0.rounded()).formatted(.number.locale(AppLanguage.activeLocale)) }))
         case .skinTemp:
             // Added 2026-08-24 (queue 11c follow-up): first Key Metrics appearance for Skin Temp — was
             // already a "Your Cards" tile (`DashboardCard.skinTemp`), never a Key Metrics one. Same
@@ -2560,7 +2583,8 @@ struct LiquidTodayView: View {
     private func ktile(_ label: String, icon: String, _ value: String, _ unit: String, _ tint: Color, _ frac: Double?,
                        key: String? = nil, detailMetric: MetricDescriptor? = nil,
                        caption: String? = nil, route: TabRoute? = nil,
-                       comparison: PersonalNormal.Comparison? = nil, comparisonDecimals: Int = 0) -> some View {
+                       comparison: PersonalNormal.Comparison? = nil, comparisonDecimals: Int = 0,
+                       note: KeyMetricNote? = nil) -> some View {
         // Two columns means ~50pt more width per tile — spend it on legibility (a bigger number, a taller
         // trend) instead of leaving it as empty card.
         let wide = keyMetricsColumns <= 2
@@ -2570,13 +2594,14 @@ struct LiquidTodayView: View {
             systemImage: icon,
             value: value,
             unit: unit,
-            caption: caption ?? (comparison != nil ? String(localized: "vs. your usual") : nil),
+            // The chip speaks for itself ("+4", "Ø 8.400"); only weight says over what span it moved.
+            caption: note?.caption ?? caption,
             tint: tint,
             progress: frac,
             // A compared vital says how it stands in its caption, so it needs no empty bar slot.
-            reservesProgressSpace: comparison == nil,
-            delta: comparison.map { PersonalNormal.signedText($0.delta, decimals: comparisonDecimals) },
-            deltaColor: comparison.map { Self.comparisonColor($0.tone) } ?? StrandPalette.textTertiary,
+            reservesProgressSpace: comparison == nil && note == nil,
+            delta: note?.chip ?? comparison.map { PersonalNormal.signedText($0.delta, decimals: comparisonDecimals) },
+            deltaColor: note?.color ?? comparison.map { Self.comparisonColor($0.tone) } ?? StrandPalette.textTertiary,
             sparkline: spark,
             sparkColor: tint,
             sparklineHeight: keyMetricsDetailed ? (wide ? 28 : 22) : nil,
@@ -2613,6 +2638,47 @@ struct LiquidTodayView: View {
         guard let today else { return nil }
         let prior = (kSparks[key] ?? []).filter { $0.0 < selectedDayKey }.map(\.1)
         return PersonalNormal.compare(today: today, prior: prior, polarity: polarity)
+    }
+
+    /// A tile note that is not a plain "vs. your usual" delta: a reference value, or a change over time.
+    struct KeyMetricNote {
+        let chip: String
+        var caption: String? = nil
+        let color: Color
+    }
+
+    /// Effort, steps and calories build up through the day, so today's partial value against full past
+    /// days would read as "below usual" every morning. Today therefore shows the 30-day average as a
+    /// neutral reference; a finished past day gets the usual delta and tone.
+    private func accumulatingNote(_ key: String, today: Double?, polarity: PersonalNormal.Polarity,
+                                  format: (Double) -> String) -> KeyMetricNote? {
+        if selectedDayOffset == 0 {
+            let prior = (kSparks[key] ?? []).filter { $0.0 < selectedDayKey }.map(\.1)
+            guard let normal = PersonalNormal.compare(today: today ?? 0, prior: prior, polarity: .neutral)?.normal
+            else { return nil }
+            return KeyMetricNote(chip: "Ø " + format(normal), color: StrandPalette.textTertiary)
+        }
+        guard let comparison = normalComparison(key, today: today, polarity: polarity) else { return nil }
+        let magnitude = format(abs(comparison.delta))
+        let chip = magnitude == format(0) ? "±0" : (comparison.delta > 0 ? "+" : "-") + magnitude
+        return KeyMetricNote(chip: chip, color: Self.comparisonColor(comparison.tone))
+    }
+
+    /// Weight has no good direction without a goal, so it shows how it moved over the last 30 days,
+    /// always neutral: the newest weigh-in against the earliest one in the window.
+    private var weightChangeNote: KeyMetricNote? {
+        let points = (kSparks["weight"] ?? []).filter { $0.0 <= selectedDayKey }
+        guard let first = points.first(where: { $0.0 >= sparkWindowStartKey(days: 30) }),
+              let last = points.last, last.0 > first.0 else { return nil }
+        let change = last.1 - first.1
+        let magnitude = UnitFormatter.massFromKilograms(abs(change), system: unitSystem)
+        let chip = abs(change) < 0.05 ? "±0" : (change > 0 ? "+" : "-") + magnitude
+        return KeyMetricNote(chip: chip, caption: String(localized: "in 30 days"), color: StrandPalette.textTertiary)
+    }
+
+    private func sparkWindowStartKey(days: Int) -> String {
+        let start = Calendar.current.date(byAdding: .day, value: -(days - 1), to: selectedLogicalDay) ?? selectedLogicalDay
+        return Repository.localDayKey(start)
     }
 
     /// Colour only for a notable change; ordinary night-to-night variation stays quiet.

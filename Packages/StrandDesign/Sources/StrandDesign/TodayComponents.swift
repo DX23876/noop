@@ -140,6 +140,14 @@ public struct TodayMetricTile<Accessory: View>: View {
         self.accessory = accessory
     }
 
+    private func captionText(_ caption: String) -> some View {
+        Text(caption)
+            .font(StrandFont.footnote)
+            .foregroundStyle(StrandPalette.textTertiary)
+            .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
+            .minimumScaleFactor(0.7)
+    }
+
     public var body: some View {
         VStack(alignment: .leading, spacing: dense ? 5 : 6) {
             HStack(alignment: .center, spacing: dense ? 6 : 8) {
@@ -178,15 +186,19 @@ public struct TodayMetricTile<Accessory: View>: View {
                         .lineLimit(1)
                 }
                 Spacer(minLength: 0)
-                if let delta { TrendChip(text: delta, color: deltaColor) }
+                if let delta, !dense { TrendChip(text: delta, color: deltaColor) }
             }
 
-            if let caption {
-                Text(caption)
-                    .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
-                    .minimumScaleFactor(0.78)
+            // Three columns leave no room beside the number, where the chip was cut to "↘ -…". There it
+            // leads the caption line instead and keeps its full width; the caption gives way.
+            if dense, let delta {
+                HStack(spacing: 5) {
+                    TrendChip(text: delta, color: deltaColor).fixedSize()
+                    if let caption { captionText(caption) }
+                    Spacer(minLength: 0)
+                }
+            } else if let caption {
+                captionText(caption)
             }
 
             if progress != nil || reservesProgressSpace {
@@ -239,6 +251,8 @@ public struct TodayMetricTile<Accessory: View>: View {
         .background(TodayCardSurface(tint: tintsSurface ? tint : nil, cornerRadius: NoopMetrics.groupedRadius,
                                      surfaceOpacity: surfaceOpacity))
         .accessibilityElement(children: .combine)
+        // The chip is drawn without a caption and hidden from VoiceOver, so its text is spoken here.
+        .accessibilityValue(delta.map { Text(verbatim: $0) } ?? Text(verbatim: ""))
     }
 }
 

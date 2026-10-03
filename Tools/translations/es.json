@@ -1718,5 +1718,11 @@
   "This strap gets its own entry, for example a second person's strap.": "Esta pulsera tendrá su propia entrada, por ejemplo la de otra persona.",
   "Type %@ to confirm.": "Escribe %@ para confirmar.",
   "Your WHOOP entry and its history carry over to this strap.": "Tu entrada WHOOP y su historial pasan a esta pulsera.",
-  "Your strap's history is moving into one WHOOP entry. Nothing is deleted. %lld readings so far.": "El historial de tu pulsera se está trasladando a una sola entrada WHOOP. No se borra nada. %lld lecturas hasta ahora."
+  "Your strap's history is moving into one WHOOP entry. Nothing is deleted. %lld readings so far.": "El historial de tu pulsera se está trasladando a una sola entrada WHOOP. No se borra nada. %lld lecturas hasta ahora.",
+  "Learning your usual": "Aprendiendo tu nivel habitual",
+  "Log a workout and NOOP compares your training with your usual load.": "Registra un entrenamiento y NOOP comparará tu entrenamiento con tu carga habitual.",
+  "Recovery is keeping up": "La recuperación acompaña",
+  "Recovery is lagging behind": "La recuperación se queda atrás",
+  "TRAINING LOAD": "CARGA DE ENTRENAMIENTO",
+  "in 30 days": "en 30 días"
 }

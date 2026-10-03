@@ -24,7 +24,7 @@ enum LiquidTodayDefaults {
     /// a strap streams, and the user's own cards. The self-gating extras follow; every section a later
     /// version adds still back-fills through `TodayLayoutPrefs.decodeOrder` once a layout is saved.
     static let sectionOrder: [TodaySection] = [
-        .hero, .synthesis, .goals, .keyMetrics, .energy, .workouts, .heartRate, .yourCards,
+        .hero, .synthesis, .goals, .keyMetrics, .trainingLoad, .energy, .workouts, .heartRate, .yourCards,
         .coach, .liveSession, .menstrualCycle, .journal, .addedCards, .recoveryVitals, .dataSources,
     ]
 

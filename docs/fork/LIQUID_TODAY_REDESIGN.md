@@ -422,3 +422,24 @@ with one supplied timestamp and a two-minute foreground retry for raw-HR arrival
 cached daily row. The duplicate temporary scoring window was removed; the existing canonical LiveEffort
 window and scoring remain unchanged. Missing Effort draws a static faint orange contour/bloom, weaker than
 the first computed band, with the same "–" centre every empty ring uses (2026-10-03). Analysis migration required: no.
+
+### Key Metric notes, settled ring numbers and the Training Load card (2026-10-03)
+
+Score rings remember the number they last showed for the life of the process (`OrganicScoreShownMemo`),
+so scrolling back or returning to the tab no longer replays the count-up; it plays once per launch and
+then only when a value changes. The Sleep screen's ring keeps its own memory.
+
+Key Metric notes, all without a caption except weight: Charge (own scored day only), Rest, HRV, resting HR
+and respiratory rate show their delta against the 30-day personal normal, coloured only beyond one
+standard deviation. Effort, steps and calories build through the day, so today shows the neutral 30-day
+average ("Ø 8.400") and only finished days get a delta (steps coloured, Effort and calories neutral).
+Weight shows its change over 30 days, always neutral. SpO₂ lost its note (it read "±0" nearly always) and
+skin temperature keeps its own deviation reading. In three columns the chip leads the caption line
+instead of squeezing beside the number; VoiceOver reads the chip through the tile's value.
+
+The Training Load card (`TodaySection.trainingLoad`, under Key Metrics by default, also in classic Today)
+shows strength and cardio as one four-segment scale each (below, usual, higher, well above usual), only
+the current segment tinted, a dot at the lane's position on its personal edges, the lane's verdict word,
+and one recovery line. It reads `TrainingLoadModel.snapshot`, the read the Training Load screen and the
+Coach use, caches it for five minutes, leaves out lanes with nothing logged, and opens Training Load.
+Analysis migration required: no.

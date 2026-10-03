@@ -54,6 +54,8 @@ enum TabRoute: Hashable {
     case strength
     /// The endurance counterpart: runs, rides, swims and rows in the units they are measured in.
     case cardio
+    /// Training Load: both lanes against the wearer's usual, opened from Today's Training Load card.
+    case trainingLoad
     /// The coach chat (#1862). Both Today styles open the Coach card as a SHEET and never push this, so
     /// it exists for the one caller that routes a dashboard card by identifier (`DashboardCards
     /// .detailRoute`) — which must name a real destination rather than stand in with another screen's.
@@ -104,6 +106,7 @@ extension View {
             case .energy: EnergyDetailView()
             case .strength: StrengthView()
             case .cardio: CardioView()
+            case .trainingLoad: TrainingLoadView()
             case .coach: CoachView()
             }
         }

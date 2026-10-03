@@ -6,8 +6,8 @@ final class LiquidTodayDefaultsTests: XCTestCase {
 
     func testFreshLayoutLeadsWithTheHeroAndHidesRecoveryVitals() {
         let visible = LiquidTodayDefaults.visibleSections(orderRaw: nil, hiddenRaw: nil)
-        XCTAssertEqual(Array(visible.prefix(7)),
-                       [.hero, .synthesis, .goals, .keyMetrics, .energy, .workouts, .heartRate])
+        XCTAssertEqual(Array(visible.prefix(8)),
+                       [.hero, .synthesis, .goals, .keyMetrics, .trainingLoad, .energy, .workouts, .heartRate])
         XCTAssertTrue(visible.contains(.yourCards))
         XCTAssertFalse(visible.contains(.recoveryVitals))
         XCTAssertFalse(visible.contains(.dataSources))
@@ -22,7 +22,7 @@ final class LiquidTodayDefaultsTests: XCTestCase {
 
     func testSavedLayoutIsHonouredExactly() {
         let saved: [TodaySection] = [
-            .recoveryVitals, .hero, .coach, .keyMetrics, .synthesis, .goals, .energy, .workouts, .heartRate,
+            .recoveryVitals, .hero, .coach, .keyMetrics, .trainingLoad, .synthesis, .goals, .energy, .workouts, .heartRate,
             .yourCards, .liveSession, .menstrualCycle, .journal, .dataSources, .addedCards,
         ]
         let orderRaw = TodayLayoutPrefs.encode(saved)

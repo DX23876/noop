@@ -176,9 +176,14 @@ The home dashboard (`TodayView.swift`, titled "Control Center"). A tight, gaples
   Steps (on-device only for WHOOP 5/MG; on a 4.0, NOOP shows your imported Apple Health /
   Health Connect steps, because it can't yet read steps off the 4.0 strap over Bluetooth —
   the 4.0 itself does count steps in the official WHOOP app — and approximate),
-  Weight, Calories. WHOOP metrics come from the `my-whoop` source; Steps/Weight/Calories/
+  Weight, Calories. Each tile carries a small note: nightly values show "+4" against your 30-day
+  normal, Effort, steps and calories show today's 30-day average ("Ø 8.400") and a delta only for
+  finished days, and weight shows its change over 30 days. WHOOP metrics come from the `my-whoop` source; Steps/Weight/Calories/
   Respiratory pull from `apple-health`. Sparse series (e.g. weight) fall back to all history so
   a tile never shows empty when data exists.
+- **Training Load** — strength and cardio each on one quiet scale from below to well above your
+  usual load, with the verdict word from the Training Load screen and one line on whether recovery
+  is keeping up. Tapping it opens Training Load.
 - **Last Workouts** — up to six recent sessions as tiles (duration, date, avg HR, kcal).
 - **Data Sources** — a footer showing whether WHOOP and Apple Health data are present, with day/
   session counts.
