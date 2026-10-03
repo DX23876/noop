@@ -169,14 +169,32 @@ struct GoalTrackingTile: View {
     /// goal is the one kind that wants both.
     @ViewBuilder
     private func strip(for snapshot: GoalTrackingSnapshot, tint: Color) -> some View {
-        VStack(alignment: .leading, spacing: NoopMetrics.space1) {
+        // Each strip names what it counts: two unlabelled rows of segments read as one broken bar. A grid
+        // so the label column fits its longest label in every language ("Diese Woche") and both strips
+        // still start at the same edge.
+        Grid(alignment: .leading, horizontalSpacing: NoopMetrics.space2, verticalSpacing: NoopMetrics.space1) {
             if !snapshot.goal.milestones.isEmpty {
-                waypointStrip(snapshot, tint: tint)
+                GridRow {
+                    stripLabel("Route")
+                    waypointStrip(snapshot, tint: tint)
+                }
             }
             if snapshot.goal.kind == .consistency || snapshot.goal.kind == .strength {
-                dayStrip(snapshot, tint: tint)
+                GridRow {
+                    stripLabel("This week")
+                    dayStrip(snapshot, tint: tint)
+                }
             }
         }
+    }
+
+    private func stripLabel(_ label: LocalizedStringKey) -> some View {
+        Text(label)
+            .font(StrandFont.caption)
+            .foregroundStyle(StrandPalette.textTertiary)
+            .lineLimit(1)
+            .fixedSize()
+            .accessibilityHidden(true)
     }
 
     /// The route, in miniature: one segment per waypoint, filled once passed. Same data the journey
