@@ -1088,5 +1088,5 @@ feed, refresh battery, scan/reconnect, or disconnect.
 
 - Liquid Today: profile beside the outer plus; “Customize home” in its menu; an unfilled Momentum link
   after dismissing every message; metric navigation follows card opacity. Effort loads independently,
-  retains the selected day in detail, and waits with a faint orange ring and blank centre.
+  retains the selected day in detail, and waits with a faint orange ring and the same "–" every empty ring shows.
   Analysis migration required: no.

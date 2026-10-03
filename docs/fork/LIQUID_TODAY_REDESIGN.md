@@ -420,5 +420,5 @@ Effort uses one day-gated readout for its hero, tile and tapped detail; explicit
 fall back to the last historical series point. Live scoring is read independently of the full dashboard,
 with one supplied timestamp and a two-minute foreground retry for raw-HR arrivals that do not change a
 cached daily row. The duplicate temporary scoring window was removed; the existing canonical LiveEffort
-window and scoring remain unchanged. Missing Effort draws a static faint orange contour/bloom and no
-centre placeholder, weaker than the first computed band. Analysis migration required: no.
+window and scoring remain unchanged. Missing Effort draws a static faint orange contour/bloom, weaker than
+the first computed band, with the same "–" centre every empty ring uses (2026-10-03). Analysis migration required: no.

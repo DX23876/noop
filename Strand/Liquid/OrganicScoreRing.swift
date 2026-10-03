@@ -185,7 +185,8 @@ struct OrganicScoreRing: View {
                         font: StrandFont.rounded(diameter * 0.27),
                         decimals: decimals
                     )
-                } else if !model.awaitsEffort {
+                } else {
+                    // Every empty ring shows the dash, the not-yet-computed Effort ring included.
                     Text(verbatim: "–")
                         .font(StrandFont.rounded(diameter * 0.27))
                         .monospacedDigit()
