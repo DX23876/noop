@@ -483,6 +483,13 @@ final class CoachPlanStore: ObservableObject {
         }
     }
 
+    /// The user set or changed only the time of day. Status, source and the swap history stay as they
+    /// were: recording a time change as a swap made the Journey page report a sport change that never
+    /// happened.
+    func setTime(_ id: UUID, at time: Date?) {
+        update(id) { $0.time = time }
+    }
+
     /// The user MOVED a committed session to another day (and optionally a new time). It stays a
     /// commitment; adherence reads this as a move, not a miss. `rescheduledFrom` keeps the original day
     /// (captured once, so moving twice still points back to where it started).
@@ -506,8 +513,24 @@ final class CoachPlanStore: ObservableObject {
     }
 
     /// The user confirmed that a candidate workout fulfilled this commitment.
+    ///
+    /// One recorded workout fulfils at most one commitment, the rule the automatic matcher already
+    /// applies. A workout offered to two plans used to stay on the second plan's question after the
+    /// first confirmation, and confirming it there counted the same session twice toward a goal.
     func confirmWorkout(_ workout: PlanWorkoutReference, for id: UUID, now: Date = Date()) {
+        guard !proposals.contains(where: {
+            $0.id != id && $0.completionEvidence?.workoutKey == workout.workoutKey
+        }) else { return }
         complete(id, evidence: workout.completionEvidence(method: .confirmed, matchedAt: now))
+        reconciliationResolutions = reconciliationResolutions.compactMap { resolution in
+            guard resolution.kind == .candidates,
+                  resolution.candidates.contains(where: { $0.workoutKey == workout.workoutKey })
+            else { return resolution }
+            let remaining = resolution.candidates.filter { $0.workoutKey != workout.workoutKey }
+            return remaining.isEmpty ? nil
+                : PlanReconciliationResolution(proposalId: resolution.proposalId, kind: .candidates,
+                                               candidates: remaining)
+        }
     }
 
     /// Remember a rejected candidate and remove it from the current question immediately.

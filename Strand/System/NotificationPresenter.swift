@@ -56,8 +56,12 @@ final class NotificationPresenter: NSObject, UNUserNotificationCenterDelegate {
             case CoachCheckIn.Action.skipToday:
                 break   // dismissed for today; tomorrow's repeating trigger is untouched
             default:
-                // A tap (or the default action): open the coach and run the check-in.
-                NotificationCenter.default.post(name: .noopOpenCoachCheckIn, object: nil)
+                // A tap (or the default action): open the coach and run the check-in. The request is
+                // recorded first so a Coach screen created by this tap can still pick it up.
+                Task { @MainActor in
+                    CoachCheckIn.markPendingOpen()
+                    NotificationCenter.default.post(name: .noopOpenCoachCheckIn, object: nil)
+                }
             }
         } else if request.content.categoryIdentifier == CoachBriefScheduler.notificationCategoryId {
             onCoachBriefTapped?()

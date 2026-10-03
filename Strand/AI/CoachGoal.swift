@@ -366,7 +366,7 @@ final class CoachGoalStore: ObservableObject {
     @Published var goals: [CoachGoal] = [] { didSet { save() } }
 
     private let d: UserDefaults
-    private static let goalsKey = "ai.goals"
+    static let goalsKey = "ai.goals"
     /// The OLD singular-goal key, from before multiple goals existed. Read once for migration into
     /// `goals` as a one-element array, then left alone (never deleted, so downgrading to an older build
     /// still finds its single goal).
@@ -379,13 +379,26 @@ final class CoachGoalStore: ObservableObject {
         self.d = defaults
         if let data = defaults.data(forKey: Self.goalsKey),
            let decoded = try? JSONDecoder().decode([CoachGoal].self, from: data) {
-            self.goals = decoded
+            self.goals = Self.repairingEditedPauses(decoded)
         } else if let seeded = Self.migrateSingular(defaults: defaults) {
             self.goals = [seeded]
         } else if let legacy = Self.migrateLegacy(defaults: defaults) {
             self.goals = [legacy]
         } else {
             self.goals = []
+        }
+    }
+
+    /// Goals saved by the old edit path: status active while the last pause is still open. Tracking has
+    /// treated them as paused all along and the user never chose to resume, so they read as paused again
+    /// and the Resume control can close the pause properly. Nothing else about the goal changes.
+    static func repairingEditedPauses(_ goals: [CoachGoal]) -> [CoachGoal] {
+        goals.map { goal in
+            guard goal.status == .active, goal.pauseIntervals.last?.endedAt == nil,
+                  !goal.pauseIntervals.isEmpty else { return goal }
+            var repaired = goal
+            repaired.status = .paused
+            return repaired
         }
     }
 
@@ -526,9 +539,12 @@ final class CoachGoalStore: ObservableObject {
         var g = draft
         g.status = .active
         if let editingId, let existing = goal(id: editingId) {
+            // An edit is not a resume: a paused goal stays paused with its open pause, and only
+            // `resume` closes it. Setting it active here left the pause open behind an "active" goal,
+            // which tracking kept treating as paused and `resume` could no longer reach.
             g = CoachGoal(id: existing.id, kind: g.kind, title: g.title,
                           baseline: g.baseline, target: g.target, targetDate: g.targetDate,
-                          status: .active, motivation: g.motivation,
+                          status: existing.status == .paused ? .paused : .active, motivation: g.motivation,
                           motivationTags: g.motivationTags,
                           shareMotivation: g.shareMotivation,
                           acknowledgedRisk: existing.acknowledgedRisk,

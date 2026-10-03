@@ -69,7 +69,7 @@ extension AICoachEngine {
 
     private static func workoutInt(_ value: Any?) -> Int? {
         if let value = value as? Int { return value }
-        if let value = value as? Double, value.isFinite { return Int(value) }
+        if let value = value as? Double, value.isFinite { return Int(exactly: value.rounded(.towardZero)) }
         return nil
     }
 

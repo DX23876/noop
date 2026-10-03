@@ -188,16 +188,42 @@ struct CoachLocalQueryRouter {
 /// A narrow, local-only classification for journal labels that can reveal sexual, relationship, illness
 /// or cannabis information. It never diagnoses or interprets a value; it only keeps these labels behind
 /// the additional sensitive-logs consent. The ordinary journal remains available under its existing grant.
+///
+/// Labels are free text in whatever language the wearer writes, so the word-prefix list covers every
+/// language the app ships (en, de, es, fr, it, pl, pt, ru, zh). This is deliberately a local list and not a
+/// model call: asking a provider whether a label is sensitive would send it the label. Chinese has no word
+/// boundaries, so its terms match anywhere in the label.
 enum CoachSensitiveJournalPolicy {
     private static let terms: Set<String> = [
-        "sex", "sexual", "masturbat", "orgasm", "intim", "beziehung", "relationship", "partner",
+        // en / de
+        "sex", "sexual", "masturb", "orgasm", "intim", "beziehung", "relationship", "partner",
         "single", "alleinsteh", "cbd", "cannabis", "marijuana", "cannabidiol", "illness", "sick",
-        "ill", "krank"
+        "ill", "krank", "kiff",
+        // es / pt
+        "relacion", "relacionament", "pareja", "parceir", "solter", "solteir", "marihuan", "maconha",
+        "enferm", "doenc", "doent",
+        // fr
+        "relation", "celibat", "malad",
+        // it
+        "sesso", "sessual", "relazion", "malat", "ammalat",
+        // pl
+        "seks", "orgazm", "intym", "zwiazek", "chor", "konopi",
+        // ru
+        "секс", "мастурб", "оргазм", "интим", "отношени", "партнер", "одинок", "каннабис", "марихуан",
+        "болезн", "болен", "больн", "заболе"
+    ]
+
+    /// zh-Hans and zh-Hant spellings, matched as substrings.
+    private static let unsegmentedTerms: [String] = [
+        "性生活", "性行为", "性行為", "自慰", "亲密", "親密", "恋爱", "戀愛", "伴侣", "伴侶",
+        "单身", "單身", "大麻", "病"
     ]
 
     static func isSensitive(label: String) -> Bool {
-        let words = Set(label.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
-            .lowercased().split { !$0.isLetter && !$0.isNumber }.map(String.init))
+        let folded = label.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+            .lowercased()
+        if unsegmentedTerms.contains(where: { folded.contains($0) }) { return true }
+        let words = Set(folded.split { !$0.isLetter && !$0.isNumber }.map(String.init))
         return words.contains { word in terms.contains { word.hasPrefix($0) } }
     }
 

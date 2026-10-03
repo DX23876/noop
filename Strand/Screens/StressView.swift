@@ -129,7 +129,8 @@ struct StressView: View {
                 String(localized: "Why is my stress like this today?"),
                 String(localized: "What can I do to bring it down?"),
                 String(localized: "Should I train today?"),
-            ]
+            ],
+            requiredPurposes: [.coreBiometrics, .stress]
         )
     }
 

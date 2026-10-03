@@ -995,11 +995,11 @@ Everything stored — memory, conversations, goal, plan, chart snapshots — is 
 | Route | Where |
 |---|---|
 | **Banner** | "Ask your Coach" — a reorderable `TodaySection.coach` card on both Today screens (classic's `CoachTodayRow`; Liquid's own banner, styled in its own chrome), movable via the same **Customize Today** sheet as every other section — it is an ordinary Shown/Hidden row there, draggable to any position |
-| **Header icon** | Liquid Today only — a compact avatar/sparkle button in the header's icon cluster |
 | **Floating button** | Draggable, pinnable to any of 4 chrome-clear corners, lockable |
 | **More tab** | **AI Coach** opens Coach settings even while the feature is off; active Coach deep links use `MoreDestination.coach` |
 | **Goal & Journey** | Its own `MoreDestination.goalJourney` row, right alongside Coach — no longer nested five taps deep in settings |
-| **Daily check-in** | Notification → deep-links to the Coach with a fresh brief (gated on the *logical* day, not per-conversation, so it can only fire once per real day). Carries **Remind me in 2 hours** / **Not today** actions; snoozing adds a one-off request beside the untouched daily trigger. |
+| **Daily check-in** | Notification → deep-links to the Coach with a fresh brief (gated on the *logical* day, not per-conversation, so it can only fire once per real day). Carries **Remind me in 2 hours** / **Not today** actions; snoozing adds a one-off request beside the untouched daily trigger. The tap is held as a pending request (`CoachCheckIn.markPendingOpen`) until a Coach screen consumes it, because the screen the tap opens does not exist yet when the event is posted. |
+| **Ask coach** | Per-metric card reads (`CoachCardContext`). Each context declares the Data access purposes its summary draws on (`requiredPurposes`: Stress needs stress, Cardio/Strength need workouts, the training plan needs planning and workouts, an Explore window beyond a month needs long-term history, mood needs logs); the button is hidden and the engine refuses the read unless every one is granted. |
 
 **When the coach speaks first, it says so.** `ChatMessage.Origin`
 (`reply` / `brief` / `checkIn` / `nudge` / `weeklyReview`) tags each turn at its append site, and the
@@ -1013,15 +1013,13 @@ content is fixed when scheduled and reused every day without the app running, so
 readiness would quote whatever was true the last time NOOP was opened — possibly days ago. A stale
 number is worse than none. The brief itself is generated on open, where the data is current.
 
-The banner, header icon and floating button are each an independent on/off switch —
-`CoachEntryPrefs.bannerKey` / `.headerIconKey` / `.floatingButtonKey` (`Strand/Screens/CoachEntry.swift`)
-— not a single either/or choice, so a user can combine any of them (e.g. banner + floating button, or
-header icon alone). This replaced a three-way `CoachEntryMode` (card / button / both) picker
-(2026-07-25): that shape couldn't express "more than one, but not all three" once the header icon
-became a real third option, and it also couldn't give the banner a POSITION — it was always pinned
-above everything else on classic Today. A one-time migration off the old `coach.entryMode` key
-preserves an existing install's header-icon/floating-button choice; the banner defaults on for
-everyone. Corners are resolved against the safe area with clearances (bottom `+96`, top `+64`) so a
+The banner and floating button are independent on/off switches —
+`CoachEntryPrefs.bannerKey` / `.floatingButtonKey` (`Strand/Screens/CoachEntry.swift`) — not a single
+either/or choice. This replaced a three-way `CoachEntryMode` (card / button / both) picker
+(2026-07-25), which also couldn't give the banner a POSITION. Liquid Today's compact header icon was a
+third entry until 2026-10-03, when it was removed as redundant beside the banner and floating button;
+`headerIconKey` survives only in the one-time migration off the old `coach.entryMode` key. The banner
+defaults on for everyone. Corners are resolved against the safe area with clearances (bottom `+96`, top `+64`) so a
 pinned floating button never covers the tab bar or the Today header.
 
 All routes present through one shared `View.coachCover(isPresented:coach:)` helper in
@@ -1032,12 +1030,14 @@ All routes present through one shared `View.coachCover(isPresented:coach:)` help
 **The AI Coach itself is an explicit feature opt-in.** `CoachFeaturePrefs.enabledKey`
 (`coach.featureEnabled`) defaults to **off** on a fresh installation: without a provider/key there is
 no useful chat to surface. More → **AI Coach** remains available for setup. Turning the feature off
-hides all Coach entries (Today banner/tile/header icon, floating button and per-metric “Ask coach”),
+hides all Coach entries (Today banner/tile, the Overview/Trends Coach card, Overview's Coach header
+button and focus tile, floating button and per-metric “Ask coach”),
 closes an open Coach cover, cancels its daily check-in and prevents its automatic brief/nudge/review
 requests. It does **not** delete chats, memory, health data or the person's entry preferences.
 
 `CoachEntryPrefs.uiEnabledKey` (`coach.uiEnabled`, default on) is a smaller, independent *home-surface*
-preference for an enabled Coach: it hides the banner, header icon and floating button while remembering
+preference for an enabled Coach: it hides the banner, the dashboard Coach cards and the floating button
+while remembering
 their individual settings. It is deliberately separate from data consent and from on-device card
 analysis that is not a Coach chat action.
 

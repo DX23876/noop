@@ -3120,7 +3120,8 @@ struct TodayView: View {
                 }
             }
             .buttonStyle(.plain)
-            if showsCoachButton, let ctx = dashboardCoachContext(title: title, value: value, subtitle: subtitle) {
+            if showsCoachButton, let ctx = dashboardCoachContext(title: title, value: value, subtitle: subtitle,
+                                                                    route: route) {
                 CoachCardIconButton(context: ctx)
             }
         }
@@ -3509,13 +3510,15 @@ struct TodayView: View {
     /// subtitle line, stated plainly. No trend/baseline data invented beyond what the row itself shows.
     /// Nil for a placeholder value ("—" / "Calibrating" / empty — the classic Today's not-yet-available
     /// markers) so no dead button shows.
-    private func dashboardCoachContext(title: String, value: String, subtitle: String) -> CoachCardContext? {
+    private func dashboardCoachContext(title: String, value: String, subtitle: String,
+                                       route: TabRoute) -> CoachCardContext? {
         guard value != "—", value != Self.calibratingPlaceholder, !value.isEmpty else { return nil }
         return CoachCardContext(
             title: title,
             summary: "\(title): \(value). \(subtitle).",
             suggestions: [String(localized: "What does this mean for me?"),
-                          String(localized: "Is this good, or something to watch?")])
+                          String(localized: "Is this good, or something to watch?")],
+            requiredPurposes: CoachCardContext.purposes(forDashboard: route))
     }
 
     /// The localized natural-case display word for a score domain (Charge / Effort / Rest / Stress). The

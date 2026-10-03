@@ -157,7 +157,8 @@ enum CoachButtonCorner: String, CaseIterable, Identifiable {
 /// Card-AI entry (#P11): a small "ask the coach about this" affordance a metric screen mounts in its
 /// header. Tapping it hands the coach the card's own context (current value + trend) and opens the chat,
 /// which then produces a short read of that one metric. Only appears once the coach is connected — a dead
-/// sparkle on a card the user never set up would be noise. Design tokens only; shared (macOS + iOS).
+/// sparkle on a card the user never set up would be noise — and only while Data access grants every
+/// purpose the card's summary draws on. Design tokens only; shared (macOS + iOS).
 struct CoachCardButton: View {
     /// Built by the card from data it already loaded — the coach reads this, nothing new is derived.
     let context: CoachCardContext
@@ -169,7 +170,7 @@ struct CoachCardButton: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        if coachEnabled, coach.isConfigured {
+        if coachEnabled, coach.isConfigured, context.isAllowed(by: coach.toolConsent) {
             Button {
                 coach.openedFromCard(context)
                 NotificationCenter.default.post(name: .noopOpenCoachCard, object: nil)
@@ -209,7 +210,7 @@ struct CoachCardIconButton: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        if coachEnabled, coach.isConfigured {
+        if coachEnabled, coach.isConfigured, context.isAllowed(by: coach.toolConsent) {
             Button {
                 coach.openedFromCard(context)
                 NotificationCenter.default.post(name: .noopOpenCoachCard, object: nil)

@@ -279,7 +279,7 @@ extension AICoachEngine {
 
     private static func intArgument(_ value: Any?) -> Int? {
         if let i = value as? Int { return i }
-        if let d = value as? Double, d.isFinite { return Int(d) }
+        if let d = value as? Double, d.isFinite { return Int(exactly: d.rounded(.towardZero)) }
         if let s = value as? String { return Int(s) }
         return nil
     }

@@ -109,6 +109,9 @@ struct OverviewDashboardView: View {
         nonmutating set { snapshot.vitalCarry = newValue }
     }
     @State private var showCoach = false
+    /// Coach entry points here (header button, focus tile) follow the feature and home-UI switches.
+    @AppStorage(CoachFeaturePrefs.enabledKey) private var coachFeatureEnabled = false
+    @AppStorage(CoachEntryPrefs.uiEnabledKey) private var coachUIEnabled = true
     @State private var showUpdatesInbox = false
     @State private var showAllMetrics = false
     @State private var showExtraSections = false
@@ -569,7 +572,9 @@ struct OverviewDashboardView: View {
                                  tint: StrandPalette.textPrimary, badge: updateStore.unreadCount) {
                     showUpdatesInbox = true
                 }
-                headerIconButton(systemName: "person.fill", tint: StrandPalette.textPrimary) { showCoach = true }
+                if coachFeatureEnabled, coachUIEnabled {
+                    headerIconButton(systemName: "person.fill", tint: StrandPalette.textPrimary) { showCoach = true }
+                }
             }
         }
         Button { showDayPicker = true } label: {
@@ -846,7 +851,7 @@ struct OverviewDashboardView: View {
 
     @ViewBuilder private func focusMiniCard(_ item: OverviewFocusItem) -> some View {
         switch item {
-        case .coach: coachMiniCard
+        case .coach: if coachFeatureEnabled, coachUIEnabled { coachMiniCard }
         case .steps: activityMiniCard
         case .sleep: sleepInsightMiniCard
         default:

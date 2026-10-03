@@ -838,6 +838,7 @@ struct CardioView: View {
                 String(localized: "Is my endurance volume sensible right now?"),
                 String(localized: "Am I getting faster, or just training more?"),
                 String(localized: "How should I split easy and hard sessions?"),
-            ])
+            ],
+            requiredPurposes: [.workouts])
     }
 }

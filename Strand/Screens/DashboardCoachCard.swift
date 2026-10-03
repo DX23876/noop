@@ -19,8 +19,17 @@ struct DashboardCoachCard: View {
 
     @EnvironmentObject private var profile: ProfileStore
     @ObservedObject private var identityStore = CoachIdentityStore.shared
+    /// The card is a Coach entry point, so it follows the same two switches as every other one: the
+    /// feature itself (off on a fresh install) and the home-surface UI switch (#R7). The default
+    /// dashboard layouts include this card, so without the check a disabled Coach still showed here.
+    @AppStorage(CoachFeaturePrefs.enabledKey) private var coachFeatureEnabled = false
+    @AppStorage(CoachEntryPrefs.uiEnabledKey) private var coachUIEnabled = true
 
     var body: some View {
+        if coachFeatureEnabled, coachUIEnabled { card }
+    }
+
+    private var card: some View {
         Button(action: onOpen) {
             NoopCard(padding: compact ? 12 : NoopMetrics.cardPadding, tint: StrandPalette.accent) {
                 HStack(alignment: .top, spacing: compact ? 10 : 12) {

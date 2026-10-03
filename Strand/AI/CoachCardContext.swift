@@ -15,11 +15,37 @@ struct CoachCardContext: Equatable {
     let summary: String
     /// A few metric-specific follow-up questions, offered as tappable chips after the read (11.3).
     let suggestions: [String]
+    /// The Data access purposes the `summary` draws on. A card read sends the summary to the provider, so
+    /// every one of them must be granted: tapping "Ask coach" on the Stress card must not carry stress
+    /// data past a Stress switch the user turned off. Most cards show core biometrics only.
+    let requiredPurposes: Set<CoachPurpose>
 
-    init(title: String, summary: String, suggestions: [String] = []) {
+    init(title: String, summary: String, suggestions: [String] = [],
+         requiredPurposes: Set<CoachPurpose> = [.coreBiometrics]) {
         self.title = title
         self.summary = summary
         self.suggestions = suggestions
+        self.requiredPurposes = requiredPurposes
+    }
+
+    /// The purposes behind a Today dashboard row's one-line summary. Stress has its own switch in Data
+    /// access; every other row there states a core biometric.
+    static func purposes(forDashboard route: TabRoute) -> Set<CoachPurpose> {
+        if case .stress = route { return [.coreBiometrics, .stress] }
+        return [.coreBiometrics]
+    }
+
+    /// The purposes behind an Explore chart's summary. A window beyond a month is the long-term trend
+    /// Data access describes as "across months or years"; mood is a logged entry, not a sensor reading.
+    static func purposes(forExplore source: String, windowDays: Int?) -> Set<CoachPurpose> {
+        var purposes: Set<CoachPurpose> = source == "noop-mood" ? [.logs] : [.coreBiometrics]
+        if (windowDays ?? Int.max) > 30 { purposes.insert(.longHistory) }
+        return purposes
+    }
+
+    /// Whether the user's granular grants cover everything this card would send.
+    func isAllowed(by consent: ToolConsent) -> Bool {
+        requiredPurposes.isSubset(of: consent.enabled)
     }
 }
 

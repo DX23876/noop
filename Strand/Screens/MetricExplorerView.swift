@@ -1829,7 +1829,8 @@ struct MetricDetailView: View {
         return CoachCardContext(
             title: metric.title,
             summary: lines.joined(separator: " "),
-            suggestions: coachSuggestions(hasDelta: hasDelta, direction: cmp.direction)
+            suggestions: coachSuggestions(hasDelta: hasDelta, direction: cmp.direction),
+            requiredPurposes: CoachCardContext.purposes(forExplore: metric.source, windowDays: effectiveRange.days)
         )
     }
 

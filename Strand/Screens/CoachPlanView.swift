@@ -702,11 +702,12 @@ struct PlanTimeSheet: View {
                         let combined = cal.date(bySettingHour: hm.hour ?? 0, minute: hm.minute ?? 0,
                                                 second: 0, of: base)
                         StrandHaptic.commit.play()
+                        // The goal picker is shown for accepted sessions too, so its choice applies to both.
+                        applyGoalLink()
                         if proposal.status == .proposed {
-                            applyGoalLink()
                             store.accept(proposal.id, at: combined)
                         } else {
-                            store.swap(proposal.id, toSport: proposal.sport, at: combined)
+                            store.setTime(proposal.id, at: combined)
                         }
                         dismiss()
                     }

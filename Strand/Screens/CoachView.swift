@@ -150,7 +150,9 @@ struct CoachView: View {
         }
         // The user's own recent average, so "low" means low FOR THEM — the same principle every other
         // comparison in the app follows.
-        let recent = days.prefix(30).compactMap(\.recovery)
+        // `repo.days` is oldest-first, so the recent month is the suffix; `prefix` compared today with the
+        // oldest month on record.
+        let recent = days.suffix(30).compactMap(\.recovery)
         if recent.count >= 5 {
             context.chargeBaseline = recent.reduce(0, +) / Double(recent.count)
         }
@@ -182,7 +184,12 @@ struct CoachView: View {
         .background(chatBackground)
         // Docked composer: pinned to the bottom, rising above the keyboard on iOS. Only once connected.
         .safeAreaInset(edge: .bottom) {
-            if coach.isConfigured { composer }
+            if coach.isConfigured {
+                VStack(spacing: 0) {
+                    voiceStatusLine
+                    composer
+                }
+            }
         }
         .sheet(item: $activeSheet) { which in
             switch which {
@@ -299,9 +306,21 @@ struct CoachView: View {
         }
         // Tapping the daily check-in notification (routed here by RootTabView) runs a real check-in —
         // a look BACK at what happened, not a re-run of the morning brief. Its own once-a-day lock.
+        // Same two-way shape as the card read below: the event reaches an already-mounted screen, the
+        // `.task` a screen the tap just created; the pending request makes it run once either way.
         .onReceive(NotificationCenter.default.publisher(for: .noopOpenCoachCheckIn)) { _ in
+            guard CoachCheckIn.consumePendingOpen() else { return }
             Task { await coach.checkInIfNeeded() }
         }
+        .task {
+            if CoachCheckIn.consumePendingOpen() { await coach.checkInIfNeeded() }
+        }
+        #if os(iOS)
+        // Leaving the chat ends a recording; the microphone must not stay open behind another screen.
+        .onDisappear {
+            if voiceInput.isRecording { voiceInput.stopTranscribing { _ in } }
+        }
+        #endif
         // Opened from a metric card (#P11): read the pending card context and give a short, cheap read of
         // that one metric, then offer its follow-up questions. No-op if the coach was opened another way.
         // Fires two ways so both cases are covered, and is idempotent (it clears the pending context and
@@ -404,7 +423,11 @@ struct CoachView: View {
                     .minimumScaleFactor(0.8)
                 // Fixed-height subtitle slot: "Thinking…" swaps in for the persona line rather than
                 // appearing, so the header never changes height mid-reply.
-                Text(coach.sending ? String(localized: "Thinking…") : identityStore.identity.name)
+                // Under an untitled chat the title already is the coach's name; say what they are instead
+                // of repeating it.
+                Text(coach.sending ? String(localized: "Thinking…")
+                     : headerTitle == identityStore.identity.name ? String(localized: "Your coach")
+                     : identityStore.identity.name)
                     .font(StrandFont.footnote)
                     .foregroundStyle(coach.sending ? StrandPalette.accent : StrandPalette.textTertiary)
                     .lineLimit(1)
@@ -1410,6 +1433,23 @@ struct CoachView: View {
         #endif
     }
 
+    /// Why voice input could not start (permission, locale, microphone). The mic button cannot explain
+    /// itself, so without this line a refused tap just did nothing.
+    @ViewBuilder
+    private var voiceStatusLine: some View {
+        #if os(iOS)
+        if let message = voiceInput.statusMessage {
+            Text(message)
+                .font(StrandFont.footnote)
+                .foregroundStyle(StrandPalette.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, NoopMetrics.screenPadding)
+                .padding(.top, NoopMetrics.space1)
+        }
+        #endif
+    }
+
     #if os(iOS)
     /// Push-to-talk into the draft: the live transcript replaces what is in the field as it streams, and
     /// the final one is left there to edit or send. It never sends by itself — a misheard question that
@@ -1440,7 +1480,8 @@ struct CoachView: View {
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .disabled(coach.sending)
+        // Stopping is always possible; only starting a new recording waits for the reply.
+        .disabled(coach.sending && !voiceInput.isRecording)
         .accessibilityLabel(voiceInput.isRecording ? Text("Stop recording") : Text("Ask by voice"))
         .accessibilityHint(Text("Transcribes on device. Audio never leaves your iPhone."))
     }
@@ -1559,7 +1600,13 @@ struct CoachView: View {
 
     private func send(_ text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, !coach.sending else { return }
+        // The engine refuses a send while the Coach is switched off; keep the draft rather than
+        // clearing it for a question that will never be sent.
+        guard !trimmed.isEmpty, !coach.sending, CoachBriefScheduler.coachMasterEnabled else { return }
+        #if os(iOS)
+        // A recording still running would keep writing into the field after it was cleared.
+        if voiceInput.isRecording { voiceInput.stopTranscribing { _ in } }
+        #endif
         draft = ""
         composerFocused = false
         // The house haptic vocabulary, not SwiftUI's `.sensoryFeedback` — that one is macOS 14+ and this

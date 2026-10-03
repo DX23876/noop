@@ -1374,13 +1374,15 @@ struct LiquidTodayView: View {
     /// Generic "Your cards" row context (#R-explain): title + the row's own already-computed value and
     /// subtitle line, stated plainly. No trend/baseline data invented beyond what the row itself shows.
     /// Nil for a placeholder value ("–"), same as an empty card showing no button.
-    private func dashboardCoachContext(title: String, value: String, subtitle: String) -> CoachCardContext? {
+    private func dashboardCoachContext(title: String, value: String, subtitle: String,
+                                       route: TabRoute) -> CoachCardContext? {
         guard coachFeatureEnabled, coachUIEnabled, value != "–", !value.isEmpty else { return nil }
         return CoachCardContext(
             title: title,
             summary: "\(title): \(value). \(subtitle).",
             suggestions: [String(localized: "What does this mean for me?"),
-                          String(localized: "Is this good, or something to watch?")])
+                          String(localized: "Is this good, or something to watch?")],
+            requiredPurposes: CoachCardContext.purposes(forDashboard: route))
     }
 
     // MARK: - Heart rate
@@ -1746,7 +1748,7 @@ struct LiquidTodayView: View {
     private func cardLink(_ route: TabRoute, icon: String, title: String, sub: String,
                           value: String, tint: Color, frac: Double?,
                           showsCoachButton: Bool = true) -> some View {
-        let ctx = showsCoachButton ? dashboardCoachContext(title: title, value: value, subtitle: sub) : nil
+        let ctx = showsCoachButton ? dashboardCoachContext(title: title, value: value, subtitle: sub, route: route) : nil
         return HStack(spacing: 8) {
             NavigationLink(value: route) {
                 TodayDashboardRow(

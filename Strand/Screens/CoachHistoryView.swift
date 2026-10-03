@@ -53,6 +53,12 @@ struct CoachHistoryView: View {
                 }
             }
         }
+        #if os(macOS)
+        // A macOS sheet sizes itself to its content's ideal size, and a List has almost none: the sheet
+        // showed only the search field, title and Done, with every conversation row laid out at zero
+        // height. The detail-sheet minimum gives the list real room.
+        .frame(minWidth: NoopMetrics.detailSheetMinWidth, minHeight: NoopMetrics.detailSheetMinHeight)
+        #endif
     }
 
     /// Everything matching the current search. One filter for every section, so a search can never show

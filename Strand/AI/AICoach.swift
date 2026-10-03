@@ -1019,11 +1019,13 @@ final class AICoachEngine: ObservableObject {
     /// than piling up blank threads. Preserved name `clearChat` as an alias so old call sites still work.
     func newConversation() {
         if let cur = activeConversation, cur.messages.isEmpty {
+            stopReplyBeforeLeavingConversation()
             chartsByMessage = [:]
             cardsByMessage = [:]
             clearError()
             return
         }
+        stopReplyBeforeLeavingConversation()
         if let leaving = activeConversationID { maybeSummarize(leaving) }
         let fresh = CoachConversation()
         conversations.insert(fresh, at: 0)
@@ -1039,6 +1041,7 @@ final class AICoachEngine: ObservableObject {
     /// being left first (cheap model, best-effort) so its content becomes cross-conversation memory.
     func switchTo(_ id: UUID) {
         guard conversations.contains(where: { $0.id == id }) else { return }
+        if activeConversationID != id { stopReplyBeforeLeavingConversation() }
         if let leaving = activeConversationID, leaving != id { maybeSummarize(leaving) }
         activeConversationID = id
         clearError()
@@ -1095,6 +1098,7 @@ final class AICoachEngine: ObservableObject {
 
     /// Delete a conversation. If it was the active one, fall back to the newest remaining, or a fresh one.
     func deleteConversation(_ id: UUID) {
+        if activeConversationID == id { stopReplyBeforeLeavingConversation() }
         conversations.removeAll { $0.id == id }
         if activeConversationID == id || activeConversationID == nil {
             if let first = conversations.first {
@@ -1106,6 +1110,16 @@ final class AICoachEngine: ObservableObject {
             }
             rebuildChartsForActive()
         }
+    }
+
+    /// A reply writes into whichever conversation is ACTIVE when its tokens, tool artifacts or final
+    /// message arrive. Leaving the conversation mid-reply (history, New chat, deleting it) therefore
+    /// stops the reply first, keeping what already streamed in the conversation it belongs to; queued
+    /// charts and cards are dropped rather than landing in the next chat.
+    private func stopReplyBeforeLeavingConversation() {
+        guard sending || sendTask != nil else { return }
+        stop()
+        discardPendingCharts()
     }
 
     /// Rebuild `chartsByMessage` for the active conversation from its persisted snapshots.
@@ -1594,6 +1608,9 @@ final class AICoachEngine: ObservableObject {
         // Route through `appendMessage` for upstream's `maxStoredMessages` cap (unbounded-RAM fix, #741)
         // while keeping the fork's richer clear-error + card-suggestion reset.
         appendMessage(ChatMessage(role: .user, text: trimmed))
+        // The conversation this turn belongs to. Anything arriving after the user has left it is dropped
+        // instead of being written into whichever chat is open by then.
+        let requestConversationID = activeConversationID
         cardSuggestions = []   // the card's follow-up chips belong to the moment after its read (#P11)
         // A memory write belongs to the reply that made it. Anything left over from a turn that errored
         // out before its message was built must not be attributed to this one.
@@ -1713,15 +1730,13 @@ final class AICoachEngine: ObservableObject {
                     messages[idx] = messages[idx].attaching(toolsUsed: reply.toolsUsed,
                                                             memoryWrites: takeMemoryWrites())
                 }
-                flushPendingCharts()
-            flushPendingCards()
+                flushPendingArtifacts(ifStillOn: requestConversationID)
             } catch let e as AICoachError {
                 removeAssistantIfEmpty(replyId); discardPendingCharts(); setError(e)
             } catch {
                 // A user-initiated Stop cancels the task; keep whatever streamed so far, show no error.
                 if Self.isCancellation(error) {
-                    flushPendingCharts()
-                    flushPendingCards()
+                    flushPendingArtifacts(ifStillOn: requestConversationID)
                 } else {
                     removeAssistantIfEmpty(replyId); discardPendingCharts()
                     setError(error)
@@ -1734,6 +1749,7 @@ final class AICoachEngine: ObservableObject {
             let reply = try await callProvider(key: key, messages: wire, tools: requestTools,
                                                systemPrompt: requestSystemPrompt)
             let clean = reply.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard activeConversationID == requestConversationID else { discardPendingCharts(); return }
             appendMessage(ChatMessage(role: .assistant,
                                       text: clean.isEmpty ? String(localized: "(no reply)") : clean,
                                       toolsUsed: reply.toolsUsed, localContextUsed: localContextUsed,
@@ -1836,6 +1852,13 @@ final class AICoachEngine: ObservableObject {
             }
         }
         pendingCharts.removeAll()
+    }
+
+    /// Flush the turn's charts and cards only while its conversation is still the open one.
+    private func flushPendingArtifacts(ifStillOn conversationID: UUID?) {
+        guard activeConversationID == conversationID else { discardPendingCharts(); return }
+        flushPendingCharts()
+        flushPendingCards()
     }
 
     /// Discard any queued charts (used when a turn errors out).
@@ -3258,6 +3281,9 @@ final class AICoachEngine: ObservableObject {
         guard let context = pendingCardContext else { return }
         pendingCardContext = nil
         guard isConfigured, dataConsent, !sending else { return }
+        // The card buttons hide themselves when a purpose is off; this catches a stale tap and any
+        // caller that opens a card context directly.
+        guard context.isAllowed(by: toolConsent) else { return }
         clearError()
         memoryWrites = []
         sending = true

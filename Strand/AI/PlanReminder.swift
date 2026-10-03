@@ -36,11 +36,13 @@ enum PlanReminder {
             switch settings.authorizationStatus {
             case .authorized, .provisional, .ephemeral:
                 UserDefaults.standard.set(true, forKey: K.enabled)
+                scheduleAll(CoachPlanStore.shared.proposals)
                 completion?(.scheduled)
             case .notDetermined:
                 let granted = (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
                 if granted {
                     UserDefaults.standard.set(true, forKey: K.enabled)
+                    scheduleAll(CoachPlanStore.shared.proposals)
                     completion?(.scheduled)
                 } else {
                     UserDefaults.standard.set(false, forKey: K.enabled)
@@ -62,7 +64,8 @@ enum PlanReminder {
     static func schedule(for proposal: PlanProposal) {
         let id = identifier(for: proposal.id)
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [id])
-        guard isEnabled, proposal.status.isCommitment,
+        // A session finished early has nothing left to remind about.
+        guard isEnabled, proposal.status.isCommitment, proposal.status != .completed,
               let time = proposal.time, time > Date() else { return }
 
         let content = UNMutableNotificationContent()
@@ -74,6 +77,12 @@ enum PlanReminder {
         let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
         UNUserNotificationCenter.current().add(
             UNNotificationRequest(identifier: id, content: content, trigger: trigger))
+    }
+
+    /// Sessions already in the plan book when reminders are switched on (or back on) get theirs now;
+    /// otherwise they waited for an unrelated later edit of the plan.
+    static func scheduleAll(_ proposals: [PlanProposal]) {
+        for proposal in proposals { schedule(for: proposal) }
     }
 
     static func cancel(for id: UUID) {

@@ -1747,7 +1747,8 @@ struct StrengthView: View {
                 String(localized: "Is my volume where it should be?"),
                 String(localized: "Which muscle group am I neglecting?"),
                 String(localized: "How is my strength progressing?"),
-            ])
+            ],
+            requiredPurposes: [.workouts])
     }
 
     private func askCoachForRoutine() {
@@ -1755,7 +1756,8 @@ struct StrengthView: View {
         openCoach(with: CoachCardContext(
             title: String(localized: "Strength"),
             summary: context.summary,
-            suggestions: [String(localized: "Draft me a routine that fixes my weak spots")]))
+            suggestions: [String(localized: "Draft me a routine that fixes my weak spots")],
+            requiredPurposes: context.requiredPurposes))
     }
 
     /// The same hand-off `CoachCardButton` performs, reused rather than reimplemented so a card opened

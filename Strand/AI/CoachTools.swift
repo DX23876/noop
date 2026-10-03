@@ -1122,14 +1122,20 @@ extension AICoachEngine {
             .joined(separator: "\n\n")
     }
 
-    /// An OPTIONAL integer argument, nil when the model omitted it. The inline
-    /// `(x as? Int) ?? Int(x as? Double ?? default)` pattern used elsewhere in this dispatcher can't
-    /// express "absent" — it has to invent a default — and here absent is meaningful: no `on_days_ago`
-    /// means "don't filter by day at all", not "day 0". Providers also vary on whether a JSON integer
-    /// arrives as `Int`, `Double` or a numeric `String`, so all three are accepted.
+    /// An OPTIONAL integer argument, nil when the model omitted it; callers with a default write
+    /// `intArg(x) ?? default`. Absent can be meaningful: no `on_days_ago` means "don't filter by day at
+    /// all", not "day 0". Providers also vary on whether a JSON integer arrives as `Int`, `Double` or a
+    /// numeric `String`, so all three are accepted.
+    ///
+    /// Every numeric tool argument goes through here. The provider's JSON is untrusted: a valid number such
+    /// as `1e100` used to reach `Int(Double)` before any clamp and trap the app, so a non-finite or
+    /// out-of-range value now reads as absent and the caller's default applies.
     static func intArg(_ raw: Any?) -> Int? {
         if let i = raw as? Int { return i }
-        if let d = raw as? Double { return Int(d) }
+        if let d = raw as? Double {
+            guard d.isFinite else { return nil }
+            return Int(exactly: d.rounded(.towardZero))
+        }
         if let s = raw as? String { return Int(s.trimmingCharacters(in: .whitespaces)) }
         return nil
     }
@@ -1163,13 +1169,14 @@ extension AICoachEngine {
         case .bodyMetrics:
             return await bodyAndEnergyBlock()
         case .biometricSummary:
-            var block = buildContext()
+            // Goals ride this block only with the planning grant, exactly as in `buildFullContext`.
+            var block = buildContext(includeGoals: toolConsent.allows(.planAdherence))
             if let confidence = await chargeConfidenceBlock() { block += "\n\n" + confidence }
             return block
         case .recentWorkouts:
-            let raw = (input["limit"] as? Int) ?? Int(input["limit"] as? Double ?? 6)
+            let raw = Self.intArg(input["limit"]) ?? 6
             let limit = max(1, min(raw, 30))
-            let rawDays = (input["days"] as? Int) ?? Int(input["days"] as? Double ?? 30)
+            let rawDays = Self.intArg(input["days"]) ?? 30
             return await recentWorkoutsBlock(limit: limit, days: max(1, min(rawDays, 3_650)))
         case .strengthHistory:
             let days = max(1, min(Self.intArg(input["days"]) ?? 365, 3_650))
@@ -1181,7 +1188,7 @@ extension AICoachEngine {
                 ?? "Not enough clean R-R data today to compute a stress index yet."
         case .personalPatterns:
             // The `.patterns` purpose guard above already covers this — no separate check needed here.
-            let raw = (input["limit"] as? Int) ?? Int(input["limit"] as? Double ?? 3)
+            let raw = Self.intArg(input["limit"]) ?? 3
             let limit = max(1, min(raw, 10))
             let block = await onDeviceSignalsBlock(
                 limit: limit,
@@ -1191,7 +1198,7 @@ extension AICoachEngine {
             return block.isEmpty ? "No strong personal patterns have emerged yet." : block
         case .plotMetric:
             let metric = (input["metric"] as? String) ?? ""
-            let days = (input["days"] as? Int) ?? Int(input["days"] as? Double ?? 30)
+            let days = Self.intArg(input["days"]) ?? 30
             return await handlePlotMetric(metric: metric, days: days)
         case .rememberFact:
             let fact = (input["fact"] as? String) ?? ""
@@ -1247,7 +1254,7 @@ extension AICoachEngine {
                                            onDaysAgo: Self.intArg(input["on_days_ago"]))
         case .logCaffeine:
             let mg = (input["mg"] as? Double) ?? (input["mg"] as? Int).map(Double.init)
-            let minsAgo = (input["minutes_ago"] as? Int) ?? Int(input["minutes_ago"] as? Double ?? 0)
+            let minsAgo = Self.intArg(input["minutes_ago"]) ?? 0
             return logCaffeineTool(mg: mg, minutesAgo: minsAgo)
         case .logJournal:
             return await logJournalTool(
@@ -1270,16 +1277,16 @@ extension AICoachEngine {
             let kg = (input["weight_kg"] as? Double) ?? (input["weight_kg"] as? Int).map(Double.init)
             return await logWeightTool(kg: kg, day: input["day"] as? String)
         case .sleepDetail:
-            let nights = (input["nights"] as? Int) ?? Int(input["nights"] as? Double ?? 7)
+            let nights = Self.intArg(input["nights"]) ?? 7
             return await sleepDetailTool(nights: nights)
         case .rangeReport:
-            let days = (input["days"] as? Int) ?? Int(input["days"] as? Double ?? 7)
+            let days = Self.intArg(input["days"]) ?? 7
             return await rangeReportTool(days: days)
         case .trainingPreferences:
-            let days = (input["days"] as? Int) ?? Int(input["days"] as? Double ?? 180)
+            let days = Self.intArg(input["days"]) ?? 180
             return trainingPreferencesTool(days: days)
         case .metricHistory:
-            let days = (input["days"] as? Int) ?? Int(input["days"] as? Double ?? 365)
+            let days = Self.intArg(input["days"]) ?? 365
             return await metricHistoryTool(metric: (input["metric"] as? String) ?? "",
                                            days: days, source: input["source"] as? String)
         case .readiness:
@@ -1320,16 +1327,16 @@ extension AICoachEngine {
                 effort: (input["effort"] as? Double) ?? (input["effort"] as? Int).map(Double.init),
                 sleepHours: sleep)
         case .planAdherence:
-            let days = (input["days"] as? Int) ?? Int(input["days"] as? Double ?? 7)
+            let days = Self.intArg(input["days"]) ?? 7
             return await planAdherenceBlock(days: max(1, min(days, 30)))
         case .myLogs:
-            let raw = (input["days"] as? Int) ?? Int(input["days"] as? Double ?? 14)
+            let raw = Self.intArg(input["days"]) ?? 14
             return await myLogsTool(kind: (input["kind"] as? String) ?? "", days: max(1, min(raw, 90)))
         case .sensitiveLogs:
-            let raw = (input["days"] as? Int) ?? Int(input["days"] as? Double ?? 14)
+            let raw = Self.intArg(input["days"]) ?? 14
             return await myLogsTool(kind: "journal", days: max(1, min(raw, 90)), onlySensitive: true)
         case .zoneMinutes:
-            let raw = (input["days"] as? Int) ?? Int(input["days"] as? Double ?? 7)
+            let raw = Self.intArg(input["days"]) ?? 7
             return await zoneMinutesTool(days: max(1, min(raw, 90)))
         case .estimateSessionEffort:
             return await estimateSessionEffortTool(zone: Self.intArg(input["zone"]),
@@ -1339,7 +1346,7 @@ extension AICoachEngine {
                                         metric: input["metric"] as? String,
                                         workoutStart: Self.intArg(input["workout_start"]))
         case .findHevyExercises:
-            let raw = (input["limit"] as? Int) ?? Int(input["limit"] as? Double ?? 15)
+            let raw = Self.intArg(input["limit"]) ?? 15
             return await findHevyExercisesTool(query: input["query"] as? String,
                                                muscleGroup: input["muscle_group"] as? String,
                                                equipment: input["equipment"] as? String,

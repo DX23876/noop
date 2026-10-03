@@ -23,6 +23,22 @@ enum CoachCheckIn {
 
     private static let requestId = "coach-checkin"
 
+    // MARK: - Tap hand-off
+
+    /// A notification tap that has not yet been answered with a check-in. The tap's event reaches the
+    /// shell, which only then creates the Coach screen, so that screen missed the event itself and opened
+    /// without the check-in. The request is kept here until a Coach screen consumes it, whether it was
+    /// already on screen, is created by the tap or appears after a cold launch.
+    private static var pendingOpen = false
+
+    static func markPendingOpen() { pendingOpen = true }
+
+    /// True exactly once per tap.
+    static func consumePendingOpen() -> Bool {
+        defer { pendingOpen = false }
+        return pendingOpen
+    }
+
     // MARK: - Persisted settings (own keys; default OFF, opt-in like every automation)
 
     private enum K {

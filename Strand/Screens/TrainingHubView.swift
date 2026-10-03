@@ -429,7 +429,8 @@ struct TrainingHubView: View {
                 String(localized: "Review the balance of my training plan."),
                 String(localized: "How should I adjust this plan to my recent recovery?"),
                 String(localized: "Which muscle groups may be missing from this plan?")
-            ])
+            ],
+            requiredPurposes: [.planning, .workouts])
     }
 
     private func progressionName(_ policy: ProgressionPolicy) -> String {

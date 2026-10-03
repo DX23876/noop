@@ -73,10 +73,11 @@ extension OpenRouterClient: OpenAICompatibleStreamingClient {
 
 extension CustomClient: OpenAICompatibleStreamingClient {
     var streamChatEndpoint: URL { AIProvider.custom.endpoint }
-    /// A local server usually needs no key, so the header is sent only when one is set — same rule as
-    /// `CustomClient.chat`.
+    /// The same resolver as `CustomClient.chat` and the model list: the user's chosen header
+    /// (`Authorization: Bearer` or `x-api-key`), and none at all for a keyless local server. A
+    /// hardcoded Bearer here let a gateway list models and then reject every streamed chat.
     func authorizeStreamRequest(_ req: inout URLRequest, key: String) {
-        if !key.isEmpty { req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization") }
+        AIProvider.applyCustomAuthHeader(key, to: &req)
     }
     func preflightStream() throws { try AIProvider.guardCustomBaseURL() }
     func lengthCutoffNote() -> String? {

@@ -151,6 +151,9 @@ final class CoachVoiceInput: ObservableObject {
     private var audioEngine: AVAudioEngine?
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
+    /// Identifies the running session. A recognizer callback can still arrive after the session was
+    /// stopped (the question already sent, the field already cleared); it must not write into the draft.
+    private var sessionID = UUID()
 
     private func mapSpeech(_ status: SFSpeechRecognizerAuthorizationStatus) -> AuthorizationState {
         switch status {
@@ -170,6 +173,8 @@ final class CoachVoiceInput: ObservableObject {
     }
 
     private func beginSession(partial: @escaping (String) -> Void) {
+        let token = UUID()
+        sessionID = token
         let audioEngine = AVAudioEngine()
         self.audioEngine = audioEngine
 
@@ -187,7 +192,7 @@ final class CoachVoiceInput: ObservableObject {
 
         let task = recognizer.recognitionTask(with: request) { [weak self] result, error in
             Task { @MainActor in
-                guard let self else { return }
+                guard let self, self.sessionID == token else { return }
                 if let result {
                     let text = result.bestTranscription.formattedString
                     self.partialTranscript = text
@@ -221,6 +226,7 @@ final class CoachVoiceInput: ObservableObject {
     }
 
     private func finishSession(completion: @escaping (String) -> Void) {
+        sessionID = UUID()
         if let audioEngine {
             audioEngine.stop()
             audioEngine.inputNode.removeTap(onBus: 0)
