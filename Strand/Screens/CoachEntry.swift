@@ -24,19 +24,14 @@ enum CoachFeaturePrefs {
     }
 }
 
-/// How the user reaches the Coach from the home surfaces — three INDEPENDENT entry points, each its own
-/// on/off switch. Replaces the old three-way `card`/`button`/`both` picker (`CoachEntryMode`), which could
-/// only express "row XOR button XOR both" and had no room for the Liquid header-icon entry added later —
-/// a user who wanted the banner AND the header icon AND the floating button simultaneously had no way to
-/// say so. The user picks in Coach settings (`CoachSettingsView`); `CoachTodayRow` / the Liquid coach
-/// banner, `LiquidTodayView`'s header icon, and `CoachFloatingButton` each read their own key directly.
+/// Independently configured Coach banner and floating button. The retired header-icon key remains
+/// only for compatibility with the existing migration from the older card/button/both picker.
 enum CoachEntryPrefs {
     /// Full-width row on Today — `CoachTodayRow` on classic, the Liquid-styled coach banner on Liquid.
     /// Both render as the reorderable `TodaySection.coach` (see `TodayLayoutPrefs`), so its POSITION is
     /// controlled by the Arrange sheet, not by a setting here — this key only turns it on/off.
     static let bannerKey = "coach.entry.banner"
-    /// Compact avatar/sparkle button in Liquid Today's header icon cluster. No classic-Today counterpart —
-    /// classic has no such header slot, so only `LiquidTodayView` reads this key.
+    /// Legacy key retained by the original migration; no current UI reads it.
     static let headerIconKey = "coach.entry.headerIcon"
     /// The draggable floating Coach button (`CoachFloatingButton`), mounted app-wide by `RootTabView`,
     /// iOS only.
@@ -57,7 +52,7 @@ enum CoachEntryPrefs {
             : UserDefaults.standard.bool(forKey: uiEnabledKey)
     }
 
-    /// Show the current coach's avatar (rather than a generic sparkle) on the banner/header entries (#R11).
+    /// Show the current coach's avatar (rather than a generic sparkle) on the banner entry (#R11).
     /// Default on; turning it off restores the plain-icon look. Independent of `uiEnabled`.
     static let todayAvatarKey = "coach.todayAvatar"
 

@@ -122,15 +122,13 @@ struct CoachSettingsView: View {
     @ObservedObject private var goalStore = CoachGoalStore.shared
     @ObservedObject private var usage = CoachUsageLog.shared
     @State private var memoryExpanded: Bool = false
-    /// The three independent Coach-entry points — see `CoachEntryPrefs` for why this replaced a single
-    /// card/button/both picker.
+    /// Independently configurable banner and floating Coach button.
     @AppStorage(CoachEntryPrefs.bannerKey) private var coachBannerEnabled = true
-    @AppStorage(CoachEntryPrefs.headerIconKey) private var coachHeaderIconEnabled = true
     @AppStorage(CoachEntryPrefs.floatingButtonKey) private var coachFloatingButtonEnabled = true
-    /// Master switch for the Coach's home-surface UI (#R7). Off hides all three entries above; card- and
+    /// Master switch for the Coach's home-surface UI (#R7). Off hides both entries above; card- and
     /// background-AI, and the coach settings themselves, are untouched.
     @AppStorage(CoachEntryPrefs.uiEnabledKey) private var coachUIEnabled = true
-    /// Show the coach's avatar on the banner/header entries (#R11); off restores the plain sparkle icon.
+    /// Show the coach's avatar on the banner entry (#R11); off restores the plain sparkle icon.
     @AppStorage(CoachEntryPrefs.todayAvatarKey) private var todayAvatar = true
     /// Opt-in: opening Today on a new day generates a workout suggestion. Same key MorningSuggestionCard
     /// reads. Default OFF — a Today-triggered generation is the one thing that talks to the network on
@@ -1498,18 +1496,12 @@ struct CoachSettingsView: View {
                     }
                     Spacer(minLength: 8)
                 }
-                // Three independent switches (not a single either/or picker) — a user can want the banner
-                // AND the floating button, or the compact header icon on its own, in any combination.
+                // The banner and floating button remain independently selectable.
                 Toggle(isOn: $coachBannerEnabled) {
                     Text("Banner")
                     Text("A full-width card in Today's card list, movable via Arrange Today")
                 }
                 .accessibilityLabel("Coach entry: banner")
-                Toggle(isOn: $coachHeaderIconEnabled) {
-                    Text("Header icon")
-                    Text("A compact avatar in Today's header (Liquid Today only)")
-                }
-                .accessibilityLabel("Coach entry: header icon")
                 Toggle(isOn: $coachFloatingButtonEnabled) {
                     Text("Floating button")
                     Text("A draggable button that floats over every screen")

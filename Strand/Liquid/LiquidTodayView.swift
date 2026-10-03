@@ -234,12 +234,13 @@ struct LiquidTodayView: View {
     @AppStorage("momentum.snoozed") private var momentumSnoozedRaw = ""
     @AppStorage("momentum.stepGoal") private var momentumStepGoal = 0
     @State private var momentumFeed: [MomentumMessage] = []
+    @State private var momentumFeedRevision = 0
     @State private var showMomentumMore = false
     @State private var showLiveSession = false
     @State private var showUpdatesInbox = false
     /// Coach: the AI coach engine (injected at the app root) and the full-screen chat presentation. The
     /// prominent Today entries open the redesigned Coach chat directly, so it isn't buried under More.
-    /// Each entry point (banner section, header icon) is its own independent toggle — see `CoachEntryPrefs`.
+    /// The banner is configured independently of the shell's floating Coach button.
     @EnvironmentObject private var coach: AICoachEngine
     /// The coach's identity (name/avatar/tone) — observed so the banner's name/photo updates live, same
     /// as classic Today's `CoachTodayRow`.
@@ -249,15 +250,11 @@ struct LiquidTodayView: View {
     @State private var showGoalJourney = false
     /// The full-width coach banner, rendered as the reorderable `.coach` section (`TodaySection`).
     @AppStorage(CoachEntryPrefs.bannerKey) private var coachBannerEnabled = true
-    /// The compact avatar/sparkle button in the header icon cluster (see `scene`).
-    @AppStorage(CoachEntryPrefs.headerIconKey) private var coachHeaderIconEnabled = true
     /// Master switch (#R7): hides every Coach entry point when the coach UI is turned off.
     @AppStorage(CoachEntryPrefs.uiEnabledKey) private var coachUIEnabled = true
     @AppStorage(CoachFeaturePrefs.enabledKey) private var coachFeatureEnabled = false
-    /// False renders the generic sparkle disc instead of the coach's own avatar on the banner/header entries.
+    /// False renders the generic sparkle disc instead of the coach's own avatar on the banner.
     @AppStorage(CoachEntryPrefs.todayAvatarKey) private var todayAvatar = true
-    /// The breath switch (Settings → Appearance) — shared with the classic row's avatar.
-    @AppStorage(CoachTilePrefs.breathingKey) private var coachBreathingEnabled = true
 
     /// Live Sessions (silent guardian) beta gate — the SAME key the Settings toggle writes. Default ON
     /// (the entry is BETA-labelled in-UI); off removes the Start-session control entirely.
@@ -385,10 +382,6 @@ struct LiquidTodayView: View {
     @State private var refreshing = false
     @State private var pullHaptic = 0
     private let pullThreshold: CGFloat = 80
-
-    /// Measured width of the trailing header-control cluster, feeding the day title's fade mask. Seeded
-    /// with the design-system default so the first frame is not laid out against a reserve of zero.
-    @State private var headerControlsWidth = NoopMetrics.headerControlReserveWidth
 
     /// Mock Vitality purple (#9b7bff) has no exact StrandPalette token in this theme.
     private let liquidPurple = Color(.sRGB, red: 0x9b / 255, green: 0x7b / 255, blue: 0xff / 255, opacity: 1)
@@ -649,7 +642,7 @@ struct LiquidTodayView: View {
                         Group {
                         switch section {
                         // The full-width Coach banner — the reorderable twin of classic Today's
-                        // `CoachTodayRow`, independent of the compact header-icon entry (see `scene`).
+                        // `CoachTodayRow`, independent of the shell's floating Coach button.
                         case .coach:
                             if coachFeatureEnabled, coachUIEnabled, coachBannerEnabled { coachBanner }
                         case .hero: heroCard
@@ -734,6 +727,17 @@ struct LiquidTodayView: View {
         // brings Today's scroll behaviour in line with the rest of the app without touching the
         // vertical pull-to-refresh gesture above.
         .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+        // The root hides its navigation bar, so no system bar covers cards scrolling under
+        // the status bar / Dynamic Island. Cover only the device's actual top safe area.
+        .overlay {
+            GeometryReader { proxy in
+                StrandPalette.surfaceBase
+                    .frame(height: proxy.safeAreaInsets.top)
+                    .offset(y: -proxy.safeAreaInsets.top)
+            }
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+        }
         #endif
         .onPreferenceChange(PullOffsetKey.self) { value in
             Task { @MainActor in handlePull(value) }
@@ -956,7 +960,7 @@ struct LiquidTodayView: View {
 
     private var scene: some View {
         VStack(alignment: .leading, spacing: 0) {
-            ZStack(alignment: .topTrailing) {
+            AdaptiveHeaderLayout(spacing: headerClusterSpacing) {
                 Button { showDayPicker = true } label: {
                     VStack(alignment: .leading, spacing: 2) {
                         // On TODAY the headline greets the user; a navigated past day falls back to the
@@ -1008,98 +1012,40 @@ struct LiquidTodayView: View {
                         .frame(minWidth: 320, minHeight: 360)
                         .liquidPopoverAdaptation()
                 }
-                // Reserve the cluster's measured width so the greeting is laid out in the real remaining
-                // space and scales before it can run underneath the profile/actions. A fade masked the
-                // collision but still looked like clipped text on compact phones. The measured reserve also
-                // follows the transient sync capsule when it expands.
-                // Analysis migration required: no. Header layout only.
-                .padding(.trailing, headerControlsWidth + headerClusterSpacing)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                HStack(spacing: headerClusterSpacing) {
-                    // (#R-header-coach): the Coach entry leads the trailing cluster as a compact
-                    // avatar/sparkle button — the same spot it held before it was ever demoted to a
-                    // full-width card. Sized off the shared control token so it stays flush with the
-                    // profile picture and the sync indicator beside it.
-                    if coachFeatureEnabled, coachUIEnabled, coachHeaderIconEnabled {
-                        Button { showCoach = true } label: {
-                            // The breath (#coach-breath): the corona behind the button is the only thing
-                            // that still reads as "alive" at this size — the old tile's 3% scale swell
-                            // would be under a point here. Applied to the GROUP, so it wraps the avatar
-                            // and the sparkle fallback alike: turning the avatar off is a choice about
-                            // the picture, not a reason to lose the pulse.
-                            Group {
-                                if todayAvatar {
-                                    CoachAvatarView(size: NoopMetrics.compactControlSize)
-                                        .frame(width: NoopMetrics.compactControlSize,
-                                               height: NoopMetrics.compactControlSize)
-                                } else {
-                                    Image(systemName: "sparkles")
-                                        .font(.system(size: 13, weight: .semibold))
-                                        .foregroundStyle(StrandPalette.textPrimary)
-                                        .frame(width: NoopMetrics.compactControlSize,
-                                               height: NoopMetrics.compactControlSize)
-                                        .background(Circle().fill(StrandPalette.surfaceInset.opacity(0.6)))
-                                }
-                            }
-                            .coachBreathHalo(active: CoachBreath.isActive(reduceMotion: reduceMotion,
-                                                                          enabled: coachBreathingEnabled,
-                                                                          motion: motion))
-                        }
-                        .buttonStyle(LiquidPressStyle())
-                        .accessibilityLabel("Ask your Coach")
-                        .accessibilityHint("Opens the AI coach chat.")
+                // Profile pic (the one set in Settings) → opens Settings, matching the classic Today.
+                Button { showSettings = true } label: {
+                    Color.clear.frame(
+                        width: NoopMetrics.compactControlSize,
+                        height: NoopMetrics.compactControlSize
+                    )
+                }
+                .nativeLiquidGlassHeaderButton()
+                .overlay {
+                    GeometryReader { proxy in
+                        let diameter = min(proxy.size.width, proxy.size.height)
+                        ProfileAvatarView(imageData: profile.avatarImageData, size: diameter)
+                            .frame(width: diameter, height: diameter)
+                            .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
                     }
-                    // Profile pic (the one set in Settings) → opens Settings, matching the classic Today.
-                    Button { showSettings = true } label: {
-                        Color.clear.frame(
+                    .allowsHitTesting(false)
+                }
+                .nativeLiquidGlassPhotoFinish()
+                .accessibilityLabel("Profile and settings")
+                LiquidAddButton()
+                LiquidBatteryButton()
+                LiquidUpdatesBellButton(showUpdatesInbox: $showUpdatesInbox)
+                // One entry point for section order/visibility and both nested card editors.
+                Button { customizationDestination = .today } label: {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(StrandPalette.textPrimary)
+                        .frame(
                             width: NoopMetrics.compactControlSize,
                             height: NoopMetrics.compactControlSize
                         )
-                    }
-                    .nativeLiquidGlassHeaderButton()
-                    .overlay {
-                        GeometryReader { proxy in
-                            let diameter = min(proxy.size.width, proxy.size.height)
-                            ProfileAvatarView(imageData: profile.avatarImageData, size: diameter)
-                                .frame(width: diameter, height: diameter)
-                                .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
-                        }
-                        .allowsHitTesting(false)
-                    }
-                    .nativeLiquidGlassPhotoFinish()
-                    .accessibilityLabel("Profile and settings")
-                    LiquidAddButton()
-                    LiquidBatteryButton()
-                    LiquidUpdatesBellButton(showUpdatesInbox: $showUpdatesInbox)
-                    // One entry point for section order/visibility and both nested card editors.
-                    Button { customizationDestination = .today } label: {
-                        Image(systemName: "slider.horizontal.3")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(StrandPalette.textPrimary)
-                            .frame(
-                                width: NoopMetrics.compactControlSize,
-                                height: NoopMetrics.compactControlSize
-                            )
-                    }
-                    .nativeLiquidGlassHeaderButton()
-                    .accessibilityLabel("Customize Today")
                 }
-                .background(
-                    GeometryReader { proxy in
-                        Color.clear.preference(
-                            key: HeaderControlsWidthKey.self,
-                            value: proxy.size.width
-                        )
-                    }
-                )
-                .zIndex(1)
-            }
-            .onPreferenceChange(HeaderControlsWidthKey.self) { measured in
-                Task { @MainActor in
-                    // Ignore sub-point churn so a rounding wobble cannot re-render the mask every frame.
-                    guard measured > 0, abs(measured - headerControlsWidth) > 0.5 else { return }
-                    headerControlsWidth = measured
-                }
+                .nativeLiquidGlassHeaderButton()
+                .accessibilityLabel("Customize Today")
             }
             // Subtle NOOP wordmark in the sky between header and hero. Perfectly centred (a letter row has
             // no trailing tracking gap the way `Text(...).tracking()` does), with a tap easter egg.
@@ -1741,8 +1687,8 @@ struct LiquidTodayView: View {
         }
     }
 
-    /// The full-width Coach banner — a reorderable Today section (`.coach`), independent of the compact
-    /// header-icon entry (see `scene`). Same content `CoachTodayRow` shows on classic Today (identity name
+    /// The full-width Coach banner — a reorderable Today section (`.coach`), independent of the floating
+    /// Coach button. Same content `CoachTodayRow` shows on classic Today (identity name
     /// + avatar + unseen-message dot + chevron), through Liquid's own `card { }` chrome instead of
     /// `NoopCard`, so it sits flush with every other Liquid card (synthesis, key metrics, …).
     private var coachBanner: some View {
@@ -1860,22 +1806,29 @@ struct LiquidTodayView: View {
                               lastShownKind: momentumLastKind,
                               snoozed: momentumSnoozedRaw,
                               goalsUpdatedAt: GoalTrackingStore.shared.lastUpdated,
-                              statusState: status.state.rawValue)
+                              statusState: status.state.rawValue,
+                              loadedRevision: committedLoadGeneration)
     }
 
+    private var momentumSnapshotReady: Bool { lastLoadedKey == loadKey }
+
     private func rebuildMomentum() {
+        // The selected date changes before the asynchronous snapshot has landed.
+        guard momentumSnapshotReady else { return }
         let messages = MomentumResolver.feed(context: momentumContext(),
                                              snoozedRaw: momentumSnoozedRaw,
                                              lastKind: momentumLastKind,
                                              lastAt: momentumLastAt,
                                              retrospective: selectedDayOffset != 0)
         momentumFeed = messages
+        momentumFeedRevision = committedLoadGeneration
         MomentumStore.shared.publish(messages, recentDays: repo.days)
     }
 
     @ViewBuilder
     private func momentumSection() -> some View {
-        if let top = momentumFeed.first {
+        if momentumSnapshotReady, momentumFeedRevision == committedLoadGeneration,
+           let top = momentumFeed.first {
             MomentumCard(
                 message: top,
                 remainingCount: max(0, momentumFeed.count - 1),
@@ -2450,6 +2403,7 @@ struct LiquidTodayView: View {
     @State private var lastLoadedKey: DashboardLoadKey?
     @State private var lastLoadedAt = Date.distantPast
     @State private var loadGeneration = 0
+    @State private var committedLoadGeneration = 0
     private var loadKey: DashboardLoadKey {
         DashboardLoadKey(repo: repo, selection: selectedDayKey,
             preferences: "\(hydrationEnabled)-\(hostedCardsRaw)-\(dayCycleModeRaw)", profile: profile)
@@ -2750,6 +2704,7 @@ struct LiquidTodayView: View {
         guard !Task.isCancelled, key == loadKey, generation == loadGeneration else { return }
         if hydrationSequence != repo.hydrationSeq { next.hydrationTotalML = hydrationTotalML }
         snapshot = next
+        committedLoadGeneration = generation
         lastLoadedKey = key
         lastLoadedAt = Date()
 
@@ -3244,15 +3199,6 @@ private extension View {
     /// Drive `debounced` from the raw sync signal through the shared debounce above.
     func debouncedSyncSignal(_ raw: Bool, into debounced: Binding<Bool>) -> some View {
         modifier(DebouncedSyncSignal(raw: raw, debounced: debounced))
-    }
-}
-
-/// Carries the trailing header cluster's measured width out to the day title's fade mask, so the reserve
-/// is whatever the controls actually occupy — including the sync capsule mid-expansion.
-private struct HeaderControlsWidthKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
     }
 }
 

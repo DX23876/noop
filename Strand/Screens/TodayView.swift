@@ -2582,6 +2582,8 @@ struct TodayView: View {
         let snoozed: String
         let goalsUpdatedAt: Date?
         let statusState: String
+        /// Liquid Today resolves these inputs asynchronously after selection changes.
+        var loadedRevision: Int = 0
     }
 
     private var momentumKey: MomentumKey {
