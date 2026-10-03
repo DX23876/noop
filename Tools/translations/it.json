@@ -1798,5 +1798,19 @@
   "Search metrics": "Cerca metriche",
   "With Data": "Con dati",
   "No matching metrics": "Nessuna metrica corrispondente",
-  "Show": "Mostra"
+  "Show": "Mostra",
+  "%@ stays connected. The readings of every other WHOOP entry move into it.": "%@ resta connesso. Le misurazioni di tutte le altre voci WHOOP vengono spostate qui.",
+  "Confirmation word": "Parola di conferma",
+  "If these are straps you replaced over time, merge them into one WHOOP entry. All readings are kept and your active strap stays connected. Keep them separate if they belong to different people.": "Se sono fasce che hai sostituito nel tempo, uniscile in un'unica voce WHOOP. Tutte le misurazioni vengono conservate e la fascia attiva resta connessa. Tienile separate se appartengono a persone diverse.",
+  "MERGE": "UNISCI",
+  "Merge WHOOP entries?": "Unire le voci WHOOP?",
+  "Merging your WHOOP entries": "Unione delle voci WHOOP in corso",
+  "NOOP couldn't save a backup first, so nothing was merged. Free up some storage and try again.": "NOOP non è riuscito a salvare prima un backup, quindi non è stato unito nulla. Libera spazio e riprova.",
+  "Replaces my previous WHOOP": "Sostituisce il mio WHOOP precedente",
+  "Several WHOOP entries": "Più voci WHOOP",
+  "This can't be undone in the app. NOOP saves a full backup to Files › NOOP › Backups first, and merges nothing if that fails.": "Non si può annullare nell'app. NOOP salva prima un backup completo in File › NOOP › Backups e non unisce nulla se non riesce.",
+  "This strap gets its own entry, for example a second person's strap.": "Questa fascia avrà una voce propria, ad esempio quella di un'altra persona.",
+  "Type %@ to confirm.": "Digita %@ per confermare.",
+  "Your WHOOP entry and its history carry over to this strap.": "La tua voce WHOOP e la sua cronologia passano a questa fascia.",
+  "Your strap's history is moving into one WHOOP entry. Nothing is deleted. %lld readings so far.": "La cronologia della fascia viene spostata in un'unica voce WHOOP. Non viene eliminato nulla. Finora %lld misurazioni."
 }

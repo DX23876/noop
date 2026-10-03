@@ -463899,6 +463899,819 @@
           }
         }
       }
+    },
+    "%@ stays connected. The readings of every other WHOOP entry move into it." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ bleibt verbunden. Die Messwerte aller anderen WHOOP-Einträge werden dorthin übernommen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ sigue conectado. Las lecturas de las demás entradas WHOOP se trasladan a él."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ reste connecté. Les mesures de toutes les autres entrées WHOOP y sont transférées."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ resta connesso. Le misurazioni di tutte le altre voci WHOOP vengono spostate qui."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ pozostaje połączony. Pomiary ze wszystkich pozostałych wpisów WHOOP zostaną do niego przeniesione."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ continua ligado. As leituras de todas as outras entradas WHOOP passam para ele."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ остаётся подключённым. Показания всех остальных записей WHOOP переносятся в него."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 保持连接。其他所有 WHOOP 条目的读数都会移入其中。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 保持連線。其他所有 WHOOP 項目的讀數都會移入其中。"
+          }
+        }
+      }
+    },
+    "Confirmation word" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bestätigungswort"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Palabra de confirmación"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mot de confirmation"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parola di conferma"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Słowo potwierdzające"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Palavra de confirmação"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Слово подтверждения"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "确认词"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "確認詞"
+          }
+        }
+      }
+    },
+    "If these are straps you replaced over time, merge them into one WHOOP entry. All readings are kept and your active strap stays connected. Keep them separate if they belong to different people." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wenn das Bänder sind, die du nach und nach ersetzt hast, führe sie zu einem WHOOP-Eintrag zusammen. Alle Messwerte bleiben erhalten und dein aktives Band bleibt verbunden. Lass sie getrennt, wenn sie verschiedenen Personen gehören."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Si son pulseras que has ido sustituyendo, combínalas en una sola entrada WHOOP. Se conservan todas las lecturas y tu pulsera activa sigue conectada. Mantenlas separadas si pertenecen a personas distintas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S'il s'agit de bracelets que vous avez remplacés au fil du temps, fusionnez-les en une seule entrée WHOOP. Toutes les mesures sont conservées et votre bracelet actif reste connecté. Gardez-les séparés s'ils appartiennent à des personnes différentes."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se sono fasce che hai sostituito nel tempo, uniscile in un'unica voce WHOOP. Tutte le misurazioni vengono conservate e la fascia attiva resta connessa. Tienile separate se appartengono a persone diverse."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jeśli to opaski, które z czasem wymieniałeś, scal je w jeden wpis WHOOP. Wszystkie pomiary zostaną zachowane, a aktywna opaska pozostanie połączona. Zostaw je osobno, jeśli należą do różnych osób."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se forem pulseiras que foste substituindo, junta-as numa única entrada WHOOP. Todas as leituras são mantidas e a tua pulseira ativa continua ligada. Mantém-nas separadas se pertencerem a pessoas diferentes."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Если это браслеты, которые вы со временем заменяли, объедините их в одну запись WHOOP. Все показания сохранятся, а активный браслет останется подключённым. Оставьте их раздельно, если они принадлежат разным людям."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如果这些是你陆续更换过的手环，请将它们合并为一个 WHOOP 条目。所有读数都会保留，当前手环保持连接。如果它们属于不同的人，请保持分开。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如果這些是你陸續更換過的手環，請將它們合併為一個 WHOOP 項目。所有讀數都會保留，目前的手環保持連線。如果它們屬於不同的人，請保持分開。"
+          }
+        }
+      }
+    },
+    "MERGE" : {
+      "comment" : "Word typed to confirm merging WHOOP entries",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BESTÄTIGEN"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FUSIONAR"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FUSIONNER"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "UNISCI"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SCAL"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FUNDIR"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ОБЪЕДИНИТЬ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "合并"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "合併"
+          }
+        }
+      }
+    },
+    "Merge WHOOP entries?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WHOOP-Einträge zusammenführen?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Combinar las entradas WHOOP?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fusionner les entrées WHOOP ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unire le voci WHOOP?"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scalić wpisy WHOOP?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Juntar as entradas WHOOP?"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Объединить записи WHOOP?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "合并 WHOOP 条目？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "合併 WHOOP 項目？"
+          }
+        }
+      }
+    },
+    "Merging your WHOOP entries" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WHOOP-Einträge werden zusammengeführt"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Combinando tus entradas WHOOP"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fusion de vos entrées WHOOP"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unione delle voci WHOOP in corso"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scalanie wpisów WHOOP"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A juntar as tuas entradas WHOOP"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Объединение записей WHOOP"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在合并 WHOOP 条目"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在合併 WHOOP 項目"
+          }
+        }
+      }
+    },
+    "NOOP couldn't save a backup first, so nothing was merged. Free up some storage and try again." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP konnte vorher kein Backup speichern, daher wurde nichts zusammengeführt. Gib etwas Speicher frei und versuche es erneut."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP no pudo guardar antes una copia de seguridad, así que no se combinó nada. Libera espacio e inténtalo de nuevo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP n'a pas pu enregistrer de sauvegarde au préalable, rien n'a donc été fusionné. Libérez de l'espace et réessayez."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP non è riuscito a salvare prima un backup, quindi non è stato unito nulla. Libera spazio e riprova."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP nie mógł najpierw zapisać kopii zapasowej, więc niczego nie scalono. Zwolnij trochę miejsca i spróbuj ponownie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O NOOP não conseguiu guardar primeiro uma cópia de segurança, por isso nada foi juntado. Liberta espaço e tenta novamente."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP не удалось сначала сохранить резервную копию, поэтому ничего не объединено. Освободите место и повторите попытку."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 未能先保存备份，因此没有合并任何内容。请释放一些存储空间后重试。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 未能先儲存備份，因此沒有合併任何內容。請釋放一些儲存空間後重試。"
+          }
+        }
+      }
+    },
+    "Replaces my previous WHOOP" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ersetzt mein bisheriges WHOOP"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sustituye a mi WHOOP anterior"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remplace mon WHOOP précédent"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sostituisce il mio WHOOP precedente"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zastępuje mój poprzedni WHOOP"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Substitui o meu WHOOP anterior"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Заменяет мой прежний WHOOP"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "替换我之前的 WHOOP"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取代我之前的 WHOOP"
+          }
+        }
+      }
+    },
+    "Several WHOOP entries" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mehrere WHOOP-Einträge"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Varias entradas WHOOP"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plusieurs entrées WHOOP"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Più voci WHOOP"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kilka wpisów WHOOP"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Várias entradas WHOOP"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Несколько записей WHOOP"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "多个 WHOOP 条目"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "多個 WHOOP 項目"
+          }
+        }
+      }
+    },
+    "This can't be undone in the app. NOOP saves a full backup to Files › NOOP › Backups first, and merges nothing if that fails." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das lässt sich in der App nicht rückgängig machen. NOOP speichert vorher ein vollständiges Backup unter Dateien › NOOP › Backups und führt nichts zusammen, falls das fehlschlägt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se puede deshacer en la app. NOOP guarda antes una copia de seguridad completa en Archivos › NOOP › Backups y no combina nada si falla."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette action est irréversible dans l'app. NOOP enregistre d'abord une sauvegarde complète dans Fichiers › NOOP › Backups et ne fusionne rien en cas d'échec."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non si può annullare nell'app. NOOP salva prima un backup completo in File › NOOP › Backups e non unisce nulla se non riesce."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tego nie da się cofnąć w aplikacji. NOOP najpierw zapisuje pełną kopię zapasową w Pliki › NOOP › Backups i niczego nie scala, jeśli to się nie uda."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não é possível anular na app. O NOOP guarda primeiro uma cópia de segurança completa em Ficheiros › NOOP › Backups e não junta nada se isso falhar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Это нельзя отменить в приложении. NOOP сначала сохраняет полную резервную копию в Файлы › NOOP › Backups и ничего не объединяет, если это не удалось."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此操作无法在应用内撤销。NOOP 会先在“文件 › NOOP › Backups”中保存完整备份，若备份失败则不会合并任何内容。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此操作無法在 App 內復原。NOOP 會先在「檔案 › NOOP › Backups」中儲存完整備份，若備份失敗則不會合併任何內容。"
+          }
+        }
+      }
+    },
+    "This strap gets its own entry, for example a second person's strap." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieses Band bekommt einen eigenen Eintrag, zum Beispiel für das Band einer zweiten Person."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta pulsera tendrá su propia entrada, por ejemplo la de otra persona."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce bracelet aura sa propre entrée, par exemple celui d'une autre personne."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questa fascia avrà una voce propria, ad esempio quella di un'altra persona."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ta opaska otrzyma własny wpis, na przykład opaska drugiej osoby."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta pulseira terá a sua própria entrada, por exemplo a de outra pessoa."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Этот браслет получит отдельную запись, например браслет другого человека."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此手环将获得单独的条目，例如另一个人的手环。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此手環將獲得獨立的項目，例如另一個人的手環。"
+          }
+        }
+      }
+    },
+    "Type %@ to confirm." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tippe %@ ein, um zu bestätigen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escribe %@ para confirmar."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tapez %@ pour confirmer."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Digita %@ per confermare."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wpisz %@, aby potwierdzić."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escreve %@ para confirmar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Введите %@ для подтверждения."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入 %@ 以确认。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "輸入 %@ 以確認。"
+          }
+        }
+      }
+    },
+    "Your WHOOP entry and its history carry over to this strap." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein WHOOP-Eintrag samt Verlauf geht auf dieses Band über."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu entrada WHOOP y su historial pasan a esta pulsera."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre entrée WHOOP et son historique passent à ce bracelet."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La tua voce WHOOP e la sua cronologia passano a questa fascia."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twój wpis WHOOP wraz z historią przechodzi na tę opaskę."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A tua entrada WHOOP e o seu histórico passam para esta pulseira."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваша запись WHOOP вместе с историей переходит на этот браслет."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的 WHOOP 条目及其历史记录将转移到此手环。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的 WHOOP 項目及其歷史紀錄將轉移到此手環。"
+          }
+        }
+      }
+    },
+    "Your strap's history is moving into one WHOOP entry. Nothing is deleted. %lld readings so far." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Verlauf deines Bandes wird in einen WHOOP-Eintrag übernommen. Nichts wird gelöscht. Bisher %lld Messwerte."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El historial de tu pulsera se está trasladando a una sola entrada WHOOP. No se borra nada. %lld lecturas hasta ahora."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'historique de votre bracelet est transféré vers une seule entrée WHOOP. Rien n'est supprimé. %lld mesures pour l'instant."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La cronologia della fascia viene spostata in un'unica voce WHOOP. Non viene eliminato nulla. Finora %lld misurazioni."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Historia opaski jest przenoszona do jednego wpisu WHOOP. Nic nie jest usuwane. Dotąd %lld pomiarów."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O histórico da tua pulseira está a passar para uma única entrada WHOOP. Nada é apagado. %lld leituras até agora."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "История браслета переносится в одну запись WHOOP. Ничего не удаляется. Пока перенесено показаний: %lld."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手环的历史记录正在移入一个 WHOOP 条目。不会删除任何内容。目前已处理 %lld 条读数。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手環的歷史紀錄正在移入一個 WHOOP 項目。不會刪除任何內容。目前已處理 %lld 筆讀數。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

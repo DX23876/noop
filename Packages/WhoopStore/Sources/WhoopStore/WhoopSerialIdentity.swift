@@ -48,8 +48,15 @@ public enum WhoopSerialIdentity {
     /// written under `my-whoop` — a split history that reads as data loss.
     ///
     /// The legacy seed joins this path as part of #1304, once the literals no longer assume it.
+    ///
+    /// An id that is ALREADY a serial id is excluded too. It names one physical strap, so a different
+    /// serial arriving under it means a different strap is connected, not that this pairing needs a
+    /// stable id. Allowing it merged a paired MG's whole history onto an old 5.0 the phone happened to
+    /// reconnect at launch (2026-10-02). Re-adopting the same serial was already a no-op.
     public static func mayAdopt(currentId: String) -> Bool {
-        currentId.hasPrefix("\(idPrefix)-")
+        let prefix = "\(idPrefix)-"
+        guard currentId.hasPrefix(prefix) else { return false }
+        return UUID(uuidString: String(currentId.dropFirst(prefix.count))) != nil
     }
 
     /// True when `id` is already the serial id for `serial` — the steady state on every reconnect after the

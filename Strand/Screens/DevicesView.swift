@@ -58,6 +58,8 @@ private struct DevicesContent: View {
     @State private var removeTarget: PairedDevice?
     @State private var deleteDataTarget: PairedDevice?
     @State private var forgetTarget: PairedDevice?
+    @State private var showMergeConfirm = false
+    @State private var mergeConfirmText = ""
     @State private var rebootTarget: PairedDevice?
     /// WHOOP 4.0 reboot probe (Test Centre → Connection, 4.0 only) — the device whose probe sheet is open.
     @State private var probeTarget: PairedDevice?
@@ -137,6 +139,102 @@ private struct DevicesContent: View {
         .accessibilityLabel("Reconnect help: \(guide)")
     }
 
+    /// One WHOOP entry: offered, never automatic, when the install has more than one WHOOP entry. Two
+    /// people's straps are a reason to keep them apart, so "Keep separate" is remembered.
+    private var whoopFoldOffer: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+            Text("Several WHOOP entries")
+                .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+            Text("If these are straps you replaced over time, merge them into one WHOOP entry. All readings are kept and your active strap stays connected. Keep them separate if they belong to different people.")
+                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            if let error = model.whoopFoldError {
+                Text(error)
+                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.statusWarningForeground)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            HStack(spacing: NoopMetrics.space2) {
+                Button("Merge") { mergeConfirmText = ""; showMergeConfirm = true }
+                    .buttonStyle(.borderedProminent)
+                    .appleInspiredTint("deviceSetup")
+                Button("Keep separate") { model.declineWhoopFold() }
+                    .buttonStyle(.bordered)
+            }
+        }
+        .padding(NoopMetrics.space3)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(NoopPanelSurface(cornerRadius: 18))
+        .sheet(isPresented: $showMergeConfirm) { mergeConfirmSheet }
+    }
+
+    /// The word the user types to confirm a merge, in the app language ("MERGE" in English).
+    private var mergeConfirmWord: String { String(localized: "MERGE", comment: "Word typed to confirm merging WHOOP entries") }
+
+    private var mergeConfirmMatches: Bool {
+        mergeConfirmText.trimmingCharacters(in: .whitespacesAndNewlines)
+            .compare(mergeConfirmWord, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
+    }
+
+    /// Merging moves data for good, so it takes a typed word, and a backup is written before anything moves.
+    private var mergeConfirmSheet: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+            Text("Merge WHOOP entries?")
+                .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+            if let keeper = model.whoopFoldKeeper {
+                Text("\(keeper.displayName) stays connected. The readings of every other WHOOP entry move into it.")
+                    .font(StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Text("This can't be undone in the app. NOOP saves a full backup to Files › NOOP › Backups first, and merges nothing if that fails.")
+                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("Type \(mergeConfirmWord) to confirm.")
+                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+            TextField(mergeConfirmWord, text: $mergeConfirmText)
+                .textFieldStyle(.plain)
+                .font(StrandFont.body)
+                .autocorrectionDisabled()
+                #if os(iOS)
+                .textInputAutocapitalization(.characters)
+                #endif
+                .padding(12)
+                .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .accessibilityLabel("Confirmation word")
+            HStack(spacing: NoopMetrics.space2) {
+                Button("Cancel", role: .cancel) { showMergeConfirm = false }
+                    .buttonStyle(.bordered)
+                Spacer()
+                Button("OK") {
+                    showMergeConfirm = false
+                    Task { await model.foldWhoopEntries() }
+                }
+                .buttonStyle(.borderedProminent)
+                .appleInspiredTint("deviceSetup")
+                .disabled(!mergeConfirmMatches)
+            }
+        }
+        .padding(NoopMetrics.space4)
+        .presentationDetents([.medium])
+    }
+
+    /// One WHOOP entry: shown while extra WHOOP entries are being folded into the one WHOOP.
+    private func whoopFoldBanner(moved: Int) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            ProgressView().accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Merging your WHOOP entries")
+                    .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                Text("Your strap's history is moving into one WHOOP entry. Nothing is deleted. \(moved) readings so far.")
+                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(NoopMetrics.space3)
+        .background(NoopPanelSurface(cornerRadius: 18))
+        .accessibilityElement(children: .combine)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
             // #802: the re-pair guide belongs HERE too, not only on Live. A strap that connects but never
@@ -145,6 +243,11 @@ private struct DevicesContent: View {
             // with the guide already armed, because nothing on Devices said so. Same state and same string
             // as LiveView's banner; no new copy.
             if let guide = live.reconnectGuide { repairGuideBanner(guide) }
+            if let moved = model.whoopFoldMoved {
+                whoopFoldBanner(moved: moved)
+            } else if model.whoopFoldOffered {
+                whoopFoldOffer
+            }
             DeviceSyncStatusCard()
                 // #1300 tier 2: compute the two-strap comparison off the giant body-modifier chain (attaching
                 // .task to the whole `body` tips the iOS type-check budget on this already-heavy view).
@@ -154,6 +257,7 @@ private struct DevicesContent: View {
             sectionHead("YOUR BANDS", trailing: activeDevices.count == 1
                         ? String(localized: "1 paired")
                         : String(localized: "\(activeDevices.count) paired"))
+                .task(id: registry.devices.count) { await model.refreshWhoopFoldOffer() }
             // #1300: a prominent switcher to flip which strap is active — the "switch, don't combine"
             // option for a user with two straps (e.g. a 4.0 + a 5/MG). Shown only with 2+ straps, so it
             // auto-collapses when one is forgotten. Reuses the existing active-strap confirmation.

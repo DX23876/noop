@@ -1704,5 +1704,19 @@
   "Search metrics": "Buscar métricas",
   "With Data": "Con datos",
   "No matching metrics": "No hay métricas que coincidan",
-  "Show": "Mostrar"
+  "Show": "Mostrar",
+  "%@ stays connected. The readings of every other WHOOP entry move into it.": "%@ sigue conectado. Las lecturas de las demás entradas WHOOP se trasladan a él.",
+  "Confirmation word": "Palabra de confirmación",
+  "If these are straps you replaced over time, merge them into one WHOOP entry. All readings are kept and your active strap stays connected. Keep them separate if they belong to different people.": "Si son pulseras que has ido sustituyendo, combínalas en una sola entrada WHOOP. Se conservan todas las lecturas y tu pulsera activa sigue conectada. Mantenlas separadas si pertenecen a personas distintas.",
+  "MERGE": "FUSIONAR",
+  "Merge WHOOP entries?": "¿Combinar las entradas WHOOP?",
+  "Merging your WHOOP entries": "Combinando tus entradas WHOOP",
+  "NOOP couldn't save a backup first, so nothing was merged. Free up some storage and try again.": "NOOP no pudo guardar antes una copia de seguridad, así que no se combinó nada. Libera espacio e inténtalo de nuevo.",
+  "Replaces my previous WHOOP": "Sustituye a mi WHOOP anterior",
+  "Several WHOOP entries": "Varias entradas WHOOP",
+  "This can't be undone in the app. NOOP saves a full backup to Files › NOOP › Backups first, and merges nothing if that fails.": "No se puede deshacer en la app. NOOP guarda antes una copia de seguridad completa en Archivos › NOOP › Backups y no combina nada si falla.",
+  "This strap gets its own entry, for example a second person's strap.": "Esta pulsera tendrá su propia entrada, por ejemplo la de otra persona.",
+  "Type %@ to confirm.": "Escribe %@ para confirmar.",
+  "Your WHOOP entry and its history carry over to this strap.": "Tu entrada WHOOP y su historial pasan a esta pulsera.",
+  "Your strap's history is moving into one WHOOP entry. Nothing is deleted. %lld readings so far.": "El historial de tu pulsera se está trasladando a una sola entrada WHOOP. No se borra nada. %lld lecturas hasta ahora."
 }

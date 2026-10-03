@@ -1704,5 +1704,19 @@
   "Search metrics": "Pesquisar métricas",
   "With Data": "Com dados",
   "No matching metrics": "Nenhuma métrica correspondente",
-  "Show": "Mostrar"
+  "Show": "Mostrar",
+  "%@ stays connected. The readings of every other WHOOP entry move into it.": "%@ continua ligado. As leituras de todas as outras entradas WHOOP passam para ele.",
+  "Confirmation word": "Palavra de confirmação",
+  "If these are straps you replaced over time, merge them into one WHOOP entry. All readings are kept and your active strap stays connected. Keep them separate if they belong to different people.": "Se forem pulseiras que foste substituindo, junta-as numa única entrada WHOOP. Todas as leituras são mantidas e a tua pulseira ativa continua ligada. Mantém-nas separadas se pertencerem a pessoas diferentes.",
+  "MERGE": "FUNDIR",
+  "Merge WHOOP entries?": "Juntar as entradas WHOOP?",
+  "Merging your WHOOP entries": "A juntar as tuas entradas WHOOP",
+  "NOOP couldn't save a backup first, so nothing was merged. Free up some storage and try again.": "O NOOP não conseguiu guardar primeiro uma cópia de segurança, por isso nada foi juntado. Liberta espaço e tenta novamente.",
+  "Replaces my previous WHOOP": "Substitui o meu WHOOP anterior",
+  "Several WHOOP entries": "Várias entradas WHOOP",
+  "This can't be undone in the app. NOOP saves a full backup to Files › NOOP › Backups first, and merges nothing if that fails.": "Não é possível anular na app. O NOOP guarda primeiro uma cópia de segurança completa em Ficheiros › NOOP › Backups e não junta nada se isso falhar.",
+  "This strap gets its own entry, for example a second person's strap.": "Esta pulseira terá a sua própria entrada, por exemplo a de outra pessoa.",
+  "Type %@ to confirm.": "Escreve %@ para confirmar.",
+  "Your WHOOP entry and its history carry over to this strap.": "A tua entrada WHOOP e o seu histórico passam para esta pulseira.",
+  "Your strap's history is moving into one WHOOP entry. Nothing is deleted. %lld readings so far.": "O histórico da tua pulseira está a passar para uma única entrada WHOOP. Nada é apagado. %lld leituras até agora."
 }

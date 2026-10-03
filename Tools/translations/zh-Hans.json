@@ -1805,5 +1805,19 @@
   "Search metrics": "搜索指标",
   "With Data": "有数据",
   "No matching metrics": "没有匹配的指标",
-  "Show": "显示"
+  "Show": "显示",
+  "%@ stays connected. The readings of every other WHOOP entry move into it.": "%@ 保持连接。其他所有 WHOOP 条目的读数都会移入其中。",
+  "Confirmation word": "确认词",
+  "If these are straps you replaced over time, merge them into one WHOOP entry. All readings are kept and your active strap stays connected. Keep them separate if they belong to different people.": "如果这些是你陆续更换过的手环，请将它们合并为一个 WHOOP 条目。所有读数都会保留，当前手环保持连接。如果它们属于不同的人，请保持分开。",
+  "MERGE": "合并",
+  "Merge WHOOP entries?": "合并 WHOOP 条目？",
+  "Merging your WHOOP entries": "正在合并 WHOOP 条目",
+  "NOOP couldn't save a backup first, so nothing was merged. Free up some storage and try again.": "NOOP 未能先保存备份，因此没有合并任何内容。请释放一些存储空间后重试。",
+  "Replaces my previous WHOOP": "替换我之前的 WHOOP",
+  "Several WHOOP entries": "多个 WHOOP 条目",
+  "This can't be undone in the app. NOOP saves a full backup to Files › NOOP › Backups first, and merges nothing if that fails.": "此操作无法在应用内撤销。NOOP 会先在“文件 › NOOP › Backups”中保存完整备份，若备份失败则不会合并任何内容。",
+  "This strap gets its own entry, for example a second person's strap.": "此手环将获得单独的条目，例如另一个人的手环。",
+  "Type %@ to confirm.": "输入 %@ 以确认。",
+  "Your WHOOP entry and its history carry over to this strap.": "你的 WHOOP 条目及其历史记录将转移到此手环。",
+  "Your strap's history is moving into one WHOOP entry. Nothing is deleted. %lld readings so far.": "手环的历史记录正在移入一个 WHOOP 条目。不会删除任何内容。目前已处理 %lld 条读数。"
 }

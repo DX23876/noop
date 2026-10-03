@@ -574,6 +574,7 @@ final class AppModel: ObservableObject {
             // history remains queryable through the range APIs used by history/Coach surfaces.
             await self.repo.refresh(days: 120)
             await self.wireSourceCoordinator()                 // dormant unless a generic strap is active
+            await self.refreshWhoopFoldOffer()
             // Give SwiftUI an uncontested render turn before optional plan/goal consumers begin.
             try? await Task.sleep(nanoseconds: 1_000_000_000)
             await PlanReconciliationCoordinator.reconcile(repo: self.repo)
@@ -752,6 +753,8 @@ final class AppModel: ObservableObject {
             setWhoopActiveDeviceId: { [weak self] id in self?.ble.setActiveDeviceId(id) },
             // The engine's last-connected WHOOP uuid drives first-connect identity adoption.
             connectedPeripheralUUID: ble.$connectedPeripheralUUID.eraseToAnyPublisher(),
+            // #52: only a confirmed stale-pin handoff re-points the active row onto another strap.
+            readoptionConfirmed: ble.readoptionConfirmed.receive(on: DispatchQueue.main).eraseToAnyPublisher(),
             // Generic-HR connect lifecycle → the SAME strap log BLEManager writes to (`live.append(log:)`),
             // so a "connected but no data" report (issue #421) is no longer blind to the Polar/Wahoo/etc
             // path. Timestamp matches BLEManager.log()'s "HH:mm:ss" so the lines read consistently.
@@ -1569,6 +1572,149 @@ final class AppModel: ObservableObject {
             // subscription has also fired). The just-activated id IS `device.id` (`setActive` made it active).
             registry.setActive(device.id)
             Task { [weak self] in await self?.adoptActiveDevice(device.id) }
+        }
+    }
+
+    /// Progress of a running WHOOP fold: rows moved so far, nil when none is running.
+    @Published private(set) var whoopFoldMoved: Int?
+    /// Why the last combine did not start (the safety backup failed), for the Devices screen.
+    @Published var whoopFoldError: String?
+    /// True when the install has extra WHOOP entries and the user has not chosen to keep them separate,
+    /// so the Devices screen offers to combine them. Nothing is combined without that tap.
+    @Published private(set) var whoopFoldOffered = false
+    static let whoopFoldDeclinedKey = "devices.whoopFoldDeclined"
+
+    func refreshWhoopFoldOffer() async {
+        guard !UserDefaults.standard.bool(forKey: Self.whoopFoldDeclinedKey),
+              let store = await repo.storeHandle() else { whoopFoldOffered = false; return }
+        whoopFoldOffered = (try? await store.registryWriter.read { try WhoopRowFold.isNeeded(in: $0) }) == true
+    }
+
+    /// The WHOOP whose strap stays connected after combining: the active WHOOP, which is the strap in
+    /// use; with none active, the newest extra pairing.
+    var whoopFoldKeeper: PairedDevice? {
+        guard let devices = deviceRegistry?.devices else { return nil }
+        let whoops = devices.filter { $0.id == WhoopRowFold.canonicalId || $0.id.hasPrefix("whoop-") }
+        return whoops.first(where: { $0.status == .active })
+            ?? whoops.filter { $0.id.hasPrefix("whoop-") }.max(by: { $0.addedAt < $1.addedAt })
+    }
+
+    /// "Keep separate": remembered, so the offer does not return.
+    func declineWhoopFold() {
+        UserDefaults.standard.set(true, forKey: Self.whoopFoldDeclinedKey)
+        whoopFoldOffered = false
+    }
+
+    /// Pair a WHOOP. When it `replaces` the previous strap (the wizard asks), it takes over the ONE WHOOP
+    /// entry instead of becoming a second card, and any extra WHOOP entries are folded in, so replacing
+    /// a strap never splits the list or the history. A strap that does not replace (a second person's
+    /// strap) gets its own entry, as before. Also falls back to its own entry on an install whose WHOOP
+    /// entry was forgotten.
+    func pairWhoop(peripheralId: String, model: String, nickname: String?, makeActive: Bool, replaces: Bool) {
+        guard let registry = deviceRegistry else { return }
+        let canonical = WhoopRowFold.canonicalId
+        guard replaces, registry.devices.contains(where: { $0.id == canonical }) else {
+            let now = Int(Date().timeIntervalSince1970)
+            registerDevice(PairedDevice(id: "whoop-\(peripheralId)", brand: "WHOOP", model: model, nickname: nickname,
+                                        peripheralId: peripheralId, sourceKind: .liveBLE,
+                                        capabilities: WhoopLiveCapabilities.metrics(forModel: model),
+                                        status: .paired, addedAt: now, lastSeenAt: now),
+                           makeActive: makeActive)
+            return
+        }
+        registry.setPeripheralId(canonical, peripheralId: peripheralId)
+        registry.setModel(canonical, model: model)
+        registry.rename(canonical, to: nickname)
+        live.append(log: "[\(AppModel.logTimeFormatter.string(from: Date()))] One WHOOP: the paired strap now backs the WHOOP entry")
+        if makeActive {
+            // `activeDeviceId` keeps its last value when no row is active, so ask the row itself.
+            if registry.devices.first(where: { $0.id == canonical })?.status == .active {
+                sourceCoordinator?.retargetActiveWhoop()   // same id, new strap: no change event fires
+            } else {
+                registry.setActive(canonical)              // the coordinator follows the change itself
+            }
+        }
+        // Extra WHOOP entries are not folded here: combining moves data for good, so it only runs from
+        // the Devices offer, after a typed confirmation and a backup.
+        Task { [weak self] in
+            await self?.adoptActiveDevice(canonical)
+            await self?.refreshWhoopFoldOffer()
+        }
+    }
+
+    /// Fold every extra WHOOP entry into the one WHOOP (see `WhoopRowFold`). The WHOOP link is paused
+    /// for the duration so no sample is written under an id that is being emptied, then reconnected to
+    /// the strap the folded entry now names. Safe to interrupt; the next run continues.
+    ///
+    /// The strap that stays is `whoopFoldKeeper` (the Devices confirmation names it). Combining cannot be
+    /// undone in place, so a full backup is written to NOOP's Files-visible Backups folder first, and
+    /// nothing moves if that fails.
+    func foldWhoopEntries() async {
+        guard whoopFoldMoved == nil, let registry = deviceRegistry, let store = await repo.storeHandle() else { return }
+        let writer = store.registryWriter
+        guard (try? await writer.read({ try WhoopRowFold.isNeeded(in: $0) })) == true else { return }
+        let keeper = whoopFoldKeeper
+        let identityId = keeper?.id == WhoopRowFold.canonicalId ? nil : keeper?.id
+        func note(_ line: String) { live.append(log: "[\(AppModel.logTimeFormatter.string(from: Date()))] \(line)") }
+        whoopFoldError = nil
+        whoopFoldMoved = 0
+        guard let backup = await writeBackupBeforeWhoopFold() else {
+            whoopFoldMoved = nil
+            whoopFoldError = String(localized: "NOOP couldn't save a backup first, so nothing was merged. Free up some storage and try again.")
+            note("One WHOOP: the safety backup failed; nothing was combined")
+            return
+        }
+        note("One WHOOP: safety backup written (\(backup.lastPathComponent)); folding \(registry.devices.filter { $0.id.hasPrefix("whoop-") }.count) extra WHOOP entr(y/ies) into the WHOOP entry")
+        // Bind first and re-target the live link, so the strap keeps recording under the one WHOOP id
+        // while older rows move; nothing is then written under an id that is being emptied.
+        do {
+            try await Task.detached { try WhoopRowFold.bind(writer: writer, identityFrom: identityId) }.value
+        } catch {
+            note("One WHOOP: could not bind the WHOOP entry (\(error.localizedDescription)); nothing moved")
+            whoopFoldMoved = nil
+            return
+        }
+        let canonicalRow = { registry.devices.first(where: { $0.id == WhoopRowFold.canonicalId }) }
+        let previousActive = registry.activeDeviceId
+        let previousStrap = canonicalRow()?.peripheralId
+        registry.reload()
+        // When the active id moved onto the WHOOP entry the coordinator follows that change itself; only
+        // a WHOOP entry that was already active and now names another strap needs the explicit retarget.
+        if previousActive == WhoopRowFold.canonicalId, canonicalRow()?.status == .active,
+           canonicalRow()?.peripheralId != previousStrap {
+            sourceCoordinator?.retargetActiveWhoop()
+        }
+        let started = Date()
+        do {
+            let folded = try await Task.detached(priority: .utility) { [weak self] in
+                try WhoopRowFold.fold(writer: writer, identityFrom: nil) { moved in
+                    Task { @MainActor in self?.whoopFoldMoved = moved }
+                }
+            }.value
+            note("One WHOOP: folded \(folded.count) id(s) in \(Int(Date().timeIntervalSince(started))) s")
+        } catch {
+            note("One WHOOP: fold stopped (\(error.localizedDescription)); Combine continues it")
+        }
+        whoopFoldMoved = nil
+        await refreshWhoopFoldOffer()
+        registry.reload()
+        await adoptActiveDevice(registry.activeDeviceId)
+    }
+
+    /// A full `.noopbak` in NOOP's Files-visible Backups folder, named so the snapshot rotation never
+    /// prunes it. nil when it could not be written and verified.
+    private func writeBackupBeforeWhoopFold() async -> URL? {
+        guard let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return nil }
+        let dir = docs.appendingPathComponent("Backups", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let stamp = Int(Date().timeIntervalSince1970)
+        let dest = dir.appendingPathComponent("NOOP before combining WHOOP \(stamp).noopbak")
+        let repo = self.repo
+        switch await DataBackup.writeBackup(checkpoint: { await repo.checkpointForBackup() }, to: dest) {
+        case .exported(let url), .exportedOversize(let url, _, _): return url
+        default:
+            try? FileManager.default.removeItem(at: dest)
+            return nil
         }
     }
 

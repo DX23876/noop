@@ -2840,5 +2840,19 @@
   "Search metrics": "Szukaj metryk",
   "With Data": "Z danymi",
   "No matching metrics": "Brak pasujących metryk",
-  "Show": "Pokaż"
+  "Show": "Pokaż",
+  "%@ stays connected. The readings of every other WHOOP entry move into it.": "%@ pozostaje połączony. Pomiary ze wszystkich pozostałych wpisów WHOOP zostaną do niego przeniesione.",
+  "Confirmation word": "Słowo potwierdzające",
+  "If these are straps you replaced over time, merge them into one WHOOP entry. All readings are kept and your active strap stays connected. Keep them separate if they belong to different people.": "Jeśli to opaski, które z czasem wymieniałeś, scal je w jeden wpis WHOOP. Wszystkie pomiary zostaną zachowane, a aktywna opaska pozostanie połączona. Zostaw je osobno, jeśli należą do różnych osób.",
+  "MERGE": "SCAL",
+  "Merge WHOOP entries?": "Scalić wpisy WHOOP?",
+  "Merging your WHOOP entries": "Scalanie wpisów WHOOP",
+  "NOOP couldn't save a backup first, so nothing was merged. Free up some storage and try again.": "NOOP nie mógł najpierw zapisać kopii zapasowej, więc niczego nie scalono. Zwolnij trochę miejsca i spróbuj ponownie.",
+  "Replaces my previous WHOOP": "Zastępuje mój poprzedni WHOOP",
+  "Several WHOOP entries": "Kilka wpisów WHOOP",
+  "This can't be undone in the app. NOOP saves a full backup to Files › NOOP › Backups first, and merges nothing if that fails.": "Tego nie da się cofnąć w aplikacji. NOOP najpierw zapisuje pełną kopię zapasową w Pliki › NOOP › Backups i niczego nie scala, jeśli to się nie uda.",
+  "This strap gets its own entry, for example a second person's strap.": "Ta opaska otrzyma własny wpis, na przykład opaska drugiej osoby.",
+  "Type %@ to confirm.": "Wpisz %@, aby potwierdzić.",
+  "Your WHOOP entry and its history carry over to this strap.": "Twój wpis WHOOP wraz z historią przechodzi na tę opaskę.",
+  "Your strap's history is moving into one WHOOP entry. Nothing is deleted. %lld readings so far.": "Historia opaski jest przenoszona do jednego wpisu WHOOP. Nic nie jest usuwane. Dotąd %lld pomiarów."
 }

@@ -52,8 +52,13 @@ final class WhoopSerialIdentityTests: XCTestCase {
         XCTAssertFalse(WhoopSerialIdentity.mayAdopt(currentId: "my-whoop"))
         // A provisional pairing id IS adoptable — that is the multi-strap case this ships for.
         XCTAssertTrue(WhoopSerialIdentity.mayAdopt(currentId: "whoop-6B9F2C11-0000-4000-8000-0000000000AA"))
-        // An already-adopted serial id stays adoptable; the equality check upstream stops the re-migration.
-        XCTAssertTrue(WhoopSerialIdentity.mayAdopt(currentId: "whoop-5AG12345678"))
+        // An already-adopted serial id is never re-pointed: it names one strap, so another serial under
+        // it is another strap (2026-10-02, an MG's history moved onto an old 5.0).
+        XCTAssertFalse(WhoopSerialIdentity.mayAdopt(currentId: "whoop-5AG12345678"))
+        XCTAssertFalse(WhoopSerialIdentity.mayAdopt(currentId: "whoop-5AM00000002"))
+        // A malformed provisional id is not a pairing id either.
+        XCTAssertFalse(WhoopSerialIdentity.mayAdopt(currentId: "whoop-"))
+        XCTAssertFalse(WhoopSerialIdentity.mayAdopt(currentId: "whoop-6B9F2C11"))
         // Another brand's id is never touched by the WHOOP path.
         XCTAssertFalse(WhoopSerialIdentity.mayAdopt(currentId: "oura-2H3B2405003655"))
     }

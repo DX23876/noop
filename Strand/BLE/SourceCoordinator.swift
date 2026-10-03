@@ -51,6 +51,9 @@ final class SourceCoordinator: ObservableObject {
     private let setWhoopActiveDeviceId: (String) -> Void
     /// The most-recently-connected WHOOP peripheral's uuid, from `BLEManager.$connectedPeripheralUUID`.
     private let connectedPeripheralUUID: AnyPublisher<String?, Never>
+    /// #52: a stale pin was handed off to a strap that then bonded, from `BLEManager.readoptionConfirmed`.
+    /// The only input that re-points the active WHOOP row onto a different strap.
+    private let readoptionConfirmed: AnyPublisher<String, Never>
     /// Diagnostic sink for the ISOLATED generic-HR source's connect lifecycle. Wired at the composition
     /// root (`AppModel`) to the SAME strap log `BLEManager` writes to (`live.append(log:)`), so generic-HR
     /// lines land in the one log the user exports (issue #421 — the Polar/Wahoo/Coospo/Garmin-HRM path was
@@ -109,6 +112,7 @@ final class SourceCoordinator: ObservableObject {
     ///   - setWhoopPreferredPeripheral: pin the WHOOP scan to one strap (nil = first found).
     ///   - setWhoopActiveDeviceId: re-point which id WHOOP samples store under (multi-WHOOP only).
     ///   - connectedPeripheralUUID: the BLE engine's last-connected WHOOP uuid, for identity adoption.
+    ///   - readoptionConfirmed: the engine's confirmed #52 stale-pin handoffs. Defaults to none.
     ///   - straplog: connect-lifecycle diagnostics for the isolated `StandardHRSource`, wired to the same
     ///     strap log `BLEManager` uses (issue #421). Defaults to no-op so existing call sites compile.
     init(registry: DeviceRegistry,
@@ -119,6 +123,7 @@ final class SourceCoordinator: ObservableObject {
          setWhoopPreferredPeripheral: @escaping (String?) -> Void,
          setWhoopActiveDeviceId: @escaping (String) -> Void,
          connectedPeripheralUUID: AnyPublisher<String?, Never>,
+         readoptionConfirmed: AnyPublisher<String, Never> = Empty().eraseToAnyPublisher(),
          straplog: @escaping (String) -> Void = { _ in },
          ouraNightBand: @escaping () -> NightStandDown.Band? = { nil }) {
         self.registry = registry
@@ -129,6 +134,7 @@ final class SourceCoordinator: ObservableObject {
         self.setWhoopPreferredPeripheral = setWhoopPreferredPeripheral
         self.setWhoopActiveDeviceId = setWhoopActiveDeviceId
         self.connectedPeripheralUUID = connectedPeripheralUUID
+        self.readoptionConfirmed = readoptionConfirmed
         self.straplog = straplog
         self.ouraNightBand = ouraNightBand
     }
@@ -149,6 +155,10 @@ final class SourceCoordinator: ObservableObject {
         connectedPeripheralUUID
             .removeDuplicates()
             .sink { [weak self] uuid in self?.connectedPeripheralChanged(to: uuid) }
+            .store(in: &cancellables)
+
+        readoptionConfirmed
+            .sink { [weak self] uuid in self?.readoptionConfirmed(uuid) }
             .store(in: &cancellables)
     }
 
@@ -240,16 +250,26 @@ final class SourceCoordinator: ObservableObject {
         }
     }
 
-    /// Apply the WHOOP targeting for the now-active WHOOP `id`. Always sets the preferred peripheral
-    /// (nil for the legacy "my-whoop" → connect to any WHOOP, unchanged). Re-points the sample deviceId
-    /// ONLY for a non-legacy WHOOP — the seeded "my-whoop" keeps the bootstrap-set id, so the single-
-    /// WHOOP path never calls `setActiveDeviceId`. Records `activeWhoopId` for future change detection.
+    /// Apply the WHOOP targeting for the now-active WHOOP `id`: the preferred peripheral (nil → connect to
+    /// any WHOOP) and the id samples store under. The seeded "my-whoop" used to skip the second step and
+    /// keep the bootstrap-set id, which left samples under the PREVIOUS WHOOP's id after a switch back to
+    /// it, the very rows a one-WHOOP fold had just emptied. Setting it is a plain assignment, so on the
+    /// single-WHOOP path it re-states the id it already holds.
     private func pointWhoop(at id: String, peripheralId: String?) {
         setWhoopPreferredPeripheral(peripheralId)
-        if id != "my-whoop" {
-            setWhoopActiveDeviceId(id)
-        }
+        setWhoopActiveDeviceId(id)
         activeWhoopId = id
+    }
+
+    /// The active WHOOP row now names a different strap (a pairing bound it, or a fold moved another
+    /// row's identity onto it). The active id is unchanged, so `activeDeviceChanged` never fires: drop
+    /// the current link, re-point and reconnect explicitly.
+    func retargetActiveWhoop() {
+        let id = registry.activeDeviceId
+        guard isWhoop(id), !onStrap else { return }
+        stopWhoop()
+        pointWhoop(at: id, peripheralId: peripheralId(for: id))
+        startWhoop()
     }
 
     /// Active device is a generic strap. Pause WHOOP (once, on the WHOOP→strap edge) and run the
@@ -528,12 +548,8 @@ final class SourceCoordinator: ObservableObject {
     ///   • nil uuid (a disconnect/never-connected republish) → ignore.
     ///   • the active device is NOT a WHOOP (a generic strap is active) → ignore; this connection isn't ours.
     ///   • the active WHOOP already has a DIFFERENT non-nil peripheralId → a different strap connected:
-    ///     - normally LOG it and do NOT clobber the stored identity (`didConnect` publishes pre-bond, so
-    ///       `encryptedBond` is false — could be a transient/other strap; mis-mapping it would be wrong).
-    ///     - BUT when this republish lands with `encryptedBond == true`, it's the BLEManager #52 stale-pin
-    ///       handoff confirming a genuine bond on the live working strap (the only path that republishes
-    ///       `connectedPeripheralUUID` post-bond). The stored pin is dead (it refused the bond N× in a row);
-    ///       RE-ADOPT the working strap so we stop looping on the strap that won't bond. See #52.
+    ///     LOG it and do NOT clobber the stored identity. A connect alone never proves the stored strap is
+    ///     gone; only a confirmed #52 handoff (`readoptionConfirmed`) re-points the row.
     ///   • it already matches → nothing to write.
     private func connectedPeripheralChanged(to uuid: String?) {
         // Track the live strap's uuid for the WHOOP->WHOOP adopt-in-place skip (#74). nil is a
@@ -562,20 +578,25 @@ final class SourceCoordinator: ObservableObject {
         case .some(uuid):
             registry.touchLastSeen(activeId)    // already adopted this exact strap → only the sighting is new
         case .some(let existing):
-            // A DIFFERENT strap connected under this WHOOP row. Re-adopt ONLY when this is the #52 stale-pin
-            // handoff — i.e. the engine is genuinely encrypted-bonded to the strap whose id just arrived.
-            // BLEManager only republishes `connectedPeripheralUUID` with `encryptedBond` true as that vetted
-            // handoff (after the pinned strap refused the bond N× while this one bonded); an ordinary
-            // pre-bond `didConnect` publish always carries `encryptedBond == false`, so the protective
-            // "don't clobber" path below is preserved for every normal/transient different-strap connect.
-            if live.encryptedBond {
-                live.append(log: "Multi-WHOOP (#52): active device \(activeId) was pinned to strap \(existing) which refused to bond — re-adopting the working strap \(uuid).")
-                registry.setPeripheralId(activeId, peripheralId: uuid)
-                registry.touchLastSeen(activeId)
-            } else {
-                live.append(log: "Multi-WHOOP: active device \(activeId) is registered to strap \(existing) but \(uuid) connected — not overwriting.")
-            }
+            // A DIFFERENT strap connected under this WHOOP row. This used to re-adopt when `encryptedBond`
+            // read true, taken as proof of the #52 handoff. A coordinator wired after the launch connect
+            // receives the replayed uuid with the bond already up, so an ordinary connect to a second strap
+            // re-pointed the row and logged a refusal nobody observed (2026-10-02). The handoff now has its
+            // own signal, `readoptionConfirmed`; a connect never overwrites.
+            live.append(log: "Multi-WHOOP: active device \(activeId) is registered to strap \(existing) but \(uuid) connected — not overwriting.")
         }
+    }
+
+    /// #52: BLEManager handed a stale pin off to a strap that has since genuinely bonded. Re-point the
+    /// active WHOOP row onto it. Only BLEManager's refusal-counting handoff sends this.
+    private func readoptionConfirmed(_ uuid: String) {
+        let activeId = registry.activeDeviceId
+        guard isWhoop(activeId),
+              let device = registry.devices.first(where: { $0.id == activeId }),
+              device.peripheralId != uuid else { return }
+        live.append(log: "Multi-WHOOP (#52): active device \(activeId) was pinned to strap \(device.peripheralId ?? "none") which refused the bond repeatedly — re-adopting the working strap \(uuid).")
+        registry.setPeripheralId(activeId, peripheralId: uuid)
+        registry.touchLastSeen(activeId)
     }
 
     // MARK: - Lookups / classification

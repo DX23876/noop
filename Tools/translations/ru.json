@@ -1681,5 +1681,19 @@
   "Search metrics": "Поиск показателей",
   "With Data": "С данными",
   "No matching metrics": "Нет подходящих показателей",
-  "Show": "Показать"
+  "Show": "Показать",
+  "%@ stays connected. The readings of every other WHOOP entry move into it.": "%@ остаётся подключённым. Показания всех остальных записей WHOOP переносятся в него.",
+  "Confirmation word": "Слово подтверждения",
+  "If these are straps you replaced over time, merge them into one WHOOP entry. All readings are kept and your active strap stays connected. Keep them separate if they belong to different people.": "Если это браслеты, которые вы со временем заменяли, объедините их в одну запись WHOOP. Все показания сохранятся, а активный браслет останется подключённым. Оставьте их раздельно, если они принадлежат разным людям.",
+  "MERGE": "ОБЪЕДИНИТЬ",
+  "Merge WHOOP entries?": "Объединить записи WHOOP?",
+  "Merging your WHOOP entries": "Объединение записей WHOOP",
+  "NOOP couldn't save a backup first, so nothing was merged. Free up some storage and try again.": "NOOP не удалось сначала сохранить резервную копию, поэтому ничего не объединено. Освободите место и повторите попытку.",
+  "Replaces my previous WHOOP": "Заменяет мой прежний WHOOP",
+  "Several WHOOP entries": "Несколько записей WHOOP",
+  "This can't be undone in the app. NOOP saves a full backup to Files › NOOP › Backups first, and merges nothing if that fails.": "Это нельзя отменить в приложении. NOOP сначала сохраняет полную резервную копию в Файлы › NOOP › Backups и ничего не объединяет, если это не удалось.",
+  "This strap gets its own entry, for example a second person's strap.": "Этот браслет получит отдельную запись, например браслет другого человека.",
+  "Type %@ to confirm.": "Введите %@ для подтверждения.",
+  "Your WHOOP entry and its history carry over to this strap.": "Ваша запись WHOOP вместе с историей переходит на этот браслет.",
+  "Your strap's history is moving into one WHOOP entry. Nothing is deleted. %lld readings so far.": "История браслета переносится в одну запись WHOOP. Ничего не удаляется. Пока перенесено показаний: %lld."
 }

@@ -1703,5 +1703,19 @@
   "Search metrics": "Metriken suchen",
   "With Data": "Mit Daten",
   "No matching metrics": "Keine passenden Metriken",
-  "Show": "Anzeigen"
+  "Show": "Anzeigen",
+  "%@ stays connected. The readings of every other WHOOP entry move into it.": "%@ bleibt verbunden. Die Messwerte aller anderen WHOOP-Einträge werden dorthin übernommen.",
+  "Confirmation word": "Bestätigungswort",
+  "If these are straps you replaced over time, merge them into one WHOOP entry. All readings are kept and your active strap stays connected. Keep them separate if they belong to different people.": "Wenn das Bänder sind, die du nach und nach ersetzt hast, führe sie zu einem WHOOP-Eintrag zusammen. Alle Messwerte bleiben erhalten und dein aktives Band bleibt verbunden. Lass sie getrennt, wenn sie verschiedenen Personen gehören.",
+  "MERGE": "BESTÄTIGEN",
+  "Merge WHOOP entries?": "WHOOP-Einträge zusammenführen?",
+  "Merging your WHOOP entries": "WHOOP-Einträge werden zusammengeführt",
+  "NOOP couldn't save a backup first, so nothing was merged. Free up some storage and try again.": "NOOP konnte vorher kein Backup speichern, daher wurde nichts zusammengeführt. Gib etwas Speicher frei und versuche es erneut.",
+  "Replaces my previous WHOOP": "Ersetzt mein bisheriges WHOOP",
+  "Several WHOOP entries": "Mehrere WHOOP-Einträge",
+  "This can't be undone in the app. NOOP saves a full backup to Files › NOOP › Backups first, and merges nothing if that fails.": "Das lässt sich in der App nicht rückgängig machen. NOOP speichert vorher ein vollständiges Backup unter Dateien › NOOP › Backups und führt nichts zusammen, falls das fehlschlägt.",
+  "This strap gets its own entry, for example a second person's strap.": "Dieses Band bekommt einen eigenen Eintrag, zum Beispiel für das Band einer zweiten Person.",
+  "Type %@ to confirm.": "Tippe %@ ein, um zu bestätigen.",
+  "Your WHOOP entry and its history carry over to this strap.": "Dein WHOOP-Eintrag samt Verlauf geht auf dieses Band über.",
+  "Your strap's history is moving into one WHOOP entry. Nothing is deleted. %lld readings so far.": "Der Verlauf deines Bandes wird in einen WHOOP-Eintrag übernommen. Nichts wird gelöscht. Bisher %lld Messwerte."
 }

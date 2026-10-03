@@ -1705,5 +1705,19 @@
   "Search metrics": "Rechercher des métriques",
   "With Data": "Avec données",
   "No matching metrics": "Aucune métrique correspondante",
-  "Show": "Afficher"
+  "Show": "Afficher",
+  "%@ stays connected. The readings of every other WHOOP entry move into it.": "%@ reste connecté. Les mesures de toutes les autres entrées WHOOP y sont transférées.",
+  "Confirmation word": "Mot de confirmation",
+  "If these are straps you replaced over time, merge them into one WHOOP entry. All readings are kept and your active strap stays connected. Keep them separate if they belong to different people.": "S'il s'agit de bracelets que vous avez remplacés au fil du temps, fusionnez-les en une seule entrée WHOOP. Toutes les mesures sont conservées et votre bracelet actif reste connecté. Gardez-les séparés s'ils appartiennent à des personnes différentes.",
+  "MERGE": "FUSIONNER",
+  "Merge WHOOP entries?": "Fusionner les entrées WHOOP ?",
+  "Merging your WHOOP entries": "Fusion de vos entrées WHOOP",
+  "NOOP couldn't save a backup first, so nothing was merged. Free up some storage and try again.": "NOOP n'a pas pu enregistrer de sauvegarde au préalable, rien n'a donc été fusionné. Libérez de l'espace et réessayez.",
+  "Replaces my previous WHOOP": "Remplace mon WHOOP précédent",
+  "Several WHOOP entries": "Plusieurs entrées WHOOP",
+  "This can't be undone in the app. NOOP saves a full backup to Files › NOOP › Backups first, and merges nothing if that fails.": "Cette action est irréversible dans l'app. NOOP enregistre d'abord une sauvegarde complète dans Fichiers › NOOP › Backups et ne fusionne rien en cas d'échec.",
+  "This strap gets its own entry, for example a second person's strap.": "Ce bracelet aura sa propre entrée, par exemple celui d'une autre personne.",
+  "Type %@ to confirm.": "Tapez %@ pour confirmer.",
+  "Your WHOOP entry and its history carry over to this strap.": "Votre entrée WHOOP et son historique passent à ce bracelet.",
+  "Your strap's history is moving into one WHOOP entry. Nothing is deleted. %lld readings so far.": "L'historique de votre bracelet est transféré vers une seule entrée WHOOP. Rien n'est supprimé. %lld mesures pour l'instant."
 }

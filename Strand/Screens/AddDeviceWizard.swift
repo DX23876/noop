@@ -109,6 +109,9 @@ struct AddDeviceWizard: View {
     @State private var pickedOura: (ring: OuraLiveSource.DiscoveredRing, gen: OuraRingGen)?
 
     @State private var nameDraft = ""
+    /// WHOOP only: the new strap replaces the one already paired, so it takes over that entry and its
+    /// history instead of becoming a second card. Off for a second person's strap.
+    @State private var replacesWhoop = true
     /// After registering, ask whether to make the new device active.
     @State private var askMakeActive = false
 
@@ -1137,6 +1140,21 @@ struct AddDeviceWizard: View {
                             in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                 .accessibilityLabel("Device name")
 
+            if type?.isWhoop == true, hasPairedWhoop {
+                Toggle(isOn: $replacesWhoop) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Replaces my previous WHOOP")
+                            .font(StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
+                        Text(replacesWhoop
+                             ? "Your WHOOP entry and its history carry over to this strap."
+                             : "This strap gets its own entry, for example a second person's strap.")
+                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .tint(StrandPalette.accent)
+            }
+
             Button("Add") { askMakeActive = true }
                 .buttonStyle(.borderedProminent)
                 .appleInspiredTint("deviceSetup")
@@ -1147,6 +1165,11 @@ struct AddDeviceWizard: View {
     }
 
     // MARK: Confirm-step derived values
+
+    /// A WHOOP is already bound to a strap, so a new one may be its replacement.
+    private var hasPairedWhoop: Bool {
+        model.deviceRegistry?.devices.contains { SourceCoordinator.isWhoop($0) && $0.peripheralId != nil } == true
+    }
 
     private var confirmName: String {
         let n = nameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1255,20 +1278,21 @@ struct AddDeviceWizard: View {
         let device: PairedDevice
 
         if let pickedWhoop, let type, let wm = type.whoopModel {
-            // WHOOP: honest live capability set (no calibrated SpO₂ % — import-only; #548);
-            // id namespaced by uuid; model "4.0" / "5.0 MG". Steps only on 5.0/MG.
+            // One WHOOP entry (fork decision 2026-10-03): the picked strap takes over the WHOOP entry
+            // rather than becoming a second card. Only a name the user typed is kept; the model label
+            // is corrected to MG or 5.0 once the strap attests itself.
             let modelLabel = (wm == .whoop4) ? "4.0" : "5.0 MG"
-            device = PairedDevice(
-                id: "whoop-\(pickedWhoop.uuid)",
-                brand: "WHOOP",
-                model: modelLabel,
-                nickname: name,
-                peripheralId: pickedWhoop.uuid,
-                sourceKind: .liveBLE,
-                capabilities: WhoopLiveCapabilities.metrics(forModel: modelLabel),
-                status: .paired,
-                addedAt: now, lastSeenAt: now)
-        } else if let pickedStrap {
+            // The prefilled advertised name is not a choice the user made; only a typed name is kept.
+            let typed = nameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+            let nickname = (typed.isEmpty || typed == confirmAdvertisedName) ? nil : typed
+            model.pairWhoop(peripheralId: pickedWhoop.uuid, model: modelLabel, nickname: nickname,
+                            makeActive: makeActive,
+                            // No strap bound yet: the WHOOP entry is still the empty seed, so it is this strap's.
+                            replaces: replacesWhoop || !hasPairedWhoop)
+            onClose()
+            return
+        }
+        if let pickedStrap {
             // Generic HR strap OR a Garmin broadcasting standard HR. Garmin's brand + id prefix come from
             // the catalog (via the type→brand bridge); it still stores `.liveBLE` (its live HR IS the
             // standard 0x180D path). A non-Garmin strap keeps the advertised-name brand guess + "strap"

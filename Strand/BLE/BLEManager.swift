@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import CoreBluetooth
 import WhoopProtocol
 import WhoopStore
@@ -966,7 +967,26 @@ public final class BLEManager: NSObject, ObservableObject {
     /// (the only state a single-WHOOP user is ever in) the discover path is byte-for-byte unchanged —
     /// it connects to the FIRST WHOOP discovered. Set by the app via `setPreferredPeripheral(_:)` to
     /// the active device's persisted `peripheralId`. Purely additive; nothing reads it on the nil path.
-    private var preferredPeripheralUUID: UUID?
+    ///
+    /// Persisted, and loaded before the central exists. The app only learns the active device from the
+    /// registry once `SourceCoordinator` is wired, which waits for the first dashboard load, while state
+    /// restoration and the launch connect run immediately. With the pin only in memory those paths saw
+    /// nil and adopted whichever WHOOP iOS still held, so a second strap nearby took over the link
+    /// (2026-10-02: an old 5.0 replaced the paired MG at launch).
+    private var preferredPeripheralUUID: UUID? {
+        didSet {
+            guard preferredPeripheralUUID != oldValue else { return }
+            if let preferredPeripheralUUID {
+                UserDefaults.standard.set(preferredPeripheralUUID.uuidString, forKey: Self.preferredPeripheralKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: Self.preferredPeripheralKey)
+            }
+        }
+    }
+    static let preferredPeripheralKey = "ble.preferredPeripheralUUID"
+    private static var persistedPreferredPeripheralUUID: UUID? {
+        UserDefaults.standard.string(forKey: preferredPeripheralKey).flatMap(UUID.init(uuidString:))
+    }
     /// Multi-WHOOP Add-a-WHOOP wizard: while true, `didDiscover` POPULATES `discoveredWhoops` instead
     /// of auto-connecting — an explicit, separate "present the nearby straps" mode the wizard turns on
     /// (`scanForWhoops()`) then off (`stopWhoopScan()`). Default false leaves the auto-connect path
@@ -977,6 +997,12 @@ public final class BLEManager: NSObject, ObservableObject {
     /// (`registry.setPeripheralId`) — letting "my-whoop" adopt its strap's id on first connect and a
     /// specific WHOOP confirm its identity. BLEManager stays decoupled: it never writes the registry.
     @Published public private(set) var connectedPeripheralUUID: String?
+    /// #52: the one signal that a stale pin was handed off to a strap that then genuinely bonded. Sent
+    /// only from `noteGenuineBond` while a handoff is in flight. A passthrough, so a subscriber wired
+    /// after the fact never receives an old confirmation; `SourceCoordinator` used to infer the handoff
+    /// from `encryptedBond` at the moment it observed `connectedPeripheralUUID`, which a late subscriber
+    /// read as true for an ordinary launch connect and re-pointed the active device onto the wrong strap.
+    public let readoptionConfirmed = PassthroughSubject<String, Never>()
     /// Multi-WHOOP Add-a-WHOOP wizard surface: straps seen while `isPresentingScan` is true, WITHOUT
     /// auto-connecting. Cleared at the start of each `scanForWhoops()`. Empty/unused on the default path.
     @Published public private(set) var discoveredWhoops: [(uuid: String, name: String, rssi: Int)] = []
@@ -1353,6 +1379,7 @@ public final class BLEManager: NSObject, ObservableObject {
         // before any BLE data arrives.
         self.collector = nil
         super.init()
+        preferredPeripheralUUID = Self.persistedPreferredPeripheralUUID
         // Deliberately NOT seeded from the global key here. It belongs to whichever strap synced last,
         // which on a two-strap install is not the one the screens are scoped to — the misattribution this
         // whole change removes. `seedLastSyncFromActiveStrap` fills it from the ACTIVE strap once the
@@ -1567,6 +1594,7 @@ public final class BLEManager: NSObject, ObservableObject {
         self.router = FrameRouter(state: state)
         self.collector = collector
         super.init()
+        preferredPeripheralUUID = Self.persistedPreferredPeripheralUUID
         // Deliberately NOT seeded from the global key here. It belongs to whichever strap synced last,
         // which on a two-strap install is not the one the screens are scoped to — the misattribution this
         // whole change removes. `seedLastSyncFromActiveStrap` fills it from the ACTIVE strap once the
@@ -2003,20 +2031,15 @@ public final class BLEManager: NSObject, ObservableObject {
     /// (the candidate the registry pin should follow if a stale pin keeps refusing), and clear the
     /// pin-refusal streak — any healthy bond proves the current path is fine, so a later transient
     /// "insufficient" starts counting from zero rather than inheriting old suspicion. If this bond is the
-    /// strap we're mid-handoff onto (#52 re-adoption), CONFIRM it to SourceCoordinator now: republish its
-    /// identity on `connectedPeripheralUUID` while `encryptedBond` is true, the one emission of that seam
-    /// that proves a genuine bond — which is exactly how SourceCoordinator tells a vetted re-adoption from
-    /// the ordinary pre-bond `didConnect` publish (where `encryptedBond` is still false).
+    /// strap we're mid-handoff onto (#52 re-adoption), CONFIRM it to SourceCoordinator now on
+    /// `readoptionConfirmed`, the only channel that re-points the registry onto another strap.
     private func noteGenuineBond(of p: CBPeripheral) {
         lastBondedPeripheralUUID = p.identifier
         pinnedBondRefusals = 0
         if readoptingTo == p.identifier {
             readoptingTo = nil
             log("Multi-WHOOP (#52): working strap bonded — confirming re-adoption to the registry.")
-            // nil first so the publisher's removeDuplicates() can't swallow the value when this strap was
-            // already the last-connected uuid (the nil emission is ignored downstream — the uuid guard).
-            connectedPeripheralUUID = nil
-            connectedPeripheralUUID = p.identifier.uuidString
+            readoptionConfirmed.send(p.identifier.uuidString)
         }
     }
 
@@ -2024,8 +2047,7 @@ public final class BLEManager: NSObject, ObservableObject {
     /// row while a DIFFERENT strap (`working`) bonds fine — the registry pin is stale and is making
     /// connect() abandon the strap that actually works. Hand the pin off to the working strap: re-point our
     /// own pin so connect()/didDiscover stop dropping the working strap, then reconnect onto it. Once it
-    /// re-bonds, `noteGenuineBond` republishes its identity to SourceCoordinator (with `encryptedBond` true)
-    /// so the registry re-adopts it. The normal first-connect/identity path (encryptedBond false at
+    /// re-bonds, `noteGenuineBond` confirms it on `readoptionConfirmed` so the registry re-adopts it. The normal first-connect/identity path (encryptedBond false at
     /// didConnect) is untouched, so this never fires on the correct-pin or single-strap path.
     private func readoptWorkingStrap(_ working: UUID, awayFrom stalePin: UUID) {
         log("Multi-WHOOP (#52): pinned strap refused the bond \(pinnedBondRefusals)× but another strap is bonded — handing the pin off to the working strap.")
@@ -5278,6 +5300,18 @@ public final class BLEManager: NSObject, ObservableObject {
     /// leaves the strap on its existing id: adopting onto a junk id would migrate every device-scoped row
     /// onto a garbage key, which is worse than not adopting.
     private func adoptWhoopSerialIdentity() {
+        // Rare-event evidence, always on: the strap on the link attests a serial other than the one the
+        // active row is named for. Nothing is moved (see `mayAdopt`); the line is what tells a report of
+        // "my new strap records nothing" apart from a strap fault. Prefixes only, never the full serial.
+        if let rs = registryStore,
+           let serialId = WhoopSerialIdentity.adoptedId(serial: adoptableSerial),
+           let active = try? rs.all().first(where: { $0.status == .active }),
+           active.id.hasPrefix("\(WhoopSerialIdentity.idPrefix)-"),
+           !WhoopSerialIdentity.mayAdopt(currentId: active.id),
+           active.id != serialId {
+            let activeSerial = String(active.id.dropFirst(WhoopSerialIdentity.idPrefix.count + 1))
+            log("Serial mismatch: the connected strap is \(WhoopSerialIdentity.logSafe(serial: adoptableSerial)) but the active device is \(WhoopSerialIdentity.logSafe(serial: activeSerial)); not re-pointing its history")
+        }
         guard let rs = registryStore,
               let serialId = WhoopSerialIdentity.adoptedId(serial: adoptableSerial),
               let active = try? rs.all().first(where: { $0.status == .active }),
@@ -5308,8 +5342,8 @@ public final class BLEManager: NSObject, ObservableObject {
     /// it positively identifies a 5-generation strap but the active registry row still resolves to WHOOP
     /// 4.0 — a wrong Add-Device pick, or a legacy "4.0" row — correct the model so the Devices display and
     /// the `forRegistryModel`-driven skin-temp raw→°C scale (#938) stop treating a 5.0 as a 4.0. Extends the
-    /// #716 stamp (which only fixed the "WHOOP" placeholder). ONE-DIRECTIONAL: attestation can only upgrade
-    /// 4.0→5.0, never the reverse, and once corrected the guard below no longer matches, so it self-limits.
+    /// #716 stamp (which only fixed the "WHOOP" placeholder). Attestation only ever writes the 5-generation
+    /// variant it observed ("MG" / "5.0"), never 4.0, and once the row carries that label it stops.
     private func reconcileModelFromAttestation(_ variant: Whoop5Variant) {
         guard variant != .unknown, let rs = registryStore else { return }
         guard let attestingId = peripheral?.identifier.uuidString else {
@@ -5323,10 +5357,8 @@ public final class BLEManager: NSObject, ObservableObject {
         // alongside a 5/MG and leaves the 4.0 active — at which point relabelling by status rewrites the
         // 4.0's row as "WHOOP 5.0 / MG" on the strength of the OTHER strap's DIS block.
         //
-        // Unreachable today, because `Whoop5Variant.from` here is never given a model number and a real MG
-        // reports a serial prefix and hardware revision matching neither heuristic — so this returns on
-        // `.unknown` every time. Fixed anyway: the Android twin's identical bug went live the moment its
-        // resolver was widened, and twinning the DIS model-number read would do exactly that here (#520).
+        // Reachable: field logs show the DIS read resolving `variant=MG` (serial 5AM, model number "MG") and
+        // `variant=5.0` (serial 5AG, hardware WG50), so on a two-strap install this attribution matters.
         let devices = (try? rs.all())?.filter { $0.status != .archived } ?? []
         let byId = devices.first { $0.peripheralId?.caseInsensitiveCompare(attestingId) == .orderedSame }
         // The sole non-archived device is not a guess: there is nothing else the attestation could have
@@ -5343,10 +5375,21 @@ public final class BLEManager: NSObject, ObservableObject {
                 + " and none carries this strap's id, so it cannot be attributed")
             return
         }
-        guard DeviceFamily.forRegistryDevice(model: attesting.model, brand: attesting.brand) == .whoop4
-        else { return }
-        try? rs.setModel(attesting.id, model: "WHOOP 5.0 / MG")
-        log("Corrected device model \"\(attesting.model ?? "nil")\" → \"WHOOP 5.0 / MG\" from DIS attestation (variant=\(variant.label))")
+        // The strap names its own hardware (5.0 or MG), so the row shows that rather than the wizard's
+        // combined "5.0 MG" pick, which left a 5.0 and an MG with identical cards (2026-10-03). Also
+        // covers the 4.0 → 5-generation correction this function was written for.
+        let label = variant.label   // "MG" / "5.0"
+        guard attesting.model != label else { return }
+        let wasWhoop4 = DeviceFamily.forRegistryDevice(model: attesting.model, brand: attesting.brand) == .whoop4
+        guard wasWhoop4 || WhoopLiveCapabilities.isFiveOrMG(model: attesting.model)
+                || attesting.model == "WHOOP" else { return }
+        try? rs.setModel(attesting.id, model: label)
+        // A nickname the wizard filled in from the combined pick would hide the corrected model.
+        if let nickname = attesting.nickname,
+           ["WHOOP 5.0 MG", "WHOOP 5.0 / MG", "WHOOP"].contains(nickname) {
+            try? rs.rename(attesting.id, nickname: nil)
+        }
+        log("Corrected device model \"\(attesting.model)\" → \"\(label)\" from DIS attestation (variant=\(variant.label))")
     }
 
     private func requestNotify(_ c: CBCharacteristic, on p: CBPeripheral, reason: String) {
@@ -5906,10 +5949,8 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         // #1881: BEFORE anything persists. The Collector and Backfiller read `deviceId` at flush and at
         // finishChunk, so re-pointing here is what keeps this link's rows off another device's id.
         adoptSourceIdentity(for: peripheral)
-        // Clear the per-connection bond BEFORE publishing the connected uuid below. SourceCoordinator's #52
-        // re-adoption gate keys off `encryptedBond` at the instant `connectedPeripheralUUID` is observed —
-        // an ordinary `didConnect` publish must always read false (only the deliberate post-bond #52
-        // handoff republish carries it true), so this clear has to precede the publish, not follow it.
+        // The bond is re-proved per connection. Re-adoption no longer reads this flag (it listens on
+        // `readoptionConfirmed`), so the ordering against the publish below is no longer load-bearing.
         state.encryptedBond = false   // re-proved per connection at the genuine-bond site (#69)
         // Multi-WHOOP: publish the strap's stable BLE identity so the app can persist it onto the active
         // registry device (it observes this and calls registry.setPeripheralId). Additive observation
@@ -6420,8 +6461,15 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
     public func centralManager(_ central: CBCentralManager,
                                willRestoreState dict: [String: Any]) {
         guard let peripherals = dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral],
-              let p = peripherals.first else {
+              !peripherals.isEmpty else {
             log("Restore: no peripherals in state dict")
+            return
+        }
+        // Restoration hands back whatever iOS was holding, which on a two-strap install can be a strap
+        // that is no longer the selected one. Adopt only the pinned strap; with no pin every WHOOP is
+        // acceptable, as before. A skipped strap is left to `connect()`, which drops it.
+        guard let p = peripherals.first(where: { isPreferredPeripheral($0) }) else {
+            log("Restore: restored strap is not the selected strap; not adopting it")
             return
         }
         self.peripheral = p
@@ -6443,9 +6491,8 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         state.bonded = true
         didBond = true
         // #613: didConnect never fires for an ALREADY-connected restored peripheral, so publish the strap
-        // identity HERE — BEFORE encryptedBond flips true — so SourceCoordinator sees the ordinary
-        // (encryptedBond == false) identity semantics `didConnect` uses (adopt-if-unknown / never clobber a
-        // different registered strap), NOT the #52 post-bond re-adoption seam. Without it
+        // identity HERE, with the ordinary identity semantics `didConnect` uses (adopt-if-unknown / never
+        // clobber a different registered strap). Without it
         // connectedPeripheralUUID stays nil the whole session: no identity to SourceCoordinator, and the
         // alarm diagnostics read "strap not connected" though the link is up.
         if p.state == .connected { connectedPeripheralUUID = p.identifier.uuidString }
@@ -6757,8 +6804,8 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
             // strap has bonded fine this run, connect() otherwise drops the working strap and loops forever
             // on the dead pin — encryptedBond never turns true (which also kills buzz/haptics that gate on
             // it). Count consecutive refusals on the PINNED peripheral; after `pinBondRefusalLimit`, hand
-            // the pin off to the live-bonding strap so the registry re-adopts it (handoff republishes the
-            // working uuid on the connectedPeripheralUUID seam SourceCoordinator already observes).
+            // the pin off to the live-bonding strap so the registry re-adopts it (the handoff confirms the
+            // working uuid on `readoptionConfirmed` once it bonds).
             if insufficient, !didBond,
                let pinned = preferredPeripheralUUID, peripheral.identifier == pinned {
                 pinnedBondRefusals += 1

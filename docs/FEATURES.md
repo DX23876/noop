@@ -715,6 +715,12 @@ sleep/recovery data.
 - **Add / manage devices** — an add-device wizard, and — with more than one paired band — a picker
   for which one supplies live data. Removing a device deletes its recorded data locally; re-pairing
   a strap pulls its recent history back.
+- **Replacing a WHOOP** — pairing a new WHOOP asks whether it replaces the previous strap. If it does,
+  the new strap takes over the one WHOOP entry and its whole history, so the list keeps one WHOOP; if
+  not (a second person's strap) it gets its own entry. An install that already lists several WHOOP
+  entries is offered **Combine** or **Keep separate**; nothing is combined without that choice, all
+  readings are kept, and the newest strap stays connected. The card shows the model the strap reports
+  itself as, **MG** or **5.0**.
 - **Oura ring** (experimental, see [docs/OURA_PROTOCOL.md](OURA_PROTOCOL.md)) — paired locally; NOOP
   owns the ring while it holds the pairing key, and re-setting it up in the official Oura app hands
   ownership back.
