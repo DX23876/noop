@@ -459,13 +459,20 @@ extension WhoopStore {
     /// wall clock and 0x80 adds a partial second copy of 8-33 % of it, so the pair read 1.01-1.31 and the
     /// #1118 coverage gate refused whichever nights happened to bank more 0x80. Neither channel is a
     /// duplicate to exclude by name. Which one is complete is a property of the capture, not of the tag,
-    /// so the read keeps green alone when it holds MORE beats in the requested window than the amplitude
-    /// family (0x60 + 0x44, see `scorableOuraChannels`), and the amplitude family alone otherwise, ties
-    /// included. A ring with only one of them keeps it, which is the guarantee the exclusion above was
-    /// protecting. NULL rows and every
-    /// non-Oura code are untouched, so WHOOP and pre-v32 rows read exactly as before. Same shape as the
-    /// WHOOP 5 transport selection below: an uncorrelated subquery over the SAME time/suspect predicates
-    /// as the outer read, evaluated before LIMIT.
+    /// so the read keeps green alone when it holds MORE beats than the amplitude family (0x60 + 0x44, see
+    /// `scorableOuraChannels`), and the amplitude family alone otherwise, ties included. A ring with only
+    /// one of them keeps it, which is the guarantee the exclusion above was protecting. NULL rows and every
+    /// non-Oura code are untouched, so WHOOP and pre-v32 rows read exactly as before.
+    ///
+    /// The choice is made per UTC HOUR of the requested window, not once for the whole window. The two
+    /// channels overlap at night but are disjoint in time across a day: 0x60 is banked only overnight and
+    /// 0x80 carries every daytime beat. A single whole-window count let a night's 0x60 outvote the day's
+    /// 0x80 on any read that crossed wake, and dropped every daytime beat with it, so a day-wide timeline
+    /// drew windowed rMSSD for the night and nothing after. Per hour, an hour where both fire still keeps
+    /// the fuller one, and an hour where only one fires keeps that one. Each hour is counted over its part
+    /// of the requested window with the SAME time/suspect predicates as the outer read, before LIMIT, so a
+    /// window inside one hour reads exactly as the whole-window rule did. Same shape as the WHOOP 4
+    /// per-hour source choice below.
     ///
     /// Rows are FILTERED, never deleted: the 0x6E stream stays on disk as the cross-check on green.
     /// Every R-R consumer reads through this one function, so the `hrv diag` trace moves with the scores
@@ -488,8 +495,9 @@ extension WhoopStore {
     /// The segments the requested window touches are read IN FULL and cut back to `[from, to]` after the
     /// choice, so a five-minute read selects exactly the beats a whole-night read does.
     ///
-    /// The Oura channel choice (#2423) stays a window-level SQL predicate: it picks between two complete
-    /// measurements of the same beats, which is a property of the capture rather than of one beat.
+    /// The Oura channel choice (#2423) stays an SQL predicate, made per UTC hour: within an hour it picks
+    /// between two complete measurements of the same beats, a property of the capture rather than of one
+    /// beat, and across a day the two channels cover different hours.
     public nonisolated func rrIntervals(deviceId: String, from: Int, to: Int, limit: Int,
                                         unlabelledAliasOfWhoop5: Bool) async throws -> [RRInterval] {
         guard limit > 0 else { return [] }
@@ -502,14 +510,20 @@ extension WhoopStore {
             let segment = RRTransportReconciler.segmentSeconds
             let fetchFrom = from > Int.min + segment ? RRTransportReconciler.segmentStart(from) : from
             let fetchTo = to < Int.max - segment ? RRTransportReconciler.segmentEnd(to) : to
+            // The Oura beat channel is chosen per UTC hour (upstream 9670774ef): one small materialised
+            // choice per hour, looked up by each beat, over the same span and suspect predicate as the read.
             var rows = try Row.fetchAll(db, sql: """
+                WITH ouraHour AS (
+                    SELECT ts / 3600 AS h, SUM(srcChannel = 1) > SUM(srcChannel <> 1) AS green
+                    FROM rrInterval
+                    WHERE deviceId = :d AND ts >= :ff AND ts <= :ft AND srcChannel IN \(Self.scorableOuraChannels)
+                    AND (tsSuspect IS NULL OR tsSuspect <> 1)
+                    GROUP BY ts / 3600)
                 SELECT ts, rrMs, srcChannel, transport, ord, seq FROM rrInterval
                 WHERE deviceId = :d AND ts >= :ff AND ts <= :ft
                 AND (srcChannel IS NULL OR srcChannel <> :rrx)
                 AND (srcChannel IS NULL OR srcChannel NOT IN \(Self.scorableOuraChannels) OR (srcChannel = 1) = (
-                    SELECT SUM(srcChannel = 1) > SUM(srcChannel <> 1) FROM rrInterval
-                    WHERE deviceId = :d AND ts >= :f AND ts <= :t AND srcChannel IN \(Self.scorableOuraChannels)
-                    AND (tsSuspect IS NULL OR tsSuspect <> 1)))
+                    SELECT green FROM ouraHour WHERE h = rrInterval.ts / 3600))
                 AND (tsSuspect IS NULL OR tsSuspect <> 1)   -- exclude future-stamped (#1073) and 500 ms fill (#2371) beats
                 ORDER BY ts ASC, ord ASC, rrMs ASC, seq ASC LIMIT :lim
                 """, arguments: ["d": deviceId, "f": from, "t": to, "ff": fetchFrom, "ft": fetchTo,

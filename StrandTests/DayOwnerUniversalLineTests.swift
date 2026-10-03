@@ -1,4 +1,6 @@
 import XCTest
+import WhoopProtocol
+import WhoopStore
 @testable import Strand
 
 /// CAPTURE-B (#814/#799): the universal `dayOwner …` self-diagnostic line that rides EVERY Test Centre
@@ -64,5 +66,31 @@ final class DayOwnerUniversalLineTests: XCTestCase {
         XCTAssertEqual(tokens[4], "hrRows=1")
         XCTAssertEqual(tokens[5], "provenance=measured")
         XCTAssertFalse(line.contains("\u{2014}"), "no em-dashes anywhere (project hard rule)")
+    }
+
+    /// #2026: the production resolver must probe archived history even when the current strap is the
+    /// only live registry row, then prefer the current strap whenever it also covers the day.
+    func testArchivedHistoryIsLastResortDayOwner() async throws {
+        let store = try await WhoopStore.inMemory()
+        let registry = DeviceRegistryStore(dbQueue: store.registryWriter)
+        try registry.add(PairedDevice(id: "old-whoop", brand: "WHOOP", model: "WHOOP 4.0",
+                                      sourceKind: .liveBLE, capabilities: [.hr],
+                                      status: .archived, addedAt: 1, lastSeenAt: 1))
+        let dayStart = 1_781_481_600
+        let from = dayStart - 30 * 3_600, to = dayStart + 12 * 3_600
+        let base = dayStart + 3 * 3_600
+        _ = try await store.insert(Streams(hr: [HRSample(ts: base, bpm: 65)]), deviceId: "old-whoop")
+
+        let devices = try registry.all()
+        let archivedOwner = await IntelligenceEngine.resolveDayOwner(
+            day: "2026-06-15", from: from, to: to, store: store, devices: devices,
+            activeId: "my-whoop", registry: registry, fallbackDeviceId: "my-whoop")
+        XCTAssertEqual(archivedOwner, "old-whoop")
+
+        _ = try await store.insert(Streams(hr: [HRSample(ts: base + 3_600, bpm: 55)]), deviceId: "my-whoop")
+        let activeOwner = await IntelligenceEngine.resolveDayOwner(
+            day: "2026-06-15", from: from, to: to, store: store, devices: devices,
+            activeId: "my-whoop", registry: registry, fallbackDeviceId: "my-whoop")
+        XCTAssertEqual(activeOwner, "my-whoop")
     }
 }

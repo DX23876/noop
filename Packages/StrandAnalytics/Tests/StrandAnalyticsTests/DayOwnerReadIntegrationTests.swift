@@ -27,13 +27,13 @@ final class DayOwnerReadIntegrationTests: XCTestCase {
         if let locked = try registry.dayOwner(day)?.deviceId { return locked }
         let activeId = try registry.activeDeviceId() ?? "my-whoop"
         let ranked: [(id: String, priority: Int)] = try registry.all()
-            .filter { $0.status != .archived }
             .map { d in
                 let isImport = d.sourceKind == .cloudImport || d.sourceKind == .fileImport
                 // Mirrors IntelligenceEngine.resolveDayOwner: activity-file rides rank BELOW whole-day
                 // imports.
                 let priority: Int
                 if d.id == activeId { priority = 0 }
+                else if d.status == .archived { priority = 4 }
                 else if d.sourceKind == .activityFile { priority = 3 }
                 else if isImport { priority = 2 }
                 else { priority = 1 }
@@ -182,5 +182,33 @@ final class DayOwnerReadIntegrationTests: XCTestCase {
         let read = try await store.hrSamples(deviceId: owner!, from: from, to: to, limit: 200_000)
         XCTAssertEqual(read.count, 300)
         XCTAssertTrue(read.allSatisfy { $0.bpm == 55 })
+    }
+
+    /// #2026: archived sources retain their historical HR. They own a day only when every
+    /// higher-priority source lacks HR, and the read must stay scoped to that owner.
+    func testArchivedDeviceOwnsOnlyUncoveredHistoricalDay() async throws {
+        let store = try await WhoopStore.inMemory()
+        let registry = DeviceRegistryStore(dbQueue: store.registryWriter)
+        try registry.add(PairedDevice(id: "old-whoop", brand: "WHOOP", model: "WHOOP 4.0",
+                                      sourceKind: .liveBLE, capabilities: [.hr],
+                                      status: .archived, addedAt: 1, lastSeenAt: 1))
+
+        let base = dayStart + 3 * 3_600
+        let oldHR = (0..<300).map { HRSample(ts: base + $0, bpm: 65) }
+        _ = try await store.insert(Streams(hr: oldHR), deviceId: "old-whoop")
+
+        let from = dayStart - 30 * 3_600, to = dayStart + 12 * 3_600
+        let archivedOwner = try await resolveOwner(store: store, registry: registry, from: from, to: to)
+        XCTAssertEqual(archivedOwner, "old-whoop", "archived HR must keep uncovered days available")
+        let archivedRead = try await store.hrSamples(deviceId: archivedOwner!, from: from, to: to, limit: 200_000)
+        XCTAssertEqual(archivedRead.count, oldHR.count)
+        XCTAssertTrue(archivedRead.allSatisfy { $0.bpm == 65 })
+
+        _ = try await store.insert(Streams(hr: [HRSample(ts: base + 3_600, bpm: 55)]), deviceId: "my-whoop")
+        let activeOwner = try await resolveOwner(store: store, registry: registry, from: from, to: to)
+        XCTAssertEqual(activeOwner, "my-whoop", "active HR must take precedence over archived HR")
+        let activeRead = try await store.hrSamples(deviceId: activeOwner!, from: from, to: to, limit: 200_000)
+        XCTAssertEqual(activeRead.count, 1)
+        XCTAssertEqual(activeRead.first?.bpm, 55)
     }
 }

@@ -3962,16 +3962,14 @@ final class IntelligenceEngine: ObservableObject {
     }
 
     /// Resolve the SINGLE device that owns `day` (invariant I2), so the day is scored from exactly one
-    /// source , never a mix. Builds one `DayOwnerResolver.Candidate` per non-archived device with a
-    /// priority (0 = the active strap, 1 = other live straps, 2 = imports; lower wins) and a CHEAP
-    /// per-day presence flag (one `LIMIT 1` HR read per device), then applies any locked override from
-    /// the dayOwnership table. Returns `deviceId` when the registry yields no owner (no candidate has
-    /// data, or it's empty/unreadable) so the legacy single-source path is preserved.
+    /// source, never a mix. A locked override wins first; otherwise devices are probed in priority order
+    /// (0 = active strap, 1 = other live straps, 2 = imports, 3 = activity files,
+    /// 4 = archived devices; lower wins) until one has HR for the day. Returns `fallbackDeviceId`
+    /// when the registry has no owner, so the legacy single-source path is preserved.
     ///
     /// Single-device install: the only paired row is the seeded active 'my-whoop' (== `fallbackDeviceId`).
-    /// Its candidate is priority 0 with `hasData == true` for any day the strap collected HR, so the
-    /// resolver returns `fallbackDeviceId` and the caller's reads are byte-identical to the pre-I2 code.
-    /// The presence check is the same `LIMIT 1` over the same window the caller already reads.
+    /// The single-device shortcut returns `fallbackDeviceId` without a presence probe, preserving the
+    /// caller's legacy reads. With multiple devices, each probe covers the window the caller reads.
     ///
     /// `nonisolated static` (FIX 1): the body touches NO `@Published`/instance-isolated state , only the
     /// passed-in `store` actor, the nonisolated `registry` struct, the value params, and `fallbackDeviceId`
@@ -3988,26 +3986,28 @@ final class IntelligenceEngine: ObservableObject {
         // No registry rows (shouldn't happen , v15 seeds one , but be safe): keep the legacy id.
         guard !devices.isEmpty else { return fallbackDeviceId }
 
-        let liveDevices = devices.filter { $0.status != .archived }
-        // #970: the default single-WHOOP install has exactly one live device that IS the fallback id, so
+        // #970: the default single-WHOOP install has exactly one device that IS the fallback id, so
         // the owner is a foregone conclusion — the resolver returns that id whether or not it has data in
         // this window (active priority 0 -> its id; or no candidate has data -> nil -> fallbackDeviceId,
         // both == fallbackDeviceId here). Skip the per-day LIMIT-1 HR probe in that case (called once per
         // scanned day, so it saves ~maxDays tiny reads per analyzeRecent). Byte-identical to the loop. The
         // guard is deliberately `== fallbackDeviceId`: a lone IMPORT device whose id differs would NOT be
         // byte-identical (no-data -> fallback, not its own id), so it must still take the probe path.
-        if liveDevices.count == 1, liveDevices[0].id == fallbackDeviceId {
+        if devices.count == 1, devices[0].id == fallbackDeviceId {
             return fallbackDeviceId
         }
 
+        // Archived devices take part at the lowest priority (upstream dda7401f7): a replaced strap's
+        // nights keep an owner instead of falling out of the analysis.
         var candidates: [DayOwnerResolver.Candidate] = []
-        for d in liveDevices {
+        for d in devices {
             let isImport = d.sourceKind == .cloudImport || d.sourceKind == .fileImport
             // #137: an activity-file ride ranks BELOW whole-day imports (priority 3 vs 2), so a full-day
             // WHOOP CSV/cloud import keeps ownership of a day it has HR for; the ride only wins a day that
             // nothing else covers (a strap-less day). Kotlin RegistryDayOwnerSource mirrors this ordering.
             let priority: Int
             if d.id == activeId { priority = 0 }
+            else if d.status == .archived { priority = 4 }
             else if d.sourceKind == .activityFile { priority = 3 }
             else if isImport { priority = 2 }
             else { priority = 1 }

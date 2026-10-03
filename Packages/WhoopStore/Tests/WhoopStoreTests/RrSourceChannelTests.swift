@@ -359,6 +359,37 @@ final class RrSourceChannelTests: XCTestCase {
         XCTAssertEqual(read.map(\.rrMs), [880, 881])
     }
 
+    /// A window that crosses wake: the night's 0x60 must not outvote the day's 0x80. The channels are
+    /// disjoint in time across a day, so one whole-window count (18 amplitude v 12 green here) dropped the
+    /// green-only hour entirely, which is how a day-wide timeline lost every daytime beat. Per UTC hour,
+    /// the night hour keeps 0x60, the daytime hour keeps its only channel, and a mixed hour still keeps the
+    /// fuller one. Fixture and expected values shared byte-for-byte with Kotlin `OuraOneChannelReadSqliteTest`.
+    func testTheChannelIsChosenPerHourAcrossANightAndADay() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await store.upsertDevice(id: "ring", mac: nil, name: nil)
+        _ = try await store.insert(Streams(rr: Self.nightAndDayFixture(hour0: Self.hour0)), deviceId: "ring")
+
+        let read = try await store.rrIntervals(deviceId: "ring", from: Self.hour0, to: Self.hour0 + 3 * 3600,
+                                               limit: 1000)
+        XCTAssertEqual(read.map(\.rrMs), [1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010, 1011,
+                                          777, 880, 881, 882, 883, 884, 1300, 1301, 1302, 1303, 1304, 1305])
+        XCTAssertEqual(read.map { $0.srcChannel?.rawValue ?? 0 },
+                       Array(repeating: 3, count: 12) + [0] + Array(repeating: 1, count: 5) + Array(repeating: 3, count: 6))
+    }
+
+    /// An hour boundary, so the fixture's three hours are three UTC hours exactly.
+    static let hour0 = 1_750_003_200
+
+    /// Hour 0: the one-channel night (0x60 full, 0x80 partial). Hour 1: 0x80 only. Hour 2: 6 x 0x60
+    /// beside 3 x 0x80. Mirrored exactly in the Kotlin test.
+    static func nightAndDayFixture(hour0: Int) -> [RRInterval] {
+        var rows = oneChannelFixture(ts: hour0)
+        for i in 0..<5 { rows.append(RRInterval(ts: hour0 + 3600 + i, rrMs: 880 + i, srcChannel: .greenQuality)) }
+        for i in 0..<3 { rows.append(RRInterval(ts: hour0 + 7200 + 2 * i, rrMs: 600 + i, srcChannel: .greenQuality)) }
+        for i in 0..<6 { rows.append(RRInterval(ts: hour0 + 7200 + i, rrMs: 1300 + i, srcChannel: .ibiAmplitude)) }
+        return rows
+    }
+
     /// Equal counts keep the amplitude family, so a tie has one defined answer on both platforms.
     func testAChannelTieResolvesToTheAmplitudeFamily() async throws {
         let store = try await WhoopStore.inMemory()

@@ -38,8 +38,17 @@ final class VitalReadingsTableTests: XCTestCase {
         let rows = vitalReadingRows(readings: spo2Readings(), unit: "%", strapDeviceId: strap,
                                     now: now, format: spo2Format)
         // Ascending input (01 → 03) must render descending (03 → 01).
-        XCTAssertEqual(rows.map(\.time), ["3 Jan", "2 Jan", "1 Jan"])
+        XCTAssertEqual(rows.map(\.time), ["Sat 3 Jan", "Fri 2 Jan", "Thu 1 Jan"])
         XCTAssertEqual(rows.first?.value, "97 %")   // the newest reading leads
+    }
+
+    func testReadingDatesShowWeekdaysIncludingTodayAndYesterday() {
+        let today = ISO8601DateFormatter().date(from: "2026-09-30T00:00:00Z")!
+        let english = Locale(identifier: "en_US")
+        XCTAssertEqual(vitalReadingDateLabel("2026-09-30", now: today, locale: english), "Today · Wed")
+        XCTAssertEqual(vitalReadingDateLabel("2026-09-29", now: today, locale: english), "Yesterday · Tue")
+        XCTAssertEqual(vitalReadingDateLabel("2026-09-26", now: today, locale: english), "Sat 26 Sep")
+        XCTAssertEqual(vitalReadingDateLabel("bad-day", now: today, locale: english), "bad-day")
     }
 
     func testSourceLabelsResolvePerSample() {

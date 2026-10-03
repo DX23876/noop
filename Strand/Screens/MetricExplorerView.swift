@@ -317,6 +317,37 @@ struct VitalReading: Equatable {
     let source: String
 }
 
+/// Attribute the skin-temperature column the explorer actually displays. An absolute from
+/// `skinTempC` takes precedence over an imported absolute in `skinTempDevC`, even when the
+/// latter's source has higher row priority. Within one column, imported wins over computed.
+func skinTempSourceByDay(_ rows: [SourcedDailyMetric], leadsAbsolute: Bool) -> [String: String] {
+    var sources: [String: String] = [:]
+    let priority: [DailyMetricSource] = [.whoopImport, .noopComputed, .localCache]
+    let columns = leadsAbsolute ? [0, 1] : [1]
+    for column in columns {
+        for source in priority {
+            for row in rows where row.source == source && sources[row.metric.day] == nil {
+                let value: Double?
+                if column == 0 {
+                    value = row.metric.skinTempC
+                } else if leadsAbsolute {
+                    value = row.metric.skinTempDevC.flatMap { VitalBands.isAbsoluteSkinTemp($0) ? $0 : nil }
+                } else {
+                    value = row.metric.skinTempDevC.flatMap { !VitalBands.isAbsoluteSkinTemp($0) ? $0 : nil }
+                }
+                guard value != nil else { continue }
+                switch source {
+                case .whoopImport:  sources[row.metric.day] = FusionSource.whoopImport.rawValue
+                case .noopComputed: sources[row.metric.day] = FusionSource.noopComputed.rawValue
+                case .localCache:   sources[row.metric.day] = FusionSource.localCache.rawValue
+                case .appleHealth:  break // Skin-temperature series never includes Apple Health.
+                }
+            }
+        }
+    }
+    return sources
+}
+
 let vo2MaxAttributionPrefix = "vo2max-estimator:"
 
 /// #103/queue-11a follow-up: a display-source token for a `spo2` reading that came from the
@@ -397,21 +428,23 @@ func vitalReadingRows(readings: [VitalReading], unit: String, strapDeviceId: Str
     }
 }
 
-/// "9 Jun" for a "YYYY-MM-DD" reading day (today / yesterday read as words to match the hero "as of"
-/// line); the verbatim string if it doesn't parse. UTC-fixed and localized, matching this file's other date
-/// labels. Swift twin of Android's `vitalReadingDateLabel`.
-func vitalReadingDateLabel(_ day: String, now: Date = Date()) -> String {
+/// Include the weekday so recovery readings can be matched to training days. UTC-fixed and localized;
+/// Today/Yesterday remain visible beside the date. Swift twin of Android's `vitalReadingDateLabel`.
+func vitalReadingDateLabel(_ day: String, now: Date = Date(), locale: Locale = AppLanguage.activeLocale) -> String {
     guard let date = parseDay(day) else { return day }
     var cal = Calendar(identifier: .gregorian)
     cal.timeZone = TimeZone(identifier: "UTC")!
-    if cal.isDate(date, inSameDayAs: now) { return String(localized: "Today") }
-    if let yesterday = cal.date(byAdding: .day, value: -1, to: now),
-       cal.isDate(date, inSameDayAs: yesterday) { return String(localized: "Yesterday") }
     let formatter = DateFormatter()
-    formatter.locale = AppLanguage.activeLocale
+    formatter.locale = locale
     formatter.timeZone = TimeZone(identifier: "UTC")
-    formatter.dateFormat = "d MMM"
-    return formatter.string(from: date)
+    formatter.dateFormat = "EEE d MMM"
+    let dated = formatter.string(from: date)
+    formatter.dateFormat = "EEE"
+    let weekday = formatter.string(from: date)
+    if cal.isDate(date, inSameDayAs: now) { return "\(String(localized: "Today")) · \(weekday)" }
+    if let yesterday = cal.date(byAdding: .day, value: -1, to: now),
+       cal.isDate(date, inSameDayAs: yesterday) { return "\(String(localized: "Yesterday")) · \(weekday)" }
+    return dated
 }
 
 // MARK: - Skin-temp explorer notes (#1847 / #1848)
@@ -1330,11 +1363,9 @@ struct MetricDetailView: View {
                             .map { (day: row.day, value: $0) }
                     }.sorted { $0.day < $1.day }
                 }
-                // Rebuild sourceByDay for the new series. `DailyMetric` has no per-row deviceId on Apple
-                // (the merged cache doesn't carry one), so every reading attributes to the metric's own
-                // source — the same source the `exploreSeries` daily-column layer would have used.
-                sourceByDay = Dictionary(series.map { ($0.day, metric.source) },
-                                         uniquingKeysWith: { first, _ in first })
+                // The merged `days` cache supplies values but no provenance. Resolve the matching
+                // column from the source-tagged rows already used by the vital cards (#2603).
+                sourceByDay = skinTempSourceByDay(repo.vitalMetricRows, leadsAbsolute: leadsAbsolute)
                 // The two #1847 notes — both cases exist on Apple too:
                 // (1) Settings asked for a temperature and none of these nights has one → say so, because
                 //     silently falling back is why the setting reads as broken. Nights scored before
@@ -1889,7 +1920,9 @@ struct MetricDetailView: View {
     @ViewBuilder
     private func readingsTable(windowed: [(day: String, value: Double)]) -> some View {
         let readings = windowed.map {
-            VitalReading(day: $0.day, value: $0.value, source: sourceByDay[$0.day] ?? metric.source)
+            VitalReading(day: $0.day, value: $0.value,
+                         source: sourceByDay[$0.day]
+                             ?? (metric.key == "skin_temp" ? FusionSource.localCache.rawValue : metric.source))
         }
         // The unit is passed EMPTY on purpose (#1942). `vitalReadingRows` appends its `unit` to whatever
         // the formatter returns, and every `MetricDescriptor.format` overload already ends in the unit —
