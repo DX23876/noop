@@ -210,8 +210,11 @@ struct ActivityStatusChipCompact: View {
                 Image(systemName: "pencil")
                     .accessibilityHidden(true)
             }
-            // Scales with Dynamic Type like the readiness pill beside it.
+            // Scales with Dynamic Type like the readiness pill beside it, and never wraps: classic Today's
+            // narrow pill row split it into "Ac-tive".
             .font(StrandFont.overline)
+            .lineLimit(1)
+            .fixedSize()
             .foregroundStyle(tint)
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
