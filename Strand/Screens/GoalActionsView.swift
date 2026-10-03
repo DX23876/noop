@@ -12,6 +12,9 @@ import StrandDesign
 /// Shared by classic and liquid Today so both dashboards show exactly the same goal truth.
 struct GoalsTodaySection: View {
     @Binding var showGoalJourney: Bool
+    /// True draws the "GOALS · All ›" head above the card, matching the other section heads on Liquid
+    /// Today; false keeps the in-card header classic Today uses.
+    var headerOutside: Bool = false
     @EnvironmentObject private var repo: Repository
     @ObservedObject private var goals = CoachGoalStore.shared
     @ObservedObject private var actions = GoalActionStore.shared
@@ -52,8 +55,11 @@ struct GoalsTodaySection: View {
 
     var body: some View {
         if !goals.activeGoals.isEmpty || !tracking.todayActions.isEmpty {
+            VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+            if headerOutside { outsideHeader }
             NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
                 VStack(alignment: .leading, spacing: 12) {
+                    if !headerOutside {
                     Button { showGoalJourney = true } label: {
                         HStack {
                             Label("Goals", systemImage: "target")
@@ -67,6 +73,7 @@ struct GoalsTodaySection: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Goals — open all goals")
+                    }
 
                     if !ranked.isEmpty {
                         GoalTrackingTile(snapshots: ranked,
@@ -131,7 +138,30 @@ struct GoalsTodaySection: View {
                     JourneyView(goalId: id)
                 }
             }
+            }
         }
+    }
+
+    /// The section head in Liquid Today's outside style: overline title, accent "All ›".
+    private var outsideHeader: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(String(localized: "Goals").uppercased())
+                .font(StrandFont.overline)
+                .tracking(StrandFont.overlineTracking)
+                .foregroundStyle(StrandPalette.textSecondary)
+            Spacer()
+            Button { showGoalJourney = true } label: {
+                HStack(spacing: 3) {
+                    Text("All").font(StrandFont.caption)
+                    Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold))
+                }
+                .foregroundStyle(StrandPalette.accent)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Goals — open all goals")
+        }
+        .padding(.horizontal, 2)
+        .padding(.top, 4)
     }
 
     private func actionRow(_ occurrence: GoalActionOccurrence) -> some View {

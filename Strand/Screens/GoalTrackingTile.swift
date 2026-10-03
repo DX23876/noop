@@ -93,9 +93,11 @@ struct GoalTrackingTile: View {
     @ViewBuilder
     private func ring(_ snapshot: GoalTrackingSnapshot, tint: Color) -> some View {
         if let fraction = snapshot.progressFraction {
+            // The ring's centre says how far along the goal is; the measured value already stands in
+            // the line beside it ("12 sessions/week now"), so repeating it here said nothing new.
             GlowRing(fraction: fraction,
-                     value: snapshot.measurement?.value ?? 0,
-                     format: { Self.number($0) },
+                     value: fraction * 100,
+                     format: { "\(Int($0.rounded())) %" },
                      color: tint,
                      diameter: Self.ringDiameter,
                      lineWidth: Self.ringWidth)

@@ -730,18 +730,26 @@ struct LiquidTodayView: View {
                             #endif
                         case .synthesis: synthesisSection
                         case .goals:
-                            if selectedDayOffset == 0 { GoalsTodaySection(showGoalJourney: $showGoalJourney) }
+                            if selectedDayOffset == 0 {
+                                GoalsTodaySection(showGoalJourney: $showGoalJourney, headerOutside: true)
+                            }
                         case .keyMetrics: keyMetricsSection
                         case .energy:
-                            if selectedDayOffset == 0, let energySummary = selectedEnergySummary {
-                                NavigationLink(value: TabRoute.energy) {
-                                    EnergyCard(summary: energySummary, compact: true)
+                            if selectedDayOffset == 0 {
+                                // Section head above the card, like Key Metrics, Last Workouts and Your Cards.
+                                VStack(spacing: NoopMetrics.space2) {
+                                    sectionHead("ENERGY")
+                                    if let energySummary = selectedEnergySummary {
+                                        NavigationLink(value: TabRoute.energy) {
+                                            EnergyCard(summary: energySummary, compact: true, showsTitle: false)
+                                        }
+                                        .buttonStyle(.plain)
+                                    } else {
+                                        // Holds the slot while today's summary loads, instead of the section
+                                        // vanishing until the next restart (seen on device 2026-10-02).
+                                        energyLoadingCard
+                                    }
                                 }
-                                .buttonStyle(.plain)
-                            } else if selectedDayOffset == 0 {
-                                // Holds the slot while today's summary loads, instead of the section
-                                // vanishing until the next restart (seen on device 2026-10-02).
-                                energyLoadingCard
                             }
                         case .workouts: lastWorkoutsSection
                         // A temporary section: only today, and only while a strap is actually streaming
@@ -1084,6 +1092,7 @@ struct LiquidTodayView: View {
                         LiquidAddButton()
                         headerProfileButton
                     }
+                    .frame(maxWidth: .infinity, alignment: .trailing)
                 }
             } else {
                 HStack(alignment: .top, spacing: headerClusterSpacing) {
@@ -1136,7 +1145,7 @@ struct LiquidTodayView: View {
                 // second control. Same affordance the classic Today uses (TodayView.dayNavHint): every
                 // ~10s it swaps for ~1.5s to a one-word accent hint, then returns to the date.
                 // Small and light under the title, which shares its line with the logo.
-                Text(dayNavHint ?? dateLine)
+                Text(dayNavHint ?? headerDateLine)
                     .font(StrandFont.caption.weight(.light))
                     // Two lines beside the controls ("Freitag, 2." / "Oktober"); shrink before clipping.
                     .lineLimit(2)
@@ -2366,11 +2375,17 @@ struct LiquidTodayView: View {
             let ordered = LiquidTodayDefaults.arrangedKeyMetrics(keyMetricSelection) {
                 keyMetricHasValue($0, hrv: hrv, rhr: rhr)
             }
+            // A lone tile in the last row of a two-column grid takes the full width instead of leaving
+            // an empty slot beside it.
+            let spansLast = keyMetricsColumns == 2 && ordered.count % 2 == 1
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8),
                                      count: keyMetricsColumns), spacing: 8) {
-                ForEach(ordered) { metric in
+                ForEach(spansLast ? Array(ordered.dropLast()) : ordered) { metric in
                     ktileFor(metric, hrv: hrv, rhr: rhr)
                 }
+            }
+            if spansLast, let last = ordered.last {
+                ktileFor(last, hrv: hrv, rhr: rhr)
             }
             NavigationLink(value: TabRoute.metricExplorer) {
                 LiquidFullWidthNavigationAction("Show all metrics")
@@ -3087,23 +3102,13 @@ struct LiquidTodayView: View {
     /// The Energy slot while today's summary has not arrived yet: same surface and label as the card,
     /// with a spinner instead of figures.
     private var energyLoadingCard: some View {
-        VStack(alignment: .leading, spacing: NoopMetrics.space3) {
-            HStack(spacing: 8) {
-                Label {
-                    Text("Energy")
-                } icon: {
-                    Image(systemName: "flame.fill").foregroundStyle(StrandPalette.energyHighlight)
-                }
-                .font(StrandFont.overline)
-                .tracking(StrandFont.overlineTracking)
-                .textCase(.uppercase)
-                .foregroundStyle(StrandPalette.textSecondary)
-                Spacer(minLength: 8)
-                ProgressView().controlSize(.small)
-            }
+        // The section head sits above it (see `.energy`), so the card holds only the progress.
+        HStack(spacing: 8) {
             Text("Loading energy…")
                 .font(StrandFont.subhead)
                 .foregroundStyle(StrandPalette.textSecondary)
+            Spacer(minLength: 8)
+            ProgressView().controlSize(.small)
         }
         .padding(NoopMetrics.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -3229,6 +3234,13 @@ struct LiquidTodayView: View {
             ? .dateTime.weekday(.abbreviated)
             : .dateTime.day().month(.abbreviated)
         return start.formatted(style.locale(AppLanguage.activeLocale))
+    }
+
+    /// The header's short date ("Sat, Oct 3"): the title shares its line with the wordmark, and the full
+    /// form ran into it on a 402 pt phone.
+    private var headerDateLine: String {
+        selectedLogicalDay.formatted(
+            .dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(AppLanguage.activeLocale))
     }
 
     private var dateLine: String {

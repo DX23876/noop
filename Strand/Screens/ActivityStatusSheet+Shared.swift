@@ -194,23 +194,36 @@ struct ActivityStatusChipCompact: View {
     @Binding var status: ActivityStatus
     @State private var showSheet = false
 
+    /// "Active" is the everyday state and a setting, not a verdict, so it reads neutral beside the
+    /// readiness pill; sick, injured and on break keep their colour because they change the advice.
+    private var isEveryday: Bool { status.state == .active }
+
     private var tint: Color {
-        ActivityStatusColors.color(for: status.state.rawValue)
+        isEveryday ? StrandPalette.textSecondary : ActivityStatusColors.color(for: status.state.rawValue)
     }
 
     var body: some View {
         Button { showSheet = true } label: {
             HStack(spacing: 5) {
                 Image(systemName: status.state.symbolName)
-                    .font(.system(size: 11, weight: .semibold))
                 Text(status.state.displayName)
-                    .font(StrandFont.overlineScaled(11))
                     .tracking(0.6)
+                // The pencil says it is editable; the coloured states already draw the eye.
+                if isEveryday {
+                    Image(systemName: "pencil")
+                        .accessibilityHidden(true)
+                }
             }
+            // Scales with Dynamic Type like the readiness pill beside it.
+            .font(StrandFont.overline)
             .foregroundStyle(tint)
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
-            .background(tint.opacity(0.14), in: Capsule())
+            .background(isEveryday ? StrandPalette.surfaceInset : tint.opacity(0.14), in: Capsule())
+            // The neutral fill nearly vanishes on a light page; a hairline keeps the capsule visible.
+            .overlay {
+                if isEveryday { Capsule().strokeBorder(StrandPalette.hairline, lineWidth: NoopMetrics.hairlineWidth) }
+            }
         }
         .buttonStyle(.plain)
         .accessibilityLabel(Text("Activity status: \(status.state.displayName)"))

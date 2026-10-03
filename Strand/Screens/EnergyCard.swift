@@ -30,7 +30,13 @@ struct EnergyCard: View {
     /// `LiveState`: it publishes at ~1 Hz while a strap streams, and Today explicitly avoids an
     /// `@EnvironmentObject live` for exactly that reason. Reading a snapshot here subscribes to
     /// nothing. Tests and previews pass the pair explicitly.
-    init(summary: DailyEnergySummary, strapSync: (paired: Bool, lastSync: Date?)? = nil, compact: Bool = false) {
+    /// False when the host draws the section title above the card (Liquid Today); the confidence pill
+    /// stays inside.
+    let showsTitle: Bool
+
+    init(summary: DailyEnergySummary, strapSync: (paired: Bool, lastSync: Date?)? = nil, compact: Bool = false,
+         showsTitle: Bool = true) {
+        self.showsTitle = showsTitle
         self.summary = summary
         self.compact = compact
         let resolved = strapSync ?? AppModel.shared?.strapSyncSnapshot
@@ -43,16 +49,18 @@ struct EnergyCard: View {
     var body: some View {
         NoopCard(tint: StrandPalette.energyHighlight) {
             VStack(alignment: .leading, spacing: 16) {
-                HStack(spacing: 8) {
-                    // Neutral words, coloured glyph: the hero's label rule.
-                    Label {
-                        Text("Energy")
-                    } icon: {
-                        Image(systemName: "flame.fill").foregroundStyle(StrandPalette.energyHighlight)
+                if showsTitle {
+                    HStack(spacing: 8) {
+                        // Neutral words, coloured glyph: the hero's label rule.
+                        Label {
+                            Text("Energy")
+                        } icon: {
+                            Image(systemName: "flame.fill").foregroundStyle(StrandPalette.energyHighlight)
+                        }
+                            .strandOverlineLabel(color: StrandPalette.textSecondary)
+                        Spacer(minLength: 8)
+                        confidencePill
                     }
-                        .strandOverlineLabel(color: StrandPalette.textSecondary)
-                    Spacer(minLength: 8)
-                    confidencePill
                 }
 
                 if compact, summary.totalBurnedSoFar == nil {
@@ -84,6 +92,10 @@ struct EnergyCard: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            // Without a title row the pill takes the corner, so the figures start at the top.
+            .overlay(alignment: .topTrailing) {
+                if !showsTitle { confidencePill }
+            }
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilitySummary)
