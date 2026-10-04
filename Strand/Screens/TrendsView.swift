@@ -334,8 +334,8 @@ struct TrendsView: View {
     private var minWeekOffset: Int {
         guard
             let earliest = earliestDay,
-            let earliestMon = WeeklyDigestEngine.mondayOfWeek(containing: earliest),
-            let thisMon = WeeklyDigestEngine.mondayOfWeek(containing: Repository.localDayKey(Date()))
+            let earliestMon = WeeklyDigestEngine.weekStart(containing: earliest, firstWeekday: TrainingPreferences.firstWeekday),
+            let thisMon = WeeklyDigestEngine.weekStart(containing: Repository.localDayKey(Date()), firstWeekday: TrainingPreferences.firstWeekday)
         else { return 0 }
         // Walk weeks back from this Monday until we pass the earliest week. Bounded by history length.
         var off = 0

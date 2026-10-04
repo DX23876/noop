@@ -230,10 +230,16 @@ public enum WeeklyDigestEngine {
     ///     Percent changes are scale-invariant and stay untouched. Defaults to 1.0
     ///     (stored scale) so existing callers are byte-identical. Display-only: no
     ///     stat, delta or threshold changes.
+    ///   - firstWeekday: the day a week starts on, in `Calendar.firstWeekday` terms (1 = Sunday,
+    ///     2 = Monday). Defaults to Monday so existing callers keep their ISO weeks; the app passes the
+    ///     wearer's training-week choice so the digest and weekly goals cut the same seven days.
     public static func build(byMetric: [WeeklyMetric: [String: Double]],
                              anchorDay: String,
-                             effortDisplayFactor: Double = 1.0) -> WeeklyDigest {
-        guard let monday = mondayOfWeek(containing: anchorDay) else {
+                             effortDisplayFactor: Double = 1.0,
+                             firstWeekday: Int = 2) -> WeeklyDigest {
+        // `monday`/`sunday` keep their names below, but they are the first and last day of the week
+        // that starts on `firstWeekday`; with the default they are literally Monday and Sunday.
+        guard let monday = weekStart(containing: anchorDay, firstWeekday: firstWeekday) else {
             return emptyDigest(weekStart: anchorDay, weekEnd: anchorDay)
         }
         let sunday = addDays(monday, 6)
@@ -423,6 +429,17 @@ public enum WeeklyDigestEngine {
         // weekday: 0=Sunday … 6=Saturday. Days since Monday: Mon=0 … Sun=6.
         let sinceMonday = (w + 6) % 7
         return addDays(day, -sinceMonday)
+    }
+
+    /// The first day of the week containing `day`, for a week that starts on `firstWeekday`
+    /// (`Calendar.firstWeekday` convention: 1 = Sunday, 2 = Monday … 7 = Saturday). nil if `day` can't be
+    /// parsed or `firstWeekday` is outside 1...7. `firstWeekday == 2` is exactly `mondayOfWeek`.
+    public static func weekStart(containing day: String, firstWeekday: Int) -> String? {
+        guard (1...7).contains(firstWeekday),
+              let (y, m, d) = parseYMD(day), let w = weekday(y, m, d) else { return nil }
+        // weekday: 0=Sunday … 6=Saturday; firstWeekday - 1 is the same scale.
+        let since = (w - (firstWeekday - 1) + 7) % 7
+        return addDays(day, -since)
     }
 
     /// Add `n` days (may be negative) to a "yyyy-MM-dd" day, returning "yyyy-MM-dd".

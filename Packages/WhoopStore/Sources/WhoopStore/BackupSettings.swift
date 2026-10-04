@@ -98,6 +98,12 @@ public enum BackupSettings {
         "profile.vo2maxManualDay": .string,
         "profile.vo2maxManualWeightKg": .double,
         "profile.activityLevelOverride": .int,
+        // The goals system (long-term, weekly and monthly goals, daily goals, counting corrections,
+        // frozen period results and goal preferences) as one JSON string. Like `journal.customBehaviors`
+        // it is deliberately NOT in `appleDefaultsKey`: the goal state lives in several UserDefaults
+        // blobs, so the app layer (`GoalBackupBundle`) packs and unpacks it. Apple-only fork state with no
+        // Android twin; a reader that does not know the key ignores it, so older builds restore cleanly.
+        "goals.bundle": .string,
     ]
 
     /// Canonical JSON key → this platform's UserDefaults key. Identity everywhere except

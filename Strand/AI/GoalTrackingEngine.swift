@@ -433,7 +433,9 @@ final class GoalTrackingStore: ObservableObject {
         let hardSets = await hardSetsPerWeek(repo: repo, now: now)
         let measurementByKind = measurements(workouts: workouts, weights: weightsInWindow, stress: stress,
                                              days: repo.days, hardSetsPerWeek: hardSets, now: now)
-        let calendar = Calendar.autoupdatingCurrent
+        // The training week, not the system's: a Sunday-start wearer's goal weeks match their training
+        // week and the weekly digest.
+        let calendar = TrainingPreferences.weekCalendar
         let start = calendar.date(byAdding: .day, value: -365, to: now) ?? now
         let end = calendar.dateInterval(of: .weekOfYear, for: now)?.end ?? now
         let activeGoalIds = Set(goals.filter { $0.status == .active }.map(\.id))
@@ -516,7 +518,7 @@ final class GoalTrackingStore: ObservableObject {
                                             $0.serves(goal.id) && unresolved.contains($0.id)
                                         },
                                         courseSeries: goal.kind == .weight ? weightSamples : [],
-                                        now: now)
+                                        now: now, calendar: calendar)
         }
         lastUpdated = now
         CoachNotifier.syncGoalMonitoring(snapshots)

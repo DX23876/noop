@@ -89,6 +89,27 @@ enum TrainingPreferences {
     }
     /// The chosen training week start in `Calendar.firstWeekday` terms: 1 = Sunday, 2 = Monday.
     static var firstWeekday: Int { weekStart == .sunday ? 1 : 2 }
+    /// The local calendar with the training week start applied. Goal weeks, the goal week grid and
+    /// the weekly digest all cut their seven days with this, so one workout can never fall into
+    /// different weeks on different screens.
+    static var weekCalendar: Calendar {
+        var calendar = Calendar.autoupdatingCurrent
+        calendar.firstWeekday = firstWeekday
+        return calendar
+    }
+
+    /// The wearer's regular rest days, as `Calendar` weekday numbers (1 = Sunday … 7 = Saturday).
+    /// Set once in the training settings; every weekly goal leaves these days out of its pace unless
+    /// the goal overrides them. Empty = no fixed rest days.
+    static let restWeekdaysKey = "training.restWeekdays"
+    static var restWeekdays: [Int] {
+        let raw = UserDefaults.standard.array(forKey: restWeekdaysKey) as? [Int] ?? []
+        return Array(Set(raw.filter { (1...7).contains($0) })).sorted()
+    }
+    static func setRestWeekdays(_ days: [Int]) {
+        UserDefaults.standard.set(Array(Set(days.filter { (1...7).contains($0) })).sorted(),
+                                  forKey: restWeekdaysKey)
+    }
     static var restPauseSeconds: Int {
         let value = UserDefaults.standard.integer(forKey: restPauseKey)
         return value > 0 ? value : defaultRestPauseSeconds

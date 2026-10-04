@@ -295,6 +295,10 @@ enum DataBackup {
             let customs = items.filter(\.custom).map(\.canonical)
             if !customs.isEmpty { values["journal.customBehaviors"] = customs.joined(separator: "\n") }
         }
+        // Every goal, daily goal, attribution, frozen period result and goal preference, as one string.
+        if let goals = GoalBackupBundle.encode(from: .standard) {
+            values[GoalBackupBundle.settingsKey] = goals
+        }
         return BackupSettings.encode(values)
     }
 
@@ -564,6 +568,11 @@ enum DataBackup {
                         settingsDefaults.set(names, forKey: JournalCatalogBackupKeys.legacyCustom)
                         settingsDefaults.set([String](), forKey: JournalCatalogBackupKeys.legacyHidden)
                         settingsDefaults.removeObject(forKey: JournalCatalogBackupKeys.items)
+                    }
+                    // The goals system. The stores read their keys at launch, and a restore forces a
+                    // relaunch, so writing the values back is enough.
+                    if let goals = decoded[GoalBackupBundle.settingsKey] as? String {
+                        GoalBackupBundle.apply(goals, to: settingsDefaults)
                     }
                 }
             }

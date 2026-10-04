@@ -46,7 +46,9 @@ enum WeeklyDigestSource {
         return WeeklyDigestEngine.build(
             byMetric: [.charge: charge, .effort: effort, .rest: rest, .rhr: rhr, .hrv: hrv],
             anchorDay: anchorDay,
-            effortDisplayFactor: effortDisplayFactor)
+            effortDisplayFactor: effortDisplayFactor,
+            // The training-week choice, so this digest and the weekly goals count the same days.
+            firstWeekday: TrainingPreferences.firstWeekday)
     }
 
     /// The 0–100 Rest composite for a persisted day, via AnalyticsEngine's display-path

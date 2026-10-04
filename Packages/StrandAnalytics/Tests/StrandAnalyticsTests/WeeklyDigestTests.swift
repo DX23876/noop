@@ -14,6 +14,27 @@ final class WeeklyDigestTests: XCTestCase {
         XCTAssertEqual(WeeklyDigestEngine.mondayOfWeek(containing: "2026-06-14"), "2026-06-08")
     }
 
+    func testWeekStartFollowsFirstWeekday() {
+        // 2026-06-13 is a Saturday.
+        XCTAssertEqual(WeeklyDigestEngine.weekStart(containing: "2026-06-13", firstWeekday: 2), "2026-06-08")
+        XCTAssertEqual(WeeklyDigestEngine.weekStart(containing: "2026-06-13", firstWeekday: 1), "2026-06-07")
+        XCTAssertEqual(WeeklyDigestEngine.weekStart(containing: "2026-06-13", firstWeekday: 7), "2026-06-13")
+        // A Sunday opens its own Sunday-start week but closes the Monday-start one.
+        XCTAssertEqual(WeeklyDigestEngine.weekStart(containing: "2026-06-14", firstWeekday: 1), "2026-06-14")
+        XCTAssertEqual(WeeklyDigestEngine.weekStart(containing: "2026-06-14", firstWeekday: 2), "2026-06-08")
+        XCTAssertNil(WeeklyDigestEngine.weekStart(containing: "2026-06-14", firstWeekday: 0))
+        XCTAssertNil(WeeklyDigestEngine.weekStart(containing: "bad", firstWeekday: 2))
+    }
+
+    func testDigestWeekFollowsFirstWeekday() {
+        let digest = WeeklyDigestEngine.build(byMetric: [:], anchorDay: "2026-06-13", firstWeekday: 1)
+        XCTAssertEqual(digest.weekStart, "2026-06-07")
+        XCTAssertEqual(digest.weekEnd, "2026-06-13")
+        // The default stays the ISO Monday week every existing caller relied on.
+        let iso = WeeklyDigestEngine.build(byMetric: [:], anchorDay: "2026-06-13")
+        XCTAssertEqual(iso.weekStart, "2026-06-08")
+    }
+
     func testWeekdaySakamoto() {
         // 0=Sun … 6=Sat. 2026-06-08 = Monday(1), 2026-06-13 = Saturday(6), 2026-06-14 = Sunday(0).
         XCTAssertEqual(WeeklyDigestEngine.weekday(2026, 6, 8), 1)
