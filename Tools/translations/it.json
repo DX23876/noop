@@ -2252,5 +2252,10 @@
   "Badges for steps, streaks and reached goals, your personal records and a cheering line near the goal. Worked out on this device from your own data.": "Badge per passi, serie e obiettivi raggiunti, i tuoi record personali e una frase di incoraggiamento vicino all’obiettivo. Calcolato su questo dispositivo dai tuoi dati.",
   "Badges, streaks and records": "Badge, serie e record",
   "How long it runs": "Durata",
-  "Usually %@": "Di solito %@"
+  "Usually %@": "Di solito %@",
+  "Your long-term goals are on course. Add a daily goal to see your day here.": "I tuoi obiettivi a lungo termine sono in linea. Aggiungi un obiettivo giornaliero per vedere qui la tua giornata.",
+  "New badge: %@": "Nuovo badge: %@",
+  "Reached today · %@": "Raggiunto oggi · %@",
+  "Week %lld/%lld on course": "Settimana %lld/%lld in linea",
+  "%@ %lld/%lld on course": "%@ %lld/%lld in linea"
 }

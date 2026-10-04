@@ -17,8 +17,12 @@ struct GoalListRow: View {
     var subtitleTint: Color = StrandPalette.textSecondary
     let value: String
     var valueIsOff = false
-    /// A slim progress line under the text (weekly and monthly goals). nil draws none.
+    /// A slim progress line under the text (sums and counts). nil draws none.
     var progress: Double?
+    /// Day dots instead of a line, for "days with …" goals: which days counted, not just how many.
+    var dots: [DayDotStrip.Day]?
+    /// Small columns against a target line, for an average (a mean can fall, so it never fills up).
+    var columns: (values: [Double?], target: Double)?
 
     var body: some View {
         HStack(spacing: 12) {
@@ -37,7 +41,13 @@ struct GoalListRow: View {
                     Text(subtitle).font(StrandFont.caption).foregroundStyle(subtitleTint)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                if let progress {
+                if let dots {
+                    DayDotStrip(days: dots, tint: tint, diameter: 11)
+                        .padding(.top, 2)
+                } else if let columns {
+                    TargetColumns(values: columns.values, target: columns.target, tint: tint, height: 22)
+                        .padding(.top, 2)
+                } else if let progress {
                     PaceTrack(fraction: progress, tint: tint, height: 4)
                         .padding(.top, 2)
                 }
@@ -62,81 +72,148 @@ struct GoalListRow: View {
 
 // MARK: - Daily rings
 
-/// Today's measured daily goals as large rings, each in its goal's colour; a met goal fills and gets a
-/// star. With motivation on, a streak sits under each ring and one cheering line under the row.
+/// Today's measured daily goals as rings, laid out by how many there are (plan §17f):
+/// one goal is one large ring; two or three nest inside each other like activity rings, with a legend;
+/// from four on, the first three nest and every goal keeps a small ring in the legend.
+/// A ring fills in its goal's colour; a met goal gets a star. With motivation on, the legend carries the
+/// streak and one cheering line closes the block.
 struct DailyGoalRings: View {
     let occurrences: [GoalActionOccurrence]
     var motivation: GoalMotivationSnapshot?
-    /// 76 on the goals page, 52 on Today.
-    var diameter: CGFloat = 76
+    /// Outer diameter: about 120 on the goals page, 92 on Today.
+    var diameter: CGFloat = 120
 
     @AppStorage(AppleInspiredColorsPrefs.enabledKey)
     private var appleColors = AppleInspiredColorsPrefs.defaultEnabled
 
-    private var ringed: [GoalActionOccurrence] { Array(occurrences.filter { $0.fraction != nil }.prefix(4)) }
+    /// The rings in their fixed order (steps, active kcal, sleep).
+    private var ringed: [GoalActionOccurrence] {
+        GoalSpotlight.make(todayActions: occurrences, periodSnapshots: [], longTerm: [], pinnedLongTerm: []).rings
+    }
 
     var body: some View {
-        VStack(spacing: 12) {
-            HStack(alignment: .top, spacing: 8) {
-                ForEach(ringed) { occurrence in ring(occurrence).frame(maxWidth: .infinity) }
+        let items = ringed
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 16) {
+                if items.count == 1, let only = items.first {
+                    singleRing(only)
+                } else {
+                    nested(Array(items.prefix(3)))
+                }
+                VStack(alignment: .leading, spacing: 7) {
+                    ForEach(items) { legendRow($0, showsMiniRing: items.count > 3) }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            if let line = cheerLine {
+            if let line = cheerLine(items) {
                 Label(line.text, systemImage: line.symbol)
                     .font(StrandFont.footnote.weight(.semibold))
                     .foregroundStyle(line.tint)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .accessibilityElement(children: .combine)
     }
 
-    private func ring(_ occurrence: GoalActionOccurrence) -> some View {
-        let tint = occurrence.identityColor(appleColors: appleColors)
-        let fraction = min(1, max(0, occurrence.isCompleted ? 1 : (occurrence.fraction ?? 0)))
-        let line = max(6, diameter * 0.11)
-        return VStack(spacing: 6) {
-            ZStack {
-                Circle().stroke(tint.opacity(0.16), lineWidth: line)
-                Circle().trim(from: 0, to: fraction)
-                    .stroke(tint, style: StrokeStyle(lineWidth: line, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-                    .animation(.easeOut(duration: 0.6), value: fraction)
-                Image(systemName: icon(occurrence))
-                    .font(.system(size: diameter * 0.26, weight: .semibold))
-                    .foregroundStyle(tint)
-            }
-            .frame(width: diameter, height: diameter)
-            .overlay(alignment: .topTrailing) {
-                if occurrence.isCompleted {
-                    Image(systemName: "star.fill")
-                        .font(.system(size: diameter * 0.2, weight: .bold))
-                        .foregroundStyle(StrandPalette.statusWarning)
-                        .padding(4)
-                        .background(Circle().fill(StrandPalette.surfaceRaised))
-                        .offset(x: 6, y: -6)
-                        .accessibilityHidden(true)
+    private func fraction(_ o: GoalActionOccurrence) -> Double {
+        min(1, max(0, o.isCompleted ? 1 : (o.fraction ?? 0)))
+    }
+
+    private func tint(_ o: GoalActionOccurrence) -> Color { o.identityColor(appleColors: appleColors) }
+
+    /// Two or three rings, one inside the other: the outer is the first goal.
+    private func nested(_ items: [GoalActionOccurrence]) -> some View {
+        let line = diameter * 0.11
+        let gap = line * 0.25
+        return ZStack {
+            ForEach(Array(items.enumerated()), id: \.element.id) { index, o in
+                let size = diameter - CGFloat(index) * 2 * (line + gap)
+                ZStack {
+                    Circle().stroke(tint(o).opacity(0.18), lineWidth: line)
+                    Circle().trim(from: 0, to: fraction(o))
+                        .stroke(tint(o), style: StrokeStyle(lineWidth: line, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                        .animation(.easeOut(duration: 0.6), value: fraction(o))
                 }
+                .frame(width: size - line, height: size - line)
             }
-            Text(valueText(occurrence))
-                .font(diameter > 60 ? StrandFont.subhead.weight(.semibold) : StrandFont.footnote.weight(.semibold))
-                .foregroundStyle(StrandPalette.textPrimary).monospacedDigit()
-                .lineLimit(1).minimumScaleFactor(0.7)
-            Text(targetText(occurrence))
-                .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
-                .lineLimit(1).minimumScaleFactor(0.7)
-            if let streak = motivation?.streaks[occurrence.action.id]?.current, streak >= 2 {
-                Label(String(localized: "\(streak) days"), systemImage: "flame.fill")
-                    .font(StrandFont.caption.weight(.semibold))
-                    .foregroundStyle(AppleInspiredColorRole.orange.color)
-                    .lineLimit(1).minimumScaleFactor(0.7)
+        }
+        .frame(width: diameter, height: diameter)
+        .accessibilityHidden(true)
+    }
+
+    private func singleRing(_ o: GoalActionOccurrence) -> some View {
+        let line = diameter * 0.12
+        return ZStack {
+            Circle().stroke(tint(o).opacity(0.18), lineWidth: line)
+            Circle().trim(from: 0, to: fraction(o))
+                .stroke(tint(o), style: StrokeStyle(lineWidth: line, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .animation(.easeOut(duration: 0.6), value: fraction(o))
+            VStack(spacing: 0) {
+                Image(systemName: icon(o)).font(.system(size: diameter * 0.17, weight: .semibold))
+                    .foregroundStyle(tint(o))
+                Text("\(Int((fraction(o) * 100).rounded())) %")
+                    .font(.system(size: diameter * 0.15, weight: .bold, design: .rounded))
+                    .foregroundStyle(StrandPalette.textPrimary).monospacedDigit()
+            }
+            if o.isCompleted { star.offset(x: diameter * 0.36, y: -diameter * 0.36) }
+        }
+        .frame(width: diameter - line, height: diameter - line)
+        .frame(width: diameter, height: diameter)
+        .accessibilityHidden(true)
+    }
+
+    private var star: some View {
+        Image(systemName: "star.fill")
+            .font(.system(size: max(11, diameter * 0.13), weight: .bold))
+            .foregroundStyle(StrandPalette.statusWarning)
+            .padding(3)
+            .background(Circle().fill(StrandPalette.surfaceRaised))
+    }
+
+    private func legendRow(_ o: GoalActionOccurrence, showsMiniRing: Bool) -> some View {
+        HStack(spacing: 7) {
+            if showsMiniRing {
+                ZStack {
+                    Circle().stroke(tint(o).opacity(0.2), lineWidth: 3)
+                    Circle().trim(from: 0, to: fraction(o))
+                        .stroke(tint(o), style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                }
+                .frame(width: 14, height: 14)
+            } else {
+                Circle().fill(tint(o)).frame(width: 9, height: 9)
+            }
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 4) {
+                    Text(valueLine(o))
+                        .font(diameter >= 110 ? StrandFont.subhead.weight(.semibold) : StrandFont.footnote.weight(.semibold))
+                        .foregroundStyle(StrandPalette.textPrimary).monospacedDigit()
+                        .lineLimit(1).minimumScaleFactor(0.75)
+                    if o.isCompleted {
+                        Image(systemName: "star.fill").font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(StrandPalette.statusWarning)
+                    }
+                }
+                HStack(spacing: 6) {
+                    Text(targetLine(o)).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                        .lineLimit(1).minimumScaleFactor(0.75)
+                    if let streak = motivation?.streaks[o.action.id]?.current, streak >= 2 {
+                        Label(String(localized: "\(streak) days"), systemImage: "flame.fill")
+                            .font(StrandFont.caption.weight(.semibold))
+                            .foregroundStyle(AppleInspiredColorRole.orange.color)
+                            .labelStyle(.titleAndIcon).lineLimit(1)
+                    }
+                }
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("\(occurrence.action.title). \(occurrence.detailLine)"))
+        .accessibilityLabel(Text("\(o.action.title). \(o.detailLine)"))
     }
 
-    private func icon(_ occurrence: GoalActionOccurrence) -> String {
-        switch occurrence.action.requirement {
+    private func icon(_ o: GoalActionOccurrence) -> String {
+        switch o.action.requirement {
         case .steps: return "figure.walk"
         case .sleep: return "moon.stars.fill"
         case .activeCalories: return "flame.fill"
@@ -145,30 +222,15 @@ struct DailyGoalRings: View {
         }
     }
 
-    private func valueText(_ occurrence: GoalActionOccurrence) -> String {
-        guard let measured = occurrence.measured else { return "–" }
-        switch occurrence.action.requirement {
-        case .sleep: return String(localized: "\(measured.formatted(.number.precision(.fractionLength(1)))) h")
-        default: return Int(measured.rounded()).formatted()
-        }
-    }
-
-    private func targetText(_ occurrence: GoalActionOccurrence) -> String {
-        guard let target = occurrence.measuredTarget else { return "" }
-        switch occurrence.action.requirement {
-        case .steps: return String(localized: "of \(Int(target).formatted()) steps")
-        case .sleep: return String(localized: "of \(target.formatted(.number.precision(.fractionLength(0...1)))) h sleep")
-        case .activeCalories: return String(localized: "of \(Int(target).formatted()) kcal")
-        default: return ""
-        }
-    }
+    private func valueLine(_ o: GoalActionOccurrence) -> String { o.ringValueText }
+    private func targetLine(_ o: GoalActionOccurrence) -> String { o.ringTargetText }
 
     /// One line to cheer on: a new record beats everything, then the goal closest to done.
-    private var cheerLine: (text: String, symbol: String, tint: Color)? {
+    private func cheerLine(_ ringed: [GoalActionOccurrence]) -> (text: String, symbol: String, tint: Color)? {
         guard let motivation else { return nil }
         if motivation.newStepRecordToday, let steps = motivation.todaySteps {
             return (String(localized: "New record: \(steps.formatted()) steps today"), "trophy.fill",
-                    StrandPalette.statusWarningForeground)
+                    AppleInspiredColorRole.orange.color)
         }
         if !ringed.isEmpty, ringed.allSatisfy(\.isCompleted) {
             return (String(localized: "All daily goals done"), "star.fill", StrandTone.positive.foregroundColor)
@@ -187,6 +249,50 @@ struct DailyGoalRings: View {
                     "flame.fill", StrandPalette.accent)
         default:
             return nil
+        }
+    }
+}
+
+extension GoalActionOccurrence {
+    /// Today's reading as the ring legend shows it: "7,328", "6.1 h".
+    var ringValueText: String {
+        guard let measured else { return "–" }
+        switch action.requirement {
+        case .sleep: return String(localized: "\(measured.formatted(.number.precision(.fractionLength(1)))) h")
+        default: return Int(measured.rounded()).formatted()
+        }
+    }
+
+    /// The target under it: "of 10,000 steps".
+    var ringTargetText: String {
+        guard let target = measuredTarget else { return "" }
+        switch action.requirement {
+        case .steps: return String(localized: "of \(Int(target).formatted()) steps")
+        case .sleep: return String(localized: "of \(target.formatted(.number.precision(.fractionLength(0...1)))) h sleep")
+        case .activeCalories: return String(localized: "of \(Int(target).formatted()) kcal")
+        default: return ""
+        }
+    }
+
+    /// The identity colour key of what the goal measures, for surfaces that resolve colours themselves
+    /// (the widget extension).
+    var colorKey: String {
+        switch action.requirement {
+        case .steps: return PeriodMetric.stepDays.colorKey
+        case .sleep: return PeriodMetric.sleepNights.colorKey
+        case .activeCalories: return PeriodMetric.activeEnergy.colorKey
+        case .workout: return PeriodMetric.workouts.colorKey
+        case .manual: return ""
+        }
+    }
+
+    var ringSymbol: String {
+        switch action.requirement {
+        case .steps: return "figure.walk"
+        case .sleep: return "moon.stars.fill"
+        case .activeCalories: return "flame.fill"
+        case .workout: return "figure.mixed.cardio"
+        case .manual: return "checkmark"
         }
     }
 }

@@ -324,7 +324,12 @@ struct GoalsOverviewView: View {
                                 subtitleTint: GoalStatusStyle.needsAttention(snapshot.state) || snapshot.state == .achieved
                                     ? snapshot.style.foreground : StrandPalette.textSecondary,
                                 value: GoalFormat.amount(snapshot.goal.target, snapshot.goal.metric),
-                                progress: snapshot.state == .noData ? nil : snapshot.result.fraction)
+                                progress: snapshot.state == .noData ? nil : snapshot.result.fraction,
+                                dots: snapshot.goal.metric.aggregation == .hitDays && snapshot.goal.period == .week
+                                    ? snapshot.dayDots() : nil,
+                                columns: snapshot.goal.metric.aggregation == .average
+                                    ? (snapshot.dayValues.enumerated().map { $0.offset <= snapshot.todayIndex ? $0.element : nil },
+                                       snapshot.result.target) : nil)
                 }
                 .buttonStyle(.plain)
                 .contextMenu { periodMenu(snapshot) }

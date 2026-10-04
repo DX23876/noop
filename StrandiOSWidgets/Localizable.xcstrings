@@ -3918,6 +3918,64 @@
           }
         }
       }
+    },
+    "Your daily goals as rings, and the weekly or monthly goal that needs a look." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Tagesziele als Ringe und das Wochen- oder Monatsziel, das gerade Aufmerksamkeit braucht."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tus objetivos diarios como anillos y el objetivo semanal o mensual que necesita atención."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vos objectifs quotidiens en anneaux, et l’objectif hebdomadaire ou mensuel qui demande de l’attention."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I tuoi obiettivi giornalieri come anelli e l’obiettivo settimanale o mensile che richiede attenzione."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cele dzienne jako pierścienie oraz cel tygodniowy lub miesięczny, który wymaga uwagi."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os objetivos diários em anéis e o objetivo semanal ou mensal que precisa de atenção."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Цели на день в виде колец и недельная или месячная цель, которой нужно внимание."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "以圆环显示每日目标，以及需要关注的每周或每月目标。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "以圓環顯示每日目標，以及需要關注的每週或每月目標。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

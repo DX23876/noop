@@ -28,7 +28,6 @@ struct GoalsTodaySection: View {
     @AppStorage(Self.inviteDismissedKey) private var inviteDismissed = false
 
     static let inviteDismissedKey = "goals.todayInviteDismissed"
-    static let visibleWeekGoals = 3
 
     /// ONE enum-driven sheet host (the codebase's rule since #R2: two hosts on one view swallow each other).
     private enum Sheet: Identifiable {
@@ -45,22 +44,10 @@ struct GoalsTodaySection: View {
     }
     @State private var sheet: Sheet?
 
-    private var weekSnapshots: [PeriodGoalSnapshot] {
-        tracking.periodSnapshots.filter { $0.goal.period == .week && $0.goal.isOpen }
-    }
-    private var monthSnapshots: [PeriodGoalSnapshot] {
-        tracking.periodSnapshots.filter { $0.goal.period == .month && $0.goal.isOpen }
-    }
-    private var visibleWeek: [PeriodGoalSnapshot] { Array(weekSnapshots.prefix(Self.visibleWeekGoals)) }
-    private var hiddenNeedingAttention: Int {
-        weekSnapshots.dropFirst(Self.visibleWeekGoals).filter { GoalStatusStyle.needsAttention($0.state) }.count
-    }
-    private var longTermOnToday: [GoalTrackingSnapshot] {
-        let pinned = GoalPrefs.pinnedLongTermIds
-        return tracking.snapshots.filter { snapshot in
-            snapshot.goal.status == .active
-                && (pinned.contains(snapshot.id) || snapshot.health == .decisionNeeded || snapshot.health == .atRisk)
-        }
+    /// What this card shows, decided by the rule every small goal surface shares (`GoalSpotlight`).
+    private var spotlight: GoalSpotlight {
+        GoalSpotlight.make(todayActions: tracking.todayActions, periodSnapshots: tracking.periodSnapshots,
+                           longTerm: tracking.snapshots, pinnedLongTerm: GoalPrefs.pinnedLongTermIds)
     }
     private var hasAnyGoal: Bool {
         !periodGoals.openGoals.isEmpty || !goals.activeGoals.isEmpty || !tracking.todayActions.isEmpty
@@ -88,68 +75,39 @@ struct GoalsTodaySection: View {
 
     // MARK: - Content
 
+    /// Daily goals first (rings, then boxes to tick), then at most two goals that need a look today,
+    /// then one line for everything else (plan §17f). What is not shown is on the goals page.
     @ViewBuilder
     private var content: some View {
-        // Today's daily goals lead as rings (steps, sleep, kcal): the one thing to act on today.
-        if tracking.todayActions.contains(where: { $0.fraction != nil }) {
+        let spot = spotlight
+        if !spot.rings.isEmpty {
             NavigationLink(value: TabRoute.goals) {
-                DailyGoalRings(occurrences: tracking.todayActions, motivation: tracking.motivation, diameter: 60)
+                DailyGoalRings(occurrences: tracking.todayActions, motivation: tracking.motivation, diameter: 92)
             }
             .buttonStyle(.plain)
-            if !visibleWeek.isEmpty || !monthSnapshots.isEmpty || !longTermOnToday.isEmpty {
-                Divider().overlay(StrandPalette.hairline)
-            }
         }
-        ForEach(visibleWeek) { snapshot in
-            NavigationLink(value: TabRoute.periodGoal(snapshot.id)) {
-                PeriodGoalRow(snapshot: snapshot)
-            }
-            .buttonStyle(.plain)
-            .contextMenu { periodMenu(snapshot) }
+        ForEach(Array(spot.checks.prefix(2))) { occurrence in dailyRow(occurrence) }
+        if !spot.rows.isEmpty {
+            if !spot.rings.isEmpty || !spot.checks.isEmpty { Divider().overlay(StrandPalette.hairline) }
+            ForEach(spot.rows) { row in spotlightRow(row) }
         }
-        if hiddenNeedingAttention > 0 {
+        if let summary = spot.summary {
             NavigationLink(value: TabRoute.goals) {
-                Label(String(localized: "+\(hiddenNeedingAttention) more need attention"),
-                      systemImage: "exclamationmark.circle")
-                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.statusWarningForeground)
+                HStack(spacing: 6) {
+                    Text(summary).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                        .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 4)
+                    Image(systemName: "chevron.right").font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textTertiary).accessibilityHidden(true)
+                }
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         }
-        ForEach(longTermOnToday) { snapshot in
-            Button { sheet = .journey(snapshot.id) } label: { LongTermGoalRow(snapshot: snapshot) }
-                .buttonStyle(.plain)
-                .contextMenu {
-                    let pinned = GoalPrefs.pinnedLongTermIds.contains(snapshot.id)
-                    Button(pinned ? "Unpin from Today" : "Keep on Today",
-                           systemImage: pinned ? "pin.slash" : "pin") {
-                        GoalPrefs.setPinned(snapshot.id, !pinned)
-                        tracking.objectWillChange.send()
-                    }
-                }
-        }
-        if !monthSnapshots.isEmpty {
-            if !visibleWeek.isEmpty || !longTermOnToday.isEmpty { Divider().overlay(StrandPalette.hairline) }
-            NavigationLink(value: TabRoute.goals) { monthLine }.buttonStyle(.plain)
-        }
-        if tracking.todayActions.contains(where: { $0.fraction == nil }) {
-            if !visibleWeek.isEmpty || !monthSnapshots.isEmpty || !longTermOnToday.isEmpty {
-                Divider().overlay(StrandPalette.hairline)
-            }
-            ForEach(Array(tracking.todayActions.filter { $0.fraction == nil }.prefix(3))) { occurrence in
-                dailyRow(occurrence)
-            }
-            if tracking.todayActions.filter({ $0.fraction == nil }).count > 3 {
-                NavigationLink(value: TabRoute.goals) {
-                    Text("All \(tracking.todayActions.count) daily goals")
-                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.accent)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        if visibleWeek.isEmpty && monthSnapshots.isEmpty && longTermOnToday.isEmpty && tracking.todayActions.isEmpty {
+        if spot.rings.isEmpty && spot.checks.isEmpty && spot.rows.isEmpty && spot.summary == nil {
             // Long-term goals that are fine stay off Today (Q7); say where they are instead of drawing nothing.
             NavigationLink(value: TabRoute.goals) {
-                Text("Your long-term goals are on course. Add a weekly goal to see your week here.")
+                Text("Your long-term goals are on course. Add a daily goal to see your day here.")
                     .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -158,12 +116,10 @@ struct GoalsTodaySection: View {
         if let badge = tracking.motivation?.unseen.first {
             NavigationLink(value: TabRoute.goals) {
                 HStack(spacing: 10) {
-                    BadgeMedal(badge: badge, diameter: 34, showsCaption: false)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("New badge").font(StrandFont.footnote.weight(.semibold))
-                            .foregroundStyle(StrandPalette.textPrimary)
-                        Text(badge.title).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
-                    }
+                    BadgeMedal(badge: badge, diameter: 30, showsCaption: false)
+                    Text(String(localized: "New badge: \(badge.title)"))
+                        .font(StrandFont.footnote.weight(.semibold)).foregroundStyle(StrandPalette.textPrimary)
+                        .lineLimit(2)
                     Spacer()
                     Image(systemName: "chevron.right").font(StrandFont.caption)
                         .foregroundStyle(StrandPalette.textTertiary).accessibilityHidden(true)
@@ -178,20 +134,67 @@ struct GoalsTodaySection: View {
         }
     }
 
-    private var monthLine: some View {
-        let onCourse = monthSnapshots.filter { [.onTrack, .ahead, .achieved].contains($0.state) }.count
-        let behind = monthSnapshots.filter { GoalStatusStyle.needsAttention($0.state) }.count
-        let month = Date().formatted(.dateTime.month(.wide))
-        return HStack(spacing: 8) {
-            Image(systemName: "calendar").font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
-                .accessibilityHidden(true)
-            Text(month).font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-            Spacer(minLength: 6)
-            Text(behind > 0 ? String(localized: "\(onCourse) on course · \(behind) need attention")
-                            : String(localized: "\(onCourse) of \(monthSnapshots.count) on course"))
-                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
-            Image(systemName: "chevron.right").font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-                .accessibilityHidden(true)
+    /// A weekly, monthly or long-term goal in one compact line: why it is here, its name, what is left.
+    @ViewBuilder
+    private func spotlightRow(_ row: GoalSpotlight.Row) -> some View {
+        switch row {
+        case .period(let snapshot, let reason):
+            NavigationLink(value: TabRoute.periodGoal(snapshot.id)) {
+                compactRow(icon: snapshot.goal.metric.icon, tint: snapshot.identityColor,
+                           title: GoalFormat.shortName(snapshot.goal),
+                           detail: reason == .reachedToday
+                               ? String(localized: "Reached today · \(GoalFormat.progress(snapshot))")
+                               : "\(GoalFormat.progress(snapshot)) · \(GoalFormat.remainingLine(snapshot))",
+                           style: snapshot.style, fraction: snapshot.result.fraction)
+            }
+            .buttonStyle(.plain)
+            .contextMenu { periodMenu(snapshot) }
+        case .longTerm(let snapshot, _):
+            let style = GoalStatusStyle.of(snapshot.health)
+            Button { sheet = .journey(snapshot.id) } label: {
+                compactRow(icon: snapshot.goal.kind.icon,
+                           tint: CoachIconColors.color(for: "coach.goal.\(snapshot.goal.kind.rawValue)"),
+                           title: snapshot.displayTitle,
+                           detail: snapshot.routeLine ?? snapshot.measurementLine ?? snapshot.localizedNextAction,
+                           style: style, fraction: snapshot.progressFraction)
+            }
+            .buttonStyle(.plain)
+            .contextMenu {
+                let pinned = GoalPrefs.pinnedLongTermIds.contains(snapshot.id)
+                Button(pinned ? "Unpin from Today" : "Keep on Today", systemImage: pinned ? "pin.slash" : "pin") {
+                    GoalPrefs.setPinned(snapshot.id, !pinned)
+                    tracking.objectWillChange.send()
+                }
+            }
+        }
+    }
+
+    private func compactRow(icon: String, tint: Color, title: String, detail: String,
+                            style: GoalStatusStyle, fraction: Double?) -> some View {
+        HStack(spacing: 10) {
+            ZStack {
+                Circle().stroke(tint.opacity(0.18), lineWidth: 3)
+                if let fraction {
+                    Circle().trim(from: 0, to: min(1, max(0, fraction)))
+                        .stroke(tint, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                }
+                Image(systemName: icon).font(.system(size: 11, weight: .semibold)).foregroundStyle(tint)
+            }
+            .frame(width: 30, height: 30)
+            .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 6) {
+                    Text(title).font(StrandFont.footnote.weight(.semibold))
+                        .foregroundStyle(StrandPalette.textPrimary).lineLimit(1)
+                    Spacer(minLength: 4)
+                    Label(style.wordText, systemImage: style.symbol)
+                        .font(StrandFont.caption.weight(.semibold)).foregroundStyle(style.foreground)
+                        .labelStyle(.titleAndIcon).lineLimit(1)
+                }
+                Text(detail).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                    .lineLimit(1)
+            }
         }
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)

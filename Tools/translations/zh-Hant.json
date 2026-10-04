@@ -2313,5 +2313,10 @@
   "Badges for steps, streaks and reached goals, your personal records and a cheering line near the goal. Worked out on this device from your own data.": "步數、連續紀錄和已達成目標的徽章、個人紀錄，以及接近目標時的鼓勵。在本裝置上用你自己的數據計算。",
   "Badges, streaks and records": "徽章、連續紀錄和紀錄",
   "How long it runs": "持續時間",
-  "Usually %@": "平時約 %@"
+  "Usually %@": "平時約 %@",
+  "Your long-term goals are on course. Add a daily goal to see your day here.": "你的長期目標進展正常。新增一個每日目標，即可在這裡看到你的一天。",
+  "New badge: %@": "新徽章：%@",
+  "Reached today · %@": "今天達成 · %@",
+  "Week %lld/%lld on course": "本週 %lld/%lld 進展正常",
+  "%@ %lld/%lld on course": "%@ %lld/%lld 進展正常"
 }

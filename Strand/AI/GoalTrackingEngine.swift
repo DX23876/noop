@@ -494,7 +494,7 @@ final class GoalTrackingStore: ObservableObject {
         GoalNotifier.reschedule(computed, now: now)
         GoalEvents.announce(computed)
         #if os(iOS)
-        GoalWidgetPublisher.publish(computed, now: now)
+        GoalWidgetPublisher.publish(computed, daily: todayActions, now: now)
         #endif
         GoalReminderLines.update(periodSnapshots: computed,
                                  todaySteps: repo.days.first { $0.day == Repository.localDayKey(now) }?.steps)
