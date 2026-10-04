@@ -497,7 +497,8 @@ final class GoalTrackingStore: ObservableObject {
         GoalWidgetPublisher.publish(computed, daily: todayActions, now: now)
         #endif
         GoalReminderLines.update(periodSnapshots: computed,
-                                 todaySteps: repo.days.first { $0.day == Repository.localDayKey(now) }?.steps)
+                                 todaySteps: stepsByDay[Repository.localDayKey(now)])
+        GoalEventNotifier.evaluate(todayActions: todayActions, motivation: motivation, now: now)
 
         // A workout an open weekly or monthly goal already counts on its own needs no "which goal did this
         // support?" question (Q20): the question is kept for workouts nothing claims.
@@ -586,6 +587,7 @@ final class GoalTrackingStore: ObservableObject {
         inputs.workouts = workouts
         inputs.days = repo.days
         inputs.activeKcalByDay = activeKcalByDay
+        inputs.stepsByDay = GoalMotivationBuilder.stepsByDay(days: repo.days, apple: await repo.appleDailyRows(days: 400))
         inputs.hydrationEnabled = UserDefaults.standard.bool(forKey: HydrationStore.enabledKey)
         inputs.profileSex = UserDefaults.standard.string(forKey: "profile.sex") ?? ""
         let syncedAt = UserDefaults.standard.double(forKey: "lastSyncedAt")

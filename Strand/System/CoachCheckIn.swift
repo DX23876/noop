@@ -199,12 +199,14 @@ enum CoachCheckIn {
         let skip = UNNotificationAction(identifier: Action.skipToday,
                                         title: String(localized: "Not today"),
                                         options: [])
-        UNUserNotificationCenter.current().setNotificationCategories([
-            UNNotificationCategory(identifier: Action.category,
-                                   actions: [snooze, skip],
-                                   intentIdentifiers: [],
-                                   options: [])
-        ])
+        // Added to the categories already registered (the goal notifications have their own), never
+        // replacing them: `setNotificationCategories` swaps the whole set.
+        let checkIn = UNNotificationCategory(identifier: Action.category, actions: [snooze, skip],
+                                             intentIdentifiers: [], options: [])
+        let center = UNUserNotificationCenter.current()
+        center.getNotificationCategories { existing in
+            center.setNotificationCategories(existing.filter { $0.identifier != Action.category }.union([checkIn]))
+        }
     }
 
     /// Defer today's reminder by `snoozeMinutes`, as a ONE-OFF request beside the repeating daily one.

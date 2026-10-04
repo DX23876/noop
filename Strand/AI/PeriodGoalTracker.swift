@@ -8,6 +8,9 @@ struct PeriodGoalInputs {
     var workouts: [WorkoutRow] = []
     var days: [DailyMetric] = []
     var activeKcalByDay: [String: Double] = [:]
+    /// Measured steps per day, the strap's count first and the same day's Health count second (never the
+    /// motion estimate): the number daily goals and Today's step card read too (plan §17g, Q1).
+    var stepsByDay: [String: Int] = [:]
     /// Working sets per day from the lifting log; nil when no lifting log is connected.
     var setsByDay: [String: Double]?
     var hydrationByDay: [String: Double] = [:]
@@ -223,7 +226,7 @@ enum PeriodGoalTracker {
                 return total
             case .stepDays:
                 guard !isFuture else { return 0 }
-                guard let steps = index.dailyByDay[day]?.steps else { return nil }
+                guard let steps = index.dailyByDay[day]?.steps ?? inputs.stepsByDay[day] else { return nil }
                 let hit = Double(steps) >= (goal.threshold ?? 8_000)
                 if hit { counted.append(dayItem(day, Double(steps))) }
                 return hit ? 1 : 0
@@ -443,7 +446,8 @@ enum PeriodGoalTracker {
             return recentWorkouts.contains { WorkoutZones.percents($0.zonesJSON) != nil }
                 ? .available : .unavailable("Needs workouts with heart-rate zones")
         case .stepDays:
-            return recentDays.contains { $0.steps != nil } ? .available : .unavailable("Needs step data")
+            return recentDays.contains { $0.steps != nil } || inputs.stepsByDay.keys.contains { $0 >= cutoff }
+                ? .available : .unavailable("Needs step data")
         case .sleepNights, .sleepAverage:
             return recentDays.contains { $0.totalSleepMin != nil } ? .available : .unavailable("Needs sleep data")
         case .workingSets:

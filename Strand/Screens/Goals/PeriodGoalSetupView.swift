@@ -131,6 +131,11 @@ struct PeriodGoalSetupView: View {
                         Group {
                             if item.exists {
                                 Text("Already a goal: \(existing(item).map(GoalFormat.title) ?? GoalFormat.title(item.goal))")
+                            } else if let conflict = GoalConflicts.notes(adding: item.goal, actions: GoalActionStore.shared.actions,
+                                                                         period: store.goals, longTerm: CoachGoalStore.shared.goals,
+                                                                         today: Repository.localDayKey(Date())).first {
+                                Label(conflict, systemImage: "exclamationmark.triangle")
+                                    .foregroundStyle(StrandPalette.statusWarningForeground)
                             } else if let usual = item.usual {
                                 Text("\(GoalFormat.title(item.goal)) · usually \(GoalFormat.amount(usual, item.metric))")
                             } else {
@@ -585,6 +590,13 @@ struct GuidedPeriodGoalSetup: View {
             }
             if let warning = volumeWarning {
                 Label(warning, systemImage: "exclamationmark.triangle")
+                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.statusWarningForeground)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            ForEach(GoalConflicts.notes(adding: finalDraft, actions: GoalActionStore.shared.actions,
+                                        period: store.goals, longTerm: longTerm.goals,
+                                        today: Repository.localDayKey(Date())), id: \.self) { note in
+                Label(note, systemImage: "exclamationmark.triangle")
                     .font(StrandFont.footnote).foregroundStyle(StrandPalette.statusWarningForeground)
                     .fixedSize(horizontal: false, vertical: true)
             }

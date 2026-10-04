@@ -44,7 +44,10 @@ final class ActiveSessionController: ObservableObject {
     @Published private(set) var strength: NativeWorkoutSessionModel? {
         // Every way a strength session appears or goes — start, restore, finish, discard — reaches the
         // system surfaces, not only later edits.
-        didSet { if oldValue !== strength { publishActivity(); updateStrapClaim() } }
+        didSet {
+            if oldValue !== strength { publishActivity(); updateStrapClaim() }
+            GoalEventNotifier.workoutInProgress = strength != nil
+        }
     }
     /// Whether the full-screen session is showing. False with a session running means minimized.
     @Published var isPresented = false

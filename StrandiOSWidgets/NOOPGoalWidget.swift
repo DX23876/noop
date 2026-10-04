@@ -157,6 +157,13 @@ struct GoalWidgetView: View {
         .frame(width: diameter, height: diameter)
     }
 
+    /// When the numbers were taken: the widget only changes when the app has new data (after a sync or
+    /// when opened), so it says how fresh it is instead of passing a morning count off as live (Q5).
+    private var asOfLine: some View {
+        Text(String(localized: "As of \(entry.snapshot.updated.formatted(date: .omitted, time: .shortened))"))
+            .font(.caption2).foregroundStyle(StrandPalette.textTertiary).lineLimit(1)
+    }
+
     @ViewBuilder private var tallyLine: some View {
         if let tally = entry.snapshot.dailyTally {
             Label(String(localized: "\(tally.done) of \(tally.total) daily goals done"), systemImage: "checklist")
@@ -210,7 +217,7 @@ struct GoalWidgetView: View {
                 if let first = items.first {
                     VStack(spacing: 0) {
                         Text(first.value).font(.caption.weight(.bold)).monospacedDigit()
-                        Text(first.target).font(.caption2).foregroundStyle(StrandPalette.textSecondary)
+                        asOfLine
                     }
                     .lineLimit(1).minimumScaleFactor(0.7)
                 }
@@ -245,6 +252,7 @@ struct GoalWidgetView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     legend(entry.snapshot.dailyGoals, limit: entry.snapshot.spotlight.isEmpty ? 3 : 2)
                     tallyLine
+                    asOfLine
                     if let first = entry.snapshot.spotlight.first {
                         Divider()
                         compactRow(first)
@@ -283,7 +291,11 @@ struct GoalWidgetView: View {
             }
             ForEach(Array(periodLines.prefix(2))) { goal in row(goal) }
             Spacer(minLength: 0)
-            Text(entry.snapshot.summary).font(.caption).foregroundStyle(StrandPalette.textSecondary).lineLimit(1)
+            HStack {
+                Text(entry.snapshot.summary).font(.caption).foregroundStyle(StrandPalette.textSecondary).lineLimit(1)
+                Spacer(minLength: 4)
+                asOfLine
+            }
         }
     }
 

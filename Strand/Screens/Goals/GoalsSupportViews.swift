@@ -505,6 +505,7 @@ struct GoalsSettingsView: View {
     @State private var restDays: Set<Int> = Set(TrainingPreferences.restWeekdays)
     @State private var notify: [GoalPrefs.NotificationKind: Bool] = [:]
     @State private var motivationOn = GoalPrefs.motivationEnabled
+    @State private var eventNotify: [GoalEventNotifier.Kind: Bool] = [:]
     @EnvironmentObject private var repo: Repository
 
     var body: some View {
@@ -538,6 +539,14 @@ struct GoalsSettingsView: View {
             NoopCard(padding: 14) {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Notifications").strandOverline()
+                    ForEach(GoalEventNotifier.Kind.allCases) { kind in
+                        Toggle(kind.label, isOn: Binding(
+                            get: { eventNotify[kind] ?? GoalEventNotifier.isOn(kind) },
+                            set: { eventNotify[kind] = $0; GoalEventNotifier.setOn(kind, $0)
+                                UserDefaults.standard.set(true, forKey: GoalEventNotifier.consentAskedKey)
+                                if $0 { GoalNotifier.requestAuthorization() } }))
+                            .font(StrandFont.footnote)
+                    }
                     ForEach(GoalPrefs.NotificationKind.allCases) { kind in
                         Toggle(kind.label.localizedCatalogValue, isOn: Binding(
                             get: { notify[kind] ?? GoalPrefs.notifies(kind) },
@@ -545,7 +554,7 @@ struct GoalsSettingsView: View {
                                 if $0 { GoalNotifier.requestAuthorization() } }))
                             .font(StrandFont.footnote)
                     }
-                    Text("Off by default. Hints and reviews always appear in the app. Quiet hours from the notification settings apply.")
+                    Text("Off by default. At most two goal notifications a day, never after 21:00 or during a workout. Hints and reviews always appear in the app. Quiet hours from the notification settings apply.")
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
                 }

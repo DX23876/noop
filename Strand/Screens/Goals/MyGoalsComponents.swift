@@ -25,8 +25,23 @@ struct GoalListRow: View {
     var columns: (values: [Double?], target: Double)?
     /// Today's progress of a daily goal, drawn as a ring around the icon; nil draws the plain icon.
     var iconFraction: Double?
-    /// Today's daily goal is done: a tick on the icon.
+    /// Today's daily goal is done: a star on the icon (plan §17g, Q11: a star means "made it").
     var isDone = false
+    /// This goal measures the same thing as another one with a different number (`GoalConflicts`).
+    var warning: String?
+    /// A goal the wearer ticks off by hand keeps the tick; every goal met by a number gets the star (Q11).
+    var isTick = false
+
+    @Environment(\.dynamicTypeSize) private var typeSize
+    private var largeText: Bool { typeSize.isAccessibilitySize }
+
+    private var valueText: some View {
+        Text(value)
+            .font(valueIsOff ? StrandFont.subhead : StrandFont.subhead.weight(.semibold))
+            .foregroundStyle(valueIsOff ? StrandPalette.textTertiary : StrandPalette.textPrimary)
+            .monospacedDigit()
+            .lineLimit(1)
+    }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -45,9 +60,10 @@ struct GoalListRow: View {
                 }
                 .overlay(alignment: .bottomTrailing) {
                     if isDone {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(StrandTone.positive.color)
+                        Image(systemName: isTick ? "checkmark.circle.fill" : "star.fill")
+                            .font(.system(size: isTick ? 14 : 11, weight: .bold))
+                            .foregroundStyle(isTick ? StrandTone.positive.color : StrandPalette.statusWarning)
+                            .padding(isTick ? 0 : 2)
                             .background(Circle().fill(StrandPalette.surfaceRaised))
                             .offset(x: 4, y: 4)
                     }
@@ -57,9 +73,15 @@ struct GoalListRow: View {
                 Text(title)
                     .font(StrandFont.subhead.weight(.semibold))
                     .foregroundStyle(valueIsOff ? StrandPalette.textSecondary : StrandPalette.textPrimary)
-                    .lineLimit(2)
+                    .lineLimit(largeText ? 3 : 2)
+                if largeText { valueText }
                 if let subtitle {
                     Text(subtitle).font(StrandFont.caption).foregroundStyle(subtitleTint)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if let warning {
+                    Label(warning, systemImage: "exclamationmark.triangle")
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.statusWarningForeground)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 if let dots {
@@ -74,14 +96,12 @@ struct GoalListRow: View {
                 }
             }
             // The text column fills the row (so the progress line runs its full width); the value keeps
-            // exactly the width it needs.
+            // exactly the width it needs. At accessibility text sizes the value moves under the name:
+            // beside it, it squeezed the line under the name into one syllable per row.
             .frame(maxWidth: .infinity, alignment: .leading)
-            Text(value)
-                .font(valueIsOff ? StrandFont.subhead : StrandFont.subhead.weight(.semibold))
-                .foregroundStyle(valueIsOff ? StrandPalette.textTertiary : StrandPalette.textPrimary)
-                .monospacedDigit()
-                .lineLimit(1)
-                .fixedSize(horizontal: true, vertical: false)
+            if !largeText {
+                valueText.fixedSize(horizontal: true, vertical: false)
+            }
             Image(systemName: "chevron.right").font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                 .accessibilityHidden(true)
         }
@@ -106,9 +126,16 @@ struct DailyGoalRings: View {
     /// Count every daily goal below the rings ("6 of 10 daily goals done"). Off where the goals beyond
     /// the rings are listed one by one anyway.
     var showsTally = true
+    /// The legend with the numbers beside the rings. Off on the goals page, where the daily list right
+    /// below carries the same numbers (plan §17g, Q10).
+    var showsLegend = true
 
     @AppStorage(AppleInspiredColorsPrefs.enabledKey)
     private var appleColors = AppleInspiredColorsPrefs.defaultEnabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// A ring closing while the wearer looks (Q13): it sweeps round once, then its star pops in.
+    @State private var sweep: [String: Double] = [:]
+    @State private var popped: Set<String> = []
 
     /// The rings in their fixed order (steps, active kcal, sleep).
     private var ringed: [GoalActionOccurrence] {
@@ -118,7 +145,10 @@ struct DailyGoalRings: View {
     var body: some View {
         let items = ringed
         VStack(alignment: .leading, spacing: 12) {
-            if !items.isEmpty { ringsAndLegend(items) }
+            if !items.isEmpty {
+                if showsLegend { ringsAndLegend(items) }
+                else { ringsOnly(items).frame(maxWidth: .infinity) }
+            }
             if showsTally, occurrences.count > items.count {
                 DailyTally(occurrences: occurrences)
             }
@@ -130,6 +160,43 @@ struct DailyGoalRings: View {
             }
         }
         .accessibilityElement(children: .combine)
+        .task(id: items.filter(\.isCompleted).map(\.id)) { celebrateNewlyClosed(items) }
+    }
+
+    @ViewBuilder
+    private func ringsOnly(_ items: [GoalActionOccurrence]) -> some View {
+        if items.count == 1, let only = items.first { singleRing(only) } else { nested(Array(items.prefix(3))) }
+    }
+
+    /// The first time today a ring is seen closed, it gets its moment: one sweep, the star, a tap of
+    /// haptics. With reduced motion only the haptic. Remembered per day, so it happens once per goal.
+    private func celebrateNewlyClosed(_ items: [GoalActionOccurrence]) {
+        // One record, today's: the day first, then the goals already celebrated. A new day starts it over.
+        let day = Repository.localDayKey(Date())
+        let key = "goals.ringClosed"
+        let stored = UserDefaults.standard.stringArray(forKey: key) ?? []
+        var seen = stored.first == day ? Set(stored.dropFirst()) : []
+        let fresh = items.filter { $0.isCompleted && !seen.contains($0.action.id.uuidString) }
+        guard !fresh.isEmpty else { return }
+        for o in fresh { seen.insert(o.action.id.uuidString) }
+        UserDefaults.standard.set([day] + Array(seen), forKey: key)
+        StrandHaptic.success.play()
+        guard !reduceMotion else { return }
+        for o in fresh {
+            sweep[o.id] = 0
+            popped.remove(o.id)
+            withAnimation(.easeInOut(duration: 0.9)) { sweep[o.id] = 1 }
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.5).delay(0.85)) { _ = popped.insert(o.id) }
+        }
+        Task {
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            for o in fresh { sweep[o.id] = nil }
+        }
+    }
+
+    /// The star of a met goal, at full size unless it is waiting for its pop.
+    private func starScale(_ o: GoalActionOccurrence) -> CGFloat {
+        sweep[o.id] != nil && !popped.contains(o.id) ? 0.01 : 1
     }
 
     private func ringsAndLegend(_ items: [GoalActionOccurrence]) -> some View {
@@ -147,20 +214,23 @@ struct DailyGoalRings: View {
     }
 
     private func fraction(_ o: GoalActionOccurrence) -> Double {
-        min(1, max(0, o.isCompleted ? 1 : (o.fraction ?? 0)))
+        if let sweeping = sweep[o.id] { return sweeping }
+        return min(1, max(0, o.isCompleted ? 1 : (o.fraction ?? 0)))
     }
 
     private func tint(_ o: GoalActionOccurrence) -> Color { o.identityColor(appleColors: appleColors) }
 
     /// Two or three rings, one inside the other: the outer is the first goal.
     private func nested(_ items: [GoalActionOccurrence]) -> some View {
-        let line = diameter * 0.11
-        let gap = line * 0.25
+        let line = diameter * 0.105
+        // A clear gap between the rings and a visible track: rings that touch read as one blob, and a
+        // track too faint vanishes once a ring is nearly full.
+        let gap = line * 0.45
         return ZStack {
             ForEach(Array(items.enumerated()), id: \.element.id) { index, o in
                 let size = diameter - CGFloat(index) * 2 * (line + gap)
                 ZStack {
-                    Circle().stroke(tint(o).opacity(0.18), lineWidth: line)
+                    Circle().stroke(tint(o).opacity(0.24), lineWidth: line)
                     Circle().trim(from: 0, to: fraction(o))
                         .stroke(tint(o), style: StrokeStyle(lineWidth: line, lineCap: .round))
                         .rotationEffect(.degrees(-90))
@@ -176,7 +246,7 @@ struct DailyGoalRings: View {
     private func singleRing(_ o: GoalActionOccurrence) -> some View {
         let line = diameter * 0.12
         return ZStack {
-            Circle().stroke(tint(o).opacity(0.18), lineWidth: line)
+            Circle().stroke(tint(o).opacity(0.24), lineWidth: line)
             Circle().trim(from: 0, to: fraction(o))
                 .stroke(tint(o), style: StrokeStyle(lineWidth: line, lineCap: .round))
                 .rotationEffect(.degrees(-90))
@@ -188,7 +258,9 @@ struct DailyGoalRings: View {
                     .font(.system(size: diameter * 0.15, weight: .bold, design: .rounded))
                     .foregroundStyle(StrandPalette.textPrimary).monospacedDigit()
             }
-            if o.isCompleted { star.offset(x: diameter * 0.36, y: -diameter * 0.36) }
+            if o.isCompleted {
+                star.scaleEffect(starScale(o)).offset(x: diameter * 0.36, y: -diameter * 0.36)
+            }
         }
         .frame(width: diameter - line, height: diameter - line)
         .frame(width: diameter, height: diameter)
@@ -225,6 +297,7 @@ struct DailyGoalRings: View {
                     if o.isCompleted {
                         Image(systemName: "star.fill").font(.system(size: 10, weight: .bold))
                             .foregroundStyle(StrandPalette.statusWarning)
+                            .scaleEffect(starScale(o))
                     }
                 }
                 HStack(spacing: 6) {
@@ -264,7 +337,7 @@ struct DailyGoalRings: View {
                     AppleInspiredColorRole.orange.color)
         }
         if !ringed.isEmpty, ringed.allSatisfy(\.isCompleted) {
-            return (String(localized: "All daily goals done"), "star.fill", StrandTone.positive.foregroundColor)
+            return (String(localized: "All daily goals done"), "star.fill", StrandPalette.statusWarningForeground)
         }
         let open = ringed.filter { !$0.isCompleted && ($0.fraction ?? 0) >= 0.5 }
             .max { ($0.fraction ?? 0) < ($1.fraction ?? 0) }
@@ -273,11 +346,12 @@ struct DailyGoalRings: View {
         switch open.action.requirement {
         case .steps:
             let steps = Int(left.rounded())
+            // In the goal's own colour: a word of encouragement, not a link (Q12).
             return (String(localized: "\(steps.formatted()) steps to go, about \(MomentumBuilder.walkMinutes(steps)) min of walking"),
-                    "figure.walk", StrandPalette.accent)
+                    "figure.walk", tint(open))
         case .activeCalories:
             return (String(localized: "\(Int(left.rounded()).formatted()) kcal to go, you're nearly there"),
-                    "flame.fill", StrandPalette.accent)
+                    "flame.fill", tint(open))
         default:
             return nil
         }
@@ -291,6 +365,8 @@ extension GoalActionOccurrence {
         switch action.requirement {
         case .sleep: return String(localized: "\(measured.formatted(.number.precision(.fractionLength(1)))) h")
         case .workout: return String(localized: "\(Int(measured.rounded())) min")
+        // Active energy is NOOP's own estimate from heart rate; it never reads like a measured count.
+        case .activeCalories: return "≈ \(Int(measured.rounded()).formatted())"
         default: return Int(measured.rounded()).formatted()
         }
     }
@@ -300,7 +376,9 @@ extension GoalActionOccurrence {
         guard let target = measuredTarget else { return "" }
         switch action.requirement {
         case .steps: return String(localized: "of \(Int(target).formatted()) steps")
-        case .sleep: return String(localized: "of \(target.formatted(.number.precision(.fractionLength(0...1)))) h sleep")
+        // Sleep is last night's, complete in the morning: the ring says so instead of looking like a day
+        // that is already over.
+        case .sleep: return String(localized: "of \(target.formatted(.number.precision(.fractionLength(0...1)))) h, last night")
         case .activeCalories: return String(localized: "of \(Int(target).formatted()) kcal")
         case .workout: return String(localized: "of \(Int(target)) min of training")
         default: return ""
@@ -363,6 +441,148 @@ struct DailyTally: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(String(localized: "\(done) of \(all.count) daily goals done")))
+    }
+}
+
+/// The one question about goal notifications, asked the first time a ring closes (plan §17h, Q16).
+struct GoalNotifyOffer: View {
+    let occurrences: [GoalActionOccurrence]
+    @State private var answered = false
+
+    var body: some View {
+        if !answered, GoalEventNotifier.shouldAsk, occurrences.contains(where: { $0.isCompleted && $0.fraction != nil }) {
+            VStack(alignment: .leading, spacing: 8) {
+                Label("Want a note when you reach a goal?", systemImage: "bell.badge")
+                    .font(StrandFont.footnote.weight(.semibold)).foregroundStyle(StrandPalette.textPrimary)
+                Text("NOOP can tell you when you close a ring, earn a badge or a streak is in danger in the evening. At most two a day, never in your quiet hours.")
+                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 10) {
+                    Button { GoalEventNotifier.answer(true); answered = true } label: {
+                        Text("Yes, please").font(StrandFont.footnote.weight(.semibold))
+                    }
+                    .buttonStyle(.borderedProminent)
+                    Button { GoalEventNotifier.answer(false); answered = true } label: {
+                        Text("No thanks").font(StrandFont.footnote)
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .controlSize(.small)
+            }
+            .padding(12)
+            .background(RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous)
+                .fill(StrandPalette.surfaceInset))
+        }
+    }
+}
+
+/// The first visit to the goals page without daily goals (plan §17i, Q22): three daily goals proposed from
+/// the wearer's last four weeks, each one deselectable, one tap sets them. Like the goal setup of the early
+/// fitness bands, but with the wearer's own numbers instead of a fixed 10,000.
+struct DailyGoalStarter: View {
+    static let doneKey = "goals.dailyStarterDone"
+
+    let onDone: () -> Void
+    @ObservedObject private var tracking = GoalTrackingStore.shared
+    @State private var deselected: Set<DailyGoalSheet.Slot> = []
+    @AppStorage(AppleInspiredColorsPrefs.enabledKey) private var appleColors = AppleInspiredColorsPrefs.defaultEnabled
+
+    struct Suggestion: Identifiable {
+        let slot: DailyGoalSheet.Slot
+        let value: Double
+        let usual: Double?
+        var id: String { slot.rawValue }
+    }
+
+    /// A little above the wearer's usual, rounded to a number a person would pick.
+    var suggestions: [Suggestion] {
+        let inputs = tracking.periodInputs
+        let cutoff = Repository.localDayKey(Date().addingTimeInterval(-28 * 86_400))
+        func median(_ values: [Double]) -> Double? {
+            guard values.count >= 7 else { return nil }
+            let sorted = values.sorted()
+            return sorted[sorted.count / 2]
+        }
+        var result: [Suggestion] = []
+        let steps = median(inputs.stepsByDay.filter { $0.key >= cutoff }.map { Double($0.value) })
+        result.append(Suggestion(slot: .steps,
+                                 value: steps.map { min(30_000, max(5_000, (($0 * 1.1) / 500).rounded(.up) * 500)) } ?? 10_000,
+                                 usual: steps))
+        let sleep = median(inputs.days.filter { $0.day >= cutoff }.compactMap { $0.totalSleepMin.map { $0 / 60 } })
+        result.append(Suggestion(slot: .sleep,
+                                 value: sleep.map { max(7, ($0 * 4).rounded() / 4) } ?? 7.5, usual: sleep))
+        if let kcal = median(inputs.activeKcalByDay.filter { $0.key >= cutoff }.map(\.value)) {
+            result.append(Suggestion(slot: .activeCalories, value: max(200, ((kcal * 1.1) / 50).rounded() * 50),
+                                     usual: kcal))
+        }
+        return result
+    }
+
+    var body: some View {
+        NoopCard(padding: 16) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Your daily goals").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                Text("Suggested from your last four weeks, a little above your usual. Untick what you don't want.")
+                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                ForEach(suggestions) { item in
+                    let on = !deselected.contains(item.slot)
+                    Button {
+                        if on { deselected.insert(item.slot) } else { deselected.remove(item.slot) }
+                        StrandHaptic.selection.play()
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: on ? "checkmark.circle.fill" : "circle")
+                                .font(.system(size: 20))
+                                .foregroundStyle(on ? StrandPalette.accent : StrandPalette.textTertiary)
+                            let tint = goalIdentityColor(item.slot.metric, appleColors: appleColors)
+                            Image(systemName: item.slot.icon).foregroundStyle(tint).frame(width: 22)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(item.slot.format(item.value)).font(StrandFont.subhead.weight(.semibold))
+                                    .foregroundStyle(StrandPalette.textPrimary)
+                                Text(item.usual.map { String(localized: "Usually \(item.slot.format(item.slot == .sleep ? ($0 * 4).rounded() / 4 : ($0 / 100).rounded() * 100))") }
+                                     ?? String(localized: "A common starting point"))
+                                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                            }
+                            Spacer()
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+                HStack(spacing: 10) {
+                    Button(action: create) {
+                        Text("Set these goals").font(StrandFont.footnote.weight(.semibold))
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(deselected.count == suggestions.count)
+                    Button {
+                        UserDefaults.standard.set(true, forKey: Self.doneKey)
+                        onDone()
+                    } label: { Text("Later").font(StrandFont.footnote) }
+                    .buttonStyle(.bordered)
+                }
+                .controlSize(.small)
+            }
+        }
+    }
+
+    private func create() {
+        let store = GoalActionStore.shared
+        let today = Repository.localDayKey(Date())
+        for item in suggestions where !deselected.contains(item.slot) {
+            guard item.slot.current(in: store.actions, today: today) == nil else { continue }
+            let title: String
+            switch item.slot {
+            case .steps: title = String(localized: "Daily steps")
+            case .activeCalories: title = String(localized: "Active calories")
+            case .sleep: title = String(localized: "Sleep")
+            }
+            store.upsert(GoalAction(title: title, requirement: item.slot.requirement(item.value), goalIds: []))
+        }
+        UserDefaults.standard.set(true, forKey: Self.doneKey)
+        StrandHaptic.commit.play()
+        onDone()
     }
 }
 
@@ -490,6 +710,11 @@ struct DailyGoalSheet: View {
                                 .font(StrandFont.footnote)
                         }
                     }
+                    ForEach(conflictNotes, id: \.self) { note in
+                        Label(note, systemImage: "exclamationmark.triangle")
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.statusWarningForeground)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                     if runs != .todayOnly {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("On these days").strandOverline()
@@ -552,6 +777,14 @@ struct DailyGoalSheet: View {
                 .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    /// Another goal measuring the same thing with a different number, if saving this one would make one.
+    private var conflictNotes: [String] {
+        let draft = GoalAction(id: existing?.id ?? UUID(), title: slot.title, requirement: slot.requirement(value),
+                               goalIds: [], createdAt: existing?.createdAt ?? Date())
+        return GoalConflicts.notes(adding: draft, actions: store.actions, period: PeriodGoalStore.shared.goals,
+                                   longTerm: CoachGoalStore.shared.goals, today: today)
     }
 
     /// The wearer's own usual over recent weeks, so the number on the wheel is a choice, not a guess.
@@ -770,6 +1003,8 @@ struct NewBadgeBanner: View {
 /// The badges card on the goals page: the latest earned, and the next one with how far it is.
 struct BadgesCard: View {
     let motivation: GoalMotivationSnapshot
+    /// The "All" link; off on the achievements page, which is where it leads.
+    var showsAllLink = true
 
     private var next: (badge: GoalMotivation.Badge, fraction: Double)? {
         GoalMotivation.BadgeFamily.allCases
@@ -786,14 +1021,16 @@ struct BadgesCard: View {
                     Text("\(motivation.earned.count)/\(motivation.badges.count)")
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                     Spacer()
-                    NavigationLink(value: GoalsRoute.badges) {
-                        HStack(spacing: 3) {
-                            Text("All").font(StrandFont.caption)
-                            Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold))
+                    if showsAllLink {
+                        NavigationLink(value: GoalsRoute.badges) {
+                            HStack(spacing: 3) {
+                                Text("All").font(StrandFont.caption)
+                                Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold))
+                            }
+                            .foregroundStyle(StrandPalette.accent)
                         }
-                        .foregroundStyle(StrandPalette.accent)
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
                 if motivation.earned.isEmpty {
                     Text("Your first badge comes with your first 10,000-step day or your first reached weekly goal.")
@@ -870,13 +1107,57 @@ struct RecordsCard: View {
     }
 }
 
+/// Badges and records folded into one line on the goals page (plan §17g, Q8): the latest medals, the count
+/// and the best day; the full collection and the records are one tap away.
+struct AchievementsCard: View {
+    let motivation: GoalMotivationSnapshot
+
+    var body: some View {
+        NavigationLink(value: GoalsRoute.badges) {
+            NoopCard(padding: 14) {
+                HStack(spacing: 12) {
+                    HStack(spacing: -10) {
+                        ForEach(Array(motivation.earned.prefix(3))) { badge in
+                            BadgeMedal(badge: badge, diameter: 38, showsCaption: false)
+                                .background(Circle().fill(StrandPalette.surfaceRaised).padding(-2))
+                        }
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Achievements").font(StrandFont.subhead.weight(.semibold))
+                            .foregroundStyle(StrandPalette.textPrimary)
+                        Text(summary).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                            .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 4)
+                    Image(systemName: "chevron.right").font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textTertiary).accessibilityHidden(true)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var summary: String {
+        var parts = [String(localized: "\(motivation.earned.count) of \(motivation.badges.count) badges")]
+        if let best = motivation.records.bestStepDay {
+            parts.append(String(localized: "best day \(best.steps.formatted()) steps"))
+        }
+        if motivation.records.longestStepStreak > 1 {
+            parts.append(String(localized: "longest streak \(motivation.records.longestStepStreak) days"))
+        }
+        return parts.joined(separator: " · ")
+    }
+}
+
 /// Every badge, by family: earned ones in colour with their date, the rest as outlines.
 struct GoalBadgesView: View {
     @ObservedObject private var tracking = GoalTrackingStore.shared
 
     var body: some View {
-        ScreenScaffold(title: "Badges", subtitle: "Earned from your own data, on this device.") {
+        ScreenScaffold(title: "Achievements", subtitle: "Earned from your own data, on this device.") {
             if let motivation = tracking.motivation {
+                RecordsCard(motivation: motivation)
+                BadgesCard(motivation: motivation, showsAllLink: false)
                 ForEach(GoalMotivation.BadgeFamily.allCases, id: \.self) { family in
                     let items = motivation.badges.filter { $0.family == family }
                     NoopCard(padding: 14) {

@@ -37,12 +37,19 @@ final class GoalMotivationTests: XCTestCase {
         XCTAssertEqual(s.firstReached, ["2026-10-01", "2026-10-02", "2026-10-03"])
     }
 
-    func testADayWithoutDataBreaksTheRun() {
+    /// A day without any reading (strap on the charger, a sick day) is protected: it neither counts nor
+    /// breaks the run. Only a reading below the target does.
+    func testADayWithoutDataIsProtectedButALowDayBreaks() {
         var values = days(from: "2026-10-01", [10_000, 10_000])
         values["2026-10-04"] = 10_000   // 3 Oct has no reading at all
         let s = GoalMotivation.streak(values: values, target: 10_000, firstDay: "2026-10-01", today: "2026-10-04")
-        XCTAssertEqual(s.current, 1)
-        XCTAssertEqual(s.best, 2)
+        XCTAssertEqual(s.current, 3)
+        XCTAssertEqual(s.best, 3)
+
+        values["2026-10-03"] = 2_000
+        let broken = GoalMotivation.streak(values: values, target: 10_000, firstDay: "2026-10-01", today: "2026-10-04")
+        XCTAssertEqual(broken.current, 1)
+        XCTAssertEqual(broken.best, 2)
     }
 
     func testUnscheduledDaysNeitherCountNorBreak() {

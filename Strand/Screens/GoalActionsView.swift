@@ -95,7 +95,7 @@ struct GoalActionEditorView: View {
     @State private var sleepHours: Double = 7.5
     @State private var activeKcal = 500
     @State private var steps = 10_000
-    @State private var workout = "Walking"
+    @State private var workout = ""
     @State private var minimumMinutes = 20
     @State private var hasMinimum = true
     @State private var daily = true
@@ -129,7 +129,12 @@ struct GoalActionEditorView: View {
                         Text("Checked against NOOP's own active-energy estimate, not a measured figure.")
                             .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                     } else if kind == .workout {
-                        TextField("Activity, e.g. Walking", text: $workout)
+                        // Picked from the sports in the wearer's own workouts (plan §17i, Q25): typed names
+                        // ("Laufen" for "Running", a typo) never matched a workout, so the goal never ticked.
+                        Picker("Activity", selection: $workout) {
+                            Text("Any workout").tag("")
+                            ForEach(sportChoices, id: \.self) { Text($0).tag($0) }
+                        }
                         Toggle("Minimum duration", isOn: $hasMinimum)
                         if hasMinimum {
                             Stepper("\(minimumMinutes) minutes", value: $minimumMinutes, in: 5...240, step: 5)
@@ -209,12 +214,23 @@ struct GoalActionEditorView: View {
         }
     }
 
+    /// The sports in the wearer's recorded workouts, most frequent first, plus the one already set.
+    private var sportChoices: [String] {
+        var counts: [String: Int] = [:]
+        for row in GoalTrackingStore.shared.periodInputs.workouts where !row.sport.isEmpty {
+            counts[row.sport, default: 0] += 1
+        }
+        var sports = counts.sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }.map(\.key)
+        if !workout.isEmpty && !sports.contains(workout) { sports.insert(workout, at: 0) }
+        return Array(sports.prefix(15))
+    }
+
     private var suggestionText: String { kind == .workout ? workout : (kind == .steps ? "steps walking" : title) }
     private var canSave: Bool {
         // A daily goal may stand on its own (Q21); linking it to goals is optional.
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && (daily || !weekdays.isEmpty)
-            && (kind != .workout || !workout.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
     }
 
     private func load() {

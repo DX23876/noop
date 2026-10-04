@@ -93,6 +93,7 @@ struct GoalsTodaySection: View {
         if checksAsRows {
             ForEach(spot.checks) { occurrence in dailyRow(occurrence) }
         }
+        GoalNotifyOffer(occurrences: tracking.todayActions)
         if !spot.rows.isEmpty {
             if !spot.rings.isEmpty || !spot.checks.isEmpty { Divider().overlay(StrandPalette.hairline) }
             ForEach(spot.rows) { row in spotlightRow(row) }
@@ -156,12 +157,17 @@ struct GoalsTodaySection: View {
             .buttonStyle(.plain)
             .contextMenu { periodMenu(snapshot) }
         case .longTerm(let snapshot, _):
-            let style = GoalStatusStyle.of(snapshot.health)
+            // Today nudges, it does not scold (plan §17g, Q14): a long-term goal at risk reads in amber
+            // here (red stays on the goals page and the detail), and its line says what to do next.
+            let base = GoalStatusStyle.of(snapshot.health)
+            let style = snapshot.health == .atRisk
+                ? GoalStatusStyle(word: base.word, wordText: base.wordText, symbol: base.symbol, tone: .warning)
+                : base
             Button { sheet = .journey(snapshot.id) } label: {
                 compactRow(icon: snapshot.goal.kind.icon,
                            tint: CoachIconColors.color(for: "coach.goal.\(snapshot.goal.kind.rawValue)"),
                            title: snapshot.displayTitle,
-                           detail: snapshot.routeLine ?? snapshot.measurementLine ?? snapshot.localizedNextAction,
+                           detail: snapshot.localizedNextAction,
                            style: style, fraction: snapshot.progressFraction)
             }
             .buttonStyle(.plain)

@@ -126,8 +126,7 @@ struct GoalsOverviewView: View {
             periodList(.month)
             longTermList
             if let motivation = tracking.motivation {
-                BadgesCard(motivation: motivation)
-                RecordsCard(motivation: motivation)
+                AchievementsCard(motivation: motivation)
             }
             reviewSection
             if !paused.isEmpty { pausedSection }
@@ -162,9 +161,13 @@ struct GoalsOverviewView: View {
             NoopCard(padding: 16) {
                 VStack(alignment: .leading, spacing: 14) {
                     Text(String(localized: "Today")).strandOverline()
-                    DailyGoalRings(occurrences: tracking.todayActions, motivation: tracking.motivation)
+                    DailyGoalRings(occurrences: tracking.todayActions, motivation: tracking.motivation,
+                                   showsLegend: false)
+                    GoalNotifyOffer(occurrences: tracking.todayActions)
                 }
             }
+        } else if !UserDefaults.standard.bool(forKey: DailyGoalStarter.doneKey) {
+            DailyGoalStarter(onDone: refresh)
         } else {
             NoopCard(padding: 16) {
                 VStack(alignment: .leading, spacing: 10) {
@@ -184,13 +187,21 @@ struct GoalsOverviewView: View {
 
     // MARK: - The list
 
+    /// A section of the list. An empty one folds down to its heading and the add line, without a card
+    /// (plan §17g, Q8): an empty card per period made the page long for nothing.
+    @ViewBuilder
     private func listSection<Content: View>(_ title: String, detail: String? = nil, route: GoalsRoute? = nil,
+                                            isEmpty: Bool = false,
                                             @ViewBuilder content: () -> Content) -> some View {
         let rows = content()
-        return VStack(alignment: .leading, spacing: 8) {
-            sectionHeader(title, detail: detail, route: route)
-            NoopCard(padding: 12) {
-                VStack(alignment: .leading, spacing: 4) { rows }
+        VStack(alignment: .leading, spacing: isEmpty ? 0 : 8) {
+            sectionHeader(title, detail: isEmpty ? nil : detail, route: route)
+            if isEmpty {
+                rows.padding(.horizontal, 2)
+            } else {
+                NoopCard(padding: 12) {
+                    VStack(alignment: .leading, spacing: 4) { rows }
+                }
             }
         }
     }
@@ -230,16 +241,25 @@ struct GoalsOverviewView: View {
 
     private var today: String { Repository.localDayKey(Date()) }
 
+    /// Goals measuring the same thing with different numbers; the note sits on the newer one (Q2).
+    private var conflicts: [GoalConflicts.Note] {
+        GoalConflicts.notes(actions: actions.actions, period: periodGoals.goals, longTerm: goals.goals, today: today)
+    }
+
+    private func warning(_ id: UUID?, in notes: [GoalConflicts.Note]) -> String? {
+        guard let id else { return nil }
+        return notes.first { $0.goalId == id }?.text
+    }
+
     /// How long a daily goal runs, and on which days: "Ongoing · every day", "Until 31 Dec · Mon, Wed".
     private func runsLine(_ action: GoalAction) -> String {
         var parts: [String] = []
+        // "Ongoing" is the normal case; only a run that ends says so (plan §17g).
         if let endsOn = action.endsOn {
             if endsOn == today { parts.append(String(localized: "Today only")) }
             else if let date = PeriodGoalTracker.date(endsOn, calendar: .autoupdatingCurrent) {
                 parts.append(String(localized: "Until \(date.formatted(.dateTime.day().month(.abbreviated)))"))
             }
-        } else {
-            parts.append(String(localized: "Ongoing"))
         }
         if endsOnIsNotToday(action) {
             switch action.schedule {
@@ -261,8 +281,25 @@ struct GoalsOverviewView: View {
     /// Where a daily goal stands today, then how long it runs: "7,328 of 10,000 steps · Ongoing · every day".
     /// A goal not due today says so instead of a reading.
     private func dailySubtitle(_ action: GoalAction, _ occurrence: GoalActionOccurrence?) -> String {
-        let state = occurrence.map(\.detailLine) ?? String(localized: "Not due today")
-        return "\(state) · \(runsLine(action))"
+        // Today's state in words the target on the right does not repeat.
+        let state: String
+        if let occurrence {
+            if occurrence.isCompleted { state = String(localized: "Done today") }
+            else if occurrence.measured != nil { state = occurrence.detailLine }
+            else { state = String(localized: "Not done yet") }
+        } else {
+            state = String(localized: "Not due today")
+        }
+        let runs = runsLine(action)
+        return runs.isEmpty ? state : "\(state) · \(runs)"
+    }
+
+    private func isTick(_ requirement: GoalAction.Requirement) -> Bool {
+        switch requirement {
+        case .manual: return true
+        case .workout(_, let minutes): return minutes == nil
+        default: return false
+        }
     }
 
     private var dailyList: some View {
@@ -270,6 +307,7 @@ struct GoalsOverviewView: View {
         let others = actions.actions.filter {
             $0.isActive && !$0.hasEnded(today: today) && !slotActions.contains($0.id)
         }
+        let notes = conflicts
         return listSection(String(localized: "Daily")) {
             ForEach(DailyGoalSheet.Slot.allCases) { slot in
                 let action = slot.current(in: actions.actions, today: today)
@@ -281,7 +319,8 @@ struct GoalsOverviewView: View {
                                     ?? String(localized: "Off"),
                                 valueIsOff: action == nil,
                                 iconFraction: occurrence?.fraction ?? (occurrence?.isCompleted == true ? 1 : nil),
-                                isDone: occurrence?.isCompleted ?? false)
+                                isDone: occurrence?.isCompleted ?? false,
+                                warning: warning(action?.id, in: notes))
                 }
                 .buttonStyle(.plain)
             }
@@ -302,7 +341,9 @@ struct GoalsOverviewView: View {
                                 title: action.title, subtitle: dailySubtitle(action, occurrence),
                                 value: action.requirement.displayLabel,
                                 iconFraction: occurrence?.fraction ?? (occurrence?.isCompleted == true ? 1 : nil),
-                                isDone: occurrence?.isCompleted ?? false)
+                                isDone: occurrence?.isCompleted ?? false,
+                                warning: warning(action.id, in: notes),
+                                isTick: isTick(action.requirement))
                 }
                 .buttonStyle(.plain)
                 .contextMenu {
@@ -336,9 +377,10 @@ struct GoalsOverviewView: View {
         let days = items.first?.periodDays
             ?? PeriodGoalTracker.periodDays(period, containing: today, calendar: TrainingPreferences.weekCalendar)
         let left = days.filter { $0 >= today }.count
+        let notes = conflicts
         return listSection(period == .week ? String(localized: "Weekly") : String(localized: "Monthly"),
-                           detail: left == 1 ? String(localized: "last day") : String(localized: "\(left) days left"),
-                           route: items.isEmpty ? nil : .list(period)) {
+                           detail: left == 1 ? String(localized: "ends today") : String(localized: "\(left) days left"),
+                           route: items.isEmpty ? nil : .list(period), isEmpty: items.isEmpty) {
             ForEach(items) { snapshot in
                 NavigationLink(value: GoalsRoute.detail(snapshot.id)) {
                     GoalListRow(icon: snapshot.goal.metric.icon, tint: snapshot.identityColor,
@@ -352,7 +394,8 @@ struct GoalsOverviewView: View {
                                     ? snapshot.dayDots() : nil,
                                 columns: snapshot.goal.metric.aggregation == .average
                                     ? (snapshot.dayValues.enumerated().map { $0.offset <= snapshot.todayIndex ? $0.element : nil },
-                                       snapshot.result.target) : nil)
+                                       snapshot.result.target) : nil,
+                                warning: warning(snapshot.id, in: notes))
                 }
                 .buttonStyle(.plain)
                 .contextMenu { periodMenu(snapshot) }
@@ -377,7 +420,8 @@ struct GoalsOverviewView: View {
     }
 
     private var longTermList: some View {
-        listSection(String(localized: "Long-term"), route: longTerm.isEmpty ? nil : .longTerm) {
+        listSection(String(localized: "Long-term"), route: longTerm.isEmpty ? nil : .longTerm,
+                    isEmpty: longTerm.isEmpty) {
             ForEach(longTerm) { snapshot in
                 let style = GoalStatusStyle.of(snapshot.health)
                 Button { sheet = .journey(snapshot.id) } label: {

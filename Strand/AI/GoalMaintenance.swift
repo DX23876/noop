@@ -255,7 +255,12 @@ enum GoalReminderLines {
             d.removeObject(forKey: stepsKey)
         }
 
-        let sleepGoal = periodSnapshots.contains {
+        let today = Repository.localDayKey(Date())
+        let dailySleep = GoalActionStore.shared.actions.contains {
+            guard $0.isActive, !$0.hasEnded(today: today), case .sleep = $0.requirement else { return false }
+            return true
+        }
+        let sleepGoal = dailySleep || periodSnapshots.contains {
             $0.goal.status == .active && ($0.goal.metric == .sleepNights || $0.goal.metric == .sleepAverage)
         }
         if d.bool(forKey: sleepKey) != sleepGoal {

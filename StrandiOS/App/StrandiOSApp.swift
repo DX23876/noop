@@ -95,6 +95,7 @@ struct StrandiOSApp: App {
         // Register the check-in's action buttons before any notification can arrive — a category a
         // notification names but nobody registered simply shows no buttons, silently.
         CoachCheckIn.registerCategory()
+        GoalEventNotifier.registerCategory()
         let model = AppModel()
         SemanticMemoryBackgroundTask.attach(coach: model.coach)
         // The scheduled morning brief's BGTask handler, registered before launch finishes for the same
@@ -165,6 +166,9 @@ struct StrandiOSApp: App {
         // building a second router nothing is listening to.
         NotificationPresenter.shared.onCoachBriefTapped = { [weak services] in
             services?.router.openCoach()
+        }
+        NotificationPresenter.shared.onGoalTapped = { [weak services] in
+            services?.router.openGoals()
         }
         // Register a separate, always-on-while-authorized refresh task for Apple Health write-back.
         // The operation is write-only and bounded to the bridge's recent window; fresh BLE offloads still
@@ -366,7 +370,11 @@ struct StrandiOSApp: App {
                 // The running workout drives the Lock Screen / Dynamic Island. Wired here rather than in `init`
                 // because the controller is `@State`, which only has storage once the body is installed.
                 .task {
-                    model.liveWorkoutActivitySink = { snapshot in liveActivity.updateWorkout(snapshot) }
+                    model.liveWorkoutActivitySink = { snapshot in
+                        liveActivity.updateWorkout(snapshot)
+                        // A goal notification never interrupts a running workout (plan §17h, Q17).
+                        GoalEventNotifier.workoutInProgress = snapshot != nil
+                    }
                     model.session.publishActivity()
                 }
                 .task {

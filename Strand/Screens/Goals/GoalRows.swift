@@ -88,7 +88,9 @@ struct DailyGoalIndicator: View {
                         .stroke(tint, style: StrokeStyle(lineWidth: 3, lineCap: .round))
                         .rotationEffect(.degrees(-90))
                     if occurrence.isCompleted {
-                        Image(systemName: "checkmark").font(.system(size: 9, weight: .bold)).foregroundStyle(tint)
+                        // A goal met by a number earns the star; the tick is for boxes ticked by hand (Q11).
+                        Image(systemName: "star.fill").font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(StrandPalette.statusWarning)
                     }
                 }
                 .padding(1.5)
@@ -129,9 +131,9 @@ extension GoalActionOccurrence {
             return String(localized: "\(Int(measured.rounded()).formatted()) of \(Int(target.rounded()).formatted()) steps")
         case .sleep:
             let style = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0...1))
-            return String(localized: "\(measured.formatted(style)) of \(target.formatted(style)) h sleep")
+            return String(localized: "\(measured.formatted(style)) of \(target.formatted(style)) h, last night")
         case .activeCalories:
-            return String(localized: "\(Int(measured.rounded()).formatted()) of \(Int(target.rounded()).formatted()) kcal active")
+            return String(localized: "≈ \(Int(measured.rounded()).formatted()) of \(Int(target.rounded()).formatted()) kcal active")
         case .workout:
             return String(localized: "\(Int(measured.rounded())) of \(Int(target.rounded())) min of training")
         case .manual:

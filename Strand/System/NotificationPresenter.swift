@@ -22,6 +22,8 @@ final class NotificationPresenter: NSObject, UNUserNotificationCenterDelegate {
     /// is a safe no-op (the tap is simply not routed) rather than a crash if this ever fires before the
     /// root has wired it.
     var onCoachBriefTapped: (() -> Void)?
+    /// Wired by the app root: a tapped goal notification opens the goals page.
+    var onGoalTapped: (() -> Void)?
 
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
@@ -65,6 +67,16 @@ final class NotificationPresenter: NSObject, UNUserNotificationCenterDelegate {
             }
         } else if request.content.categoryIdentifier == CoachBriefScheduler.notificationCategoryId {
             onCoachBriefTapped?()
+        } else if request.content.categoryIdentifier.hasPrefix("noop.goal") {
+            let action = response.actionIdentifier
+            let content = request.content
+            if action == GoalEventNotifier.tickAction || action == GoalEventNotifier.snoozeAction {
+                Task { @MainActor in
+                    GoalEventNotifier.handle(actionIdentifier: action, userInfo: content.userInfo, content: content)
+                }
+            } else {
+                onGoalTapped?()
+            }
         }
         completionHandler()
     }

@@ -34,10 +34,12 @@ struct StrandApp: App {
         // Register the check-in's action buttons before any notification can arrive — a category a
         // notification names but nobody registered simply shows no buttons, silently.
         CoachCheckIn.registerCategory()
+        GoalEventNotifier.registerCategory()
         // K5: tapping a scheduled morning-brief notification routes to Coach via the shared NavRouter.
         let router = NavRouter()
         _router = StateObject(wrappedValue: router)
         NotificationPresenter.shared.onCoachBriefTapped = { [weak router] in router?.openCoach() }
+        NotificationPresenter.shared.onGoalTapped = { [weak router] in router?.openGoals() }
     }
 
     @StateObject private var model = AppModel()

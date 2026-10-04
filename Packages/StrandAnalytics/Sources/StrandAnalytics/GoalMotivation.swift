@@ -33,7 +33,8 @@ public enum GoalMotivation {
     /// - `firstDay`: where the history starts (the goal's creation day or the oldest data).
     /// - `isScheduled`: days the goal does not ask for (a weekday schedule) are skipped; they neither
     ///   count nor break the run.
-    /// A scheduled day without a reading breaks the run: the goal was not shown to be met.
+    /// A day without any reading is protected the same way (plan §17g, Q3): the strap on the charger or
+    /// a sick day off the wrist is not a missed goal. A reading below the target breaks the run.
     public static func streak(values: [String: Double], target: Double, firstDay: String, today: String,
                               isScheduled: (String) -> Bool = { _ in true }) -> Streak {
         guard target > 0, firstDay <= today else { return Streak(current: 0, best: 0, firstReached: []) }
@@ -42,8 +43,8 @@ public enum GoalMotivation {
         var firstReached: [String] = []
         var day = firstDay
         while day <= today {
-            if isScheduled(day) {
-                let met = (values[day] ?? 0) >= target
+            if isScheduled(day), let value = values[day] {
+                let met = value >= target
                 // Today extends the run when met but never resets it: the day is not over yet.
                 if met { run += 1 } else if day != today { run = 0 }
                 if run > best {

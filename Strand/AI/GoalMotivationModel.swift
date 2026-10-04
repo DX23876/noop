@@ -87,7 +87,10 @@ enum GoalMotivationBuilder {
                                                calendar: calendar)
         let firstDay = max(oldestData, floor)
 
+        // A goal's own streak starts the day it was set (Q4): a goal created today does not open on
+        // "12 days in a row". Badges read the whole history below; a day of 15 000 steps is a fact.
         for action in actions where action.isActive && !action.hasEnded(today: today) {
+            let created = GoalActionEvaluator.dayKey(action.createdAt, calendar: calendar)
             let values: [String: Double]
             let target: Double
             switch action.requirement {
@@ -97,7 +100,7 @@ enum GoalMotivationBuilder {
             case .workout, .manual: continue
             }
             snapshot.streaks[action.id] = GoalMotivation.streak(
-                values: values, target: target, firstDay: firstDay, today: today,
+                values: values, target: target, firstDay: max(firstDay, created), today: today,
                 isScheduled: { day in
                     guard let date = PeriodGoalTracker.date(day, calendar: calendar) else { return true }
                     return action.schedule.includes(date, calendar: calendar)
@@ -109,8 +112,11 @@ enum GoalMotivationBuilder {
             guard action.isActive, !action.hasEnded(today: today), case .steps = action.requirement else { return false }
             return true
         }
-        let stepStreak = stepGoal.flatMap { snapshot.streaks[$0.id] }
-            ?? GoalMotivation.streak(values: stepValues, target: 10_000, firstDay: firstDay, today: today)
+        let stepTarget: Double = {
+            if let goal = stepGoal, case .steps(let minimum) = goal.requirement { return Double(minimum) }
+            return 10_000
+        }()
+        let stepStreak = GoalMotivation.streak(values: stepValues, target: stepTarget, firstDay: firstDay, today: today)
 
         // Reached goal-weeks: the frozen results plus what is computed but not frozen yet, once each.
         let weekGoalIds = Set(periodGoals.filter { $0.period == .week }.map(\.id))
