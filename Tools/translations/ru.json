@@ -2017,5 +2017,9 @@
   "Start of the week": "Начало недели",
   "Mid-week, when a goal is slipping": "В середине недели, если цель ускользает",
   "Weekly and monthly review": "Обзор недели и месяца",
-  "Rest days": "Дни отдыха"
+  "Rest days": "Дни отдыха",
+  "Add a weekly goal that steps up with %@?": "Добавить недельную цель, которая растёт вместе с %@?",
+  "NOOP suggests each step at the start of a week; you confirm it.": "NOOP предлагает каждый шаг в начале недели, а вы подтверждаете.",
+  "Add weekly goal": "Добавить недельную цель",
+  "No thanks": "Нет, спасибо"
 }

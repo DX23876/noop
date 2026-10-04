@@ -2141,5 +2141,9 @@
   "Start of the week": "每周开始",
   "Mid-week, when a goal is slipping": "周中，目标落后时",
   "Weekly and monthly review": "每周和每月回顾",
-  "Rest days": "休息日"
+  "Rest days": "休息日",
+  "Add a weekly goal that steps up with %@?": "添加一个随 %@ 逐步提高的每周目标？",
+  "NOOP suggests each step at the start of a week; you confirm it.": "NOOP 会在每周开始时建议下一步，由你确认。",
+  "Add weekly goal": "添加每周目标",
+  "No thanks": "不用了"
 }

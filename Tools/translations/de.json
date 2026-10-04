@@ -2039,5 +2039,9 @@
   "Start of the week": "Wochenbeginn",
   "Mid-week, when a goal is slipping": "Wochenmitte, wenn ein Ziel knapp wird",
   "Weekly and monthly review": "Wochen- und Monatsrückblick",
-  "Rest days": "Ruhetage"
+  "Rest days": "Ruhetage",
+  "Add a weekly goal that steps up with %@?": "Ein Wochenziel anlegen, das mit %@ mitwächst?",
+  "NOOP suggests each step at the start of a week; you confirm it.": "NOOP schlägt jede Stufe zum Wochenbeginn vor, du bestätigst sie.",
+  "Add weekly goal": "Wochenziel anlegen",
+  "No thanks": "Nein, danke"
 }

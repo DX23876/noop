@@ -2134,5 +2134,9 @@
   "Start of the week": "Inizio settimana",
   "Mid-week, when a goal is slipping": "A metà settimana, se un obiettivo sfugge",
   "Weekly and monthly review": "Riepilogo settimanale e mensile",
-  "Rest days": "Giorni di riposo"
+  "Rest days": "Giorni di riposo",
+  "Add a weekly goal that steps up with %@?": "Aggiungere un obiettivo settimanale che cresce con %@?",
+  "NOOP suggests each step at the start of a week; you confirm it.": "NOOP suggerisce ogni passo a inizio settimana; tu lo confermi.",
+  "Add weekly goal": "Aggiungi obiettivo",
+  "No thanks": "No, grazie"
 }

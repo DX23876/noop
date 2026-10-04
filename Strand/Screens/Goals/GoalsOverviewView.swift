@@ -107,6 +107,7 @@ struct GoalsOverviewView: View {
         VStack(alignment: .leading, spacing: 18) {
             ladder
             chainQuestions
+            linkOffers
             if !crowdHintShown, snapshots(.week).count > GoalPrefs.crowdThreshold { crowdHint }
             todaySection
             periodSection(.week)
@@ -447,6 +448,73 @@ struct GoalsOverviewView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Q2: weekly goal under an existing rate goal
+
+    static let linkOfferDismissedKey = "goals.linkOfferDismissed"
+
+    /// Long-term goals that are a weekly RATE ("4 sessions a week by December") and have no weekly goal
+    /// serving them yet: offered once to get one that steps up with the plan.
+    private var linkCandidates: [CoachGoal] {
+        let dismissed = Set(UserDefaults.standard.stringArray(forKey: Self.linkOfferDismissedKey) ?? [])
+        let served = Set(periodGoals.openGoals.compactMap(\.parentGoalId))
+        return goals.activeGoals.filter { goal in
+            goal.status == .active && PeriodGoalTracker.rampMetric(for: goal.kind) != nil
+                && !served.contains(goal.id) && !dismissed.contains(goal.id.uuidString)
+        }
+    }
+
+    @ViewBuilder
+    private var linkOffers: some View {
+        ForEach(linkCandidates) { goal in
+            let name = goal.title.isEmpty ? goal.kind.label.localizedCatalogValue : goal.title
+            NoopCard(padding: 14, tint: StrandPalette.accent) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Add a weekly goal that steps up with \(name)?")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("NOOP suggests each step at the start of a week; you confirm it.")
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    HStack(spacing: 16) {
+                        Button("Add weekly goal") { addLinkedWeekly(goal) }
+                        Button("No thanks") { dismissLinkOffer(goal.id) }
+                    }
+                    .font(StrandFont.footnote.weight(.semibold)).foregroundStyle(StrandPalette.accent)
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    private func addLinkedWeekly(_ goal: CoachGoal) {
+        guard let metric = PeriodGoalTracker.rampMetric(for: goal.kind) else { return }
+        let start = goal.baseline ?? metric.defaultTarget(for: .week)
+        var target = start
+        if let end = goal.target, let date = goal.targetDate {
+            let week = 7.0 * 86_400
+            let total = max(1, Int((date.timeIntervalSince(goal.createdAt) / week).rounded()))
+            let index = max(0, Int(Date().timeIntervalSince(goal.createdAt) / week))
+            target = PeriodRampPlan.target(start: start, goal: end, totalWeeks: total, weekIndex: index,
+                                           step: metric.step(for: .week))
+        }
+        let range = metric.range(for: .week)
+        target = min(range.upperBound, max(range.lowerBound, target))
+        let draft = PeriodGoal(metric: metric, period: .week, target: target, parentGoalId: goal.id)
+        if periodGoals.canAdd(draft) == nil {
+            periodGoals.commit(draft, today: Repository.localDayKey(Date()))
+            StrandHaptic.commit.play()
+        }
+        dismissLinkOffer(goal.id)
+        refresh()
+    }
+
+    private func dismissLinkOffer(_ id: UUID) {
+        var dismissed = UserDefaults.standard.stringArray(forKey: Self.linkOfferDismissedKey) ?? []
+        dismissed.append(id.uuidString)
+        UserDefaults.standard.set(dismissed, forKey: Self.linkOfferDismissedKey)
+        tracking.objectWillChange.send()
     }
 
     private func answerChain(_ id: UUID, keep: Bool) {
