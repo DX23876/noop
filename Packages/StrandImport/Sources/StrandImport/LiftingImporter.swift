@@ -182,11 +182,10 @@ public enum LiftingImporter {
                 order.append(key)
             }
             byKey[key]?.endRaw = row.cell("end_time", "end") ?? byKey[key]?.endRaw
-            let setIndex = row.double("set_index", "set_number", "set_order").flatMap(safeInt)
             let rpe = row.double("rpe")
             let distanceM = row.double("distance_meters", "distance_m")
             let durationS = row.double("duration_seconds", "duration_s")
-            byKey[key]?.add(exercise: exercise, setIndex: setIndex, setType: setType,
+            byKey[key]?.add(exercise: exercise, setType: setType,
                             weightKg: weightKg, reps: reps, distanceM: distanceM,
                             durationS: durationS, rpe: rpe)
         }
@@ -217,7 +216,6 @@ public enum LiftingImporter {
                 guard let set = st as? [String: Any] else { continue }
                 acc.add(
                     exercise: title,
-                    setIndex: jsonDouble(set["index"]).flatMap(safeInt),
                     setType: ((set["type"] as? String) ?? "normal").lowercased(),
                     weightKg: jsonDouble(set["weight_kg"]),
                     reps: boundedReps(jsonDouble(set["reps"])),
@@ -254,7 +252,14 @@ public enum LiftingImporter {
         /// Count a set into the volume load. Warm-up sets are excluded from the working-volume figure
         /// (Hevy marks them `set_type = "warmup"`); a set needs a positive weight AND reps to add
         /// volume, but a completed bodyweight/duration set still increments the set count for context.
-        func add(exercise: String, setIndex: Int?, setType: String, weightKg: Double?, reps: Int?,
+        ///
+        /// A set's stored index is its position within the merged exercise, never the source's own
+        /// `set_index`. Sets are merged by exercise title, and Hevy restarts `set_index` at 0 for every
+        /// block, so a workout that returns to an exercise later ("Bench Press", "Triceps Pushdown",
+        /// "Bench Press") would carry indices 0, 1, 0 and collide on the `hevySet` primary key
+        /// (workoutId, exerciseIdx, idx), failing the whole import. Rows arrive in logged order, so
+        /// the position keeps that order.
+        func add(exercise: String, setType: String, weightKg: Double?, reps: Int?,
                  distanceM: Double?, durationS: Double?, rpe: Double?) {
             let name = exercise.trimmingCharacters(in: .whitespacesAndNewlines)
             let key = name.lowercased()
@@ -263,7 +268,7 @@ public enum LiftingImporter {
                 ? .warmup : HevySetType.parse(setType)
             if !name.isEmpty {
                 detailedSets[key, default: []].append(HevySet(
-                    index: setIndex ?? detailedSets[key, default: []].count,
+                    index: detailedSets[key, default: []].count,
                     type: type, weightKg: weightKg, reps: reps, distanceM: distanceM,
                     durationS: durationS, rpe: rpe, customMetric: nil))
             }

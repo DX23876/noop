@@ -38,6 +38,26 @@ final class LiftingImporterTests: XCTestCase {
         XCTAssertEqual(s.exercises[1].sets[0].reps, 8)
     }
 
+    func testHevyExerciseRepeatedLaterInTheWorkoutGetsUniqueSetIndices() {
+        // Hevy restarts set_index for every exercise block. Returning to Bench Press after the
+        // pushdowns used to store indices 0, 1, 0 under one exercise, which collides on the hevySet
+        // primary key (workoutId, exerciseIdx, idx) and fails the whole import.
+        let csv = """
+        title,start_time,end_time,exercise_title,set_index,set_type,weight_kg,reps
+        Push,2026-06-01 18:00:00,2026-06-01 19:00:00,Bench Press (Barbell),0,normal,80,5
+        Push,2026-06-01 18:00:00,2026-06-01 19:00:00,Bench Press (Barbell),1,normal,80,5
+        Push,2026-06-01 18:00:00,2026-06-01 19:00:00,Triceps Pushdown,0,normal,30,10
+        Push,2026-06-01 18:00:00,2026-06-01 19:00:00,Bench Press (Barbell),0,normal,60,10
+        """
+        let s = LiftingImporter.parseHevy(text: csv).sessions[0]
+        XCTAssertEqual(s.exercises.map(\.title), ["Bench Press (Barbell)", "Triceps Pushdown"])
+        XCTAssertEqual(s.exercises[0].sets.map(\.index), [0, 1, 2])
+        XCTAssertEqual(s.exercises[0].sets.map(\.weightKg), [80, 80, 60])   // logged order kept
+        XCTAssertEqual(s.exercises[1].sets.map(\.index), [0])
+        // 80×5 + 80×5 + 30×10 + 60×10 = 1700 kg
+        XCTAssertEqual(s.volumeLoadKg, Double(1700), accuracy: 1e-6)
+    }
+
     func testHevySplitsDistinctWorkoutsAndConvertsPounds() {
         // A lb column converts to kg (135 lb ≈ 61.235 kg). Two start_times → two sessions.
         let csv = """
