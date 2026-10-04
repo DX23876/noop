@@ -12,6 +12,7 @@ enum GoalsRoute: Hashable {
     case review
     case settings
     case setup(PeriodGoal.Period?)
+    case badges
 }
 
 /// The screen behind every "Goals" entry: Today's section head, the Today menu, More, the training hub,
@@ -22,7 +23,7 @@ struct GoalsOverviewScreen: View {
     @State private var showIntro = false
 
     var body: some View {
-        ScreenScaffold(title: "Goals", subtitle: "Today, this week, this month and beyond.",
+        ScreenScaffold(title: "My goals", subtitle: "Tap a goal to change it.",
                        onRefresh: { await GoalTrackingStore.shared.refresh(repo: repo) },
                        trailing: {
                            HStack(spacing: 14) {
@@ -67,6 +68,7 @@ extension View {
             case .review: GoalsReviewScreen()
             case .settings: GoalsSettingsView()
             case .setup(let period): PeriodGoalSetupView(initialPeriod: period)
+            case .badges: GoalBadgesView()
             }
         }
     }
@@ -82,12 +84,13 @@ struct GoalsOverviewView: View {
     @AppStorage(HydrationStore.enabledKey) private var hydrationOn = false
 
     private enum Sheet: Identifiable {
-        case journey(UUID), edit(UUID), dailyGoal(UUID?)
+        case journey(UUID), edit(UUID), dailyGoal(UUID?), slot(DailyGoalSheet.Slot)
         var id: String {
             switch self {
             case .journey(let id): return "journey-\(id)"
             case .edit(let id): return "edit-\(id)"
             case .dailyGoal(let id): return "daily-\(id?.uuidString ?? "new")"
+            case .slot(let slot): return "slot-\(slot.rawValue)"
             }
         }
     }
@@ -103,16 +106,29 @@ struct GoalsOverviewView: View {
         tracking.snapshots.filter { $0.goal.status == .active || $0.goal.status == .paused }
     }
 
+    @AppStorage(AppleInspiredColorsPrefs.enabledKey) private var appleColors = AppleInspiredColorsPrefs.defaultEnabled
+    @State private var badgeBannerHidden = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            ladder
+            if let motivation = tracking.motivation, !motivation.unseen.isEmpty, !badgeBannerHidden {
+                NewBadgeBanner(badges: motivation.unseen) {
+                    GoalPrefs.markBadgesSeen(motivation.unseen.map(\.id))
+                    badgeBannerHidden = true
+                }
+            }
+            ringsHero
             chainQuestions
             linkOffers
             if !crowdHintShown, snapshots(.week).count > GoalPrefs.crowdThreshold { crowdHint }
-            todaySection
-            periodSection(.week)
-            periodSection(.month)
-            longTermSection
+            dailyList
+            periodList(.week)
+            periodList(.month)
+            longTermList
+            if let motivation = tracking.motivation {
+                BadgesCard(motivation: motivation)
+                RecordsCard(motivation: motivation)
+            }
             reviewSection
             if !paused.isEmpty { pausedSection }
             NavigationLink(value: GoalsRoute.settings) {
@@ -131,78 +147,53 @@ struct GoalsOverviewView: View {
             case .journey(let id): JourneyView(goalId: id)
             case .edit(let id): PeriodGoalEditSheet(goalId: id) { refresh() }
             case .dailyGoal(let id): GoalActionEditorView(editingId: id, onSave: refresh)
+            case .slot(let slot): DailyGoalSheet(slot: slot, onSave: refresh)
             }
         }
     }
 
     private func refresh() { Task { await tracking.refresh(repo: repo) } }
 
-    // MARK: - Ladder
+    // MARK: - Today's rings
 
-    private var ladder: some View {
-        HStack(spacing: 8) {
-            ladderTile(title: "Week", route: .list(.week), states: snapshots(.week).map(\.state))
-            ladderTile(title: "Month", route: .list(.month), states: snapshots(.month).map(\.state))
-            ladderTile(title: "Long-term", route: .longTerm,
-                       states: longTerm.map { Self.periodState(for: $0.health) })
-        }
-    }
-
-    /// The long-term health folded into the period vocabulary for the ladder's ring.
-    static func periodState(for health: GoalTrackingSnapshot.Health) -> PeriodGoalState {
-        switch health {
-        case .onTrack: return .onTrack
-        // A pending decision is a question for the wearer, not a goal falling behind.
-        case .attention, .decisionNeeded: return .close
-        case .atRisk: return .behind
-        case .building: return .starting
-        case .paused: return .protected
-        }
-    }
-
-    private func ladderTile(title: LocalizedStringKey, route: GoalsRoute, states: [PeriodGoalState]) -> some View {
-        let good = states.filter { [.onTrack, .ahead, .achieved].contains($0) }.count
-        let warn = states.filter { $0 == .close }.count
-        let bad = states.filter { $0 == .behind }.count
-        let other = states.count - good - warn - bad
-        return NavigationLink(value: route) {
-            VStack(spacing: 6) {
-                // The count is the reading ("2/3 on course"); the ring only shows how the rest splits.
-                // Goals without a verdict yet are a light track, not a dark segment.
-                ZStack {
-                    GoalStatusRing(shares: [
-                        .init(id: "good", count: good, tint: StrandPalette.statusPositive),
-                        .init(id: "warn", count: warn, tint: StrandPalette.statusWarning),
-                        .init(id: "bad", count: bad, tint: StrandPalette.statusCritical),
-                        .init(id: "other", count: other, tint: StrandPalette.hairlineStrong),
-                    ], lineWidth: 5, diameter: 52)
-                    Text(states.isEmpty ? "–" : "\(good)/\(states.count)")
-                        .font(StrandFont.headline).monospacedDigit()
-                        .foregroundStyle(StrandPalette.textPrimary)
-                        .minimumScaleFactor(0.7).lineLimit(1)
-                        .frame(width: 40)
+    @ViewBuilder
+    private var ringsHero: some View {
+        if tracking.todayActions.contains(where: { $0.fraction != nil }) {
+            NoopCard(padding: 16) {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(String(localized: "Today")).strandOverline()
+                    DailyGoalRings(occurrences: tracking.todayActions, motivation: tracking.motivation)
                 }
-                Text(title).font(StrandFont.subhead.weight(.semibold)).foregroundStyle(StrandPalette.textPrimary)
-                Text(states.isEmpty ? String(localized: "None yet") : String(localized: "on course"))
-                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
-                    .lineLimit(1).minimumScaleFactor(0.8)
             }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(Text(states.isEmpty ? String(localized: "None yet")
-                                     : String(localized: "\(good) of \(states.count) on course")))
-            .accessibilityHint(Text(title))
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-            .background(RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous)
-                .fill(StrandPalette.surfaceRaised))
-            .overlay(RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous)
-                .strokeBorder(StrandPalette.hairline, lineWidth: 1))
+        } else {
+            NoopCard(padding: 16) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Label("Start with a daily goal", systemImage: "target")
+                        .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                    Text("Steps, sleep or active calories: a ring here fills up during the day.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button { sheet = .slot(.steps) } label: {
+                        Text("Set a step goal").font(StrandFont.footnote.weight(.semibold))
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
         }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .combine)
     }
 
-    // MARK: - Sections
+    // MARK: - The list
+
+    private func listSection<Content: View>(_ title: String, detail: String? = nil, route: GoalsRoute? = nil,
+                                            @ViewBuilder content: () -> Content) -> some View {
+        let rows = content()
+        return VStack(alignment: .leading, spacing: 8) {
+            sectionHeader(title, detail: detail, route: route)
+            NoopCard(padding: 12) {
+                VStack(alignment: .leading, spacing: 4) { rows }
+            }
+        }
+    }
 
     private func sectionHeader(_ title: String, detail: String? = nil, route: GoalsRoute? = nil) -> some View {
         HStack(alignment: .firstTextBaseline) {
@@ -227,142 +218,176 @@ struct GoalsOverviewView: View {
         .padding(.horizontal, 2)
     }
 
-    private var todaySection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            sectionHeader(String(localized: "Today"))
-            NoopCard(padding: 14) {
-                VStack(alignment: .leading, spacing: 10) {
-                    if tracking.todayActions.isEmpty {
-                        Text("Daily goals tick themselves off: steps, sleep, a workout, or a box you check.")
-                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    ForEach(tracking.todayActions) { occurrence in
-                        HStack(spacing: 9) {
-                            Button {
-                                guard case .manual = occurrence.action.requirement else { return }
-                                actions.toggleManual(occurrence.action.id, day: occurrence.day)
-                                StrandHaptic.selection.play()
-                                refresh()
-                            } label: {
-                                DailyGoalIndicator(occurrence: occurrence)
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel(occurrence.isCompleted ? Text("Completed") : Text("Mark completed"))
-                            Button { sheet = .dailyGoal(occurrence.action.id) } label: {
-                                VStack(alignment: .leading, spacing: 1) {
-                                    Text(occurrence.action.title)
-                                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                                    Text(occurrence.detailLine)
-                                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    if hydrationOn, let ml = hydrationML {
-                        let goal = Double(repo.hydrationGoalML(profileSex: UserDefaults.standard.string(forKey: "profile.sex") ?? ""))
-                        HStack(spacing: 9) {
-                            Image(systemName: "drop.fill").foregroundStyle(StrandPalette.accent).accessibilityHidden(true)
-                            Text("Hydration").font(StrandFont.footnote).foregroundStyle(StrandPalette.textPrimary)
-                            Spacer()
-                            Text(String(localized: "\((ml / 1000).formatted(.number.precision(.fractionLength(1)))) of \((goal / 1000).formatted(.number.precision(.fractionLength(1)))) l"))
-                                .font(StrandFont.captionNumber).foregroundStyle(StrandPalette.textSecondary)
-                        }
-                        PaceTrack(fraction: goal > 0 ? ml / goal : 0, tint: StrandPalette.accent, height: 4)
-                    }
-                    Button { sheet = .dailyGoal(nil) } label: {
-                        Label("Add a daily goal", systemImage: "plus")
-                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.accent)
-                    }
-                    .buttonStyle(.plain)
-                }
+    private func addRow(_ title: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "plus.circle.fill").foregroundStyle(StrandPalette.accent).accessibilityHidden(true)
+            Text(title).font(StrandFont.footnote.weight(.semibold)).foregroundStyle(StrandPalette.accent)
+            Spacer()
+        }
+        .padding(.vertical, 8)
+        .contentShape(Rectangle())
+    }
+
+    private var today: String { Repository.localDayKey(Date()) }
+
+    /// How long a daily goal runs, and on which days: "Ongoing · every day", "Until 31 Dec · Mon, Wed".
+    private func runsLine(_ action: GoalAction) -> String {
+        var parts: [String] = []
+        if let endsOn = action.endsOn {
+            if endsOn == today { parts.append(String(localized: "Today only")) }
+            else if let date = PeriodGoalTracker.date(endsOn, calendar: .autoupdatingCurrent) {
+                parts.append(String(localized: "Until \(date.formatted(.dateTime.day().month(.abbreviated)))"))
             }
+        } else {
+            parts.append(String(localized: "Ongoing"))
+        }
+        if endsOnIsNotToday(action) {
+            switch action.schedule {
+            case .daily: parts.append(String(localized: "every day"))
+            case .weekdays(let days):
+                let symbols = Calendar.autoupdatingCurrent.shortStandaloneWeekdaySymbols
+                parts.append(days.compactMap { symbols.indices.contains($0 - 1) ? symbols[$0 - 1] : nil }
+                    .joined(separator: ", "))
+            }
+        }
+        if let streak = tracking.motivation?.streaks[action.id]?.current, streak >= 2 {
+            parts.append(String(localized: "\(streak) days in a row"))
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    private func endsOnIsNotToday(_ action: GoalAction) -> Bool { action.endsOn != today }
+
+    private var dailyList: some View {
+        let slotActions = DailyGoalSheet.Slot.allCases.compactMap { $0.current(in: actions.actions, today: today)?.id }
+        let others = actions.actions.filter {
+            $0.isActive && !$0.hasEnded(today: today) && !slotActions.contains($0.id)
+        }
+        return listSection(String(localized: "Daily")) {
+            ForEach(DailyGoalSheet.Slot.allCases) { slot in
+                let action = slot.current(in: actions.actions, today: today)
+                Button { sheet = .slot(slot) } label: {
+                    GoalListRow(icon: slot.icon, tint: goalIdentityColor(slot.metric, appleColors: appleColors),
+                                title: slot.title, subtitle: action.map(runsLine),
+                                value: action.flatMap { slot.value(of: $0.requirement) }.map(slot.format)
+                                    ?? String(localized: "Off"),
+                                valueIsOff: action == nil)
+                }
+                .buttonStyle(.plain)
+            }
+            if hydrationOn {
+                let goal = Double(repo.hydrationGoalML(profileSex: UserDefaults.standard.string(forKey: "profile.sex") ?? ""))
+                GoalListRow(icon: "drop.fill", tint: goalIdentityColor(.hydrationDays, appleColors: appleColors),
+                            title: String(localized: "Hydration"),
+                            subtitle: String(localized: "Set from your profile and the day's training"),
+                            value: String(localized: "\((goal / 1000).formatted(.number.precision(.fractionLength(1)))) l"),
+                            progress: hydrationML.map { goal > 0 ? $0 / goal : 0 })
+            }
+            ForEach(others) { action in
+                Button { sheet = .dailyGoal(action.id) } label: {
+                    GoalListRow(icon: icon(for: action.requirement),
+                                tint: GoalActionOccurrence(action: action, day: today, isCompleted: false,
+                                                           isAutomatic: false).identityColor(appleColors: appleColors),
+                                title: action.title, subtitle: runsLine(action),
+                                value: action.requirement.displayLabel)
+                }
+                .buttonStyle(.plain)
+            }
+            Button { sheet = .dailyGoal(nil) } label: { addRow(String(localized: "Add another daily goal")) }
+                .buttonStyle(.plain)
         }
     }
 
-    private func periodSection(_ period: PeriodGoal.Period) -> some View {
+    private func icon(for requirement: GoalAction.Requirement) -> String {
+        switch requirement {
+        case .steps: return "figure.walk"
+        case .sleep: return "moon.stars.fill"
+        case .activeCalories: return "flame.fill"
+        case .workout: return "figure.mixed.cardio"
+        case .manual: return "checkmark.circle"
+        }
+    }
+
+    private func periodList(_ period: PeriodGoal.Period) -> some View {
         let items = snapshots(period)
         let days = items.first?.periodDays
-            ?? PeriodGoalTracker.periodDays(period, containing: Repository.localDayKey(Date()),
-                                            calendar: TrainingPreferences.weekCalendar)
-        let today = Repository.localDayKey(Date())
+            ?? PeriodGoalTracker.periodDays(period, containing: today, calendar: TrainingPreferences.weekCalendar)
         let left = days.filter { $0 >= today }.count
-        let title = period == .week ? String(localized: "This week")
-            : Date().formatted(.dateTime.month(.wide))
-        return VStack(alignment: .leading, spacing: 8) {
-            sectionHeader(title, detail: left == 1 ? String(localized: "last day") : String(localized: "\(left) days left"),
-                          route: .list(period))
-            NoopCard(padding: 14) {
-                VStack(alignment: .leading, spacing: 14) {
-                    if items.isEmpty {
-                        emptyPeriodInvite(period)
-                    }
-                    ForEach(items) { snapshot in
-                        NavigationLink(value: GoalsRoute.detail(snapshot.id)) {
-                            PeriodGoalRow(snapshot: snapshot)
-                        }
-                        .buttonStyle(.plain)
-                        .contextMenu { periodMenu(snapshot) }
-                        if let parent = snapshot.goal.parentGoalId.flatMap({ goals.goal(id: $0) }) {
-                            Text("↳ \(String(localized: "for")) \(parent.title.isEmpty ? parent.kind.label.localizedCatalogValue : parent.title)")
-                                .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-                                .padding(.top, -10)
-                        }
-                    }
+        return listSection(period == .week ? String(localized: "Weekly") : String(localized: "Monthly"),
+                           detail: left == 1 ? String(localized: "last day") : String(localized: "\(left) days left"),
+                           route: items.isEmpty ? nil : .list(period)) {
+            ForEach(items) { snapshot in
+                NavigationLink(value: GoalsRoute.detail(snapshot.id)) {
+                    GoalListRow(icon: snapshot.goal.metric.icon, tint: snapshot.identityColor,
+                                title: GoalFormat.shortName(snapshot.goal),
+                                subtitle: periodSubtitle(snapshot),
+                                subtitleTint: GoalStatusStyle.needsAttention(snapshot.state) || snapshot.state == .achieved
+                                    ? snapshot.style.foreground : StrandPalette.textSecondary,
+                                value: GoalFormat.amount(snapshot.goal.target, snapshot.goal.metric),
+                                progress: snapshot.state == .noData ? nil : snapshot.result.fraction)
                 }
+                .buttonStyle(.plain)
+                .contextMenu { periodMenu(snapshot) }
             }
+            NavigationLink(value: GoalsRoute.setup(period)) {
+                addRow(period == .week ? String(localized: "Add a weekly goal") : String(localized: "Add a monthly goal"))
+            }
+            .buttonStyle(.plain)
         }
     }
 
-    private func emptyPeriodInvite(_ period: PeriodGoal.Period) -> some View {
-        NavigationLink(value: GoalsRoute.setup(period)) {
-            HStack(spacing: 8) {
-                Image(systemName: "plus.circle").foregroundStyle(StrandPalette.accent).accessibilityHidden(true)
-                Text(period == .week ? "No weekly goal yet. Add one" : "No monthly goal yet. Add one")
-                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
-                Spacer()
-                Image(systemName: "chevron.right").font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-                    .accessibilityHidden(true)
-            }
-            .contentShape(Rectangle())
+    private func periodSubtitle(_ snapshot: PeriodGoalSnapshot) -> String {
+        var parts = ["\(GoalFormat.progress(snapshot)) · \(snapshot.style.wordText)"]
+        if snapshot.currentStreak > 1 {
+            parts.append(snapshot.goal.period == .week ? String(localized: "\(snapshot.currentStreak) weeks in a row")
+                                                        : String(localized: "\(snapshot.currentStreak) months in a row"))
         }
-        .buttonStyle(.plain)
+        if let parent = snapshot.goal.parentGoalId.flatMap({ goals.goal(id: $0) }) {
+            parts.append(String(localized: "for \(parent.title.isEmpty ? parent.kind.label.localizedCatalogValue : parent.title)"))
+        }
+        return parts.joined(separator: " · ")
     }
 
-    private var longTermSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            sectionHeader(String(localized: "Long-term"), route: .longTerm)
-            NoopCard(padding: 14) {
-                VStack(alignment: .leading, spacing: 14) {
-                    if longTerm.isEmpty {
-                        NavigationLink(value: GoalsRoute.longTerm) {
-                            Text("A long-term goal gives your weeks a direction: a race, a weight, a habit.")
-                                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        .buttonStyle(.plain)
+    private var longTermList: some View {
+        listSection(String(localized: "Long-term"), route: longTerm.isEmpty ? nil : .longTerm) {
+            ForEach(longTerm) { snapshot in
+                let style = GoalStatusStyle.of(snapshot.health)
+                Button { sheet = .journey(snapshot.id) } label: {
+                    GoalListRow(icon: snapshot.goal.kind.icon,
+                                tint: appleColors ? CoachIconColors.color(for: "coach.goal.\(snapshot.goal.kind.rawValue)")
+                                                  : StrandPalette.accent,
+                                title: snapshot.displayTitle,
+                                subtitle: longTermSubtitle(snapshot, style: style),
+                                subtitleTint: snapshot.health == .onTrack || snapshot.health == .building
+                                    ? StrandPalette.textSecondary : style.foreground,
+                                value: snapshot.goal.target.map {
+                                    "\(GoalTrackingSnapshot.amountText($0, snapshot.goal.kind)) \(snapshot.goal.kind.displayUnit)"
+                                } ?? "",
+                                progress: snapshot.progressFraction)
+                }
+                .buttonStyle(.plain)
+                .contextMenu {
+                    let pinned = GoalPrefs.pinnedLongTermIds.contains(snapshot.id)
+                    Button(pinned ? "Unpin from Today" : "Keep on Today",
+                           systemImage: pinned ? "pin.slash" : "pin") {
+                        GoalPrefs.setPinned(snapshot.id, !pinned)
+                        tracking.objectWillChange.send()
                     }
-                    ForEach(longTerm) { snapshot in
-                        Button { sheet = .journey(snapshot.id) } label: { LongTermGoalRow(snapshot: snapshot) }
-                            .buttonStyle(.plain)
-                            .contextMenu {
-                                let pinned = GoalPrefs.pinnedLongTermIds.contains(snapshot.id)
-                                Button(pinned ? "Unpin from Today" : "Keep on Today",
-                                       systemImage: pinned ? "pin.slash" : "pin") {
-                                    GoalPrefs.setPinned(snapshot.id, !pinned)
-                                    tracking.objectWillChange.send()
-                                }
-                                NavigationLink(value: GoalsRoute.setup(.week)) {
-                                    Label("Add a weekly goal for it", systemImage: "plus")
-                                }
-                            }
+                    NavigationLink(value: GoalsRoute.setup(.week)) {
+                        Label("Add a weekly goal for it", systemImage: "plus")
                     }
                 }
             }
+            NavigationLink { CoachGoalOnboardingFlow(pushed: true) } label: {
+                addRow(String(localized: "Add a long-term goal"))
+            }
+            .buttonStyle(.plain)
         }
+    }
+
+    private func longTermSubtitle(_ snapshot: GoalTrackingSnapshot, style: GoalStatusStyle) -> String {
+        guard let date = snapshot.goal.targetDate else { return style.wordText }
+        return String(localized: "\(style.wordText) · by \(date.formatted(.dateTime.day().month(.abbreviated).year()))")
     }
 
     private var reviewSection: some View {

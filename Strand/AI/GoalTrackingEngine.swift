@@ -393,6 +393,8 @@ final class GoalTrackingStore: ObservableObject {
     @Published private(set) var lastUpdated: Date?
     /// Weekly and monthly goals as of the last refresh, in the wearer's order.
     @Published private(set) var periodSnapshots: [PeriodGoalSnapshot] = []
+    /// Streaks, badges and records (plan §17e); nil while motivation is switched off.
+    @Published private(set) var motivation: GoalMotivationSnapshot?
     /// What the period goals were computed from, kept for recommendations in the setup flow.
     private(set) var periodInputs = PeriodGoalInputs()
 
@@ -451,10 +453,14 @@ final class GoalTrackingStore: ObservableObject {
         let end = calendar.dateInterval(of: .weekOfYear, for: now)?.end ?? now
         let activeGoalIds = Set(goals.filter { $0.status == .active }.map(\.id))
         let activeKcalByDay = await repo.activeEnergyByDay(days: 400)
+        // Measured steps per day, strap first and the same day's Health count second, so a daily step
+        // goal reads the same number as Today's step card.
+        let stepsByDay = GoalMotivationBuilder.stepsByDay(days: repo.days,
+                                                          apple: await repo.appleDailyRows(days: 4000))
         let actionOccurrences = GoalActionEvaluator.occurrences(
             actions: actions, checkoffs: checkoffs, activeGoalIds: activeGoalIds,
             days: repo.days, workouts: workouts, from: start, through: end,
-            activeKcalByDay: activeKcalByDay, calendar: calendar)
+            activeKcalByDay: activeKcalByDay, stepsByDay: stepsByDay, calendar: calendar)
         let today = GoalActionEvaluator.dayKey(now, calendar: calendar)
         todayActions = actionOccurrences.filter { $0.day == today }
         if let week = calendar.dateInterval(of: .weekOfYear, for: now) {
@@ -474,6 +480,16 @@ final class GoalTrackingStore: ObservableObject {
             frozen: PeriodGoalStore.shared.results, corrections: GoalCountingCorrections.shared.corrections,
             now: now, calendar: calendar)
         periodSnapshots = computed
+        if GoalPrefs.motivationEnabled {
+            // Badges count every recorded workout, not just the last year the goals need.
+            let allWorkouts = await repo.workoutRows(days: 4000, reconcileHrCap: 0)
+            motivation = GoalMotivationBuilder.build(
+                actions: actions, stepsByDay: stepsByDay, days: repo.days, activeKcalByDay: activeKcalByDay,
+                workouts: allWorkouts, periodSnapshots: computed, frozen: PeriodGoalStore.shared.results,
+                periodGoals: periodGoals, now: now, calendar: calendar)
+        } else {
+            motivation = nil
+        }
         settlePeriods(computed, inputs: inputs, now: now, calendar: calendar)
         GoalNotifier.reschedule(computed, now: now)
         GoalEvents.announce(computed)

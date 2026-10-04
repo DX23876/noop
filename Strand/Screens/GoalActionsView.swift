@@ -102,6 +102,8 @@ struct GoalActionEditorView: View {
     @State private var weekdays: Set<Int> = Set(1...7)
     @State private var goalIds: Set<UUID> = []
     @State private var loaded = false
+    @State private var runs: DailyGoalSheet.Runs = .ongoing
+    @State private var endDate = Calendar.current.date(byAdding: .month, value: 1, to: Date()) ?? Date()
 
     var body: some View {
         NavigationStack {
@@ -131,6 +133,15 @@ struct GoalActionEditorView: View {
                         if hasMinimum {
                             Stepper("\(minimumMinutes) minutes", value: $minimumMinutes, in: 5...240, step: 5)
                         }
+                    }
+                }
+                Section("How long it runs") {
+                    Picker("How long it runs", selection: $runs) {
+                        ForEach(DailyGoalSheet.Runs.allCases) { Text($0.label).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    if runs == .untilDate {
+                        DatePicker("Last day", selection: $endDate, in: Date()..., displayedComponents: .date)
                     }
                 }
                 Section("Schedule") {
@@ -216,9 +227,22 @@ struct GoalActionEditorView: View {
         case .daily: daily = true
         case .weekdays(let values): daily = false; weekdays = Set(values)
         }
+        if let endsOn = action.endsOn {
+            if endsOn == Repository.localDayKey(Date()) { runs = .todayOnly }
+            else {
+                runs = .untilDate
+                endDate = PeriodGoalTracker.date(endsOn, calendar: .autoupdatingCurrent) ?? endDate
+            }
+        }
     }
 
     private func save() {
+        let endsOn: String?
+        switch runs {
+        case .ongoing: endsOn = nil
+        case .untilDate: endsOn = Repository.localDayKey(endDate)
+        case .todayOnly: endsOn = Repository.localDayKey(Date())
+        }
         let requirement: GoalAction.Requirement
         switch kind {
         case .steps: requirement = .steps(minimum: steps)
@@ -237,7 +261,8 @@ struct GoalActionEditorView: View {
                                schedule: daily ? .daily : .weekdays(weekdays.sorted()),
                                goalIds: goals.activeGoals.map(\.id).filter { goalIds.contains($0) },
                                isActive: existing?.isActive ?? true,
-                               createdAt: existing?.createdAt ?? Date()))
+                               createdAt: existing?.createdAt ?? Date(),
+                               endsOn: endsOn))
         onSave(); dismiss()
     }
 

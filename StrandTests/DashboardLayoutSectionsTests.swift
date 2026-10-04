@@ -20,8 +20,9 @@ final class DashboardLayoutSectionsTests: XCTestCase {
         // anyone looks for a recommendation.
         XCTAssertEqual(Array(DashboardLayoutSection.defaultOrder(for: "trends").prefix(5)),
                        [.coach, .hero, .trendsChart, .metricStrip, .activity])
-        XCTAssertEqual(Array(DashboardLayoutSection.defaultOrder(for: "overview").prefix(4)),
-                       [.coach, .overview, .focus, .health])
+        // Goals sit among the reference blocks on both (plan §10.1: every Today style shows them).
+        XCTAssertEqual(Array(DashboardLayoutSection.defaultOrder(for: "overview").prefix(5)),
+                       [.coach, .overview, .focus, .goals, .health])
 
         // Every optional section is PLACED on both dashboards, and none is placed twice. Placement is
         // checked by identity rather than by counting `isExtra`: Momentum is still a
@@ -86,10 +87,12 @@ final class DashboardLayoutSectionsTests: XCTestCase {
     func testCoachAndMomentumAreVisibleByDefaultOnBothDashboards() {
         XCTAssertFalse(DashboardLayoutSection.coach.isExtra)
         XCTAssertFalse(DashboardLayoutSection.momentum.isExtra)
+        XCTAssertFalse(DashboardLayoutSection.goals.isExtra)
         for dashboard in ["trends", "overview"] {
             let hidden = DashboardLayoutPrefs.hidden("", dashboard: dashboard)
             XCTAssertFalse(hidden.contains(.coach), "\(dashboard): Coach must not start hidden")
             XCTAssertFalse(hidden.contains(.momentum), "\(dashboard): Momentum must not start hidden")
+            XCTAssertFalse(hidden.contains(.goals), "\(dashboard): Goals must not start hidden")
         }
     }
 

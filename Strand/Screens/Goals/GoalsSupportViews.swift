@@ -280,12 +280,16 @@ struct GoalWeekHistoryStrip: View {
 struct GoalsArchiveView: View {
     @ObservedObject private var store = PeriodGoalStore.shared
     @ObservedObject private var longTerm = CoachGoalStore.shared
+    @ObservedObject private var actions = GoalActionStore.shared
 
     var body: some View {
         let ended = store.goals.filter { $0.status == .ended }.sorted { ($0.endedAt ?? $0.createdAt) > ($1.endedAt ?? $1.createdAt) }
         let past = longTerm.goals.filter { [.achieved, .abandoned, .archived].contains($0.status) }
+        let today = Repository.localDayKey(Date())
+        let endedDaily = actions.actions.filter { $0.hasEnded(today: today) }
+            .sorted { ($0.endsOn ?? "") > ($1.endsOn ?? "") }
         ScreenScaffold(title: "Ended goals", subtitle: "Ended goals keep their history here.") {
-            if ended.isEmpty && past.isEmpty {
+            if ended.isEmpty && past.isEmpty && endedDaily.isEmpty {
                 Text("Nothing here yet.").font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
             }
             if !ended.isEmpty {
@@ -309,6 +313,23 @@ struct GoalsArchiveView: View {
                     }
                 }
             }
+            if !endedDaily.isEmpty {
+                NoopCard(padding: 14) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Daily").strandOverline()
+                        ForEach(endedDaily) { action in
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(action.title).font(StrandFont.footnote).foregroundStyle(StrandPalette.textPrimary)
+                                Text(endedLine(action))
+                                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                            }
+                            .contextMenu {
+                                Button("Delete", role: .destructive) { actions.remove(action.id) }
+                            }
+                        }
+                    }
+                }
+            }
             if !past.isEmpty {
                 NavigationLink(value: GoalsRoute.longTerm) {
                     Label("Past long-term goals: \(past.count)", systemImage: "flag.checkered")
@@ -317,6 +338,14 @@ struct GoalsArchiveView: View {
                 .buttonStyle(.plain)
             }
         }
+    }
+
+    private func endedLine(_ action: GoalAction) -> String {
+        let label = action.requirement.displayLabel
+        guard let endsOn = action.endsOn, let date = PeriodGoalTracker.date(endsOn, calendar: .autoupdatingCurrent) else {
+            return label
+        }
+        return String(localized: "\(label) · ended \(date.formatted(.dateTime.day().month(.abbreviated).year()))")
     }
 }
 
@@ -475,6 +504,7 @@ struct GoalsSettingsView: View {
     @AppStorage(GoalsWeekAccessory.enabledKey) private var weekBar = false
     @State private var restDays: Set<Int> = Set(TrainingPreferences.restWeekdays)
     @State private var notify: [GoalPrefs.NotificationKind: Bool] = [:]
+    @State private var motivationOn = GoalPrefs.motivationEnabled
     @EnvironmentObject private var repo: Repository
 
     var body: some View {
@@ -516,6 +546,19 @@ struct GoalsSettingsView: View {
                             .font(StrandFont.footnote)
                     }
                     Text("Off by default. Hints and reviews always appear in the app. Quiet hours from the notification settings apply.")
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            NoopCard(padding: 14) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Motivation").strandOverline()
+                    Toggle("Badges, streaks and records", isOn: Binding(
+                        get: { motivationOn },
+                        set: { motivationOn = $0; UserDefaults.standard.set($0, forKey: GoalPrefs.motivationEnabledKey)
+                            Task { await GoalTrackingStore.shared.refresh(repo: repo) } }))
+                        .font(StrandFont.footnote)
+                    Text("Badges for steps, streaks and reached goals, your personal records and a cheering line near the goal. Worked out on this device from your own data.")
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
                 }

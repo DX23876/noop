@@ -90,6 +90,16 @@ struct GoalsTodaySection: View {
 
     @ViewBuilder
     private var content: some View {
+        // Today's daily goals lead as rings (steps, sleep, kcal): the one thing to act on today.
+        if tracking.todayActions.contains(where: { $0.fraction != nil }) {
+            NavigationLink(value: TabRoute.goals) {
+                DailyGoalRings(occurrences: tracking.todayActions, motivation: tracking.motivation, diameter: 60)
+            }
+            .buttonStyle(.plain)
+            if !visibleWeek.isEmpty || !monthSnapshots.isEmpty || !longTermOnToday.isEmpty {
+                Divider().overlay(StrandPalette.hairline)
+            }
+        }
         ForEach(visibleWeek) { snapshot in
             NavigationLink(value: TabRoute.periodGoal(snapshot.id)) {
                 PeriodGoalRow(snapshot: snapshot)
@@ -121,12 +131,14 @@ struct GoalsTodaySection: View {
             if !visibleWeek.isEmpty || !longTermOnToday.isEmpty { Divider().overlay(StrandPalette.hairline) }
             NavigationLink(value: TabRoute.goals) { monthLine }.buttonStyle(.plain)
         }
-        if !tracking.todayActions.isEmpty {
+        if tracking.todayActions.contains(where: { $0.fraction == nil }) {
             if !visibleWeek.isEmpty || !monthSnapshots.isEmpty || !longTermOnToday.isEmpty {
                 Divider().overlay(StrandPalette.hairline)
             }
-            ForEach(Array(tracking.todayActions.prefix(3))) { occurrence in dailyRow(occurrence) }
-            if tracking.todayActions.count > 3 {
+            ForEach(Array(tracking.todayActions.filter { $0.fraction == nil }.prefix(3))) { occurrence in
+                dailyRow(occurrence)
+            }
+            if tracking.todayActions.filter({ $0.fraction == nil }).count > 3 {
                 NavigationLink(value: TabRoute.goals) {
                     Text("All \(tracking.todayActions.count) daily goals")
                         .font(StrandFont.footnote).foregroundStyle(StrandPalette.accent)
@@ -140,6 +152,23 @@ struct GoalsTodaySection: View {
                 Text("Your long-term goals are on course. Add a weekly goal to see your week here.")
                     .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
+            }
+            .buttonStyle(.plain)
+        }
+        if let badge = tracking.motivation?.unseen.first {
+            NavigationLink(value: TabRoute.goals) {
+                HStack(spacing: 10) {
+                    BadgeMedal(badge: badge, diameter: 34, showsCaption: false)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("New badge").font(StrandFont.footnote.weight(.semibold))
+                            .foregroundStyle(StrandPalette.textPrimary)
+                        Text(badge.title).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right").font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textTertiary).accessibilityHidden(true)
+                }
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         }

@@ -67,10 +67,14 @@ struct GoalAction: Codable, Identifiable, Equatable {
     var goalIds: [UUID]
     var isActive: Bool
     let createdAt: Date
+    /// The last day (local day key, inclusive) a daily goal asks for; nil runs without end (Q25).
+    /// "Only today" is a goal whose last day is the day it was set. Optional, so stored goals and
+    /// backups from before it decode unchanged.
+    var endsOn: String?
 
     init(id: UUID = UUID(), title: String, requirement: Requirement,
          schedule: Schedule = .daily, goalIds: [UUID], isActive: Bool = true,
-         createdAt: Date = Date()) {
+         createdAt: Date = Date(), endsOn: String? = nil) {
         self.id = id
         self.title = title
         self.requirement = requirement
@@ -79,6 +83,13 @@ struct GoalAction: Codable, Identifiable, Equatable {
         self.goalIds = goalIds.filter { seen.insert($0).inserted }
         self.isActive = isActive
         self.createdAt = createdAt
+        self.endsOn = endsOn
+    }
+
+    /// Past its last day: it no longer shows as due and moves to the ended goals.
+    func hasEnded(today: String) -> Bool {
+        guard let endsOn else { return false }
+        return today > endsOn
     }
 }
 
@@ -134,6 +145,7 @@ enum GoalActionEvaluator {
                             activeGoalIds: Set<UUID>, days: [DailyMetric], workouts: [WorkoutRow],
                             from start: Date, through end: Date,
                             activeKcalByDay: [String: Double] = [:],
+                            stepsByDay: [String: Int] = [:],
                             calendar: Calendar = .autoupdatingCurrent) -> [GoalActionOccurrence] {
         let dayMetrics = Dictionary(days.map { ($0.day, $0) }, uniquingKeysWith: { _, latest in latest })
         let manual = Set(checkoffs.map(\.id))
@@ -150,12 +162,14 @@ enum GoalActionEvaluator {
                 let manualKey = "\(action.id.uuidString):\(key)"
                 let automatic = automaticCompletion(action.requirement, metric: dayMetrics[key],
                                                     workouts: workoutsByDay[key] ?? [],
-                                                    activeKcal: activeKcalByDay[key])
+                                                    activeKcal: activeKcalByDay[key],
+                                                    steps: stepsByDay[key])
                 result.append(.init(action: action, day: key,
                                     isCompleted: automatic || manual.contains(manualKey),
                                     isAutomatic: automatic,
                                     measured: measuredValue(action.requirement, metric: dayMetrics[key],
-                                                            activeKcal: activeKcalByDay[key])))
+                                                            activeKcal: activeKcalByDay[key],
+                                                            steps: stepsByDay[key])))
             }
             guard let next = calendar.date(byAdding: .day, value: 1, to: cursor), next > cursor else { break }
             cursor = next
@@ -166,9 +180,9 @@ enum GoalActionEvaluator {
     /// The day's reading for a measured requirement, in its own unit; nil when nothing was measured
     /// or the requirement is not a number (a workout, a manual box).
     static func measuredValue(_ requirement: GoalAction.Requirement, metric: DailyMetric?,
-                              activeKcal: Double?) -> Double? {
+                              activeKcal: Double?, steps: Int? = nil) -> Double? {
         switch requirement {
-        case .steps: return metric?.steps.map(Double.init)
+        case .steps: return (metric?.steps ?? steps).map(Double.init)
         case .sleep: return metric?.totalSleepMin.map { Double($0) / 60 }
         case .activeCalories: return activeKcal
         case .workout, .manual: return nil
@@ -182,6 +196,7 @@ enum GoalActionEvaluator {
         action.isActive
             && (action.goalIds.isEmpty || !activeGoalIds.isDisjoint(with: action.goalIds))
             && calendar.startOfDay(for: date) >= calendar.startOfDay(for: action.createdAt)
+            && (action.endsOn.map { dayKey(date, calendar: calendar) <= $0 } ?? true)
             && action.schedule.includes(date, calendar: calendar)
     }
 
@@ -189,10 +204,12 @@ enum GoalActionEvaluator {
     /// the figure the Energy screen shows; the retired `activeKcalEst` included basal.
     static func automaticCompletion(_ requirement: GoalAction.Requirement,
                                     metric: DailyMetric?, workouts: [WorkoutRow],
-                                    activeKcal: Double? = nil) -> Bool {
+                                    activeKcal: Double? = nil, steps: Int? = nil) -> Bool {
         switch requirement {
         case .steps(let minimum):
-            return (metric?.steps ?? 0) >= minimum
+            // The strap's own count first, then the same day's measured count from Health: the rule
+            // Today's step card uses (`DailyStepsReading`), never the motion estimate.
+            return (metric?.steps ?? steps ?? 0) >= minimum
         case .sleep(let hours):
             guard let minutes = metric?.totalSleepMin else { return false }
             return minutes >= hours * 60
@@ -329,8 +346,10 @@ final class GoalActionStore: ObservableObject {
 
     /// The standalone daily step goal, if there is one. Momentum's step goal reads from it (Q8).
     var dailyStepGoal: GoalAction? {
-        actions.first { action in
-            guard action.isActive, action.goalIds.isEmpty, case .steps = action.requirement else { return false }
+        let today = GoalActionEvaluator.dayKey(Date(), calendar: .autoupdatingCurrent)
+        return actions.first { action in
+            guard action.isActive, action.goalIds.isEmpty, !action.hasEnded(today: today),
+                  case .steps = action.requirement else { return false }
             return true
         }
     }
