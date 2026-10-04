@@ -52,6 +52,11 @@ struct SleepView: View {
     /// The Today dashboard style. Only `.liquid` keeps the liquid sleep gauge; every other style draws the
     /// same ring Classic Today does, so turning Liquid off is not undone by the Sleep tab.
     @AppStorage(TodayDashboardStyle.storageKey) private var todayDashboardStyleRaw = TodayDashboardStyle.liquid.rawValue
+    @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = SceneBackgroundPrefs.defaultEnabled
+    @AppStorage(SkyBehindCardsPrefs.enabledKey) private var skyBehindCards = false
+    /// "Sky behind cards": the Sleep tab's own night scene reaches behind the whole page, as the day-cycle
+    /// sky does on Today, so Card transparency shows it under every card.
+    private var nightBehindCards: Bool { showDayCycleBackground && skyBehindCards }
     private var heroUsesLiquidStyle: Bool {
         (TodayDashboardStyle.resolve(todayDashboardStyleRaw) ?? .liquid) == .liquid
     }
@@ -144,14 +149,12 @@ struct SleepView: View {
                             .padding(.top, -24)
                             .staggeredAppear(index: 0)
                         alarmsEntry
+                            .background(alignment: .top) { canvasSheet(roundedTop: true) }
                         // #sleep-layout: the analytical cards render in the user's saved order minus the
                         // hidden set, below the pinned Rest hero. Reordered via the Arrange sheet.
                         ForEach(Array(sleepVisibleSections.enumerated()), id: \.element) { idx, section in
-                            // These sections can scroll through the fixed night-scene band. Carry the
-                            // normal canvas with each section so its semantic dark headings never land
-                            // directly on the dark sky in Light mode.
                             sleepSectionView(section, resolved)
-                                .background(StrandPalette.surfaceBase)
+                                .background { canvasSheet(roundedTop: false) }
                                 .staggeredAppear(index: idx + 1)
                         }
                     }
@@ -163,6 +166,10 @@ struct SleepView: View {
                 }
             }
         }
+        // Over the night scene the page reads in the dark appearance, the scaffold's own status-bar fade
+        // included: headings sit on the sky itself, where Light mode's dark ink would vanish. Applied
+        // before the sheets, so those keep the system appearance.
+        .modifier(NightInk(isOn: nightBehindCards && model != nil))
         .task(id: LoadKey(revision: revision, offset: nightOffset)) {
             let key = revision
             let offset = displayedRevision == key ? nightOffset : 0
@@ -572,6 +579,35 @@ struct SleepView: View {
 
     /// Fixed night-scene band behind Sleep scroll content — same ScreenScaffold.topBackground pattern
     /// as Home's sky. Tall enough for safe-area + hero; fades to surfaceBase before the first card.
+    /// The canvas the cards below the hero sit on while the night scene stays a band at the top (#sleep
+    /// canvas). It used to be one opaque rectangle per section: square corners over the scene, and the
+    /// scene showing in stripes between sections. Each piece now reaches into the gaps and to the screen
+    /// edges, so together they form one sheet, and the first one rounds its top where the sheet starts.
+    /// With the scene behind the cards there is no sheet at all.
+    @ViewBuilder
+    private func canvasSheet(roundedTop: Bool) -> some View {
+        if !nightBehindCards {
+            #if os(iOS)
+            let gutter = NoopMetrics.screenHPadding
+            #else
+            let gutter: CGFloat = 28
+            #endif
+            let gap = NoopMetrics.sectionSpacing
+            if roundedTop {
+                // Overshoots downwards; the next section's piece covers the lower corners.
+                RoundedRectangle(cornerRadius: NoopMetrics.cardRadius * 1.5, style: .continuous)
+                    .fill(StrandPalette.surfaceBase)
+                    .padding(.horizontal, -gutter)
+                    .padding(.top, -gap * 0.6)
+                    .padding(.bottom, -gap - 40)
+            } else {
+                StrandPalette.surfaceBase
+                    .padding(.horizontal, -gutter)
+                    .padding(.vertical, -gap / 2 - 1)
+            }
+        }
+    }
+
     private var sleepNightTopBackground: some View {
         SleepPerformanceNightScene()
             // The artwork changes with time and user settings. A fixed protection wash guarantees the
@@ -585,8 +621,8 @@ struct SleepView: View {
                 )
                 .frame(height: 250)
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: 440, alignment: .top)
+            .frame(maxWidth: .infinity, maxHeight: nightBehindCards ? .infinity : nil)
+            .frame(height: nightBehindCards ? nil : 440, alignment: .top)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
     }
@@ -2995,5 +3031,14 @@ private struct SleepRingWidthKey: PreferenceKey {
     static let defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = max(value, nextValue())
+    }
+}
+
+/// The dark appearance for the Sleep page while its night scene reaches behind the cards; otherwise the
+/// page follows the system appearance.
+private struct NightInk: ViewModifier {
+    let isOn: Bool
+    func body(content: Content) -> some View {
+        if isOn { content.environment(\.colorScheme, .dark) } else { content }
     }
 }
