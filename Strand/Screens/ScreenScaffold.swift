@@ -38,7 +38,6 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
     /// at-root re-tap of the active tab (#198 follow-up). Default 0 never changes, so macOS and every
     /// non-tab screen keep their exact prior scroll behaviour.
     @Environment(\.scrollToTopSignal) private var scrollToTopSignal
-    @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = SceneBackgroundPrefs.defaultEnabled
     @ObservedObject private var backgroundStore = BackgroundImageStore.shared
 
     var body: some View {
@@ -142,13 +141,11 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
     }
 
     private var header: some View {
-        // A scaffold that draws a topBackground puts this header over the sky, where the normal
-        // scheme-following title tokens go dark-on-dark in Light mode. Pin them to the on-dark pair
-        // there and leave every other screen on the semantic tokens.
-        // `liquidScaffoldSky()` is still a non-nil view while the Appearance switch is off, but it
-        // intentionally renders nothing then. Treating that empty slot as a dark sky made every title
-        // white on the light canvas. Only use the on-dark pair when pixels are actually drawn there.
-        let overSky = topBackground != nil && (showDayCycleBackground || backgroundStore.isActive)
+        // Which title colours read over the top backdrop. The scaffold sky (`liquidScaffoldSky`) is a pale
+        // blue-gray in Light mode and dark in Dark mode, so the semantic tokens already contrast with it;
+        // pinning the on-dark pair whenever a sky was drawn put white titles on near-white in Light mode
+        // ("My goals", "More"). Only a custom photo, which may be dark in either mode, takes the on-dark pair.
+        let overSky = topBackground != nil && backgroundStore.isActive
         let titleColor = overSky ? StrandPalette.onDarkPrimary : StrandPalette.textPrimary
         let subtitleColor = overSky ? StrandPalette.onDarkSecondary : StrandPalette.textSecondary
         return HStack(alignment: .center, spacing: 12) {
