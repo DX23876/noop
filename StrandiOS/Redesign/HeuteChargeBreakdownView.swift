@@ -22,9 +22,8 @@ struct HeuteChargeBreakdownSheet: View {
     /// The row the breakdown describes — the same one the ring shows (today's own scored row, else the
     /// carried last-scored day). Resolved by `HeuteRedesignView` and passed in.
     let row: DailyMetric?
-    /// The full history the baseline folds over (`repo.days`), so the drivers score against the same
-    /// baselines the engine used.
-    let days: [DailyMetric]
+    /// The baselines the engine scored the Charge headline against (`repo.chargeBaselines`, #2525).
+    let baselines: ChargeBaselines.Resolved?
     /// The merged Rest composite (0…100) the Rest ring reads, or nil — feeds the sleep-quality term.
     let restScore: Double?
     /// The resolved Charge state, so the header can draw the real value and the calibrating branch can read
@@ -44,7 +43,7 @@ struct HeuteChargeBreakdownSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     // One `compute` call per body eval: drivers + confidence share the same baseline folds.
-                    let breakdown = ChargeBreakdownFormat.compute(row: row, days: days, restScore: restScore)
+                    let breakdown = ChargeBreakdownFormat.compute(row: row, baselines: baselines, restScore: restScore)
                     if let breakdown, !breakdown.drivers.isEmpty {
                         header(confidence: breakdown.confidence)
                         driverList(breakdown.drivers)

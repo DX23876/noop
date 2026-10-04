@@ -15,20 +15,32 @@ import StrandDesign
 /// re-renders only this small leaf. Owns its own sport-picker state so nothing about it needs to live on
 /// the parent either.
 struct WorkoutStartControl: View {
+    var showsActiveIndicator = false
     @EnvironmentObject var model: AppModel
     @State private var showStartSport = false
 
     var body: some View {
-        NoopButton(model.activeWorkout == nil ? "Start workout" : "View active workout",
-                   systemImage: model.activeWorkout == nil ? "figure.run" : "timer",
-                   kind: .primary,
-                   fullWidth: true) {
-            // No active session → pick a named sport first (#519), then the sheet's onStart begins it
-            // and opens the in-exercise view. Already active → jump straight back into the live view.
-            if model.activeWorkout == nil { showStartSport = true }
-            else { model.session.present() }
+        Group {
+            if showsActiveIndicator, let active = ActiveWorkoutIndicatorModel.make(from: model.activeWorkout) {
+                // Upstream's running-workout card, opened through the fork's shared session controller
+                // rather than a sheet of its own.
+                ActiveWorkoutIndicatorCard(model: active) {
+                    StrandHaptic.selection.play()
+                    model.session.present()
+                }
+            } else {
+                NoopButton(model.activeWorkout == nil ? "Start workout" : "View active workout",
+                           systemImage: model.activeWorkout == nil ? "figure.run" : "timer",
+                           kind: .primary,
+                           fullWidth: true) {
+                    // No active session → pick a named sport first (#519), then the sheet's onStart begins it
+                    // and opens the in-exercise view. Already active → jump straight back into the live view.
+                    if model.activeWorkout == nil { showStartSport = true }
+                    else { model.session.present() }
+                }
+                .accessibilityLabel(model.activeWorkout == nil ? "Start a workout" : "View the active workout")
+            }
         }
-        .accessibilityLabel(model.activeWorkout == nil ? "Start a workout" : "View the active workout")
         // #519: name the sport before a live session starts, then open the in-exercise view directly
         // (same direct present as the button's already-active path — no cross-view auto-present race).
         // The in-exercise view itself is presented by the shared `ActiveSessionController`, so this leaf

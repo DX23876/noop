@@ -9,6 +9,16 @@ import WhoopStore
 /// PURE, so these assert the exact strings/colours the views render. No em-dashes.
 final class ChargeBreakdownFormatTests: XCTestCase {
 
+    /// `ChargeBreakdownFormat.compute` against own nights `days`, resolved with the engine's rule (#2525)
+    /// and anchored on the newest of them, the way `Repository.chargeBaselines` resolves them.
+    private func compute(row: DailyMetric?, days: [DailyMetric], restScore: Double?)
+        -> (drivers: [ChargeDriver], confidence: ScoreConfidence)? {
+        let anchor = (days.map(\.day) + [row?.day].compactMap { $0 }).max() ?? "2026-01-01"
+        let baselines = ChargeBaselines.resolve(imported: [], own: days, anchorDay: anchor,
+                                                hrvEpoch: 0, recoveryEpoch: 0)
+        return ChargeBreakdownFormat.compute(row: row, baselines: baselines, restScore: restScore)
+    }
+
     // MARK: - A1: signed point-delta chip
 
     func testChipLabelCarriesExplicitSignAndPluralizes() {
@@ -180,7 +190,7 @@ final class ChargeBreakdownFormatTests: XCTestCase {
         days.append(row)
         let restScore = 84.0
 
-        guard let out = ChargeBreakdownFormat.compute(row: row, days: days, restScore: restScore) else {
+        guard let out = compute(row: row, days: days, restScore: restScore) else {
             return XCTFail("a scored night with a usable HRV baseline must yield a breakdown")
         }
 
@@ -212,20 +222,20 @@ final class ChargeBreakdownFormatTests: XCTestCase {
         let history = usableHistory()
 
         // No row resolved at all.
-        XCTAssertNil(ChargeBreakdownFormat.compute(row: nil, days: history, restScore: 80))
+        XCTAssertNil(compute(row: nil, days: history, restScore: 80))
 
         // Row missing HRV -> nil (Charge needs a nightly HRV to attribute).
         let noHrv = vitalsDay("2026-07-13", hrv: nil, rhr: 58, resp: 14.2, recovery: 66)
-        XCTAssertNil(ChargeBreakdownFormat.compute(row: noHrv, days: history + [noHrv], restScore: 80))
+        XCTAssertNil(compute(row: noHrv, days: history + [noHrv], restScore: 80))
 
         // Row missing resting HR -> nil.
         let noRhr = vitalsDay("2026-07-13", hrv: 72, rhr: nil, resp: 14.2, recovery: 66)
-        XCTAssertNil(ChargeBreakdownFormat.compute(row: noRhr, days: history + [noRhr], restScore: 80))
+        XCTAssertNil(compute(row: noRhr, days: history + [noRhr], restScore: 80))
 
         // Row present but too little history for a usable HRV baseline (< seed nights) -> nil.
         let row = vitalsDay("2026-07-02", hrv: 72, rhr: 58, resp: 14.2, recovery: 66)
         let thin = [vitalsDay("2026-07-01", hrv: 60, rhr: 55, resp: 14), row]
-        XCTAssertNil(ChargeBreakdownFormat.compute(row: row, days: thin, restScore: 80))
+        XCTAssertNil(compute(row: row, days: thin, restScore: 80))
     }
 
     /// A missing `restScore` (Rest ring calibrating / no sleep-performance value) must not break the
@@ -236,7 +246,7 @@ final class ChargeBreakdownFormatTests: XCTestCase {
         let row = vitalsDay("2026-07-13", hrv: 72, rhr: 58, resp: 14.2, recovery: 66)
         days.append(row)
 
-        let out = ChargeBreakdownFormat.compute(row: row, days: days, restScore: nil)
+        let out = compute(row: row, days: days, restScore: nil)
         XCTAssertNotNil(out, "a nil restScore drops the sleep term but must not nil out the whole breakdown")
         XCTAssertEqual(out?.drivers.isEmpty, false, "the HRV/RHR terms still attribute without a Rest score")
     }

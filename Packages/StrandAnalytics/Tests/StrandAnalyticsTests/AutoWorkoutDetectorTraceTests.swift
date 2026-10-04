@@ -55,6 +55,56 @@ final class AutoWorkoutDetectorTraceTests: XCTestCase {
         XCTAssertTrue(lines.contains { $0.contains("verdict=dropped why=overlapsSavedWorkout") })
     }
 
+    func testSavedOverlapEvidenceMatchesOracleAndPreservesPolicy() {
+        let start = 1_000_000
+        let end = start + 5400
+        let hr = elapsedSpan(start, 5400, 120)
+        let cases: [(String, [SavedWorkoutSpan])] = [
+            ("short", [SavedWorkoutSpan(startSec: start + 600, endSec: start + 780)]),
+            ("full", [SavedWorkoutSpan(startSec: start, endSec: end)]),
+            ("partialBefore", [SavedWorkoutSpan(startSec: start - 300, endSec: start + 180)]),
+            ("partialAfter", [SavedWorkoutSpan(startSec: end - 180, endSec: end + 300)]),
+            ("enclosing", [SavedWorkoutSpan(startSec: start - 300, endSec: end + 300)]),
+            ("touchStart", [SavedWorkoutSpan(startSec: start - 180, endSec: start)]),
+            ("touchEnd", [SavedWorkoutSpan(startSec: end, endSec: end + 180)]),
+            ("disjoint", [SavedWorkoutSpan(startSec: start - 180, endSec: start - 1)]),
+            ("multiple", [SavedWorkoutSpan(startSec: end, endSec: end + 180),
+                           SavedWorkoutSpan(startSec: start + 600, endSec: start + 780),
+                           SavedWorkoutSpan(startSec: start - 300, endSec: start + 180)]),
+        ]
+        var actual: [String] = []
+        for (name, saved) in cases {
+            let (results, trace) = AutoWorkoutDetector.detectTrace(hr: hr, restingBpm: 60, savedSpans: saved)
+            XCTAssertEqual(results, AutoWorkoutDetector.detect(hr: hr, restingBpm: 60, savedSpans: saved))
+            XCTAssertEqual(trace, AutoWorkoutDetector.detectTrace(
+                hr: hr, restingBpm: 60, savedSpans: Array(saved.reversed())).trace)
+            actual.append("\(name) results=\(results.count)")
+            actual += trace.filter { $0.hasPrefix("autoDetect savedOverlap ") }
+        }
+        // Verbatim standalone Swift oracle output, also pinned in the Kotlin twin.
+        XCTAssertEqual(actual.joined(separator: "\n"), """
+            short results=0
+            autoDetect savedOverlap candidateSec=5400 savedSec=180 overlapSec=180 savedToCandidate=180/5400
+            full results=0
+            autoDetect savedOverlap candidateSec=5400 savedSec=5400 overlapSec=5400 savedToCandidate=5400/5400
+            partialBefore results=0
+            autoDetect savedOverlap candidateSec=5400 savedSec=480 overlapSec=180 savedToCandidate=480/5400
+            partialAfter results=0
+            autoDetect savedOverlap candidateSec=5400 savedSec=480 overlapSec=180 savedToCandidate=480/5400
+            enclosing results=0
+            autoDetect savedOverlap candidateSec=5400 savedSec=6000 overlapSec=5400 savedToCandidate=6000/5400
+            touchStart results=0
+            autoDetect savedOverlap candidateSec=5400 savedSec=180 overlapSec=0 savedToCandidate=180/5400
+            touchEnd results=0
+            autoDetect savedOverlap candidateSec=5400 savedSec=180 overlapSec=0 savedToCandidate=180/5400
+            disjoint results=1
+            multiple results=0
+            autoDetect savedOverlap candidateSec=5400 savedSec=480 overlapSec=180 savedToCandidate=480/5400
+            autoDetect savedOverlap candidateSec=5400 savedSec=180 overlapSec=180 savedToCandidate=180/5400
+            autoDetect savedOverlap candidateSec=5400 savedSec=180 overlapSec=0 savedToCandidate=180/5400
+            """)
+    }
+
     func testTraceNamesMotionNotConfirmed() {
         // A real HR window but a flat (no-motion) series → motion-confirm gate drops it.
         let start = 1_000_000

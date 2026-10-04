@@ -150,7 +150,7 @@ struct HeuteRedesignView: View {
         .background(HeuteRedesignPalette.bg.ignoresSafeArea())
         .sheet(isPresented: $showPlan) { CoachPlanView().environmentObject(coach) }
         .sheet(isPresented: $showChargeBreakdown) {
-            HeuteChargeBreakdownSheet(row: chargeBreakdownRow, days: repo.days,
+            HeuteChargeBreakdownSheet(row: chargeBreakdownRow, baselines: repo.chargeBaselines,
                                       restScore: rest > 0 ? rest : nil, chargeDisplay: chargeDisplay)
         }
         .simultaneousGesture(daySwipeGesture)

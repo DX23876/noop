@@ -29,30 +29,13 @@ enum ChargeBreakdownFormat {
     /// last-scored day); `restScore` is the merged Rest composite (0…100) the Rest ring reads, so the
     /// sleep-quality term stays consistent. Returns nil for a calibrating / cold-start night (no HRV or RHR,
     /// or no usable HRV baseline), so the caller gates through to the calibration copy instead.
-    static func compute(row: DailyMetric?, days: [DailyMetric], restScore: Double?,
-                        hrvBaselineEpoch: Double = 0)
+    static func compute(row: DailyMetric?, baselines: ChargeBaselines.Resolved?, restScore: Double?)
         -> (drivers: [ChargeDriver], confidence: ScoreConfidence)? {
-        guard let row, let hrv = row.avgHrv, let rhr = row.restingHr else { return nil }
-        // Recalibration changes the history the engine scores against. The breakdown and its confidence
-        // badge must fold that same post-epoch history or the page can display two baselines at once.
-        let hrvBase = Baselines.foldHistory(days.map(\.avgHrv), dayKeys: days.map(\.day),
-                                            cfg: Baselines.hrvCfg,
-                                            baselineEpoch: hrvBaselineEpoch)
-        guard hrvBase.usable else { return nil }
-        let rhrBase = Baselines.foldHistory(days.map { $0.restingHr.map(Double.init) },
-                                            cfg: Baselines.restingHRCfg)
-        let respBase = Baselines.foldHistory(days.map(\.respRateBpm), cfg: Baselines.respCfg)
-        // Rest-quality term = the Rest composite ÷100, matching AnalyticsEngine's `sleepPerf`.
-        let sleepPerf = restScore.map { $0 / 100.0 }
-        let drivers = RecoveryScorer.chargeDrivers(
-            hrv: hrv, rhr: Double(rhr), resp: row.respRateBpm,
-            hrvBaseline: hrvBase,
-            rhrBaseline: rhrBase.usable ? rhrBase : nil,
-            respBaseline: respBase.usable ? respBase : nil,
-            sleepPerf: sleepPerf, skinTempDev: row.skinTempDevC)
-        // Confidence SURFACED (never recomputed) from the SAME folded HRV baseline the drivers scored with,
-        // so the header tier tag and the breakdown agree by construction.
-        return (drivers, ScoreConfidence.charge(recovery: row.recovery, hrvBaseline: hrvBase))
+        // The baselines the Charge headline was scored against (`Repository.chargeBaselines`, #2525): the
+        // breakdown used to fold the whole visible history itself, every imported night included, and
+        // could show one baseline in its rows while the headline scored against another.
+        guard let row, let baselines else { return nil }
+        return ChargeBreakdownWiring.breakdown(baselines: baselines, row: row, sleepPerfPercent: restScore)
     }
 
     // MARK: - Signed point-delta chip (A1)
