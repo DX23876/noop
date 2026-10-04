@@ -557,8 +557,7 @@ struct LiquidTodayView: View {
     /// The Charge breakdown (drivers + confidence), computed from the same row + rest-score the ring
     /// reads. Uses the shared pure `ChargeBreakdownFormat.compute` so classic Today and Liquid can't drift.
     private func chargeBreakdown() -> (drivers: [ChargeDriver], confidence: ScoreConfidence)? {
-        ChargeBreakdownFormat.compute(row: chargeBreakdownRow, days: repo.days, restScore: restScore,
-                                      hrvBaselineEpoch: Baselines.hrvBaselineEpoch())
+        ChargeBreakdownFormat.compute(row: chargeBreakdownRow, baselines: repo.chargeBaselines, restScore: restScore)
     }
     /// The night's relative skin-temp marker, surfaced verbatim from `RecoveryScorer.skinTempRelative`.
     private var chargeSkinTempRel: SkinTempRelative? {
@@ -1082,7 +1081,10 @@ struct LiquidTodayView: View {
     /// Arm the refresh once the pull passes the threshold; FIRE it when the finger releases (the pull
     /// springs back toward zero). Guarded so it can't double-fire or re-trigger mid-refresh.
     private func handlePull(_ y: CGFloat) {
-        pullY = max(0, y)
+        let nextPullY = max(0, y)
+        // Normal upward scrolling keeps reporting negative offsets. Avoid invalidating the whole
+        // dashboard for every such frame when the visible pull indicator is already at zero.
+        if nextPullY != pullY { pullY = nextPullY }
         guard !refreshing else { return }
         // #1748 twin: gate the ARM, not the release. `syncNow()`'s own gate checks connected + bonded, and
         // `bonded` is set by the live-HR path for a 5/MG that has never completed a handshake — so the pull
@@ -2892,8 +2894,8 @@ struct LiquidTodayView: View {
         // classic Today reads, so the two screens agree on when a wearer is genuinely mid-calibration
         // rather than simply lacking a scored night.
         let calNights = (selectedDayOffset == 0)
-            ? RecoveryScorer.calibrationNights(nightlyHrv: allDays.map(\.avgHrv),
-                                               dayKeys: allDays.map(\.day),
+            ? RecoveryScorer.calibrationNights(nightlyHrv: repo.chargeBaselines?.hrvHistory.values ?? [],
+                                               dayKeys: repo.chargeBaselines?.hrvHistory.dayKeys ?? [],
                                                hasRecovery: day?.recovery != nil)
             : nil
         let priorScored = TodayView.lastScoredRecoveryDay(days: allDays, selectedDayKey: tkey,

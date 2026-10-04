@@ -91,16 +91,18 @@ names. That column is why this table exists:
 | `windows-capture` | **Tools Python CI (Windows)** (`tools-python-windows.yml`) | `Tools/linux-capture/**` |
 | `build-and-test` | **Android CI** (`android.yml`) | `android/**`, the protocol/store test resources, `Strand/Resources/Localizable.xcstrings` |
 | `test (…)`, `tools (…)` | **Swift Packages CI** (`swift-packages.yml`) | `Packages/**`, the `Tools/SleepBench`, `Tools/SleepPSG` and `Tools/Backfill` packages, `android/app/src/test/resources/**`, `Strand/Liquid/LiquidCore.swift` |
+| `build (Strand, …)`, `build (NOOPiOS, …)` | **App build** (`app-build.yml`) | `Strand/**`, `StrandTests/**`, `StrandiOS/**`, `StrandiOSShared/**`, `StrandiOSWidgets/**`, `NOOPWatch/**`, `NOOPWatchComplications/**`, `Packages/**`, `project.yml`, its own workflow file |
 
 Read that as a worked example: an Android-only PR runs Android CI plus the three that always
 run, so a short list of checks does not mean little was checked.
 
-**App build** (`app-build.yml`, app-target compile + the `StrandTests` macOS suite) is
-`disabled_manually` and is **not** in that list. App-target code — SwiftUI views,
-`BLEManager`, `Repository`, Compose screens — is compiled by **nothing** on a normal PR, so
-build it locally before you push, or ask a maintainer to dispatch `app-build.yml`. See
-[docs/CONTRIBUTING.md](docs/CONTRIBUTING.md#what-ci-gates--and-what-it-deliberately-doesnt)
-for why the lean setup is deliberate and what else is gated at release time instead.
+**App build** compiles both Apple app targets and runs `StrandTests` on its macOS leg;
+the iOS leg is compile-only. It is active on relevant PRs. Package checks alone do not
+validate app-target Swift: build locally or verify the Apple app checks passed on the
+current PR head. Android CI compiles Compose screens and runs Android unit tests.
+App build has no push trigger, so a direct non-release commit to `main` needs a manual
+dispatch. See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md#what-ci-gates--and-what-it-deliberately-doesnt)
+for the validation limits and checks gated at release time.
 
 If CI fails on your PR, fix the cause rather than working around it. Never commit
 generated output (`Strand.xcodeproj/`) or any secrets, keystores, or `local.properties`.
