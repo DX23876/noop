@@ -162,7 +162,7 @@ struct CoachGoalSetupReviewView: View {
                     .buttonStyle(.plain).disabled(unavailable)
                     VStack(alignment: .leading, spacing: 3) {
                         Text(routine.action.title).font(StrandFont.footnote)
-                        Text(routine.action.requirement.label.localizedCatalogValue)
+                        Text(routine.action.requirement.displayLabel)
                             .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                         Text(linkedGoalNames(routine.action.goalIds).joined(separator: " · "))
                             .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)

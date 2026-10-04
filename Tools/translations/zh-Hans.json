@@ -1945,7 +1945,6 @@
   "Done for this %@": "本%@已完成",
   "Protected, this %@ does not count": "受保护，本%@不计",
   "Too few days with data to judge": "有数据的天数太少，无法判断",
-  "Not reachable this %@ any more": "本%@已无法达成",
   "Needs %@ h a night from here": "此后每晚需要 %@ 小时",
   "Average so far · target %@": "目前平均 · 目标 %@",
   "First %@, pro-rated: %@ to go": "首个%@按比例计：还差 %@",
@@ -2145,5 +2144,11 @@
   "Add a weekly goal that steps up with %@?": "添加一个随 %@ 逐步提高的每周目标？",
   "NOOP suggests each step at the start of a week; you confirm it.": "NOOP 会在每周开始时建议下一步，由你确认。",
   "Add weekly goal": "添加每周目标",
-  "No thanks": "不用了"
+  "No thanks": "不用了",
+  "Any workout": "任意训练",
+  "%@ · %lld min": "%@ · %lld 分钟",
+  "%@ h sleep": "睡眠 %@ 小时",
+  "%@ kcal active (estimate)": "活动 %@ 千卡（估算）",
+  "Check off manually": "手动勾选",
+  "%@ short, too few days left": "还差 %@，剩余天数不足"
 }

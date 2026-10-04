@@ -1821,7 +1821,6 @@
   "Done for this %@": "Выполнено на этот период (%@)",
   "Protected, this %@ does not count": "Защищено, этот период (%@) не считается",
   "Too few days with data to judge": "Слишком мало дней с данными для оценки",
-  "Not reachable this %@ any more": "В этом периоде (%@) уже недостижимо",
   "Needs %@ h a night from here": "Отсюда нужно %@ ч за ночь",
   "Average so far · target %@": "Среднее пока · цель %@",
   "First %@, pro-rated: %@ to go": "Первый период (%@), пропорционально: осталось %@",
@@ -2021,5 +2020,11 @@
   "Add a weekly goal that steps up with %@?": "Добавить недельную цель, которая растёт вместе с %@?",
   "NOOP suggests each step at the start of a week; you confirm it.": "NOOP предлагает каждый шаг в начале недели, а вы подтверждаете.",
   "Add weekly goal": "Добавить недельную цель",
-  "No thanks": "Нет, спасибо"
+  "No thanks": "Нет, спасибо",
+  "Any workout": "Любая тренировка",
+  "%@ · %lld min": "%@ · %lld мин",
+  "%@ h sleep": "%@ ч сна",
+  "%@ kcal active (estimate)": "%@ ккал активных (оценка)",
+  "Check off manually": "Отметить вручную",
+  "%@ short, too few days left": "Не хватает %@, осталось слишком мало дней"
 }

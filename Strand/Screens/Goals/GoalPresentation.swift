@@ -193,7 +193,8 @@ enum GoalFormat {
         case .noData:
             return String(localized: "Too few days with data to judge")
         case .outOfReach:
-            return String(localized: "Not reachable this \(periodWord(goal.period)) any more")
+            // The state already says "out of reach"; the line says how much was missing.
+            return String(localized: "\(amount(r.remaining, goal.metric)) short, too few days left")
         default:
             break
         }

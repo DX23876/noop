@@ -1938,7 +1938,6 @@
   "Done for this %@": "Fatto per questo %@",
   "Protected, this %@ does not count": "Protetto, questo %@ non conta",
   "Too few days with data to judge": "Troppi pochi giorni con dati per giudicare",
-  "Not reachable this %@ any more": "Non più raggiungibile in questo %@",
   "Needs %@ h a night from here": "Servono %@ h a notte da qui",
   "Average so far · target %@": "Media finora · obiettivo %@",
   "First %@, pro-rated: %@ to go": "Primo %@, proporzionale: mancano %@",
@@ -2138,5 +2137,11 @@
   "Add a weekly goal that steps up with %@?": "Aggiungere un obiettivo settimanale che cresce con %@?",
   "NOOP suggests each step at the start of a week; you confirm it.": "NOOP suggerisce ogni passo a inizio settimana; tu lo confermi.",
   "Add weekly goal": "Aggiungi obiettivo",
-  "No thanks": "No, grazie"
+  "No thanks": "No, grazie",
+  "Any workout": "Qualsiasi allenamento",
+  "%@ · %lld min": "%@ · %lld min",
+  "%@ h sleep": "%@ h di sonno",
+  "%@ kcal active (estimate)": "%@ kcal attive (stima)",
+  "Check off manually": "Spunta a mano",
+  "%@ short, too few days left": "Mancano %@, restano troppo pochi giorni"
 }

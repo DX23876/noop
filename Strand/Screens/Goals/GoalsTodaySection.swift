@@ -186,7 +186,7 @@ struct GoalsTodaySection: View {
                 Text(occurrence.action.title)
                     .font(StrandFont.footnote).foregroundStyle(StrandPalette.textPrimary)
                 Text(occurrence.isAutomatic ? String(localized: "done automatically")
-                                            : occurrence.action.requirement.label.localizedCatalogValue)
+                                            : occurrence.action.requirement.displayLabel)
                     .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
             }
             Spacer(minLength: 0)
