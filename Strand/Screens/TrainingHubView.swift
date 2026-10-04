@@ -1473,6 +1473,7 @@ struct NativeWorkoutLoggerView: View {
             HStack(spacing: 6) {
                 Color.clear.frame(width: 36, height: 1)
                 repsHeader(unilateral: unilateral)
+                if !unilateral { stackedTrailingGap }
             }
         }
         .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
@@ -1532,6 +1533,7 @@ struct NativeWorkoutLoggerView: View {
                     HStack(spacing: 6) {
                         Color.clear.frame(width: 36, height: 1)
                         repsControls(exerciseIndex, setIndex, set, unilateral: unilateral)
+                        if !unilateral { stackedTrailingGap }
                     }
                 }
             } else {
@@ -1547,6 +1549,14 @@ struct NativeWorkoutLoggerView: View {
         // A container keeps every control reachable; combining the row would hide them behind one label.
         .accessibilityElement(children: .contain)
         .accessibilityLabel(setAccessibilityLabel(set, mode: mode, unilateral: unilateral))
+    }
+
+    /// Room for the effort badge and the check on a stacked second line, so a single repetitions stepper
+    /// sits directly under the weight stepper instead of stretching under the effort and check columns.
+    /// Left and right repetitions keep the full width: two steppers do not fit in the weight column.
+    @ViewBuilder private var stackedTrailingGap: some View {
+        if effortPreference != .off { Color.clear.frame(width: 50, height: 1) }
+        Color.clear.frame(width: 44, height: 1)
     }
 
     /// Effort rating and the completion check — the right-hand end of a set row in either layout.
