@@ -262,9 +262,6 @@ struct SettingsView: View {
     /// Unset follows the live-HR switch (`UnitPrefs.workoutLiveActivityEnabled`); the binding below shows that.
     @AppStorage(UnitPrefs.workoutLiveActivityKey) private var workoutLiveActivityStored: Bool?
     @AppStorage(DayCycleMode.storageKey) private var dayCycleModeRaw = DayCycleMode.sleepOnset.rawValue
-    // Alternate app icon (iOS only) — false = Titanium (primary AppIcon), true = Blue Titanium
-    // ("AppIcon-Navy"). Display-only preference; the live switch goes through setAlternateIconName.
-    @AppStorage("appIcon.alt") private var useNavyIcon = false
     // Light/Dark/System theme. Read by both app roots' .preferredColorScheme; default follows the OS.
     @AppStorage(AppearanceMode.storageKey) private var appearanceRaw = AppearanceMode.system.rawValue
     // App-owned copy language. Apple binds a bundle localization at process launch, so this writes the
@@ -1948,20 +1945,6 @@ struct SettingsView: View {
                     .appleInspiredTint("settings.controls")
                     .accessibilityLabel("Trend chart style")
                 }
-                #if os(iOS)
-                rowDivider   // #79: separator before App icon (inside #if so macOS keeps a single divider)
-                FormRow(label: "App icon") {
-                    Picker("App icon", selection: $useNavyIcon) {
-                        Text("Default").tag(false)
-                        Text("Navy").tag(true)
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .appleInspiredTint("settings.controls")
-                    .accessibilityLabel("App icon")
-                    .onChangeCompat(of: useNavyIcon) { applyAppIcon($0) }
-                }
-                #endif
 
                 rowDivider
                 // MARK: Reduce motion in NOOP — pose every looping animation still and stop the tilt
@@ -2138,28 +2121,6 @@ struct SettingsView: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
-
-    #if os(iOS)
-    /// Apply the alternate-icon choice. Runs on the main actor (UIKit requirement) and tolerates the
-    /// no-op cases (already-set, unsupported); on failure it surfaces the error and reverts the toggle
-    /// so the control never disagrees with what's actually on the Home Screen.
-    private func applyAppIcon(_ useNavy: Bool) {
-        Task { @MainActor in
-            let target = useNavy ? "AppIcon-Navy" : nil
-            // No-op if iOS already shows the requested icon (avoids a needless system prompt).
-            guard UIApplication.shared.supportsAlternateIcons,
-                  UIApplication.shared.alternateIconName != target else { return }
-            do {
-                try await UIApplication.shared.setAlternateIconName(target)
-            } catch {
-                useNavyIcon = !useNavy
-                backupAlertTitle = String(localized: "Couldn't change the app icon")
-                backupAlertMessage = error.localizedDescription
-                showBackupAlert = true
-            }
-        }
-    }
-    #endif
 
     // MARK: - Strap
 

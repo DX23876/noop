@@ -478,12 +478,12 @@ struct RootView: View {
 
     private var brand: some View {
         HStack(spacing: 8) {
-            // In-app logo: the open recovery-ring mark so the wordmark reads as a true lockup
-            // (README logo system — mark + "NOOP"). Flat gold gradient, low glow per the v3 restraint.
-            BrandMark(size: 22)
+            // In-app logo: "NOOP" then the Forge "F" from the app icon at capital height, the same
+            // lockup the Liquid Today header uses, so it reads "NOOP Forge".
             Text("NOOP")
                 .font(StrandFont.rounded(20, weight: .bold))
                 .foregroundStyle(StrandPalette.textPrimary)
+            ForgeMark(size: 15)
             Spacer()
         }
         // Top padding clears the traffic-light controls (the window hides its title bar, so they sit
@@ -581,39 +581,6 @@ struct RootView: View {
         #else
         LiveView()
         #endif
-    }
-}
-
-/// The NOOP logo mark — an **open recovery ring** (~80% arc, round caps, starting at 12 o'clock)
-/// with a **solid centre core dot** ("on-device core"), per the README logo system. Rendered in the
-/// gold gradient and kept deliberately flat / low-glow for the v3 Titanium & Gold restraint. Drawn
-/// purely from design tokens so it tracks the palette. Sized to optically x-height-match the wordmark.
-struct BrandMark: View {
-    var size: CGFloat = 22
-
-    var body: some View {
-        ZStack {
-            // Open ring: leave ~20% of the circumference as a gap (trim 0 → 0.8), then rotate so the
-            // gap sits at the top — the gold gradient sweeps clockwise from 12 o'clock.
-            Circle()
-                .trim(from: 0, to: 0.8)
-                .stroke(
-                    AngularGradient(gradient: StrandPalette.goldGradient,
-                                    center: .center,
-                                    angle: .degrees(-90)),
-                    style: StrokeStyle(lineWidth: size * 0.16, lineCap: .round)
-                )
-                .rotationEffect(.degrees(-90))
-                .frame(width: size * 0.84, height: size * 0.84)
-
-            // Solid centre core dot — the "on-device core".
-            Circle()
-                .fill(LinearGradient(gradient: StrandPalette.goldGradient,
-                                     startPoint: .topLeading, endPoint: .bottomTrailing))
-                .frame(width: size * 0.26, height: size * 0.26)
-        }
-        .frame(width: size, height: size)
-        .accessibilityHidden(true)
     }
 }
 

@@ -382,6 +382,11 @@ struct StrandiOSApp: App {
         .onChange(of: scenePhase, initial: true) { _, phase in
             if phase == .active {
                 model.traceAppState("foreground")
+                // The retired alternate icon ("AppIcon-Navy", the NOOP AI ring) no longer ships; an install
+                // that had picked it would keep showing it on the Home Screen and in notifications.
+                if UIApplication.shared.alternateIconName != nil {
+                    Task { @MainActor in try? await UIApplication.shared.setAlternateIconName(nil) }
+                }
                 model.session.publishActivity()
                 model.drainPendingIntents(router: router)
                 // iOS grants a background refresh when it feels like it, and often not at all. Catch up
