@@ -391,12 +391,23 @@ final class GoalTrackingStore: ObservableObject {
     @Published private(set) var weekActions: [GoalActionOccurrence] = []
     @Published private(set) var pendingWorkoutAttributions: [GoalWorkoutAttributionSuggestion] = []
     @Published private(set) var lastUpdated: Date?
+    /// Weekly and monthly goals as of the last refresh, in the wearer's order.
+    @Published private(set) var periodSnapshots: [PeriodGoalSnapshot] = []
+    /// What the period goals were computed from, kept for recommendations in the setup flow.
+    private(set) var periodInputs = PeriodGoalInputs()
+
+    func periodSnapshot(for goalId: UUID) -> PeriodGoalSnapshot? {
+        periodSnapshots.first { $0.id == goalId }
+    }
 
     func snapshot(for goalId: UUID) -> GoalTrackingSnapshot? {
         snapshots.first { $0.id == goalId }
     }
 
     func refresh(repo: Repository, now: Date = Date()) async {
+        // One step goal in the app (Q8): Momentum's own value becomes a daily goal once, then follows it.
+        GoalActionStore.shared.migrateMomentumStepGoalIfNeeded()
+        GoalActionStore.shared.syncStepGoal()
         await refresh(repo: repo, now: now, goals: CoachGoalStore.shared.goals,
                       proposals: CoachPlanStore.shared.proposals,
                       resolutions: CoachPlanStore.shared.reconciliationResolutions,
@@ -439,10 +450,11 @@ final class GoalTrackingStore: ObservableObject {
         let start = calendar.date(byAdding: .day, value: -365, to: now) ?? now
         let end = calendar.dateInterval(of: .weekOfYear, for: now)?.end ?? now
         let activeGoalIds = Set(goals.filter { $0.status == .active }.map(\.id))
+        let activeKcalByDay = await repo.activeEnergyByDay(days: 400)
         let actionOccurrences = GoalActionEvaluator.occurrences(
             actions: actions, checkoffs: checkoffs, activeGoalIds: activeGoalIds,
             days: repo.days, workouts: workouts, from: start, through: end,
-            activeKcalByDay: await repo.activeEnergyByDay(days: 120), calendar: calendar)
+            activeKcalByDay: activeKcalByDay, calendar: calendar)
         let today = GoalActionEvaluator.dayKey(now, calendar: calendar)
         todayActions = actionOccurrences.filter { $0.day == today }
         if let week = calendar.dateInterval(of: .weekOfYear, for: now) {
@@ -452,8 +464,26 @@ final class GoalTrackingStore: ObservableObject {
         } else {
             weekActions = todayActions
         }
+        // Weekly and monthly goals. Loaded and computed here so every surface reads one result.
+        let periodGoals = PeriodGoalStore.shared.goals
+        let inputs = await periodGoalInputs(repo: repo, workouts: workouts, activeKcalByDay: activeKcalByDay,
+                                            goals: periodGoals, now: now)
+        periodInputs = inputs
+        let computed = PeriodGoalTracker.snapshots(
+            goals: periodGoals.filter { $0.isOpen }, inputs: inputs, parents: goals,
+            frozen: PeriodGoalStore.shared.results, corrections: GoalCountingCorrections.shared.corrections,
+            now: now, calendar: calendar)
+        periodSnapshots = computed
+        settlePeriods(computed, inputs: inputs, now: now, calendar: calendar)
+
+        // A workout an open weekly or monthly goal already counts on its own needs no "which goal did this
+        // support?" question (Q20): the question is kept for workouts nothing claims.
+        let periodClaimed: Set<String> = Set(computed.flatMap { snapshot in
+            snapshot.goal.metric.isWorkoutBased && snapshot.goal.status == .active
+                ? snapshot.counted.map(\.id) : []
+        })
         let consumedWorkoutKeys = Set(proposals.compactMap { $0.completionEvidence?.workoutKey })
-            .union(contributions.map(\.id)).union(dismissedWorkoutKeys)
+            .union(contributions.map(\.id)).union(dismissedWorkoutKeys).union(periodClaimed)
         let workoutRowsByKey = Dictionary(workouts.map { (PlanWorkoutReference($0).workoutKey, $0) },
                                           uniquingKeysWith: { first, _ in first })
         let attributionCutoff = now.addingTimeInterval(-7 * 86_400).timeIntervalSince1970
@@ -522,6 +552,99 @@ final class GoalTrackingStore: ObservableObject {
         }
         lastUpdated = now
         CoachNotifier.syncGoalMonitoring(snapshots)
+    }
+
+    /// The inputs period goals need. Sources only some goals use (lifting log per day, hydration, the
+    /// journal) are read only when such a goal exists or the setup flow asks (`loadFullPeriodInputs`).
+    private func periodGoalInputs(repo: Repository, workouts: [WorkoutRow], activeKcalByDay: [String: Double],
+                                  goals: [PeriodGoal], now: Date, full: Bool = false) async -> PeriodGoalInputs {
+        let open = goals.filter(\.isOpen)
+        var inputs = PeriodGoalInputs()
+        inputs.workouts = workouts
+        inputs.days = repo.days
+        inputs.activeKcalByDay = activeKcalByDay
+        inputs.hydrationEnabled = UserDefaults.standard.bool(forKey: HydrationStore.enabledKey)
+        inputs.profileSex = UserDefaults.standard.string(forKey: "profile.sex") ?? ""
+        let syncedAt = UserDefaults.standard.double(forKey: "lastSyncedAt")
+        inputs.lastSync = syncedAt > 0 ? Date(timeIntervalSince1970: syncedAt) : nil
+        inputs.hasStrap = inputs.lastSync != nil
+        if full || open.contains(where: { $0.metric == .workingSets }) {
+            inputs.setsByDay = await workingSetsByDay(repo: repo, days: 400)
+        } else if await hasLiftingLog(repo: repo, now: now) {
+            // Connected but not needed yet: an empty map still marks the metric as available.
+            inputs.setsByDay = [:]
+        }
+        if inputs.hydrationEnabled && (full || open.contains(where: { $0.metric == .hydrationDays })) {
+            inputs.hydrationByDay = Dictionary(await repo.hydrationHistory(days: 400, now: now)
+                .map { ($0.day, $0.value) }, uniquingKeysWith: { a, _ in a })
+        }
+        if full || open.contains(where: { $0.metric == .habitDays }) {
+            inputs.journal = await repo.journalEntries(days: 400)
+        }
+        return inputs
+    }
+
+    /// Everything, for recommendations in the setup flow.
+    func loadFullPeriodInputs(repo: Repository, now: Date = Date()) async -> PeriodGoalInputs {
+        await periodGoalInputs(repo: repo, workouts: await repo.workoutRows(days: 400, reconcileHrCap: 0),
+                               activeKcalByDay: await repo.activeEnergyByDay(days: 400),
+                               goals: PeriodGoalStore.shared.goals, now: now, full: true)
+    }
+
+    /// Freezes finished periods once data newer than their end has arrived, and retires one-off goals
+    /// whose period is over (Q16: they move to the archive by themselves).
+    private func settlePeriods(_ snapshots: [PeriodGoalSnapshot], inputs: PeriodGoalInputs, now: Date,
+                               calendar: Calendar) {
+        var frozen: [PeriodGoalResult] = []
+        for snapshot in snapshots {
+            for entry in snapshot.history {
+                let days = PeriodGoalTracker.periodDays(snapshot.goal.period, containing: entry.periodStart,
+                                                        calendar: calendar)
+                guard let last = days.last, let lastDate = PeriodGoalTracker.date(last, calendar: calendar),
+                      let end = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: lastDate))
+                else { continue }
+                // With a strap, wait for a sync that ended after the period did; otherwise a late
+                // offload could still change the result.
+                if inputs.hasStrap, let synced = inputs.lastSync, synced < end { continue }
+                frozen.append(.init(goalId: snapshot.id, periodStart: entry.periodStart, target: entry.target,
+                                    value: entry.value, outcome: entry.outcome, frozenAt: now))
+            }
+            if snapshot.goal.oneOffPeriodStart != nil, snapshot.todayIndex >= snapshot.periodDays.count {
+                frozen.append(.init(goalId: snapshot.id, periodStart: snapshot.periodStart,
+                                    target: snapshot.result.target, value: snapshot.result.current,
+                                    outcome: PeriodGoalPace.outcome(.init(
+                                        aggregation: snapshot.goal.metric.aggregation,
+                                        target: snapshot.result.target,
+                                        days: zip(snapshot.periodDays, snapshot.dayValues).map {
+                                            PeriodDay(key: $0, value: $1)
+                                        }, todayIndex: snapshot.periodDays.count)),
+                                    frozenAt: now))
+                PeriodGoalStore.shared.end(snapshot.id, on: now)
+            }
+        }
+        PeriodGoalStore.shared.freeze(frozen)
+    }
+
+    private func hasLiftingLog(repo: Repository, now: Date) async -> Bool {
+        guard let store = await repo.storeHandle() else { return false }
+        let end = Int(now.timeIntervalSince1970)
+        let imported = !(((try? await store.strengthWorkouts(from: 0, to: end + 86_400, limit: 1)) ?? []).isEmpty)
+        if imported { return true }
+        return !(((try? await store.nativeWorkouts(from: 0, to: end + 86_400, limit: 1)) ?? []).isEmpty)
+    }
+
+    /// Working sets per local day, from the canonical strength read model (a session logged natively and
+    /// imported counts once). nil without a lifting log.
+    private func workingSetsByDay(repo: Repository, days: Int) async -> [String: Double]? {
+        guard await hasLiftingLog(repo: repo, now: Date()) else { return nil }
+        let history = await repo.resolvedStrengthHistory(days: days)
+        var byDay: [String: Double] = [:]
+        for workout in history.workouts {
+            let day = Repository.localDayKey(Date(timeIntervalSince1970: Double(workout.startTs)))
+            byDay[day, default: 0] += Double(StrengthSession.summarize(workout, templates: history.templates)
+                .workingSetCount)
+        }
+        return byDay
     }
 
     /// Working sets per week over `GoalMeasure.hardSetWindowDays`, or nil when there is no lifting log.

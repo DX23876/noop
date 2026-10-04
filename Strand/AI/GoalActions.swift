@@ -127,8 +127,10 @@ enum GoalActionEvaluator {
 
     static func isDue(_ action: GoalAction, on date: Date, activeGoalIds: Set<UUID>,
                       calendar: Calendar = .autoupdatingCurrent) -> Bool {
+        // A daily goal that serves no long-term goal stands on its own (Q21, e.g. the step goal);
+        // one linked to goals is due only while at least one of them is active.
         action.isActive
-            && !activeGoalIds.isDisjoint(with: action.goalIds)
+            && (action.goalIds.isEmpty || !activeGoalIds.isDisjoint(with: action.goalIds))
             && calendar.startOfDay(for: date) >= calendar.startOfDay(for: action.createdAt)
             && action.schedule.includes(date, calendar: calendar)
     }
@@ -272,6 +274,36 @@ final class GoalActionStore: ObservableObject {
     func upsert(_ action: GoalAction) {
         if let index = actions.firstIndex(where: { $0.id == action.id }) { actions[index] = action }
         else { actions.append(action) }
+        syncStepGoal()
+    }
+
+    /// The standalone daily step goal, if there is one. Momentum's step goal reads from it (Q8).
+    var dailyStepGoal: GoalAction? {
+        actions.first { action in
+            guard action.isActive, action.goalIds.isEmpty, case .steps = action.requirement else { return false }
+            return true
+        }
+    }
+
+    static let stepGoalMigratedKey = "goals.stepGoalMigrated"
+
+    /// One-time: the step goal Momentum kept on its own becomes a daily goal, so there is one step goal
+    /// in the app. Afterwards Momentum's value follows the daily goal.
+    func migrateMomentumStepGoalIfNeeded() {
+        guard !defaults.bool(forKey: Self.stepGoalMigratedKey) else { return }
+        defaults.set(true, forKey: Self.stepGoalMigratedKey)
+        let legacy = defaults.integer(forKey: "momentum.stepGoal")
+        guard legacy > 0, dailyStepGoal == nil else { return }
+        actions.append(GoalAction(title: String(localized: "Daily steps"), requirement: .steps(minimum: legacy),
+                                  goalIds: []))
+    }
+
+    /// Keeps Momentum's step goal equal to the daily step goal, the single source of truth.
+    func syncStepGoal() {
+        guard let goal = dailyStepGoal, case .steps(let minimum) = goal.requirement else { return }
+        if defaults.integer(forKey: "momentum.stepGoal") != minimum {
+            defaults.set(minimum, forKey: "momentum.stepGoal")
+        }
     }
 
     func remove(_ id: UUID) {

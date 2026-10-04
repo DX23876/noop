@@ -392,8 +392,9 @@ struct GoalActionEditorView: View {
 
     private var suggestionText: String { kind == .workout ? workout : (kind == .steps ? "steps walking" : title) }
     private var canSave: Bool {
+        // A daily goal may stand on its own (Q21); linking it to goals is optional.
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && !goalIds.isEmpty && (daily || !weekdays.isEmpty)
+            && (daily || !weekdays.isEmpty)
             && (kind != .workout || !workout.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
 

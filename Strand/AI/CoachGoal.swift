@@ -361,7 +361,8 @@ final class CoachGoalStore: ObservableObject {
     /// Upper bound on simultaneously ACTIVE (active/paused) goals. `CoachGoal.Kind` has 8 cases, so the
     /// one-per-kind rule alone would allow more than this — the real ceiling is this ceiling, not the kind
     /// count, so the limit message should say "N active goals", never imply "one of each kind".
-    static let maxActiveGoals = 5
+    /// Adjustable in the goals overview (5 by default, up to 10); see `GoalPrefs.longTermLimit`.
+    static var maxActiveGoals: Int { GoalPrefs.longTermLimit }
 
     @Published var goals: [CoachGoal] = [] { didSet { save() } }
 
@@ -472,6 +473,7 @@ final class CoachGoalStore: ObservableObject {
         goals[idx].status = .achieved
         goals[idx].closure = .init(kind: .achieved, date: date, reason: nil)
         goals[idx].history.append(.init(date: date, what: "Goal achieved"))
+        PeriodGoalStore.shared.parentClosed(id)
     }
 
     /// Set a goal aside without shame — injuries, life, changed priorities are all legitimate ends. The
@@ -484,6 +486,7 @@ final class CoachGoalStore: ObservableObject {
         let why = reason.trimmingCharacters(in: .whitespacesAndNewlines)
         goals[idx].closure = .init(kind: .setAside, date: date, reason: why.isEmpty ? nil : why)
         goals[idx].history.append(.init(date: date, what: why.isEmpty ? "Goal set aside" : "Goal set aside — \(why)"))
+        PeriodGoalStore.shared.parentClosed(id)
     }
 
     /// Pausing protects intersecting goal weeks but deliberately leaves scheduled plan rows untouched.
@@ -494,6 +497,8 @@ final class CoachGoalStore: ObservableObject {
         goals[idx].pauseIntervals.append(.init(startedAt: date, endedAt: nil, reason: reason))
         goals[idx].history.append(.init(date: date, what: "Goal paused — \(reason.label)"))
         trimHistory(at: idx)
+        // The weekly and monthly goals that serve it pause with it (Q22).
+        PeriodGoalStore.shared.parentPaused(id, reason: reason, on: date)
     }
 
     func resume(_ id: UUID, on date: Date = Date()) {
@@ -502,12 +507,14 @@ final class CoachGoalStore: ObservableObject {
         goals[idx].status = .active
         goals[idx].history.append(.init(date: date, what: "Goal resumed"))
         trimHistory(at: idx)
+        PeriodGoalStore.shared.parentResumed(id, on: date)
     }
 
     /// Delete a goal and its history entirely — the only irreversible one. Unlike `setAside`, nothing of
     /// it survives.
     func remove(_ id: UUID) {
         goals.removeAll { $0.id == id }
+        PeriodGoalStore.shared.parentRemoved(id)
         // Nothing else can reach this goal's proactive repeat-guards once it is gone, so they would
         // otherwise sit in UserDefaults for the life of the install.
         CoachGoalNudgeStamps.clear(goalId: id, defaults: d)
