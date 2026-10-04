@@ -410,6 +410,8 @@ private struct CoachRoutineDraftEditor: View {
     @State private var goalIds: Set<UUID>
     @State private var sleepHours: Double = 7.5
     @State private var activeKcal = 500
+    /// A journal-linked routine edits as "manual" and keeps its journal link unless the type changes.
+    private let journalRequirement: GoalAction.Requirement?
 
     init(draft: CoachGoalSetupProposal.RoutineDraft, availableGoals: [CoachGoal],
          onSave: @escaping (CoachGoalSetupProposal.RoutineDraft) -> Void) {
@@ -434,11 +436,13 @@ private struct CoachRoutineDraftEditor: View {
             _kind = State(initialValue: .calories); _steps = State(initialValue: 10_000)
             _sports = State(initialValue: "Walking"); _minutes = State(initialValue: 20)
             _hasMinimum = State(initialValue: true); _activeKcal = State(initialValue: minimum)
-        case .manual:
+        case .manual, .journal:
             _kind = State(initialValue: .manual); _steps = State(initialValue: 10_000)
             _sports = State(initialValue: "Walking"); _minutes = State(initialValue: 20)
             _hasMinimum = State(initialValue: true)
         }
+        if case .journal = draft.action.requirement { journalRequirement = draft.action.requirement }
+        else { journalRequirement = nil }
         switch draft.action.schedule {
         case .daily: _daily = State(initialValue: true); _weekdays = State(initialValue: Set(1...7))
         case .weekdays(let values): _daily = State(initialValue: false); _weekdays = State(initialValue: Set(values))
@@ -506,7 +510,7 @@ private struct CoachRoutineDraftEditor: View {
         changed.action.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
         switch kind {
         case .steps: changed.action.requirement = .steps(minimum: steps)
-        case .manual: changed.action.requirement = .manual
+        case .manual: changed.action.requirement = journalRequirement ?? .manual
         case .sleep: changed.action.requirement = .sleep(minimumHours: sleepHours)
         case .calories: changed.action.requirement = .activeCalories(minimum: activeKcal)
         case .workout:

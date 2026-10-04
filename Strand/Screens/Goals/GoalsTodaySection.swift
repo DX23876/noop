@@ -11,6 +11,7 @@ import StrandAnalytics
 /// - a long-term goal only when it needs a decision, is at risk, or is pinned (Q7);
 /// - one line for the month;
 /// - today's daily goals, ticked off automatically or by hand;
+/// - "still open from the last days": the next-day question for goals NOOP could not see done (§17j);
 /// - the "which goal did this workout support?" question, now only for workouts no goal claims (Q20).
 ///
 /// Every row pushes into the goals overview or a goal's detail on the tab's own navigation stack, so
@@ -135,6 +136,8 @@ struct GoalsTodaySection: View {
             }
             .buttonStyle(.plain)
         }
+        // Daily goals NOOP could not see done, asked the next day (§17j); above the workout question (Q13).
+        MissedGoalsBlock(limit: 3)
         if let suggestion = tracking.pendingWorkoutAttributions.first {
             Button { sheet = .attribution(suggestion) } label: { attributionRow(suggestion) }
                 .buttonStyle(.plain)

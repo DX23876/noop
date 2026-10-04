@@ -15,6 +15,9 @@ struct GoalAction: Codable, Identifiable, Equatable {
         /// of confident.
         case activeCalories(minimum: Int)
         case manual
+        /// A box ticked by the journal: done the day `question` is logged with `wantsYes` ("Meditation"
+        /// logged yes, "Alcohol" logged no). Nothing logged is not done; the next-day question asks.
+        case journal(question: String, wantsYes: Bool)
 
         var label: String {
             switch self {
@@ -26,6 +29,8 @@ struct GoalAction: Codable, Identifiable, Equatable {
                 return String(format: "%.1f h sleep", hours).replacingOccurrences(of: ".0 h", with: " h")
             case .activeCalories(let minimum): return "\(minimum.formatted()) kcal active (estimate)"
             case .manual: return "Check off manually"
+            case .journal(let question, let wantsYes):
+                return wantsYes ? "Logged in the journal: \(question)" : "Logged as no in the journal: \(question)"
             }
         }
 
@@ -43,6 +48,10 @@ struct GoalAction: Codable, Identifiable, Equatable {
             case .activeCalories(let minimum):
                 return String(localized: "\(minimum.formatted()) kcal active (estimate)")
             case .manual: return String(localized: "Check off manually")
+            case .journal(let question, let wantsYes):
+                let habit = JournalLabel.display(question)
+                return wantsYes ? String(localized: "Ticks when you log yes: \(habit)")
+                                : String(localized: "Ticks when you log no: \(habit)")
             }
         }
     }
@@ -122,7 +131,7 @@ struct GoalActionOccurrence: Identifiable, Equatable {
         case .activeCalories(let minimum): return Double(minimum)
         // A workout with a minimum length fills up in minutes; one without is done or not.
         case .workout(_, let minutes): return minutes.map(Double.init)
-        case .manual: return nil
+        case .manual, .journal: return nil
         }
     }
 
@@ -152,6 +161,7 @@ enum GoalActionEvaluator {
                             from start: Date, through end: Date,
                             activeKcalByDay: [String: Double] = [:],
                             stepsByDay: [String: Int] = [:],
+                            journalByDay: [String: [JournalEntry]] = [:],
                             calendar: Calendar = .autoupdatingCurrent) -> [GoalActionOccurrence] {
         let dayMetrics = Dictionary(days.map { ($0.day, $0) }, uniquingKeysWith: { _, latest in latest })
         let manual = Set(checkoffs.map(\.id))
@@ -169,7 +179,8 @@ enum GoalActionEvaluator {
                 let automatic = automaticCompletion(action.requirement, metric: dayMetrics[key],
                                                     workouts: workoutsByDay[key] ?? [],
                                                     activeKcal: activeKcalByDay[key],
-                                                    steps: stepsByDay[key])
+                                                    steps: stepsByDay[key],
+                                                    journal: journalByDay[key] ?? [])
                 result.append(.init(action: action, day: key,
                                     isCompleted: automatic || manual.contains(manualKey),
                                     isAutomatic: automatic,
@@ -198,7 +209,7 @@ enum GoalActionEvaluator {
         case .steps: return (metric?.steps ?? steps).map(Double.init)
         case .sleep: return metric?.totalSleepMin.map { Double($0) / 60 }
         case .activeCalories: return activeKcal
-        case .workout, .manual: return nil
+        case .workout, .manual, .journal: return nil
         }
     }
 
@@ -217,7 +228,8 @@ enum GoalActionEvaluator {
     /// the figure the Energy screen shows; the retired `activeKcalEst` included basal.
     static func automaticCompletion(_ requirement: GoalAction.Requirement,
                                     metric: DailyMetric?, workouts: [WorkoutRow],
-                                    activeKcal: Double? = nil, steps: Int? = nil) -> Bool {
+                                    activeKcal: Double? = nil, steps: Int? = nil,
+                                    journal: [JournalEntry] = []) -> Bool {
         switch requirement {
         case .steps(let minimum):
             // The strap's own count first, then the same day's measured count from Health: the rule
@@ -231,6 +243,8 @@ enum GoalActionEvaluator {
             return kcal >= Double(minimum)
         case .manual:
             return false
+        case .journal(let question, let wantsYes):
+            return journal.contains { $0.question == question && $0.answeredYes == wantsYes }
         case .workout(let sports, let minimumMinutes):
             return workouts.contains { workout in
                 let duration = workout.durationS ?? Double(max(0, workout.endTs - workout.startTs))

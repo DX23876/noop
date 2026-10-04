@@ -105,6 +105,11 @@ struct GoalActionEditorView: View {
     @State private var runs: DailyGoalSheet.Runs = .ongoing
     @State private var showsAsRing = true
     @State private var endDate = Calendar.current.date(byAdding: .month, value: 1, to: Date()) ?? Date()
+    /// A box to tick that the journal ticks (§17j): done the day the chosen entry is logged.
+    @State private var fromJournal = false
+    @State private var journalQuestion = ""
+    @State private var journalWantsYes = true
+    @StateObject private var journal = JournalCatalogStore()
 
     var body: some View {
         NavigationStack {
@@ -138,6 +143,25 @@ struct GoalActionEditorView: View {
                         Toggle("Minimum duration", isOn: $hasMinimum)
                         if hasMinimum {
                             Stepper("\(minimumMinutes) minutes", value: $minimumMinutes, in: 5...240, step: 5)
+                        }
+                    } else if kind == .manual {
+                        Toggle("Tick off from the journal", isOn: $fromJournal)
+                        if fromJournal {
+                            let items = journal.items.filter { !$0.hidden }
+                            Picker("Journal entry", selection: $journalQuestion) {
+                                Text("Choose").tag("")
+                                ForEach(items) { item in Text(item.displayName ?? item.canonical).tag(item.canonical) }
+                            }
+                            Picker("Goal", selection: $journalWantsYes) {
+                                Text("Do it").tag(true)
+                                Text("Avoid it").tag(false)
+                            }
+                            .pickerStyle(.segmented)
+                            Text(journalWantsYes ? "Done the day you log it with yes." : "Done the day you log it with no.")
+                                .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                        } else {
+                            Text("If it is still open the next day, NOOP asks whether you did it.")
+                                .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                         }
                     }
                 }
@@ -230,6 +254,7 @@ struct GoalActionEditorView: View {
         // A daily goal may stand on its own (Q21); linking it to goals is optional.
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && (daily || !weekdays.isEmpty)
+            && !(kind == .manual && fromJournal && journalQuestion.isEmpty)
 
     }
 
@@ -241,6 +266,8 @@ struct GoalActionEditorView: View {
         switch action.requirement {
         case .steps(let minimum): kind = .steps; steps = minimum
         case .manual: kind = .manual
+        case .journal(let question, let wantsYes):
+            kind = .manual; fromJournal = true; journalQuestion = question; journalWantsYes = wantsYes
         case .sleep(let hours): kind = .sleep; sleepHours = hours
         case .activeCalories(let minimum): kind = .calories; activeKcal = minimum
         case .workout(let sports, let minutes):
@@ -271,7 +298,9 @@ struct GoalActionEditorView: View {
         let requirement: GoalAction.Requirement
         switch kind {
         case .steps: requirement = .steps(minimum: steps)
-        case .manual: requirement = .manual
+        case .manual:
+            requirement = fromJournal && !journalQuestion.isEmpty
+                ? .journal(question: journalQuestion, wantsYes: journalWantsYes) : .manual
         case .sleep: requirement = .sleep(minimumHours: sleepHours)
         case .calories: requirement = .activeCalories(minimum: activeKcal)
         case .workout:

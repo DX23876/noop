@@ -64,12 +64,14 @@ struct ManualWorkoutSheet: View {
     /// itself (capped at 168) instead of being squeezed to the text field's height. See `suggestionList`.
     @State private var suggestionsHeight: CGFloat = 0
 
-    init(editing: WorkoutRow? = nil,
+    /// `prefill` seeds a NEW workout (sport, day, times) without making it an edit, e.g. the goals'
+    /// "add the workout" for yesterday; `editing` wins when both are given.
+    init(editing: WorkoutRow? = nil, prefill: WorkoutRow? = nil,
          onSave: @escaping (_ row: WorkoutRow, _ replacing: WorkoutRow?) -> Void) {
         self.editing = editing
         self.onSave = onSave
         // Pre-fill from the edited row (display "detected" as "Activity" so a re-label starts clean).
-        let e = editing
+        let e = editing ?? prefill
         // Seeds the LOCALE-STABLE editable form, not the localized display: the field's content is
         // persisted verbatim on save, and a translated word would split cross-source dedup per language.
         _sport = State(initialValue: e.map { WorkoutSource.editableSport($0.sport) } ?? "")

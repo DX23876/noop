@@ -152,6 +152,7 @@ struct GoalsOverviewView: View {
                 CoachSetupDraftsCard(proposals: drafts.pending) { sheet = .draft($0) }
             }
             ringsHero
+            MissedGoalsBlock(inCard: true)
             chainQuestions
             linkOffers
             if !crowdHintShown, snapshots(.week).count > GoalPrefs.crowdThreshold { crowdHint }
@@ -404,6 +405,7 @@ struct GoalsOverviewView: View {
         case .activeCalories: return "flame.fill"
         case .workout: return "figure.mixed.cardio"
         case .manual: return "checkmark.circle"
+        case .journal: return "book.closed"
         }
     }
 

@@ -114,7 +114,7 @@ extension GoalActionOccurrence {
         case .sleep: metric = .sleepNights
         case .activeCalories: metric = .activeEnergy
         case .workout: metric = .workouts
-        case .manual: metric = nil
+        case .manual, .journal: metric = nil
         }
         return metric.map { goalIdentityColor($0, appleColors: appleColors) } ?? StrandPalette.accent
     }
@@ -136,7 +136,7 @@ extension GoalActionOccurrence {
             return String(localized: "≈ \(Int(measured.rounded()).formatted()) of \(Int(target.rounded()).formatted()) kcal active")
         case .workout:
             return String(localized: "\(Int(measured.rounded())) of \(Int(target.rounded())) min of training")
-        case .manual:
+        case .manual, .journal:
             return action.requirement.displayLabel
         }
     }

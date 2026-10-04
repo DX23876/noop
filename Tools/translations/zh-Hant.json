@@ -2385,5 +2385,20 @@
   "Weekly and monthly goals": "每週和每月目標",
   "With this session: %@ %@": "加上本次訓練：%@ %@",
   "You already track this over the same period. Change that goal instead.": "你已在同一週期追蹤此項。請改為修改那個目標。",
-  "New goal (⌘N)": "新目標 (⌘N)"
+  "New goal (⌘N)": "新目標 (⌘N)",
+  "Add the workout": "補錄訓練",
+  "All (%lld)": "全部 (%lld)",
+  "Done on %@?": "%@ 完成了嗎？",
+  "Done the day you log it with no.": "在你記錄為「否」的那天完成。",
+  "Done the day you log it with yes.": "在你記錄為「是」的那天完成。",
+  "Done yesterday?": "昨天完成了嗎？",
+  "If it is still open the next day, NOOP asks whether you did it.": "如果第二天仍未完成，NOOP 會問你是否做了。",
+  "Journal entry": "日誌條目",
+  "No alcohol": "不喝酒",
+  "Still open from the last days": "最近幾天仍未完成",
+  "Stretch for ten minutes": "伸展十分鐘",
+  "Tick off from the journal": "從日誌勾選",
+  "Ticks when you log no: %@": "記錄為「否」時勾選：%@",
+  "Ticks when you log yes: %@": "記錄為「是」時勾選：%@",
+  "Yes logs “%@” for “%@” in the journal, No logs “%@”.": "「是」會在日誌中為「%2$@」記錄「%1$@」，「否」記錄「%3$@」。"
 }

@@ -2207,5 +2207,20 @@
   "Weekly and monthly goals": "Недельные и месячные цели",
   "With this session: %@ %@": "С этой тренировкой: %@ %@",
   "You already track this over the same period. Change that goal instead.": "Ты уже отслеживаешь это за тот же период. Лучше измени ту цель.",
-  "New goal (⌘N)": "Новая цель (⌘N)"
+  "New goal (⌘N)": "Новая цель (⌘N)",
+  "Add the workout": "Добавить тренировку",
+  "All (%lld)": "Все (%lld)",
+  "Done on %@?": "Сделано в %@?",
+  "Done the day you log it with no.": "Выполнено в день, когда ты отмечаешь «нет».",
+  "Done the day you log it with yes.": "Выполнено в день, когда ты отмечаешь «да».",
+  "Done yesterday?": "Сделано вчера?",
+  "If it is still open the next day, NOOP asks whether you did it.": "Если на следующий день цель всё ещё открыта, NOOP спросит, сделал ли ты это.",
+  "Journal entry": "Запись в дневнике",
+  "No alcohol": "Без алкоголя",
+  "Still open from the last days": "Ещё открыто за последние дни",
+  "Stretch for ten minutes": "Растяжка десять минут",
+  "Tick off from the journal": "Отмечать по дневнику",
+  "Ticks when you log no: %@": "Отмечается, когда ты записываешь «нет»: %@",
+  "Ticks when you log yes: %@": "Отмечается, когда ты записываешь «да»: %@",
+  "Yes logs “%@” for “%@” in the journal, No logs “%@”.": "«Да» записывает «%@» для «%@» в дневник, «Нет» записывает «%@»."
 }

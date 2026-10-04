@@ -551,7 +551,8 @@ the app icon's quick actions, Siri · works from your own logged data. Fork-only
 `docs/fork/COACH.md` §4/§6 for the long-term goals; weekly and monthly goals below.**
 
 Goals come on four levels that can serve each other: **daily goals** (steps, sleep, a workout, a box to
-tick; ticked automatically where NOOP can measure it), **weekly** and **monthly goals** (recurring, or
+tick, or a box the journal ticks; ticked automatically where NOOP can measure it, and a box NOOP could not
+see done is asked about the next day for up to three days), **weekly** and **monthly goals** (recurring, or
 "only this week/month"), and **long-term goals** with a date and a route (the Journey page). Weekly and
 monthly goals measure workouts, training minutes, distance, step days, nights of enough sleep, average
 sleep, zone 2+ minutes, working sets, active energy (an estimate), rest days, hydration days and journal

@@ -331,6 +331,7 @@ struct DailyGoalRings: View {
         case .activeCalories: return "flame.fill"
         case .workout: return "figure.mixed.cardio"
         case .manual: return "checkmark"
+        case .journal: return "book.closed"
         }
     }
 
@@ -401,7 +402,7 @@ extension GoalActionOccurrence {
         case .sleep: return PeriodMetric.sleepNights.colorKey
         case .activeCalories: return PeriodMetric.activeEnergy.colorKey
         case .workout: return PeriodMetric.workouts.colorKey
-        case .manual: return ""
+        case .manual, .journal: return ""
         }
     }
 
@@ -412,6 +413,7 @@ extension GoalActionOccurrence {
         case .activeCalories: return "flame.fill"
         case .workout: return "figure.mixed.cardio"
         case .manual: return "checkmark"
+        case .journal: return "book.closed"
         }
     }
 }

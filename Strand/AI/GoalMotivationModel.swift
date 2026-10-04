@@ -97,7 +97,7 @@ enum GoalMotivationBuilder {
             case .steps(let minimum): values = stepValues; target = Double(minimum)
             case .sleep(let hours): values = sleepByDay; target = hours
             case .activeCalories(let minimum): values = activeKcalByDay; target = Double(minimum)
-            case .workout, .manual: continue
+            case .workout, .manual, .journal: continue
             }
             snapshot.streaks[action.id] = GoalMotivation.streak(
                 values: values, target: target, firstDay: max(firstDay, created), today: today,

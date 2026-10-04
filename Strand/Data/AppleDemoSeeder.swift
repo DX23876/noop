@@ -161,6 +161,7 @@ enum AppleDemoSeeder {
         }
 
         seedDemoPeriodGoalsIfNeeded()
+        seedDemoAskedDailyGoalsIfNeeded()
         let store = CoachGoalStore.shared
         guard store.goals.isEmpty else { return }
         let now = Date()
@@ -210,6 +211,30 @@ enum AppleDemoSeeder {
         ]
         for goal in goals { store.commit(goal, today: today) }
         UserDefaults.standard.set(true, forKey: GoalPrefs.introSeenKey)
+    }
+
+    /// Two daily goals NOOP cannot see done by a number (a box to tick, one ticked by the journal), set
+    /// two weeks back, so the next-day question ("Still open from the last days") has something to ask
+    /// in demo captures. Once per install, never over goals of these kinds that already exist.
+    @MainActor
+    private static func seedDemoAskedDailyGoalsIfNeeded() {
+        let key = "goals.demoAskedDailySeeded"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        UserDefaults.standard.set(true, forKey: key)
+        let store = GoalActionStore.shared
+        let asked = store.actions.contains {
+            switch $0.requirement {
+            case .manual, .journal: return true
+            default: return false
+            }
+        }
+        guard !asked else { return }
+        let created = Date().addingTimeInterval(-14 * 86_400)
+        store.upsert(GoalAction(title: String(localized: "Stretch for ten minutes"), requirement: .manual,
+                                goalIds: [], createdAt: created, showsAsRing: false))
+        store.upsert(GoalAction(title: String(localized: "No alcohol"),
+                                requirement: .journal(question: "Did you drink any alcohol?", wantsYes: false),
+                                goalIds: [], createdAt: created, showsAsRing: false))
     }
 
     /// DEBUG/demo-only: so the Devices screen renders with content under `--demo-seed`, pair a second

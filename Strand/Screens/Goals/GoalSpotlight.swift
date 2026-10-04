@@ -114,7 +114,7 @@ struct GoalSpotlight {
             case .activeCalories: return 1
             case .sleep: return 2
             case .workout: return 3
-            case .manual: return 4
+            case .manual, .journal: return 4
             }
         }
         if rank(a) != rank(b) { return rank(a) < rank(b) }

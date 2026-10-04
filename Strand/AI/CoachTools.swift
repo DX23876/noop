@@ -243,6 +243,10 @@ enum CoachTool: String, CaseIterable {
                 + "three weekly or monthly goals (period_goals, e.g. 4 workouts a week or 5 nights of 7 h). "
                 + "Size a period goal from the user's recent weeks, not an ideal; check the goals context first "
                 + "so you do not repeat one they already track over the same period. "
+                + "Make every routine measurable when NOOP can measure it: a walk is a steps or Walking workout "
+                + "routine, a session is a workout routine, a habit the user logs is a journal routine; manual only "
+                + "for what nothing measures (NOOP asks about those the next day). For a habit missing from the "
+                + "journal, use manual and suggest adding the entry in the rationale. "
                 + "Nothing becomes active until the user opens the app review and confirms it. Use operation=update "
                 + "only with exact ids from the goal context. Routines may support several active goals and the goal "
                 + "in this same setup. Set use_current_baseline=true when a locally measured starting value is useful; "
@@ -737,7 +741,10 @@ enum CoachTool: String, CaseIterable {
                 "operation": ["type": "string", "enum": ["create", "update"]],
                 "action_id": ["type": "string", "description": "Exact routine UUID for update."],
                 "title": ["type": "string"],
-                "type": ["type": "string", "enum": ["steps", "workout", "manual"]],
+                "type": ["type": "string", "enum": ["steps", "workout", "journal", "manual"],
+                         "description": "Pick what NOOP can measure: steps for walking, workout with the activity for a session, journal for a habit the user logs. manual only when nothing can measure it."],
+                "journal_question": ["type": "string", "description": "type=journal: the exact journal entry, copied from the user's journal."],
+                "wants_yes": ["type": "boolean", "description": "type=journal: true = done when logged yes (meditation), false = done when logged no (alcohol)."],
                 "minimum_steps": ["type": "integer"],
                 "sports": ["type": "array", "items": ["type": "string"]],
                 "minimum_minutes": ["type": "integer"],

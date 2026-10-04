@@ -389,6 +389,10 @@ final class GoalTrackingStore: ObservableObject {
     /// occurrences were already being calculated for a whole year and then discarded, and the Today
     /// tile needs the week to draw a day row.
     @Published private(set) var weekActions: [GoalActionOccurrence] = []
+    /// The daily-goal occurrences of the days before today that the next-day question may still ask
+    /// about (`GoalMissedQuestions`). Which are open is decided where they are shown, against the
+    /// answers given so far.
+    @Published private(set) var recentActions: [GoalActionOccurrence] = []
     @Published private(set) var pendingWorkoutAttributions: [GoalWorkoutAttributionSuggestion] = []
     @Published private(set) var lastUpdated: Date?
     /// Weekly and monthly goals as of the last refresh, in the wearer's order.
@@ -457,12 +461,22 @@ final class GoalTrackingStore: ObservableObject {
         // goal reads the same number as Today's step card.
         let stepsByDay = GoalMotivationBuilder.stepsByDay(days: repo.days,
                                                           apple: await repo.appleDailyRows(days: 4000))
+        // The journal, only when a daily goal ticks from it.
+        let journalByDay: [String: [JournalEntry]]
+        if actions.contains(where: { if case .journal = $0.requirement { return $0.isActive } else { return false } }) {
+            journalByDay = Dictionary(grouping: await repo.journalEntries(days: 400), by: \.day)
+        } else {
+            journalByDay = [:]
+        }
         let actionOccurrences = GoalActionEvaluator.occurrences(
             actions: actions, checkoffs: checkoffs, activeGoalIds: activeGoalIds,
             days: repo.days, workouts: workouts, from: start, through: end,
-            activeKcalByDay: activeKcalByDay, stepsByDay: stepsByDay, calendar: calendar)
+            activeKcalByDay: activeKcalByDay, stepsByDay: stepsByDay, journalByDay: journalByDay,
+            calendar: calendar)
         let today = GoalActionEvaluator.dayKey(now, calendar: calendar)
         todayActions = actionOccurrences.filter { $0.day == today }
+        recentActions = GoalMissedQuestions.open(actionOccurrences, answered: [], today: today,
+                                                 journalByDay: journalByDay, calendar: calendar)
         if let week = calendar.dateInterval(of: .weekOfYear, for: now) {
             let from = GoalActionEvaluator.dayKey(week.start, calendar: calendar)
             let to = GoalActionEvaluator.dayKey(week.end.addingTimeInterval(-1), calendar: calendar)

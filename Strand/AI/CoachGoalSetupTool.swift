@@ -206,7 +206,16 @@ extension AICoachEngine {
                 let minutes = Self.intArg(raw["minimum_minutes"]).map { max(5, min($0, 240)) }
                 requirement = .workout(sports: sports, minimumMinutes: minutes)
             case "manual": requirement = .manual
-            default: return .failure(.init(description: "routine type must be steps, workout or manual"))
+            case "journal":
+                // Only an entry the wearer's journal already has (§17j Q7, Q12): the coach never adds one.
+                let available = JournalCatalogStore().items.filter { !$0.hidden }.map(\.canonical)
+                guard let question = raw["journal_question"] as? String, available.contains(question) else {
+                    let list = available.isEmpty ? "none" : available.joined(separator: " | ")
+                    return .failure(.init(description: "journal_question must be one of the user's journal entries "
+                                          + "(\(list)); otherwise use type manual and suggest adding the entry"))
+                }
+                requirement = .journal(question: question, wantsYes: raw["wants_yes"] as? Bool ?? true)
+            default: return .failure(.init(description: "routine type must be steps, workout, journal or manual"))
             }
         } else if let existing {
             requirement = existing.requirement

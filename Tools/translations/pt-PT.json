@@ -2230,5 +2230,20 @@
   "Weekly and monthly goals": "Objetivos semanais e mensais",
   "With this session: %@ %@": "Com esta sessão: %@ %@",
   "You already track this over the same period. Change that goal instead.": "Já acompanhas isto no mesmo período. Altera antes esse objetivo.",
-  "New goal (⌘N)": "Novo objetivo (⌘N)"
+  "New goal (⌘N)": "Novo objetivo (⌘N)",
+  "Add the workout": "Adicionar o treino",
+  "All (%lld)": "Todos (%lld)",
+  "Done on %@?": "Feito na %@?",
+  "Done the day you log it with no.": "Feito no dia em que o registas com não.",
+  "Done the day you log it with yes.": "Feito no dia em que o registas com sim.",
+  "Done yesterday?": "Feito ontem?",
+  "If it is still open the next day, NOOP asks whether you did it.": "Se no dia seguinte continuar em aberto, o NOOP pergunta se o fizeste.",
+  "Journal entry": "Entrada do diário",
+  "No alcohol": "Sem álcool",
+  "Still open from the last days": "Ainda em aberto dos últimos dias",
+  "Stretch for ten minutes": "Alongar durante dez minutos",
+  "Tick off from the journal": "Marcar a partir do diário",
+  "Ticks when you log no: %@": "Marca quando registas não: %@",
+  "Ticks when you log yes: %@": "Marca quando registas sim: %@",
+  "Yes logs “%@” for “%@” in the journal, No logs “%@”.": "Sim regista «%@» para «%@» no diário, Não regista «%@»."
 }

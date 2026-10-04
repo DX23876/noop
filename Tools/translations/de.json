@@ -2230,5 +2230,20 @@
   "With this session: %@ %@": "Mit dieser Session: %@ %@",
   "You already track this over the same period. Change that goal instead.": "Das verfolgst du schon im selben Zeitraum. Ändere lieber dieses Ziel.",
   "New goal (⌘N)": "Neues Ziel (⌘N)",
-  "Next": "Weiter"
+  "Next": "Weiter",
+  "Add the workout": "Workout nachtragen",
+  "All (%lld)": "Alle (%lld)",
+  "Done on %@?": "Am %@ erledigt?",
+  "Done the day you log it with no.": "Erledigt an dem Tag, an dem du Nein einträgst.",
+  "Done the day you log it with yes.": "Erledigt an dem Tag, an dem du Ja einträgst.",
+  "Done yesterday?": "Gestern erledigt?",
+  "If it is still open the next day, NOOP asks whether you did it.": "Ist es am nächsten Tag noch offen, fragt NOOP, ob du es gemacht hast.",
+  "Journal entry": "Journal-Eintrag",
+  "No alcohol": "Kein Alkohol",
+  "Still open from the last days": "Noch offen von den letzten Tagen",
+  "Stretch for ten minutes": "Zehn Minuten dehnen",
+  "Tick off from the journal": "Über das Journal abhaken",
+  "Ticks when you log no: %@": "Hakt sich bei Nein im Journal ab: %@",
+  "Ticks when you log yes: %@": "Hakt sich bei Ja im Journal ab: %@",
+  "Yes logs “%@” for “%@” in the journal, No logs “%@”.": "Ja trägt „%@“ für „%@“ ins Journal ein, Nein trägt „%@“ ein."
 }
