@@ -44,6 +44,22 @@ struct GoalListRow: View {
     }
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            mainRow
+            // Under the whole row, not in the text column: beside the value it wrapped into a narrow strip.
+            if let warning {
+                Label(warning, systemImage: "exclamationmark.triangle")
+                    .font(StrandFont.caption).foregroundStyle(StrandPalette.statusWarningForeground)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.leading, 46)
+            }
+        }
+        .padding(.vertical, 6)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+    }
+
+    private var mainRow: some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 15, weight: .semibold))
@@ -79,11 +95,6 @@ struct GoalListRow: View {
                     Text(subtitle).font(StrandFont.caption).foregroundStyle(subtitleTint)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                if let warning {
-                    Label(warning, systemImage: "exclamationmark.triangle")
-                        .font(StrandFont.caption).foregroundStyle(StrandPalette.statusWarningForeground)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
                 if let dots {
                     DayDotStrip(days: dots, tint: tint, diameter: 11)
                         .padding(.top, 2)
@@ -105,9 +116,6 @@ struct GoalListRow: View {
             Image(systemName: "chevron.right").font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                 .accessibilityHidden(true)
         }
-        .padding(.vertical, 6)
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
     }
 }
 
@@ -876,9 +884,13 @@ extension GoalMotivation.Badge {
         }
     }
 
-    /// The short figure on the medal.
+    /// The short figure on the medal. Some locales (German among them) do not abbreviate thousands, so
+    /// from 100,000 on a figure the locale left whole is written with the SI "k": "500.000" did not fit.
     var shortValue: String {
-        threshold >= 1_000 ? threshold.formatted(.number.notation(.compactName)) : "\(threshold)"
+        guard threshold >= 1_000 else { return "\(threshold)" }
+        let compact = threshold.formatted(.number.notation(.compactName))
+        guard threshold >= 100_000, !compact.contains(where: \.isLetter) else { return compact }
+        return "\((threshold / 1_000).formatted())k"
     }
 }
 
@@ -934,7 +946,8 @@ struct BadgeMedal: View {
                             .font(.system(size: diameter * 0.3, weight: .bold))
                         Text(badge.shortValue)
                             .font(.system(size: diameter * 0.17, weight: .heavy, design: .rounded))
-                            .lineLimit(1).minimumScaleFactor(0.6)
+                            .lineLimit(1).minimumScaleFactor(0.4)
+                            .frame(maxWidth: diameter * 0.78)
                     }
                     .foregroundStyle(StrandPalette.onDarkPrimary)
                 } else {
@@ -944,7 +957,8 @@ struct BadgeMedal: View {
                             .font(.system(size: diameter * 0.28, weight: .semibold))
                         Text(badge.shortValue)
                             .font(.system(size: diameter * 0.16, weight: .bold, design: .rounded))
-                            .lineLimit(1).minimumScaleFactor(0.6)
+                            .lineLimit(1).minimumScaleFactor(0.4)
+                            .frame(maxWidth: diameter * 0.78)
                     }
                     .foregroundStyle(StrandPalette.textTertiary)
                 }
@@ -1126,7 +1140,7 @@ struct AchievementsCard: View {
                         Text("Achievements").font(StrandFont.subhead.weight(.semibold))
                             .foregroundStyle(StrandPalette.textPrimary)
                         Text(summary).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
-                            .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                            .lineLimit(3).fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 4)
                     Image(systemName: "chevron.right").font(StrandFont.caption)

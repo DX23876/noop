@@ -300,8 +300,9 @@ struct PeriodGoalDetailView: View {
         switch outcome {
         case .achieved: return s.identityColor
         case .almost: return s.identityColor.opacity(0.5)
-        case .missed: return StrandPalette.hairlineStrong
-        case .protected, .noData: return StrandPalette.hairline
+        // Grey, not the hairline tokens: in light mode those read as a white gap, not as a missed period.
+        case .missed: return StrandPalette.textTertiary.opacity(0.45)
+        case .protected, .noData: return StrandPalette.textTertiary.opacity(0.2)
         }
     }
 
