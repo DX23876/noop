@@ -1532,7 +1532,7 @@ public final class BLEManager: NSObject, ObservableObject {
                                 enableRawCapture: enableRawCapture,
                                 log: { [weak self] s in self?.log(s) },
                                 rejectedSink: { [weak self] frames, trim, family in
-                                    self?.archiveRejectedFrames(frames, trim: trim, family: family) ?? true
+                                    await self?.archiveRejectedFrames(frames, trim: trim, family: family) ?? true
                                 },
                                 onChunk: { [weak self] decoded, console in
                                     if decoded { self?.state.decodedChunksThisSession += 1 }
@@ -3130,8 +3130,15 @@ public final class BLEManager: NSObject, ObservableObject {
     /// counters that drive the honest sync status. Returns false ONLY on a genuine write failure,
     /// which makes the Backfiller hold the cursor/ack so the strap re-sends the chunk (no data loss
     /// either way). Frames carry sensor payloads, not identifiers — no serials/MACs are archived.
-    private func archiveRejectedFrames(_ frames: [[UInt8]], trim: UInt32, family: DeviceFamily) -> Bool {
-        switch rejectedHistoryArchive.archive(frames, trim: trim, family: family) {
+    private func archiveRejectedFrames(_ frames: [[UInt8]], trim: UInt32, family: DeviceFamily) async -> Bool {
+        // Hex encoding, fsync and (at the cap) the archive's read/evict/rewrite are synchronous.
+        // Keep them off the main actor, but await durability here before Backfiller writes the
+        // cursor or acknowledges the trim. The ordered frame drain permits only one chunk at a time.
+        let archive = rejectedHistoryArchive
+        let result = await Task.detached(priority: .utility) {
+            archive.archive(frames, trim: trim, family: family)
+        }.value
+        switch result {
         case .written(let count):
             state.rejectedFramesThisSession += count
             return true

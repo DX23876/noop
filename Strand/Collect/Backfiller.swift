@@ -25,7 +25,7 @@ extension WhoopStore: BackfillStoreWriting {}
 ///
 /// Per-chunk local safe-trim invariant:
 ///   decode known → await insert (decoded durable) →
-///   await enqueueRawBatch (raw durable) →
+///   await archive rejected frames (if any) → await enqueueRawBatch (raw durable, if enabled) →
 ///   await setCursor(strap_trim) →
 ///   ackTrim (link-layer confirmed ack to strap)
 ///
@@ -254,7 +254,7 @@ final class Backfiller {
     /// the bytes are safe (written OR cap-reached — either way the chunk may be acked) and false on a
     /// genuine write failure, in which case `finishChunk` holds the cursor/ack so the strap re-sends.
     /// nil in non-production inits (tests/preview) → archiving is skipped and acks proceed as before.
-    private let rejectedSink: ((_ frames: [[UInt8]], _ trim: UInt32, _ family: DeviceFamily) -> Bool)?
+    private let rejectedSink: ((_ frames: [[UInt8]], _ trim: UInt32, _ family: DeviceFamily) async -> Bool)?
     /// Per-chunk outcome hook (#77 family): (didDecodeSensorRows, wasConsoleOnly). Lets BLEManager
     /// tally a session so a COMPLETED-but-empty offload (all console, no sensor records) can tell the
     /// user their strap isn't banking, without false-positiving a normal caught-up sync.
@@ -281,7 +281,7 @@ final class Backfiller {
                                                 gravity: Int)) -> Void = { _ in },
          enableRawCapture: Bool = false,
          log: ((String) -> Void)? = nil,
-         rejectedSink: ((_ frames: [[UInt8]], _ trim: UInt32, _ family: DeviceFamily) -> Bool)? = nil,
+         rejectedSink: ((_ frames: [[UInt8]], _ trim: UInt32, _ family: DeviceFamily) async -> Bool)? = nil,
          onChunk: ((_ decoded: Bool, _ console: Bool) -> Void)? = nil,
          connectionActive: @escaping () -> Bool = { false },
          connectionLog: ((String) -> Void)? = nil,
@@ -897,7 +897,7 @@ final class Backfiller {
             // chunk (no setCursor, no ack) so the strap re-sends it next session — no data loss
             // either way. (A full archive is reported as success by the sink; we still ack.)
             if !rejected.isEmpty, let rejectedSink {
-                guard rejectedSink(rejected, trim, family) else {
+                guard await rejectedSink(rejected, trim, family) else {
                     log?("Backfill: rejected-frame archive failed (trim=\(trim)) — holding ack so the strap re-sends.")
                     persistStalled = true   // #57
                     return
