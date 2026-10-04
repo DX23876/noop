@@ -122,7 +122,20 @@ extension AutoWorkoutDetector {
         let motionSeries = hasMotion ? motion : nil
         for (start, end) in merged {
             let durMin = (end - start) / 60
-            if savedSpans.contains(where: { overlaps(start, end, $0.startSec, $0.endSec) }) {
+            let overlapping = savedSpans.filter { overlaps(start, end, $0.startSec, $0.endSec) }
+                .sorted { $0.startSec == $1.startSec ? $0.endSec < $1.endSec : $0.startSec < $1.startSec }
+            if !overlapping.isEmpty {
+                // #2527: measure each suppression before choosing a duration-aware policy. The exact
+                // saved/candidate ratio avoids rounding away short recordings; intersection seconds
+                // distinguish a contained recording from one mostly outside the candidate. Endpoint-only
+                // contact still suppresses under the current policy and is honestly reported as zero.
+                let candidateSec = end - start
+                for saved in overlapping {
+                    let savedSec = max(0, saved.endSec - saved.startSec)
+                    let overlapSec = max(0, min(end, saved.endSec) - max(start, saved.startSec))
+                    lines.append("autoDetect savedOverlap candidateSec=\(candidateSec) savedSec=\(savedSec) "
+                        + "overlapSec=\(overlapSec) savedToCandidate=\(savedSec)/\(candidateSec)")
+                }
                 lines.append("autoDetect window durMin=\(durMin) verdict=dropped why=overlapsSavedWorkout")
                 continue
             }

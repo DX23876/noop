@@ -39,4 +39,24 @@ enum LiveHRBannerLifecycle {
         if showing { return appActive && (age ?? .infinity) >= renewAfter ? .renew : .push }
         return linkUp && appActive ? .start : .nothing
     }
+
+    /// Where a banner iOS lists for NOOP stands, in the terms `removes` needs (ActivityKit's `ActivityState`, which
+    /// the macOS build lacks). `showing`: active or stale, able to take an update. `ended`: ended, still on the Lock
+    /// Screen. `gone`: dismissed, or anything else NOOP did not make.
+    enum Listed: Equatable { case showing, ended, gone }
+
+    /// Whether NOOP removes a banner iOS lists, at once. `besideFresh`: NOOP has just started another one.
+    ///
+    /// A banner iOS has ended — its eight-hour limit — stays on the Lock Screen for up to four more hours, frozen on
+    /// its last number, and takes no update: iOS drops one sent to it (simulator, 3 Oct 2026). A tester saw one at
+    /// "85 bpm" beside the live banner, an hour after iOS ended it (1 Oct 2026). It can show nothing true again, so it
+    /// goes as soon as NOOP sees it. Once NOOP has started a fresh banner, any other one still showing goes too: the
+    /// one a renewal replaces, or a stray duplicate.
+    static func removes(_ banner: Listed, besideFresh: Bool) -> Bool {
+        switch banner {
+        case .ended: return true
+        case .showing: return besideFresh
+        case .gone: return false
+        }
+    }
 }

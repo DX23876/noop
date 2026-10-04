@@ -54,4 +54,20 @@ final class LiveHRBannerLifecycleTests: XCTestCase {
         XCTAssertEqual(step(age: 7 * 60 * 60, appActive: false), .push)
         XCTAssertEqual(step(switchOn: false, age: renewAfter, appActive: true), .end)
     }
+
+    /// iOS keeps a banner it ended on the Lock Screen for hours, frozen on its last number, and drops any update sent to
+    /// it: NOOP removes it whenever it sees one, whether or not it has a fresh banner to show instead.
+    func testABannerIOSEndedIsRemovedOnSight() {
+        XCTAssertTrue(LiveHRBannerLifecycle.removes(.ended, besideFresh: false))
+        XCTAssertTrue(LiveHRBannerLifecycle.removes(.ended, besideFresh: true))
+    }
+
+    /// The banner NOOP feeds, or picks up, stays. Once a fresh one is started it is the only one: an older banner still
+    /// showing goes. One already dismissed is left alone.
+    func testAFreshBannerIsTheOnlyOneShowing() {
+        XCTAssertFalse(LiveHRBannerLifecycle.removes(.showing, besideFresh: false))
+        XCTAssertTrue(LiveHRBannerLifecycle.removes(.showing, besideFresh: true))
+        XCTAssertFalse(LiveHRBannerLifecycle.removes(.gone, besideFresh: false))
+        XCTAssertFalse(LiveHRBannerLifecycle.removes(.gone, besideFresh: true))
+    }
 }

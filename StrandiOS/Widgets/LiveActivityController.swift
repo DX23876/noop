@@ -35,6 +35,9 @@ final class LiveActivityController {
     private var isEnding = false
     /// iOS refused a start, and it was logged: once, not on every tick while NOOP is on screen.
     private var refusalLogged = false
+    /// Banners NOOP has asked iOS to remove (`removeLeftovers`), so a tick that arrives before iOS has dropped one from
+    /// its list neither asks again nor logs it twice.
+    private var removing: Set<String> = []
     /// How long after the last push iOS treats the banner as fresh; after that the banner draws the dash
     /// (`NOOPLiveActivity.shownBpm`). A WHOOP 5.0 taken off the wrist goes quiet, and with nothing arriving iOS
     /// suspends NOOP, so no timer of NOOP's can clear the number: iOS's own stale date is what does it, in at most
@@ -116,19 +119,25 @@ final class LiveActivityController {
             self.activity = nil
             shownState = nil
             startedAt = nil
-            log("gone from the Lock Screen (ended by iOS or dismissed); started again when NOOP is next on screen")
+            log((Self.listed(activity) == .ended ? "ended by iOS" : "gone from the Lock Screen (dismissed)")
+                + "; started again when NOOP is next on screen")
         }
         // Re-adopt an activity that outlived a previous app session. ActivityKit keeps Live Activities
         // alive across launches/relaunches, but a fresh controller starts with `activity == nil`, so
         // without recovering the handle here we can neither update nor END an already-showing activity
         // — which made the #336 opt-out a no-op (#341: toggle off, heart stays) and risked spawning a
         // duplicate on the start path below. Done on the HR tick rather than in `init` because
-        // `Activity.activities` isn't reliably hydrated at the instant of process launch.
-        if activity == nil, let adopted = Activity<NOOPActivityAttributes>.activities.first(where: Self.isShowing) {
-            activity = adopted
-            startedAt = (UserDefaults.standard.dictionary(forKey: Self.startedKey)?[adopted.id] as? Double)
-                .map(Date.init(timeIntervalSince1970:))
-            log("picked up the one already on the Lock Screen")
+        // `Activity.activities` isn't reliably hydrated at the instant of process launch. A banner iOS ended is
+        // removed here too, whichever run fed it: it can only show its last number.
+        if activity == nil {
+            let listed = Activity<NOOPActivityAttributes>.activities
+            removeLeftovers(listed, beside: nil)
+            if let adopted = listed.first(where: Self.isShowing) {
+                activity = adopted
+                startedAt = (UserDefaults.standard.dictionary(forKey: Self.startedKey)?[adopted.id] as? Double)
+                    .map(Date.init(timeIntervalSince1970:))
+                log("picked up the one already on the Lock Screen")
+            }
         }
 
         // The switch (#336) and the gym banner on screen end it; nothing that passes does (`LiveHRBannerLifecycle`).
@@ -155,13 +164,13 @@ final class LiveActivityController {
         let state = NOOPActivityAttributes.ContentState(bpm: connected ? bpm : nil, recovery: recovery,
                                                         bonded: connected, effort: effort)
 
-        if step == .renew, let old = activity {
+        if step == .renew, activity != nil {
             // The fresh banner first, then the old one goes, so the Lock Screen is never without one; if iOS refuses
             // the fresh one, the old one stays.
             if start(state, at: now) {
                 log("renewed after \(age.map { "\(Int($0 / 60)) min" } ?? "an unknown time"), "
                     + "so iOS's eight-hour limit starts again")
-                Task { await old.end(nil, dismissalPolicy: .immediate) }
+                removeLeftovers(Activity<NOOPActivityAttributes>.activities, beside: activity)
             }
         } else if let activity {
             // The number giving way to the dash (the strap off the wrist, the link dropping) is pushed at once: no
@@ -176,6 +185,22 @@ final class LiveActivityController {
             Task { await activity.update(ActivityContent(state: state, staleDate: staleDate)) }
         } else if start(state, at: now) {
             log(state.bpm == nil ? "started, showing – until a heart rate arrives" : "started")
+            removeLeftovers(Activity<NOOPActivityAttributes>.activities, beside: activity)
+        }
+    }
+
+    /// Removes at once each banner in `listed` that `LiveHRBannerLifecycle.removes` says goes: one iOS has ended, which
+    /// stays on the Lock Screen frozen on its last number and takes no update, and — once NOOP has started `fresh` —
+    /// any other one still showing. Each removal of an ended one leaves a line: it is what a second banner beside the
+    /// live one would have been.
+    private func removeLeftovers(_ listed: [Activity<NOOPActivityAttributes>],
+                                 beside fresh: Activity<NOOPActivityAttributes>?) {
+        for act in listed where act.id != fresh?.id {
+            let state = Self.listed(act)
+            guard LiveHRBannerLifecycle.removes(state, besideFresh: fresh != nil),
+                  removing.insert(act.id).inserted else { continue }
+            if state == .ended { log("removed one iOS had ended, which could only show its last number") }
+            Task { await act.end(nil, dismissalPolicy: .immediate) }
         }
     }
 
@@ -342,7 +367,17 @@ final class LiveActivityController {
 
     /// Still on the Lock Screen and able to take an update: not ended by iOS, the user or NOOP.
     private static func isShowing(_ activity: Activity<NOOPActivityAttributes>) -> Bool {
-        activity.activityState == .active || activity.activityState == .stale
+        listed(activity) == .showing
+    }
+
+    /// The banner's state in `LiveHRBannerLifecycle`'s terms. `pending` (a start iOS 26 schedules) never comes from
+    /// NOOP, which only starts banners at once, so it counts as gone: not NOOP's to feed or remove.
+    private static func listed(_ activity: Activity<NOOPActivityAttributes>) -> LiveHRBannerLifecycle.Listed {
+        switch activity.activityState {
+        case .active, .stale: return .showing
+        case .ended: return .ended
+        default: return .gone
+        }
     }
 
     func end() async {
