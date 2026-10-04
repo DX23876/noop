@@ -280,6 +280,52 @@ final class HevyStoreTests: XCTestCase {
         let templates = try await store.strengthExerciseTemplates()
         XCTAssertEqual(templates["local:mystery press"]?.primaryMuscleGroup, .chest)
     }
+
+    // MARK: - File imports
+
+    private func fileImport(_ id: String, title: String, source: StrengthDataSource = .hevyCSV,
+                            startTs: Int = 1_700_000_000) -> HevyWorkout {
+        HevyWorkout(id: id, title: title, routineId: nil, notes: nil,
+                    startTs: startTs, endTs: startTs + 3600,
+                    updatedAtTs: startTs, createdAtTs: startTs,
+                    exercises: workout().exercises, source: source)
+    }
+
+    func testARenamedWorkoutInANewerExportReplacesItsOldCopy() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await store.upsertStrengthWorkouts([fileImport("hevy_csv:1700000000:push", title: "Push")])
+        try await store.upsertStrengthWorkouts([
+            fileImport("hevy_csv:1700000000:push day", title: "Push Day"),
+        ])
+
+        let read = try await store.strengthWorkouts(from: 0, to: 2_000_000_000)
+        XCTAssertEqual(read.map(\.title), ["Push Day"])
+        // The old copy's sets went with it, so its volume no longer counts.
+        let sets = try await store.countRowsForTest("hevySet")
+        XCTAssertEqual(sets, 3)
+    }
+
+    func testTwoWorkoutsSharingAStartInOneExportAreBothKept() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await store.upsertStrengthWorkouts([
+            fileImport("hevy_csv:1700000000:push", title: "Push"),
+            fileImport("hevy_csv:1700000000:core", title: "Core"),
+        ])
+        let read = try await store.strengthWorkouts(from: 0, to: 2_000_000_000)
+        XCTAssertEqual(Set(read.map(\.title)), ["Push", "Core"])
+    }
+
+    func testAFileImportLeavesOtherSourcesAtTheSameStartAlone() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await store.upsertHevyWorkouts([workout(id: "api-uuid")])
+        try await store.upsertStrengthWorkouts([
+            fileImport("liftosaur:1700000000:legs", title: "Legs", source: .liftosaur),
+        ])
+        try await store.upsertStrengthWorkouts([fileImport("hevy_csv:1700000000:push", title: "Push")])
+
+        let read = try await store.strengthWorkouts(from: 0, to: 2_000_000_000)
+        XCTAssertEqual(Set(read.map(\.source)), [.hevyAPI, .liftosaur, .hevyCSV])
+    }
 }
 
 extension WhoopStore {
