@@ -2339,5 +2339,6 @@
   "Tick off from the journal": "Spunta dal diario",
   "Ticks when you log no: %@": "Si spunta quando registri no: %@",
   "Ticks when you log yes: %@": "Si spunta quando registri sì: %@",
-  "Yes logs “%@” for “%@” in the journal, No logs “%@”.": "Sì registra «%@» per «%@» nel diario, No registra «%@»."
+  "Yes logs “%@” for “%@” in the journal, No logs “%@”.": "Sì registra «%@» per «%@» nel diario, No registra «%@».",
+  "By hand": "A mano"
 }

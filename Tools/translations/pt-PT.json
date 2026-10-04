@@ -2245,5 +2245,6 @@
   "Tick off from the journal": "Marcar a partir do diário",
   "Ticks when you log no: %@": "Marca quando registas não: %@",
   "Ticks when you log yes: %@": "Marca quando registas sim: %@",
-  "Yes logs “%@” for “%@” in the journal, No logs “%@”.": "Sim regista «%@» para «%@» no diário, Não regista «%@»."
+  "Yes logs “%@” for “%@” in the journal, No logs “%@”.": "Sim regista «%@» para «%@» no diário, Não regista «%@».",
+  "By hand": "À mão"
 }

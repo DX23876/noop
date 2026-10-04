@@ -2246,5 +2246,6 @@
   "Tick off from the journal": "Cocher depuis le journal",
   "Ticks when you log no: %@": "Coché quand tu enregistres non : %@",
   "Ticks when you log yes: %@": "Coché quand tu enregistres oui : %@",
-  "Yes logs “%@” for “%@” in the journal, No logs “%@”.": "Oui enregistre « %@ » pour « %@ » dans le journal, Non enregistre « %@ »."
+  "Yes logs “%@” for “%@” in the journal, No logs “%@”.": "Oui enregistre « %@ » pour « %@ » dans le journal, Non enregistre « %@ ».",
+  "By hand": "À la main"
 }

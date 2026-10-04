@@ -25,6 +25,7 @@ struct GoalsOverviewScreen: View {
     var body: some View {
         ScreenScaffold(title: "My goals", subtitle: "Tap a goal to change it.",
                        onRefresh: { await GoalTrackingStore.shared.refresh(repo: repo) },
+                       topBackground: liquidScaffoldSky(),
                        trailing: {
                            HStack(spacing: 14) {
                                Button { showIntro = true } label: { Image(systemName: "questionmark.circle") }
@@ -90,7 +91,8 @@ extension View {
             case .detail(let id): PeriodGoalDetailView(goalId: id)
             case .list(let period): PeriodGoalsListView(period: period)
             case .longTerm:
-                ScreenScaffold(title: "Long-term goals", subtitle: "Your targets, your pace, your progress.") {
+                ScreenScaffold(title: "Long-term goals", subtitle: "Your targets, your pace, your progress.",
+                               topBackground: liquidScaffoldSky()) {
                     CoachGoalJourneyView()
                 }
             case .archive: GoalsArchiveView()
@@ -375,7 +377,7 @@ struct GoalsOverviewView: View {
                                 tint: GoalActionOccurrence(action: action, day: today, isCompleted: false,
                                                            isAutomatic: false).identityColor(appleColors: appleColors),
                                 title: action.title, subtitle: dailySubtitle(action, occurrence),
-                                value: action.requirement.displayLabel,
+                                value: rowValue(action.requirement),
                                 iconFraction: occurrence?.fraction ?? (occurrence?.isCompleted == true ? 1 : nil),
                                 isDone: occurrence?.isCompleted ?? false,
                                 warning: warning(action.id, in: notes),
@@ -395,6 +397,15 @@ struct GoalsOverviewView: View {
             }
             Button { sheet = .dailyGoal(nil) } label: { addRow(String(localized: "Add another daily goal")) }
                 .buttonStyle(.plain)
+        }
+    }
+
+    /// The short value on the right of a daily goal row; the subtitle carries the detail.
+    private func rowValue(_ requirement: GoalAction.Requirement) -> String {
+        switch requirement {
+        case .journal: return String(localized: "Journal")
+        case .manual: return String(localized: "By hand")
+        default: return requirement.displayLabel
         }
     }
 

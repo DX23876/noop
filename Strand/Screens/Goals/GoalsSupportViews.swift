@@ -167,6 +167,7 @@ struct PeriodGoalsListView: View {
             period, containing: Repository.localDayKey(Date()), calendar: TrainingPreferences.weekCalendar)
         let onCourse = items.filter { [.onTrack, .ahead, .achieved].contains($0.state) }.count
         ScreenScaffold(title: period == .week ? "Weekly goals" : "Monthly goals",
+                       topBackground: liquidScaffoldSky(),
                        trailing: {
                            if items.count > 1 {
                                Button(reordering ? "Done" : "Arrange") { withAnimation { reordering.toggle() } }
@@ -288,7 +289,8 @@ struct GoalsArchiveView: View {
         let today = Repository.localDayKey(Date())
         let endedDaily = actions.actions.filter { $0.hasEnded(today: today) }
             .sorted { ($0.endsOn ?? "") > ($1.endsOn ?? "") }
-        ScreenScaffold(title: "Ended goals", subtitle: "Ended goals keep their history here.") {
+        ScreenScaffold(title: "Ended goals", subtitle: "Ended goals keep their history here.",
+                       topBackground: liquidScaffoldSky()) {
             if ended.isEmpty && past.isEmpty && endedDaily.isEmpty {
                 Text("Nothing here yet.").font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
             }
@@ -486,7 +488,8 @@ struct GoalsReviewBlock: View {
 
 struct GoalsReviewScreen: View {
     var body: some View {
-        ScreenScaffold(title: "Looking back", subtitle: "How your last week and month went.") {
+        ScreenScaffold(title: "Looking back", subtitle: "How your last week and month went.",
+                       topBackground: liquidScaffoldSky()) {
             GoalsReviewBlock(period: .week)
             GoalsReviewBlock(period: .month)
             Text("Earlier weeks are in Trends, in the week in review.")
@@ -509,7 +512,7 @@ struct GoalsSettingsView: View {
     @EnvironmentObject private var repo: Repository
 
     var body: some View {
-        ScreenScaffold(title: "Goal settings") {
+        ScreenScaffold(title: "Goal settings", topBackground: liquidScaffoldSky()) {
             NoopCard(padding: 14) {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("How many goals").strandOverline()

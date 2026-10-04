@@ -2245,5 +2245,6 @@
   "Tick off from the journal": "Über das Journal abhaken",
   "Ticks when you log no: %@": "Hakt sich bei Nein im Journal ab: %@",
   "Ticks when you log yes: %@": "Hakt sich bei Ja im Journal ab: %@",
-  "Yes logs “%@” for “%@” in the journal, No logs “%@”.": "Ja trägt „%@“ für „%@“ ins Journal ein, Nein trägt „%@“ ein."
+  "Yes logs “%@” for “%@” in the journal, No logs “%@”.": "Ja trägt „%@“ für „%@“ ins Journal ein, Nein trägt „%@“ ein.",
+  "By hand": "Von Hand"
 }

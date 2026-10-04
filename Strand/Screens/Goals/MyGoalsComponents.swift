@@ -111,7 +111,9 @@ struct GoalListRow: View {
             // beside it, it squeezed the line under the name into one syllable per row.
             .frame(maxWidth: .infinity, alignment: .leading)
             if !largeText {
-                valueText.fixedSize(horizontal: true, vertical: false)
+                // Its own width, up to a cap: a long value (a journal question, several sports) used to
+                // widen the whole page past the screen. Past the cap it truncates.
+                valueText.frame(maxWidth: 170, alignment: .trailing).layoutPriority(1)
             }
             Image(systemName: "chevron.right").font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                 .accessibilityHidden(true)
@@ -1170,7 +1172,8 @@ struct GoalBadgesView: View {
     @ObservedObject private var tracking = GoalTrackingStore.shared
 
     var body: some View {
-        ScreenScaffold(title: "Achievements", subtitle: "Earned from your own data, on this device.") {
+        ScreenScaffold(title: "Achievements", subtitle: "Earned from your own data, on this device.",
+                       topBackground: liquidScaffoldSky()) {
             if let motivation = tracking.motivation {
                 RecordsCard(motivation: motivation)
                 BadgesCard(motivation: motivation, showsAllLink: false)

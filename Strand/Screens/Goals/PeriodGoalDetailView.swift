@@ -27,7 +27,7 @@ struct PeriodGoalDetailView: View {
     private var goal: PeriodGoal? { store.goal(id: goalId) }
 
     var body: some View {
-        ScreenScaffold(title: nil) {
+        ScreenScaffold(title: nil, topBackground: liquidScaffoldSky()) {
             if let snapshot, let goal {
                 header(snapshot)
                 hero(snapshot)

@@ -43,7 +43,8 @@ struct PeriodGoalSetupView: View {
     private var effectiveInputs: PeriodGoalInputs { inputs ?? tracking.periodInputs }
 
     private var quickList: some View {
-        ScreenScaffold(title: "New goal", subtitle: "Suggestions from your own data. One tap adds one.") {
+        ScreenScaffold(title: "New goal", subtitle: "Suggestions from your own data. One tap adds one.",
+                       topBackground: liquidScaffoldSky()) {
             Picker("Period", selection: $period) {
                 Text("Weekly").tag(PeriodGoal.Period.week)
                 Text("Monthly").tag(PeriodGoal.Period.month)
@@ -199,7 +200,7 @@ struct GuidedPeriodGoalSetup: View {
     private var calendar: Calendar { TrainingPreferences.weekCalendar }
 
     var body: some View {
-        ScreenScaffold(title: title, subtitle: subtitle) {
+        ScreenScaffold(title: title, subtitle: subtitle, topBackground: liquidScaffoldSky()) {
             progressDots
             switch step {
             case .period:   periodStep

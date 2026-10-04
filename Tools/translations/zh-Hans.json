@@ -2346,5 +2346,6 @@
   "Tick off from the journal": "从日志勾选",
   "Ticks when you log no: %@": "记录为“否”时勾选：%@",
   "Ticks when you log yes: %@": "记录为“是”时勾选：%@",
-  "Yes logs “%@” for “%@” in the journal, No logs “%@”.": "“是”会在日志中为“%2$@”记录“%1$@”，“否”记录“%3$@”。"
+  "Yes logs “%@” for “%@” in the journal, No logs “%@”.": "“是”会在日志中为“%2$@”记录“%1$@”，“否”记录“%3$@”。",
+  "By hand": "手动"
 }
