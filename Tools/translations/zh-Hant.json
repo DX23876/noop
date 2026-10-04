@@ -2318,5 +2318,21 @@
   "New badge: %@": "新徽章：%@",
   "Reached today · %@": "今天達成 · %@",
   "Week %lld/%lld on course": "本週 %lld/%lld 進展正常",
-  "%@ %lld/%lld on course": "%@ %lld/%lld 進展正常"
+  "%@ %lld/%lld on course": "%@ %lld/%lld 進展正常",
+  "of %lld min of training": "目標訓練 %lld 分鐘",
+  "%lld of %lld daily goals done": "已完成 %lld/%lld 個每日目標",
+  "Show as a ring": "顯示為圓環",
+  "Up to three daily goals are rings; the others are counted below them.": "最多三個每日目標顯示為圓環，其餘在下方計數。",
+  "Not due today": "今天不需要",
+  "Not done yet": "尚未完成",
+  "%lld of %lld min of training": "訓練 %lld/%lld 分鐘",
+  "At your pace: about %@ by the end of the week": "按你的節奏：本週末約 %@",
+  "At your pace: about %@ by the end of the month": "按你的節奏：月底約 %@",
+  "Daily goal": "每日目標",
+  "New daily goal": "新的每日目標",
+  "Edit daily goal": "編輯每日目標",
+  "Delete daily goal": "刪除每日目標",
+  "Minimum duration": "最短時長",
+  "Use local suggestions": "使用本機建議",
+  "Type": "類型"
 }

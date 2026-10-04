@@ -103,12 +103,13 @@ struct GoalActionEditorView: View {
     @State private var goalIds: Set<UUID> = []
     @State private var loaded = false
     @State private var runs: DailyGoalSheet.Runs = .ongoing
+    @State private var showsAsRing = true
     @State private var endDate = Calendar.current.date(byAdding: .month, value: 1, to: Date()) ?? Date()
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Action") {
+                Section("Daily goal") {
                     TextField("Name", text: $title)
                     Picker("Type", selection: $kind) {
                         ForEach(Kind.allCases) { Text($0.label.localizedCatalogValue).tag($0) }
@@ -133,6 +134,13 @@ struct GoalActionEditorView: View {
                         if hasMinimum {
                             Stepper("\(minimumMinutes) minutes", value: $minimumMinutes, in: 5...240, step: 5)
                         }
+                    }
+                }
+                if kind != .manual && (kind != .workout || hasMinimum) {
+                    Section {
+                        Toggle("Show as a ring", isOn: $showsAsRing)
+                    } footer: {
+                        Text("Up to three daily goals are rings; the others are counted below them.")
                     }
                 }
                 Section("How long it runs") {
@@ -180,14 +188,14 @@ struct GoalActionEditorView: View {
                 }
                 if editingId != nil {
                     Section {
-                        Button("Delete action", role: .destructive) {
+                        Button("Delete daily goal", role: .destructive) {
                             if let editingId { store.remove(editingId) }
                             onSave(); dismiss()
                         }
                     }
                 }
             }
-            .navigationTitle(editingId == nil ? "New daily action" : "Edit daily action")
+            .navigationTitle(editingId == nil ? "New daily goal" : "Edit daily goal")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
@@ -227,6 +235,7 @@ struct GoalActionEditorView: View {
         case .daily: daily = true
         case .weekdays(let values): daily = false; weekdays = Set(values)
         }
+        showsAsRing = action.showsAsRing != false
         if let endsOn = action.endsOn {
             if endsOn == Repository.localDayKey(Date()) { runs = .todayOnly }
             else {
@@ -262,7 +271,8 @@ struct GoalActionEditorView: View {
                                goalIds: goals.activeGoals.map(\.id).filter { goalIds.contains($0) },
                                isActive: existing?.isActive ?? true,
                                createdAt: existing?.createdAt ?? Date(),
-                               endsOn: endsOn))
+                               endsOn: endsOn,
+                               showsAsRing: showsAsRing ? existing?.showsAsRing.flatMap { $0 ? true : nil } : false))
         onSave(); dismiss()
     }
 

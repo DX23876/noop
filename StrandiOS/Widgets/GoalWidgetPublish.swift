@@ -45,7 +45,8 @@ enum GoalWidgetPublisher {
         }
         let snapshot = GoalWidgetSnapshot(goals: goals, weekLabel: weekLabel,
                                           summary: spot.summary ?? String(localized: "\(onCourse) of \(ordered.count) on course"),
-                                          updated: now, daily: rings, spotlightIds: spotlightIds)
+                                          updated: now, daily: rings, spotlightIds: spotlightIds,
+                                          dailyTotal: spot.dailyTotal, dailyDone: spot.dailyDone)
         if snapshot.save() {
             WidgetCenter.shared.reloadTimelines(ofKind: GoalWidgetSnapshot.widgetKind)
         }

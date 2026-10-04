@@ -80,13 +80,19 @@ struct GoalsTodaySection: View {
     @ViewBuilder
     private var content: some View {
         let spot = spotlight
-        if !spot.rings.isEmpty {
+        // Up to three rings; the other daily goals as rows while there are one or two, else counted
+        // in one strip ("6 of 10 daily goals done").
+        let checksAsRows = spot.checks.count <= 2
+        if !spot.rings.isEmpty || !checksAsRows {
             NavigationLink(value: TabRoute.goals) {
-                DailyGoalRings(occurrences: tracking.todayActions, motivation: tracking.motivation, diameter: 92)
+                DailyGoalRings(occurrences: tracking.todayActions, motivation: tracking.motivation, diameter: 92,
+                               showsTally: !checksAsRows)
             }
             .buttonStyle(.plain)
         }
-        ForEach(Array(spot.checks.prefix(2))) { occurrence in dailyRow(occurrence) }
+        if checksAsRows {
+            ForEach(spot.checks) { occurrence in dailyRow(occurrence) }
+        }
         if !spot.rows.isEmpty {
             if !spot.rings.isEmpty || !spot.checks.isEmpty { Divider().overlay(StrandPalette.hairline) }
             ForEach(spot.rows) { row in spotlightRow(row) }

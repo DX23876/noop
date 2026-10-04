@@ -132,7 +132,9 @@ extension GoalActionOccurrence {
             return String(localized: "\(measured.formatted(style)) of \(target.formatted(style)) h sleep")
         case .activeCalories:
             return String(localized: "\(Int(measured.rounded()).formatted()) of \(Int(target.rounded()).formatted()) kcal active")
-        case .workout, .manual:
+        case .workout:
+            return String(localized: "\(Int(measured.rounded())) of \(Int(target.rounded())) min of training")
+        case .manual:
             return action.requirement.displayLabel
         }
     }

@@ -23,6 +23,10 @@ struct GoalListRow: View {
     var dots: [DayDotStrip.Day]?
     /// Small columns against a target line, for an average (a mean can fall, so it never fills up).
     var columns: (values: [Double?], target: Double)?
+    /// Today's progress of a daily goal, drawn as a ring around the icon; nil draws the plain icon.
+    var iconFraction: Double?
+    /// Today's daily goal is done: a tick on the icon.
+    var isDone = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -31,6 +35,23 @@ struct GoalListRow: View {
                 .foregroundStyle(valueIsOff ? StrandPalette.textTertiary : tint)
                 .frame(width: 34, height: 34)
                 .background(Circle().fill((valueIsOff ? StrandPalette.textTertiary : tint).opacity(0.14)))
+                .overlay {
+                    if let iconFraction {
+                        Circle().trim(from: 0, to: isDone ? 1 : min(1, max(0, iconFraction)))
+                            .stroke(tint, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                            .rotationEffect(.degrees(-90))
+                            .padding(-2)
+                    }
+                }
+                .overlay(alignment: .bottomTrailing) {
+                    if isDone {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(StrandTone.positive.color)
+                            .background(Circle().fill(StrandPalette.surfaceRaised))
+                            .offset(x: 4, y: 4)
+                    }
+                }
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
@@ -82,6 +103,9 @@ struct DailyGoalRings: View {
     var motivation: GoalMotivationSnapshot?
     /// Outer diameter: about 120 on the goals page, 92 on Today.
     var diameter: CGFloat = 120
+    /// Count every daily goal below the rings ("6 of 10 daily goals done"). Off where the goals beyond
+    /// the rings are listed one by one anyway.
+    var showsTally = true
 
     @AppStorage(AppleInspiredColorsPrefs.enabledKey)
     private var appleColors = AppleInspiredColorsPrefs.defaultEnabled
@@ -94,16 +118,9 @@ struct DailyGoalRings: View {
     var body: some View {
         let items = ringed
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 16) {
-                if items.count == 1, let only = items.first {
-                    singleRing(only)
-                } else {
-                    nested(Array(items.prefix(3)))
-                }
-                VStack(alignment: .leading, spacing: 7) {
-                    ForEach(items) { legendRow($0, showsMiniRing: items.count > 3) }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+            if !items.isEmpty { ringsAndLegend(items) }
+            if showsTally, occurrences.count > items.count {
+                DailyTally(occurrences: occurrences)
             }
             if let line = cheerLine(items) {
                 Label(line.text, systemImage: line.symbol)
@@ -113,6 +130,20 @@ struct DailyGoalRings: View {
             }
         }
         .accessibilityElement(children: .combine)
+    }
+
+    private func ringsAndLegend(_ items: [GoalActionOccurrence]) -> some View {
+            HStack(alignment: .center, spacing: 16) {
+                if items.count == 1, let only = items.first {
+                    singleRing(only)
+                } else {
+                    nested(Array(items.prefix(3)))
+                }
+                VStack(alignment: .leading, spacing: 7) {
+                    ForEach(items) { legendRow($0, showsMiniRing: false) }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
     }
 
     private func fraction(_ o: GoalActionOccurrence) -> Double {
@@ -259,6 +290,7 @@ extension GoalActionOccurrence {
         guard let measured else { return "–" }
         switch action.requirement {
         case .sleep: return String(localized: "\(measured.formatted(.number.precision(.fractionLength(1)))) h")
+        case .workout: return String(localized: "\(Int(measured.rounded())) min")
         default: return Int(measured.rounded()).formatted()
         }
     }
@@ -270,6 +302,7 @@ extension GoalActionOccurrence {
         case .steps: return String(localized: "of \(Int(target).formatted()) steps")
         case .sleep: return String(localized: "of \(target.formatted(.number.precision(.fractionLength(0...1)))) h sleep")
         case .activeCalories: return String(localized: "of \(Int(target).formatted()) kcal")
+        case .workout: return String(localized: "of \(Int(target)) min of training")
         default: return ""
         }
     }
@@ -294,6 +327,42 @@ extension GoalActionOccurrence {
         case .workout: return "figure.mixed.cardio"
         case .manual: return "checkmark"
         }
+    }
+}
+
+/// Every daily goal counted, whatever its kind: "6 of 10 daily goals done" over a strip with one piece
+/// per goal, filled in the goal's colour once it is done. Scales from two goals to fifteen, where rings
+/// cannot (plan §17g).
+struct DailyTally: View {
+    let occurrences: [GoalActionOccurrence]
+
+    @AppStorage(AppleInspiredColorsPrefs.enabledKey)
+    private var appleColors = AppleInspiredColorsPrefs.defaultEnabled
+
+    var body: some View {
+        let ordered = GoalSpotlight.make(todayActions: occurrences, periodSnapshots: [], longTerm: [],
+                                         pinnedLongTerm: [])
+        let all = ordered.rings + ordered.checks
+        let done = all.filter(\.isCompleted).count
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: done == all.count ? "star.fill" : "checklist")
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(done == all.count ? StrandPalette.statusWarning : StrandPalette.textSecondary)
+                Text(String(localized: "\(done) of \(all.count) daily goals done"))
+                    .font(StrandFont.footnote.weight(.semibold)).foregroundStyle(StrandPalette.textPrimary)
+            }
+            HStack(spacing: 3) {
+                ForEach(all) { o in
+                    Capsule()
+                        .fill(o.isCompleted ? o.identityColor(appleColors: appleColors) : StrandPalette.hairline)
+                        .frame(height: 6)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(String(localized: "\(done) of \(all.count) daily goals done")))
     }
 }
 
@@ -395,6 +464,7 @@ struct DailyGoalSheet: View {
     @State private var runs: Runs = .ongoing
     @State private var endDate = Calendar.current.date(byAdding: .month, value: 1, to: Date()) ?? Date()
     @State private var weekdays: Set<Int> = Set(1...7)
+    @State private var showsAsRing = true
     @State private var loaded = false
 
     private var today: String { Repository.localDayKey(Date()) }
@@ -424,6 +494,13 @@ struct DailyGoalSheet: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("On these days").strandOverline()
                             RestDaysPicker(selection: $weekdays)
+                        }
+                    }
+                    Toggle(isOn: $showsAsRing) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Show as a ring").font(StrandFont.footnote)
+                            Text("Up to three daily goals are rings; the others are counted below them.")
+                                .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                         }
                     }
                     if existing != nil {
@@ -498,6 +575,7 @@ struct DailyGoalSheet: View {
         loaded = true
         if let existing {
             value = slot.value(of: existing.requirement) ?? slot.defaultValue
+            showsAsRing = existing.showsAsRing != false
             if case .weekdays(let days) = existing.schedule { weekdays = Set(days) }
             if let endsOn = existing.endsOn {
                 if endsOn == today { runs = .todayOnly }
@@ -525,7 +603,8 @@ struct DailyGoalSheet: View {
         store.upsert(GoalAction(id: existing?.id ?? UUID(),
                                 title: existing?.title ?? defaultTitle,
                                 requirement: slot.requirement(value), schedule: schedule, goalIds: [],
-                                createdAt: existing?.createdAt ?? Date(), endsOn: endsOn))
+                                createdAt: existing?.createdAt ?? Date(), endsOn: endsOn,
+                                showsAsRing: showsAsRing ? existing?.showsAsRing.flatMap { $0 ? true : nil } : false))
         StrandHaptic.commit.play()
         onSave()
         dismiss()

@@ -71,10 +71,13 @@ struct GoalAction: Codable, Identifiable, Equatable {
     /// "Only today" is a goal whose last day is the day it was set. Optional, so stored goals and
     /// backups from before it decode unchanged.
     var endsOn: String?
+    /// Whether a measured daily goal is drawn as one of the (at most three) rings. nil = automatic: the
+    /// first three in the fixed order. false keeps it in the count below the rings (plan §17g).
+    var showsAsRing: Bool?
 
     init(id: UUID = UUID(), title: String, requirement: Requirement,
          schedule: Schedule = .daily, goalIds: [UUID], isActive: Bool = true,
-         createdAt: Date = Date(), endsOn: String? = nil) {
+         createdAt: Date = Date(), endsOn: String? = nil, showsAsRing: Bool? = nil) {
         self.id = id
         self.title = title
         self.requirement = requirement
@@ -84,6 +87,7 @@ struct GoalAction: Codable, Identifiable, Equatable {
         self.isActive = isActive
         self.createdAt = createdAt
         self.endsOn = endsOn
+        self.showsAsRing = showsAsRing
     }
 
     /// Past its last day: it no longer shows as due and moves to the ended goals.
@@ -116,7 +120,9 @@ struct GoalActionOccurrence: Identifiable, Equatable {
         case .steps(let minimum): return Double(minimum)
         case .sleep(let hours): return hours
         case .activeCalories(let minimum): return Double(minimum)
-        case .workout, .manual: return nil
+        // A workout with a minimum length fills up in minutes; one without is done or not.
+        case .workout(_, let minutes): return minutes.map(Double.init)
+        case .manual: return nil
         }
     }
 
@@ -169,7 +175,8 @@ enum GoalActionEvaluator {
                                     isAutomatic: automatic,
                                     measured: measuredValue(action.requirement, metric: dayMetrics[key],
                                                             activeKcal: activeKcalByDay[key],
-                                                            steps: stepsByDay[key])))
+                                                            steps: stepsByDay[key],
+                                                            workouts: workoutsByDay[key] ?? [])))
             }
             guard let next = calendar.date(byAdding: .day, value: 1, to: cursor), next > cursor else { break }
             cursor = next
@@ -180,8 +187,14 @@ enum GoalActionEvaluator {
     /// The day's reading for a measured requirement, in its own unit; nil when nothing was measured
     /// or the requirement is not a number (a workout, a manual box).
     static func measuredValue(_ requirement: GoalAction.Requirement, metric: DailyMetric?,
-                              activeKcal: Double?, steps: Int? = nil) -> Double? {
+                              activeKcal: Double?, steps: Int? = nil, workouts: [WorkoutRow] = []) -> Double? {
         switch requirement {
+        case .workout(let sports, let minimumMinutes?) where minimumMinutes > 0:
+            // The longest matching workout, in minutes: the same rule `automaticCompletion` ticks the goal
+            // by (one workout long enough), so a full ring and a ticked goal always agree.
+            let longest = workouts.filter { matches($0.sport, any: sports) }
+                .map { ($0.durationS ?? Double(max(0, $0.endTs - $0.startTs))) / 60 }.max()
+            return longest ?? 0
         case .steps: return (metric?.steps ?? steps).map(Double.init)
         case .sleep: return metric?.totalSleepMin.map { Double($0) / 60 }
         case .activeCalories: return activeKcal

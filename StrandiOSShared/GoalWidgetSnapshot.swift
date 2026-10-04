@@ -89,15 +89,26 @@ public struct GoalWidgetSnapshot: Codable, Equatable {
     public var daily: [Daily]?
     /// The weekly and monthly goals worth a line today, most urgent first (the app's `GoalSpotlight`).
     public var spotlightIds: [String]?
+    /// All of today's daily goals and how many are done, rings or not ("6 of 10").
+    public var dailyTotal: Int?
+    public var dailyDone: Int?
 
     public init(goals: [Goal], weekLabel: String, summary: String, updated: Date,
-                daily: [Daily]? = nil, spotlightIds: [String]? = nil) {
+                daily: [Daily]? = nil, spotlightIds: [String]? = nil, dailyTotal: Int? = nil, dailyDone: Int? = nil) {
         self.goals = goals
         self.weekLabel = weekLabel
         self.summary = summary
         self.updated = updated
         self.daily = daily
         self.spotlightIds = spotlightIds
+        self.dailyTotal = dailyTotal
+        self.dailyDone = dailyDone
+    }
+
+    /// "6 of 10" when there are daily goals beyond the rings; nil otherwise.
+    public var dailyTally: (done: Int, total: Int)? {
+        guard let total = dailyTotal, let done = dailyDone, total > dailyGoals.count else { return nil }
+        return (done, total)
     }
 
     public var dailyGoals: [Daily] { daily ?? [] }

@@ -157,6 +157,13 @@ struct GoalWidgetView: View {
         .frame(width: diameter, height: diameter)
     }
 
+    @ViewBuilder private var tallyLine: some View {
+        if let tally = entry.snapshot.dailyTally {
+            Label(String(localized: "\(tally.done) of \(tally.total) daily goals done"), systemImage: "checklist")
+                .font(.caption2.weight(.semibold)).foregroundStyle(StrandPalette.textSecondary).lineLimit(1)
+        }
+    }
+
     private func legend(_ items: [GoalWidgetSnapshot.Daily], limit: Int = 3) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             ForEach(Array(items.prefix(limit))) { daily in
@@ -237,6 +244,7 @@ struct GoalWidgetView: View {
                 nestedRings(entry.snapshot.dailyGoals, diameter: 104)
                 VStack(alignment: .leading, spacing: 6) {
                     legend(entry.snapshot.dailyGoals, limit: entry.snapshot.spotlight.isEmpty ? 3 : 2)
+                    tallyLine
                     if let first = entry.snapshot.spotlight.first {
                         Divider()
                         compactRow(first)
@@ -263,8 +271,11 @@ struct GoalWidgetView: View {
             if showsRings {
                 HStack(alignment: .center, spacing: 14) {
                     nestedRings(entry.snapshot.dailyGoals, diameter: 120)
-                    legend(entry.snapshot.dailyGoals)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    VStack(alignment: .leading, spacing: 6) {
+                        legend(entry.snapshot.dailyGoals)
+                        tallyLine
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 Divider()
             } else {

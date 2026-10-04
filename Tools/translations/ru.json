@@ -2140,5 +2140,21 @@
   "New badge: %@": "Новый значок: %@",
   "Reached today · %@": "Достигнуто сегодня · %@",
   "Week %lld/%lld on course": "Неделя: %lld/%lld по плану",
-  "%@ %lld/%lld on course": "%@: %lld/%lld по плану"
+  "%@ %lld/%lld on course": "%@: %lld/%lld по плану",
+  "of %lld min of training": "из %lld мин тренировки",
+  "%lld of %lld daily goals done": "Выполнено целей дня: %lld из %lld",
+  "Show as a ring": "Показывать кольцом",
+  "Up to three daily goals are rings; the others are counted below them.": "До трёх целей дня показываются кольцами, остальные считаются под ними.",
+  "Not due today": "Сегодня не нужно",
+  "Not done yet": "Ещё не сделано",
+  "%lld of %lld min of training": "%lld из %lld мин тренировки",
+  "At your pace: about %@ by the end of the week": "В этом темпе: около %@ к концу недели",
+  "At your pace: about %@ by the end of the month": "В этом темпе: около %@ к концу месяца",
+  "Daily goal": "Цель на день",
+  "New daily goal": "Новая цель на день",
+  "Edit daily goal": "Изменить цель на день",
+  "Delete daily goal": "Удалить цель на день",
+  "Minimum duration": "Минимальная длительность",
+  "Use local suggestions": "Использовать локальные подсказки",
+  "Type": "Тип"
 }

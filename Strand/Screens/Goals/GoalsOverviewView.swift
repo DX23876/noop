@@ -158,7 +158,7 @@ struct GoalsOverviewView: View {
 
     @ViewBuilder
     private var ringsHero: some View {
-        if tracking.todayActions.contains(where: { $0.fraction != nil }) {
+        if !tracking.todayActions.isEmpty {
             NoopCard(padding: 16) {
                 VStack(alignment: .leading, spacing: 14) {
                     Text(String(localized: "Today")).strandOverline()
@@ -243,7 +243,7 @@ struct GoalsOverviewView: View {
         }
         if endsOnIsNotToday(action) {
             switch action.schedule {
-            case .daily: parts.append(String(localized: "every day"))
+            case .daily: break   // every day is the default; saying it on every row is noise
             case .weekdays(let days):
                 let symbols = Calendar.autoupdatingCurrent.shortStandaloneWeekdaySymbols
                 parts.append(days.compactMap { symbols.indices.contains($0 - 1) ? symbols[$0 - 1] : nil }
@@ -258,6 +258,13 @@ struct GoalsOverviewView: View {
 
     private func endsOnIsNotToday(_ action: GoalAction) -> Bool { action.endsOn != today }
 
+    /// Where a daily goal stands today, then how long it runs: "7,328 of 10,000 steps · Ongoing · every day".
+    /// A goal not due today says so instead of a reading.
+    private func dailySubtitle(_ action: GoalAction, _ occurrence: GoalActionOccurrence?) -> String {
+        let state = occurrence.map(\.detailLine) ?? String(localized: "Not due today")
+        return "\(state) · \(runsLine(action))"
+    }
+
     private var dailyList: some View {
         let slotActions = DailyGoalSheet.Slot.allCases.compactMap { $0.current(in: actions.actions, today: today)?.id }
         let others = actions.actions.filter {
@@ -266,12 +273,15 @@ struct GoalsOverviewView: View {
         return listSection(String(localized: "Daily")) {
             ForEach(DailyGoalSheet.Slot.allCases) { slot in
                 let action = slot.current(in: actions.actions, today: today)
+                let occurrence = action.flatMap { a in tracking.todayActions.first { $0.action.id == a.id } }
                 Button { sheet = .slot(slot) } label: {
                     GoalListRow(icon: slot.icon, tint: goalIdentityColor(slot.metric, appleColors: appleColors),
-                                title: slot.title, subtitle: action.map(runsLine),
+                                title: slot.title, subtitle: action.map { dailySubtitle($0, occurrence) },
                                 value: action.flatMap { slot.value(of: $0.requirement) }.map(slot.format)
                                     ?? String(localized: "Off"),
-                                valueIsOff: action == nil)
+                                valueIsOff: action == nil,
+                                iconFraction: occurrence?.fraction ?? (occurrence?.isCompleted == true ? 1 : nil),
+                                isDone: occurrence?.isCompleted ?? false)
                 }
                 .buttonStyle(.plain)
             }
@@ -284,14 +294,27 @@ struct GoalsOverviewView: View {
                             progress: hydrationML.map { goal > 0 ? $0 / goal : 0 })
             }
             ForEach(others) { action in
+                let occurrence = tracking.todayActions.first { $0.action.id == action.id }
                 Button { sheet = .dailyGoal(action.id) } label: {
                     GoalListRow(icon: icon(for: action.requirement),
                                 tint: GoalActionOccurrence(action: action, day: today, isCompleted: false,
                                                            isAutomatic: false).identityColor(appleColors: appleColors),
-                                title: action.title, subtitle: runsLine(action),
-                                value: action.requirement.displayLabel)
+                                title: action.title, subtitle: dailySubtitle(action, occurrence),
+                                value: action.requirement.displayLabel,
+                                iconFraction: occurrence?.fraction ?? (occurrence?.isCompleted == true ? 1 : nil),
+                                isDone: occurrence?.isCompleted ?? false)
                 }
                 .buttonStyle(.plain)
+                .contextMenu {
+                    if case .manual = action.requirement, let occurrence {
+                        Button(occurrence.isCompleted ? "Not done yet" : "Mark completed",
+                               systemImage: occurrence.isCompleted ? "circle" : "checkmark.circle") {
+                            actions.toggleManual(action.id, day: occurrence.day)
+                            StrandHaptic.selection.play()
+                            refresh()
+                        }
+                    }
+                }
             }
             Button { sheet = .dailyGoal(nil) } label: { addRow(String(localized: "Add another daily goal")) }
                 .buttonStyle(.plain)

@@ -2162,5 +2162,21 @@
   "New badge: %@": "Neues Abzeichen: %@",
   "Reached today · %@": "Heute erreicht · %@",
   "Week %lld/%lld on course": "Woche %lld/%lld auf Kurs",
-  "%@ %lld/%lld on course": "%@ %lld/%lld auf Kurs"
+  "%@ %lld/%lld on course": "%@ %lld/%lld auf Kurs",
+  "of %lld min of training": "von %lld min Training",
+  "%lld of %lld daily goals done": "%lld von %lld Tageszielen geschafft",
+  "Show as a ring": "Als Ring zeigen",
+  "Up to three daily goals are rings; the others are counted below them.": "Bis zu drei Tagesziele sind Ringe, die übrigen werden darunter gezählt.",
+  "Not due today": "Heute nicht fällig",
+  "Not done yet": "Noch nicht erledigt",
+  "%lld of %lld min of training": "%lld von %lld min Training",
+  "At your pace: about %@ by the end of the week": "Bei deinem Tempo: etwa %@ bis Ende der Woche",
+  "At your pace: about %@ by the end of the month": "Bei deinem Tempo: etwa %@ bis Ende des Monats",
+  "Daily goal": "Tagesziel",
+  "New daily goal": "Neues Tagesziel",
+  "Edit daily goal": "Tagesziel bearbeiten",
+  "Delete daily goal": "Tagesziel löschen",
+  "Minimum duration": "Mindestdauer",
+  "Use local suggestions": "Lokale Vorschläge nutzen",
+  "Type": "Art"
 }

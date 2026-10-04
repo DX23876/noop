@@ -32,10 +32,16 @@ struct GoalSpotlight {
         }
     }
 
-    /// Measured daily goals (steps, active kcal, sleep) in a fixed order, so a ring keeps its place.
+    /// Up to three measured daily goals drawn as rings, in a fixed order so a ring keeps its place.
     var rings: [GoalActionOccurrence] = []
-    /// Daily goals that are done or not (a workout, a box to tick).
+    /// Every other daily goal: the ones done or not (a workout, a box to tick) and measured ones beyond
+    /// the three rings. They are counted, not drawn, so ten daily goals read as well as two.
     var checks: [GoalActionOccurrence] = []
+    /// All of today's daily goals, and how many are done.
+    var dailyTotal = 0
+    var dailyDone = 0
+
+    static let maxRings = 3
     /// At most `maxRows` weekly, monthly or long-term goals that need a look today.
     var rows: [Row] = []
     /// "Week 2/3 on course · October 1/1 on course", or nil without weekly and monthly goals.
@@ -47,8 +53,17 @@ struct GoalSpotlight {
                      longTerm: [GoalTrackingSnapshot], pinnedLongTerm: Set<UUID>,
                      maxRows: Int = maxRows) -> GoalSpotlight {
         var spotlight = GoalSpotlight()
-        spotlight.rings = todayActions.filter { $0.fraction != nil }.sorted(by: ringOrder)
-        spotlight.checks = todayActions.filter { $0.fraction == nil }
+        // Rings: goals marked for one first, then the automatic ones, in the fixed order; three at most.
+        let measured = todayActions.filter { $0.fraction != nil && $0.action.showsAsRing != false }
+            .sorted { a, b in
+                let pa = a.action.showsAsRing == true, pb = b.action.showsAsRing == true
+                return pa != pb ? pa : ringOrder(a, b)
+            }
+        spotlight.rings = Array(measured.prefix(maxRings)).sorted(by: ringOrder)
+        let ringIds = Set(spotlight.rings.map(\.id))
+        spotlight.checks = todayActions.filter { !ringIds.contains($0.id) }.sorted(by: ringOrder)
+        spotlight.dailyTotal = todayActions.count
+        spotlight.dailyDone = todayActions.filter(\.isCompleted).count
 
         let open = periodSnapshots.filter { $0.goal.status == .active }
         var candidates: [Row] = []
@@ -98,7 +113,8 @@ struct GoalSpotlight {
             case .steps: return 0
             case .activeCalories: return 1
             case .sleep: return 2
-            case .workout, .manual: return 3
+            case .workout: return 3
+            case .manual: return 4
             }
         }
         if rank(a) != rank(b) { return rank(a) < rank(b) }

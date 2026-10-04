@@ -2163,5 +2163,21 @@
   "New badge: %@": "Nova insígnia: %@",
   "Reached today · %@": "Atingido hoje · %@",
   "Week %lld/%lld on course": "Semana: %lld/%lld no bom caminho",
-  "%@ %lld/%lld on course": "%@: %lld/%lld no bom caminho"
+  "%@ %lld/%lld on course": "%@: %lld/%lld no bom caminho",
+  "of %lld min of training": "de %lld min de treino",
+  "%lld of %lld daily goals done": "%lld de %lld objetivos diários cumpridos",
+  "Show as a ring": "Mostrar como anel",
+  "Up to three daily goals are rings; the others are counted below them.": "Até três objetivos diários são anéis; os restantes são contados por baixo.",
+  "Not due today": "Não é para hoje",
+  "Not done yet": "Ainda não feito",
+  "%lld of %lld min of training": "%lld de %lld min de treino",
+  "At your pace: about %@ by the end of the week": "Ao seu ritmo: cerca de %@ até ao fim da semana",
+  "At your pace: about %@ by the end of the month": "Ao seu ritmo: cerca de %@ até ao fim do mês",
+  "Daily goal": "Objetivo diário",
+  "New daily goal": "Novo objetivo diário",
+  "Edit daily goal": "Editar objetivo diário",
+  "Delete daily goal": "Eliminar objetivo diário",
+  "Minimum duration": "Duração mínima",
+  "Use local suggestions": "Usar sugestões locais",
+  "Type": "Tipo"
 }

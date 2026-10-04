@@ -146,7 +146,9 @@ struct PeriodGoalDetailView: View {
                 if let projected = r.projected, s.daysLeft > 1,
                    ![.achieved, .outOfReach, .protected, .noData].contains(s.state),
                    s.goal.metric.aggregation != .average {
-                    Text("At your pace: about \(GoalFormat.amount(projected, s.goal.metric)) by the end of the \(GoalFormat.periodWord(s.goal.period))")
+                    Text(s.goal.period == .week
+                         ? String(localized: "At your pace: about \(GoalFormat.amount(projected, s.goal.metric)) by the end of the week")
+                         : String(localized: "At your pace: about \(GoalFormat.amount(projected, s.goal.metric)) by the end of the month"))
                         .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -569,7 +571,9 @@ struct GoalMonthCalendar: View {
         let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
         LazyVGrid(columns: columns, spacing: 4) {
             ForEach(0..<leading, id: \.self) { _ in Color.clear.frame(height: 22) }
-            ForEach(Array(snapshot.periodDays.enumerated()), id: \.offset) { index, day in
+            // Keyed by the day, not its position: the blank lead-in cells above are keyed 0, 1, 2…, and
+            // two ForEach blocks sharing ids in one grid made SwiftUI drop the first days of the month.
+            ForEach(Array(snapshot.periodDays.enumerated()), id: \.element) { index, day in
                 let value = snapshot.dayValues[index] ?? 0
                 let future = index > snapshot.todayIndex
                 RoundedRectangle(cornerRadius: 5, style: .continuous)
