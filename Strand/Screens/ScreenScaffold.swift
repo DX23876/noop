@@ -39,6 +39,8 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
     /// non-tab screen keep their exact prior scroll behaviour.
     @Environment(\.scrollToTopSignal) private var scrollToTopSignal
     @ObservedObject private var backgroundStore = BackgroundImageStore.shared
+    @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = SceneBackgroundPrefs.defaultEnabled
+    @AppStorage(SkyBehindCardsPrefs.enabledKey) private var skyBehindCards = false
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -144,8 +146,11 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
         // Which title colours read over the top backdrop. The scaffold sky (`liquidScaffoldSky`) is a pale
         // blue-gray in Light mode and dark in Dark mode, so the semantic tokens already contrast with it;
         // pinning the on-dark pair whenever a sky was drawn put white titles on near-white in Light mode
-        // ("My goals", "More"). Only a custom photo, which may be dark in either mode, takes the on-dark pair.
-        let overSky = topBackground != nil && backgroundStore.isActive
+        // ("My goals", "More"). The on-dark pair is for a custom photo, which may be dark in either mode,
+        // and for the illustrated scene behind the cards at its dark hours.
+        let darkScene = showDayCycleBackground && skyBehindCards
+            && DayCycleScene.isDark(hour: Calendar.current.component(.hour, from: Date()))
+        let overSky = topBackground != nil && (backgroundStore.isActive || darkScene)
         let titleColor = overSky ? StrandPalette.onDarkPrimary : StrandPalette.textPrimary
         let subtitleColor = overSky ? StrandPalette.onDarkSecondary : StrandPalette.textSecondary
         return HStack(alignment: .center, spacing: 12) {

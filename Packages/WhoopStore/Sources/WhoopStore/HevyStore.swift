@@ -33,13 +33,35 @@ extension WhoopStore {
         })
     }
 
+    /// Sources whose sessions come from an export FILE, where one start time is one workout.
+    ///
+    /// A file import's id is built from the start time AND the workout title, because the file carries
+    /// no id of its own. Renaming a workout in the source app and importing a newer export therefore
+    /// arrives under a new id, and a plain upsert kept both copies: the session showed up twice in the
+    /// strength history and its volume counted twice toward the muscle map.
+    static let fileExportSources: Set<StrengthDataSource> = [.hevyCSV, .liftosaur]
+
     /// Upsert complete sessions from any strength source. File-import ids must be deterministic.
+    ///
+    /// For a `fileExportSources` session, a stored session of the same source at the same start that
+    /// is not part of this batch is replaced, so a renamed workout supersedes its old copy. Sessions
+    /// sharing a start inside one batch are all kept: they are distinct workouts in the same file.
     @discardableResult
     public func upsertStrengthWorkouts(_ workouts: [HevyWorkout]) async throws -> [Int] {
         guard !workouts.isEmpty else { return [] }
+        let batchIds = Set(workouts.map(\.id))
         return try syncWrite { db in
             var touched: [Int] = []
             for w in workouts {
+                if Self.fileExportSources.contains(w.source) {
+                    let sameStart = try String.fetchAll(db, sql: """
+                        SELECT id FROM hevyWorkout WHERE source = ? AND startTs = ?
+                        """, arguments: [w.source.rawValue, w.startTs])
+                    for stale in sameStart where !batchIds.contains(stale) {
+                        // Exercises and sets go with it by cascade.
+                        try db.execute(sql: "DELETE FROM hevyWorkout WHERE id = ?", arguments: [stale])
+                    }
+                }
                 try db.execute(sql: """
                     INSERT INTO hevyWorkout
                         (id, title, routineId, notes, startTs, endTs, updatedAtTs, createdAtTs, source)

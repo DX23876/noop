@@ -40,4 +40,15 @@ final class SceneMotifTests: XCTestCase {
         XCTAssertEqual(SceneMotif.resolve("nonsense"), .alps)
         XCTAssertEqual(SceneMotif.resolve(""), .alps)
     }
+
+    /// The dark scenes are exactly the night, first-light and dusk slots, so a title drawn straight on the
+    /// scene takes the on-dark ink there and only there.
+    func testDarkScenesAreTheNightFirstLightAndDuskSlots() {
+        let darkSlots: Set<Int> = [1, 2, 4, 5]
+        for hour in 0..<24 {
+            XCTAssertEqual(DayCycleScene.isDark(hour: hour), darkSlots.contains(DayCycleScene.slot(hour: hour)),
+                           "hour \(hour)")
+        }
+        XCTAssertTrue(DayCycleScene.isDark(hour: -1), "wraps like slot(hour:)")
+    }
 }
