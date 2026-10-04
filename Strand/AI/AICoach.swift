@@ -3681,7 +3681,12 @@ final class AICoachEngine: ObservableObject {
             (g.status == .achieved || g.status == .abandoned)
                 && (g.history.last?.date ?? .distantPast) >= recencyCutoff
         }
-        let blocks = (store.activeGoals + recentlyClosed).compactMap { goalBlock(for: $0, profile: profile) }
+        var blocks = (store.activeGoals + recentlyClosed).compactMap { goalBlock(for: $0, profile: profile) }
+        // Weekly and monthly goals with their state, computed in code (goals plan §14): the coach narrates
+        // where the week stands instead of judging it itself.
+        if let periodBlock = Self.periodGoalsBlock(GoalTrackingStore.shared.periodSnapshots) {
+            blocks.append(periodBlock)
+        }
         let pendingSetups = CoachGoalSetupProposalStore.shared.pending
         guard !blocks.isEmpty || !pendingSetups.isEmpty else { return nil }
 
@@ -3698,6 +3703,34 @@ final class AICoachEngine: ObservableObject {
                     + "one and ignore the rest."
         }
         return result
+    }
+
+    /// The open weekly and monthly goals, one line each: target, done so far, the state word, what is
+    /// left, and the long-term goal it serves. English and in code, like the rest of the context.
+    static func periodGoalsBlock(_ snapshots: [PeriodGoalSnapshot]) -> String? {
+        let open = snapshots.filter { $0.goal.isOpen }
+        guard !open.isEmpty else { return nil }
+        let lines = open.map { s -> String in
+            let goal = s.goal
+            let unit = goal.metric.rawValue
+            var line = "- \(goal.period == .week ? "Weekly" : "Monthly") goal: \(unit), target "
+                + "\(Self.compact(s.result.target)) (period \(s.periodStart), \(s.daysLeft) days left): "
+                + "\(Self.compact(s.result.current)) so far, state \(s.state.rawValue)"
+            if goal.status == .paused { line += ", PAUSED" }
+            if let threshold = goal.threshold { line += ", a day counts from \(Self.compact(threshold))" }
+            if !goal.sportFilter.isEmpty { line += ", sports \(goal.sportFilter.joined(separator: "/"))" }
+            if s.currentStreak > 1 { line += ", series \(s.currentStreak)" }
+            if let parent = goal.parentGoalId.flatMap({ CoachGoalStore.shared.goal(id: $0) }) {
+                line += ", serves the goal \"\(parent.title.isEmpty ? parent.kind.rawValue : parent.title)\""
+            }
+            return line
+        }
+        return "WEEKLY AND MONTHLY GOALS (states computed by NOOP; do not recompute or contradict them; "
+            + "suggest, never change a goal):\n" + lines.joined(separator: "\n")
+    }
+
+    private static func compact(_ value: Double) -> String {
+        value.rounded() == value ? String(Int(value)) : String(format: "%.1f", value)
     }
 
     /// One goal, with the arithmetic done: how long is left, how much change remains, roughly where in

@@ -70,7 +70,8 @@ enum PlanReminder {
 
         let content = UNMutableNotificationContent()
         content.title = String(localized: "Time for your planned session")
-        content.body = proposal.summary(effortScale: UnitPrefs.currentEffortScale())
+        let summary = proposal.summary(effortScale: UnitPrefs.currentEffortScale())
+        content.body = GoalReminderLines.training(for: proposal.sport).map { "\(summary) \($0)" } ?? summary
         content.sound = .default
 
         let comps = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: time)

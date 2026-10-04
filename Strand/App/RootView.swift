@@ -54,7 +54,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         case .intelligence: return "Intelligence"
         case .insightsHub: return "What Moves You"
         case .coach: return "Coach"
-        case .goalJourney: return "Goal & Journey"
+        case .goalJourney: return "Goals"
         case .live: return "Live"
         case .breathe: return "Breathe"
         case .intervals: return "Intervals"
@@ -106,7 +106,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         case .intelligence: return String(localized: "Intelligence")
         case .insightsHub: return String(localized: "What Moves You")
         case .coach: return String(localized: "Coach")
-        case .goalJourney: return String(localized: "Goal & Journey")
+        case .goalJourney: return String(localized: "Goals")
         case .live: return String(localized: "Live")
         case .breathe: return String(localized: "Breathe")
         case .intervals: return String(localized: "Intervals")
@@ -203,7 +203,8 @@ struct NavGroup: Identifiable {
     /// Data & App group so the first thing a new user reaches for stays near the surface. Every one of the
     /// 27 `NavItem` cases appears exactly once across these groups (asserted by the M5 routability test).
     static let all: [NavGroup] = [
-        NavGroup(title: "Today", id: "today", items: [.today]),
+        // Goals sit directly under Today: the week's goals are the second thing to look at (§2a).
+        NavGroup(title: "Today", id: "today", items: [.today, .goalJourney]),
         NavGroup(title: "Sleep", id: "sleep", items: [.sleep]),
         NavGroup(title: "Body", id: "body", items: [
             // Workouts lists the sessions; Strength and Cardio say what those sessions were made of.
@@ -215,7 +216,7 @@ struct NavGroup: Identifiable {
         // S6: the overlapping insight surfaces (Intelligence / What Moves You / Insights / Insights Hub)
         // all collapse under this single Insights group rather than scattering across the flat list.
         NavGroup(title: "Insights", id: "insights", items: [
-            .momentum, .intelligence, .insightsHub, .coach, .goalJourney, .explore, .compare, .insights,
+            .momentum, .intelligence, .insightsHub, .coach, .explore, .compare, .insights,
             .labBook, .rhythm, .trends,
         ]),
         NavGroup(title: "Data & App", id: "data_app", items: [
@@ -385,6 +386,9 @@ struct RootView: View {
             // stays in exactly one place.
             case .coach: selection = .coach
             case .alarms: selection = .smartAlarm
+            case .goals:
+                selection = .goalJourney
+                router.requestedGoalId = nil
             case nil: break
             }
             if dest != nil { router.requestedDestination = nil }

@@ -133,6 +133,9 @@ final class WatchSessionBridge: NSObject, ObservableObject {
             || last.restCalibrating != next.restCalibrating
             || last.sleepSummary != next.sleepSummary
             || last.scoreDay != next.scoreDay
+            // The goal complication's words and fill are headline too: a goal reached should reach the
+            // wrist without waiting for a score change.
+            || last.goals != next.goals
     }
 
     /// Build the snapshot off the app state. Pure read; no side effects. Split out so the wiring is easy
@@ -190,9 +193,27 @@ final class WatchSessionBridge: NSObject, ObservableObject {
             asOf: Date(),
             // The day the scores are ABOUT (not when we built this), so the watch can label recency
             // honestly ("Yesterday") even when the build is fresh. nil when there's no anchor day at all.
-            scoreDay: day?.day
+            scoreDay: day?.day,
+            goals: Self.watchGoals()
         )
         return snap
+    }
+
+    /// The weekly goals for the watch's goal complication: the ones needing attention first, worded
+    /// exactly as on the phone.
+    @MainActor
+    static func watchGoals() -> [WatchScoreSnapshot.Goal]? {
+        let week = GoalTrackingStore.shared.periodSnapshots.filter { $0.goal.status == .active && $0.goal.period == .week }
+        guard !week.isEmpty else { return nil }
+        let ordered = week.filter { GoalStatusStyle.needsAttention($0.state) } + week.filter { !GoalStatusStyle.needsAttention($0.state) }
+        return ordered.prefix(3).map { s in
+            let headline: String = s.state == .achieved ? s.style.wordText
+                : (s.goal.metric.aggregation == .average ? GoalFormat.amount(s.result.current, s.goal.metric)
+                   : String(localized: "\(GoalFormat.number(s.result.remaining, s.goal.metric)) to go"))
+            return .init(name: GoalFormat.shortName(s.goal), symbol: s.goal.metric.icon,
+                         progress: GoalFormat.progress(s), headline: headline, stateWord: s.style.wordText,
+                         fraction: s.result.fraction)
+        }
     }
 
     /// A one line sleep summary for the glance, formatted on the phone (the watch never recomputes it).

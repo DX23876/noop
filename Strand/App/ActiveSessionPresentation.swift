@@ -277,11 +277,20 @@ extension ActiveSessionMiniBar {
 /// accessory on iOS 26.1 and later, a card floating just above the tab bar before that.
 private struct ActiveSessionMiniBarHost: ViewModifier {
     @EnvironmentObject private var session: ActiveSessionController
+    @EnvironmentObject private var router: NavRouter
+    /// The optional goals week bar (goals plan §2a). Off by default; on iOS 26.1+ it shares the tab bar's
+    /// one bottom accessory with the workout bar, which always wins while a session runs.
+    @AppStorage(GoalsWeekAccessory.enabledKey) private var goalsBar = false
+    @ObservedObject private var tracking = GoalTrackingStore.shared
 
     func body(content: Content) -> some View {
         let visible = session.hasLiveSession && !session.isPresented
+        let goalsVisible = goalsBar && !visible
+            && tracking.periodSnapshots.contains { $0.goal.status == .active && $0.goal.period == .week }
         if #available(iOS 26.1, *) {
-            content.tabViewBottomAccessory(isEnabled: visible) { ActiveSessionMiniBar() }
+            content.tabViewBottomAccessory(isEnabled: visible || goalsVisible) {
+                if visible { ActiveSessionMiniBar() } else { GoalsWeekAccessory { router.openGoals() } }
+            }
         } else {
             content.overlay(alignment: .bottom) {
                 if visible {

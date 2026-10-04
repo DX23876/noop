@@ -94,6 +94,7 @@ struct WorkoutDetailView: View {
                        // needs no extra macOS NavigationStack of its own.
                        topBackground: liquidScaffoldSky()) {
             headerCard
+            GoalContributionNote(row: row)
             statStrip
             routeCard
             hrCurveCard

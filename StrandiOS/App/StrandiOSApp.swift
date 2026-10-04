@@ -351,6 +351,9 @@ struct StrandiOSApp: App {
                         model.handleHealthImportURL(url)
                     } else if url.scheme == "noop", url.host == "energy" {
                         router.openEnergy()
+                    } else if url.scheme == "noop", url.host == "goals" {
+                        // noop://goals or noop://goals/<uuid> from the goal widget and accessories.
+                        router.openGoals(goalId: UUID(uuidString: url.lastPathComponent))
                     }
                 }
                 // AppModel publishes smoothed HR frequently. Keep the alert observer in a zero-sized leaf

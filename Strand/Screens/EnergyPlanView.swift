@@ -809,6 +809,7 @@ struct EnergyPlanView: View {
                         .foregroundStyle(StrandPalette.textPrimary)
                 }
                 Slider(value: $model.targetKgPerWeek, in: -1...0.5, step: 0.05)
+                WeightGoalRateHint(currentRate: model.targetKgPerWeek) { model.targetKgPerWeek = $0 }
                 HStack {
                     Text("−1,0 kg/week").font(StrandFont.caption)
                         .foregroundStyle(StrandPalette.textTertiary)

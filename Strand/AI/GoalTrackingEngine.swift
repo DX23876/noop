@@ -476,6 +476,12 @@ final class GoalTrackingStore: ObservableObject {
         periodSnapshots = computed
         settlePeriods(computed, inputs: inputs, now: now, calendar: calendar)
         GoalNotifier.reschedule(computed, now: now)
+        GoalEvents.announce(computed)
+        #if os(iOS)
+        GoalWidgetPublisher.publish(computed, now: now)
+        #endif
+        GoalReminderLines.update(periodSnapshots: computed,
+                                 todaySteps: repo.days.first { $0.day == Repository.localDayKey(now) }?.steps)
 
         // A workout an open weekly or monthly goal already counts on its own needs no "which goal did this
         // support?" question (Q20): the question is kept for workouts nothing claims.

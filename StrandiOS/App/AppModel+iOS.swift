@@ -22,6 +22,11 @@ extension AppModel {
     /// ask coach). Call when the app becomes active. The optional `router` lets the ask-coach
     /// intent navigate to the Coach tab after sending the question.
     func drainPendingIntents(router: NavRouter? = nil) {
+        // "Open my goals" via Siri: one flag rather than a queued action, it either happened or not.
+        if PendingIntents.openGoalsRequested {
+            PendingIntents.openGoalsRequested = false
+            router?.openGoals()
+        }
         for item in PendingIntents.drain() {
             switch item.action {
             case .markMoment: markMoment(at: item.date ?? Date())

@@ -337,20 +337,35 @@ struct GoalsReviewBlock: View {
         let goal: PeriodGoal
         let entry: PeriodGoalSnapshot.HistoryEntry
         let previous: PeriodGoalSnapshot.HistoryEntry?
-        let snapshot: PeriodGoalSnapshot
+        /// The live snapshot, for next-period suggestions; nil for an older week read from frozen results.
+        let snapshot: PeriodGoalSnapshot?
     }
 
     private var lines: [Line] {
-        tracking.periodSnapshots.filter { $0.goal.period == period }.compactMap { snapshot in
-            let index: Int?
-            if let anyDay {
-                let start = PeriodGoalTracker.periodDays(period, containing: anyDay,
-                                                         calendar: TrainingPreferences.weekCalendar).first
-                index = snapshot.history.firstIndex { $0.periodStart == start }
-            } else {
-                index = snapshot.history.indices.last
+        if let anyDay {
+            // A browsed week: the frozen results of every goal that ran then, ended goals included, so a
+            // week from last spring still shows the goals it had.
+            let calendar = TrainingPreferences.weekCalendar
+            guard let start = PeriodGoalTracker.periodDays(period, containing: anyDay, calendar: calendar).first
+            else { return [] }
+            let previousStart = PeriodGoalTracker.periodDays(
+                period, containing: PeriodGoalTracker.previousPeriodAnyDay(period, start: start), calendar: calendar).first
+            return store.goals.filter { $0.period == period }.compactMap { goal in
+                let results = store.results(for: goal.id)
+                let live = tracking.periodSnapshot(for: goal.id)?.history
+                func entry(_ s: String?) -> PeriodGoalSnapshot.HistoryEntry? {
+                    guard let s else { return nil }
+                    if let r = results.first(where: { $0.periodStart == s }) {
+                        return .init(periodStart: s, target: r.target, value: r.value, outcome: r.outcome)
+                    }
+                    return live?.first { $0.periodStart == s }
+                }
+                guard let current = entry(start) else { return nil }
+                return Line(id: goal.id, goal: goal, entry: current, previous: entry(previousStart), snapshot: nil)
             }
-            guard let index else { return nil }
+        }
+        return tracking.periodSnapshots.filter { $0.goal.period == period }.compactMap { snapshot in
+            guard let index = snapshot.history.indices.last else { return nil }
             return Line(id: snapshot.id, goal: snapshot.goal, entry: snapshot.history[index],
                         previous: index > 0 ? snapshot.history[index - 1] : nil, snapshot: snapshot)
         }
@@ -416,7 +431,7 @@ struct GoalsReviewBlock: View {
     @ViewBuilder
     private func nextPeriodSuggestions(_ items: [Line]) -> some View {
         let adjustable = items.compactMap { line -> (Line, Double)? in
-            guard let suggestion = GoalMaintenance.adjustment(for: line.snapshot) else { return nil }
+            guard let snapshot = line.snapshot, let suggestion = GoalMaintenance.adjustment(for: snapshot) else { return nil }
             return (line, suggestion)
         }
         if !adjustable.isEmpty {
@@ -457,6 +472,7 @@ struct GoalsSettingsView: View {
     @AppStorage(GoalPrefs.longTermLimitKey) private var longTermLimit = GoalPrefs.defaultLongTermLimit
     @AppStorage(GoalPrefs.periodLimitKey) private var periodLimit = GoalPrefs.defaultPeriodLimit
     @AppStorage(GoalsTodaySection.inviteDismissedKey) private var inviteDismissed = false
+    @AppStorage(GoalsWeekAccessory.enabledKey) private var weekBar = false
     @State private var restDays: Set<Int> = Set(TrainingPreferences.restWeekdays)
     @State private var notify: [GoalPrefs.NotificationKind: Bool] = [:]
     @EnvironmentObject private var repo: Repository
@@ -508,6 +524,11 @@ struct GoalsSettingsView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Toggle("Goal invitation on Today", isOn: Binding(get: { !inviteDismissed }, set: { inviteDismissed = !$0 }))
                         .font(StrandFont.footnote)
+                    #if os(iOS)
+                    if #available(iOS 26.1, *) {
+                        Toggle("Week bar above the tab bar", isOn: $weekBar).font(StrandFont.footnote)
+                    }
+                    #endif
                     Button("Show the explainer again") {
                         UserDefaults.standard.set(false, forKey: GoalPrefs.introSeenKey)
                     }

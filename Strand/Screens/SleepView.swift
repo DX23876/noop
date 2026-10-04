@@ -144,6 +144,10 @@ struct SleepView: View {
                             .padding(.top, -24)
                             .staggeredAppear(index: 0)
                         alarmsEntry
+                        // The week's sleep goal, where sleep is read (goals plan §2a). Draws nothing
+                        // without one.
+                        GoalsContextCard(context: .sleep)
+                            .background(StrandPalette.surfaceBase)
                         // #sleep-layout: the analytical cards render in the user's saved order minus the
                         // hidden set, below the pinned Rest hero. Reordered via the Arrange sheet.
                         ForEach(Array(sleepVisibleSections.enumerated()), id: \.element) { idx, section in

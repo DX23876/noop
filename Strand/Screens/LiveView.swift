@@ -464,11 +464,15 @@ struct LiveView: View {
         let mins = Int((row.durationS ?? 0) / 60)
         let parts = [String(localized: "\(mins) min"), row.avgHr.map { String(localized: "\($0) avg bpm") },
                      row.strain.map { String(localized: "effort \(UnitFormatter.effortDisplay($0, scale: effortScale))") }].compactMap { $0 }
-        return HStack(spacing: 8) {
-            Image(systemName: "checkmark.circle.fill").foregroundStyle(StrandPalette.accent)
-            Text("Workout saved · \(parts.joined(separator: " · "))")
-                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
-            Spacer(minLength: 0)
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(StrandPalette.accent)
+                Text("Workout saved · \(parts.joined(separator: " · "))")
+                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                Spacer(minLength: 0)
+            }
+            // Which weekly goal it just paid into.
+            GoalContributionNote(row: row)
         }
         .padding(.horizontal, 4)
     }

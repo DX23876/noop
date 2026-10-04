@@ -468,3 +468,62 @@ struct NOOPChargeComplication: Widget {
         #endif
     }
 }
+
+// MARK: - Goal complication
+
+/// The most important weekly goal on the watch face: a capacity ring with "2/4", or the line "Runs: 2 to
+/// go". Worded and ordered by the phone; nothing is computed here (goals plan §13).
+struct NOOPGoalComplicationView: View {
+    @Environment(\.widgetFamily) private var family
+    let entry: ChargeEntry
+
+    private var goal: WatchScoreSnapshot.Goal? { entry.snapshot?.goals?.first }
+
+    var body: some View {
+        Group {
+            if let goal {
+                switch family {
+                case .accessoryInline:
+                    Text("\(goal.name): \(goal.headline)")
+                case .accessoryRectangular:
+                    VStack(alignment: .leading, spacing: 2) {
+                        ForEach(Array((entry.snapshot?.goals ?? []).prefix(2).enumerated()), id: \.offset) { _, g in
+                            HStack {
+                                Text(g.name).font(.caption2.weight(.semibold)).lineLimit(1)
+                                Spacer(minLength: 2)
+                                Text(g.progress).font(.caption2).monospacedDigit()
+                            }
+                            Gauge(value: min(1, max(0, g.fraction))) { EmptyView() }
+                                .gaugeStyle(.accessoryLinearCapacity)
+                        }
+                    }
+                default:
+                    Gauge(value: min(1, max(0, goal.fraction))) {
+                        Image(systemName: goal.symbol)
+                    } currentValueLabel: {
+                        Text(goal.progress).font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .minimumScaleFactor(0.6)
+                    }
+                    .gaugeStyle(.accessoryCircularCapacity)
+                }
+            } else {
+                Image(systemName: "target")
+            }
+        }
+        .widgetAccentable()
+    }
+}
+
+struct NOOPGoalComplication: Widget {
+    let kind = "NOOPGoalComplication"
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: ChargeProvider()) { entry in
+            NOOPGoalComplicationView(entry: entry)
+                .containerBackground(StrandPalette.surfaceBase, for: .widget)
+        }
+        .configurationDisplayName("NOOP Goal")
+        .description("Your most important weekly goal on the watch face.")
+        .supportedFamilies([.accessoryCircular, .accessoryInline, .accessoryRectangular])
+    }
+}

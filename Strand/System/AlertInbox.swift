@@ -13,6 +13,9 @@ enum AlertInbox {
         case illness = "illness"
         case inactivity = "inactivity"
         case smartAlarm = "smart-alarm"
+        /// A weekly or monthly goal reached, and a finished week ready to review (goals plan §8a.2).
+        case goalAchieved = "goal-achieved"
+        case goalReview = "goal-review"
 
         var lifetime: TimeInterval {
             switch self {
@@ -20,6 +23,7 @@ enum AlertInbox {
             case .batteryFull, .batteryBedtime:                  return 24 * 60 * 60
             case .illness:                     return 2 * 24 * 60 * 60
             case .inactivity, .smartAlarm:     return 24 * 60 * 60
+            case .goalAchieved, .goalReview:   return 2 * 24 * 60 * 60
             }
         }
 
@@ -27,7 +31,7 @@ enum AlertInbox {
             switch self {
             case .batteryLow, .batteryRuntime, .batteryFull, .batteryCritical, .batteryBedtime:
                 return NavRouter.Destination.devices.rawValue
-            case .illness, .inactivity, .smartAlarm: return nil
+            case .illness, .inactivity, .smartAlarm, .goalAchieved, .goalReview: return nil
             }
         }
     }

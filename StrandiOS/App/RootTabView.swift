@@ -328,6 +328,15 @@ struct RootTabView: View {
                 // wake time looks truncated, so the editor is one tap away rather than a hunt.
                 withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 3 }
                 router.requestedDestination = nil
+            case .goals:
+                // Goal widget, lock-screen accessory, notification or Siri: the overview (and the goal)
+                // pushed on Today's stack, the same routes Today's own goals section uses.
+                withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 0 }
+                var path = NavigationPath([TabRoute.goals])
+                if let id = router.requestedGoalId { path.append(TabRoute.periodGoal(id)) }
+                tabPaths[0] = path
+                router.requestedGoalId = nil
+                router.requestedDestination = nil
             case .energy:
                 // Widget deep link: land on Today and push the same detail route the in-app card uses.
                 withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 0 }
@@ -415,11 +424,22 @@ struct RootTabView: View {
         guard homeScreenQuickActionsEnabled,
               let action = homeScreenQuickActions.pendingAction else { return }
 
+        if action == .goals {
+            // A push on the Today stack, like the battery row, not a sheet.
+            homeScreenQuickActions.consume(action)
+            showDevices = false
+            routedPillar = nil
+            quickAction = nil
+            selectedTab = 0
+            tabPaths[0] = NavigationPath()
+            tabPaths[0].append(TabRoute.goals)
+            return
+        }
         let destination: QuickAction = switch action {
         case .liveHeartRate: .live
         case .startWorkout: .workout
         case .logJournal: .journal
-        case .breathe: .breathe
+        case .goals: .goals
         }
         homeScreenQuickActions.consume(action)
         withAnimation(Self.sheetEase) {
@@ -469,6 +489,8 @@ struct RootTabView: View {
                 // the fallbacks above this arm is the real destination, not a safety net.
                 case .coach: CoachView()
                 case .alarms: SmartAlarmView()
+                // .goals is pushed onto Today's own stack (handled above); exhaustive fallback.
+                case .goals: CoachGoalJourneyScreen()
                 }
             }
             // The Trends/Today fallbacks above emit TabRoute value pushes (#198), which need a
@@ -517,6 +539,10 @@ struct RootTabView: View {
                         withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 0 }
                         tabPaths[0].append(TabRoute.battery)
                     }
+                    else if picked == .goals {
+                        withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 0 }
+                        tabPaths[0].append(TabRoute.goals)
+                    }
                     else { withAnimation(Self.sheetEase) { quickAction = picked } }
                 }
             }
@@ -530,7 +556,7 @@ struct RootTabView: View {
             quickScreen(InsightsView())
         case .breathe:
             quickScreen(BreathingView())
-        case .liveSession, .battery, .customizeToday:
+        case .liveSession, .battery, .customizeToday, .goals:
             // Never reached: the picker routes the guardian to `showLiveSession` (a full-screen cover) and
             // the device row to the Today stack, so this arm only keeps the switch exhaustive.
             EmptyView()
@@ -619,6 +645,11 @@ struct RootTabView: View {
                 if isSearchingMore {
                     moreSearchResults
                 } else {
+                    NoopCard(padding: 0, cornerRadius: NoopMetrics.groupedRadius) {
+                        MoreRow(MoreCatalog.goalsEntry)
+                            .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous))
+                    }
+
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Browse").strandOverline()
                         VStack(spacing: 12) {
@@ -871,6 +902,8 @@ private enum QuickAction: Int, Identifiable {
     case menu, live, workout, journal, breathe, liveSession
     /// The device row at the top of the menu: opens the battery screen on the Today stack.
     case battery, customizeToday
+    /// The goals overview, pushed on the Today stack like the battery screen.
+    case goals
     var id: Int { rawValue }
 }
 
@@ -945,6 +978,7 @@ private struct QuickActionSheet: View {
                         row("Log journal", icon: "square.and.pencil",
                             tint: AppleInspiredColors.color(for: "journal", enabled: appleInspiredColors)) { onPick(.journal) }
                         row("Breathe", icon: "wind", tint: StrandPalette.restColor) { onPick(.breathe) }
+                        row("Goals", icon: "target", tint: StrandPalette.chargeColor) { onPick(.goals) }
                         if liveSessionsBeta {
                             // A Live Session is NOT a breathing exercise — it is quiet strap coaching against
                             // today's Charge — so it carries a subtitle here. Sitting one row under "Breathe"

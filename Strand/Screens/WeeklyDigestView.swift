@@ -113,6 +113,9 @@ struct WeeklyDigestView: View {
                         message: "Once this week has a day or two of data, your week-in-review appears here.")
                 } else {
                     VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
+                        // The goals review lives here rather than in a second review screen (goals
+                        // plan §12.4): last week's goals, how they went, and next week's adjustments.
+                        GoalsReviewBlock(period: .week)
                         WeeklyDigestContent(digest: digest, compact: false)
                     }
                 }

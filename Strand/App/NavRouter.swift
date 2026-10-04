@@ -45,6 +45,9 @@ final class NavRouter: ObservableObject {
         /// Also the K5 scheduled morning-brief notification's tap-through target.
         case coach
         case alarms
+        /// The goals overview, or one goal's detail when `requestedGoalId` is set. Used by the goal
+        /// widget, the lock-screen goal accessories, the goal notifications and Siri.
+        case goals
 
         var id: String { rawValue }
 
@@ -134,4 +137,12 @@ final class NavRouter: ObservableObject {
     func openSleep() { requestedDestination = .sleep }
     /// Open the expenditure detail behind Today's Energy card.
     func openEnergy() { requestedDestination = .energy }
+
+    /// The weekly or monthly goal a `.goals` request should open, if one.
+    @Published var requestedGoalId: UUID?
+    /// Open the goals overview, or one goal's detail.
+    func openGoals(goalId: UUID? = nil) {
+        requestedGoalId = goalId
+        requestedDestination = .goals
+    }
 }

@@ -34,6 +34,7 @@ struct TrainingHubView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
                     header
+                    GoalsContextCard(context: .training)
                     if !model.loaded {
                         ProgressView().frame(maxWidth: .infinity).padding(.top, 80)
                     } else {

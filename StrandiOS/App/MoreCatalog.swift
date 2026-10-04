@@ -124,8 +124,8 @@ enum MoreCatalog {
             // is "NOOP scores your charge, effort and rest itself: on-device, no cloud.").
             MoreEntry("How Scoring Works", "brain.head.profile", .intelligence,
                       keywords: ["scoring", "charge", "effort", "rest", "on-device"]),
-            MoreEntry("Goal & Journey", "target", .goalJourney,
-                      keywords: ["goals", "plan", "progress", "coach"]),
+            MoreEntry("Goals", "target", .goalJourney,
+                      keywords: ["goals", "weekly goal", "monthly goal", "journey", "plan", "progress", "coach"]),
             // Named "Journal" (was "Insights", colliding with this section's name — redesign bug §1):
             // this row opens the behaviour-logging + personal-experiments screen, the same view the
             // "Log journal" quick action opens.
@@ -216,6 +216,11 @@ enum MoreCatalog {
     ]
 
     /// Direct root rows stay one tap away instead of being buried under App.
+    /// Goals sit on More's first level, above the categories, so they are one tap from the tab rather
+    /// than two levels down under Analysis (goals plan §2a). The same entry stays in Analysis for browsing.
+    static let goalsEntry = MoreEntry("Goals", "target", .goalJourney,
+                                      keywords: ["goals", "weekly goal", "monthly goal", "journey", "progress"])
+
     static let rootEntries: [MoreEntry] = [
         MoreEntry("Settings", "gearshape.fill", .settings,
                   keywords: ["preferences", "options", "configuration"]),

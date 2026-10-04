@@ -160,6 +160,7 @@ enum AppleDemoSeeder {
             UserDefaults.standard.set(10_000, forKey: "momentum.stepGoal")
         }
 
+        seedDemoPeriodGoalsIfNeeded()
         let store = CoachGoalStore.shared
         guard store.goals.isEmpty else { return }
         let now = Date()
@@ -190,6 +191,25 @@ enum AppleDemoSeeder {
                       targetDate: now.addingTimeInterval(90 * 86_400),
                       createdAt: now.addingTimeInterval(-40 * 86_400))
         ]
+    }
+
+    /// Weekly and monthly goals for demo captures, sized to the seeded data so the states vary (on
+    /// course, close, reached): the goals overview, Today's section and the widget need them to show
+    /// anything at all. No-op once any period goal exists.
+    @MainActor
+    private static func seedDemoPeriodGoalsIfNeeded() {
+        let store = PeriodGoalStore.shared
+        guard store.goals.isEmpty else { return }
+        let today = Repository.localDayKey(Date())
+        let created = Date().addingTimeInterval(-70 * 86_400)
+        let goals = [
+            PeriodGoal(metric: .workouts, period: .week, target: 12, createdAt: created),
+            PeriodGoal(metric: .sleepNights, period: .week, target: 6, threshold: 7.5, createdAt: created),
+            PeriodGoal(metric: .stepDays, period: .week, target: 5, threshold: 9_000, createdAt: created),
+            PeriodGoal(metric: .trainingMinutes, period: .month, target: 2_400, createdAt: created),
+        ]
+        for goal in goals { store.commit(goal, today: today) }
+        UserDefaults.standard.set(true, forKey: GoalPrefs.introSeenKey)
     }
 
     /// DEBUG/demo-only: so the Devices screen renders with content under `--demo-seed`, pair a second

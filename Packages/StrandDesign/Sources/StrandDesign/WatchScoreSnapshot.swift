@@ -58,11 +58,36 @@ public struct WatchScoreSnapshot: Codable, Equatable, Sendable {
     /// is recent. Optional + decodes as nil when absent so older payloads on the wire stay compatible.
     public var scoreDay: String?
 
+    /// One weekly goal for the goal complication, worded by the phone (goals plan §13).
+    public struct Goal: Codable, Equatable, Sendable {
+        public var name: String
+        public var symbol: String
+        /// "2/4".
+        public var progress: String
+        /// "2 to go".
+        public var headline: String
+        /// The state word, localized by the phone.
+        public var stateWord: String
+        public var fraction: Double
+        public init(name: String, symbol: String, progress: String, headline: String, stateWord: String,
+                    fraction: Double) {
+            self.name = name
+            self.symbol = symbol
+            self.progress = progress
+            self.headline = headline
+            self.stateWord = stateWord
+            self.fraction = fraction
+        }
+    }
+
+    /// The most important weekly goals, first one first. Optional: older payloads decode with nil.
+    public var goals: [Goal]?
+
     public init(charge: Double?, chargeCalibrating: Bool,
                 effort: Double?, effortCalibrating: Bool,
                 rest: Double?, restCalibrating: Bool,
                 hr: Int?, sleepSummary: String, asOf: Date,
-                scoreDay: String? = nil) {
+                scoreDay: String? = nil, goals: [Goal]? = nil) {
         self.charge = charge
         self.chargeCalibrating = chargeCalibrating
         self.effort = effort
@@ -73,6 +98,7 @@ public struct WatchScoreSnapshot: Codable, Equatable, Sendable {
         self.sleepSummary = sleepSummary
         self.asOf = asOf
         self.scoreDay = scoreDay
+        self.goals = goals
     }
 
     // MARK: - Shared app group transport

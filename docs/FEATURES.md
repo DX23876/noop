@@ -47,7 +47,7 @@ Screens are grouped below by whether they need a connected strap:
 
 | Needs a connected strap (live BLE) | Works from imported/local data alone |
 | --- | --- |
-| Live, Breathe (for haptics), Intervals (for haptics), Health Monitor (live HR), Automations (to act), Notifications (to buzz), Alarms (to arm the strap wake-buzz — the wind-down nudge itself doesn't), Power saving (levers a connected strap's sync cadence) | Control Center, Intelligence, Explore, Compare, Insights, What Moves You, Coach, Goal & Journey, Lab Book, Rhythm, Sleep, Trends, Workouts, Stress, Mind, Devices (pairing itself needs Bluetooth, but the screen and history don't), NOOP Limitations, Apple Health, Mi Band, Data Sources, Backup & Sync, Your Data Fused |
+| Live, Breathe (for haptics), Intervals (for haptics), Health Monitor (live HR), Automations (to act), Notifications (to buzz), Alarms (to arm the strap wake-buzz — the wind-down nudge itself doesn't), Power saving (levers a connected strap's sync cadence) | Control Center, Intelligence, Explore, Compare, Insights, What Moves You, Coach, Goals, Lab Book, Rhythm, Sleep, Trends, Workouts, Stress, Mind, Devices (pairing itself needs Bluetooth, but the screen and history don't), NOOP Limitations, Apple Health, Mi Band, Data Sources, Backup & Sync, Your Data Fused |
 
 Most of NOOP works the moment you import an export. The strap adds the *live* layer — real-time
 heart rate, haptic cues, and physical-input automations.
@@ -544,20 +544,39 @@ safety gates around goal pacing, and the full tool list are documented in `fork/
 
 ---
 
-## Goal & Journey
+## Goals
 
-**Sidebar: Goal & Journey · works from your own logged data; also reachable from the goal card on
-Today. Fork-only — see [docs/fork/COACH.md](fork/COACH.md) §4/§6 for the full design.**
+**Sidebar: Goals (under Today) · iPhone: Today's goals section, the Today menu, More, the training hub,
+the app icon's quick actions, Siri · works from your own logged data. Fork-only — design in
+`docs/fork/COACH.md` §4/§6 for the long-term goals; weekly and monthly goals below.**
 
-Set up to **five active goals** (run / consistency / sleep / strength / weight / custom) — entirely
-optional, with a guided step-by-step first-run flow or a one-page quick editor, both saving through
-the same store so neither can diverge. The **Journey** page tracks progress honestly: **no invented
-percentages** — a measured percentage shows only when both a baseline and a target exist, otherwise
-the page falls back to what's actually known (sessions completed, consistency, recovery trend), and
-a five-minute-old goal correctly shows "nothing achieved yet" as a normal state. Milestones are
-**facts, not a streak counter** (first week in, longest run, a real recovery uptrend) — nothing here
-rewards a daily habit loop or penalizes a gap, since a streak mechanic would shame exactly the people
-who get sick or travel.
+Goals come on four levels that can serve each other: **daily goals** (steps, sleep, a workout, a box to
+tick; ticked automatically where NOOP can measure it), **weekly** and **monthly goals** (recurring, or
+"only this week/month"), and **long-term goals** with a date and a route (the Journey page). Weekly and
+monthly goals measure workouts, training minutes, distance, step days, nights of enough sleep, average
+sleep, zone 2+ minutes, working sets, active energy (an estimate), rest days, hydration days and journal
+habits — each offered only once its data source has delivered.
+
+Each period goal is read against a **pace**: the target spread over the period's planned days (rest
+days from the training settings are left out), with a mark where the plan stands today. States are a
+word and a symbol, never colour alone: achieved, ahead, on track, close, behind (only while still
+reachable), out of reach (only when proven, and neutral), protected (paused or ill), starting, no data.
+A finished period ends as achieved, almost (80 %, keeps the series), missed, protected or no data, and
+is frozen once a sync after its end has arrived. A goal set up mid-week is pro-rated.
+
+New goals: the first is set up step by step, with three levels read from your own last weeks (easy,
+recommended a little above your usual, ambitious) and how often each would have been reached; later
+"+" offers one-tap suggestions and start packs. The detail shows what counted, with "doesn't count" /
+"counts" corrections, the history, the plan to the period's end and its settings. Up to 5 long-term
+(max 10) and 6 weekly/monthly goals (max 12), adjustable. Today shows the first three weekly goals in
+your order, the month, long-term goals that need a look or are pinned, and today's daily goals.
+
+Long-term goals keep the honest Journey: **no invented percentages**, milestones are **facts, not a
+streak counter**. The weekly series counts achieved and "almost" periods and is protected by pauses;
+there are no trophies or flames. Hints arrive through Momentum (at most one goal check-in), the weekly
+digest (a goals block), the updates inbox and the existing reminders; system notifications are off by
+default. Goals travel in the `.noopbak` backup. A configurable home/lock-screen widget, a watch
+complication and Siri ("How are my goals") read the same published snapshot.
 
 ---
 

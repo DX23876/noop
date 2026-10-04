@@ -176,6 +176,13 @@ enum WindDownNudge {
         }
     }
 
+    /// Re-arms the reminder with its current wording, when it is on. Goals call this when a sleep goal
+    /// appears or ends, so the repeating reminder never keeps a stale sentence.
+    static func refreshContentIfEnabled() {
+        guard UserDefaults.standard.bool(forKey: K.enabled) else { return }
+        schedule()
+    }
+
     /// Update the earliest wake time the nudge is derived from, rescheduling if enabled.
     static func setWakeMinutes(_ minutes: Int) {
         UserDefaults.standard.set(min(max(minutes, 0), 24 * 60 - 1), forKey: K.wake)
@@ -203,7 +210,10 @@ enum WindDownNudge {
 
         let content = UNMutableNotificationContent()
         content.title = String(localized: "Time to wind down")
-        content.body = String(localized: "A calm hour now helps you hit your wake time well-rested.")
+        let calm = String(localized: "A calm hour now helps you hit your wake time well-rested.")
+        // With a sleep goal, the nightly reminder says the night counts toward it (no second reminder).
+        content.body = GoalReminderLines.hasSleepGoal
+            ? "\(calm) \(String(localized: "Tonight counts toward your sleep goal."))" : calm
         content.sound = .default
 
         // PR#554 — with per-day overrides set, fan out to seven weekday-pinned triggers each at that day's

@@ -380,6 +380,10 @@ struct TrendsView: View {
                         title: "No readings this week",
                         message: "Step to another week with the arrows above to see its review.")
                 } else {
+                    // A finished week shows how its goals went (frozen results), in the same place as
+                    // the rest of that week's review.
+                    GoalsReviewBlock(period: .week, anyDay: digest.weekStart)
+                        .padding(.top, NoopMetrics.space1)
                     WeeklyDigestContent(digest: digest, compact: true, showsHeader: false)
                         .padding(.top, NoopMetrics.space1)
                     // Share this week's recap as an image. Renders the digest card (with its header) to a

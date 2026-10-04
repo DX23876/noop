@@ -34,6 +34,12 @@ enum PendingIntents {
         append(.askCoach, at: date)
     }
 
+    /// Set by `OpenGoalsIntent`; the shell consumes it when it becomes active and opens the goals.
+    static var openGoalsRequested: Bool {
+        get { defaults?.bool(forKey: "noop.pendingOpenGoals") ?? false }
+        set { defaults?.set(newValue, forKey: "noop.pendingOpenGoals") }
+    }
+
     /// K9: read and clear the pending coach question. Returns nil when no question is queued.
     static func consumeCoachQuestion() -> String? {
         guard let d = defaults else { return nil }
@@ -141,6 +147,34 @@ struct AskCoachIntent: AppIntent {
     }
 }
 
+/// "How are my goals?" (goals plan §13). A read from the last-published goal snapshot, like Recovery
+/// Status: Siri answers with NOOP in the background, in the same words the app shows.
+struct GoalsStatusIntent: AppIntent {
+    static var title: LocalizedStringResource = "Goals Status"
+    static var description = IntentDescription("Hear how your weekly and monthly goals stand.")
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        guard let snap = GoalWidgetSnapshot.load(), !snap.goals.isEmpty else {
+            return .result(dialog: "You have no weekly or monthly goals yet.")
+        }
+        let lines = snap.goals.prefix(3).map { "\($0.name): \($0.stateWord), \($0.remaining)" }
+        return .result(dialog: "\(snap.summary). \(lines.joined(separator: ". ")).")
+    }
+}
+
+/// Opens the goals overview.
+struct OpenGoalsIntent: AppIntent {
+    static var title: LocalizedStringResource = "Open Goals"
+    static var description = IntentDescription("Open your goals overview in NOOP.")
+    static var openAppWhenRun = true
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        PendingIntents.openGoalsRequested = true
+        return .result()
+    }
+}
+
 /// Surfaces NOOP's intents to Siri, Spotlight, and the Shortcuts gallery without any user setup.
 struct NOOPShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
@@ -163,6 +197,14 @@ struct NOOPShortcuts: AppShortcutsProvider {
                     phrases: ["How's my recovery in \(.applicationName)", "What's my Charge in \(.applicationName)"],
                     shortTitle: "Recovery Status",
                     systemImageName: "bolt.heart.fill")
+        AppShortcut(intent: GoalsStatusIntent(),
+                    phrases: ["How are my goals in \(.applicationName)", "How am I doing on my \(.applicationName) goals"],
+                    shortTitle: "Goals Status",
+                    systemImageName: "target")
+        AppShortcut(intent: OpenGoalsIntent(),
+                    phrases: ["Open my goals in \(.applicationName)", "Show my \(.applicationName) goals"],
+                    shortTitle: "Open Goals",
+                    systemImageName: "target")
         // K9: "Ask Coach" via Siri — opens Coach with the question and sends it. The question
         // parameter is provided via the Shortcuts app or Siri prompts for it when the phrase fires.
         AppShortcut(intent: AskCoachIntent(),
