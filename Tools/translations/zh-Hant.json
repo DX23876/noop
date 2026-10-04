@@ -2368,5 +2368,22 @@
   "Two step goals: %@ a day here, days of %@ steps there": "兩個步數目標：這裡每天 %@，那裡 %@ 步達標日",
   "Two sleep goals: %@ h a night here, nights of %@ h there": "兩個睡眠目標：這裡每晚 %@ 小時，那裡睡滿 %@ 小時的夜晚",
   "%@ asks for %lld a week, this goal for %lld": "%@ 要求每週 %lld 次，此目標為 %lld 次",
-  "%@ a week makes about %@ a month; the monthly goal is %@": "每週 %@ 約等於每月 %@；月目標是 %@"
+  "%@ a week makes about %@ a month; the monthly goal is %@": "每週 %@ 約等於每月 %@；月目標是 %@",
+  "%lld routines": "%lld 個例行",
+  "%lld weekly or monthly goals": "%lld 個每週或每月目標",
+  "1 goal": "1 個目標",
+  "1 routine": "1 個例行",
+  "1 weekly or monthly goal": "1 個每週或每月目標",
+  "Average this week: %@ of %@": "本週平均：%@/%@",
+  "Night %lld of %@ of %@ h this week": "本週第 %lld 晚，目標 %@ 晚滿 %@ 小時",
+  "Not selected": "未選擇",
+  "Review coach draft": "查看教練草案",
+  "Serves %@": "服務於 %@",
+  "These weekly or monthly goals would go past your limit. End one first or raise the limit in goal settings.": "這些每週或每月目標會超出你的上限。請先結束一個，或在目標設定中提高上限。",
+  "This session reaches %@: %@": "本次訓練達成 %@：%@",
+  "Under %@ h, so it does not count: %lld of %@ nights so far": "不足 %@ 小時，不計入：目前 %lld/%@ 晚",
+  "Weekly and monthly goals": "每週和每月目標",
+  "With this session: %@ %@": "加上本次訓練：%@ %@",
+  "You already track this over the same period. Change that goal instead.": "你已在同一週期追蹤此項。請改為修改那個目標。",
+  "New goal (⌘N)": "新目標 (⌘N)"
 }

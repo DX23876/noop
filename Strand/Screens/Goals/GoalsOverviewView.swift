@@ -31,6 +31,10 @@ struct GoalsOverviewScreen: View {
                                    .accessibilityLabel(Text("How goals work"))
                                NavigationLink(value: GoalsRoute.setup(nil)) { Image(systemName: "plus.circle.fill") }
                                    .accessibilityLabel(Text("New goal"))
+                                   #if os(macOS)
+                                   .keyboardShortcut("n", modifiers: .command)
+                                   .help(Text("New goal (⌘N)"))
+                                   #endif
                            }
                            .font(.title3)
                            .foregroundStyle(StrandPalette.accent)
@@ -42,9 +46,34 @@ struct GoalsOverviewScreen: View {
         .sheet(isPresented: $showIntro) { GoalsIntroSheet() }
         .onAppear {
             // The explainer opens by itself once, on the first visit of the new overview (Q10), never
-            // over Today.
-            if !UserDefaults.standard.bool(forKey: GoalPrefs.introSeenKey) { showIntro = true }
+            // over Today; and whenever What's New sends the reader here for it.
+            if !UserDefaults.standard.bool(forKey: GoalPrefs.introSeenKey) || GoalsIntroRequest.consume() {
+                showIntro = true
+            }
         }
+        .onReceive(NotificationCenter.default.publisher(for: GoalsIntroRequest.notification)) { _ in
+            // Already on screen (the macOS sidebar kept it), so onAppear will not run again.
+            if GoalsIntroRequest.consume() { showIntro = true }
+        }
+    }
+}
+
+/// "Show me the goals explainer", raised by a What's New link. A flag plus a notification: the flag
+/// covers the overview appearing afterwards, the notification an overview that is already showing.
+@MainActor
+enum GoalsIntroRequest {
+    static let notification = Notification.Name("noop.goals.introRequested")
+    private static var pending = false
+
+    static func request() {
+        pending = true
+        NotificationCenter.default.post(name: notification, object: nil)
+    }
+
+    /// True once per request.
+    static func consume() -> Bool {
+        defer { pending = false }
+        return pending
     }
 }
 
@@ -80,13 +109,15 @@ struct GoalsOverviewView: View {
     @ObservedObject private var periodGoals = PeriodGoalStore.shared
     @ObservedObject private var actions = GoalActionStore.shared
     @ObservedObject private var tracking = GoalTrackingStore.shared
+    @ObservedObject private var drafts = CoachGoalSetupProposalStore.shared
     @AppStorage(GoalPrefs.crowdHintShownKey) private var crowdHintShown = false
     @AppStorage(HydrationStore.enabledKey) private var hydrationOn = false
 
     private enum Sheet: Identifiable {
-        case journey(UUID), edit(UUID), dailyGoal(UUID?), slot(DailyGoalSheet.Slot)
+        case journey(UUID), edit(UUID), dailyGoal(UUID?), slot(DailyGoalSheet.Slot), draft(UUID)
         var id: String {
             switch self {
+            case .draft(let id): return "draft-\(id)"
             case .journey(let id): return "journey-\(id)"
             case .edit(let id): return "edit-\(id)"
             case .dailyGoal(let id): return "daily-\(id?.uuidString ?? "new")"
@@ -116,6 +147,9 @@ struct GoalsOverviewView: View {
                     GoalPrefs.markBadgesSeen(motivation.unseen.map(\.id))
                     badgeBannerHidden = true
                 }
+            }
+            if !drafts.pending.isEmpty {
+                CoachSetupDraftsCard(proposals: drafts.pending) { sheet = .draft($0) }
             }
             ringsHero
             chainQuestions
@@ -147,6 +181,7 @@ struct GoalsOverviewView: View {
             case .edit(let id): PeriodGoalEditSheet(goalId: id) { refresh() }
             case .dailyGoal(let id): GoalActionEditorView(editingId: id, onSave: refresh)
             case .slot(let slot): DailyGoalSheet(slot: slot, onSave: refresh)
+            case .draft(let id): CoachGoalSetupReviewView(proposalId: id, onFinish: refresh)
             }
         }
     }

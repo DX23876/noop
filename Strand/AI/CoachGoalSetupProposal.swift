@@ -31,21 +31,29 @@ struct CoachGoalSetupProposal: Codable, Identifiable, Equatable {
     let id: UUID
     var goal: GoalDraft?
     var routines: [RoutineDraft]
+    /// Weekly and monthly goals drafted alongside (goals plan §14). Optional so drafts stored before
+    /// these existed still decode.
+    var periodGoals: [PeriodGoal]?
     var rationale: String
     var status: Status
     let createdAt: Date
     var decidedAt: Date?
 
-    init(id: UUID = UUID(), goal: GoalDraft?, routines: [RoutineDraft], rationale: String,
-         status: Status = .proposed, createdAt: Date = Date(), decidedAt: Date? = nil) {
+    init(id: UUID = UUID(), goal: GoalDraft?, routines: [RoutineDraft], periodGoals: [PeriodGoal] = [],
+         rationale: String, status: Status = .proposed, createdAt: Date = Date(), decidedAt: Date? = nil) {
         self.id = id
         self.goal = goal
         self.routines = Array(routines.prefix(5))
+        self.periodGoals = periodGoals.isEmpty ? nil : Array(periodGoals.prefix(CoachGoalSetupProposal.maxPeriodGoals))
         self.rationale = rationale
         self.status = status
         self.createdAt = createdAt
         self.decidedAt = decidedAt
     }
+
+    static let maxPeriodGoals = 3
+    var draftedPeriodGoals: [PeriodGoal] { periodGoals ?? [] }
+    var isEmpty: Bool { goal == nil && routines.isEmpty && draftedPeriodGoals.isEmpty }
 }
 
 @MainActor
@@ -76,7 +84,7 @@ final class CoachGoalSetupProposalStore: ObservableObject {
 
     @discardableResult
     func propose(_ proposal: CoachGoalSetupProposal) -> Bool {
-        guard proposal.goal != nil || !proposal.routines.isEmpty else { return false }
+        guard !proposal.isEmpty else { return false }
         // This is the only entry point the model can reach. Ignore any supplied decision state so a
         // malformed/provider-authored payload can never pre-accept its own setup.
         var pending = proposal
@@ -116,6 +124,9 @@ enum CoachGoalSetupApplier {
         var replacingGoalId: UUID?
         var acknowledgedRisk: CoachGoal.RiskAcknowledgement?
         var clearStaleAcknowledgement: Bool
+        /// The drafted weekly and monthly goals, as possibly edited in the review, and which are chosen.
+        var periodGoals: [PeriodGoal] = []
+        var selectedPeriodGoalIds: Set<UUID> = []
     }
 
     enum ApplyError: LocalizedError, Equatable {
@@ -125,6 +136,8 @@ enum CoachGoalSetupApplier {
         case goalLimit
         case missingGoalLink
         case unavailableGoalLink
+        case periodGoalLimit
+        case periodGoalDuplicate
 
         var errorDescription: String? {
             switch self {
@@ -134,13 +147,19 @@ enum CoachGoalSetupApplier {
             case .goalLimit: return "This goal conflicts with your current active-goal limit."
             case .missingGoalLink: return "Every selected routine must support at least one goal."
             case .unavailableGoalLink: return "A selected routine refers to a goal that is no longer active."
+            case .periodGoalLimit:
+                return String(localized: "These weekly or monthly goals would go past your limit. End one first or raise the limit in goal settings.")
+            case .periodGoalDuplicate:
+                return String(localized: "You already track this over the same period. Change that goal instead.")
             }
         }
     }
 
     static func apply(proposalId: UUID, selection: Selection,
                       proposalStore: CoachGoalSetupProposalStore,
-                      goalStore: CoachGoalStore, actionStore: GoalActionStore) -> ApplyError? {
+                      goalStore: CoachGoalStore, actionStore: GoalActionStore,
+                      periodStore: PeriodGoalStore = .shared,
+                      today: String = Repository.localDayKey(Date())) -> ApplyError? {
         guard proposalStore.proposal(id: proposalId)?.status == .proposed else {
             return .proposalUnavailable
         }
@@ -185,6 +204,29 @@ enum CoachGoalSetupApplier {
             preparedActions.append(action)
         }
 
+        // Weekly and monthly goals: checked one after another against the goals already open plus the
+        // ones accepted before them in this same draft, so two drafts cannot both take the last slot.
+        var preparedPeriodGoals: [PeriodGoal] = []
+        let allowedParents = includedGoalId.map { activeIds.union([$0]) } ?? activeIds
+        for draft in selection.periodGoals where selection.selectedPeriodGoalIds.contains(draft.id) {
+            var goal = draft
+            if let parent = goal.parentGoalId, !allowedParents.contains(parent) { goal.parentGoalId = nil }
+            let sameSlot = preparedPeriodGoals.contains {
+                $0.metric == goal.metric && $0.period == goal.period
+                    && Set($0.sportFilter.map { $0.lowercased() }) == Set(goal.sportFilter.map { $0.lowercased() })
+            }
+            if sameSlot { return .periodGoalDuplicate }
+            switch periodStore.canAdd(goal) {
+            case .duplicate: return .periodGoalDuplicate
+            case .limitReached: return .periodGoalLimit
+            case nil: break
+            }
+            if periodStore.openGoals.count + preparedPeriodGoals.count >= GoalPrefs.periodLimit {
+                return .periodGoalLimit
+            }
+            preparedPeriodGoals.append(goal)
+        }
+
         if selection.includeGoal, let draft = selection.goal {
             goalStore.commit(draft.goal, editingId: draft.editingId,
                              replacing: selection.replacingGoalId,
@@ -192,6 +234,7 @@ enum CoachGoalSetupApplier {
                              clearStaleAck: selection.clearStaleAcknowledgement)
         }
         preparedActions.forEach(actionStore.upsert)
+        for goal in preparedPeriodGoals { periodStore.commit(goal, today: today) }
         proposalStore.decide(proposalId, as: .accepted)
         return nil
     }

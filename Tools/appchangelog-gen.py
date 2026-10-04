@@ -11,6 +11,9 @@ A per-version notes file docs/releases/v<VER>.md may carry a YAML front-matter b
       items:
         - "**Bold lead.** One-line description."
         - "**Another.** ..."
+      link:                     # optional: a button under the items
+        title: "Set up your goals"
+        target: "goals.intro"     # a NavRouter changelog target or Destination deep-link key
       title_locales:            # DEAD in this fork — see "Localizing the card" below
         de: "Kurze Überschrift"
         es: "..."
@@ -70,6 +73,13 @@ def esc_sw(s: str) -> str:
 
 def sw_block(ver, wn):
     items = "\n".join(f'                "{esc_sw(i)}",' for i in wn["items"])
+    # An optional button under the items ("link: {title, target}"): the title is catalog-keyed like the
+    # items, the target a NavRouter changelog target such as "goals.intro".
+    link = wn.get("link")
+    if link and not (link.get("title") and link.get("target")):
+        sys.exit("appchangelog-gen: whatsnew.link needs both a title and a target")
+    link_line = (f'            link: .init(title: "{esc_sw(link["title"])}", target: "{esc_sw(link["target"])}")\n'
+                 if link else "")
     return (
         "        Release(\n"
         f'            version: "{ver}",\n'
@@ -77,7 +87,8 @@ def sw_block(ver, wn):
         f'            date: "{esc_sw(wn["date"])}",\n'
         "            items: [\n"
         f"{items}\n"
-        "            ]\n"
+        f"            ]{',' if link else ''}\n"
+        f"{link_line}"
         "        ),\n"
     )
 
@@ -132,7 +143,7 @@ def main():
     # The card's text is localized through the String Catalog, keyed by the English string (see
     # "Localizing the card" above). Nothing enforces that — an absent key falls back to English on
     # every device, silently — so the one place that knows these strings just landed says so.
-    missing = 1 + len(wn.get("items", []))
+    missing = 1 + len(wn.get("items", [])) + (1 if wn.get("link") else 0)
     print(f"appchangelog-gen: {missing} string(s) for this entry are NOT in "
           f"Strand/Resources/Localizable.xcstrings yet — the card ships English until they are.")
     print("appchangelog-gen: done. Review the diff, then compile.")

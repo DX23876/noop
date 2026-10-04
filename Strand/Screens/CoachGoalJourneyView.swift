@@ -161,50 +161,7 @@ struct CoachGoalJourneyView: View {
     }
 
     private var pendingSetupSection: some View {
-        NoopCard(padding: 14, tint: StrandPalette.accent) {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 8) {
-                    Image(systemName: "sparkles")
-                        .foregroundStyle(StrandPalette.accent).accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Coach drafts").strandOverline()
-                        Text("Nothing changes until you review and confirm.")
-                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-                    }
-                }
-                ForEach(Array(proposalStore.pending.prefix(3))) { proposal in
-                    Button { goalSheet = .proposal(proposal.id) } label: {
-                        HStack(spacing: 10) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(proposal.goal?.goal.title ?? "Routine setup")
-                                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textPrimary)
-                                    .lineLimit(1)
-                                Text(setupSummary(proposal))
-                                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
-                            }
-                            Spacer(minLength: 8)
-                            Text("Review").font(StrandFont.caption).foregroundStyle(StrandPalette.accent)
-                            Image(systemName: "chevron.right")
-                                .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-                                .accessibilityHidden(true)
-                        }
-                        .padding(.vertical, 3)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityElement(children: .combine)
-                }
-            }
-        }
-    }
-
-    private func setupSummary(_ proposal: CoachGoalSetupProposal) -> String {
-        let goalCount = proposal.goal == nil ? 0 : 1
-        let routineCount = proposal.routines.count
-        if goalCount == 1 && routineCount > 0 {
-            return "1 goal · \(routineCount) routine\(routineCount == 1 ? "" : "s")"
-        }
-        if goalCount == 1 { return "1 goal" }
-        return "\(routineCount) routine\(routineCount == 1 ? "" : "s")"
+        CoachSetupDraftsCard(proposals: proposalStore.pending) { goalSheet = .proposal($0) }
     }
 
     private var sortedActiveGoals: [CoachGoal] {
@@ -558,5 +515,68 @@ struct CoachGoalJourneyView: View {
             parts.append(goal.acknowledgedRisk != nil ? "brisk pace, acknowledged" : "brisk pace")
         }
         return parts.isEmpty ? "No target date set" : parts.joined(separator: " · ")
+    }
+}
+
+/// The coach's goal drafts still waiting for review: the long-term goals page and the goals overview
+/// both show it, so a draft is never only reachable from the coach chat.
+struct CoachSetupDraftsCard: View {
+    let proposals: [CoachGoalSetupProposal]
+    let open: (UUID) -> Void
+
+    var body: some View {
+        NoopCard(padding: 14, tint: StrandPalette.accent) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    Image(systemName: "sparkles")
+                        .foregroundStyle(StrandPalette.accent).accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Coach drafts").strandOverline()
+                        Text("Nothing changes until you review and confirm.")
+                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                    }
+                }
+                ForEach(Array(proposals.prefix(3))) { proposal in
+                    Button { open(proposal.id) } label: {
+                        HStack(spacing: 10) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(title(proposal))
+                                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textPrimary)
+                                    .lineLimit(1)
+                                Text(Self.summary(proposal))
+                                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                            }
+                            Spacer(minLength: 8)
+                            Text("Review").font(StrandFont.caption).foregroundStyle(StrandPalette.accent)
+                            Image(systemName: "chevron.right")
+                                .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                                .accessibilityHidden(true)
+                        }
+                        .padding(.vertical, 3)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityElement(children: .combine)
+                }
+            }
+        }
+    }
+
+    private func title(_ proposal: CoachGoalSetupProposal) -> String {
+        if let goal = proposal.goal { return goal.goal.title }
+        if let first = proposal.draftedPeriodGoals.first { return GoalFormat.title(first) }
+        return String(localized: "Routine setup")
+    }
+
+    /// "1 goal · 2 routines · 1 weekly or monthly goal", leaving out what the draft does not carry.
+    static func summary(_ proposal: CoachGoalSetupProposal) -> String {
+        var parts: [String] = []
+        if proposal.goal != nil { parts.append(String(localized: "1 goal")) }
+        let routines = proposal.routines.count
+        if routines == 1 { parts.append(String(localized: "1 routine")) }
+        else if routines > 1 { parts.append(String(localized: "\(routines) routines")) }
+        let periods = proposal.draftedPeriodGoals.count
+        if periods == 1 { parts.append(String(localized: "1 weekly or monthly goal")) }
+        else if periods > 1 { parts.append(String(localized: "\(periods) weekly or monthly goals")) }
+        return parts.joined(separator: " · ")
     }
 }

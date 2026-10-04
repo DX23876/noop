@@ -239,7 +239,10 @@ enum CoachTool: String, CaseIterable {
                 + "Only for an actual training session — never for sleep, nutrition, hydration or other "
                 + "lifestyle advice; those are simply an answer in chat, not a proposal."
         case .proposeGoalSetup:
-            return "Prepare a REVIEW-ONLY draft for a new or changed goal and up to five reusable routines. "
+            return "Prepare a REVIEW-ONLY draft for a new or changed goal, up to five reusable routines and up to "
+                + "three weekly or monthly goals (period_goals, e.g. 4 workouts a week or 5 nights of 7 h). "
+                + "Size a period goal from the user's recent weeks, not an ideal; check the goals context first "
+                + "so you do not repeat one they already track over the same period. "
                 + "Nothing becomes active until the user opens the app review and confirms it. Use operation=update "
                 + "only with exact ids from the goal context. Routines may support several active goals and the goal "
                 + "in this same setup. Set use_current_baseline=true when a locally measured starting value is useful; "
@@ -743,12 +746,24 @@ enum CoachTool: String, CaseIterable {
                 "goal_ids": ["type": "array", "items": ["type": "string"], "description": "Exact active goal UUIDs."],
                 "supports_setup_goal": ["type": "boolean", "description": "Also link this routine to the goal in this draft."],
             ]
+            let periodGoalProperties: [String: Any] = [
+                "metric": ["type": "string", "enum": AICoachEngine.draftablePeriodMetrics.map(\.rawValue)],
+                "period": ["type": "string", "enum": ["week", "month"]],
+                "target": ["type": "number", "description": "Count, minutes, km, sets, kcal, days or nights per period; hours for sleepAverage."],
+                "threshold": ["type": "number", "description": "stepDays: steps a day (default 8000). sleepNights: hours a night (default 7)."],
+                "sports": ["type": "array", "items": ["type": "string"], "description": "Workout-based metrics only: count just these activities."],
+                "goal_id": ["type": "string", "description": "Exact active long-term goal UUID this serves."],
+                "supports_setup_goal": ["type": "boolean", "description": "Serve the goal in this same draft."],
+            ]
             return [
                 "type": "object",
                 "properties": [
                     "goal": ["type": "object", "properties": goalProperties],
                     "routines": ["type": "array", "maxItems": 5,
                                  "items": ["type": "object", "properties": routineProperties]],
+                    "period_goals": ["type": "array", "maxItems": CoachGoalSetupProposal.maxPeriodGoals,
+                                     "items": ["type": "object", "properties": periodGoalProperties,
+                                               "required": ["metric", "period", "target"]]],
                     "rationale": ["type": "string", "description": "Short reason for this setup."],
                 ]
             ]

@@ -12,8 +12,10 @@ extension AICoachEngine {
                               proposalStore: CoachGoalSetupProposalStore) async -> String {
         let goalInput = input["goal"] as? [String: Any]
         let routineInputs = (input["routines"] as? [[String: Any]] ?? []).prefix(5)
-        guard goalInput != nil || !routineInputs.isEmpty else {
-            return "Nothing drafted: include a goal, at least one routine, or both."
+        let periodInputs = (input["period_goals"] as? [[String: Any]] ?? [])
+            .prefix(CoachGoalSetupProposal.maxPeriodGoals)
+        guard goalInput != nil || !routineInputs.isEmpty || !periodInputs.isEmpty else {
+            return "Nothing drafted: include a goal, routines, weekly or monthly goals, or a mix."
         }
 
         let goalResult = await parseGoalDraft(goalInput)
@@ -27,21 +29,30 @@ extension AICoachEngine {
             case .failure(let error): return "Nothing drafted: \(error.description)"
             }
         }
-        guard goalDraft != nil || !routines.isEmpty else {
-            return "Nothing drafted: the setup contained no usable goal or routines."
+        var periodGoals: [PeriodGoal] = []
+        for raw in periodInputs {
+            switch Self.parsePeriodGoalDraft(raw, setupGoal: goalDraft?.goal) {
+            case .success(let goal): periodGoals.append(goal)
+            case .failure(let error): return "Nothing drafted: \(error.description)"
+            }
+        }
+        guard goalDraft != nil || !routines.isEmpty || !periodGoals.isEmpty else {
+            return "Nothing drafted: the setup contained no usable goal, routines or period goals."
         }
 
         let rationale = ((input["rationale"] as? String) ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        let proposal = CoachGoalSetupProposal(goal: goalDraft, routines: routines,
+        let proposal = CoachGoalSetupProposal(goal: goalDraft, routines: routines, periodGoals: periodGoals,
                                               rationale: rationale)
         guard proposalStore.propose(proposal) else {
             return "Nothing drafted: the setup was empty."
         }
         let parts = [goalDraft == nil ? nil : "goal",
-                     routines.isEmpty ? nil : "\(routines.count) routine\(routines.count == 1 ? "" : "s")"]
+                     routines.isEmpty ? nil : "\(routines.count) routine\(routines.count == 1 ? "" : "s")",
+                     periodGoals.isEmpty ? nil
+                        : "\(periodGoals.count) weekly/monthly goal\(periodGoals.count == 1 ? "" : "s")"]
             .compactMap { $0 }.joined(separator: " and ")
-        return "Drafted (NOT active): \(parts). It is waiting in Goal & Journey for the user to review, "
+        return "Drafted (NOT active): \(parts). It is waiting on the Goals page for the user to review, "
             + "edit and confirm. Do not describe it as created or enabled."
     }
 
@@ -105,6 +116,56 @@ extension AICoachEngine {
 
     private struct SetupInputError: Error {
         let description: String
+    }
+
+    /// The metrics a coach may draft. Habit days need a journal habit picked by the wearer, hydration
+    /// days need hydration tracking switched on, so both stay with the setup screen.
+    nonisolated static let draftablePeriodMetrics: [PeriodMetric] = PeriodMetric.allCases.filter {
+        $0 != .habitDays && $0 != .hydrationDays
+    }
+
+    /// One weekly or monthly goal from the tool input, kept inside what the setup screen allows; the
+    /// wearer still sets the final number in the review.
+    private static func parsePeriodGoalDraft(_ raw: [String: Any], setupGoal: CoachGoal?)
+        -> Result<PeriodGoal, SetupInputError> {
+        guard let metricText = raw["metric"] as? String, let metric = PeriodMetric(rawValue: metricText),
+              draftablePeriodMetrics.contains(metric) else {
+            return .failure(.init(description: "period_goals metric must be one of "
+                                  + draftablePeriodMetrics.map(\.rawValue).joined(separator: ", ")))
+        }
+        let period = PeriodGoal.Period(rawValue: (raw["period"] as? String) ?? "week") ?? .week
+        guard let target = doubleArg(raw["target"]), target > 0 else {
+            return .failure(.init(description: "each weekly or monthly goal needs a positive target"))
+        }
+        // The same range and step the setup screen offers, so a draft is always a value the wearer could
+        // have picked by hand.
+        let range = metric.range(for: period)
+        guard range.contains(target) else {
+            return .failure(.init(description: "the \(metric.rawValue) target must lie between "
+                                  + "\(range.lowerBound.formatted()) and \(range.upperBound.formatted()) a \(period.rawValue)"))
+        }
+        var threshold = doubleArg(raw["threshold"])
+        switch metric {
+        case .stepDays: threshold = max(1_000, min(threshold ?? 8_000, 50_000))
+        case .sleepNights: threshold = max(4, min(threshold ?? 7, 12))
+        default: threshold = nil
+        }
+        let sports = (raw["sports"] as? [String] ?? [])
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        var parent: UUID?
+        if let text = raw["goal_id"] as? String {
+            guard let id = UUID(uuidString: text),
+                  CoachGoalStore.shared.activeGoals.contains(where: { $0.id == id }) else {
+                return .failure(.init(description: "period goal goal_id must be an exact active-goal id"))
+            }
+            parent = id
+        } else if raw["supports_setup_goal"] as? Bool == true {
+            parent = setupGoal?.id
+        }
+        let step = metric.step(for: period)
+        let stepped = min(range.upperBound, max(range.lowerBound, (target / step).rounded() * step))
+        return .success(PeriodGoal(metric: metric, period: period, target: stepped, threshold: threshold,
+                                   sportFilter: metric.isWorkoutBased ? sports : [], parentGoalId: parent))
     }
 
     private func parseRoutineDraft(_ raw: [String: Any], setupGoal: CoachGoal?)

@@ -138,6 +138,35 @@ final class NavRouter: ObservableObject {
     /// Open the expenditure detail behind Today's Energy card.
     func openEnergy() { requestedDestination = .energy }
 
+    /// Posted by a What's New card's button with the link target as the object. The router listens, so
+    /// the sheet needs no router of its own, whichever screen presented it.
+    static let changelogLinkNotification = Notification.Name("noop.openChangelogLink")
+    private var changelogLinkObserver: AnyCancellable?
+
+    init() {
+        changelogLinkObserver = NotificationCenter.default
+            .publisher(for: Self.changelogLinkNotification)
+            .compactMap { $0.object as? String }
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] target in self?.open(changelogTarget: target) }
+    }
+
+    /// Route a What's New link: the goals explainer, or any destination with a deep-link key.
+    func open(changelogTarget target: String) {
+        switch target {
+        case "goals.intro": openGoalsIntro()
+        case "goals": openGoals()
+        default:
+            if let destination = Destination(deepLinkKey: target) { requestedDestination = destination }
+        }
+    }
+
+    /// Open the goals overview with its explainer on top.
+    func openGoalsIntro() {
+        GoalsIntroRequest.request()
+        openGoals()
+    }
+
     /// The weekly or monthly goal a `.goals` request should open, if one.
     @Published var requestedGoalId: UUID?
     /// Open the goals overview, or one goal's detail.

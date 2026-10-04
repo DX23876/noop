@@ -50,6 +50,29 @@ class EmittedBlockTests(unittest.TestCase):
         self.assertIn(r'\"+33.4°\"', acg.sw_block("9.2.1", wn))
 
 
+class LinkTests(unittest.TestCase):
+    """The optional button under a release's items, e.g. "Set up your goals" opening the explainer."""
+
+    WN = {"title": "Goals", "date": "October 2026", "items": ["**One.** A thing."],
+          "link": {"title": "Set up your goals", "target": "goals.intro"}}
+
+    def test_a_link_becomes_the_release_link_argument(self):
+        block = acg.sw_block("11.9.0", self.WN)
+        self.assertIn('            ],\n            link: .init(title: "Set up your goals", target: "goals.intro")\n'
+                      '        ),\n', block)
+
+    def test_no_link_leaves_the_block_as_before(self):
+        wn = {k: v for k, v in self.WN.items() if k != "link"}
+        block = acg.sw_block("11.9.0", wn)
+        self.assertNotIn("link:", block)
+        self.assertIn("            ]\n        ),\n", block)
+
+    def test_a_link_without_a_target_is_refused(self):
+        wn = dict(self.WN, link={"title": "Set up your goals"})
+        with self.assertRaises(SystemExit):
+            acg.sw_block("11.9.0", wn)
+
+
 class TitleRefreshTests(unittest.TestCase):
     """Re-running after editing the headline must update the entry, not leave it stale."""
 

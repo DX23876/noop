@@ -2314,5 +2314,22 @@
   "Two step goals: %@ a day here, days of %@ steps there": "两个步数目标：这里每天 %@，那里 %@ 步达标日",
   "Two sleep goals: %@ h a night here, nights of %@ h there": "两个睡眠目标：这里每晚 %@ 小时，那里睡满 %@ 小时的夜晚",
   "%@ asks for %lld a week, this goal for %lld": "%@ 要求每周 %lld 次，此目标为 %lld 次",
-  "%@ a week makes about %@ a month; the monthly goal is %@": "每周 %@ 约等于每月 %@；月目标是 %@"
+  "%@ a week makes about %@ a month; the monthly goal is %@": "每周 %@ 约等于每月 %@；月目标是 %@",
+  "%lld routines": "%lld 个例程",
+  "%lld weekly or monthly goals": "%lld 个每周或每月目标",
+  "1 goal": "1 个目标",
+  "1 routine": "1 个例程",
+  "1 weekly or monthly goal": "1 个每周或每月目标",
+  "Average this week: %@ of %@": "本周平均：%@/%@",
+  "Night %lld of %@ of %@ h this week": "本周第 %lld 晚，目标 %@ 晚满 %@ 小时",
+  "Not selected": "未选择",
+  "Review coach draft": "查看教练草案",
+  "Serves %@": "服务于 %@",
+  "These weekly or monthly goals would go past your limit. End one first or raise the limit in goal settings.": "这些每周或每月目标会超出你的上限。请先结束一个，或在目标设置中提高上限。",
+  "This session reaches %@: %@": "本次训练达成 %@：%@",
+  "Under %@ h, so it does not count: %lld of %@ nights so far": "不足 %@ 小时，不计入：目前 %lld/%@ 晚",
+  "Weekly and monthly goals": "每周和每月目标",
+  "With this session: %@ %@": "加上本次训练：%@ %@",
+  "You already track this over the same period. Change that goal instead.": "你已在同一周期追踪此项。请改为修改那个目标。",
+  "New goal (⌘N)": "新目标 (⌘N)"
 }

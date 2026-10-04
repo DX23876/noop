@@ -2190,5 +2190,22 @@
   "Two step goals: %@ a day here, days of %@ steps there": "Две цели по шагам: здесь %@ в день, там дни по %@ шагов",
   "Two sleep goals: %@ h a night here, nights of %@ h there": "Две цели по сну: здесь %@ ч за ночь, там ночи от %@ ч",
   "%@ asks for %lld a week, this goal for %lld": "%@ требует %lld в неделю, эта цель %lld",
-  "%@ a week makes about %@ a month; the monthly goal is %@": "%@ в неделю дают около %@ в месяц; месячная цель %@"
+  "%@ a week makes about %@ a month; the monthly goal is %@": "%@ в неделю дают около %@ в месяц; месячная цель %@",
+  "%lld routines": "Рутин: %lld",
+  "%lld weekly or monthly goals": "Недельных или месячных целей: %lld",
+  "1 goal": "1 цель",
+  "1 routine": "1 рутина",
+  "1 weekly or monthly goal": "1 недельная или месячная цель",
+  "Average this week: %@ of %@": "В среднем за неделю: %@ из %@",
+  "Night %lld of %@ of %@ h this week": "Ночь %lld из %@ от %@ ч на этой неделе",
+  "Not selected": "Не выбрано",
+  "Review coach draft": "Проверить черновик коуча",
+  "Serves %@": "Служит цели %@",
+  "These weekly or monthly goals would go past your limit. End one first or raise the limit in goal settings.": "Эти недельные или месячные цели превысят твой лимит. Сначала заверши одну цель или увеличь лимит в настройках целей.",
+  "This session reaches %@: %@": "Эта тренировка достигает цели %@: %@",
+  "Under %@ h, so it does not count: %lld of %@ nights so far": "Меньше %@ ч, поэтому не считается: пока %lld из %@ ночей",
+  "Weekly and monthly goals": "Недельные и месячные цели",
+  "With this session: %@ %@": "С этой тренировкой: %@ %@",
+  "You already track this over the same period. Change that goal instead.": "Ты уже отслеживаешь это за тот же период. Лучше измени ту цель.",
+  "New goal (⌘N)": "Новая цель (⌘N)"
 }

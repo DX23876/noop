@@ -15,6 +15,8 @@ struct CoachGoalSetupReviewView: View {
     @State private var goalDraft: CoachGoalSetupProposal.GoalDraft?
     @State private var routines: [CoachGoalSetupProposal.RoutineDraft] = []
     @State private var selectedRoutineIds: Set<UUID> = []
+    @State private var periodGoals: [PeriodGoal] = []
+    @State private var selectedPeriodGoalIds: Set<UUID> = []
     @State private var includeGoal = true
     @State private var rationale = ""
     @State private var editingRoutine: UUID?
@@ -44,6 +46,7 @@ struct CoachGoalSetupReviewView: View {
                 }
                 if goalDraft != nil { goalSection }
                 if !routines.isEmpty { routinesSection }
+                if !periodGoals.isEmpty { periodGoalsSection }
                 Section {
                     Text("Nothing here is active until you confirm. Goal outcomes remain separate from routine completion.")
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
@@ -52,7 +55,7 @@ struct CoachGoalSetupReviewView: View {
                     Button("Decline draft", role: .destructive, action: decline)
                 }
             }
-            .navigationTitle("Review goal & routines")
+            .navigationTitle(periodGoals.isEmpty ? Text("Review goal & routines") : Text("Review coach draft"))
             #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
@@ -179,13 +182,73 @@ struct CoachGoalSetupReviewView: View {
         }
     }
 
+    /// Weekly and monthly goals in the draft: each can be left out, and its number moves in the same
+    /// steps and range as on the setup screen.
+    private var periodGoalsSection: some View {
+        Section("Weekly and monthly goals") {
+            ForEach($periodGoals) { $goal in
+                let selected = selectedPeriodGoalIds.contains(goal.id)
+                HStack(alignment: .top, spacing: 10) {
+                    Button {
+                        if selected { selectedPeriodGoalIds.remove(goal.id) }
+                        else { selectedPeriodGoalIds.insert(goal.id) }
+                    } label: {
+                        Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(selected ? StrandPalette.accent : StrandPalette.textTertiary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Text(selected ? "Selected" : "Not selected"))
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(GoalFormat.title(goal)).font(StrandFont.footnote)
+                        if !goal.sportFilter.isEmpty {
+                            Text(goal.sportFilter.joined(separator: ", "))
+                                .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                        }
+                        if let parent = parentName(goal.parentGoalId) {
+                            Text("Serves \(parent)").font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                        }
+                        Stepper(value: $goal.target, in: goal.metric.range(for: goal.period),
+                                step: goal.metric.step(for: goal.period)) {
+                            Text(GoalFormat.amount(goal.target, goal.metric))
+                                .font(StrandFont.caption.weight(.semibold)).monospacedDigit()
+                        }
+                        if let note = periodGoalNote(goal) {
+                            Label(note, systemImage: "exclamationmark.triangle")
+                                .font(StrandFont.caption).foregroundStyle(StrandPalette.statusWarningForeground)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+                .opacity(selected ? 1 : 0.6)
+            }
+        }
+    }
+
+    private func parentName(_ id: UUID?) -> String? {
+        guard let id else { return nil }
+        if id == goalDraft?.goal.id { return includeGoal ? goalDraft?.goal.title : nil }
+        return goals.goal(id: id)?.title
+    }
+
+    /// Why this one would not go through as it stands: the same thing is already tracked over the same
+    /// period, or another goal measures it with a different number.
+    private func periodGoalNote(_ goal: PeriodGoal) -> String? {
+        if case .duplicate = PeriodGoalStore.shared.canAdd(goal) {
+            return String(localized: "You already track this over the same period. Change that goal instead.")
+        }
+        return GoalConflicts.notes(adding: goal, actions: actions.actions, period: PeriodGoalStore.shared.goals,
+                                   longTerm: goals.goals, today: Repository.localDayKey(Date())).first
+    }
+
     private var availableGoals: [CoachGoal] {
         var values = goals.activeGoals
         if let setup = goalDraft?.goal, !values.contains(where: { $0.id == setup.id }) { values.insert(setup, at: 0) }
         return values
     }
 
-    private var hasSelection: Bool { (includeGoal && goalDraft != nil) || !selectedRoutineIds.isEmpty }
+    private var hasSelection: Bool {
+        (includeGoal && goalDraft != nil) || !selectedRoutineIds.isEmpty || !selectedPeriodGoalIds.isEmpty
+    }
 
     private func load() {
         guard !loaded else { return }; loaded = true
@@ -196,6 +259,8 @@ struct CoachGoalSetupReviewView: View {
         goalDraft = proposal.goal
         routines = proposal.routines
         selectedRoutineIds = Set(proposal.routines.map(\.id))
+        periodGoals = proposal.draftedPeriodGoals
+        selectedPeriodGoalIds = Set(periodGoals.filter { PeriodGoalStore.shared.canAdd($0) == nil }.map(\.id))
         includeGoal = proposal.goal != nil
         rationale = proposal.rationale
     }
@@ -252,7 +317,8 @@ struct CoachGoalSetupReviewView: View {
         let selection = CoachGoalSetupApplier.Selection(
             goal: goalDraft, includeGoal: includeGoal, routines: routines,
             selectedRoutineIds: selectedRoutineIds, replacingGoalId: replaceCandidateId,
-            acknowledgedRisk: ack, clearStaleAcknowledgement: clear)
+            acknowledgedRisk: ack, clearStaleAcknowledgement: clear,
+            periodGoals: periodGoals, selectedPeriodGoalIds: selectedPeriodGoalIds)
         if let error = CoachGoalSetupApplier.apply(
             proposalId: proposalId, selection: selection, proposalStore: proposals,
             goalStore: goals, actionStore: actions) {

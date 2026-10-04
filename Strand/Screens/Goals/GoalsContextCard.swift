@@ -111,6 +111,111 @@ struct GoalContributionNote: View {
     }
 }
 
+/// What a session about to be saved adds to this week's and month's goals, shown where it is finished
+/// ("With this session: Workouts 4/4"). The snapshots have not seen the session yet, so its share is
+/// added here by the goal's own rules: one workout, its minutes, its working sets.
+struct GoalSessionPreviewNote: View {
+    let row: WorkoutRow
+    var workingSets = 0
+    @ObservedObject private var tracking = GoalTrackingStore.shared
+
+    private struct Line: Identifiable {
+        let id: UUID
+        let text: String
+        let reaches: Bool
+    }
+
+    private var lines: [Line] {
+        let day = Repository.localDayKey(Date(timeIntervalSince1970: Double(row.startTs)))
+        return tracking.periodSnapshots.compactMap { snapshot in
+            let goal = snapshot.goal
+            guard goal.status == .active, snapshot.periodDays.contains(day) else { return nil }
+            let added: Double
+            if goal.metric == .workingSets {
+                added = Double(workingSets)
+            } else if goal.metric.isWorkoutBased, PeriodGoalTracker.workoutMatches(goal, row) {
+                added = goal.metric == .workouts ? 1 : (PeriodGoalTracker.workoutAmount(goal.metric, row) ?? 0)
+            } else {
+                return nil
+            }
+            guard added > 0 else { return nil }
+            let before = snapshot.result.current
+            let after = before + added
+            let target = snapshot.result.target
+            let name = GoalFormat.shortName(goal)
+            let progress = "\(GoalFormat.number(after, goal.metric))/\(GoalFormat.number(target, goal.metric))"
+            let reaches = before < target && after >= target
+            return Line(id: goal.id, text: reaches ? String(localized: "This session reaches \(name): \(progress)")
+                                                   : String(localized: "With this session: \(name) \(progress)"),
+                        reaches: reaches)
+        }
+    }
+
+    var body: some View {
+        let items = lines
+        if !items.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(items) { line in
+                    HStack(spacing: 6) {
+                        Image(systemName: line.reaches ? "star.fill" : "target")
+                            .foregroundStyle(line.reaches ? StrandPalette.statusWarning : StrandPalette.accent)
+                            .accessibilityHidden(true)
+                        Text(line.text).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+            .accessibilityElement(children: .combine)
+        }
+    }
+}
+
+/// Where last night stands in this week's sleep goals, in the night detail: "Night 3 of 5 of 7.5 h this
+/// week" when it counted, the shortfall when it did not, the running average for an average goal.
+/// Silent when the night has no sleep reading or no weekly sleep goal covers it.
+struct SleepGoalNightLine: View {
+    /// The night's day key (the day it ended on), as the sleep model reports it.
+    let day: String
+    @ObservedObject private var tracking = GoalTrackingStore.shared
+
+    private var lines: [String] {
+        tracking.periodSnapshots.compactMap { snapshot in
+            let goal = snapshot.goal
+            guard goal.status == .active, goal.period == .week,
+                  let index = snapshot.periodDays.firstIndex(of: day),
+                  snapshot.dayValues.indices.contains(index), let value = snapshot.dayValues[index] else { return nil }
+            let target = GoalFormat.number(snapshot.result.target, goal.metric)
+            switch goal.metric {
+            case .sleepNights:
+                let hours = (goal.threshold ?? 7).formatted(.number.precision(.fractionLength(0...1)))
+                let sofar = snapshot.dayValues[...index].compactMap { $0 }.filter { $0 >= 1 }.count
+                if value >= 1 {
+                    return String(localized: "Night \(sofar) of \(target) of \(hours) h this week")
+                }
+                return String(localized: "Under \(hours) h, so it does not count: \(sofar) of \(target) nights so far")
+            case .sleepAverage:
+                return String(localized: "Average this week: \(GoalFormat.amount(snapshot.result.current, goal.metric)) of \(GoalFormat.amount(snapshot.result.target, goal.metric))")
+            default:
+                return nil
+            }
+        }
+    }
+
+    var body: some View {
+        let items = lines
+        if !items.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(items, id: \.self) { line in
+                    Label(line, systemImage: "target")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .accessibilityElement(children: .combine)
+        }
+    }
+}
+
 /// The energy plan and the weight goal each carried a kilograms-per-week rate of their own (goals plan
 /// Q8). The weight goal leads: the plan shows the rate the goal implies and offers to take it. Never
 /// written silently, and the coach still plans no nutrition — this is the wearer's own number.

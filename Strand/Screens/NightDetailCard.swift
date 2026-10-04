@@ -33,6 +33,8 @@ struct NightDetailCard: View {
 
         VStack(alignment: .leading, spacing: NoopMetrics.gap) {
             SectionHeader("Night detail", overline: "Metrics")
+            // The night the tiles describe: the carried day when the latest reading is not today's.
+            SleepGoalNightLine(day: eff.latestDay ?? Repository.localDayKey(Date()))
 
             #if os(iOS)
             // On iOS, Sleep Debt is the actionable summary for the section, so it leads at the

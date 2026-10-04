@@ -108,6 +108,14 @@ struct StrandApp: App {
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1180, height: 820)
+        .commands {
+            // Goals sit right under Today in the sidebar; Command-3 reaches them from anywhere (goals
+            // plan §2a). On the goals page itself Command-N starts a new goal.
+            CommandGroup(after: .sidebar) {
+                Button("Goals") { router.openGoals() }
+                    .keyboardShortcut("3", modifiers: .command)
+            }
+        }
 
         // Menu-bar extra: glanceable live HR + a compact popover.
         MenuBarExtra {

@@ -14,7 +14,16 @@ enum AppChangelog {
         let title: String
         let date: String
         let items: [String]
+        /// An optional button under the items that takes the reader to what the release introduced.
+        var link: Link? = nil
         var id: String { version }
+    }
+
+    /// A button on a release card. `target` is a `NavRouter` changelog target ("goals.intro") or any
+    /// `NavRouter.Destination` deep-link key.
+    struct Link: Equatable {
+        let title: String
+        let target: String
     }
 
     /// Newest first.

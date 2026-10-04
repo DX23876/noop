@@ -2213,5 +2213,22 @@
   "Two step goals: %@ a day here, days of %@ steps there": "Dois objetivos de passos: aqui %@ por dia, ali dias de %@ passos",
   "Two sleep goals: %@ h a night here, nights of %@ h there": "Dois objetivos de sono: aqui %@ h por noite, ali noites de %@ h",
   "%@ asks for %lld a week, this goal for %lld": "%@ pede %lld por semana, este objetivo %lld",
-  "%@ a week makes about %@ a month; the monthly goal is %@": "%@ por semana dá cerca de %@ por mês; o objetivo mensal é %@"
+  "%@ a week makes about %@ a month; the monthly goal is %@": "%@ por semana dá cerca de %@ por mês; o objetivo mensal é %@",
+  "%lld routines": "%lld rotinas",
+  "%lld weekly or monthly goals": "%lld objetivos semanais ou mensais",
+  "1 goal": "1 objetivo",
+  "1 routine": "1 rotina",
+  "1 weekly or monthly goal": "1 objetivo semanal ou mensal",
+  "Average this week: %@ of %@": "Média desta semana: %@ de %@",
+  "Night %lld of %@ of %@ h this week": "Noite %lld de %@ de %@ h esta semana",
+  "Not selected": "Não selecionado",
+  "Review coach draft": "Rever rascunho do coach",
+  "Serves %@": "Serve %@",
+  "These weekly or monthly goals would go past your limit. End one first or raise the limit in goal settings.": "Estes objetivos semanais ou mensais ultrapassariam o teu limite. Termina primeiro um ou aumenta o limite nas definições de objetivos.",
+  "This session reaches %@: %@": "Esta sessão alcança %@: %@",
+  "Under %@ h, so it does not count: %lld of %@ nights so far": "Menos de %@ h, por isso não conta: %lld de %@ noites até agora",
+  "Weekly and monthly goals": "Objetivos semanais e mensais",
+  "With this session: %@ %@": "Com esta sessão: %@ %@",
+  "You already track this over the same period. Change that goal instead.": "Já acompanhas isto no mesmo período. Altera antes esse objetivo.",
+  "New goal (⌘N)": "Novo objetivo (⌘N)"
 }

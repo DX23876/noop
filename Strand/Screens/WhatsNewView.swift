@@ -130,8 +130,26 @@ struct WhatsNewView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
+                if let link = release.link {
+                    Button { follow(link) } label: {
+                        Label(LocalizedStringKey(link.title), systemImage: "arrow.right.circle.fill")
+                            .font(StrandFont.subhead.weight(.semibold))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(StrandPalette.accent)
+                    .padding(.top, 2)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    /// Close the sheet, then route once it has gone: a screen that presents a sheet of its own (the goals
+    /// explainer) cannot do so while this one is still on its way out.
+    private func follow(_ link: AppChangelog.Link) {
+        onClose()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+            NotificationCenter.default.post(name: NavRouter.changelogLinkNotification, object: link.target)
         }
     }
 

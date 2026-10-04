@@ -667,6 +667,17 @@ struct LiftSessionView: View {
                 }
                 if unfinished > 0 { unfinishedCard(count: unfinished) }
                 if asksAboutProgram { programCard }
+                if let engine {
+                    // What saving adds to this week's goals, before Save rather than after: the sheet
+                    // closes on save and the line would go with it.
+                    GoalSessionPreviewNote(
+                        row: WorkoutRow(startTs: engine.startTs, endTs: Int(Date().timeIntervalSince1970),
+                                        sport: LiftSessionView.sport, source: "manual",
+                                        durationS: Date().timeIntervalSince1970 - Double(engine.startTs),
+                                        energyKcal: nil, avgHr: nil, maxHr: nil, strain: nil, distanceM: nil,
+                                        zonesJSON: nil, notes: nil, steps: nil),
+                        workingSets: engine.completedWorkingSets)
+                }
 
                 // One way to save. Session RPE above is optional, so an empty field is simply no rating;
                 // a separate "Skip" saved exactly the same way and read as a second choice.
