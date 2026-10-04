@@ -26,12 +26,7 @@ struct SmartAlarmView: View {
     /// Shown when the user flips the nudge on but notifications are denied at the OS level — the reminder
     /// can never fire, so we revert the switch and point them to Settings instead of failing silently.
     @State private var showNotifDeniedAlert = false
-    /// Earliest wake time the nudge is derived from (minutes since midnight). Seeded from the store.
-    @State private var wakeMinutes = WindDownNudge.wakeMinutes
-
-    // PR#554 (MumiZed) — per-day wake overrides. `perDayOn` reflects whether ANY override is set; the
-    // `overrides` map mirrors the store so the pickers stay in sync. Additive: with none set, the nudge
-    // behaves exactly as before (one wake time for every evening).
+    // Per-day wake overrides belong to the alarm. Wind down reads the same schedule when enabled.
     @State private var perDayOn = WindDownNudge.hasPerDayOverrides
     @State private var overrides: [Int: Int] = WindDownNudge.perDayWakeOverrides
 
@@ -55,6 +50,7 @@ struct SmartAlarmView: View {
                 windDownCard
             }
         }
+        .onAppear { WindDownNudge.setWakeMinutes(behavior.smartAlarmMinutes) }
         .alert(String(localized: "Notifications are off"), isPresented: $showNotifDeniedAlert) {
             Button(String(localized: "Open Settings")) { Self.openNotificationSettings() }
             Button(String(localized: "Not now"), role: .cancel) {}
@@ -88,7 +84,7 @@ struct SmartAlarmView: View {
                 Text("Tonight").strandOverline()
                 HStack(alignment: .firstTextBaseline, spacing: 14) {
                     heroTime(label: "Wind down",
-                             time: windDownOn ? timeLabel(WindDownNudge.nudgeMinuteOfDay()) : "—",
+                             time: windDownOn && overrides.isEmpty ? timeLabel(WindDownNudge.nudgeMinuteOfDay()) : "—",
                              tint: StrandPalette.restColor)
                     Image(systemName: "arrow.right")
                         .font(.system(size: 13, weight: .semibold))
@@ -98,7 +94,7 @@ struct SmartAlarmView: View {
                     // largest type on the screen, above both cards. It is the first figure a reader sees
                     // and it is not their alarm. Named for what it is instead.
                     heroTime(label: "Usual wake",
-                             time: timeLabel(wakeMinutes),
+                             time: timeLabel(behavior.smartAlarmMinutes),
                              tint: StrandPalette.restBright)
                     // The alarm is deliberately NOT a third figure on this arrow. The arrow is an
                     // arithmetic pair (the nudge is derived from the usual wake time) and the alarm is
@@ -256,20 +252,11 @@ struct SmartAlarmView: View {
                             .accessibilityLabel("Strap alarm wake time")
                     }
                     .frame(minHeight: 42)
-                    // The per-day overrides that re-time THIS alarm (#1864) are edited under the
-                    // wind-down card, so read on its own this card can say "10:00" during a week whose
-                    // Saturday fires at 20:30. Checking your alarm is exactly what someone opens this
-                    // card to do, so the qualifier belongs against the number it qualifies. Shown only
-                    // when an override actually exists, because otherwise the picker IS the whole truth.
-                    if !overrides.isEmpty, let next = nextStrapAlarmLabel {
-                        Text("Some days have a time of their own, set under the evening reminder below. Next buzz \(next).")
-                            .font(StrandFont.footnote)
-                            .foregroundStyle(StrandPalette.textSecondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
+                    // Per-day overrides can make the next alarm differ from the default shown here.
+                    // Show the resolved next buzz beside the default so the schedule is clear at a glance.
                     Divider().overlay(StrandPalette.hairline)
                     alarmWeekdayPicker
+                    perDaySection
                     // #864: a WHOOP 5/MG only arms its firmware alarm when Protocol probes is on (see
                     // BLEManager.armStrapAlarm, which logs "not armed" and returns otherwise). Without this
                     // branch the card claimed "Armed on the strap itself" to a 5/MG owner whose strap was
@@ -321,8 +308,19 @@ struct SmartAlarmView: View {
                 }
             }
             .onChangeCompat(of: behavior.smartAlarmEnabled) { _ in model.applySmartAlarm() }
-            .onChangeCompat(of: behavior.smartAlarmMinutes) { _ in model.applySmartAlarm() }
-            .onChangeCompat(of: behavior.smartAlarmWeekdays) { _ in model.applySmartAlarm() }
+            .onChangeCompat(of: behavior.smartAlarmMinutes) { minutes in
+                WindDownNudge.setWakeMinutes(minutes)
+                model.applySmartAlarm()
+            }
+            .onChangeCompat(of: behavior.smartAlarmWeekdays) { _ in
+                let selected = selectedAlarmWeekdays
+                let excludedOverrides = overrides.keys.filter { !selected.contains($0) }
+                for weekday in excludedOverrides {
+                    WindDownNudge.setWakeOverride(weekday: weekday, minutes: nil)
+                    overrides[weekday] = nil
+                }
+                model.applySmartAlarm()
+            }
         }
     }
 
@@ -371,32 +369,11 @@ struct SmartAlarmView: View {
 
                 if windDownOn {
                     Divider().overlay(StrandPalette.hairline)
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            // Was "Wake time", the same words the strap alarm's own picker uses one card
-                            // up. Two pickers called the same thing, holding different times, and only
-                            // one of them wakes anybody: a reporter asked outright which time would wake
-                            // them. This field is an INPUT to the reminder's arithmetic, so it is named
-                            // for what it is rather than for what it sounds like.
-                            Text("Your usual wake time")
-                                .font(StrandFont.body)
-                                .foregroundStyle(StrandPalette.textPrimary)
-                            Text("The nudge fires \(WindDownNudge.sleepNeedMinutes / 60)h \(WindDownNudge.leadMinutes)m before this.")
-                                .font(StrandFont.footnote)
-                                .foregroundStyle(StrandPalette.textSecondary)
-                            Text("This time does not wake you. It only decides when the evening reminder fires.")
-                                .font(StrandFont.footnote)
-                                .foregroundStyle(StrandPalette.textTertiary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        Spacer()
-                        DatePicker("", selection: wakeBinding, displayedComponents: .hourAndMinute)
-                            .labelsHidden()
-                            .accessibilityLabel("Your usual wake time")
+                    if overrides.isEmpty {
+                        Text("You'll be reminded around \(timeLabel(WindDownNudge.nudgeMinuteOfDay())).")
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textSecondary)
                     }
-                    Text("You'll be reminded around \(timeLabel(WindDownNudge.nudgeMinuteOfDay())).")
-                        .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.textSecondary)
                     // Answers "so what actually wakes me?" in the one place the question gets asked,
                     // beside the time that does not. Only shown when there IS a strap alarm to name.
                     if let next = nextStrapAlarmLabel {
@@ -406,26 +383,18 @@ struct SmartAlarmView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
-                    Divider().overlay(StrandPalette.hairline)
-                    perDaySection
                 }
             }
         }
     }
 
-    // PR#554 — per-day wake overrides. A toggle reveals a per-weekday wake-time editor; with it off (or no
-    // override set) every evening uses the single wake time above. Each weekday row shows the effective wake
-    // (override or the default) and lets the user set or clear that day's time.
+    // Per-day alarm schedule. Independent of wind down, which consumes these same wake times only when on.
     @ViewBuilder private var perDaySection: some View {
         HStack(alignment: .center, spacing: 16) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Different wake time per day")
                     .font(StrandFont.body)
                     .foregroundStyle(StrandPalette.textPrimary)
-                // #1864 made these overrides drive the STRAP ALARM as well as the reminder, but the
-                // copy stayed written as though they only moved the nudge, and the section still sits
-                // under the wind-down card. A day set here re-times the buzz on your wrist. Saying so
-                // is the difference between a lie-in and an alarm that goes off on Saturday evening.
                 Text("Set a wake time for specific days (a lie-in at the weekend, say). These times move your strap alarm AND the evening reminder on those days.")
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textSecondary)
@@ -436,8 +405,7 @@ struct SmartAlarmView: View {
                 .labelsHidden().toggleStyle(.switch).appleInspiredTint("alarms")
                 .accessibilityLabel("Different wake time per day")
                 .onChangeCompat(of: perDayOn) { on in
-                    // Turning the section OFF clears every override (so the nudge reverts to the single time);
-                    // turning it ON just reveals the editor — no override is created until the user sets one.
+                    // Turning the section OFF clears every override; turning it ON only reveals the editor.
                     if !on {
                         for weekday in 1...7 { WindDownNudge.setWakeOverride(weekday: weekday, minutes: nil) }
                         overrides = [:]
@@ -451,7 +419,7 @@ struct SmartAlarmView: View {
 
         if perDayOn {
             VStack(spacing: 8) {
-                ForEach(Self.weekdayOrder, id: \.self) { weekday in
+                ForEach(Self.weekdayOrder.filter(selectedAlarmWeekdays.contains), id: \.self) { weekday in
                     weekdayOverrideRow(weekday)
                 }
             }
@@ -568,30 +536,24 @@ struct SmartAlarmView: View {
         return String(localized: "Alarm in \(span)")
     }
 
-    /// What a day with no override of its own actually does.
-    ///
-    /// There is no single fallback to show: the strap alarm falls back to its OWN time while the reminder
-    /// falls back to the usual wake time above, and a row can only display one number. It displays the
-    /// reminder's, so a day the alarm will fire at 10:00 can sit in this list reading 13:00. Naming both
-    /// beats picking one and being wrong half the time. Hoisted out of the view body to keep this screen
-    /// clear of the iOS type-check budget.
-    ///
-    /// Both base times are real settings, so `timeLabel` is right here and matches the "You'll be reminded
-    /// around ..." line directly above. `nextStrapAlarmLabel` differs on purpose: it renders a weekday too,
-    /// so it needs a date formatter regardless, and takes the reader's clock format while it is there.
+    /// What a selected day with no override does. The alarm's base time is shared with wind down.
     private var untouchedDayExplainer: String {
         guard behavior.smartAlarmEnabled else {
             return String(localized: "Days you leave alone use the usual wake time above.")
         }
         let alarm = timeLabel(behavior.smartAlarmMinutes)
-        let usual = timeLabel(wakeMinutes)
-        return String(localized: "Days you leave alone keep your strap alarm at \(alarm), and time the reminder from \(usual).")
+        return String(localized: "Days you leave alone keep your strap alarm at \(alarm), and time the reminder from \(timeLabel(WindDownNudge.wakeMinutes)).")
+    }
+
+    /// An empty set means every day; otherwise only the selected days can carry an alarm override.
+    private var selectedAlarmWeekdays: Set<Int> {
+        behavior.smartAlarmWeekdays.isEmpty ? Set(1...7) : behavior.smartAlarmWeekdays
     }
 
     /// One weekday's override row: the day name, the effective wake time (override or default), a picker to
     /// set it, and a clear control shown only when an override exists for that day.
     private func weekdayOverrideRow(_ weekday: Int) -> some View {
-        let effective = overrides[weekday] ?? wakeMinutes
+        let effective = overrides[weekday] ?? behavior.smartAlarmMinutes
         let hasOverride = overrides[weekday] != nil
         return HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 1) {
@@ -662,24 +624,6 @@ struct SmartAlarmView: View {
                      String(localized: "Wednesday"), String(localized: "Thursday"), String(localized: "Friday"),
                      String(localized: "Saturday")]
         return (1...7).contains(dow) ? names[dow - 1] : String(localized: "Day \(dow)")
-    }
-
-    // Bridges the minutes-since-midnight store to a DatePicker's Date, persisting + rescheduling.
-    private var wakeBinding: Binding<Date> {
-        Binding(
-            get: {
-                var c = DateComponents()
-                c.hour = wakeMinutes / 60
-                c.minute = wakeMinutes % 60
-                return Calendar.current.date(from: c) ?? Date()
-            },
-            set: { date in
-                let c = Calendar.current.dateComponents([.hour, .minute], from: date)
-                let m = (c.hour ?? 7) * 60 + (c.minute ?? 0)
-                wakeMinutes = m
-                WindDownNudge.setWakeMinutes(m)
-            }
-        )
     }
 
     private func timeLabel(_ minutes: Int) -> String {
