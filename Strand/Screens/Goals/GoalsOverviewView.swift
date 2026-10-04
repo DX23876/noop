@@ -152,8 +152,9 @@ struct GoalsOverviewView: View {
     static func periodState(for health: GoalTrackingSnapshot.Health) -> PeriodGoalState {
         switch health {
         case .onTrack: return .onTrack
-        case .attention: return .close
-        case .atRisk, .decisionNeeded: return .behind
+        // A pending decision is a question for the wearer, not a goal falling behind.
+        case .attention, .decisionNeeded: return .close
+        case .atRisk: return .behind
         case .building: return .starting
         case .paused: return .protected
         }
@@ -166,17 +167,30 @@ struct GoalsOverviewView: View {
         let other = states.count - good - warn - bad
         return NavigationLink(value: route) {
             VStack(spacing: 6) {
-                GoalStatusRing(shares: [
-                    .init(id: "good", count: good, tint: StrandPalette.statusPositive),
-                    .init(id: "warn", count: warn, tint: StrandPalette.statusWarning),
-                    .init(id: "bad", count: bad, tint: StrandPalette.statusCritical),
-                    .init(id: "other", count: other, tint: StrandPalette.textTertiary),
-                ])
-                Text(title).font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                Text(states.isEmpty ? String(localized: "None yet") : String(localized: "\(good) of \(states.count) on course"))
+                // The count is the reading ("2/3 on course"); the ring only shows how the rest splits.
+                // Goals without a verdict yet are a light track, not a dark segment.
+                ZStack {
+                    GoalStatusRing(shares: [
+                        .init(id: "good", count: good, tint: StrandPalette.statusPositive),
+                        .init(id: "warn", count: warn, tint: StrandPalette.statusWarning),
+                        .init(id: "bad", count: bad, tint: StrandPalette.statusCritical),
+                        .init(id: "other", count: other, tint: StrandPalette.hairlineStrong),
+                    ], lineWidth: 5, diameter: 52)
+                    Text(states.isEmpty ? "–" : "\(good)/\(states.count)")
+                        .font(StrandFont.headline).monospacedDigit()
+                        .foregroundStyle(StrandPalette.textPrimary)
+                        .minimumScaleFactor(0.7).lineLimit(1)
+                        .frame(width: 40)
+                }
+                Text(title).font(StrandFont.subhead.weight(.semibold)).foregroundStyle(StrandPalette.textPrimary)
+                Text(states.isEmpty ? String(localized: "None yet") : String(localized: "on course"))
                     .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
                     .lineLimit(1).minimumScaleFactor(0.8)
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text(states.isEmpty ? String(localized: "None yet")
+                                     : String(localized: "\(good) of \(states.count) on course")))
+            .accessibilityHint(Text(title))
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
             .background(RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous)
@@ -231,19 +245,16 @@ struct GoalsOverviewView: View {
                                 StrandHaptic.selection.play()
                                 refresh()
                             } label: {
-                                Image(systemName: occurrence.isCompleted ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(occurrence.isCompleted ? StrandPalette.statusPositive
-                                                                            : StrandPalette.textTertiary)
+                                DailyGoalIndicator(occurrence: occurrence)
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel(occurrence.isCompleted ? Text("Completed") : Text("Mark completed"))
                             Button { sheet = .dailyGoal(occurrence.action.id) } label: {
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(occurrence.action.title)
-                                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textPrimary)
-                                    Text(occurrence.isAutomatic ? String(localized: "done automatically")
-                                                                : occurrence.action.requirement.displayLabel)
-                                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                                    Text(occurrence.detailLine)
+                                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .contentShape(Rectangle())
@@ -358,7 +369,7 @@ struct GoalsOverviewView: View {
         let lastWeek = snapshots(.week).compactMap(\.history.last)
         let achieved = lastWeek.filter { $0.outcome == .achieved }.count
         return VStack(alignment: .leading, spacing: 8) {
-            sectionHeader(String(localized: "Review"))
+            sectionHeader(String(localized: "Looking back"))
             NoopCard(padding: 14) {
                 VStack(alignment: .leading, spacing: 10) {
                     NavigationLink(value: GoalsRoute.review) {
@@ -376,7 +387,7 @@ struct GoalsOverviewView: View {
                     Divider().overlay(StrandPalette.hairline)
                     NavigationLink(value: GoalsRoute.archive) {
                         HStack {
-                            Text("Archive").font(StrandFont.footnote).foregroundStyle(StrandPalette.textPrimary)
+                            Text("Ended goals").font(StrandFont.footnote).foregroundStyle(StrandPalette.textPrimary)
                             Spacer()
                             Image(systemName: "chevron.right").font(StrandFont.caption)
                                 .foregroundStyle(StrandPalette.textTertiary).accessibilityHidden(true)

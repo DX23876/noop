@@ -57,7 +57,7 @@ struct GoalStatusStyle {
         case .atRisk:         return .init(word: "At risk", wordText: String(localized: "At risk"),
                                            symbol: "arrow.down.right", tone: .critical)
         case .decisionNeeded: return .init(word: "Decision needed", wordText: String(localized: "Decision needed"),
-                                           symbol: "questionmark.circle", tone: .critical)
+                                           symbol: "questionmark.circle", tone: .warning)
         case .building:       return .init(word: "Building evidence", wordText: String(localized: "Building evidence"),
                                            symbol: "hourglass", tone: .neutral)
         case .paused:         return .init(word: "Paused", wordText: String(localized: "Paused"),
@@ -65,11 +65,15 @@ struct GoalStatusStyle {
         }
     }
 
-    /// The fill colour for a pace track. "Starting" and "no data" fill neutrally: no verdict yet.
-    static func trackTint(_ state: PeriodGoalState) -> Color {
+    /// The fill colour for a goal's progress: the goal's own colour, so done work always looks like
+    /// done work (a filled day, a filled bar) and every goal keeps one colour across all surfaces. The
+    /// verdict lives in the state word and symbol next to it. A period that can no longer be reached
+    /// fills quieter; without data there is nothing to fill.
+    static func trackTint(_ state: PeriodGoalState, identity: Color) -> Color {
         switch state {
-        case .starting, .noData, .outOfReach: return StrandPalette.textSecondary
-        default: return of(state).color
+        case .noData: return StrandPalette.textTertiary
+        case .outOfReach, .protected: return identity.opacity(0.55)
+        default: return identity
         }
     }
 
@@ -193,7 +197,14 @@ enum GoalFormat {
         case .noData:
             return String(localized: "Too few days with data to judge")
         case .outOfReach:
-            // The state already says "out of reach"; the line says how much was missing.
+            // The state already says "out of reach"; the line says how much was missing, and on the last
+            // day looks ahead instead: nothing can be done about this period any more, the next one is
+            // a fresh start.
+            if left <= 1 {
+                return goal.period == .week
+                    ? String(localized: "\(amount(r.remaining, goal.metric)) short · new week tomorrow")
+                    : String(localized: "\(amount(r.remaining, goal.metric)) short · new month tomorrow")
+            }
             return String(localized: "\(amount(r.remaining, goal.metric)) short, too few days left")
         default:
             break
@@ -252,7 +263,12 @@ enum JournalLabel {
 
 extension PeriodGoalSnapshot {
     var style: GoalStatusStyle { GoalStatusStyle.of(state) }
-    var trackTint: Color { GoalStatusStyle.trackTint(state) }
+    var identityColor: Color {
+        let apple = UserDefaults.standard.object(forKey: AppleInspiredColorsPrefs.enabledKey) as? Bool
+            ?? AppleInspiredColorsPrefs.defaultEnabled
+        return goalIdentityColor(goal.metric, appleColors: apple)
+    }
+    var trackTint: Color { GoalStatusStyle.trackTint(state, identity: identityColor) }
 
     /// Segments for small count goals; continuous otherwise.
     var trackSegments: Int? {

@@ -284,7 +284,7 @@ struct GoalsArchiveView: View {
     var body: some View {
         let ended = store.goals.filter { $0.status == .ended }.sorted { ($0.endedAt ?? $0.createdAt) > ($1.endedAt ?? $1.createdAt) }
         let past = longTerm.goals.filter { [.achieved, .abandoned, .archived].contains($0.status) }
-        ScreenScaffold(title: "Archive", subtitle: "Ended goals keep their history here.") {
+        ScreenScaffold(title: "Ended goals", subtitle: "Ended goals keep their history here.") {
             if ended.isEmpty && past.isEmpty {
                 Text("Nothing here yet.").font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
             }
@@ -457,7 +457,7 @@ struct GoalsReviewBlock: View {
 
 struct GoalsReviewScreen: View {
     var body: some View {
-        ScreenScaffold(title: "Review", subtitle: "How your last week and month went.") {
+        ScreenScaffold(title: "Looking back", subtitle: "How your last week and month went.") {
             GoalsReviewBlock(period: .week)
             GoalsReviewBlock(period: .month)
             Text("Earlier weeks are in Trends, in the week in review.")

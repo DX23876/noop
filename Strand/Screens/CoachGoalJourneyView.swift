@@ -239,7 +239,7 @@ struct CoachGoalJourneyView: View {
                 }
                 if let first = sortedActiveGoals.first,
                    let snapshot = trackingStore.snapshot(for: first.id) {
-                    Text(snapshot.nextAction)
+                    Text(snapshot.localizedNextAction)
                         .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -444,7 +444,7 @@ struct CoachGoalJourneyView: View {
             // `reason` deliberately does NOT appear here any more: two explanatory paragraphs per
             // goal are what made this card read as a wall of grey. It stays on the journey sheet,
             // which exists for exactly that. `nextAction` is the actionable half and stays.
-            Text(snapshot.nextAction)
+            Text(snapshot.localizedNextAction)
                 .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             if snapshot.health == .decisionNeeded,

@@ -19,19 +19,47 @@ extension GoalTrackingSnapshot {
     var measurementLine: String? {
         guard let value = measurement?.value else { return nil }
         let amount = Self.amountText
+        let unit = goal.kind.displayUnit
         if let target = goal.target {
-            return String(format: "%@ %@ now · target %@ %@",
-                          amount(value, goal.kind), goal.kind.unit, amount(target, goal.kind), goal.kind.unit)
+            return String(localized: "\(amount(value, goal.kind)) \(unit) now · target \(amount(target, goal.kind)) \(unit)")
         }
-        return String(format: "%@ %@ now", amount(value, goal.kind), goal.kind.unit)
+        return String(localized: "\(amount(value, goal.kind)) \(unit) now")
     }
 
     /// Counted units (sessions, sets, minutes per week) read as whole numbers: "12.0 sessions/week"
-    /// suggested a fraction of a session. Measured units keep one decimal ("78.0 kg").
+    /// suggested a fraction of a session. Measured units keep one decimal ("78.0 kg"), in the reader's
+    /// number format.
     static func amountText(_ value: Double, _ kind: CoachGoal.Kind) -> String {
         switch kind {
-        case .consistency, .hardSets, .strength: return String(format: "%.0f", value)
-        default: return String(format: "%.1f", value)
+        case .consistency, .hardSets, .strength: return Int(value.rounded()).formatted()
+        default: return value.formatted(.number.precision(.fractionLength(1)))
+        }
+    }
+
+    /// `nextAction` in the reader's language. The engine keeps English for the coach; the sentences
+    /// are fixed, so each is looked up here with its own catalog key.
+    var localizedNextAction: String {
+        switch nextAction {
+        case "Resume when this goal fits again.": return String(localized: "Resume when this goal fits again.")
+        case "Mark it achieved, extend the date, or set it aside.":
+            return String(localized: "Mark it achieved, extend the date, or set it aside.")
+        case "Confirm what happened in Your plan.": return String(localized: "Confirm what happened in Your plan.")
+        case "Review the target, date, or next plan with the coach.":
+            return String(localized: "Review the target, date, or next plan with the coach.")
+        case "Make the next week smaller or easier to schedule.":
+            return String(localized: "Make the next week smaller or easier to schedule.")
+        case "Adjust the remaining plan instead of trying to catch up blindly.":
+            return String(localized: "Adjust the remaining plan instead of trying to catch up blindly.")
+        case "Check what would make the next commitment easier to keep.":
+            return String(localized: "Check what would make the next commitment easier to keep.")
+        case "Complete the next planned commitment.": return String(localized: "Complete the next planned commitment.")
+        case "Keep the next step realistic.": return String(localized: "Keep the next step realistic.")
+        case "Plan a concrete step, or talk it through with the coach.":
+            return String(localized: "Plan a concrete step, or talk it through with the coach.")
+        case "Keep the planned steps going.": return String(localized: "Keep the planned steps going.")
+        case "Plan one concrete step for this goal.": return String(localized: "Plan one concrete step for this goal.")
+        case "Keep building evidence.": return String(localized: "Keep building evidence.")
+        default: return nextAction.localizedCatalogValue
         }
     }
 
@@ -40,11 +68,10 @@ extension GoalTrackingSnapshot {
     /// Deliberately says nothing at all when there is nothing honest to say: a goal without a
     /// start/target/date has no plan to be measured against, and silence beats a hedged sentence.
     var routeLine: String? {
-        let unit = goal.kind.unit
+        let unit = goal.kind.displayUnit
         var parts: [String] = []
         if let next = nextMilestone {
-            let value = String(format: "%.1f", next.value)
-                .replacingOccurrences(of: ".0", with: "")
+            let value = next.value.formatted(.number.precision(.fractionLength(0...1)))
             parts.append(String(localized: "Next \(value) \(unit) by \(next.expectedDate.formatted(Self.waypointDate))"))
         }
         if let course {
@@ -52,7 +79,7 @@ extension GoalTrackingSnapshot {
             case .onCourse:
                 parts.append(String(localized: "on course"))
             case .ahead, .behind:
-                let off = String(format: "%.1f", abs(course.deviation))
+                let off = abs(course.deviation).formatted(.number.precision(.fractionLength(1)))
                 let word = course.verdict == .ahead
                     ? String(localized: "ahead of plan") : String(localized: "behind plan")
                 if let late = course.daysLate, late != 0 {
@@ -77,7 +104,7 @@ extension GoalTrackingSnapshot {
     /// The tightest true sentence about this goal, for a surface that has room for exactly one line:
     /// the route if there is one, otherwise where the measurement stands, otherwise the next step.
     var headlineLine: String {
-        routeLine ?? measurementLine ?? nextAction
+        routeLine ?? measurementLine ?? localizedNextAction
     }
 
     /// The goal's own title, or its kind when the user left the title blank.
@@ -95,6 +122,19 @@ extension GoalTrackingSnapshot {
         if !goal.kind.isQuantified { return String(localized: "tracked, not scored") }
         if measurement == nil { return String(localized: "no reading yet") }
         return String(localized: "no start or target set")
+    }
+}
+
+extension CoachGoal.Kind {
+    /// `unit` for the screen, in the reader's language. `unit` itself stays English: the coach context
+    /// and stored goals use it.
+    var displayUnit: String {
+        switch self {
+        case .consistency: return String(localized: "sessions/week")
+        case .strength:    return String(localized: "min/week")
+        case .hardSets:    return String(localized: "sets/week")
+        default:           return unit
+        }
     }
 }
 

@@ -136,6 +136,12 @@ public enum AppleInspiredColors {
              "coach.goal.weight": return .teal
         case "coach.info.whyModelMatters", "coach.settings.memoryBar": return .indigo
         case "coach.goal.stress": return .yellow
+        // Weekly and monthly goal metrics that have no long-term twin get a colour of their own, so a
+        // rest day never reads as a red warning and a drink never borrows the weight goal's teal.
+        case "goal.restDays": return .mint
+        case "goal.hydration": return .cyan
+        case "goal.activeEnergy": return .pink
+        case "goal.zoneMinutes": return .red
 
         // Settings sections retain their existing symbol-keyed API.
         case "person.crop.circle", "externaldrive.fill": return .blue

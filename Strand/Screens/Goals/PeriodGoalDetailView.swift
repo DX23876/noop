@@ -47,7 +47,9 @@ struct PeriodGoalDetailView: View {
                     .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
             }
         }
-        .navigationTitle(goal.map(GoalFormat.shortName) ?? String(localized: "Goal"))
+        // The header carries the goal's name; the bar names the kind of goal instead of repeating it.
+        .navigationTitle(goal.map { $0.period == .week ? String(localized: "Weekly goal") : String(localized: "Monthly goal") }
+                         ?? String(localized: "Goal"))
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
@@ -90,7 +92,10 @@ struct PeriodGoalDetailView: View {
                 .frame(width: 44, height: 44)
                 .background(Circle().fill(identity.opacity(0.14)))
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 4) {
+                // The state sits above the title in the flow, never on top of it: a long goal name
+                // ("6 nights of 7.5 h a week") used to run underneath an overlaid pill.
+                StatePill(s.style.word, tone: s.style.tone)
                 Text(GoalFormat.title(s.goal))
                     .font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -100,7 +105,6 @@ struct PeriodGoalDetailView: View {
             }
             Spacer(minLength: 0)
         }
-        .overlay(alignment: .topTrailing) { StatePill(s.style.word, tone: s.style.tone) }
         .accessibilityElement(children: .combine)
     }
 
@@ -137,7 +141,11 @@ struct PeriodGoalDetailView: View {
                     TargetColumns(values: s.dayValues.enumerated().map { $0.offset <= s.todayIndex ? $0.element : nil },
                                   target: r.target, tint: s.trackTint, height: 90)
                 }
-                if let projected = r.projected, s.state != .achieved, s.goal.metric.aggregation != .average {
+                // A projection only says something while days are left to change it; on the last day,
+                // or once the period is out of reach, it would just repeat the count.
+                if let projected = r.projected, s.daysLeft > 1,
+                   ![.achieved, .outOfReach, .protected, .noData].contains(s.state),
+                   s.goal.metric.aggregation != .average {
                     Text("At your pace: about \(GoalFormat.amount(projected, s.goal.metric)) by the end of the \(GoalFormat.periodWord(s.goal.period))")
                         .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -149,19 +157,31 @@ struct PeriodGoalDetailView: View {
     private func facts(_ s: PeriodGoalSnapshot) -> some View {
         let r = s.result
         let metric = s.goal.metric
-        return HStack(spacing: 8) {
-            fact(label: "So far", value: GoalFormat.amount(r.current, metric))
-            if let pace = r.paceFraction {
-                fact(label: "Plan for today", value: GoalFormat.amount(pace * r.target, metric))
-            } else {
-                fact(label: "Target", value: GoalFormat.amount(r.target, metric))
+        // One card with three columns, the same surface as every other card on the page (separate
+        // opaque tiles floated on it as white blocks).
+        return NoopCard(padding: 14) {
+            HStack(spacing: 12) {
+                fact(label: "So far", value: GoalFormat.amount(r.current, metric))
+                factDivider
+                if let pace = r.paceFraction, pace < 0.999 {
+                    fact(label: "Target by today", value: GoalFormat.amount(pace * r.target, metric))
+                } else {
+                    fact(label: "Target", value: GoalFormat.amount(r.target, metric))
+                }
+                if let best = s.history.map(\.value).max(), metric.aggregation != .average {
+                    factDivider
+                    fact(label: "Best", value: GoalFormat.amount(max(best, r.current), metric))
+                } else if let needed = r.requiredPerDay {
+                    factDivider
+                    fact(label: "Needed", value: GoalFormat.amount(needed, metric))
+                }
             }
-            if let best = s.history.map(\.value).max(), metric.aggregation != .average {
-                fact(label: "Best", value: GoalFormat.amount(max(best, r.current), metric))
-            } else if let needed = r.requiredPerDay {
-                fact(label: "Needed", value: GoalFormat.amount(needed, metric))
-            }
+            .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    private var factDivider: some View {
+        Rectangle().fill(StrandPalette.hairline).frame(width: 1).accessibilityHidden(true)
     }
 
     private func fact(label: LocalizedStringKey, value: String) -> some View {
@@ -171,8 +191,6 @@ struct PeriodGoalDetailView: View {
                 .lineLimit(1).minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(StrandPalette.surfaceRaised))
         .accessibilityElement(children: .combine)
     }
 
@@ -243,26 +261,57 @@ struct PeriodGoalDetailView: View {
             NoopCard(padding: 14) {
                 VStack(alignment: .leading, spacing: 10) {
                     Text(s.goal.period == .week ? "Last weeks" : "Last months").strandOverline()
+                    // Reached periods in the goal's colour, "almost" lighter, missed ones as a quiet grey:
+                    // the eye counts the coloured columns. The dashed line is the target.
                     PeriodHistoryBars(bars: s.history.map {
-                        .init(id: $0.periodStart, fraction: $0.fraction, tint: GoalStatusStyle.of($0.outcome).color)
-                    } + [.init(id: s.periodStart, fraction: s.result.fraction, tint: s.trackTint, isCurrent: true)],
-                                      selection: $selectedHistory)
+                        .init(id: $0.periodStart, fraction: $0.fraction, tint: historyTint($0.outcome, s))
+                    } + [.init(id: s.periodStart, fraction: s.result.fraction, tint: s.identityColor, isCurrent: true)],
+                                      showsTarget: true, selection: $selectedHistory)
                     if let id = selectedHistory, let entry = s.history.first(where: { $0.periodStart == id }) {
                         let days = PeriodGoalTracker.periodDays(s.goal.period, containing: entry.periodStart,
                                                                 calendar: TrainingPreferences.weekCalendar)
                         Text("\(GoalFormat.range(days)): \(GoalFormat.amount(entry.value, s.goal.metric)) of \(GoalFormat.amount(entry.target, s.goal.metric)) · \(GoalStatusStyle.of(entry.outcome).wordText)")
                             .font(StrandFont.footnote).foregroundStyle(StrandPalette.textPrimary)
+                    } else {
+                        let reached = s.history.filter { $0.outcome == .achieved }.count
+                        Text(s.goal.period == .week
+                             ? String(localized: "Reached in \(reached) of the last \(s.history.count) weeks. Tap a column for details.")
+                             : String(localized: "Reached in \(reached) of the last \(s.history.count) months. Tap a column for details."))
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                    Text(s.goal.period == .week
-                         ? String(localized: "Series: \(s.currentStreak) weeks · best \(s.bestStreak)")
-                         : String(localized: "Series: \(s.currentStreak) months · best \(s.bestStreak)"))
-                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
-                    Text("A period at 80 % or more keeps the series as “Almost”. Paused periods don't break it.")
-                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    // A series of zero is not news. Say the running series when there is one, otherwise
+                    // the best one so far, otherwise nothing.
+                    if s.currentStreak > 0 || s.bestStreak > 0 {
+                        Text(streakLine(s))
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                        Text("A period at 80 % or more keeps the series as “Almost”. Paused periods don't break it.")
+                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
             }
         }
+    }
+
+    private func historyTint(_ outcome: PeriodOutcome, _ s: PeriodGoalSnapshot) -> Color {
+        switch outcome {
+        case .achieved: return s.identityColor
+        case .almost: return s.identityColor.opacity(0.5)
+        case .missed: return StrandPalette.hairlineStrong
+        case .protected, .noData: return StrandPalette.hairline
+        }
+    }
+
+    private func streakLine(_ s: PeriodGoalSnapshot) -> String {
+        let week = s.goal.period == .week
+        if s.currentStreak > 0 {
+            let running = week ? String(localized: "\(s.currentStreak) weeks in a row")
+                               : String(localized: "\(s.currentStreak) months in a row")
+            return s.bestStreak > s.currentStreak ? String(localized: "\(running) · best \(s.bestStreak)") : running
+        }
+        return week ? String(localized: "Best series so far: \(s.bestStreak) weeks")
+                    : String(localized: "Best series so far: \(s.bestStreak) months")
     }
 
     // MARK: - What counted (Q20)
@@ -435,10 +484,10 @@ struct PeriodGoalDetailView: View {
             set: { draftTarget = $0 })
         return NoopCard(padding: 14) {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Goal").strandOverline()
+                Text("Settings").strandOverline()
                 Stepper(value: target, in: range, step: step) {
                     HStack {
-                        Text("Target")
+                        Text("Target value")
                         Spacer()
                         Text(GoalFormat.amount(target.wrappedValue, goal.metric)).monospacedDigit()
                             .foregroundStyle(StrandPalette.textSecondary)
@@ -479,22 +528,30 @@ struct PeriodGoalDetailView: View {
                     }
                 }
                 Divider().overlay(StrandPalette.hairline)
-                HStack(spacing: 18) {
+                // Real buttons, not blue words: these change the goal.
+                HStack(spacing: 8) {
                     if goal.status == .paused {
-                        Button("Resume") { store.resume(goal.id); refresh() }
+                        Button { store.resume(goal.id); refresh() } label: { Label("Resume", systemImage: "play.fill") }
                     } else if goal.status == .active {
-                        Button("Pause") { showPauseConfirm = true }
+                        Button { showPauseConfirm = true } label: { Label("Pause", systemImage: "pause.fill") }
                     }
                     if goal.isOpen {
-                        Button("End goal") { store.end(goal.id); refresh() }
+                        Button { store.end(goal.id); refresh() } label: { Label("End goal", systemImage: "flag.checkered") }
                     }
-                    Spacer()
-                    Button("Delete", role: .destructive) { showDeleteConfirm = true }
-                        .foregroundStyle(StrandPalette.statusCritical)
+                    Spacer(minLength: 0)
+                    Button(role: .destructive) { showDeleteConfirm = true } label: {
+                        Image(systemName: "trash")
+                    }
+                    .accessibilityLabel(Text("Delete"))
+                    .tint(StrandPalette.statusCritical)
                 }
-                .font(StrandFont.footnote)
-                .buttonStyle(.plain)
-                .foregroundStyle(StrandPalette.accent)
+                .font(StrandFont.footnote.weight(.semibold))
+                .buttonStyle(.bordered)
+                #if os(iOS)
+                .buttonBorderShape(.capsule)
+                #endif
+                .controlSize(.small)
+                .tint(StrandPalette.accent)
             }
         }
     }

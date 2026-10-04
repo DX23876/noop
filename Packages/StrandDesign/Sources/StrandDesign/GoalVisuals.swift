@@ -29,7 +29,7 @@ public struct PaceTrack: View {
     /// Where the pace says the wearer should be now, 0…1. nil hides the mark (a period that has not
     /// started, an average goal, a goal without a plan).
     public var paceFraction: Double?
-    /// The fill colour: a status tone, never the goal's identity colour.
+    /// The fill colour. The goals surfaces pass the goal's own colour; the verdict is a word beside it.
     public var tint: Color
     /// Track height. 6 on Today, 8 on cards, 12 in a goal's detail.
     public var height: CGFloat
@@ -62,7 +62,7 @@ public struct PaceTrack: View {
     @State private var shown: Double?
 
     private var clamped: Double { isEmpty ? 0 : min(max(fraction, 0), 1) }
-    private var markWidth: CGFloat { contrast == .increased ? 3 : 2 }
+    private var markWidth: CGFloat { contrast == .increased ? 3.5 : 2.5 }
     private var markHeight: CGFloat { max(height + 6, height * 1.7) }
 
     public var body: some View {
@@ -75,11 +75,15 @@ public struct PaceTrack: View {
                     projection(width: width, from: fill, to: min(1, projected))
                 }
                 if let pace = paceFraction, !isEmpty, clamped < 1 {
+                    // A solid mark with a halo outside it: the halo separates it from the fill, and the
+                    // core stays its full width (an inside border used to eat a 2 pt mark down to a
+                    // white sliver that read as a gap, not a target).
                     Capsule(style: .continuous)
-                        .fill(StrandPalette.textPrimary.opacity(0.75))
+                        .fill(StrandPalette.textPrimary.opacity(0.85))
                         .frame(width: markWidth, height: markHeight)
-                        .overlay(Capsule(style: .continuous)
-                            .strokeBorder(StrandPalette.surfaceRaised, lineWidth: 1))
+                        .background(Capsule(style: .continuous)
+                            .fill(StrandPalette.surfaceRaised)
+                            .frame(width: markWidth + 2, height: markHeight + 2))
                         .offset(x: max(0, min(width - markWidth, width * CGFloat(min(max(pace, 0), 1))
                                                 - markWidth / 2)))
                 }
@@ -328,11 +332,14 @@ public struct PeriodHistoryBars: View {
 
     public var bars: [Bar]
     public var height: CGFloat
+    /// Draws the target as a dashed line across the top of a full column.
+    public var showsTarget: Bool
     public var selection: Binding<String?>?
 
-    public init(bars: [Bar], height: CGFloat = 44, selection: Binding<String?>? = nil) {
+    public init(bars: [Bar], height: CGFloat = 44, showsTarget: Bool = false, selection: Binding<String?>? = nil) {
         self.bars = bars
         self.height = height
+        self.showsTarget = showsTarget
         self.selection = selection
     }
 
@@ -362,6 +369,19 @@ public struct PeriodHistoryBars: View {
             }
         }
         .frame(height: height + 8, alignment: .bottom)
+        .overlay(alignment: .top) {
+            if showsTarget {
+                GeometryReader { geo in
+                    Path { path in
+                        path.move(to: CGPoint(x: 0, y: 8))
+                        path.addLine(to: CGPoint(x: geo.size.width, y: 8))
+                    }
+                    .stroke(StrandPalette.textSecondary, style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                }
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+            }
+        }
     }
 }
 

@@ -69,6 +69,75 @@ struct PeriodGoalRow: View {
     }
 }
 
+/// The mark in front of a daily goal: a small ring filling up for a measured goal (steps, sleep, kcal),
+/// a check circle for a workout or a box ticked by hand. Done reads as a full ring with a tick.
+struct DailyGoalIndicator: View {
+    let occurrence: GoalActionOccurrence
+
+    @AppStorage(AppleInspiredColorsPrefs.enabledKey)
+    private var appleColors = AppleInspiredColorsPrefs.defaultEnabled
+
+    var body: some View {
+        let tint = occurrence.identityColor(appleColors: appleColors)
+        Group {
+            if let fraction = occurrence.fraction {
+                ZStack {
+                    Circle().stroke(tint.opacity(0.18), lineWidth: 3)
+                    Circle()
+                        .trim(from: 0, to: occurrence.isCompleted ? 1 : min(1, max(0, fraction)))
+                        .stroke(tint, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                    if occurrence.isCompleted {
+                        Image(systemName: "checkmark").font(.system(size: 9, weight: .bold)).foregroundStyle(tint)
+                    }
+                }
+                .padding(1.5)
+            } else {
+                Image(systemName: occurrence.isCompleted ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 21))
+                    .foregroundStyle(occurrence.isCompleted ? tint : StrandPalette.textTertiary)
+            }
+        }
+        .frame(width: 24, height: 24)
+        .accessibilityHidden(true)
+    }
+}
+
+extension GoalActionOccurrence {
+    /// The colour of what the daily goal is about, from the same table as weekly goals.
+    func identityColor(appleColors: Bool) -> Color {
+        let metric: PeriodMetric?
+        switch action.requirement {
+        case .steps: metric = .stepDays
+        case .sleep: metric = .sleepNights
+        case .activeCalories: metric = .activeEnergy
+        case .workout: metric = .workouts
+        case .manual: metric = nil
+        }
+        return metric.map { goalIdentityColor($0, appleColors: appleColors) } ?? StrandPalette.accent
+    }
+
+    /// The line under a daily goal: how far it has come today, or that it is done.
+    var detailLine: String {
+        if isCompleted {
+            return isAutomatic ? String(localized: "Done · \(action.requirement.displayLabel)")
+                               : String(localized: "Ticked off · \(action.requirement.displayLabel)")
+        }
+        guard let measured, let target = measuredTarget else { return action.requirement.displayLabel }
+        switch action.requirement {
+        case .steps:
+            return String(localized: "\(Int(measured.rounded()).formatted()) of \(Int(target.rounded()).formatted()) steps")
+        case .sleep:
+            let style = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0...1))
+            return String(localized: "\(measured.formatted(style)) of \(target.formatted(style)) h sleep")
+        case .activeCalories:
+            return String(localized: "\(Int(measured.rounded()).formatted()) of \(Int(target.rounded()).formatted()) kcal active")
+        case .workout, .manual:
+            return action.requirement.displayLabel
+        }
+    }
+}
+
 /// A long-term goal in the same row shape: the route from start to target is the track, the plan's
 /// position today is the mark.
 struct LongTermGoalRow: View {
@@ -83,8 +152,7 @@ struct LongTermGoalRow: View {
             HStack(spacing: 6) {
                 Image(systemName: snapshot.goal.kind.icon)
                     .font(StrandFont.footnote)
-                    .foregroundStyle(appleColors ? CoachIconColors.color(for: "coach.goal.\(snapshot.goal.kind.rawValue)")
-                                                 : StrandPalette.accent)
+                    .foregroundStyle(identity)
                     .accessibilityHidden(true)
                 Text(snapshot.displayTitle)
                     .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary).lineLimit(1)
@@ -97,17 +165,23 @@ struct LongTermGoalRow: View {
                 .font(StrandFont.footnote).foregroundStyle(style.foreground)
             }
             if let fraction = snapshot.progressFraction {
-                PaceTrack(fraction: fraction, paceFraction: planFraction, tint: style.color, height: 6,
+                // The goal's colour, like weekly goals: a full bar is progress made, not an alarm. The
+                // state word above says when something needs a decision.
+                PaceTrack(fraction: fraction, paceFraction: planFraction, tint: identity, height: 6,
                           animationKey: "long-\(snapshot.id)")
             }
-            Text(snapshot.routeLine ?? snapshot.measurementLine ?? snapshot.nextAction)
+            Text(snapshot.routeLine ?? snapshot.measurementLine ?? snapshot.localizedNextAction)
                 .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                 .lineLimit(2).fixedSize(horizontal: false, vertical: true)
         }
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("\(snapshot.displayTitle). \(style.wordText). \(snapshot.routeLine ?? snapshot.nextAction)"))
+        .accessibilityLabel(Text("\(snapshot.displayTitle). \(style.wordText). \(snapshot.routeLine ?? snapshot.localizedNextAction)"))
         .accessibilityAddTraits(.isButton)
+    }
+
+    private var identity: Color {
+        appleColors ? CoachIconColors.color(for: "coach.goal.\(snapshot.goal.kind.rawValue)") : StrandPalette.accent
     }
 
     /// Where the plan says the goal should be today, on the start-to-target scale.

@@ -21,6 +21,7 @@ struct PeriodGoalSetupView: View {
     @State private var period: PeriodGoal.Period = .week
     @State private var preset: PeriodMetric?
     @State private var addedIds: Set<String> = []
+    @AppStorage(AppleInspiredColorsPrefs.enabledKey) private var appleColors = AppleInspiredColorsPrefs.defaultEnabled
 
     var body: some View {
         Group {
@@ -99,37 +100,54 @@ struct PeriodGoalSetupView: View {
         return items.filter { !$0.exists } + items.filter(\.exists)
     }
 
+    /// The open goal that already tracks this metric over the period, if any: its real title is shown,
+    /// not the suggestion's ("6 nights of 7 h" when the goal is 7.5 h).
+    private func existing(_ item: Suggestion) -> PeriodGoal? {
+        store.openGoals.first { $0.metric == item.metric && $0.period == period }
+    }
+
+    /// One suggestion: WHAT is measured as the title, the suggested target and the wearer's usual under
+    /// it. Tapping the row opens the step-by-step setup with the metric chosen; the plus adds it as is.
     private func suggestionRow(_ item: Suggestion) -> some View {
         let key = "\(item.metric.rawValue)-\(period.rawValue)"
         let added = addedIds.contains(key)
-        return HStack(spacing: 10) {
-            Image(systemName: item.metric.icon)
-                .foregroundStyle(goalIdentityColor(item.metric, appleColors: true))
-                .frame(width: 24)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(GoalFormat.title(item.goal))
-                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textPrimary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Group {
-                    if item.exists { Text("Already a goal") }
-                    else if let usual = item.usual {
-                        Text("Your usual: \(GoalFormat.amount(usual, item.metric))")
-                    } else {
-                        Text(item.metric.blurb.localizedCatalogValue)
+        let identity = goalIdentityColor(item.metric, appleColors: appleColors)
+        return HStack(spacing: 12) {
+            Button {
+                guard !item.exists else { return }
+                preset = item.metric
+                guided = true
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: item.metric.icon)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(identity)
+                        .frame(width: 34, height: 34)
+                        .background(Circle().fill(identity.opacity(0.14)))
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(item.metric.label.localizedCatalogValue)
+                            .font(StrandFont.subhead.weight(.semibold)).foregroundStyle(StrandPalette.textPrimary)
+                        Group {
+                            if item.exists {
+                                Text("Already a goal: \(existing(item).map(GoalFormat.title) ?? GoalFormat.title(item.goal))")
+                            } else if let usual = item.usual {
+                                Text("\(GoalFormat.title(item.goal)) · usually \(GoalFormat.amount(usual, item.metric))")
+                            } else {
+                                Text("\(GoalFormat.title(item.goal)) · \(item.metric.blurb.localizedCatalogValue)")
+                            }
+                        }
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
                     }
+                    Spacer(minLength: 6)
                 }
-                .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                .contentShape(Rectangle())
             }
-            Spacer(minLength: 6)
+            .buttonStyle(.plain)
+            .disabled(item.exists)
+            .accessibilityHint(item.exists ? Text("") : Text("Customize"))
             if !item.exists {
-                Button {
-                    preset = item.metric
-                    guided = true
-                } label: { Image(systemName: "slider.horizontal.3") }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(StrandPalette.textSecondary)
-                    .accessibilityLabel(Text("Customize"))
                 Button {
                     store.commit(item.goal, today: Repository.localDayKey(Date()))
                     addedIds.insert(key)

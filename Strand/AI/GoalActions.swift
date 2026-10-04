@@ -94,7 +94,26 @@ struct GoalActionOccurrence: Identifiable, Equatable {
     let day: String
     let isCompleted: Bool
     let isAutomatic: Bool
+    /// How far a measured daily goal has come today (steps walked, hours slept, kcal), in the
+    /// requirement's own unit. nil for workout and manual goals, which are done or not.
+    var measured: Double? = nil
     var id: String { "\(action.id.uuidString):\(day)" }
+
+    /// The requirement's target in the same unit as `measured`.
+    var measuredTarget: Double? {
+        switch action.requirement {
+        case .steps(let minimum): return Double(minimum)
+        case .sleep(let hours): return hours
+        case .activeCalories(let minimum): return Double(minimum)
+        case .workout, .manual: return nil
+        }
+    }
+
+    /// Done so far as a share of the target, for the ring beside a daily goal.
+    var fraction: Double? {
+        guard let measured, let target = measuredTarget, target > 0 else { return nil }
+        return measured / target
+    }
 }
 
 struct GoalWorkoutContribution: Codable, Identifiable, Equatable {
@@ -134,12 +153,26 @@ enum GoalActionEvaluator {
                                                     activeKcal: activeKcalByDay[key])
                 result.append(.init(action: action, day: key,
                                     isCompleted: automatic || manual.contains(manualKey),
-                                    isAutomatic: automatic))
+                                    isAutomatic: automatic,
+                                    measured: measuredValue(action.requirement, metric: dayMetrics[key],
+                                                            activeKcal: activeKcalByDay[key])))
             }
             guard let next = calendar.date(byAdding: .day, value: 1, to: cursor), next > cursor else { break }
             cursor = next
         }
         return result
+    }
+
+    /// The day's reading for a measured requirement, in its own unit; nil when nothing was measured
+    /// or the requirement is not a number (a workout, a manual box).
+    static func measuredValue(_ requirement: GoalAction.Requirement, metric: DailyMetric?,
+                              activeKcal: Double?) -> Double? {
+        switch requirement {
+        case .steps: return metric?.steps.map(Double.init)
+        case .sleep: return metric?.totalSleepMin.map { Double($0) / 60 }
+        case .activeCalories: return activeKcal
+        case .workout, .manual: return nil
+        }
     }
 
     static func isDue(_ action: GoalAction, on date: Date, activeGoalIds: Set<UUID>,

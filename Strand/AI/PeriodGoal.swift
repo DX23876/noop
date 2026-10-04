@@ -86,11 +86,14 @@ enum PeriodMetric: String, Codable, CaseIterable, Identifiable {
     var colorKey: String {
         switch self {
         case .workouts, .trainingMinutes:      return "coach.goal.consistency"
-        case .distance, .zoneMinutes:          return "coach.goal.run"
-        case .stepDays, .activeEnergy, .hydrationDays: return "coach.goal.weight"
+        case .distance:                        return "coach.goal.run"
+        case .zoneMinutes:                     return "goal.zoneMinutes"
+        case .stepDays:                        return "coach.goal.weight"
+        case .activeEnergy:                    return "goal.activeEnergy"
+        case .hydrationDays:                   return "goal.hydration"
         case .sleepNights, .sleepAverage:      return "coach.goal.sleep"
         case .workingSets:                     return "coach.goal.strength"
-        case .restDays:                        return "coach.goal.recovery"
+        case .restDays:                        return "goal.restDays"
         case .habitDays:                       return "coach.goal.custom"
         }
     }

@@ -176,8 +176,7 @@ struct GoalsTodaySection: View {
                 StrandHaptic.selection.play()
                 Task { await tracking.refresh(repo: repo) }
             } label: {
-                Image(systemName: occurrence.isCompleted ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(occurrence.isCompleted ? StrandPalette.statusPositive : StrandPalette.textTertiary)
+                DailyGoalIndicator(occurrence: occurrence)
             }
             .buttonStyle(.plain)
             .disabled(occurrence.isAutomatic || !isManual(occurrence.action.requirement))
@@ -185,8 +184,7 @@ struct GoalsTodaySection: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(occurrence.action.title)
                     .font(StrandFont.footnote).foregroundStyle(StrandPalette.textPrimary)
-                Text(occurrence.isAutomatic ? String(localized: "done automatically")
-                                            : occurrence.action.requirement.displayLabel)
+                Text(occurrence.detailLine)
                     .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
             }
             Spacer(minLength: 0)
