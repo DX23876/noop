@@ -500,7 +500,8 @@ struct RootView: View {
         case .intelligence: IntelligenceView()
         case .insightsHub: InsightsHubView()
         case .coach: CoachView()
-        case .goalJourney: CoachGoalJourneyScreen()
+        // Its own stack: the goals area pushes its lists, details and setup (the #753 rule for panes).
+        case .goalJourney: NavigationStack { CoachGoalJourneyScreen() }
         case .live: liveDetail
         case .breathe: BreathingView()
         case .intervals: IntervalTimerView()

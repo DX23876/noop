@@ -1,18 +1,6 @@
 import SwiftUI
 import StrandDesign
 
-/// The standalone screen behind the top-level "Goal & Journey" menu entry (#R6) — the same content as
-/// the settings subpage, in the app's standard titled scaffold. Pushed from More (iOS) / the sidebar
-/// (macOS), and presented from the coach chat's shortcut.
-struct CoachGoalJourneyScreen: View {
-    var body: some View {
-        ScreenScaffold(title: "Goal & Journey",
-                       subtitle: "Your target, your pace, your progress.") {
-            CoachGoalJourneyView()
-        }
-    }
-}
-
 /// The goal + journey surface (#R6, extended #R-multi-goal for several simultaneous goals), extracted
 /// from `CoachSettingsView` so it can live in TWO places at once: still inside the settings hub, and now
 /// as its own top-level entry (More on iOS, the sidebar on macOS) so a goal is one or two taps from
@@ -75,7 +63,7 @@ struct CoachGoalJourneyView: View {
             if !proposalStore.pending.isEmpty { pendingSetupSection }
             if !activeGoals.isEmpty { portfolioSummary }
             ForEach(sortedActiveGoals) { g in goalCard(g) }
-            if !activeGoals.isEmpty { goalActionsSection }
+            // Daily goals moved to the goals overview's "Today" (Q21); this list is the long-term goals.
             if canAddMore {
                 addGoalSection
             } else {
@@ -320,50 +308,6 @@ struct CoachGoalJourneyView: View {
             .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var goalActionsSection: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Daily actions").strandOverline()
-                        Text("One action can support several goals.")
-                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-                    }
-                    Spacer()
-                    Button { goalSheet = .action(nil) } label: {
-                        Label("Add", systemImage: "plus")
-                    }
-                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.accent)
-                    .buttonStyle(.plain)
-                }
-                if actionStore.actions.isEmpty {
-                    Text("Add steps, a workout, or a manual check-off to make progress concrete today.")
-                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
-                        .fixedSize(horizontal: false, vertical: true)
-                } else {
-                    ForEach(actionStore.actions) { action in
-                        Button { goalSheet = .action(action.id) } label: {
-                            HStack(spacing: 8) {
-                                Image(systemName: action.isActive ? "checkmark.circle" : "pause.circle")
-                                    .foregroundStyle(StrandPalette.accent)
-                                VStack(alignment: .leading, spacing: 1) {
-                                    Text(action.title).font(StrandFont.footnote)
-                                        .foregroundStyle(StrandPalette.textPrimary)
-                                    Text("\(action.requirement.label) · \(action.goalIds.count) goals")
-                                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-                                }
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-                            }
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-        }
     }
 
     // MARK: - Cards

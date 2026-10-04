@@ -60,6 +60,12 @@ enum TabRoute: Hashable {
     /// it exists for the one caller that routes a dashboard card by identifier (`DashboardCards
     /// .detailRoute`) — which must name a real destination rather than stand in with another screen's.
     case coach
+    /// The goals overview: today, this week, this month and the long-term goals on one page. Pushed
+    /// from Today's goals section, the Today menu, More and the training hub, so goals are one tap away
+    /// without a tab of their own.
+    case goals
+    /// One weekly or monthly goal's detail.
+    case periodGoal(UUID)
 }
 
 extension View {
@@ -108,6 +114,8 @@ extension View {
             case .cardio: CardioView()
             case .trainingLoad: TrainingLoadView()
             case .coach: CoachView()
+            case .goals: GoalsOverviewScreen()
+            case .periodGoal(let id): PeriodGoalDetailView(goalId: id)
             }
         }
     }

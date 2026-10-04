@@ -220,7 +220,7 @@ struct MomentumView: View {
             series(recentDays.suffix(14).compactMap(\.strain), tint: tint(m))
         case .stepGoal, .stepsBelowUsual:
             series(recentDays.suffix(14).compactMap(\.steps).map(Double.init), tint: tint(m))
-        case .weeklyTrainingGoal, .milestone, .weightMilestone, .streak:
+        case .weeklyTrainingGoal, .milestone, .weightMilestone, .streak, .goalCheckIn:
             if let p = m.progress {
                 VStack(alignment: .leading, spacing: 4) {
                     PipBar(value: p.fraction * 100, range: 0...100, segments: 20,
@@ -357,6 +357,7 @@ enum MomentumSymbol {
         case .bedtimeTarget:      return "moon.zzz"
         case .strapBattery:       return "battery.25"
         case .cyclePhase:         return "drop.degreesign"
+        case .goalCheckIn:        return "target"
         }
     }
 }

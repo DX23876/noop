@@ -2136,7 +2136,7 @@ struct TodayView: View {
         case .synthesis:
             synthesisSection
         case .goals:
-            if selectedDayOffset == 0 { GoalsTodaySection(showGoalJourney: $showGoalJourney) }
+            if selectedDayOffset == 0 { GoalsTodaySection() }
         case .trainingLoad:
             // The same card as Liquid Today, so a layout arranged in one Today style reads in the other.
             if selectedDayOffset == 0 { LiquidTrainingLoadSection(surfaceOpacity: 1) }

@@ -93,6 +93,8 @@ enum MomentumBuilder {
         /// tracking is on and a phase has been resolved.
         var cyclePhaseTitle: String?
         var cycleDayRange: String?
+        /// At most one word about the weekly and monthly goals, built by `GoalMaintenance`.
+        var goalCheckIn: MomentumMessage?
     }
 
     // MARK: - Entry point
@@ -110,6 +112,7 @@ enum MomentumBuilder {
         appendStrapBattery(i, into: &out)
         appendProgress(i, into: &out)
         appendCycle(i, into: &out)
+        if let goalCheckIn = i.goalCheckIn { out.append(goalCheckIn) }
         return out
     }
 
@@ -506,11 +509,24 @@ extension MomentumBuilder {
             i.weekSleepHours = Array(nightly.suffix(7))
         }
 
-        // Goals — the same snapshots the Goals section already draws.
-        if let hero = GoalTrackingStore.shared.snapshots.first(where: { $0.goal.status == .active }) {
-            i.weekSessionsPlanned = hero.currentWeek.planned
-            i.weekSessionsDone = hero.currentWeek.completed
-            i.daysLeftInWeek = daysLeftInWeek()
+        // Goals — the same snapshots the Goals section already draws. A slipping weekly workouts goal
+        // drives "sessions short of your week" first: it is the week the wearer chose to count.
+        let tracking = GoalTrackingStore.shared
+        if let shortfall = GoalMaintenance.weeklyShortfall(tracking.periodSnapshots) {
+            i.weekSessionsPlanned = shortfall.planned
+            i.weekSessionsDone = shortfall.done
+            i.daysLeftInWeek = shortfall.daysLeft
+        }
+        if c.isToday {
+            i.goalCheckIn = GoalMaintenance.momentumCheckIn(snapshots: tracking.periodSnapshots,
+                                                            recentDays: c.allDays)
+        }
+        if let hero = tracking.snapshots.first(where: { $0.goal.status == .active }) {
+            if i.weekSessionsPlanned == nil {
+                i.weekSessionsPlanned = hero.currentWeek.planned
+                i.weekSessionsDone = hero.currentWeek.completed
+                i.daysLeftInWeek = daysLeftInWeek(calendar: TrainingPreferences.weekCalendar)
+            }
             if let m = hero.nextMilestone {
                 i.nextMilestone = (goal: hero.goal.title,
                                    value: "\(Int(m.value.rounded())) \(hero.goal.kind.unit)",

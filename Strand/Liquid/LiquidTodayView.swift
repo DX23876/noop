@@ -745,7 +745,7 @@ struct LiquidTodayView: View {
                         case .synthesis: synthesisSection
                         case .goals:
                             if selectedDayOffset == 0 {
-                                GoalsTodaySection(showGoalJourney: $showGoalJourney, headerOutside: true)
+                                GoalsTodaySection(headerOutside: true)
                             }
                         case .keyMetrics: keyMetricsSection
                         case .trainingLoad:

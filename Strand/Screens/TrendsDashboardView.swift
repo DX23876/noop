@@ -883,35 +883,11 @@ struct TrendsDashboardView: View {
 
     // MARK: - Goals (opt-in, DashboardExtraSection.goals)
 
-    // Plain `UUID` isn't `Identifiable` in this SDK — a Bool + a separately-held id sidesteps
-    // `.sheet(item:)`'s Identifiable requirement instead of wrapping one UUID in a throwaway type.
-    @State private var goalJourneyId: UUID?
-    @State private var showGoalJourney = false
-
-    private var rankedGoalSnapshots: [GoalTrackingSnapshot] {
-        goalTracking.snapshots
-            .filter { $0.goal.status == .active }
-            .sorted { lhs, rhs in
-                if lhs.health.rawValue != rhs.health.rawValue { return lhs.health.rawValue < rhs.health.rawValue }
-                return lhs.sortDate < rhs.sortDate
-            }
-    }
-
+    /// The same goals section every Today style shows (weekly goals, the month, long-term goals that need
+    /// a look, daily goals), so this dashboard never tells a different goal story.
     @ViewBuilder
     private var goalsSection: some View {
-        let ranked = rankedGoalSnapshots
-        if !ranked.isEmpty {
-            VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-                Text("Goals").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
-                NoopCard(padding: NoopMetrics.cardPadding) {
-                    GoalTrackingTile(snapshots: ranked, weekActions: goalTracking.weekActions,
-                                     onOpenGoal: { goalJourneyId = $0; showGoalJourney = true })
-                }
-            }
-            .sheet(isPresented: $showGoalJourney) {
-                if let id = goalJourneyId { NavigationStack { JourneyView(goalId: id) } }
-            }
-        }
+        GoalsTodaySection()
     }
 
     // MARK: - Energy detail (opt-in, DashboardExtraSection.energyDetail)

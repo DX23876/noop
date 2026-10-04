@@ -130,8 +130,6 @@ struct OverviewDashboardView: View {
         get { snapshot.journalLoggedDays }
         nonmutating set { snapshot.journalLoggedDays = newValue }
     }
-    @State private var goalJourneyId: UUID?
-    @State private var showGoalJourney = false
     @State private var selectedDayOffset = 0
     @State private var showDayPicker = false
     @State private var showStepGoalSetting = false
@@ -1028,30 +1026,11 @@ struct OverviewDashboardView: View {
 
     // MARK: - Goals (opt-in, DashboardExtraSection.goals)
 
-    private var rankedGoalSnapshots: [GoalTrackingSnapshot] {
-        goalTracking.snapshots
-            .filter { $0.goal.status == .active }
-            .sorted { lhs, rhs in
-                if lhs.health.rawValue != rhs.health.rawValue { return lhs.health.rawValue < rhs.health.rawValue }
-                return lhs.sortDate < rhs.sortDate
-            }
-    }
-
+    /// The same goals section every Today style shows (weekly goals, the month, long-term goals that need
+    /// a look, daily goals), so this dashboard never tells a different goal story.
     @ViewBuilder
     private var goalsSection: some View {
-        let ranked = rankedGoalSnapshots
-        if !ranked.isEmpty {
-            VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-                Text("Goals").strandOverline()
-                NoopCard(padding: Self.cardPadding) {
-                    GoalTrackingTile(snapshots: ranked, weekActions: goalTracking.weekActions,
-                                     onOpenGoal: { goalJourneyId = $0; showGoalJourney = true })
-                }
-            }
-            .sheet(isPresented: $showGoalJourney) {
-                if let id = goalJourneyId { NavigationStack { JourneyView(goalId: id) } }
-            }
-        }
+        GoalsTodaySection()
     }
 
     // MARK: - Workouts (opt-in, DashboardExtraSection.workoutsList)

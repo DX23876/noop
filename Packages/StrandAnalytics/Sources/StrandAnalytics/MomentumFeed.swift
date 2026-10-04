@@ -64,6 +64,10 @@ public enum MomentumKind: String, CaseIterable, Equatable, Sendable {
     case strapBattery
     /// The current menstrual-cycle phase, when cycle tracking is on.
     case cyclePhase
+    /// A word about the wearer's weekly and monthly goals: last week's review at the start of a new one,
+    /// a first-week check, upkeep of a goal that became easy or keeps slipping, or a goal the data
+    /// suggests. The app emits at most one, and only in the windows where it applies.
+    case goalCheckIn
 
     /// Ordering tier, lower is more important. The comment above is the contract; this is it in code.
     public var tier: Int {
@@ -72,7 +76,7 @@ public enum MomentumKind: String, CaseIterable, Equatable, Sendable {
         // Time-critical: something is wrong now, or a window is closing tonight. Both new members earn
         // the tier the same way the existing ones do — the BUILDER only emits them when that is true.
         case .planDeviation, .weeklyTrainingGoal, .healthAlert, .strapBattery: return 1
-        case .milestone, .weightMilestone:         return 2
+        case .milestone, .weightMilestone, .goalCheckIn: return 2
         case .restDayNeeded, .recoveryRead, .trainingSuggestion: return 3
         case .stepGoal, .stepsBelowUsual, .sleepCatchUp, .bedtimeTarget:      return 4
         case .streak, .hrvTrend, .cyclePhase:      return 5
@@ -91,7 +95,7 @@ public enum MomentumKind: String, CaseIterable, Equatable, Sendable {
         // out by 22:40" are nonsense on last Tuesday, and a health alert is a live state, not a record.
         case .statusOverride, .planDeviation, .weeklyTrainingGoal, .restDayNeeded,
              .trainingSuggestion, .stepGoal, .stepsBelowUsual, .sleepCatchUp,
-             .healthAlert, .bedtimeTarget, .strapBattery:
+             .healthAlert, .bedtimeTarget, .strapBattery, .goalCheckIn:
             return false
         }
     }

@@ -383,33 +383,37 @@ enum PeriodGoalTracker {
 
     // MARK: - Recommendations and availability
 
-    /// Three levels for a new goal from the wearer's recent finished periods (Q14 and the setup flow).
-    static func recommendation(for draft: PeriodGoal, inputs: PeriodGoalInputs, now: Date,
-                               calendar: Calendar) -> PeriodRecommendation? {
+    /// Totals (or means, for an average goal) of the recent finished periods, oldest → newest. Periods
+    /// with no readable day are left out: they say nothing about the wearer's usual.
+    static func historyTotals(for draft: PeriodGoal, inputs: PeriodGoalInputs, now: Date, calendar: Calendar,
+                              count: Int? = nil) -> [Double] {
         let today = dayKey(now, calendar: calendar)
         let index = DataIndex(inputs: inputs, calendar: calendar)
-        let count = draft.period == .week ? 8 : 6
+        let wanted = count ?? (draft.period == .week ? 8 : 6)
         var totals: [Double] = []
         var cursor = previousPeriodAnyDay(draft.period, start: periodDays(draft.period, containing: today,
                                                                           calendar: calendar).first ?? today)
-        for _ in 0..<count {
+        for _ in 0..<wanted {
             let days = periodDays(draft.period, containing: cursor, calendar: calendar)
             guard let first = days.first else { break }
+            cursor = previousPeriodAnyDay(draft.period, start: first)
             let (values, _, _) = dailyValues(goal: draft, days: days, today: today, index: index, inputs: inputs,
                                              overrides: [:])
             let known = values.compactMap { $0 }
-            // A period with no readable day at all is not evidence about the wearer's usual.
             if known.isEmpty || (draft.metric.aggregation != .count && draft.metric.aggregation != .sum
-                                 && known.count * 2 < days.count) {
-                cursor = previousPeriodAnyDay(draft.period, start: first)
-                continue
-            }
+                                 && known.count * 2 < days.count) { continue }
             switch draft.metric.aggregation {
             case .average: totals.append(known.reduce(0, +) / Double(known.count))
             default:       totals.append(known.reduce(0, +))
             }
-            cursor = previousPeriodAnyDay(draft.period, start: first)
         }
+        return totals.reversed()
+    }
+
+    /// Three levels for a new goal from the wearer's recent finished periods (Q14 and the setup flow).
+    static func recommendation(for draft: PeriodGoal, inputs: PeriodGoalInputs, now: Date,
+                               calendar: Calendar) -> PeriodRecommendation? {
+        let totals = historyTotals(for: draft, inputs: inputs, now: now, calendar: calendar)
         let range = draft.metric.range(for: draft.period)
         return PeriodGoalRecommender.levels(history: totals, aggregation: draft.metric.aggregation,
                                             step: draft.metric.step(for: draft.period),
