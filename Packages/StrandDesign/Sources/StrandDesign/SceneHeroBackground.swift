@@ -85,6 +85,13 @@ public enum DayCycleScene {
         assetName(hour: Calendar.current.component(.hour, from: Date()), motif: motif)
     }
 
+    /// Whether the hour's scene is a dark one (dusk, night, first light): text drawn straight on it
+    /// needs the on-dark ink even in Light mode.
+    public static func isDark(hour: Int) -> Bool {
+        let h = ((hour % 24) + 24) % 24
+        return h <= 5 || h >= 19
+    }
+
     /// Whether the hour's scene is a bright one (midday/day) — the hero then warrants a slightly firmer
     /// bottom scrim so the white ring numbers stay legible over the brighter sky.
     public static func isBright(hour: Int) -> Bool {

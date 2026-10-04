@@ -228,9 +228,8 @@ struct LiquidSky: View {
 /// both — the sky stayed a fixed band there while Today filled the viewport):
 /// - "Day-cycle background" OFF renders nothing, leaving the scaffold's plain `surfaceBase` canvas
 ///   (the same visual as passing no topBackground at all).
-/// - "Sky behind cards" ON fills the scaffold's whole backdrop (the ZStack already spans the scroll
-///   view; only this frame capped it) with the held-atmosphere settle, so the Card-transparency
-///   setting reveals the sky under every card — the LiquidTodayView treatment.
+/// - "Sky behind cards" ON fills the scaffold's whole backdrop with Today's illustrated day-cycle scene,
+///   so the Card-transparency setting reveals it under every card, the LiquidTodayView treatment.
 /// A real View (not a one-shot read) so @AppStorage keeps it reactive: toggling either setting
 /// updates every mounted tab in place. Mirrors the Android `LiquidScreenSky(fillHeight:)` +
 /// `fullBleedBackground` pairing.
@@ -246,10 +245,14 @@ struct LiquidScaffoldSky: View {
     var body: some View {
         if backgroundStore.isActive {
             BackgroundImageBackdrop()
+        } else if showDayCycleBackground && skyBehindCards {
+            // Behind the cards every screen shows the same illustrated scene as Today: the procedural sky
+            // is a pale blue-gray in Light mode, so Card transparency revealed almost nothing through it.
+            SceneScreenBackground(hour: Calendar.current.component(.hour, from: Date()), height: 1100)
         } else if showDayCycleBackground {
-            LiquidSkyStatic(hour: nil, settleStrength: skyBehindCards ? 0.78 : 1)
-                .frame(maxWidth: .infinity, maxHeight: skyBehindCards ? .infinity : nil)
-                .frame(height: skyBehindCards ? nil : height, alignment: .top)
+            LiquidSkyStatic(hour: nil, settleStrength: 1)
+                .frame(maxWidth: .infinity)
+                .frame(height: height, alignment: .top)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
         }
