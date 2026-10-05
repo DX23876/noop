@@ -50,6 +50,13 @@ struct GoalAction: Codable, Identifiable, Equatable {
     var goalIds: [UUID]
     var isActive: Bool
     let createdAt: Date
+    /// Keys a newer build stored on this action that this build has no field for. Kept verbatim so a save
+    /// from this build does not erase them (see `PreservedJSON`).
+    var unknownFields: [String: PreservedJSON] = [:]
+
+    private enum CodingKeys: String, CodingKey {
+        case id, title, requirement, schedule, goalIds, isActive, createdAt
+    }
 
     init(id: UUID = UUID(), title: String, requirement: Requirement,
          schedule: Schedule = .daily, goalIds: [UUID], isActive: Bool = true,
@@ -62,6 +69,36 @@ struct GoalAction: Codable, Identifiable, Equatable {
         self.goalIds = goalIds.filter { seen.insert($0).inserted }
         self.isActive = isActive
         self.createdAt = createdAt
+    }
+
+    // Strict on the known keys, as before: an action whose requirement this build does not know fails
+    // here and `GoalActionStore` keeps it verbatim instead (`TolerantStoredList`).
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        title = try c.decode(String.self, forKey: .title)
+        requirement = try c.decode(Requirement.self, forKey: .requirement)
+        schedule = try c.decode(Schedule.self, forKey: .schedule)
+        goalIds = try c.decode([UUID].self, forKey: .goalIds)
+        isActive = try c.decode(Bool.self, forKey: .isActive)
+        createdAt = try c.decode(Date.self, forKey: .createdAt)
+        let all = try decoder.container(keyedBy: AnyCodingKey.self)
+        for key in all.allKeys where CodingKeys(stringValue: key.stringValue) == nil {
+            if let value = try? all.decode(PreservedJSON.self, forKey: key) { unknownFields[key.stringValue] = value }
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: AnyCodingKey.self)
+        func key(_ k: CodingKeys) -> AnyCodingKey { AnyCodingKey(stringValue: k.stringValue) }
+        for (name, value) in unknownFields { try c.encode(value, forKey: AnyCodingKey(stringValue: name)) }
+        try c.encode(id, forKey: key(.id))
+        try c.encode(title, forKey: key(.title))
+        try c.encode(requirement, forKey: key(.requirement))
+        try c.encode(schedule, forKey: key(.schedule))
+        try c.encode(goalIds, forKey: key(.goalIds))
+        try c.encode(isActive, forKey: key(.isActive))
+        try c.encode(createdAt, forKey: key(.createdAt))
     }
 }
 
@@ -249,13 +286,16 @@ final class GoalActionStore: ObservableObject {
     static let shared = GoalActionStore()
     static let storageKey = "coach.goalActions.v1"
 
-    private struct Payload: Codable { var actions: [GoalAction]; var checkoffs: [GoalActionCheckoff] }
+    private struct Payload: Codable { var actions: TolerantStoredList<GoalAction>; var checkoffs: [GoalActionCheckoff] }
     private let defaults: UserDefaults
     private let storageKey: String
     private var isLoading = true
 
     @Published private(set) var actions: [GoalAction] = [] { didSet { save() } }
     @Published private(set) var checkoffs: [GoalActionCheckoff] = [] { didSet { save() } }
+    /// Actions a newer build stored that this one cannot read (a requirement it has no case for). Never
+    /// shown or evaluated, only written back so they survive this build.
+    private var foreignActions: [PreservedJSON] = []
 
     init(defaults: UserDefaults = .standard, storageKey: String = "coach.goalActions.v1",
          loading: Bool = true) {
@@ -263,15 +303,22 @@ final class GoalActionStore: ObservableObject {
         self.storageKey = storageKey
         if loading, let data = defaults.data(forKey: storageKey),
            let payload = try? JSONDecoder().decode(Payload.self, from: data) {
-            actions = payload.actions
+            actions = payload.actions.items
+            foreignActions = payload.actions.foreign
             checkoffs = payload.checkoffs
         }
         isLoading = false
     }
 
     func upsert(_ action: GoalAction) {
-        if let index = actions.firstIndex(where: { $0.id == action.id }) { actions[index] = action }
-        else { actions.append(action) }
+        if let index = actions.firstIndex(where: { $0.id == action.id }) {
+            // An editor builds a fresh action; the fields a newer build stored on it ride along.
+            var updated = action
+            if updated.unknownFields.isEmpty { updated.unknownFields = actions[index].unknownFields }
+            actions[index] = updated
+        } else {
+            actions.append(action)
+        }
     }
 
     func remove(_ id: UUID) {
@@ -302,8 +349,8 @@ final class GoalActionStore: ObservableObject {
     }
 
     private func save() {
-        guard !isLoading, let data = try? JSONEncoder().encode(Payload(actions: actions,
-                                                                        checkoffs: checkoffs)) else { return }
+        guard !isLoading, let data = try? JSONEncoder().encode(Payload(
+            actions: TolerantStoredList(items: actions, foreign: foreignActions), checkoffs: checkoffs)) else { return }
         defaults.set(data, forKey: storageKey)
     }
 }
