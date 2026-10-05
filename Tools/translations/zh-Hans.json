@@ -2575,5 +2575,22 @@
   "Ask the coach about this goal": "向教练询问这个目标",
   "Coach tip": "教练建议",
   "This goal is measured by its weekly goal. Keep the weekly goal selected, or leave the goal out.": "这个目标由每周目标衡量。请保留所选的每周目标，或不添加该目标。",
-  "Run %@": "跑 %@"
+  "Run %@": "跑 %@",
+  "Review goal & routines": "查看目标和日常安排",
+  "Can't apply this draft": "无法应用此草稿",
+  "Nothing here is active until you confirm. Goal outcomes remain separate from routine completion.": "确认前这里都不会生效。目标结果与日常安排的完成情况相互独立。",
+  "Decline draft": "拒绝草稿",
+  "Apply selection": "应用所选",
+  "Apply anyway": "仍然应用",
+  "This pace is faster than usually recommended. Add your reason before applying the goal.": "这个速度快于通常建议。应用目标前请填写你的理由。",
+  "Local baseline: %@ · %@": "本地起点：%@ · %@",
+  "Apply goal changes": "应用目标更改",
+  "Create this goal": "创建此目标",
+  "Select the setup goal or link another active goal.": "请选择草稿中的目标，或关联另一个进行中的目标。",
+  "Edit routine": "编辑日常安排",
+  "%@ rest days %@": "%@ 个休息日 %@",
+  "With your other active goals that's roughly %@ sessions a week, more than most weeks can comfortably hold alongside recovery. Doable if you're managing it, but worth keeping an eye on.": "加上你其他进行中的目标，每周约 %@ 次训练，超过大多数周在兼顾恢复时能轻松承受的量。能管理好就可行，但值得留意。",
+  "That's roughly %@ sessions a week, more than most weeks can comfortably hold alongside recovery. Doable if you're managing it, but worth keeping an eye on.": "每周约 %@ 次训练，超过大多数周在兼顾恢复时能轻松承受的量。能管理好就可行，但值得留意。",
+  "Running": "进行中",
+  "sport.running": "跑步"
 }

@@ -98,6 +98,18 @@ struct CoachGoalSetupReviewView: View {
         }
     }
 
+    private var catalogTemplate: GoalTemplate? { goalDraft.flatMap { GoalCatalog.template(for: $0.goal) } }
+
+    /// A field with its name beside it: a filled field shows only its value, and "2" alone says nothing.
+    private func labeledField(_ label: LocalizedStringKey, text: Binding<String>) -> some View {
+        HStack {
+            Text(label)
+            Spacer(minLength: 12)
+            TextField(label, text: text).multilineTextAlignment(.trailing)
+                .foregroundStyle(StrandPalette.textSecondary)
+        }
+    }
+
     @ViewBuilder
     private var goalSection: some View {
         Section("Goal") {
@@ -111,22 +123,25 @@ struct CoachGoalSetupReviewView: View {
             })) {
                 Text(goalDraft?.operation == .update ? "Apply goal changes" : "Create this goal")
             }
-            if let template = goalDraft.flatMap({ GoalCatalog.template(for: $0.goal) }) {
+            if let template = catalogTemplate {
                 // A catalog goal keeps the template it was drafted from: its kind and measure come with it.
-                LabeledContent("Type") {
-                    Label(template.title.localizedCatalogValue, systemImage: template.icon)
+                HStack(spacing: 10) {
+                    Text("Type")
+                    Spacer(minLength: 8)
+                    Image(systemName: template.icon).foregroundStyle(StrandPalette.accent).accessibilityHidden(true)
+                    Text(template.title.localizedCatalogValue).foregroundStyle(StrandPalette.textSecondary)
                 }
             } else {
                 Picker("Type", selection: goalKindBinding) {
                     ForEach(CoachGoal.Kind.templateFreeCases) { Text($0.label.localizedCatalogValue).tag($0) }
                 }
             }
-            TextField("Goal title", text: goalTitleBinding)
-            if let template = goalDraft.flatMap({ GoalCatalog.template(for: $0.goal) }) {
+            labeledField("Goal title", text: goalTitleBinding)
+            if let template = catalogTemplate {
                 if template.shape == .target {
-                    TextField("Starting value", text: goalNumberBinding(\.baseline))
+                    labeledField("Starting value", text: goalNumberBinding(\.baseline))
                 }
-                TextField(template.shape == .consistency ? "Per week" : "Target", text: goalNumberBinding(\.target))
+                labeledField(template.shape == .consistency ? "Per week" : "Target", text: goalNumberBinding(\.target))
                 if let evidence = goalDraft?.baselineEvidence {
                     Text("Local baseline: \(evidence.value.formatted()) · \(evidence.source)")
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
@@ -140,9 +155,7 @@ struct CoachGoalSetupReviewView: View {
                 }
             }
             // Averages, bands and weekly rhythms run without a date; their date field would do nothing.
-            let dateless = goalDraft.flatMap { GoalCatalog.template(for: $0.goal) }
-                .map { [.average, .maintain, .consistency].contains($0.shape) } ?? false
-            if !dateless {
+            if catalogTemplate.map({ [GoalShape.average, .maintain, .consistency].contains($0.shape) }) != true {
                 Toggle("Target date", isOn: hasTargetDateBinding)
                 if goalDraft?.goal.targetDate != nil {
                     DatePicker("Date", selection: goalDateBinding, displayedComponents: .date)
@@ -227,7 +240,7 @@ struct CoachGoalSetupReviewView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(GoalFormat.title(goal)).font(StrandFont.footnote)
                         if !goal.sportFilter.isEmpty {
-                            Text(goal.sportFilter.joined(separator: ", "))
+                            Text(GoalFormat.sports(goal))
                                 .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                         }
                         if let parent = parentName(goal.parentGoalId) {

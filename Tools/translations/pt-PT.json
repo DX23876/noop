@@ -2474,5 +2474,21 @@
   "Ask the coach about this goal": "Pergunta ao treinador sobre este objetivo",
   "Coach tip": "Dica do treinador",
   "This goal is measured by its weekly goal. Keep the weekly goal selected, or leave the goal out.": "Este objetivo é medido pelo seu objetivo semanal. Mantém o objetivo semanal selecionado ou deixa o objetivo de fora.",
-  "Run %@": "Correr %@"
+  "Run %@": "Correr %@",
+  "Review goal & routines": "Rever objetivo e rotinas",
+  "Can't apply this draft": "Não é possível aplicar este rascunho",
+  "Nothing here is active until you confirm. Goal outcomes remain separate from routine completion.": "Nada fica ativo até confirmares. O resultado de um objetivo é separado da conclusão das rotinas.",
+  "Decline draft": "Recusar rascunho",
+  "Apply selection": "Aplicar seleção",
+  "This pace is faster than usually recommended. Add your reason before applying the goal.": "Este ritmo é mais rápido do que o normalmente recomendado. Indica o teu motivo antes de aplicar o objetivo.",
+  "Local baseline: %@ · %@": "Valor inicial local: %@ · %@",
+  "Apply goal changes": "Aplicar alterações ao objetivo",
+  "Create this goal": "Criar este objetivo",
+  "Select the setup goal or link another active goal.": "Seleciona o objetivo do rascunho ou liga outro objetivo ativo.",
+  "Edit routine": "Editar rotina",
+  "%@ rest days %@": "%@ dias de descanso %@",
+  "With your other active goals that's roughly %@ sessions a week, more than most weeks can comfortably hold alongside recovery. Doable if you're managing it, but worth keeping an eye on.": "Com os teus outros objetivos ativos são cerca de %@ sessões por semana, mais do que a maioria das semanas aguenta a par da recuperação. É possível se o gerires, mas vale a pena vigiar.",
+  "That's roughly %@ sessions a week, more than most weeks can comfortably hold alongside recovery. Doable if you're managing it, but worth keeping an eye on.": "São cerca de %@ sessões por semana, mais do que a maioria das semanas aguenta a par da recuperação. É possível se o gerires, mas vale a pena vigiar.",
+  "Running": "Em curso",
+  "sport.running": "Corrida"
 }

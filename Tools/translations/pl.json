@@ -3595,5 +3595,10 @@
   "Ask the coach about this goal": "Zapytaj trenera o ten cel",
   "Coach tip": "Wskazówka trenera",
   "This goal is measured by its weekly goal. Keep the weekly goal selected, or leave the goal out.": "Ten cel mierzy jego cel tygodniowy. Zostaw cel tygodniowy zaznaczony albo pomiń cel.",
-  "Run %@": "Przebiegnij %@"
+  "Run %@": "Przebiegnij %@",
+  "%@ rest days %@": "%@ dni odpoczynku %@",
+  "With your other active goals that's roughly %@ sessions a week, more than most weeks can comfortably hold alongside recovery. Doable if you're managing it, but worth keeping an eye on.": "Z innymi aktywnymi celami to około %@ sesji tygodniowo, więcej niż większość tygodni zniesie obok regeneracji. Wykonalne, jeśli nad tym panujesz, ale miej to na oku.",
+  "That's roughly %@ sessions a week, more than most weeks can comfortably hold alongside recovery. Doable if you're managing it, but worth keeping an eye on.": "To około %@ sesji tygodniowo, więcej niż większość tygodni zniesie obok regeneracji. Wykonalne, jeśli nad tym panujesz, ale miej to na oku.",
+  "Running": "W toku",
+  "sport.running": "Bieganie"
 }

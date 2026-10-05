@@ -208,10 +208,8 @@ struct LongTermStartPackSheet: View {
                 }
                 if let message { Section { Text(message).foregroundStyle(StrandPalette.statusCritical) } }
             }
+            // A large title: inline, "Cancel" and "Add" left a pack name like "Kraft aufbauen" no room.
             .navigationTitle(pack.title)
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {

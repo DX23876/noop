@@ -69,7 +69,8 @@ enum WorkoutSource: Equatable {
     static func localizedDisplaySport(_ sport: String) -> String {
         let display = displaySport(sport)
         switch display.lowercased() {
-        case "running":                     return String(localized: "Running")
+        // Its own key: the bare "Running" is the state word ("Läuft") on timers and goals.
+        case "running":                     return String(localized: "sport.running", defaultValue: "Running")
         case "walking":                     return String(localized: "Walking")
         case "hiking":                      return String(localized: "Hiking")
         case "cycling":                     return String(localized: "Cycling")
@@ -85,6 +86,7 @@ enum WorkoutSource: Equatable {
         case "yoga":                        return String(localized: "Yoga")
         case "functional strength training": return String(localized: "Functional strength training")
         case "strength training":            return String(localized: "Strength Training")
+        case "strength":                     return String(localized: "Strength")
         default:                              return display
         }
     }

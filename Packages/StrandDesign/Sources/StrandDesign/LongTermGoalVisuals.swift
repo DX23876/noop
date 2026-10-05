@@ -118,7 +118,9 @@ public struct GoalHeroCard<Background: View>: View {
                 statePill
             }
             if !typeSize.isAccessibilitySize { Spacer(minLength: 8) }
-            VStack(alignment: .trailing, spacing: 2) {
+            // Stacked at accessibility sizes, the figure lines up with the title above it; trailing
+            // alignment there pushed the value and its caption apart.
+            VStack(alignment: typeSize.isAccessibilitySize ? .leading : .trailing, spacing: 2) {
                 HStack(spacing: 4) {
                     Text(verbatim: heroValue)
                         .font(compact ? StrandFont.number(20) : StrandFont.number(28))

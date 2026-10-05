@@ -2474,5 +2474,22 @@
   "Ask the coach about this goal": "Frag den Coach zu diesem Ziel",
   "Coach tip": "Tipp vom Coach",
   "This goal is measured by its weekly goal. Keep the weekly goal selected, or leave the goal out.": "Dieses Ziel wird über sein Wochenziel gemessen. Lass das Wochenziel ausgewählt oder nimm das Ziel heraus.",
-  "Run %@": "%@ laufen"
+  "Run %@": "%@ laufen",
+  "Review goal & routines": "Ziel und Routinen prüfen",
+  "Can't apply this draft": "Dieser Entwurf lässt sich nicht übernehmen",
+  "Nothing here is active until you confirm. Goal outcomes remain separate from routine completion.": "Nichts davon ist aktiv, bevor du bestätigst. Ob ein Ziel erreicht ist, hängt nicht davon ab, ob Routinen erledigt sind.",
+  "Decline draft": "Entwurf ablehnen",
+  "Apply selection": "Auswahl übernehmen",
+  "Apply anyway": "Trotzdem übernehmen",
+  "This pace is faster than usually recommended. Add your reason before applying the goal.": "Dieses Tempo ist schneller als üblicherweise empfohlen. Gib deinen Grund an, bevor du das Ziel übernimmst.",
+  "Local baseline: %@ · %@": "Lokaler Startwert: %@ · %@",
+  "Apply goal changes": "Zieländerungen übernehmen",
+  "Create this goal": "Dieses Ziel anlegen",
+  "Select the setup goal or link another active goal.": "Wähle das Ziel des Entwurfs oder verknüpfe ein anderes aktives Ziel.",
+  "Edit routine": "Routine bearbeiten",
+  "%@ rest days %@": "%@ Ruhetage %@",
+  "With your other active goals that's roughly %@ sessions a week, more than most weeks can comfortably hold alongside recovery. Doable if you're managing it, but worth keeping an eye on.": "Mit deinen anderen aktiven Zielen sind das etwa %@ Einheiten pro Woche, mehr als die meisten Wochen neben der Erholung gut tragen. Machbar, wenn du es im Griff hast, aber behalte es im Blick.",
+  "That's roughly %@ sessions a week, more than most weeks can comfortably hold alongside recovery. Doable if you're managing it, but worth keeping an eye on.": "Das sind etwa %@ Einheiten pro Woche, mehr als die meisten Wochen neben der Erholung gut tragen. Machbar, wenn du es im Griff hast, aber behalte es im Blick.",
+  "Running": "Läuft",
+  "sport.running": "Laufen"
 }

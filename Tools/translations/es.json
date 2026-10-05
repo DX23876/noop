@@ -2474,5 +2474,22 @@
   "Ask the coach about this goal": "Pregunta al coach por este objetivo",
   "Coach tip": "Consejo del coach",
   "This goal is measured by its weekly goal. Keep the weekly goal selected, or leave the goal out.": "Este objetivo se mide por su objetivo semanal. Mantén seleccionado el objetivo semanal o deja fuera el objetivo.",
-  "Run %@": "Correr %@"
+  "Run %@": "Correr %@",
+  "Review goal & routines": "Revisar objetivo y rutinas",
+  "Can't apply this draft": "No se puede aplicar este borrador",
+  "Nothing here is active until you confirm. Goal outcomes remain separate from routine completion.": "Nada se activa hasta que confirmes. El resultado de un objetivo es independiente de completar las rutinas.",
+  "Decline draft": "Rechazar borrador",
+  "Apply selection": "Aplicar selección",
+  "Apply anyway": "Aplicar igualmente",
+  "This pace is faster than usually recommended. Add your reason before applying the goal.": "Este ritmo es más rápido de lo que suele recomendarse. Añade tu motivo antes de aplicar el objetivo.",
+  "Local baseline: %@ · %@": "Valor inicial local: %@ · %@",
+  "Apply goal changes": "Aplicar cambios del objetivo",
+  "Create this goal": "Crear este objetivo",
+  "Select the setup goal or link another active goal.": "Selecciona el objetivo del borrador o vincula otro objetivo activo.",
+  "Edit routine": "Editar rutina",
+  "%@ rest days %@": "%@ días de descanso %@",
+  "With your other active goals that's roughly %@ sessions a week, more than most weeks can comfortably hold alongside recovery. Doable if you're managing it, but worth keeping an eye on.": "Con tus otros objetivos activos son unas %@ sesiones a la semana, más de lo que la mayoría de semanas admite junto a la recuperación. Es factible si lo gestionas, pero vigílalo.",
+  "That's roughly %@ sessions a week, more than most weeks can comfortably hold alongside recovery. Doable if you're managing it, but worth keeping an eye on.": "Son unas %@ sesiones a la semana, más de lo que la mayoría de semanas admite junto a la recuperación. Es factible si lo gestionas, pero vigílalo.",
+  "Running": "En curso",
+  "sport.running": "Carrera"
 }

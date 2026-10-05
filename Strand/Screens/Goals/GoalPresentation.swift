@@ -154,22 +154,29 @@ enum GoalFormat {
             return String(localized: "\(target) nights of \(hours) h \(perPeriod)")
         case .sleepAverage:
             return String(localized: "\(target) h average sleep \(perPeriod)")
+        case .restDays:
+            return String(localized: "\(target) rest days \(perPeriod)")
         case .habitDays:
             let habit = goal.habitKey.map(JournalLabel.display) ?? goal.metric.label.localizedCatalogValue
             return goal.habitWantsYes
                 ? String(localized: "\(habit) on \(target) days \(perPeriod)")
                 : String(localized: "\(target) days without \(habit) \(perPeriod)")
         case .workouts where !goal.sportFilter.isEmpty:
-            return String(localized: "\(target) × \(goal.sportFilter.joined(separator: ", ")) \(perPeriod)")
+            return String(localized: "\(target) × \(sports(goal)) \(perPeriod)")
         default:
             return "\(target) \(unit(goal.metric)) \(perPeriod)"
         }
     }
 
+    /// The goal's sports in the wearer's language; the filter itself keeps the stored English labels.
+    static func sports(_ goal: PeriodGoal) -> String {
+        goal.sportFilter.map(WorkoutSource.localizedDisplaySport).joined(separator: ", ")
+    }
+
     /// Short name for rows: the metric with its sport or habit.
     static func shortName(_ goal: PeriodGoal) -> String {
         switch goal.metric {
-        case .workouts where !goal.sportFilter.isEmpty: return goal.sportFilter.joined(separator: ", ")
+        case .workouts where !goal.sportFilter.isEmpty: return sports(goal)
         case .habitDays: return goal.habitKey.map(JournalLabel.display) ?? goal.metric.label.localizedCatalogValue
         case .stepDays:
             return String(localized: "\(Int((goal.threshold ?? 8_000).rounded()).formatted()) steps")

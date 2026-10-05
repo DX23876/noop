@@ -2451,5 +2451,22 @@
   "Ask the coach about this goal": "Спроси тренера об этой цели",
   "Coach tip": "Совет тренера",
   "This goal is measured by its weekly goal. Keep the weekly goal selected, or leave the goal out.": "Эта цель измеряется недельной целью. Оставь недельную цель выбранной или убери саму цель.",
-  "Run %@": "Пробежать %@"
+  "Run %@": "Пробежать %@",
+  "Review goal & routines": "Проверить цель и привычки",
+  "Can't apply this draft": "Не удаётся применить черновик",
+  "Nothing here is active until you confirm. Goal outcomes remain separate from routine completion.": "Ничего не активно, пока ты не подтвердишь. Итог цели не зависит от выполнения привычек.",
+  "Decline draft": "Отклонить черновик",
+  "Apply selection": "Применить выбор",
+  "Apply anyway": "Всё равно применить",
+  "This pace is faster than usually recommended. Add your reason before applying the goal.": "Этот темп быстрее обычно рекомендуемого. Укажи причину, прежде чем применить цель.",
+  "Local baseline: %@ · %@": "Локальное начальное значение: %@ · %@",
+  "Apply goal changes": "Применить изменения цели",
+  "Create this goal": "Создать эту цель",
+  "Select the setup goal or link another active goal.": "Выбери цель из черновика или привяжи другую активную цель.",
+  "Edit routine": "Изменить привычку",
+  "%@ rest days %@": "%@ дн. отдыха %@",
+  "With your other active goals that's roughly %@ sessions a week, more than most weeks can comfortably hold alongside recovery. Doable if you're managing it, but worth keeping an eye on.": "Вместе с другими активными целями это около %@ занятий в неделю, больше, чем большинство недель выдерживает с восстановлением. Выполнимо, если справляешься, но стоит следить.",
+  "That's roughly %@ sessions a week, more than most weeks can comfortably hold alongside recovery. Doable if you're managing it, but worth keeping an eye on.": "Это около %@ занятий в неделю, больше, чем большинство недель выдерживает с восстановлением. Выполнимо, если справляешься, но стоит следить.",
+  "Running": "Идёт",
+  "sport.running": "Бег"
 }

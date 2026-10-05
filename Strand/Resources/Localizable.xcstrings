@@ -63103,25 +63103,25 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apply anyway"
+            "value" : "Trotzdem übernehmen"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apply anyway"
+            "value" : "Aplicar igualmente"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apply anyway"
+            "value" : "Appliquer quand même"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apply anyway"
+            "value" : "Applica comunque"
           }
         },
         "pl" : {
@@ -63139,19 +63139,19 @@
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apply anyway"
+            "value" : "Всё равно применить"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apply anyway"
+            "value" : "仍然应用"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apply anyway"
+            "value" : "仍然套用"
           }
         }
       }
@@ -63161,25 +63161,25 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apply goal changes"
+            "value" : "Zieländerungen übernehmen"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apply goal changes"
+            "value" : "Aplicar cambios del objetivo"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apply goal changes"
+            "value" : "Appliquer les changements de l'objectif"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apply goal changes"
+            "value" : "Applica le modifiche all'obiettivo"
           }
         },
         "pl" : {
@@ -63191,25 +63191,25 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apply goal changes"
+            "value" : "Aplicar alterações ao objetivo"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apply goal changes"
+            "value" : "Применить изменения цели"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apply goal changes"
+            "value" : "应用目标更改"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apply goal changes"
+            "value" : "套用目標變更"
           }
         }
       }
@@ -63283,25 +63283,25 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apply selection"
+            "value" : "Auswahl übernehmen"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apply selection"
+            "value" : "Aplicar selección"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apply selection"
+            "value" : "Appliquer la sélection"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apply selection"
+            "value" : "Applica selezione"
           }
         },
         "pl" : {
@@ -63313,25 +63313,25 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apply selection"
+            "value" : "Aplicar seleção"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apply selection"
+            "value" : "Применить выбор"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apply selection"
+            "value" : "应用所选"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apply selection"
+            "value" : "套用所選"
           }
         }
       }
@@ -88961,25 +88961,25 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Can't apply this draft"
+            "value" : "Dieser Entwurf lässt sich nicht übernehmen"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Can't apply this draft"
+            "value" : "No se puede aplicar este borrador"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Can't apply this draft"
+            "value" : "Impossible d'appliquer ce brouillon"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Can't apply this draft"
+            "value" : "Impossibile applicare questa bozza"
           }
         },
         "pl" : {
@@ -88991,25 +88991,25 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Can't apply this draft"
+            "value" : "Não é possível aplicar este rascunho"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Can't apply this draft"
+            "value" : "Не удаётся применить черновик"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Can't apply this draft"
+            "value" : "无法应用此草稿"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Can't apply this draft"
+            "value" : "無法套用此草稿"
           }
         }
       }
@@ -113417,25 +113417,25 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Create this goal"
+            "value" : "Dieses Ziel anlegen"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Create this goal"
+            "value" : "Crear este objetivo"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Create this goal"
+            "value" : "Créer cet objectif"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Create this goal"
+            "value" : "Crea questo obiettivo"
           }
         },
         "pl" : {
@@ -113447,25 +113447,25 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Create this goal"
+            "value" : "Criar este objetivo"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Create this goal"
+            "value" : "Создать эту цель"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Create this goal"
+            "value" : "创建此目标"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Create this goal"
+            "value" : "建立此目標"
           }
         }
       }
@@ -120498,25 +120498,25 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Decline draft"
+            "value" : "Entwurf ablehnen"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Decline draft"
+            "value" : "Rechazar borrador"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Decline draft"
+            "value" : "Refuser le brouillon"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Decline draft"
+            "value" : "Rifiuta bozza"
           }
         },
         "pl" : {
@@ -120528,25 +120528,25 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Decline draft"
+            "value" : "Recusar rascunho"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Decline draft"
+            "value" : "Отклонить черновик"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Decline draft"
+            "value" : "拒绝草稿"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Decline draft"
+            "value" : "拒絕草稿"
           }
         }
       }
@@ -135346,25 +135346,25 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit routine"
+            "value" : "Routine bearbeiten"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit routine"
+            "value" : "Editar rutina"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit routine"
+            "value" : "Modifier la routine"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit routine"
+            "value" : "Modifica routine"
           }
         },
         "pl" : {
@@ -135376,25 +135376,25 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit routine"
+            "value" : "Editar rotina"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit routine"
+            "value" : "Изменить привычку"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit routine"
+            "value" : "编辑日常安排"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit routine"
+            "value" : "編輯日常安排"
           }
         }
       }
@@ -202797,25 +202797,25 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Local baseline: %@ · %@"
+            "value" : "Lokaler Startwert: %@ · %@"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Local baseline: %@ · %@"
+            "value" : "Valor inicial local: %@ · %@"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Local baseline: %@ · %@"
+            "value" : "Valeur de départ locale : %@ · %@"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Local baseline: %@ · %@"
+            "value" : "Valore iniziale locale: %@ · %@"
           }
         },
         "pl" : {
@@ -202827,25 +202827,25 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Local baseline: %@ · %@"
+            "value" : "Valor inicial local: %@ · %@"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Local baseline: %@ · %@"
+            "value" : "Локальное начальное значение: %@ · %@"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Local baseline: %@ · %@"
+            "value" : "本地起点：%@ · %@"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Local baseline: %@ · %@"
+            "value" : "本地起點：%@ · %@"
           }
         }
       }
@@ -246514,25 +246514,25 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nothing here is active until you confirm. Goal outcomes remain separate from routine completion."
+            "value" : "Nichts davon ist aktiv, bevor du bestätigst. Ob ein Ziel erreicht ist, hängt nicht davon ab, ob Routinen erledigt sind."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nothing here is active until you confirm. Goal outcomes remain separate from routine completion."
+            "value" : "Nada se activa hasta que confirmes. El resultado de un objetivo es independiente de completar las rutinas."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nothing here is active until you confirm. Goal outcomes remain separate from routine completion."
+            "value" : "Rien n'est actif avant ta confirmation. Le résultat d'un objectif reste séparé des routines accomplies."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nothing here is active until you confirm. Goal outcomes remain separate from routine completion."
+            "value" : "Niente è attivo finché non confermi. Il risultato di un obiettivo resta separato dalle routine completate."
           }
         },
         "pl" : {
@@ -246544,25 +246544,25 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nothing here is active until you confirm. Goal outcomes remain separate from routine completion."
+            "value" : "Nada fica ativo até confirmares. O resultado de um objetivo é separado da conclusão das rotinas."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nothing here is active until you confirm. Goal outcomes remain separate from routine completion."
+            "value" : "Ничего не активно, пока ты не подтвердишь. Итог цели не зависит от выполнения привычек."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nothing here is active until you confirm. Goal outcomes remain separate from routine completion."
+            "value" : "确认前这里都不会生效。目标结果与日常安排的完成情况相互独立。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nothing here is active until you confirm. Goal outcomes remain separate from routine completion."
+            "value" : "確認前這裡都不會生效。目標結果與日常安排的完成情況相互獨立。"
           }
         }
       }
@@ -300036,25 +300036,25 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Review goal & routines"
+            "value" : "Ziel und Routinen prüfen"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Review goal & routines"
+            "value" : "Revisar objetivo y rutinas"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Review goal & routines"
+            "value" : "Vérifier l'objectif et les routines"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Review goal & routines"
+            "value" : "Controlla obiettivo e routine"
           }
         },
         "pl" : {
@@ -300066,25 +300066,25 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Review goal & routines"
+            "value" : "Rever objetivo e rotinas"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Review goal & routines"
+            "value" : "Проверить цель и привычки"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Review goal & routines"
+            "value" : "查看目标和日常安排"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Review goal & routines"
+            "value" : "查看目標和日常安排"
           }
         }
       }
@@ -304100,37 +304100,37 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Corsa"
+            "value" : "In corso"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Działanie"
+            "value" : "W toku"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Corrida"
+            "value" : "Em curso"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Бег"
+            "value" : "Идёт"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "跑步"
+            "value" : "进行中"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "跑步"
+            "value" : "進行中"
           }
         }
       }
@@ -310495,25 +310495,25 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Select the setup goal or link another active goal."
+            "value" : "Wähle das Ziel des Entwurfs oder verknüpfe ein anderes aktives Ziel."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Select the setup goal or link another active goal."
+            "value" : "Selecciona el objetivo del borrador o vincula otro objetivo activo."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Select the setup goal or link another active goal."
+            "value" : "Sélectionne l'objectif du brouillon ou lie un autre objectif actif."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Select the setup goal or link another active goal."
+            "value" : "Seleziona l'obiettivo della bozza o collega un altro obiettivo attivo."
           }
         },
         "pl" : {
@@ -310525,25 +310525,25 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Select the setup goal or link another active goal."
+            "value" : "Seleciona o objetivo do rascunho ou liga outro objetivo ativo."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Select the setup goal or link another active goal."
+            "value" : "Выбери цель из черновика или привяжи другую активную цель."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Select the setup goal or link another active goal."
+            "value" : "请选择草稿中的目标，或关联另一个进行中的目标。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Select the setup goal or link another active goal."
+            "value" : "請選擇草稿中的目標，或連結另一個進行中的目標。"
           }
         }
       }
@@ -362135,25 +362135,25 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This pace is faster than usually recommended. Add your reason before applying the goal."
+            "value" : "Dieses Tempo ist schneller als üblicherweise empfohlen. Gib deinen Grund an, bevor du das Ziel übernimmst."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This pace is faster than usually recommended. Add your reason before applying the goal."
+            "value" : "Este ritmo es más rápido de lo que suele recomendarse. Añade tu motivo antes de aplicar el objetivo."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This pace is faster than usually recommended. Add your reason before applying the goal."
+            "value" : "Ce rythme est plus rapide que ce qui est habituellement conseillé. Indique ta raison avant d'appliquer l'objectif."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This pace is faster than usually recommended. Add your reason before applying the goal."
+            "value" : "Questo ritmo è più veloce di quanto si consiglia di solito. Aggiungi il motivo prima di applicare l'obiettivo."
           }
         },
         "pl" : {
@@ -362165,25 +362165,25 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This pace is faster than usually recommended. Add your reason before applying the goal."
+            "value" : "Este ritmo é mais rápido do que o normalmente recomendado. Indica o teu motivo antes de aplicar o objetivo."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This pace is faster than usually recommended. Add your reason before applying the goal."
+            "value" : "Этот темп быстрее обычно рекомендуемого. Укажи причину, прежде чем применить цель."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This pace is faster than usually recommended. Add your reason before applying the goal."
+            "value" : "这个速度快于通常建议。应用目标前请填写你的理由。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This pace is faster than usually recommended. Add your reason before applying the goal."
+            "value" : "這個速度快於通常建議。套用目標前請填寫你的理由。"
           }
         }
       }
@@ -511343,6 +511343,262 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "跑 %@"
+          }
+        }
+      }
+    },
+    "%@ rest days %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ rest days %@"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ Ruhetage %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ días de descanso %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ jours de repos %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ giorni di riposo %@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ dni odpoczynku %@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ dias de descanso %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ дн. отдыха %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 个休息日 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 個休息日 %@"
+          }
+        }
+      }
+    },
+    "With your other active goals that's roughly %@ sessions a week, more than most weeks can comfortably hold alongside recovery. Doable if you're managing it, but worth keeping an eye on." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "With your other active goals that's roughly %@ sessions a week, more than most weeks can comfortably hold alongside recovery. Doable if you're managing it, but worth keeping an eye on."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mit deinen anderen aktiven Zielen sind das etwa %@ Einheiten pro Woche, mehr als die meisten Wochen neben der Erholung gut tragen. Machbar, wenn du es im Griff hast, aber behalte es im Blick."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Con tus otros objetivos activos son unas %@ sesiones a la semana, más de lo que la mayoría de semanas admite junto a la recuperación. Es factible si lo gestionas, pero vigílalo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avec tes autres objectifs actifs, cela fait environ %@ séances par semaine, plus que la plupart des semaines ne supportent avec la récupération. Faisable si tu gères, mais à surveiller."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Con gli altri obiettivi attivi sono circa %@ sessioni a settimana, più di quanto la maggior parte delle settimane regga insieme al recupero. Fattibile se lo gestisci, ma tienilo d'occhio."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Z innymi aktywnymi celami to około %@ sesji tygodniowo, więcej niż większość tygodni zniesie obok regeneracji. Wykonalne, jeśli nad tym panujesz, ale miej to na oku."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Com os teus outros objetivos ativos são cerca de %@ sessões por semana, mais do que a maioria das semanas aguenta a par da recuperação. É possível se o gerires, mas vale a pena vigiar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вместе с другими активными целями это около %@ занятий в неделю, больше, чем большинство недель выдерживает с восстановлением. Выполнимо, если справляешься, но стоит следить."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "加上你其他进行中的目标，每周约 %@ 次训练，超过大多数周在兼顾恢复时能轻松承受的量。能管理好就可行，但值得留意。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "加上你其他進行中的目標，每週約 %@ 次訓練，超過大多數週在兼顧恢復時能輕鬆承受的量。能管理好就可行，但值得留意。"
+          }
+        }
+      }
+    },
+    "That's roughly %@ sessions a week, more than most weeks can comfortably hold alongside recovery. Doable if you're managing it, but worth keeping an eye on." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That's roughly %@ sessions a week, more than most weeks can comfortably hold alongside recovery. Doable if you're managing it, but worth keeping an eye on."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das sind etwa %@ Einheiten pro Woche, mehr als die meisten Wochen neben der Erholung gut tragen. Machbar, wenn du es im Griff hast, aber behalte es im Blick."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Son unas %@ sesiones a la semana, más de lo que la mayoría de semanas admite junto a la recuperación. Es factible si lo gestionas, pero vigílalo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cela fait environ %@ séances par semaine, plus que la plupart des semaines ne supportent avec la récupération. Faisable si tu gères, mais à surveiller."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sono circa %@ sessioni a settimana, più di quanto la maggior parte delle settimane regga insieme al recupero. Fattibile se lo gestisci, ma tienilo d'occhio."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To około %@ sesji tygodniowo, więcej niż większość tygodni zniesie obok regeneracji. Wykonalne, jeśli nad tym panujesz, ale miej to na oku."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "São cerca de %@ sessões por semana, mais do que a maioria das semanas aguenta a par da recuperação. É possível se o gerires, mas vale a pena vigiar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Это около %@ занятий в неделю, больше, чем большинство недель выдерживает с восстановлением. Выполнимо, если справляешься, но стоит следить."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每周约 %@ 次训练，超过大多数周在兼顾恢复时能轻松承受的量。能管理好就可行，但值得留意。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每週約 %@ 次訓練，超過大多數週在兼顧恢復時能輕鬆承受的量。能管理好就可行，但值得留意。"
+          }
+        }
+      }
+    },
+    "sport.running" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Running"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Laufen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carrera"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Course à pied"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Corsa"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bieganie"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Corrida"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Бег"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跑步"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跑步"
           }
         }
       }

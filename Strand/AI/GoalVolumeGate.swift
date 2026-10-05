@@ -56,6 +56,12 @@ enum GoalVolumeGate {
     static func assess(draft: CoachGoal, against activeGoals: [CoachGoal],
                        excludingId: UUID? = nil) -> Assessment {
         let others = activeGoals.filter { $0.id != excludingId }
+        // A goal that adds no sessions (rest days, sleep, weight) cannot be what makes a week too full;
+        // warning on it would blame the draft for the goals already there.
+        guard impliedSessionsPerWeek(draft) > 0 else {
+            return Assessment(verdict: .ok, combinedSessionsPerWeek: others.reduce(0) { $0 + impliedSessionsPerWeek($1) },
+                              warning: nil)
+        }
         let total = (others + [draft]).reduce(0.0) { sum, goal in
             sum + impliedSessionsPerWeek(goal)
         }
@@ -65,11 +71,8 @@ enum GoalVolumeGate {
         let n = others.filter { impliedSessionsPerWeek($0) > 0 }.count
         let combined = String(format: "%.0f", total.rounded())
         let warning = n > 0
-            ? "Across this and your \(n) other active goal\(n == 1 ? "" : "s"), that's roughly "
-                + "\(combined) sessions/week combined — more than most weeks can comfortably hold "
-                + "alongside recovery. Doable if you're managing it, but worth keeping an eye on."
-            : "That's roughly \(combined) sessions/week — more than most weeks can comfortably hold "
-                + "alongside recovery. Doable if you're managing it, but worth keeping an eye on."
+            ? String(localized: "With your other active goals that's roughly \(combined) sessions a week, more than most weeks can comfortably hold alongside recovery. Doable if you're managing it, but worth keeping an eye on.")
+            : String(localized: "That's roughly \(combined) sessions a week, more than most weeks can comfortably hold alongside recovery. Doable if you're managing it, but worth keeping an eye on.")
         return Assessment(verdict: .volumeConcern, combinedSessionsPerWeek: total, warning: warning)
     }
 

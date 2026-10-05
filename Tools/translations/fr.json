@@ -2475,5 +2475,22 @@
   "Ask the coach about this goal": "Demande au coach à propos de cet objectif",
   "Coach tip": "Conseil du coach",
   "This goal is measured by its weekly goal. Keep the weekly goal selected, or leave the goal out.": "Cet objectif se mesure par son objectif hebdomadaire. Garde l'objectif hebdomadaire sélectionné ou retire l'objectif.",
-  "Run %@": "Courir %@"
+  "Run %@": "Courir %@",
+  "Review goal & routines": "Vérifier l'objectif et les routines",
+  "Can't apply this draft": "Impossible d'appliquer ce brouillon",
+  "Nothing here is active until you confirm. Goal outcomes remain separate from routine completion.": "Rien n'est actif avant ta confirmation. Le résultat d'un objectif reste séparé des routines accomplies.",
+  "Decline draft": "Refuser le brouillon",
+  "Apply selection": "Appliquer la sélection",
+  "Apply anyway": "Appliquer quand même",
+  "This pace is faster than usually recommended. Add your reason before applying the goal.": "Ce rythme est plus rapide que ce qui est habituellement conseillé. Indique ta raison avant d'appliquer l'objectif.",
+  "Local baseline: %@ · %@": "Valeur de départ locale : %@ · %@",
+  "Apply goal changes": "Appliquer les changements de l'objectif",
+  "Create this goal": "Créer cet objectif",
+  "Select the setup goal or link another active goal.": "Sélectionne l'objectif du brouillon ou lie un autre objectif actif.",
+  "Edit routine": "Modifier la routine",
+  "%@ rest days %@": "%@ jours de repos %@",
+  "With your other active goals that's roughly %@ sessions a week, more than most weeks can comfortably hold alongside recovery. Doable if you're managing it, but worth keeping an eye on.": "Avec tes autres objectifs actifs, cela fait environ %@ séances par semaine, plus que la plupart des semaines ne supportent avec la récupération. Faisable si tu gères, mais à surveiller.",
+  "That's roughly %@ sessions a week, more than most weeks can comfortably hold alongside recovery. Doable if you're managing it, but worth keeping an eye on.": "Cela fait environ %@ séances par semaine, plus que la plupart des semaines ne supportent avec la récupération. Faisable si tu gères, mais à surveiller.",
+  "Running": "En cours",
+  "sport.running": "Course à pied"
 }

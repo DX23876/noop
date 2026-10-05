@@ -82,4 +82,15 @@ final class GoalVolumeGateTests: XCTestCase {
         let a = GoalVolumeGate.assess(draft: draft, against: [closed])
         XCTAssertEqual(a.combinedSessionsPerWeek, 0)
     }
+
+    /// A draft that adds no sessions does not draw the warning, however full the week already is: the
+    /// warning would blame it for the goals already there.
+    func testADraftWithoutSessionsDrawsNoWarning() {
+        let busy = CoachGoal(kind: .consistency, title: "Train often", target: 14)
+        let rest = CoachGoal(kind: .recovery, title: "Keep rest days", target: 2)
+        let a = GoalVolumeGate.assess(draft: rest, against: [busy])
+        XCTAssertEqual(a.verdict, .ok)
+        XCTAssertNil(a.warning)
+        XCTAssertEqual(GoalVolumeGate.assess(draft: busy, against: []).verdict, .volumeConcern)
+    }
 }

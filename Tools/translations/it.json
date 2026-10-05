@@ -2568,5 +2568,22 @@
   "Ask the coach about this goal": "Chiedi al coach di questo obiettivo",
   "Coach tip": "Consiglio del coach",
   "This goal is measured by its weekly goal. Keep the weekly goal selected, or leave the goal out.": "Questo obiettivo si misura con il suo obiettivo settimanale. Lascia selezionato l'obiettivo settimanale oppure escludi l'obiettivo.",
-  "Run %@": "Correre %@"
+  "Run %@": "Correre %@",
+  "Review goal & routines": "Controlla obiettivo e routine",
+  "Can't apply this draft": "Impossibile applicare questa bozza",
+  "Nothing here is active until you confirm. Goal outcomes remain separate from routine completion.": "Niente è attivo finché non confermi. Il risultato di un obiettivo resta separato dalle routine completate.",
+  "Decline draft": "Rifiuta bozza",
+  "Apply selection": "Applica selezione",
+  "Apply anyway": "Applica comunque",
+  "This pace is faster than usually recommended. Add your reason before applying the goal.": "Questo ritmo è più veloce di quanto si consiglia di solito. Aggiungi il motivo prima di applicare l'obiettivo.",
+  "Local baseline: %@ · %@": "Valore iniziale locale: %@ · %@",
+  "Apply goal changes": "Applica le modifiche all'obiettivo",
+  "Create this goal": "Crea questo obiettivo",
+  "Select the setup goal or link another active goal.": "Seleziona l'obiettivo della bozza o collega un altro obiettivo attivo.",
+  "Edit routine": "Modifica routine",
+  "%@ rest days %@": "%@ giorni di riposo %@",
+  "With your other active goals that's roughly %@ sessions a week, more than most weeks can comfortably hold alongside recovery. Doable if you're managing it, but worth keeping an eye on.": "Con gli altri obiettivi attivi sono circa %@ sessioni a settimana, più di quanto la maggior parte delle settimane regga insieme al recupero. Fattibile se lo gestisci, ma tienilo d'occhio.",
+  "That's roughly %@ sessions a week, more than most weeks can comfortably hold alongside recovery. Doable if you're managing it, but worth keeping an eye on.": "Sono circa %@ sessioni a settimana, più di quanto la maggior parte delle settimane regga insieme al recupero. Fattibile se lo gestisci, ma tienilo d'occhio.",
+  "Running": "In corso",
+  "sport.running": "Corsa"
 }

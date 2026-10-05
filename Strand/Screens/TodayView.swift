@@ -4619,7 +4619,7 @@ struct TodayView: View {
         let label: String
         switch activityClass {
         case 1:  symbol = "figure.walk"; label = String(localized: "Walking")
-        case 2:  symbol = "figure.run";  label = String(localized: "Running")
+        case 2:  symbol = "figure.run";  label = String(localized: "sport.running", defaultValue: "Running")
         default: symbol = "figure.stand"; label = String(localized: "Still")   // 0 = still
         }
         return Image(systemName: symbol)
