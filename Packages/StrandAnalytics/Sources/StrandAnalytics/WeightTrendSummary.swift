@@ -60,7 +60,7 @@ extension WeightTrendSummary {
         let usable = samples
             .filter { GoalMeasure.isPlausible($0.value, cfg: GoalMeasure.weightTrend) }
             .sorted { $0.date < $1.date }
-        let centres = GoalMeasure.smoothedSeries(usable.map(\.value), cfg: GoalMeasure.weightTrend)
+        let centres = GoalMeasure.smoothedSeries(dated: usable, cfg: GoalMeasure.weightTrend)
         return zip(usable.map(\.date), centres).map { (date: $0, value: $1) }
     }
 
@@ -77,7 +77,7 @@ extension WeightTrendSummary {
             .sorted { $0.date < $1.date }
         guard let newest = usable.last else { return nil }
 
-        let centres = GoalMeasure.smoothedSeries(usable.map(\.value), cfg: GoalMeasure.weightTrend)
+        let centres = GoalMeasure.smoothedSeries(dated: usable, cfg: GoalMeasure.weightTrend)
         guard let trend = centres.last else { return nil }
         let dated = zip(usable.map(\.date), centres).map { (date: $0, centre: $1) }
 

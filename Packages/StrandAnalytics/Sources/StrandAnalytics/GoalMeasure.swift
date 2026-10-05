@@ -157,6 +157,38 @@ public enum GoalMeasure {
         return centres
     }
 
+    /// The fold for DATED readings, oldest → newest: the half-life counts days, not readings.
+    ///
+    /// The undated fold above decays once per reading, which is a daily half-life only for a series with
+    /// a reading every day. Body weight is not one: weighed every few days, a reading from ten weeks ago
+    /// still carried half its weight, and a weight-loss goal read 7 kg above the scale. Here each step
+    /// decays by the days since the previous reading, so a gap of weeks lets the old level go and a
+    /// single reading still moves the centre only a little. Readings closer than a day apart count as a
+    /// day, so a second weigh-in on the same day is not dropped.
+    public static func smoothedSeries(dated samples: [(date: Date, value: Double)], cfg: TrendCfg) -> [Double] {
+        let usable = samples.filter { isPlausible($0.value, cfg: cfg) }.sorted { $0.date < $1.date }
+        guard let first = usable.first else { return [] }
+        let halfLife = max(cfg.halfLifeDays, 0.5)
+        var centre = first.value
+        var previous = first.date
+        var centres = [centre]
+        for sample in usable.dropFirst() {
+            let days = max(1, sample.date.timeIntervalSince(previous) / 86_400)
+            let lambda = 1.0 - pow(0.5, days / halfLife)
+            centre = lambda * sample.value + (1.0 - lambda) * centre
+            centres.append(centre)
+            previous = sample.date
+        }
+        return centres
+    }
+
+    /// `smoothedTrend` for dated readings, with the day-based fold.
+    public static func smoothedTrend(dated samples: [(date: Date, value: Double)], cfg: TrendCfg) -> Smoothed? {
+        let centres = smoothedSeries(dated: samples, cfg: cfg)
+        guard let last = centres.last else { return nil }
+        return Smoothed(value: last, isReliable: centres.count >= trendReliableAfter)
+    }
+
     // MARK: - Plain aggregates
     //
     // Trivial on their own; named here so every goal kind is measured through one vocabulary and the

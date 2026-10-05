@@ -189,9 +189,12 @@ struct LongTermGoalContent {
         case .target(let d):
             heroValue = LongTermFormat.value(d.current, d.metric)
             // VO2max has no short unit to put on every figure; the caption names it once.
+            // A single measurement carries its date, so a reading from last week is not passed off as today's.
             heroCaption = d.metric == .vo2max
                 ? String(localized: "ml/kg/min, target \(LongTermFormat.value(d.target, d.metric))")
-                : String(localized: "target \(LongTermFormat.value(d.target, d.metric))")
+                : d.currentDate.map {
+                    String(localized: "measured \(LongTermFormat.shortDate($0)), target \(LongTermFormat.value(d.target, d.metric))")
+                } ?? String(localized: "target \(LongTermFormat.value(d.target, d.metric))")
             let next = d.milestones?.next
             stats = [
                 .init(id: 0, label: String(localized: "Start"), value: LongTermFormat.value(d.baseline, d.metric)),

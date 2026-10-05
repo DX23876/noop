@@ -614,15 +614,21 @@ final class GoalTrackingStore: ObservableObject {
             return (date, row.value)
         }
         let weightSamples = zip(datedWeights,
-                                GoalMeasure.smoothedSeries(datedWeights.map(\.value),
-                                                           cfg: GoalMeasure.weightTrend))
+                                GoalMeasure.smoothedSeries(dated: datedWeights, cfg: GoalMeasure.weightTrend))
             .map { GoalMilestones.Sample(date: $0.date, value: $1) }
+        // The scale's own readings for the whole loaded year, unsmoothed: a weight goal's milestones and
+        // its headline count what was actually weighed, not the trend (which only judges the course).
+        let weightReadings = weights.compactMap { row -> GoalMilestones.Sample? in
+            guard GoalMeasure.isPlausible(row.value, cfg: GoalMeasure.weightTrend),
+                  let date = parseDay(row.day) else { return nil }
+            return GoalMilestones.Sample(date: date, value: row.value)
+        }.sorted { $0.date < $1.date }
         let unresolved = Set(resolutions.map(\.proposalId))
         let levelMetrics = Set(CoachGoalStore.shared.goals.compactMap { $0.measure?.metric })
         let levelSeries = await loadLevelSeries(repo: repo, metrics: levelMetrics)
         let readerInputs = LongTermReaderInputs(workouts: workouts, days: repo.days, stepsByDay: stepsByDay,
                                                 weight: measurementByKind[.weight], weightSamples: weightSamples,
-                                                series: levelSeries)
+                                                weightReadings: weightReadings, series: levelSeries)
         snapshots = CoachGoalStore.shared.goals.map { goal in
             let snapshot = GoalTrackingEngine.evaluate(goal: goal, proposals: proposals,
                                         actionOccurrences: actionOccurrences,
@@ -916,7 +922,8 @@ final class GoalTrackingStore: ObservableObject {
         // Body weight as a SMOOTHED trend, not the last reading: 1-2 kg of daily water/food swing
         // otherwise flipped progress and the on-track/at-risk verdict with it. Already windowed and
         // ordered by the caller, so both this and the rate fit see the same series.
-        if let trend = GoalMeasure.smoothedTrend(weights.map(\.value), cfg: GoalMeasure.weightTrend) {
+        let datedWeights = weights.compactMap { row in parseDay(row.day).map { (date: $0, value: row.value) } }
+        if let trend = GoalMeasure.smoothedTrend(dated: datedWeights, cfg: GoalMeasure.weightTrend) {
             result[.weight] = GoalMeasurement(value: trend.value,
                                               date: weights.last.flatMap { parseDay($0.day) },
                                               isProvisional: !trend.isReliable)

@@ -113,6 +113,45 @@ final class GoalMeasureTests: XCTestCase {
         XCTAssertTrue(GoalMeasure.smoothedSeries([], cfg: GoalMeasure.weightTrend).isEmpty)
     }
 
+    // MARK: - Dated fold (half-life in days)
+
+    private func dated(_ readings: [(day: Double, kg: Double)]) -> [(date: Date, value: Double)] {
+        readings.map { (date: Date(timeIntervalSince1970: 1_780_000_000 + $0.day * 86_400), value: $0.kg) }
+    }
+
+    /// Weighed every day, the dated fold is the undated one: the half-life was always meant as days.
+    func testDatedFoldMatchesTheUndatedOneForDailyReadings() {
+        let values: [Double] = (0..<30).map { day -> Double in
+            let swing: Double = day % 3 == 0 ? 0.6 : 0
+            return 90.0 - Double(day) * 0.1 + swing
+        }
+        let byDay = dated(values.enumerated().map { (day: Double($0.offset), kg: $0.element) })
+        let a = GoalMeasure.smoothedSeries(dated: byDay, cfg: GoalMeasure.weightTrend)
+        let b = GoalMeasure.smoothedSeries(values, cfg: GoalMeasure.weightTrend)
+        XCTAssertEqual(a.count, b.count)
+        for (x, y) in zip(a, b) { XCTAssertEqual(x, y, accuracy: 1e-9) }
+    }
+
+    /// Eight sparse weigh-ins from a real weight-loss log (21 Jul to 5 Oct). Counted per reading, the
+    /// 217.5 kg from July still held the trend at 214.3 kg against a scale at 207.3 kg; counted in days
+    /// the six-week gap lets it go.
+    func testDatedFoldLetsAnOldReadingGoAcrossAGap() {
+        let log = dated([(0, 217.5), (43, 209.6), (45, 209.6), (47, 209.6), (51, 209.3),
+                         (63, 210.5), (67, 209.5), (76, 207.3)])
+        let perReading = GoalMeasure.smoothedTrend(log.map(\.value), cfg: GoalMeasure.weightTrend)!.value
+        let perDay = GoalMeasure.smoothedTrend(dated: log, cfg: GoalMeasure.weightTrend)!.value
+        XCTAssertEqual(perReading, 214.34, accuracy: 0.01)
+        XCTAssertEqual(perDay, 208.75, accuracy: 0.01)
+    }
+
+    /// Two readings on one day both count, as a day apart; neither is dropped.
+    func testDatedFoldCountsASameDayReading() {
+        let twice = dated([(0, 80), (0.2, 82)])
+        let centres = GoalMeasure.smoothedSeries(dated: twice, cfg: GoalMeasure.weightTrend)
+        XCTAssertEqual(centres.count, 2)
+        XCTAssertEqual(centres[1], 80 + (1 - pow(0.5, 1.0 / 10)) * 2, accuracy: 1e-9)
+    }
+
     // MARK: - Score trend (recovery / stress)
 
     /// The reason recovery and stress moved off a plain mean: a two-day window used to produce a fully

@@ -33,6 +33,8 @@ enum GoalShapeReading: Equatable {
     struct TargetData: Equatable {
         let metric: LongTermMetric
         let current: Double
+        /// When `current` was measured, where it is one reading rather than an average (body weight).
+        var currentDate: Date? = nil
         let baseline: Double
         let target: Double
         /// 0…1 along the way from baseline to target.
@@ -128,6 +130,9 @@ struct LongTermReaderInputs {
     var weight: GoalMeasurement?
     /// The smoothed weight series the course fit reads.
     var weightSamples: [GoalMilestones.Sample] = []
+    /// The scale's own readings, unsmoothed, oldest → newest: what a weight goal's headline and
+    /// milestones count.
+    var weightReadings: [GoalMilestones.Sample] = []
     /// The other target-value series, one reading per day where the source has one: resting heart rate,
     /// VO2max, body fat, lean mass, waist. Raw readings; `LongTermGoalReader` averages them itself.
     var series: [LongTermMetric: [GoalMilestones.Sample]] = [:]
@@ -217,13 +222,23 @@ enum LongTermGoalReader {
                        now: Date) -> GoalShapeReading? {
         guard let measurement = inputs.weight, let baseline = goal.baseline, let target = goal.target,
               baseline != target else { return nil }
-        let current = measurement.value
+        let ascending = target > baseline
+        // Two numbers on purpose. What the scale said (the latest reading for the headline, the best
+        // since the goal began for milestones and arrival) is a fact: weighed 207.3 kg once, the 208 kg
+        // mark is reached and stays reached. The smoothed trend only judges the course and projects
+        // dates, where one day of water must not flip the verdict.
+        let latest = inputs.weightReadings.last
+        let current = latest?.value ?? measurement.value
+        let start = Calendar.autoupdatingCurrent.startOfDay(for: goal.createdAt)
+        let sinceStart = inputs.weightReadings.filter { $0.date >= start }.map(\.value) + [current]
+        let best = (ascending ? sinceStart.max() : sinceStart.min()) ?? current
+        let trend = measurement.value
         let rate = GoalMilestones.observedRatePerDay(series: inputs.weightSamples, now: now)
         let window = LongTermGoalMath.milestoneWindow(
-            baseline: baseline, target: target, current: current,
+            baseline: baseline, target: target, current: best,
             step: LongTermGoalMath.weightMilestoneStep(baseline: baseline, target: target))
         let nextDate = window?.next.flatMap {
-            LongTermGoalMath.projectedDate(current: current, mark: $0, ratePerDay: rate, now: now)
+            LongTermGoalMath.projectedDate(current: trend, mark: $0, ratePerDay: rate, now: now)
         }
         let arrival: Date?
         var state: PeriodGoalState?
@@ -231,13 +246,15 @@ enum LongTermGoalReader {
             arrival = course?.projectedDate
             state = course.map { courseState($0.verdict) }
         } else {
-            arrival = LongTermGoalMath.projectedDate(current: current, mark: target, ratePerDay: rate, now: now)
-            state = LongTermGoalMath.undatedState(baseline: baseline, target: target, current: current, ratePerDay: rate)
+            arrival = LongTermGoalMath.projectedDate(current: trend, mark: target, ratePerDay: rate, now: now)
+            state = LongTermGoalMath.undatedState(baseline: baseline, target: target, current: trend, ratePerDay: rate)
         }
-        // A value still settling is shown, never judged.
+        if ascending ? best >= target : best <= target { state = .achieved }
+        // A trend still settling is shown, never judged.
         if measurement.isProvisional, state != .achieved { state = .starting }
         let progress = min(1, max(0, (current - baseline) / (target - baseline)))
-        return .target(.init(metric: .weight, current: current, baseline: baseline, target: target,
+        return .target(.init(metric: .weight, current: current, currentDate: latest?.date,
+                             baseline: baseline, target: target,
                              progress: progress, ratePerWeek: rate.map { $0 * 7 }, milestones: window,
                              nextMarkDate: nextDate, arrivalDate: arrival,
                              isProvisional: measurement.isProvisional, state: state))
@@ -263,6 +280,10 @@ enum LongTermGoalReader {
         /// The finest step the value is shown in: waypoints are never finer, and a change below half of
         /// it in a month reads as flat rather than as a direction.
         let resolution: Double
+        /// Each reading is a measurement the wearer took (tape, scale), so like body weight the headline
+        /// is the latest and milestones count the best since the start; the average only judges the
+        /// course. False for nightly or estimated series, where one good reading proves nothing.
+        var countsReadings = false
     }
 
     static func levelRule(_ metric: LongTermMetric) -> LevelRule {
@@ -274,9 +295,11 @@ enum LongTermGoalReader {
         case .vo2max:
             return LevelRule(windowDays: 21, minValues: 2, rateWindowDays: 84, rateMinPoints: 4, resolution: 0.5)
         case .waist:
-            return LevelRule(windowDays: 30, minValues: 2, rateWindowDays: 90, rateMinPoints: 3, resolution: 1)
+            return LevelRule(windowDays: 30, minValues: 2, rateWindowDays: 90, rateMinPoints: 3, resolution: 1,
+                             countsReadings: true)
         default:
-            return LevelRule(windowDays: 30, minValues: 2, rateWindowDays: 90, rateMinPoints: 3, resolution: 0.5)
+            return LevelRule(windowDays: 30, minValues: 2, rateWindowDays: 90, rateMinPoints: 3, resolution: 0.5,
+                             countsReadings: true)
         }
     }
 
@@ -288,7 +311,21 @@ enum LongTermGoalReader {
         let rule = levelRule(metric)
         guard let level = LongTermGoalMath.level(samples: samples, now: now, windowDays: rule.windowDays,
                                                  minValues: rule.minValues) else { return nil }
-        let current = level.value
+        let ascending = target > baseline
+        let trend = level.value
+        // A measured series reads like body weight: the latest measurement as the headline, the best since
+        // the start for milestones and "reached". The average below only judges the course.
+        let latest = rule.countsReadings
+            ? samples.filter { $0.date <= now && $0.value.isFinite }.max(by: { $0.date < $1.date }) : nil
+        let current = latest?.value ?? trend
+        let best: Double
+        if rule.countsReadings {
+            let start = Calendar.autoupdatingCurrent.startOfDay(for: goal.createdAt)
+            let since = samples.filter { $0.date >= start && $0.date <= now && $0.value.isFinite }.map(\.value) + [current]
+            best = (ascending ? since.max() : since.min()) ?? current
+        } else {
+            best = trend
+        }
         let fitted = GoalMilestones.observedRatePerDay(series: samples, now: now, windowDays: rule.rateWindowDays,
                                                        minimumPoints: rule.rateMinPoints)
         // A drift too small to show in the value's own step within a month is no direction yet.
@@ -296,31 +333,31 @@ enum LongTermGoalReader {
         let rate = isFlat ? nil : fitted
         let steps = Int((abs(target - baseline) / rule.resolution).rounded(.down))
         let window = LongTermGoalMath.milestoneWindow(
-            baseline: baseline, target: target, current: current,
+            baseline: baseline, target: target, current: best,
             preferredCount: min(LongTermGoalMath.undatedPreferredCount, max(1, steps)))
         let nextDate = window?.next.flatMap {
-            LongTermGoalMath.projectedDate(current: current, mark: $0, ratePerDay: rate, now: now)
+            LongTermGoalMath.projectedDate(current: trend, mark: $0, ratePerDay: rate, now: now)
         }
         let arrival: Date?
         var state: PeriodGoalState?
         if let targetDate = goal.targetDate {
             let course = GoalMilestones.course(baseline: baseline, target: target, createdAt: goal.createdAt,
-                                               targetDate: targetDate, current: current, series: samples, now: now,
+                                               targetDate: targetDate, current: trend, series: samples, now: now,
                                                rateWindowDays: rule.rateWindowDays,
                                                minimumRatePoints: rule.rateMinPoints)
             arrival = course?.projectedDate
             state = course.map { courseState($0.verdict) }
-            let reached = target > baseline ? current >= target : current <= target
-            if reached { state = .achieved }
         } else {
-            arrival = LongTermGoalMath.projectedDate(current: current, mark: target, ratePerDay: rate, now: now)
-            state = LongTermGoalMath.undatedState(baseline: baseline, target: target, current: current, ratePerDay: rate)
+            arrival = LongTermGoalMath.projectedDate(current: trend, mark: target, ratePerDay: rate, now: now)
+            state = LongTermGoalMath.undatedState(baseline: baseline, target: target, current: trend, ratePerDay: rate)
         }
+        if ascending ? best >= target : best <= target { state = .achieved }
         if level.isProvisional, state != .achieved { state = .starting }
         // Flat and not reached: shown as running, neither on track nor behind.
         if isFlat, state != .achieved, !level.isProvisional, goal.targetDate == nil { state = nil }
         let progress = min(1, max(0, (current - baseline) / (target - baseline)))
-        return .target(.init(metric: metric, current: current, baseline: baseline, target: target,
+        return .target(.init(metric: metric, current: current, currentDate: latest?.date,
+                             baseline: baseline, target: target,
                              progress: progress, ratePerWeek: isFlat ? 0 : rate.map { $0 * 7 }, milestones: window,
                              nextMarkDate: nextDate, arrivalDate: arrival,
                              isProvisional: level.isProvisional, state: state))

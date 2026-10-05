@@ -2490,5 +2490,6 @@
   "With your other active goals that's roughly %@ sessions a week, more than most weeks can comfortably hold alongside recovery. Doable if you're managing it, but worth keeping an eye on.": "Com os teus outros objetivos ativos são cerca de %@ sessões por semana, mais do que a maioria das semanas aguenta a par da recuperação. É possível se o gerires, mas vale a pena vigiar.",
   "That's roughly %@ sessions a week, more than most weeks can comfortably hold alongside recovery. Doable if you're managing it, but worth keeping an eye on.": "São cerca de %@ sessões por semana, mais do que a maioria das semanas aguenta a par da recuperação. É possível se o gerires, mas vale a pena vigiar.",
   "Running": "Em curso",
-  "sport.running": "Corrida"
+  "sport.running": "Corrida",
+  "measured %@, target %@": "medido a %1$@, objetivo %2$@"
 }

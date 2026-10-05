@@ -105,7 +105,8 @@ struct LongTermGoalSetupView: View {
         importedQuestions = Array(Set(await repo.importedJournalEntries().map(\.question))).sorted()
         series = await tracking.loadLevelSeries(repo: repo, metrics: [.restingHr, .vo2max, .bodyFat, .leanMass, .waist])
         let weights = await repo.weightDailyValues(days: GoalMeasure.weightWindowDays)
-        currentWeight = GoalMeasure.smoothedTrend(weights.map(\.value), cfg: GoalMeasure.weightTrend)?.value
+        // The last weigh-in, the same number the goal page will show as its start: a trend lags the scale.
+        currentWeight = weights.last { GoalMeasure.isPlausible($0.value, cfg: GoalMeasure.weightTrend) }?.value
     }
 
     private var metric: LongTermMetric? { template?.id.metric }

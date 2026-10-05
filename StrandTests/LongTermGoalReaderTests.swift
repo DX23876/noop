@@ -74,6 +74,36 @@ final class LongTermGoalReaderTests: XCTestCase {
         XCTAssertEqual(data.progress, (217 - 203.3) / 117, accuracy: 1e-9)
     }
 
+    /// The headline is the last weigh-in and milestones count the lowest one since the goal began, so a
+    /// reading on the scale reaches its mark that day; the trend above it only judges the course.
+    func testWeightMilestonesCountWhatTheScaleSaid() throws {
+        let goal = CoachGoal(kind: .weight, title: "Get sexy", baseline: 217, target: 100, createdAt: daysAgo(60),
+                             templateId: GoalTemplateID.weightLose.rawValue, measure: .init(metric: .weight))
+        let readings = [(80.0, 216.0), (30.0, 209.6), (14.0, 209.3), (9.0, 210.5), (2.0, 207.3), (0.0, 208.1)]
+            .map { GoalMilestones.Sample(date: daysAgo($0.0), value: $0.1) }
+        let inputs = LongTermReaderInputs(weight: GoalMeasurement(value: 212.0, date: now),
+                                          weightReadings: readings)
+        let reading = LongTermGoalReader.reading(goal: goal, course: nil, inputs: inputs, periodSnapshots: [],
+                                                 now: now, calendar: calendar)
+        guard case .target(let data)? = reading else { return XCTFail("expected a target reading") }
+        XCTAssertEqual(data.current, 208.1, "the last weigh-in, not the 212 kg trend")
+        XCTAssertEqual(data.currentDate, daysAgo(0))
+        XCTAssertEqual(data.milestones?.reachedCount, 9, "207.3 kg reached 216 down to 208; it stays reached")
+        XCTAssertEqual(data.milestones?.next, 207)
+        XCTAssertEqual(data.progress, (217 - 208.1) / 117, accuracy: 1e-9)
+    }
+
+    /// One weigh-in at the target reaches the goal, whatever the trend says.
+    func testAWeighInAtTheTargetReachesTheGoal() {
+        let goal = CoachGoal(kind: .weight, title: "Lighter", baseline: 90, target: 85, createdAt: daysAgo(40),
+                             templateId: GoalTemplateID.weightLose.rawValue, measure: .init(metric: .weight))
+        let readings = [(20.0, 88.0), (3.0, 84.8), (0.0, 85.6)].map { GoalMilestones.Sample(date: daysAgo($0.0), value: $0.1) }
+        let inputs = LongTermReaderInputs(weight: GoalMeasurement(value: 86.9, date: now), weightReadings: readings)
+        let reading = LongTermGoalReader.reading(goal: goal, course: nil, inputs: inputs, periodSnapshots: [],
+                                                 now: now, calendar: calendar)
+        XCTAssertEqual(reading?.state, .achieved)
+    }
+
     func testProvisionalWeightIsShownNotJudged() {
         let goal = CoachGoal(kind: .weight, title: "Lighter", baseline: 90, target: 80,
                              templateId: GoalTemplateID.weightLose.rawValue, measure: .init(metric: .weight))
@@ -191,6 +221,24 @@ final class LongTermGoalReaderTests: XCTestCase {
         XCTAssertFalse(data.isProvisional)
         XCTAssertEqual(data.state, .onTrack)
         XCTAssertLessThan(data.ratePerWeek ?? 0, 0)
+    }
+
+    /// A tape measure is read like the scale: 110 cm today is the headline and counts for the marks,
+    /// not the 112 cm average with last month's 114 cm.
+    func testWaistCountsTheLatestMeasurement() throws {
+        let goal = CoachGoal(kind: .weight, title: "Slimmer", baseline: 116, target: 100, createdAt: daysAgo(60),
+                             templateId: GoalTemplateID.waist.rawValue, measure: .init(metric: .waist))
+        let tape = [GoalMilestones.Sample(date: daysAgo(21), value: 114), GoalMilestones.Sample(date: daysAgo(0), value: 110)]
+        let reading = LongTermGoalReader.reading(goal: goal, course: nil,
+                                                 inputs: LongTermReaderInputs(series: [.waist: tape]),
+                                                 periodSnapshots: [], now: now, calendar: calendar)
+        guard case .target(let data)? = reading else { return XCTFail("expected a target reading") }
+        XCTAssertEqual(data.current, 110)
+        XCTAssertEqual(data.currentDate, daysAgo(0))
+        let expected = LongTermGoalMath.milestoneWindow(
+            baseline: 116, target: 100, current: 110,
+            preferredCount: min(LongTermGoalMath.undatedPreferredCount, 16))
+        XCTAssertEqual(data.milestones?.reachedCount, expected?.reachedCount)
     }
 
     /// A drift below half a beat a month is no direction: the goal runs, it is neither on track nor

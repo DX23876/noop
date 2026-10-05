@@ -2646,5 +2646,6 @@
   "With your other active goals that's roughly %@ sessions a week, more than most weeks can comfortably hold alongside recovery. Doable if you're managing it, but worth keeping an eye on.": "加上你其他進行中的目標，每週約 %@ 次訓練，超過大多數週在兼顧恢復時能輕鬆承受的量。能管理好就可行，但值得留意。",
   "That's roughly %@ sessions a week, more than most weeks can comfortably hold alongside recovery. Doable if you're managing it, but worth keeping an eye on.": "每週約 %@ 次訓練，超過大多數週在兼顧恢復時能輕鬆承受的量。能管理好就可行，但值得留意。",
   "Running": "進行中",
-  "sport.running": "跑步"
+  "sport.running": "跑步",
+  "measured %@, target %@": "%1$@ 測量，目標 %2$@"
 }

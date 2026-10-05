@@ -2468,5 +2468,6 @@
   "With your other active goals that's roughly %@ sessions a week, more than most weeks can comfortably hold alongside recovery. Doable if you're managing it, but worth keeping an eye on.": "Вместе с другими активными целями это около %@ занятий в неделю, больше, чем большинство недель выдерживает с восстановлением. Выполнимо, если справляешься, но стоит следить.",
   "That's roughly %@ sessions a week, more than most weeks can comfortably hold alongside recovery. Doable if you're managing it, but worth keeping an eye on.": "Это около %@ занятий в неделю, больше, чем большинство недель выдерживает с восстановлением. Выполнимо, если справляешься, но стоит следить.",
   "Running": "Идёт",
-  "sport.running": "Бег"
+  "sport.running": "Бег",
+  "measured %@, target %@": "измерено %1$@, цель %2$@"
 }
