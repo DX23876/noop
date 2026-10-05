@@ -284,6 +284,16 @@ enum GoalActionEvaluator {
             return [.manual]
         case .custom:
             return [.manual]
+        case .endurance:
+            return [.workout(sports: [], minimumMinutes: 30), .steps(minimum: 8_000)]
+        case .fitness:
+            return [.workout(sports: [], minimumMinutes: 30)]
+        case .body:
+            return [.steps(minimum: 8_000), .workout(sports: [], minimumMinutes: 30)]
+        case .activity:
+            return [.steps(minimum: 8_000)]
+        case .habit:
+            return [.manual]
         }
     }
 

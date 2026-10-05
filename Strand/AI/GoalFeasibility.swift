@@ -105,6 +105,12 @@ enum GoalFeasibility {
                     + "weight change is decided — so I won't pretend to judge whether this lands. I've "
                     + "sense-checked the pace separately, and I'll plan your training around it.",
                 suggestion: nil)
+        case .endurance, .fitness, .body, .activity, .habit:
+            return Assessment(
+                verdict: .unknown,
+                rationale: "This goal is read from your data, so its page shows where you stand and how "
+                    + "fast it moves. I won't call it realistic or not before a few weeks of readings.",
+                suggestion: nil)
         case .strength, .stress, .recovery, .custom:
             return Assessment(
                 verdict: .unknown,

@@ -567,6 +567,12 @@ final class PeriodGoalStore: ObservableObject {
         Self.pendingChainQuestions = pending
     }
 
+    /// Puts an existing weekly or monthly goal under a long-term goal, which then reads its periods.
+    func link(_ id: UUID, to parentId: UUID) {
+        guard let index = goals.firstIndex(where: { $0.id == id }) else { return }
+        goals[index].parentGoalId = parentId
+    }
+
     /// The long-term goal deleted: only the link goes.
     func parentRemoved(_ parentId: UUID) {
         for index in goals.indices where goals[index].parentGoalId == parentId {

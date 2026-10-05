@@ -729,7 +729,7 @@ enum CoachTool: String, CaseIterable {
             let goalProperties: [String: Any] = [
                 "operation": ["type": "string", "enum": ["create", "update"]],
                 "goal_id": ["type": "string", "description": "Exact active goal UUID for update."],
-                "kind": ["type": "string", "enum": CoachGoal.Kind.allCases.map(\.rawValue)],
+                "kind": ["type": "string", "enum": CoachGoal.Kind.templateFreeCases.map(\.rawValue)],
                 "title": ["type": "string"],
                 "baseline": ["type": "number", "description": "Only when explicitly stated by the user."],
                 "target": ["type": "number"],

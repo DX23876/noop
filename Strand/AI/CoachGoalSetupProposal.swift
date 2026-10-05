@@ -175,7 +175,9 @@ enum CoachGoalSetupApplier {
             if let limit = goalStore.canAdd(kind: draft.goal.kind, replacing: draft.editingId) {
                 switch limit {
                 case .kindAlreadyActive(let existingId):
-                    guard selection.replacingGoalId == existingId else { return .goalLimit }
+                    // Replace the existing goal, or keep both while the ceiling has room.
+                    guard selection.replacingGoalId == existingId
+                            || goalStore.hasRoom(replacing: draft.editingId) else { return .goalLimit }
                 case .tooManyActive:
                     return .goalLimit
                 }

@@ -78,7 +78,11 @@ extension AICoachEngine {
         }
 
         let kind: CoachGoal.Kind
-        if let text = raw["kind"] as? String, let parsed = CoachGoal.Kind(rawValue: text) { kind = parsed }
+        // A catalog area is made from a template, which this tool does not take yet; a bare area kind
+        // would be a goal with nothing to measure.
+        if let text = raw["kind"] as? String, let parsed = CoachGoal.Kind(rawValue: text), !parsed.isCatalogArea {
+            kind = parsed
+        }
         else if let existing { kind = existing.kind }
         else { return .init(value: nil, error: "a new goal needs a valid kind") }
 

@@ -46,7 +46,7 @@ enum JourneyExplain {
 
     static func sessionRule(for kind: CoachGoal.Kind) -> SessionRule {
         switch kind {
-        case .run, .consistency, .strength, .hardSets:
+        case .run, .consistency, .strength, .hardSets, .endurance:
             return SessionRule(
                 noun: "session", pluralNoun: "sessions",
                 definition: String(localized: "A session counts when you tick it off in Your plan, or log it against this goal here. Workouts your strap records aren't counted automatically — the coach can't tell which of them you meant for this goal."),
@@ -71,6 +71,11 @@ enum JourneyExplain {
                 noun: "weigh-in", pluralNoun: "weigh-ins",
                 definition: String(localized: "Body weight moves with what you eat, and NOOP has no nutrition data. What's counted here is weigh-ins — training sessions are shown under Planned vs actual instead."),
                 countsPlanSessions: false, allowsManualLog: false)
+        case .fitness, .body, .activity, .habit:
+            return SessionRule(
+                noun: "session", pluralNoun: "sessions",
+                definition: String(localized: "This goal is read from your data. Sessions here are only the ones you log against it or tick off in Your plan while it's active."),
+                countsPlanSessions: true, allowsManualLog: true)
         case .custom:
             // The honest fallback for a goal NOOP cannot categorise at all: anything the user attributed
             // to it, plus any session they completed since setting it. Better a stated, generic rule than
@@ -107,6 +112,8 @@ enum JourneyExplain {
             return String(localized: "The bar is your recent sessions-per-week against your weekly target. It needs a target above zero and enough training history to average.")
         case .hardSets:
             return String(localized: "The bar is your recent working sets per week against your weekly target — counted from your lifting log, each set once, on its exercise's primary muscle. Without a connected lifting log there is no bar, because there are no sets to count.")
+        case .endurance, .fitness, .body, .activity, .habit:
+            return String(localized: "This goal is read from your data: where it stands now, how fast it moves and what a week needs.")
         case .strength, .stress, .recovery, .custom:
             return String(localized: "There's no progress bar for this kind of goal, and that's deliberate: your strap can't measure it, so any percentage here would be invented. What's shown instead is what did happen — what you completed, and your recovery context.")
         }

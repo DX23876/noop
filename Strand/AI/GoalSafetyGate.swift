@@ -91,7 +91,8 @@ enum GoalSafetyGate {
             return assessRunVolume(ratePerWeek: ratePerWeek, baseline: baseline)
         case .hardSets:
             return assessSetVolume(ratePerWeek: ratePerWeek, baseline: baseline)
-        case .consistency, .sleep, .strength, .stress, .recovery, .custom:
+        case .consistency, .sleep, .strength, .stress, .recovery, .custom,
+             .endurance, .fitness, .body, .activity, .habit:
             // No established rate-of-change risk we can judge honestly from what NOOP measures. Saying
             // nothing is better than inventing a threshold.
             return Assessment(verdict: .ok, ratePerWeek: ratePerWeek, rateDescription: nil, warning: nil)

@@ -57,9 +57,8 @@ final class CoachGoalTests: XCTestCase {
 
     /// A goal as a newer build stores it: a kind this build does not know plus fields it has no property for.
     private let newerBuildGoalJSON = """
-    [{"kind":"endurance","title":"1.000 km","status":"active","templateId":"endurance.distanceTotal",
-      "measure":{"metric":"distanceTotal","sportFilter":["Running"],"band":null,"adherenceWeeks":12,
-                 "fixedEnd":false}},
+    [{"kind":"climbing","title":"Climb 7a","status":"active","grade":"7a",
+      "plan":{"sessions":["Mon","Thu"],"weeks":12,"indoor":true,"note":null}},
      {"kind":"weight","title":"Get lighter","baseline":90,"target":80,"status":"active"}]
     """
 
@@ -71,7 +70,7 @@ final class CoachGoalTests: XCTestCase {
         let store = CoachGoalStore(defaults: d)
         XCTAssertEqual(store.goals.count, 2)
         XCTAssertEqual(store.goals.first?.kind, .custom)
-        XCTAssertEqual(store.goals.first?.title, "1.000 km")
+        XCTAssertEqual(store.goals.first?.title, "Climb 7a")
         XCTAssertEqual(store.goals.last?.kind, .weight)
         XCTAssertNil(store.goals.last?.unknownKindRaw)
         XCTAssertTrue(store.goals.last?.unknownFields.isEmpty ?? false)
@@ -88,16 +87,15 @@ final class CoachGoalTests: XCTestCase {
         let saved = try XCTUnwrap(d.data(forKey: CoachGoalStore.goalsKey))
         let goals = try XCTUnwrap(try JSONSerialization.jsonObject(with: saved) as? [[String: Any]])
         let first = try XCTUnwrap(goals.first)
-        XCTAssertEqual(first["kind"] as? String, "endurance")
-        XCTAssertEqual(first["templateId"] as? String, "endurance.distanceTotal")
-        let measure = try XCTUnwrap(first["measure"] as? [String: Any])
-        XCTAssertEqual(measure["metric"] as? String, "distanceTotal")
-        XCTAssertEqual(measure["sportFilter"] as? [String], ["Running"])
-        XCTAssertEqual(measure["adherenceWeeks"] as? Double, 12)
-        XCTAssertEqual(measure["fixedEnd"] as? Bool, false)
-        XCTAssertTrue(measure["band"] is NSNull)
+        XCTAssertEqual(first["kind"] as? String, "climbing")
+        XCTAssertEqual(first["grade"] as? String, "7a")
+        let plan = try XCTUnwrap(first["plan"] as? [String: Any])
+        XCTAssertEqual(plan["sessions"] as? [String], ["Mon", "Thu"])
+        XCTAssertEqual(plan["weeks"] as? Double, 12)
+        XCTAssertEqual(plan["indoor"] as? Bool, true)
+        XCTAssertTrue(plan["note"] is NSNull)
         XCTAssertEqual(goals.last?["kind"] as? String, "weight")
-        XCTAssertNil(goals.last?["templateId"])
+        XCTAssertNil(goals.last?["grade"])
     }
 
     /// An edit rebuilds the goal from the editor's draft; what the newer build stored must survive it.
@@ -107,12 +105,12 @@ final class CoachGoalTests: XCTestCase {
         let store = CoachGoalStore(defaults: d)
         let id = store.goals[0].id
 
-        store.commit(CoachGoal(kind: .custom, title: "1.200 km"), editingId: id)
+        store.commit(CoachGoal(kind: .custom, title: "Climb 7b"), editingId: id)
 
         let edited = store.goal(id: id)
-        XCTAssertEqual(edited?.title, "1.200 km")
-        XCTAssertEqual(edited?.unknownKindRaw, "endurance")
-        XCTAssertEqual(edited?.unknownFields["templateId"], .string("endurance.distanceTotal"))
+        XCTAssertEqual(edited?.title, "Climb 7b")
+        XCTAssertEqual(edited?.unknownKindRaw, "climbing")
+        XCTAssertEqual(edited?.unknownFields["grade"], .string("7a"))
     }
 
     // MARK: - Derived

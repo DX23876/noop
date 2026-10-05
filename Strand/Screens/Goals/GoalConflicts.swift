@@ -51,6 +51,8 @@ enum GoalConflicts {
             }
         }
 
+        notes += longTermNotes(longTerm)
+
         // A weekly sum that does not add up to the monthly goal of the same metric.
         for metric in [PeriodMetric.trainingMinutes, .distance, .zoneMinutes, .workouts] {
             guard let week = open.first(where: { $0.metric == metric && $0.period == .week }),
@@ -61,6 +63,40 @@ enum GoalConflicts {
                               text: String(localized: "\(GoalFormat.amount(week.target, metric)) a week makes about \(GoalFormat.amount(perMonth, metric)) a month; the monthly goal is \(GoalFormat.amount(month.target, metric))")))
         }
         return notes
+    }
+
+    /// Long-term goals the wearer kept side by side that cannot both be served: two weight goals pulling
+    /// in opposite directions, or the same template twice with different numbers.
+    static func longTermNotes(_ longTerm: [CoachGoal]) -> [Note] {
+        var notes: [Note] = []
+        let open = longTerm.filter { $0.status == .active || $0.status == .paused }
+        for (index, a) in open.enumerated() {
+            for b in open[(index + 1)...] {
+                let newerId = newer(a.id, a.createdAt, b.id, b.createdAt)
+                if a.kind == .weight, b.kind == .weight,
+                   let da = direction(a), let db = direction(b), da * db < 0 {
+                    notes.append(Note(goalId: newerId,
+                                      text: String(localized: "Two weight goals pull in opposite directions")))
+                } else if let template = a.templateId, template == b.templateId,
+                          sports(a) == sports(b),
+                          a.target != b.target {
+                    notes.append(Note(goalId: newerId,
+                                      text: String(localized: "Two goals of the same kind ask for different numbers")))
+                }
+            }
+        }
+        return notes
+    }
+
+    /// The sports a catalog goal counts, normalised, so "Running" and "running" are one filter.
+    private static func sports(_ goal: CoachGoal) -> [String] {
+        (goal.measure?.sportFilter ?? []).map { $0.lowercased() }.sorted()
+    }
+
+    /// +1 for a goal that counts up, -1 for one that counts down, nil when the way is not set.
+    private static func direction(_ goal: CoachGoal) -> Double? {
+        guard let baseline = goal.baseline, let target = goal.target, baseline != target else { return nil }
+        return target > baseline ? 1 : -1
     }
 
     /// What saving `draft` would add, for the setup screens: the notes that exist with it and not without.

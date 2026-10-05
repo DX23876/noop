@@ -89,6 +89,9 @@ struct CoachGoalOnboardingFlow: View {
         }
         .confirmationDialog("Replace your existing goal?", isPresented: $showReplaceConfirm, titleVisibility: .visible) {
             Button("Replace it") { proceedPastLimitCheck() }
+            if store.hasRoom() {
+                Button("Keep both") { replaceCandidateId = nil; proceedPastLimitCheck() }
+            }
             Button("Cancel", role: .cancel) { replaceCandidateId = nil }
         } message: {
             Text("You already have an active \(draft.kind.label.localizedCatalogValue) goal. Replacing it closes that one out — its story stays in your history.")
@@ -158,7 +161,7 @@ struct CoachGoalOnboardingFlow: View {
     private var typeStep: some View {
         VStack(alignment: .leading, spacing: 10) {
             LazyVGrid(columns: twoColumns, spacing: 10) {
-                ForEach(CoachGoal.Kind.allCases) { k in
+                ForEach(CoachGoal.Kind.templateFreeCases) { k in
                     GoalKindTile(kind: k, selected: draft.kind == k) { draft.kindChanged(to: k) }
                 }
             }
@@ -320,7 +323,9 @@ struct CoachGoalOnboardingFlow: View {
         case .weight:      return "e.g. Get to 78 kg"
         case .stress:      return "e.g. Fewer high-stress days each week"
         case .recovery:    return "e.g. Wake up feeling more recovered"
-        case .custom:      return "e.g. Feel good on the hills again"
+        // Catalog areas are not offered here (`templateFreeCases`); they share the open placeholder.
+        case .custom, .endurance, .fitness, .body, .activity, .habit:
+            return "e.g. Feel good on the hills again"
         }
     }
 

@@ -122,10 +122,13 @@ struct CoachGoalEditorView: View {
                 // which hits Text's verbatim initialiser and silently skips localization.
                 Text("This is faster than usually recommended. It's your call — tell me why and I'll note it, so I coach you through it instead of arguing with you every week.")
             }
-            // #R-multi-goal: only one active goal per kind. Offered as a choice, never a silent overwrite
-            // or a silent refusal.
+            // #R-multi-goal: a second goal of a kind is the wearer's call. Offered as a choice, never a
+            // silent overwrite or a silent refusal; "Keep both" only while the active-goal ceiling has room.
             .confirmationDialog("Replace your existing goal?", isPresented: $showReplaceConfirm, titleVisibility: .visible) {
                 Button("Replace it") { proceedPastLimitCheck() }
+                if store.hasRoom(replacing: editingGoalId) {
+                    Button("Keep both") { replaceCandidateId = nil; proceedPastLimitCheck() }
+                }
                 Button("Cancel", role: .cancel) { replaceCandidateId = nil }
             } message: {
                 Text("You already have an active \(kind.label.localizedCatalogValue) goal. Replacing it closes that one out — its story stays in your history.")
@@ -160,7 +163,7 @@ struct CoachGoalEditorView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Goal type").strandOverline()
             LazyVGrid(columns: twoColumns, spacing: 10) {
-                ForEach(CoachGoal.Kind.allCases) { k in
+                ForEach(CoachGoal.Kind.templateFreeCases) { k in
                     GoalKindTile(kind: k, selected: kind == k) { kind = k }
                 }
             }
@@ -349,7 +352,9 @@ struct CoachGoalEditorView: View {
         case .weight:      return "e.g. Get to 78 kg"
         case .stress:      return "e.g. Fewer high-stress days each week"
         case .recovery:    return "e.g. Wake up feeling more recovered"
-        case .custom:      return "e.g. Feel good on the hills again"
+        // Catalog areas are not offered here (`templateFreeCases`); they share the open placeholder.
+        case .custom, .endurance, .fitness, .body, .activity, .habit:
+            return "e.g. Feel good on the hills again"
         }
     }
 

@@ -83,7 +83,9 @@ enum GoalVolumeGate {
         // varies far too much between lifters to assume. The same standing assumption the `.strength`
         // kind carries is the honest floor here: a set goal means lifting is happening.
         case .hardSets:    return assumedStrengthSessionsPerWeek
-        case .sleep, .weight, .stress, .recovery, .custom: return 0
+        // Collecting distance or time implies sessions the way a running goal does.
+        case .endurance:   return assumedRunSessionsPerWeek
+        case .sleep, .weight, .stress, .recovery, .custom, .fitness, .body, .activity, .habit: return 0
         }
     }
 }

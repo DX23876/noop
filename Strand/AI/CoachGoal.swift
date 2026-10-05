@@ -32,8 +32,29 @@ struct CoachGoal: Codable, Identifiable, Equatable {
         case stress       // reduce stress — held, not measured (no target rate to judge)
         case recovery     // recover better — held, not measured
         case custom       // free text; no measurement
+        // Areas of the long-term goals catalog (`GoalTemplateID.kind`). What such a goal measures lives
+        // on `CoachGoal.measure`; the kind tells the coach and the gates which area it belongs to.
+        case endurance    // distance, time or sessions collected, or the longest effort, any sport
+        case fitness      // VO2max, resting heart rate, HRV, heart-rate zone minutes
+        case body         // body fat, lean mass, waist (body weight stays `.weight`)
+        case activity     // steps, active energy, active days
+        case habit        // drinking and journal habits
 
         var id: String { rawValue }
+
+        /// An area of the long-term goals catalog. Such a goal is only ever made from a template and
+        /// measured through its `measure`; the editors that predate the catalog cannot make one.
+        var isCatalogArea: Bool {
+            switch self {
+            case .endurance, .fitness, .body, .activity, .habit: return true
+            case .run, .consistency, .sleep, .strength, .hardSets, .weight, .stress, .recovery, .custom:
+                return false
+            }
+        }
+
+        /// The kinds a goal can be made of without a template: what the older editors and the coach's
+        /// kind-based setup offer.
+        static var templateFreeCases: [Kind] { allCases.filter { !$0.isCatalogArea } }
 
         var label: String {
             switch self {
@@ -46,6 +67,11 @@ struct CoachGoal: Codable, Identifiable, Equatable {
             case .stress:      return "Reduce stress"
             case .recovery:    return "Recover better"
             case .custom:      return "Something else"
+            case .endurance:   return "Endurance"
+            case .fitness:     return "Heart and fitness"
+            case .body:        return "Body measurements"
+            case .activity:    return "Everyday activity"
+            case .habit:       return "Habits"
             }
         }
 
@@ -61,6 +87,11 @@ struct CoachGoal: Codable, Identifiable, Equatable {
             case .stress:      return "Bring your daily load down."
             case .recovery:    return "Give your body more room to bounce back."
             case .custom:      return "Anything else — the coach will hold it."
+            case .endurance:   return "Kilometres, hours or sessions you collect, or a distance to reach."
+            case .fitness:     return "VO2max, resting heart rate, HRV or heart-rate zone minutes."
+            case .body:        return "Body fat, lean mass or waist."
+            case .activity:    return "Steps, active energy and active days."
+            case .habit:       return "Drinking and journal habits."
             }
         }
 
@@ -76,6 +107,11 @@ struct CoachGoal: Codable, Identifiable, Equatable {
             case .stress:      return "wind"
             case .recovery:    return "heart.fill"
             case .custom:      return "sparkles"
+            case .endurance:   return "point.topleft.down.to.point.bottomright.curvepath"
+            case .fitness:     return "heart.circle.fill"
+            case .body:        return "figure.arms.open"
+            case .activity:    return "figure.walk"
+            case .habit:       return "checklist"
             }
         }
 
@@ -95,6 +131,8 @@ struct CoachGoal: Codable, Identifiable, Equatable {
             // Derived 0-100 scores: a bare number, deliberately not dressed up as a percentage or a
             // clinical unit.
             case .stress, .recovery, .custom: return ""
+            // A catalog area spans several units (km, hours, sessions); the goal's `measure` names it.
+            case .endurance, .fitness, .body, .activity, .habit: return ""
             }
         }
 
@@ -114,6 +152,8 @@ struct CoachGoal: Codable, Identifiable, Equatable {
             // anyone got stronger.
             case .run, .consistency, .sleep, .weight, .hardSets: return true
             case .strength, .stress, .recovery, .custom: return false
+            // Catalog areas only ever hold goals created from a template, which always measure something.
+            case .endurance, .fitness, .body, .activity, .habit: return true
             }
         }
     }
@@ -246,6 +286,11 @@ struct CoachGoal: Codable, Identifiable, Equatable {
     /// Keys a newer build stored on this goal that this build has no field for. Kept verbatim so a save
     /// from this build does not erase them (see `PreservedJSON`).
     var unknownFields: [String: PreservedJSON] = [:]
+    /// The catalog template this goal was made from (`GoalTemplateID`), kept as the raw ID so a template
+    /// this build does not know still round-trips. Nil for goals made without one.
+    var templateId: String?
+    /// What a catalog goal measures. Nil = measured by `kind`, as every goal before the catalog was.
+    var measure: GoalMeasureSpec?
 
     /// One waypoint on the route. `achievedAt` is set when the measured value first passes it, so the
     /// list reads as a record of what happened rather than a checklist to keep up.
@@ -273,7 +318,9 @@ struct CoachGoal: Codable, Identifiable, Equatable {
          history: [Event] = [],
          pauseIntervals: [PauseInterval] = [],
          closure: Closure? = nil,
-         milestones: [Milestone] = []) {
+         milestones: [Milestone] = [],
+         templateId: String? = nil,
+         measure: GoalMeasureSpec? = nil) {
         self.id = id
         self.kind = kind
         self.title = title
@@ -290,6 +337,8 @@ struct CoachGoal: Codable, Identifiable, Equatable {
         self.pauseIntervals = pauseIntervals
         self.closure = closure
         self.milestones = milestones
+        self.templateId = templateId
+        self.measure = measure
     }
 
     // Back-compat: every field added after the first ship decodes with a default, so a stored goal
@@ -297,7 +346,7 @@ struct CoachGoal: Codable, Identifiable, Equatable {
     private enum CodingKeys: String, CodingKey {
         case id, kind, title, baseline, target, targetDate, status
         case motivation, motivationTags, shareMotivation, acknowledgedRisk, createdAt, history
-        case pauseIntervals, closure, milestones
+        case pauseIntervals, closure, milestones, templateId, measure
     }
 
     init(from decoder: Decoder) throws {
@@ -329,11 +378,21 @@ struct CoachGoal: Codable, Identifiable, Equatable {
         // Added after first ship: a goal stored before the route existed decodes with none, and gets
         // one suggested on the next tracking refresh.
         milestones = try c.decodeIfPresent([Milestone].self, forKey: .milestones) ?? []
+        templateId = try c.decodeIfPresent(String.self, forKey: .templateId)
 
         let all = try decoder.container(keyedBy: AnyCodingKey.self)
         for key in all.allKeys where CodingKeys(stringValue: key.stringValue) == nil {
             if let value = try? all.decode(PreservedJSON.self, forKey: key) {
                 unknownFields[key.stringValue] = value
+            }
+        }
+        // A spec a later build wrote with a metric this one does not know: the goal still loads, the
+        // spec is kept verbatim and goes back out unchanged on save.
+        if c.contains(.measure) {
+            if let spec = try? c.decode(GoalMeasureSpec.self, forKey: .measure) {
+                measure = spec
+            } else if let raw = try? all.decode(PreservedJSON.self, forKey: AnyCodingKey(stringValue: "measure")) {
+                unknownFields["measure"] = raw
             }
         }
     }
@@ -361,6 +420,8 @@ struct CoachGoal: Codable, Identifiable, Equatable {
         try c.encode(pauseIntervals, forKey: key(.pauseIntervals))
         try c.encodeIfPresent(closure, forKey: key(.closure))
         try c.encode(milestones, forKey: key(.milestones))
+        try c.encodeIfPresent(templateId, forKey: key(.templateId))
+        try c.encodeIfPresent(measure, forKey: key(.measure))
     }
 
     // MARK: - Derived
@@ -394,9 +455,9 @@ struct CoachGoal: Codable, Identifiable, Equatable {
     }
 }
 
-/// Multiple simultaneous goals (#R-multi-goal), persisted on-device: one active goal per `Kind`, up to
-/// `maxActiveGoals` active at once — enough for the common combinations (a run goal + a sleep goal + a
-/// consistency goal, say) without turning into an unmanageable list.
+/// Multiple simultaneous goals (#R-multi-goal), persisted on-device: up to `maxActiveGoals` active at
+/// once. Several goals of the same `Kind` are allowed when the wearer chooses to keep both (two lifts,
+/// running and cycling kilometres); adding one always asks whether it replaces the existing goal first.
 ///
 /// Shared instance so the engine (reader) and the settings UI (editor) observe the same state, exactly
 /// like `CoachMemory.shared`.
@@ -477,17 +538,19 @@ final class CoachGoalStore: ObservableObject {
 
     func goal(id: UUID) -> CoachGoal? { goals.first(where: { $0.id == id }) }
 
-    /// The active goal of this `Kind`, if any — at most one can exist at a time (`canAdd` enforces it).
+    /// The newest active goal of this `Kind`, if any. New goals are inserted first, so with several of a
+    /// kind this is the one added last.
     func activeGoal(for kind: CoachGoal.Kind) -> CoachGoal? {
         activeGoals.first(where: { $0.kind == kind })
     }
 
-    /// Why a new/edited goal of `kind` can't be added right now, or nil when it's fine. `replacing`
-    /// excludes that goal's own id from the checks (editing a goal in place, or deliberately replacing
-    /// it, is never blocked by itself).
+    /// What a new/edited goal of `kind` needs from the wearer before it is saved, or nil when nothing.
+    /// `replacing` excludes that goal's own id from the checks (editing a goal in place, or deliberately
+    /// replacing it, is never blocked by itself).
     enum GoalLimitError: Equatable {
-        /// An active goal of the same kind already exists (`existingId`) — the caller should offer to
-        /// replace it (see `commit(_:editingId:replacing:...)`) rather than silently stacking a second.
+        /// An active goal of the same kind already exists (`existingId`). Not a refusal: the caller asks
+        /// whether the new goal replaces it (see `commit(_:editingId:replacing:...)`) or joins it, the
+        /// latter only while `hasRoom` says so.
         case kindAlreadyActive(existingId: UUID)
         /// `maxActiveGoals` are already active; nothing more can be added until one closes or is removed.
         case tooManyActive
@@ -500,6 +563,11 @@ final class CoachGoalStore: ObservableObject {
         }
         if others.count >= Self.maxActiveGoals { return .tooManyActive }
         return nil
+    }
+
+    /// Whether one more active goal fits under `maxActiveGoals`, for "keep both" after a same-kind offer.
+    func hasRoom(replacing: UUID? = nil) -> Bool {
+        activeGoals.filter { $0.id != replacing }.count < Self.maxActiveGoals
     }
 
     /// Record a change on one goal's log. Kept small (most recent 20) — this is a story, not an audit DB.
@@ -610,7 +678,12 @@ final class CoachGoalStore: ObservableObject {
                           // `isCustom` waypoints the user moved by hand. `ensureMilestones` then
                           // rebuilt a fresh, unreached route with new identities on the next refresh
                           // — the exact erasure its own doc comment rules out.
-                          milestones: existing.milestones)
+                          milestones: existing.milestones,
+                          // The draft's where it has one: an edit may change the sport, band or start a
+                          // catalog goal counts from. The editors that predate the catalog build drafts
+                          // without either, and an edit there must not strip the goal of its template.
+                          templateId: g.templateId ?? (g.kind == existing.kind ? existing.templateId : nil),
+                          measure: g.measure ?? (g.kind == existing.kind ? existing.measure : nil))
             // Same reason as the route: an edit rebuilds the goal, and what a newer build stored on it
             // must survive that. The stored kind only while the edit left the goal's kind alone.
             g.unknownFields = existing.unknownFields
@@ -680,6 +753,52 @@ final class CoachGoalStore: ObservableObject {
             merged.sort { lhs, rhs in baseline < target ? lhs.value < rhs.value : lhs.value > rhs.value }
             if merged != goal.milestones { goals[index].milestones = merged }
         }
+    }
+
+    /// Gives goals made before the catalog their template where the match is unambiguous
+    /// (`GoalTemplateAssignment`), so they get the same page as a goal made from one. Idempotent: a goal
+    /// that has a template is left alone, and nothing but the template, the measure and one history line
+    /// changes.
+    ///
+    /// A train-regularly goal reads its weeks from a weekly goal, so it gets one: an open weekly workouts
+    /// goal without a sport filter that serves no other goal is adopted, otherwise one is created with the
+    /// goal's sessions a week. Without room for it the goal is left for a later run.
+    func assignTemplatesToLegacyGoals(periodStore: PeriodGoalStore = .shared, today: String,
+                                      now: Date = Date()) {
+        var updated = goals
+        var changed = false
+        for index in updated.indices {
+            guard let template = GoalTemplateAssignment.template(for: updated[index]) else { continue }
+            let goal = updated[index]
+            var spec = GoalMeasureSpec(metric: template.metric)
+            if template == .trainingWeekly {
+                let adoptable = periodStore.openGoals.first {
+                    $0.metric == .workouts && $0.period == .week && $0.sportFilter.isEmpty
+                        && $0.habitKey == nil && $0.oneOffPeriodStart == nil
+                        && ($0.parentGoalId == nil || $0.parentGoalId == goal.id)
+                }
+                if let adoptable {
+                    if adoptable.parentGoalId != goal.id { periodStore.link(adoptable.id, to: goal.id) }
+                    spec.weeklyGoalId = adoptable.id
+                } else {
+                    let weekly = PeriodGoal(metric: .workouts, period: .week,
+                                            target: max(1, (goal.target ?? 3).rounded()), parentGoalId: goal.id)
+                    guard periodStore.canAdd(weekly) == nil else { continue }
+                    periodStore.commit(weekly, today: today)
+                    spec.weeklyGoalId = weekly.id
+                }
+                spec.adherenceWeeks = LongTermGoalMath.adherenceWindowWeeks
+                spec.adherenceTarget = LongTermGoalMath.adherenceTarget
+            }
+            updated[index].templateId = template.rawValue
+            updated[index].measure = spec
+            updated[index].history.append(.init(date: now, what: "Linked to a goal template"))
+            if updated[index].history.count > 20 {
+                updated[index].history.removeFirst(updated[index].history.count - 20)
+            }
+            changed = true
+        }
+        if changed { goals = updated }
     }
 
     /// Move a waypoint. Marks it `isCustom`, which is what protects it from the next re-suggest.

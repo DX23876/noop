@@ -78,6 +78,9 @@ struct CoachGoalSetupReviewView: View {
             .confirmationDialog("Replace your existing goal?", isPresented: $showReplaceConfirm,
                                 titleVisibility: .visible) {
                 Button("Replace it") { proceedPastLimits() }
+                if goals.hasRoom(replacing: goalDraft?.editingId) {
+                    Button("Keep both") { replaceCandidateId = nil; proceedPastLimits() }
+                }
                 Button("Cancel", role: .cancel) { replaceCandidateId = nil }
             } message: {
                 Text("A goal of this type is already active. Replacing it closes the old goal but keeps its history.")
@@ -109,7 +112,7 @@ struct CoachGoalSetupReviewView: View {
                 Text(goalDraft?.operation == .update ? "Apply goal changes" : "Create this goal")
             }
             Picker("Type", selection: goalKindBinding) {
-                ForEach(CoachGoal.Kind.allCases) { Text($0.label.localizedCatalogValue).tag($0) }
+                ForEach(CoachGoal.Kind.templateFreeCases) { Text($0.label.localizedCatalogValue).tag($0) }
             }
             TextField("Goal title", text: goalTitleBinding)
             if goalDraft?.goal.kind.isQuantified == true {

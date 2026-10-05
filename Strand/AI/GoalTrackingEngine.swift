@@ -414,6 +414,8 @@ final class GoalTrackingStore: ObservableObject {
         // One step goal in the app (Q8): Momentum's own value becomes a daily goal once, then follows it.
         GoalActionStore.shared.migrateMomentumStepGoalIfNeeded()
         GoalActionStore.shared.syncStepGoal()
+        // Goals made before the catalog get their template once (plan Q5), before anything reads them.
+        CoachGoalStore.shared.assignTemplatesToLegacyGoals(today: Repository.localDayKey(now), now: now)
         await refresh(repo: repo, now: now, goals: CoachGoalStore.shared.goals,
                       proposals: CoachPlanStore.shared.proposals,
                       resolutions: CoachPlanStore.shared.reconciliationResolutions,
