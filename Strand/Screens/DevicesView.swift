@@ -248,7 +248,9 @@ private struct DevicesContent: View {
             } else if model.whoopFoldOffered {
                 whoopFoldOffer
             }
-            DeviceSyncStatusCard()
+            DeviceSyncStatusCard(showsColdStart: registry.devices.contains {
+                $0.status == .active && SourceCoordinator.isWhoop($0)
+            })
                 // #1300 tier 2: compute the two-strap comparison off the giant body-modifier chain (attaching
                 // .task to the whole `body` tips the iOS type-check budget on this already-heavy view).
                 .task(id: activeDevices.count) { await loadStrapCompare() }
@@ -739,9 +741,14 @@ private struct DevicesContent: View {
 
 /// The sync status formerly shown as a compact control in the Today header. Devices is the natural home
 /// for this device-level state, and the full card gives the status enough room to read without crowding
-/// Today's primary actions. This remains display-only and resolves through the existing shared state.
+/// Today's primary actions. Status resolves through the existing shared state; the manual action uses
+/// the same gated BLE entry point as the Health screen.
 private struct DeviceSyncStatusCard: View {
     @EnvironmentObject private var live: LiveState
+    @EnvironmentObject private var model: AppModel
+    let showsColdStart: Bool
+
+    private var canSync: Bool { live.connected && live.bonded && live.historyReady && !live.backfilling }
 
     var body: some View {
         switch SyncChipState.resolve(live: live) {
@@ -769,7 +776,14 @@ private struct DeviceSyncStatusCard: View {
                 accessibility: String(localized: "Connected; strap history sync is experimental on this strap")
             )
         case .hidden:
-            EmptyView()
+            if showsColdStart {
+                statusCard(
+                    systemImage: "arrow.triangle.2.circlepath",
+                    detail: String(localized: "Not synced yet"),
+                    tint: StrandPalette.textSecondary,
+                    accessibility: String(localized: "Strap history") + ". " + String(localized: "Not synced yet")
+                )
+            }
         }
     }
 
@@ -780,26 +794,39 @@ private struct DeviceSyncStatusCard: View {
         accessibility: String
     ) -> some View {
         NoopCard(tint: tint) {
-            HStack(alignment: .center, spacing: NoopMetrics.space3) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(tint)
-                    .frame(width: 24)
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: NoopMetrics.space1) {
-                    Text("Strap history")
-                        .font(StrandFont.headline)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                    Text(detail)
-                        .font(StrandFont.subhead)
-                        .foregroundStyle(StrandPalette.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: NoopMetrics.cardInnerSpacing) {
+                HStack(alignment: .center, spacing: NoopMetrics.space3) {
+                    Image(systemName: systemImage)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(tint)
+                        .frame(width: 24)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: NoopMetrics.space1) {
+                        Text("Strap history")
+                            .font(StrandFont.headline)
+                            .foregroundStyle(StrandPalette.textPrimary)
+                        Text(detail)
+                            .font(StrandFont.subhead)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 0)
                 }
-                Spacer(minLength: 0)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(Text(accessibility))
+
+                NoopButton(live.backfilling ? "Syncing…" : "Sync now",
+                           systemImage: "arrow.triangle.2.circlepath",
+                           kind: .secondary, fullWidth: true) {
+                    model.ble.syncNow()
+                }
+                .disabled(!canSync)
+                .accessibilityLabel("Sync now")
+                .accessibilityHint(canSync
+                    ? "Pulls your strap's stored history immediately, without waiting for the next automatic sync."
+                    : (live.backfilling ? "A sync is already in progress." : "Connect your strap first."))
             }
         }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(accessibility))
     }
 }
 

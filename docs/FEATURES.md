@@ -720,6 +720,10 @@ sleep/recovery data.
 - **Add / manage devices** — an add-device wizard, and — with more than one paired band — a picker
   for which one supplies live data. Removing a device deletes its recorded data locally; re-pairing
   a strap pulls its recent history back.
+- **Strap history** — shows sync status on Devices and offers **Sync now** when the active strap is
+  ready. Reopening the app requests an automatic offload only when the last attempt was at least
+  five minutes ago; the connected periodic cadence remains 15 minutes. A manual sync and productive
+  backlog continuations can run sooner, so frequent app checks need not repeatedly offload history.
 - **Replacing a WHOOP** — pairing a new WHOOP asks whether it replaces the previous strap. If it does,
   the new strap takes over the one WHOOP entry and its whole history, so the list keeps one WHOOP; if
   not (a second person's strap) it gets its own entry. An install that already lists several WHOOP
