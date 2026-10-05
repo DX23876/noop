@@ -122,6 +122,7 @@ extension GoalActionOccurrence {
     /// The line under a daily goal: how far it has come today, or that it is done.
     var detailLine: String {
         if isCompleted {
+            if case .manual = action.requirement { return String(localized: "Done") }
             return isAutomatic ? String(localized: "Done · \(action.requirement.displayLabel)")
                                : String(localized: "Ticked off · \(action.requirement.displayLabel)")
         }

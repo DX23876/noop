@@ -61,12 +61,16 @@ struct JourneyView: View {
                     VStack(spacing: 16) {
                         closureOrExpiryCard(goal)
                         headerCard(goal)
-                        progressCard(goal)
-                        routeCard(goal)
-                        trendCard(goal)
-                        weeklyMomentumCard(goal)
-                        milestonesCard(goal)
-                        readinessCard
+                        // A catalog goal's page already shows its measure, band and insights; these cards
+                        // judge by kind instead and called a measured best "not measurable" (plan §8.3).
+                        if goal.templateId == nil {
+                            progressCard(goal)
+                            routeCard(goal)
+                            trendCard(goal)
+                            weeklyMomentumCard(goal)
+                            milestonesCard(goal)
+                            readinessCard
+                        }
                         planHistoryCard
                         contributionCard(goal)
                         if !goal.history.isEmpty { historyCard(goal) }

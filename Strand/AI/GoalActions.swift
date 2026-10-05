@@ -47,7 +47,8 @@ struct GoalAction: Codable, Identifiable, Equatable {
                 return String(localized: "\(hours.formatted(.number.precision(.fractionLength(0...1)))) h sleep")
             case .activeCalories(let minimum):
                 return String(localized: "\(minimum.formatted()) kcal active (estimate)")
-            case .manual: return String(localized: "Check off manually")
+            // Nothing to say: ticking a box by hand is what a goal without a measure is.
+            case .manual: return ""
             case .journal(let question, let wantsYes):
                 let habit = JournalLabel.display(question)
                 return wantsYes ? String(localized: "Ticks when you log yes: \(habit)")

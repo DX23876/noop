@@ -90,7 +90,7 @@ struct GoalListRow: View {
                     .font(StrandFont.subhead.weight(.semibold))
                     .foregroundStyle(valueIsOff ? StrandPalette.textSecondary : StrandPalette.textPrimary)
                     .lineLimit(largeText ? 3 : 2)
-                if largeText { valueText }
+                if largeText && !value.isEmpty { valueText }
                 if let subtitle {
                     Text(subtitle).font(StrandFont.caption).foregroundStyle(subtitleTint)
                         .fixedSize(horizontal: false, vertical: true)
@@ -110,7 +110,7 @@ struct GoalListRow: View {
             // exactly the width it needs. At accessibility text sizes the value moves under the name:
             // beside it, it squeezed the line under the name into one syllable per row.
             .frame(maxWidth: .infinity, alignment: .leading)
-            if !largeText {
+            if !largeText && !value.isEmpty {
                 // Its own width, up to a cap: a long value (a journal question, several sports) used to
                 // widen the whole page past the screen. Past the cap it truncates.
                 valueText.frame(maxWidth: 170, alignment: .trailing).layoutPriority(1)

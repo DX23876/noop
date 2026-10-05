@@ -426,7 +426,7 @@ struct GoalsOverviewView: View {
     private func rowValue(_ requirement: GoalAction.Requirement) -> String {
         switch requirement {
         case .journal: return String(localized: "Journal")
-        case .manual: return String(localized: "By hand")
+        case .manual: return ""
         default: return requirement.displayLabel
         }
     }

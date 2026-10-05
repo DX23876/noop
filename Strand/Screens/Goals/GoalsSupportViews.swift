@@ -389,6 +389,7 @@ struct GoalsArchiveView: View {
         guard let endsOn = action.endsOn, let date = PeriodGoalTracker.date(endsOn, calendar: .autoupdatingCurrent) else {
             return label
         }
+        if label.isEmpty { return String(localized: "Ended \(date.formatted(.dateTime.day().month(.abbreviated).year()))") }
         return String(localized: "\(label) · ended \(date.formatted(.dateTime.day().month(.abbreviated).year()))")
     }
 }

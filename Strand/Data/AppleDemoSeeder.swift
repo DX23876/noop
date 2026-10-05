@@ -162,6 +162,7 @@ enum AppleDemoSeeder {
 
         seedDemoPeriodGoalsIfNeeded()
         seedDemoAskedDailyGoalsIfNeeded()
+        defer { seedDemoCatalogGoalsIfNeeded() }
         let store = CoachGoalStore.shared
         guard store.goals.isEmpty else { return }
         let now = Date()
@@ -183,12 +184,13 @@ enum AppleDemoSeeder {
                       target: 91,
                       targetDate: now.addingTimeInterval(120 * 86_400),
                       createdAt: now.addingTimeInterval(-60 * 86_400)),
-            // The demo athlete logs about thirteen sessions a week (conditioning plus lifting), so a
-            // "three a week" goal read as 13.2 against 3. Twelve a week is the believable version.
+            // The demo athlete logs nine to nineteen sessions a week (conditioning plus lifting), about
+            // thirteen on average. Twelve a week was missed in half the weeks and read as behind; ten is
+            // kept in all but the odd week, so the consistency page shows kept and missed weeks.
             CoachGoal(kind: .consistency,
-                      title: "Train twelve times a week",
+                      title: "Train ten times a week",
                       baseline: 8,
-                      target: 12,
+                      target: 10,
                       targetDate: now.addingTimeInterval(90 * 86_400),
                       createdAt: now.addingTimeInterval(-40 * 86_400))
         ]
@@ -204,13 +206,60 @@ enum AppleDemoSeeder {
         let today = Repository.localDayKey(Date())
         let created = Date().addingTimeInterval(-70 * 86_400)
         let goals = [
-            PeriodGoal(metric: .workouts, period: .week, target: 12, createdAt: created),
+            PeriodGoal(metric: .workouts, period: .week, target: 10, createdAt: created),
             PeriodGoal(metric: .sleepNights, period: .week, target: 6, threshold: 7.5, createdAt: created),
             PeriodGoal(metric: .stepDays, period: .week, target: 5, threshold: 9_000, createdAt: created),
             PeriodGoal(metric: .trainingMinutes, period: .month, target: 2_400, createdAt: created),
         ]
         for goal in goals { store.commit(goal, today: today) }
         UserDefaults.standard.set(true, forKey: GoalPrefs.introSeenKey)
+    }
+
+    /// Long-term goals from the catalog, one per shape of the walkthrough and sized to the seeded data so
+    /// their pages show different states: cycling kilometres on course (about two 15 km rides a week),
+    /// a 10 km run still on its way (runs are rare and around 6 km), a 5 km walk already managed (the
+    /// longest walks reach 6 km), average sleep just under 7.5 h (the nights centre on 7.2 h) and an
+    /// undated weight target far below the slowly falling scale. The two older demo goals beside them
+    /// get their templates from the tracking store, as a real install's would. Once per install; the
+    /// long-term ceiling goes to ten so all of them fit.
+    @MainActor
+    private static func seedDemoCatalogGoalsIfNeeded() {
+        let key = "goals.demoCatalogSeeded"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        UserDefaults.standard.set(true, forKey: key)
+        if UserDefaults.standard.integer(forKey: GoalPrefs.longTermLimitKey) < 10 {
+            UserDefaults.standard.set(10, forKey: GoalPrefs.longTermLimitKey)
+        }
+        let now = Date()
+        let store = CoachGoalStore.shared
+        let periods = PeriodGoalStore.shared
+        let today = Repository.localDayKey(now)
+        func days(_ n: Double) -> Date { now.addingTimeInterval(n * 86_400) }
+
+        let ride = CoachGoal(kind: .endurance, title: "Ride 700 km", baseline: 0, target: 700,
+                             targetDate: days(80), createdAt: days(-100),
+                             templateId: GoalTemplateID.distanceTotal.rawValue,
+                             measure: GoalMeasureSpec(metric: .distanceTotal, sportFilter: ["Cycling"],
+                                                      countFrom: days(-100)))
+        let run = CoachGoal(kind: .endurance, title: "Run 10 km", baseline: 6, target: 10, createdAt: days(-45),
+                            templateId: GoalTemplateID.longest.rawValue,
+                            measure: GoalMeasureSpec(metric: .longestDistance, sportFilter: ["Running"]))
+        let walk = CoachGoal(kind: .endurance, title: "Walk 5 km in one go", baseline: 3, target: 5,
+                             createdAt: days(-60), templateId: GoalTemplateID.longest.rawValue,
+                             measure: GoalMeasureSpec(metric: .longestDistance, sportFilter: ["Walking"]))
+        let sleep = CoachGoal(kind: .sleep, title: "Sleep 7.5 hours", baseline: 7, target: 7.5, createdAt: days(-50),
+                              templateId: GoalTemplateID.sleepAverage.rawValue,
+                              measure: GoalMeasureSpec(metric: .sleepAverage))
+        let weight = CoachGoal(kind: .weight, title: "Down to 85 kg", baseline: 97, target: 85, createdAt: days(-110),
+                               templateId: GoalTemplateID.weightLose.rawValue,
+                               measure: GoalMeasureSpec(metric: .weight))
+        for goal in [ride, run, walk, sleep, weight] { store.commit(goal) }
+        periods.commit(PeriodGoal(metric: .distance, period: .week, target: 30, sportFilter: ["Cycling"],
+                                  parentGoalId: ride.id, createdAt: days(-100), followsParent: true), today: today)
+        // The demo's nights goal already exists among the weekly goals; the sleep goal adopts it.
+        if let nights = periods.goals.first(where: { $0.metric == .sleepNights && $0.parentGoalId == nil }) {
+            periods.link(nights.id, to: sleep.id)
+        }
     }
 
     /// Two daily goals NOOP cannot see done by a number (a box to tick, one ticked by the journal), set

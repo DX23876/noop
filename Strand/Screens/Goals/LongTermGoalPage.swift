@@ -424,11 +424,17 @@ struct LongTermGoalPage: View {
     /// The goal reached (plan Q24): the wearer decides what happens next, nothing closes by itself.
     private func reachedCard(_ snapshot: GoalTrackingSnapshot) -> some View {
         let template = snapshot.goal.templateId.flatMap(GoalTemplateID.init(rawValue:))
+        // Only a weight goal offers to keep what was reached; the line names just the buttons shown.
+        let canKeep: Bool = {
+            if template == .weightLose, case .target? = snapshot.reading { return true }
+            return false
+        }()
         return NoopCard(padding: 16) {
             VStack(alignment: .leading, spacing: 12) {
                 Label("Goal reached", systemImage: "checkmark.seal.fill")
                     .font(StrandFont.headline).foregroundStyle(StrandPalette.statusPositive)
-                Text("Close it, aim higher, or keep what you have reached.")
+                Text(canKeep ? String(localized: "Close it, aim higher, or keep what you have reached.")
+                             : String(localized: "Close it or aim higher."))
                     .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 8) {

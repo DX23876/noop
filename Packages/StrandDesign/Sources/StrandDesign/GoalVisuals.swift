@@ -139,7 +139,8 @@ public struct PaceTrack: View {
     }
 
     private var trackColor: Color {
-        contrast == .increased ? StrandPalette.hairlineStrong : StrandPalette.hairline
+        // `hairlineStrong` is white in light appearance; increased contrast needs a darker track, not that.
+        contrast == .increased ? StrandPalette.textTertiary : StrandPalette.hairline
     }
 
     private func appear() {
@@ -227,24 +228,26 @@ public struct DayDotStrip: View {
                         .font(.system(size: diameter * 0.45, weight: .semibold))
                         .foregroundStyle(StrandPalette.surfaceRaised)
                 }
+            // Not the hairline tokens: they are glass highlights, white in light appearance, and left
+            // missed and coming days invisible on a light card.
             case .missed:
-                circle.strokeBorder(StrandPalette.hairlineStrong, lineWidth: 1)
+                circle.strokeBorder(StrandPalette.textTertiary, lineWidth: 1)
             case .today:
                 circle.strokeBorder(StrandPalette.textPrimary, lineWidth: 1.5)
             case .future:
                 if suggested.contains(day.id) {
                     circle.strokeBorder(tint, lineWidth: 1.5)
                 } else {
-                    circle.strokeBorder(StrandPalette.hairlineStrong,
+                    circle.strokeBorder(StrandPalette.textTertiary,
                                         style: StrokeStyle(lineWidth: 1, dash: [2, 2]))
                 }
             case .rest:
-                Capsule().fill(StrandPalette.hairlineStrong)
+                Capsule().fill(StrandPalette.textTertiary)
                     .frame(width: diameter * 0.6, height: 2)
             case .noData:
-                circle.strokeBorder(StrandPalette.hairline, lineWidth: 1)
+                circle.strokeBorder(StrandPalette.textTertiary, lineWidth: 1)
                 DiagonalHatch(spacing: 3)
-                    .stroke(StrandPalette.hairlineStrong, lineWidth: 0.75)
+                    .stroke(StrandPalette.textTertiary.opacity(0.6), lineWidth: 0.75)
                     .clipShape(circle)
             }
             if day.state == .todayMet {

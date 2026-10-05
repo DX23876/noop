@@ -178,7 +178,8 @@ public struct GoalHeroCard<Background: View>: View {
                         .font(compact ? StrandFont.bodyNumber : StrandFont.number(19))
                         .foregroundStyle(StrandPalette.onDarkPrimary)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+                        // A rate with its unit ("+2 min/month") needs more room than a plain figure.
+                        .minimumScaleFactor(0.5)
                     if let fraction = stat.fraction {
                         GeometryReader { geo in
                             ZStack(alignment: .leading) {
@@ -259,10 +260,11 @@ public struct MilestoneTrack: View {
                 let count = max(points.count, 1)
                 let step = geo.size.width / CGFloat(count)
                 ZStack(alignment: .leading) {
-                    // Segments between neighbours: tinted up to the next waypoint, hairline after it.
+                    // Segments between neighbours: tinted up to the next waypoint, muted grey after it.
+                    // Not a hairline token: those are glass highlights and vanish on a light card.
                     ForEach(points.indices.dropLast(), id: \.self) { index in
                         Rectangle()
-                            .fill(points[index + 1].state == .open ? StrandPalette.hairlineStrong : tint)
+                            .fill(points[index + 1].state == .open ? StrandPalette.textTertiary.opacity(0.35) : tint)
                             .frame(width: step, height: 3)
                             .offset(x: step * (CGFloat(index) + 0.5))
                     }
@@ -270,7 +272,7 @@ public struct MilestoneTrack: View {
                         Rectangle().fill(tint.opacity(0.35)).frame(width: step / 2, height: 3)
                     }
                     if moreAfter {
-                        Rectangle().fill(StrandPalette.hairline).frame(width: step / 2, height: 3)
+                        Rectangle().fill(StrandPalette.textTertiary.opacity(0.35)).frame(width: step / 2, height: 3)
                             .offset(x: step * (CGFloat(count) - 0.5))
                     }
                     ForEach(points.indices, id: \.self) { index in
@@ -317,7 +319,7 @@ public struct MilestoneTrack: View {
                 .frame(width: dot, height: dot)
         case .open:
             Circle().fill(StrandPalette.surfaceRaised)
-                .overlay(Circle().strokeBorder(StrandPalette.hairlineStrong, lineWidth: 2))
+                .overlay(Circle().strokeBorder(StrandPalette.textTertiary, lineWidth: 2))
                 .frame(width: dot, height: dot)
         }
     }
@@ -382,7 +384,8 @@ public struct WeekDotRow: View {
                 .overlay(Circle().strokeBorder(tint, lineWidth: 2))
                 .frame(width: dot, height: dot)
         case .missed:
-            Circle().fill(StrandPalette.hairlineStrong)
+            // A hairline token is a glass highlight: on a light card it vanished, leaving a bare minus.
+            Circle().fill(StrandPalette.textTertiary.opacity(0.28))
                 .overlay(Image(systemName: "minus").font(.system(size: 11, weight: .bold))
                     .foregroundStyle(StrandPalette.textSecondary))
                 .frame(width: dot, height: dot)
@@ -392,7 +395,7 @@ public struct WeekDotRow: View {
                     .foregroundStyle(StrandPalette.textSecondary))
                 .frame(width: dot, height: dot)
         case .noData:
-            Circle().strokeBorder(StrandPalette.hairlineStrong, style: StrokeStyle(lineWidth: 1.5, dash: [3, 3]))
+            Circle().strokeBorder(StrandPalette.textTertiary, style: StrokeStyle(lineWidth: 1.5, dash: [3, 3]))
                 .frame(width: dot, height: dot)
         case .running:
             Circle().strokeBorder(StrandPalette.textPrimary, lineWidth: 2)

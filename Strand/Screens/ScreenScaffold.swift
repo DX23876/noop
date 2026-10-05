@@ -107,6 +107,7 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
         }
         #endif
         .modifier(RefreshableIfNeeded(onRefresh: onRefresh))
+        .modifier(HardTopEdgeIfPinned(active: pinnedHeader != nil))
         #if DEBUG
         .task {
             await scrollToDemoBottom(proxy)
@@ -446,5 +447,23 @@ extension EnvironmentValues {
     var scrollToTopSignal: Int {
         get { self[ScrollToTopSignalKey.self] }
         set { self[ScrollToTopSignalKey.self] = newValue }
+    }
+}
+
+/// A page with a pinned header (the goals overview's chips) cuts content cleanly under the navigation bar
+/// (iOS 26): without it the cards scrolled through the gap between the back button and the pinned chips.
+private struct HardTopEdgeIfPinned: ViewModifier {
+    let active: Bool
+
+    func body(content: Content) -> some View {
+        #if os(iOS)
+        if active, #available(iOS 26.0, *) {
+            content.scrollEdgeEffectStyle(.hard, for: .top)
+        } else {
+            content
+        }
+        #else
+        content
+        #endif
     }
 }
