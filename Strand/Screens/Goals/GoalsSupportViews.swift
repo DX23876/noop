@@ -12,7 +12,7 @@ struct GoalsIntroSheet: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var page = 0
     @State private var demo = 0
-    private let pages = 4
+    private let pages = 5
 
     var body: some View {
         NavigationStack {
@@ -34,6 +34,10 @@ struct GoalsIntroSheet: View {
                               text: "Ill or paused, the week is protected: it doesn't count as missed and your series stays.") {
                         protectedDemo
                     }.tag(3)
+                    introPage(title: "Five kinds of goals",
+                              text: "Collect, reach a value, beat your best, keep a rhythm or raise an average. Each long-term goal shows what fits it, and only what NOOP can measure.") {
+                        shapesDemo
+                    }.tag(4)
                 }
                 #if os(iOS)
                 .tabViewStyle(.page(indexDisplayMode: .always))
@@ -81,6 +85,44 @@ struct GoalsIntroSheet: View {
             Spacer(minLength: 0)
         }
         .padding(24)
+    }
+
+    /// One line per goal shape, each with the piece its page draws (plan Q34).
+    private var shapesDemo: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            shapeRow(icon: "sum", text: "Collect: 642 of 1,000 km") {
+                PaceTrack(fraction: 0.64, tint: StrandPalette.statusPositive, height: 6)
+            }
+            shapeRow(icon: "arrow.down.right", text: "Reach a value: 96 kg, target 80") {
+                PaceTrack(fraction: 0.2, tint: StrandPalette.statusPositive, height: 6)
+            }
+            shapeRow(icon: "flag.checkered", text: "Beat your best: 8.4 of 10 km") {
+                PaceTrack(fraction: 0.84, tint: StrandPalette.statusPositive, height: 6)
+            }
+            shapeRow(icon: "calendar.badge.checkmark", text: "Keep a rhythm: 3× a week") {
+                WeekDotRow(weeks: [.init(id: 0, label: "", state: .kept), .init(id: 1, label: "", state: .kept),
+                                   .init(id: 2, label: "", state: .missed), .init(id: 3, label: "", state: .kept)],
+                           tint: StrandPalette.statusPositive)
+                    .scaleEffect(0.6, anchor: .leading)
+                    .frame(height: 18)
+            }
+            shapeRow(icon: "chart.bar", text: "Raise an average: 7 h 34 min") {
+                TargetColumns(values: [6.8, 7.2, 7.9, 7.4, 8.1, 7.6, 7.3], target: 7.5,
+                              tint: StrandPalette.accent, height: 18)
+            }
+        }
+    }
+
+    private func shapeRow<Visual: View>(icon: String, text: LocalizedStringKey,
+                                        @ViewBuilder visual: () -> Visual) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon).font(.footnote.weight(.semibold))
+                .foregroundStyle(StrandPalette.accent).frame(width: 20).accessibilityHidden(true)
+            Text(text).font(StrandFont.caption).foregroundStyle(StrandPalette.textPrimary)
+                .lineLimit(1).minimumScaleFactor(0.8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            visual().frame(width: 84).accessibilityHidden(true)
+        }
     }
 
     private var chainDemo: some View {

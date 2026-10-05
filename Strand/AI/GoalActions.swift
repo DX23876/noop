@@ -303,6 +303,18 @@ enum GoalActionEvaluator {
         return requested.contains { family($0) == actual }
     }
 
+    /// A workout against a sport filter. Like `matches(_:any:)`, plus one thing the name cannot tell: a
+    /// session from Hevy or the lifting import is strength training whatever it is called ("Push Day"),
+    /// the same rule the long-term strength goal reads by (plan Q18).
+    static func matches(_ row: WorkoutRow, any requested: [String]) -> Bool {
+        if matches(row.sport, any: requested) { return true }
+        guard requested.contains(where: { family($0) == "strength" }) else { return false }
+        switch WorkoutSource.classify(row.source) {
+        case .hevy, .lifting: return true
+        default: return false
+        }
+    }
+
     private static func family(_ value: String) -> String {
         let text = value.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
         if text.contains("walk") || text.contains("hike") || text.contains("spazier") || text.contains("wander") {
@@ -314,6 +326,7 @@ enum GoalActionEvaluator {
         if text.contains("cycle") || text.contains("bike") || text.contains("ride") || text.contains("rad") {
             return "cycling"
         }
+        if text.contains("swim") || text.contains("schwimm") { return "swimming" }
         return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 

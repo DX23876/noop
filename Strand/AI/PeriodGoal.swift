@@ -253,13 +253,16 @@ struct PeriodGoal: Codable, Identifiable, Equatable {
     var endedAt: Date?
     /// A suggested step-up the wearer already answered for a given period start, so it is asked once.
     var rampAnsweredPeriods: [String]
+    /// The weekly target follows the long-term goal it serves (plan Q9): a sum goal sets what each week
+    /// needs, from the week's first day on. Setting a target by hand switches it off.
+    var followsParent: Bool
 
     init(id: UUID = UUID(), metric: PeriodMetric, period: Period, target: Double, threshold: Double? = nil,
          sportFilter: [String] = [], habitKey: String? = nil, habitWantsYes: Bool = true,
          restWeekdaysOverride: [Int]? = nil, parentGoalId: UUID? = nil, status: Status = .active,
          oneOffPeriodStart: String? = nil, pauseIntervals: [CoachGoal.PauseInterval] = [],
          targetHistory: [TargetChange] = [], createdAt: Date = Date(), endedAt: Date? = nil,
-         rampAnsweredPeriods: [String] = []) {
+         rampAnsweredPeriods: [String] = [], followsParent: Bool = false) {
         self.id = id
         self.metric = metric
         self.period = period
@@ -277,12 +280,13 @@ struct PeriodGoal: Codable, Identifiable, Equatable {
         self.createdAt = createdAt
         self.endedAt = endedAt
         self.rampAnsweredPeriods = rampAnsweredPeriods
+        self.followsParent = followsParent
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, metric, period, target, threshold, sportFilter, habitKey, habitWantsYes
         case restWeekdaysOverride, parentGoalId, status, oneOffPeriodStart, pauseIntervals, targetHistory
-        case createdAt, endedAt, rampAnsweredPeriods
+        case createdAt, endedAt, rampAnsweredPeriods, followsParent
     }
 
     // Every field after the first ship decodes with a default, so a stored goal never fails to load.
@@ -305,6 +309,7 @@ struct PeriodGoal: Codable, Identifiable, Equatable {
         createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
         endedAt = try c.decodeIfPresent(Date.self, forKey: .endedAt)
         rampAnsweredPeriods = try c.decodeIfPresent([String].self, forKey: .rampAnsweredPeriods) ?? []
+        followsParent = try c.decodeIfPresent(Bool.self, forKey: .followsParent) ?? false
     }
 
     var isOpen: Bool { status == .active || status == .paused }
@@ -345,6 +350,8 @@ enum GoalPrefs {
     static let pinnedKey = "goals.pinned.longTerm"
     static let introSeenKey = "goals.introSeen"
     static let crowdHintShownKey = "goals.crowdHintShown"
+    /// The goals overview's filter chip (`GoalsOverviewFilter`), remembered between visits (plan Q2).
+    static let overviewFilterKey = "goals.overview.filter"
     static let attributionAskedKey = "goals.attributionPolicy"
     static let notifyKey = "goals.notify"
 
@@ -466,7 +473,9 @@ final class PeriodGoalStore: ObservableObject {
                                  oneOffPeriodStart: draft.oneOffPeriodStart,
                                  pauseIntervals: existing.pauseIntervals,
                                  targetHistory: existing.targetHistory, createdAt: existing.createdAt,
-                                 endedAt: existing.endedAt, rampAnsweredPeriods: existing.rampAnsweredPeriods)
+                                 endedAt: existing.endedAt, rampAnsweredPeriods: existing.rampAnsweredPeriods,
+                                 // A target changed by hand in the editor ends following, as `setTarget` does.
+                                 followsParent: draft.followsParent && existing.target == draft.target)
             if existing.target != draft.target {
                 updated.targetHistory = Self.recordingChange(existing, to: draft.target, today: today)
             }
@@ -478,9 +487,12 @@ final class PeriodGoalStore: ObservableObject {
         }
     }
 
-    /// Changes only the target, from today on (the detail's stepper and the step-up suggestion).
-    func setTarget(_ id: UUID, _ target: Double, today: String) {
-        guard let index = goals.firstIndex(where: { $0.id == id }), goals[index].target != target else { return }
+    /// Changes only the target, from today on (the detail's stepper and the step-up suggestion). A target
+    /// set by hand ends following the long-term goal; `followed` is the store's own weekly update.
+    func setTarget(_ id: UUID, _ target: Double, today: String, followed: Bool = false) {
+        guard let index = goals.firstIndex(where: { $0.id == id }) else { return }
+        if !followed { goals[index].followsParent = false }
+        guard goals[index].target != target else { return }
         goals[index].targetHistory = Self.recordingChange(goals[index], to: target, today: today)
         goals[index].target = target
     }

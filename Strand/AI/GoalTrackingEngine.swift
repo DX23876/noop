@@ -61,9 +61,9 @@ struct GoalTrackingSnapshot: Identifiable, Equatable {
     /// (both read 1), so the honest value travels alongside for anything that puts it into words.
     let rawProgressFraction: Double?
     let trend: JourneyExplain.Trend
-    let health: Health
-    let reason: String
-    let nextAction: String
+    var health: Health
+    var reason: String
+    var nextAction: String
     let currentWeek: GoalWeek
     let recentWeeks: [GoalWeek]
     let currentStreak: Int
@@ -73,8 +73,40 @@ struct GoalTrackingSnapshot: Identifiable, Equatable {
     /// Where the plan says you should be today, how far off that is, and — only when the measured
     /// trend supports one — an arrival date. Nil for a goal with no start/target/date.
     let course: GoalMilestones.Course?
+    /// A catalog goal's reading for its page (`LongTermGoalReader`); nil for goals measured by kind.
+    var reading: GoalShapeReading? = nil
 
     var sortDate: Date { goal.targetDate ?? .distantFuture }
+
+    /// Progress for a bar: the catalog reading's where there is one, else the kind's.
+    var displayProgress: Double? { reading?.progress ?? progressFraction }
+
+    /// The snapshot with a catalog reading attached. Its state replaces the kind-based verdict, which
+    /// cannot know what a catalog goal measures; a paused goal and an open decision keep theirs.
+    func applying(_ reading: GoalShapeReading?) -> GoalTrackingSnapshot {
+        var copy = self
+        copy.reading = reading
+        guard let reading, health != .paused, health != .decisionNeeded else { return copy }
+        switch reading.state {
+        case .achieved?, .ahead?, .onTrack?:
+            copy.health = .onTrack
+            copy.reason = "The goal's own measure is on track."
+            copy.nextAction = "Keep the week going."
+        case .close?:
+            copy.health = .attention
+            copy.reason = "The goal's own measure is a little behind."
+            copy.nextAction = "This week's goal shows what closes the gap."
+        case .behind?, .outOfReach?:
+            copy.health = .atRisk
+            copy.reason = "The goal's own measure is behind."
+            copy.nextAction = "Review the target, the date or this week's goal."
+        case .starting?, .noData?, .protected?, nil:
+            copy.health = .building
+            copy.reason = "There is not enough measured data for a call yet."
+            copy.nextAction = "Keep going; the page fills in as data arrives."
+        }
+        return copy
+    }
 }
 
 /// Pure goal monitoring. No model judgment and no persistence: the same snapshot can safely drive
@@ -435,7 +467,13 @@ final class GoalTrackingStore: ObservableObject {
         // never touches `avgHr`, `maxHr` or `strain`. The display-only HR reconcile would cost one query per
         // eligible workout (measured: 263 of 520 on a large library, on the launch path) for a value nothing
         // here reads. See `Repository.workoutRows(days:reconcileHrCap:)`.
-        let workouts = await repo.workoutRows(days: 365, reconcileHrCap: 0)
+        // A catalog sum may count from further back than a year ("since I started running").
+        let earliestCount = goals.compactMap { goal -> Date? in
+            guard goal.measure?.shape == .sum else { return nil }
+            return goal.measure?.countFrom ?? goal.createdAt
+        }.min()
+        let workoutDays = max(365, earliestCount.map { Int(now.timeIntervalSince($0) / 86_400) + 14 } ?? 0)
+        let workouts = await repo.workoutRows(days: workoutDays, reconcileHrCap: 0)
         // Use the canonical resolver so a NOOP weigh-in moves the goal exactly like an import.
         let weights = await repo.weightDailyValues(days: 365)
         // The stored stress score, same key/source the Stress screen reads. Recovery needs no extra
@@ -580,8 +618,10 @@ final class GoalTrackingStore: ObservableObject {
                                                            cfg: GoalMeasure.weightTrend))
             .map { GoalMilestones.Sample(date: $0.date, value: $1) }
         let unresolved = Set(resolutions.map(\.proposalId))
+        let readerInputs = LongTermReaderInputs(workouts: workouts, days: repo.days, stepsByDay: stepsByDay,
+                                                weight: measurementByKind[.weight], weightSamples: weightSamples)
         snapshots = CoachGoalStore.shared.goals.map { goal in
-            GoalTrackingEngine.evaluate(goal: goal, proposals: proposals,
+            let snapshot = GoalTrackingEngine.evaluate(goal: goal, proposals: proposals,
                                         actionOccurrences: actionOccurrences,
                                         measurement: measurementByKind[goal.kind],
                                         hasReconciliationQuestion: proposals.contains {
@@ -589,9 +629,35 @@ final class GoalTrackingStore: ObservableObject {
                                         },
                                         courseSeries: goal.kind == .weight ? weightSamples : [],
                                         now: now, calendar: calendar)
+            guard goal.measure != nil else { return snapshot }
+            return snapshot.applying(LongTermGoalReader.reading(goal: goal, course: snapshot.course,
+                                                                inputs: readerInputs, periodSnapshots: computed,
+                                                                now: now, calendar: calendar))
         }
         lastUpdated = now
         CoachNotifier.syncGoalMonitoring(snapshots)
+        applyFollowingWeeklyTargets(now: now, calendar: calendar)
+        GoalEventNotifier.evaluateLongTerm(snapshots, now: now)
+    }
+
+    /// Weekly goals that follow a catalog sum goal (plan Q9) get what the week needs, once at the start
+    /// of each week and from its first day, never mid-week. The cap above the recent pace is already in
+    /// the reading's suggestion.
+    private func applyFollowingWeeklyTargets(now: Date, calendar: Calendar) {
+        let weekStart = calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? now
+        let weekKey = PeriodGoalTracker.dayKey(weekStart, calendar: calendar)
+        for snapshot in snapshots {
+            guard case .sum(let data)? = snapshot.reading, let suggested = data.reading.suggestedWeeklyTarget
+            else { continue }
+            for child in PeriodGoalStore.shared.goals where child.parentGoalId == snapshot.id && child.followsParent
+                && child.isOpen && child.period == .week {
+                let lastChange = child.targetHistory.map(\.fromDay).max() ?? ""
+                guard lastChange < weekKey else { continue }
+                let step = child.metric.step(for: .week)
+                let target = max(step, (suggested / step).rounded(.up) * step)
+                PeriodGoalStore.shared.setTarget(child.id, target, today: weekKey, followed: true)
+            }
+        }
     }
 
     /// The inputs period goals need. Sources only some goals use (lifting log per day, hydration, the

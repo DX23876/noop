@@ -18,13 +18,14 @@ import AppKit
 enum GoalEventNotifier {
 
     enum Kind: String, CaseIterable, Identifiable {
-        case reached, streak, badge
+        case reached, streak, badge, milestone
         var id: String { rawValue }
         var label: String {
             switch self {
             case .reached: return String(localized: "A daily goal reached")
             case .streak:  return String(localized: "A streak in danger, in the evening")
             case .badge:   return String(localized: "A new badge")
+            case .milestone: return String(localized: "A long-term milestone reached")
             }
         }
     }
@@ -243,6 +244,48 @@ enum GoalEventNotifier {
         #else
         return false
         #endif
+    }
+
+    private static let milestoneCountsKey = "goals.notify.milestones"
+
+    /// A long-term goal passing a waypoint (plan Q25). Counted on every refresh and marked as seen
+    /// whether or not it is told, like the daily events; the first count of a goal only records where
+    /// it stands, so a goal that started past its first marks does not announce them.
+    static func evaluateLongTerm(_ snapshots: [GoalTrackingSnapshot], now: Date = Date(),
+                                 calendar: Calendar = .autoupdatingCurrent) {
+        var counts = (UserDefaults.standard.dictionary(forKey: milestoneCountsKey) as? [String: Int]) ?? [:]
+        var fresh: [String] = []
+        for snapshot in snapshots where snapshot.goal.status == .active {
+            guard let (window, metric) = milestones(snapshot.reading) else { continue }
+            let key = snapshot.id.uuidString
+            let reached = window.reachedCount
+            if let previous = counts[key], reached > previous, reached > 0 {
+                fresh.append(String(localized: "\(snapshot.displayTitle): \(LongTermFormat.value(window.values[reached - 1], metric))"))
+            }
+            counts[key] = reached
+        }
+        UserDefaults.standard.set(counts, forKey: milestoneCountsKey)
+
+        guard !fresh.isEmpty, isOn(.milestone), !workoutInProgress, !appIsActive else { return }
+        let day = GoalActionEvaluator.dayKey(now, calendar: calendar)
+        var state = dayState(day)
+        let minute = calendar.component(.hour, from: now) * 60 + calendar.component(.minute, from: now)
+        guard minute < latestMinute, !GoalNotifier.isQuiet(now, calendar: calendar), state.sent < dailyLimit
+        else { return }
+        post(id: "goal-milestone-\(day)-\(state.sent)",
+             title: fresh.count == 1 ? String(localized: "Milestone reached") : String(localized: "\(fresh.count) milestones reached"),
+             body: fresh.prefix(2).joined(separator: " · "), tickGoal: nil)
+        state.sent += 1
+        save(state)
+    }
+
+    private static func milestones(_ reading: GoalShapeReading?) -> (LongTermGoalMath.MilestoneWindow, LongTermMetric)? {
+        switch reading {
+        case .sum(let d)?: return d.milestones.map { ($0, d.metric) }
+        case .target(let d)?: return d.milestones.map { ($0, d.metric) }
+        case .best(let d)?: return d.milestones.map { ($0, .longestDistance) }
+        default: return nil
+        }
     }
 
     private static func post(id: String, title: String, body: String, tickGoal: GoalActionOccurrence?,

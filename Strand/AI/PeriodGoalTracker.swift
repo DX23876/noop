@@ -300,7 +300,7 @@ enum PeriodGoalTracker {
     }
 
     static func workoutMatches(_ goal: PeriodGoal, _ row: WorkoutRow) -> Bool {
-        guard GoalActionEvaluator.matches(row.sport, any: goal.sportFilter) else { return false }
+        guard GoalActionEvaluator.matches(row, any: goal.sportFilter) else { return false }
         switch goal.metric {
         case .distance:    return (row.distanceM ?? 0) > 0
         case .zoneMinutes: return WorkoutZones.percents(row.zonesJSON) != nil
@@ -310,7 +310,7 @@ enum PeriodGoalTracker {
 
     private static func notCountedReason(_ goal: PeriodGoal, _ row: WorkoutRow, matches: Bool,
                                          amount: Double?) -> String {
-        if !GoalActionEvaluator.matches(row.sport, any: goal.sportFilter) {
+        if !GoalActionEvaluator.matches(row, any: goal.sportFilter) {
             return String(localized: "\(row.sport) is not one of the sports this goal counts")
         }
         if matches { return String(localized: "You excluded it") }

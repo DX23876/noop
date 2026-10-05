@@ -6,6 +6,8 @@ import StrandAnalytics
 /// pushed onto a tab's stack, in the macOS sidebar, and inside the sheets the coach and Momentum open.
 enum GoalsRoute: Hashable {
     case detail(UUID)
+    /// A long-term goal from the catalog, on its own page.
+    case longTermDetail(UUID)
     case list(PeriodGoal.Period)
     case longTerm
     case archive
@@ -26,6 +28,7 @@ struct GoalsOverviewScreen: View {
         ScreenScaffold(title: "My goals", subtitle: "Tap a goal to change it.",
                        onRefresh: { await GoalTrackingStore.shared.refresh(repo: repo) },
                        topBackground: liquidScaffoldSky(),
+                       pinnedHeader: AnyView(GoalsFilterBar()),
                        trailing: {
                            HStack(spacing: 14) {
                                Button { showIntro = true } label: { Image(systemName: "questionmark.circle") }
@@ -89,6 +92,7 @@ extension View {
         navigationDestination(for: GoalsRoute.self) { route in
             switch route {
             case .detail(let id): PeriodGoalDetailView(goalId: id)
+            case .longTermDetail(let id): LongTermGoalPage(goalId: id)
             case .list(let period): PeriodGoalsListView(period: period)
             case .longTerm:
                 ScreenScaffold(title: "Long-term goals", subtitle: "Your targets, your pace, your progress.",
@@ -114,6 +118,8 @@ struct GoalsOverviewView: View {
     @ObservedObject private var drafts = CoachGoalSetupProposalStore.shared
     @AppStorage(GoalPrefs.crowdHintShownKey) private var crowdHintShown = false
     @AppStorage(HydrationStore.enabledKey) private var hydrationOn = false
+    @AppStorage(GoalPrefs.overviewFilterKey) private var filterRaw = GoalsOverviewFilter.all.rawValue
+    private var filter: GoalsOverviewFilter { GoalsOverviewFilter(rawValue: filterRaw) ?? .all }
 
     private enum Sheet: Identifiable {
         case journey(UUID), edit(UUID), dailyGoal(UUID?), slot(DailyGoalSheet.Slot), draft(UUID)
@@ -153,20 +159,36 @@ struct GoalsOverviewView: View {
             if !drafts.pending.isEmpty {
                 CoachSetupDraftsCard(proposals: drafts.pending) { sheet = .draft($0) }
             }
-            ringsHero
-            MissedGoalsBlock(inCard: true)
-            chainQuestions
-            linkOffers
-            if !crowdHintShown, snapshots(.week).count > GoalPrefs.crowdThreshold { crowdHint }
-            dailyList
-            periodList(.week)
-            periodList(.month)
-            longTermList
-            if let motivation = tracking.motivation {
-                AchievementsCard(motivation: motivation)
+            switch filter {
+            case .all:
+                ringsHero
+                MissedGoalsBlock(inCard: true)
+                chainQuestions
+                linkOffers
+                if !crowdHintShown, snapshots(.week).count > GoalPrefs.crowdThreshold { crowdHint }
+                dailyShortcut
+                periodList(.week, limit: Self.allLimit)
+                periodList(.month, limit: Self.allLimit)
+                longTermList(limit: Self.allLimit)
+                if let motivation = tracking.motivation {
+                    AchievementsCard(motivation: motivation)
+                }
+                reviewSection
+                if !paused.isEmpty { pausedSection }
+            case .today:
+                ringsHero
+                MissedGoalsBlock(inCard: true)
+                dailyList
+            case .week:
+                chainQuestions
+                periodList(.week)
+            case .month:
+                periodList(.month)
+            case .longTerm:
+                linkOffers
+                longTermList(limit: nil)
+                if !paused.isEmpty { pausedSection }
             }
-            reviewSection
-            if !paused.isEmpty { pausedSection }
             NavigationLink(value: GoalsRoute.settings) {
                 Label("Goal settings", systemImage: "gearshape")
                     .font(StrandFont.footnote).foregroundStyle(StrandPalette.accent)
@@ -420,8 +442,45 @@ struct GoalsOverviewView: View {
         }
     }
 
-    private func periodList(_ period: PeriodGoal.Period) -> some View {
-        let items = snapshots(period)
+    /// How many goals "All" shows per section (plan Q2, Q31); the rest is one chip away.
+    static let allLimit = 2
+
+    /// Under "All" the daily goals are summed up by the rings; this line leads to the full list.
+    @ViewBuilder
+    private var dailyShortcut: some View {
+        let count = actions.actions.filter { $0.isActive && !$0.hasEnded(today: today) }.count
+        if count > 0 {
+            moreRow(String(localized: "All daily goals (\(count))"), filter: .today)
+        }
+    }
+
+    /// "+2 more" under a section shortened by "All": switches the chip to that section.
+    private func moreRow(_ title: String, filter target: GoalsOverviewFilter) -> some View {
+        Button {
+            filterRaw = target.rawValue
+            StrandHaptic.selection.play()
+        } label: {
+            HStack(spacing: 6) {
+                Text(title).font(StrandFont.footnote.weight(.semibold))
+                Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold))
+                Spacer()
+            }
+            .foregroundStyle(StrandPalette.accent)
+            .padding(.vertical, 6)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// The goals a shortened section shows first: the ones that need attention, in their own order.
+    private func attentionFirst(_ items: [PeriodGoalSnapshot]) -> [PeriodGoalSnapshot] {
+        items.filter { GoalStatusStyle.needsAttention($0.state) } + items.filter { !GoalStatusStyle.needsAttention($0.state) }
+    }
+
+    private func periodList(_ period: PeriodGoal.Period, limit: Int? = nil) -> some View {
+        let all = snapshots(period)
+        let items = limit.map { Array(attentionFirst(all).prefix($0)) } ?? all
+        let hidden = all.count - items.count
         let days = items.first?.periodDays
             ?? PeriodGoalTracker.periodDays(period, containing: today, calendar: TrainingPreferences.weekCalendar)
         let left = days.filter { $0 >= today }.count
@@ -448,6 +507,9 @@ struct GoalsOverviewView: View {
                 .buttonStyle(.plain)
                 .contextMenu { periodMenu(snapshot) }
             }
+            if hidden > 0 {
+                moreRow(String(localized: "\(hidden) more"), filter: period == .week ? .week : .month)
+            }
             NavigationLink(value: GoalsRoute.setup(period)) {
                 addRow(period == .week ? String(localized: "Add a weekly goal") : String(localized: "Add a monthly goal"))
             }
@@ -467,23 +529,40 @@ struct GoalsOverviewView: View {
         return parts.joined(separator: " · ")
     }
 
-    private var longTermList: some View {
-        listSection(String(localized: "Long-term"), route: longTerm.isEmpty ? nil : .longTerm,
-                    isEmpty: longTerm.isEmpty) {
-            ForEach(longTerm) { snapshot in
-                let style = GoalStatusStyle.of(snapshot.health)
-                Button { sheet = .journey(snapshot.id) } label: {
-                    GoalListRow(icon: snapshot.goal.kind.icon,
-                                tint: appleColors ? CoachIconColors.color(for: "coach.goal.\(snapshot.goal.kind.rawValue)")
-                                                  : StrandPalette.accent,
-                                title: snapshot.displayTitle,
-                                subtitle: longTermSubtitle(snapshot, style: style),
-                                subtitleTint: snapshot.health == .onTrack || snapshot.health == .building
-                                    ? StrandPalette.textSecondary : style.foreground,
-                                value: snapshot.goal.target.map {
-                                    "\(GoalTrackingSnapshot.amountText($0, snapshot.goal.kind)) \(snapshot.goal.kind.displayUnit)"
-                                } ?? "",
-                                progress: snapshot.progressFraction)
+    /// Pinned first, then the ones that need a look, then the rest (plan Q31).
+    private func longTermOrdered() -> [GoalTrackingSnapshot] {
+        let pinned = GoalPrefs.pinnedLongTermIds
+        func rank(_ s: GoalTrackingSnapshot) -> Int {
+            if pinned.contains(s.id) { return 0 }
+            switch s.health {
+            case .atRisk, .attention, .decisionNeeded: return 1
+            default: return 2
+            }
+        }
+        return longTerm.enumerated().sorted { a, b in
+            rank(a.element) != rank(b.element) ? rank(a.element) < rank(b.element) : a.offset < b.offset
+        }.map(\.element)
+    }
+
+    /// Catalog goals as compact hero cards that open their page; goals measured by kind keep their row
+    /// and their journey.
+    private func longTermList(limit: Int?) -> some View {
+        let ordered = longTermOrdered()
+        let items = limit.map { Array(ordered.prefix($0)) } ?? ordered
+        let hidden = ordered.count - items.count
+        return VStack(alignment: .leading, spacing: 8) {
+            sectionHeader(String(localized: "Long-term"))
+            ForEach(items) { snapshot in
+                Group {
+                    if let content = LongTermGoalContent(snapshot) {
+                        NavigationLink(value: GoalsRoute.longTermDetail(snapshot.id)) {
+                            LongTermGoalHero(snapshot: snapshot, content: content, compact: true)
+                        }
+                    } else {
+                        NoopCard(padding: 12) {
+                            Button { sheet = .journey(snapshot.id) } label: { legacyLongTermRow(snapshot) }
+                        }
+                    }
                 }
                 .buttonStyle(.plain)
                 .contextMenu {
@@ -498,11 +577,30 @@ struct GoalsOverviewView: View {
                     }
                 }
             }
-            NavigationLink { CoachGoalOnboardingFlow(pushed: true) } label: {
+            if hidden > 0 {
+                moreRow(String(localized: "\(hidden) more"), filter: .longTerm)
+            }
+            NavigationLink { LongTermGoalSetupView(onDone: refresh) } label: {
                 addRow(String(localized: "Add a long-term goal"))
             }
             .buttonStyle(.plain)
+            .padding(.horizontal, 2)
         }
+    }
+
+    private func legacyLongTermRow(_ snapshot: GoalTrackingSnapshot) -> some View {
+        let style = GoalStatusStyle.of(snapshot.health)
+        return GoalListRow(icon: snapshot.goal.kind.icon,
+                           tint: appleColors ? CoachIconColors.color(for: "coach.goal.\(snapshot.goal.kind.rawValue)")
+                                             : StrandPalette.accent,
+                           title: snapshot.displayTitle,
+                           subtitle: longTermSubtitle(snapshot, style: style),
+                           subtitleTint: snapshot.health == .onTrack || snapshot.health == .building
+                               ? StrandPalette.textSecondary : style.foreground,
+                           value: snapshot.goal.target.map {
+                               "\(GoalTrackingSnapshot.amountText($0, snapshot.goal.kind)) \(snapshot.goal.kind.displayUnit)"
+                           } ?? "",
+                           progress: snapshot.progressFraction)
     }
 
     private func longTermSubtitle(_ snapshot: GoalTrackingSnapshot, style: GoalStatusStyle) -> String {
@@ -719,5 +817,34 @@ struct GoalsOverviewView: View {
             periodGoals.end(snapshot.id)
             refresh()
         }
+    }
+}
+
+/// The goals overview's filter chips (plan Q2): everything, or one period at a time.
+enum GoalsOverviewFilter: String, CaseIterable {
+    case all, today, week, month, longTerm
+
+    var label: String {
+        switch self {
+        case .all:      return String(localized: "All")
+        case .today:    return String(localized: "Today")
+        case .week:     return String(localized: "Week")
+        case .month:    return String(localized: "Month")
+        case .longTerm: return String(localized: "Long-term")
+        }
+    }
+}
+
+/// The chips as the overview pins them above its content: on the page colour, so the cards scrolling
+/// under them do not show through.
+struct GoalsFilterBar: View {
+    @AppStorage(GoalPrefs.overviewFilterKey) private var raw = GoalsOverviewFilter.all.rawValue
+
+    var body: some View {
+        GoalFilterChips(chips: GoalsOverviewFilter.allCases.map { .init(id: $0.rawValue, label: $0.label) },
+                        selection: $raw)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(StrandPalette.surfaceBase.opacity(0.96).padding(.horizontal, -NoopMetrics.screenHPadding))
     }
 }

@@ -211,7 +211,7 @@ struct GuidedPeriodGoalSetup: View {
             }
             navigationButtons
         }
-        .navigationDestination(isPresented: $showLongTerm) { CoachGoalOnboardingFlow(pushed: true) }
+        .navigationDestination(isPresented: $showLongTerm) { LongTermGoalSetupView(onDone: onDone) }
         .onAppear(perform: configure)
     }
 

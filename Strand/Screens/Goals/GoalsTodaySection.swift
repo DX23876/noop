@@ -34,11 +34,14 @@ struct GoalsTodaySection: View {
     private enum Sheet: Identifiable {
         case attribution(GoalWorkoutAttributionSuggestion)
         case journey(UUID)
+        /// A catalog goal's page, which Today shows as a sheet (its stack does not carry goal routes).
+        case page(UUID)
         case edit(UUID)
         var id: String {
             switch self {
             case .attribution(let s): return "attribution-\(s.id)"
             case .journey(let id):    return "journey-\(id)"
+            case .page(let id):       return "page-\(id)"
             case .edit(let id):       return "edit-\(id)"
             }
         }
@@ -166,12 +169,22 @@ struct GoalsTodaySection: View {
             let style = snapshot.health == .atRisk
                 ? GoalStatusStyle(word: base.word, wordText: base.wordText, symbol: base.symbol, tone: .warning)
                 : base
-            Button { sheet = .journey(snapshot.id) } label: {
-                compactRow(icon: snapshot.goal.kind.icon,
+            // A catalog goal says where it stands in its own terms ("642 km of 1,000 km · On track") and
+            // opens its page; a goal measured by kind keeps its next step and its journey.
+            let content = LongTermGoalContent(snapshot)
+            Button { sheet = content == nil ? .journey(snapshot.id) : .page(snapshot.id) } label: {
+                compactRow(icon: GoalCatalog.template(for: snapshot.goal)?.icon ?? snapshot.goal.kind.icon,
                            tint: CoachIconColors.color(for: "coach.goal.\(snapshot.goal.kind.rawValue)"),
                            title: snapshot.displayTitle,
-                           detail: snapshot.localizedNextAction,
-                           style: style, fraction: snapshot.progressFraction)
+                           detail: content.map { c in
+                               ([c.heroValue] + [c.heroCaption].compactMap { $0 }).joined(separator: " ")
+                                   + " · " + c.style.wordText
+                           } ?? snapshot.localizedNextAction,
+                           style: content.map { c in c.style.tone == .critical
+                               ? GoalStatusStyle(word: c.style.word, wordText: c.style.wordText,
+                                                 symbol: c.style.symbol, tone: .warning)
+                               : c.style } ?? style,
+                           fraction: snapshot.displayProgress)
             }
             .buttonStyle(.plain)
             .contextMenu {
@@ -285,6 +298,8 @@ struct GoalsTodaySection: View {
             GoalWorkoutAttributionSheet(suggestion: suggestion) { Task { await tracking.refresh(repo: repo) } }
         case .journey(let id):
             JourneyView(goalId: id)
+        case .page(let id):
+            NavigationStack { LongTermGoalPage(goalId: id) }
         case .edit(let id):
             PeriodGoalEditSheet(goalId: id) { Task { await tracking.refresh(repo: repo) } }
         }

@@ -21,6 +21,9 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
     /// Optional full-bleed view drawn behind the scroll content at the TOP of the screen (e.g. Today's
     /// day-cycle scene). Defaults to nil so other screens stay on the flat canvas; nil renders nothing.
     var topBackground: AnyView? = nil
+    /// Optional bar that stays at the top while the content scrolls under it (the goals overview's
+    /// filter chips). Nil keeps the plain column, so every other screen lays out exactly as before.
+    var pinnedHeader: AnyView? = nil
     /// Optional element pinned to the header's trailing edge (e.g. the strap-battery badge on Today).
     /// Defaults to `EmptyView` via the convenience init below, so other screens are unaffected.
     @ViewBuilder var trailing: () -> Trailing
@@ -129,7 +132,16 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
     /// alignment/spacing/header are identical in both branches, so the non-lazy path is byte-for-byte
     /// the previous layout. `@ViewBuilder` lets the two stack types resolve to one opaque return.
     @ViewBuilder private var column: some View {
-        if lazy {
+        if let pinnedHeader {
+            LazyVStack(alignment: .leading, spacing: contentSpacing, pinnedViews: [.sectionHeaders]) {
+                if title != nil || subtitle != nil { header }
+                Section {
+                    content()
+                } header: {
+                    pinnedHeader
+                }
+            }
+        } else if lazy {
             LazyVStack(alignment: .leading, spacing: contentSpacing) {
                 if title != nil || subtitle != nil { header }
                 content()
