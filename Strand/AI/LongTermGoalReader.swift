@@ -60,6 +60,9 @@ enum GoalShapeReading: Equatable {
         let reading: LongTermGoalMath.AdherenceReading
         let weeklyGoalId: UUID
         let weeklyTarget: Double
+        /// What the weekly goal counts, and its per-day bar (steps, hours of sleep) where it has one.
+        let weeklyMetric: PeriodMetric
+        let weeklyThreshold: Double?
         let thisWeek: Double
         /// The last eight finished weeks, oldest first, with the day key each one starts on.
         let lastWeeks: [PeriodOutcome]
@@ -125,6 +128,9 @@ struct LongTermReaderInputs {
     var weight: GoalMeasurement?
     /// The smoothed weight series the course fit reads.
     var weightSamples: [GoalMilestones.Sample] = []
+    /// The other target-value series, one reading per day where the source has one: resting heart rate,
+    /// VO2max, body fat, lean mass, waist. Raw readings; `LongTermGoalReader` averages them itself.
+    var series: [LongTermMetric: [GoalMilestones.Sample]] = [:]
 }
 
 /// Turns a catalog goal (`CoachGoal.measure`) into its `GoalShapeReading`. Pure apart from the inputs it
@@ -155,12 +161,15 @@ enum LongTermGoalReader {
                   let weekly = periodSnapshots.first(where: { $0.id == id }) else { return nil }
             return consistency(goal: goal, spec: spec, weeklyGoalId: id, history: weekly.history,
                                thisWeek: weekly.result.current, weeklyTarget: weekly.goal.target,
+                               weeklyMetric: weekly.goal.metric, weeklyThreshold: weekly.goal.threshold,
                                workouts: weekly.goal.isWorkoutBasedWeekly ? matching(inputs.workouts, weekly.goal.sportFilter) : [],
                                now: now, calendar: calendar)
         case .sleepAverage, .hrvAverage, .recoveryAverage:
             return average(goal: goal, metric: spec.metric, days: inputs.days, now: now, calendar: calendar)
-        case .paceAverage, .bodyFat, .leanMass, .waist, .vo2max, .restingHr:
-            return nil
+        case .paceAverage:
+            return pace(goal: goal, workouts: inputs.workouts, now: now)
+        case .bodyFat, .leanMass, .waist, .vo2max, .restingHr:
+            return level(goal: goal, metric: spec.metric, samples: inputs.series[spec.metric] ?? [], now: now)
         }
     }
 
@@ -241,6 +250,100 @@ enum LongTermGoalReader {
         }
     }
 
+    /// How a series other than weight is read: the window its level is averaged over, how many readings
+    /// that level needs before it is judged, and the window and minimum its trend is fitted with. Resting
+    /// heart rate arrives nightly; VO2max about weekly; body measurements whenever the wearer takes them.
+    struct LevelRule {
+        let windowDays: Int
+        let minValues: Int
+        let rateWindowDays: Int
+        let rateMinPoints: Int
+        /// The finest step the value is shown in: waypoints are never finer, and a change below half of
+        /// it in a month reads as flat rather than as a direction.
+        let resolution: Double
+    }
+
+    static func levelRule(_ metric: LongTermMetric) -> LevelRule {
+        switch metric {
+        // A lower resting heart rate only means something once it holds: the level is four weeks of
+        // nights, not a good week, so "reached" says it was kept.
+        case .restingHr:
+            return LevelRule(windowDays: 28, minValues: 14, rateWindowDays: 56, rateMinPoints: 14, resolution: 1)
+        case .vo2max:
+            return LevelRule(windowDays: 21, minValues: 2, rateWindowDays: 84, rateMinPoints: 4, resolution: 0.5)
+        case .waist:
+            return LevelRule(windowDays: 30, minValues: 2, rateWindowDays: 90, rateMinPoints: 3, resolution: 1)
+        default:
+            return LevelRule(windowDays: 30, minValues: 2, rateWindowDays: 90, rateMinPoints: 3, resolution: 0.5)
+        }
+    }
+
+    /// A target value read from a series other than weight. The same reading as weight (milestones, next
+    /// mark, arrival), with the level averaged over the series' own window instead of the weight trend.
+    static func level(goal: CoachGoal, metric: LongTermMetric, samples: [GoalMilestones.Sample],
+                      now: Date) -> GoalShapeReading? {
+        guard let baseline = goal.baseline, let target = goal.target, baseline != target else { return nil }
+        let rule = levelRule(metric)
+        guard let level = LongTermGoalMath.level(samples: samples, now: now, windowDays: rule.windowDays,
+                                                 minValues: rule.minValues) else { return nil }
+        let current = level.value
+        let fitted = GoalMilestones.observedRatePerDay(series: samples, now: now, windowDays: rule.rateWindowDays,
+                                                       minimumPoints: rule.rateMinPoints)
+        // A drift too small to show in the value's own step within a month is no direction yet.
+        let isFlat = fitted.map { abs($0 * 30.44) < rule.resolution / 2 } ?? false
+        let rate = isFlat ? nil : fitted
+        let steps = Int((abs(target - baseline) / rule.resolution).rounded(.down))
+        let window = LongTermGoalMath.milestoneWindow(
+            baseline: baseline, target: target, current: current,
+            preferredCount: min(LongTermGoalMath.undatedPreferredCount, max(1, steps)))
+        let nextDate = window?.next.flatMap {
+            LongTermGoalMath.projectedDate(current: current, mark: $0, ratePerDay: rate, now: now)
+        }
+        let arrival: Date?
+        var state: PeriodGoalState?
+        if let targetDate = goal.targetDate {
+            let course = GoalMilestones.course(baseline: baseline, target: target, createdAt: goal.createdAt,
+                                               targetDate: targetDate, current: current, series: samples, now: now,
+                                               rateWindowDays: rule.rateWindowDays,
+                                               minimumRatePoints: rule.rateMinPoints)
+            arrival = course?.projectedDate
+            state = course.map { courseState($0.verdict) }
+            let reached = target > baseline ? current >= target : current <= target
+            if reached { state = .achieved }
+        } else {
+            arrival = LongTermGoalMath.projectedDate(current: current, mark: target, ratePerDay: rate, now: now)
+            state = LongTermGoalMath.undatedState(baseline: baseline, target: target, current: current, ratePerDay: rate)
+        }
+        if level.isProvisional, state != .achieved { state = .starting }
+        // Flat and not reached: shown as running, neither on track nor behind.
+        if isFlat, state != .achieved, !level.isProvisional, goal.targetDate == nil { state = nil }
+        let progress = min(1, max(0, (current - baseline) / (target - baseline)))
+        return .target(.init(metric: metric, current: current, baseline: baseline, target: target,
+                             progress: progress, ratePerWeek: isFlat ? 0 : rate.map { $0 * 7 }, milestones: window,
+                             nextMarkDate: nextDate, arrivalDate: arrival,
+                             isProvisional: level.isProvisional, state: state))
+    }
+
+    /// "Run faster": the 28-day pace of runs from 3 km, lower is better. The band is each run's pace
+    /// over the last 28 days, oldest first, so the columns read like the other averages.
+    static func pace(goal: CoachGoal, workouts: [WorkoutRow], now: Date) -> GoalShapeReading? {
+        guard let target = goal.target, target > 0 else { return nil }
+        let runs = matching(workouts, ["Running"]).compactMap { row -> LongTermGoalMath.RunSample? in
+            guard let meters = row.distanceM, meters > 0 else { return nil }
+            let seconds = row.durationS ?? Double(max(0, row.endTs - row.startTs))
+            return LongTermGoalMath.RunSample(date: Date(timeIntervalSince1970: Double(row.startTs)),
+                                              distanceM: meters, durationS: seconds)
+        }
+        let reading = LongTermGoalMath.paceAverage(runs: runs, targetSecondsPerKm: target, now: now)
+        let cutoff = now.addingTimeInterval(-28 * 86_400)
+        let recent = runs.filter { $0.date > cutoff && $0.distanceM >= 3_000 && $0.durationS > 0 }
+            .sorted { $0.date < $1.date }
+            .map { Optional($0.durationS / ($0.distanceM / 1_000)) }
+        let best = recent.compactMap { $0 }.min()
+        return .average(.init(metric: .paceAverage, reading: reading, days: recent, target: target,
+                              higherIsBetter: false, bestWeekMean: best))
+    }
+
     // MARK: - Best value
 
     static func best(goal: CoachGoal, spec: GoalMeasureSpec, inputs: LongTermReaderInputs, now: Date,
@@ -272,6 +375,7 @@ enum LongTermGoalReader {
 
     static func consistency(goal: CoachGoal, spec: GoalMeasureSpec, weeklyGoalId: UUID,
                             history: [PeriodGoalSnapshot.HistoryEntry], thisWeek: Double, weeklyTarget: Double,
+                            weeklyMetric: PeriodMetric = .workouts, weeklyThreshold: Double? = nil,
                             workouts: [WorkoutRow], now: Date, calendar: Calendar) -> GoalShapeReading {
         // A goal with a fixed end judges only its own weeks; an open one the rolling window, which may
         // reach back before the goal was set because the weekly goal's history does.
@@ -296,6 +400,7 @@ enum LongTermGoalReader {
             .map { dayKey(Date(timeIntervalSince1970: Double($0.startTs)), calendar) }
         let weekday = LongTermGoalMath.strongestWeekday(eventDays: eventDays)
         return .consistency(.init(reading: reading, weeklyGoalId: weeklyGoalId, weeklyTarget: weeklyTarget,
+                                  weeklyMetric: weeklyMetric, weeklyThreshold: weeklyThreshold,
                                   thisWeek: thisWeek, lastWeeks: last.map(\.outcome),
                                   lastWeekStarts: last.map(\.periodStart),
                                   averagePerWeek: mean(last), previousAveragePerWeek: mean(earlier),

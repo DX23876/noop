@@ -155,7 +155,9 @@ public enum GoalMilestones {
                               createdAt: Date, targetDate: Date,
                               current: Double,
                               series: [Sample],
-                              now: Date) -> Course? {
+                              now: Date,
+                              rateWindowDays: Int = rateWindowDays,
+                              minimumRatePoints: Int = minimumRatePoints) -> Course? {
         guard baseline.isFinite, target.isFinite, baseline != target,
               targetDate > createdAt, current.isFinite else { return nil }
 
@@ -170,7 +172,8 @@ public enum GoalMilestones {
         let towardGoal = (target > baseline) ? 1.0 : -1.0
         let progressDeviation = deviation * towardGoal
 
-        guard let rate = observedRatePerDay(series: series, now: now) else {
+        guard let rate = observedRatePerDay(series: series, now: now, windowDays: rateWindowDays,
+                                            minimumPoints: minimumRatePoints) else {
             return Course(plannedNow: plannedNow, deviation: deviation, observedRatePerDay: nil,
                           projectedDate: nil, daysLate: nil, verdict: .notEnoughData)
         }
@@ -206,12 +209,15 @@ public enum GoalMilestones {
 
     /// Least-squares slope in units per day over the recent window. Nil when the window is too short
     /// or too sparse to fit a line worth trusting.
+    /// `minimumPoints` lets a sparse series (runs, body measurements) fit with fewer readings than the
+    /// daily weight series the default is set for.
     public static func observedRatePerDay(series: [Sample], now: Date,
-                                          windowDays: Int = rateWindowDays) -> Double? {
+                                          windowDays: Int = rateWindowDays,
+                                          minimumPoints: Int = minimumRatePoints) -> Double? {
         let cutoff = now.addingTimeInterval(-Double(windowDays) * 86_400)
         let window = series.filter { $0.date >= cutoff && $0.date <= now && $0.value.isFinite }
             .sorted { $0.date < $1.date }
-        guard window.count >= minimumRatePoints,
+        guard window.count >= minimumPoints,
               let first = window.first, let last = window.last else { return nil }
         let spanDays = last.date.timeIntervalSince(first.date) / 86_400
         guard spanDays >= Double(minimumRateDays) else { return nil }

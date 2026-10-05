@@ -618,8 +618,11 @@ final class GoalTrackingStore: ObservableObject {
                                                            cfg: GoalMeasure.weightTrend))
             .map { GoalMilestones.Sample(date: $0.date, value: $1) }
         let unresolved = Set(resolutions.map(\.proposalId))
+        let levelMetrics = Set(CoachGoalStore.shared.goals.compactMap { $0.measure?.metric })
+        let levelSeries = await loadLevelSeries(repo: repo, metrics: levelMetrics)
         let readerInputs = LongTermReaderInputs(workouts: workouts, days: repo.days, stepsByDay: stepsByDay,
-                                                weight: measurementByKind[.weight], weightSamples: weightSamples)
+                                                weight: measurementByKind[.weight], weightSamples: weightSamples,
+                                                series: levelSeries)
         snapshots = CoachGoalStore.shared.goals.map { goal in
             let snapshot = GoalTrackingEngine.evaluate(goal: goal, proposals: proposals,
                                         actionOccurrences: actionOccurrences,
@@ -692,6 +695,35 @@ final class GoalTrackingStore: ObservableObject {
     }
 
     /// Everything, for recommendations in the setup flow.
+    /// The target-value series catalog goals read besides weight (`LongTermReaderInputs.series`):
+    /// resting heart rate from the nightly metrics, VO2max from the strap's estimate (Apple Health's when
+    /// the strap has none), body fat, lean mass and waist from the body-measurement resolver. Read only
+    /// for the metrics asked for, so a refresh without such goals reads nothing extra.
+    func loadLevelSeries(repo: Repository, metrics: Set<LongTermMetric>) async -> [LongTermMetric: [GoalMilestones.Sample]] {
+        var out: [LongTermMetric: [GoalMilestones.Sample]] = [:]
+        func samples(_ rows: [(day: String, value: Double)]) -> [GoalMilestones.Sample] {
+            rows.compactMap { row in parseDay(row.day).map { GoalMilestones.Sample(date: $0, value: row.value) } }
+        }
+        if metrics.contains(.restingHr) {
+            out[.restingHr] = samples(repo.days.compactMap { day in
+                day.restingHr.flatMap { $0 > 0 ? (day.day, Double($0)) : nil }
+            })
+        }
+        if metrics.contains(.vo2max) {
+            let strap = await repo.exploreSeries(key: "vo2max_est", source: Repository.whoopSource, days: 400)
+            let apple = strap.isEmpty ? await repo.exploreSeries(key: "vo2max", source: Repository.appleHealthSource, days: 400) : []
+            out[.vo2max] = samples(strap.isEmpty ? apple : strap)
+        }
+        let bodyKeys: [(LongTermMetric, String)] = [(.bodyFat, "body_fat"), (.leanMass, "lean_mass"), (.waist, "waist")]
+        if bodyKeys.contains(where: { metrics.contains($0.0) }) {
+            let body = await repo.bodyMetrics(days: 400)
+            for (metric, key) in bodyKeys where metrics.contains(metric) {
+                out[metric] = samples(body.series(key).map { ($0.day, $0.value) })
+            }
+        }
+        return out
+    }
+
     func loadFullPeriodInputs(repo: Repository, now: Date = Date()) async -> PeriodGoalInputs {
         await periodGoalInputs(repo: repo, workouts: await repo.workoutRows(days: 400, reconcileHrCap: 0),
                                activeKcalByDay: await repo.activeEnergyByDay(days: 400),

@@ -457,6 +457,75 @@ public enum LongTermGoalMath {
         return (duration / (distance / 1000), counted.count)
     }
 
+    /// Pace as an average-shaped reading for a "run faster" goal (lower is better): the weighted pace of
+    /// the window's qualifying runs, the runs at or under the target pace, and a monthly trend fitted on
+    /// each run's own pace. Runs are sparse, so the minimums count runs, not days.
+    public static let paceMinRuns = 2
+    public static let paceTrendMinRuns = 4
+
+    public static func paceAverage(runs: [RunSample], targetSecondsPerKm: Double, minDistanceM: Double = 3_000,
+                                   now: Date, windowDays: Int = 28) -> AverageReading {
+        let qualifying = runs.filter {
+            $0.distanceM >= minDistanceM && $0.durationS > 0 && $0.distanceM.isFinite && $0.durationS.isFinite
+        }
+        let windowed = pace(runs: qualifying, minDistanceM: minDistanceM, now: now, windowDays: windowDays)
+        let mean = windowed.flatMap { $0.runs >= paceMinRuns ? $0.secondsPerKm : nil }
+        let samples = qualifying.map { GoalMilestones.Sample(date: $0.date, value: $0.durationS / ($0.distanceM / 1000)) }
+        let inWindow = recent(samples, now: now, days: windowDays)
+        let atTarget = inWindow.filter { $0.value <= targetSecondsPerKm + 1e-9 }.count
+
+        let trendSamples = recent(samples, now: now, days: trendWindowDays)
+        let rate = trendSamples.count >= paceTrendMinRuns
+            ? GoalMilestones.observedRatePerDay(series: trendSamples, now: now, windowDays: trendWindowDays,
+                                                minimumPoints: paceTrendMinRuns)
+            : nil
+        let perMonth = rate.map { $0 * daysPerMonth }
+        let gap = mean.map { max(0, $0 - targetSecondsPerKm) }
+
+        let state: PeriodGoalState
+        if let mean {
+            if mean <= targetSecondsPerKm + 1e-9 {
+                state = .achieved
+            } else if let perMonth {
+                if abs(perMonth) < targetSecondsPerKm * flatTrendShare {
+                    state = (gap ?? 0) <= targetSecondsPerKm * averageCloseShare ? .close : .behind
+                } else {
+                    state = perMonth < 0 ? .onTrack : .behind
+                }
+            } else {
+                state = .starting
+            }
+        } else {
+            state = .noData
+        }
+        return AverageReading(mean: mean, values: inWindow.count, atTarget: atTarget, gap: gap,
+                              trendPerMonth: perMonth, state: state)
+    }
+
+    // MARK: - Level of a sparse series
+
+    /// Where a measured series stands now, for target-value goals that are not weight: the mean of the
+    /// readings inside the window, so one reading cannot swing the verdict. Fewer than `minValues`
+    /// readings still give a value, marked provisional: it is shown, never judged.
+    public struct Level: Equatable, Sendable {
+        public let value: Double
+        public let readings: Int
+        public let isProvisional: Bool
+    }
+
+    public static func level(samples: [GoalMilestones.Sample], now: Date, windowDays: Int,
+                             minValues: Int) -> Level? {
+        let window = recent(samples, now: now, days: windowDays)
+        if window.isEmpty {
+            // Nothing recent: the latest reading still says where the wearer stood, provisionally.
+            guard let last = samples.filter({ $0.date <= now && $0.value.isFinite }).max(by: { $0.date < $1.date })
+            else { return nil }
+            return Level(value: last.value, readings: 1, isProvisional: true)
+        }
+        let mean = window.map(\.value).reduce(0, +) / Double(window.count)
+        return Level(value: mean, readings: window.count, isProvisional: window.count < minValues)
+    }
+
     // MARK: - Helpers
 
     static func recent(_ samples: [GoalMilestones.Sample], now: Date, days: Int) -> [GoalMilestones.Sample] {

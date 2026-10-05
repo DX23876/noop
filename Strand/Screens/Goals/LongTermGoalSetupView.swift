@@ -37,13 +37,20 @@ struct LongTermGoalSetupView: View {
     @State private var motivation = ""
     @State private var riskReason = ""
 
+    @State private var threshold: Double = 0
+    @State private var band: Double = 1
+    @State private var habitKey: String?
+    @State private var habitWantsYes = true
+
     @State private var inputs = PeriodGoalInputs()
+    @State private var series: [LongTermMetric: [GoalMilestones.Sample]] = [:]
     @State private var currentWeight: Double?
     @State private var loaded = false
     @State private var replaceCandidateId: UUID?
     @State private var showReplace = false
     @State private var showLimit = false
     @State private var showRisk = false
+    @StateObject private var journal = JournalCatalogStore()
 
     private var calendar: Calendar { TrainingPreferences.weekCalendar }
     private var now: Date { Date() }
@@ -88,12 +95,18 @@ struct LongTermGoalSetupView: View {
         guard !loaded else { return }
         loaded = true
         inputs = await tracking.loadFullPeriodInputs(repo: repo)
+        series = await tracking.loadLevelSeries(repo: repo, metrics: [.restingHr, .vo2max, .bodyFat, .leanMass, .waist])
         let weights = await repo.weightDailyValues(days: GoalMeasure.weightWindowDays)
         currentWeight = GoalMeasure.smoothedTrend(weights.map(\.value), cfg: GoalMeasure.weightTrend)?.value
     }
 
+    private var metric: LongTermMetric? { template?.id.metric }
+    private var weeklyMetric: PeriodMetric? { template?.id.weeklyMetric }
+
     private var sportFilter: [String] {
-        guard let template, template.sportChoices.indices.contains(sportIndex) else { return [] }
+        guard let template else { return [] }
+        if template.id == .event || template.id == .paceAverage { return ["Running"] }
+        guard template.sportChoices.indices.contains(sportIndex) else { return [] }
         return template.sportChoices[sportIndex].filter
     }
 
@@ -101,19 +114,34 @@ struct LongTermGoalSetupView: View {
         inputs.workouts.filter { GoalActionEvaluator.matches($0, any: sportFilter) }
     }
 
-    /// Kilometres (or sessions) per week over the last four complete weeks, in the chosen sports.
-    private func recentWeekly(_ amount: (WorkoutRow) -> Double?) -> Double {
-        let weekStart = calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? now
-        let from = calendar.date(byAdding: .weekOfYear, value: -4, to: weekStart) ?? weekStart
-        let total = matchingRows().filter {
-            let date = Date(timeIntervalSince1970: Double($0.startTs))
-            return date >= from && date < weekStart
-        }.compactMap(amount).reduce(0, +)
-        return total / 4
+    /// What a workout adds to a sum goal: kilometres, minutes or one session.
+    private func amount(_ row: WorkoutRow) -> Double? {
+        guard let metric else { return nil }
+        return LongTermGoalReader.amount(metric, row)
     }
 
-    private var recentKmPerWeek: Double { recentWeekly { ($0.distanceM ?? 0) / 1_000 } }
-    private var recentSessionsPerWeek: Double { recentWeekly { _ in 1 } }
+    private var weekStart: Date { calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? now }
+
+    /// The amount per week over the last four complete weeks: kilometres, minutes, sessions or steps.
+    private var recentPerWeek: Double {
+        let from = calendar.date(byAdding: .weekOfYear, value: -4, to: weekStart) ?? weekStart
+        if metric == .stepsTotal {
+            let fromKey = Repository.localDayKey(from), toKey = Repository.localDayKey(weekStart)
+            return Double(inputs.stepsByDay.filter { $0.key >= fromKey && $0.key < toKey }.values.reduce(0, +)) / 4
+        }
+        return matchingRows().filter {
+            let date = Date(timeIntervalSince1970: Double($0.startTs))
+            return date >= from && date < weekStart
+        }.compactMap(amount).reduce(0, +) / 4
+    }
+
+    private var recentSessionsPerWeek: Double {
+        let from = calendar.date(byAdding: .weekOfYear, value: -4, to: weekStart) ?? weekStart
+        return Double(matchingRows().filter {
+            let date = Date(timeIntervalSince1970: Double($0.startTs))
+            return date >= from && date < weekStart
+        }.count) / 4
+    }
 
     private var yearStart: Date {
         Calendar.autoupdatingCurrent.date(from: Calendar.autoupdatingCurrent.dateComponents([.year], from: now)) ?? now
@@ -122,8 +150,13 @@ struct LongTermGoalSetupView: View {
     private var countFrom: Date { countFromYearStart ? yearStart : Calendar.autoupdatingCurrent.startOfDay(for: now) }
 
     private var collectedSoFar: Double {
+        guard countFromYearStart else { return 0 }
+        if metric == .stepsTotal {
+            let fromKey = Repository.localDayKey(countFrom)
+            return Double(inputs.stepsByDay.filter { $0.key >= fromKey }.values.reduce(0, +))
+        }
         let from = countFrom.timeIntervalSince1970
-        return matchingRows().filter { Double($0.startTs) >= from }.reduce(0) { $0 + ($1.distanceM ?? 0) / 1_000 }
+        return matchingRows().filter { Double($0.startTs) >= from }.compactMap(amount).reduce(0, +)
     }
 
     private var weeksToEnd: Double { max(1, endDate.timeIntervalSince(now) / (7 * 86_400)) }
@@ -133,75 +166,196 @@ struct LongTermGoalSetupView: View {
         return matchingRows().filter { Double($0.startTs) >= from }.compactMap(\.distanceM).max().map { $0 / 1_000 }
     }
 
-    private var sleepMean28: Double? {
-        let nights = inputs.days.sorted { $0.day < $1.day }.suffix(28).compactMap(\.totalSleepMin)
-        return nights.count >= 7 ? nights.reduce(0, +) / Double(nights.count) / 60 : nil
+    /// Where a target-value or average metric stands now, read the way its page will read it.
+    private var currentLevel: Double? {
+        guard let metric else { return nil }
+        switch metric {
+        case .weight: return currentWeight ?? ProfileStore.persistedWeightKg
+        case .bodyFat, .leanMass, .waist, .vo2max, .restingHr:
+            let rule = LongTermGoalReader.levelRule(metric)
+            return LongTermGoalMath.level(samples: series[metric] ?? [], now: now, windowDays: rule.windowDays,
+                                          minValues: rule.minValues)?.value
+        case .sleepAverage, .hrvAverage, .recoveryAverage:
+            let values = inputs.days.sorted { $0.day < $1.day }.suffix(28).compactMap { day -> Double? in
+                switch metric {
+                case .sleepAverage: return day.totalSleepMin.map { $0 / 60 }
+                case .hrvAverage: return day.avgHrv
+                default: return day.recovery
+                }
+            }
+            return values.count >= 7 ? values.reduce(0, +) / Double(values.count) : nil
+        case .paceAverage:
+            let runs = matchingRows().compactMap { row -> LongTermGoalMath.RunSample? in
+                guard let meters = row.distanceM, meters > 0 else { return nil }
+                return LongTermGoalMath.RunSample(date: Date(timeIntervalSince1970: Double(row.startTs)), distanceM: meters,
+                                                  durationS: row.durationS ?? Double(max(0, row.endTs - row.startTs)))
+            }
+            return LongTermGoalMath.pace(runs: runs, now: now, windowDays: 56)?.secondsPerKm
+        default: return nil
+        }
+    }
+
+    /// Whether the start of a target-value goal comes from a measurement (then it is shown, not edited).
+    private var hasMeasuredStart: Bool {
+        metric == .weight ? currentWeight != nil : currentLevel != nil
+    }
+
+    /// How a target-value or average metric moves in the stepper, and its sensible range.
+    private var levelStep: (step: Double, range: ClosedRange<Double>) {
+        switch metric {
+        case .weight?, .leanMass?: return (0.5, 30...400)
+        case .bodyFat?: return (0.5, 3...60)
+        case .waist?: return (1, 40...200)
+        case .vo2max?: return (0.5, 15...90)
+        case .restingHr?: return (1, 30...110)
+        case .sleepAverage?: return (0.25, 5...10)
+        case .hrvAverage?: return (1, 10...250)
+        case .recoveryAverage?: return (1, 10...99)
+        case .paceAverage?: return (5, 150...900)
+        default: return (1, 0...10_000)
+        }
+    }
+
+    /// The suggested change from where the wearer stands (plan §3, "Vorschlag beim Anlegen").
+    private func suggestedLevel(from current: Double) -> Double {
+        guard let template else { return current }
+        func round(_ v: Double, _ step: Double) -> Double { (v / step).rounded() * step }
+        switch template.id {
+        case .weightLose: return max(30, round(current - 5, 0.5))
+        case .weightGain: return round(current + 3, 0.5)
+        case .bodyFat: return max(3, round(current - 2, 0.5))
+        case .leanMass: return round(current + 1, 0.5)
+        case .waist: return round(current - 3, 1)
+        case .vo2max: return round(current + 2, 0.5)
+        case .restingHr: return round(current - 3, 1)
+        case .sleepAverage: return min(10, max(7.5, ((current + 0.25) * 4).rounded(.up) / 4))
+        case .hrvAverage: return (current * 1.05).rounded()
+        case .recoveryAverage: return min(99, (current + 5).rounded())
+        case .paceAverage: return round(current - 15, 5)
+        default: return current
+        }
     }
 
     /// Sets the value step's numbers from the data, once per template.
     private func suggest() {
         guard let template else { return }
         title = template.title.localizedCatalogValue
-        switch template.id {
-        case .distanceTotal:
+        hasDate = false
+        switch template.shape {
+        case .sum:
             let thisYearEnd = Calendar.autoupdatingCurrent.date(byAdding: DateComponents(year: 1, day: -1), to: yearStart) ?? now
             endDate = thisYearEnd.timeIntervalSince(now) > 56 * 86_400
                 ? thisYearEnd : Calendar.autoupdatingCurrent.date(byAdding: .month, value: 6, to: now) ?? now
             resuggestSum()
-        case .longest:
+        case .best:
             let best = bestLast12Weeks ?? 0
             baseline = best
             target = [5.0, 10, 15, 21.1, 42.2].first { $0 > best } ?? (best + 5).rounded()
-            hasDate = false
-        case .weightLose:
-            baseline = currentWeight.map { ($0 * 10).rounded() / 10 } ?? ProfileStore.persistedWeightKg
-            target = max(30, (baseline - 5).rounded())
-            hasDate = false
+            if template.id == .event {
+                hasDate = true
+                targetDate = Calendar.autoupdatingCurrent.date(byAdding: .weekOfYear, value: 12, to: now) ?? now
+            }
+        case .target, .average:
+            let current = currentLevel ?? (metric == .sleepAverage ? 7 : 0)
+            // Started on the value's own step, so the first waypoint is a step away, not a fraction.
+            baseline = template.shape == .target && metric != .weight
+                ? (current / levelStep.step).rounded() * levelStep.step : current
+            target = suggestedLevel(from: current)
             targetDate = safeDate()
-        case .trainingWeekly:
-            target = recentSessionsPerWeek > 0 ? min(14, (recentSessionsPerWeek + 1).rounded()) : 3
+        case .maintain:
+            let current = currentLevel ?? 0
+            baseline = (current * 10).rounded() / 10
+            target = baseline
+            band = 1
+        case .consistency:
             openEnded = true
-        case .sleepAverage:
-            baseline = sleepMean28 ?? 7
-            target = min(10, max(7.5, ((baseline + 0.25) * 4).rounded(.up) / 4))
-        default:
-            break
+            threshold = weeklyMetric?.defaultThreshold ?? 0
+            habitKey = nil
+            habitWantsYes = true
+            target = suggestedPerWeek()
         }
+        if template.id == .stepDays { threshold = 10_000 }
         suggestWeekly()
     }
 
+    /// The suggested weekly amount for a consistency template: the wearer's own level where one exists.
+    private func suggestedPerWeek() -> Double {
+        switch weeklyMetric {
+        case .workouts?: return recentSessionsPerWeek > 0 ? min(14, (recentSessionsPerWeek + 1).rounded()) : 3
+        case .workingSets?:
+            let from = Repository.localDayKey(calendar.date(byAdding: .weekOfYear, value: -4, to: weekStart) ?? weekStart)
+            let sets = (inputs.setsByDay ?? [:]).filter { $0.key >= from }.values.reduce(0, +) / 4
+            return sets > 0 ? max(5, (sets / 5).rounded() * 5) : 40
+        case .zoneMinutes?: return 150
+        case .activeEnergy?:
+            let from = Repository.localDayKey(calendar.date(byAdding: .weekOfYear, value: -4, to: weekStart) ?? weekStart)
+            let kcal = inputs.activeKcalByDay.filter { $0.key >= from }.values.reduce(0, +) / 4
+            return kcal > 0 ? max(500, (kcal / 100).rounded() * 100) : 2_000
+        case .restDays?: return 2
+        default: return 5
+        }
+    }
+
     private func resuggestSum() {
-        let already = countFromYearStart ? collectedSoFar : 0
-        let projected = already + recentKmPerWeek * weeksToEnd
-        let step: Double = projected >= 200 ? 50 : 10
+        let projected = collectedSoFar + recentPerWeek * weeksToEnd
+        let step = sumStep(projected)
         target = max(step, (projected / step).rounded(.up) * step)
     }
 
+    /// Round numbers for a sum: 10 or 50 km, whole hours, 5 or 50 sessions, 10,000 or 100,000 steps.
+    private func sumStep(_ value: Double) -> Double {
+        switch metric {
+        case .minutesTotal?: return value >= 6_000 ? 600 : 60
+        case .workoutsTotal?: return value >= 200 ? 50 : 5
+        case .stepsTotal?: return value >= 1_000_000 ? 100_000 : 10_000
+        default: return value >= 200 ? 50 : 10
+        }
+    }
+
     /// The date a weight change reaches at 0.5 kg a week, a pace the safety gate calls conservative.
+    /// Other metrics get twelve weeks, a span the page can show a trend over.
     private func safeDate() -> Date {
+        guard metric == .weight else { return now.addingTimeInterval(12 * 7 * 86_400) }
         let weeks = max(4, abs(baseline - target) / 0.5)
         return now.addingTimeInterval(weeks * 7 * 86_400)
     }
+
+    private var hasLiftingLog: Bool { inputs.setsByDay != nil }
 
     private func suggestWeekly() {
         guard let template else { return }
         weeklyOn = true
         switch template.id {
-        case .distanceTotal:
-            let already = countFromYearStart ? collectedSoFar : 0
-            weeklyTarget = max(1, ((target - already) / weeksToEnd).rounded())
-        case .longest:
+        case .distanceTotal, .timeTotal, .workoutsTotal:
+            weeklyTarget = max(1, ((target - collectedSoFar) / weeksToEnd).rounded())
+        case .stepsTotal:
+            weeklyTarget = 5
+        case .longest, .event:
             weeklyTarget = max(5, recentKmPerWeek.rounded())
-        case .weightLose:
+        case .weightLose, .weightMaintain:
             weeklyChoice = .workouts
             weeklyTarget = 3
-        case .trainingWeekly:
-            weeklyTarget = target
-        case .sleepAverage:
+        case .weightGain, .leanMass:
+            weeklyTarget = hasLiftingLog ? 40 : 3
+        case .bodyFat, .waist:
+            weeklyTarget = 3
+        case .vo2max, .restingHr:
+            weeklyTarget = 150
+        case .sleepAverage, .hrvAverage, .recoveryAverage:
             weeklyTarget = 5
+        case .paceAverage:
+            weeklyTarget = max(2, recentSessionsPerWeek.rounded())
         default:
-            break
+            weeklyTarget = target
         }
+    }
+
+    private var recentKmPerWeek: Double {
+        let from = calendar.date(byAdding: .weekOfYear, value: -4, to: weekStart) ?? weekStart
+        return matchingRows().filter {
+            let date = Date(timeIntervalSince1970: Double($0.startTs))
+            return date >= from && date < weekStart
+        }.reduce(0) { $0 + ($1.distanceM ?? 0) / 1_000 } / 4
     }
 
     // MARK: - The goal it makes
@@ -213,23 +367,27 @@ struct LongTermGoalSetupView: View {
         var spec = GoalMeasureSpec(metric: template.id.metric, sportFilter: sportFilter)
         var goalBaseline: Double? = baseline
         var date: Date? = hasDate ? targetDate : nil
-        switch template.id {
-        case .distanceTotal:
+        switch template.shape {
+        case .sum:
             spec.countFrom = countFrom
             goalBaseline = 0
             date = endDate
-        case .trainingWeekly:
-            goalBaseline = recentSessionsPerWeek
+        case .consistency:
+            goalBaseline = nil
             spec.weeklyGoalId = weeklyGoalId
             spec.adherenceWeeks = LongTermGoalMath.adherenceWindowWeeks
             spec.adherenceTarget = LongTermGoalMath.adherenceTarget
             if !openEnded { spec.fixedEnd = now.addingTimeInterval(Double(fixedWeeks) * 7 * 86_400) }
             date = spec.fixedEnd
-        case .sleepAverage:
+        case .maintain:
+            spec.band = band
             date = nil
-        default:
+        case .average:
+            date = nil
+        case .best, .target:
             break
         }
+        if template.id == .trainingWeekly { goalBaseline = recentSessionsPerWeek }
         let name = title.trimmingCharacters(in: .whitespacesAndNewlines)
         return CoachGoal(kind: template.id.kind, title: name.isEmpty ? template.title.localizedCatalogValue : name,
                          baseline: goalBaseline, target: target, targetDate: date,
@@ -238,34 +396,59 @@ struct LongTermGoalSetupView: View {
     }
 
     private var safety: GoalSafetyGate.Assessment? {
-        guard template?.id == .weightLose, hasDate, let goal = buildGoal(weeklyGoalId: nil) else { return nil }
+        guard metric == .weight, template?.id != .weightMaintain, hasDate,
+              let goal = buildGoal(weeklyGoalId: nil) else { return nil }
         return GoalSafetyGate.assess(goal: goal, bodyWeightKg: currentWeight ?? ProfileStore.persistedWeightKg)
     }
 
     private func weeklyDraft(parentId: UUID) -> PeriodGoal? {
         guard let template else { return nil }
+        if let weekly = template.id.weeklyMetric {
+            // The goal itself is a weekly rhythm: its weekly goal is not optional.
+            return PeriodGoal(metric: weekly, period: .week, target: target,
+                              threshold: weekly.defaultThreshold == nil ? nil : threshold,
+                              sportFilter: weekly == .workouts ? sportFilter : [],
+                              habitKey: weekly == .habitDays ? habitKey : nil, habitWantsYes: habitWantsYes,
+                              parentGoalId: parentId)
+        }
+        guard weeklyOn else { return nil }
         switch template.id {
         case .distanceTotal:
-            guard weeklyOn else { return nil }
             return PeriodGoal(metric: .distance, period: .week, target: weeklyTarget, sportFilter: sportFilter,
                               parentGoalId: parentId, followsParent: true)
-        case .longest:
-            guard weeklyOn else { return nil }
+        case .timeTotal:
+            return PeriodGoal(metric: .trainingMinutes, period: .week, target: weeklyTarget, sportFilter: sportFilter,
+                              parentGoalId: parentId, followsParent: true)
+        case .workoutsTotal:
+            return PeriodGoal(metric: .workouts, period: .week, target: weeklyTarget, sportFilter: sportFilter,
+                              parentGoalId: parentId, followsParent: true)
+        case .stepsTotal:
+            return PeriodGoal(metric: .stepDays, period: .week, target: weeklyTarget,
+                              threshold: PeriodMetric.stepDays.defaultThreshold, parentGoalId: parentId)
+        case .longest, .event:
             return PeriodGoal(metric: .distance, period: .week, target: weeklyTarget, sportFilter: sportFilter,
                               parentGoalId: parentId)
-        case .weightLose:
-            guard weeklyOn else { return nil }
+        case .weightLose, .weightMaintain:
             return weeklyChoice == .workouts
                 ? PeriodGoal(metric: .workouts, period: .week, target: weeklyTarget, parentGoalId: parentId)
                 : PeriodGoal(metric: .stepDays, period: .week, target: weeklyTarget,
                              threshold: PeriodMetric.stepDays.defaultThreshold, parentGoalId: parentId)
-        case .trainingWeekly:
-            return PeriodGoal(metric: .workouts, period: .week, target: target, sportFilter: sportFilter,
+        case .weightGain, .leanMass:
+            return PeriodGoal(metric: hasLiftingLog ? .workingSets : .workouts, period: .week, target: weeklyTarget,
                               parentGoalId: parentId)
+        case .bodyFat, .waist:
+            return PeriodGoal(metric: .workouts, period: .week, target: weeklyTarget, parentGoalId: parentId)
+        case .vo2max, .restingHr:
+            return PeriodGoal(metric: .zoneMinutes, period: .week, target: weeklyTarget, parentGoalId: parentId)
         case .sleepAverage:
-            guard weeklyOn else { return nil }
             return PeriodGoal(metric: .sleepNights, period: .week, target: weeklyTarget,
                               threshold: max(5, target - 0.5), parentGoalId: parentId)
+        case .hrvAverage, .recoveryAverage:
+            return PeriodGoal(metric: .sleepNights, period: .week, target: weeklyTarget, threshold: 7,
+                              parentGoalId: parentId)
+        case .paceAverage:
+            return PeriodGoal(metric: .workouts, period: .week, target: weeklyTarget, sportFilter: ["Running"],
+                              parentGoalId: parentId)
         default:
             return nil
         }
@@ -379,7 +562,8 @@ struct LongTermGoalSetupView: View {
     private var templateStep: some View {
         VStack(spacing: 10) {
             ForEach(GoalCatalog.offered.filter { $0.area == area }) { item in
-                let availability = GoalCatalog.availability(item.id, workouts: inputs.workouts, days: inputs.days)
+                let availability = GoalCatalog.availability(item.id, inputs: inputs, series: series,
+                                                            hasWeight: currentWeight != nil || ProfileStore.persistedWeightKg > 0)
                 Button {
                     guard availability == .available else { return }
                     template = item
@@ -428,13 +612,13 @@ struct LongTermGoalSetupView: View {
                     .pickerStyle(.segmented)
                     .onChange(of: sportIndex) { _ in suggest() }
                 }
-                switch template.id {
-                case .distanceTotal: sumValue
-                case .longest: bestValue
-                case .weightLose: weightValue
-                case .trainingWeekly: rhythmValue
-                case .sleepAverage: sleepValue
-                default: EmptyView()
+                switch template.shape {
+                case .sum: sumValue
+                case .best: bestValue
+                case .target: targetValue
+                case .maintain: maintainValue
+                case .consistency: rhythmValue
+                case .average: averageValue
                 }
             }
         }
@@ -443,17 +627,21 @@ struct LongTermGoalSetupView: View {
     private var sumValue: some View {
         NoopCard(padding: 16) {
             VStack(alignment: .leading, spacing: 12) {
-                stepperRow("Target", value: $target, step: target >= 200 ? 50 : 10, range: 10...20_000,
-                           text: LongTermFormat.value(target, .distanceTotal))
-                Toggle("Count from the start of the year", isOn: $countFromYearStart)
-                    .onChange(of: countFromYearStart) { _ in resuggestSum(); suggestWeekly() }
-                DatePicker("By", selection: $endDate, in: now.addingTimeInterval(7 * 86_400)..., displayedComponents: .date)
-                    .onChange(of: endDate) { _ in suggestWeekly() }
-                factLine(String(localized: "So far: \(LongTermFormat.value(countFromYearStart ? collectedSoFar : 0, .distanceTotal))"))
-                factLine(String(localized: "Your average: \(LongTermFormat.value(recentKmPerWeek, .distanceTotal))/week"))
-                let needed = max(0, target - (countFromYearStart ? collectedSoFar : 0)) / weeksToEnd
-                factLine(String(localized: "Needed: \(LongTermFormat.value(needed, .distanceTotal))/week"))
-                factLine(String(localized: "Only workouts with a distance count: from your phone, a watch or a file. A workout only the strap recorded has none."))
+                if let metric {
+                    stepperRow("Target", value: $target, step: sumStep(target), range: sumStep(0)...100_000_000,
+                               text: LongTermFormat.value(target, metric))
+                    Toggle("Count from the start of the year", isOn: $countFromYearStart)
+                        .onChange(of: countFromYearStart) { _ in resuggestSum(); suggestWeekly() }
+                    DatePicker("By", selection: $endDate, in: now.addingTimeInterval(7 * 86_400)..., displayedComponents: .date)
+                        .onChange(of: endDate) { _ in suggestWeekly() }
+                    factLine(String(localized: "So far: \(LongTermFormat.value(collectedSoFar, metric))"))
+                    factLine(String(localized: "Your average: \(LongTermFormat.value(recentPerWeek, metric))/week"))
+                    let needed = max(0, target - collectedSoFar) / weeksToEnd
+                    factLine(String(localized: "Needed: \(LongTermFormat.value(needed, metric))/week"))
+                    if metric == .distanceTotal {
+                        factLine(String(localized: "Only workouts with a distance count: from your phone, a watch or a file. A workout only the strap recorded has none."))
+                    }
+                }
             }
         }
     }
@@ -474,34 +662,69 @@ struct LongTermGoalSetupView: View {
                     Label("You already managed this lately. Aim further?", systemImage: "exclamationmark.circle")
                         .font(StrandFont.footnote).foregroundStyle(StrandPalette.statusWarningForeground)
                 }
-                Toggle("Reach it by a date", isOn: $hasDate)
-                if hasDate {
-                    DatePicker("By", selection: $targetDate, in: now.addingTimeInterval(14 * 86_400)..., displayedComponents: .date)
+                if template?.id == .event {
+                    DatePicker("Race day", selection: $targetDate, in: now.addingTimeInterval(14 * 86_400)..., displayedComponents: .date)
+                } else {
+                    Toggle("Reach it by a date", isOn: $hasDate)
+                    if hasDate {
+                        DatePicker("By", selection: $targetDate, in: now.addingTimeInterval(14 * 86_400)..., displayedComponents: .date)
+                    }
                 }
             }
         }
     }
 
-    private var weightValue: some View {
+    private var targetValue: some View {
         NoopCard(padding: 16) {
             VStack(alignment: .leading, spacing: 12) {
-                stepperRow("Start", value: $baseline, step: 0.5, range: 30...400,
-                           text: LongTermFormat.value(baseline, .weight))
-                stepperRow("Target", value: $target, step: 0.5, range: 30...400,
-                           text: LongTermFormat.value(target, .weight))
-                factLine(currentWeight == nil ? String(localized: "No weigh-in yet: the start is from your profile.")
-                                              : String(localized: "Start from your weight trend."))
-                Toggle("Reach it by a date", isOn: $hasDate)
-                    .onChange(of: hasDate) { on in if on { targetDate = safeDate() } }
-                if hasDate {
-                    DatePicker("By", selection: $targetDate, in: now.addingTimeInterval(14 * 86_400)..., displayedComponents: .date)
-                    if let warning = safety?.warning {
-                        Label(warning, systemImage: "exclamationmark.triangle")
-                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.statusWarningForeground)
+                if let metric {
+                    // The start is what was measured, not a choice: only without any reading is it set by hand.
+                    if hasMeasuredStart {
+                        HStack {
+                            Text("Start").font(StrandFont.body).foregroundStyle(StrandPalette.textSecondary)
+                            Spacer()
+                            Text(verbatim: LongTermFormat.value(baseline, metric))
+                                .font(StrandFont.bodyNumber).foregroundStyle(StrandPalette.textPrimary)
+                        }
+                    } else {
+                        stepperRow("Start", value: $baseline, step: levelStep.step, range: levelStep.range,
+                                   text: LongTermFormat.value(baseline, metric))
                     }
-                } else {
-                    factLine(String(localized: "Without a date the page shows your pace and when you reach the next mark."))
+                    stepperRow("Target", value: $target, step: levelStep.step, range: levelStep.range,
+                               text: LongTermFormat.value(target, metric))
+                    if metric == .weight {
+                        factLine(currentWeight == nil ? String(localized: "No weigh-in yet: the start is from your profile.")
+                                                      : String(localized: "Start from your weight trend."))
+                    } else if metric == .restingHr {
+                        factLine(String(localized: "Measured as the average of your last 28 nights. The goal counts as reached once that average holds at the target."))
+                    } else {
+                        factLine(currentLevel == nil ? String(localized: "No reading yet: set the start yourself.")
+                                                     : String(localized: "Start from your recent readings."))
+                    }
+                    Toggle("Reach it by a date", isOn: $hasDate)
+                        .onChange(of: hasDate) { on in if on { targetDate = safeDate() } }
+                    if hasDate {
+                        DatePicker("By", selection: $targetDate, in: now.addingTimeInterval(14 * 86_400)..., displayedComponents: .date)
+                        if let warning = safety?.warning {
+                            Label(warning, systemImage: "exclamationmark.triangle")
+                                .font(StrandFont.footnote).foregroundStyle(StrandPalette.statusWarningForeground)
+                        }
+                    } else {
+                        factLine(String(localized: "Without a date the page shows your pace and when you reach the next mark."))
+                    }
                 }
+            }
+        }
+    }
+
+    private var maintainValue: some View {
+        NoopCard(padding: 16) {
+            VStack(alignment: .leading, spacing: 12) {
+                stepperRow("Weight", value: $target, step: 0.5, range: 30...400,
+                           text: LongTermFormat.value(target, .weight))
+                stepperRow("Band", value: $band, step: 0.5, range: 0.5...5,
+                           text: String(localized: "± \(LongTermFormat.value(band, .weight))"))
+                factLine(String(localized: "On track when four in five weigh-ins of the last four weeks are inside the band."))
             }
         }
     }
@@ -509,27 +732,79 @@ struct LongTermGoalSetupView: View {
     private var rhythmValue: some View {
         NoopCard(padding: 16) {
             VStack(alignment: .leading, spacing: 12) {
-                stepperRow("Per week", value: $target, step: 1, range: 1...14,
-                           text: String(localized: "\(LongTermFormat.number(target))× / week"))
-                factLine(String(localized: "Your average lately: \(LongTermFormat.number(recentSessionsPerWeek)) a week"))
-                Toggle("Keep it going without an end", isOn: $openEnded)
-                if openEnded {
-                    factLine(String(localized: "Judged over your last 12 weeks: on track from 80 % of weeks kept."))
-                } else {
-                    Stepper(value: $fixedWeeks, in: 4...52) {
-                        Text("For \(fixedWeeks) weeks").font(StrandFont.body)
+                if let weeklyMetric {
+                    stepperRow("Per week", value: $target, step: perWeekStep.step, range: perWeekStep.range,
+                               text: LongTermFormat.perWeek(target, weeklyMetric))
+                    switch weeklyMetric {
+                    case .stepDays:
+                        stepperRow("Steps a day", value: $threshold, step: 1_000, range: 2_000...30_000,
+                                   text: Int(threshold).formatted())
+                    case .sleepNights:
+                        stepperRow("Sleep a night", value: $threshold, step: 0.25, range: 5...10,
+                                   text: LongTermFormat.hoursAndMinutes(threshold))
+                    case .habitDays:
+                        habitPicker
+                    case .workouts:
+                        factLine(String(localized: "Your average lately: \(LongTermFormat.number(recentSessionsPerWeek)) a week"))
+                    default:
+                        EmptyView()
+                    }
+                    Toggle("Keep it going without an end", isOn: $openEnded)
+                    if openEnded {
+                        factLine(String(localized: "Judged over your last 12 weeks: on track from 80 % of weeks kept."))
+                    } else {
+                        Stepper(value: $fixedWeeks, in: 4...52) {
+                            Text("For \(fixedWeeks) weeks").font(StrandFont.body)
+                        }
                     }
                 }
             }
         }
     }
 
-    private var sleepValue: some View {
+    /// How a weekly amount moves in the stepper: sessions, minutes, sets, kilocalories or days.
+    private var perWeekStep: (step: Double, range: ClosedRange<Double>) {
+        switch weeklyMetric {
+        case .workouts?: return (1, 1...14)
+        case .workingSets?: return (5, 5...300)
+        case .zoneMinutes?: return (10, 30...1_200)
+        case .activeEnergy?: return (100, 500...30_000)
+        case .restDays?: return (1, 1...5)
+        default: return (1, 1...7)
+        }
+    }
+
+    private var habitPicker: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            let items = journal.items.filter { !$0.hidden }
+            if items.isEmpty {
+                factLine(String(localized: "Your journal has no habits yet. Add one in Journal first."))
+            }
+            Picker("Habit", selection: Binding(get: { habitKey ?? "" }, set: { habitKey = $0.isEmpty ? nil : $0 })) {
+                Text("Choose").tag("")
+                ForEach(items) { item in Text(item.displayName ?? item.canonical).tag(item.canonical) }
+            }
+            Picker("Goal", selection: $habitWantsYes) {
+                Text("Do it").tag(true)
+                Text("Avoid it").tag(false)
+            }
+            .pickerStyle(.segmented)
+        }
+    }
+
+    private var averageValue: some View {
         NoopCard(padding: 16) {
             VStack(alignment: .leading, spacing: 12) {
-                stepperRow("Average", value: $target, step: 0.25, range: 5...10,
-                           text: LongTermFormat.hoursAndMinutes(target))
-                factLine(String(localized: "Your last 28 nights: \(sleepMean28.map(LongTermFormat.hoursAndMinutes) ?? "–")"))
+                if let metric {
+                    stepperRow(metric == .paceAverage ? "Pace" : "Average", value: $target, step: levelStep.step,
+                               range: levelStep.range, text: LongTermFormat.value(target, metric))
+                    let last = metric == .paceAverage ? String(localized: "Your pace over the last 8 weeks")
+                                                      : String(localized: "Your last 28 days")
+                    factLine("\(last): \(currentLevel.map { LongTermFormat.value($0, metric) } ?? "–")")
+                    if metric == .paceAverage {
+                        factLine(String(localized: "Counts runs of 3 km or more: total time over total distance."))
+                    }
+                }
             }
         }
     }
@@ -539,40 +814,69 @@ struct LongTermGoalSetupView: View {
         if let template {
             NoopCard(padding: 16) {
                 VStack(alignment: .leading, spacing: 12) {
-                    if template.id == .trainingWeekly {
-                        factLine(String(localized: "This goal is measured by its weekly goal: \(LongTermFormat.number(target)) a week. Each week you keep counts."))
+                    if let weekly = template.id.weeklyMetric {
+                        factLine(String(localized: "This goal is measured by its weekly goal: \(LongTermFormat.perWeek(target, weekly)). Each week you keep counts."))
                     } else {
                         Toggle("Add a weekly goal", isOn: $weeklyOn)
-                        if weeklyOn {
-                            switch template.id {
-                            case .distanceTotal:
-                                stepperRow("This week", value: $weeklyTarget, step: 1, range: 1...500,
-                                           text: LongTermFormat.value(weeklyTarget, .distanceTotal))
-                                factLine(String(localized: "It follows the long-term goal: each new week gets what is still needed, never more than 10 % above your recent running weeks (20 % for other sports)."))
-                            case .longest:
-                                stepperRow("Per week", value: $weeklyTarget, step: 1, range: 1...300,
-                                           text: LongTermFormat.value(weeklyTarget, .distanceTotal))
-                            case .weightLose:
-                                Picker("Weekly goal", selection: $weeklyChoice) {
-                                    Text("Workouts").tag(WeeklyChoice.workouts)
-                                    Text("Step days").tag(WeeklyChoice.stepDays)
-                                }
-                                .pickerStyle(.segmented)
-                                .onChange(of: weeklyChoice) { choice in weeklyTarget = choice == .workouts ? 3 : 5 }
-                                stepperRow(weeklyChoice == .workouts ? "Workouts" : "Days of 8,000 steps",
-                                           value: $weeklyTarget, step: 1, range: 1...7,
-                                           text: LongTermFormat.number(weeklyTarget))
-                                factLine(String(localized: "Weight swings a kilo or two within a week, so the week counts what you do, not the scale."))
-                            case .sleepAverage:
-                                stepperRow("Nights", value: $weeklyTarget, step: 1, range: 1...7,
-                                           text: String(localized: "\(LongTermFormat.number(weeklyTarget)) nights from \(LongTermFormat.hoursAndMinutes(max(5, target - 0.5)))"))
-                            default:
-                                EmptyView()
-                            }
-                        }
+                        if weeklyOn { weeklyControls(template) }
                     }
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func weeklyControls(_ template: GoalTemplate) -> some View {
+        switch template.id {
+        case .distanceTotal, .timeTotal, .workoutsTotal:
+            let weekly: PeriodMetric = template.id == .distanceTotal ? .distance
+                : template.id == .timeTotal ? .trainingMinutes : .workouts
+            stepperRow("This week", value: $weeklyTarget, step: 1, range: 1...5_000,
+                       text: LongTermFormat.perWeek(weeklyTarget, weekly))
+            factLine(String(localized: "It follows the long-term goal: each new week gets what is still needed, never more than 10 % above your recent running weeks (20 % for other sports)."))
+        case .stepsTotal:
+            stepperRow("Days of 8,000 steps", value: $weeklyTarget, step: 1, range: 1...7,
+                       text: LongTermFormat.perWeek(weeklyTarget, .stepDays))
+        case .longest, .event:
+            stepperRow("Per week", value: $weeklyTarget, step: 1, range: 1...300,
+                       text: LongTermFormat.value(weeklyTarget, .distanceTotal))
+        case .weightLose, .weightMaintain:
+            Picker("Weekly goal", selection: $weeklyChoice) {
+                Text("Workouts").tag(WeeklyChoice.workouts)
+                Text("Step days").tag(WeeklyChoice.stepDays)
+            }
+            .pickerStyle(.segmented)
+            .onChange(of: weeklyChoice) { choice in weeklyTarget = choice == .workouts ? 3 : 5 }
+            stepperRow(weeklyChoice == .workouts ? "Workouts" : "Days of 8,000 steps",
+                       value: $weeklyTarget, step: 1, range: 1...7,
+                       text: LongTermFormat.number(weeklyTarget))
+            factLine(String(localized: "Weight swings a kilo or two within a week, so the week counts what you do, not the scale."))
+        case .weightGain, .leanMass:
+            if hasLiftingLog {
+                stepperRow("Working sets", value: $weeklyTarget, step: 5, range: 5...300,
+                           text: LongTermFormat.perWeek(weeklyTarget, .workingSets))
+            } else {
+                stepperRow("Workouts", value: $weeklyTarget, step: 1, range: 1...14,
+                           text: LongTermFormat.perWeek(weeklyTarget, .workouts))
+            }
+        case .bodyFat, .waist:
+            stepperRow("Workouts", value: $weeklyTarget, step: 1, range: 1...14,
+                       text: LongTermFormat.perWeek(weeklyTarget, .workouts))
+        case .vo2max, .restingHr:
+            stepperRow("Zone 2+ minutes", value: $weeklyTarget, step: 10, range: 30...1_200,
+                       text: LongTermFormat.perWeek(weeklyTarget, .zoneMinutes))
+            factLine(String(localized: "Time in zone 2 and above is what moves aerobic fitness. The WHO suggests 150 minutes a week."))
+        case .sleepAverage:
+            stepperRow("Nights", value: $weeklyTarget, step: 1, range: 1...7,
+                       text: String(localized: "\(LongTermFormat.number(weeklyTarget)) nights from \(LongTermFormat.hoursAndMinutes(max(5, target - 0.5)))"))
+        case .hrvAverage, .recoveryAverage:
+            stepperRow("Nights", value: $weeklyTarget, step: 1, range: 1...7,
+                       text: String(localized: "\(LongTermFormat.number(weeklyTarget)) nights from \(LongTermFormat.hoursAndMinutes(7))"))
+        case .paceAverage:
+            stepperRow("Runs", value: $weeklyTarget, step: 1, range: 1...14,
+                       text: LongTermFormat.perWeek(weeklyTarget, .workouts))
+        default:
+            EmptyView()
         }
     }
 
@@ -606,23 +910,23 @@ struct LongTermGoalSetupView: View {
     }
 
     private var previewValue: String {
-        guard let template else { return "" }
-        switch template.id {
-        case .distanceTotal: return LongTermFormat.value(target, .distanceTotal)
-        case .longest: return LongTermFormat.value(target, .longestDistance)
-        case .weightLose: return LongTermFormat.value(target, .weight)
-        case .trainingWeekly: return String(localized: "\(LongTermFormat.number(target))× / week")
-        case .sleepAverage: return LongTermFormat.hoursAndMinutes(target)
-        default: return ""
+        guard let template, let metric else { return "" }
+        switch template.shape {
+        case .best: return LongTermFormat.value(target, .longestDistance)
+        case .consistency: return template.id.weeklyMetric.map { LongTermFormat.perWeek(target, $0) } ?? ""
+        case .maintain: return String(localized: "\(LongTermFormat.value(target, metric)) ± \(LongTermFormat.value(band, metric))")
+        case .sum, .target, .average: return LongTermFormat.value(target, metric)
         }
     }
 
     private var previewCaption: String? {
         guard let template else { return nil }
-        switch template.id {
-        case .distanceTotal: return String(localized: "by \(LongTermFormat.shortDate(endDate))")
-        case .weightLose, .longest: return hasDate ? String(localized: "by \(LongTermFormat.shortDate(targetDate))") : nil
-        default: return nil
+        switch template.shape {
+        case .sum: return String(localized: "by \(LongTermFormat.shortDate(endDate))")
+        case .best, .target: return hasDate ? String(localized: "by \(LongTermFormat.shortDate(targetDate))") : nil
+        case .consistency: return LongTermFormat.dayBar(template.id.weeklyMetric ?? .workouts, threshold: threshold)
+        case .average: return String(localized: "28-day average")
+        case .maintain: return nil
         }
     }
 
@@ -641,7 +945,7 @@ struct LongTermGoalSetupView: View {
                     if let next = Step(rawValue: step.rawValue + 1) { step = next }
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(target <= 0)
+                .disabled(target <= 0 || (template?.id == .journalHabit && habitKey == nil))
             }
         }
         .padding(.top, 4)

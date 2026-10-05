@@ -271,13 +271,17 @@ public struct TargetColumns: View {
     public var maximum: Double?
     public var tint: Color
     public var height: CGFloat
+    /// False for a target to stay under, like a running pace: a column at or below the line has met it.
+    public var higherIsBetter: Bool
 
-    public init(values: [Double?], target: Double, maximum: Double? = nil, tint: Color, height: CGFloat = 40) {
+    public init(values: [Double?], target: Double, maximum: Double? = nil, tint: Color, height: CGFloat = 40,
+                higherIsBetter: Bool = true) {
         self.values = values
         self.target = target
         self.maximum = maximum
         self.tint = tint
         self.height = height
+        self.higherIsBetter = higherIsBetter
     }
 
     public var body: some View {
@@ -291,7 +295,7 @@ public struct TargetColumns: View {
                     ForEach(values.indices, id: \.self) { index in
                         if let value = values[index] {
                             RoundedRectangle(cornerRadius: min(3, width / 3), style: .continuous)
-                                .fill(value >= target ? tint : tint.opacity(0.4))
+                                .fill((higherIsBetter ? value >= target : value <= target) ? tint : tint.opacity(0.4))
                                 .frame(width: width, height: max(2, geo.size.height * CGFloat(min(1, value / top))))
                         } else {
                             RoundedRectangle(cornerRadius: 2, style: .continuous)

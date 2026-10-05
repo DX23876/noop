@@ -192,4 +192,21 @@ enum GoalTemplateID: String, CaseIterable {
             return .weeklyAdherence
         }
     }
+
+    /// The weekly goal a consistency template is measured by; nil for the other shapes. "Active days"
+    /// has no weekly metric of its own yet.
+    var weeklyMetric: PeriodMetric? {
+        switch self {
+        case .trainingWeekly: return .workouts
+        case .setsWeekly: return .workingSets
+        case .zoneWeekly: return .zoneMinutes
+        case .stepDays: return .stepDays
+        case .activeEnergyWeekly: return .activeEnergy
+        case .sleepNightsWeekly: return .sleepNights
+        case .restDays: return .restDays
+        case .hydration: return .hydrationDays
+        case .journalHabit: return .habitDays
+        default: return nil
+        }
+    }
 }

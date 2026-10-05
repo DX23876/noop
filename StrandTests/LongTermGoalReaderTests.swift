@@ -170,6 +170,72 @@ final class LongTermGoalReaderTests: XCTestCase {
         XCTAssertNotNil(data.bestWeekMean)
     }
 
+    // MARK: - Other target values
+
+    /// Resting heart rate: four weeks of nights are the level, so a target counts as reached only once it
+    /// holds; falling toward a lower target is on track.
+    func testRestingHeartRateReadsTheWeekMeanAndItsDirection() throws {
+        let goal = CoachGoal(kind: .fitness, title: "Calmer heart", baseline: 58, target: 52,
+                             templateId: GoalTemplateID.restingHr.rawValue, measure: .init(metric: .restingHr))
+        // 56 nights falling from 58 to 55 bpm.
+        let nights = (0..<56).map { GoalMilestones.Sample(date: daysAgo(Double(55 - $0)), value: 58 - Double($0) * 3 / 55) }
+        let reading = LongTermGoalReader.reading(goal: goal, course: nil,
+                                                 inputs: LongTermReaderInputs(series: [.restingHr: nights]),
+                                                 periodSnapshots: [], now: now, calendar: calendar)
+        guard case .target(let data)? = reading else { return XCTFail("expected a target reading") }
+        XCTAssertEqual(data.metric, .restingHr)
+        let lastFourWeeks = nights.suffix(28).map(\.value).reduce(0, +) / 28
+        XCTAssertEqual(data.current, lastFourWeeks, accuracy: 1e-9)
+        XCTAssertFalse(data.isProvisional)
+        XCTAssertEqual(data.state, .onTrack)
+        XCTAssertLessThan(data.ratePerWeek ?? 0, 0)
+    }
+
+    /// A drift below half a beat a month is no direction: the goal runs, it is neither on track nor
+    /// behind, and its waypoints are whole beats.
+    func testFlatRestingHeartRateIsNeitherOnTrackNorBehind() throws {
+        let goal = CoachGoal(kind: .fitness, title: "Calmer heart", baseline: 56, target: 53,
+                             templateId: GoalTemplateID.restingHr.rawValue, measure: .init(metric: .restingHr))
+        let nights = (0..<56).map { GoalMilestones.Sample(date: daysAgo(Double(55 - $0)), value: 56 + Double($0 % 3) * 0.2) }
+        let reading = LongTermGoalReader.reading(goal: goal, course: nil,
+                                                 inputs: LongTermReaderInputs(series: [.restingHr: nights]),
+                                                 periodSnapshots: [], now: now, calendar: calendar)
+        guard case .target(let data)? = reading else { return XCTFail("expected a target reading") }
+        XCTAssertNil(data.state)
+        XCTAssertEqual(data.ratePerWeek, 0)
+        XCTAssertEqual(data.milestones?.values, [55, 54, 53])
+    }
+
+    /// A body measurement taken twice is shown but not judged; the first reading alone is provisional.
+    func testSparseBodyMeasurementIsProvisional() throws {
+        let goal = CoachGoal(kind: .body, title: "Waist", baseline: 92, target: 86,
+                             templateId: GoalTemplateID.waist.rawValue, measure: .init(metric: .waist))
+        let one = [GoalMilestones.Sample(date: daysAgo(3), value: 91)]
+        let reading = LongTermGoalReader.reading(goal: goal, course: nil,
+                                                 inputs: LongTermReaderInputs(series: [.waist: one]),
+                                                 periodSnapshots: [], now: now, calendar: calendar)
+        guard case .target(let data)? = reading else { return XCTFail("expected a target reading") }
+        XCTAssertEqual(data.current, 91, accuracy: 1e-9)
+        XCTAssertTrue(data.isProvisional)
+        XCTAssertEqual(data.state, .starting)
+    }
+
+    /// "Run faster": lower is better, the band is one column per qualifying run.
+    func testPaceGoalReadsRunsFromThreeKilometres() throws {
+        let goal = CoachGoal(kind: .run, title: "Faster", baseline: 330, target: 300,
+                             templateId: GoalTemplateID.paceAverage.rawValue, measure: .init(metric: .paceAverage))
+        // Four 5 km runs in 30 minutes (360 s/km) and one 2 km jog that does not count.
+        let runs = [run(2, km: 5), run(9, km: 5), run(16, km: 5), run(23, km: 5), run(5, km: 2)]
+        let reading = LongTermGoalReader.reading(goal: goal, course: nil,
+                                                 inputs: LongTermReaderInputs(workouts: runs),
+                                                 periodSnapshots: [], now: now, calendar: calendar)
+        guard case .average(let data)? = reading else { return XCTFail("expected an average reading") }
+        XCTAssertFalse(data.higherIsBetter)
+        XCTAssertEqual(data.reading.mean ?? 0, 360, accuracy: 1e-9)
+        XCTAssertEqual(data.days.count, 4)
+        XCTAssertEqual(data.reading.gap ?? 0, 60, accuracy: 1e-9)
+    }
+
     // MARK: - Sport matching
 
     func testHevySessionsCountAsStrengthWhateverTheirName() {

@@ -346,4 +346,56 @@ final class LongTermGoalMathTests: XCTestCase {
         XCTAssertEqual(pace.runs, 2)
         XCTAssertNil(LongTermGoalMath.pace(runs: [runs[2]], now: at(100)))
     }
+
+    /// "Run faster": the weighted pace of the window, judged lower-is-better, with a trend only from
+    /// four runs on.
+    func testPaceAverageImprovingTowardTarget() throws {
+        // Six 5 km runs over eight weeks, each 10 s/km quicker than the last: 330 down to 280 s/km.
+        let runs = (0..<6).map { i in
+            LongTermGoalMath.RunSample(date: at(44 + Double(i) * 11), distanceM: 5_000,
+                                       durationS: 5 * (330 - Double(i) * 10))
+        }
+        let reading = LongTermGoalMath.paceAverage(runs: runs, targetSecondsPerKm: 270, now: at(100))
+        // Inside 28 days: the runs on days 77, 88 and 99 (300, 290 and 280 s/km), equal distance.
+        XCTAssertEqual(try XCTUnwrap(reading.mean), 290, accuracy: 1e-9)
+        XCTAssertEqual(reading.values, 3)
+        XCTAssertEqual(reading.atTarget, 0)
+        XCTAssertEqual(try XCTUnwrap(reading.gap), 20, accuracy: 1e-9)
+        XCTAssertLessThan(try XCTUnwrap(reading.trendPerMonth), 0)
+        XCTAssertEqual(reading.state, .onTrack)
+
+        let reached = LongTermGoalMath.paceAverage(runs: runs, targetSecondsPerKm: 290, now: at(100))
+        XCTAssertEqual(reached.state, .achieved)
+        XCTAssertEqual(reached.atTarget, 2)
+    }
+
+    func testPaceAverageNeedsTwoRunsAndIgnoresShortOnes() {
+        let one = [LongTermGoalMath.RunSample(date: at(95), distanceM: 5_000, durationS: 1_500)]
+        let reading = LongTermGoalMath.paceAverage(runs: one, targetSecondsPerKm: 280, now: at(100))
+        XCTAssertNil(reading.mean)
+        XCTAssertEqual(reading.state, .noData)
+        let short = one + [LongTermGoalMath.RunSample(date: at(96), distanceM: 2_000, durationS: 500)]
+        XCTAssertNil(LongTermGoalMath.paceAverage(runs: short, targetSecondsPerKm: 280, now: at(100)).mean)
+    }
+
+    // MARK: - Level of a sparse series
+
+    func testLevelIsTheWindowMeanAndProvisionalBelowTheMinimum() throws {
+        let readings = samples([20, 21, 22, 23], endingAt: 100)
+        let level = try XCTUnwrap(LongTermGoalMath.level(samples: readings, now: at(100), windowDays: 3, minValues: 3))
+        // Days 98, 99, 100 fall inside a three-day window ending today.
+        XCTAssertEqual(level.value, 22, accuracy: 1e-9)
+        XCTAssertEqual(level.readings, 3)
+        XCTAssertFalse(level.isProvisional)
+        let thin = try XCTUnwrap(LongTermGoalMath.level(samples: readings, now: at(100), windowDays: 3, minValues: 5))
+        XCTAssertTrue(thin.isProvisional)
+    }
+
+    func testLevelFallsBackToTheLatestReadingProvisionally() throws {
+        let old = samples([30, 31], endingAt: 40)
+        let level = try XCTUnwrap(LongTermGoalMath.level(samples: old, now: at(100), windowDays: 14, minValues: 3))
+        XCTAssertEqual(level.value, 31, accuracy: 1e-9)
+        XCTAssertTrue(level.isProvisional)
+        XCTAssertNil(LongTermGoalMath.level(samples: [], now: at(100), windowDays: 14, minValues: 3))
+    }
 }

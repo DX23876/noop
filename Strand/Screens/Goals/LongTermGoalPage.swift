@@ -67,6 +67,35 @@ enum LongTermFormat {
         return String(localized: "in about \(Int((days / 7).rounded())) weeks")
     }
 
+    /// A weekly amount in its own unit: "10× / week", "150 min / week", "5 nights / week".
+    static func perWeek(_ value: Double, _ metric: PeriodMetric) -> String {
+        let n = number(value)
+        switch metric {
+        case .workouts: return String(localized: "\(n)× / week")
+        case .trainingMinutes, .zoneMinutes: return String(localized: "\(n) min / week")
+        case .distance: return String(localized: "\(n) km / week")
+        case .workingSets: return String(localized: "\(n) sets / week")
+        case .activeEnergy: return String(localized: "\(n) kcal / week")
+        case .sleepNights: return String(localized: "\(n) nights / week")
+        case .restDays: return String(localized: "\(n) rest days / week")
+        case .stepDays, .hydrationDays, .habitDays: return String(localized: "\(n) days / week")
+        case .sleepAverage: return hoursAndMinutes(value)
+        }
+    }
+
+    /// What one day has to reach for a day-counting weekly goal, nil for the others.
+    static func dayBar(_ metric: PeriodMetric, threshold: Double?) -> String? {
+        switch metric {
+        case .stepDays:
+            let steps = Int((threshold ?? metric.defaultThreshold ?? 0).rounded())
+            return String(localized: "from \(steps.formatted()) steps a day")
+        case .sleepNights:
+            return String(localized: "from \(hoursAndMinutes(threshold ?? metric.defaultThreshold ?? 7)) a night")
+        default:
+            return nil
+        }
+    }
+
     static func weekdayName(_ weekday: Int) -> String {
         let symbols = Calendar.autoupdatingCurrent.standaloneWeekdaySymbols
         return symbols.indices.contains(weekday - 1) ? symbols[weekday - 1] : ""
@@ -79,7 +108,7 @@ struct LongTermGoalContent {
     enum Band {
         case milestones([MilestoneTrack.Point], moreBefore: Bool, moreAfter: Bool)
         case weeks([WeekDotRow.Week])
-        case columns([Double?], target: Double)
+        case columns([Double?], target: Double, higherIsBetter: Bool)
     }
 
     struct Insight: Identifiable {
@@ -180,7 +209,7 @@ struct LongTermGoalContent {
                       value: LongTermFormat.signed(d.current - d.baseline, d.metric),
                       caption: String(localized: "from \(LongTermFormat.value(d.baseline, d.metric))"), tone: nil),
                 .init(id: 2, icon: "calendar", title: String(localized: "Target reached"),
-                      value: d.arrivalDate.map(LongTermFormat.shortDate) ?? String(localized: "Not foreseeable yet"),
+                      value: d.arrivalDate.map(LongTermFormat.shortDate) ?? "–",
                       caption: d.arrivalDate == nil ? String(localized: "More than a year at this pace, or no trend yet")
                                                     : String(localized: "at the current pace"),
                       tone: nil),
@@ -224,8 +253,8 @@ struct LongTermGoalContent {
 
         case .consistency(let d):
             let r = d.reading
-            heroValue = String(localized: "\(LongTermFormat.number(d.weeklyTarget))× / week")
-            heroCaption = nil
+            heroValue = LongTermFormat.perWeek(d.weeklyTarget, d.weeklyMetric)
+            heroCaption = LongTermFormat.dayBar(d.weeklyMetric, threshold: d.weeklyThreshold)
             stats = [
                 .init(id: 0, label: String(localized: "Consistency"),
                       value: r.share.map { "\(Int(($0 * 100).rounded())) %" } ?? "–"),
@@ -286,6 +315,8 @@ struct LongTermGoalContent {
 
         case .average(let d):
             let r = d.reading
+            // A pace goal reads runs, not days: its band is one column per run.
+            let isPace = d.metric == .paceAverage
             let meanText = r.mean.map { LongTermFormat.value($0, d.metric) } ?? "–"
             heroValue = meanText
             heroCaption = String(localized: "28-day average")
@@ -294,10 +325,11 @@ struct LongTermGoalContent {
                 .init(id: 1, label: String(localized: "Trend"),
                       value: r.trendPerMonth.map { String(localized: "\(LongTermFormat.signed($0, d.metric))/month") } ?? "–"),
                 .init(id: 2, label: String(localized: "At target"),
-                      value: String(localized: "\(r.atTarget) / \(r.values) days")),
+                      value: isPace ? String(localized: "\(r.atTarget) / \(r.values) runs")
+                                    : String(localized: "\(r.atTarget) / \(r.values) days")),
             ]
-            bandTitle = String(localized: "28-day trend")
-            band = .columns(d.days, target: d.target)
+            bandTitle = isPace ? String(localized: "Runs, last 28 days") : String(localized: "28-day trend")
+            band = .columns(d.days, target: d.target, higherIsBetter: d.higherIsBetter)
             insights = [
                 .init(id: 0, icon: "chart.bar", title: String(localized: "Current average"),
                       value: meanText,
@@ -307,7 +339,7 @@ struct LongTermGoalContent {
                       value: r.gap.map { $0 < 1e-9 ? String(localized: "None") : LongTermFormat.signed($0, d.metric)
                           .replacingOccurrences(of: "+", with: "") } ?? "–",
                       caption: String(localized: "to reach \(LongTermFormat.value(d.target, d.metric))"), tone: nil),
-                .init(id: 2, icon: "star", title: String(localized: "Best week"),
+                .init(id: 2, icon: "star", title: isPace ? String(localized: "Fastest run") : String(localized: "Best week"),
                       value: d.bestWeekMean.map { LongTermFormat.value($0, d.metric) } ?? "–",
                       caption: String(localized: "in the last four weeks"), tone: nil),
             ]
@@ -520,8 +552,9 @@ struct LongTermGoalPage: View {
                                    moreBefore: before, moreAfter: after)
                 case .weeks(let weeks):
                     WeekDotRow(weeks: weeks, tint: StrandPalette.statusPositive)
-                case .columns(let values, let target):
-                    TargetColumns(values: values, target: target, tint: StrandPalette.accent, height: 90)
+                case .columns(let values, let target, let higherIsBetter):
+                    TargetColumns(values: values, target: target, tint: StrandPalette.accent, height: 90,
+                                  higherIsBetter: higherIsBetter)
                 }
             }
         }
