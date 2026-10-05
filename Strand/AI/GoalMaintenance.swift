@@ -177,7 +177,7 @@ enum GoalNotifier {
                      body: week.map { GoalFormat.title($0.goal) }.prefix(3).joined(separator: " · "), at: next)
         }
         if GoalPrefs.notifies(.midWeek),
-           let slipping = week.first(where: { $0.state == .close }),
+           let slipping = Self.slipping(week),
            let thursday = calendar.date(byAdding: .day, value: 3, to: interval.start).flatMap({ at($0, hour: 18, calendar) }),
            thursday > now {
             schedule(midWeekId, title: GoalFormat.shortName(slipping.goal), body: GoalFormat.remainingLine(slipping),
@@ -190,6 +190,11 @@ enum GoalNotifier {
                      body: String(localized: "See how your goals went and set up the next week."), at: lastDay)
         }
         #endif
+    }
+
+    /// The weekly goal the mid-week reminder speaks about: one clearly behind before one only close.
+    static func slipping(_ week: [PeriodGoalSnapshot]) -> PeriodGoalSnapshot? {
+        week.first { $0.state == .behind } ?? week.first { $0.state == .close }
     }
 
     private static func at(_ day: Date, hour: Int, _ calendar: Calendar) -> Date? {

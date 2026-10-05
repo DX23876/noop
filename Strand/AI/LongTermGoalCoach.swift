@@ -214,7 +214,8 @@ extension CoachGoalStore {
         guard let measure = draft.measure else { return nil }
         return activeGoals.first { goal in
             guard goal.id != draft.id, let other = goal.measure, other.metric == measure.metric,
-                  Set(other.sportFilter) == Set(measure.sportFilter) else { return false }
+                  Set(other.sportFilter.map { $0.lowercased() }) == Set(measure.sportFilter.map { $0.lowercased() })
+            else { return false }
             guard let weeklyMetric else { return true }
             return other.weeklyGoalId.flatMap { id in PeriodGoalStore.shared.goals.first { $0.id == id } }?
                 .metric == weeklyMetric

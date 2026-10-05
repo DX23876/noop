@@ -52,6 +52,13 @@ struct GoalEntry: TimelineEntry {
     let snapshot: GoalWidgetSnapshot
     /// nil = most important.
     let goalId: String?
+
+    /// The week line counted at the moment the widget draws; the stored one only for an older payload.
+    var weekLabel: String {
+        guard let days = snapshot.daysLeft(at: date) else { return snapshot.weekLabel }
+        if days <= 0 { return "" }
+        return days == 1 ? String(localized: "This week · last day") : String(localized: "This week · \(days) days left")
+    }
 }
 
 struct GoalProvider: AppIntentTimelineProvider {
@@ -65,10 +72,17 @@ struct GoalProvider: AppIntentTimelineProvider {
     }
 
     func timeline(for configuration: SelectGoalIntent, in context: Context) async -> Timeline<GoalEntry> {
-        let entry = GoalEntry(date: Date(), snapshot: GoalWidgetSnapshot.load() ?? empty, goalId: chosen(configuration))
-        // The app reloads on every change; this only rolls the "days left" over at a quiet pace.
-        let next = Calendar.current.date(byAdding: .minute, value: 30, to: Date()) ?? Date().addingTimeInterval(1800)
-        return Timeline(entries: [entry], policy: .after(next))
+        let now = Date()
+        let snap = GoalWidgetSnapshot.load() ?? empty
+        let goalId = chosen(configuration)
+        // The app reloads on every change. A second entry at midnight rolls the week line over to the new
+        // day's count even when the app stays closed.
+        var entries = [GoalEntry(date: now, snapshot: snap, goalId: goalId)]
+        if let midnight = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: now)) {
+            entries.append(GoalEntry(date: midnight, snapshot: snap, goalId: goalId))
+        }
+        let next = Calendar.current.date(byAdding: .minute, value: 30, to: now) ?? now.addingTimeInterval(1800)
+        return Timeline(entries: entries, policy: .after(next))
     }
 
     private func chosen(_ configuration: SelectGoalIntent) -> String? {
@@ -160,7 +174,12 @@ struct GoalWidgetView: View {
     /// When the numbers were taken: the widget only changes when the app has new data (after a sync or
     /// when opened), so it says how fresh it is instead of passing a morning count off as live (Q5).
     private var asOfLine: some View {
-        Text(String(localized: "As of \(entry.snapshot.updated.formatted(date: .omitted, time: .shortened))"))
+        // Taken on an earlier day, the weekday goes in front, so yesterday's count is not read as today's.
+        let updated = entry.snapshot.updated
+        let stamp = Calendar.current.isDate(updated, inSameDayAs: entry.date)
+            ? updated.formatted(date: .omitted, time: .shortened)
+            : updated.formatted(.dateTime.weekday(.abbreviated).hour().minute())
+        return Text(String(localized: "As of \(stamp)"))
             .font(.caption2).foregroundStyle(StrandPalette.textTertiary).lineLimit(1)
     }
 
@@ -265,7 +284,7 @@ struct GoalWidgetView: View {
             }
         } else {
             VStack(alignment: .leading, spacing: 8) {
-                Text(entry.snapshot.weekLabel).font(.caption.weight(.semibold)).foregroundStyle(StrandPalette.textSecondary)
+                Text(entry.weekLabel).font(.caption.weight(.semibold)).foregroundStyle(StrandPalette.textSecondary)
                 ForEach(Array(periodLines.prefix(2))) { goal in row(goal) }
                 Spacer(minLength: 0)
                 Text(entry.snapshot.summary).font(.caption2).foregroundStyle(StrandPalette.textSecondary).lineLimit(1)
@@ -287,7 +306,7 @@ struct GoalWidgetView: View {
                 }
                 Divider()
             } else {
-                Text(entry.snapshot.weekLabel).font(.caption.weight(.semibold)).foregroundStyle(StrandPalette.textSecondary)
+                Text(entry.weekLabel).font(.caption.weight(.semibold)).foregroundStyle(StrandPalette.textSecondary)
             }
             ForEach(Array(periodLines.prefix(2))) { goal in row(goal) }
             Spacer(minLength: 0)

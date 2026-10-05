@@ -46,10 +46,18 @@ enum GoalWidgetPublisher {
         let snapshot = GoalWidgetSnapshot(goals: goals, weekLabel: weekLabel,
                                           summary: spot.summary ?? String(localized: "\(onCourse) of \(ordered.count) on course"),
                                           updated: now, daily: rings, spotlightIds: spotlightIds,
-                                          dailyTotal: spot.dailyTotal, dailyDone: spot.dailyDone)
+                                          dailyTotal: spot.dailyTotal, dailyDone: spot.dailyDone,
+                                          weekEnd: weekEnd(week))
         if snapshot.save() {
             WidgetCenter.shared.reloadTimelines(ofKind: GoalWidgetSnapshot.widgetKind)
         }
+    }
+
+    /// The start of the day after the week's last day, in the training week's calendar.
+    private static func weekEnd(_ week: PeriodGoalSnapshot?) -> Date? {
+        let calendar = TrainingPreferences.weekCalendar
+        guard let last = week?.periodDays.last, let day = PeriodGoalTracker.date(last, calendar: calendar) else { return nil }
+        return calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: day))
     }
 
     /// The large line on the small widget: what is left, or the state when nothing is.

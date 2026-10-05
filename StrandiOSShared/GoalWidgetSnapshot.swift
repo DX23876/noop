@@ -92,9 +92,13 @@ public struct GoalWidgetSnapshot: Codable, Equatable {
     /// All of today's daily goals and how many are done, rings or not ("6 of 10").
     public var dailyTotal: Int?
     public var dailyDone: Int?
+    /// The start of the day after the training week ends, so the widget can count the days left at the
+    /// moment it draws instead of showing the count from the last publish. Nil in an older payload.
+    public var weekEnd: Date?
 
     public init(goals: [Goal], weekLabel: String, summary: String, updated: Date,
-                daily: [Daily]? = nil, spotlightIds: [String]? = nil, dailyTotal: Int? = nil, dailyDone: Int? = nil) {
+                daily: [Daily]? = nil, spotlightIds: [String]? = nil, dailyTotal: Int? = nil, dailyDone: Int? = nil,
+                weekEnd: Date? = nil) {
         self.goals = goals
         self.weekLabel = weekLabel
         self.summary = summary
@@ -103,6 +107,13 @@ public struct GoalWidgetSnapshot: Codable, Equatable {
         self.spotlightIds = spotlightIds
         self.dailyTotal = dailyTotal
         self.dailyDone = dailyDone
+        self.weekEnd = weekEnd
+    }
+
+    /// Whole days from `date`'s day to the end of the week, today included; nil without a stored end.
+    public func daysLeft(at date: Date, calendar: Calendar = .current) -> Int? {
+        guard let weekEnd else { return nil }
+        return calendar.dateComponents([.day], from: calendar.startOfDay(for: date), to: weekEnd).day
     }
 
     /// "6 of 10" when there are daily goals beyond the rings; nil otherwise.

@@ -256,6 +256,9 @@ struct PeriodGoal: Codable, Identifiable, Equatable {
     /// The weekly target follows the long-term goal it serves (plan Q9): a sum goal sets what each week
     /// needs, from the week's first day on. Setting a target by hand switches it off.
     var followsParent: Bool
+    /// Keys a newer build stored on this goal that this build has no field for. Kept verbatim so a save
+    /// from this build does not erase them (see `PreservedJSON`).
+    var unknownFields: [String: PreservedJSON] = [:]
 
     init(id: UUID = UUID(), metric: PeriodMetric, period: Period, target: Double, threshold: Double? = nil,
          sportFilter: [String] = [], habitKey: String? = nil, habitWantsYes: Bool = true,
@@ -310,6 +313,35 @@ struct PeriodGoal: Codable, Identifiable, Equatable {
         endedAt = try c.decodeIfPresent(Date.self, forKey: .endedAt)
         rampAnsweredPeriods = try c.decodeIfPresent([String].self, forKey: .rampAnsweredPeriods) ?? []
         followsParent = try c.decodeIfPresent(Bool.self, forKey: .followsParent) ?? false
+        let all = try decoder.container(keyedBy: AnyCodingKey.self)
+        for key in all.allKeys where CodingKeys(stringValue: key.stringValue) == nil {
+            if let value = try? all.decode(PreservedJSON.self, forKey: key) { unknownFields[key.stringValue] = value }
+        }
+    }
+
+    /// Written by hand so the unknown keys go back out beside the known ones.
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: AnyCodingKey.self)
+        func key(_ k: CodingKeys) -> AnyCodingKey { AnyCodingKey(stringValue: k.stringValue) }
+        for (name, value) in unknownFields { try c.encode(value, forKey: AnyCodingKey(stringValue: name)) }
+        try c.encode(id, forKey: key(.id))
+        try c.encode(metric, forKey: key(.metric))
+        try c.encode(period, forKey: key(.period))
+        try c.encode(target, forKey: key(.target))
+        try c.encodeIfPresent(threshold, forKey: key(.threshold))
+        try c.encode(sportFilter, forKey: key(.sportFilter))
+        try c.encodeIfPresent(habitKey, forKey: key(.habitKey))
+        try c.encode(habitWantsYes, forKey: key(.habitWantsYes))
+        try c.encodeIfPresent(restWeekdaysOverride, forKey: key(.restWeekdaysOverride))
+        try c.encodeIfPresent(parentGoalId, forKey: key(.parentGoalId))
+        try c.encode(status, forKey: key(.status))
+        try c.encodeIfPresent(oneOffPeriodStart, forKey: key(.oneOffPeriodStart))
+        try c.encode(pauseIntervals, forKey: key(.pauseIntervals))
+        try c.encode(targetHistory, forKey: key(.targetHistory))
+        try c.encode(createdAt, forKey: key(.createdAt))
+        try c.encodeIfPresent(endedAt, forKey: key(.endedAt))
+        try c.encode(rampAnsweredPeriods, forKey: key(.rampAnsweredPeriods))
+        try c.encode(followsParent, forKey: key(.followsParent))
     }
 
     var isOpen: Bool { status == .active || status == .paused }
@@ -416,6 +448,10 @@ final class PeriodGoalStore: ObservableObject {
 
     @Published var goals: [PeriodGoal] = [] { didSet { save() } }
     @Published private(set) var results: [PeriodGoalResult] = [] { didSet { saveResults() } }
+    /// Goals and results a newer build stored that this one cannot read (a metric it has no case for).
+    /// Never shown or evaluated, only written back so they survive this build (`TolerantStoredList`).
+    private var foreignGoals: [PreservedJSON] = []
+    private var foreignResults: [PreservedJSON] = []
 
     private let defaults: UserDefaults
     private var isLoading = true
@@ -423,12 +459,14 @@ final class PeriodGoalStore: ObservableObject {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         if let data = defaults.data(forKey: Self.storageKey),
-           let decoded = try? JSONDecoder().decode([PeriodGoal].self, from: data) {
-            goals = decoded
+           let decoded = try? JSONDecoder().decode(TolerantStoredList<PeriodGoal>.self, from: data) {
+            goals = decoded.items
+            foreignGoals = decoded.foreign
         }
         if let data = defaults.data(forKey: Self.resultsKey),
-           let decoded = try? JSONDecoder().decode([PeriodGoalResult].self, from: data) {
-            results = decoded
+           let decoded = try? JSONDecoder().decode(TolerantStoredList<PeriodGoalResult>.self, from: data) {
+            results = decoded.items
+            foreignResults = decoded.foreign
         }
         isLoading = false
     }
@@ -476,6 +514,7 @@ final class PeriodGoalStore: ObservableObject {
                                  endedAt: existing.endedAt, rampAnsweredPeriods: existing.rampAnsweredPeriods,
                                  // A target changed by hand in the editor ends following, as `setTarget` does.
                                  followsParent: draft.followsParent && existing.target == draft.target)
+            updated.unknownFields = existing.unknownFields
             if existing.target != draft.target {
                 updated.targetHistory = Self.recordingChange(existing, to: draft.target, today: today)
             }
@@ -618,12 +657,14 @@ final class PeriodGoalStore: ObservableObject {
     }
 
     private func save() {
-        guard !isLoading, let data = try? JSONEncoder().encode(goals) else { return }
+        guard !isLoading,
+              let data = try? JSONEncoder().encode(TolerantStoredList(items: goals, foreign: foreignGoals)) else { return }
         defaults.set(data, forKey: Self.storageKey)
     }
 
     private func saveResults() {
-        guard !isLoading, let data = try? JSONEncoder().encode(results) else { return }
+        guard !isLoading,
+              let data = try? JSONEncoder().encode(TolerantStoredList(items: results, foreign: foreignResults)) else { return }
         defaults.set(data, forKey: Self.resultsKey)
     }
 }

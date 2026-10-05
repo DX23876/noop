@@ -158,7 +158,7 @@ enum LongTermGoalReader {
                                                                           band: band, now: now),
                                        center: center, band: band))
             }
-            return weight(goal: goal, course: course, inputs: inputs, now: now)
+            return weight(goal: goal, course: course, inputs: inputs, now: now, calendar: calendar)
         case .longestDistance:
             return best(goal: goal, spec: spec, inputs: inputs, now: now, calendar: calendar)
         case .weeklyAdherence:
@@ -174,7 +174,8 @@ enum LongTermGoalReader {
         case .paceAverage:
             return pace(goal: goal, workouts: inputs.workouts, now: now)
         case .bodyFat, .leanMass, .waist, .vo2max, .restingHr:
-            return level(goal: goal, metric: spec.metric, samples: inputs.series[spec.metric] ?? [], now: now)
+            return level(goal: goal, metric: spec.metric, samples: inputs.series[spec.metric] ?? [], now: now,
+                         calendar: calendar)
         }
     }
 
@@ -201,7 +202,8 @@ enum LongTermGoalReader {
             return byDay.reduce(0) { $0 + ($1.key >= fromKey && $1.key <= toKey ? $1.value : 0) }
         }
 
-        let collected = total(from: start, to: now)
+        // Nothing after the target day counts: a goal missed on 31 December is not reached by January's runs.
+        let collected = total(from: start, to: min(now, end.addingTimeInterval(-1)))
         let weekStart = calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? calendar.startOfDay(for: now)
         let recent: [Double] = (1...LongTermGoalMath.paceWeeks).reversed().compactMap { back in
             guard let from = calendar.date(byAdding: .weekOfYear, value: -back, to: weekStart),
@@ -219,7 +221,7 @@ enum LongTermGoalReader {
     // MARK: - Target value
 
     static func weight(goal: CoachGoal, course: GoalMilestones.Course?, inputs: LongTermReaderInputs,
-                       now: Date) -> GoalShapeReading? {
+                       now: Date, calendar: Calendar) -> GoalShapeReading? {
         guard let measurement = inputs.weight, let baseline = goal.baseline, let target = goal.target,
               baseline != target else { return nil }
         let ascending = target > baseline
@@ -229,7 +231,7 @@ enum LongTermGoalReader {
         // dates, where one day of water must not flip the verdict.
         let latest = inputs.weightReadings.last
         let current = latest?.value ?? measurement.value
-        let start = Calendar.autoupdatingCurrent.startOfDay(for: goal.createdAt)
+        let start = calendar.startOfDay(for: goal.createdAt)
         let sinceStart = inputs.weightReadings.filter { $0.date >= start }.map(\.value) + [current]
         let best = (ascending ? sinceStart.max() : sinceStart.min()) ?? current
         let trend = measurement.value
@@ -306,7 +308,7 @@ enum LongTermGoalReader {
     /// A target value read from a series other than weight. The same reading as weight (milestones, next
     /// mark, arrival), with the level averaged over the series' own window instead of the weight trend.
     static func level(goal: CoachGoal, metric: LongTermMetric, samples: [GoalMilestones.Sample],
-                      now: Date) -> GoalShapeReading? {
+                      now: Date, calendar: Calendar) -> GoalShapeReading? {
         guard let baseline = goal.baseline, let target = goal.target, baseline != target else { return nil }
         let rule = levelRule(metric)
         guard let level = LongTermGoalMath.level(samples: samples, now: now, windowDays: rule.windowDays,
@@ -320,7 +322,7 @@ enum LongTermGoalReader {
         let current = latest?.value ?? trend
         let best: Double
         if rule.countsReadings {
-            let start = Calendar.autoupdatingCurrent.startOfDay(for: goal.createdAt)
+            let start = calendar.startOfDay(for: goal.createdAt)
             let since = samples.filter { $0.date >= start && $0.date <= now && $0.value.isFinite }.map(\.value) + [current]
             best = (ascending ? since.max() : since.min()) ?? current
         } else {

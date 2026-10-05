@@ -253,7 +253,12 @@ enum PeriodGoalTracker {
                 return kcal
             case .restDays:
                 guard !isFuture, day < today || index.dailyByDay[day] != nil else { return 0 }
-                let rest = (index.workoutsByDay[day] ?? []).isEmpty
+                let workouts = index.workoutsByDay[day] ?? []
+                // A day with no workout is a rest day only if something was recorded that day; a weekend
+                // with the strap in a drawer is a gap, not two rest days.
+                let recorded = index.dailyByDay[day] != nil || (inputs.stepsByDay[day] ?? 0) > 0
+                guard !workouts.isEmpty || recorded else { return nil }
+                let rest = workouts.isEmpty
                 if rest { counted.append(dayItem(day, 1)) }
                 return rest ? 1 : 0
             case .hydrationDays:

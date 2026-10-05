@@ -247,6 +247,7 @@ enum GoalEventNotifier {
     }
 
     private static let milestoneCountsKey = "goals.notify.milestones"
+    private static let milestoneRoutesKey = "goals.notify.milestoneRoutes"
 
     /// A long-term goal passing a waypoint (plan Q25). Counted on every refresh and marked as seen
     /// whether or not it is told, like the daily events; the first count of a goal only records where
@@ -254,17 +255,22 @@ enum GoalEventNotifier {
     static func evaluateLongTerm(_ snapshots: [GoalTrackingSnapshot], now: Date = Date(),
                                  calendar: Calendar = .autoupdatingCurrent) {
         var counts = (UserDefaults.standard.dictionary(forKey: milestoneCountsKey) as? [String: Int]) ?? [:]
+        var routes = (UserDefaults.standard.dictionary(forKey: milestoneRoutesKey) as? [String: String]) ?? [:]
         var fresh: [String] = []
+        var newMarks = 0
         for snapshot in snapshots where snapshot.goal.status == .active {
             guard let (window, metric) = milestones(snapshot.reading) else { continue }
             let key = snapshot.id.uuidString
-            let reached = window.reachedCount
-            if let previous = counts[key], reached > previous, reached > 0 {
-                fresh.append(String(localized: "\(snapshot.displayTitle): \(LongTermFormat.value(window.values[reached - 1], metric))"))
+            let step = MilestoneLedger.advance(high: counts[key], storedRoute: routes[key], window: window)
+            if step.fresh > 0 {
+                newMarks += step.fresh
+                fresh.append(String(localized: "\(snapshot.displayTitle): \(LongTermFormat.value(window.values[step.high - 1], metric))"))
             }
-            counts[key] = reached
+            counts[key] = step.high
+            routes[key] = MilestoneLedger.route(window)
         }
         UserDefaults.standard.set(counts, forKey: milestoneCountsKey)
+        UserDefaults.standard.set(routes, forKey: milestoneRoutesKey)
 
         guard !fresh.isEmpty, isOn(.milestone), !workoutInProgress, !appIsActive else { return }
         let day = GoalActionEvaluator.dayKey(now, calendar: calendar)
@@ -273,7 +279,7 @@ enum GoalEventNotifier {
         guard minute < latestMinute, !GoalNotifier.isQuiet(now, calendar: calendar), state.sent < dailyLimit
         else { return }
         post(id: "goal-milestone-\(day)-\(state.sent)",
-             title: fresh.count == 1 ? String(localized: "Milestone reached") : String(localized: "\(fresh.count) milestones reached"),
+             title: newMarks == 1 ? String(localized: "Milestone reached") : String(localized: "\(newMarks) milestones reached"),
              body: fresh.prefix(2).joined(separator: " · "), tickGoal: nil)
         state.sent += 1
         save(state)
@@ -302,4 +308,24 @@ enum GoalEventNotifier {
         UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: id, content: content, trigger: nil))
     }
 
+}
+
+/// The bookkeeping behind milestone notifications, kept pure so it can be tested. The stored count is
+/// the highest one reached, so a reading that dips below a mark and comes back (a four-week resting
+/// heart rate hovering at 55) does not announce the same mark again.
+enum MilestoneLedger {
+    /// The route a count belongs to: a new target or another spacing gives a different list of marks,
+    /// and a count from the old list says nothing about the new one.
+    static func route(_ window: LongTermGoalMath.MilestoneWindow) -> String {
+        "\(window.values.count)|\(window.values.first ?? 0)|\(window.values.last ?? 0)"
+    }
+
+    /// The count to keep and how many marks are new. A goal seen for the first time, or on a changed
+    /// route, only records where it stands. Counts stored before routes were kept compare as they are.
+    static func advance(high: Int?, storedRoute: String?, window: LongTermGoalMath.MilestoneWindow)
+        -> (high: Int, fresh: Int) {
+        let reached = window.reachedCount
+        guard let high, storedRoute == nil || storedRoute == route(window) else { return (reached, 0) }
+        return (max(high, reached), max(0, reached - high))
+    }
 }

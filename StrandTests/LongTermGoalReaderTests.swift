@@ -47,6 +47,43 @@ final class LongTermGoalReaderTests: XCTestCase {
         XCTAssertNotNil(reading?.state)
     }
 
+    /// Nothing after the target day counts: a goal missed on its date is not reached by later runs.
+    func testSumStopsCountingAtTheTargetDay() throws {
+        let goal = CoachGoal(kind: .endurance, title: "Run", baseline: 0, target: 100, targetDate: daysAgo(10),
+                             createdAt: daysAgo(60), templateId: GoalTemplateID.distanceTotal.rawValue,
+                             measure: .init(metric: .distanceTotal, sportFilter: ["Running"]))
+        let inputs = LongTermReaderInputs(workouts: [run(30, km: 40), run(20, km: 40), run(5, km: 30)])
+        let reading = LongTermGoalReader.reading(goal: goal, course: nil, inputs: inputs, periodSnapshots: [],
+                                                 now: now, calendar: calendar)
+        guard case .sum(let data)? = reading else { return XCTFail("expected a sum reading") }
+        XCTAssertEqual(data.reading.total, 80, accuracy: 1e-9, "the run five days ago is after the target day")
+        XCTAssertEqual(reading?.state, .outOfReach)
+    }
+
+    // MARK: - Milestone notifications
+
+    /// The stored count is the highest reached: a dip below a mark and back does not announce it again,
+    /// a first sighting or a new route only records, and several new marks count as several.
+    func testMilestoneLedgerAnnouncesEachMarkOnce() throws {
+        let window = { (current: Double) in
+            try XCTUnwrap(LongTermGoalMath.milestoneWindow(baseline: 217, target: 100, current: current, step: 1))
+        }
+        let route = MilestoneLedger.route(try window(210))
+        XCTAssertEqual(MilestoneLedger.advance(high: nil, storedRoute: nil, window: try window(210)).fresh, 0)
+        let jump = MilestoneLedger.advance(high: 2, storedRoute: route, window: try window(207.3))
+        XCTAssertEqual(jump.fresh, 7)
+        XCTAssertEqual(jump.high, 9)
+        let dip = MilestoneLedger.advance(high: 9, storedRoute: route, window: try window(208.4))
+        XCTAssertEqual(dip.fresh, 0)
+        XCTAssertEqual(dip.high, 9, "the highest count stays")
+        XCTAssertEqual(MilestoneLedger.advance(high: 9, storedRoute: route, window: try window(207.6)).fresh, 0)
+        let moved = try XCTUnwrap(LongTermGoalMath.milestoneWindow(baseline: 217, target: 150, current: 205, step: 1))
+        XCTAssertEqual(MilestoneLedger.advance(high: 9, storedRoute: route, window: moved).fresh, 0,
+                       "a new target restarts the count silently")
+        XCTAssertEqual(MilestoneLedger.advance(high: 2, storedRoute: nil, window: try window(207.3)).fresh, 7,
+                       "a count stored before routes compares as it is")
+    }
+
     func testSumWithoutAnEndDateHasNoReading() {
         let goal = CoachGoal(kind: .endurance, title: "Run", target: 1_000,
                              templateId: GoalTemplateID.distanceTotal.rawValue, measure: .init(metric: .distanceTotal))

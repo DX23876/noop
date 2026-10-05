@@ -92,6 +92,32 @@ final class PeriodGoalTests: XCTestCase {
         XCTAssertEqual(reloaded.freeze(reloaded.results), 0)
     }
 
+    /// A newer build's weekly goals survive this one: a goal with a metric this build has no case for stays
+    /// in storage untouched, and a known goal keeps the fields it has no property for through an edit.
+    /// Decoding the list as a whole used to empty it on the next save.
+    func testGoalsWrittenByANewerBuildSurviveLoadEditAndSave() throws {
+        let defaults = suite()
+        let known = UUID(), foreign = UUID()
+        let stored = """
+        [{"id":"\(known.uuidString)","metric":"workouts","period":"week","target":3,"colorTheme":"blue"},
+         {"id":"\(foreign.uuidString)","metric":"activeDays","period":"week","target":5}]
+        """
+        defaults.set(Data(stored.utf8), forKey: PeriodGoalStore.storageKey)
+
+        let store = PeriodGoalStore(defaults: defaults)
+        XCTAssertEqual(store.goals.map(\.id), [known], "the unreadable goal is not shown")
+        store.setTarget(known, 4, today: "2026-10-05")
+
+        let saved = try XCTUnwrap(defaults.data(forKey: PeriodGoalStore.storageKey))
+        let goals = try XCTUnwrap(JSONSerialization.jsonObject(with: saved) as? [[String: Any]])
+        XCTAssertEqual(goals.count, 2)
+        XCTAssertEqual(goals[0]["target"] as? Double, 4)
+        XCTAssertEqual(goals[0]["colorTheme"] as? String, "blue")
+        XCTAssertEqual(goals[1]["id"] as? String, foreign.uuidString)
+        XCTAssertEqual(goals[1]["metric"] as? String, "activeDays")
+        XCTAssertEqual(PeriodGoalStore(defaults: defaults).goals.map(\.target), [4])
+    }
+
     func testChainPausesAndUnlinks() {
         let store = PeriodGoalStore(defaults: suite())
         let parent = UUID()
@@ -173,6 +199,33 @@ final class PeriodGoalTests: XCTestCase {
         XCTAssertEqual(s.result.current, 2)
         XCTAssertEqual(s.dayValues[2], nil, "a night without data is missing, not a miss")
         XCTAssertEqual(s.dayValues[1], 0)
+    }
+
+    /// A day without a workout is a rest day only when something was recorded that day: three days with
+    /// the strap in a drawer are a gap, not three rest days.
+    func testRestDaysNeedARecordedDay() {
+        var inputs = PeriodGoalInputs()
+        inputs.days = [day("2026-10-05", steps: 6_000), day("2026-10-06", steps: 9_000), day("2026-10-07", steps: 4_000)]
+        inputs.workouts = [workout("2026-10-06", "Running")]
+        let goal = PeriodGoal(metric: .restDays, period: .week, target: 2, createdAt: date("2026-09-01"))
+        let s = snapshot(goal, inputs: inputs, now: "2026-10-11")
+        XCTAssertEqual(s.result.current, 2, "Monday and Wednesday")
+        XCTAssertEqual(s.dayValues[1], 0, "Tuesday had a run")
+        XCTAssertEqual(s.dayValues[3], nil, "Thursday has no data")
+        XCTAssertEqual(s.dayValues[5], nil, "neither has Saturday")
+    }
+
+    /// The mid-week reminder names a goal clearly behind before one that is only close.
+    func testMidWeekReminderPrefersTheGoalThatIsBehind() {
+        var inputs = PeriodGoalInputs()
+        inputs.workouts = [workout("2026-10-05", "Running"), workout("2026-10-06", "Running")]
+        let close = PeriodGoal(metric: .workouts, period: .week, target: 4, createdAt: date("2026-09-01"))
+        let behind = PeriodGoal(metric: .trainingMinutes, period: .week, target: 600, createdAt: date("2026-09-01"))
+        let snapshots = PeriodGoalTracker.snapshots(goals: [close, behind], inputs: inputs, parents: [], frozen: [],
+                                                    corrections: [], now: date("2026-10-09"), calendar: calendar)
+        XCTAssertEqual(snapshots[1].state, .behind)
+        XCTAssertEqual(GoalNotifier.slipping(snapshots)?.id, behind.id)
+        XCTAssertNil(GoalNotifier.slipping([]))
     }
 
     func testHistorySeriesAndStepUpSuggestion() {
