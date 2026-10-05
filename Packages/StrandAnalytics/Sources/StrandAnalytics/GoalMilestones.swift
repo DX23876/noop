@@ -31,12 +31,13 @@ public enum GoalMilestones {
     public static let preferredCount = 6
 
     /// The "nice number" ladder. People think in fives and tens, not in 4.7 kg increments.
-    static let ladder: [Double] = [1, 2, 2.5, 5, 10]
+    public static let ladder: [Double] = [1, 2, 2.5, 5, 10]
 
     /// Step size for a span: the smallest ladder value that keeps the count at or under
     /// `preferredCount`. Rounding UP rather than to the nearest rung is deliberate — it can only ever
     /// produce FEWER, coarser waypoints, and a route with too many stops reads as noise.
-    public static func step(forSpan span: Double, preferredCount: Int = preferredCount) -> Double? {
+    public static func step(forSpan span: Double, preferredCount: Int = preferredCount,
+                            ladder: [Double] = ladder) -> Double? {
         let magnitudeInput = abs(span)
         guard magnitudeInput > 0, magnitudeInput.isFinite, preferredCount > 0 else { return nil }
         let raw = magnitudeInput / Double(preferredCount)
@@ -55,9 +56,25 @@ public enum GoalMilestones {
     public static func suggest(baseline: Double, target: Double,
                                createdAt: Date, targetDate: Date,
                                preferredCount: Int = preferredCount) -> [Milestone] {
+        guard targetDate > createdAt else { return [] }
+        let anchors = values(baseline: baseline, target: target, preferredCount: preferredCount)
+        guard !anchors.isEmpty else { return [] }
+
+        let totalSpan = target - baseline
+        let totalTime = targetDate.timeIntervalSince(createdAt)
+        return anchors.map { value in
+            let fraction = (value - baseline) / totalSpan
+            return Milestone(value: value,
+                             expectedDate: createdAt.addingTimeInterval(fraction * totalTime))
+        }
+    }
+
+    /// The waypoint values alone, for a goal with no target date: the same round-number anchors as
+    /// `suggest`, ordered along the direction of travel, with the target itself last.
+    public static func values(baseline: Double, target: Double,
+                              preferredCount: Int = preferredCount, ladder: [Double] = ladder) -> [Double] {
         guard baseline.isFinite, target.isFinite, baseline != target,
-              targetDate > createdAt,
-              let step = step(forSpan: target - baseline, preferredCount: preferredCount)
+              let step = step(forSpan: target - baseline, preferredCount: preferredCount, ladder: ladder)
         else { return [] }
 
         let low = min(baseline, target)
@@ -74,14 +91,7 @@ public enum GoalMilestones {
         // Along the direction of travel, then the target as the final waypoint.
         anchors.sort { baseline < target ? $0 < $1 : $0 > $1 }
         anchors.append(target)
-
-        let totalSpan = target - baseline
-        let totalTime = targetDate.timeIntervalSince(createdAt)
-        return anchors.map { value in
-            let fraction = (value - baseline) / totalSpan
-            return Milestone(value: value,
-                             expectedDate: createdAt.addingTimeInterval(fraction * totalTime))
-        }
+        return anchors
     }
 
     // MARK: - Course
