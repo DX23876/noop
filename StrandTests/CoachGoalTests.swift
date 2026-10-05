@@ -53,6 +53,68 @@ final class CoachGoalTests: XCTestCase {
         XCTAssertEqual(reloaded.goals.first?.shareMotivation, false)
     }
 
+    // MARK: - Goals written by a newer build
+
+    /// A goal as a newer build stores it: a kind this build does not know plus fields it has no property for.
+    private let newerBuildGoalJSON = """
+    [{"kind":"endurance","title":"1.000 km","status":"active","templateId":"endurance.distanceTotal",
+      "measure":{"metric":"distanceTotal","sportFilter":["Running"],"band":null,"adherenceWeeks":12,
+                 "fixedEnd":false}},
+     {"kind":"weight","title":"Get lighter","baseline":90,"target":80,"status":"active"}]
+    """
+
+    /// The goals are read as one array, so one unreadable goal used to empty the whole list.
+    func testUnknownKindReadsAsCustomAndKeepsTheOtherGoals() {
+        let d = makeDefaults("test.goal.newer.kind")
+        d.set(Data(newerBuildGoalJSON.utf8), forKey: CoachGoalStore.goalsKey)
+
+        let store = CoachGoalStore(defaults: d)
+        XCTAssertEqual(store.goals.count, 2)
+        XCTAssertEqual(store.goals.first?.kind, .custom)
+        XCTAssertEqual(store.goals.first?.title, "1.000 km")
+        XCTAssertEqual(store.goals.last?.kind, .weight)
+        XCTAssertNil(store.goals.last?.unknownKindRaw)
+        XCTAssertTrue(store.goals.last?.unknownFields.isEmpty ?? false)
+    }
+
+    /// A save from this build must write the newer build's kind and fields back unchanged, or installing
+    /// the newer build again would find them gone.
+    func testSaveWritesTheNewerBuildsKindAndFieldsBack() throws {
+        let d = makeDefaults("test.goal.newer.save")
+        d.set(Data(newerBuildGoalJSON.utf8), forKey: CoachGoalStore.goalsKey)
+        let store = CoachGoalStore(defaults: d)
+        store.note(store.goals[0].id, "Touched by an older build")
+
+        let saved = try XCTUnwrap(d.data(forKey: CoachGoalStore.goalsKey))
+        let goals = try XCTUnwrap(try JSONSerialization.jsonObject(with: saved) as? [[String: Any]])
+        let first = try XCTUnwrap(goals.first)
+        XCTAssertEqual(first["kind"] as? String, "endurance")
+        XCTAssertEqual(first["templateId"] as? String, "endurance.distanceTotal")
+        let measure = try XCTUnwrap(first["measure"] as? [String: Any])
+        XCTAssertEqual(measure["metric"] as? String, "distanceTotal")
+        XCTAssertEqual(measure["sportFilter"] as? [String], ["Running"])
+        XCTAssertEqual(measure["adherenceWeeks"] as? Double, 12)
+        XCTAssertEqual(measure["fixedEnd"] as? Bool, false)
+        XCTAssertTrue(measure["band"] is NSNull)
+        XCTAssertEqual(goals.last?["kind"] as? String, "weight")
+        XCTAssertNil(goals.last?["templateId"])
+    }
+
+    /// An edit rebuilds the goal from the editor's draft; what the newer build stored must survive it.
+    func testEditKeepsWhatTheNewerBuildStored() {
+        let d = makeDefaults("test.goal.newer.edit")
+        d.set(Data(newerBuildGoalJSON.utf8), forKey: CoachGoalStore.goalsKey)
+        let store = CoachGoalStore(defaults: d)
+        let id = store.goals[0].id
+
+        store.commit(CoachGoal(kind: .custom, title: "1.200 km"), editingId: id)
+
+        let edited = store.goal(id: id)
+        XCTAssertEqual(edited?.title, "1.200 km")
+        XCTAssertEqual(edited?.unknownKindRaw, "endurance")
+        XCTAssertEqual(edited?.unknownFields["templateId"], .string("endurance.distanceTotal"))
+    }
+
     // MARK: - Derived
 
     func testWeeksRemainingGoesNegativeAfterTheDate() {

@@ -979,7 +979,13 @@ wind-down nudge is a local notification and doesn't.**
 `SmartAlarmView.swift` — one surface for both the strap's silent wake-buzz and an evening wind-down
 reminder, after user reports conflated the two when they lived apart (#766).
 
-- **Strap wake-alarm** — arms the strap's own firmware alarm to buzz your wrist at a chosen time
+- **Wake time** — one wake schedule that both features below read: a usual wake time plus optional
+  per-day times (a weekend lie-in, say). It is always editable, so the wind-down reminder works without
+  the strap alarm, and the card says plainly that the time only wakes you when the strap alarm is on.
+  Older builds kept a separate reminder wake time; the first visit merges the two once (the reminder's
+  time when only the reminder was on, otherwise the alarm's, so an armed alarm is never re-timed).
+  Deselecting an alarm weekday keeps that day's own time, because the reminder still uses it.
+- **Strap wake-alarm** — arms the strap's own firmware alarm to buzz your wrist at your wake time
   (with a Monday-first weekday picker), even if your phone is asleep or NOOP is closed. Sends the
   exact command the official WHOOP app sends; confirmed buzzing on a real WHOOP 4.0 (community wire
   capture + on-device test, #535). On a WHOOP 5/MG it only arms with **Experimental mode** on
@@ -993,7 +999,7 @@ reminder, after user reports conflated the two when they lived apart (#766).
   than NOOP sent (usually a strap whose clock/alarm register has reset), with a concrete fix (reset
   in the official WHOOP app, or fully charge and reconnect).
 - **Wind-down nudge** — a calm evening notification timed from your wake time and usual sleep need
-  ("a suggestion, not an alarm"). If notifications are denied at the OS level, NOOP reverts the
+  ("a suggestion, not an alarm"); the screen shows the next reminder, per-day time included. If notifications are denied at the OS level, NOOP reverts the
   toggle instead of silently scheduling something that can never fire, and offers a direct link to
   Settings.
 

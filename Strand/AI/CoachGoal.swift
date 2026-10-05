@@ -240,6 +240,12 @@ struct CoachGoal: Codable, Identifiable, Equatable {
     ///
     /// Waypoints, not rewards: no streak, no score. See `GoalMilestones` for why.
     var milestones: [Milestone]
+    /// The stored `kind` when this build does not know it, because a newer build wrote the goal. The goal
+    /// reads as `.custom` here, and the original value goes back to storage on the next save.
+    var unknownKindRaw: String?
+    /// Keys a newer build stored on this goal that this build has no field for. Kept verbatim so a save
+    /// from this build does not erase them (see `PreservedJSON`).
+    var unknownFields: [String: PreservedJSON] = [:]
 
     /// One waypoint on the route. `achievedAt` is set when the measured value first passes it, so the
     /// list reads as a record of what happened rather than a checklist to keep up.
@@ -297,7 +303,16 @@ struct CoachGoal: Codable, Identifiable, Equatable {
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
-        kind = try c.decodeIfPresent(Kind.self, forKey: .kind) ?? .custom
+        // A kind this build does not know must not fail the decode: `CoachGoalStore` reads the goals as
+        // one array, so a single unreadable goal used to empty the whole list. It reads as `.custom` and
+        // keeps its stored value for the next save.
+        let rawKind = try c.decodeIfPresent(String.self, forKey: .kind)
+        if let rawKind, let known = Kind(rawValue: rawKind) {
+            kind = known
+        } else {
+            kind = .custom
+            unknownKindRaw = rawKind
+        }
         title = try c.decodeIfPresent(String.self, forKey: .title) ?? ""
         baseline = try c.decodeIfPresent(Double.self, forKey: .baseline)
         target = try c.decodeIfPresent(Double.self, forKey: .target)
@@ -314,6 +329,38 @@ struct CoachGoal: Codable, Identifiable, Equatable {
         // Added after first ship: a goal stored before the route existed decodes with none, and gets
         // one suggested on the next tracking refresh.
         milestones = try c.decodeIfPresent([Milestone].self, forKey: .milestones) ?? []
+
+        let all = try decoder.container(keyedBy: AnyCodingKey.self)
+        for key in all.allKeys where CodingKeys(stringValue: key.stringValue) == nil {
+            if let value = try? all.decode(PreservedJSON.self, forKey: key) {
+                unknownFields[key.stringValue] = value
+            }
+        }
+    }
+
+    /// Written by hand so the two forward-compatibility fields go back out under their original keys:
+    /// the stored kind in place of `.custom`, the unknown keys beside the known ones. One container for
+    /// everything, keyed by string, so known and unknown keys land in the same object.
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: AnyCodingKey.self)
+        func key(_ k: CodingKeys) -> AnyCodingKey { AnyCodingKey(stringValue: k.stringValue) }
+        for (name, value) in unknownFields { try c.encode(value, forKey: AnyCodingKey(stringValue: name)) }
+        try c.encode(id, forKey: key(.id))
+        try c.encode(kind == .custom ? (unknownKindRaw ?? kind.rawValue) : kind.rawValue, forKey: key(.kind))
+        try c.encode(title, forKey: key(.title))
+        try c.encodeIfPresent(baseline, forKey: key(.baseline))
+        try c.encodeIfPresent(target, forKey: key(.target))
+        try c.encodeIfPresent(targetDate, forKey: key(.targetDate))
+        try c.encode(status, forKey: key(.status))
+        try c.encode(motivation, forKey: key(.motivation))
+        try c.encode(motivationTags, forKey: key(.motivationTags))
+        try c.encode(shareMotivation, forKey: key(.shareMotivation))
+        try c.encodeIfPresent(acknowledgedRisk, forKey: key(.acknowledgedRisk))
+        try c.encode(createdAt, forKey: key(.createdAt))
+        try c.encode(history, forKey: key(.history))
+        try c.encode(pauseIntervals, forKey: key(.pauseIntervals))
+        try c.encodeIfPresent(closure, forKey: key(.closure))
+        try c.encode(milestones, forKey: key(.milestones))
     }
 
     // MARK: - Derived
@@ -564,6 +611,10 @@ final class CoachGoalStore: ObservableObject {
                           // rebuilt a fresh, unreached route with new identities on the next refresh
                           // — the exact erasure its own doc comment rules out.
                           milestones: existing.milestones)
+            // Same reason as the route: an edit rebuilds the goal, and what a newer build stored on it
+            // must survive that. The stored kind only while the edit left the goal's kind alone.
+            g.unknownFields = existing.unknownFields
+            if g.kind == existing.kind { g.unknownKindRaw = existing.unknownKindRaw }
         }
         if let ack = acknowledgedRisk {
             g.acknowledgedRisk = ack
