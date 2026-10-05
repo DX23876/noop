@@ -238,4 +238,9 @@ final class GoalCatalogModelTests: XCTestCase {
         XCTAssertEqual(periods.goals.first?.parentGoalId, goal.id)
         XCTAssertEqual(store.goal(id: goal.id)?.measure?.weeklyGoalId, existing.id)
     }
+
+    func testKeepYourWeightIsAMaintainGoal() {
+        XCTAssertEqual(GoalCatalog.template(.weightMaintain)?.shape, .maintain)
+        XCTAssertEqual(GoalCatalog.template(.weightLose)?.shape, .target)
+    }
 }

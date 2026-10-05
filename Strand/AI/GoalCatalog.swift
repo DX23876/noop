@@ -57,7 +57,9 @@ struct GoalTemplate: Identifiable, Equatable {
         var id: String { label }
     }
 
-    var shape: GoalShape { id.metric.baseShape }
+    /// "Keep your weight" measures weight like "Lose weight" but holds it in a band; the metric alone
+    /// would make it a target goal whose start and target are the same number.
+    var shape: GoalShape { id == .weightMaintain ? .maintain : id.metric.baseShape }
 }
 
 enum GoalCatalog {

@@ -138,6 +138,7 @@ enum CoachGoalSetupApplier {
         case unavailableGoalLink
         case periodGoalLimit
         case periodGoalDuplicate
+        case linkedWeeklyGoalRequired
 
         var errorDescription: String? {
             switch self {
@@ -151,6 +152,8 @@ enum CoachGoalSetupApplier {
                 return String(localized: "These weekly or monthly goals would go past your limit. End one first or raise the limit in goal settings.")
             case .periodGoalDuplicate:
                 return String(localized: "You already track this over the same period. Change that goal instead.")
+            case .linkedWeeklyGoalRequired:
+                return String(localized: "This goal is measured by its weekly goal. Keep the weekly goal selected, or leave the goal out.")
             }
         }
     }
@@ -204,6 +207,13 @@ enum CoachGoalSetupApplier {
             let allowedIds = includedGoalId.map { activeIds.union([$0]) } ?? activeIds
             guard Set(action.goalIds).isSubset(of: allowedIds) else { return .unavailableGoalLink }
             preparedActions.append(action)
+        }
+
+        // A weekly-rhythm catalog goal reads only its own weekly goal: without it there is nothing to judge.
+        if selection.includeGoal, let weeklyId = selection.goal?.goal.measure?.weeklyGoalId,
+           selection.periodGoals.contains(where: { $0.id == weeklyId }),
+           !selection.selectedPeriodGoalIds.contains(weeklyId) {
+            return .linkedWeeklyGoalRequired
         }
 
         // Weekly and monthly goals: checked one after another against the goals already open plus the

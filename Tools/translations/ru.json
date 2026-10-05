@@ -2438,5 +2438,18 @@
   "This goal is read from your data. Sessions here are only the ones you log against it or tick off in Your plan while it's active.": "Эта цель считывается из твоих данных. Здесь только занятия, которые ты к ней относишь или отмечаешь в Твоём плане, пока она активна.",
   "This goal is read from your data: where it stands now, how fast it moves and what a week needs.": "Эта цель считывается из данных: где она сейчас, как быстро движется и что нужно за неделю.",
   "Two weight goals pull in opposite directions": "Две цели по весу тянут в разные стороны",
-  "Two goals of the same kind ask for different numbers": "Две цели одного вида требуют разных значений"
+  "Two goals of the same kind ask for different numbers": "Две цели одного вида требуют разных значений",
+  "Start running": "Начать бегать",
+  "%@ by %@": "%@ к %@",
+  "“%@” already measures this.": "«%@» уже это измеряет.",
+  "Long-term goal": "Долгосрочная цель",
+  "Measures the goal": "Измеряет цель",
+  "Every week": "Каждую неделю",
+  "What should this week look like?": "Какой должна быть эта неделя?",
+  "Is my target realistic?": "Реалистична ли моя цель?",
+  "Opens the AI coach with this goal's figures.": "Открывает ИИ-тренера с цифрами этой цели.",
+  "Ask the coach about this goal": "Спроси тренера об этой цели",
+  "Coach tip": "Совет тренера",
+  "This goal is measured by its weekly goal. Keep the weekly goal selected, or leave the goal out.": "Эта цель измеряется недельной целью. Оставь недельную цель выбранной или убери саму цель.",
+  "Run %@": "Пробежать %@"
 }

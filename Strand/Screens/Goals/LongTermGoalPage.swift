@@ -228,7 +228,8 @@ struct LongTermGoalContent {
             let third: GoalHeroStat
             if let date = snapshot.goal.targetDate {
                 let days = Calendar.autoupdatingCurrent.dateComponents([.day], from: Date(), to: date).day ?? 0
-                third = .init(id: 2, label: String(localized: "Race day"),
+                let isRace = snapshot.goal.templateId == GoalTemplateID.event.rawValue
+                third = .init(id: 2, label: isRace ? String(localized: "Race day") : String(localized: "By"),
                               value: days >= 0 ? LongTermFormat.inAbout(days: Double(days)) : LongTermFormat.shortDate(date))
             } else {
                 third = .init(id: 2, label: String(localized: "Last best"),
@@ -451,6 +452,7 @@ struct LongTermGoalPage: View {
                     }
                     if let band = content.band { bandCard(content.bandTitle, band) }
                     insightsSection(content.insights)
+                    if let reading = snapshot.reading { LongTermGoalTipCard(goal: snapshot.goal, reading: reading) }
                     moreSection(snapshot)
                 }
             } else {
@@ -687,5 +689,52 @@ private struct MilestoneListSheet: View {
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
         #endif
+    }
+}
+
+/// The coach's tip under the insights (plan Q10, Q29): two sentences on this goal's own figures, new at
+/// most once a day or when its state changes. Absent without the coach, a connection or data sharing,
+/// and while the first tip is still on its way, so the page never shows an empty box. Tapping it opens
+/// the coach with this goal as the topic.
+private struct LongTermGoalTipCard: View {
+    let goal: CoachGoal
+    let reading: GoalShapeReading
+
+    @EnvironmentObject private var coach: AICoachEngine
+    @ObservedObject private var tips = LongTermGoalTipStore.shared
+    @AppStorage(CoachFeaturePrefs.enabledKey) private var coachEnabled = false
+
+    private var stateKey: String { reading.state?.rawValue ?? "none" }
+
+    var body: some View {
+        Group {
+            if coachEnabled, LongTermGoalTipStore.allowed(reading, coach: coach),
+               let tip = tips.current(for: goal.id, state: stateKey) {
+                Button {
+                    coach.openedFromCard(LongTermGoalTipStore.cardContext(goal: goal, reading: reading))
+                    NotificationCenter.default.post(name: .noopOpenCoachCard, object: nil)
+                } label: {
+                    NoopCard(padding: 16) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Label("Coach tip", systemImage: "sparkles")
+                                .font(StrandFont.caption.weight(.semibold)).foregroundStyle(StrandPalette.accent)
+                            Text(verbatim: tip.text)
+                                .font(StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
+                                .multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text("Ask the coach about this goal")
+                                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Opens the AI coach with this goal's figures.")
+            }
+        }
+        .task(id: stateKey) {
+            guard coachEnabled else { return }
+            await tips.refreshIfNeeded(goal: goal, reading: reading, coach: coach)
+        }
     }
 }

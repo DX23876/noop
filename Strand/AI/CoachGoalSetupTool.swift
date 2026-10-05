@@ -29,8 +29,9 @@ extension AICoachEngine {
             case .failure(let error): return "Nothing drafted: \(error.description)"
             }
         }
-        var periodGoals: [PeriodGoal] = []
-        for raw in periodInputs {
+        // A weekly-rhythm catalog goal brings the weekly goal that measures it; it takes one of the slots.
+        var periodGoals: [PeriodGoal] = goalResult.linkedWeekly.map { [$0] } ?? []
+        for raw in periodInputs.prefix(CoachGoalSetupProposal.maxPeriodGoals - periodGoals.count) {
             switch Self.parsePeriodGoalDraft(raw, setupGoal: goalDraft?.goal) {
             case .success(let goal): periodGoals.append(goal)
             case .failure(let error): return "Nothing drafted: \(error.description)"
@@ -59,12 +60,54 @@ extension AICoachEngine {
     private struct ParsedGoalDraft {
         let value: CoachGoalSetupProposal.GoalDraft?
         let error: String?
+        var linkedWeekly: PeriodGoal? = nil
+    }
+
+    /// A catalog goal from a template id: the same goal the setup screen makes, so its page, milestones
+    /// and weekly goal work from the first day.
+    private func parseCatalogGoalDraft(_ raw: [String: Any], templateText: String) async -> ParsedGoalDraft {
+        guard let id = GoalTemplateID(rawValue: templateText) else {
+            return .init(value: nil, error: "unknown template \(templateText)")
+        }
+        var input = CatalogGoalDraft.Input()
+        input.target = Self.doubleArg(raw["target"])
+        input.baseline = Self.doubleArg(raw["baseline"])
+        input.targetDate = (raw["target_date"] as? String).flatMap(Self.parseSetupDay)
+        input.countFrom = (raw["count_from"] as? String).flatMap(Self.parseSetupDay)
+        input.sports = (raw["sports"] as? [String] ?? []).map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        input.band = Self.doubleArg(raw["band"])
+        input.fixedWeeks = (Self.doubleArg(raw["fixed_weeks"])).map { Int($0) }
+        input.journalQuestion = raw["journal_question"] as? String
+        input.wantsYes = raw["wants_yes"] as? Bool ?? true
+        input.title = raw["title"] as? String
+        var evidence: CoachGoalSetupProposal.BaselineEvidence?
+        if id.metric == .weight, input.baseline == nil || raw["use_current_baseline"] as? Bool == true,
+           let resolved = await resolveLocalBaseline(for: .weight) {
+            input.baseline = resolved.value
+            evidence = resolved
+        }
+        if id == .weightMaintain, input.target == nil { input.target = input.baseline }
+        switch CatalogGoalDraft.make(id, input) {
+        case .failure(let error):
+            return .init(value: nil, error: error.description)
+        case .success(let made):
+            var goal = made.goal
+            if let values = raw["motivation_tags"] as? [String] {
+                goal.motivationTags = values.compactMap(CoachGoal.MotivationTag.init(rawValue:))
+            }
+            return .init(value: .init(operation: .create, editingId: nil, goal: goal, baselineEvidence: evidence),
+                         error: nil, linkedWeekly: made.weekly)
+        }
     }
 
     private func parseGoalDraft(_ raw: [String: Any]?) async -> ParsedGoalDraft {
         guard let raw else { return .init(value: nil, error: nil) }
         let operation = CoachGoalSetupProposal.Operation(rawValue: (raw["operation"] as? String) ?? "create")
             ?? .create
+        if operation == .create, let template = raw["template"] as? String, !template.isEmpty {
+            return await parseCatalogGoalDraft(raw, templateText: template)
+        }
         let existing: CoachGoal?
         if operation == .update {
             guard let idText = raw["goal_id"] as? String, let id = UUID(uuidString: idText),
@@ -78,9 +121,10 @@ extension AICoachEngine {
         }
 
         let kind: CoachGoal.Kind
-        // A catalog area is made from a template, which this tool does not take yet; a bare area kind
-        // would be a goal with nothing to measure.
-        if let text = raw["kind"] as? String, let parsed = CoachGoal.Kind(rawValue: text), !parsed.isCatalogArea {
+        // A catalog area is made from a template (`template` above); a bare area kind would be a goal
+        // with nothing to measure. An update keeps the kind it has, catalog or not.
+        if let existing, existing.templateId != nil { kind = existing.kind }
+        else if let text = raw["kind"] as? String, let parsed = CoachGoal.Kind(rawValue: text), !parsed.isCatalogArea {
             kind = parsed
         }
         else if let existing { kind = existing.kind }
@@ -113,7 +157,11 @@ extension AICoachEngine {
                              motivationTags: tags, shareMotivation: existing?.shareMotivation ?? false,
                              acknowledgedRisk: existing?.acknowledgedRisk,
                              createdAt: existing?.createdAt ?? Date(), history: existing?.history ?? [],
-                             pauseIntervals: existing?.pauseIntervals ?? [], closure: existing?.closure)
+                             pauseIntervals: existing?.pauseIntervals ?? [], closure: existing?.closure,
+                             // An update of a catalog goal keeps what it measures; dropping these turned
+                             // it into a goal without a page.
+                             milestones: existing?.milestones ?? [],
+                             templateId: existing?.templateId, measure: existing?.measure)
         return .init(value: .init(operation: operation, editingId: existing?.id, goal: goal,
                                  baselineEvidence: baselineEvidence), error: nil)
     }

@@ -2335,7 +2335,7 @@
   "Target reached": "Ziel erreicht am",
   "More than a year at this pace, or no trend yet": "Mehr als ein Jahr bei diesem Tempo, oder noch kein Trend",
   "at the current pace": "beim aktuellen Tempo",
-  "best since the start": "Bestwert seit dem Start",
+  "best since the start": "Bestwert seit Start",
   "Last best": "Letzter Bestwert",
   "last four weeks": "letzte vier Wochen",
   "Longest lately": "Längster zuletzt",
@@ -2461,5 +2461,18 @@
   "This goal is read from your data. Sessions here are only the ones you log against it or tick off in Your plan while it's active.": "Dieses Ziel wird aus deinen Daten gelesen. Hier stehen nur Einheiten, die du ihm zuordnest oder in Dein Plan abhakst, solange es aktiv ist.",
   "This goal is read from your data: where it stands now, how fast it moves and what a week needs.": "Dieses Ziel wird aus deinen Daten gelesen: wo es steht, wie schnell es vorangeht und was eine Woche braucht.",
   "Two weight goals pull in opposite directions": "Zwei Gewichtsziele ziehen in entgegengesetzte Richtungen",
-  "Two goals of the same kind ask for different numbers": "Zwei Ziele derselben Art verlangen verschiedene Werte"
+  "Two goals of the same kind ask for different numbers": "Zwei Ziele derselben Art verlangen verschiedene Werte",
+  "Start running": "Laufeinstieg",
+  "%@ by %@": "%@ bis %@",
+  "“%@” already measures this.": "„%@“ misst das schon.",
+  "Long-term goal": "Langzeitziel",
+  "Measures the goal": "Misst das Ziel",
+  "Every week": "Jede Woche",
+  "What should this week look like?": "Wie sollte diese Woche aussehen?",
+  "Is my target realistic?": "Ist mein Ziel realistisch?",
+  "Opens the AI coach with this goal's figures.": "Öffnet den KI-Coach mit den Zahlen dieses Ziels.",
+  "Ask the coach about this goal": "Frag den Coach zu diesem Ziel",
+  "Coach tip": "Tipp vom Coach",
+  "This goal is measured by its weekly goal. Keep the weekly goal selected, or leave the goal out.": "Dieses Ziel wird über sein Wochenziel gemessen. Lass das Wochenziel ausgewählt oder nimm das Ziel heraus.",
+  "Run %@": "%@ laufen"
 }

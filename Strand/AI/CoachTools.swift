@@ -252,7 +252,14 @@ enum CoachTool: String, CaseIterable {
                 + "in this same setup. Set use_current_baseline=true when a locally measured starting value is useful; "
                 + "the app resolves and labels it rather than trusting you to invent one. Never propose nutrition, "
                 + "medication, dosage or treatment routines. Do not say the goal or routines were created—say the draft "
-                + "is waiting for review."
+                + "is waiting for review. "
+                + "Prefer a catalog goal (goal.template) whenever one fits: NOOP then measures it from the user's own "
+                + "data with milestones and a weekly view. Collect templates need target and target_date (count_from "
+                + "for a year that already started); target-value templates need the measured baseline, read with your "
+                + "tools first (weight resolves itself); a race needs target_date as race day; weekly-rhythm templates "
+                + "take target as the weekly number and bring their own weekly goal, so do not add a second one for the "
+                + "same measure. Several goals of one area are fine; do not draft one that measures what an active goal "
+                + "already does."
         case .findHevyExercises:
             return "Search the user's synced Hevy exercise catalogue by name, muscle group and/or equipment. "
                 + "Returns each movement's exercise_template_id, which propose_hevy_routine requires. ALWAYS "
@@ -729,7 +736,16 @@ enum CoachTool: String, CaseIterable {
             let goalProperties: [String: Any] = [
                 "operation": ["type": "string", "enum": ["create", "update"]],
                 "goal_id": ["type": "string", "description": "Exact active goal UUID for update."],
-                "kind": ["type": "string", "enum": CoachGoal.Kind.templateFreeCases.map(\.rawValue)],
+                "kind": ["type": "string", "enum": CoachGoal.Kind.templateFreeCases.map(\.rawValue),
+                         "description": "For a goal without a template only."],
+                "template": ["type": "string", "enum": CatalogGoalDraft.draftable.map(\.rawValue),
+                             "description": "Catalog goal to create. Shapes: endurance.distanceTotal/timeTotal/workoutsTotal and daily.stepsTotal collect by a date; endurance.longest/event beat a best distance; endurance.paceAverage target pace in s/km; fitness.vo2max/restingHr and body.* reach a value; sleep.average, fitness.hrvAverage, recovery.average raise a 28-day average; training.weekly, strength.setsWeekly, fitness.zoneWeekly, daily.stepDays, daily.activeEnergyWeekly, sleep.nightsWeekly, recovery.restDays, habit.journal keep a weekly rhythm."],
+                "count_from": ["type": "string", "description": "Collect templates: optional yyyy-MM-dd the total counts from, may be in the past."],
+                "sports": ["type": "array", "items": ["type": "string"], "description": "Template goals on workouts: count only these activities, e.g. Running."],
+                "band": ["type": "number", "description": "body.weightMaintain: kg either side of the target, 0.5 to 5."],
+                "fixed_weeks": ["type": "integer", "description": "Weekly-rhythm templates: end after this many weeks instead of running open."],
+                "journal_question": ["type": "string", "description": "habit.journal: the exact journal entry, copied from the user's journal."],
+                "wants_yes": ["type": "boolean", "description": "habit.journal: true = done when logged yes, false = done when logged no."],
                 "title": ["type": "string"],
                 "baseline": ["type": "number", "description": "Only when explicitly stated by the user."],
                 "target": ["type": "number"],

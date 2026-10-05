@@ -285,4 +285,134 @@ final class CoachGoalSetupProposalTests: XCTestCase {
         XCTAssertTrue(tooMany.hasPrefix("Nothing drafted"), tooMany)
         XCTAssertTrue(proposals.proposals.isEmpty)
     }
+
+    // MARK: - Catalog goals (plan step 7)
+
+    func testCoachToolDraftsACatalogGoalWithItsMeasure() async {
+        let (suite, defaults, proposals, _, _) = stores()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let engine = AICoachEngine(repo: Repository(deviceId: "test-goal-catalog-\(UUID().uuidString)"))
+
+        let result = await engine.proposeGoalSetupTool(input: [
+            "goal": ["template": "endurance.distanceTotal", "target": 1_000, "target_date": "2026-12-31",
+                     "count_from": "2026-01-01", "sports": ["Running"]],
+        ], proposalStore: proposals)
+
+        XCTAssertTrue(result.contains("NOT active"), result)
+        let goal = proposals.pending.first?.goal?.goal
+        XCTAssertEqual(goal?.templateId, GoalTemplateID.distanceTotal.rawValue)
+        XCTAssertEqual(goal?.kind, .endurance)
+        XCTAssertEqual(goal?.measure?.metric, .distanceTotal)
+        XCTAssertEqual(goal?.measure?.sportFilter, ["Running"])
+        XCTAssertNotNil(goal?.measure?.countFrom)
+        XCTAssertEqual(goal?.baseline, 0)
+        XCTAssertTrue(proposals.pending.first?.draftedPeriodGoals.isEmpty ?? false)
+    }
+
+    func testCoachToolBringsTheWeeklyGoalOfAWeeklyRhythmTemplate() async {
+        let (suite, defaults, proposals, _, _) = stores()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let engine = AICoachEngine(repo: Repository(deviceId: "test-goal-rhythm-\(UUID().uuidString)"))
+
+        _ = await engine.proposeGoalSetupTool(input: [
+            "goal": ["template": "sleep.nightsWeekly", "target": 5],
+        ], proposalStore: proposals)
+
+        let draft = proposals.pending.first
+        let weekly = draft?.draftedPeriodGoals.first
+        XCTAssertEqual(weekly?.metric, .sleepNights)
+        XCTAssertEqual(weekly?.target, 5)
+        XCTAssertEqual(weekly?.threshold, 7)
+        XCTAssertEqual(draft?.goal?.goal.measure?.weeklyGoalId, weekly?.id)
+        XCTAssertEqual(weekly?.parentGoalId, draft?.goal?.goal.id)
+        XCTAssertNil(draft?.goal?.goal.targetDate, "an open rhythm has no end")
+    }
+
+    func testCoachToolSaysWhatACatalogGoalStillNeeds() async {
+        let (suite, defaults, proposals, _, _) = stores()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let engine = AICoachEngine(repo: Repository(deviceId: "test-goal-catalog-bad-\(UUID().uuidString)"))
+
+        let noDate = await engine.proposeGoalSetupTool(input: [
+            "goal": ["template": "endurance.distanceTotal", "target": 500]], proposalStore: proposals)
+        let noBaseline = await engine.proposeGoalSetupTool(input: [
+            "goal": ["template": "fitness.vo2max", "target": 50]], proposalStore: proposals)
+        let noHabit = await engine.proposeGoalSetupTool(input: [
+            "goal": ["template": "habit.journal", "target": 5]], proposalStore: proposals)
+        let unknown = await engine.proposeGoalSetupTool(input: [
+            "goal": ["template": "daily.trainingDays", "target": 4]], proposalStore: proposals)
+
+        XCTAssertTrue(noDate.contains("target_date"), noDate)
+        XCTAssertTrue(noBaseline.contains("baseline"), noBaseline)
+        XCTAssertTrue(noHabit.contains("journal_question"), noHabit)
+        XCTAssertTrue(unknown.hasPrefix("Nothing drafted"), unknown)
+        XCTAssertTrue(proposals.proposals.isEmpty)
+    }
+
+    func testUpdatingACatalogGoalKeepsWhatItMeasures() async {
+        let (suite, defaults, proposals, _, _) = stores()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let engine = AICoachEngine(repo: Repository(deviceId: "test-goal-catalog-update-\(UUID().uuidString)"))
+        let existing = CoachGoal(kind: .endurance, title: "Run 1,000 km", baseline: 0, target: 1_000,
+                                 targetDate: Date().addingTimeInterval(60 * 86_400),
+                                 templateId: GoalTemplateID.distanceTotal.rawValue,
+                                 measure: .init(metric: .distanceTotal, sportFilter: ["Running"]))
+        CoachGoalStore.shared.commit(existing)
+        defer { CoachGoalStore.shared.goals.removeAll { $0.id == existing.id } }
+
+        _ = await engine.proposeGoalSetupTool(input: [
+            "goal": ["operation": "update", "goal_id": existing.id.uuidString, "target": 1_200],
+        ], proposalStore: proposals)
+
+        let goal = proposals.pending.first?.goal?.goal
+        XCTAssertEqual(goal?.target, 1_200)
+        XCTAssertEqual(goal?.templateId, existing.templateId)
+        XCTAssertEqual(goal?.measure, existing.measure)
+        XCTAssertEqual(goal?.kind, .endurance)
+    }
+
+    func testApplyKeepsAWeeklyRhythmGoalWithItsWeeklyGoal() {
+        let (suite, defaults, proposals, goals, actions) = stores()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let periods = PeriodGoalStore(defaults: defaults)
+        guard case .success(let made) = CatalogGoalDraft.make(.trainingWeekly, .init(target: 3)),
+              let weekly = made.weekly else { return XCTFail("expected a rhythm goal with its weekly goal") }
+        let draft = CoachGoalSetupProposal.GoalDraft(operation: .create, editingId: nil, goal: made.goal,
+                                                     baselineEvidence: nil)
+        let value = CoachGoalSetupProposal(goal: draft, routines: [], periodGoals: [weekly], rationale: "")
+        XCTAssertTrue(proposals.propose(value))
+
+        func selection(_ ids: Set<UUID>) -> CoachGoalSetupApplier.Selection {
+            .init(goal: draft, includeGoal: true, routines: [], selectedRoutineIds: [], replacingGoalId: nil,
+                  acknowledgedRisk: nil, clearStaleAcknowledgement: false,
+                  periodGoals: [weekly], selectedPeriodGoalIds: ids)
+        }
+        XCTAssertEqual(CoachGoalSetupApplier.apply(proposalId: value.id, selection: selection([]),
+                                                   proposalStore: proposals, goalStore: goals, actionStore: actions,
+                                                   periodStore: periods),
+                       .linkedWeeklyGoalRequired)
+        XCTAssertTrue(goals.goals.isEmpty)
+        XCTAssertNil(CoachGoalSetupApplier.apply(proposalId: value.id, selection: selection([weekly.id]),
+                                                 proposalStore: proposals, goalStore: goals, actionStore: actions,
+                                                 periodStore: periods))
+        XCTAssertEqual(goals.goals.first?.measure?.weeklyGoalId, weekly.id)
+        XCTAssertEqual(periods.goals.first?.parentGoalId, made.goal.id)
+    }
+
+    func testCatalogDraftShapes() {
+        let now = Date(timeIntervalSince1970: 1_790_000_000)
+        guard case .success(let race) = CatalogGoalDraft.make(
+            .event, .init(target: 21.1, targetDate: now.addingTimeInterval(70 * 86_400), sports: ["Running"]), now: now),
+              case .success(let keep) = CatalogGoalDraft.make(.weightMaintain, .init(target: 80, baseline: 80, band: 9), now: now),
+              case .success(let sleep) = CatalogGoalDraft.make(.sleepAverage, .init(target: 7.5, targetDate: now), now: now)
+        else { return XCTFail("expected three drafts") }
+        XCTAssertEqual(race.goal.measure?.metric, .longestDistance)
+        XCTAssertEqual(race.goal.kind, .run)
+        XCTAssertEqual(keep.goal.measure?.band, 5, "a band is kept between half a kilo and five")
+        XCTAssertNil(keep.goal.targetDate)
+        XCTAssertNil(sleep.goal.targetDate, "an average runs without a date")
+        if case .success = CatalogGoalDraft.make(.event, .init(target: 10), now: now) {
+            XCTFail("a race needs its day")
+        }
+    }
 }

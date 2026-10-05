@@ -2461,5 +2461,18 @@
   "This goal is read from your data. Sessions here are only the ones you log against it or tick off in Your plan while it's active.": "Este objetivo se lee de tus datos. Aquí solo aparecen las sesiones que le asignas o marcas en Tu plan mientras está activo.",
   "This goal is read from your data: where it stands now, how fast it moves and what a week needs.": "Este objetivo se lee de tus datos: dónde está, a qué ritmo avanza y qué necesita una semana.",
   "Two weight goals pull in opposite directions": "Dos objetivos de peso tiran en direcciones opuestas",
-  "Two goals of the same kind ask for different numbers": "Dos objetivos del mismo tipo piden cifras distintas"
+  "Two goals of the same kind ask for different numbers": "Dos objetivos del mismo tipo piden cifras distintas",
+  "Start running": "Empezar a correr",
+  "%@ by %@": "%@ para el %@",
+  "“%@” already measures this.": "«%@» ya mide esto.",
+  "Long-term goal": "Objetivo a largo plazo",
+  "Measures the goal": "Mide el objetivo",
+  "Every week": "Cada semana",
+  "What should this week look like?": "¿Cómo debería ser esta semana?",
+  "Is my target realistic?": "¿Es realista mi objetivo?",
+  "Opens the AI coach with this goal's figures.": "Abre el coach de IA con las cifras de este objetivo.",
+  "Ask the coach about this goal": "Pregunta al coach por este objetivo",
+  "Coach tip": "Consejo del coach",
+  "This goal is measured by its weekly goal. Keep the weekly goal selected, or leave the goal out.": "Este objetivo se mide por su objetivo semanal. Mantén seleccionado el objetivo semanal o deja fuera el objetivo.",
+  "Run %@": "Correr %@"
 }

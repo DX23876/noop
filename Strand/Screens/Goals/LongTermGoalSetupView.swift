@@ -572,7 +572,20 @@ struct LongTermGoalSetupView: View {
 
     private var areaStep: some View {
         let areas = GoalCatalogArea.allCases.filter { a in GoalCatalog.offered.contains { $0.area == a } }
-        return LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 10)], spacing: 10) {
+        let weight = currentWeight ?? (ProfileStore.persistedWeightKg > 0 ? ProfileStore.persistedWeightKg : nil)
+        return VStack(alignment: .leading, spacing: 16) {
+            if loaded {
+                LongTermStartPacksRow(packs: LongTermStartPack.packs(inputs: inputs, weight: weight)) {
+                    onDone()
+                    if dismissesItself { dismiss() }
+                }
+            }
+            areaGrid(areas)
+        }
+    }
+
+    private func areaGrid(_ areas: [GoalCatalogArea]) -> some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 10)], spacing: 10) {
             ForEach(areas) { a in
                 tile(icon: a.icon, title: a.title.localizedCatalogValue, selected: area == a) {
                     area = a

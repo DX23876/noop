@@ -111,11 +111,27 @@ struct CoachGoalSetupReviewView: View {
             })) {
                 Text(goalDraft?.operation == .update ? "Apply goal changes" : "Create this goal")
             }
-            Picker("Type", selection: goalKindBinding) {
-                ForEach(CoachGoal.Kind.templateFreeCases) { Text($0.label.localizedCatalogValue).tag($0) }
+            if let template = goalDraft.flatMap({ GoalCatalog.template(for: $0.goal) }) {
+                // A catalog goal keeps the template it was drafted from: its kind and measure come with it.
+                LabeledContent("Type") {
+                    Label(template.title.localizedCatalogValue, systemImage: template.icon)
+                }
+            } else {
+                Picker("Type", selection: goalKindBinding) {
+                    ForEach(CoachGoal.Kind.templateFreeCases) { Text($0.label.localizedCatalogValue).tag($0) }
+                }
             }
             TextField("Goal title", text: goalTitleBinding)
-            if goalDraft?.goal.kind.isQuantified == true {
+            if let template = goalDraft.flatMap({ GoalCatalog.template(for: $0.goal) }) {
+                if template.shape == .target {
+                    TextField("Starting value", text: goalNumberBinding(\.baseline))
+                }
+                TextField(template.shape == .consistency ? "Per week" : "Target", text: goalNumberBinding(\.target))
+                if let evidence = goalDraft?.baselineEvidence {
+                    Text("Local baseline: \(evidence.value.formatted()) · \(evidence.source)")
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                }
+            } else if goalDraft?.goal.kind.isQuantified == true {
                 TextField("Starting value", text: goalNumberBinding(\.baseline))
                 TextField("Target", text: goalNumberBinding(\.target))
                 if let evidence = goalDraft?.baselineEvidence {
@@ -123,9 +139,14 @@ struct CoachGoalSetupReviewView: View {
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                 }
             }
-            Toggle("Target date", isOn: hasTargetDateBinding)
-            if goalDraft?.goal.targetDate != nil {
-                DatePicker("Date", selection: goalDateBinding, displayedComponents: .date)
+            // Averages, bands and weekly rhythms run without a date; their date field would do nothing.
+            let dateless = goalDraft.flatMap { GoalCatalog.template(for: $0.goal) }
+                .map { [.average, .maintain, .consistency].contains($0.shape) } ?? false
+            if !dateless {
+                Toggle("Target date", isOn: hasTargetDateBinding)
+                if goalDraft?.goal.targetDate != nil {
+                    DatePicker("Date", selection: goalDateBinding, displayedComponents: .date)
+                }
             }
             DisclosureGroup("Why it matters") {
                 ForEach(CoachGoal.MotivationTag.allCases) { tag in
@@ -290,6 +311,18 @@ struct CoachGoalSetupReviewView: View {
            goals.goal(id: editingId) == nil {
             errorMessage = "The goal this draft wanted to update no longer exists."
             return
+        }
+        if draft.goal.templateId != nil, draft.operation == .create {
+            // Catalog goals: several of one area are fine, the question is only one measure twice.
+            let weekly = GoalCatalog.template(for: draft.goal)?.id.weeklyMetric
+            if let same = goals.activeGoal(measuringLike: draft.goal, weeklyMetric: weekly) {
+                replaceCandidateId = same.id; showReplaceConfirm = true; return
+            }
+            if !goals.hasRoom() {
+                errorMessage = "You already have \(CoachGoalStore.maxActiveGoals) active goals. Close or set one aside first."
+                return
+            }
+            proceedPastLimits(); return
         }
         if let limit = goals.canAdd(kind: draft.goal.kind, replacing: draft.editingId) {
             switch limit {

@@ -3778,6 +3778,17 @@ final class AICoachEngine: ObservableObject {
         }
         if let phase = goal.phase() { parts.append("phase: \(phase)") }
         var lines = [parts.joined(separator: " — ")]
+        // A catalog goal is measured in code; its page figures go over as facts, so the coach speaks to
+        // the same numbers the user sees instead of working out its own.
+        if let templateId = goal.templateId, let measure = goal.measure {
+            let sports = measure.sportFilter.isEmpty ? "" : ", only \(measure.sportFilter.joined(separator: "/"))"
+            lines.append("CATALOG GOAL: template \(templateId), measures \(measure.metric.rawValue) in "
+                         + "\(measure.metric.coachUnit)\(sports). Measured from the user's data; update its target or date "
+                         + "with propose_goal_setup operation=update, never by redefining what it measures.")
+            if let reading = GoalTrackingStore.shared.snapshot(for: goal.id)?.reading {
+                lines.append("CATALOG READING (computed facts): \(reading.coachFacts())")
+            }
+        }
         if let tracking = GoalTrackingStore.shared.snapshot(for: goal.id) {
             lines.append("DETERMINISTIC GOAL STATUS: \(tracking.health.label); "
                          + "this week plan \(tracking.currentWeek.planCompleted)/\(tracking.currentWeek.planPlanned), "

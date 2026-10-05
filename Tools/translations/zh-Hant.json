@@ -2616,5 +2616,18 @@
   "This goal is read from your data. Sessions here are only the ones you log against it or tick off in Your plan while it's active.": "這個目標從你的資料中讀取。這裡只顯示目標進行期間你為它記錄或在「你的計畫」中勾選的訓練。",
   "This goal is read from your data: where it stands now, how fast it moves and what a week needs.": "這個目標從你的資料中讀取：目前進度、推進速度以及每週所需。",
   "Two weight goals pull in opposite directions": "兩個體重目標方向相反",
-  "Two goals of the same kind ask for different numbers": "兩個同類目標要求不同的數值"
+  "Two goals of the same kind ask for different numbers": "兩個同類目標要求不同的數值",
+  "Start running": "開始跑步",
+  "%@ by %@": "%@，截至 %@",
+  "“%@” already measures this.": "「%@」已經在衡量這一項。",
+  "Long-term goal": "長期目標",
+  "Measures the goal": "用於衡量目標",
+  "Every week": "每週",
+  "What should this week look like?": "這週應該怎麼安排？",
+  "Is my target realistic?": "我的目標實際嗎？",
+  "Opens the AI coach with this goal's figures.": "以此目標的資料打開 AI 教練。",
+  "Ask the coach about this goal": "向教練詢問這個目標",
+  "Coach tip": "教練建議",
+  "This goal is measured by its weekly goal. Keep the weekly goal selected, or leave the goal out.": "這個目標由每週目標衡量。請保留所選的每週目標，或不加入該目標。",
+  "Run %@": "跑 %@"
 }
