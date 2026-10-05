@@ -73,9 +73,14 @@ public enum GoalMilestones {
     /// `suggest`, ordered along the direction of travel, with the target itself last.
     public static func values(baseline: Double, target: Double,
                               preferredCount: Int = preferredCount, ladder: [Double] = ladder) -> [Double] {
-        guard baseline.isFinite, target.isFinite, baseline != target,
-              let step = step(forSpan: target - baseline, preferredCount: preferredCount, ladder: ladder)
+        guard let step = step(forSpan: target - baseline, preferredCount: preferredCount, ladder: ladder)
         else { return [] }
+        return values(baseline: baseline, target: target, step: step)
+    }
+
+    /// The same route with a given spacing: multiples of `step` between the ends, then the target.
+    public static func values(baseline: Double, target: Double, step: Double) -> [Double] {
+        guard baseline.isFinite, target.isFinite, baseline != target, step > 0, step.isFinite else { return [] }
 
         let low = min(baseline, target)
         let high = max(baseline, target)

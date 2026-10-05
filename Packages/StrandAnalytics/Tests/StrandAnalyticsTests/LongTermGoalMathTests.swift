@@ -208,6 +208,38 @@ final class LongTermGoalMathTests: XCTestCase {
         XCTAssertNil(r.state, "without a date a best effort is not late")
     }
 
+    /// The recent window is the last four weeks, not the part of them since the start: a goal set
+    /// today shows the run from last week, and stays "starting" until an effort inside the goal.
+    func testRecentBestReadsTheWholeWindow() {
+        let s = [GoalMilestones.Sample(date: at(-60), value: 12),
+                 GoalMilestones.Sample(date: at(-10), value: 7.1),
+                 GoalMilestones.Sample(date: at(-3), value: 6)]
+        let plan = LongTermGoalMath.BestPlan(baseline: 7.1, start: t0, end: at(84))
+        let r = LongTermGoalMath.best(samples: s, since: t0, target: 10, plan: plan, now: at(0))
+        XCTAssertNil(r.best)
+        XCTAssertEqual(r.recentBest, 7.1)
+        XCTAssertEqual(r.earlierBest, 12)
+        XCTAssertEqual(r.state, .starting)
+    }
+
+    /// Weight marks are half a kilo up to 10 kg and a kilo beyond, however long the route: the band
+    /// shows the next five and moves along with the wearer.
+    func testWeightMilestonesUseSmallFixedSteps() {
+        XCTAssertEqual(LongTermGoalMath.weightMilestoneStep(baseline: 96, target: 91), 0.5)
+        XCTAssertEqual(LongTermGoalMath.weightMilestoneStep(baseline: 96, target: 56), 1)
+        XCTAssertEqual(LongTermGoalMath.weightMilestoneStep(baseline: 70, target: 90), 1)
+        let big = LongTermGoalMath.milestoneWindow(baseline: 96, target: 56, current: 80, step: 1)!
+        XCTAssertEqual(big.values.count, 40)
+        XCTAssertEqual(big.values.first, 95)
+        XCTAssertEqual(big.values.last, 56)
+        XCTAssertEqual(big.reachedCount, 16)
+        XCTAssertEqual(big.next, 79)
+        XCTAssertEqual(big.visible.map { big.values[$0] }, [81, 80, 79, 78, 77])
+        let gain = LongTermGoalMath.milestoneWindow(baseline: 70, target: 72.3, current: 70.6, step: 0.5)!
+        XCTAssertEqual(gain.values, [70.5, 71, 71.5, 72, 72.3])
+        XCTAssertEqual(gain.reachedCount, 1)
+    }
+
     func testBestReachingTheTargetIsAchieved() {
         let s = [GoalMilestones.Sample(date: at(20), value: 10.2)]
         XCTAssertEqual(LongTermGoalMath.best(samples: s, since: t0, target: 10, now: at(30)).state, .achieved)
@@ -373,7 +405,8 @@ final class LongTermGoalMathTests: XCTestCase {
         let one = [LongTermGoalMath.RunSample(date: at(95), distanceM: 5_000, durationS: 1_500)]
         let reading = LongTermGoalMath.paceAverage(runs: one, targetSecondsPerKm: 280, now: at(100))
         XCTAssertNil(reading.mean)
-        XCTAssertEqual(reading.state, .noData)
+        XCTAssertEqual(reading.state, .starting, "one run is a start, the mean waits for the second")
+        XCTAssertEqual(LongTermGoalMath.paceAverage(runs: [], targetSecondsPerKm: 280, now: at(100)).state, .noData)
         let short = one + [LongTermGoalMath.RunSample(date: at(96), distanceM: 2_000, durationS: 500)]
         XCTAssertNil(LongTermGoalMath.paceAverage(runs: short, targetSecondsPerKm: 280, now: at(100)).mean)
     }

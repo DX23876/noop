@@ -219,7 +219,9 @@ enum LongTermGoalReader {
               baseline != target else { return nil }
         let current = measurement.value
         let rate = GoalMilestones.observedRatePerDay(series: inputs.weightSamples, now: now)
-        let window = LongTermGoalMath.milestoneWindow(baseline: baseline, target: target, current: current)
+        let window = LongTermGoalMath.milestoneWindow(
+            baseline: baseline, target: target, current: current,
+            step: LongTermGoalMath.weightMilestoneStep(baseline: baseline, target: target))
         let nextDate = window?.next.flatMap {
             LongTermGoalMath.projectedDate(current: current, mark: $0, ratePerDay: rate, now: now)
         }

@@ -67,7 +67,7 @@ struct PeriodGoalSetupView: View {
             .buttonStyle(.plain)
 
             NavigationLink {
-                CoachGoalOnboardingFlow(pushed: true)
+                LongTermGoalSetupView(onDone: { dismiss() }, dismissesItself: false)
             } label: {
                 Label("A long-term goal instead", systemImage: "flag")
                     .font(StrandFont.footnote).foregroundStyle(StrandPalette.accent)
@@ -185,6 +185,7 @@ struct GuidedPeriodGoalSetup: View {
     @ObservedObject private var tracking = GoalTrackingStore.shared
     @ObservedObject private var longTerm = CoachGoalStore.shared
     @StateObject private var journal = JournalCatalogStore()
+    @State private var importedQuestions: [String] = []
 
     private enum Step: Int, CaseIterable { case period, metric, amount, fineTune, preview }
     @State private var step: Step = .period
@@ -211,8 +212,9 @@ struct GuidedPeriodGoalSetup: View {
             }
             navigationButtons
         }
-        .navigationDestination(isPresented: $showLongTerm) { LongTermGoalSetupView(onDone: onDone) }
+        .navigationDestination(isPresented: $showLongTerm) { LongTermGoalSetupView(onDone: onDone, dismissesItself: false) }
         .onAppear(perform: configure)
+        .task { importedQuestions = Array(Set(await repo.importedJournalEntries().map(\.question))).sorted() }
     }
 
     private func configure() {
@@ -353,7 +355,8 @@ struct GuidedPeriodGoalSetup: View {
         NoopCard(padding: 14) {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Which habit?").strandOverline()
-                let items = journal.items.filter { !$0.hidden }
+                // The journal's own list, starter questions included: `items` holds only edited ones.
+                let items = journal.resolvedItems(imported: importedQuestions)
                 if items.isEmpty {
                     Text("Your journal has no habits yet. Add one in Journal first.")
                         .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)

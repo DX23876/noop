@@ -103,7 +103,7 @@ enum GoalCatalog {
               blurb: "Training volume from your lifting log.",
               icon: "square.3.layers.3d", sportChoices: [], inWalkthrough: true),
         .init(id: .vo2max, area: .fitness, title: "Raise VO2max",
-              blurb: "Your aerobic fitness, read from your strap.",
+              blurb: "Your aerobic fitness, estimated by your strap or taken from Apple Health.",
               icon: "lungs.fill", sportChoices: [], inWalkthrough: true),
         .init(id: .restingHr, area: .fitness, title: "Lower resting heart rate",
               blurb: "A calmer heart at rest, read every night.",

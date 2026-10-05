@@ -64,10 +64,12 @@ final class LongTermGoalReaderTests: XCTestCase {
         let reading = LongTermGoalReader.reading(goal: goal, course: nil, inputs: inputs, periodSnapshots: [],
                                                  now: now, calendar: calendar)
         guard case .target(let data)? = reading else { return XCTFail("expected a target reading") }
-        XCTAssertEqual(data.milestones?.next, 200)
+        // A 117 kg route in whole kilos: the next mark below 203.3 is 203, not a 10 kg rung months away.
+        XCTAssertEqual(data.milestones?.next, 203)
+        XCTAssertEqual(data.milestones?.values.count, 117)
         XCTAssertEqual(data.state, .onTrack, "falling toward a lower target")
         XCTAssertEqual(data.ratePerWeek ?? 0, -0.7, accuracy: 1e-6)
-        XCTAssertNotNil(data.nextMarkDate, "200 kg is a few weeks away at this pace")
+        XCTAssertNotNil(data.nextMarkDate, "203 kg is days away at this pace")
         XCTAssertNil(data.arrivalDate, "100 kg is years away; no date is promised")
         XCTAssertEqual(data.progress, (217 - 203.3) / 117, accuracy: 1e-9)
     }

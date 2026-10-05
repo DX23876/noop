@@ -143,11 +143,16 @@ public enum LongTermGoalMath {
     }
 
     /// The route between `baseline` and `target` and the five waypoints the band shows around `current`.
+    ///
+    /// `step` fixes the spacing instead of fitting about a dozen marks to the span: weight passes 0.5 or
+    /// 1 kg, so a 40 kg goal is a long route of small marks rather than nine 5 kg ones months apart.
     public static func milestoneWindow(baseline: Double, target: Double, current: Double,
                                        preferredCount: Int = undatedPreferredCount,
+                                       step: Double? = nil,
                                        size: Int = 5) -> MilestoneWindow? {
-        let values = GoalMilestones.values(baseline: baseline, target: target, preferredCount: preferredCount,
-                                           ladder: undatedLadder)
+        let values = step.map { GoalMilestones.values(baseline: baseline, target: target, step: $0) }
+            ?? GoalMilestones.values(baseline: baseline, target: target, preferredCount: preferredCount,
+                                     ladder: undatedLadder)
         guard !values.isEmpty, current.isFinite, size > 0 else { return nil }
         let ascending = target > baseline
         let reached = values.prefix { ascending ? current >= $0 - 1e-9 : current <= $0 + 1e-9 }.count
@@ -160,6 +165,12 @@ public enum LongTermGoalMath {
         guard count > size else { return 0..<count }
         let lower = min(max(0, focus - size / 2), count - size)
         return lower..<(lower + size)
+    }
+
+    /// The spacing of weight marks: half a kilo up to a 10 kg change, a whole kilo beyond, so the next
+    /// mark is always a week or two away at a sustainable pace.
+    public static func weightMilestoneStep(baseline: Double, target: Double) -> Double {
+        abs(target - baseline) > 10 ? 1 : 0.5
     }
 
     /// When the measured trend reaches `mark`, or nil: no trend, a trend that points away, or a date
@@ -237,7 +248,8 @@ public enum LongTermGoalMath {
         public let best: Double?
         public let bestDate: Date?
         public let daysSinceBest: Int?
-        /// The best value inside the recent window, for "longest run of the last four weeks".
+        /// The best value inside the recent window, for "longest run of the last four weeks". It reads
+        /// the whole window, before the start too: a goal set today still has a last four weeks.
         public let recentBest: Double?
         /// The best value before the goal started, shown beside it for context.
         public let earlierBest: Double?
@@ -274,7 +286,7 @@ public enum LongTermGoalMath {
             return better(s, current) ? s : current
         }
         let recentCutoff = now.addingTimeInterval(-Double(recentDays) * secondsPerDay)
-        let recentBest = during.filter { $0.date >= recentCutoff }.map(\.value)
+        let recentBest = valid.filter { $0.date >= recentCutoff }.map(\.value)
             .reduce(nil as Double?) { current, v in
                 guard let current else { return v }
                 return higherIsBetter ? max(current, v) : min(current, v)
@@ -295,11 +307,13 @@ public enum LongTermGoalMath {
         } else if let plan, plan.end > plan.start {
             let elapsed = min(max(0, now.timeIntervalSince(plan.start)), plan.end.timeIntervalSince(plan.start))
             let plannedNow = plan.baseline + (target - plan.baseline) * elapsed / plan.end.timeIntervalSince(plan.start)
-            if let recentBest {
+            if during.isEmpty {
+                state = .starting
+            } else if let recentBest {
                 let keepingUp = higherIsBetter ? recentBest >= plannedNow - 1e-9 : recentBest <= plannedNow + 1e-9
                 state = keepingUp ? .onTrack : .behind
             } else {
-                state = during.isEmpty ? .starting : .behind
+                state = .behind
             }
         } else {
             state = nil
@@ -496,7 +510,8 @@ public enum LongTermGoalMath {
                 state = .starting
             }
         } else {
-            state = .noData
+            // One run is a start, not an absence: the mean waits for the second.
+            state = inWindow.isEmpty ? .noData : .starting
         }
         return AverageReading(mean: mean, values: inWindow.count, atTarget: atTarget, gap: gap,
                               trendPerMonth: perMonth, state: state)

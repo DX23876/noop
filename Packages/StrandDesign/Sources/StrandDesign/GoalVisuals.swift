@@ -289,7 +289,10 @@ public struct TargetColumns: View {
         GeometryReader { geo in
             let count = max(1, values.count)
             let gap: CGFloat = 4
-            let width = max(2, (geo.size.width - gap * CGFloat(count - 1)) / CGFloat(count))
+            // A handful of columns is capped so one run reads as a column, not as a block across the card;
+            // a full week keeps filling the width as before.
+            let fill = max(2, (geo.size.width - gap * CGFloat(count - 1)) / CGFloat(count))
+            let width = count < 5 ? min(24, fill) : fill
             ZStack(alignment: .bottomLeading) {
                 HStack(alignment: .bottom, spacing: gap) {
                     ForEach(values.indices, id: \.self) { index in

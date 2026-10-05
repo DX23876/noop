@@ -8,6 +8,9 @@ import StrandAnalytics
 /// changed. "Own goal" leads to the older flow, which holds a goal without measuring it.
 struct LongTermGoalSetupView: View {
     var onDone: () -> Void = {}
+    /// False when `onDone` closes the screen this one was pushed from: that pop takes this page with
+    /// it, and a second pop in the same moment is dropped, leaving the wearer on the screen before.
+    var dismissesItself = true
 
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var repo: Repository
@@ -34,6 +37,8 @@ struct LongTermGoalSetupView: View {
     @State private var weeklyTarget: Double = 3
     @State private var weeklyChoice: WeeklyChoice = .workouts
     @State private var title = ""
+    /// The last name `nameAfterHabit` gave, so a later pick may replace it but never a typed one.
+    @State private var autoTitle = ""
     @State private var motivation = ""
     @State private var riskReason = ""
 
@@ -47,10 +52,11 @@ struct LongTermGoalSetupView: View {
     @State private var currentWeight: Double?
     @State private var loaded = false
     @State private var replaceCandidateId: UUID?
-    @State private var showReplace = false
+    @State private var replaceOffer: ReplaceOffer?
     @State private var showLimit = false
     @State private var showRisk = false
     @StateObject private var journal = JournalCatalogStore()
+    @State private var importedQuestions: [String] = []
 
     private var calendar: Calendar { TrainingPreferences.weekCalendar }
     private var now: Date { Date() }
@@ -68,12 +74,13 @@ struct LongTermGoalSetupView: View {
             navigation
         }
         .task { await load() }
-        .confirmationDialog("Replace your existing goal?", isPresented: $showReplace, titleVisibility: .visible) {
-            Button("Replace it") { create(replacing: replaceCandidateId) }
-            if goals.hasRoom() { Button("Keep both") { create(replacing: nil) } }
-            Button("Cancel", role: .cancel) { replaceCandidateId = nil }
-        } message: {
-            Text("A goal of this type is already active. Replacing it closes the old goal but keeps its history.")
+        // `item:` hands the sheet the goal it asks about; a Bool sheet reads the id from before the tap.
+        .sheet(item: $replaceOffer) { offer in
+            ReplaceGoalSheet(existingTitle: goals.goal(id: offer.id)?.title,
+                             canKeepBoth: goals.hasRoom(),
+                             onReplace: { replaceOffer = nil; create(replacing: offer.id) },
+                             onKeepBoth: { replaceOffer = nil; create(replacing: nil) },
+                             onCancel: { replaceOffer = nil; replaceCandidateId = nil })
         }
         .alert("You're at the limit", isPresented: $showLimit) {
             Button("OK", role: .cancel) {}
@@ -95,6 +102,7 @@ struct LongTermGoalSetupView: View {
         guard !loaded else { return }
         loaded = true
         inputs = await tracking.loadFullPeriodInputs(repo: repo)
+        importedQuestions = Array(Set(await repo.importedJournalEntries().map(\.question))).sorted()
         series = await tracking.loadLevelSeries(repo: repo, metrics: [.restingHr, .vo2max, .bodyFat, .leanMass, .waist])
         let weights = await repo.weightDailyValues(days: GoalMeasure.weightWindowDays)
         currentWeight = GoalMeasure.smoothedTrend(weights.map(\.value), cfg: GoalMeasure.weightTrend)?.value
@@ -326,8 +334,11 @@ struct LongTermGoalSetupView: View {
         guard let template else { return }
         weeklyOn = true
         switch template.id {
-        case .distanceTotal, .timeTotal, .workoutsTotal:
+        case .distanceTotal, .workoutsTotal:
             weeklyTarget = max(1, ((target - collectedSoFar) / weeksToEnd).rounded())
+        case .timeTotal:
+            // Minutes in tens: "681 min a week" is a precision nobody plans by.
+            weeklyTarget = max(10, ((target - collectedSoFar) / weeksToEnd / 10).rounded() * 10)
         case .stepsTotal:
             weeklyTarget = 5
         case .longest, .event:
@@ -458,14 +469,27 @@ struct LongTermGoalSetupView: View {
 
     private func attemptCreate() {
         guard let template else { return }
-        switch goals.canAdd(kind: template.id.kind) {
-        case .kindAlreadyActive(let existingId)?:
-            replaceCandidateId = existingId
-            showReplace = true
-        case .tooManyActive?:
+        // Several goals of one area are fine (VO2max beside HRV); the question is only worth asking
+        // when the same thing would be measured twice.
+        if let existing = sameMeasureGoal(template) {
+            replaceCandidateId = existing.id
+            replaceOffer = ReplaceOffer(id: existing.id)
+        } else if !goals.hasRoom() {
             showLimit = true
-        case nil:
+        } else {
             create(replacing: nil)
+        }
+    }
+
+    /// An active goal that measures what this template would: the same metric over the same sports,
+    /// and for a weekly rhythm the same weekly measure.
+    private func sameMeasureGoal(_ template: GoalTemplate) -> CoachGoal? {
+        goals.activeGoals.first { goal in
+            guard let measure = goal.measure, measure.metric == template.id.metric,
+                  Set(measure.sportFilter) == Set(sportFilter) else { return false }
+            guard let weekly = template.id.weeklyMetric else { return true }
+            return measure.weeklyGoalId.flatMap { id in PeriodGoalStore.shared.goals.first { $0.id == id } }?
+                .metric == weekly
         }
     }
 
@@ -506,7 +530,7 @@ struct LongTermGoalSetupView: View {
         StrandHaptic.commit.play()
         Task { await tracking.refresh(repo: repo) }
         onDone()
-        dismiss()
+        if dismissesItself { dismiss() }
     }
 
     // MARK: - Steps
@@ -515,7 +539,11 @@ struct LongTermGoalSetupView: View {
         switch step {
         case .area: return "What do you want to work on?"
         case .template: return "Pick a goal"
-        case .value: return "How much, and by when?"
+        case .value:
+            switch template?.shape {
+            case .sum?, .best?, .target?: return "How much, and by when?"
+            default: return "What are you aiming for?"
+            }
         case .weekly: return "Your weekly goal"
         case .preview: return "This is your goal"
         }
@@ -632,7 +660,7 @@ struct LongTermGoalSetupView: View {
                                text: LongTermFormat.value(target, metric))
                     Toggle("Count from the start of the year", isOn: $countFromYearStart)
                         .onChange(of: countFromYearStart) { _ in resuggestSum(); suggestWeekly() }
-                    DatePicker("By", selection: $endDate, in: now.addingTimeInterval(7 * 86_400)..., displayedComponents: .date)
+                    GoalDateField(label: "By", selection: $endDate, from: now.addingTimeInterval(7 * 86_400))
                         .onChange(of: endDate) { _ in suggestWeekly() }
                     factLine(String(localized: "So far: \(LongTermFormat.value(collectedSoFar, metric))"))
                     factLine(String(localized: "Your average: \(LongTermFormat.value(recentPerWeek, metric))/week"))
@@ -663,11 +691,11 @@ struct LongTermGoalSetupView: View {
                         .font(StrandFont.footnote).foregroundStyle(StrandPalette.statusWarningForeground)
                 }
                 if template?.id == .event {
-                    DatePicker("Race day", selection: $targetDate, in: now.addingTimeInterval(14 * 86_400)..., displayedComponents: .date)
+                    GoalDateField(label: "Race day", selection: $targetDate, from: now.addingTimeInterval(14 * 86_400))
                 } else {
                     Toggle("Reach it by a date", isOn: $hasDate)
                     if hasDate {
-                        DatePicker("By", selection: $targetDate, in: now.addingTimeInterval(14 * 86_400)..., displayedComponents: .date)
+                        GoalDateField(label: "By", selection: $targetDate, from: now.addingTimeInterval(14 * 86_400))
                     }
                 }
             }
@@ -695,6 +723,9 @@ struct LongTermGoalSetupView: View {
                     if metric == .weight {
                         factLine(currentWeight == nil ? String(localized: "No weigh-in yet: the start is from your profile.")
                                                       : String(localized: "Start from your weight trend."))
+                    } else if metric == .vo2max {
+                        factLine(currentLevel == nil ? String(localized: "In ml/kg/min. No reading yet: set the start yourself.")
+                                                     : String(localized: "In ml/kg/min, from your recent readings."))
                     } else if metric == .restingHr {
                         factLine(String(localized: "Measured as the average of your last 28 nights. The goal counts as reached once that average holds at the target."))
                     } else {
@@ -704,7 +735,7 @@ struct LongTermGoalSetupView: View {
                     Toggle("Reach it by a date", isOn: $hasDate)
                         .onChange(of: hasDate) { on in if on { targetDate = safeDate() } }
                     if hasDate {
-                        DatePicker("By", selection: $targetDate, in: now.addingTimeInterval(14 * 86_400)..., displayedComponents: .date)
+                        GoalDateField(label: "By", selection: $targetDate, from: now.addingTimeInterval(14 * 86_400))
                         if let warning = safety?.warning {
                             Label(warning, systemImage: "exclamationmark.triangle")
                                 .font(StrandFont.footnote).foregroundStyle(StrandPalette.statusWarningForeground)
@@ -751,7 +782,7 @@ struct LongTermGoalSetupView: View {
                     }
                     Toggle("Keep it going without an end", isOn: $openEnded)
                     if openEnded {
-                        factLine(String(localized: "Judged over your last 12 weeks: on track from 80 % of weeks kept."))
+                        factLine(String(localized: "Judged over a rolling 12 weeks from the first week on: on track from 80 % of weeks kept."))
                     } else {
                         Stepper(value: $fixedWeeks, in: 4...52) {
                             Text("For \(fixedWeeks) weeks").font(StrandFont.body)
@@ -776,11 +807,13 @@ struct LongTermGoalSetupView: View {
 
     private var habitPicker: some View {
         VStack(alignment: .leading, spacing: 10) {
-            let items = journal.items.filter { !$0.hidden }
+            // The journal's own list: starter questions, imported ones and custom ones. `items` alone
+            // holds only edited or custom entries, so a fresh journal looked empty here.
+            let items = journal.resolvedItems(imported: importedQuestions)
             if items.isEmpty {
                 factLine(String(localized: "Your journal has no habits yet. Add one in Journal first."))
             }
-            Picker("Habit", selection: Binding(get: { habitKey ?? "" }, set: { habitKey = $0.isEmpty ? nil : $0 })) {
+            Picker("Habit", selection: Binding(get: { habitKey ?? "" }, set: { habitKey = $0.isEmpty ? nil : $0; nameAfterHabit() })) {
                 Text("Choose").tag("")
                 ForEach(items) { item in Text(item.displayName ?? item.canonical).tag(item.canonical) }
             }
@@ -789,7 +822,20 @@ struct LongTermGoalSetupView: View {
                 Text("Avoid it").tag(false)
             }
             .pickerStyle(.segmented)
+            .onChange(of: habitWantsYes) { _ in nameAfterHabit() }
         }
+    }
+
+    /// "Keep a journal habit" says nothing on the list: the name follows the habit picked, until the
+    /// wearer types one of their own.
+    private func nameAfterHabit() {
+        guard let template, template.id == .journalHabit else { return }
+        let generic = template.title.localizedCatalogValue
+        guard title.isEmpty || title == generic || title == autoTitle else { return }
+        guard let key = habitKey else { title = generic; return }
+        let name = journal.displayName(for: key)
+        title = habitWantsYes ? String(localized: "Do: \(name)") : String(localized: "Avoid: \(name)")
+        autoTitle = title
     }
 
     private var averageValue: some View {
@@ -831,7 +877,7 @@ struct LongTermGoalSetupView: View {
         case .distanceTotal, .timeTotal, .workoutsTotal:
             let weekly: PeriodMetric = template.id == .distanceTotal ? .distance
                 : template.id == .timeTotal ? .trainingMinutes : .workouts
-            stepperRow("This week", value: $weeklyTarget, step: 1, range: 1...5_000,
+            stepperRow("This week", value: $weeklyTarget, step: weekly == .trainingMinutes ? 10 : 1, range: 1...5_000,
                        text: LongTermFormat.perWeek(weeklyTarget, weekly))
             factLine(String(localized: "It follows the long-term goal: each new week gets what is still needed, never more than 10 % above your recent running weeks (20 % for other sports)."))
         case .stepsTotal:
@@ -872,6 +918,7 @@ struct LongTermGoalSetupView: View {
         case .hrvAverage, .recoveryAverage:
             stepperRow("Nights", value: $weeklyTarget, step: 1, range: 1...7,
                        text: String(localized: "\(LongTermFormat.number(weeklyTarget)) nights from \(LongTermFormat.hoursAndMinutes(7))"))
+            factLine(String(localized: "Nothing moves HRV and recovery as reliably as enough sleep, so the week counts nights of 7 hours or more."))
         case .paceAverage:
             stepperRow("Runs", value: $weeklyTarget, step: 1, range: 1...14,
                        text: LongTermFormat.perWeek(weeklyTarget, .workouts))
@@ -923,9 +970,11 @@ struct LongTermGoalSetupView: View {
         guard let template else { return nil }
         switch template.shape {
         case .sum: return String(localized: "by \(LongTermFormat.shortDate(endDate))")
-        case .best, .target: return hasDate ? String(localized: "by \(LongTermFormat.shortDate(targetDate))") : nil
+        case .best, .target:
+            if hasDate { return String(localized: "by \(LongTermFormat.shortDate(targetDate))") }
+            return metric == .vo2max ? "ml/kg/min" : nil
         case .consistency: return LongTermFormat.dayBar(template.id.weeklyMetric ?? .workouts, threshold: threshold)
-        case .average: return String(localized: "28-day average")
+        case .average: return String(localized: "target, as a 28-day average")
         case .maintain: return nil
         }
     }
@@ -986,5 +1035,92 @@ struct LongTermGoalSetupView: View {
     private func factLine(_ text: String) -> some View {
         Text(verbatim: text).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
             .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// A date row whose picker rises from the bottom as a sheet with the system calendar, instead of the
+/// compact picker's popover that opens over the card it sits in.
+private struct GoalDateField: View {
+    let label: LocalizedStringKey
+    @Binding var selection: Date
+    let from: Date
+    @State private var open = false
+
+    var body: some View {
+        HStack {
+            Text(label).font(StrandFont.body).foregroundStyle(StrandPalette.textSecondary)
+            Spacer()
+            Button { open = true } label: {
+                Text(selection, format: .dateTime.day().month(.abbreviated).year())
+                    .font(StrandFont.bodyNumber).foregroundStyle(StrandPalette.textPrimary)
+            }
+            .buttonStyle(.bordered)
+        }
+        .sheet(isPresented: $open) {
+            VStack(spacing: 12) {
+                DatePicker("", selection: $selection, in: from..., displayedComponents: .date)
+                    .datePickerStyle(.graphical)
+                    .labelsHidden()
+                Button { open = false } label: { Text("Done").frame(maxWidth: .infinity) }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+            }
+            .padding(20)
+            #if os(iOS)
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            #else
+            .frame(minWidth: 340, minHeight: 420)
+            #endif
+        }
+    }
+}
+
+/// The existing goal a new one would replace, as a sheet item.
+private struct ReplaceOffer: Identifiable {
+    let id: UUID
+}
+
+/// The question before a second goal of a kind: a sheet from the bottom that names the goal it would
+/// close, since "a goal of this type" alone does not say which one.
+private struct ReplaceGoalSheet: View {
+    let existingTitle: String?
+    let canKeepBoth: Bool
+    let onReplace: () -> Void
+    let onKeepBoth: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Replace your existing goal?").font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
+            Group {
+                if let existingTitle {
+                    Text("“\(existingTitle)” measures the same kind of thing. Replacing it closes that goal but keeps its history.")
+                } else {
+                    Text("A goal of this type is already active. Replacing it closes the old goal but keeps its history.")
+                }
+            }
+            .font(StrandFont.body).foregroundStyle(StrandPalette.textSecondary)
+            .fixedSize(horizontal: false, vertical: true)
+            VStack(spacing: 10) {
+                if canKeepBoth {
+                    Button(action: onKeepBoth) { Text("Keep both").frame(maxWidth: .infinity) }
+                        .buttonStyle(.borderedProminent)
+                }
+                Button(action: onReplace) { Text("Replace it").frame(maxWidth: .infinity) }
+                    .buttonStyle(.bordered)
+                Button("Cancel", action: onCancel)
+                    .frame(maxWidth: .infinity)
+                    .foregroundStyle(StrandPalette.textSecondary)
+            }
+            .controlSize(.large)
+        }
+        .padding(24)
+        #if os(iOS)
+        .presentationDetents([.height(320)])
+        .presentationDragIndicator(.visible)
+        #else
+        .frame(minWidth: 380)
+        #endif
     }
 }

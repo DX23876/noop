@@ -71,7 +71,8 @@ public struct GoalHeroCard<Background: View>: View {
         VStack(alignment: .leading, spacing: compact ? 12 : 16) {
             header
             Spacer(minLength: compact ? 28 : 96)
-            statsBar
+            // Without figures (the setup preview) an empty bar would draw as a stray sliver.
+            if !stats.isEmpty { statsBar }
         }
         .padding(compact ? 12 : 16)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -123,7 +124,9 @@ public struct GoalHeroCard<Background: View>: View {
                         .font(compact ? StrandFont.number(20) : StrandFont.number(28))
                         .foregroundStyle(StrandPalette.onDarkPrimary)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.6)
+                        // A long figure ("105 sets / week") shrinks rather than losing its unit to "…".
+                        .minimumScaleFactor(0.45)
+                        .allowsTightening(true)
                     if showsChevron {
                         Image(systemName: "chevron.right")
                             .font(.footnote.weight(.semibold))

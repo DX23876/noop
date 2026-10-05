@@ -49,6 +49,7 @@ enum LongTermFormat {
 
     static func hoursAndMinutes(_ hours: Double) -> String {
         let total = Int((hours * 60).rounded())
+        if total % 60 == 0 { return String(localized: "\(total / 60) h") }
         return String(localized: "\(total / 60) h \(total % 60) min")
     }
 
@@ -106,7 +107,8 @@ enum LongTermFormat {
 struct LongTermGoalContent {
 
     enum Band {
-        case milestones([MilestoneTrack.Point], moreBefore: Bool, moreAfter: Bool)
+        /// The visible window, and every waypoint for the full list a tap opens.
+        case milestones([MilestoneTrack.Point], moreBefore: Bool, moreAfter: Bool, all: [MilestoneTrack.Point])
         case weeks([WeekDotRow.Week])
         case columns([Double?], target: Double, higherIsBetter: Bool)
     }
@@ -159,7 +161,7 @@ struct LongTermGoalContent {
                 .init(id: 2, label: String(localized: "Estimated"),
                       value: r.projectedFinish.map(LongTermFormat.shortDate) ?? "–"),
             ]
-            bandTitle = String(localized: "Milestones")
+            bandTitle = Self.milestoneTitle(d.milestones)
             band = Self.milestoneBand(d.milestones, metric: d.metric)
             var items: [Insight] = []
             items.append(.init(id: 0, icon: "speedometer", title: String(localized: "Current pace"),
@@ -186,7 +188,10 @@ struct LongTermGoalContent {
 
         case .target(let d):
             heroValue = LongTermFormat.value(d.current, d.metric)
-            heroCaption = String(localized: "target \(LongTermFormat.value(d.target, d.metric))")
+            // VO2max has no short unit to put on every figure; the caption names it once.
+            heroCaption = d.metric == .vo2max
+                ? String(localized: "ml/kg/min, target \(LongTermFormat.value(d.target, d.metric))")
+                : String(localized: "target \(LongTermFormat.value(d.target, d.metric))")
             let next = d.milestones?.next
             stats = [
                 .init(id: 0, label: String(localized: "Start"), value: LongTermFormat.value(d.baseline, d.metric)),
@@ -198,7 +203,7 @@ struct LongTermGoalContent {
                               ?? LongTermFormat.value(mark, d.metric)
                       } ?? "–"),
             ]
-            bandTitle = String(localized: "Milestones")
+            bandTitle = Self.milestoneTitle(d.milestones)
             band = Self.milestoneBand(d.milestones, metric: d.metric)
             insights = [
                 .init(id: 0, icon: "speedometer", title: String(localized: "Pace"),
@@ -237,7 +242,7 @@ struct LongTermGoalContent {
                       fraction: r.fraction.map { min(1, $0) }),
                 third,
             ]
-            bandTitle = String(localized: "Milestones")
+            bandTitle = Self.milestoneTitle(d.milestones)
             band = Self.milestoneBand(d.milestones, metric: .longestDistance)
             insights = [
                 .init(id: 0, icon: "speedometer", title: String(localized: "Per week"),
@@ -283,7 +288,7 @@ struct LongTermGoalContent {
             }
             let missed = d.lastWeeks.filter { $0 == .missed }.count
             items.append(.init(id: 2, icon: "minus.circle", title: String(localized: "Missed weeks"),
-                               value: String(localized: "\(missed) of \(d.lastWeeks.count)"),
+                               value: d.lastWeeks.isEmpty ? "–" : String(localized: "\(missed) of \(d.lastWeeks.count)"),
                                caption: r.share.map { String(localized: "\(Int(($0 * 100).rounded())) % kept") }, tone: nil))
             insights = items
 
@@ -319,7 +324,8 @@ struct LongTermGoalContent {
             let isPace = d.metric == .paceAverage
             let meanText = r.mean.map { LongTermFormat.value($0, d.metric) } ?? "–"
             heroValue = meanText
-            heroCaption = String(localized: "28-day average")
+            heroCaption = isPace && r.mean == nil && r.values > 0
+                ? String(localized: "average from two runs of 3 km") : String(localized: "28-day average")
             stats = [
                 .init(id: 0, label: String(localized: "Target"), value: LongTermFormat.value(d.target, d.metric)),
                 .init(id: 1, label: String(localized: "Trend"),
@@ -346,15 +352,21 @@ struct LongTermGoalContent {
         }
     }
 
+    /// "Milestones · 3 of 10": the band shows five at a time, so the count says how far the whole route is.
+    private static func milestoneTitle(_ window: LongTermGoalMath.MilestoneWindow?) -> String {
+        guard let window, window.values.count > window.visible.count else { return String(localized: "Milestones") }
+        return String(localized: "Milestones · \(window.reachedCount) of \(window.values.count)")
+    }
+
     private static func milestoneBand(_ window: LongTermGoalMath.MilestoneWindow?, metric: LongTermMetric) -> Band? {
         guard let window, !window.values.isEmpty else { return nil }
-        let points = window.visible.map { index in
+        let all = window.values.indices.map { index in
             MilestoneTrack.Point(id: index, label: LongTermFormat.value(window.values[index], metric),
                                  state: index < window.reachedCount ? .reached
                                      : index == window.reachedCount ? .next : .open)
         }
-        return .milestones(points, moreBefore: window.visible.lowerBound > 0,
-                           moreAfter: window.visible.upperBound < window.values.count)
+        return .milestones(Array(all[window.visible]), moreBefore: window.visible.lowerBound > 0,
+                           moreAfter: window.visible.upperBound < window.values.count, all: all)
     }
 
     private static func weekState(_ outcome: PeriodOutcome) -> WeekDotRow.WeekState {
@@ -421,6 +433,7 @@ struct LongTermGoalPage: View {
     @State private var showJourney = false
     @State private var showRaise = false
     @State private var raisedTarget: Double = 0
+    @State private var allMilestones: [MilestoneTrack.Point]?
 
     private var snapshot: GoalTrackingSnapshot? { tracking.snapshot(for: goalId) }
 
@@ -451,6 +464,9 @@ struct LongTermGoalPage: View {
         .task { await tracking.refresh(repo: repo) }
         .sheet(isPresented: $showJourney) { JourneyView(goalId: goalId) }
         .sheet(isPresented: $showRaise) { raiseSheet }
+        .sheet(isPresented: Binding(get: { allMilestones != nil }, set: { if !$0 { allMilestones = nil } })) {
+            MilestoneListSheet(points: allMilestones ?? [])
+        }
     }
 
     /// The goal reached (plan Q24): the wearer decides what happens next, nothing closes by itself.
@@ -547,11 +563,25 @@ struct LongTermGoalPage: View {
             VStack(alignment: .leading, spacing: 14) {
                 Text(title).font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
                 switch band {
-                case .milestones(let points, let before, let after):
+                case .milestones(let points, let before, let after, let all):
                     MilestoneTrack(points: points, tint: StrandPalette.statusPositive,
                                    moreBefore: before, moreAfter: after)
+                    if before || after {
+                        Button { allMilestones = all } label: {
+                            Label("All milestones", systemImage: "list.bullet")
+                                .font(StrandFont.footnote.weight(.semibold))
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(StrandPalette.accent)
+                    }
                 case .weeks(let weeks):
-                    WeekDotRow(weeks: weeks, tint: StrandPalette.statusPositive)
+                    if weeks.isEmpty {
+                        // A goal set this week has no finished week yet; an empty row would read as broken.
+                        Text("The first week shows here once it ends.")
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                    } else {
+                        WeekDotRow(weeks: weeks, tint: StrandPalette.statusPositive)
+                    }
                 case .columns(let values, let target, let higherIsBetter):
                     TargetColumns(values: values, target: target, tint: StrandPalette.accent, height: 90,
                                   higherIsBetter: higherIsBetter)
@@ -615,4 +645,47 @@ struct LongTermGoalPage: View {
     }
 
     private func refresh() { Task { await tracking.refresh(repo: repo) } }
+}
+
+/// Every waypoint of a long route, from the bottom: the band shows five, this shows how far it all goes.
+private struct MilestoneListSheet: View {
+    let points: [MilestoneTrack.Point]
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollViewReader { proxy in
+                List(points) { point in
+                    HStack(spacing: 12) {
+                        Image(systemName: point.state == .reached ? "checkmark.circle.fill"
+                              : point.state == .next ? "circle.circle" : "circle")
+                            .foregroundStyle(point.state == .open ? StrandPalette.textTertiary : StrandPalette.statusPositive)
+                            .accessibilityHidden(true)
+                        Text(verbatim: point.label)
+                            .font(point.state == .next ? StrandFont.bodyNumber.weight(.semibold) : StrandFont.bodyNumber)
+                            .foregroundStyle(point.state == .open ? StrandPalette.textSecondary : StrandPalette.textPrimary)
+                        Spacer()
+                        if point.state == .next {
+                            Text("Up next").font(StrandFont.caption).foregroundStyle(StrandPalette.statusPositive)
+                        }
+                    }
+                    .id(point.id)
+                }
+                .onAppear {
+                    if let next = points.first(where: { $0.state == .next }) { proxy.scrollTo(next.id, anchor: .center) }
+                }
+            }
+            .navigationTitle(String(localized: "Milestones · \(points.filter { $0.state == .reached }.count) of \(points.count)"))
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+            }
+        }
+        #if os(iOS)
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+        #endif
+    }
 }
