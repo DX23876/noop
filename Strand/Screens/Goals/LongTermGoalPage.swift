@@ -444,19 +444,25 @@ struct LongTermGoalPage: View {
     var body: some View {
         ScreenScaffold(title: nil, topBackground: liquidScaffoldSky()) {
             if let snapshot, let content = LongTermGoalContent(snapshot) {
-                VStack(alignment: .leading, spacing: 18) {
-                    LongTermGoalHero(snapshot: snapshot, content: content)
-                    if snapshot.reading?.state == .achieved, snapshot.goal.status == .active {
-                        reachedCard(snapshot)
+                // Read top down: where the goal stands (hero, and a decision when one is due), the route,
+                // what to do this week (the coach's tip), the figures behind it, then managing the goal.
+                VStack(alignment: .leading, spacing: NoopMetrics.space6) {
+                    VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                        LongTermGoalHero(snapshot: snapshot, content: content)
+                        if snapshot.reading?.state == .achieved, snapshot.goal.status == .active {
+                            reachedCard(snapshot)
+                        }
+                        if let note = GoalConflicts.longTermNotes(goals.goals).first(where: { $0.goalId == goalId }) {
+                            NoopCard(padding: NoopMetrics.space3) {
+                                Label(note.text, systemImage: "exclamationmark.triangle")
+                                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.statusWarningForeground)
+                            }
+                        }
                     }
-                    if let note = GoalConflicts.longTermNotes(goals.goals).first(where: { $0.goalId == goalId }) {
-                        Label(note.text, systemImage: "exclamationmark.triangle")
-                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.statusWarningForeground)
-                    }
-                    if let band = content.band { bandCard(content.bandTitle, band) }
-                    insightsSection(content.insights)
+                    if let band = content.band { bandSection(content.bandTitle, band) }
                     if let reading = snapshot.reading { LongTermGoalTipCard(goal: snapshot.goal, reading: reading) }
-                    moreSection(snapshot)
+                    insightsSection(content.insights)
+                    manageSection(snapshot)
                 }
             } else {
                 Text("This goal has no page yet.")
@@ -563,22 +569,34 @@ struct LongTermGoalPage: View {
         }
     }
 
-    private func bandCard(_ title: String, _ band: LongTermGoalContent.Band) -> some View {
-        NoopCard(padding: 16) {
-            VStack(alignment: .leading, spacing: 14) {
-                Text(title).font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+    /// A small uppercase heading over a section, with an optional action at its end ("All").
+    private func sectionHeader(_ title: String, action: (label: LocalizedStringKey, run: () -> Void)? = nil) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(verbatim: title).strandOverline()
+            Spacer(minLength: NoopMetrics.space2)
+            if let action {
+                Button(action: action.run) {
+                    Text(action.label).font(StrandFont.footnote.weight(.semibold))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(StrandPalette.accent)
+            }
+        }
+        .padding(.horizontal, NoopMetrics.space1)
+    }
+
+    private func bandSection(_ title: String, _ band: LongTermGoalContent.Band) -> some View {
+        var action: (label: LocalizedStringKey, run: () -> Void)?
+        if case .milestones(_, let before, let after, let all) = band, before || after {
+            action = ("All", { allMilestones = all })
+        }
+        return VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+            sectionHeader(title, action: action)
+            NoopCard(padding: NoopMetrics.space4) {
                 switch band {
-                case .milestones(let points, let before, let after, let all):
+                case .milestones(let points, let before, let after, _):
                     MilestoneTrack(points: points, tint: StrandPalette.statusPositive,
                                    moreBefore: before, moreAfter: after)
-                    if before || after {
-                        Button { allMilestones = all } label: {
-                            Label("All milestones", systemImage: "list.bullet")
-                                .font(StrandFont.footnote.weight(.semibold))
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(StrandPalette.accent)
-                    }
                 case .weeks(let weeks):
                     if weeks.isEmpty {
                         // A goal set this week has no finished week yet; an empty row would read as broken.
@@ -595,57 +613,75 @@ struct LongTermGoalPage: View {
         }
     }
 
+    /// The figures as one list: each row reads across, the column of values down the right edge.
     private func insightsSection(_ items: [LongTermGoalContent.Insight]) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Insights").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: 10)], spacing: 10) {
-                ForEach(items) { item in
-                    InsightTile(icon: item.icon, title: item.title, value: item.value,
-                                caption: item.caption, valueTone: item.tone)
+        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+            sectionHeader(String(localized: "Insights"))
+            NoopCard(padding: 0) {
+                VStack(spacing: 0) {
+                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                        InsightRow(icon: item.icon, title: item.title, value: item.value,
+                                   caption: item.caption, valueTone: item.tone)
+                        if index < items.count - 1 { rowDivider }
+                    }
                 }
+                .padding(.horizontal, NoopMetrics.space4)
+                .padding(.vertical, NoopMetrics.space1)
             }
         }
     }
 
-    private func moreSection(_ snapshot: GoalTrackingSnapshot) -> some View {
-        NoopCard(padding: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Button { showJourney = true } label: {
-                    moreRow("Details and history", icon: "clock.arrow.circlepath")
-                }
-                .buttonStyle(.plain)
-                if snapshot.goal.status == .paused {
-                    Button { goals.resume(goalId); refresh() } label: { moreRow("Resume", icon: "play.circle") }
-                        .buttonStyle(.plain)
-                } else {
-                    Menu {
-                        ForEach(CoachGoal.PauseReason.allCases) { reason in
-                            Button(reason.label.localizedCatalogValue) { goals.pause(goalId, reason: reason); refresh() }
-                        }
-                    } label: { moreRow("Pause", icon: "pause.circle") }
+    /// What can be done with the goal. Only the row that opens a page carries a chevron: pinning is a
+    /// switch, pausing a menu of reasons.
+    private func manageSection(_ snapshot: GoalTrackingSnapshot) -> some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+            sectionHeader(String(localized: "Manage"))
+            NoopCard(padding: 0) {
+                VStack(spacing: 0) {
+                    Button { showJourney = true } label: {
+                        manageRow("Details and history", icon: "clock.arrow.circlepath", chevron: true)
+                    }
                     .buttonStyle(.plain)
+                    rowDivider
+                    Toggle(isOn: Binding(get: { GoalPrefs.pinnedLongTermIds.contains(goalId) },
+                                         set: { GoalPrefs.setPinned(goalId, $0); tracking.objectWillChange.send() })) {
+                        manageRow("Keep on Today", icon: "pin")
+                    }
+                    .tint(StrandPalette.accent)
+                    rowDivider
+                    if snapshot.goal.status == .paused {
+                        Button { goals.resume(goalId); refresh() } label: { manageRow("Resume", icon: "play.circle") }
+                            .buttonStyle(.plain)
+                    } else {
+                        Menu {
+                            ForEach(CoachGoal.PauseReason.allCases) { reason in
+                                Button(reason.label.localizedCatalogValue) { goals.pause(goalId, reason: reason); refresh() }
+                            }
+                        } label: { manageRow("Pause", icon: "pause.circle") }
+                        .buttonStyle(.plain)
+                    }
                 }
-                let pinned = GoalPrefs.pinnedLongTermIds.contains(goalId)
-                Button {
-                    GoalPrefs.setPinned(goalId, !pinned)
-                    tracking.objectWillChange.send()
-                } label: {
-                    moreRow(pinned ? "Unpin from Today" : "Keep on Today", icon: pinned ? "pin.slash" : "pin")
-                }
-                .buttonStyle(.plain)
+                .padding(.horizontal, NoopMetrics.space4)
             }
         }
     }
 
-    private func moreRow(_ title: LocalizedStringKey, icon: String) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: icon).foregroundStyle(StrandPalette.accent).frame(width: 22).accessibilityHidden(true)
+    /// The inset hairline between rows of one card, aligned with the row text.
+    private var rowDivider: some View {
+        Divider().overlay(StrandPalette.hairline).padding(.leading, 44)
+    }
+
+    private func manageRow(_ title: LocalizedStringKey, icon: String, chevron: Bool = false) -> some View {
+        HStack(spacing: NoopMetrics.space3) {
+            Image(systemName: icon).foregroundStyle(StrandPalette.accent).frame(width: 32).accessibilityHidden(true)
             Text(title).font(StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
-            Spacer()
-            Image(systemName: "chevron.right").font(.caption.weight(.semibold))
-                .foregroundStyle(StrandPalette.textTertiary).accessibilityHidden(true)
+            Spacer(minLength: NoopMetrics.space2)
+            if chevron {
+                Image(systemName: "chevron.right").font(.caption.weight(.semibold))
+                    .foregroundStyle(StrandPalette.textTertiary).accessibilityHidden(true)
+            }
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, NoopMetrics.space3)
         .contentShape(Rectangle())
     }
 

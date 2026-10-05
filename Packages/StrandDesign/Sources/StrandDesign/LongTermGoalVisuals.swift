@@ -24,9 +24,11 @@ public struct GoalHeroStat: Identifiable {
     }
 }
 
-/// A goal's headline over an image: icon, title, state, the big number top right and a bar of three
-/// figures along the bottom. The image is the caller's (a day-cycle scene, an area scene, a photo); the
-/// card lays a dark scrim over it so the light text stays readable whatever the picture is.
+/// A goal's headline over an image. Compact (the overview list): icon, title, state and the big number
+/// top right, three figures in a bar along the bottom. Full (the goal's page): icon, title and state on
+/// top; the big number, the progress bar and the remaining figures read from the bottom up, so the
+/// picture fills the space between instead of empty card. The image is the caller's (a day-cycle scene,
+/// an area scene, a photo); the card lays a dark scrim over it so the light text stays readable.
 public struct GoalHeroCard<Background: View>: View {
 
     public typealias Stat = GoalHeroStat
@@ -65,14 +67,18 @@ public struct GoalHeroCard<Background: View>: View {
     @Environment(\.dynamicTypeSize) private var typeSize
 
     private var corner: CGFloat { compact ? NoopMetrics.cardRadius : NoopMetrics.heroRadius }
-    private var iconSize: CGFloat { compact ? 36 : 52 }
+    private var iconSize: CGFloat { compact ? 36 : 44 }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: compact ? 12 : 16) {
             header
-            Spacer(minLength: compact ? 28 : 96)
-            // Without figures (the setup preview) an empty bar would draw as a stray sliver.
-            if !stats.isEmpty { statsBar }
+            Spacer(minLength: compact ? 28 : 56)
+            if compact {
+                // Without figures (the setup preview) an empty bar would draw as a stray sliver.
+                if !stats.isEmpty { statsBar }
+            } else {
+                figureBlock
+            }
         }
         .padding(compact ? 12 : 16)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -84,8 +90,13 @@ public struct GoalHeroCard<Background: View>: View {
                 // stays visible between them.
                 LinearGradient(colors: [StrandPalette.organicHeroChamber.opacity(0.7), .clear],
                                startPoint: .top, endPoint: .center)
-                LinearGradient(colors: [.clear, StrandPalette.organicHeroChamber.opacity(0.75)],
-                               startPoint: .center, endPoint: .bottom)
+                // The page's figures fill the lower half, so its scrim starts higher and ends darker: a big
+                // white number over snow would otherwise disappear.
+                LinearGradient(colors: compact
+                                   ? [.clear, StrandPalette.organicHeroChamber.opacity(0.75)]
+                                   : [.clear, StrandPalette.organicHeroChamber.opacity(0.6),
+                                      StrandPalette.organicHeroChamber.opacity(0.92)],
+                               startPoint: compact ? .center : UnitPoint(x: 0.5, y: 0.25), endPoint: .bottom)
             }
             .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
         }
@@ -118,29 +129,112 @@ public struct GoalHeroCard<Background: View>: View {
                 statePill
             }
             if !typeSize.isAccessibilitySize { Spacer(minLength: 8) }
-            // Stacked at accessibility sizes, the figure lines up with the title above it; trailing
-            // alignment there pushed the value and its caption apart.
-            VStack(alignment: typeSize.isAccessibilitySize ? .leading : .trailing, spacing: 2) {
-                HStack(spacing: 4) {
-                    Text(verbatim: heroValue)
-                        .font(compact ? StrandFont.number(20) : StrandFont.number(28))
-                        .foregroundStyle(StrandPalette.onDarkPrimary)
-                        .lineLimit(1)
-                        // A long figure ("105 sets / week") shrinks rather than losing its unit to "…".
-                        .minimumScaleFactor(0.45)
-                        .allowsTightening(true)
-                    if showsChevron {
-                        Image(systemName: "chevron.right")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(StrandPalette.onDarkSecondary)
-                            .accessibilityHidden(true)
-                    }
+            if compact { compactFigure }
+        }
+    }
+
+    /// The overview card's number, top right beside the title.
+    private var compactFigure: some View {
+        // Stacked at accessibility sizes, the figure lines up with the title above it; trailing
+        // alignment there pushed the value and its caption apart.
+        VStack(alignment: typeSize.isAccessibilitySize ? .leading : .trailing, spacing: 2) {
+            HStack(spacing: 4) {
+                Text(verbatim: heroValue)
+                    .font(StrandFont.number(20))
+                    .foregroundStyle(StrandPalette.onDarkPrimary)
+                    .lineLimit(1)
+                    // A long figure ("105 sets / week") shrinks rather than losing its unit to "…".
+                    .minimumScaleFactor(0.45)
+                    .allowsTightening(true)
+                if showsChevron {
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(StrandPalette.onDarkSecondary)
+                        .accessibilityHidden(true)
                 }
+            }
+            if let heroCaption {
+                Text(verbatim: heroCaption)
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.onDarkSecondary)
+                    .lineLimit(1)
+            }
+        }
+    }
+
+    /// The fraction figure becomes the progress bar under the big number; the others stand beside it.
+    private var progressStat: Stat? { stats.first { $0.fraction != nil } }
+    /// A figure the caption already says ("of 1,800,000" beside "Target 1,800,000") is left out.
+    private var plainStats: [Stat] {
+        stats.filter { stat in stat.fraction == nil && !(heroCaption?.contains(stat.value) ?? false) }
+    }
+
+    /// The page's figures, read from the bottom of the card: the big number with its caption, the
+    /// progress bar, then the remaining figures as plain columns on the scrim, without a box of their own.
+    private var figureBlock: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+            VStack(alignment: .leading, spacing: NoopMetrics.spaceHalf) {
+                Text(verbatim: heroValue)
+                    .font(StrandFont.number(44))
+                    .foregroundStyle(StrandPalette.onDarkPrimary)
+                    .lineLimit(1)
+                    // A long figure ("105 sets / week") shrinks rather than losing its unit to "…".
+                    .minimumScaleFactor(0.5)
+                    .allowsTightening(true)
                 if let heroCaption {
                     Text(verbatim: heroCaption)
-                        .font(StrandFont.caption)
+                        .font(StrandFont.subhead)
                         .foregroundStyle(StrandPalette.onDarkSecondary)
-                        .lineLimit(1)
+                        .lineLimit(2)
+                }
+            }
+            if let progress = progressStat, let fraction = progress.fraction {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(verbatim: progress.label)
+                            .font(StrandFont.caption)
+                            .foregroundStyle(StrandPalette.onDarkSecondary)
+                        Spacer(minLength: NoopMetrics.space2)
+                        Text(verbatim: progress.value)
+                            .font(StrandFont.captionNumber)
+                            .foregroundStyle(StrandPalette.onDarkPrimary)
+                    }
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(StrandPalette.onDarkTertiary.opacity(0.35))
+                            Capsule().fill(StrandPalette.accent)
+                                .frame(width: geo.size.width * CGFloat(min(max(fraction, 0), 1)))
+                        }
+                    }
+                    .frame(height: 6)
+                    .accessibilityHidden(true)
+                }
+            }
+            if !plainStats.isEmpty { figureColumns }
+        }
+    }
+
+    @ViewBuilder
+    private var figureColumns: some View {
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: NoopMetrics.space2))
+            : AnyLayout(HStackLayout(alignment: .top, spacing: NoopMetrics.space4))
+        VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+            Rectangle().fill(StrandPalette.onDarkTertiary.opacity(0.4)).frame(height: 1)
+            layout {
+                ForEach(plainStats) { stat in
+                    VStack(alignment: .leading, spacing: NoopMetrics.spaceHalf) {
+                        Text(verbatim: stat.label)
+                            .font(StrandFont.caption)
+                            .foregroundStyle(StrandPalette.onDarkSecondary)
+                            .lineLimit(1)
+                        Text(verbatim: stat.value)
+                            .font(StrandFont.number(17))
+                            .foregroundStyle(StrandPalette.onDarkPrimary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.6)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }
@@ -460,6 +554,67 @@ public struct InsightTile: View {
             .fill(StrandPalette.surfaceRaised))
         .overlay(RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous)
             .strokeBorder(StrandPalette.hairline, lineWidth: 1))
+        .accessibilityElement(children: .combine)
+    }
+}
+
+// MARK: - InsightRow
+
+/// One figure as a row of a grouped list: icon, title with a line under it, the value on the right. Rows
+/// read down a single column, so a page of figures scans faster than tiles whose titles wrap at
+/// different heights. Only the value may carry a tone, as on `InsightTile`.
+public struct InsightRow: View {
+    let icon: String
+    let title: String
+    let value: String
+    let caption: String?
+    let valueTone: StrandTone?
+
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    public init(icon: String, title: String, value: String, caption: String? = nil, valueTone: StrandTone? = nil) {
+        self.icon = icon
+        self.title = title
+        self.value = value
+        self.caption = caption
+        self.valueTone = valueTone
+    }
+
+    public var body: some View {
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: NoopMetrics.space2))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: NoopMetrics.space3))
+        layout {
+            HStack(alignment: .center, spacing: NoopMetrics.space3) {
+                Image(systemName: icon)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(StrandPalette.accent)
+                    .frame(width: 32, height: 32)
+                    .background(Circle().fill(StrandPalette.accent.opacity(0.12)))
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: NoopMetrics.spaceHalf) {
+                    Text(verbatim: title)
+                        .font(StrandFont.body)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                    if let caption {
+                        Text(verbatim: caption)
+                            .font(StrandFont.caption)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+            if !typeSize.isAccessibilitySize { Spacer(minLength: NoopMetrics.space2) }
+            Text(verbatim: value)
+                .font(StrandFont.bodyNumber)
+                .foregroundStyle(valueTone.map { $0 == .neutral ? StrandPalette.textPrimary : $0.foregroundColor }
+                    ?? StrandPalette.textPrimary)
+                .multilineTextAlignment(typeSize.isAccessibilitySize ? .leading : .trailing)
+                .lineLimit(2)
+                .layoutPriority(1)
+        }
+        .padding(.vertical, NoopMetrics.space3)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
     }
 }
