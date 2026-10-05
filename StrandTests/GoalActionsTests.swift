@@ -118,6 +118,45 @@ final class GoalActionsTests: XCTestCase {
         XCTAssertTrue(reloaded.checkoffs.isEmpty)
     }
 
+    /// A newer build's daily goals survive this one: an action with a requirement this build has no case
+    /// for (here an invented one) stays in storage untouched, and a known action keeps the fields it has no property for, even
+    /// after an edit and a save. Decoding the list as a whole used to empty it on the next save.
+    func testActionsWrittenByANewerBuildSurviveLoadEditAndSave() throws {
+        let suite = "GoalActions-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let stepsId = UUID(), foreignId = UUID()
+        let stored = """
+        {"actions":[
+          {"id":"\(stepsId.uuidString)","title":"Daily steps","requirement":{"steps":{"minimum":10000}},
+           "schedule":{"daily":{}},"goalIds":[],"isActive":true,"createdAt":812837929.5,
+           "futureField":"kept"},
+          {"id":"\(foreignId.uuidString)","title":"Breathe","requirement":{"breathwork":{"minutes":5}},
+           "schedule":{"daily":{}},"goalIds":[],"isActive":true,"createdAt":812837930.5}
+        ],"checkoffs":[]}
+        """
+        defaults.set(Data(stored.utf8), forKey: "actions")
+
+        let store = GoalActionStore(defaults: defaults, storageKey: "actions")
+        XCTAssertEqual(store.actions.map(\.id), [stepsId], "the unreadable action is not shown")
+        store.upsert(GoalAction(id: stepsId, title: "Steps", requirement: .steps(minimum: 12_000), goalIds: [],
+                                createdAt: store.actions[0].createdAt))
+
+        let saved = try XCTUnwrap(defaults.data(forKey: "actions"))
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: saved) as? [String: Any])
+        let actions = try XCTUnwrap(json["actions"] as? [[String: Any]])
+        XCTAssertEqual(actions.count, 2)
+        XCTAssertEqual(actions[0]["title"] as? String, "Steps")
+        XCTAssertEqual(actions[0]["futureField"] as? String, "kept")
+        let foreign = actions[1]
+        XCTAssertEqual(foreign["id"] as? String, foreignId.uuidString)
+        let kept = (foreign["requirement"] as? [String: Any])?["breathwork"] as? [String: Any]
+        XCTAssertEqual(kept?["minutes"] as? Double, 5)
+
+        let reloaded = GoalActionStore(defaults: defaults, storageKey: "actions")
+        XCTAssertEqual(reloaded.actions.map(\.title), ["Steps"])
+    }
+
     func testContributionCanLinkOneWorkoutToSeveralGoalsAndBeEdited() {
         let suite = "GoalContributions-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
