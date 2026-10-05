@@ -643,28 +643,38 @@ public struct GoalFilterChips: View {
     }
 
     public var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(chips) { chip in
-                    let selected = chip.id == selection
-                    Button {
-                        selection = chip.id
-                        StrandHaptic.selection.play()
-                    } label: {
-                        Text(verbatim: chip.label)
-                            .font(StrandFont.subhead.weight(selected ? .semibold : .regular))
-                            .foregroundStyle(selected ? StrandPalette.accent : StrandPalette.textPrimary)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 7)
-                            .background(Capsule().fill(selected ? StrandPalette.accentMuted : StrandPalette.surfaceRaised))
-                            .overlay(Capsule().strokeBorder(selected ? StrandPalette.accent.opacity(0.5)
-                                                                     : StrandPalette.hairline, lineWidth: 1))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityAddTraits(selected ? .isSelected : [])
+        // All chips on one line when they fit, tighter when that is what it takes; only text too large for
+        // either scrolls. A half-cut last chip read as a missing choice.
+        ViewThatFits(in: .horizontal) {
+            row(padding: 14, spacing: 8)
+            row(padding: 10, spacing: 6)
+            ScrollView(.horizontal, showsIndicators: false) { row(padding: 14, spacing: 8) }
+        }
+        .padding(.vertical, 2)
+    }
+
+    private func row(padding: CGFloat, spacing: CGFloat) -> some View {
+        HStack(spacing: spacing) {
+            ForEach(chips) { chip in
+                let selected = chip.id == selection
+                Button {
+                    selection = chip.id
+                    StrandHaptic.selection.play()
+                } label: {
+                    Text(verbatim: chip.label)
+                        .font(StrandFont.subhead.weight(selected ? .semibold : .regular))
+                        .foregroundStyle(selected ? StrandPalette.accent : StrandPalette.textPrimary)
+                        .lineLimit(1)
+                        .fixedSize()
+                        .padding(.horizontal, padding)
+                        .padding(.vertical, 7)
+                        .background(Capsule().fill(selected ? StrandPalette.accentMuted : StrandPalette.surfaceRaised))
+                        .overlay(Capsule().strokeBorder(selected ? StrandPalette.accent.opacity(0.5)
+                                                                 : StrandPalette.hairline, lineWidth: 1))
                 }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(selected ? .isSelected : [])
             }
-            .padding(.vertical, 2)
         }
     }
 }

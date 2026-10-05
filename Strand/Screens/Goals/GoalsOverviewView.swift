@@ -25,7 +25,7 @@ struct GoalsOverviewScreen: View {
     @State private var showIntro = false
 
     var body: some View {
-        ScreenScaffold(title: "My goals", subtitle: "Tap a goal to change it.",
+        ScreenScaffold(title: "My goals",
                        onRefresh: { await GoalTrackingStore.shared.refresh(repo: repo) },
                        topBackground: liquidScaffoldSky(),
                        pinnedHeader: AnyView(GoalsFilterBar()),
@@ -167,9 +167,11 @@ struct GoalsOverviewView: View {
                 linkOffers
                 if !crowdHintShown, snapshots(.week).count > GoalPrefs.crowdThreshold { crowdHint }
                 dailyShortcut
+                // The long-term goals are what the weeks serve, so they come first; under "All" as rows,
+                // their picture cards are one chip away.
+                longTermRows(limit: Self.allLimit)
                 periodList(.week, limit: Self.allLimit)
                 periodList(.month, limit: Self.allLimit)
-                longTermList(limit: Self.allLimit)
                 if let motivation = tracking.motivation {
                     AchievementsCard(motivation: motivation)
                 }
@@ -495,7 +497,7 @@ struct GoalsOverviewView: View {
                                 subtitle: periodSubtitle(snapshot),
                                 subtitleTint: GoalStatusStyle.needsAttention(snapshot.state) || snapshot.state == .achieved
                                     ? snapshot.style.foreground : StrandPalette.textSecondary,
-                                value: GoalFormat.amount(snapshot.goal.target, snapshot.goal.metric),
+                                value: GoalFormat.progress(snapshot),
                                 progress: snapshot.state == .noData ? nil : snapshot.result.fraction,
                                 dots: snapshot.goal.metric.aggregation == .hitDays && snapshot.goal.period == .week
                                     ? snapshot.dayDots() : nil,
@@ -518,7 +520,8 @@ struct GoalsOverviewView: View {
     }
 
     private func periodSubtitle(_ snapshot: PeriodGoalSnapshot) -> String {
-        var parts = ["\(GoalFormat.progress(snapshot)) · \(snapshot.style.wordText)"]
+        // The figures stand on the right; this line says how it is going.
+        var parts = [snapshot.style.wordText]
         if snapshot.currentStreak > 1 {
             parts.append(snapshot.goal.period == .week ? String(localized: "\(snapshot.currentStreak) weeks in a row")
                                                         : String(localized: "\(snapshot.currentStreak) months in a row"))
@@ -544,6 +547,59 @@ struct GoalsOverviewView: View {
         }.map(\.element)
     }
 
+    /// Under "All": the long-term goals as rows in one card, like the weekly ones, so the overview reads as
+    /// one list. A catalog goal opens its page; a goal measured by kind keeps its journey.
+    private func longTermRows(limit: Int) -> some View {
+        let ordered = longTermOrdered()
+        let items = Array(ordered.prefix(limit))
+        let hidden = ordered.count - items.count
+        return listSection(String(localized: "Long-term"), isEmpty: items.isEmpty) {
+            ForEach(items) { snapshot in
+                Group {
+                    if let content = LongTermGoalContent(snapshot) {
+                        NavigationLink(value: GoalsRoute.longTermDetail(snapshot.id)) { catalogRow(snapshot, content) }
+                    } else {
+                        Button { sheet = .journey(snapshot.id) } label: { legacyLongTermRow(snapshot) }
+                    }
+                }
+                .buttonStyle(.plain)
+                .contextMenu { longTermMenu(snapshot) }
+            }
+            if hidden > 0 {
+                moreRow(String(localized: "\(hidden) more"), filter: .longTerm)
+            }
+            NavigationLink { LongTermGoalSetupView(onDone: refresh) } label: {
+                addRow(String(localized: "Add a long-term goal"))
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func catalogRow(_ snapshot: GoalTrackingSnapshot, _ content: LongTermGoalContent) -> some View {
+        let attention = content.style.tone == .warning || content.style.tone == .critical
+        return GoalListRow(icon: GoalCatalog.template(for: snapshot.goal)?.icon ?? snapshot.goal.kind.icon,
+                           tint: appleColors ? CoachIconColors.color(for: "coach.goal.\(snapshot.goal.kind.rawValue)")
+                                             : StrandPalette.accent,
+                           title: content.title,
+                           subtitle: ([content.style.wordText] + [content.heroCaption].compactMap { $0 })
+                               .joined(separator: " · "),
+                           subtitleTint: attention ? content.style.foreground : StrandPalette.textSecondary,
+                           value: content.heroValue,
+                           progress: content.stats.first { $0.fraction != nil }?.fraction)
+    }
+
+    @ViewBuilder
+    private func longTermMenu(_ snapshot: GoalTrackingSnapshot) -> some View {
+        let pinned = GoalPrefs.pinnedLongTermIds.contains(snapshot.id)
+        Button(pinned ? "Unpin from Today" : "Keep on Today", systemImage: pinned ? "pin.slash" : "pin") {
+            GoalPrefs.setPinned(snapshot.id, !pinned)
+            tracking.objectWillChange.send()
+        }
+        NavigationLink(value: GoalsRoute.setup(.week)) {
+            Label("Add a weekly goal for it", systemImage: "plus")
+        }
+    }
+
     /// Catalog goals as compact hero cards that open their page; goals measured by kind keep their row
     /// and their journey.
     private func longTermList(limit: Int?) -> some View {
@@ -565,17 +621,7 @@ struct GoalsOverviewView: View {
                     }
                 }
                 .buttonStyle(.plain)
-                .contextMenu {
-                    let pinned = GoalPrefs.pinnedLongTermIds.contains(snapshot.id)
-                    Button(pinned ? "Unpin from Today" : "Keep on Today",
-                           systemImage: pinned ? "pin.slash" : "pin") {
-                        GoalPrefs.setPinned(snapshot.id, !pinned)
-                        tracking.objectWillChange.send()
-                    }
-                    NavigationLink(value: GoalsRoute.setup(.week)) {
-                        Label("Add a weekly goal for it", systemImage: "plus")
-                    }
-                }
+                .contextMenu { longTermMenu(snapshot) }
             }
             if hidden > 0 {
                 moreRow(String(localized: "\(hidden) more"), filter: .longTerm)

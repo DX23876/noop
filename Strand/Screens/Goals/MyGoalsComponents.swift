@@ -112,8 +112,10 @@ struct GoalListRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             if !largeText && !value.isEmpty {
                 // Its own width, up to a cap: a long value (a journal question, several sports) used to
-                // widen the whole page past the screen. Past the cap it truncates.
-                valueText.frame(maxWidth: 170, alignment: .trailing).layoutPriority(1)
+                // widen the whole page past the screen. Past the cap it truncates. `fixedSize` makes the
+                // cap a ceiling only: a flexible frame alone grew to the full 170 for "2/10" as well and
+                // squeezed the name into "Trainingsmi-nuten".
+                valueText.frame(maxWidth: 170, alignment: .trailing).fixedSize(horizontal: true, vertical: false)
             }
             Image(systemName: "chevron.right").font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                 .accessibilityHidden(true)
@@ -347,7 +349,9 @@ struct DailyGoalRings: View {
             return (String(localized: "New record: \(steps.formatted()) steps today"), "trophy.fill",
                     AppleInspiredColorRole.orange.color)
         }
-        if !ringed.isEmpty, ringed.allSatisfy(\.isCompleted) {
+        // Every daily goal, not only the ones drawn as rings: under "2 of 3 daily goals done" a line saying
+        // all are done contradicted the count above it.
+        if !occurrences.isEmpty, occurrences.allSatisfy(\.isCompleted) {
             return (String(localized: "All daily goals done"), "star.fill", StrandPalette.statusWarningForeground)
         }
         let open = ringed.filter { !$0.isCompleted && ($0.fraction ?? 0) >= 0.5 }
@@ -991,25 +995,33 @@ struct NewBadgeBanner: View {
     let badges: [GoalMotivation.Badge]
     let onSeen: () -> Void
 
+    /// One row: the medal, how many are new and the first one's name. The whole row opens the badges; the
+    /// cross only hides it. Smaller than the goals below it, because it is news, not a goal.
     var body: some View {
-        NoopCard(padding: 14, tint: StrandPalette.accent) {
-            HStack(spacing: 14) {
-                if let first = badges.first { BadgeMedal(badge: first, diameter: 54, showsCaption: false) }
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(badges.count == 1 ? String(localized: "New badge") : String(localized: "\(badges.count) new badges"))
-                        .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
-                    Text(badges.prefix(3).map(\.title).joined(separator: " · "))
-                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    NavigationLink(value: GoalsRoute.badges) {
-                        Text("See all badges").font(StrandFont.footnote.weight(.semibold))
+        NoopCard(padding: NoopMetrics.space3, tint: StrandPalette.accent) {
+            HStack(spacing: NoopMetrics.space3) {
+                NavigationLink(value: GoalsRoute.badges) {
+                    HStack(spacing: NoopMetrics.space3) {
+                        if let first = badges.first { BadgeMedal(badge: first, diameter: 40, showsCaption: false) }
+                        VStack(alignment: .leading, spacing: NoopMetrics.spaceHalf) {
+                            Text(badges.count == 1 ? String(localized: "New badge") : String(localized: "\(badges.count) new badges"))
+                                .font(StrandFont.subhead.weight(.semibold)).foregroundStyle(StrandPalette.textPrimary)
+                            Text(badges.prefix(3).map(\.title).joined(separator: " · "))
+                                .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                                .lineLimit(1)
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right").font(.caption.weight(.semibold))
+                            .foregroundStyle(StrandPalette.textTertiary).accessibilityHidden(true)
                     }
-                    .buttonStyle(.plain).foregroundStyle(StrandPalette.accent)
-                    .simultaneousGesture(TapGesture().onEnded(onSeen))
+                    .contentShape(Rectangle())
                 }
-                Spacer(minLength: 0)
+                .buttonStyle(.plain)
+                .simultaneousGesture(TapGesture().onEnded(onSeen))
+                .accessibilityHint(Text("See all badges"))
                 Button(action: onSeen) {
                     Image(systemName: "xmark").font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                        .frame(width: 32, height: 32).contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(Text("Hide"))
