@@ -239,27 +239,18 @@ enum CoachTool: String, CaseIterable {
                 + "Only for an actual training session — never for sleep, nutrition, hydration or other "
                 + "lifestyle advice; those are simply an answer in chat, not a proposal."
         case .proposeGoalSetup:
-            return "Prepare a REVIEW-ONLY draft for a new or changed goal, up to five reusable routines and up to "
-                + "three weekly or monthly goals (period_goals, e.g. 4 workouts a week or 5 nights of 7 h). "
-                + "Size a period goal from the user's recent weeks, not an ideal; check the goals context first "
-                + "so you do not repeat one they already track over the same period. "
-                + "Make every routine measurable when NOOP can measure it: a walk is a steps or Walking workout "
-                + "routine, a session is a workout routine, a habit the user logs is a journal routine; manual only "
-                + "for what nothing measures (NOOP asks about those the next day). For a habit missing from the "
-                + "journal, use manual and suggest adding the entry in the rationale. "
-                + "Nothing becomes active until the user opens the app review and confirms it. Use operation=update "
-                + "only with exact ids from the goal context. Routines may support several active goals and the goal "
-                + "in this same setup. Set use_current_baseline=true when a locally measured starting value is useful; "
-                + "the app resolves and labels it rather than trusting you to invent one. Never propose nutrition, "
-                + "medication, dosage or treatment routines. Do not say the goal or routines were created—say the draft "
-                + "is waiting for review. "
-                + "Prefer a catalog goal (goal.template) whenever one fits: NOOP then measures it from the user's own "
-                + "data with milestones and a weekly view. Collect templates need target and target_date (count_from "
-                + "for a year that already started); target-value templates need the measured baseline, read with your "
-                + "tools first (weight resolves itself); a race needs target_date as race day; weekly-rhythm templates "
-                + "take target as the weekly number and bring their own weekly goal, so do not add a second one for the "
-                + "same measure. Several goals of one area are fine; do not draft one that measures what an active goal "
-                + "already does."
+            // OpenAI rejects the WHOLE request (HTTP 400 on every message) when any tool description exceeds
+            // 1024 characters, so the per-template rules live in the `template` parameter's description.
+            // `OpenAICompatibleToolsTests` pins the limit for every tool.
+            return "Prepare a REVIEW-ONLY draft: a new or changed goal, up to five routines and up to three "
+                + "weekly or monthly goals (period_goals). Nothing is active until the user confirms it in the "
+                + "app; say the draft is waiting for review, never that it was created. Prefer a catalog goal "
+                + "(goal.template) whenever one fits. Size a period goal from recent weeks, not an ideal, and check "
+                + "the goals context so you do not repeat one already tracked. Routines: steps or workout for what "
+                + "NOOP measures, journal for a habit the user logs, manual only when nothing measures it (for a "
+                + "habit missing from the journal suggest the entry in the rationale). operation=update only with "
+                + "exact ids from the goal context. Set use_current_baseline=true instead of inventing a starting "
+                + "value. Never propose nutrition, medication, dosage or treatment routines."
         case .findHevyExercises:
             return "Search the user's synced Hevy exercise catalogue by name, muscle group and/or equipment. "
                 + "Returns each movement's exercise_template_id, which propose_hevy_routine requires. ALWAYS "
@@ -739,7 +730,7 @@ enum CoachTool: String, CaseIterable {
                 "kind": ["type": "string", "enum": CoachGoal.Kind.templateFreeCases.map(\.rawValue),
                          "description": "For a goal without a template only."],
                 "template": ["type": "string", "enum": CatalogGoalDraft.draftable.map(\.rawValue),
-                             "description": "Catalog goal to create. Shapes: endurance.distanceTotal/timeTotal/workoutsTotal and daily.stepsTotal collect by a date; endurance.longest/event beat a best distance; endurance.paceAverage target pace in s/km; fitness.vo2max/restingHr and body.* reach a value; sleep.average, fitness.hrvAverage, recovery.average raise a 28-day average; training.weekly, strength.setsWeekly, fitness.zoneWeekly, daily.stepDays, daily.activeEnergyWeekly, sleep.nightsWeekly, recovery.restDays, habit.journal keep a weekly rhythm."],
+                             "description": "Catalog goal to create. Shapes: endurance.distanceTotal/timeTotal/workoutsTotal and daily.stepsTotal collect by a date; endurance.longest/event beat a best distance; endurance.paceAverage target pace in s/km; fitness.vo2max/restingHr and body.* reach a value; sleep.average, fitness.hrvAverage, recovery.average raise a 28-day average; training.weekly, strength.setsWeekly, fitness.zoneWeekly, daily.stepDays, daily.activeEnergyWeekly, sleep.nightsWeekly, recovery.restDays, habit.journal keep a weekly rhythm. Collect templates need target and target_date (count_from for a year that already started); target-value templates need the measured baseline, read with your tools first (weight resolves itself); a race needs target_date as race day; weekly-rhythm templates take target as the weekly number and bring their own weekly goal, so add no second one for the same measure. Several goals of one area are fine; do not draft one that measures what an active goal already does."],
                 "count_from": ["type": "string", "description": "Collect templates: optional yyyy-MM-dd the total counts from, may be in the past."],
                 "sports": ["type": "array", "items": ["type": "string"], "description": "Template goals on workouts: count only these activities, e.g. Running."],
                 "band": ["type": "number", "description": "body.weightMaintain: kg either side of the target, 0.5 to 5."],

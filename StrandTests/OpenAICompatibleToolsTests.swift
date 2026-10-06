@@ -6,6 +6,19 @@ import XCTest
 /// same protocol-extension implementation. Tested via `OpenAIClient` for brevity.
 final class OpenAICompatibleToolsTests: XCTestCase {
 
+    // MARK: - Function specs
+
+    /// OpenAI rejects the whole chat request with HTTP 400 when any `function.description` is longer than
+    /// 1024 characters, and every tool is sent with every message, so one long description breaks the
+    /// coach for every OpenAI user (reported 2026-10-06 after `propose_goal_setup` grew to 1819).
+    func testEveryFunctionDescriptionFitsOpenAIsLimit() {
+        for tool in CoachTool.allCases {
+            let function = tool.openAIFunctionSpec["function"] as? [String: Any]
+            let description = function?["description"] as? String ?? ""
+            XCTAssertLessThanOrEqual(description.count, 1024, "\(tool.rawValue) description is \(description.count) characters")
+        }
+    }
+
     // MARK: - toolCalls
 
     func testToolCallsExtractsTheArray() {
