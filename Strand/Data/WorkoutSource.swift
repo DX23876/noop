@@ -87,7 +87,10 @@ enum WorkoutSource: Equatable {
         case "functional strength training": return String(localized: "Functional strength training")
         case "strength training":            return String(localized: "Strength Training")
         case "strength":                     return String(localized: "Strength")
-        default:                              return display
+        // The rest of the catalogue under its own `sport.<name>` keys: a bare "Football" or "Polo" key could
+        // collide with UI copy that means something else. An unknown or user-typed name passes through.
+        default:
+            return Bundle.main.localizedString(forKey: "sport." + display.lowercased(), value: display, table: nil)
         }
     }
 
