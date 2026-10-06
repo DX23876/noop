@@ -452,13 +452,15 @@ extension EnvironmentValues {
 
 /// A page with a pinned header (the goals overview's chips) cuts content cleanly under the navigation bar
 /// (iOS 26): without it the cards scrolled through the gap between the back button and the pinned chips.
+/// Every other page asks for the soft edge explicitly: the shells hide the navigation bar background
+/// (#1027), and without a stated style the content ran sharp and unblurred under the back button.
 private struct HardTopEdgeIfPinned: ViewModifier {
     let active: Bool
 
     func body(content: Content) -> some View {
         #if os(iOS)
-        if active, #available(iOS 26.0, *) {
-            content.scrollEdgeEffectStyle(.hard, for: .top)
+        if #available(iOS 26.0, *) {
+            content.scrollEdgeEffectStyle(active ? .hard : .soft, for: .top)
         } else {
             content
         }

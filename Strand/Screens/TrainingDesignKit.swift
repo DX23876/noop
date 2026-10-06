@@ -25,6 +25,77 @@ enum TrainingLane: Sendable {
     }
 }
 
+// MARK: - Analysis page framing
+
+// Analysis migration required: no. These components only change presentation and explanatory copy;
+// every value still comes from the existing lane and history models.
+
+/// One restrained introduction for the training-analysis destinations. The screen still uses NOOP's
+/// existing typography, spacing and lane colours; sharing the hierarchy keeps Strength and Cardio
+/// from feeling like separate products.
+struct TrainingAnalysisHeader: View {
+    let lane: TrainingLane?
+    let title: LocalizedStringKey
+    let subtitle: LocalizedStringKey
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+            HStack(spacing: NoopMetrics.space2) {
+                if let lane {
+                    ZStack {
+                        Circle().fill(lane.color.opacity(0.15))
+                        Image(systemName: lane.symbol).foregroundStyle(lane.color)
+                    }
+                    .frame(width: 40, height: 40)
+                    .accessibilityHidden(true)
+                }
+                VStack(alignment: .leading, spacing: NoopMetrics.space1) {
+                    Text("Training analysis").strandOverline()
+                    Text(title)
+                        .font(StrandFont.title1)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                }
+            }
+            Text(subtitle)
+                .font(StrandFont.subhead)
+                .foregroundStyle(StrandPalette.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Translates a specialised unit before the charts use it. Full methodology stays in the explainer,
+/// while this compact card answers the question a user has at first glance.
+struct TrainingReadingGuide: View {
+    let symbol: String
+    let tint: Color
+    let title: LocalizedStringKey
+    let text: LocalizedStringKey
+
+    var body: some View {
+        NoopCard(padding: NoopMetrics.space3) {
+            HStack(alignment: .top, spacing: NoopMetrics.space3) {
+                Image(systemName: symbol)
+                    .font(StrandFont.headline)
+                    .foregroundStyle(tint)
+                    .frame(width: 28, height: 28)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: NoopMetrics.space1) {
+                    Text(title)
+                        .font(StrandFont.headline)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                    Text(text)
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
 // MARK: - Status pill
 
 /// Where a lane's last seven days sit against the wearer's usual. The words carry the state; the
@@ -177,7 +248,7 @@ struct LoadHeroCard: View {
                             .foregroundStyle(StrandPalette.textSecondary)
                     }
                 }
-                if !compact, trend.count >= 2 { sparkline }
+                if !compact, trend.count >= 2 { baselineTrend }
             }
             if compact, trend.count >= 2 { sparkline }
             if let figure {
@@ -251,6 +322,72 @@ struct LoadHeroCard: View {
             .frame(height: compact ? 34 : 48)
             .frame(maxWidth: .infinity)
             .accessibilityHidden(true)
+    }
+
+    /// A wide card has enough room to make the sparkline answerable: the dashed rule names the wearer's
+    /// baseline, while the line shows how the rolling seven-day load arrived at its latest reading.
+    /// Compact cards keep the quieter sparkline because labels would compete with the evidence below it.
+    private var baselineTrend: some View {
+        LoadBaselineTrend(lane: lane, ratios: trend)
+            .frame(maxWidth: .infinity)
+    }
+}
+
+/// The recent rolling load against the wearer's own baseline. This deliberately draws ratios, not the
+/// strength and cardio units, so both lanes share a visual grammar without pretending their loads add up.
+private struct LoadBaselineTrend: View {
+    let lane: TrainingLane
+    let ratios: [Double]
+
+    private var domain: ClosedRange<Double> {
+        let low = min(ratios.min() ?? 1, 1)
+        let high = max(ratios.max() ?? 1, 1)
+        let padding = max((high - low) * 0.2, 0.08)
+        return max(0, low - padding)...(high + padding)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space1) {
+            HStack {
+                Text("Last 8 weeks")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                Spacer(minLength: NoopMetrics.space2)
+                Label("Your usual", systemImage: "line.diagonal")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+            }
+            Chart {
+                RuleMark(y: .value("Your usual", 1))
+                    .foregroundStyle(StrandPalette.textSecondary.opacity(0.7))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                ForEach(Array(ratios.enumerated()), id: \.offset) { index, ratio in
+                    AreaMark(x: .value("Reading", index), yStart: .value("Floor", domain.lowerBound),
+                             yEnd: .value("Load", ratio))
+                        .foregroundStyle(LinearGradient(colors: [lane.color.opacity(0.26), .clear],
+                                                        startPoint: .top, endPoint: .bottom))
+                        .interpolationMethod(.monotone)
+                    LineMark(x: .value("Reading", index), y: .value("Load", ratio))
+                        .foregroundStyle(lane.color)
+                        .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                        .interpolationMethod(.monotone)
+                }
+                if let latest = ratios.last {
+                    PointMark(x: .value("Reading", ratios.count - 1), y: .value("Load", latest))
+                        .foregroundStyle(lane.bright)
+                        .symbolSize(42)
+                }
+            }
+            .chartXScale(domain: 0...max(ratios.count - 1, 1))
+            .chartYScale(domain: domain)
+            .chartXAxis(.hidden)
+            .chartYAxis(.hidden)
+            .chartLegend(.hidden)
+            .frame(height: 56)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("Load over the last eight weeks"))
+        .accessibilityValue(Text(verbatim: LoadScale.ratioText(ratios.last ?? 1)))
     }
 }
 
@@ -546,7 +683,6 @@ struct SummaryTile<Mini: View>: View {
                     Text(detail)
                         .font(StrandFont.caption)
                         .foregroundStyle(StrandPalette.textSecondary)
-                        .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)

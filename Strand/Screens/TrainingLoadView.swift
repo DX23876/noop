@@ -634,7 +634,7 @@ struct TrainingLoadView: View {
 
     var body: some View {
         ScreenScaffold(title: "Training Load",
-                       subtitle: "Three views of training, each in the unit that fits it.",
+                       subtitle: "Your last seven days, compared with your own training history.",
                        onRefresh: { await model.load(repo: repo) }) {
             if !model.loaded {
                 ProgressView().frame(maxWidth: .infinity)
@@ -715,23 +715,42 @@ struct TrainingLoadView: View {
     /// Strength and cardio side by side, each in its own unit and colour. Never one combined figure: the
     /// two lanes are measured differently, and a blended score would need an invented exchange rate.
     private var hero: some View {
-        HStack(alignment: .top, spacing: NoopMetrics.gap) {
-            laneLink(to: .strength) {
-                LoadHeroCard(lane: .strength, percent: model.strength?.trend?.percentChange,
-                             state: LoadPillState.of(model.strength,
-                                                     provisional: model.provisionalStrengthRing != nil),
-                             figure: strengthFigure, trend: model.ratios.compactMap(\.strength),
-                             coverage: strengthEvidence, caveat: strengthCaveat,
-                             note: provisionalNote ?? capNote(model.strength), compact: true)
+        // Analysis migration required: no. This is an adaptive presentation of the same lane readings.
+        // Half-width cards remain useful in a wide detail column; on a phone, each lane gets the full
+        // width so its status, measured amount, data quality and baseline chart form one readable story.
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: NoopMetrics.gap) {
+                strengthHero(compact: true)
+                cardioHero(compact: true)
             }
-            laneLink(to: .cardio) {
-                LoadHeroCard(lane: .cardio, percent: model.cardio?.trend?.percentChange,
-                             state: LoadPillState.of(model.cardio), figure: cardioFigure,
-                             trend: model.ratios.compactMap(\.cardio), coverage: cardioEvidence,
-                             caveat: cardioCaveat, note: capNote(model.cardio), compact: true)
+            .frame(minWidth: 680)
+
+            VStack(spacing: NoopMetrics.gap) {
+                strengthHero(compact: false)
+                cardioHero(compact: false)
             }
         }
         .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func strengthHero(compact: Bool) -> some View {
+        laneLink(to: .strength) {
+            LoadHeroCard(lane: .strength, percent: model.strength?.trend?.percentChange,
+                         state: LoadPillState.of(model.strength,
+                                                 provisional: model.provisionalStrengthRing != nil),
+                         figure: strengthFigure, trend: model.ratios.compactMap(\.strength),
+                         coverage: strengthEvidence, caveat: strengthCaveat,
+                         note: provisionalNote ?? capNote(model.strength), compact: compact)
+        }
+    }
+
+    private func cardioHero(compact: Bool) -> some View {
+        laneLink(to: .cardio) {
+            LoadHeroCard(lane: .cardio, percent: model.cardio?.trend?.percentChange,
+                         state: LoadPillState.of(model.cardio), figure: cardioFigure,
+                         trend: model.ratios.compactMap(\.cardio), coverage: cardioEvidence,
+                         caveat: cardioCaveat, note: capNote(model.cardio), compact: compact)
+        }
     }
 
     /// On iOS a lane opens its own screen. The macOS detail column has no navigation stack to push onto,
@@ -915,9 +934,19 @@ struct TrainingLoadView: View {
                 .padding(NoopMetrics.screenPadding)
             }
             .background(StrandPalette.surfaceBase.ignoresSafeArea())
+            .navigationTitle(summaryTitle(detail))
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) { Button("Done") { openSummary = nil } }
             }
+        }
+    }
+
+    private func summaryTitle(_ detail: SummaryDetail) -> String {
+        switch detail {
+        case .adaptation: return String(localized: "Adaptation")
+        case .recovery: return String(localized: "Recovery")
+        case .history: return String(localized: "Last 8 weeks")
+        case .session: return String(localized: "Session load")
         }
     }
 
@@ -1238,6 +1267,8 @@ struct TrainingLoadView: View {
         // in a calmer compact card; no load, adaptation, or recovery decision changes.
         return NoopCard(tint: advice.color) {
             VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                Text("What it means")
+                    .strandOverline()
                 HStack(alignment: .top, spacing: NoopMetrics.space2) {
                     StatusBadge(symbol: advice.symbol, color: advice.color, size: 40,
                                 bounceTrigger: adviceBounce)
@@ -1301,6 +1332,7 @@ struct TrainingLoadView: View {
         if !outlook.isEmpty {
             NoopCard {
                 VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                    Text("Personal range").strandOverline()
                     Text("Room today").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
                     roomRow(.strength, room: outlook.strengthRoom, settles: outlook.strengthSettles,
                             unit: String(localized: "weighted sets"))

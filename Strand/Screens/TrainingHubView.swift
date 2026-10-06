@@ -335,10 +335,11 @@ struct TrainingHubView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(StrandFont.subhead.weight(.semibold)).foregroundStyle(StrandPalette.textPrimary)
                 Text(subtitle).font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                    .multilineTextAlignment(.leading)
             }
             Spacer(); Image(systemName: "chevron.right").font(.caption).foregroundStyle(StrandPalette.textTertiary)
         }
-        .padding(.vertical, 11).contentShape(Rectangle())
+        .padding(.vertical, 12).contentShape(Rectangle())
     }
 
     private var recentCard: some View {
@@ -1410,13 +1411,28 @@ struct NativeWorkoutLoggerView: View {
         TrainingSetText.summary(set, mode: mode, unilateral: unilateral, unit: weightUnit)
     }
 
+    /// Column widths shared by the set header and every set row, in both layouts, so each label sits
+    /// over the control it names and the stacked second line lands under the first.
+    ///
+    /// Sized so weight plus reps fits one line on a 375 pt phone (311 pt inside the card): 32 for the
+    /// set, 84 per stepper, 44 for effort and 44 for the check, with 4 between columns, is 304 pt.
+    /// At 36/88/50/44 with 6 between it was 330 pt, one point over the 329 pt a 393 pt iPhone 16
+    /// leaves, and every weighted exercise fell back to the stacked layout there.
+    private enum SetColumns {
+        static let spacing: CGFloat = 4
+        static let set: CGFloat = 32
+        static let effort: CGFloat = 44
+        static let check: CGFloat = 44
+        static let stepButton: CGFloat = 24
+    }
+
     /// Whether a set row can move its repetitions onto a second line when one line does not fit.
     ///
-    /// One line costs 36 pt for the set, about 88 pt per stepper, 50 pt for effort and 44 pt for the
-    /// check. A unilateral weighted exercise carries three steppers — about 424 pt against the 329 pt
-    /// a 393 pt iPhone leaves inside the card — and an overflowing row widened the whole card past
-    /// the screen, clipping the exercise title, the column labels and the set numbers at both edges.
-    /// Weight plus reps (about 330 pt) is already over on a 375 pt phone.
+    /// One line costs 32 pt for the set, about 84 pt per stepper, 44 pt for effort and 44 pt for the
+    /// check (`SetColumns`). A unilateral weighted exercise carries three steppers — about 392 pt
+    /// against the 329 pt a 393 pt iPhone leaves inside the card — and an overflowing row widened the
+    /// whole card past the screen, clipping the exercise title, the column labels and the set numbers
+    /// at both edges. Weight plus reps (about 304 pt) fits one line from a 375 pt phone up.
     private func stacksReps(_ mode: TrainingMeasurementMode, unilateral: Bool) -> Bool {
         switch mode {
         case .weightReps, .weightedBodyweight, .assistedBodyweight: true
@@ -1461,19 +1477,20 @@ struct NativeWorkoutLoggerView: View {
 
     private func stackedSetHeader(_ mode: TrainingMeasurementMode, unilateral: Bool) -> some View {
         VStack(spacing: 2) {
-            HStack(spacing: 6) {
-                Text("SET").frame(width: 36)
+            HStack(spacing: SetColumns.spacing) {
+                Text("SET").frame(width: SetColumns.set)
                 switch mode {
                 case .weightReps, .weightedBodyweight: Text("WEIGHT").frame(maxWidth: .infinity)
                 case .assistedBodyweight: Text("ASSIST").frame(maxWidth: .infinity)
                 default: Spacer(minLength: 0)
                 }
-                if effortPreference != .off { Text("EFFORT").frame(width: 50) }
-                Color.clear.frame(width: 44, height: 1)
+                if effortPreference != .off { Text("EFFORT").frame(width: SetColumns.effort) }
+                Color.clear.frame(width: SetColumns.check, height: 1)
             }
-            HStack(spacing: 6) {
-                Color.clear.frame(width: 36, height: 1)
+            HStack(spacing: SetColumns.spacing) {
+                Color.clear.frame(width: SetColumns.set, height: 1)
                 repsHeader(unilateral: unilateral)
+                trailingColumnsPlaceholder
             }
         }
         .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
@@ -1481,8 +1498,8 @@ struct NativeWorkoutLoggerView: View {
     }
 
     private func setHeader(_ mode: TrainingMeasurementMode, unilateral: Bool) -> some View {
-        HStack {
-            Text("SET").frame(width: 36)
+        HStack(spacing: SetColumns.spacing) {
+            Text("SET").frame(width: SetColumns.set)
             switch mode {
             case .weightReps, .weightedBodyweight:
                 Text("WEIGHT").frame(maxWidth: .infinity)
@@ -1497,8 +1514,8 @@ struct NativeWorkoutLoggerView: View {
             case .distanceDuration:
                 Text("DISTANCE").frame(maxWidth: .infinity); Text("TIME").frame(maxWidth: .infinity)
             }
-            if effortPreference != .off { Text("EFFORT").frame(width: 50) }
-            Color.clear.frame(width: 30)
+            if effortPreference != .off { Text("EFFORT").frame(width: SetColumns.effort) }
+            Color.clear.frame(width: SetColumns.check, height: 1)
         }
         .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
         // Column labels stay on one line in longer languages instead of breaking mid-word.
@@ -1520,7 +1537,7 @@ struct NativeWorkoutLoggerView: View {
         Group {
             if stacked {
                 VStack(spacing: 0) {
-                    HStack(spacing: 6) {
+                    HStack(spacing: SetColumns.spacing) {
                         setKindMenu(exerciseIndex, setIndex, set)
                         switch mode {
                         case .weightReps, .weightedBodyweight, .assistedBodyweight:
@@ -1530,13 +1547,16 @@ struct NativeWorkoutLoggerView: View {
                         }
                         trailingSetControls(exerciseIndex, setIndex, set)
                     }
-                    HStack(spacing: 6) {
-                        Color.clear.frame(width: 36, height: 1)
+                    // The repetitions sit under the load, not across the effort and check columns, so the
+                    // second line reads as part of the same column rather than a stray full-width row.
+                    HStack(spacing: SetColumns.spacing) {
+                        Color.clear.frame(width: SetColumns.set, height: 1)
                         repsControls(exerciseIndex, setIndex, set, unilateral: unilateral)
+                        trailingColumnsPlaceholder
                     }
                 }
             } else {
-                HStack(spacing: 6) {
+                HStack(spacing: SetColumns.spacing) {
                     setKindMenu(exerciseIndex, setIndex, set)
                     metricControls(exerciseIndex, setIndex, set, mode: mode, unilateral: unilateral)
                     trailingSetControls(exerciseIndex, setIndex, set)
@@ -1548,6 +1568,12 @@ struct NativeWorkoutLoggerView: View {
         // A container keeps every control reachable; combining the row would hide them behind one label.
         .accessibilityElement(children: .contain)
         .accessibilityLabel(setAccessibilityLabel(set, mode: mode, unilateral: unilateral))
+    }
+
+    /// Empty space as wide as the effort and check columns, for the stacked second line.
+    @ViewBuilder private var trailingColumnsPlaceholder: some View {
+        if effortPreference != .off { Color.clear.frame(width: SetColumns.effort, height: 1) }
+        Color.clear.frame(width: SetColumns.check, height: 1)
     }
 
     /// Effort rating and the completion check — the right-hand end of a set row in either layout.
@@ -1562,7 +1588,7 @@ struct NativeWorkoutLoggerView: View {
                 let prefix = set.effort?.scale == .rir ? "R" : ""
                 EffortBadge(text: prefix + (set.effort?.value.formatted(.number.precision(.fractionLength(0...1))) ?? "—"),
                             color: set.effort.map { EffortChoice.color(for: $0) })
-                    .frame(width: 50, height: 32)
+                    .frame(width: SetColumns.effort, height: 32)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(Text(effortPreference == .rir ? "Repetitions in reserve" : "RPE"))
@@ -1575,7 +1601,7 @@ struct NativeWorkoutLoggerView: View {
         } label: {
             Image(systemName: set.isCompleted ? "checkmark.circle.fill" : "circle")
                 .font(.title3).foregroundStyle(set.isCompleted ? StrandPalette.chargeColor : StrandPalette.textTertiary)
-        }.buttonStyle(.plain).frame(minWidth: 44, minHeight: 44)
+        }.buttonStyle(.plain).frame(width: SetColumns.check, height: 44)
         .accessibilityLabel(Text(set.isCompleted ? "Mark set incomplete" : "Mark set complete"))
     }
 
@@ -1775,7 +1801,8 @@ struct NativeWorkoutLoggerView: View {
                 model.removeSet(exerciseIndex: exerciseIndex, setIndex: setIndex)
             }
         } label: {
-            Text(setLabel(set, index: setIndex)).font(StrandFont.subhead.weight(.semibold)).frame(width: 36)
+            Text(setLabel(set, index: setIndex)).font(StrandFont.subhead.weight(.semibold))
+                .lineLimit(1).minimumScaleFactor(0.7).frame(width: SetColumns.set)
         }
         .accessibilityLabel(Text("Set \(setIndex + 1) options"))
     }
@@ -1803,12 +1830,12 @@ struct NativeWorkoutLoggerView: View {
                                            @ViewBuilder editor: () -> Editor) -> some View {
         HStack(spacing: 2) {
             Button(action: minus) {
-                Image(systemName: "minus").frame(minWidth: 26, minHeight: 44).contentShape(Rectangle())
+                Image(systemName: "minus").frame(minWidth: SetColumns.stepButton, minHeight: 44).contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             editor().frame(minWidth: 32, maxWidth: .infinity)
             Button(action: plus) {
-                Image(systemName: "plus").frame(minWidth: 26, minHeight: 44).contentShape(Rectangle())
+                Image(systemName: "plus").frame(minWidth: SetColumns.stepButton, minHeight: 44).contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         }

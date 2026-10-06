@@ -142,13 +142,14 @@ struct StrengthView: View {
                 } else {
                     weekControl
                     loadHero
+                    readingGuide
                     weekFigures
                     // Named for `--demo-scroll-to` screenshot QA (DEBUG only; the id is inert otherwise),
                     // so the weekly set range in the middle of this screen can be captured too.
                     muscleGroups.id("volume")
                     loadChart
                     TrainingHistoryLink(focus: .strength) {
-                        TrainingHistoryRow(subtitle: String(localized: "Your strength load and lifts over months and years"))
+                        TrainingHistoryRow(subtitle: String(localized: "See how your lifting load and key exercises changed over time"))
                     }
                     balanceCard
                     selectedRangeOverview
@@ -193,15 +194,20 @@ struct StrengthView: View {
     }
 
     private var analysisHeader: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text("Strength")
-                .font(StrandFont.title1)
-                .foregroundStyle(StrandPalette.textPrimary)
-            Text("Records, progression, muscles and balance")
-                .font(StrandFont.subhead)
-                .foregroundStyle(StrandPalette.textSecondary)
-        }
-        .accessibilityElement(children: .combine)
+        TrainingAnalysisHeader(
+            lane: .strength,
+            title: "Strength",
+            subtitle: "See how much you lifted, which muscles did the work and whether your key exercises are improving."
+        )
+    }
+
+    private var readingGuide: some View {
+        TrainingReadingGuide(
+            symbol: "scalemass.fill",
+            tint: TrainingLane.strength.color,
+            title: "What ‘weighted sets’ means",
+            text: "Each working set counts more when it was closer to failure. The comparison is with your own recent lifting—not a universal target."
+        )
     }
 
     private var selectedRangeOverview: some View {
@@ -366,9 +372,9 @@ struct StrengthView: View {
                         Text("Hevy is connected. Sessions appear here after the next sync.")
                             .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
                     } else {
-                        Text("Connect Hevy or import a lifting file to see your training here.")
+                        Text("Add a strength workout to see your training here.")
                             .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
-                        Text("NOOP reads sets, reps, weights and RPE from Hevy, Hevy CSV or Liftosaur and shows them beside what your strap measured.")
+                        Text("Connect Hevy or import a supported file. NOOP then shows sets, weights, effort and muscle load together.")
                             .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -1250,21 +1256,21 @@ struct StrengthView: View {
     private var explainers: some View {
         ExplainerRows(items: [
             ExplainerItem(id: "load", symbol: "function", title: infoTitle(.strengthLoad),
-                          subtitle: String(localized: "Working sets weighted by how close they went to failure"),
+                          subtitle: String(localized: "Why hard sets count more than easy sets"),
                           text: infoBody(.strengthLoad)),
             ExplainerItem(id: "bodyweight", symbol: "figure.strengthtraining.functional",
                           title: infoTitle(.bodyweight),
-                          subtitle: String(localized: "Pull-ups and push-ups priced at your own weight"),
+                          subtitle: String(localized: "How pull-ups and push-ups are counted"),
                           text: infoBody(.bodyweight)),
             ExplainerItem(id: "effort", symbol: "heart.fill", title: infoTitle(.cardioLoad),
-                          subtitle: String(localized: "Why lifting and heart rate stay apart"),
+                          subtitle: String(localized: "Why heart-rate load stays separate"),
                           text: infoBody(.cardioLoad)),
             ExplainerItem(id: "charge", symbol: "battery.100percent", title: infoTitle(.charge),
-                          subtitle: String(localized: "The recovery budget both share"),
+                          subtitle: String(localized: "How recovery connects strength and cardio"),
                           text: infoBody(.charge)),
             ExplainerItem(id: "weeks", symbol: "calendar", title: String(localized: "Active weeks"),
-                          subtitle: String(localized: "How the history counts weeks"),
-                          text: String(localized: "Active weeks count calendar weeks with at least one session, from your first session in this range. The week start follows Settings › Training.")),
+                          subtitle: String(localized: "Which weeks are included"),
+                          text: String(localized: "An active week is a calendar week with at least one strength session. Your chosen first day of the week comes from Settings › Training.")),
         ])
     }
 
@@ -1323,17 +1329,17 @@ struct StrengthView: View {
     private func infoBody(_ topic: InfoTopic) -> String {
         switch topic {
         case .strengthLoad:
-            return String(localized: "How much lifting this week asked of you, against your own level over the last four weeks. It is a percentage, not a score: +18 % means this week ran about a fifth above your usual.\n\nThe underlying figure is WORKING SETS, weighted by how close each one went to failure — the same weighting the muscle map uses. Ten easy sets are not ten hard ones.\n\nIt is deliberately not tonnage. Sets × reps × kilos ranks four sets of ten at 100 kg above five triples at 180 kg, and the triples are the harder session — heavier, closer to your limit, and costlier to recover from. Tonnage rewards high-rep work and offers a precision it does not have, so it stays a statistic here and never the load.\n\nNeither direction is good or bad on its own. More than usual is what a build phase looks like and also what overreaching looks like; the load alone cannot tell those apart. Charge can.")
+            return String(localized: "Strength load compares the last seven days with your own recent lifting. +18% means the current week was about one fifth higher than usual; it is a comparison, not a score.\n\nThe total uses working sets and gives more weight to sets performed closer to failure. This avoids treating ten easy sets as equal to ten hard sets.\n\nVolume in kilograms remains visible as a separate statistic. It is not used as load because high-repetition training can produce more tonnage without being the harder session.\n\nHigher or lower is not automatically good or bad. Read the load beside your progress and Charge.")
         case .cardioLoad:
-            return String(localized: "The Effort your heart rate earned this week — the cardiovascular side, kept deliberately separate from your lifting.\n\nLifting volume never becomes Effort. A heavy session raises your heart rate and that heart rate is already in this number; the sets and kilos are not added on top.\n\nThey are not added because there is no honest exchange rate between them. Tonnes moved and heart-rate minutes measure different things on different tissue, and combining them into one training-load number would require inventing the conversion. What they DO share is one recovery budget — and NOOP already has the figure for that. Charge is where the two meet, because it is measured from what your body reported back after carrying both.")
+            return String(localized: "Effort is the cardiovascular load measured from heart rate and time. A hard strength session can contribute through its heart-rate response, but sets and kilograms are not added again.\n\nStrength and cardio stay separate because they have no reliable shared unit. Charge provides the recovery context both loads share.")
         case .charge:
-            return String(localized: "Your average Charge across this week — the same Charge as everywhere else in NOOP, not a new score.\n\nRead it beside the strength and Effort figures. Those two cannot be added together — there is no shared unit between tonnes lifted and heart-rate minutes — but they are carried by one body with one recovery budget, and this is the number that reflects both. A week of high load and falling Charge is a different week from one of high load and steady Charge, and that comparison is the reason all three sit together.")
+            return String(localized: "This is your average Charge for the selected week—the same value used elsewhere in NOOP.\n\nRead it beside strength and cardio load. High training load with steady Charge tells a different story from high load with falling Charge.")
         case .muscleBands:
-            return String(localized: "The bar is this week's working sets for that muscle. The shaded band behind it is what YOU usually do — the middle half of your last eight training weeks.\n\nIt is not a target. NOOP has no way of knowing what your right weekly volume is, and a number from a textbook presented as your goal would be a guess wearing a uniform. What it can tell you is when a week is unusual for you, and that is what the band shows.\n\nWeeks with no training are left out, so a holiday does not drag the band down and then make your return look excessive.\n\nThe symbol at the end of each row is the comparison Training Load makes for the whole strength lane — below, about, above or well above your usual — read for that muscle group on its own.")
+            return String(localized: "The bar shows this week's working sets for one muscle group. The shaded band shows the middle half of your last eight active training weeks.\n\nThe band is your personal reference, not a target. Weeks without strength training are left out, so a holiday does not make your return look unusually high.\n\nThe symbol at the end says whether this muscle group is below, near, above or well above its usual range.")
         case .balance:
-            return String(localized: "Each bar splits this week's working sets between two sides — pushing against pulling, upper body against lower, quads against hips and hamstrings. A set counts once, on its exercise's primary muscle, exactly as in the list above.\n\nThe hatched region is YOUR usual ratio over the last eight training weeks. There is deliberately no target: '1:1 push to pull' is coaching advice, not a measurement, and printing it here would turn every week into a pass or a fail against a number nobody validated for you.\n\nThe groupings are conventions — a triceps set counts as pushing, a biceps set as pulling. They decide only how sets are added up.")
+            return String(localized: "Each bar divides this week's working sets into two groups: push and pull, upper and lower body, or quads and posterior chain. A set counts once, under its exercise's primary muscle.\n\nThe hatched area is your usual split over the last eight active training weeks. It is a personal reference, not a required ratio.")
         case .bodyweight:
-            return String(localized: "Volume load counts weight × reps, so a set of pull-ups counts as nothing: the log records no weight for it. This figure prices those sets at the body you actually moved, taken from your own weigh-ins around that session — never from your height, your age, or today's weight applied backwards.\n\nIt is reported BESIDE barbell tonnage and never added to it, because they are different measurements. And there is no leverage factor: a push-up is counted at your body weight like every other bodyweight movement, rather than at some fraction of it that nobody has measured for you.\n\nWith no weigh-in near a session, the sets it could not price are counted and shown instead of guessed.")
+            return String(localized: "Bodyweight exercises often have no weight in the workout log. NOOP estimates their volume from your nearest recorded weigh-in.\n\nIt is shown separately from barbell volume and is never added to it. If no suitable weigh-in exists, the affected sets are shown as unpriced instead of being guessed.")
         }
     }
 

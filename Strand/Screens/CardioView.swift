@@ -58,10 +58,11 @@ struct CardioView: View {
                 } else {
                     weekControl
                     loadHero
+                    readingGuide
                     weekFigures
                     loadChart
                     TrainingHistoryLink(focus: .cardio) {
-                        TrainingHistoryRow(subtitle: String(localized: "Your cardio load and VO₂max over months and years"))
+                        TrainingHistoryRow(subtitle: String(localized: "See how heart-rate load and estimated fitness changed over time"))
                     }
                     intensityCard.id("intensity")
                     activityTiles(proxy)
@@ -104,15 +105,20 @@ struct CardioView: View {
     }
 
     private var analysisHeader: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text("Cardio")
-                .font(StrandFont.title1)
-                .foregroundStyle(StrandPalette.textPrimary)
-            Text("Pace, distance, zones and cardio load")
-                .font(StrandFont.subhead)
-                .foregroundStyle(StrandPalette.textSecondary)
-        }
-        .accessibilityElement(children: .combine)
+        TrainingAnalysisHeader(
+            lane: .cardio,
+            title: "Cardio",
+            subtitle: "See how hard your heart worked, where the time went and whether your pace or fitness is improving."
+        )
+    }
+
+    private var readingGuide: some View {
+        TrainingReadingGuide(
+            symbol: "waveform.path.ecg",
+            tint: TrainingLane.cardio.color,
+            title: "What ‘TRIMP’ means",
+            text: "TRIMP combines workout time and heart-rate intensity into one cardio-load total. It is compared only with your own recent cardio."
+        )
     }
 
     // MARK: - Empty
@@ -124,7 +130,7 @@ struct CardioView: View {
                 VStack(alignment: .leading, spacing: NoopMetrics.space2) {
                     Text("No cardio sessions in the last \(model.range.days) days.")
                         .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
-                    Text("Runs, rides, swims and rows appear here as soon as your strap offloads them or a workout is imported — with pace, speed and distance, not just a duration.")
+                    Text("Record or import a run, ride, swim or row. NOOP then shows its pace, distance, heart-rate intensity and load.")
                         .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -799,11 +805,11 @@ struct CardioView: View {
     private var explainers: some View {
         var items = [
             ExplainerItem(id: "load", symbol: "function", title: String(localized: "Cardio load"),
-                          subtitle: String(localized: "How your cardio load is calculated"),
-                          text: String(localized: "How much cardiovascular work the last 7 days asked of you, against your own level over the last 28 days. It is a percentage, not a score: +18 % means the recent week ran about a fifth above your usual.\n\nThe underlying signal is additive TRIMP, derived from heart rate and time in intensity zones. Moving time stays separate because sixty easy minutes and sixty threshold minutes are equal duration but very different cardiovascular loads.\n\nRest days count as zeros. Neither direction is good or bad on its own: a higher week can be a planned build or too much, and the load alone cannot tell those apart. Charge and your own session rating add that context. It stays blank until there are two weeks of history.")),
+                          subtitle: String(localized: "How time and heart-rate intensity become one total"),
+                          text: String(localized: "Cardio load compares the last seven days with your own recent cardio. +18% means the current week was about one fifth higher than usual; it is a comparison, not a score.\n\nThe total uses TRIMP: workout time weighted by heart-rate intensity. This lets an easy hour count differently from an hour near threshold.\n\nRest days count as zero. Higher or lower is not automatically good or bad, so read load beside Charge and your own session ratings. A comparison appears once enough history is available.")),
             ExplainerItem(id: "bests", symbol: "trophy", title: String(localized: "Your bests"),
-                          subtitle: String(localized: "What counts as a best"),
-                          text: String(localized: "Measured bests for this sport: the farthest you went, the longest you were out, and your fastest AVERAGE pace within each band of session length.\n\nThe bands matter. A fast 3 km and a fast half marathon are different achievements, so they are kept apart rather than competing for one 'fastest' line.\n\nThese are averages over a whole session, never splits. NOOP stores one distance and one duration per session, so 'your fastest 5 km' inside a longer run is a claim the data cannot support and is deliberately not offered.")),
+                          subtitle: String(localized: "How sessions are compared fairly"),
+                          text: String(localized: "Bests include your farthest session, longest session and fastest average pace for similar session lengths.\n\nA short run and a half marathon are kept in separate distance groups because their paces are not directly comparable. These are whole-session averages, not kilometre splits.")),
         ]
         if let split = model.zoneSplit, split.total > 0 {
             items.append(ExplainerItem(id: "zones", symbol: "waveform.path.ecg",

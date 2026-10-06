@@ -35,8 +35,9 @@ struct TrainingHistoryView: View {
 
     var body: some View {
         ScreenScaffold(title: "Training history",
-                       subtitle: "Each lane over months and years, in its own unit.") {
+                       subtitle: "See how each kind of training changed over time. Strength and cardio stay in their own units.") {
             controls
+            readingGuide
             if model.source == nil {
                 ProgressView().frame(maxWidth: .infinity)
             } else if let built = model.built {
@@ -49,6 +50,15 @@ struct TrainingHistoryView: View {
             let end = TrainingHistoryModel.end(for: span, jumpedTo: jumpDay, today: source.today)
             await model.build(span: span, end: end, lifts: chosenLifts)
         }
+    }
+
+    private var readingGuide: some View {
+        TrainingReadingGuide(
+            symbol: "chart.xyaxis.line",
+            tint: StrandPalette.accent,
+            title: "How to read the charts",
+            text: "Bars show the training completed in each period. The dashed line shows what was normal for you then; hatched gaps mean missing data, not rest."
+        )
     }
 
     // MARK: Controls
@@ -167,10 +177,9 @@ struct TrainingHistoryView: View {
     private var explainer: some View {
         NoopCard {
             VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-                Text("How to read this").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
-                Text("Bars are each period's total in the lane's own unit. The dashed line is your 42-day level for a period that long, so a bar above it was a heavier stretch than you were used to at the time.")
-                Text("The strip above the bars is the band Training Load showed at the end of each period. Hatched periods held training the data could not measure — a gap, not rest.")
-                Text("The three lanes are never added together: a hard set, a heart-rate load and your own rating measure different things.")
+                Text("Why the lanes stay separate").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                Text("Strength uses weighted sets, cardio uses heart-rate load, and session load uses your rating multiplied by duration. They describe different kinds of work, so adding them would create a number with no reliable meaning.")
+                Text("The coloured strip records whether that lane was below, near, above or well above your usual range at the end of each period.")
             }
             .font(StrandFont.footnote)
             .foregroundStyle(StrandPalette.textSecondary)
