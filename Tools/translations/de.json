@@ -2673,5 +2673,13 @@
   "sport.paintball": "Paintball",
   "sport.parkour": "Parkour",
   "sport.polo": "Polo",
-  "sport.skydiving": "Fallschirmspringen"
+  "sport.skydiving": "Fallschirmspringen",
+  "Marks it not done": "Markiert es als nicht erledigt",
+  "Marks it done": "Markiert es als erledigt",
+  "%@ / %@ h": "%@ / %@ Std.",
+  "≈ %@ / %@ kcal": "≈ %@ / %@ kcal",
+  "%lld / %lld min": "%lld / %lld Min.",
+  "%lld of %lld done": "%lld von %lld erledigt",
+  "Reached today": "Heute erreicht",
+  "Steps, sleep or active calories: your day's progress shows up here.": "Schritte, Schlaf oder aktive Kalorien: Hier siehst du, wie weit du heute bist."
 }

@@ -2650,5 +2650,13 @@
   "sport.paintball": "Пейнтбол",
   "sport.parkour": "Паркур",
   "sport.polo": "Поло",
-  "sport.skydiving": "Парашютный спорт"
+  "sport.skydiving": "Парашютный спорт",
+  "Marks it not done": "Отмечает как невыполненное",
+  "Marks it done": "Отмечает как выполненное",
+  "%@ / %@ h": "%@ / %@ ч",
+  "≈ %@ / %@ kcal": "≈ %@ / %@ ккал",
+  "%lld / %lld min": "%lld / %lld мин",
+  "%lld of %lld done": "Выполнено: %lld из %lld",
+  "Reached today": "Достигнуто сегодня",
+  "Steps, sleep or active calories: your day's progress shows up here.": "Шаги, сон или активные калории: здесь виден прогресс за день."
 }

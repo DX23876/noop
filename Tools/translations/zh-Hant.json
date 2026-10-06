@@ -2828,5 +2828,13 @@
   "sport.paintball": "漆彈",
   "sport.parkour": "跑酷",
   "sport.polo": "馬球",
-  "sport.skydiving": "跳傘"
+  "sport.skydiving": "跳傘",
+  "Marks it not done": "標記為未完成",
+  "Marks it done": "標記為已完成",
+  "%@ / %@ h": "%@ / %@ 小時",
+  "≈ %@ / %@ kcal": "≈ %@ / %@ 大卡",
+  "%lld / %lld min": "%lld / %lld 分鐘",
+  "%lld of %lld done": "已完成 %lld / %lld",
+  "Reached today": "今天已達成",
+  "Steps, sleep or active calories: your day's progress shows up here.": "步數、睡眠或活動卡路里：今天的進度顯示在這裡。"
 }

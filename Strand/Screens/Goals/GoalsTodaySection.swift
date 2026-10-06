@@ -5,19 +5,18 @@ import StrandAnalytics
 /// Today's goals, in ONE card, shared by all four Today styles (Liquid, classic, Trends, Overview) so
 /// every dashboard shows exactly the same goal truth.
 ///
-/// What it shows, in this order (design §4):
-/// - the week: the first three weekly goals in the order the wearer arranged (Q13), each a name, a state
-///   word, a pace track and what is left; a line "+N need attention" when a goal below the fold slips;
-/// - a long-term goal only when it needs a decision, is at risk, or is pinned (Q7);
-/// - one line for the month;
-/// - today's daily goals, ticked off automatically or by hand;
+/// What it shows, in this order:
+/// - up to three goals, each drawn in its own shape: first the weekly, monthly or long-term goals that
+///   need a look today, the rows still free filled with the wearer's long-term goals;
+/// - today's daily goals as one row of chips, ticked off automatically or by hand;
+/// - one line for the week and the month;
 /// - "still open from the last days": the next-day question for goals NOOP could not see done (§17j);
 /// - the "which goal did this workout support?" question, now only for workouts no goal claims (Q20).
 ///
 /// Every row pushes into the goals overview or a goal's detail on the tab's own navigation stack, so
 /// there is one place for goals and Back works the same everywhere.
 struct GoalsTodaySection: View {
-    /// True draws the "GOALS · THIS WEEK · All ›" head above the card (Liquid Today); false keeps it
+    /// True draws the "GOALS · All ›" head above the card (Liquid Today); false keeps it
     /// inside the card (classic, Trends, Overview).
     var headerOutside: Bool = false
 
@@ -48,10 +47,12 @@ struct GoalsTodaySection: View {
     }
     @State private var sheet: Sheet?
 
-    /// What this card shows, decided by the rule every small goal surface shares (`GoalSpotlight`).
+    /// What this card shows, decided by the rule every small goal surface shares (`GoalSpotlight`): up to
+    /// three goals, the ones that need a look first, the rows still free filled with long-term goals.
     private var spotlight: GoalSpotlight {
         GoalSpotlight.make(todayActions: tracking.todayActions, periodSnapshots: tracking.periodSnapshots,
-                           longTerm: tracking.snapshots, pinnedLongTerm: GoalPrefs.pinnedLongTermIds)
+                           longTerm: tracking.snapshots, pinnedLongTerm: GoalPrefs.pinnedLongTermIds,
+                           maxRows: 3, fillsWithLongTerm: true)
     }
     private var hasAnyGoal: Bool {
         !periodGoals.openGoals.isEmpty || !goals.activeGoals.isEmpty || !tracking.todayActions.isEmpty
@@ -79,29 +80,21 @@ struct GoalsTodaySection: View {
 
     // MARK: - Content
 
-    /// Daily goals first (rings, then boxes to tick), then at most two goals that need a look today,
-    /// then one line for everything else (plan §17f). What is not shown is on the goals page.
+    /// The goals first, each drawn in its own shape (a sum as a track with its pace mark, a weight goal as
+    /// the way to its target, consistency as week dots), then today's daily goals as one row of chips, then
+    /// one line for everything else. What is not shown is on the goals page.
     @ViewBuilder
     private var content: some View {
         let spot = spotlight
-        // Up to three rings; the other daily goals as rows while there are one or two, else counted
-        // in one strip ("6 of 10 daily goals done").
-        let checksAsRows = spot.checks.count <= 2
-        if !spot.rings.isEmpty || !checksAsRows {
-            NavigationLink(value: TabRoute.goals) {
-                DailyGoalRings(occurrences: tracking.todayActions, motivation: tracking.motivation, diameter: 92,
-                               showsTally: !checksAsRows)
-            }
-            .buttonStyle(.plain)
+        ForEach(Array(spot.rows.enumerated()), id: \.element.id) { index, row in
+            if index > 0 { Divider().overlay(StrandPalette.hairline) }
+            spotlightRow(row)
         }
-        if checksAsRows {
-            ForEach(spot.checks) { occurrence in dailyRow(occurrence) }
+        if !tracking.todayActions.isEmpty {
+            if !spot.rows.isEmpty { Divider().overlay(StrandPalette.hairline) }
+            TodayDailyGoalsBlock(occurrences: tracking.todayActions, onToggleManual: toggleDaily)
         }
         GoalNotifyOffer(occurrences: tracking.todayActions)
-        if !spot.rows.isEmpty {
-            if !spot.rings.isEmpty || !spot.checks.isEmpty { Divider().overlay(StrandPalette.hairline) }
-            ForEach(spot.rows) { row in spotlightRow(row) }
-        }
         if let summary = spot.summary {
             NavigationLink(value: TabRoute.goals) {
                 HStack(spacing: 6) {
@@ -115,8 +108,8 @@ struct GoalsTodaySection: View {
             }
             .buttonStyle(.plain)
         }
-        if spot.rings.isEmpty && spot.checks.isEmpty && spot.rows.isEmpty && spot.summary == nil {
-            // Long-term goals that are fine stay off Today (Q7); say where they are instead of drawing nothing.
+        if spot.rows.isEmpty && tracking.todayActions.isEmpty && spot.summary == nil {
+            // Only goals measured by kind are left and they are fine; say where they are instead of drawing nothing.
             NavigationLink(value: TabRoute.goals) {
                 Text("Your long-term goals are on course. Add a daily goal to see your day here.")
                     .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
@@ -147,44 +140,44 @@ struct GoalsTodaySection: View {
         }
     }
 
-    /// A weekly, monthly or long-term goal in one compact line: why it is here, its name, what is left.
+    /// A weekly, monthly or long-term goal: its name and state, where it stands in its own terms
+    /// ("642 km of 1,000 km", "207.3 kg, target 190 kg"), and under it the goal drawn in its shape.
     @ViewBuilder
     private func spotlightRow(_ row: GoalSpotlight.Row) -> some View {
         switch row {
         case .period(let snapshot, let reason):
             NavigationLink(value: TabRoute.periodGoal(snapshot.id)) {
-                compactRow(icon: snapshot.goal.metric.icon, tint: snapshot.identityColor,
-                           title: GoalFormat.shortName(snapshot.goal),
-                           detail: reason == .reachedToday
-                               ? String(localized: "Reached today · \(GoalFormat.progress(snapshot))")
-                               : "\(GoalFormat.progress(snapshot)) · \(GoalFormat.remainingLine(snapshot))",
-                           style: snapshot.style, fraction: snapshot.result.fraction)
+                GoalShapeRow(icon: snapshot.goal.metric.icon, tint: snapshot.identityColor,
+                             title: GoalFormat.shortName(snapshot.goal), style: snapshot.style,
+                             value: GoalFormat.progress(snapshot),
+                             caption: reason == .reachedToday ? String(localized: "Reached today")
+                                                              : GoalFormat.remainingLine(snapshot)) {
+                    PeriodShapeGlyph(snapshot: snapshot)
+                }
             }
             .buttonStyle(.plain)
             .contextMenu { periodMenu(snapshot) }
         case .longTerm(let snapshot, _):
             // Today nudges, it does not scold (plan §17g, Q14): a long-term goal at risk reads in amber
-            // here (red stays on the goals page and the detail), and its line says what to do next.
-            let base = GoalStatusStyle.of(snapshot.health)
-            let style = snapshot.health == .atRisk
+            // here (red stays on the goals page and the detail).
+            let content = LongTermGoalContent(snapshot)
+            let base = content?.style ?? GoalStatusStyle.of(snapshot.health)
+            let style = base.tone == .critical
                 ? GoalStatusStyle(word: base.word, wordText: base.wordText, symbol: base.symbol, tone: .warning)
                 : base
-            // A catalog goal says where it stands in its own terms ("642 km of 1,000 km · On track") and
-            // opens its page; a goal measured by kind keeps its next step and its journey.
-            let content = LongTermGoalContent(snapshot)
+            let tint = CoachIconColors.color(for: "coach.goal.\(snapshot.goal.kind.rawValue)")
+            // A catalog goal opens its page; a goal measured by kind keeps its next step and its journey.
             Button { sheet = content == nil ? .journey(snapshot.id) : .page(snapshot.id) } label: {
-                compactRow(icon: GoalCatalog.template(for: snapshot.goal)?.icon ?? snapshot.goal.kind.icon,
-                           tint: CoachIconColors.color(for: "coach.goal.\(snapshot.goal.kind.rawValue)"),
-                           title: snapshot.displayTitle,
-                           detail: content.map { c in
-                               ([c.heroValue] + [c.heroCaption].compactMap { $0 }).joined(separator: " ")
-                                   + " · " + c.style.wordText
-                           } ?? snapshot.localizedNextAction,
-                           style: content.map { c in c.style.tone == .critical
-                               ? GoalStatusStyle(word: c.style.word, wordText: c.style.wordText,
-                                                 symbol: c.style.symbol, tone: .warning)
-                               : c.style } ?? style,
-                           fraction: snapshot.displayProgress)
+                GoalShapeRow(icon: GoalCatalog.template(for: snapshot.goal)?.icon ?? snapshot.goal.kind.icon,
+                             tint: tint, title: snapshot.displayTitle, style: style,
+                             value: content?.heroValue ?? "",
+                             caption: content?.heroCaption ?? snapshot.localizedNextAction) {
+                    if let reading = snapshot.reading {
+                        GoalShapeGlyph(reading: reading, tint: tint)
+                    } else if let fraction = snapshot.displayProgress {
+                        PaceTrack(fraction: fraction, tint: tint, height: 6)
+                    }
+                }
             }
             .buttonStyle(.plain)
             .contextMenu {
@@ -197,58 +190,10 @@ struct GoalsTodaySection: View {
         }
     }
 
-    private func compactRow(icon: String, tint: Color, title: String, detail: String,
-                            style: GoalStatusStyle, fraction: Double?) -> some View {
-        HStack(spacing: 10) {
-            ZStack {
-                Circle().stroke(tint.opacity(0.18), lineWidth: 3)
-                if let fraction {
-                    Circle().trim(from: 0, to: min(1, max(0, fraction)))
-                        .stroke(tint, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                        .rotationEffect(.degrees(-90))
-                }
-                Image(systemName: icon).font(.system(size: 11, weight: .semibold)).foregroundStyle(tint)
-            }
-            .frame(width: 30, height: 30)
-            .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: 6) {
-                    Text(title).font(StrandFont.footnote.weight(.semibold))
-                        .foregroundStyle(StrandPalette.textPrimary).lineLimit(1)
-                    Spacer(minLength: 4)
-                    Label(style.wordText, systemImage: style.symbol)
-                        .font(StrandFont.caption.weight(.semibold)).foregroundStyle(style.foreground)
-                        .labelStyle(.titleAndIcon).lineLimit(1)
-                }
-                Text(detail).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
-                    .lineLimit(1)
-            }
-        }
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
-    }
-
-    private func dailyRow(_ occurrence: GoalActionOccurrence) -> some View {
-        HStack(alignment: .center, spacing: 9) {
-            Button {
-                guard case .manual = occurrence.action.requirement else { return }
-                actions.toggleManual(occurrence.action.id, day: occurrence.day)
-                StrandHaptic.selection.play()
-                Task { await tracking.refresh(repo: repo) }
-            } label: {
-                DailyGoalIndicator(occurrence: occurrence)
-            }
-            .buttonStyle(.plain)
-            .disabled(occurrence.isAutomatic || !isManual(occurrence.action.requirement))
-            .accessibilityLabel(occurrence.isCompleted ? Text("Completed") : Text("Mark completed"))
-            VStack(alignment: .leading, spacing: 1) {
-                Text(occurrence.action.title)
-                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textPrimary)
-                Text(occurrence.detailLine)
-                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-            }
-            Spacer(minLength: 0)
-        }
+    private func toggleDaily(_ occurrence: GoalActionOccurrence) {
+        actions.toggleManual(occurrence.action.id, day: occurrence.day)
+        StrandHaptic.selection.play()
+        Task { await tracking.refresh(repo: repo) }
     }
 
     private func attributionRow(_ suggestion: GoalWorkoutAttributionSuggestion) -> some View {
@@ -310,7 +255,7 @@ struct GoalsTodaySection: View {
     private var outsideHeader: some View {
         HStack(alignment: .firstTextBaseline) {
             NavigationLink(value: TabRoute.goals) {
-                Text(String(localized: "Goals · This week").uppercased())
+                Text(String(localized: "Goals").uppercased())
                     .font(StrandFont.overline)
                     .tracking(StrandFont.overlineTracking)
                     .foregroundStyle(StrandPalette.textSecondary)
@@ -345,11 +290,6 @@ struct GoalsTodaySection: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(Text("Goals — open the goals overview"))
-    }
-
-    private func isManual(_ requirement: GoalAction.Requirement) -> Bool {
-        if case .manual = requirement { return true }
-        return false
     }
 }
 
