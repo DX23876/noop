@@ -33,6 +33,7 @@ struct AppleWatchSetupView: View {
     }
 
     @State private var step: Step = .intro
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(spacing: 0) {
@@ -96,7 +97,7 @@ struct AppleWatchSetupView: View {
             HStack {
                 Spacer()
                 Button {
-                    withAnimation(.easeInOut(duration: 0.2)) { step = .permission }
+                    setStep(.permission)
                 } label: {
                     Text("Continue").frame(minWidth: 120).padding(.vertical, 4)
                 }
@@ -109,7 +110,7 @@ struct AppleWatchSetupView: View {
         case .permission:
             HStack(spacing: 12) {
                 Button("Back") {
-                    withAnimation(.easeInOut(duration: 0.2)) { step = .intro }
+                    setStep(.intro)
                 }
                 .buttonStyle(.bordered)
                 .appleInspiredTint("health")
@@ -136,6 +137,14 @@ struct AppleWatchSetupView: View {
                 #endif
             }
             .padding(16)
+        }
+    }
+
+    private func setStep(_ newStep: Step) {
+        if reduceMotion {
+            step = newStep
+        } else {
+            withAnimation(.easeInOut(duration: 0.2)) { step = newStep }
         }
     }
 

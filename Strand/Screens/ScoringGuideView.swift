@@ -76,6 +76,7 @@ struct ScoringGuideView: View {
 
     /// Drives the brief highlight pulse on the deep-linked section.
     @State private var highlighted: ScoreSection? = nil
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(spacing: 0) {
@@ -109,7 +110,9 @@ struct ScoringGuideView: View {
                 // #697/#horizontal-swipe parity, see ScreenScaffold.
                 .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
                 #endif
-                .onAppear { jump(to: initialSection, using: proxy) }
+                .task(id: initialSection) {
+                    await jump(to: initialSection, using: proxy)
+                }
             }
             Divider().overlay(StrandPalette.hairline)
             footerBar
@@ -254,7 +257,7 @@ struct ScoringGuideView: View {
                 .strokeBorder(section.accent, lineWidth: 2)
                 .opacity(highlighted == section ? 1 : 0)
         )
-        .animation(.easeOut(duration: 0.35), value: highlighted)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.35), value: highlighted)
         .id(section.id)
     }
 
@@ -314,17 +317,25 @@ struct ScoringGuideView: View {
     // MARK: - Deep-link
 
     /// Scroll to the requested section and pulse its highlight, then fade it.
-    private func jump(to section: ScoreSection?, using proxy: ScrollViewProxy) {
+    @MainActor
+    private func jump(to section: ScoreSection?, using proxy: ScrollViewProxy) async {
         guard let section else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+        await Task.yield()
+        if reduceMotion {
+            proxy.scrollTo(section.id, anchor: .top)
+        } else {
             withAnimation(.easeInOut(duration: 0.35)) {
                 proxy.scrollTo(section.id, anchor: .top)
             }
-            highlighted = section
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
-                if highlighted == section { highlighted = nil }
-            }
         }
+        highlighted = section
+        guard !reduceMotion else {
+            highlighted = nil
+            return
+        }
+        try? await Task.sleep(for: .seconds(1.6))
+        guard !Task.isCancelled else { return }
+        if highlighted == section { highlighted = nil }
     }
 }
 

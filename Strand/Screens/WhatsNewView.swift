@@ -148,7 +148,9 @@ struct WhatsNewView: View {
     /// explainer) cannot do so while this one is still on its way out.
     private func follow(_ link: AppChangelog.Link) {
         onClose()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(600))
+            guard !Task.isCancelled else { return }
             NotificationCenter.default.post(name: NavRouter.changelogLinkNotification, object: link.target)
         }
     }

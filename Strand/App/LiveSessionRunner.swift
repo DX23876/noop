@@ -82,8 +82,12 @@ final class LiveSessionRunner: ObservableObject {
     /// outright (drop-tolerant): the pulses are already scheduled fire-and-forget, so overlapping walks
     /// would land on the wrist as one unreadable mush.
     private var hapticWalkUntil = Date.distantPast
+    private var hapticTask: Task<Void, Never>?
 
-    deinit { timer?.invalidate() }
+    deinit {
+        timer?.invalidate()
+        hapticTask?.cancel()
+    }
 
     // MARK: - Start
 
@@ -152,6 +156,9 @@ final class LiveSessionRunner: ObservableObject {
         timer = nil
         hrSink?.cancel()
         hrSink = nil
+        hapticTask?.cancel()
+        hapticTask = nil
+        hapticWalkUntil = .distantPast
         model?.stopRealtimeHR()
         model?.setLiveSessionActive(false)
 
@@ -229,13 +236,24 @@ final class LiveSessionRunner: ObservableObject {
         // and saved row (below), so turning the buzzes off doesn't erase the coaching record. Matches
         // Android, where the gate lives in the buzz closure, downstream of the count.
         if HapticPrefs.enabled(HapticPrefs.liveSession) {
-            for pulse in pulses {
-                let loops = pulse.isLong ? 2 : 1
-                DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(offsetMs)) { [weak ble] in
+            hapticTask?.cancel()
+            hapticTask = Task { @MainActor [weak ble] in
+                var delayMs = 0
+                for pulse in pulses {
+                    if delayMs > 0 {
+                        do {
+                            try await Task.sleep(for: .milliseconds(delayMs))
+                        } catch {
+                            return
+                        }
+                    }
+                    guard !Task.isCancelled else { return }
+                    let loops = pulse.isLong ? 2 : 1
                     ble?.send(.runHapticsPattern, payload: [2, UInt8(clamping: loops), 0, 0, 0])
+                    delayMs = pulse.durationMs + pulse.gapMs
                 }
-                offsetMs += pulse.durationMs + pulse.gapMs
             }
+            offsetMs = pulses.reduce(0) { $0 + $1.durationMs + $1.gapMs }
         }
         hapticWalkUntil = nowDate.addingTimeInterval(Double(offsetMs) / 1000)
 
