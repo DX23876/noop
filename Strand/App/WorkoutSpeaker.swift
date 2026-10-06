@@ -10,11 +10,32 @@ import AVFoundation
 final class WorkoutSpeaker: NSObject {
     #if os(iOS)
     private let synthesizer = AVSpeechSynthesizer()
+    private var routeObserver: Task<Void, Never>?
+    private var interruptionObserver: Task<Void, Never>?
+    private var currentUtterance: AVSpeechUtterance?
 
     override init() {
         super.init()
         synthesizer.delegate = self
+        synthesizer.usesApplicationAudioSession = true
+        routeObserver = Task { @MainActor [weak self] in
+            for await notification in NotificationCenter.default.notifications(named: AVAudioSession.routeChangeNotification) {
+                guard let self else { return }
+                let reason = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt
+                if reason == AVAudioSession.RouteChangeReason.oldDeviceUnavailable.rawValue { self.stop() }
+            }
+        }
+        interruptionObserver = Task { @MainActor [weak self] in
+            for await notification in NotificationCenter.default.notifications(named: AVAudioSession.interruptionNotification) {
+                guard let self else { return }
+                let type = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
+                if type == AVAudioSession.InterruptionType.began.rawValue { self.stop() }
+                // Do not resume an old cue after a call/alarm; the next scheduled cue uses fresh data.
+            }
+        }
     }
+
+    deinit { routeObserver?.cancel(); interruptionObserver?.cancel() }
 
     /// Headphone-type outputs: wired, Bluetooth and USB. A car or AirPlay speaker is not private.
     private static let privateOutputs: Set<AVAudioSession.Port> = [
@@ -26,7 +47,8 @@ final class WorkoutSpeaker: NSObject {
     }
 
     func speak(_ text: String, locale: Locale) {
-        guard headphonesConnected, !text.isEmpty else { return }
+        let speakerAllowed = UserDefaults.standard.bool(forKey: WorkoutFeedbackPreferences.speakerKey)
+        guard headphonesConnected || speakerAllowed, !text.isEmpty, currentUtterance == nil else { return }
         let session = AVAudioSession.sharedInstance()
         do {
             try session.setCategory(.playback, mode: .voicePrompt,
@@ -37,11 +59,14 @@ final class WorkoutSpeaker: NSObject {
         }
         let utterance = AVSpeechUtterance(string: text)
         utterance.voice = Self.voice(for: locale)
+        currentUtterance = utterance
         synthesizer.speak(utterance)
     }
 
     func stop() {
         synthesizer.stopSpeaking(at: .immediate)
+        currentUtterance = nil
+        try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
     }
 
     /// The highest-quality installed voice for the language (Premium, then Enhanced, then default), preferring
@@ -59,8 +84,9 @@ final class WorkoutSpeaker: NSObject {
         return best ?? AVSpeechSynthesisVoice(language: locale.identifier)
     }
 
-    fileprivate func finished() {
-        guard !synthesizer.isSpeaking else { return }
+    fileprivate func finished(_ utterance: AVSpeechUtterance) {
+        guard currentUtterance === utterance else { return }
+        currentUtterance = nil
         try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
     }
     #else
@@ -74,11 +100,11 @@ final class WorkoutSpeaker: NSObject {
 extension WorkoutSpeaker: AVSpeechSynthesizerDelegate {
     /// Hands the audio back once the sentence is done, so the music returns to full volume.
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        Task { @MainActor in self.finished() }
+        Task { @MainActor in self.finished(utterance) }
     }
 
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
-        Task { @MainActor in self.finished() }
+        Task { @MainActor in self.finished(utterance) }
     }
 }
 #endif

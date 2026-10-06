@@ -266,13 +266,21 @@ public final class StandardHRSource: NSObject, ObservableObject {
         }
         // RSC: direct instantaneous speed + cadence.
         if let kmh = reading.speedKmh { live.sensorSpeedKmh = kmh }
-        if let spm = reading.runningCadenceSpm { live.sensorCadence = Double(spm) }
+        if let spm = reading.runningCadenceSpm {
+            live.sensorCadenceKind = "running"
+            live.sensorCadenceReceivedAt = .now
+            live.sensorCadence = Double(spm)
+        }
         // CPS: direct instantaneous power.
         if let w = reading.instantaneousPowerWatts { live.sensorPowerWatts = w }
         // CSC / CPS: derive instantaneous speed/cadence from successive cumulative counters.
         let rates = rateComputer.update(reading)
         if let kmh = rates.speedKmh { live.sensorSpeedKmh = kmh }
-        if let rpm = rates.crankRpm { live.sensorCadence = rpm }
+        if let rpm = rates.crankRpm {
+            live.sensorCadenceKind = "cycling"
+            live.sensorCadenceReceivedAt = .now
+            live.sensorCadence = rpm
+        }
     }
 
     // CB delegate callbacks live in the @preconcurrency extensions below. The queue-less central

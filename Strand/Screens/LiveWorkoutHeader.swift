@@ -7,6 +7,8 @@ struct LiveWorkoutHeader: View {
     let isPaused: Bool
     let onMinimize: () -> Void
     let onDiscard: () -> Void
+    var onSettings: () -> Void = {}
+    var onUpcomingPhases: (() -> Void)? = nil
 
     var body: some View {
         HStack(spacing: NoopMetrics.space3) {
@@ -14,7 +16,7 @@ struct LiveWorkoutHeader: View {
                 .labelStyle(.iconOnly)
                 .font(StrandFont.headline)
                 .foregroundStyle(StrandPalette.textPrimary)
-                .frame(width: 40, height: 40)
+                .frame(width: 44, height: 44)
                 .background(StrandPalette.surfaceRaised, in: Circle())
                 .buttonStyle(.plain)
                 .accessibilityHint(Text("The workout keeps recording"))
@@ -24,12 +26,14 @@ struct LiveWorkoutHeader: View {
             Spacer(minLength: 0)
 
             Menu("More", systemImage: "ellipsis") {
+                Button("Workout settings", systemImage: "slider.horizontal.3", action: onSettings)
+                if let onUpcomingPhases { Button("Upcoming phases", systemImage: "list.number", action: onUpcomingPhases) }
                 Button("Discard workout", systemImage: "trash", role: .destructive, action: onDiscard)
             }
             .labelStyle(.iconOnly)
             .font(StrandFont.headline)
             .foregroundStyle(StrandPalette.textPrimary)
-            .frame(width: 40, height: 40)
+            .frame(width: 44, height: 44)
             .background(StrandPalette.surfaceRaised, in: Circle())
         }
     }

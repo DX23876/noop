@@ -445,6 +445,9 @@ public final class LiveState: ObservableObject {
     @Published public var sensorSpeedKmh: Double? = nil
     /// Instantaneous cadence — running steps/min (RSC) or crank rpm (CSC/CPS) — from a connected sensor.
     @Published public var sensorCadence: Double? = nil
+    /// Provenance and receive time for cadence warnings; never substitute wrist steps for a sensor.
+    public var sensorCadenceKind: String?
+    public var sensorCadenceReceivedAt: Date?
     /// Instantaneous power in watts from a connected cycling-power (CPS) sensor.
     @Published public var sensorPowerWatts: Int? = nil
 
@@ -453,6 +456,8 @@ public final class LiveState: ObservableObject {
     public func clearSensorMetrics() {
         sensorSpeedKmh = nil
         sensorCadence = nil
+        sensorCadenceKind = nil
+        sensorCadenceReceivedAt = nil
         sensorPowerWatts = nil
     }
 

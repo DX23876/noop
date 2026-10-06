@@ -207,6 +207,10 @@ extension WhoopStore {
                     if changed > 0 { changedAnalysisTimestamps.insert(s.ts) }
                 }
             }
+            if hr > 0, let first = streams.hr.map(\.ts).min(), let last = streams.hr.map(\.ts).max(),
+               deviceId == "my-whoop" || deviceId.hasPrefix("whoop-") {
+                try Self.enqueueHealthExport(db, kind: "heartRate", fromTs: first, toTs: last)
+            }
             if !streams.rr.isEmpty {
                 let stmt = try db.cachedStatement(sql: """
                     INSERT INTO rrInterval (deviceId, ts, rrMs, seq, ord, srcChannel, transport)

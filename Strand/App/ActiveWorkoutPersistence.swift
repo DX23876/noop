@@ -1,5 +1,6 @@
 import Foundation
 import WhoopProtocol
+import StrandAnalytics
 
 /// Durable persistence for an in-flight, manually-started workout (#529).
 ///
@@ -36,6 +37,11 @@ enum ActiveWorkoutPersistence {
         var gpsEnabled: Bool? = nil
         var pausedAtSec: Int? = nil
         var pausedDurationSec: Int? = nil
+        var workoutID: UUID? = nil
+        var exactStart: Date? = nil
+        var recording: WorkoutRecordingTimeline? = nil
+        var exactPausedAt: Date? = nil
+        var exactPausedDuration: Double? = nil
     }
 
     /// The single `UserDefaults` key (JSON-encoded `Snapshot`). Namespaced like `moments`/`sleepMarks`.
@@ -68,6 +74,11 @@ enum ActiveWorkoutPersistence {
             gpsEnabled: raw.gpsEnabled,
             pausedAtSec: raw.pausedAtSec.flatMap { $0 > 0 ? $0 : nil },
             pausedDurationSec: raw.pausedDurationSec.map { max(0, $0) },
+            workoutID: raw.workoutID,
+            exactStart: raw.exactStart,
+            recording: raw.recording.flatMap { $0.isValid ? $0 : nil },
+            exactPausedAt: raw.exactPausedAt,
+            exactPausedDuration: raw.exactPausedDuration.flatMap { $0.isFinite && $0 >= 0 ? $0 : nil },
         )
     }
 

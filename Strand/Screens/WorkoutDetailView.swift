@@ -60,6 +60,8 @@ struct WorkoutDetailView: View {
     /// The GPS route captured for this session on-device (#524), if any. Decoded from `RouteStore` by the
     /// row's natural key. nil = no route was recorded (honest — the map only shows when points exist).
     @State private var route: [RouteMath.LatLng] = []
+    @State private var routeSegments: [[RouteMath.LatLng]]? = nil
+    @State private var recordings: [CompletedWorkoutRecording] = []
 
     /// Drives the GPX/FIT export chooser for the recorded route.
     @State private var showRouteExport = false
@@ -97,6 +99,11 @@ struct WorkoutDetailView: View {
             GoalContributionNote(row: row)
             statStrip
             routeCard
+            ForEach(recordings) { recording in
+                WorkoutRecordingSectionsView(timeline: recording.timeline,
+                                             seconds: recording.row.durationS ?? 0,
+                                             sport: recording.row.sport)
+            }
             hrCurveCard
             zonesCard
             heartRateRecoveryCard
@@ -125,7 +132,10 @@ struct WorkoutDetailView: View {
         // #524: the GPS route, if this session recorded one on-device. A cheap UserDefaults read keyed
         // by the row's natural key (startTs + sport); decoded to points only when ≥2 were captured so the
         // map only ever draws a real route.
+        let recordings = (try? await repo.workoutRecordings(for: row)) ?? []
+        let segments = recordings.flatMap { $0.route?.segments ?? [] }
         let routePoints: [RouteMath.LatLng] = {
+            if !segments.isEmpty { return segments.flatMap { $0 } }
             guard let r = RouteStore.load(startTs: row.startTs, sport: row.sport) else { return [] }
             let pts = RouteMath.decode(r.polyline)
             return pts.count >= 2 ? pts : []
@@ -135,6 +145,8 @@ struct WorkoutDetailView: View {
         let fill = await repo.workoutHeartRateFill(for: row)
         await MainActor.run {
             self.route = routePoints
+            self.routeSegments = segments.isEmpty ? nil : segments
+            self.recordings = recordings
             self.heartRateOrigin = fill.map {
                 $0.hrSource == WorkoutHeartRateFill.Source.band.rawValue
                     ? String(localized: "strap") : String(localized: "Apple Watch")
@@ -195,7 +207,12 @@ struct WorkoutDetailView: View {
         // never overwrite a real imported split with an on-device approximation.
         var minutes: [Double]?
         var fromImport = false
-        if let pct = WorkoutZones.percents(row.zonesJSON) {
+        let capturedZones = recordings.map {
+            $0.timeline.zoneSeconds(at: $0.row.durationS ?? 0)
+        }.filter { $0.count == 5 }
+        if !capturedZones.isEmpty {
+            minutes = (0..<5).map { zone in capturedZones.reduce(0) { $0 + $1[zone] } / 60 }
+        } else if let pct = WorkoutZones.percents(row.zonesJSON) {
             let durMin = (row.durationS ?? Double(row.endTs - row.startTs)) / 60.0
             if durMin > 0 {
                 minutes = pct.map { durMin * $0 / 100.0 }
@@ -355,7 +372,7 @@ struct WorkoutDetailView: View {
                               trailing: distanceLabel(row.distanceM))
                 NoopCard(padding: 0, tint: StrandPalette.effortColor) {
                     VStack(alignment: .leading, spacing: 0) {
-                        WorkoutRouteMap(points: route)
+                        WorkoutRouteMap(points: route, segments: routeSegments)
                             .frame(height: 220)
                             .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.cardRadius,
                                                         style: .continuous))
@@ -404,10 +421,19 @@ struct WorkoutDetailView: View {
         let name = "noop-route-\(row.startTs).\(format.ext)"
         let startTs = row.startTs, endTs = row.endTs, sport = row.sport
         let distanceM = row.distanceM, energyKcal = row.energyKcal, avgHr = row.avgHr, maxHr = row.maxHr
+        let measured = recordings.flatMap { $0.route?.points ?? [] }
+        let times = measured.count == points.count ? measured.map { Int($0.tMs / 1000) } : nil
+        var offset = 0
+        let boundaries = (routeSegments ?? []).map { segment in
+            defer { offset += segment.count }
+            return offset
+        }
+        let activeDuration = recordings.isEmpty ? nil : row.durationS
         Task.detached(priority: .userInitiated) {
             let data = RouteExporter.render(
                 format, route: points, startTs: startTs, endTs: endTs, sport: sport,
-                distanceM: distanceM, energyKcal: energyKcal, avgHr: avgHr, maxHr: maxHr)
+                distanceM: distanceM, energyKcal: energyKcal, avgHr: avgHr, maxHr: maxHr,
+                recordedTimes: times, segmentStarts: boundaries, activeDurationS: activeDuration)
             let url = NoopScratch.file(name)
             do { try data.write(to: url) } catch { return }
             await MainActor.run { FileExport.exportFile(at: url, suggestedName: name) }
@@ -534,7 +560,7 @@ struct WorkoutDetailView: View {
             let busiest = z.indices.max(by: { z[$0] < z[$1] }) ?? 0
             VStack(alignment: .leading, spacing: NoopMetrics.gap) {
                 SectionHeader("HR Zones",
-                              overline: zonesFromImport ? "Whoop import" : "From strap HR",
+                              overline: recordings.isEmpty ? (zonesFromImport ? "Whoop import" : "From strap HR") : "Recorded zones",
                               trailing: String(localized: "\(Int(total.rounded()))m in zone"))
                 NoopCard(tint: StrandPalette.effortColor) {
                     VStack(alignment: .leading, spacing: 12) {
@@ -563,7 +589,9 @@ struct WorkoutDetailView: View {
                                 zoneStat(i + 1, minutes: z[i], total: total)
                             }
                         }
-                        Text(zonesFromImport
+                        Text(!recordings.isEmpty
+                             ? "Zones use the settings recorded during this workout. Gaps are not counted."
+                             : zonesFromImport
                              ? "WHOOP's imported per-zone split for this session."
                              : "Time in each %HRmax zone, derived from the strap's heart rate over this window (approximate).")
                             .font(StrandFont.footnote)
@@ -724,6 +752,7 @@ typealias RouteMapRepresentable = NSViewRepresentable
 #if canImport(MapKit)
 struct WorkoutRouteMap: RouteMapRepresentable {
     let points: [RouteMath.LatLng]
+    var segments: [[RouteMath.LatLng]]? = nil
 
     private var coordinates: [CLLocationCoordinate2D] {
         points.map { CLLocationCoordinate2D(latitude: $0.lat, longitude: $0.lon) }
@@ -748,15 +777,20 @@ struct WorkoutRouteMap: RouteMapRepresentable {
         map.removeAnnotations(map.annotations)
         let coords = coordinates
         guard coords.count >= 2 else { return }
-        let line = MKPolyline(coordinates: coords, count: coords.count)
-        map.addOverlay(line)
+        let lines = (segments ?? [points]).filter { $0.count >= 2 }.map { segment in
+            let coordinates = segment.map { CLLocationCoordinate2D(latitude: $0.lat, longitude: $0.lon) }
+            return MKPolyline(coordinates: coordinates, count: coordinates.count)
+        }
+        guard let firstLine = lines.first else { return }
+        map.addOverlays(lines)
 
-        let start = MKPointAnnotation(); start.coordinate = coords.first!; start.title = String(localized: "Start")
-        let end = MKPointAnnotation(); end.coordinate = coords.last!; end.title = String(localized: "Finish")
+        guard let first = coords.first, let last = coords.last else { return }
+        let start = MKPointAnnotation(); start.coordinate = first; start.title = String(localized: "Start")
+        let end = MKPointAnnotation(); end.coordinate = last; end.title = String(localized: "Finish")
         map.addAnnotations([start, end])
 
         // Frame the whole route with a little padding so the line isn't flush to the edges.
-        let rect = line.boundingMapRect
+        let rect = lines.dropFirst().reduce(firstLine.boundingMapRect) { $0.union($1.boundingMapRect) }
         let inset = UIEdgeInsetsLikePadding
         map.setVisibleMapRect(rect, edgePadding: inset, animated: false)
     }
@@ -799,6 +833,7 @@ private enum RoutePlatformColor {
 /// Platforms without MapKit (none we ship, but keeps the type resolvable): no route map.
 struct WorkoutRouteMap: View {
     let points: [RouteMath.LatLng]
+    var segments: [[RouteMath.LatLng]]? = nil
     var body: some View { Color.clear }
 }
 #endif

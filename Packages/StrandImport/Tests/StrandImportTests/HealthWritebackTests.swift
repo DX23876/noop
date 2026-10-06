@@ -509,3 +509,14 @@ final class HealthWritebackTests: XCTestCase {
         XCTAssertFalse(HealthWriteback.nightIsStillOpen(endTs: 1_000, newestHeartRateTs: 1_000, now: 1_000 + 2 * 3_600))
     }
 }
+
+extension HealthWritebackTests {
+    func testMissingVitalDayRetiresOwnedKeyButKeepsOpenAndUnrelatedDays() {
+        let retired = HealthWriteback.retiredVitalKeys(existing: [
+            "noop:rhr:2020-01-01", "noop:rhr:2020-01-02", "noop:rhr:2020-01-03",
+            "noop:rhr:2019-12-31", "noop:other:2020-01-01", "foreign:rhr:2020-01-01"
+        ], keeping: ["noop:rhr:2020-01-03"], metricId: "rhr",
+           fromDay: "2020-01-01", toDay: "2020-01-03", holdingDays: ["2020-01-02"])
+        XCTAssertEqual(retired, ["noop:rhr:2020-01-01"])
+    }
+}

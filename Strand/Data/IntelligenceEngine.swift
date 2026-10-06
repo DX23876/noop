@@ -188,7 +188,7 @@ final class IntelligenceEngine: ObservableObject {
     // derivations inside the engine's window, so the standard bounded 21-day pass (raw strap history is
     // kept about 35 days, so older days have nothing to re-score from); no raw row is rewritten and the
     // cardio ledger is not refilled.
-    static let currentAnalysisRecipeVersion = 18
+    static let currentAnalysisRecipeVersion = 19
 
     /// The recipe whose migration refills the cardio load ledger.
     static let cardioLedgerRecipe = 9
@@ -1073,6 +1073,15 @@ final class IntelligenceEngine: ObservableObject {
                 guard !Task.isCancelled else { return false }
                 // Sessions freed by the fill are priced again with their trace, newest first.
                 await self.repo.fillCardioLoadLedger()
+                guard !Task.isCancelled else { return false }
+            }
+            if case .migrating(let from, let to) = phase, from < 19, to >= 19 {
+                do {
+                    while try await store.repairHealthProjectionsV1() == false { try Task.checkCancellation() }
+                } catch {
+                    self.analysisMaintenancePhase = .failed(error.localizedDescription)
+                    return false
+                }
                 guard !Task.isCancelled else { return false }
             }
             // Publish the repaired daily snapshot before committing the migration cursor. If the

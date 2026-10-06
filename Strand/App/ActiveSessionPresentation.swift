@@ -15,9 +15,11 @@ struct ActiveSessionPresentation: ViewModifier {
     func body(content: Content) -> some View {
         content
             #if os(iOS)
-            .fullScreenCover(isPresented: $session.isPresented) { ActiveSessionScreen() }
+            .fullScreenCover(isPresented: $session.isPresented, onDismiss: session.continueQueuedWorkout) { ActiveSessionScreen() }
             #else
-            .sheet(isPresented: $session.isPresented) { ActiveSessionScreen().frame(minWidth: 620, minHeight: 720) }
+            .sheet(isPresented: $session.isPresented, onDismiss: session.continueQueuedWorkout) {
+                ActiveSessionScreen().frame(minWidth: 620, minHeight: 720)
+            }
             #endif
             .sheet(isPresented: $session.isChoosingStrengthStart) { StrengthStartSheet() }
             .sheet(item: $session.completedWorkout) { workout in
@@ -88,6 +90,10 @@ private struct ActiveSessionScreen: View {
         if let strength = session.strength {
             NativeWorkoutLoggerView(model: strength, exercises: session.context.exercises,
                                     performance: session.context.performance)
+        } else if let completion = app.workoutCompletion {
+            WorkoutCompletionView(completion: completion) {
+                session.completeCardioSummary()
+            }
         } else if app.activeWorkout != nil {
             LiveWorkoutView(onClose: { session.minimize() })
                 .environmentObject(app.live)
@@ -171,9 +177,24 @@ struct StrengthStartSheet: View {
 /// The minimized running session: a bar above the tab bar on every tab.
 struct ActiveSessionMiniBar: View {
     @EnvironmentObject private var session: ActiveSessionController
+    @EnvironmentObject private var app: AppModel
 
     var body: some View {
-        if session.hasLiveSession, !session.isPresented {
+        if let completion = app.workoutCompletion, !session.isPresented {
+            Button(action: session.present) {
+                HStack {
+                    Image(systemName: completion.status == .saved ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                    Text(completion.status == .saved ? "Workout summary" : "Not saved yet")
+                        .font(StrandFont.headline)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                }
+                .foregroundStyle(StrandPalette.accent)
+                .padding(NoopMetrics.space3)
+                .frame(minHeight: 44)
+            }
+            .buttonStyle(.plain)
+        } else if session.hasLiveSession, !session.isPresented {
             if let strength = session.strength {
                 StrengthMiniBarContent(model: strength, onOpen: session.present)
             } else {

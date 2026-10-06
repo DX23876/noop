@@ -32,7 +32,11 @@ struct ActiveRouteJournal {
     /// Appends points together with their recorded accuracy and time.
     func append(measured points: [WorkoutRoutePoint]) {
         write(points.map {
-            String(format: "%.7f,%.7f,%.2f,%lld\n", $0.lat, $0.lon, $0.accuracyM, $0.tMs)
+            if let segment = $0.segment, let seconds = $0.activeSeconds {
+                return String(format: "%.7f,%.7f,%.2f,%lld,%d,%.3f\n",
+                              $0.lat, $0.lon, $0.accuracyM, $0.tMs, segment, seconds)
+            }
+            return String(format: "%.7f,%.7f,%.2f,%lld\n", $0.lat, $0.lon, $0.accuracyM, $0.tMs)
         }.joined())
     }
 
@@ -69,11 +73,20 @@ struct ActiveRouteJournal {
         var allMeasured = true
         for line in text.split(separator: "\n") {
             let parts = line.split(separator: ",")
-            guard parts.count == 2 || parts.count == 4, let lat = Double(parts[0]), let lon = Double(parts[1]),
+            guard parts.count == 2 || parts.count == 4 || parts.count == 6,
+                  let lat = Double(parts[0]), let lon = Double(parts[1]),
                   (-90...90).contains(lat), (-180...180).contains(lon) else { continue }
             track.append(RouteMath.LatLng(lat, lon))
-            if parts.count == 4, let accuracy = Double(parts[2]), let tMs = Int64(parts[3]) {
-                points.append(WorkoutRoutePoint(lat: lat, lon: lon, accuracyM: accuracy, tMs: tMs))
+            if parts.count >= 4, let accuracy = Double(parts[2]), let tMs = Int64(parts[3]),
+               accuracy.isFinite, accuracy >= 0, tMs > 0 {
+                let segment = parts.count == 6 ? Int(parts[4]) : nil
+                let seconds = parts.count == 6 ? Double(parts[5]) : nil
+                if parts.count == 6, (segment == nil || (segment ?? -1) < 0
+                    || seconds == nil || !(seconds ?? .nan).isFinite || (seconds ?? -1) < 0) {
+                    allMeasured = false
+                }
+                points.append(WorkoutRoutePoint(lat: lat, lon: lon, accuracyM: accuracy, tMs: tMs,
+                                                segment: segment, activeSeconds: seconds))
             } else {
                 allMeasured = false
             }

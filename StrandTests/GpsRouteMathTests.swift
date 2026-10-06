@@ -6,8 +6,43 @@ import Foundation
 /// polyline codec (which must round-trip AND match Android `RouteMath` byte-for-byte so a route is
 /// cross-platform), the untrusted-fix `TrackFilter` gate, and the on-device `RouteStore` round-trip.
 /// All pure / UserDefaults-backed — no CoreLocation — so they run headless, mirroring the Android
-/// `RouteMathTest` case for case.
+/// `RouteMathTest` case for case where the platforms still share behaviour.
 final class GpsRouteMathTests: XCTestCase {
+    func testRouteJournalKeepsSegmentsAndActiveTime() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let journal = ActiveRouteJournal(url: folder.appendingPathComponent("route.txt"))
+        let points = [WorkoutRoutePoint(lat: 50, lon: 8, accuracyM: 3, tMs: 1000, segment: 0, activeSeconds: 0),
+                      WorkoutRoutePoint(lat: 51, lon: 9, accuracyM: 3, tMs: 9000, segment: 1, activeSeconds: 2)]
+        journal.append(measured: points)
+        XCTAssertEqual(journal.loadMeasured().points, points)
+        XCTAssertEqual(RouteMath.recordedMeters(journal.loadMeasured().points ?? []), 0)
+    }
+
+    func testRecordedDistanceNeverBridgesPauseOrRestore() {
+        let points = [
+            WorkoutRoutePoint(lat: 50, lon: 8, accuracyM: 3, tMs: 1000, segment: 0, activeSeconds: 0),
+            WorkoutRoutePoint(lat: 50.001, lon: 8, accuracyM: 3, tMs: 2000, segment: 0, activeSeconds: 1),
+            WorkoutRoutePoint(lat: 51, lon: 9, accuracyM: 3, tMs: 9000, segment: 1, activeSeconds: 2),
+            WorkoutRoutePoint(lat: 51.001, lon: 9, accuracyM: 3, tMs: 10000, segment: 1, activeSeconds: 3)
+        ]
+        let measured = RouteMath.recordedMeters(points)
+        XCTAssertEqual(measured, 222.39, accuracy: 0.1)
+        let route = WorkoutRoute(polyline: "", distanceM: measured, points: points, segmentStarts: [0, 2])
+        XCTAssertEqual(route.segments.map(\.count), [2, 2])
+    }
+
+    func testSportSpeedCeilingCanAcceptACyclingLeg() {
+        let running = TrackFilter(maxSpeedMps: 12)
+        let cycling = TrackFilter(maxSpeedMps: 45)
+        let start = RawFix(lat: 50, lon: 8, accuracyM: 3, tMs: 1000)
+        let moving = RawFix(lat: 50.00018, lon: 8, accuracyM: 3, tMs: 2000,
+                            speedMps: 20, speedAccuracyMps: 0.2)
+        XCTAssertNotNil(running.accept(start))
+        XCTAssertNotNil(cycling.accept(start))
+        XCTAssertNil(running.accept(moving))
+        XCTAssertNotNil(cycling.accept(moving))
+    }
 
     // Two points ~451 m apart near the Thames (the SAME fixtures Android `RouteMathTest` uses).
     private let a = RouteMath.LatLng(51.5033, -0.1196)
@@ -106,7 +141,7 @@ final class GpsRouteMathTests: XCTestCase {
         _ = RouteMath.decode("\u{0}\u{1}\u{2}")
     }
 
-    // MARK: - TrackFilter (untrusted-fix gate; Android parity)
+    // MARK: - TrackFilter (untrusted-fix gate)
 
     private func fix(_ lat: Double, _ lon: Double, acc: Double, t: Int64) -> RawFix {
         RawFix(lat: lat, lon: lon, accuracyM: acc, tMs: t)
@@ -123,6 +158,12 @@ final class GpsRouteMathTests: XCTestCase {
         XCTAssertNil(TrackFilter().accept(fix(51.50, -0.12, acc: -1, t: 0)))
     }
 
+    func testFilterDropsCachedFixFromBeforeCaptureWindow() {
+        let f = TrackFilter()
+        XCTAssertNil(f.accept(fix(51.50036, -0.1000, acc: 8, t: 40_000), notBeforeMs: 100_000))
+        XCTAssertNotNil(f.accept(fix(51.50000, -0.1000, acc: 5, t: 101_000), notBeforeMs: 100_000))
+    }
+
     func testFilterDropsTeleportJumps() {
         let f = TrackFilter()
         XCTAssertNotNil(f.accept(fix(51.5000, -0.1200, acc: 5, t: 0)))
@@ -135,6 +176,240 @@ final class GpsRouteMathTests: XCTestCase {
     func testFilterRejectsOutOfRangeCoordinates() {
         XCTAssertNil(TrackFilter().accept(fix(120, 0, acc: 5, t: 0)))      // lat > 90
         XCTAssertNil(TrackFilter().accept(fix(0, 200, acc: 5, t: 0)))      // lon > 180
+    }
+
+    func testFilterDoesNotTurnStationaryAccuracyJitterIntoDistance() {
+        let f = TrackFilter()
+        // Roughly +8 m / -8 m around one stationary phone. The old filter accepted every five-second
+        // hop as a plausible 3 m/s movement and accumulated about 40 m despite the 5 m uncertainty of
+        // each endpoint. Every reported position remains within the combined accuracy circles.
+        let stationaryJitter = [
+            fix(51.50000, -0.1000, acc: 5, t: 0),
+            fix(51.50007, -0.1000, acc: 5, t: 5_000),
+            fix(51.49993, -0.1000, acc: 5, t: 10_000),
+            fix(51.50007, -0.1000, acc: 5, t: 15_000),
+        ]
+        let accepted = stationaryJitter.compactMap { f.accept($0) }
+
+        XCTAssertEqual(accepted.count, 1)
+        XCTAssertEqual(RouteMath.totalMeters(accepted), 0, accuracy: 0.01)
+    }
+
+    func testIndoorCoarseFixesWithoutMotionEvidenceDoNotCreate150Meters() {
+        let filter = TrackFilter()
+        // A phone in one room: only uncertain positions arrive, with no measured movement.
+        // Frequent delivery avoids the recorder's existing >10-second route-segment gap protection.
+        var fixes = (0...15).map { index in
+            RawFix(lat: 51.5 + Double(index) * 0.00009, lon: -0.1,
+                   accuracyM: 22.5, tMs: Int64(index) * 2_000)
+        }
+        // A briefly confident speed estimate must not connect back to an untrusted starting position.
+        fixes.append(RawFix(lat: 51.501404, lon: -0.1, accuracyM: 22.5, tMs: 32_000,
+                            speedMps: 0.8, speedAccuracyMps: 0.1))
+        let points = fixes.compactMap { filter.accept($0) }
+        XCTAssertEqual(RouteMath.totalMeters(points), 0, accuracy: 0.01,
+                       "Uncertain indoor locations without motion evidence must not invent a route")
+    }
+
+    func testMinimalCoarsePositionJumpWithoutSpeedIsNotDistance() {
+        let filter = TrackFilter()
+        let fixes = [
+            RawFix(lat: 51.5, lon: -0.1, accuracyM: 22.5, tMs: 0),
+            RawFix(lat: 51.50045, lon: -0.1, accuracyM: 22.5, tMs: 5_000),
+        ]
+        XCTAssertEqual(RouteMath.totalMeters(fixes.compactMap { filter.accept($0) }), 0)
+    }
+
+    func testCoarsePositionIsRejectedEvenWithAConfidentSpeedEstimate() {
+        let filter = TrackFilter()
+        XCTAssertNil(filter.accept(RawFix(lat: 51.5, lon: -0.1, accuracyM: 40, tMs: 0,
+                                         speedMps: 2, speedAccuracyMps: 0.1)))
+    }
+
+    func testPositionJumpMustAgreeWithMeasuredSpeed() {
+        let filter = TrackFilter()
+        XCTAssertNotNil(filter.accept(RawFix(lat: 51.5, lon: -0.1, accuracyM: 3, tMs: 0,
+                                            speedMps: 1, speedAccuracyMps: 0.1)))
+        // 50 m in 5 s is below the running ceiling, but not compatible with measured 1 m/s.
+        XCTAssertNil(filter.accept(RawFix(lat: 51.50045, lon: -0.1, accuracyM: 3, tMs: 5_000,
+                                         speedMps: 1, speedAccuracyMps: 0.1)))
+    }
+
+    func testPhoneModeRejectsCoordinateDriftEvenAtReportedGoodAccuracy() {
+        let filter = TrackFilter(requiresMotionEvidence: true)
+        let fixes = (0...15).map { index in
+            RawFix(lat: 51.5 + Double(index) * 0.00009, lon: -0.1,
+                   accuracyM: 5, tMs: Int64(index) * 2_000)
+        }
+        let points = fixes.compactMap { filter.accept($0) }
+        XCTAssertTrue(points.isEmpty)
+        XCTAssertEqual(RouteMath.totalMeters(points), 0)
+    }
+
+    func testPhoneModeStartsAtZeroThenRecordsReliableSlowWalking() {
+        let filter = TrackFilter(requiresMotionEvidence: true)
+        XCTAssertNil(filter.accept(RawFix(lat: 51.50135, lon: -0.1, accuracyM: 5, tMs: 0)))
+        let start = RawFix(lat: 51.5, lon: -0.1, accuracyM: 20, tMs: 5_000,
+                           speedMps: 0.5, speedAccuracyMps: 0.1)
+        let first = filter.accept(start)
+        XCTAssertNotNil(first)
+        XCTAssertEqual(RouteMath.totalMeters([first].compactMap { $0 }), 0)
+        let next = filter.accept(RawFix(lat: 51.500009, lon: -0.1, accuracyM: 20, tMs: 7_000,
+                                       speedMps: 0.5, speedAccuracyMps: 0.1))
+        XCTAssertEqual(RouteMath.totalMeters([first, next].compactMap { $0 }), 1, accuracy: 0.1)
+    }
+
+    func testPhoneModeAccurateZeroSpeedDoesNotAccumulateStationaryDrift() {
+        let filter = TrackFilter(requiresMotionEvidence: true)
+        let fixes = (0...15).map { index in
+            RawFix(lat: 51.5 + Double(index) * 0.00009, lon: -0.1,
+                   accuracyM: 5, tMs: Int64(index) * 2_000, speedMps: 0, speedAccuracyMps: 0.1)
+        }
+        XCTAssertEqual(RouteMath.totalMeters(fixes.compactMap { filter.accept($0) }), 0)
+    }
+
+    /// iPhone GNSS often reports a walking speed with an uncertainty as large as the speed itself. That
+    /// is still measured motion, unlike indoor drift, so the walk counts once it clears the accuracy circles.
+    func testPhoneModeCountsWalkingWithImpreciseSpeedBeyondTheAccuracyCircles() {
+        let filter = TrackFilter(requiresMotionEvidence: true)
+        let walk = (0...12).map { index in
+            RawFix(lat: 51.5 + Double(index) * 0.0000108, lon: -0.1, accuracyM: 5,
+                   tMs: Int64(index) * 1_000, speedMps: 1.2, speedAccuracyMps: 1.0)
+        }
+        let points = walk.compactMap { filter.accept($0) }
+        XCTAssertEqual(points.count, 2, "only legs beyond the 10 m of combined uncertainty")
+        XCTAssertEqual(RouteMath.totalMeters(points), 10.8, accuracy: 0.2)
+        // The same drift without a valid speed, as indoor positioning reports it, stays at zero.
+        let indoor = TrackFilter(requiresMotionEvidence: true)
+        let drift = walk.map { RawFix(lat: $0.lat, lon: $0.lon, accuracyM: 5, tMs: $0.tMs,
+                                      speedMps: -1, speedAccuracyMps: -1) }
+        XCTAssertTrue(drift.compactMap { indoor.accept($0) }.isEmpty)
+    }
+
+    func testGapIsBridgedWhenTheSportCeilingExplainsTheJump() {
+        let filter = TrackFilter(requiresMotionEvidence: true)
+        let first = RawFix(lat: 51.5, lon: -0.1, accuracyM: 5, tMs: 0, speedMps: 1, speedAccuracyMps: 0.2)
+        XCTAssertEqual(filter.admit(first), .anchored(RouteMath.LatLng(51.5, -0.1)))
+        // 60 m in 20 s is more than the last measured 1 m/s explains, but the gap hides the pace walked.
+        let after = RawFix(lat: 51.50054, lon: -0.1, accuracyM: 5, tMs: 20_000, speedMps: 1, speedAccuracyMps: 0.2)
+        XCTAssertEqual(filter.admit(after, afterGap: true), .joined(RouteMath.LatLng(51.50054, -0.1)))
+    }
+
+    func testGapReanchorsWhenTheJumpCannotBeExplained() {
+        let filter = TrackFilter()
+        XCTAssertNotNil(filter.accept(RawFix(lat: 51.5, lon: -0.1, accuracyM: 5, tMs: 0)))
+        // 150 m in 2 s exceeds the running ceiling: a reacquired fix, not a route.
+        let jump = RawFix(lat: 51.50135, lon: -0.1, accuracyM: 5, tMs: 2_000)
+        XCTAssertEqual(filter.admit(jump, afterGap: true), .anchored(RouteMath.LatLng(51.50135, -0.1)))
+        // Without a gap the same jump is just rejected and the anchor stays.
+        let steady = TrackFilter()
+        XCTAssertNotNil(steady.accept(RawFix(lat: 51.5, lon: -0.1, accuracyM: 5, tMs: 0)))
+        XCTAssertEqual(steady.admit(jump), .rejected)
+    }
+
+    func testLongGapBeyondTheBridgeLimitsReanchors() {
+        let filter = TrackFilter()
+        XCTAssertNotNil(filter.accept(RawFix(lat: 51.5, lon: -0.1, accuracyM: 5, tMs: 0)))
+        // 250 m in 120 s is a plausible pace, yet beyond 200 m and 30 s nothing measured it.
+        let far = RawFix(lat: 51.50225, lon: -0.1, accuracyM: 5, tMs: 120_000)
+        XCTAssertEqual(filter.admit(far, afterGap: true), .anchored(RouteMath.LatLng(51.50225, -0.1)))
+        // A short outage is bridged even beyond 200 m when it lasted no more than 30 s.
+        let quick = TrackFilter(maxSpeedMps: 20)
+        XCTAssertNotNil(quick.accept(RawFix(lat: 51.5, lon: -0.1, accuracyM: 5, tMs: 0)))
+        let ride = RawFix(lat: 51.50225, lon: -0.1, accuracyM: 5, tMs: 25_000)
+        XCTAssertEqual(quick.admit(ride, afterGap: true), .joined(RouteMath.LatLng(51.50225, -0.1)))
+    }
+
+    func testFilterEventuallyAcceptsRealSlowMovementBeyondUncertainty() {
+        let f = TrackFilter()
+        XCTAssertNotNil(f.accept(fix(51.50000, -0.1000, acc: 5, t: 0)))
+        XCTAssertNil(f.accept(fix(51.50007, -0.1000, acc: 5, t: 5_000)))
+        // The rejected point did not move the anchor. About 16 m from the start now clears the combined
+        // 10 m uncertainty, so an ordinary slow walk is delayed rather than lost.
+        XCTAssertNotNil(f.accept(fix(51.50014, -0.1000, acc: 5, t: 10_000)))
+    }
+
+    func testSystemStationaryFlagRejectsEvenLargePositionDrift() {
+        let filter = TrackFilter()
+        let start = RawFix(lat: 51.5, lon: -0.1, accuracyM: 5, tMs: 0, stationary: true)
+        let drift = RawFix(lat: 51.50036, lon: -0.1, accuracyM: 5, tMs: 60_000, stationary: true)
+        XCTAssertNotNil(filter.accept(start))
+        XCTAssertNil(filter.accept(drift), "system-confirmed stillness must not become 40 m of distance")
+    }
+
+    func testAccurateZeroSpeedRejectsDriftBeforeSystemDeclaresStationary() {
+        let filter = TrackFilter()
+        let fixes = [0.0, 0.00007, -0.00007, 0.00036].enumerated().map { index, offset in
+            RawFix(lat: 51.5 + offset, lon: -0.1, accuracyM: 5, tMs: Int64(index) * 5_000,
+                   speedMps: 0, speedAccuracyMps: 0.1)
+        }
+        let points = fixes.compactMap { filter.accept($0) }
+        XCTAssertEqual(points.count, 1)
+        XCTAssertEqual(RouteMath.totalMeters(points), 0)
+    }
+
+    func testReliableSlowWalkingPreservesShortLegsAtPoorPositionalAccuracy() {
+        let filter = TrackFilter()
+        let fixes = (0..<5).map { index in
+            RawFix(lat: 51.5 + Double(index) * 0.000009, lon: -0.1, accuracyM: 20,
+                   tMs: Int64(index) * 2_000, speedMps: 0.5, speedAccuracyMps: 0.1)
+        }
+        let points = fixes.compactMap { filter.accept($0) }
+        XCTAssertEqual(points.count, fixes.count, "walking must not wait for a 40 m displacement")
+        XCTAssertEqual(RouteMath.totalMeters(points), 4, accuracy: 0.1)
+    }
+
+    func testReliableMotionPreservesSmallLoopInsteadOfCuttingCorners() {
+        let filter = TrackFilter()
+        let fixes = [
+            RawFix(lat: 51.5, lon: -0.1, accuracyM: 20, tMs: 0, speedMps: 2, speedAccuracyMps: 0.2),
+            RawFix(lat: 51.50009, lon: -0.1, accuracyM: 20, tMs: 5_000, speedMps: 2, speedAccuracyMps: 0.2),
+            RawFix(lat: 51.50009, lon: -0.099856, accuracyM: 20, tMs: 10_000, speedMps: 2, speedAccuracyMps: 0.2),
+            RawFix(lat: 51.5, lon: -0.099856, accuracyM: 20, tMs: 15_000, speedMps: 2, speedAccuracyMps: 0.2),
+            RawFix(lat: 51.5, lon: -0.1, accuracyM: 20, tMs: 20_000, speedMps: 2, speedAccuracyMps: 0.2),
+        ]
+        let points = fixes.compactMap { filter.accept($0) }
+        XCTAssertEqual(points.count, 5)
+        XCTAssertEqual(RouteMath.totalMeters(points), 40, accuracy: 1)
+    }
+
+    func testMotionEvidenceNeverOverridesBadAccuracyOrTeleportGate() {
+        let filter = TrackFilter()
+        XCTAssertNotNil(filter.accept(RawFix(lat: 51.5, lon: -0.1, accuracyM: 5, tMs: 0)))
+        XCTAssertNil(filter.accept(RawFix(lat: 51.50009, lon: -0.1, accuracyM: 51, tMs: 5_000,
+                                         speedMps: 2, speedAccuracyMps: 0.1)))
+        XCTAssertNil(filter.accept(RawFix(lat: 51.51, lon: -0.1, accuracyM: 5, tMs: 6_000,
+                                         speedMps: 2, speedAccuracyMps: 0.1)))
+    }
+
+    func testInvalidOrUncertainSpeedDoesNotBypassJitterFallback() {
+        for (speed, accuracy) in [(1.0, -1.0), (-1.0, 0.1), (Double.nan, 0.1), (1.0, Double.infinity), (0.5, 0.8)] {
+            let filter = TrackFilter()
+            XCTAssertNotNil(filter.accept(RawFix(lat: 51.5, lon: -0.1, accuracyM: 5, tMs: 0)))
+            XCTAssertNil(filter.accept(RawFix(lat: 51.50007, lon: -0.1, accuracyM: 5, tMs: 5_000,
+                                             speedMps: speed, speedAccuracyMps: accuracy)))
+        }
+    }
+
+    func testDuplicateAndBackwardsTimesCannotBypassFiltering() {
+        let filter = TrackFilter()
+        XCTAssertNotNil(filter.accept(fix(51.5, -0.1, acc: 5, t: 10_000)))
+        XCTAssertNil(filter.accept(fix(51.51, -0.1, acc: 5, t: 10_000)))
+        XCTAssertNil(filter.accept(fix(51.51, -0.1, acc: 5, t: 9_000)))
+        XCTAssertNotNil(filter.accept(fix(51.50018, -0.1, acc: 5, t: 15_000)))
+    }
+
+    func testRejectedStationaryUpdateStillOrdersSubsequentFixes() {
+        let filter = TrackFilter()
+        XCTAssertNotNil(filter.accept(fix(51.5, -0.1, acc: 5, t: 0)))
+        XCTAssertNil(filter.accept(RawFix(lat: 51.50036, lon: -0.1, accuracyM: 5, tMs: 60_000, stationary: true)))
+        XCTAssertNil(filter.accept(RawFix(lat: 51.50018, lon: -0.1, accuracyM: 5, tMs: 30_000,
+                                         speedMps: 1, speedAccuracyMps: 0.1)))
+    }
+
+    func testNonfiniteAccuracyIsInvalid() {
+        XCTAssertNil(TrackFilter().accept(fix(51.5, -0.1, acc: .nan, t: 0)))
+        XCTAssertNil(TrackFilter().accept(fix(51.5, -0.1, acc: .infinity, t: 0)))
     }
 
     // MARK: - RouteStore (on-device side-store round-trip)

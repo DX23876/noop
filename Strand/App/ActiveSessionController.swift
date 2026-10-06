@@ -55,6 +55,7 @@ final class ActiveSessionController: ObservableObject {
     /// can never end a run on its own. The live screen clears it once the question is up.
     @Published var endConfirmationRequested = false
     @Published var pendingStart: PendingStart?
+    private var startAfterCompletion: PendingStart.Request?
     /// A strength draft found at launch whose last change is older than `staleAfterSeconds`.
     @Published var staleDraft: WorkoutDraft?
     /// The strength workout that just finished, for its summary.
@@ -112,8 +113,16 @@ final class ActiveSessionController: ObservableObject {
                 // keeps the strap's realtime stream armed until it ends. Minimizing no longer starves it.
                 if active { self.holdCardioHeartRate() } else { self.releaseCardioHeartRate() }
                 self.publishActivity()
-                if !active, self.strength == nil { self.isPresented = false }
+                if !active, self.strength == nil, self.app.workoutCompletion == nil { self.isPresented = false }
                 self.objectWillChange.send()
+            }
+            .store(in: &cancellables)
+        app.$workoutCompletion
+            .map { $0?.id }
+            .removeDuplicates()
+            .sink { [weak self] id in
+                guard let self, id != nil, self.strength == nil else { return }
+                self.isPresented = true
             }
             .store(in: &cancellables)
         // Pausing or resuming changes what the Lock Screen shows (a frozen clock, the Resume control) at once,
@@ -166,7 +175,9 @@ final class ActiveSessionController: ObservableObject {
         return app.activeWorkout?.sport ?? ""
     }
 
-    func present() { if strength != nil || app.activeWorkout != nil { isPresented = true } }
+    func present() {
+        if strength != nil || app.activeWorkout != nil || app.workoutCompletion != nil { isPresented = true }
+    }
 
     /// Opens the running cardio session and asks the wearer to confirm ending it (Lock Screen "End").
     func requestEnd() {
@@ -223,6 +234,7 @@ final class ActiveSessionController: ObservableObject {
     /// Opens the strength start choice (freestyle or a routine). Used by entries that have no plan
     /// selection of their own, such as the Today quick action.
     func chooseStrengthStart() {
+        guard app.workoutCompletion == nil else { isPresented = true; return }
         if hasLiveSession {
             pendingStart = .init(request: .strengthChoice, runningTitle: runningTitle)
             return
@@ -232,6 +244,7 @@ final class ActiveSessionController: ObservableObject {
     }
 
     func requestStrength(routines: [TrainingRoutine]) {
+        guard app.workoutCompletion == nil else { isPresented = true; return }
         guard !hasLiveSession else {
             pendingStart = .init(request: .strength(routines: routines), runningTitle: runningTitle)
             return
@@ -240,6 +253,7 @@ final class ActiveSessionController: ObservableObject {
     }
 
     func requestCardio(sport: String, targetZone: Int?, gpsEnabled: Bool? = nil) {
+        guard app.workoutCompletion == nil else { isPresented = true; return }
         if Self.isStrengthSport(sport) {
             chooseStrengthStart()
             return
@@ -264,6 +278,11 @@ final class ActiveSessionController: ObservableObject {
             present()
             return
         case .finishAndStart:
+            if app.activeWorkout != nil {
+                startAfterCompletion = pending.request
+                app.endWorkout()
+                return
+            }
             guard await finishRunning() else { return }
         case .discardAndStart:
             guard await discardRunning() else { return }
@@ -281,7 +300,30 @@ final class ActiveSessionController: ObservableObject {
 
     enum PendingStartChoice { case returnToRunning, finishAndStart, discardAndStart }
 
+    /// Continue an explicitly requested replacement workout after acknowledging its saved summary.
+    func completeCardioSummary() {
+        guard app.workoutCompletion?.status == .saved else { return }
+        app.dismissWorkoutCompletion()
+        minimize()
+    }
+
+    /// The platform presentation calls this once its dismissal transition has completed.
+    func continueQueuedWorkout() {
+        guard app.workoutCompletion == nil else { return }
+        guard let request = startAfterCompletion else { return }
+        startAfterCompletion = nil
+        Task { @MainActor in
+            switch request {
+            case .strengthChoice: chooseStrengthStart()
+            case .strength(let routines): await startStrength(routines: routines)
+            case .cardio(let sport, let targetZone, let gpsEnabled):
+                requestCardio(sport: sport, targetZone: targetZone, gpsEnabled: gpsEnabled)
+            }
+        }
+    }
+
     func startStrength(routines: [TrainingRoutine]) async {
+        guard app.workoutCompletion == nil else { isPresented = true; return }
         let closingChooser = isChoosingStrengthStart
         isChoosingStrengthStart = false
         await loadContextIfNeeded()
@@ -490,7 +532,7 @@ final class ActiveSessionController: ObservableObject {
     }
 
     func activitySnapshot(now: Date = Date()) -> LiveWorkoutActivitySnapshot? {
-        let zoneSet = app.profile.hrZoneSet
+        let zoneSet = app.workoutZoneSet
         func zone(_ bpm: Int?) -> Int? {
             bpm.map { zoneSet.zoneNumber(forBPM: Double($0)) }.flatMap { $0 > 0 ? $0 : nil }
         }
@@ -526,7 +568,9 @@ final class ActiveSessionController: ObservableObject {
                 kind: .cardio, title: WorkoutSource.localizedDisplaySport(workout.sport), startedAt: workout.start,
                 pausedAt: workout.pausedAt, pausedSeconds: workout.pausedDuration,
                 bpm: app.bpm, zone: zone(app.bpm),
-                distanceM: hasRoute ? gps.distanceM : nil, paceSecPerKm: hasRoute ? gps.paceSecPerKm : nil,
+                // A static ActivityKit snapshot cannot expire a pace on missing updates; keep the
+                // lock screen to durable distance/time rather than leave a stale current pace there.
+                distanceM: hasRoute ? gps.distanceM : nil, paceSecPerKm: nil,
                 setsDone: nil, setsTotal: nil, restEndsAt: nil,
                 symbol: WorkoutTypeIconography.systemSymbolName(for: workout.sport))
         }

@@ -3702,6 +3702,84 @@ final class Repository: ObservableObject {
 
     /// Source-preserving workout rows for the training-session fusion layer. Natural-key duplicates and
     /// dismissed detector rows are removed, but cross-source twins deliberately remain as components.
+    /// Complete, throwing source union for Health reconciliation. A failed or truncated read must
+    /// never be interpreted as removal of local workouts.
+    func healthExportWorkouts(from: Int, to: Int) async throws -> [WorkoutRow] {
+        guard let store = await ensureStore() else { throw CocoaError(.fileReadUnknown) }
+        _ = try DeviceRegistryStore(dbQueue: store.registryWriter).all()
+        var rows: [WorkoutRow] = []
+        for id in Self.deletableWorkoutNamespaces(rawIds: rawPhysiologyReadIds(store: store)) {
+            rows += try await store.workouts(deviceId: id, from: from, to: to, limit: Int.max)
+        }
+        var offset = 0
+        while true {
+            let page = try await store.nativeWorkouts(from: from, to: to, limit: 500, offset: offset)
+            rows += page.filter { $0.physiologyProvider != .appleWatch }.map(NativeTrainingProjection.workoutRow)
+            if page.count < 500 { break }
+            offset += page.count
+        }
+        let links = try await store.trainingSessionLinks()
+        rows = Self.hidingLegacyStrengthRecordings(Self.dedupWorkoutsByNaturalKey(rows), links: links.filter { $0.origin == "native-lifecycle" })
+        let spans = WorkoutSource.parseDismissedSpans(dismissedDetectedSpans)
+        return Self.healthExportWorkoutRows(rows.filter { !WorkoutSource.isDismissed($0, spans: spans) })
+    }
+
+    /// One winner per durable Health identity. Manual corrections beat detected/imported copies;
+    /// native envelopes beat their legacy physiological twin. Active-device read order breaks ties.
+    nonisolated static func healthExportWorkoutRows(_ rows: [WorkoutRow]) -> [WorkoutRow] {
+        func rank(_ row: WorkoutRow) -> Int {
+            if row.source.hasPrefix("native-training") { return 3 }
+            if WorkoutSource.classify(row.source) == .manual { return 2 }
+            return WorkoutSource.classify(row.source) == .detected ? 0 : 1
+        }
+        var chosen: [String: WorkoutRow] = [:]
+        for row in rows where !WorkoutSource.isAppleHealth(row.source) {
+            let id = "\(row.startTs):\(row.sport)"
+            if let prior = chosen[id], rank(prior) >= rank(row) { continue }
+            chosen[id] = row
+        }
+        return chosen.values.sorted { ($0.startTs, $0.sport) < ($1.startTs, $1.sport) }
+    }
+
+    func healthExportSleeps(from: Int, to: Int) async throws -> [CachedSleepSession] {
+        guard let store = await ensureStore() else { throw CocoaError(.fileReadUnknown) }
+        _ = try DeviceRegistryStore(dbQueue: store.registryWriter).all()
+        var byStart: [Int: CachedSleepSession] = [:]
+        let ids = rawPhysiologyReadIds(store: store)
+        for id in ids.reversed().map({ $0 + "-noop" }) + ids.reversed() {
+            for row in try await store.sleepSessions(deviceId: id, from: from, to: to, limit: Int.max) {
+                byStart[row.startTs] = row
+            }
+        }
+        return byStart.values.sorted { $0.startTs < $1.startTs }
+    }
+
+    func healthExportDailies(from: String, to: String) async throws -> [DailyMetric] {
+        guard let store = await ensureStore() else { throw CocoaError(.fileReadUnknown) }
+        _ = try DeviceRegistryStore(dbQueue: store.registryWriter).all()
+        var byDay: [String: DailyMetric] = [:]
+        let ids = rawPhysiologyReadIds(store: store)
+        for id in ids.reversed().map({ $0 + "-noop" }) {
+            for row in try await store.dailyMetrics(deviceId: id, from: from, to: to) { byDay[row.day] = row }
+        }
+        for id in ids.reversed() {
+            for row in try await store.dailyMetrics(deviceId: id, from: from, to: to) {
+                byDay[row.day] = HealthExportMerge.merged(computed: byDay[row.day], imported: row)
+            }
+        }
+        return byDay.values.sorted { $0.day < $1.day }
+    }
+
+    func healthExportHeartRate(from: Int, to: Int) async throws -> [(ts: Int, bpm: Double)] {
+        guard let store = await ensureStore() else { throw CocoaError(.fileReadUnknown) }
+        _ = try DeviceRegistryStore(dbQueue: store.registryWriter).all()
+        var values: [Int: Double] = [:]
+        for id in rawPhysiologyReadIds(store: store).reversed() {
+            for row in try await store.hrBuckets(deviceId: id, from: from, to: to, bucketSeconds: 60) { values[row.ts] = row.bpm }
+        }
+        return values.keys.sorted().map { ($0, values[$0]!) }
+    }
+
     func rawWorkoutRows(days: Int = 4000) async -> [WorkoutRow] {
         let now = Int(Date().timeIntervalSince1970)
         return await rawWorkoutRows(from: now - days * 86_400, to: now + 86_400)
@@ -4026,6 +4104,11 @@ final class Repository: ObservableObject {
                 RouteStore.store(route, startTs: row.startTs, sport: row.sport)
             }
             do {
+                let evidence = try await workoutRecordings(for: old)
+                if !evidence.isEmpty {
+                    let payload = String(decoding: try JSONEncoder().encode(evidence), as: UTF8.self)
+                    try await store.saveWorkoutRecording(row, deviceId: deviceId, payloadJSON: payload, computedEnergy: false)
+                }
                 _ = try await store.deleteWorkouts(deviceId: deviceId, sport: old.sport,
                                                    from: old.startTs, to: old.startTs)
                 if oldRoute != nil {
@@ -4038,6 +4121,37 @@ final class Repository: ObservableObject {
         }
         guard (try? await store.upsertWorkouts([row], deviceId: deviceId)) != nil else { return }
         await recordManualEnergySource(for: row, replacing: old, store: store)
+    }
+
+    /// Original capture evidence belongs only to manually recorded rows, never their imported twins.
+    func workoutRecordings(for row: WorkoutRow) async throws -> [CompletedWorkoutRecording] {
+        guard WorkoutSource.classify(row.source) == .manual else { return [] }
+        guard let store = await ensureStore() else { throw CocoaError(.fileReadUnknown) }
+        for id in Self.deletableWorkoutNamespaces(rawIds: rawPhysiologyReadIds(store: store)) {
+            let key = WorkoutKey(deviceId: id, startTs: row.startTs, sport: row.sport)
+            if let payload = try await store.workoutRecording(for: key) {
+                return try JSONDecoder().decode([CompletedWorkoutRecording].self, from: Data(payload.utf8))
+            }
+        }
+        return []
+    }
+
+    /// Original NOOP GPS splits only. Imports, corrected averages and paused recordings are not rivals.
+    func personalBest(for recording: CompletedWorkoutRecording) async throws -> WorkoutPersonalBest.Result? {
+        guard let current = WorkoutPersonalBest.candidate(timeline: recording.timeline, sport: recording.row.sport) else { return nil }
+        guard let store = await ensureStore() else { throw CocoaError(.fileReadUnknown) }
+        let previous = try await store.reduceWorkoutRecordingPayloads(sport: current.sport, before: recording.row.startTs,
+            initial: nil as WorkoutPersonalBest.Candidate?) { best, payload in
+                // A malformed older payload makes the comparison unavailable, never a false record.
+                let originals = try JSONDecoder().decode([CompletedWorkoutRecording].self, from: Data(payload.utf8))
+                return originals.reduce(best) { best, original in
+                    guard original.id != recording.id, original.row.startTs < recording.row.startTs,
+                          let candidate = WorkoutPersonalBest.candidate(timeline: original.timeline, sport: original.row.sport),
+                          WorkoutPersonalBest.comparable(current, candidate) else { return best }
+                    return best.map { candidate.seconds < $0.seconds ? candidate : $0 } ?? candidate
+                }
+            }
+        return WorkoutPersonalBest.improvement(current: current, previous: previous)
     }
 
     /// Re-label a legacy detected bout: copy it to a manual strap row with the chosen sport, then delete
@@ -4173,7 +4287,20 @@ final class Repository: ObservableObject {
         // swallows persistence failures for UI callers, but this destructive follow-up must know whether
         // the insert succeeded: a failed merge write must leave every original untouched.
         guard let store = await ensureStore() else { return }
-        do { _ = try await store.upsertWorkouts([merged], deviceId: deviceId) }
+        do {
+            var recordings: [CompletedWorkoutRecording] = []
+            for row in rows {
+                for recording in try await workoutRecordings(for: row) where !recordings.contains(where: { $0.id == recording.id }) {
+                    recordings.append(recording)
+                }
+            }
+            if recordings.isEmpty {
+                _ = try await store.upsertWorkouts([merged], deviceId: deviceId)
+            } else {
+                let payload = String(decoding: try JSONEncoder().encode(recordings), as: UTF8.self)
+                try await store.saveWorkoutRecording(merged, deviceId: deviceId, payloadJSON: payload, computedEnergy: false)
+            }
+        }
         catch { return }
         scheduleEnergyRefresh(coveringStart: min(merged.startTs, rows.map(\.startTs).min() ?? merged.startTs))
 

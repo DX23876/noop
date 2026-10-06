@@ -35,14 +35,19 @@ public enum RouteExporter {
         distanceM: Double? = nil,
         energyKcal: Double? = nil,
         avgHr: Int? = nil,
-        maxHr: Int? = nil
+        maxHr: Int? = nil,
+        recordedTimes: [Int]? = nil,
+        segmentStarts: [Int] = [],
+        activeDurationS: Double? = nil
     ) -> Data {
         switch format {
         case .gpx:
-            return Data(buildGpx(route: route, startTs: startTs, endTs: endTs, sport: sport).utf8)
+            return Data(buildGpx(route: route, startTs: startTs, endTs: endTs, sport: sport,
+                                 recordedTimes: recordedTimes, segmentStarts: segmentStarts).utf8)
         case .fit:
             return buildFit(route: route, startTs: startTs, endTs: endTs, sport: sport,
-                            distanceM: distanceM, energyKcal: energyKcal, avgHr: avgHr, maxHr: maxHr)
+                            distanceM: distanceM, energyKcal: energyKcal, avgHr: avgHr, maxHr: maxHr,
+                            recordedTimes: recordedTimes, activeDurationS: activeDurationS)
         }
     }
 
@@ -53,10 +58,14 @@ public enum RouteExporter {
         route: [RoutePoint],
         startTs: Int,
         endTs: Int,
-        sport: String?
+        sport: String?,
+        recordedTimes: [Int]? = nil,
+        segmentStarts: [Int] = []
     ) -> String {
         let canon = canonicalSport(sport)
-        let times = interpolatedTimes(route.count, startTs, endTs)
+        let times = recordedTimes.flatMap { $0.count == route.count ? $0 : nil }
+            ?? interpolatedTimes(route.count, startTs, endTs)
+        let boundaries = Set(segmentStarts.filter { $0 > 0 && $0 < route.count })
         var s = ""
         s += "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
         s += "<gpx version=\"1.1\" creator=\"NOOP\" xmlns=\"http://www.topografix.com/GPX/1/1\">\n"
@@ -66,6 +75,7 @@ public enum RouteExporter {
         s += "    <type>\(xmlEscape(canon))</type>\n"
         s += "    <trkseg>\n"
         for i in route.indices {
+            if boundaries.contains(i) { s += "    </trkseg>\n    <trkseg>\n" }
             let p = route[i]
             s += "      <trkpt lat=\"\(coord(p.lat))\" lon=\"\(coord(p.lon))\">"
             s += "<time>\(iso(times[i]))</time></trkpt>\n"
@@ -85,10 +95,13 @@ public enum RouteExporter {
         distanceM: Double? = nil,
         energyKcal: Double? = nil,
         avgHr: Int? = nil,
-        maxHr: Int? = nil
+        maxHr: Int? = nil,
+        recordedTimes: [Int]? = nil,
+        activeDurationS: Double? = nil
     ) -> Data {
         let canon = canonicalSport(sport)
-        let times = interpolatedTimes(route.count, startTs, endTs)
+        let times = recordedTimes.flatMap { $0.count == route.count ? $0 : nil }
+            ?? interpolatedTimes(route.count, startTs, endTs)
         var body: [UInt8] = []
 
         // file_id (global 0): type=activity, manufacturer=development, time_created.
@@ -122,6 +135,9 @@ public enum RouteExporter {
         sf.append((253, 4, 0x86)); u32(&sd, fitTime(endTs))
         sf.append((2, 4, 0x86)); u32(&sd, fitTime(startTs))
         sf.append((7, 4, 0x86)); u32(&sd, elapsedMs)
+        if let activeDurationS, activeDurationS.isFinite, activeDurationS >= 0 {
+            sf.append((8, 4, 0x86)); u32(&sd, UInt32(min(activeDurationS * 1000, Double(UInt32.max))))
+        }
         sf.append((5, 1, 0x00)); u8(&sd, fitSport(canon))
         if let distCenti { sf.append((9, 4, 0x86)); u32(&sd, distCenti) }
         if let energyKcal { sf.append((11, 2, 0x84)); u16(&sd, UInt16(min(max(0, energyKcal.rounded()), 65534))) }

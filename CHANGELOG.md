@@ -3541,3 +3541,15 @@ killed standard-0x2A37 live HR).
 - Pair directly with a WHOOP strap over Bluetooth — no WHOOP account, no cloud.
 - Compute recovery, strain, HRV and sleep locally on your own device.
 - Bring your history: import a WHOOP export, an Apple Health export, or Android Health Connect.
+
+## Unreleased — Apple Health synchronization
+
+- Preserve historical activity and vitals while importing older body measurements.
+- Resolve overlapping sleep sources and attribute the full night to its wake day.
+- Use persistent HealthKit sync versions, save replacements before retiring legacy records, and
+  retry pending workout/sleep/body-measurement changes and late heart-rate offloads across restarts.
+- Reconcile imported workout deletions by UUID, retain data on query errors, resume read-only consent,
+  and export every retained local workout source with captured pauses and route associations.
+- Analysis migration required: **yes** — **AI-19** repairs retained Apple daily projections in resumable
+  batches. Historical Health sleep totals are refreshed through bounded 31-day imports; raw samples and
+  manual sleep/workout corrections are preserved. Android parity is not applicable in this Apple-only fork.

@@ -13,6 +13,20 @@ import Foundation
 /// whitelist (#519).
 enum WorkoutCatalog {
 
+    /// Conservative jump ceilings, not promised sport speeds or Apple-prescribed limits.
+    static func gpsMaxSpeedMps(for sport: String) -> Double {
+        switch Self.sport(named: sport)?.name ?? sport {
+        case "Walking", "Hiking", "Nordic walking", "Rucking", "Snowshoeing": 8
+        case "Cycling", "Mountain biking", "Skiing", "Snowboarding": 45
+        case "Motocross", "Sailing", "Horseback riding": 60
+        default: 12
+        }
+    }
+
+    static func usesSpeedReadout(for sport: String) -> Bool {
+        ["Cycling", "Mountain biking", "Skiing", "Snowboarding", "Sailing", "Motocross"].contains(Self.sport(named: sport)?.name ?? sport)
+    }
+
     /// Whether a phone route is meaningful for the activity. This is deliberately separate from the
     /// workout's indoor/outdoor classification: a golf round is outdoors even when the wearer chooses
     /// not to record a route, while an indoor cycle is still a distance activity without phone GPS.

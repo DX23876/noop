@@ -1949,6 +1949,23 @@ extension WhoopStore {
         migrator.registerMigration("v74-rr-whoop5-fill") { db in
             try db.execute(sql: WhoopStore.whoop5RrFillMigrationSQL)
         }
+        // Prospective capture evidence. No score or historical analysis is rewritten.
+        migrator.registerMigration("v75-workout-recording") { db in
+            try db.execute(sql: """
+                CREATE TABLE workoutRecording (
+                    deviceId TEXT NOT NULL,
+                    startTs INTEGER NOT NULL,
+                    sport TEXT NOT NULL,
+                    payloadJSON TEXT NOT NULL,
+                    PRIMARY KEY (deviceId, startTs, sport),
+                    FOREIGN KEY (deviceId, startTs, sport)
+                        REFERENCES workout(deviceId, startTs, sport) ON DELETE CASCADE
+                )
+                """)
+        }
+        migrator.registerMigration("v76-health-sync-state") { db in
+            try WhoopStore.createHealthSyncTables(db)
+        }
         return migrator
     }
 }

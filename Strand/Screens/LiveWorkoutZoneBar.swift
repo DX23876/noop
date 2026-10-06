@@ -8,6 +8,7 @@ struct LiveWorkoutZoneBar: View {
     let isCurrent: Bool
     let isTarget: Bool
     let seconds: Int
+    var share: Double = 0
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -31,6 +32,14 @@ struct LiveWorkoutZoneBar: View {
                 .font(StrandFont.captionNumber)
                 .foregroundStyle(seconds > 0 ? StrandPalette.textSecondary : StrandPalette.textTertiary)
                 .contentTransition(.numericText())
+            GeometryReader { geometry in
+                Capsule().fill(color.opacity(0.14))
+                    .overlay(alignment: .leading) {
+                        Capsule().fill(color).frame(width: geometry.size.width * min(1, max(0, share)))
+                    }
+            }
+            .frame(height: 3)
+            .accessibilityHidden(true)
         }
         .frame(maxWidth: .infinity)
         .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: isCurrent)

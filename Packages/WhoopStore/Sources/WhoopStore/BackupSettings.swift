@@ -78,6 +78,9 @@ public enum BackupSettings {
         "effort.scale": .string,
         "dayCycle.mode": .string,
         "today.hostedCards": .string,
+        // User-authored workout templates and their selected plan; active capture stays in SQLite.
+        "workout.guidance.plan": .string,
+        "workout.guidance.templates": .string,
         // #1361: the user's own custom journal BEHAVIOURS (newline-joined names). Deliberately NOT in
         // `appleDefaultsKey` below — it isn't a flat UserDefaults key (customs are derived from the
         // catalog items blob), so the app layer (`DataBackup`) bridges this one on export and restore.
@@ -127,6 +130,8 @@ public enum BackupSettings {
         "effort.scale": "effort.scale",
         "dayCycle.mode": "noop.dayCycleMode",
         "today.hostedCards": "today.hostedCards",
+        "workout.guidance.plan": "workout.guidance.plan",
+        "workout.guidance.templates": "workout.guidance.templates",
         "energy.bmrFormulaLog": "energy.bmrFormulaLog",
         "profile.vo2maxManual": "profile.vo2maxManual",
         "profile.vo2maxManualDay": "profile.vo2maxManualDay",

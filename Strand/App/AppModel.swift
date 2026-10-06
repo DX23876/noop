@@ -132,7 +132,9 @@ final class AppModel: ObservableObject {
     /// since; on End the window is scored via `StrainScorer` and saved as a `WorkoutRow` (source
     /// "manual"), which then shows in the Workouts view. The day's strain already counts this HR (it's
     /// the same live stream the store persists), so this is a per-session annotation, not a double-count.
-    @Published var activeWorkout: ActiveWorkout?
+    @Published var activeWorkout: ActiveWorkout? {
+        didSet { workoutSpeedDisplay.update(workoutID: activeWorkout?.id, speedMps: nil) }
+    }
     /// True while the dedicated Live Session runner is active. The HR-ceiling automation uses this with
     /// `activeWorkout` to implement its user-facing “only during a recorded workout” scope.
     @Published private(set) var liveSessionActive = false
@@ -141,6 +143,27 @@ final class AppModel: ObservableObject {
     @Published private(set) var zoneTrainingState: HRZoneTrainingState?
     /// The just-ended workout, for a brief inline confirmation on Live (cleared on the next start).
     @Published var lastWorkout: WorkoutRow?
+    private(set) var workoutRecording = WorkoutRecordingTimeline()
+    private var workoutSpeedDisplay = WorkoutSpeedDisplay()
+    /// The last computed live pace/speed stays on screen until a new measurement is available.
+    var workoutDisplayedSpeedMps: Double? { workoutSpeedDisplay.value(workoutID: activeWorkout?.id) }
+    var workoutZoneSet: HRZoneSet {
+        guard activeWorkout != nil, let lower = workoutRecording.zoneLowerBPM, lower.count == 5,
+              workoutRecording.zoneUpperBPM.count == 5,
+              let maximum = workoutRecording.zoneUpperBPM.last, maximum > 0 else { return profile.hrZoneSet }
+        let upper = workoutRecording.zoneUpperBPM
+        return HRZoneSet(zones: (0..<5).map {
+            HRZone(number: $0 + 1, lower: lower[$0], upper: upper[$0],
+                   lowerPct: lower[$0] / maximum, upperPct: upper[$0] / maximum)
+        }, maxHR: maximum, source: "recorded")
+    }
+    @Published private(set) var workoutCompletion: WorkoutCompletion?
+    @Published private(set) var workoutSaveFailed = false
+    @Published private(set) var workoutWarning: (text: String, date: Date)?
+    @Published private(set) var workoutAutomaticallyPaused = false
+    private var workoutAutoPauseEngine = WorkoutAutoPauseEngine()
+    private var workoutMotion: (stationary: Bool?, moving: Bool, date: Date, persistent: Bool)?
+    private let pendingWorkoutCompletion = PendingWorkoutCompletionStore()
 
     /// Records the GPS route of an in-flight route-capable workout from CoreLocation (#524), when the
     /// wearer enables that session's route choice.
@@ -545,8 +568,57 @@ final class AppModel: ObservableObject {
         // Rehydrate a manual workout that was in flight when iOS killed the app, so it can still be ended
         // + saved on relaunch (#529). Restored here alongside the other UserDefaults-backed state.
         // Before the restore, so a resumed workout's voice can read where it stands.
-        voiceCoach.snapshot = { [weak self] in self?.workoutVoiceSnapshot() }
-        rehydrateActiveWorkout()
+        voiceCoach.snapshot = { [weak self] now in self?.workoutVoiceSnapshot(at: now) }
+        voiceCoach.onWarning = { [weak self] text, isZone in
+            guard let self, self.activeWorkout?.isPaused == false else { return }
+            self.workoutWarning = (text, .now)
+            if let id = self.activeWorkout?.id {
+                Task { @MainActor [weak self] in
+                    await WorkoutWarningNotifier.post(text) {
+                        self?.activeWorkout?.id == id && self?.activeWorkout?.isPaused == false
+                    }
+                }
+            }
+            // The target-zone strap coach already owns this haptic. Do not buzz the phone as well.
+            if !isZone || !self.canBuzz || !self.live.worn { StrandHaptic.warning.play() }
+        }
+        gpsRecorder.onMotion = { [weak self] stationary, moving, date in
+            self?.workoutMotion = (stationary, moving, date, false)
+        }
+        gpsRecorder.onStationary = { [weak self] date in
+            // Core Location explicitly suspends stationary updates until movement resumes.
+            self?.workoutMotion = (true, false, date, true)
+        }
+        voiceCoach.onTick = { [weak self] date in
+            self?.maintainWorkoutAutoPause(at: date)
+            self?.advanceWorkoutGuidance(at: date)
+        }
+        gpsRecorder.onAcceptedPoint = { [weak self] point, meters in
+            guard let self, let workout = self.activeWorkout, !workout.isPaused,
+                  let seconds = point.activeSeconds, let segment = point.segment else { return }
+            self.workoutRecording.recordDistance(meters, at: seconds, segment: segment)
+            self.workoutSpeedDisplay.update(workoutID: workout.id,
+                speedMps: self.workoutRecording.currentSpeedMps(at: seconds, lastFixAge: 0))
+            self.objectWillChange.send()
+            if Int(Date.now.timeIntervalSince1970) - self.lastWorkoutPersistTs >= Self.workoutPersistIntervalSeconds {
+                self.persistActiveWorkout()
+            }
+        }
+        gpsRecorder.onInterruption = { [weak self] in
+            guard let self, self.activeWorkout?.isPaused == false else { return }
+            self.workoutRecording.interrupt()
+            self.objectWillChange.send()
+        }
+        do {
+            if let pending = try pendingWorkoutCompletion.load() {
+                workoutCompletion = WorkoutCompletion(recording: pending, status: .failed)
+            } else {
+                rehydrateActiveWorkout()
+            }
+        } catch {
+            // Keep the active snapshot and the unreadable completion file for recovery, not a new session.
+            workoutSaveFailed = true
+        }
 
         AppModel.shared = self   // publish for App Intents (Shortcuts) , see the static above (#42)
 
@@ -1029,13 +1101,18 @@ final class AppModel: ObservableObject {
     /// building; End scores + saves it under this sport. Confirms with a single buzz. (#519)
     func startWorkout(sport: String = WorkoutCatalog.defaultSportName, targetZone: Int? = nil,
                       gpsEnabled: Bool? = nil) {
-        guard activeWorkout == nil else { return }
+        guard activeWorkout == nil, workoutCompletion == nil, !workoutSaveFailed else { return }
         lastWorkout = nil
         let name = sport.trimmingCharacters(in: .whitespaces)
         let resolved = name.isEmpty ? WorkoutCatalog.defaultSportName : name
         let started = Date()
         let validatedTarget = targetZone.flatMap { (1...5).contains($0) ? $0 : nil }
         activeWorkout = ActiveWorkout(start: started, sport: resolved, targetZone: validatedTarget)
+        workoutWarning = nil
+        WorkoutWarningNotifier.clear()
+        workoutAutomaticallyPaused = false
+        workoutAutoPauseEngine.reset()
+        workoutMotion = nil
         workoutBpmSum = 0
         lastLiveStrainTs = 0
         zoneTrainingTargetZone = validatedTarget
@@ -1049,10 +1126,24 @@ final class AppModel: ObservableObject {
         activeWorkoutIsGps = catalogueSport?.supportsRoute == true
             ? (gpsEnabled ?? catalogueSport?.defaultGpsEnabled ?? false)
             : false
-        if activeWorkoutIsGps {
-            gpsRecorder.start(startMs: Int64(started.timeIntervalSince1970 * 1000))
+        let defaults = UserDefaults.standard
+        let bodyUnits = UnitSystem(rawValue: defaults.string(forKey: UnitPrefs.systemKey) ?? "") ?? .metric
+        let imperial = UnitPrefs.resolveDistance(system: bodyUnits,
+            override: defaults.string(forKey: UnitPrefs.distanceSystemKey) ?? "") == .imperial
+        workoutRecording = WorkoutRecordingTimeline(
+            splitLengthM: activeWorkoutIsGps ? (imperial ? 1609.344 : 1000) : nil,
+            zoneUpperBPM: profile.hrZoneSet.zones.map(\.upper),
+            zoneLowerBPM: profile.hrZoneSet.zones.map(\.lower))
+        workoutRecording.guidance = WorkoutGuidancePreferences.plan(gpsEnabled: activeWorkoutIsGps)
+        workoutRecording.startUnixSeconds = started.timeIntervalSince1970
+        if workoutRecording.guidance == nil {
+            workoutRecording.pacer = WorkoutGuidancePreferences.pacer(gpsEnabled: activeWorkoutIsGps)
         }
-        voiceCoach.begin(usesRoute: activeWorkoutIsGps)
+        if activeWorkoutIsGps {
+            gpsRecorder.start(startMs: Int64(started.timeIntervalSince1970 * 1000),
+                              maxSpeedMps: WorkoutCatalog.gpsMaxSpeedMps(for: resolved))
+        }
+        if let workout = activeWorkout { voiceCoach.begin(usesRoute: activeWorkoutIsGps, workoutID: workout.id) }
         // Make the session durable from the first instant (#529): persist it now so an OS kill right
         // after Start , before any HR sample lands , can still be rehydrated + ended on relaunch.
         persistActiveWorkout()
@@ -1109,6 +1200,7 @@ final class AppModel: ObservableObject {
     /// a small per-sample write instead of rewriting a growing route on every beat.
     private func persistActiveWorkout() {
         guard let w = activeWorkout else { return }
+        if activeWorkoutIsGps { gpsRecorder.flushJournal() }
         lastWorkoutPersistTs = Int(Date().timeIntervalSince1970)
         ActiveWorkoutPersistence.store(
             ActiveWorkoutPersistence.Snapshot(
@@ -1121,7 +1213,9 @@ final class AppModel: ObservableObject {
                 targetZone: w.targetZone,
                 gpsEnabled: activeWorkoutIsGps,
                 pausedAtSec: w.pausedAt.map { Int($0.timeIntervalSince1970) },
-                pausedDurationSec: Int(w.pausedDuration)))
+                pausedDurationSec: Int(w.pausedDuration), workoutID: w.id,
+                exactStart: w.start, recording: workoutRecording,
+                exactPausedAt: w.pausedAt, exactPausedDuration: w.pausedDuration))
     }
 
     /// If a manual workout was in flight when iOS killed the app, rebuild `activeWorkout` from the durable
@@ -1130,16 +1224,19 @@ final class AppModel: ObservableObject {
     /// session wins over a stale snapshot) or nothing is stored. Called once from `init`.
     private func rehydrateActiveWorkout() {
         guard activeWorkout == nil, let snap = ActiveWorkoutPersistence.load() else { return }
-        var w = ActiveWorkout(start: Date(timeIntervalSince1970: TimeInterval(snap.startSec)),
+        var w = ActiveWorkout(id: snap.workoutID ?? UUID(),
+                              start: snap.exactStart ?? Date(timeIntervalSince1970: TimeInterval(snap.startSec)),
                               sport: snap.sport)
+        workoutRecording = snap.recording ?? WorkoutRecordingTimeline()
+        if snap.pausedAtSec == nil { workoutRecording.interrupt() } else { workoutRecording.pause() }
         w.samples = snap.samples
         workoutBpmSum = snap.samples.reduce(0) { $0 + $1.bpm }
         w.avgHr = snap.avgHr
         w.peakHr = snap.peakHr
         w.liveStrain = snap.liveStrain
         w.targetZone = snap.targetZone
-        w.pausedAt = snap.pausedAtSec.map { Date(timeIntervalSince1970: TimeInterval($0)) }
-        w.pausedDuration = TimeInterval(snap.pausedDurationSec ?? 0)
+        w.pausedAt = snap.exactPausedAt ?? snap.pausedAtSec.map { Date(timeIntervalSince1970: TimeInterval($0)) }
+        w.pausedDuration = snap.exactPausedDuration ?? TimeInterval(snap.pausedDurationSec ?? 0)
         activeWorkout = w
 
         // Rebuild the transient GPS lifecycle flag as well as the durable workout value. Without this,
@@ -1153,36 +1250,79 @@ final class AppModel: ObservableObject {
             : false
         if activeWorkoutIsGps {
             gpsRecorder.restore(
-                startMs: Int64(snap.startSec) * 1000,
-                pausedAtMs: snap.pausedAtSec.map { Int64($0) * 1000 },
-                pausedDurationMs: Int64(snap.pausedDurationSec ?? 0) * 1000
+                startMs: Int64(w.start.timeIntervalSince1970 * 1000),
+                pausedAtMs: w.pausedAt.map { Int64($0.timeIntervalSince1970 * 1000) },
+                pausedDurationMs: Int64(w.pausedDuration * 1000),
+                maxSpeedMps: WorkoutCatalog.gpsMaxSpeedMps(for: snap.sport)
             )
         }
         zoneTrainingTargetZone = snap.targetZone
         zoneTrainingEngine.reset()
         zoneTrainingState = nil
-        voiceCoach.begin(usesRoute: activeWorkoutIsGps, resuming: true)
+        voiceCoach.begin(usesRoute: activeWorkoutIsGps, workoutID: w.id)
         emitWorkoutsTrace(WorkoutsTrace.restoreLine(
             sportKey: WorkoutSource.traceSportKey(snap.sport), hrSamples: snap.samples.count,
             routePoints: activeWorkoutIsGps ? gpsRecorder.pointCount : 0))
     }
 
     func toggleWorkoutPause() {
+        // A manual tap takes ownership even when the workout had automatically stopped.
+        workoutAutomaticallyPaused = false
+        workoutAutoPauseEngine.reset()
+        workoutMotion = nil
+        setWorkoutPaused(activeWorkout?.isPaused != true, automatically: false, at: .now)
+    }
+
+    private func setWorkoutPaused(_ paused: Bool, automatically: Bool, at now: Date) {
         guard var w = activeWorkout else { return }
-        if let pausedAt = w.pausedAt {
-            w.pausedDuration += Date().timeIntervalSince(pausedAt)
+        guard paused != w.isPaused else { return }
+        workoutAutomaticallyPaused = paused && automatically
+        workoutWarning = nil
+        WorkoutWarningNotifier.clear()
+        if let pausedAt = w.pausedAt, !paused {
+            w.pausedDuration += now.timeIntervalSince(pausedAt)
             w.pausedAt = nil
-            if activeWorkoutIsGps { gpsRecorder.resume() }
+            workoutRecording.endPause(atUnixSeconds: now.timeIntervalSince1970)
+            if activeWorkoutIsGps { gpsRecorder.resume(at: now) }
             systemWorkoutSession?.resume()
             voiceCoach.resumed()
         } else {
-            w.pausedAt = Date()
-            if activeWorkoutIsGps { gpsRecorder.pause() }
+            w.pausedAt = now
+            workoutRecording.beginPause(atUnixSeconds: now.timeIntervalSince1970)
+            if activeWorkoutIsGps { gpsRecorder.pause(at: now, observingMotion: automatically) }
             systemWorkoutSession?.pause()
             voiceCoach.paused()
         }
         activeWorkout = w
         persistActiveWorkout()
+    }
+
+    private func evaluateWorkoutAutoPause(stationary: Bool?, moving: Bool, at date: Date) {
+        guard let workout = activeWorkout else { workoutAutoPauseEngine.reset(); return }
+        let enabled = UserDefaults.standard.bool(forKey: WorkoutFeedbackPreferences.autoPauseKey)
+            && WorkoutFeedbackPreferences.supportsAutoPause(sport: workout.sport, gps: activeWorkoutIsGps)
+        let action = workoutAutoPauseEngine.update(now: date.timeIntervalSince1970, stationary: stationary,
+            moving: moving, enabled: enabled, paused: workout.isPaused, automaticallyPaused: workoutAutomaticallyPaused)
+        if let action { setWorkoutPaused(action == .pause, automatically: true, at: date) }
+    }
+
+    private func maintainWorkoutAutoPause(at date: Date) {
+        if workoutAutomaticallyPaused, !UserDefaults.standard.bool(forKey: WorkoutFeedbackPreferences.autoPauseKey) {
+            workoutAutomaticallyPaused = false
+            workoutMotion = nil
+            gpsRecorder.stopPausedMotionObservation()
+            workoutAutoPauseEngine.reset()
+            // Turning the feature off never resumes a stopped session without a user's action.
+            persistActiveWorkout()
+        }
+        guard let motion = workoutMotion, activeWorkoutUsesGPS,
+              gpsRecorder.state != .denied, gpsRecorder.state != .unavailable, gpsRecorder.state != .failed,
+              date.timeIntervalSince(motion.date) >= 0,
+              motion.persistent || date.timeIntervalSince(motion.date) <= 5 else {
+            evaluateWorkoutAutoPause(stationary: nil, moving: false, at: date)
+            return
+        }
+        evaluateWorkoutAutoPause(stationary: motion.stationary, moving: motion.moving, at: date)
     }
 
     /// Abort the active session without saving a workout.
@@ -1192,6 +1332,11 @@ final class AppModel: ObservableObject {
         systemWorkoutStartTask = nil
         systemWorkoutSession?.end()
         voiceCoach.stop()
+        workoutWarning = nil
+        WorkoutWarningNotifier.clear()
+        workoutAutomaticallyPaused = false
+        workoutMotion = nil
+        workoutAutoPauseEngine.reset()
         activeWorkout = nil
         if activeWorkoutIsGps { gpsRecorder.stop() }
         activeWorkoutIsGps = false
@@ -1219,50 +1364,11 @@ final class AppModel: ObservableObject {
 
     func endWorkout() {
         guard let w = activeWorkout else { return }
-        endZoneTraining()
-        systemWorkoutStartTask?.cancel()
-        systemWorkoutStartTask = nil
-        systemWorkoutSession?.end()
-        activeWorkout = nil
         let wasGps = activeWorkoutIsGps
-        activeWorkoutIsGps = false
-        // Drop the durable snapshot the instant the session ends , whether it saves below or is discarded
-        // as too-short , so a relaunch never rehydrates an already-finished session (#529).
-        ActiveWorkoutPersistence.clear()
-        // #524: finalize the GPS route. Stop the recorder and take its captured route , it kept
-        // accumulating from CoreLocation independently of the HR window. `capturedRoute()` is nil unless
-        // ≥2 points actually landed (honest: no route, no distance, when nothing was captured , e.g. a
-        // Mac with no GPS, or denied permission). A non-GPS session never armed the recorder.
-        var route: WorkoutRoute?
-        if wasGps {
-            gpsRecorder.stop()
-            route = gpsRecorder.capturedRoute()
-        }
+        let route = wasGps ? gpsRecorder.capturedRoute() : nil
         let samples = w.samples
-        let end = Date()
-        // A session under a minute is a start/stop the wearer did not mean to keep, and it was the thing
-        // that made deletion feel broken: the list filled with 5-30 second entries (#2278). Discarded HERE,
-        // at save, rather than retained and pruned later, which is the whole difference between dropping
-        // something that never had training data in it and deleting a wearer's history. NOOP has no server
-        // and no cloud copy, so a later prune would be irreversible; this is not, because nothing with real
-        // data is ever removed.
-        //
-        // Duration is the retention boundary. A deliberate workout remains valid without a connected
-        // heart-rate source or a GPS fix; those measurements enrich the row but never decide whether the
-        // wearer's recorded time exists.
+        let end = Date.now
         let elapsed = w.elapsed(at: end)
-        if Self.isTooShortToSave(elapsedSeconds: elapsed) {
-            voiceCoach.stop()
-            emitWorkoutsTrace(WorkoutsTrace.sessionLine(
-                event: "discarded", sportKey: WorkoutSource.traceSportKey(w.sport),
-                hrSamples: samples.count, durationSec: Int(elapsed),
-                gpsPoints: wasGps ? gpsRecorder.pointCount : nil))
-            // Drop the route too: keeping a polyline for a session that was never saved would orphan it in
-            // RouteStore under a natural key no row claims.
-            lastWorkout = nil
-            return
-        }
-        voiceCoach.ended(elapsedSeconds: Int(elapsed), distanceMeters: route.map { _ in gpsRecorder.distanceM })
         let avg = samples.isEmpty ? nil
             : Int((Double(samples.map(\.bpm).reduce(0, +)) / Double(samples.count)).rounded())
         let peak = w.savedPeak
@@ -1306,10 +1412,39 @@ final class AppModel: ObservableObject {
             // distance workout; the polyline itself is persisted alongside in RouteStore (the shared
             // WorkoutRow has no route column on Apple). Only a real route sets distance , honest ",".
             distanceM: route?.distanceM, zonesJSON: nil, notes: nil, steps: nil)
-        // Persist the route polyline under the row's natural key so WorkoutDetailView can draw it. On
-        // device only; mirrors the moments / sleepMarks UserDefaults persistence. (#524)
-        if let route { RouteStore.store(route, startTs: startTs, sport: w.sport) }
-        lastWorkout = row
+        var timeline = workoutRecording
+        timeline.endUnixSeconds = end.timeIntervalSince1970
+        if wasGps, gpsRecorder.state != .paused,
+           gpsRecorder.state != .recording || (!gpsRecorder.isStationary
+                && (gpsRecorder.lastLocationAt.map { end.timeIntervalSince($0) > 10 } ?? true)) {
+            timeline.interrupt()
+        }
+        timeline.endPause(atUnixSeconds: end.timeIntervalSince1970)
+        let recording = CompletedWorkoutRecording(id: w.id, deviceId: deviceId, row: row,
+                                                  route: route, timeline: timeline)
+        do {
+            // Freeze a recoverable result before stopping capture or clearing its durable snapshot.
+            try pendingWorkoutCompletion.save(recording)
+        } catch {
+            workoutSaveFailed = true
+            persistActiveWorkoutNow()
+            return
+        }
+        workoutSaveFailed = false
+        workoutCompletion = WorkoutCompletion(recording: recording, status: .saving)
+        endZoneTraining()
+        systemWorkoutStartTask?.cancel()
+        systemWorkoutStartTask = nil
+        systemWorkoutSession?.end()
+        voiceCoach.preparingToSave()
+        workoutWarning = nil
+        WorkoutWarningNotifier.clear()
+        workoutAutomaticallyPaused = false
+        workoutMotion = nil
+        workoutAutoPauseEngine.reset()
+        if wasGps { gpsRecorder.stop(preserveJournal: true) }
+        activeWorkoutIsGps = false
+        activeWorkout = nil
         // Workouts & GPS test mode: one session-end summary tagged `.workouts` (the lastSessionSummary readout
         // source) carrying the captured HR window size, the duration, and the accepted GPS point count, so the
         // lifecycle of a saved session is visible end to end. `pointCount` is the recorder's accepted-fix tally
@@ -1318,32 +1453,131 @@ final class AppModel: ObservableObject {
             event: "end", sportKey: WorkoutSource.traceSportKey(w.sport), hrSamples: samples.count,
             durationSec: Int(w.elapsed(at: end)),
             gpsPoints: wasGps ? gpsRecorder.pointCount : nil))
-        buzz(loops: 2, gate: HapticPrefs.workout)
+        persistWorkoutCompletion(recording)
+    }
+
+    func retryWorkoutCompletion() {
+        guard let completion = workoutCompletion, completion.status == .failed else { return }
+        workoutCompletion?.status = .saving
+        persistWorkoutCompletion(completion.recording)
+    }
+
+    func dismissWorkoutCompletion() {
+        guard workoutCompletion?.status == .saved else { return }
+        workoutCompletion = nil
+    }
+
+    private func persistWorkoutCompletion(_ recording: CompletedWorkoutRecording) {
         Task { [weak self] in
             guard let self else { return }
-            if let store = await self.repo.storeHandle() {
-                if (try? await store.upsertWorkouts([row], deviceId: self.deviceId)) != nil,
-                   (row.energyKcal ?? 0) > 0 {
-                    // Computed here from the session's heart rate; recorded so a later correction never
-                    // has to guess whether the wearer typed it (`workoutEnergySource`).
-                    try? await store.setWorkoutEnergySource(
-                        .computed, for: WorkoutKey(deviceId: self.deviceId, startTs: row.startTs,
-                                                   sport: row.sport))
+            do {
+                guard let store = await repo.storeHandle() else {
+                    throw CocoaError(.fileWriteUnknown)
                 }
-                // Publish the saved row now. `refreshCurrentDayActivity` joins a refresh that is already in
-                // flight, and one that started before this upsert reloads Today without the new session.
-                await self.repo.refresh()
-                await self.refreshCurrentDayActivity()
+                let data = try JSONEncoder().encode([recording])
+                let payload = String(decoding: data, as: UTF8.self)
+                try await store.saveWorkoutRecording(recording.row, deviceId: recording.deviceId, payloadJSON: payload)
+                // Removing recovery state is part of acknowledging success. Retrying the same key is safe.
+                try pendingWorkoutCompletion.clear()
+                ActiveWorkoutPersistence.clear()
+                gpsRecorder.journal.clear()
+                lastWorkout = recording.row
+                let personalBest = try? await repo.personalBest(for: recording)
+                guard workoutCompletion?.id == recording.id else { return }
+                workoutCompletion?.personalBest = personalBest
+                workoutCompletion?.status = .saved
+                voiceCoach.ended(workoutID: recording.id, elapsedSeconds: Int(recording.row.durationS ?? 0),
+                                 distanceMeters: recording.row.distanceM, sport: recording.row.sport,
+                                 averageBpm: recording.row.avgHr, personalBest: personalBest)
+                buzz(loops: 2, gate: HapticPrefs.workout)
+                StrandHaptic.commit.play()
+                await repo.refresh()
+                await refreshCurrentDayActivity()
+            } catch {
+                workoutCompletion?.status = .failed
             }
         }
     }
+
+    func markWorkoutLap(at now: Date = .now) {
+        guard let workout = activeWorkout, !workout.isPaused else { return }
+        if workoutRecording.markLap(at: workout.elapsed(at: now)) {
+            objectWillChange.send()
+            persistActiveWorkoutNow()
+        }
+    }
+
+    func markWorkoutLapNow() { markWorkoutLap(at: .now) }
+
+    private func advanceWorkoutGuidance(at now: Date) {
+        guard let workout = activeWorkout, var guidance = workoutRecording.guidance else { return }
+        let fresh = workoutGPSIsFresh(at: now)
+        if guidance.update(seconds: workout.elapsed(at: now), meters: workoutRecording.distanceM,
+                           distanceFresh: fresh, paused: workout.isPaused) {
+            workoutRecording.guidance = guidance
+            workoutPhaseChanged(guidance, at: now)
+        }
+    }
+
+    func skipWorkoutPhase() {
+        guard let workout = activeWorkout, !workout.isPaused, var guidance = workoutRecording.guidance else { return }
+        let now = Date.now
+        if guidance.skip(seconds: workout.elapsed(at: now), meters: workoutRecording.distanceM) {
+            workoutRecording.guidance = guidance
+            workoutPhaseChanged(guidance, at: now)
+        }
+    }
+
+    func replaceUpcomingWorkoutPhases(expectedCurrentID: UUID, phases: [WorkoutGuidance.Phase]) -> Bool {
+        guard activeWorkout != nil, var guidance = workoutRecording.guidance,
+              (!phases.contains { $0.meters != nil } || activeWorkoutUsesGPS),
+              guidance.replaceUpcoming(expectedCurrentID: expectedCurrentID, phases: phases) else { return false }
+        workoutRecording.guidance = guidance
+        objectWillChange.send()
+        persistActiveWorkout()
+        return true
+    }
+
+    private func workoutPhaseChanged(_ guidance: WorkoutGuidance, at now: Date) {
+        objectWillChange.send()
+        persistActiveWorkout()
+        let text = guidance.current.map { WorkoutGuidanceText.title($0.kind) }
+            ?? String(localized: "Plan complete. End the workout when ready.")
+        voiceCoach.phaseChanged(text, at: now)
+        StrandHaptic.commit.play()
+    }
+
+    /// One supplied-clock resolver for distance guidance, the pacer and distance announcements.
+    func workoutGPSIsFresh(at now: Date) -> Bool {
+        guard let workout = activeWorkout, activeWorkoutIsGps, gpsRecorder.state == .recording else { return false }
+        return WorkoutFreshReading.resolve(1, observedAt: gpsRecorder.lastLocationAt?.timeIntervalSince1970,
+            now: now.timeIntervalSince1970, paused: workout.isPaused) != nil
+    }
+
+    /// Freshness, stationarity and the active clock gate every current pace/speed readout together.
+    func workoutCurrentSpeed(at now: Date) -> Double? {
+        guard let workout = activeWorkout, workoutGPSIsFresh(at: now), !gpsRecorder.isStationary,
+              let last = gpsRecorder.lastLocationAt else { return nil }
+        return workoutRecording.currentSpeedMps(at: workout.elapsed(at: now), lastFixAge: now.timeIntervalSince(last))
+    }
+
+    func workoutHeartRate(at now: Date) -> Int? {
+        guard let workout = activeWorkout else { return nil }
+        return WorkoutFreshReading.resolve(bpm.map(Double.init), observedAt: workout.samples.last.map { Double($0.ts) },
+            now: now.timeIntervalSince1970, paused: workout.isPaused).map { Int($0) }
+    }
+
+    /// The existing ceiling coach has priority over encouragement to increase intensity.
+    var workoutRangeWarningsSuppressed: Bool { hrCeilingEngine.episodeActive }
 
     /// Append the current smoothed `bpm` to the active workout and recompute its running strain. Called
     /// from `ingestHR` on every fresh sample; a no-op when no workout is running. Recomputing strain
     /// over the growing window each sample is cheap at the ~1 Hz live-HR cadence.
     private func captureWorkoutSample() {
         guard var w = activeWorkout, !w.isPaused, let hr = bpm else { return }
-        let now = Int(Date().timeIntervalSince1970)
+        let capturedAt = Date.now
+        let now = Int(capturedAt.timeIntervalSince1970)
+        workoutRecording.recordHeartRate(hr, at: w.elapsed(at: capturedAt))
         if let last = w.samples.last?.ts, now - last > Self.liveGapThresholdSeconds {
             emitWorkoutsTrace(WorkoutsTrace.gapLine(stream: "hr", gapSec: now - last))
         }
@@ -2488,9 +2722,10 @@ final class AppModel: ObservableObject {
     private func evaluateHRZoneTraining(_ hr: Int?, at date: Date,
                                         ceilingCue: HRCeilingAlertEngine.Cue?) {
         let target = activeWorkout?.targetZone ?? liveSessionZoneTarget
-        let gate = target != nil && live.bonded && live.worn && (activeWorkout != nil || liveSessionActive)
+        let gate = target != nil && live.bonded && live.worn
+            && ((activeWorkout != nil && activeWorkout?.isPaused == false) || liveSessionActive)
         let cue = zoneTrainingEngine.update(now: Int(date.timeIntervalSince1970), bpm: hr,
-                                            zoneSet: profile.hrZoneSet,
+                                            zoneSet: workoutZoneSet,
                                             targetZone: target,
                                             enabled: gate)
         zoneTrainingTargetZone = gate ? target : nil

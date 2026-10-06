@@ -75,7 +75,9 @@
   "v71-whoop-energy-fitness",
   "v72-workout-energy-source",
   "v73-workout-heart-rate-fill",
-  "v74-rr-whoop5-fill"
+  "v74-rr-whoop5-fill",
+  "v75-workout-recording",
+  "v76-health-sync-state"
  ],
  "divergenceReasons": {
   "android-orphan-synced-column": "REAL COLUMN DRIFT: `synced` exists on Android only. GRDB's v10 note is explicit that stepSample gets no `synced` column ('unused; see StreamStore'), and v12's ppgHrSample never had one either; the Room entities copied the flag from the older per-second entities. Nothing reads it on Android — the per-row upload flag belongs to an upload path that does not exist there — so it is dead width, not divergent data. Removing it needs a Room table rebuild.",
@@ -4772,6 +4774,110 @@
     "deviceId",
     "startTs",
     "sport"
+   ],
+   "indices": []
+  },
+  "workoutRecording": {
+   "platform": "ios_only",
+   "reason": "Measured evidence of a workout NOOP recorded live (splits, laps, pauses, phases) as JSON beside its workout row, deleted with it (GRDB v75). This Apple-only checkout has no Room twin.",
+   "columns": [
+    {
+     "name": "deviceId",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "startTs",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "sport",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "payloadJSON",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "deviceId",
+    "startTs",
+    "sport"
+   ],
+   "indices": []
+  },
+  "healthExportChange": {
+   "platform": "ios_only",
+   "reason": "Apple Health write-back changes still owed per kind, as a time window plus revision (GRDB v76). HealthKit is Apple-only, so there is no Room twin.",
+   "columns": [
+    {
+     "name": "kind",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "fromTs",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "toTs",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "revision",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "kind"
+   ],
+   "indices": []
+  },
+  "healthExportVersion": {
+   "platform": "ios_only",
+   "reason": "HealthKit sync identifier, fingerprint and version for every sample NOOP exported (GRDB v76). HealthKit is Apple-only, so there is no Room twin.",
+   "columns": [
+    {
+     "name": "id",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "fingerprint",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "revision",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "committed",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": "0"
+    }
+   ],
+   "primaryKey": [
+    "id"
    ],
    "indices": []
   }

@@ -443,6 +443,17 @@ public enum WorkoutsTrace {
             + "distanceM=\(Int(distanceM.rounded())) (filter: accuracy+speed gate)"
     }
 
+    /// One raw GPS fix and what the route filter did with it: `skip` (unusable signal), `hold` (usable but
+    /// not yet movement), `join`, `bridge` (joined across an outage) or `anchor` (starts a segment). It
+    /// carries the measurement quality only, never a coordinate, so the filter thresholds can be tuned
+    /// against a walk of known length. Speed values are nil when Core Location reported them invalid.
+    public static func gpsFixLine(decision: String, accuracyM: Double, speedMps: Double?,
+                                  speedAccuracyMps: Double?, stationary: Bool) -> String {
+        func f(_ v: Double?) -> String { v.map { String(format: "%.2f", $0) } ?? "n/a" }
+        return "gpsfix decision=\(decision) accM=\(f(accuracyM)) speed=\(f(speedMps)) "
+            + "speedAcc=\(f(speedAccuracyMps)) stationary=\(stationary)"
+    }
+
     /// An analytics detected-bout decision line. IntelligenceEngine derives a bout from raw HR/motion for
     /// scoring and enrichment, but never creates or reconciles a visible generic workout from it. A bout
     /// with no real overlap is `analyticsOnly`; one overlapping a manual/imported row is either

@@ -1,5 +1,6 @@
 import Foundation
 import CoreLocation
+import Combine
 import StrandAnalytics   // WorkoutsTrace + TestCentre: the GPS-fix line for the Workouts test mode
 
 // MARK: - GPS workout recording on Apple (#524)
@@ -18,8 +19,8 @@ import StrandAnalytics   // WorkoutsTrace + TestCentre: the GPS-fix line for the
 //                     (precision 5). A byte-for-byte Swift port of Android `com.noop.analytics.RouteMath`
 //                     so a route encoded on one platform decodes identically on the other (the polyline
 //                     round-trips through the same local stores / exports as every other workout value).
-//   • `TrackFilter` — pure, stateful fix gate: drops low-accuracy fixes and physically-impossible jumps,
-//                     mirroring Android `TrackFilter` (50 m accuracy gate, ~12 m/s speed gate). Bounds the
+//   • `TrackFilter` — pure, stateful fix gate: uses stationarity and speed evidence, with a conservative
+//                     uncertainty fallback, and drops inaccurate fixes and impossible jumps. Bounds the
 //                     UNTRUSTED stream of OS location fixes before any of it reaches the stored route.
 //   • `RouteStore`  — a tiny on-device side-store (UserDefaults) keyed by a workout's natural key
 //                     (startTs + sport), holding the encoded polyline, distance, and captured point
@@ -42,7 +43,7 @@ enum RouteMath {
 
     /// One geographic point. Plain `Double` lat/lon — not a `CLLocationCoordinate2D` — so the math stays
     /// platform-free and testable without CoreLocation.
-    struct LatLng: Equatable {
+    struct LatLng: Equatable, Sendable {
         let lat: Double
         let lon: Double
         init(_ lat: Double, _ lon: Double) { self.lat = lat; self.lon = lon }
@@ -65,6 +66,14 @@ enum RouteMath {
         var sum = 0.0
         for i in 1..<points.count { sum += haversineMeters(points[i - 1], points[i]) }
         return sum
+    }
+
+    /// Pauses and missing capture start a new segment; their endpoints are never joined.
+    static func recordedMeters(_ points: [WorkoutRoutePoint]) -> Double {
+        zip(points, points.dropFirst()).reduce(0) { sum, pair in
+            guard (pair.0.segment ?? 0) == (pair.1.segment ?? 0) else { return sum }
+            return sum + haversineMeters(LatLng(pair.0.lat, pair.0.lon), LatLng(pair.1.lat, pair.1.lon))
+        }
     }
 
     /// Seconds per kilometre, or nil when distance is zero (pace undefined). Matches Android.
@@ -143,86 +152,38 @@ enum RouteMath {
     }
 }
 
-// MARK: - TrackFilter (pure; Android parity)
-
-/// A raw GPS reading before filtering. Mirrors Android `RawFix`.
-struct RawFix: Equatable {
-    let lat: Double
-    let lon: Double
-    let accuracyM: Double   // horizontal accuracy radius; < 0 from CoreLocation means "invalid"
-    let tMs: Int64          // fix time, ms since epoch
-}
-
-/// Pure, stateful fix gate: drops low-accuracy fixes and physically-impossible jumps, returning the
-/// accepted point or nil. Keeps the last accepted fix to gate the next. A direct port of Android
-/// `TrackFilter` (so a weak-signal run admits the same legitimate fixes and rejects the same teleports).
-final class TrackFilter {
-    // 50 m is the realistic consumer-GPS gate during activity (Strava-class apps use ~50 m). The speed
-    // gate below still rejects teleports, so the looser accuracy gate admits legitimate running fixes
-    // without letting GPS jumps inflate the track. Identical thresholds to Android (#324).
-    private let maxAccuracyM: Double
-    private let maxSpeedMps: Double   // ~43 km/h; well above running, below GPS teleports
-    private var last: RawFix?
-
-    init(maxAccuracyM: Double = 50, maxSpeedMps: Double = 12) {
-        self.maxAccuracyM = maxAccuracyM
-        self.maxSpeedMps = maxSpeedMps
-    }
-
-    /// Accept a fix or reject it (nil). Rejects: an invalid / too-coarse accuracy, an out-of-range
-    /// coordinate, or a jump from the last accepted fix faster than `maxSpeedMps`.
-    func accept(_ fix: RawFix) -> RouteMath.LatLng? {
-        // CoreLocation reports a negative horizontalAccuracy when the fix is invalid; treat that as a
-        // drop, same as an over-coarse reading. (Android sees 0 for "no accuracy"; we treat < 0 as bad.)
-        if fix.accuracyM < 0 || fix.accuracyM > maxAccuracyM { return nil }
-        guard (-90...90).contains(fix.lat), (-180...180).contains(fix.lon) else { return nil }
-        if let prev = last {
-            let dt = Double(fix.tMs - prev.tMs) / 1000.0
-            if dt > 0 {
-                let d = RouteMath.haversineMeters(RouteMath.LatLng(prev.lat, prev.lon),
-                                                  RouteMath.LatLng(fix.lat, fix.lon))
-                if d / dt > maxSpeedMps { return nil }
-            }
-        }
-        last = fix
-        return RouteMath.LatLng(fix.lat, fix.lon)
-    }
-
-    /// Whether a fix could plausibly follow a point captured earlier, by the same speed rule `accept`
-    /// applies between consecutive fixes.
-    ///
-    /// `accept` cannot answer this at the seam a restored route creates. Seeding `last` with the banked
-    /// point would stall the track for good if the wearer resumed somewhere else, because a rejected fix
-    /// deliberately does NOT advance `last`, so every later fix would be measured against the same stale
-    /// point and dropped. This is the same arithmetic, asked once, without touching the filter's state.
-    func couldFollow(_ fix: RawFix, from lat: Double, _ lon: Double, at fromMs: Int64) -> Bool {
-        let dt = Double(fix.tMs - fromMs) / 1000.0
-        guard dt > 0 else { return false }
-        let d = RouteMath.haversineMeters(RouteMath.LatLng(lat, lon), RouteMath.LatLng(fix.lat, fix.lon))
-        return d / dt <= maxSpeedMps
-    }
-}
-
 // MARK: - RouteStore (on-device side-store)
 
 /// A waypoint with the measurements captured by CoreLocation. Accuracy is horizontal metres and time is
 /// milliseconds since epoch, matching `RawFix` without introducing CoreLocation into persisted data.
-struct WorkoutRoutePoint: Equatable, Codable {
+struct WorkoutRoutePoint: Equatable, Codable, Sendable {
     var lat: Double
     var lon: Double
     var accuracyM: Double
     var tMs: Int64
+    var segment: Int? = nil
+    var activeSeconds: Double? = nil
 }
 
 /// The route persisted for one finished workout: an encoded polyline, its GPS distance, and (when
 /// available) the original per-point measurements. Legacy entries may not carry point metadata.
-struct WorkoutRoute: Equatable, Codable {
+struct WorkoutRoute: Equatable, Codable, Sendable {
     /// Google precision-5 polyline of the captured route (`RouteMath.encode`).
     var polyline: String
     /// Total GPS distance in metres (`RouteMath.totalMeters` of the captured points).
     var distanceM: Double
     /// Original filtered GPS measurements. `nil` for routes saved before this field existed.
     var points: [WorkoutRoutePoint]? = nil
+    var segmentStarts: [Int]? = nil
+
+    var segments: [[RouteMath.LatLng]] {
+        let track = points?.map { RouteMath.LatLng($0.lat, $0.lon) } ?? RouteMath.decode(polyline)
+        guard !track.isEmpty else { return [] }
+        let starts = Set([0] + (segmentStarts ?? [])).filter { track.indices.contains($0) }.sorted()
+        return starts.enumerated().map { index, start in
+            Array(track[start..<(index + 1 < starts.count ? starts[index + 1] : track.count)])
+        }
+    }
 
     /// Whether this route has enough trustworthy per-point data to export as a HealthKit time series.
     /// Legacy routes remain drawable from their polyline but must never be exported with guessed values.
@@ -244,7 +205,7 @@ struct WorkoutRoute: Equatable, Codable {
 /// map. Never leaves the device.
 ///
 /// A point array is around thirteen times the size of the polyline that encodes the same path, roughly 75
-/// bytes of JSON per fix against six, and with `distanceFilter` at 5 m a 10 km run is about 2000 fixes. Kept
+/// bytes of JSON per fix against six. A long workout can retain thousands of fixes. Kept
 /// in the routes map, 400 of those would be tens of megabytes that EVERY `RouteStore.load` decodes in full
 /// to answer one key: the same cost `RouteStore.storeAll` already exists to avoid on the write side, and the
 /// detail screen pays it just to draw a polyline it does not need points for. One key per workout keeps the
@@ -437,9 +398,38 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
     @Published private(set) var paceSecPerKm: Double?
     /// Number of accepted route points so far (lets the UI distinguish "recording, no fix yet" from "off").
     @Published private(set) var pointCount = 0
+    @Published private(set) var lastLocationAt: Date?
+    @Published private(set) var isStationary = false
+    var onAcceptedPoint: ((WorkoutRoutePoint, Double) -> Void)?
+    var onInterruption: (() -> Void)?
+    /// Trustworthy motion observations only; auto-paused sessions keep these, but never route points.
+    var onMotion: ((Bool?, Bool, Date) -> Void)?
+    var onStationary: ((Date) -> Void)?
+    private var observesPausedMotion = false
 
     private let manager = CLLocationManager()
-    private var filter = TrackFilter()
+    private var locationUpdatesTask: Task<Void, Never>?
+    /// Invalidates updates already queued by an older start/resume when its task is cancelled.
+    private var captureGeneration = 0
+    private static let requiresMotionEvidence: Bool = {
+        #if os(iOS)
+        true
+        #else
+        false // Macs may provide precise positioning but no GNSS speed measurement.
+        #endif
+    }()
+    private var filter = TrackFilter(requiresMotionEvidence: GpsWorkoutRecorder.requiresMotionEvidence)
+    private var maxSpeedMps = 12.0
+    private var beginsSegment = true
+    /// Measurements stopped since the last point. The next point is bridged only if the filter can
+    /// explain the jump; otherwise it starts a new segment. Pauses still always start one.
+    private var gapPending = false
+    /// Newest fix that passed the signal gate; one unusable fix is skipped, a run of them is an outage.
+    private var lastUsableFixMs: Int64 = 0
+    /// Seconds without a usable fix before the workout reports the GPS signal as lost.
+    static let signalLossSeconds: Int64 = 15
+    private var segment = 0
+    private var segmentStarts: [Int] = []
     private var track: [RouteMath.LatLng] = []
     /// Accepted points not yet written to the route journal, with their recorded accuracy and time.
     private var unjournaledPoints: [WorkoutRoutePoint] = []
@@ -459,9 +449,8 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
     /// The recorded measurement of every point in `track`, index for index. After a restore from a journal
     /// without measurements it holds fewer, and `capturedRoute` then exports none (#2340).
     private var routePoints: [WorkoutRoutePoint] = []
-    /// The last journaled point a `restore` adopted, until the first fix after it has been judged against it.
-    private var restoredSeam: WorkoutRoutePoint?
     private var startMs: Int64 = 0
+    private var captureNotBeforeMs: Int64 = 0
     private var pausedAtMs: Int64?
     private var pausedDurationMs: Int64 = 0
 
@@ -477,9 +466,8 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyBest
-        // ~5 m between callbacks; TrackFilter still gates on accuracy + speed. Matches the cadence intent
-        // of Android's 2 s / 0 m platform request (let the filter, not the platform, do the gating).
-        manager.distanceFilter = 5
+        // macOS 13 fallback only. Do not suppress short legs before our filter can inspect them.
+        manager.distanceFilter = kCLDistanceFilterNone
         #if os(iOS)
         // Keep the route accruing while the screen is off, matching Android's foreground-service capture.
         // Safe only because the iOS target declares the `location` UIBackgroundMode (project.yml); setting
@@ -490,17 +478,33 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
         #endif
     }
 
+    deinit {
+        locationUpdatesTask?.cancel()
+    }
+
     /// Begin recording a fresh route for a workout started at `startMs` (unix milliseconds). Requests
     /// When-In-Use if not yet decided; fails safe (records nothing) if denied / restricted / unavailable.
-    /// A re-arm resets the track. Returns immediately — fixes arrive asynchronously via the delegate.
-    func start(startMs: Int64) {
+    /// A re-arm resets the track. Returns immediately — fixes arrive on the native async stream (or the
+    /// manager delegate on macOS 13).
+    func start(startMs: Int64, maxSpeedMps: Double = 12) {
+        observesPausedMotion = false
+        stopUpdates()
+        endBackgroundActivity()
         journal.clear()
         unjournaledPoints.removeAll()
         track.removeAll()
         routePoints.removeAll()
-        restoredSeam = nil
-        filter = TrackFilter()
+        self.maxSpeedMps = maxSpeedMps
+        filter = TrackFilter(maxSpeedMps: maxSpeedMps, requiresMotionEvidence: Self.requiresMotionEvidence)
+        beginsSegment = true
+        gapPending = false
+        lastUsableFixMs = 0
+        segment = 0
+        segmentStarts = []
+        lastLocationAt = nil
+        isStationary = false
         self.startMs = startMs
+        captureNotBeforeMs = startMs
         pausedAtMs = nil
         pausedDurationMs = 0
         distanceM = 0
@@ -523,23 +527,27 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
     /// Re-arm a route after restoring an in-flight workout from disk. Route points themselves are not
     /// persisted mid-session, but the original clock and pause accounting must survive so subsequent
     /// live pace excludes all time the workout spent paused before and across the relaunch.
-    func restore(startMs: Int64, pausedAtMs: Int64?, pausedDurationMs: Int64) {
+    func restore(startMs: Int64, pausedAtMs: Int64?, pausedDurationMs: Int64, maxSpeedMps: Double = 12) {
         // Read the journal BEFORE `start`, which clears it for a fresh session.
         let saved = journal.loadMeasured()
-        start(startMs: startMs)
+        start(startMs: startMs, maxSpeedMps: maxSpeedMps)
+        captureNotBeforeMs = max(startMs, Int64(Date().timeIntervalSince1970 * 1000))
         if saved.track.count > 0 {
             track = saved.track
             routePoints = saved.points ?? []
             if let points = saved.points { journal.append(measured: points) } else { journal.append(saved.track) }
-            // Only measured points carry a time, and the seam check needs one.
-            restoredSeam = saved.points?.last
+            // Preserve recorded evidence without inventing movement during the app's absence.
+            segmentStarts = [0] + routePoints.indices.dropFirst().filter {
+                (routePoints[$0].segment ?? 0) != (routePoints[$0 - 1].segment ?? 0)
+            }
+            segment = (routePoints.compactMap(\.segment).max() ?? 0) + 1
             pointCount = track.count
-            distanceM = RouteMath.totalMeters(track)
+            distanceM = saved.points.map(RouteMath.recordedMeters) ?? RouteMath.totalMeters(track)
         }
         self.pausedDurationMs = max(0, pausedDurationMs)
         if let pausedAtMs {
             self.pausedAtMs = pausedAtMs
-            manager.stopUpdatingLocation()
+            stopUpdates()
             endBackgroundActivity()
             state = .paused
         }
@@ -548,12 +556,14 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
     /// Stop recording and return the final accumulated route. Safe to call when not recording (returns
     /// whatever was captured, possibly empty). Tears down location updates so no battery is spent after.
     @discardableResult
-    func stop() -> [RouteMath.LatLng] {
-        manager.stopUpdatingLocation()
+    func stop(preserveJournal: Bool = false) -> [RouteMath.LatLng] {
+        observesPausedMotion = false
+        flushJournal()
+        stopUpdates()
         state = .idle
         endBackgroundActivity()
         let final = track
-        journal.clear()
+        if !preserveJournal { journal.clear() }
         unjournaledPoints.removeAll()
         return final
     }
@@ -567,20 +577,39 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
         lastJournalFlush = Date()
     }
 
-    func pause() {
+    func pause(at now: Date = .now, observingMotion: Bool = false) {
         guard state != .idle, state != .paused else { return }
-        pausedAtMs = Int64(Date().timeIntervalSince1970 * 1000)
-        manager.stopUpdatingLocation()
+        pausedAtMs = Int64(now.timeIntervalSince1970 * 1000)
+        flushJournal()
+        beginNewSegment(measurementGap: false)
+        observesPausedMotion = observingMotion
+        if !observingMotion {
+            stopUpdates()
+            endBackgroundActivity()
+        }
+        state = .paused
+    }
+
+    func stopPausedMotionObservation() {
+        guard pausedAtMs != nil else { return }
+        observesPausedMotion = false
+        stopUpdates()
         endBackgroundActivity()
         state = .paused
     }
 
-    func resume() {
+    func resume(at now: Date = .now) {
         guard startMs > 0 else { return }
+        guard state == .paused || state == .denied || state == .unavailable || state == .failed else { return }
+        let nowMs = Int64(now.timeIntervalSince1970 * 1000)
         if let pausedAtMs {
-            pausedDurationMs += Int64(Date().timeIntervalSince1970 * 1000) - pausedAtMs
+            pausedDurationMs += max(0, nowMs - pausedAtMs)
             self.pausedAtMs = nil
         }
+        observesPausedMotion = false
+        captureNotBeforeMs = max(startMs, nowMs)
+        // An automatic pause kept the sequence alive, so beginUpdates must not leave state as paused.
+        if locationUpdatesTask != nil { state = .acquiring }
         switch manager.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways:
             beginUpdates()
@@ -600,13 +629,27 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
     func capturedRoute() -> WorkoutRoute? {
         guard track.count >= 2 else { return nil }
         return WorkoutRoute(polyline: RouteMath.encode(track),
-                            distanceM: RouteMath.totalMeters(track),
-                            points: routePoints.count == track.count ? routePoints : nil)
+                            distanceM: distanceM,
+                            points: routePoints.count == track.count ? routePoints : nil,
+                            segmentStarts: segmentStarts)
+    }
+
+    private func beginNewSegment(measurementGap: Bool = true, resetFilter: Bool = true) {
+        gapPending = false
+        guard !beginsSegment else { return }
+        if measurementGap { onInterruption?() }
+        beginsSegment = true
+        segment += 1
+        if resetFilter {
+            filter = TrackFilter(maxSpeedMps: maxSpeedMps, requiresMotionEvidence: Self.requiresMotionEvidence)
+        }
+        lastLocationAt = nil
     }
 
     // MARK: Updates
 
     fileprivate func beginUpdates() {
+        guard locationUpdatesTask == nil else { return }
         // Wrapped: a Mac with no location services, or an OEM quirk, must never crash the app — just
         // record nothing. Mirrors Android's try/catch around requestLocationUpdates (#101).
         guard CLLocationManager.locationServicesEnabled() else {
@@ -615,7 +658,119 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
         }
         state = .acquiring
         beginBackgroundActivity()
-        manager.startUpdatingLocation()
+        if #available(iOS 17, macOS 14, *) {
+            let generation = captureGeneration
+            // Weak capture is re-acquired only for one delivery, never across the next suspension.
+            locationUpdatesTask = Task { @MainActor [weak self] in
+                do {
+                    for try await update in CLLocationUpdate.liveUpdates(.fitness) {
+                        guard !Task.isCancelled, let self,
+                              self.captureGeneration == generation else { return }
+                        self.receive(update)
+                    }
+                    guard !Task.isCancelled, let self,
+                          self.captureGeneration == generation else { return }
+                    self.locationUpdatesTask = nil
+                    self.endBackgroundActivity()
+                    self.signalUnavailable()
+                    self.state = .failed
+                } catch {
+                    guard !Task.isCancelled, let self,
+                          self.captureGeneration == generation else { return }
+                    self.locationUpdatesTask = nil
+                    self.endBackgroundActivity()
+                    self.signalUnavailable()
+                    self.state = .failed
+                }
+            }
+        } else {
+            manager.startUpdatingLocation()
+        }
+    }
+
+    private func stopUpdates() {
+        captureGeneration += 1
+        locationUpdatesTask?.cancel()
+        locationUpdatesTask = nil
+        manager.stopUpdatingLocation()
+    }
+
+    @available(iOS 17, macOS 14, *)
+    private func receive(_ update: CLLocationUpdate) {
+        guard state != .idle, state != .paused || observesPausedMotion else { return }
+        if #available(iOS 18, macOS 15, *) {
+            if update.authorizationDeniedGlobally || update.authorizationDenied || update.authorizationRestricted {
+                stopUpdates()
+                endBackgroundActivity()
+                state = update.authorizationDeniedGlobally ? .unavailable : .denied
+                return
+            }
+            if update.authorizationRequestInProgress {
+                state = .requestingPermission
+                return
+            }
+            receiveLocations(update.location.map { [$0] } ?? [], stationary: update.stationary,
+                             locationUnavailable: update.locationUnavailable,
+                             accuracyLimited: update.accuracyLimited)
+            // Preserve the explicit OS signal after the raw-fix callback. Unlike speed alone, this
+            // signal remains valid while Core Location suspends deliveries until movement resumes.
+            if update.stationary { isStationary = true; onStationary?(.now) }
+        } else if let location = update.location {
+            // isStationary is the iOS 17/macOS 14 spelling; newer OSes use stationary above.
+            receiveLocations([location], stationary: update.isStationary)
+            if update.isStationary { isStationary = true; onStationary?(.now) }
+        } else if update.isStationary {
+            isStationary = true
+            onStationary?(.now)
+        } else {
+            signalUnavailable()
+        }
+        // A stationary update without a location is normal. Keep the sequence alive: Core Location
+        // conserves energy while still and automatically delivers again when movement resumes.
+    }
+
+    /// One adapter for native and legacy deliveries; tests can exercise it without a location stream.
+    func receiveLocations(_ locations: [CLLocation], stationary: Bool = false,
+                          locationUnavailable: Bool = false, accuracyLimited: Bool = false) {
+        guard state != .idle, state != .paused || observesPausedMotion else { return }
+        if locationUnavailable || accuracyLimited || (locations.isEmpty && !stationary) {
+            signalUnavailable()
+            return
+        }
+        let fixes = locations.compactMap { location -> RawFix? in
+            let timestampMs = location.timestamp.timeIntervalSince1970 * 1000
+            guard timestampMs.isFinite, timestampMs >= Double(Int64.min),
+                  timestampMs < Double(Int64.max) else { return nil }
+            return RawFix(lat: location.coordinate.latitude, lon: location.coordinate.longitude,
+                          accuracyM: location.horizontalAccuracy, tMs: Int64(timestampMs),
+                          speedMps: location.speed, speedAccuracyMps: location.speedAccuracy,
+                          stationary: stationary)
+        }
+        ingest(fixes)
+    }
+
+    /// A missing signal freezes the retained distance. The next usable fix joins the route only if the
+    /// filter can explain the jump from the last point; otherwise it starts a new segment there.
+    private func signalUnavailable() {
+        markGap()
+        if pausedAtMs == nil { state = track.isEmpty ? .acquiring : .failed }
+        onMotion?(nil, false, .now)
+    }
+
+    /// Test Centre only: one line per raw fix so the thresholds can be checked against a real walk.
+    private func logFix(_ fix: RawFix, decision: String) {
+        guard TestCentre.active(.workouts), let workoutsLog else { return }
+        let valid = fix.hasValidSpeed
+        workoutsLog(WorkoutsTrace.gpsFixLine(decision: decision, accuracyM: fix.accuracyM,
+                                             speedMps: valid ? fix.speedMps : nil,
+                                             speedAccuracyMps: valid ? fix.speedAccuracyMps : nil,
+                                             stationary: fix.stationary))
+    }
+
+    private func markGap() {
+        guard !beginsSegment, !gapPending else { return }
+        gapPending = true
+        onInterruption?()
     }
 
     private func beginBackgroundActivity() {
@@ -637,7 +792,7 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
         // Armed = started and not paused. A fix CoreLocation actually delivered is real even if the state
         // still reads requesting/denied/failed (callback order is not guaranteed); accepting it moves the
         // state to `.recording` below.
-        guard state != .idle, state != .paused else { return }
+        guard state != .idle, state != .paused || observesPausedMotion else { return }
         rawFixCount += fixes.count
         var changed = false
         var added = 0.0
@@ -645,40 +800,76 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
            TestCentre.active(.workouts), let workoutsLog {
             workoutsLog(WorkoutsTrace.gapLine(stream: "gps", gapSec: Int((first.tMs - lastFixMs) / 1000)))
         }
-        if let last = fixes.last { lastFixMs = max(lastFixMs, last.tMs) }
         for fix in fixes {
-            if let pt = filter.accept(fix) {
-                if let seam = restoredSeam {
-                    restoredSeam = nil
-                    if !filter.couldFollow(fix, from: seam.lat, seam.lon, at: seam.tMs) {
-                        // The wearer is somewhere the journaled route cannot reach at running speed, so
-                        // joining would add that jump to `distanceM` and draw a straight line across
-                        // ground the strap never saw — the same lie `hrGapSegments` exists to refuse.
-                        // Drop the restored prefix instead: the worst case is a route that begins at
-                        // relaunch rather than a long invented one.
-                        workoutsLog?("gps route: dropped the journaled prefix, the first fix after restore "
-                                     + "is further from it than running speed allows")
-                        track.removeAll()
-                        routePoints.removeAll()
-                        distanceM = 0
-                        pointCount = 0
-                        journal.clear()
-                        unjournaledPoints.removeAll()
-                    }
-                }
-                // Distance grows by the new leg only; summing the whole route on every fix made a long
-                // session steadily more expensive, and that work runs in the background too.
-                if let last = track.last { added += RouteMath.haversineMeters(last, pt) }
-                track.append(pt)
-                let measured = WorkoutRoutePoint(lat: fix.lat, lon: fix.lon,
-                                                 accuracyM: fix.accuracyM, tMs: fix.tMs)
-                routePoints.append(measured)
-                unjournaledPoints.append(measured)
-                changed = true
+            guard fix.tMs >= captureNotBeforeMs, fix.tMs > lastFixMs else { continue }
+            let measuredAt = Date(timeIntervalSince1970: Double(fix.tMs) / 1000)
+            let age = Date.now.timeIntervalSince(measuredAt)
+            if age >= 0, age <= 5, fix.accuracyM.isFinite, (0...25).contains(fix.accuracyM) {
+                let stopped = fix.stationary || (fix.hasValidSpeed && (fix.speedMps ?? 0) + (fix.speedAccuracyMps ?? 0) <= 0.3)
+                let moving = !fix.stationary && fix.hasValidSpeed && (fix.speedMps ?? 0) - (fix.speedAccuracyMps ?? 0) >= 0.8
+                    && (fix.speedMps ?? 0) <= maxSpeedMps
+                onMotion?(stopped ? true : nil, moving, measuredAt)
+            } else {
+                onMotion?(nil, false, .now)
             }
+            // Motion callbacks may have paused or resumed this session. Never capture a paused fix.
+            if pausedAtMs != nil { lastFixMs = fix.tMs; continue }
+            if lastFixMs > 0, fix.tMs - lastFixMs > 10_000 { markGap() }
+            lastFixMs = fix.tMs
+            isStationary = fix.stationary || (fix.hasValidSpeed
+                && (fix.speedMps ?? 0) + (fix.speedAccuracyMps ?? 0) <= 0.3)
+            let usable = filter.hasUsableSignal(fix)
+            if !usable {
+                // OpenTracks' rule: an untrusted fix is skipped, not an outage. Only a run of them is.
+                logFix(fix, decision: "skip")
+                if lastUsableFixMs == 0 || fix.tMs - lastUsableFixMs > Self.signalLossSeconds * 1000 {
+                    markGap()
+                    if !track.isEmpty, state == .recording { state = .failed }
+                }
+                continue
+            }
+            lastUsableFixMs = fix.tMs
+            // CLLocationManager can immediately replay a cached location. A point measured before the
+            // workout is not part of its route; admitting it makes the first current fix look like real
+            // movement and can create tens of metres while the phone never moved.
+            let admission = filter.admit(fix, notBeforeMs: captureNotBeforeMs, afterGap: gapPending)
+            let pt: RouteMath.LatLng
+            switch admission {
+            case .rejected:
+                logFix(fix, decision: "hold")
+                if !track.isEmpty, state == .failed { state = .recording }
+                continue
+            case .joined(let point):
+                logFix(fix, decision: gapPending ? "bridge" : "join")
+                pt = point
+            case .anchored(let point):
+                logFix(fix, decision: "anchor")
+                // The filter already holds this fix as its anchor; a reset would forget it.
+                if !beginsSegment { beginNewSegment(measurementGap: false, resetFilter: false) }
+                pt = point
+            }
+            gapPending = false
+            // Distance grows by the new leg only; summing the whole route on every fix made a long
+            // session steadily more expensive, and that work runs in the background too.
+            if beginsSegment {
+                segmentStarts.append(track.count)
+                beginsSegment = false
+            } else if let last = track.last { added += RouteMath.haversineMeters(last, pt) }
+            track.append(pt)
+            let measured = WorkoutRoutePoint(lat: fix.lat, lon: fix.lon,
+                                             accuracyM: fix.accuracyM, tMs: fix.tMs,
+                                             segment: segment,
+                                             activeSeconds: max(0, RouteMath.activeElapsedSeconds(
+                                                startMs: startMs, nowMs: fix.tMs,
+                                                pausedDurationMs: pausedDurationMs)))
+            routePoints.append(measured)
+            unjournaledPoints.append(measured)
+            lastLocationAt = Date(timeIntervalSince1970: Double(fix.tMs) / 1000)
+            onAcceptedPoint?(measured, distanceM + added)
+            state = .recording
+            changed = true
         }
         guard changed else { return }
-        state = .recording
         pointCount = track.count
         distanceM += added
         if Date().timeIntervalSince(lastJournalFlush) >= Self.journalFlushIntervalSeconds { flushJournal() }
@@ -708,13 +899,13 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
 extension GpsWorkoutRecorder: @preconcurrency CLLocationManagerDelegate {
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        guard state != .idle, state != .paused else { return }
+        guard state != .idle, state != .paused || observesPausedMotion else { return }
         switch manager.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways:
             beginUpdates()
         case .denied, .restricted:
             // Revoked mid-session: stop streaming but keep whatever route was captured so far (honest).
-            manager.stopUpdatingLocation()
+            stopUpdates()
             endBackgroundActivity()
             state = .denied
         default:
@@ -723,15 +914,9 @@ extension GpsWorkoutRecorder: @preconcurrency CLLocationManagerDelegate {
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        // CoreLocation hands us an UNTRUSTED batch — map to RawFix and let TrackFilter bound-check every
-        // field (accuracy, coordinate range, speed) before any of it reaches the stored route.
-        let fixes: [RawFix] = locations.map {
-            RawFix(lat: $0.coordinate.latitude,
-                   lon: $0.coordinate.longitude,
-                   accuracyM: $0.horizontalAccuracy,
-                   tMs: Int64($0.timestamp.timeIntervalSince1970 * 1000))
-        }
-        ingest(fixes)
+        // The manager is only a permission observer on modern OSes; never feed two location streams.
+        if #available(iOS 17, macOS 14, *) { return }
+        receiveLocations(locations)
     }
 
     /// CoreLocation decided on its own to stop delivering (it should not with
@@ -749,13 +934,16 @@ extension GpsWorkoutRecorder: @preconcurrency CLLocationManagerDelegate {
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        guard state != .idle, state != .paused || observesPausedMotion else { return }
+        if #available(iOS 17, macOS 14, *) { return }
         // `locationUnknown` is the ordinary "no first fix yet" state and self-heals. Other failures are
         // surfaced to the workout UI without throwing away points already captured; a later accepted fix
         // returns the state to `.recording`.
         if let error = error as? CLError, error.code == .locationUnknown {
-            if state != .recording { state = .acquiring }
+            signalUnavailable()
             return
         }
+        markGap()
         state = .failed
     }
 }

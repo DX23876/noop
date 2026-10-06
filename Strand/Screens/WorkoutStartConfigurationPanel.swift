@@ -9,8 +9,12 @@ struct WorkoutStartConfigurationPanel: View {
     @Binding var gpsEnabled: Bool
     let actionVerb: String
     let onStart: () -> Void
-    /// Spoken splits and recap (`WorkoutVoiceCoach`); on by default, remembered for the next workout.
-    @AppStorage(WorkoutVoiceCoach.enabledKey) private var voiceEnabled = true
+    var targetZone: Int? = nil
+    /// Announcements are opt-in and remembered; detailed choices share the in-workout settings.
+    @AppStorage(WorkoutVoiceCoach.enabledKey) private var voiceEnabled = false
+    @State private var showsFeedbackSettings = false
+    @State private var showsPlan = false
+    @AppStorage(WorkoutGuidancePreferences.enabledKey) private var planEnabled = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.space3) {
@@ -58,9 +62,7 @@ struct WorkoutStartConfigurationPanel: View {
                         Label("Voice feedback", systemImage: "speaker.wave.2.fill")
                             .font(StrandFont.subhead)
                             .foregroundStyle(StrandPalette.textPrimary)
-                        Text(sport.supportsRoute && gpsEnabled
-                             ? "Pace, time and heart rate after every kilometer, through headphones."
-                             : "Time and heart rate every ten minutes, through headphones.")
+                        Text("Offline, through headphones unless you allow the speaker.")
                             .font(StrandFont.footnote)
                             .foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -68,6 +70,16 @@ struct WorkoutStartConfigurationPanel: View {
                 }
                 .toggleStyle(.switch)
                 .tint(StrandPalette.accent)
+                HStack(spacing: NoopMetrics.space3) {
+                    Button("Workout settings", systemImage: "slider.horizontal.3") { showsFeedbackSettings = true }
+                    Spacer(minLength: 0)
+                    Button("Training plan", systemImage: "list.number") { showsPlan = true }
+                }
+                .font(StrandFont.footnote).frame(minHeight: 44).tint(StrandPalette.accent)
+                if planEnabled, WorkoutGuidancePreferences.plan(gpsEnabled: gpsEnabled) != nil {
+                    Text("A copy of your selected plan starts with this workout.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                }
             }
 
             Button(action: onStart) {
@@ -80,5 +92,10 @@ struct WorkoutStartConfigurationPanel: View {
         .padding(NoopMetrics.space4)
         .background(NoopPanelSurface(tint: StrandPalette.effortColor,
                                      cornerRadius: NoopMetrics.cardRadius, elevated: true))
+        .sheet(isPresented: $showsFeedbackSettings) {
+            WorkoutFeedbackSettingsView(sport: sport.name, gpsEnabled: gpsEnabled,
+                                        hasTargetZone: targetZone != nil)
+        }
+        .sheet(isPresented: $showsPlan) { WorkoutPlanEditorView(gpsEnabled: gpsEnabled) }
     }
 }

@@ -120,7 +120,8 @@ struct WorkoutSelectionScreen: View {
                         sport: selectedSport,
                         gpsEnabled: $gpsEnabled,
                         actionVerb: actionVerb,
-                        onStart: startSelected
+                        onStart: startSelected,
+                        targetZone: offersZoneTraining ? targetZone : nil
                     )
                     .padding(.horizontal, NoopMetrics.screenPadding)
                     .padding(.vertical, NoopMetrics.space3)

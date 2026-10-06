@@ -6,6 +6,14 @@ import XCTest
 /// full ZIP-container round trip through `DataBackup` lives in the app target's
 /// `BackupSyncRoundTripTests` (central build).
 final class BackupSettingsTests: XCTestCase {
+    func testWorkoutTemplatesAndSelectedPlanRoundTripWithoutEnablingFeedback() throws {
+        let values: [String: Any] = ["workout.guidance.plan": "{\"phases\":[]}",
+                                    "workout.guidance.templates": "[]", "workout.voice.speaker": 1]
+        let restored = BackupSettings.decode(try XCTUnwrap(BackupSettings.encode(values)))
+        XCTAssertEqual(restored["workout.guidance.plan"] as? String, values["workout.guidance.plan"] as? String)
+        XCTAssertEqual(restored["workout.guidance.templates"] as? String, "[]")
+        XCTAssertNil(restored["workout.voice.speaker"], "Restore must not silently opt into speaker audio")
+    }
 
     // MARK: - Encode / decode round trip
 

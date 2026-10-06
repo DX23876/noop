@@ -12,6 +12,12 @@ struct LiveWorkoutZoneSection: View {
     let timeInZone: TimeInZone
     /// Target-zone coaching line ("In target zone"), nil without a target.
     let coachStatus: String?
+    var recordedSeconds: [Double]? = nil
+
+    private var seconds: [Double] {
+        if let recordedSeconds, recordedSeconds.count == 5 { return recordedSeconds }
+        return (1...5).map { timeInZone.seconds(inZone: $0) }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.space3) {
@@ -25,7 +31,8 @@ struct LiveWorkoutZoneSection: View {
                     LiveWorkoutZoneBar(number: number,
                                        isCurrent: number == zone,
                                        isTarget: number == targetZone,
-                                       seconds: Int(timeInZone.seconds(inZone: number)))
+                                       seconds: Int(seconds[number - 1]),
+                                       share: seconds[number - 1] / max(1, seconds.reduce(0, +)))
                 }
             }
 

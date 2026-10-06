@@ -148,6 +148,23 @@ extension WhoopStore {
         }
     }
 
+    /// Successfully queried Health owns only its imported waist window, including deletions.
+    public func replaceHealthWaistSnapshot(_ rows: [LabMarkerRow], from: String, to: String) async throws {
+        try syncWrite { db in
+            let old = try Row.fetchAll(db, sql: "SELECT day FROM labMarker WHERE deviceId = 'apple-health' AND source = 'apple-health' AND markerKey = 'waist' AND day >= ? AND day <= ?", arguments: [from, to])
+            var touched = Set(old.map { DayCell(deviceId: "apple-health", markerKey: "waist", day: $0["day"]) })
+            try db.execute(sql: "DELETE FROM labMarker WHERE deviceId = 'apple-health' AND source = 'apple-health' AND markerKey = 'waist' AND day >= ? AND day <= ?", arguments: [from, to])
+            for row in rows where row.day >= from && row.day <= to {
+                try db.execute(sql: """
+                    INSERT INTO labMarker(id, deviceId, markerKey, category, day, takenAt, value, unit, source)
+                    VALUES (?, 'apple-health', 'waist', ?, ?, ?, ?, ?, 'apple-health')
+                    """, arguments: [row.id, row.category, row.day, row.takenAt, row.value, row.unit])
+                touched.insert(DayCell(deviceId: "apple-health", markerKey: "waist", day: row.day))
+            }
+            try reprojectCells(db, cells: touched)
+        }
+    }
+
     // MARK: - Reads
 
     /// All readings in a category, oldest first (by takenAt). Served by

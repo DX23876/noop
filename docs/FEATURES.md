@@ -76,6 +76,19 @@ round can offer GPS without silently enabling it and a treadmill run never asks 
 sheet shows the route choice before recording; the live screen keeps a route-status card visible while
 requesting permission, finding a fix, recording, paused or unavailable.
 
+GPS capture uses Core Location's native `.fitness` live updates on iOS 17+/macOS 14+ (the manager
+fallback remains for macOS 13). System-confirmed stillness does not add distance. Valid speed and its
+accuracy can preserve short walking legs and corners; absent or uncertain motion data uses a
+conservative overlapping-accuracy fallback. The 0.3 m/s motion threshold and overlap rule are app
+heuristics, not an Apple standard, and weak GPS can still under-record slow movement. Invalid fixes,
+accuracy worse than 50 m, non-increasing timestamps and pre-start/pre-resume cached fixes are rejected.
+This follows Apple's guidance to [filter route measurements before saving them](https://developer.apple.com/documentation/healthkit/creating-a-workout-route)
+and use the [fitness configuration](https://developer.apple.com/documentation/corelocation/cllocationupdate/liveconfiguration/fitness);
+it does not claim Apple Watch-equivalent accuracy. A stationary native update keeps the stream alive
+so Core Location can resume delivery when movement returns. Pause/end cancels the stream, and an older
+capture generation cannot deliver into a restarted workout. Real-device stationary, slow-walk, corner
+and locked-screen validation remains necessary; synthetic tests cannot verify satellite reception.
+
 On iPhone, starting and ending the matching HealthKit workout is race-safe when the app backgrounds or
 the user ends quickly. Pause releases the background Core Location session and resumes it only on an
 explicit workout resume. The Lock Screen and Dynamic Island use the activity's sport icon, update from
@@ -1149,3 +1162,97 @@ feed, refresh battery, scan/reconnect, or disconnect.
   after dismissing every message; metric navigation follows card opacity. Effort loads independently,
   retains the selected day in detail, and waits with a faint orange ring and the same "–" every empty ring shows.
   Analysis migration required: no.
+
+### Live workout recording — stage 1 (2026-10-06)
+
+- Current pace/speed uses up to 30 seconds of fresh GPS; the workout average is separate.
+- The live number retains the last computed pace/speed until another valid measurement can replace it,
+  including across signal gaps and pause/resume. No updating label or temporary dash replaces a known
+  number. Before the first valid calculation it remains unavailable; a new workout clears the held value.
+  This in-memory display value never supplies pace warnings, speech, distance or saved workout evidence;
+  those continue to require their existing fresh measurements.
+- GPS pauses, missing capture and relaunches start separate route segments, without connecting their endpoints.
+- On iPhone, live route admission requires trustworthy motion evidence and at most 25 m positional
+  uncertainty; coordinate changes alone never count as movement, even at reported good accuracy.
+  The macOS positioning fallback permits at most 10 m for coordinate-only evidence. Coarse positions without movement evidence never become
+  a starting anchor or distance. Explicit unavailable/approximate Core Location updates are not ingested.
+  An interrupted or rejected-quality signal freezes retained distance; the next usable fix only sets a
+  new segment anchor, never adds a recovery jump. Measured speed also constrains plausible position jumps.
+  These are conservative app heuristics, not Apple-mandated thresholds; weak reception can under-record.
+- New recordings retain distance splits (including a final partial section), independent manual laps,
+  original zone bounds, measured zone durations and pause history. Historical sections are not fabricated.
+- The completion summary distinguishes saving, saved and retryable failure. A local recovery file precedes
+  stopping capture; short recordings offer explicit save/discard choices.
+- New recording evidence lives beside its workout in SQLite, survives database backup and merge/rekey,
+  and is removed with workout deletion. The legacy 400-route defaults store is not used for new recordings.
+- Recorded GPX exports retain real point times and separate track segments; recorded FIT exports carry
+  real times and active duration. Display of gaps by third-party apps is not guaranteed.
+- Stage 1 iOS and macOS integration builds passed; physical iPhone behavior checks, visual verification,
+  legacy-route backup migration and storage controls remain pending.
+
+Analysis migration required: no — prospective capture and additive evidence only. Existing scores, raw
+samples, corrections, historical routes and analysis recipe versions are not rewritten.
+
+### Live workout guidance — stages 2 and 3 (2026-10-06)
+
+Extends the existing recording flow; does not introduce a second recorder or change workout scoring.
+
+- Three focused pages: metrics, recorded heart-rate zones and sections. iPhone supports swiping;
+  the page picker and persistent pause/end controls also work on macOS. The centered timer adapts to
+  available width and Dynamic Type, with spoken elapsed time for VoiceOver.
+- Opt-in offline iPhone announcements in the app language: distance intervals of 0.5/1/2 km or miles,
+  or time-only intervals of 5/10/15 minutes. Missing fresh GPS uses time feedback, never estimated pace.
+  Matching recorded splits speak their actual split pace/speed and measured average heart rate;
+  other intervals identify current pace/speed. Music ducking is released after each utterance.
+  Headphones are the default; speaker output requires explicit opt-in, and a disconnected output
+  cancels the current utterance. Speech is not provided by the macOS implementation.
+- Optional target-zone and GPS pace/speed warnings require
+  ten seconds of fresh out-of-range evidence and are limited to one phone warning per minute.
+  Pauses, stale readings and configuration changes reset the dwell. The existing HR ceiling coach
+  outranks increase-intensity advice, and target-zone strap coaching does not add a duplicate phone buzz.
+  Minimized visual notifications are separately opt-in and subject to OS authorization/delivery.
+- Cadence warnings are removed from settings and disabled even for an earlier opt-in. Their decoder,
+  range engine and saved choices remain for later work; independent cadence sensor pairing and
+  simultaneous WHOOP/sensor operation are not supported by this feature yet.
+- Optional GPS running/cycling auto-pause waits five seconds of trustworthy stopped evidence and
+  resumes only after three seconds of trustworthy movement. Auto-paused capture retains motion
+  observation without recording paused distance. A manual pause or restored paused session never
+  auto-resumes; disabling auto-pause leaves the paused session under manual control.
+- Local warm-up/work/recovery/cool-down plans support active-time or measured-distance goals,
+  named templates and editing only future phases during a workout. Race-guarded edits preserve
+  the current phase and recorded history. Missing GPS stalls distance phases, and completing a plan
+  does not end recording. The same measured/skipped phase history appears live and in summary/detail.
+  Plan/template data participates in settings backup; restoring it does not enable speech or auto-pause.
+- A separate optional pacer compares measured GPS distance with a goal time, excluding pause time.
+  It is not combined with an interval plan and becomes unavailable after an unknown route gap.
+- Completion can identify a faster full recorded 1 km/1 mile split against the earlier, retained NOOP
+  recording history of the same sport and split length. Paused/gapped workouts, partial splits, imported
+  averages, first baselines and displayed-second ties are excluded. No all-time cross-app record is claimed.
+- Existing consent-gated Apple Health writeback uses unchanged original recording evidence for exact
+  start/end times, pause/resume/lap/interval-segment events and one real-sport workout activity.
+  Edited/merged envelopes do not inherit a fabricated event clock. SQLite recording routes can be
+  exported; Apple Fitness presentation of event/route gaps still needs physical-device verification.
+
+Final iOS (signed) and macOS integration builds passed, and the update installed and launched on the
+physical iPhone. Visual/device behavior checks remain pending; launch is not evidence that GPS,
+background execution, audio routing, Health export or notification delivery works correctly.
+
+Analysis migration required: no — prospective capture, additive local guidance/evidence and presentation
+only. No historical scoring, source precedence, analysis windows, baselines or recipe version changes.
+
+### Apple Health reconciliation (2026-10-06)
+
+Health import preserves historical activity/vitals when fetching older body measurements, chooses
+one sleep source per night, and reconciles deleted Health workouts by their UUID. Failed reads retain
+previous values and retry without advancing the Health anchor. Read-only integration resumes after
+restart.
+
+Health export uses stable sync identifiers and persistent versions for quantities, sleep stages and
+workouts. Changes and deletions remain pending across restarts, including late HR offloads and Undo.
+Workouts include retained WHOOP devices, captured pause events, active energy, distance and routes;
+unchanged exports are skipped. Replacement saves precede legacy cleanup.
+
+Analysis migration required: **yes**, recipe **AI-19**. Historical Apple projections are repaired from
+retained values in resumable batches; Health history is refreshed in 31-day windows. No raw samples
+or manual sleep/workout corrections are removed. Real-device validation is still required for
+HealthKit authorization, background delivery, Fitness rendering and route associations.

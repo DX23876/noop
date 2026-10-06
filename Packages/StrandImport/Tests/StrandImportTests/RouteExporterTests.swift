@@ -7,6 +7,19 @@ import XCTest
 /// in either format is caught in `swift-packages` CI. The Kotlin twin (`RouteExportTest`) asserts the same.
 final class RouteExporterTests: XCTestCase {
 
+    func testRecordedGpxPreservesActualTimesAndSegmentGaps() {
+        let points = [RoutePoint(lat: 50, lon: 8), RoutePoint(lat: 50.001, lon: 8),
+                      RoutePoint(lat: 51, lon: 9), RoutePoint(lat: 51.001, lon: 9)]
+        let gpx = RouteExporter.buildGpx(route: points, startTs: 1_723_000_000,
+            endTs: 1_723_000_100, sport: "running",
+            recordedTimes: [1_723_000_010, 1_723_000_020, 1_723_000_080, 1_723_000_090],
+            segmentStarts: [0, 2])
+        XCTAssertEqual(gpx.components(separatedBy: "<trkseg>").count - 1, 2)
+        XCTAssertTrue(gpx.contains(RouteExporter.iso(1_723_000_020)))
+        XCTAssertTrue(gpx.contains(RouteExporter.iso(1_723_000_080)))
+        XCTAssertFalse(gpx.contains(RouteExporter.iso(1_723_000_100)))
+    }
+
     private let route = [
         RoutePoint(lat: 37.334900, lon: -122.009000),
         RoutePoint(lat: 37.335200, lon: -122.008400),

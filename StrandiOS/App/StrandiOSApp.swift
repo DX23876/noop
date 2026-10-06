@@ -181,7 +181,7 @@ struct StrandiOSApp: App {
             let succeeded = await bridge.writeBackAfterNewData()
             // A person can revoke every write type in Settings while NOOP is closed. Stop requesting
             // wakes once the cold-launched bridge can no longer resume a prior share grant.
-            if bridge.auth != .authorized {
+            if !bridge.hasWriteAuthorization {
                 HealthWritebackBackgroundScheduler.cancel()
             }
             return succeeded
@@ -247,7 +247,7 @@ struct StrandiOSApp: App {
                         kg,
                         lastImported: health.latestImportedWeightKg,
                         lastSelfWritten: health.lastSelfWrittenWeightKg) else { return }
-                    Task { try? await health.writeWeight(kg: kg) }
+                    Task { await health.writeWeightReportingFailure(kg: kg) }
                 }
                 // A weigh-in recorded anywhere in the app mirrors into Health under its own day.
                 // One observer rather than a call at each write
@@ -256,7 +256,7 @@ struct StrandiOSApp: App {
                 .onReceive(NotificationCenter.default.publisher(for: .noopWeightLogged)) { note in
                     guard let logged = WeightLogNotification(note) else { return }
                     Task {
-                        try? await health.writeWeight(kg: logged.kg, day: logged.day)
+                        await health.writeWeightReportingFailure(kg: logged.kg, day: logged.day)
                         // …and the profile follows the series, wherever the weigh-in was made. A
                         // back-dated entry moves nothing: the reconciler takes the NEWEST reading,
                         // not the one just written.
@@ -453,7 +453,7 @@ struct StrandiOSApp: App {
                     await model.refreshCurrentDayActivity()
                     health.refreshAuthIfPreviouslyGranted()
                     HealthWritebackBackgroundScheduler.updateSchedule(
-                        isAuthorized: health.auth == .authorized)
+                        isAuthorized: health.hasWriteAuthorization)
                     await HealthSyncRefreshCoordinator.run(
                         sync: { await health.sync() },
                         refresh: {
@@ -478,7 +478,7 @@ struct StrandiOSApp: App {
                 Task { await model.coach.unloadSemanticMemory() }
                 // Re-submit on every transition because iOS may discard an old best-effort request.
                 HealthWritebackBackgroundScheduler.updateSchedule(
-                    isAuthorized: health.auth == .authorized)
+                    isAuthorized: health.hasWriteAuthorization)
                 // #1538: same reasoning for the re-score continuation, plus one case of its own. A pass
                 // can be left owed with NOTHING scheduled — a foreground pass killed by a force-quit
                 // never runs the deferral path that submits the request, and iOS can discard a request

@@ -6,6 +6,32 @@ import StrandAnalytics
 /// come from the system rather than from per-language string building; only the short sentence frames
 /// ("Pace %@ per kilometer.") live in the string catalog.
 enum WorkoutAnnouncementText {
+    /// Current motion is explicitly named; missing GPS never turns elapsed time into a made-up pace.
+    static func feedback(distanceMeters: Double?, elapsedSeconds: Int, speedMps: Double?, bpm: Int?,
+                         usesSpeed: Bool, system: UnitSystem, splitSpeedMps: Double? = nil,
+                         splitAverageBpm: Int? = nil) -> String {
+        var parts: [String] = []
+        if let distanceMeters { parts.append(distance(distanceMeters, system: system) + ".") }
+        parts.append(String(localized: "Time \(duration(elapsedSeconds))."))
+        if let motion = splitSpeedMps ?? speedMps, motion.isFinite, motion > 0 {
+            if usesSpeed {
+                let value = speed(motion, system: system)
+                parts.append(splitSpeedMps != nil ? String(localized: "Split speed \(value).")
+                                                : String(localized: "Current speed \(value)."))
+            } else {
+                let perUnit = Int(((system == .imperial ? 1609.344 : 1000) / motion).rounded())
+                if splitSpeedMps != nil { parts.append(pace(secondsPerSplit: perUnit, system: system)) }
+                else {
+                    parts.append(system == .imperial
+                        ? String(localized: "Current pace \(duration(perUnit)) per mile.")
+                        : String(localized: "Current pace \(duration(perUnit)) per kilometer."))
+                }
+            }
+        }
+        if let averageBpm = splitAverageBpm { parts.append(String(localized: "Average heart rate \(averageBpm).")) }
+        else if let bpm { parts.append(String(localized: "Heart rate \(bpm).")) }
+        return parts.joined(separator: " ")
+    }
     /// The language NOOP's UI runs in, which is also the voice's language.
     static var appLocale: Locale {
         Locale(identifier: Bundle.main.preferredLocalizations.first ?? Locale.current.identifier)
@@ -31,6 +57,14 @@ enum WorkoutAnnouncementText {
         return measurement.formatted(.measurement(width: .wide, usage: .asProvided,
                                                   numberFormatStyle: .number.precision(.fractionLength(0...1)))
             .locale(locale))
+    }
+
+    static func speed(_ metersPerSecond: Double, system: UnitSystem, locale: Locale = appLocale) -> String {
+        let value = system == .imperial
+            ? Measurement(value: metersPerSecond * 2.2369362921, unit: UnitSpeed.milesPerHour)
+            : Measurement(value: metersPerSecond * 3.6, unit: UnitSpeed.kilometersPerHour)
+        return value.formatted(.measurement(width: .wide, usage: .asProvided,
+            numberFormatStyle: .number.precision(.fractionLength(0...1))).locale(locale))
     }
 
     /// The pace sentence, per kilometre or per mile.
@@ -59,7 +93,7 @@ enum WorkoutAnnouncementText {
         var parts = ["\(distance(Double(index) * splitMeters, system: system, locale: locale)).",
                      pace(secondsPerSplit: secondsPerSplit, system: system, locale: locale),
                      String(localized: "Time \(duration(elapsedSeconds, locale: locale)).")]
-        if let averageBpm { parts.append(String(localized: "Heart rate \(averageBpm).")) }
+        if let averageBpm { parts.append(String(localized: "Average heart rate \(averageBpm).")) }
         if let zoneLine { parts.append(zoneLine) }
         return parts.joined(separator: " ")
     }
@@ -76,19 +110,23 @@ enum WorkoutAnnouncementText {
 
     /// The end-of-workout recap: distance, time and average pace with a route, time alone without one.
     static func summary(elapsedSeconds: Int, distanceMeters: Double?, system: UnitSystem,
-                        locale: Locale = appLocale) -> String {
+                        locale: Locale = appLocale, usesSpeed: Bool = false, averageBpm: Int? = nil) -> String {
         let time = duration(elapsedSeconds, locale: locale)
         var parts = [String(localized: "Workout ended.")]
         let splitMeters = system == .imperial ? 1_609.344 : 1_000
         if let distanceMeters, distanceMeters >= 100 {
             parts.append(String(localized: "\(distance(distanceMeters, system: system, locale: locale)) in \(time)."))
             let perSplit = Int((Double(elapsedSeconds) / (distanceMeters / splitMeters)).rounded())
-            parts.append(system == .imperial
+            if usesSpeed, elapsedSeconds > 0 {
+                let value = speed(distanceMeters / Double(elapsedSeconds), system: system, locale: locale)
+                parts.append(String(localized: "Average speed \(value)."))
+            } else { parts.append(system == .imperial
                 ? String(localized: "Average pace \(duration(perSplit, locale: locale)) per mile.")
-                : String(localized: "Average pace \(duration(perSplit, locale: locale)) per kilometer."))
+                : String(localized: "Average pace \(duration(perSplit, locale: locale)) per kilometer.")) }
         } else {
             parts.append(String(localized: "Time \(time)."))
         }
+        if let averageBpm { parts.append(String(localized: "Average heart rate \(averageBpm).")) }
         return parts.joined(separator: " ")
     }
 }

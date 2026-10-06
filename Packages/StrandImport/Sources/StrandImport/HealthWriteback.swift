@@ -404,3 +404,17 @@ public enum HealthWriteback {
         swept.union(succeededThisRun)
     }
 }
+
+extension HealthWriteback {
+    /// A complete source window may retire only owned, keyed facts it no longer supplies. Open nights
+    /// are held with their previous Health values, including when the current daily row disappeared.
+    public static func retiredVitalKeys(existing: [String], keeping: Set<String>, metricId: String,
+                                         fromDay: String, toDay: String, holdingDays: Set<String>) -> Set<String> {
+        let prefix = "noop:" + metricId + ":"
+        return Set(existing.filter { key in
+            guard key.hasPrefix(prefix), !keeping.contains(key) else { return false }
+            let day = String(key.dropFirst(prefix.count))
+            return day.count == 10 && day >= fromDay && day <= toDay && !holdingDays.contains(day)
+        })
+    }
+}

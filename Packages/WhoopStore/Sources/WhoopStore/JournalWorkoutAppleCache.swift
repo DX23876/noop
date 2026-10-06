@@ -153,7 +153,16 @@ extension WhoopStore {
         try syncWrite { db in
             var n = 0
             for r in rows {
-                try db.execute(sql: """
+                try Self.writeWorkout(r, deviceId: deviceId, in: db)
+                n += db.changesCount
+            }
+            return n
+        }
+    }
+
+    /// Shared by normal upserts and the atomic recorded-workout transaction.
+    static func writeWorkout(_ r: WorkoutRow, deviceId: String, in db: Database) throws {
+        try db.execute(sql: """
                     INSERT INTO workout
                         (deviceId, startTs, endTs, sport, source, durationS, energyKcal,
                          avgHr, maxHr, strain, distanceM, zonesJSON, notes, steps)
@@ -173,10 +182,6 @@ extension WhoopStore {
                     """, arguments: [deviceId, r.startTs, r.endTs, r.sport, r.source, r.durationS,
                                      r.energyKcal, r.avgHr, r.maxHr, r.strain, r.distanceM,
                                      r.zonesJSON, r.notes, r.steps])
-                n += db.changesCount
-            }
-            return n
-        }
     }
 
     /// Delete one source's workouts of a given sport whose startTs is in [from, to]. Automatic
