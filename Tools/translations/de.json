@@ -2681,5 +2681,9 @@
   "%lld / %lld min": "%lld / %lld Min.",
   "%lld of %lld done": "%lld von %lld erledigt",
   "Reached today": "Heute erreicht",
-  "Steps, sleep or active calories: your day's progress shows up here.": "Schritte, Schlaf oder aktive Kalorien: Hier siehst du, wie weit du heute bist."
+  "Steps, sleep or active calories: your day's progress shows up here.": "Schritte, Schlaf oder aktive Kalorien: Hier siehst du, wie weit du heute bist.",
+  "Tap the glowing F next to NOOP at the top of Today to open your notifications: new features, strap notes and goal news.": "Tippe oben auf „Heute“ auf das leuchtende F neben NOOP, um deine Benachrichtigungen zu öffnen: neue Funktionen, Hinweise zum Armband und Neuigkeiten zu deinen Zielen.",
+  "Your updates live behind the F": "Deine Neuigkeiten findest du hinter dem F",
+  "Don't show again": "Nicht wieder anzeigen",
+  "Open updates": "Neuigkeiten öffnen"
 }

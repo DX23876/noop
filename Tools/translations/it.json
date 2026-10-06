@@ -2775,5 +2775,9 @@
   "%lld / %lld min": "%lld / %lld min",
   "%lld of %lld done": "%lld di %lld fatti",
   "Reached today": "Raggiunto oggi",
-  "Steps, sleep or active calories: your day's progress shows up here.": "Passi, sonno o calorie attive: qui vedi come procede la tua giornata."
+  "Steps, sleep or active calories: your day's progress shows up here.": "Passi, sonno o calorie attive: qui vedi come procede la tua giornata.",
+  "Tap the glowing F next to NOOP at the top of Today to open your notifications: new features, strap notes and goal news.": "Tocca la F luminosa accanto a NOOP, in alto in Oggi, per aprire le notifiche: nuove funzioni, note sul bracciale e novità sui tuoi obiettivi.",
+  "Your updates live behind the F": "Le tue novità sono dietro la F",
+  "Don't show again": "Non mostrare più",
+  "Open updates": "Apri le novità"
 }
