@@ -661,6 +661,7 @@ final class HealthKitBridge: ObservableObject {
         syncing = true
         // #1578: include aggregate reads, writes, and failed attempts in the health-sync diagnostics.
         let passStart = Date()
+        HealthSyncStats.beginSync()
         if importingFullHistory {
             fullHistoryImporting = true
             fullHistoryProgress = 0
@@ -1442,7 +1443,7 @@ final class HealthKitBridge: ObservableObject {
                 keeping: Set(candidates.filter { $0.type == type }.map { $0.key }), metricId: id.rawValue,
                 fromDay: from, toDay: to, holdingDays: holdingDays)
             let stale = keyed.filter { keys.contains($0.1) }.map { $0.0 }
-            if !stale.isEmpty { try await store.delete(stale) }
+            if !stale.isEmpty { try await store.delete(stale); HealthSyncStats.recordDeleted(stale.count) }
             try await whoopStore.invalidateHealthExports(ids: keys.map { type.identifier + "|" + $0 })
         }
         return count
@@ -1564,6 +1565,7 @@ final class HealthKitBridge: ObservableObject {
             }
             if !removed.isEmpty {
                 try await store.delete(removed)
+                HealthSyncStats.recordDeleted(removed.count)
                 try await whoopStore.invalidateHealthExports(ids: removed.compactMap { $0.metadata?[HKMetadataKeySyncIdentifier] as? String })
             }
         }
@@ -1633,6 +1635,7 @@ final class HealthKitBridge: ObservableObject {
         }
         if !stale.isEmpty {
             try await store.delete(stale)
+            HealthSyncStats.recordDeleted(stale.count)
             try await whoopStore.invalidateHealthExports(ids: stale.compactMap { $0.metadata?[HKMetadataKeySyncIdentifier] as? String })
         }
         return count
@@ -1883,6 +1886,7 @@ final class HealthKitBridge: ObservableObject {
         }
         if !stale.isEmpty {
             try await store.delete(stale)
+            HealthSyncStats.recordDeleted(stale.count)
             try await whoopStore.invalidateHealthExports(ids: stale.compactMap { $0.metadata?[HKMetadataKeySyncIdentifier] as? String })
         }
     }
@@ -2085,7 +2089,7 @@ final class HealthKitBridge: ObservableObject {
         ])
         _ = try await HealthSampleWriter.save(samples, store: store, db: whoopStore)
         let old = try await HealthSampleWriter.query(type: type, predicate: pred, store: store).filter { $0.metadata?[HKMetadataKeySyncIdentifier] == nil }
-        if !old.isEmpty { try await store.delete(old) }
+        if !old.isEmpty { try await store.delete(old); HealthSyncStats.recordDeleted(old.count) }
         return (samples.count, skipped)
     }
 
@@ -2166,9 +2170,10 @@ final class HealthKitBridge: ObservableObject {
             let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
                 HKQuery.predicateForObjects(from: HKSource.default()), HKQuery.predicateForObjects(from: workout)])
             let children = try await HealthSampleWriter.query(type: type, predicate: predicate, store: store)
-            if !children.isEmpty { try await store.delete(children) }
+            if !children.isEmpty { try await store.delete(children); HealthSyncStats.recordDeleted(children.count) }
         }
         try await store.delete(workout)
+        HealthSyncStats.recordDeleted(1)
         if let id = workout.metadata?[HKMetadataKeySyncIdentifier] as? String {
             try await whoopStore.invalidateHealthExports(ids: [id])
         }
@@ -2293,6 +2298,7 @@ final class HealthKitBridge: ObservableObject {
                 if !extras.isEmpty { try await builder.addSamples(extras) }
                 try await builder.endCollection(at: end)
                 guard let workout = try await builder.finishWorkout() else { throw CocoaError(.fileWriteUnknown) }
+                HealthSyncStats.recordSaved(1 + extras.count)
                 written += 1
 
                 // #2340: workout route write-back. Load the encoded polyline and its original point

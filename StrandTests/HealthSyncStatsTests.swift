@@ -26,7 +26,8 @@ final class HealthSyncStatsTests: XCTestCase {
         HealthSyncStats.recordWake(); HealthSyncStats.recordCoalesced()
         HealthSyncStats.recordWake(); HealthSyncStats.recordEmptyWake()
         XCTAssertEqual(HealthSyncStats.summaryLines(),
-                       ["Health sync: wakes=4 synced=2 coalesced=1 empty=1 avgSyncMs=1000"])
+                       ["Health sync: wakes=4 synced=2 coalesced=1 empty=1 avgSyncMs=1000",
+                        "Health writes: saved=0 deleted=0 quietSyncs=2 lastSync=0/0"])
     }
 
     /// The case the fix is TRYING to produce: every wake coalesced, so no sync ran.
@@ -36,7 +37,8 @@ final class HealthSyncStatsTests: XCTestCase {
     func testAnAllCoalescedSessionDoesNotDivideByZero() {
         for _ in 0 ..< 6 { HealthSyncStats.recordWake(); HealthSyncStats.recordCoalesced() }
         XCTAssertEqual(HealthSyncStats.summaryLines(),
-                       ["Health sync: wakes=6 synced=0 coalesced=6 empty=0 avgSyncMs=0"])
+                       ["Health sync: wakes=6 synced=0 coalesced=6 empty=0 avgSyncMs=0",
+                        "Health writes: saved=0 deleted=0 quietSyncs=0 lastSync=0/0"])
     }
 
     /// Wakes are counted separately from syncs on purpose.
@@ -57,6 +59,29 @@ final class HealthSyncStatsTests: XCTestCase {
     func testANegativeDurationIsFloored() {
         HealthSyncStats.recordWake(); HealthSyncStats.recordSync(millis: -5_000)
         XCTAssertEqual(HealthSyncStats.summaryLines(),
-                       ["Health sync: wakes=1 synced=1 coalesced=0 empty=0 avgSyncMs=0"])
+                       ["Health sync: wakes=1 synced=1 coalesced=0 empty=0 avgSyncMs=0",
+                        "Health writes: saved=0 deleted=0 quietSyncs=1 lastSync=0/0"])
+    }
+
+    /// Writes are attributed to the sync they happened in, and a sync that wrote nothing counts as quiet.
+    /// This is the line that tells an idle sync apart from one that rewrites hours of heart rate.
+    func testWritesAreAttributedToTheirSync() {
+        HealthSyncStats.beginSync()
+        HealthSyncStats.recordSaved(2_880); HealthSyncStats.recordDeleted(2_880)
+        HealthSyncStats.recordSync(millis: 900)
+        HealthSyncStats.beginSync()
+        HealthSyncStats.recordSync(millis: 100)
+        XCTAssertEqual(HealthSyncStats.summaryLines().last,
+                       "Health writes: saved=2880 deleted=2880 quietSyncs=1 lastSync=0/0")
+    }
+
+    /// A foreground sync with no observer wake still reports, since it writes back too.
+    func testAForegroundSyncWithoutWakesStillReports() {
+        HealthSyncStats.beginSync()
+        HealthSyncStats.recordSaved(3)
+        HealthSyncStats.recordSync(millis: 50)
+        XCTAssertEqual(HealthSyncStats.summaryLines(),
+                       ["Health sync: wakes=0 synced=1 coalesced=0 empty=0 avgSyncMs=50",
+                        "Health writes: saved=3 deleted=0 quietSyncs=0 lastSync=3/0"])
     }
 }

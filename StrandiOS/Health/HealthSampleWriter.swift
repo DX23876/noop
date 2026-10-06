@@ -59,15 +59,21 @@ enum HealthSampleWriter {
             try Task.checkCancellation()
             let chunk = Array(pending[offset..<min(pending.count, offset + 5_000)])
             try await store.save(chunk.map { $0.0 })
+            HealthSyncStats.recordSaved(chunk.count)
             try await db.commitHealthExports(chunk.map { $0.1 })
         }
         // Metadata UUIDs do not enforce uniqueness. Retire only observed legacy objects AFTER the
         // versioned replacement is durable; retrying cleanup is safe even when the payload was unchanged.
         let byType = Dictionary(grouping: samples, by: \.sampleType)
+        let now = Date().timeIntervalSince1970
         for (type, values) in byType {
             let keys = Set(values.compactMap { $0.metadata?[HKMetadataKeyExternalUUID] as? String })
             let first = values.map(\.startDate).min() ?? .now
             let last = values.map(\.endDate).max() ?? .now
+            let windowStart = first.addingTimeInterval(-86_400).timeIntervalSince1970
+            let cleanKey = legacyCleanKeyPrefix + type.identifier
+            let clean = UserDefaults.standard.array(forKey: cleanKey) as? [Double]
+            if canSkipLegacyCheck(clean: clean, windowStart: windowStart, now: now) { continue }
             let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
                 HKQuery.predicateForObjects(from: HKSource.default()),
                 HKQuery.predicateForSamples(withStart: first.addingTimeInterval(-86_400), end: last.addingTimeInterval(86_400), options: [])
@@ -77,9 +83,38 @@ enum HealthSampleWriter {
                       let key = $0.metadata?[HKMetadataKeyExternalUUID] as? String else { return false }
                 return keys.contains(canonicalExternalKey(key))
             }
-            if !legacy.isEmpty { try await store.delete(legacy) }
+            if legacy.isEmpty {
+                UserDefaults.standard.set(cleanRecord(previous: clean, windowStart: windowStart, now: now), forKey: cleanKey)
+            } else {
+                try await store.delete(legacy)
+                HealthSyncStats.recordDeleted(legacy.count)
+                UserDefaults.standard.removeObject(forKey: cleanKey)
+            }
         }
         return samples.count
+    }
+
+    /// The legacy sweep above reads every NOOP sample of the type in the window, a few thousand heart
+    /// rate samples, and runs on every save. Once a window has come back clean, the same span is skipped
+    /// for a day. A save reaching further back than the clean span (a history repair) still sweeps, and
+    /// the daily recheck covers legacy objects that come back, for example from a restored backup.
+    static let legacyCleanKeyPrefix = "health.legacyClean.v1."
+    static let legacyRecheckSeconds: Double = 86_400
+
+    /// `clean` is `[earliest clean window start, time of that check]`, both Unix seconds.
+    nonisolated static func canSkipLegacyCheck(clean: [Double]?, windowStart: Double, now: Double) -> Bool {
+        guard let clean, clean.count == 2 else { return false }
+        let age = now - clean[1]
+        return age >= 0 && age < legacyRecheckSeconds && windowStart >= clean[0]
+    }
+
+    /// The record after a clean sweep: the earliest clean start still inside the recheck day is kept, so
+    /// a short recent save does not shrink a span a longer save already proved clean.
+    nonisolated static func cleanRecord(previous: [Double]?, windowStart: Double, now: Double) -> [Double] {
+        if let previous, previous.count == 2, now - previous[1] >= 0, now - previous[1] < legacyRecheckSeconds {
+            return [min(previous[0], windowStart), previous[1]]
+        }
+        return [windowStart, now]
     }
 
     static func canonicalExternalKey(_ key: String) -> String {
