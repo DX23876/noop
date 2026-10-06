@@ -27,6 +27,16 @@ final class SettingsSearchCatalogTests: XCTestCase {
         }
     }
 
+    func testSettingsHubListsEveryPageExactlyOnceInStableOrder() {
+        XCTAssertEqual(SettingsHubLayout.allPages, [
+            .profile, .units, .appearance,
+            .training, .strap, .features,
+            .recoverySleep, .dataBackup,
+            .advanced, .about,
+        ])
+        XCTAssertEqual(Set(SettingsHubLayout.allPages), Set(SettingsPage.allCases))
+    }
+
     func testEveryEntryCarriesSearchableText() {
         for entry in SettingsSearchCatalog.entries {
             let terms = entry.searchTerms.filter { !$0.isEmpty }

@@ -24,7 +24,7 @@ enum TrainingWeightUnit: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
     var system: UnitSystem { self == .pounds ? .imperial : .metric }
-    var label: String { self == .pounds ? "Pounds (lb)" : "Kilograms (kg)" }
+    var label: String { self == .pounds ? String(localized: "Pounds (lb)") : String(localized: "Kilograms (kg)") }
     var symbol: String { self == .pounds ? "lb" : "kg" }
 }
 

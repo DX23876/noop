@@ -50,15 +50,15 @@ enum SettingsPage: String, CaseIterable, Identifiable, Hashable, Sendable {
 
     var subtitle: LocalizedStringResource {
         switch self {
-        case .profile: return "Personal details, body metrics, zones and streak"
-        case .units: return "Measurement, temperature and effort formats"
+        case .profile: return "Your basics, body metrics, heart-rate zones and streak"
+        case .units: return "Body, distance, temperature and score display"
         case .training: return "Weight unit, timers, equipment and workout display"
         case .appearance: return "Language, theme, colours and dashboard style"
-        case .strap: return "Connection, sync and Live Activity behaviour"
-        case .features: return "Optional trackers and everyday app behaviour"
-        case .recoverySleep: return "Charge baseline, HRV, staging and reanalysis"
+        case .strap: return "Connection, sync and Live Activities"
+        case .features: return "Optional trackers and everyday features"
+        case .recoverySleep: return "Charge baseline, HRV and sleep staging"
         case .dataBackup: return "Export, restore and move your local data"
-        case .advanced: return "Live Sessions, diagnostics and device experiments"
+        case .advanced: return "Refresh tools, diagnostics and device experiments"
         case .about: return "Version, guides, updates, licences and source code"
         }
     }
@@ -101,9 +101,9 @@ enum SettingsPage: String, CaseIterable, Identifiable, Hashable, Sendable {
         case .appearance: return [.appearance]
         case .strap: return [.strap]
         case .features: return [.features]
-        case .recoverySleep: return [.recovery, .analysisMaintenance, .hrv, .sleepStaging]
+        case .recoverySleep: return [.recovery, .hrv, .sleepStaging]
         case .dataBackup: return [.backup]
-        case .advanced: return [.testCentre, .liveSessions, .experimentalWhoop5, .diagnostics]
+        case .advanced: return [.analysisMaintenance, .testCentre, .liveSessions, .experimentalWhoop5, .diagnostics]
         case .about: return [.about]
         }
     }

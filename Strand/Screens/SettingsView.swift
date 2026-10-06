@@ -370,43 +370,14 @@ struct SettingsView: View {
     /// Confirm gate for the "Recalibrate Charge baseline" action (it re-learns the HRV anchor from tonight).
     @State private var showRecalibrateConfirm = false
 
-    /// "What's New" changelog sheet, reachable any time from About.
-    @State private var showWhatsNew = false
-
-    /// "How your scores work" explainer sheet, reachable any time from About.
-    @State private var showScoringGuide = false
-
-    /// "How NOOP works" primer sheet (the four-section explainability primer), reachable any
-    /// time from About — covers how sleep is sorted, how scores + calibration work, what
-    /// recording means, and where the provenance badges come from.
-    @State private var showHowNoopWorks = false
-
-    /// Third-party licence acknowledgements, reachable any time from About.
-    @State private var showAcknowledgements = false
-
-    /// "Set up Apple Watch" sheet: the honest watch onboarding flow (what it's great at, where
-    /// it's lighter, then the Health permission request). Presented from the About page's primary
-    /// action. iOS does the real HealthKit request; macOS reads as an iPhone-only step.
-    @State private var showAppleWatchSetup = false
-
-    /// Steps-estimate calibration sheet (WHOOP 4.0). Reached from the Profile card's "Steps estimate"
-    /// tap-through; explains the estimate, shows the current fit + a recent estimated-vs-phone table,
-    /// and offers a manual coefficient override. See [StepsCalibrationSheet].
-    @State private var showStepsCalibration = false
-
-    /// HR zone-band editor. Reached from the Profile card's "Heart-rate zones" tap-through; sets where
-    /// each zone starts as a share of HRmax. See [HRZoneEditorSheet].
-    @State private var showHRZoneEditor = false
+    /// One payload-backed presentation state for every modal task launched from Settings.
+    @State private var presentedSheet: SettingsSheet?
     /// The Profile card opens read-only: its values feed zones, calories and baselines, and a stray tap
     /// on a stepper while scrolling changed them silently. "Edit" unlocks the controls, "Done" locks them.
     @State private var profileEditing = false
     /// True when the newest energy day priced workouts from the formula for a body it was not fitted
     /// on (`PeakMETResolver.measurementAdvised`), so the VO₂max field suggests a measurement.
     @State private var vo2maxFormulaHint = false
-
-    /// iOS environment-diagnostics sheet (device, iOS+build, Data Protection, background refresh,
-    /// low-power, sideload + cert expiry). iOS-only; the macOS strap log already carries OS + version.
-    @State private var showDiagnostics = false
 
     /// User-initiated GitHub release check behind the About "Check for updates" button.
     @StateObject private var updateChecker = UpdateChecker()
@@ -434,7 +405,7 @@ struct SettingsView: View {
                 if let initialPage {
                     settingsPageContent(initialPage)
                 } else {
-                    settingsHubContent
+                    SettingsHubView(query: $query)
                 }
                 #else
                 NoopLiquidGlassSearchField(
@@ -513,6 +484,9 @@ struct SettingsView: View {
         .navigationDestination(for: SettingsPage.self) { page in
             SettingsView(initialPage: page)
         }
+        .navigationDestination(for: SettingsSubpage.self) { route in
+            settingsSubpageContent(route)
+        }
         .alert(backupAlertTitle, isPresented: $showBackupAlert) {
             Button("OK", role: .cancel) { }
         } message: {
@@ -553,33 +527,9 @@ struct SettingsView: View {
         } message: {
             Text("A marker starts the selected phase and ends the previous one. This only timestamps the local capture file; it sends nothing to the strap.")
         }
-        .sheet(isPresented: $showWhatsNew) {
-            WhatsNewView(onClose: { showWhatsNew = false })
+        .sheet(item: $presentedSheet) { sheet in
+            settingsSheetContent(sheet)
         }
-        .sheet(isPresented: $showScoringGuide) {
-            ScoringGuideView(onClose: { showScoringGuide = false })
-        }
-        .sheet(isPresented: $showAcknowledgements) {
-            AcknowledgementsView(onClose: { showAcknowledgements = false })
-        }
-        .sheet(isPresented: $showHowNoopWorks) {
-            HowNoopWorksView(onClose: { showHowNoopWorks = false })
-        }
-        .sheet(isPresented: $showAppleWatchSetup) {
-            AppleWatchSetupView(onClose: { showAppleWatchSetup = false })
-        }
-        .sheet(isPresented: $showHRZoneEditor) {
-            HRZoneEditorSheet(onClose: { showHRZoneEditor = false })
-        }
-        .sheet(isPresented: $showStepsCalibration) {
-            StepsCalibrationSheet(repo: model.repo, onClose: { showStepsCalibration = false })
-                .environmentObject(profile)
-        }
-        #if os(iOS)
-        .sheet(isPresented: $showDiagnostics) {
-            DiagnosticsSheet(onClose: { showDiagnostics = false })
-        }
-        #endif
     }
 
     private var settingsScreenTitle: LocalizedStringKey {
@@ -591,101 +541,60 @@ struct SettingsView: View {
             ?? LocalizedStringKey("Your numbers, your strap, and how NOOP works. All on \(Platform.deviceNounPhrase).")
     }
 
-    // Analysis migration required: no. The hierarchy and search presentation change; every control
-    // still writes the same preference and no stored or derived health value changes meaning.
-    private var settingsHubContent: some View {
-        VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
-            NoopLiquidGlassSearchField(
-                text: $query,
-                prompt: String(localized: "Search settings"),
-                accessibilityLabel: String(localized: "Search settings")
-            )
+    // Analysis migration required: no. This redesign changes hierarchy, presentation and copy only;
+    // every control still writes the same preference and no derived health value changes meaning.
 
-            if isSearching {
-                settingsSearchResults
-            } else {
-                settingsPageGroup("Essentials", pages: [.units, .training, .appearance, .strap])
-                settingsPageGroup("Health & Features", pages: [.features, .recoverySleep])
-                settingsPageGroup("Data & Support", pages: [.dataBackup, .advanced, .about])
-            }
+    @ViewBuilder
+    private func settingsSubpageContent(_ route: SettingsSubpage) -> some View {
+        switch route {
+        case .bodyMeasurements:
+            BodyView()
+        case .exerciseMedia:
+            ExerciseMediaManagementView()
+        case .equipment:
+            TrainingEquipmentSettingsView()
+        case .testCentre:
+            TestCentreView()
+        case .dashboard(let dashboard):
+            DashboardLayoutEditor(dashboard: dashboard)
+        case .backupSync:
+            BackupSyncView()
+        case .appleWatchData:
+            AppleWatchAboutView(onStartSetup: { presentedSheet = .appleWatchSetup })
+        case .storage:
+            StorageView()
         }
     }
 
     @ViewBuilder
-    private var settingsSearchResults: some View {
-        let matches = SettingsSearchCatalog.matching(query)
-        let pages = SettingsPage.allCases.filter { page in matches.contains(where: { $0.page == page }) }
-        if pages.isEmpty {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("No setting matches “\(query)”.")
-                    .font(StrandFont.headline)
-                    .foregroundStyle(StrandPalette.textPrimary)
-                Text("Try a shorter word, or the name of the setting you're after.")
-                    .font(StrandFont.subhead)
-                    .foregroundStyle(StrandPalette.textSecondary)
-            }
-            .padding(.vertical, 24)
-        } else {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Settings").strandOverline()
-                NoopCard(padding: 0, cornerRadius: NoopMetrics.groupedRadius) {
-                    VStack(spacing: 0) {
-                        ForEach(pages) { page in
-                            let matchedNames = matches.filter { $0.page == page }
-                                .map { String(localized: $0.title) }
-                                .joined(separator: " · ")
-                            settingsPageRow(page, caption: matchedNames)
-                        }
-                    }
-                    .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous))
-                }
-            }
+    private func settingsSheetContent(_ sheet: SettingsSheet) -> some View {
+        switch sheet {
+        case .whatsNew:
+            WhatsNewView(onClose: dismissPresentedSheet)
+        case .scoringGuide:
+            ScoringGuideView(onClose: dismissPresentedSheet)
+        case .acknowledgements:
+            AcknowledgementsView(onClose: dismissPresentedSheet)
+        case .howNoopWorks:
+            HowNoopWorksView(onClose: dismissPresentedSheet)
+        case .appleWatchSetup:
+            AppleWatchSetupView(onClose: dismissPresentedSheet)
+        case .heartRateZones:
+            HRZoneEditorSheet(onClose: dismissPresentedSheet)
+        case .stepCalibration:
+            StepsCalibrationSheet(repo: model.repo, onClose: dismissPresentedSheet)
+                .environmentObject(profile)
+        case .diagnostics:
+            #if os(iOS)
+            DiagnosticsSheet(onClose: dismissPresentedSheet)
+            #else
+            EmptyView()
+            #endif
         }
     }
 
-    private func settingsPageGroup(_ title: LocalizedStringKey, pages: [SettingsPage]) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(title).strandOverline()
-            NoopCard(padding: 0, cornerRadius: NoopMetrics.groupedRadius) {
-                VStack(spacing: 0) {
-                    ForEach(pages) { settingsPageRow($0) }
-                }
-                .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous))
-            }
-        }
-    }
-
-    private func settingsPageRow(_ page: SettingsPage, caption: String? = nil) -> some View {
-        NavigationLink(value: page) {
-            HStack(spacing: 14) {
-                Image(systemName: page.icon)
-                    .appleInspiredMenuIcon(page.colorKey)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(page.title)
-                        .font(StrandFont.body)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                    Text(caption ?? String(localized: page.subtitle))
-                        .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.textTertiary)
-                        .lineLimit(2)
-                }
-                Spacer(minLength: 8)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(StrandPalette.textTertiary)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .frame(minHeight: 54)
-            .contentShape(Rectangle())
-            .overlay(alignment: .bottom) {
-                Rectangle()
-                    .fill(StrandPalette.hairline.opacity(0.32))
-                    .frame(height: 0.5)
-                    .padding(.leading, 16)
-            }
-        }
-        .buttonStyle(.plain)
+    private func dismissPresentedSheet() {
+        presentedSheet = nil
     }
 
     @ViewBuilder
@@ -695,11 +604,11 @@ struct SettingsView: View {
             profileCard
             streakCard
         case .units:
-            unitsCard
+            unitsCard.environment(\.settingsSectionHeaderHidden, true)
         case .training:
-            trainingCard
+            trainingCard.environment(\.settingsSectionHeaderHidden, true)
         case .appearance:
-            appearanceCard
+            appearanceCard.environment(\.settingsSectionHeaderHidden, true)
         case .strap:
             strapCard
             #if os(iOS)
@@ -707,91 +616,22 @@ struct SettingsView: View {
             syncCard
             #endif
         case .features:
-            featuresCard
+            featuresCard.environment(\.settingsSectionHeaderHidden, true)
         case .recoverySleep:
             recoveryCard
-            AnalysisMaintenanceSettingsCard(engine: model.intelligence)
             hrvCard
             sleepStagingCard
         case .dataBackup:
-            backupCard
+            backupCard.environment(\.settingsSectionHeaderHidden, true)
         case .advanced:
+            AnalysisMaintenanceSettingsCard(engine: model.intelligence)
             testCentreCard
             liveSessionsCard
             if showFiveMGControls { fiveMGCard }
             if showFiveMGControls || model.repo.activeDeviceIsOura { spo2CandidateCard }
             rawSensorDiagnosticsCard
         case .about:
-            aboutCard
-        }
-    }
-
-    // MARK: - Profile photo (optional, on-device)
-
-    /// Set / change / remove an optional profile picture. PhotosUI's `PhotosPicker` works on both
-    /// iOS 16+ and macOS 13+ (NOOP's floor), so the same control serves both platforms — no
-    /// availability gating needed. The photo is stored only on this device (NOOP is fully offline).
-    private var profilePhotoCard: some View {
-        // #153: resolve the whole blurb through `String(localized:)` first, then hand SwiftUI the plain
-        // String via `LocalizedStringKey(_:)`. Interpolating `Platform.deviceNounPhrase` (itself an
-        // already-resolved localized String) straight into the `blurb:` `LocalizedStringKey` literal
-        // confused SwiftUI's text-measurement pass — the blurb rendered with zero trailing margin and
-        // clipped to the card edge instead of wrapping inside the card padding. The localization key is
-        // unchanged (`…Stored only on %@…`), so the existing translations still apply.
-        let blurbText = String(localized: "Optional. Add a photo and a name for the header on Today. Stored only on \(Platform.deviceNounPhrase). NOOP is offline, so it's never uploaded.")
-        return SettingsSection(
-            icon: "person.crop.circle",
-            title: "Photo and name",
-            blurb: LocalizedStringKey(blurbText)
-        ) {
-            VStack(spacing: 0) {
-                HStack(spacing: 16) {
-                    ProfileAvatarView(imageData: profile.avatarImageData, size: 64)
-                        .accessibilityLabel(profile.hasAvatar ? "Your profile photo" : "No profile photo set")
-
-                    VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-                        PhotosPicker(selection: $avatarPickerItem, matching: .images) {
-                            Text(profile.hasAvatar ? "Change photo" : "Choose photo")
-                        }
-                        .buttonStyle(NoopButtonStyle(.secondary, fullWidth: true))
-
-                        if profile.hasAvatar {
-                            Button("Remove photo") { profile.clearAvatar() }
-                                .buttonStyle(NoopButtonStyle(.tertiary, fullWidth: true))
-                                .accessibilityHint("Reverts to the default profile icon")
-                        }
-                    }
-                }
-                rowDivider
-                // Greeting name (optional). Purely cosmetic — it personalises Today's header greeting and
-                // nothing else, so it stays out of the `.noopbak` whitelist (see `ProfileStore.name`).
-                FormRow(label: "Name") {
-                    TextField("Optional", text: $profile.name)
-                        .textFieldStyle(.plain)
-                        .multilineTextAlignment(.trailing)
-                        .font(StrandFont.body)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                        .appleInspiredTint("settings.controls")
-                        #if os(iOS)
-                        .textInputAutocapitalization(.words)
-                        .autocorrectionDisabled()
-                        .submitLabel(.done)
-                        #endif
-                        .accessibilityLabel("Your name, used in the Today greeting")
-                }
-            }
-        }
-        // Load the picked photo's bytes, then hand them to the store (which downscales + persists).
-        // Clearing the selection afterwards lets the user re-pick the same photo if they want.
-        .onChange(of: avatarPickerItem) { newItem in
-            guard let newItem else { return }
-            Task {
-                let data = try? await newItem.loadTransferable(type: Data.self)
-                await MainActor.run {
-                    if let data { profile.setAvatar(data) }
-                    avatarPickerItem = nil
-                }
-            }
+            aboutCard.environment(\.settingsSectionHeaderHidden, true)
         }
     }
 
@@ -913,16 +753,15 @@ struct SettingsView: View {
                 SettingsNavRow(
                     icon: (symbol: "figure.stand", id: "body"),
                     title: "Body measurements…",
-                    subtitle: "Weight, body fat and tape measurements, each with the date it was taken"
-                ) {
-                    BodyView()
-                }
+                    subtitle: "Weight, body fat and tape measurements, each with the date it was taken",
+                    route: .bodyMeasurements
+                )
                 .accessibilityLabel("Open body measurements")
                 rowDivider
                 FormRow(label: "Max heart rate") {
                     VStack(alignment: .trailing, spacing: 6) {
                         hrMaxField
-                        Text(profile.hrMaxOverride > 0 ? "Manual override" : "Auto (Tanaka)")
+                        Text(profile.hrMaxOverride > 0 ? "Manual override" : "Automatic")
                             .font(StrandFont.footnote)
                             .foregroundStyle(profile.hrMaxOverride > 0
                                              ? StrandPalette.accent
@@ -975,7 +814,7 @@ struct SettingsView: View {
                 // above. Separate from HRmax because they answer different questions ("how high can I
                 // go" vs "where does Zone 2 begin"), and because only the bands need five values.
                 Button {
-                    showHRZoneEditor = true
+                    presentedSheet = .heartRateZones
                 } label: {
                     FormRow(label: "Heart-rate zones") {
                         HStack(spacing: 8) {
@@ -1023,24 +862,27 @@ struct SettingsView: View {
                 // 1.0 = raw pass-through until the true 5/MG tick rate is known. The divisor goes
                 // up to 30 because a 5/MG motion counter can overcount by ~24×; the stepper uses a
                 // variable increment (fine near 1.0, coarse up top) so high values stay reachable.
-                FormRow(label: "Step calibration") {
+                FormRow(label: "Step-count correction") {
                     HStack(spacing: 10) {
-                        Text(String(format: "%.1f", profile.stepTicksPerStep))
+                        Text(profile.stepTicksPerStep,
+                             format: .number.precision(.fractionLength(1)))
                             .font(StrandFont.bodyNumber)
                             .foregroundStyle(StrandPalette.textPrimary)
                             .frame(minWidth: 44, alignment: .trailing)
                         if profileEditing {
-                            Stepper("Step calibration") {
+                            Stepper("Step-count correction") {
                                 profile.stepTicksPerStep = ProfileStore.steppedStepScale(profile.stepTicksPerStep, up: true)
                             } onDecrement: {
                                 profile.stepTicksPerStep = ProfileStore.steppedStepScale(profile.stepTicksPerStep, up: false)
                             }
                                 .labelsHidden()
-                                .accessibilityLabel("Step calibration, \(String(format: "%.1f", profile.stepTicksPerStep)) counter ticks per step")
+                                .accessibilityLabel(
+                                    "Step-count correction, \(profile.stepTicksPerStep.formatted(.number.precision(.fractionLength(1))))"
+                                )
                         }
                     }
                 }
-                Text("Counter ticks per step. Leave at 1.0 unless your steps run high. On a WHOOP 5/MG they can run very high (10× or more), so this goes up to 30. Walk a known 1,000 steps and divide NOOP's count by the real count to get your value.")
+                Text("Leave this at 1.0 if your step count looks right. If NOOP shows 10,000 steps after a counted 1,000-step walk, set it to 10.0.")
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -1050,7 +892,7 @@ struct SettingsView: View {
                 // from motion and calibrates that to the phone. The sheet explains it, shows the fit +
                 // a recent estimated-vs-phone comparison, and offers a manual coefficient.
                 Button {
-                    showStepsCalibration = true
+                    presentedSheet = .stepCalibration
                 } label: {
                     FormRow(label: "Steps estimate") {
                         HStack(spacing: 8) {
@@ -1112,14 +954,21 @@ struct SettingsView: View {
         }
         // Load the picked photo's bytes, then hand them to the store (which downscales + persists).
         // Clearing the selection afterwards lets the user re-pick the same photo if they want.
-        .onChange(of: avatarPickerItem) { newItem in
-            guard let newItem else { return }
-            Task {
-                let data = try? await newItem.loadTransferable(type: Data.self)
-                await MainActor.run {
-                    if let data { profile.setAvatar(data) }
-                    avatarPickerItem = nil
+        .onChangeCompat(of: avatarPickerItem, perform: loadProfilePhoto)
+    }
+
+    private func loadProfilePhoto(_ item: PhotosPickerItem?) {
+        guard let item else { return }
+        Task { @MainActor in
+            defer { avatarPickerItem = nil }
+            do {
+                guard let data = try await item.loadTransferable(type: Data.self) else {
+                    showImageImportProblem()
+                    return
                 }
+                profile.setAvatar(data)
+            } catch {
+                showImageImportProblem()
             }
         }
     }
@@ -1230,24 +1079,41 @@ struct SettingsView: View {
         }
         // Load the picked photo's bytes, hand them to the store (which downscales + persists), then clear
         // the selection so the same photo can be re-picked. Mirrors the avatar row.
-        .onChange(of: backgroundPickerItem) { newItem in
-            guard let newItem else { return }
-            Task {
-                let data = try? await newItem.loadTransferable(type: Data.self)
-                await MainActor.run {
-                    if let data { backgroundStore.setImage(from: data) }
-                    backgroundPickerItem = nil
-                }
-            }
-        }
+        .onChangeCompat(of: backgroundPickerItem, perform: loadBackgroundPhoto)
         // "Browse files" — the system file browser. The picked URL is security-scoped (outside the
         // sandbox), so bracket the one-time read; we copy the bytes into our own file immediately.
         .fileImporter(isPresented: $showBackgroundFileImporter, allowedContentTypes: [.image]) { result in
             guard case .success(let url) = result else { return }
             let didAccess = url.startAccessingSecurityScopedResource()
             defer { if didAccess { url.stopAccessingSecurityScopedResource() } }
-            if let data = try? Data(contentsOf: url) { backgroundStore.setImage(from: data) }
+            do {
+                backgroundStore.setImage(from: try Data(contentsOf: url))
+            } catch {
+                showImageImportProblem()
+            }
         }
+    }
+
+    private func loadBackgroundPhoto(_ item: PhotosPickerItem?) {
+        guard let item else { return }
+        Task { @MainActor in
+            defer { backgroundPickerItem = nil }
+            do {
+                guard let data = try await item.loadTransferable(type: Data.self) else {
+                    showImageImportProblem()
+                    return
+                }
+                backgroundStore.setImage(from: data)
+            } catch {
+                showImageImportProblem()
+            }
+        }
+    }
+
+    private func showImageImportProblem() {
+        backupAlertTitle = String(localized: "Image problem")
+        backupAlertMessage = String(localized: "NOOP couldn't read that image. Try another photo or a JPEG or PNG file.")
+        showBackupAlert = true
     }
 
     /// One-line state for the "Steps estimate" tap-through row: manual, the auto-fit confidence, or a
@@ -1521,7 +1387,7 @@ struct SettingsView: View {
                         Text("Always").tag(SessionRatingPrompt.always.rawValue)
                     }.labelsHidden().pickerStyle(.menu)
                 }
-                Text("A reminder after a session to rate how demanding it felt, from 1 to 10, for Session Load. When useful: after lifting, ball, racket and combat sports and swimming, and after any other session that lasted 45 minutes or more or was at least moderately hard. Every session can still be rated on its detail screen.")
+                Text("A session rating improves load estimates when heart rate misses muscular effort. “When useful” asks after strength, swimming and other demanding sessions. You can always rate a session later.")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -1577,14 +1443,12 @@ struct SettingsView: View {
                 rowDivider
                 SettingsNavRow(icon: (symbol: "arrow.down.circle", id: "exerciseMedia"),
                                title: "Manage offline exercise media",
-                               accessibilityLabel: "Manage offline exercise media") {
-                    ExerciseMediaManagementView()
-                }
+                               accessibilityLabel: "Manage offline exercise media",
+                               route: .exerciseMedia)
                 rowDivider
                 SettingsNavRow(icon: (symbol: "dumbbell", id: "training"),
-                               title: "Available equipment") {
-                    TrainingEquipmentSettingsView()
-                }
+                               title: "Available equipment",
+                               route: .equipment)
                 rowDivider
                 FormRow(label: "Week starts") {
                     Picker("Week starts", selection: $trainingWeekStartRaw) {
@@ -1607,14 +1471,14 @@ struct SettingsView: View {
                     .accessibilityHint(Text("During a strength workout, a double-tap on the strap logs the next set"))
                 Toggle("Buzz the strap before rest ends", isOn: $trainingStrapRestBuzz)
                     .accessibilityHint(Text("The strap vibrates three times five seconds before a rest ends"))
-                Text("During a strength workout a double-tap on the strap completes the next set with the numbers already in its row, and one buzz confirms it. A second double-tap within five seconds is ignored as a knock. Outside a workout the double-tap keeps its own action.")
+                Text("During strength training, a double-tap completes the next prepared set and one buzz confirms it. A quick second tap is ignored.")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 rowDivider
                 Toggle("Keep screen on during a workout", isOn: $workoutKeepScreenOn)
                     .accessibilityHint("Stops the screen dimming while a workout is recording")
-                Text("Holds the screen awake while you're recording a workout, so your live heart rate stays visible without the device dimming. Only applies during a recording. The screen sleeps normally the rest of the time. Leaving it on does use a bit more battery, and means your unlocked screen stays visible for the whole workout, so flip it off if that's a concern.")
+                Text("Keeps the display awake only while a workout is recording. This uses more battery and leaves the unlocked screen visible.")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -2197,27 +2061,12 @@ struct SettingsView: View {
                 rowDivider
                 // Analysis migration required: no. Diagnostics live in one dedicated place while every
                 // existing copy/export action remains available in Test Centre.
-                NavigationLink {
-                    TestCentreView()
-                } label: {
-                    HStack(spacing: NoopMetrics.space3) {
-                        Image(systemName: "stethoscope")
-                            .appleInspiredMenuIcon("testCentre")
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Connection diagnostics")
-                                .font(StrandFont.subhead)
-                                .foregroundStyle(StrandPalette.textPrimary)
-                            Text("Strap log, connection readouts and exports")
-                                .font(StrandFont.caption)
-                                .foregroundStyle(StrandPalette.textSecondary)
-                        }
-                        Spacer(minLength: 8)
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(StrandPalette.textTertiary)
-                    }
-                }
-                .buttonStyle(.plain)
+                SettingsNavRow(
+                    icon: (symbol: "stethoscope", id: "testCentre"),
+                    title: "Connection diagnostics",
+                    subtitle: "Strap log, connection readouts and exports",
+                    route: .testCentre
+                )
 
                 // #518: Continuous HRV capture, "Overnight only" and the HRV window picker moved to the
                 // "HRV" card under Advanced (see `hrvCard`) — same @AppStorage bindings, same BLE + re-score
@@ -2413,9 +2262,7 @@ struct SettingsView: View {
             title: "Test Centre",
             blurb: "Turn on a test for the thing that's wrong, wear the strap, then tap Report. Your strap log, recalibrate, scheduled export and experimental probes all live here too."
         ) {
-            SettingsNavRow(title: "Open Test Centre") {
-                TestCentreView()
-            }
+            SettingsNavRow(title: "Open Test Centre", route: .testCentre)
         }
     }
 
@@ -2698,9 +2545,8 @@ struct SettingsView: View {
                     .tracking(StrandFont.overlineTracking)
                     .foregroundStyle(StrandPalette.textTertiary)
                 SettingsNavRow(icon: (symbol: "slider.horizontal.3", id: "dashboardEditor"),
-                               title: "Arrange dashboard") {
-                    DashboardLayoutEditor(dashboard: dashboard)
-                }
+                               title: "Arrange dashboard",
+                               route: .dashboard(dashboard))
             }
         }
     }
@@ -3553,9 +3399,8 @@ struct SettingsView: View {
                 // demand or about once a day, restore from a snapshot in that folder).
                 SettingsNavRow(icon: (symbol: "externaldrive.fill.badge.icloud", id: "backupSync"),
                                title: "Backup & Sync to a folder…",
-                               accessibilityLabel: "Open Backup and Sync to a folder") {
-                    BackupSyncView()
-                }
+                               accessibilityLabel: "Open Backup and Sync to a folder",
+                               route: .backupSync)
             }
         }
     }
@@ -3667,7 +3512,7 @@ struct SettingsView: View {
                     StatePill("v\(bundleVersionString)", tone: .neutral, showsDot: false)
                     Spacer()
                     NoopButton("What's new", systemImage: "sparkles", kind: .secondary) {
-                        showWhatsNew = true
+                        presentedSheet = .whatsNew
                     }
                 }
 
@@ -3675,7 +3520,7 @@ struct SettingsView: View {
                 // calibration work, what recording means, and where the provenance badges come
                 // from. The "?" entry point to the four-section explainability primer.
                 Button {
-                    showHowNoopWorks = true
+                    presentedSheet = .howNoopWorks
                 } label: {
                     HStack(spacing: 10) {
                         Image(systemName: "questionmark.circle")
@@ -3704,7 +3549,7 @@ struct SettingsView: View {
                 // How your scores work — the honest explainer for Charge / Effort / Rest and the
                 // confidence labels. Always reachable here, mirroring the "What's new" affordance.
                 Button {
-                    showScoringGuide = true
+                    presentedSheet = .scoringGuide
                 } label: {
                     HStack(spacing: 10) {
                         Image(systemName: "questionmark.circle")
@@ -3733,7 +3578,7 @@ struct SettingsView: View {
                 // Third-party licence acknowledgements, moved here from an inline link on the
                 // Muscle Map screen so every credited source lives in one place.
                 Button {
-                    showAcknowledgements = true
+                    presentedSheet = .acknowledgements
                 } label: {
                     HStack(spacing: 10) {
                         Image(systemName: "doc.text.magnifyingglass")
@@ -3767,10 +3612,9 @@ struct SettingsView: View {
                 SettingsNavRow(
                     icon: (symbol: "applewatch", id: "appleHealth"),
                     title: "About Apple Watch data",
-                    subtitle: "Use NOOP with just an Apple Watch. What it's great at, and where it's lighter than a strap."
-                ) {
-                    AppleWatchAboutView(onStartSetup: { showAppleWatchSetup = true })
-                }
+                    subtitle: "Use NOOP with just an Apple Watch. What it's great at, and where it's lighter than a strap.",
+                    route: .appleWatchData
+                )
 
                 // Storage (#590) — on-device space breakdown (database, leftover import Inbox, stranded
                 // temp files) plus a one-tap clean-up. iOS is where "Documents & Data" can balloon after
@@ -3778,10 +3622,9 @@ struct SettingsView: View {
                 SettingsNavRow(
                     icon: (symbol: "internaldrive", id: "backupSync"),
                     title: "Storage",
-                    subtitle: "Where NOOP's on-device space is going, and a one-tap clean-up."
-                ) {
-                    StorageView()
-                }
+                    subtitle: "Where NOOP's on-device space is going, and a one-tap clean-up.",
+                    route: .storage
+                )
 
                 #if os(iOS)
                 // iOS reality & diagnostics — honest expectations for a sideloaded iPhone build, plus a
@@ -3970,7 +3813,7 @@ struct SettingsView: View {
     /// A tappable row (mirroring "How your scores work") that opens the environment-diagnostics sheet.
     private var iosDiagnosticsRow: some View {
         Button {
-            showDiagnostics = true
+            presentedSheet = .diagnostics
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: "stethoscope")
@@ -4140,52 +3983,6 @@ private struct SettingsDisclosureGroup<Content: View>: View {
     }
 }
 
-// MARK: - Section card
-
-/// A grouped settings card: a "Settings" overline + icon + title header, an explanatory blurb,
-/// then content. The section surface stays neutral; the leading SF Symbol carries its semantic colour tile.
-private struct SettingsSection<Content: View>: View {
-    let icon: String
-    let title: LocalizedStringKey
-    let blurb: LocalizedStringKey
-    /// An optional button at the trailing end of the title, such as the Profile card's Edit / Done.
-    var headerAction: (label: LocalizedStringKey, perform: () -> Void)? = nil
-    @ViewBuilder var content: () -> Content
-
-    /// Apple-inspired leading-icon colouring — the same switch that recolours the More tab and Coach.
-    /// Keyed directly on `icon` (see `SettingsIconColors`): every one of
-    /// this struct's 15 call sites already uses a distinct SF Symbol, so the glyph itself is a stable key.
-    var body: some View {
-        StrandCard(padding: 20, cornerRadius: NoopMetrics.groupedRadius) {
-            VStack(alignment: .leading, spacing: NoopMetrics.space4) {
-                VStack(alignment: .leading, spacing: 2) {
-                    #if os(macOS)
-                    Text("Settings").strandOverline()
-                    #endif
-                    HStack(spacing: NoopMetrics.space2 + 2) {
-                        Image(systemName: icon)
-                            .appleInspiredMenuIcon(icon)
-                            .accessibilityHidden(true)
-                        Text(title)
-                            .font(StrandFont.title2)
-                            .foregroundStyle(StrandPalette.textPrimary)
-                        if let headerAction {
-                            Spacer(minLength: NoopMetrics.space2)
-                            Button(headerAction.label, action: headerAction.perform)
-                                .buttonStyle(NoopButtonStyle(.tertiary))
-                        }
-                    }
-                }
-                Text(blurb)
-                    .font(StrandFont.subhead)
-                    .foregroundStyle(StrandPalette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                content()
-            }
-        }
-    }
-}
-
 // MARK: - Analysis maintenance
 
 private struct AnalysisMaintenanceSettingsCard: View {
@@ -4203,17 +4000,14 @@ private struct AnalysisMaintenanceSettingsCard: View {
         switch engine.analysisMaintenancePhase {
         case .idle:
             let ts = UserDefaults.standard.double(forKey: IntelligenceEngine.analysisLastRunKey)
-            guard ts > 0 else { return String(localized: "No manual reanalysis has run yet.") }
+            guard ts > 0 else { return String(localized: "Ready when a recent insight looks out of date.") }
             return String(
                 format: String(localized: "Last completed %@"),
                 locale: AppLanguage.activeLocale,
                 Date(timeIntervalSince1970: ts).formatted(.relative(presentation: .named)))
-        case .checking: return String(localized: "Checking the analysis recipe…")
-        case .migrating(let from, let to):
-            return String(
-                format: String(localized: "Updating analysis recipe %lld → %lld…"),
-                locale: AppLanguage.activeLocale, Int64(from), Int64(to))
-        case .manualRecent: return String(localized: "Reanalyzing the last 21 days…")
+        case .checking: return String(localized: "Checking recent insights…")
+        case .migrating: return String(localized: "Updating calculations…")
+        case .manualRecent: return String(localized: "Recalculating the last 21 days…")
         case .refreshingToday: return String(localized: "Refreshing today's activity…")
         case .completed(let date):
             return String(
@@ -4227,20 +4021,10 @@ private struct AnalysisMaintenanceSettingsCard: View {
     var body: some View {
         SettingsSection(
             icon: "arrow.triangle.2.circlepath.circle",
-            title: "Analysis & maintenance",
-            blurb: "NOOP updates today's activity automatically. Historical scores are reanalyzed only when an analysis migration requires it, not after ordinary Xcode installs or UI updates."
+            title: "Refresh insights",
+            blurb: "NOOP updates new activity automatically. Use these tools only if a recent score or activity looks out of date."
         ) {
             VStack(alignment: .leading, spacing: NoopMetrics.rowSpacing) {
-                HStack {
-                    Text("Analysis recipe").foregroundStyle(StrandPalette.textSecondary)
-                    Spacer()
-                    Text(verbatim: IntelligenceEngine.recipeLabel(max(engine.analysisRecipeVersion,
-                                                                       IntelligenceEngine.currentAnalysisRecipeVersion)))
-                        .font(StrandFont.captionNumber)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                }
-                .font(StrandFont.subhead)
-
                 HStack(spacing: 7) {
                     if busy && engine.analysisProgress == nil { ProgressView().controlSize(.small) }
                     Text(statusText)
@@ -4256,25 +4040,25 @@ private struct AnalysisMaintenanceSettingsCard: View {
                     analysisProgressView(progress)
                 }
 
-                NoopButton("Refresh today's activity", systemImage: "figure.walk.motion", kind: .secondary) {
+                NoopButton("Refresh today", systemImage: "figure.walk.motion", kind: .secondary) {
                     Task { _ = await engine.manuallyRefreshCurrentDayActivity() }
                 }
                 .disabled(busy)
 
-                NoopButton("Reanalyze the last 21 days", systemImage: "clock.arrow.2.circlepath", kind: .secondary) {
+                NoopButton("Recalculate the last 21 days", systemImage: "clock.arrow.2.circlepath", kind: .secondary) {
                     confirmingReanalysis = true
                 }
                 .disabled(busy)
 
-                Text("Reanalysis replaces derived scores only. Raw sensor data and your sleep or workout corrections stay unchanged.")
+                Text("This updates calculated scores only. Raw data and your sleep or workout corrections stay unchanged.")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .confirmationDialog("Reanalyze the last 21 days?",
+        .confirmationDialog("Recalculate the last 21 days?",
                             isPresented: $confirmingReanalysis, titleVisibility: .visible) {
-            Button("Reanalyze") { Task { _ = await engine.manuallyReanalyzeRecent() } }
+            Button("Recalculate") { Task { _ = await engine.manuallyReanalyzeRecent() } }
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("This can take several minutes. NOOP keeps all raw data and manual corrections and recalculates only derived scores.")
@@ -4879,85 +4663,6 @@ private struct TrainingEquipmentSettingsView: View {
             }
         }
         .navigationTitle(Text("Available equipment"))
-    }
-}
-
-// MARK: - Two-column form row
-
-/// Label on the left, control on the right — the two-column form feel.
-private struct FormRow<Control: View>: View {
-    let label: LocalizedStringKey
-    @ViewBuilder var control: () -> Control
-
-    var body: some View {
-        HStack(alignment: .center, spacing: NoopMetrics.space4) {
-            Text(label)
-                .font(StrandFont.body)
-                .foregroundStyle(StrandPalette.textPrimary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            control()
-                .layoutPriority(1)
-        }
-        .frame(minHeight: 32)
-    }
-}
-
-/// The canonical "tap through to another screen" row inside a `SettingsSection`.
-///
-/// Every such row used to be written out by hand, and the eight copies had drifted into six shapes:
-/// three HStack spacings, three chevron fonts (two of them raw `.system(size:)` rather than a token),
-/// `Spacer()` versus `Spacer(minLength: 0)`, and a hit area that was only as wide as the label wherever
-/// `.contentShape` was forgotten. Two of them — Manage offline exercise media and Available equipment —
-/// had drifted furthest: a bare `Label` dropped into a `VStack` whose every other child fills the width,
-/// so it CENTRED itself, tinted icon *and* text with the accent, and offered no chevron. One component,
-/// so a ninth row cannot invent a seventh shape.
-private struct SettingsNavRow<Destination: View>: View {
-    /// Leading tile: the SF Symbol, and the `AppleInspiredColors` id that colours it. They travel as one
-    /// optional pair because a row either has a coloured identity tile or has none — the Test Centre door
-    /// deliberately has none, since its section header already carries that same symbol.
-    var icon: (symbol: String, id: String)?
-    let title: LocalizedStringKey
-    var subtitle: LocalizedStringKey?
-    /// Spoken label, for rows whose visible title does not read well on its own ("Storage" → "Storage").
-    /// `nil` speaks the title.
-    var accessibilityLabel: LocalizedStringKey?
-    @ViewBuilder var destination: () -> Destination
-
-    var body: some View {
-        NavigationLink {
-            destination()
-        } label: {
-            HStack(spacing: NoopMetrics.space3) {
-                if let icon {
-                    Image(systemName: icon.symbol)
-                        .appleInspiredMenuIcon(icon.id)
-                        .accessibilityHidden(true)
-                }
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(title)
-                        .font(StrandFont.body)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                    if let subtitle {
-                        Text(subtitle)
-                            .font(StrandFont.footnote)
-                            .foregroundStyle(StrandPalette.textSecondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .font(StrandFont.caption)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .accessibilityHidden(true)
-            }
-            // 44pt is the platform's minimum touch target, and `contentShape` is what makes the whole
-            // row that target rather than just the glyphs inside it.
-            .frame(minHeight: 44)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(LiquidPressStyle())
-        .accessibilityLabel(Text(accessibilityLabel ?? title))
     }
 }
 
