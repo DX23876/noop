@@ -2286,6 +2286,14 @@ final class AppModel: ObservableObject {
         [smartAlarmBackupId] + (1...7).map { "\(smartAlarmBackupId)-d\($0)" }
     }
 
+    #if os(iOS)
+    /// `removePendingNotificationRequests` and `add` each make a synchronous round trip to the
+    /// notification daemon. `applySmartAlarm()` runs on launch, so on the main thread a slow daemon froze
+    /// the app before its first frame. One serial queue keeps a disarm and a re-arm in the order asked.
+    private static let smartAlarmNotificationQueue = DispatchQueue(label: "noop.smartAlarm.notifications",
+                                                                  qos: .utility)
+    #endif
+
     /// Schedule a BEST-EFFORT repeating daily backup wake notification for the smart alarm (#4 + #6).
     ///
     /// The strap firmware alarm is one absolute instant and the mirror in `postSmartAlarm` only posts
@@ -2314,83 +2322,87 @@ final class AppModel: ObservableObject {
     /// Android's `SmartAlarmScheduler.arm` which reads `SmartAlarmStore.targetOverrides` per weekday.
     static func scheduleSmartAlarmBackupNotification(minutes: Int, weekdays: Set<Int>,
                                                      overrides: [Int: Int] = [:],
-                                                     log: ((String) -> Void)? = nil) {
+                                                     log: (@Sendable (String) -> Void)? = nil) {
         #if os(iOS)
-        let center = UNUserNotificationCenter.current()
-        // Always clear BOTH the single and the per-day ids so switching modes (or editing the weekday set)
-        // never leaves an orphaned trigger or double-fires.
-        center.removePendingNotificationRequests(withIdentifiers: smartAlarmBackupIds)
-        // #34: the backup follows THE ALARM, not the wrist-alerts master. This is only reached from
-        // applySmartAlarm() with the alarm enabled, so the alarm being on IS the correct gate — a user who
-        // sets a smart alarm but never turned on the separate wrist HR/strain alerts must still get a backup
-        // wake. The old `notif.masterEnabled` guard suppressed it for exactly those users, so a strap that
-        // couldn't arm left them with nothing.
-        let valid = weekdays.filter { (1...7).contains($0) }
-        // A non-empty selection that filters to nothing (only out-of-range numbers) has no day to fire on.
-        if !weekdays.isEmpty && valid.isEmpty { return }
-        // #1864: only valid override entries (day 1…7, minute in [0, 1440)) count; a day without an override
-        // uses the default `minutes`. When the map is empty this is byte-for-byte the old path.
-        let cleanOverrides = overrides.filter { (1...7).contains($0.key) && (0..<24 * 60).contains($0.value) }
+        let ids = smartAlarmBackupIds
+        let baseId = smartAlarmBackupId
+        smartAlarmNotificationQueue.async {
+            let center = UNUserNotificationCenter.current()
+            // Always clear BOTH the single and the per-day ids so switching modes (or editing the weekday set)
+            // never leaves an orphaned trigger or double-fires.
+            center.removePendingNotificationRequests(withIdentifiers: ids)
+            // #34: the backup follows THE ALARM, not the wrist-alerts master. This is only reached from
+            // applySmartAlarm() with the alarm enabled, so the alarm being on IS the correct gate — a user who
+            // sets a smart alarm but never turned on the separate wrist HR/strain alerts must still get a backup
+            // wake. The old `notif.masterEnabled` guard suppressed it for exactly those users, so a strap that
+            // couldn't arm left them with nothing.
+            let valid = weekdays.filter { (1...7).contains($0) }
+            // A non-empty selection that filters to nothing (only out-of-range numbers) has no day to fire on.
+            if !weekdays.isEmpty && valid.isEmpty { return }
+            // #1864: only valid override entries (day 1…7, minute in [0, 1440)) count; a day without an override
+            // uses the default `minutes`. When the map is empty this is byte-for-byte the old path.
+            let cleanOverrides = overrides.filter { (1...7).contains($0.key) && (0..<24 * 60).contains($0.value) }
 
-        // Build + add the repeating trigger(s). Factored so the already-authorized and the just-granted
-        // paths schedule identically.
-        func addRequests() {
-            let content = UNMutableNotificationContent()
-            content.title = String(localized: "Smart alarm")
-            content.body = String(localized: "Backup wake: your smart alarm time is here.")
-            content.sound = .default
-            if weekdays.isEmpty {
-                // Every day. When overrides exist, fan out to per-weekday triggers (each at its own time)
-                // so an override on a day the weekday set doesn't restrict still fires at the right time.
-                // Without overrides this stays the single daily trigger (byte-for-byte the old path).
-                if cleanOverrides.isEmpty {
-                    let hour = minutes / 60
-                    let minute = minutes % 60
-                    var comps = DateComponents()
-                    comps.hour = hour
-                    comps.minute = minute
-                    let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: true)
-                    center.add(UNNotificationRequest(identifier: smartAlarmBackupId, content: content, trigger: trigger))
+            // Build + add the repeating trigger(s). Factored so the already-authorized and the just-granted
+            // paths schedule identically.
+            func addRequests() {
+                let content = UNMutableNotificationContent()
+                content.title = String(localized: "Smart alarm")
+                content.body = String(localized: "Backup wake: your smart alarm time is here.")
+                content.sound = .default
+                if weekdays.isEmpty {
+                    // Every day. When overrides exist, fan out to per-weekday triggers (each at its own time)
+                    // so an override on a day the weekday set doesn't restrict still fires at the right time.
+                    // Without overrides this stays the single daily trigger (byte-for-byte the old path).
+                    if cleanOverrides.isEmpty {
+                        let hour = minutes / 60
+                        let minute = minutes % 60
+                        var comps = DateComponents()
+                        comps.hour = hour
+                        comps.minute = minute
+                        let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: true)
+                        center.add(UNNotificationRequest(identifier: baseId, content: content, trigger: trigger))
+                    } else {
+                        for weekday in 1...7 {
+                            let m = cleanOverrides[weekday] ?? minutes
+                            var comps = DateComponents()
+                            comps.weekday = weekday
+                            comps.hour = m / 60
+                            comps.minute = m % 60
+                            let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: true)
+                            center.add(UNNotificationRequest(identifier: "\(baseId)-d\(weekday)",
+                                                             content: content, trigger: trigger))
+                        }
+                    }
                 } else {
-                    for weekday in 1...7 {
+                    for weekday in valid {
                         let m = cleanOverrides[weekday] ?? minutes
                         var comps = DateComponents()
-                        comps.weekday = weekday
+                        comps.weekday = weekday   // Calendar weekday 1=Sun…7=Sat , fires weekly on that day
                         comps.hour = m / 60
                         comps.minute = m % 60
                         let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: true)
-                        center.add(UNNotificationRequest(identifier: "\(smartAlarmBackupId)-d\(weekday)",
+                        center.add(UNNotificationRequest(identifier: "\(baseId)-d\(weekday)",
                                                          content: content, trigger: trigger))
                     }
                 }
-            } else {
-                for weekday in valid {
-                    let m = cleanOverrides[weekday] ?? minutes
-                    var comps = DateComponents()
-                    comps.weekday = weekday   // Calendar weekday 1=Sun…7=Sat , fires weekly on that day
-                    comps.hour = m / 60
-                    comps.minute = m % 60
-                    let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: true)
-                    center.add(UNNotificationRequest(identifier: "\(smartAlarmBackupId)-d\(weekday)",
-                                                     content: content, trigger: trigger))
-                }
             }
-        }
 
-        center.getNotificationSettings { settings in
-            switch settings.authorizationStatus {
-            case .authorized:
-                addRequests()
-            case .notDetermined:
-                // The user just enabled the alarm but was never asked for notification permission (nothing
-                // else prompted — wrist alerts, which used to, may be off). Ask now, then schedule on grant
-                // so the FIRST night is covered rather than only after some later re-arm.
-                center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
-                    if granted { addRequests() }
-                    else { log?("Smart alarm: backup notification NOT scheduled (notification permission denied)") }
+            center.getNotificationSettings { settings in
+                switch settings.authorizationStatus {
+                case .authorized:
+                    addRequests()
+                case .notDetermined:
+                    // The user just enabled the alarm but was never asked for notification permission (nothing
+                    // else prompted — wrist alerts, which used to, may be off). Ask now, then schedule on grant
+                    // so the FIRST night is covered rather than only after some later re-arm.
+                    center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
+                        if granted { addRequests() }
+                        else { log?("Smart alarm: backup notification NOT scheduled (notification permission denied)") }
+                    }
+                default:
+                    log?("Smart alarm: backup notification NOT scheduled (notifications not authorized)")
                 }
-            default:
-                log?("Smart alarm: backup notification NOT scheduled (notifications not authorized)")
             }
         }
         #endif
@@ -2399,8 +2411,10 @@ final class AppModel: ObservableObject {
     /// Cancel the smart-alarm backup wake notification(s). Called on disarm. No-op on macOS.
     static func cancelSmartAlarmBackupNotification() {
         #if os(iOS)
-        UNUserNotificationCenter.current()
-            .removePendingNotificationRequests(withIdentifiers: smartAlarmBackupIds)
+        let ids = smartAlarmBackupIds
+        smartAlarmNotificationQueue.async {
+            UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ids)
+        }
         #endif
     }
 

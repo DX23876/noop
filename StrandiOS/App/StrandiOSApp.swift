@@ -451,7 +451,7 @@ struct StrandiOSApp: App {
                     // update is field-scoped to steps/Effort and coalesces with a simultaneous BLE
                     // backfill or workout-finish request.
                     await model.refreshCurrentDayActivity()
-                    health.refreshAuthIfPreviouslyGranted()
+                    await health.refreshAuthIfPreviouslyGranted()
                     HealthWritebackBackgroundScheduler.updateSchedule(
                         isAuthorized: health.hasWriteAuthorization)
                     await HealthSyncRefreshCoordinator.run(

@@ -357,12 +357,19 @@ final class HealthKitBridge: ObservableObject {
     /// never reveals *read* status, but *write*/share status is observable — if the user already
     /// authorized all of our write types, treat the bridge as `.authorized`. This only reads
     /// status, so no system permission sheet is shown.
-    func refreshAuthIfPreviouslyGranted() {
+    func refreshAuthIfPreviouslyGranted() async {
         guard auth == .unknown, HKHealthStore.isHealthDataAvailable() else { return }
         // Share authorization is per type. Resume when at least one write type is granted so a person
         // who intentionally declined (for example) workouts still gets sleep/vitals exported after a
         // relaunch. Requiring every legacy type made partial grants look wholly disconnected.
-        let granted = writeTypes.contains { store.authorizationStatus(for: $0) == .sharingAuthorized }
+        // Each status read is a synchronous round trip to healthd; off the main actor, so a slow daemon
+        // on launch leaves the UI responsive instead of frozen.
+        let store = self.store, types = writeTypes
+        let granted = await Task.detached(priority: .userInitiated) {
+            types.contains { store.authorizationStatus(for: $0) == .sharingAuthorized }
+        }.value
+        // Another caller may have resolved `auth` while this one waited.
+        guard auth == .unknown else { return }
         if granted || UserDefaults.standard.string(forKey: Self.readTypeSignatureKey) != nil {
             auth = .authorized
             // A returning user who already granted access should get the live stream re-armed for this
@@ -1160,7 +1167,7 @@ final class HealthKitBridge: ObservableObject {
         // only resume runs on scenePhase == .active, so without this the guard below would silently drop
         // exactly the writes this is meant to deliver. Idempotent, and never prompts: it reads share
         // status, and its re-request for new types is foreground-gated.
-        refreshAuthIfPreviouslyGranted()
+        await refreshAuthIfPreviouslyGranted()
         // No authorization is a successful no-op for a background task. The scheduler is cancelled by
         // its app-owned operation after observing this state, so it does not keep waking unnecessarily.
         guard auth == .authorized else { return true }
