@@ -97,6 +97,9 @@ struct StrandiOSApp: App {
         CoachCheckIn.registerCategory()
         GoalEventNotifier.registerCategory()
         let model = AppModel()
+        // Lock Screen pause/resume (`ToggleWorkoutPauseIntent`) runs in this process; install its handler
+        // before launch finishes, since iOS may launch NOOP in the background just to run that intent.
+        WorkoutActivityActions.togglePause = { [weak model] in model?.toggleWorkoutPause() }
         SemanticMemoryBackgroundTask.attach(coach: model.coach)
         // The scheduled morning brief's BGTask handler, registered before launch finishes for the same
         // reason as the three above: iOS only delivers a task whose identifier was registered at launch
@@ -349,8 +352,10 @@ struct StrandiOSApp: App {
                 // importer; macOS never registers the scheme so this stays iOS-only.
                 .onOpenURL { url in
                     if url.scheme == "noop", url.host == "workout" {
-                        // Tapping the workout Live Activity or Dynamic Island returns to the running session.
+                        // Tapping the workout Live Activity or Dynamic Island returns to the running session;
+                        // its End control (`noop://workout/end`) opens it with the end confirmation up.
                         router.openActiveWorkout()
+                        if url.lastPathComponent == "end" { model.session.requestEnd() }
                     } else if url.host == "import-health" {
                         model.handleHealthImportURL(url)
                     } else if url.scheme == "noop", url.host == "energy" {

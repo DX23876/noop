@@ -25,6 +25,8 @@ struct LiveWorkoutActivitySnapshot: Equatable {
     var restEndsAt: Date?
     /// Why the last strap double-tap was not logged, until the next set is completed.
     var notice: String? = nil
+    /// SF Symbol for the sport, resolved from the stored sport key (the title is localized).
+    var symbol: String? = nil
 
     /// The instant elapsed time counts from once pauses are taken out, for a system-rendered timer.
     var elapsedAnchor: Date { startedAt.addingTimeInterval(pausedSeconds) }

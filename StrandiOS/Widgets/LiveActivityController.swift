@@ -111,7 +111,7 @@ final class LiveActivityController {
                         effort: Int?) {
         guard authInfo.areActivitiesEnabled else { return }
         // A running workout owns the activity; the plain live-HR summary resumes after it ends.
-        guard currentWorkout == nil else { return }
+        guard currentWorkout == nil, model?.session.hasLiveSession != true else { return }
 
         // A banner iOS ended (after about eight hours) or the user swiped away is gone: forget it, so the next time
         // NOOP is on screen it starts one again rather than pushing to nothing. (One NOOP is ending is not gone yet.)
@@ -132,7 +132,9 @@ final class LiveActivityController {
         if activity == nil {
             let listed = Activity<NOOPActivityAttributes>.activities
             removeLeftovers(listed, beside: nil)
-            if let adopted = listed.first(where: Self.isShowing) {
+            if let adopted = listed.first(where: {
+                $0.attributes.title != Self.workoutTitle && Self.isShowing($0)
+            }) {
                 activity = adopted
                 startedAt = (UserDefaults.standard.dictionary(forKey: Self.startedKey)?[adopted.id] as? Double)
                     .map(Date.init(timeIntervalSince1970:))
@@ -239,6 +241,13 @@ final class LiveActivityController {
 
     /// The workout the activity currently shows, or nil when it shows live HR (or nothing).
     private var currentWorkout: NOOPActivityAttributes.Workout?
+    /// Owns the replace-and-request sequence. Ending a workout or disabling its switch cancels this task
+    /// and advances the generation, preventing an old request from recreating a finished banner.
+    private var workoutStartTask: Task<Void, Never>?
+    private var workoutGeneration = 0
+    /// A workout start iOS refused because NOOP was not yet active, retried once it is. A restored, paused
+    /// workout with no strap publishes nothing else, so without this its banner never appeared.
+    private var deferredWorkoutStart: NSObjectProtocol?
 
     /// Shows the running workout, or ends the workout activity when `snapshot` is nil. A workout activity
     /// lives as long as the session, not as long as the strap connection. Structural changes (pause, a rest
@@ -246,19 +255,27 @@ final class LiveActivityController {
     func updateWorkout(_ snapshot: LiveWorkoutActivitySnapshot?, now: Date = Date()) {
         guard let snapshot else {
             workoutSkipLogged = nil
-            guard currentWorkout != nil else { return }
+            invalidateWorkoutStart()
+            guard currentWorkout != nil || activity?.attributes.title == Self.workoutTitle
+                    || Self.hasListedWorkoutActivity else { return }
             currentWorkout = nil
             logWorkout("ended: the workout is over")
             Task { await end() }
             return
         }
         guard authInfo.areActivitiesEnabled else {
+            invalidateWorkoutStart()
             logWorkoutSkip("not shown: Live Activities are off for NOOP in iOS Settings")
+            if currentWorkout != nil || Self.hasListedWorkoutActivity {
+                currentWorkout = nil
+                Task { await end() }
+            }
             return
         }
         guard UnitPrefs.workoutLiveActivityEnabled() else {
+            invalidateWorkoutStart()
             logWorkoutSkip("not shown: its switch in Settings > Live notifications is off")
-            if currentWorkout != nil {
+            if currentWorkout != nil || Self.hasListedWorkoutActivity {
                 currentWorkout = nil
                 logWorkout("ended: its switch is off")
                 Task { await end() }
@@ -268,15 +285,41 @@ final class LiveActivityController {
         let workout = Self.workoutState(snapshot, now: now)
         let state = NOOPActivityAttributes.ContentState(bpm: snapshot.bpm, recovery: nil, bonded: true,
                                                         effort: nil, workout: workout)
-        let content = ActivityContent(state: state, staleDate: nil)
-        if activity == nil { activity = Activity<NOOPActivityAttributes>.activities.first }
+        let content = ActivityContent(state: state, staleDate: now.addingTimeInterval(Self.staleAfter))
+
+        // Re-adopt the workout banner ActivityKit kept across a process restart. Selecting by title is
+        // essential because the same attributes type also backs the plain live-HR banner.
+        if activity == nil || activity?.attributes.title != Self.workoutTitle {
+            let listed = Activity<NOOPActivityAttributes>.activities
+            if let adopted = listed.first(where: {
+                $0.attributes.title == Self.workoutTitle && Self.isShowing($0)
+            }) {
+                activity = adopted
+                currentWorkout = workout
+                lastPush = now
+                workoutSkipLogged = nil
+                Task { await adopted.update(content) }
+                removeLeftovers(listed, beside: adopted)
+                logWorkout("picked up the workout already on the Lock Screen")
+                return
+            }
+        }
+        if let activity, activity.attributes.title == Self.workoutTitle,
+           currentWorkout == nil, Self.isShowing(activity) {
+            currentWorkout = workout
+            lastPush = now
+            workoutSkipLogged = nil
+            Task { await activity.update(content) }
+            logWorkout("picked up the workout already on the Lock Screen")
+            return
+        }
 
         let showsWorkout = currentWorkout != nil && activity?.attributes.title == Self.workoutTitle
         if let activity, showsWorkout {
             let structural = Self.isStructuralChange(from: currentWorkout, to: workout)
-            guard structural || Date().timeIntervalSince(lastPush) > 2 else { return }
+            guard structural || now.timeIntervalSince(lastPush) > 2 else { return }
             currentWorkout = workout
-            lastPush = Date()
+            lastPush = now
             Task { await activity.update(content) }
             return
         }
@@ -284,28 +327,47 @@ final class LiveActivityController {
         // next publish after returning to the app starts it.
         guard UIApplication.shared.applicationState == .active else {
             logWorkoutSkip("waiting: iOS starts it only while NOOP is on screen")
+            retryWorkoutStartWhenActive(snapshot)
             return
         }
         guard !isStarting else { return }
         isStarting = true
         currentWorkout = workout
-        Task {
+        workoutGeneration += 1
+        let generation = workoutGeneration
+        workoutStartTask?.cancel()
+        workoutStartTask = Task { @MainActor [weak self] in
+            guard let self else { return }
             // A live-HR activity was requested with a different title; replace it with the workout one.
-            await end()
-            do {
-                activity = try Activity.request(attributes: NOOPActivityAttributes(title: Self.workoutTitle),
-                                                content: content, pushType: nil)
-                lastPush = Date()
-                workoutSkipLogged = nil
-                logWorkout("started (\(workout.kind.rawValue))")
-            } catch {
-                activity = nil
-                // Unset, so the next publish (the next set, the next return to the app) asks again.
-                currentWorkout = nil
-                logWorkoutSkip("iOS did not start it: \(error.localizedDescription)")
+            await self.end()
+            guard !Task.isCancelled, self.workoutGeneration == generation,
+                  self.currentWorkout != nil, UnitPrefs.workoutLiveActivityEnabled() else {
+                self.isStarting = false
+                return
             }
-            isStarting = false
+            do {
+                self.activity = try Activity.request(
+                    attributes: NOOPActivityAttributes(title: Self.workoutTitle),
+                    content: content, pushType: nil)
+                self.lastPush = Date()
+                self.workoutSkipLogged = nil
+                self.logWorkout("started (\(workout.kind.rawValue))")
+            } catch {
+                self.activity = nil
+                // Unset, so the next publish (the next set, the next return to the app) asks again.
+                self.currentWorkout = nil
+                self.logWorkoutSkip("iOS did not start it: \(error.localizedDescription)")
+            }
+            self.isStarting = false
+            if self.workoutGeneration == generation { self.workoutStartTask = nil }
         }
+    }
+
+    private func invalidateWorkoutStart() {
+        workoutGeneration += 1
+        workoutStartTask?.cancel()
+        workoutStartTask = nil
+        isStarting = false
     }
 
     /// The last reason a workout banner was not shown, logged once rather than on every publish. Cleared when one
@@ -318,6 +380,20 @@ final class LiveActivityController {
         model?.live.append(log: AppModel.stamped("Workout banner: " + line))
     }
 
+    private func retryWorkoutStartWhenActive(_ snapshot: LiveWorkoutActivitySnapshot) {
+        if let deferredWorkoutStart { NotificationCenter.default.removeObserver(deferredWorkoutStart) }
+        deferredWorkoutStart = NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                if let observer = self.deferredWorkoutStart { NotificationCenter.default.removeObserver(observer) }
+                self.deferredWorkoutStart = nil
+                self.updateWorkout(snapshot)
+            }
+        }
+    }
+
     private func logWorkoutSkip(_ reason: String) {
         guard workoutSkipLogged != reason else { return }
         workoutSkipLogged = reason
@@ -327,13 +403,21 @@ final class LiveActivityController {
     /// Distinguishes a workout activity from the live-HR one without a second attributes type.
     static let workoutTitle = "workout"
 
+    /// ActivityKit can outlive this controller. Consult its process-wide roster before deciding there
+    /// is no workout banner to end, especially directly after a relaunch or settings change.
+    private static var hasListedWorkoutActivity: Bool {
+        Activity<NOOPActivityAttributes>.activities.contains {
+            $0.attributes.title == workoutTitle && listed($0) != .gone
+        }
+    }
+
     static func workoutState(_ snapshot: LiveWorkoutActivitySnapshot, now: Date) -> NOOPActivityAttributes.Workout {
         .init(kind: snapshot.kind == .strength ? .strength : .cardio, title: snapshot.title,
               elapsedAnchor: snapshot.elapsedAnchor,
               pausedElapsedSeconds: snapshot.pausedAt == nil ? nil : snapshot.activeSeconds(at: now),
               zone: snapshot.zone, distanceM: snapshot.distanceM, paceSecPerKm: snapshot.paceSecPerKm,
               setsDone: snapshot.setsDone, setsTotal: snapshot.setsTotal, restEndsAt: snapshot.restEndsAt,
-              notice: snapshot.notice)
+              notice: snapshot.notice, symbol: snapshot.symbol)
     }
 
     /// Changes the Lock Screen must reflect immediately rather than on the next throttled push.

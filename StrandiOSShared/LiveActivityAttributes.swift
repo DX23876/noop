@@ -45,10 +45,13 @@ public struct NOOPActivityAttributes: ActivityAttributes {
         /// Why the last strap double-tap was not logged, already localized by the app. OPTIONAL so an
         /// activity started by an older build still decodes.
         public var notice: String?
+        /// SF Symbol for the sport, chosen by the app from the stored sport key. `title` is the localized
+        /// name ("Laufen"), which the widget cannot map back to a sport. OPTIONAL for older activities.
+        public var symbol: String?
 
         public init(kind: Kind, title: String, elapsedAnchor: Date, pausedElapsedSeconds: Int?, zone: Int?,
                     distanceM: Double?, paceSecPerKm: Double?, setsDone: Int?, setsTotal: Int?,
-                    restEndsAt: Date?, notice: String? = nil) {
+                    restEndsAt: Date?, notice: String? = nil, symbol: String? = nil) {
             self.kind = kind
             self.title = title
             self.elapsedAnchor = elapsedAnchor
@@ -60,6 +63,7 @@ public struct NOOPActivityAttributes: ActivityAttributes {
             self.setsTotal = setsTotal
             self.restEndsAt = restEndsAt
             self.notice = notice
+            self.symbol = symbol
         }
     }
 

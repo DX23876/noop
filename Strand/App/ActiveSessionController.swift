@@ -29,7 +29,7 @@ final class ActiveSessionController: ObservableObject {
             case strengthChoice
             /// Start exactly these routines; empty means freestyle.
             case strength(routines: [TrainingRoutine])
-            case cardio(sport: String, targetZone: Int?)
+            case cardio(sport: String, targetZone: Int?, gpsEnabled: Bool?)
         }
         let id = UUID()
         let request: Request
@@ -51,6 +51,9 @@ final class ActiveSessionController: ObservableObject {
     }
     /// Whether the full-screen session is showing. False with a session running means minimized.
     @Published var isPresented = false
+    /// Set by the Lock Screen "End" link: the live screen opens and asks to confirm, so a tap in a pocket
+    /// can never end a run on its own. The live screen clears it once the question is up.
+    @Published var endConfirmationRequested = false
     @Published var pendingStart: PendingStart?
     /// A strength draft found at launch whose last change is older than `staleAfterSeconds`.
     @Published var staleDraft: WorkoutDraft?
@@ -113,10 +116,23 @@ final class ActiveSessionController: ObservableObject {
                 self.objectWillChange.send()
             }
             .store(in: &cancellables)
+        // Pausing or resuming changes what the Lock Screen shows (a frozen clock, the Resume control) at once,
+        // whether it came from the app or from the Lock Screen itself. Neither heart rate nor distance moves
+        // while paused, so the throttled stream below would never carry it.
+        app.$activeWorkout
+            .map { $0?.isPaused == true }
+            .removeDuplicates()
+            .dropFirst()
+            .sink { [weak self] _ in
+                guard let self, self.app.activeWorkout != nil else { return }
+                self.publishActivity()
+            }
+            .store(in: &cancellables)
         // The system surfaces follow the live values, at most every two seconds: heart rate for both kinds,
         // distance for a GPS session. Elapsed time and rest countdowns are rendered by the system itself.
         app.$bpm.map { _ in () }
             .merge(with: app.gpsRecorder.$distanceM.map { _ in () })
+            .merge(with: watchHeartRate.$bpm.map { _ in () })
             .throttle(for: .seconds(2), scheduler: RunLoop.main, latest: true)
             .sink { [weak self] in
                 guard let self, self.hasLiveSession else { return }
@@ -151,6 +167,13 @@ final class ActiveSessionController: ObservableObject {
     }
 
     func present() { if strength != nil || app.activeWorkout != nil { isPresented = true } }
+
+    /// Opens the running cardio session and asks the wearer to confirm ending it (Lock Screen "End").
+    func requestEnd() {
+        guard app.activeWorkout != nil else { return }
+        endConfirmationRequested = true
+        present()
+    }
     func minimize() { isPresented = false }
 
     // MARK: - Context
@@ -216,17 +239,18 @@ final class ActiveSessionController: ObservableObject {
         Task { await startStrength(routines: routines) }
     }
 
-    func requestCardio(sport: String, targetZone: Int?) {
+    func requestCardio(sport: String, targetZone: Int?, gpsEnabled: Bool? = nil) {
         if Self.isStrengthSport(sport) {
             chooseStrengthStart()
             return
         }
         guard !hasLiveSession else {
-            pendingStart = .init(request: .cardio(sport: sport, targetZone: targetZone),
+            pendingStart = .init(request: .cardio(sport: sport, targetZone: targetZone,
+                                                  gpsEnabled: gpsEnabled),
                                  runningTitle: runningTitle)
             return
         }
-        app.startWorkout(sport: sport, targetZone: targetZone)
+        app.startWorkout(sport: sport, targetZone: targetZone, gpsEnabled: gpsEnabled)
         isPresented = true
     }
 
@@ -249,8 +273,8 @@ final class ActiveSessionController: ObservableObject {
             chooseStrengthStart()
         case .strength(let routines):
             await startStrength(routines: routines)
-        case .cardio(let sport, let targetZone):
-            app.startWorkout(sport: sport, targetZone: targetZone)
+        case .cardio(let sport, let targetZone, let gpsEnabled):
+            app.startWorkout(sport: sport, targetZone: targetZone, gpsEnabled: gpsEnabled)
             isPresented = true
         }
     }
@@ -272,7 +296,7 @@ final class ActiveSessionController: ObservableObject {
         }
         strength = makeSession(draft)
         // The start sheet has to be gone before the full-screen session can present over the shell.
-        if closingChooser { try? await Task.sleep(nanoseconds: 450_000_000) }
+        if closingChooser { try? await Task.sleep(for: .milliseconds(450)) }
         isPresented = true
     }
 
@@ -499,11 +523,12 @@ final class ActiveSessionController: ObservableObject {
             let gps = app.gpsRecorder
             let hasRoute = gps.pointCount > 1
             return LiveWorkoutActivitySnapshot(
-                kind: .cardio, title: workout.sport, startedAt: workout.start,
+                kind: .cardio, title: WorkoutSource.localizedDisplaySport(workout.sport), startedAt: workout.start,
                 pausedAt: workout.pausedAt, pausedSeconds: workout.pausedDuration,
                 bpm: app.bpm, zone: zone(app.bpm),
                 distanceM: hasRoute ? gps.distanceM : nil, paceSecPerKm: hasRoute ? gps.paceSecPerKm : nil,
-                setsDone: nil, setsTotal: nil, restEndsAt: nil)
+                setsDone: nil, setsTotal: nil, restEndsAt: nil,
+                symbol: WorkoutTypeIconography.systemSymbolName(for: workout.sport))
         }
         return nil
     }

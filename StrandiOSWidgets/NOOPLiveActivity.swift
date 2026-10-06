@@ -47,15 +47,18 @@ struct NOOPLiveActivity: Widget {
                 Text(workout.title).font(.caption).lineLimit(1).foregroundStyle(.secondary)
             }
             DynamicIslandExpandedRegion(.bottom) {
-                WorkoutClock(workout: workout, style: .large)
+                VStack(spacing: 8) {
+                    WorkoutClock(workout: workout, style: .large)
+                    if workout.kind == .cardio { WorkoutActivityControls(workout: workout) }
+                }
             }
         } compactLeading: {
-            Image(systemName: WorkoutActivityLink.symbol(workout.kind))
+            Image(systemName: WorkoutActivityLink.symbol(for: workout))
                 .foregroundStyle(StrandPalette.accent)
         } compactTrailing: {
             WorkoutClock(workout: workout, style: .compact)
         } minimal: {
-            Image(systemName: WorkoutActivityLink.symbol(workout.kind))
+            Image(systemName: WorkoutActivityLink.symbol(for: workout))
                 .foregroundStyle(StrandPalette.accent)
         }
         .widgetURL(WorkoutActivityLink.url)
@@ -94,9 +97,13 @@ struct NOOPLiveActivity: Widget {
 /// Where a tap on the workout activity lands, and its symbol.
 enum WorkoutActivityLink {
     static let url = URL(string: "noop://workout/active")
+    /// Opens the running workout with the end confirmation up; ending is never a one-tap intent.
+    static let endURL = URL(string: "noop://workout/end")
 
-    static func symbol(_ kind: NOOPActivityAttributes.Workout.Kind) -> String {
-        kind == .strength ? "dumbbell.fill" : "figure.run"
+    static func symbol(for workout: NOOPActivityAttributes.Workout) -> String {
+        workout.kind == .strength
+            ? "dumbbell.fill"
+            : workout.symbol ?? WorkoutTypeIconography.systemSymbolName(for: workout.title)
     }
 }
 
@@ -136,6 +143,7 @@ private struct WorkoutActivityBanner: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             stats
+            if workout.kind == .cardio { WorkoutActivityControls(workout: workout) }
             // Why the last strap double-tap was not logged: the missing buzz alone does not say.
             if let notice = workout.notice {
                 Label { Text(verbatim: notice) } icon: { Image(systemName: "hand.tap") }
@@ -148,7 +156,7 @@ private struct WorkoutActivityBanner: View {
 
     private var stats: some View {
         HStack(alignment: .center, spacing: 14) {
-            Image(systemName: WorkoutActivityLink.symbol(workout.kind))
+            Image(systemName: WorkoutActivityLink.symbol(for: workout))
                 .font(.title2)
                 .foregroundStyle(StrandPalette.accent)
             VStack(alignment: .leading, spacing: 2) {
@@ -235,16 +243,22 @@ private struct WorkoutSecondaryStat: View {
             Text("\(done) / \(total) sets").monospacedDigit()
         } else if let meters = workout.distanceM {
             Text(Self.distance(meters, pace: workout.paceSecPerKm)).monospacedDigit()
+                .lineLimit(1).fixedSize()
         }
     }
 
     static func distance(_ meters: Double, pace: Double?) -> String {
-        let km = Measurement(value: meters / 1_000, unit: UnitLength.kilometers)
-            .formatted(.measurement(width: .abbreviated, usage: .road,
-                                    numberFormatStyle: .number.precision(.fractionLength(2))))
+        // Whole metres under a kilometre, one decimal above: "140 m", "1,2 km" (the app's own format).
+        let km = meters < 1_000
+            ? Measurement(value: meters.rounded(), unit: UnitLength.meters)
+                .formatted(.measurement(width: .abbreviated, usage: .asProvided,
+                                        numberFormatStyle: .number.precision(.fractionLength(0))))
+            : Measurement(value: meters / 1_000, unit: UnitLength.kilometers)
+                .formatted(.measurement(width: .abbreviated, usage: .asProvided,
+                                        numberFormatStyle: .number.precision(.fractionLength(1))))
         guard let pace, pace.isFinite, pace > 0 else { return km }
         let seconds = Int(pace.rounded())
-        return "\(km) · \(seconds / 60):\(String(format: "%02d", seconds % 60))/km"
+        return "\(km) · \(seconds / 60):\(String(format: "%02d", seconds % 60)) /km"
     }
 }
 
