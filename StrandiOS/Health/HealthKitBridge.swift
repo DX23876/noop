@@ -611,7 +611,10 @@ final class HealthKitBridge: ObservableObject {
                     .map { $0.startDate }
                     .min()
                 let latest = samples.filter { !Self.isNoopAuthored($0) }.map(\.endDate).max()
-                cont.resume(returning: (oldest, latest, deleted.map(\.uuid), newAnchor))
+                let foreignDeletions = deleted
+                    .filter { !Self.isNoopSyncIdentifier($0.metadata?[HKMetadataKeySyncIdentifier] as? String) }
+                    .map(\.uuid)
+                cont.resume(returning: (oldest, latest, foreignDeletions, newAnchor))
             }
             store.execute(q)
         }
@@ -2511,6 +2514,17 @@ final class HealthKitBridge: ObservableObject {
     /// can prove that current-source, stable-origin and legacy UUID samples are rejected independently.
     nonisolated static func isNoopAuthored(currentSource: Bool, origin: String?, externalUUID: String?) -> Bool {
         currentSource || origin == originMetadataValue || externalUUID?.hasPrefix("noop:") == true
+    }
+
+    /// Whether a deleted object's sync identifier is one NOOP wrote. A deletion carries no source and only
+    /// the sync identifier and version as metadata, so this is the one way to recognise NOOP's own
+    /// replacements: every versioned save retires the previous revision, and HealthKit reports that as a
+    /// deletion to the observer. Treating those as deletions made in Health started a history repair and
+    /// a 31-day sync, whose write-back replaced samples again and woke the observer once more.
+    /// `HealthSampleWriter` writes `<type identifier>|noop:…`; the bare prefix covers a key saved unwrapped.
+    nonisolated static func isNoopSyncIdentifier(_ id: String?) -> Bool {
+        guard let id else { return false }
+        return id.hasPrefix("noop:") || id.contains("|noop:")
     }
 
     /// How close two weights have to be before one is treated as an ECHO of the other rather than a
