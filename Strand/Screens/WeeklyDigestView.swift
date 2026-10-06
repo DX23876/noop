@@ -148,6 +148,12 @@ struct WeeklyDigestContent: View {
     let digest: WeeklyDigest
     var compact: Bool = false
     var showsHeader: Bool = true
+    /// iOS compact row only: draw the three week means as Liquid Today's organic rings instead of the
+    /// gauges. Trends sets it while Liquid is the Today style; the shared PNG and other hosts keep gauges.
+    var liquidRings: Bool = false
+    /// Optional content placed directly under the three scores, before the focal points (Trends puts
+    /// the week's goal results here).
+    var afterScores: AnyView? = nil
 
     /// The Effort display scale (#268), so the Week-in-review Effort gauge matches the Today tile
     /// and the Trends small-multiple instead of being stuck on "of 100". Charge/Rest stay 0–100.
@@ -181,6 +187,8 @@ struct WeeklyDigestContent: View {
 
             // The three headline scores, each with a domain-tinted gauge and week-over-week context.
             scoreRow
+
+            if let afterScores { afterScores }
 
             // Focal points + secondary signals + balance footer in one frosted card.
             detailCard
@@ -247,6 +255,15 @@ struct WeeklyDigestContent: View {
                             }
                         }
                     }
+                } else if liquidRings {
+                    DigestOrganicRingRow(items: summaries.map { summary in
+                        DigestOrganicRingRow.Item(
+                            summary: summary,
+                            domain: domain(for: summary.metric),
+                            deltaSigned: DigestScoreCard.signedDelta(summary, deltaText: deltaText(summary)),
+                            deltaTone: chipTone(summary),
+                            accessibility: rowAccessibility(summary, effortScale: effortScale))
+                    }, effortScale: effortScale)
                 } else {
                     // Align from the shared label/gauge rows. Optional content below one gauge must
                     // never shift that gauge relative to its neighbours.
@@ -640,12 +657,112 @@ private struct DigestScoreCard: View {
     }
 
     /// The week-over-week delta carrying a +/− so the TrendChip infers its arrow.
-    private var deltaSigned: String {
+    private var deltaSigned: String { Self.signedDelta(summary, deltaText: deltaText) }
+
+    static func signedDelta(_ summary: WeeklyMetricSummary, deltaText: String) -> String {
         guard summary.weekOverWeek.current.n > 0, summary.weekOverWeek.previous.n > 0 else { return deltaText }
         let sign = summary.wowDelta > 0 ? "+" : (summary.wowDelta < 0 ? "−" : "")
         return "\(sign)\(deltaText)"
     }
 }
+
+// MARK: - Organic ring row (Liquid Today style)
+
+#if os(iOS)
+/// The compact digest's three week means drawn as Liquid Today's organic rings, under one shared frame
+/// clock like the Today hero. Same numbers, labels and week-over-week chips as the gauge row; only the
+/// gauge is swapped. No dividers: the rings' glow is meant to overlap a neighbour's slot.
+/// Analysis migration required: no. Presentation only.
+private struct DigestOrganicRingRow: View {
+    struct Item {
+        let summary: WeeklyMetricSummary
+        let domain: DomainTheme
+        let deltaSigned: String
+        let deltaTone: Color
+        let accessibility: String
+    }
+
+    let items: [Item]
+    let effortScale: EffortScale
+    @State private var rowWidth: CGFloat = 0
+
+    var body: some View {
+        let diameter = LiquidHeroRingLayout.diameter(rowWidth: rowWidth)
+        let hitDiameter = LiquidHeroRingLayout.hitDiameter(rowWidth: rowWidth)
+        OrganicScoreHeroClock(dataReady: true) { frame in
+            HStack(alignment: .top, spacing: LiquidHeroRingLayout.slotSpacing) {
+                ForEach(items, id: \.summary.metric.rawValue) { item in
+                    cell(item, frame: frame, diameter: diameter, hitDiameter: hitDiameter)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .background(
+            GeometryReader { proxy in
+                Color.clear.preference(key: DigestRingRowWidthKey.self, value: proxy.size.width)
+            }
+        )
+        .onPreferenceChange(DigestRingRowWidthKey.self) { measured in
+            Task { @MainActor in
+                guard measured > 0, abs(measured - rowWidth) > 0.5 else { return }
+                rowWidth = measured
+            }
+        }
+        .padding(.vertical, NoopMetrics.space2)
+    }
+
+    private func cell(_ item: Item, frame: OrganicScoreFrame, diameter: CGFloat, hitDiameter: CGFloat) -> some View {
+        let summary = item.summary
+        let isEffort = summary.metric == .effort
+        let mean: Double? = summary.thisWeek.n > 0 ? summary.thisWeek.mean : nil
+        // Effort follows the 0–100 / 0–21 toggle and reads to one decimal, as the gauge did.
+        let score = mean.map { isEffort ? UnitFormatter.effortValue($0, scale: effortScale) : $0 }
+        let maxValue: Double = isEffort && effortScale == .whoop ? 21 : 100
+        let metric: OrganicScoreMetric = summary.metric == .charge ? .charge : (isEffort ? .effort : .rest)
+        let tint: Color
+        switch metric {
+        case .charge: tint = mean.map { StrandPalette.chargeRingColor($0) } ?? StrandPalette.organicMissing
+        case .effort: tint = StrandPalette.organicEffort
+        default:      tint = StrandPalette.organicRest
+        }
+        return VStack(spacing: NoopMetrics.space1) {
+            Text(summary.metric.label)
+                .font(StrandFont.overline)
+                .tracking(StrandFont.overlineTracking)
+                .textCase(.uppercase)
+                .foregroundStyle(item.domain.color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            OrganicScoreRing(
+                model: OrganicScoreVisualModel.resolve(metric: metric, value: score, scaleMaximum: maxValue),
+                tint: tint,
+                score: score,
+                decimals: isEffort ? 1 : 0,
+                frame: frame,
+                diameter: diameter,
+                hitDiameter: hitDiameter,
+                // Its own memory, so returning to Today does not count the daily rings up from these.
+                memoKey: "weekly-digest-\(metric.rawValue)"
+            )
+            .frame(width: hitDiameter, height: diameter)
+            if summary.weekOverWeek.current.n > 0 && summary.weekOverWeek.previous.n > 0 {
+                TrendChip(text: item.deltaSigned, color: item.deltaTone)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(item.accessibility)
+    }
+}
+
+/// The width the compact digest gives its organic ring row.
+private struct DigestRingRowWidthKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+#endif
 
 private extension View {
     @ViewBuilder

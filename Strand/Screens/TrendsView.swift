@@ -73,6 +73,12 @@ struct TrendsView: View {
     // and value-ramp bars. Read here at the screen root so a Settings change re-renders on return.
     @AppStorage(UnitPrefs.trendChartStyleKey) private var trendChartStyleRaw = TrendChartStyle.line.rawValue
     private var effortScale: EffortScale { UnitPrefs.resolveEffortScale(effortScaleRaw) }
+    /// The Today dashboard style. Only `.liquid` draws the weekly Charge / Effort / Rest as Liquid Today's
+    /// organic rings; every other style keeps the gauges, the same rule the Sleep hero follows.
+    @AppStorage(TodayDashboardStyle.storageKey) private var todayDashboardStyleRaw = TodayDashboardStyle.liquid.rawValue
+    private var weekUsesLiquidRings: Bool {
+        (TodayDashboardStyle.resolve(todayDashboardStyleRaw) ?? .liquid) == .liquid
+    }
 
     // yyyy-MM-dd → Date (en_US_POSIX, UTC), per task spec.
     private static let dayParser: DateFormatter = {
@@ -380,11 +386,12 @@ struct TrendsView: View {
                         title: "No readings this week",
                         message: "Step to another week with the arrows above to see its review.")
                 } else {
-                    // A finished week shows how its goals went (frozen results), in the same place as
-                    // the rest of that week's review.
-                    GoalsReviewBlock(period: .week, anyDay: digest.weekStart)
-                        .padding(.top, NoopMetrics.space1)
-                    WeeklyDigestContent(digest: digest, compact: true, showsHeader: false)
+                    // Liquid Today style: the three week means as Today's organic rings. The shared PNG
+                    // below keeps the gauges, since the rings are a live canvas. A finished week shows how
+                    // its goals went (frozen results) directly under the three scores.
+                    WeeklyDigestContent(digest: digest, compact: true, showsHeader: false,
+                                        liquidRings: weekUsesLiquidRings,
+                                        afterScores: AnyView(GoalsReviewBlock(period: .week, anyDay: digest.weekStart)))
                         .padding(.top, NoopMetrics.space1)
                     // Share this week's recap as an image. Renders the digest card (with its header) to a
                     // PNG off-screen and hands it to the share sheet / Save panel — reuses TrendsReport's
