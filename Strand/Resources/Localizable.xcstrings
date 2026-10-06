@@ -28484,13 +28484,13 @@
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld%% left. Wkładka zatrzymuje rejestrację blisko 10% — nie będzie rejestrowana dziś noc, chyba że zostanie naładowana."
+            "value" : "Pozostało %lld%%. Opaska przestaje nagrywać przy około 10%%, więc bez ładowania nie zarejestruje dzisiejszej nocy."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld%% lef. A pulseira para de registrar perto de 10% — não capturará esta noite a menos que você a carregue."
+            "value" : "Restam %lld%%. A pulseira deixa de gravar perto dos 10%%, por isso não vai registar esta noite se não a carregar."
           }
         },
         "ru" : {
@@ -94114,7 +94114,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Charge wägt Ihren HRV mit Ihrem persönlichen Ausgangswert (~55 %), Ihrer Ruheherzfrequenz (~20 %), Ihrer Ruhequalität (~15 %), Ihrer Atmung (~5 % %) und Ihrer Hauttemperaturabweichung (~5 %) ab. Die Anstrengung entspricht einer kardiovaskulären Belastung von 0-%@ pro Zeit in den Herzfrequenzzonen. Ruhe wird durch Bewegung und Herzfrequenz gestaffelt. Hier wird alles aus den Rohdaten des Bandes berechnet. Es funktioniert für jeden Tag, an dem NOOP Rohdatenströme gesammelt haben."
+            "value" : "Energie gewichtet deine HRV gegenüber deiner persönlichen Basislinie (~55%%), Ruheherzfrequenz (~20%%), Erholungsqualität (~15%%), Atmung (~5%%) und Hauttemperatur-Abweichung (~5%%). Belastung ist eine kardiovaskuläre Last von 0-%@ aus der Zeit in Herzfrequenzzonen. Erholung wird aus Bewegung und Herzfrequenz in Schlafphasen eingeteilt. Alles wird hier aus den Rohdaten des Straps berechnet. Es funktioniert für jeden Tag, an dem NOOP Rohdaten gesammelt hat."
           }
         },
         "en" : {
@@ -94126,13 +94126,13 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Charge compara tu HRV con tu valor inicial personal (~55 % %), frecuencia cardíaca en reposo (~20 % %), calidad del descanso (~15 % %), respiración (~5 % %) y desviación de la temperatura de la piel (~5 % %). El esfuerzo es una carga cardiovascular 0-%@ de tiempo en zonas de frecuencia cardíaca. El descanso se escenifica a partir del movimiento y la frecuencia cardíaca. Aquí todo se calcula a partir de los datos sin procesar de la correa. Funciona para cualquier día NOOP recopiló transmisiones sin procesar."
+            "value" : "La Carga compara tu VFC con tu referencia personal (~55%%), la frecuencia cardíaca en reposo (~20%%), la calidad del descanso (~15%%), la respiración (~5%%) y la desviación de la temperatura de la piel (~5%%). El Esfuerzo es una carga cardiovascular de 0-%@ según el tiempo en zonas de frecuencia cardíaca. El descanso se divide en fases a partir del movimiento y la frecuencia cardíaca. Todo se calcula aquí a partir de los datos sin procesar de la banda. Funciona para cualquier día en que NOOP haya recogido datos sin procesar."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Charge pèse votre HRV par rapport à votre référence personnelle (~ 55 %), votre fréquence cardiaque au repos (~ 20 %), la qualité du repos (~ 15 %), votre respiration (~ 5 % %) et l'écart de température cutanée (~ 5 % %). L'effort est une charge cardiovasculaire de 0-%@ à partir du temps dans les zones de fréquence cardiaque. Le repos est échelonné à partir du mouvement et de la fréquence cardiaque. Tout est ici calculé à partir des données brutes du bracelet. Cela fonctionne n'importe quel jour NOOP flux bruts collectés."
+            "value" : "La Charge pondère votre VFC par rapport à votre référence personnelle (~55%%), la fréquence cardiaque au repos (~20%%), la qualité du repos (~15%%), la respiration (~5%%) et l'écart de température cutanée (~5%%). L'Effort est une charge cardiovasculaire de 0-%@ calculée à partir du temps passé dans les zones cardiaques. Le repos est découpé en phases à partir du mouvement et de la fréquence cardiaque. Tout est calculé ici à partir des données brutes du bracelet. Cela fonctionne pour chaque jour où NOOP a collecté des données brutes."
           }
         },
         "it" : {
@@ -94214,19 +94214,19 @@
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Зарядка рассчитывает HRV по вашему личному базовому уровню (~55%), частоте сердечных сокращений в состоянии покоя (~20%), качеству отдыха (~15), дыханию (~5) и отклонению температуры кожи (~5). Эффект — это относительная нагрузка на сердце (0-%lld), рассчитанная по времени пребывания в зонах частоты сердечных сокращений. odp. rest формируется на основе движения и частоты сердечных сокращений. Все расчеты производятся на основе исходных данных репозитория. Это работает для любых дней, когда были сгенерированы исходные потоки NOOP."
+            "value" : "Заряд сопоставляет вашу ВСР с личным базовым уровнем (~55%%), пульс в покое (~20%%), качество отдыха (~15%%), дыхание (~5%%) и отклонение температуры кожи (~5%%). Усилие является сердечно-сосудистой нагрузкой по шкале 0-%lld, рассчитанной по времени в пульсовых зонах. Отдых делится на фазы по движению и пульсу. Всё рассчитывается здесь из сырых данных браслета. Это работает для любого дня, за который NOOP собрал сырые данные."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "充电根据HRV、基础水平（约55%）、休息心率（约20%）、休息质量（约15%）、呼吸（约5%）和皮肤温度偏差（约5%）进行计算。强度是基于心率区时间产生的0-%lld心血管负荷。休息是基于运动和心率的阶段性计算。所有计算均基于带子的原始数据。适用于任何NOOP收集的原始流。"
+            "value" : "能量将你的 HRV 与个人基线（约55%%）、静息心率（约20%%）、休息质量（约15%%）、呼吸（约5%%）和皮肤温度偏差（约5%%）进行加权。消耗是根据心率区间时间得出的 0-%lld 心血管负荷。休息根据活动和心率划分阶段。所有内容都在此由手环原始数据计算。只要 NOOP 收集了原始数据，任何一天都适用。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "充電時，帶式會根據個人基線（HRV 約 55％）、靜息心率（HR 約 20％）、休息品質（RIR 約 15％）、呼吸（RPE 約 5％）與皮膚溫度偏差（RIR 約 5％）進行估算。努力值為心率帶內所處心率區間的 %lld 循環負荷。休息值由活動量與心率推算。所有計算皆基於帶式原始資料。此功能適用於任何 NOOP 已收集的原始資料日。"
+            "value" : "能量將你的 HRV 與個人基線（約55%%）、靜息心率（約20%%）、休息品質（約15%%）、呼吸（約5%%）和皮膚溫度偏差（約5%%）進行加權。消耗是根據心率區間時間得出的 0-%lld 心血管負荷。休息根據活動和心率劃分階段。所有內容都在此由手環原始資料計算。只要 NOOP 收集了原始資料，任何一天都適用。"
           }
         }
       }
@@ -177956,19 +177956,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HRV %lld % % o zur Basislinie"
+            "value" : "HRV %lld%% über der Basislinie"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HRV %lld% % o bajo línea de referencia"
+            "value" : "VFC %lld%% por encima de la referencia"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HRV %lld% % o au-dessus de la ligne de référence"
+            "value" : "VFC %lld%% au-dessus de la référence"
           }
         },
         "it" : {
@@ -177980,13 +177980,13 @@
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HRV %lld% % o jako podstawowy poziom zdrowotny"
+            "value" : "HRV %lld%% powyżej punktu odniesienia"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "RPE %lld% % o abaixo da linha de referência"
+            "value" : "VFC %lld%% acima da referência"
           }
         },
         "ru" : {
@@ -178020,13 +178020,13 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HRV %lld% % u debajo del umbral"
+            "value" : "VFC %lld%% por debajo de la referencia"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HRV %lld% % u en dessous de la ligne de référence"
+            "value" : "VFC %lld%% en dessous de la référence"
           }
         },
         "it" : {
@@ -178038,13 +178038,13 @@
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HRV %lld% % uniżej granicy"
+            "value" : "HRV %lld%% poniżej punktu odniesienia"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Variação da frequência cardíaca %lld% % uer abaixo do valor de referência"
+            "value" : "VFC %lld%% abaixo da referência"
           }
         },
         "ru" : {
@@ -255101,19 +255101,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nur %lld % % o deiner Wiederholungen haben eine RPE, daher ist die Anstrengungs-Hälfte der Schätzung meist Standard."
+            "value" : "Nur %lld %% deiner Sätze haben eine RPE, daher beruht die Anstrengungs-Hälfte der Schätzung meist auf einem Standardwert."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Solo el %lld %% o de tus series incluye una evaluación de esfuerzo, por lo que la mitad de la estimación depende principalmente de la configuración predeterminada."
+            "value" : "Solo el %lld %% de tus series tiene RPE, así que la mitad de esfuerzo de la estimación es sobre todo un valor por defecto."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Seules %lld %% o des séries incluent un RPE, donc la moitié de l’effort de l’estimation est principalement une valeur par défaut."
+            "value" : "Seules %lld %% de vos séries ont un RPE, donc la moitié effort de l'estimation repose surtout sur une valeur par défaut."
           }
         },
         "it" : {
@@ -255125,13 +255125,13 @@
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tylko %lld %% o wysiłku w ćwiczeniach wpływa na ocenę, więc wartość podstawowa jest domyślnie ustawiona."
+            "value" : "Tylko %lld %% twoich serii ma RPE, więc połowa szacunku dotycząca wysiłku to głównie wartość domyślna."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Somente %lld%% o dos seus conjuntos têm um RPE, então a metade de esforço da estimativa é principalmente padrão."
+            "value" : "Só %lld %% das suas séries têm RPE, por isso a metade de esforço da estimativa é sobretudo um valor predefinido."
           }
         },
         "ru" : {
@@ -255540,19 +255540,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nur %lld% % of dieser Nacht sind die Stufenwerte verfügbar. Die Stufenwerte decken nur diesen Teil der Nacht ab."
+            "value" : "Nur %lld%% dieser Nacht haben Phasendaten. Die Phasensummen decken nur diesen Teil der Nacht ab."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Solo %lld% % o de esta noche contiene datos de fase. Las cifras de fase cubren solo esa parte de la noche."
+            "value" : "Solo el %lld%% de esta noche tiene datos de fases. Los totales por fase cubren solo esa parte de la noche."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Seules %lld%% o des données de stade de cette période nocturne sont disponibles. Les totaux de stade couvrent uniquement cette partie de la nuit."
+            "value" : "Seuls %lld%% de cette nuit ont des données de phases. Les totaux par phase ne couvrent que cette partie de la nuit."
           }
         },
         "it" : {
@@ -255570,7 +255570,7 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Somente %lld%% o desta janela da noite tem dados de estágio. Os totais de estágio cobrem apenas essa parte da noite."
+            "value" : "Só %lld%% desta noite tem dados de fases. Os totais por fase cobrem apenas essa parte da noite."
           }
         },
         "ru" : {
@@ -407442,7 +407442,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Du bist %lld% % of dem Weg von deinem Startpunkt zu deinem Ziel, mit %lld% % of der Zeit vergangen."
+            "value" : "Du hast %1$lld%% des Wegs von deinem Startwert zu deinem Ziel geschafft, %2$lld%% der Zeit sind vorbei."
           }
         },
         "en" : {
@@ -407472,7 +407472,7 @@
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Jesteś %lld% % o drogi od punktu wyjściowego do celu, wykorzystując %lld% % o czasu."
+            "value" : "Pokonałeś %1$lld%% drogi od punktu startowego do celu, a minęło %2$lld%% czasu."
           }
         },
         "pt-PT" : {
@@ -407484,7 +407484,7 @@
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Вы прошли %lld%% o пути от начальной точки до цели, а времени осталось %lld%% of."
+            "value" : "Вы прошли %1$lld%% пути от начальной точки до цели, а прошло %2$lld%% времени."
           }
         },
         "zh-Hans" : {
@@ -415691,7 +415691,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dein Gürtel ist mit %lld % Batterie ausgestattet."
+            "value" : "Dein Strap ist gekoppelt · %lld%% Akku."
           }
         },
         "es" : {
@@ -418851,19 +418851,19 @@
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Зона %lld: %lld-%lld бип ((%lld-%lld)% максимального уровня нагрузки)"
+            "value" : "Зона %1$lld: %2$lld-%3$lld уд/мин (%4$lld-%5$lld%% от макс. пульса)"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "区间%lld：%lld-%lld次/分钟（%lld-%lld%最大心率）"
+            "value" : "区间 %1$lld：%2$lld-%3$lld 次/分（最大心率的 %4$lld-%5$lld%%）"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "區間 %lld：%lld-%lld bpm（%lld-%lld% 最大心率）"
+            "value" : "區間 %1$lld：%2$lld-%3$lld 次/分（最大心率的 %4$lld-%5$lld%%）"
           }
         }
       }
@@ -418886,7 +418886,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zona %lld: %lld–%lld latidos por minuto (%lld–%lld% máximo de frecuencia cardíaca)"
+            "value" : "Zona %1$lld: %2$lld–%3$lld lpm (%4$lld–%5$lld%% de la FC máx.)"
           }
         },
         "fr" : {
