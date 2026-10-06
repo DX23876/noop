@@ -141,7 +141,7 @@ struct ActiveWorkoutIndicatorCard: View {
     }
 
     private var sportLabel: some View {
-        Text(model.sport)
+        Text(WorkoutSource.localizedDisplaySport(model.sport))
             .font(StrandFont.headline)
             .foregroundStyle(StrandPalette.textPrimary)
             .lineLimit(1)
@@ -4407,7 +4407,7 @@ struct TodayView: View {
                         // Workouts overview screen (see `workoutDetailTarget`'s doc comment).
                         Button { workoutDetailTarget = WorkoutDetailTarget(row: w) } label: {
                             StatTile(
-                                label: "\(WorkoutSource.displaySport(w.sport))",
+                                label: "\(WorkoutSource.localizedDisplaySport(w.sport))",
                                 value: workoutDuration(w),
                                 caption: Self.workoutCaption(w),
                                 // A workout without a stored Effort gets a neutral accent: the lowest-effort

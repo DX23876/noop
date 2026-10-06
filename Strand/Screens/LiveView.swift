@@ -132,7 +132,9 @@ struct LiveView: View {
                         actionTitle: "Manage devices",
                         action: { router.openDevices() }
                     )
-                    manageDevicesRow
+                    // The card already carries the Devices action, so no second "Manage devices" row here.
+                    // A workout still works without a strap (time, GPS route), so the start stays offered.
+                    WorkoutStartControl()
                 } else {
                 consoleHeader
                 // Primary Connect affordance, surfaced ABOVE the fold whenever there's no link. The real
@@ -188,8 +190,9 @@ struct LiveView: View {
         // Pick a named sport before starting (#519) — the live workout view then opens
         // off the activeWorkout change above, so no extra navigation is needed here.
         .workoutSelectionCover(isPresented: $showStartSport) {
-            StartWorkoutSheet(offersZoneTraining: true) { name, targetZone in
-                model.session.requestCardio(sport: name, targetZone: targetZone)
+            StartWorkoutSheet(offersZoneTraining: true) { name, targetZone, gpsEnabled in
+                model.session.requestCardio(sport: name, targetZone: targetZone,
+                                             gpsEnabled: gpsEnabled)
             }
         }
         // Manual HRV snapshot (#127) — a still, seated 60s R-R reading.

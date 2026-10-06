@@ -2751,7 +2751,7 @@ struct LiquidTodayView: View {
             .frame(width: 38, height: 38)
             .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text(WorkoutSource.displaySport(w.sport)).font(StrandFont.number(15))
+                Text(WorkoutSource.localizedDisplaySport(w.sport)).font(StrandFont.number(15))
                     .foregroundStyle(StrandPalette.textPrimary)
                     .lineLimit(1)
                 Text(workoutSub(w)).font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)

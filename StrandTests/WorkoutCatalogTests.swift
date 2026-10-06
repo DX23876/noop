@@ -44,6 +44,40 @@ final class WorkoutCatalogTests: XCTestCase {
         XCTAssertEqual(WorkoutCatalog.sport(named: "  bodybuilding  ")?.name, "Bodybuilding")
     }
 
+    func testRoutePolicyIsIndependentFromEnvironment() {
+        let golf = WorkoutCatalog.sport(named: "Golf")
+        XCTAssertEqual(golf?.routePolicy, .optional)
+        XCTAssertEqual(golf?.environment, .outdoor)
+        XCTAssertFalse(golf?.defaultGpsEnabled ?? true)
+        XCTAssertTrue(golf?.supportsRoute ?? false)
+
+        let treadmill = WorkoutCatalog.sport(named: "Treadmill run")
+        XCTAssertEqual(treadmill?.routePolicy, .unavailable)
+        XCTAssertEqual(treadmill?.environment, .indoor)
+
+        let run = WorkoutCatalog.sport(named: "Running")
+        XCTAssertEqual(run?.routePolicy, .recommended)
+        XCTAssertEqual(run?.environment, .outdoor)
+        XCTAssertTrue(run?.defaultGpsEnabled ?? false)
+    }
+
+    func testNewOutdoorRouteSportsDefaultToRecording() {
+        for name in ["Mountain biking", "Stand-up paddleboard", "Rucking", "Horseback riding",
+                     "Nordic walking", "Kiteboarding", "Motocross"] {
+            let sport = WorkoutCatalog.sport(named: name)
+            XCTAssertEqual(sport?.routePolicy, .recommended, "\(name) should offer a route by default")
+            XCTAssertEqual(sport?.environment, .outdoor, "\(name) should start an outdoor HealthKit workout")
+        }
+    }
+
+    func testGPSStateOnlyCapturesWhileAcquiringOrRecording() {
+        XCTAssertTrue(WorkoutGPSState.acquiring.isCapturing)
+        XCTAssertTrue(WorkoutGPSState.recording.isCapturing)
+        for state in [WorkoutGPSState.idle, .requestingPermission, .paused, .denied, .unavailable, .failed] {
+            XCTAssertFalse(state.isCapturing, "\(state) must not retain active GPS capture")
+        }
+    }
+
     /// #768: the newly requested presets exist and are spelled byte-for-byte the way Android persists
     /// them (the stored sport label round-trips cross-platform via CSV / export). Racket + court sports
     /// have no route so GPS defaults off; snow sports cover ground so GPS defaults on.

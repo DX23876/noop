@@ -715,15 +715,25 @@ struct WorkoutsView: View {
         .accessibilityLabel("Add a workout")
     }
 
-    /// Equal-width primary actions share the same content width as every card below them.
+    /// Equal-width primary actions share the same content width as every card below them. Side by side
+    /// when both labels fit; stacked otherwise, so a longer language ("Workout hinzufügen") is never cut
+    /// to "Workout hinz…".
     /// #459 / PERF: the live-workout button is `WorkoutStartControl`, a leaf that owns `AppModel` itself
     /// so this screen doesn't have to — see the comment on `profile`/`intelligence` above.
     private var workoutActionRow: some View {
-        HStack(spacing: NoopMetrics.rowSpacing) {
-            WorkoutStartControl()
-                .frame(maxWidth: .infinity)
-            addWorkoutButton
-                .frame(maxWidth: .infinity)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: NoopMetrics.rowSpacing) {
+                WorkoutStartControl()
+                    .fixedSize()
+                    .frame(maxWidth: .infinity)
+                addWorkoutButton
+                    .fixedSize()
+                    .frame(maxWidth: .infinity)
+            }
+            VStack(spacing: NoopMetrics.rowSpacing) {
+                WorkoutStartControl()
+                addWorkoutButton
+            }
         }
         .frame(maxWidth: .infinity)
     }
@@ -946,7 +956,7 @@ struct WorkoutsView: View {
                          tint: StrandPalette.effortBright)
             }
             Text(modal.count > 0
-                 ? "Mostly \(WorkoutSource.displaySport(modal.sport)) (\(effectiveRange.caption))."
+                 ? "Mostly \(WorkoutSource.localizedDisplaySport(modal.sport)) (\(effectiveRange.caption))."
                  : "Logged sessions across \(effectiveRange.caption).")
                 .font(StrandFont.footnote)
                 .foregroundStyle(StrandPalette.textTertiary)
@@ -1231,7 +1241,7 @@ struct WorkoutsView: View {
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(StrandPalette.effortColor)
                         .frame(width: 22, alignment: .center)
-                    Text(WorkoutSource.displaySport(g.sport))
+                    Text(WorkoutSource.localizedDisplaySport(g.sport))
                         .font(StrandFont.headline)
                         .foregroundStyle(StrandPalette.textPrimary)
                         .lineLimit(1)
@@ -1593,7 +1603,7 @@ struct WorkoutsView: View {
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(StrandPalette.textSecondary)
                     .frame(width: 16)
-                Text(WorkoutSource.displaySport(row.sport))
+                Text(WorkoutSource.localizedDisplaySport(row.sport))
                     .font(StrandFont.subhead)
                     .foregroundStyle(StrandPalette.textPrimary)
                     .lineLimit(1)
@@ -1678,7 +1688,7 @@ struct WorkoutsView: View {
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 8) {
-                        Text(WorkoutSource.displaySport(row.sport))
+                        Text(WorkoutSource.localizedDisplaySport(row.sport))
                             .font(StrandFont.subhead)
                             .foregroundStyle(StrandPalette.textPrimary)
                             .lineLimit(1)
@@ -1763,7 +1773,7 @@ struct WorkoutsView: View {
         let effort = row.strain != nil
             ? String(localized: "Effort \(Self.effortCellLabel(strain: row.strain, scale: effortScale))")
             : String(localized: "no Effort recorded")
-        let base = String(localized: "\(WorkoutSource.displaySport(row.sport)), \(compactRowSubtitle(row)), \(effort)")
+        let base = String(localized: "\(WorkoutSource.localizedDisplaySport(row.sport)), \(compactRowSubtitle(row)), \(effort)")
         guard selectionMode else { return base }
         if !selectable { return String(localized: "\(base). Imported, can't be merged.") }
         return isSelected ? String(localized: "\(base). Selected.") : String(localized: "\(base). Not selected.")

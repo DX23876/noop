@@ -2215,51 +2215,153 @@ final class HealthKitBridge: ObservableObject {
     /// Reverse of `sportName`: NOOP's sport label → the `HKWorkoutActivityType` written to Health.
     /// Labels the forward map collapses (e.g. boxing/kickboxing → "Boxing") reverse to the first
     /// member; unknown labels fall back to `.other`, never dropped.
-    static func activityType(forSport sport: String) -> HKWorkoutActivityType {
+    nonisolated static func activityType(forSport sport: String) -> HKWorkoutActivityType {
         if sport == LiftingImporter.sport { return .traditionalStrengthTraining }
-        switch sport.lowercased() {
-        case "running":       return .running
-        case "walking":       return .walking
-        case "hiking":        return .hiking
-        case "cycling":       return .cycling
-        case "hiit":          return .highIntensityIntervalTraining
-        case "core training": return .coreTraining
-        case "yoga":          return .yoga
-        case "pilates":       return .pilates
-        case "rowing":        return .rowing
-        case "elliptical":    return .elliptical
-        case "stairs":        return .stairClimbing
-        case "jump rope":     return .jumpRope
-        case "boxing":        return .boxing
-        case "basketball":    return .basketball
-        case "soccer":        return .soccer
-        case "football":      return .americanFootball
-        case "baseball":      return .baseball
-        case "badminton":     return .badminton
-        case "tennis":        return .tennis
-        case "table tennis":  return .tableTennis
-        case "volleyball":    return .volleyball
-        case "squash":        return .squash
-        case "martial arts":  return .martialArts
-        case "dancing":       return .dance
-        case "golf":          return .golf
-        case "climbing":      return .climbing
-        case "skiing":        return .downhillSkiing
-        case "snowboarding":  return .snowboarding
-        case "swimming":      return .swimming
-        case "surfing":       return .surfingSports
-        case "paddling":      return .paddleSports
-        default:              return .other
+        guard let type = KnownWorkoutType.resolving(sport) else {
+            switch sport.lowercased() {
+            case "core training": return .coreTraining
+            case "stairs": return .stairClimbing
+            case "football": return .americanFootball
+            case "swimming": return .swimming
+            case "paddling": return .paddleSports
+            default: return .other
+            }
+        }
+        switch type {
+        case .running, .treadmillRun:
+            return .running
+        case .walking, .treadmillWalk, .nordicWalking, .rucking:
+            return .walking
+        case .hiking:
+            return .hiking
+        case .cycling, .indoorCycle, .mountainBiking, .spinning:
+            return .cycling
+        case .openWaterSwim, .poolSwim:
+            return .swimming
+        case .rowing, .rowMachine:
+            return .rowing
+        case .elliptical:
+            return .elliptical
+        case .strength, .bodybuilding, .weightlifting, .powerlifting:
+            return .traditionalStrengthTraining
+        case .calisthenics:
+            return .functionalStrengthTraining
+        case .crossfit, .bootCamp:
+            return .crossTraining
+        case .hiit:
+            return .highIntensityIntervalTraining
+        case .yoga:
+            return .yoga
+        case .pilates:
+            return .pilates
+        case .stretching:
+            return .flexibility
+        case .boxing:
+            return .boxing
+        case .kickboxing, .muayThai:
+            return .kickboxing
+        case .basketball, .netball:
+            return .basketball
+        case .soccer, .gaelicFootball:
+            return .soccer
+        case .americanFootball:
+            return .americanFootball
+        case .australianFootball:
+            return .australianFootball
+        case .baseball:
+            return .baseball
+        case .softball:
+            return .softball
+        case .badminton:
+            return .badminton
+        case .tennis, .padel, .pickleball:
+            return .tennis
+        case .squash:
+            return .squash
+        case .racquetball:
+            return .racquetball
+        case .tableTennis:
+            return .tableTennis
+        case .volleyball, .sandVolleyball, .spikeball:
+            return .volleyball
+        case .martialArts, .jiuJitsu, .judo:
+            return .martialArts
+        case .dancing, .ballet, .breakdancing:
+            return .dance
+        case .golf, .discGolf:
+            return .golf
+        case .climbing:
+            return .climbing
+        case .skiing:
+            return .downhillSkiing
+        case .snowboarding:
+            return .snowboarding
+        case .snowshoeing:
+            return .snowSports
+        case .bowling:
+            return .bowling
+        case .iceHockey, .fieldHockey, .hurlingCamogie:
+            return .hockey
+        case .rugby:
+            return .rugby
+        case .cricket:
+            return .cricket
+        case .handball:
+            return .handball
+        case .waterPolo:
+            return .waterPolo
+        case .lacrosse:
+            return .lacrosse
+        case .frisbee:
+            return .play
+        case .surfing, .kiteboarding:
+            return .surfingSports
+        case .kayaking, .standUpPaddleboard:
+            return .paddleSports
+        case .sailing:
+            return .sailing
+        case .scubaDiving:
+            return .waterSports
+        case .iceSkating, .inlineSkating, .skateboarding:
+            return .skatingSports
+        case .gymnastics, .cheerleading:
+            return .gymnastics
+        case .fencing:
+            return .fencing
+        case .stairClimber:
+            return .stairClimbing
+        case .jumpRope:
+            return .jumpRope
+        case .archery:
+            return .archery
+        case .fishing:
+            return .fishing
+        case .hunting:
+            return .hunting
+        case .curling:
+            return .curling
+        case .meditation:
+            return .mindAndBody
+        case .horsebackRiding, .polo:
+            return .equestrianSports
+        case .wheelchair:
+            return .wheelchairWalkPace
+        case .billiards, .darts, .paintball, .parkour, .skydiving, .gaming, .motorRacing, .motocross, .other:
+            return .other
         }
     }
 
     /// Which distance quantity a sport's `distanceM` maps to; nil for sports whose Health distance
     /// type NOOP doesn't request share access for (e.g. swimming).
     private static func distanceTypeId(forSport sport: String) -> HKQuantityTypeIdentifier? {
-        switch sport.lowercased() {
-        case "running", "walking", "hiking": return .distanceWalkingRunning
-        case "cycling":                      return .distanceCycling
-        default:                             return nil
+        switch KnownWorkoutType.resolving(sport) {
+        case .running, .treadmillRun, .walking, .treadmillWalk, .nordicWalking, .hiking, .rucking,
+             .wheelchair:
+            return .distanceWalkingRunning
+        case .cycling, .indoorCycle, .mountainBiking, .spinning:
+            return .distanceCycling
+        default:
+            return nil
         }
     }
 

@@ -142,22 +142,28 @@ final class AppModel: ObservableObject {
     /// The just-ended workout, for a brief inline confirmation on Live (cleared on the next start).
     @Published var lastWorkout: WorkoutRow?
 
-    /// Records the GPS route of an in-flight distance-type workout (run / ride / walk / hike) from
-    /// CoreLocation (#524) , the Apple analogue of Android's `GpsSession` + foreground `LocationManager`.
+    /// Records the GPS route of an in-flight route-capable workout from CoreLocation (#524), when the
+    /// wearer enables that session's route choice.
     /// Fails safe: on a Mac with no GPS, or when location permission is denied, it records nothing and
-    /// the session still banks HR + Effort without a route. Observed by the live workout card for live
+    /// the session still saves its duration, plus any available heart-rate and effort data, without a route.
+    /// Observed by the live workout card for live
     /// distance/pace; its final route is persisted on End via `RouteStore`, keyed by the saved row's
     /// natural key (the shared `WorkoutRow` has no route column on Apple). Default behaviour is opt-in by
-    /// sport: it only arms for a `WorkoutCatalog.Sport.isDistanceSport`, and only actually captures once
-    /// the user grants When-In-Use location.
+    /// sport: a route-capable sport can default on or remain optional, and capture begins only after the
+    /// user grants When-In-Use location.
     let gpsRecorder = GpsWorkoutRecorder()
-    /// True while the active workout is a GPS-type session (drives the End-time route persist). Mirrors
-    /// Android's `ActiveWorkout.gpsEnabled`.
+    /// True while this session is recording a phone route. It is the wearer's per-session choice, seeded
+    /// from the sport catalogue but no longer inferred from the sport every time the app needs it.
     private var activeWorkoutIsGps = false
+    var activeWorkoutUsesGPS: Bool { activeWorkoutIsGps }
+    /// Owns the asynchronous HealthKit start so an immediate Pause, End or Discard cannot leave a system
+    /// workout running after NOOP's session has already gone away.
+    private var systemWorkoutStartTask: Task<Void, Never>?
 
     /// A manual workout in progress. `samples` accumulate from the smoothed live `bpm`; `liveStrain`
     /// is recomputed as the window grows so the active card can show strain building in real time.
     struct ActiveWorkout: Equatable {
+        let id: UUID
         let start: Date
         /// The named sport chosen at start (e.g. "Tennis", "Padel") , persisted as the saved row's
         /// `sport` so a live-tracked session keeps its label instead of the old generic "Workout".
@@ -170,6 +176,21 @@ final class AppModel: ObservableObject {
         var targetZone: Int? = nil
         var pausedAt: Date?
         var pausedDuration: TimeInterval = 0
+
+        init(id: UUID = UUID(), start: Date, sport: String = WorkoutCatalog.defaultSportName,
+             samples: [HRSample] = [], liveStrain: Double = 0, avgHr: Int = 0, peakHr: Int = 0,
+             targetZone: Int? = nil, pausedAt: Date? = nil, pausedDuration: TimeInterval = 0) {
+            self.id = id
+            self.start = start
+            self.sport = sport
+            self.samples = samples
+            self.liveStrain = liveStrain
+            self.avgHr = avgHr
+            self.peakHr = peakHr
+            self.targetZone = targetZone
+            self.pausedAt = pausedAt
+            self.pausedDuration = pausedDuration
+        }
 
         var isPaused: Bool { pausedAt != nil }
 
@@ -1002,7 +1023,8 @@ final class AppModel: ObservableObject {
     /// name; callers that don't pick a sport get the catalogue default "Other", parity with Android's
     /// `startWorkout(sport:)`). The active card on Live then shows elapsed time, live HR and strain
     /// building; End scores + saves it under this sport. Confirms with a single buzz. (#519)
-    func startWorkout(sport: String = WorkoutCatalog.defaultSportName, targetZone: Int? = nil) {
+    func startWorkout(sport: String = WorkoutCatalog.defaultSportName, targetZone: Int? = nil,
+                      gpsEnabled: Bool? = nil) {
         guard activeWorkout == nil else { return }
         lastWorkout = nil
         let name = sport.trimmingCharacters(in: .whitespaces)
@@ -1016,19 +1038,21 @@ final class AppModel: ObservableObject {
         zoneTrainingEngine.reset()
         zoneTrainingState = nil
         ZoneTrainingPrefs.setLastTargetZone(validatedTarget)
-        // #524: arm GPS route recording for a distance-type sport (run / ride / walk / hike), mirroring
-        // Android, which defaults GPS on for `isDistanceSport`. Manual-first / opt-in: only these sports
-        // record a route, and the recorder still captures nothing unless the user grants When-In-Use
-        // location (and on a Mac with no GPS it stays empty) , the session always banks HR + Effort
-        // regardless. A non-distance sport (yoga, strength) never touches location at all.
-        activeWorkoutIsGps = WorkoutCatalog.sport(named: resolved)?.isDistanceSport ?? false
+        // Arm route recording only when this sport supports it and the wearer chose it. Recommended
+        // outdoor sports default on; optional routes remain an explicit choice. A denied/unavailable
+        // location never prevents the duration-only workout from being kept.
+        let catalogueSport = WorkoutCatalog.sport(named: resolved)
+        activeWorkoutIsGps = catalogueSport?.supportsRoute == true
+            ? (gpsEnabled ?? catalogueSport?.defaultGpsEnabled ?? false)
+            : false
         if activeWorkoutIsGps {
             gpsRecorder.start(startMs: Int64(started.timeIntervalSince1970 * 1000))
         }
         // Make the session durable from the first instant (#529): persist it now so an OS kill right
         // after Start , before any HR sample lands , can still be rehydrated + ended on relaunch.
         persistActiveWorkout()
-        beginSystemWorkoutSession(sport: resolved, start: started)
+        beginSystemWorkoutSession(sport: resolved, start: started, workoutID: activeWorkout?.id,
+                                  gpsEnabled: activeWorkoutIsGps)
         emitWorkoutsTrace(WorkoutsTrace.sourceLine(metric: "heartRate", source: live.connected ? "strap" : "none"))
         if activeWorkoutIsGps { emitWorkoutsTrace(WorkoutsTrace.sourceLine(metric: "location", source: "phone")) }
         // Workouts & GPS test mode (Test Centre): one session-start line tagged `.workouts`. Zero-cost when
@@ -1090,6 +1114,7 @@ final class AppModel: ObservableObject {
                 peakHr: w.peakHr,
                 liveStrain: w.liveStrain,
                 targetZone: w.targetZone,
+                gpsEnabled: activeWorkoutIsGps,
                 pausedAtSec: w.pausedAt.map { Int($0.timeIntervalSince1970) },
                 pausedDurationSec: Int(w.pausedDuration)))
     }
@@ -1117,7 +1142,10 @@ final class AppModel: ObservableObject {
         // restarts CoreLocation and End never asks the recorder for its route. Re-arm from the original
         // start so newly captured fixes keep the workout's elapsed-time basis; leave a restored paused
         // session paused until the user explicitly resumes it.
-        activeWorkoutIsGps = WorkoutCatalog.sport(named: snap.sport)?.isDistanceSport ?? false
+        let sport = WorkoutCatalog.sport(named: snap.sport)
+        activeWorkoutIsGps = sport?.supportsRoute == true
+            ? (snap.gpsEnabled ?? sport?.defaultGpsEnabled ?? false)
+            : false
         if activeWorkoutIsGps {
             gpsRecorder.restore(
                 startMs: Int64(snap.startSec) * 1000,
@@ -1152,6 +1180,8 @@ final class AppModel: ObservableObject {
     /// Abort the active session without saving a workout.
     func discardWorkout() {
         guard activeWorkout != nil else { return }
+        systemWorkoutStartTask?.cancel()
+        systemWorkoutStartTask = nil
         systemWorkoutSession?.end()
         activeWorkout = nil
         if activeWorkoutIsGps { gpsRecorder.stop() }
@@ -1163,9 +1193,9 @@ final class AppModel: ObservableObject {
         zoneTrainingState = nil
     }
 
-    /// Finish the active workout: finalize the GPS route (#524), score the captured HR window, and save it
-    /// as a `WorkoutRow`. A session with no HR window AND no real GPS route is discarded quietly (parity
-    /// with Android) , but a GPS-only walk with HR not streaming still saves. Double-buzz confirms.
+    /// Finish the active workout: finalize the GPS route (#524), score any captured HR window, and save it
+    /// as a `WorkoutRow`. Duration is the durable base fact: after the minimum length, a session is kept
+    /// even when neither a heart-rate source nor a usable route was available. Double-buzz confirms.
     /// Shortest live session worth keeping. Below this a start/stop is an accident, not training (#2278).
     static let minimumWorkoutSeconds: TimeInterval = 60
 
@@ -1181,6 +1211,8 @@ final class AppModel: ObservableObject {
     func endWorkout() {
         guard let w = activeWorkout else { return }
         endZoneTraining()
+        systemWorkoutStartTask?.cancel()
+        systemWorkoutStartTask = nil
         systemWorkoutSession?.end()
         activeWorkout = nil
         let wasGps = activeWorkoutIsGps
@@ -1198,16 +1230,6 @@ final class AppModel: ObservableObject {
             route = gpsRecorder.capturedRoute()
         }
         let samples = w.samples
-        // Save when there's an HR window OR a real GPS route , a GPS-only walk (HR not streaming) is
-        // still a workout (parity with Android's `samples.size < 2 && track.size < 2` discard gate).
-        guard samples.count >= 2 || route != nil else {
-            // Workouts & GPS test mode: record WHY a session vanished (too short / no route), tagged `.workouts`.
-            emitWorkoutsTrace(WorkoutsTrace.sessionLine(
-                event: "discarded", sportKey: WorkoutSource.traceSportKey(w.sport),
-                hrSamples: samples.count, gpsPoints: route == nil ? 0 : nil))
-            lastWorkout = nil
-            return
-        }
         let end = Date()
         // A session under a minute is a start/stop the wearer did not mean to keep, and it was the thing
         // that made deletion feel broken: the list filled with 5-30 second entries (#2278). Discarded HERE,
@@ -1216,8 +1238,9 @@ final class AppModel: ObservableObject {
         // and no cloud copy, so a later prune would be irreversible; this is not, because nothing with real
         // data is ever removed.
         //
-        // Sits after the sample/route gate above so that gate's meaning is unchanged: a 30-second session
-        // can easily carry two HR samples and would otherwise have been saved.
+        // Duration is the retention boundary. A deliberate workout remains valid without a connected
+        // heart-rate source or a GPS fix; those measurements enrich the row but never decide whether the
+        // wearer's recorded time exists.
         let elapsed = w.elapsed(at: end)
         if Self.isTooShortToSave(elapsedSeconds: elapsed) {
             emitWorkoutsTrace(WorkoutsTrace.sessionLine(
@@ -1296,6 +1319,9 @@ final class AppModel: ObservableObject {
                         .computed, for: WorkoutKey(deviceId: self.deviceId, startTs: row.startTs,
                                                    sport: row.sport))
                 }
+                // Publish the saved row now. `refreshCurrentDayActivity` joins a refresh that is already in
+                // flight, and one that started before this upsert reloads Today without the new session.
+                await self.repo.refresh()
                 await self.refreshCurrentDayActivity()
             }
         }
@@ -1351,13 +1377,22 @@ final class AppModel: ObservableObject {
     }
 
     /// Asks the OS to treat the live cardio session as a workout. Never blocks or fails the session.
-    private func beginSystemWorkoutSession(sport: String, start: Date) {
-        guard let system = systemWorkoutSession else { return }
-        let outdoor = WorkoutCatalog.sport(named: sport)?.isDistanceSport ?? false
-        Task { @MainActor in
+    private func beginSystemWorkoutSession(sport: String, start: Date, workoutID: UUID?, gpsEnabled: Bool) {
+        guard let system = systemWorkoutSession, let workoutID else { return }
+        systemWorkoutStartTask?.cancel()
+        let environment = WorkoutCatalog.sport(named: sport)?.environment ?? .either
+        let outdoor = environment == .outdoor || (environment == .either && gpsEnabled)
+        systemWorkoutStartTask = Task { @MainActor [weak self, weak system] in
+            guard let self, let system, !Task.isCancelled else { return }
             let result = await system.begin(sport: sport, isOutdoor: outdoor, start: start)
-            emitWorkoutsTrace(WorkoutsTrace.systemSessionLine(result: result.rawValue))
-            onSystemWorkoutSessionResult?(result)
+            guard !Task.isCancelled, self.activeWorkout?.id == workoutID else {
+                system.end()
+                return
+            }
+            if self.activeWorkout?.isPaused == true { system.pause() }
+            self.emitWorkoutsTrace(WorkoutsTrace.systemSessionLine(result: result.rawValue))
+            self.onSystemWorkoutSessionResult?(result)
+            self.systemWorkoutStartTask = nil
         }
     }
 

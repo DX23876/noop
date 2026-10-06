@@ -174,54 +174,72 @@ struct ActiveSessionMiniBar: View {
 
     var body: some View {
         if session.hasLiveSession, !session.isPresented {
-            Group {
-                if let strength = session.strength {
-                    StrengthMiniBarContent(model: strength)
-                } else {
+            if let strength = session.strength {
+                StrengthMiniBarContent(model: strength, onOpen: session.present)
+            } else {
+                Button(action: session.present) {
                     CardioMiniBarContent()
                 }
+                .buttonStyle(.plain)
+                .accessibilityHint(Text("Opens the running workout"))
             }
-            .contentShape(Rectangle())
-            .onTapGesture { session.present() }
-            .accessibilityElement(children: .combine)
-            .accessibilityAddTraits(.isButton)
-            .accessibilityHint(Text("Opens the running workout"))
         }
     }
 }
 
 private struct StrengthMiniBarContent: View {
     @ObservedObject var model: NativeWorkoutSessionModel
+    let onOpen: () -> Void
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let now = Int(context.date.timeIntervalSince1970)
             HStack(spacing: NoopMetrics.space2) {
-                Image(systemName: "dumbbell.fill").foregroundStyle(StrandPalette.accent)
-                if let timer = model.draft.timer, timer.kind != .timedSet {
-                    let remaining = WorkoutTimerCoordinator.remaining(timer, now: now)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("Rest").font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
-                        Text(ActiveSessionMiniBar.clock(remaining))
-                            .font(StrandFont.headline.monospacedDigit())
+                Button(action: onOpen) {
+                    HStack(spacing: NoopMetrics.space2) {
+                        Image(systemName: "dumbbell.fill").foregroundStyle(StrandPalette.accent)
+                        if model.draft.state == .active,
+                           let timer = model.draft.timer, timer.kind != .timedSet {
+                            let remaining = WorkoutTimerCoordinator.remaining(timer, now: now)
+                            VStack(alignment: .leading, spacing: NoopMetrics.space1) {
+                                Text("Rest")
+                                    .font(StrandFont.caption)
+                                    .foregroundStyle(StrandPalette.textSecondary)
+                                Text(ActiveSessionMiniBar.clock(remaining))
+                                    .font(StrandFont.headline.monospacedDigit())
+                            }
+                        } else {
+                            VStack(alignment: .leading, spacing: NoopMetrics.space1) {
+                                Text(model.draft.title)
+                                    .font(StrandFont.subhead.weight(.semibold))
+                                    .lineLimit(1)
+                                Text("\(completed) / \(total) sets")
+                                    .font(StrandFont.caption)
+                                    .foregroundStyle(StrandPalette.textSecondary)
+                            }
+                        }
+                        Spacer(minLength: NoopMetrics.space2)
+                        if model.draft.state != .active {
+                            Text("Paused").font(StrandFont.caption.weight(.semibold))
+                                .foregroundStyle(StrandPalette.statusWarningForeground)
+                        }
+                        if model.draft.state != .active || model.draft.timer == nil
+                            || model.draft.timer?.kind == .timedSet {
+                            Text(ActiveSessionMiniBar.clock(activeSeconds(now: now)))
+                                .font(StrandFont.headline.monospacedDigit())
+                        }
+                        Image(systemName: "chevron.up").foregroundStyle(StrandPalette.textTertiary)
                     }
-                    Spacer()
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity)
+                .accessibilityHint(Text("Opens the running workout"))
+
+                if model.draft.state == .active,
+                   let timer = model.draft.timer, timer.kind != .timedSet {
                     Button("Skip") { model.skipRest() }
                         .buttonStyle(.borderedProminent).tint(StrandPalette.accent)
-                } else {
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(model.draft.title).font(StrandFont.subhead.weight(.semibold)).lineLimit(1)
-                        Text("\(completed) / \(total) sets")
-                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
-                    }
-                    Spacer()
-                    if model.draft.state != .active {
-                        Text("Paused").font(StrandFont.caption.weight(.semibold))
-                            .foregroundStyle(StrandPalette.statusWarningForeground)
-                    }
-                    Text(ActiveSessionMiniBar.clock(activeSeconds(now: now)))
-                        .font(StrandFont.headline.monospacedDigit())
-                    Image(systemName: "chevron.up").foregroundStyle(StrandPalette.textTertiary)
                 }
             }
             .padding(.horizontal, NoopMetrics.space3)
@@ -244,8 +262,9 @@ private struct CardioMiniBarContent: View {
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             HStack(spacing: NoopMetrics.space2) {
-                Image(systemName: "figure.run").foregroundStyle(StrandPalette.accent)
-                Text(app.activeWorkout?.sport ?? "").font(StrandFont.subhead.weight(.semibold)).lineLimit(1)
+                Image(systemName: sportSymbol(app.activeWorkout?.sport ?? ""))
+                    .foregroundStyle(StrandPalette.accent)
+                Text(WorkoutSource.localizedDisplaySport(app.activeWorkout?.sport ?? "")).font(StrandFont.subhead.weight(.semibold)).lineLimit(1)
                 Spacer()
                 if app.activeWorkout?.isPaused == true {
                     Text("Paused").font(StrandFont.caption.weight(.semibold))

@@ -46,8 +46,9 @@ struct WorkoutStartControl: View {
         // The in-exercise view itself is presented by the shared `ActiveSessionController`, so this leaf
         // owns no sheet of its own.
         .workoutSelectionCover(isPresented: $showStartSport) {
-            StartWorkoutSheet(offersZoneTraining: true) { name, targetZone in
-                model.session.requestCardio(sport: name, targetZone: targetZone)
+            StartWorkoutSheet(offersZoneTraining: true) { name, targetZone, gpsEnabled in
+                model.session.requestCardio(sport: name, targetZone: targetZone,
+                                             gpsEnabled: gpsEnabled)
             }
         }
     }

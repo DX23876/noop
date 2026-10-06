@@ -7,19 +7,74 @@ import Foundation
 /// vice-versa.
 ///
 /// Apple has no Health Connect, so unlike Android we carry no exercise-type int , just the display
-/// name and whether a route makes sense (drives the "· GPS" hint and a sensible GPS default, parity
-/// with Android's `Sport.isDistanceSport`). The names are DATA, not UI literals: they're persisted
+/// name, route policy and indoor/outdoor environment. The names are DATA, not UI literals: they're persisted
 /// verbatim as the sport label and must never be localised (a translated name would split one sport
 /// into two). Free-text stays allowed everywhere , this catalogue is the suggestion set, not a
 /// whitelist (#519).
 enum WorkoutCatalog {
 
+    /// Whether a phone route is meaningful for the activity. This is deliberately separate from the
+    /// workout's indoor/outdoor classification: a golf round is outdoors even when the wearer chooses
+    /// not to record a route, while an indoor cycle is still a distance activity without phone GPS.
+    enum RoutePolicy: String, Codable, Sendable {
+        case recommended
+        case optional
+        case unavailable
+
+        var defaultEnabled: Bool { self == .recommended }
+        var isAvailable: Bool { self != .unavailable }
+    }
+
+    /// The environment HealthKit should receive for the system workout session. `either` resolves from
+    /// the wearer's route choice, rather than pretending every sport without GPS is indoors.
+    enum Environment: String, Codable, Sendable {
+        case indoor
+        case outdoor
+        case either
+    }
+
     /// One selectable activity. `name` is the verbatim stored/display label.
     struct Sport: Identifiable, Hashable {
         let name: String
-        /// Types where a route makes sense → GPS hint / default on.
-        let isDistanceSport: Bool
+        let routePolicy: RoutePolicy
+        let environment: Environment
         var id: String { name }
+        /// The name in the wearer's language. `name` stays the stored, locale-stable key.
+        var displayName: String { WorkoutSource.localizedDisplaySport(name) }
+
+        /// Compatibility name retained for the scoring/import call sites that mean "GPS by default".
+        var isDistanceSport: Bool { routePolicy.defaultEnabled }
+        var supportsRoute: Bool { routePolicy.isAvailable }
+        var defaultGpsEnabled: Bool { routePolicy.defaultEnabled }
+
+        init(name: String, isDistanceSport: Bool, routePolicy: RoutePolicy? = nil,
+             environment: Environment? = nil) {
+            self.name = name
+            self.routePolicy = routePolicy ?? (isDistanceSport ? .recommended : .unavailable)
+            self.environment = environment ?? Self.environment(for: name, defaultsToOutdoor: isDistanceSport)
+        }
+
+        /// Central fallback for the catalogue's established names. Explicit initializer arguments win,
+        /// and new sports default to `.either` rather than being mislabeled as indoor.
+        private static func environment(for name: String, defaultsToOutdoor: Bool) -> Environment {
+            if defaultsToOutdoor { return .outdoor }
+            if indoorSports.contains(name) { return .indoor }
+            if outdoorSports.contains(name) { return .outdoor }
+            return .either
+        }
+
+        private static let indoorSports: Set<String> = [
+            "Treadmill run", "Treadmill walk", "Indoor cycle", "Pool swim", "Row machine",
+            "Elliptical", "Strength", "Bodybuilding", "Weightlifting", "Powerlifting",
+            "Calisthenics", "Stair climber", "Spinning", "Yoga", "Pilates", "Stretching",
+            "Meditation", "Gaming"
+        ]
+
+        private static let outdoorSports: Set<String> = [
+            "Golf", "Surfing", "Mountain biking", "Skateboarding", "Stand-up paddleboard",
+            "Rucking", "Fishing", "Hunting", "Horseback riding", "Nordic walking",
+            "Kiteboarding", "Motocross", "Disc golf", "Sailing", "Kayaking", "Snowshoeing"
+        ]
     }
 
     /// Ordered to match Android `WorkoutSport.all`: common / distance first, the rest, the EXTRA
@@ -59,7 +114,7 @@ enum WorkoutCatalog {
         // Martial arts covers the user-requested Jiu-Jitsu plus karate/judo/MMA etc. (#768)
         Sport(name: "Martial arts", isDistanceSport: false),
         Sport(name: "Dancing", isDistanceSport: false),
-        Sport(name: "Golf", isDistanceSport: false),
+        Sport(name: "Golf", isDistanceSport: false, routePolicy: .optional),
         Sport(name: "Climbing", isDistanceSport: false),
         Sport(name: "Stretching", isDistanceSport: false),
         // Snow sports cover ground → a route makes sense, so GPS defaults on. (#768)
@@ -82,11 +137,11 @@ enum WorkoutCatalog {
         Sport(name: "Handball", isDistanceSport: false),
         Sport(name: "Water polo", isDistanceSport: false),
         Sport(name: "Frisbee", isDistanceSport: false),
-        Sport(name: "Surfing", isDistanceSport: false),
+        Sport(name: "Surfing", isDistanceSport: false, routePolicy: .optional),
         Sport(name: "Kayaking", isDistanceSport: true),
         Sport(name: "Sailing", isDistanceSport: true),
         Sport(name: "Scuba diving", isDistanceSport: false),
-        Sport(name: "Ice skating", isDistanceSport: false),
+        Sport(name: "Ice skating", isDistanceSport: false, routePolicy: .optional),
         Sport(name: "Inline skating", isDistanceSport: true),
         Sport(name: "Snowshoeing", isDistanceSport: true),
         Sport(name: "Gymnastics", isDistanceSport: false),
@@ -98,18 +153,19 @@ enum WorkoutCatalog {
         Sport(name: "Field hockey", isDistanceSport: false),
         Sport(name: "CrossFit", isDistanceSport: false),
         Sport(name: "Kickboxing", isDistanceSport: false),
-        Sport(name: "Mountain biking", isDistanceSport: false),
-        Sport(name: "Skateboarding", isDistanceSport: false),
-        Sport(name: "Stand-up paddleboard", isDistanceSport: false),
+        Sport(name: "Mountain biking", isDistanceSport: true),
+        Sport(name: "Skateboarding", isDistanceSport: false, routePolicy: .optional),
+        Sport(name: "Stand-up paddleboard", isDistanceSport: true),
         Sport(name: "Spinning", isDistanceSport: false),
         Sport(name: "Jump rope", isDistanceSport: false),
         Sport(name: "Powerlifting", isDistanceSport: false),
-        // Long-tail batch (names byte-identical to Android EXTRA). All map to a fallback HC type, GPS off.
-        Sport(name: "Rucking", isDistanceSport: false),
+        // Long-tail batch (names byte-identical to Android EXTRA). Route policy is set by real-world use,
+        // independent of whether Android has a dedicated Health Connect type.
+        Sport(name: "Rucking", isDistanceSport: true),
         Sport(name: "Sand volleyball", isDistanceSport: false),
         Sport(name: "Archery", isDistanceSport: false),
-        Sport(name: "Fishing", isDistanceSport: false),
-        Sport(name: "Hunting", isDistanceSport: false),
+        Sport(name: "Fishing", isDistanceSport: false, routePolicy: .optional),
+        Sport(name: "Hunting", isDistanceSport: false, routePolicy: .optional),
         Sport(name: "Curling", isDistanceSport: false),
         Sport(name: "Netball", isDistanceSport: false),
         Sport(name: "Gaelic football", isDistanceSport: false),
@@ -117,16 +173,14 @@ enum WorkoutCatalog {
         // WHOOP-parity batch: activities in WHOOP's catalogue NOOP lacked. All ride EXTRA on Android
         // (no dedicated HC type) so GPS defaults off, like every other extra. Ordered to match.
         Sport(name: "Meditation", isDistanceSport: false),
-        Sport(name: "Horseback riding", isDistanceSport: false),
-        Sport(name: "Wheelchair", isDistanceSport: false),
+        Sport(name: "Horseback riding", isDistanceSport: true),
+        Sport(name: "Wheelchair", isDistanceSport: false, routePolicy: .optional),
         Sport(name: "Gaming", isDistanceSport: false),
         Sport(name: "Motor racing", isDistanceSport: false),
-        // Asked for by a user. GPS off to match Android, where every EXTRA sport is built with
-        // isDistanceSport = false regardless of whether it has a route (Mountain biking and Rucking
-        // sit the same way). Worth revisiting for all of them together rather than singling this out.
-        Sport(name: "Nordic walking", isDistanceSport: false),
-        // WHOOP-parity batch 2 (twin of ExerciseTypes EXTRA). GPS off throughout, matching the
-        // Android EXTRA convention.
+        // Asked for by a user. It covers ground outdoors, so route recording defaults on.
+        Sport(name: "Nordic walking", isDistanceSport: true),
+        // WHOOP-parity batch 2 (twin of ExerciseTypes EXTRA). Route policy follows the activity rather
+        // than the source catalogue's fallback type.
         Sport(name: "Ballet", isDistanceSport: false),
         Sport(name: "Billiards", isDistanceSport: false),
         Sport(name: "Breakdancing", isDistanceSport: false),
@@ -136,8 +190,8 @@ enum WorkoutCatalog {
         Sport(name: "Hurling/Camogie", isDistanceSport: false),
         Sport(name: "Jiu jitsu", isDistanceSport: false),
         Sport(name: "Judo", isDistanceSport: false),
-        Sport(name: "Kiteboarding", isDistanceSport: false),
-        Sport(name: "Motocross", isDistanceSport: false),
+        Sport(name: "Kiteboarding", isDistanceSport: true),
+        Sport(name: "Motocross", isDistanceSport: true),
         Sport(name: "Muay Thai", isDistanceSport: false),
         Sport(name: "Paintball", isDistanceSport: false),
         Sport(name: "Parkour", isDistanceSport: false),
@@ -162,7 +216,11 @@ enum WorkoutCatalog {
     static func matching(_ query: String) -> [Sport] {
         let q = query.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return all }
-        return all.filter { $0.name.range(of: q, options: .caseInsensitive) != nil }
+        // Matches the stored English key and the translated name, so "Laufen" finds Running.
+        return all.filter {
+            $0.name.range(of: q, options: .caseInsensitive) != nil
+                || $0.displayName.range(of: q, options: [.caseInsensitive, .diacriticInsensitive]) != nil
+        }
     }
 
     /// Sports where a step count is meaningful , feet on the ground , so the workout summary can show

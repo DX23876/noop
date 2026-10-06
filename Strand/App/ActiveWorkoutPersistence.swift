@@ -31,6 +31,9 @@ enum ActiveWorkoutPersistence {
         /// Optional target profile zone for the haptic coach. Optional keeps snapshots written by older
         /// builds decodable without a migration.
         var targetZone: Int? = nil
+        /// The wearer's route choice for this session. Nil means an older snapshot and falls back to the
+        /// catalogue default, so an update never silently changes an already-running workout.
+        var gpsEnabled: Bool? = nil
         var pausedAtSec: Int? = nil
         var pausedDurationSec: Int? = nil
     }
@@ -62,6 +65,7 @@ enum ActiveWorkoutPersistence {
             peakHr: max(0, raw.peakHr),
             liveStrain: raw.liveStrain.isFinite ? max(0, raw.liveStrain) : 0,
             targetZone: raw.targetZone.flatMap { (1...5).contains($0) ? $0 : nil },
+            gpsEnabled: raw.gpsEnabled,
             pausedAtSec: raw.pausedAtSec.flatMap { $0 > 0 ? $0 : nil },
             pausedDurationSec: raw.pausedDurationSec.map { max(0, $0) },
         )

@@ -4,9 +4,10 @@ import StrandAnalytics   // WorkoutsTrace + TestCentre: the GPS-fix line for the
 
 // MARK: - GPS workout recording on Apple (#524)
 //
-// Android has recorded a GPS route for distance-type workouts (run / ride / walk / hike) since #215 via
+// Android has recorded a GPS route for route-capable workouts (run / ride / walk / hike) since #215 via
 // a process-level `GpsSession` + a foreground `LocationManager` stream; iOS and Mac never did, so a
-// manually-started run banked HR + Effort but no route or GPS distance. This file is the Apple analogue,
+// manually-started run banked time and any available HR + Effort but no route or GPS distance. This
+// file is the Apple analogue,
 // built ADDITIVELY alongside the existing manual-workout lifecycle — it never touches WHOOP, scoring,
 // or the HR-window capture path.
 //
@@ -30,7 +31,7 @@ import StrandAnalytics   // WorkoutsTrace + TestCentre: the GPS-fix line for the
 //                     `TrackFilter` into an accumulating route, and exposes live distance/pace. FAILS
 //                     SAFE everywhere: on a Mac with no location hardware, or when permission is denied /
 //                     restricted, it simply records nothing rather than crashing, so the workout still
-//                     banks HR + Effort without a route (parity with Android #101).
+//                     keeps the workout without a route (parity with Android #101).
 
 // MARK: - RouteMath (pure; Android parity)
 
@@ -408,8 +409,8 @@ enum RouteStore {
 
 /// Records the route of an in-flight GPS workout from CoreLocation. Thin and fail-safe: requests
 /// When-In-Use authorization, streams fixes through `TrackFilter`, and accumulates the route + live
-/// distance/pace. The owning `AppModel` starts it when a distance-type sport is begun and reads the final
-/// route on End.
+/// distance/pace. The owning `AppModel` starts it when the wearer enables a route-capable sport and reads
+/// the final route on End.
 ///
 /// Availability:
 ///   • iOS — full GPS. (The Info.plist must carry `NSLocationWhenInUseUsageDescription`, and the iOS
@@ -426,8 +427,10 @@ enum RouteStore {
 @MainActor
 final class GpsWorkoutRecorder: NSObject, ObservableObject {
 
-    /// True while a route is being recorded. The active-workout card can show a "GPS" pill off this.
-    @Published private(set) var isRecording = false
+    /// Honest route lifecycle for the active-workout UI. A permission request or missing first fix is
+    /// not presented as a successful recording.
+    @Published private(set) var state: WorkoutGPSState = .idle
+    var isRecording: Bool { state.isCapturing }
     /// Live route distance in metres (0 until two accepted fixes). Honest: 0 when nothing was captured.
     @Published private(set) var distanceM: Double = 0
     /// Live pace in seconds per kilometre, or nil when distance is still zero (pace undefined).
@@ -505,19 +508,15 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
         pointCount = 0
         rawFixCount = 0
         lastFixMs = 0
-        isRecording = true
-
         switch manager.authorizationStatus {
         case .notDetermined:
             // Ask now; updates begin in `locationManagerDidChangeAuthorization` once the user answers.
+            state = .requestingPermission
             manager.requestWhenInUseAuthorization()
         case .authorizedWhenInUse, .authorizedAlways:
             beginUpdates()
         default:
-            // Denied / restricted: stay armed but capture nothing. The workout still banks HR + Effort,
-            // and the saved row carries no route (honest "—"), exactly like Android when permission is
-            // refused (#101). We do NOT re-prompt — that's the user's Settings choice to reverse.
-            break
+            state = .denied
         }
     }
 
@@ -541,7 +540,8 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
         if let pausedAtMs {
             self.pausedAtMs = pausedAtMs
             manager.stopUpdatingLocation()
-            isRecording = false
+            endBackgroundActivity()
+            state = .paused
         }
     }
 
@@ -550,7 +550,7 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
     @discardableResult
     func stop() -> [RouteMath.LatLng] {
         manager.stopUpdatingLocation()
-        isRecording = false
+        state = .idle
         endBackgroundActivity()
         let final = track
         journal.clear()
@@ -568,10 +568,11 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
     }
 
     func pause() {
-        guard isRecording else { return }
+        guard state != .idle, state != .paused else { return }
         pausedAtMs = Int64(Date().timeIntervalSince1970 * 1000)
         manager.stopUpdatingLocation()
-        isRecording = false
+        endBackgroundActivity()
+        state = .paused
     }
 
     func resume() {
@@ -580,12 +581,16 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
             pausedDurationMs += Int64(Date().timeIntervalSince1970 * 1000) - pausedAtMs
             self.pausedAtMs = nil
         }
-        isRecording = true
         switch manager.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways:
             beginUpdates()
+        case .notDetermined:
+            state = .requestingPermission
+            manager.requestWhenInUseAuthorization()
+        case .denied, .restricted:
+            state = .denied
         default:
-            break
+            state = .unavailable
         }
     }
 
@@ -604,7 +609,11 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
     fileprivate func beginUpdates() {
         // Wrapped: a Mac with no location services, or an OEM quirk, must never crash the app — just
         // record nothing. Mirrors Android's try/catch around requestLocationUpdates (#101).
-        guard CLLocationManager.locationServicesEnabled() else { return }
+        guard CLLocationManager.locationServicesEnabled() else {
+            state = .unavailable
+            return
+        }
+        state = .acquiring
         beginBackgroundActivity()
         manager.startUpdatingLocation()
     }
@@ -625,7 +634,10 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
     /// Fold a batch of (already bound-checked at the source) fixes into the route, updating live
     /// distance/pace. No-op when not recording.
     fileprivate func ingest(_ fixes: [RawFix]) {
-        guard isRecording else { return }
+        // Armed = started and not paused. A fix CoreLocation actually delivered is real even if the state
+        // still reads requesting/denied/failed (callback order is not guaranteed); accepting it moves the
+        // state to `.recording` below.
+        guard state != .idle, state != .paused else { return }
         rawFixCount += fixes.count
         var changed = false
         var added = 0.0
@@ -666,6 +678,7 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
             }
         }
         guard changed else { return }
+        state = .recording
         pointCount = track.count
         distanceM += added
         if Date().timeIntervalSince(lastJournalFlush) >= Self.journalFlushIntervalSeconds { flushJournal() }
@@ -695,13 +708,15 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
 extension GpsWorkoutRecorder: @preconcurrency CLLocationManagerDelegate {
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        guard isRecording else { return }
+        guard state != .idle, state != .paused else { return }
         switch manager.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways:
             beginUpdates()
         case .denied, .restricted:
             // Revoked mid-session: stop streaming but keep whatever route was captured so far (honest).
             manager.stopUpdatingLocation()
+            endBackgroundActivity()
+            state = .denied
         default:
             break
         }
@@ -734,7 +749,13 @@ extension GpsWorkoutRecorder: @preconcurrency CLLocationManagerDelegate {
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        // A transient failure (no fix yet) is normal and self-heals; we never tear down on it. A hard
-        // denial arrives via the auth callback instead. Swallow so a GPS hiccup can't crash a workout.
+        // `locationUnknown` is the ordinary "no first fix yet" state and self-heals. Other failures are
+        // surfaced to the workout UI without throwing away points already captured; a later accepted fix
+        // returns the state to `.recording`.
+        if let error = error as? CLError, error.code == .locationUnknown {
+            if state != .recording { state = .acquiring }
+            return
+        }
+        state = .failed
     }
 }

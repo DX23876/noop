@@ -68,6 +68,25 @@ backgrounding and relaunch preserve the draft and recorder state, and losing hea
 set entry or workout completion. The summary joins the chosen recording to the completed session once,
 with measured coverage rather than invented values.
 
+Live cardio and activity tracking use the same honest base rule: elapsed time is recorded first, while
+heart rate, route, distance and pace are optional enrichments. A session of at least one minute is kept
+even when a tracker is disconnected, location is denied or GPS never gets a fix. Route capability,
+default route choice and indoor/outdoor classification are separate catalogue facts, so an outdoor golf
+round can offer GPS without silently enabling it and a treadmill run never asks for location. The start
+sheet shows the route choice before recording; the live screen keeps a route-status card visible while
+requesting permission, finding a fix, recording, paused or unavailable.
+
+On iPhone, starting and ending the matching HealthKit workout is race-safe when the app backgrounds or
+the user ends quickly. Pause releases the background Core Location session and resumes it only on an
+explicit workout resume. The Lock Screen and Dynamic Island use the activity's sport icon, update from
+either phone or Apple Watch heart rate, clear a stale reading through ActivityKit's stale date, and adopt
+an existing workout activity after relaunch instead of creating a duplicate. Ending the workout or
+turning its Live Activity switch off also removes an activity left by a previous process.
+
+**Analysis migration required: no.** These changes affect prospective live capture, lifecycle safety,
+HealthKit workout labels and presentation. No historical scoring formula, aggregation window, stored
+derived-value meaning or source precedence changes.
+
 Training and Strength share one detailed body map with three views. **Balance** shows how effective
 working sets were distributed over the past 28 days and, once available, compares each muscle's share
 with the wearer's previous eight complete weeks. **Fatigue** estimates how much recent training

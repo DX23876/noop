@@ -18,12 +18,14 @@ final class ActiveWorkoutPersistenceTests: XCTestCase {
         peakHr: Int = 145,
         liveStrain: Double = 8.4,
         targetZone: Int? = nil,
+        gpsEnabled: Bool? = nil,
         pausedAtSec: Int? = nil,
         pausedDurationSec: Int? = nil
     ) -> ActiveWorkoutPersistence.Snapshot {
         ActiveWorkoutPersistence.Snapshot(startSec: startSec, sport: sport, samples: samples,
                                           avgHr: avgHr, peakHr: peakHr, liveStrain: liveStrain,
                                           targetZone: targetZone,
+                                          gpsEnabled: gpsEnabled,
                                           pausedAtSec: pausedAtSec, pausedDurationSec: pausedDurationSec)
     }
 
@@ -67,6 +69,13 @@ final class ActiveWorkoutPersistenceTests: XCTestCase {
             ActiveWorkoutPersistence.encode(snapshot(targetZone: 9)))?.targetZone)
     }
 
+    func testPerSessionRouteChoiceRoundTrips() {
+        XCTAssertEqual(ActiveWorkoutPersistence.decode(
+            ActiveWorkoutPersistence.encode(snapshot(gpsEnabled: true)))?.gpsEnabled, true)
+        XCTAssertEqual(ActiveWorkoutPersistence.decode(
+            ActiveWorkoutPersistence.encode(snapshot(gpsEnabled: false)))?.gpsEnabled, false)
+    }
+
     func testSnapshotFromOlderBuildWithoutTargetZoneStillDecodes() throws {
         struct LegacySnapshot: Codable {
             var startSec: Int
@@ -81,6 +90,7 @@ final class ActiveWorkoutPersistenceTests: XCTestCase {
         let decoded = ActiveWorkoutPersistence.decode(try JSONEncoder().encode(legacy))
         XCTAssertEqual(decoded?.sport, "Cycling")
         XCTAssertNil(decoded?.targetZone)
+        XCTAssertNil(decoded?.gpsEnabled)
     }
 
     func testLastTargetPreferenceIsValidatedAndCanReturnToNoCoach() {

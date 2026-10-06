@@ -543,6 +543,10 @@ struct RootTabView: View {
                         withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 0 }
                         tabPaths[0].append(TabRoute.goals)
                     }
+                    else if picked == .workout, model.activeWorkout != nil {
+                        quickAction = nil
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { session.present() }
+                    }
                     else { withAnimation(Self.sheetEase) { quickAction = picked } }
                 }
             }
@@ -551,7 +555,13 @@ struct RootTabView: View {
         case .live:
             quickScreen(LiveView())
         case .workout:
-            quickScreen(WorkoutsView())
+            // Straight to the sport picker: "Start workout" should start one, not open the history list.
+            // A running session is re-presented instead (the picker would only offer to stack a second).
+            // The session cover cannot sit on this sheet; the `session.$isPresented` hook below closes the
+            // sheet and re-issues the present.
+            StartWorkoutSheet(offersZoneTraining: true) { name, targetZone, gpsEnabled in
+                session.requestCardio(sport: name, targetZone: targetZone, gpsEnabled: gpsEnabled)
+            }
         case .journal:
             quickScreen(InsightsView())
         case .breathe:

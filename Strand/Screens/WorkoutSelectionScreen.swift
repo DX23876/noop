@@ -11,36 +11,40 @@ import StrandAnalytics
 /// Public entry used by Live / Workouts. Keeps the prior `onStart` + optional title overrides so the
 /// merge-name prompt can reuse the same browser.
 struct StartWorkoutSheet: View {
-    let onStart: (_ sport: String, _ targetZone: Int?) -> Void
+    let onStart: (_ sport: String, _ targetZone: Int?, _ gpsEnabled: Bool?) -> Void
     private let heading: String
     private let explainer: String
     private let actionVerb: String
     private let offersZoneTraining: Bool
+    private let configuresRoute: Bool
 
     init(title: String? = nil, subtitle: String? = nil, actionVerb: String? = nil,
          onStart: @escaping (_ sport: String) -> Void) {
-        self.onStart = { sport, _ in onStart(sport) }
+        self.onStart = { sport, _, _ in onStart(sport) }
         self.heading = title ?? String(localized: "Choose a workout")
         self.explainer = subtitle
-            ?? String(localized: "Pick an activity to begin recording heart rate, effort, peak, and average.")
+            ?? String(localized: "Choose an activity. Time is recorded first; heart rate and route are added when available.")
         self.actionVerb = actionVerb ?? String(localized: "Start")
         self.offersZoneTraining = false
+        self.configuresRoute = false
     }
 
     init(title: String? = nil, subtitle: String? = nil, actionVerb: String? = nil,
          offersZoneTraining: Bool,
-         onStart: @escaping (_ sport: String, _ targetZone: Int?) -> Void) {
+         onStart: @escaping (_ sport: String, _ targetZone: Int?, _ gpsEnabled: Bool?) -> Void) {
         self.onStart = onStart
         self.heading = title ?? String(localized: "Choose a workout")
         self.explainer = subtitle
-            ?? String(localized: "Pick an activity to begin recording heart rate, effort, peak, and average.")
+            ?? String(localized: "Choose an activity. Time is recorded first; heart rate and route are added when available.")
         self.actionVerb = actionVerb ?? String(localized: "Start")
         self.offersZoneTraining = offersZoneTraining
+        self.configuresRoute = true
     }
 
     var body: some View {
         WorkoutSelectionScreen(heading: heading, explainer: explainer, actionVerb: actionVerb,
-                               offersZoneTraining: offersZoneTraining, onStart: onStart)
+                               offersZoneTraining: offersZoneTraining,
+                               configuresRoute: configuresRoute, onStart: onStart)
     }
 }
 
@@ -51,12 +55,15 @@ struct WorkoutSelectionScreen: View {
     let explainer: String
     let actionVerb: String
     let offersZoneTraining: Bool
-    let onStart: (_ sport: String, _ targetZone: Int?) -> Void
+    let configuresRoute: Bool
+    let onStart: (_ sport: String, _ targetZone: Int?, _ gpsEnabled: Bool?) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var profile: ProfileStore
     @State private var query = ""
     @State private var targetZone: Int? = ZoneTrainingPrefs.lastTargetZone()
+    @State private var selectedSportName: String?
+    @State private var gpsEnabled = false
     @FocusState private var searchFocused: Bool
 
     private var trimmedQuery: String { query.trimmingCharacters(in: .whitespaces) }
@@ -65,6 +72,9 @@ struct WorkoutSelectionScreen: View {
         RecentSportsPrefs.recent().compactMap { WorkoutCatalog.sport(named: $0) }
     }
     private var showRecent: Bool { trimmedQuery.isEmpty && !recentSports.isEmpty }
+    private var selectedSport: WorkoutCatalog.Sport? {
+        selectedSportName.flatMap(WorkoutCatalog.sport(named:))
+    }
 
     var body: some View {
         NavigationStack {
@@ -87,8 +97,9 @@ struct WorkoutSelectionScreen: View {
                     } else {
                         LazyVStack(spacing: NoopMetrics.space4) {
                             ForEach(filtered) { sport in
-                                WorkoutSelectionCard(sport: sport, actionVerb: actionVerb) {
-                                    select(sport.name)
+                                WorkoutSelectionCard(sport: sport, actionVerb: actionVerb,
+                                                     isSelected: sport.name == selectedSportName) {
+                                    choose(sport)
                                 }
                             }
                         }
@@ -103,6 +114,19 @@ struct WorkoutSelectionScreen: View {
             .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
             #endif
             .scrollDismissesKeyboard(.interactively)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if configuresRoute, let selectedSport {
+                    WorkoutStartConfigurationPanel(
+                        sport: selectedSport,
+                        gpsEnabled: $gpsEnabled,
+                        actionVerb: actionVerb,
+                        onStart: startSelected
+                    )
+                    .padding(.horizontal, NoopMetrics.screenPadding)
+                    .padding(.vertical, NoopMetrics.space3)
+                    .background(.ultraThinMaterial)
+                }
+            }
             .background {
                 StrandPalette.surfaceBase.ignoresSafeArea()
             }
@@ -149,7 +173,7 @@ struct WorkoutSelectionScreen: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: NoopMetrics.space2) {
                     ForEach(recentSports) { sport in
-                        RecentWorkoutChip(sport: sport) { select(sport.name) }
+                        RecentWorkoutChip(sport: sport) { choose(sport) }
                     }
                 }
             }
@@ -173,10 +197,24 @@ struct WorkoutSelectionScreen: View {
         .accessibilityElement(children: .combine)
     }
 
-    private func select(_ name: String) {
+    private func choose(_ sport: WorkoutCatalog.Sport) {
         searchFocused = false
-        RecentSportsPrefs.recordSelection(name)
-        onStart(name, offersZoneTraining ? targetZone : nil)
+        guard configuresRoute else {
+            commit(sport, gpsEnabled: nil)
+            return
+        }
+        selectedSportName = sport.name
+        gpsEnabled = sport.defaultGpsEnabled
+    }
+
+    private func startSelected() {
+        guard let selectedSport else { return }
+        commit(selectedSport, gpsEnabled: selectedSport.supportsRoute ? gpsEnabled : false)
+    }
+
+    private func commit(_ sport: WorkoutCatalog.Sport, gpsEnabled: Bool?) {
+        RecentSportsPrefs.recordSelection(sport.name)
+        onStart(sport.name, offersZoneTraining ? targetZone : nil, gpsEnabled)
         dismiss()
     }
 }
@@ -189,20 +227,26 @@ struct ZoneTrainingTargetPicker: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+            // Title and explanation get the full width; the picker sits on its own row so a long
+            // localized title ("Haptischer Zonen-Coach") is never cut to make room for it.
+            VStack(alignment: .leading, spacing: NoopMetrics.space1) {
+                Text("Haptic zone coach")
+                    .font(StrandFont.headline)
+                    .foregroundStyle(StrandPalette.textPrimary)
+                Text("Choose a target from the heart-rate zones in your profile.")
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             HStack(spacing: NoopMetrics.space3) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Haptic zone coach")
-                        .font(StrandFont.headline)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                    Text("Choose a target from the heart-rate zones in your profile.")
-                        .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.textSecondary)
-                }
+                Text("Target zone")
+                    .font(StrandFont.body)
+                    .foregroundStyle(StrandPalette.textPrimary)
                 Spacer(minLength: NoopMetrics.space2)
                 Picker("Target zone", selection: $selection) {
                     Text("No zone coach").tag(Int?.none)
                     ForEach(1...5, id: \.self) { zone in
-                        Text(verbatim: "Zone \(zone)").tag(Optional(zone))
+                        Text("Zone \(zone)").tag(Optional(zone))
                     }
                 }
                 .labelsHidden()
@@ -259,7 +303,7 @@ struct RecentWorkoutChip: View {
         Button(action: onTap) {
             HStack(spacing: NoopMetrics.space2) {
                 WorkoutTypeIcon(workoutType: sport.name, size: 18, weight: .semibold, color: accent)
-                Text(sport.name)
+                Text(sport.displayName)
                     .font(StrandFont.subhead)
                     .foregroundStyle(StrandPalette.textPrimary)
                     .lineLimit(1)
@@ -270,8 +314,8 @@ struct RecentWorkoutChip: View {
             .contentShape(Capsule())
         }
         .nativeLiquidGlassWorkoutSelectionControl(capsule: true)
-        .accessibilityLabel(Text("\(sport.name) workout"))
-        .accessibilityHint(Text("Double tap to start"))
+        .accessibilityLabel(Text("\(sport.displayName) workout"))
+        .accessibilityHint(Text("Double tap to select"))
     }
 }
 
@@ -280,6 +324,7 @@ struct RecentWorkoutChip: View {
 struct WorkoutSelectionCard: View {
     let sport: WorkoutCatalog.Sport
     let actionVerb: String
+    let isSelected: Bool
     let onSelect: () -> Void
 
     private var accent: Color { StrandPalette.effortColor }
@@ -295,7 +340,7 @@ struct WorkoutSelectionCard: View {
                     .background(accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
 
                 VStack(alignment: .leading, spacing: NoopMetrics.space1) {
-                    Text(sport.name)
+                    Text(sport.displayName)
                         .font(StrandFont.title2)
                         .foregroundStyle(StrandPalette.textPrimary)
                         .multilineTextAlignment(.leading)
@@ -306,39 +351,41 @@ struct WorkoutSelectionCard: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                Image(systemName: "play.fill")
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(StrandPalette.goldDeepText)
-                    .frame(width: 52, height: 52)
-                    .background(Circle().fill(StrandPalette.accent))
+                Image(systemName: isSelected ? "checkmark" : "chevron.right")
+                    .font(StrandFont.headline)
+                    .foregroundStyle(isSelected ? StrandPalette.goldDeepText : StrandPalette.textTertiary)
+                    .frame(width: 44, height: 44)
+                    .background(isSelected ? StrandPalette.accent : StrandPalette.surfaceRaised, in: Circle())
                     .accessibilityHidden(true)
             }
-            .padding(.horizontal, NoopMetrics.space5)
-            .padding(.vertical, NoopMetrics.space5)
-            .frame(maxWidth: .infinity, minHeight: 96, alignment: .leading)
+            .padding(.horizontal, NoopMetrics.space4)
+            .padding(.vertical, NoopMetrics.space3)
+            .frame(maxWidth: .infinity, minHeight: 76, alignment: .leading)
             .background {
-                NoopPanelSurface(tint: accent, cornerRadius: 28, elevated: true)
+                NoopPanelSurface(tint: isSelected ? accent : nil, cornerRadius: NoopMetrics.cardRadius,
+                                 elevated: isSelected)
             }
-            .contentShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: NoopMetrics.cardRadius))
         }
         .buttonStyle(LiquidPressStyle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(accessibilityLabelText))
-        .accessibilityHint(Text("Double tap to \(actionVerb.lowercased())"))
+        .accessibilityHint(Text(isSelected ? "Selected" : "Double tap to select"))
         .accessibilityAddTraits(.isButton)
     }
 
     private var accessibilityLabelText: String {
         let labels = meta.map(\.text)
-        if labels.isEmpty { return "\(sport.name) workout" }
-        return "\(sport.name) workout, \(labels.joined(separator: ", "))"
+        if labels.isEmpty { return String(localized: "\(sport.displayName) workout") }
+        return String(localized: "\(sport.displayName) workout") + ", " + labels.joined(separator: ", ")
     }
 }
 
 // MARK: - Metadata
 
 enum WorkoutActivityMeta {
-    struct Item: Equatable {
+    struct Item: Identifiable, Equatable {
+        var id: String { "\(symbol ?? "")|\(text)" }
         var symbol: String?
         var text: String
     }
@@ -346,21 +393,25 @@ enum WorkoutActivityMeta {
     /// Labels derived only from catalogue flags / known types — no invented capabilities.
     static func items(for sport: WorkoutCatalog.Sport) -> [Item] {
         var items: [Item] = []
-        if sport.isDistanceSport {
-            items.append(Item(symbol: "location.fill", text: "GPS"))
+        if sport.supportsRoute {
+            items.append(Item(symbol: "location.fill", text: String(localized: "Route")))
         }
-        if let type = KnownWorkoutType.exact(matching: sport.name) {
+        switch sport.environment {
+        case .indoor:
+            items.append(Item(symbol: nil, text: String(localized: "Indoor")))
+        case .outdoor:
+            items.append(Item(symbol: nil, text: String(localized: "Outdoor")))
+        case .either:
+            break
+        }
+        if sport.environment == .either, let type = KnownWorkoutType.exact(matching: sport.name) {
             switch type {
-            case .treadmillRun, .treadmillWalk, .indoorCycle, .poolSwim, .rowMachine, .elliptical:
-                items.append(Item(symbol: nil, text: "Indoor"))
-            case .running, .walking, .hiking, .cycling, .openWaterSwim, .rowing, .skiing, .snowboarding:
-                items.append(Item(symbol: nil, text: "Outdoor"))
             case .strength, .bodybuilding, .weightlifting:
-                items.append(Item(symbol: nil, text: "Strength"))
+                items.append(Item(symbol: nil, text: String(localized: "Strength")))
             case .yoga, .pilates, .stretching:
-                items.append(Item(symbol: nil, text: "Mindfulness"))
+                items.append(Item(symbol: nil, text: String(localized: "Mindfulness")))
             case .hiit:
-                items.append(Item(symbol: nil, text: "Cardio"))
+                items.append(Item(symbol: nil, text: String(localized: "Cardio")))
             default:
                 break
             }
@@ -374,7 +425,7 @@ struct WorkoutActivityMetadataView: View {
 
     var body: some View {
         HStack(spacing: NoopMetrics.space3) {
-            ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+            ForEach(items) { item in
                 HStack(spacing: 4) {
                     if let symbol = item.symbol {
                         Image(systemName: symbol)
