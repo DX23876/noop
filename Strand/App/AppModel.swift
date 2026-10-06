@@ -152,6 +152,8 @@ final class AppModel: ObservableObject {
     /// sport: a route-capable sport can default on or remain optional, and capture begins only after the
     /// user grants When-In-Use location.
     let gpsRecorder = GpsWorkoutRecorder()
+    /// Spoken split, interval, pause and recap announcements for the active workout (headphones only).
+    let voiceCoach = WorkoutVoiceCoach()
     /// True while this session is recording a phone route. It is the wearer's per-session choice, seeded
     /// from the sport catalogue but no longer inferred from the sport every time the app needs it.
     private var activeWorkoutIsGps = false
@@ -542,6 +544,8 @@ final class AppModel: ObservableObject {
             .map { Date(timeIntervalSince1970: $0) }
         // Rehydrate a manual workout that was in flight when iOS killed the app, so it can still be ended
         // + saved on relaunch (#529). Restored here alongside the other UserDefaults-backed state.
+        // Before the restore, so a resumed workout's voice can read where it stands.
+        voiceCoach.snapshot = { [weak self] in self?.workoutVoiceSnapshot() }
         rehydrateActiveWorkout()
 
         AppModel.shared = self   // publish for App Intents (Shortcuts) , see the static above (#42)
@@ -1048,6 +1052,7 @@ final class AppModel: ObservableObject {
         if activeWorkoutIsGps {
             gpsRecorder.start(startMs: Int64(started.timeIntervalSince1970 * 1000))
         }
+        voiceCoach.begin(usesRoute: activeWorkoutIsGps)
         // Make the session durable from the first instant (#529): persist it now so an OS kill right
         // after Start , before any HR sample lands , can still be rehydrated + ended on relaunch.
         persistActiveWorkout()
@@ -1156,6 +1161,7 @@ final class AppModel: ObservableObject {
         zoneTrainingTargetZone = snap.targetZone
         zoneTrainingEngine.reset()
         zoneTrainingState = nil
+        voiceCoach.begin(usesRoute: activeWorkoutIsGps, resuming: true)
         emitWorkoutsTrace(WorkoutsTrace.restoreLine(
             sportKey: WorkoutSource.traceSportKey(snap.sport), hrSamples: snap.samples.count,
             routePoints: activeWorkoutIsGps ? gpsRecorder.pointCount : 0))
@@ -1168,10 +1174,12 @@ final class AppModel: ObservableObject {
             w.pausedAt = nil
             if activeWorkoutIsGps { gpsRecorder.resume() }
             systemWorkoutSession?.resume()
+            voiceCoach.resumed()
         } else {
             w.pausedAt = Date()
             if activeWorkoutIsGps { gpsRecorder.pause() }
             systemWorkoutSession?.pause()
+            voiceCoach.paused()
         }
         activeWorkout = w
         persistActiveWorkout()
@@ -1183,6 +1191,7 @@ final class AppModel: ObservableObject {
         systemWorkoutStartTask?.cancel()
         systemWorkoutStartTask = nil
         systemWorkoutSession?.end()
+        voiceCoach.stop()
         activeWorkout = nil
         if activeWorkoutIsGps { gpsRecorder.stop() }
         activeWorkoutIsGps = false
@@ -1243,6 +1252,7 @@ final class AppModel: ObservableObject {
         // wearer's recorded time exists.
         let elapsed = w.elapsed(at: end)
         if Self.isTooShortToSave(elapsedSeconds: elapsed) {
+            voiceCoach.stop()
             emitWorkoutsTrace(WorkoutsTrace.sessionLine(
                 event: "discarded", sportKey: WorkoutSource.traceSportKey(w.sport),
                 hrSamples: samples.count, durationSec: Int(elapsed),
@@ -1252,6 +1262,7 @@ final class AppModel: ObservableObject {
             lastWorkout = nil
             return
         }
+        voiceCoach.ended(elapsedSeconds: Int(elapsed), distanceMeters: route.map { _ in gpsRecorder.distanceM })
         let avg = samples.isEmpty ? nil
             : Int((Double(samples.map(\.bpm).reduce(0, +)) / Double(samples.count)).rounded())
         let peak = w.savedPeak

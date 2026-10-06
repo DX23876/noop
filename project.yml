@@ -319,6 +319,9 @@ targets:
           # matching Android's foreground-service capture. Required by GpsWorkoutRecorder's
           # allowsBackgroundLocationUpdates; without this mode iOS crashes when background updates start.
           - location
+          # Spoken workout feedback (WorkoutVoiceCoach): lets the split announcements and the end-of-run recap
+          # play with the screen off. The session is only active while a sentence is being spoken.
+          - audio
           # #510: the scheduled debug auto-export submits a BGAppRefreshTaskRequest so iOS can wake the
           # backgrounded app near the user's chosen time to write the overnight strap-log drop. BGAppRefresh
           # needs the "fetch" background mode; the task id below must also be permitted (and registered at
