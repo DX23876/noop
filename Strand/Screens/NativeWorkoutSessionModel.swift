@@ -83,12 +83,24 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
         if draft.state == .active {
             draft.state = .paused
             draft.interruptionReason = .userPaused
+            if let timer = draft.timer, timer.pausedRemainingSeconds == nil {
+                draft.timer = WorkoutTimerCoordinator.pause(timer, now: now)
+                draft.timerPausedByWorkout = true
+                TrainingRestNotification.cancel(for: draft.id)
+            } else {
+                draft.timerPausedByWorkout = false
+            }
             var intervals = draft.pauseIntervals ?? []
             intervals.append(.init(startedAtTs: now))
             draft.pauseIntervals = intervals
         } else if draft.state == .paused || draft.state == .interrupted {
             draft.state = .active
             draft.interruptionReason = nil
+            if draft.timerPausedByWorkout == true, let timer = draft.timer {
+                draft.timer = WorkoutTimerCoordinator.resume(timer, now: now)
+                scheduleTimerNotification()
+            }
+            draft.timerPausedByWorkout = nil
             if var intervals = draft.pauseIntervals, let last = intervals.indices.last,
                intervals[last].endedAtTs == nil {
                 intervals[last].endedAtTs = now
@@ -246,6 +258,7 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
     func pauseTimer() {
         guard let timer = draft.timer else { return }
         draft.timer = WorkoutTimerCoordinator.pause(timer, now: Int(Date().timeIntervalSince1970))
+        draft.timerPausedByWorkout = false
         TrainingRestNotification.cancel(for: draft.id)
         touchAndPersist()
     }
@@ -253,12 +266,14 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
     func resumeTimer() {
         guard let timer = draft.timer else { return }
         draft.timer = WorkoutTimerCoordinator.resume(timer, now: Int(Date().timeIntervalSince1970))
+        draft.timerPausedByWorkout = nil
         scheduleTimerNotification()
         touchAndPersist()
     }
 
     func cancelTimer() {
         draft.timer = nil
+        draft.timerPausedByWorkout = nil
         TrainingRestNotification.cancel(for: draft.id)
         touchAndPersist()
     }
@@ -273,6 +288,7 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
                                                          setId: set.id,
                                                          now: Int(Date().timeIntervalSince1970)) else { return }
         draft.timer = timer
+        draft.timerPausedByWorkout = nil
         scheduleTimerNotification()
         touchAndPersist()
     }
@@ -287,6 +303,7 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
         let elapsed = max(0, Int(Date().timeIntervalSince1970) - timer.startedAtTs)
         draft.exercises[exerciseIndex].sets[setIndex].durationS = elapsed
         draft.timer = nil
+        draft.timerPausedByWorkout = nil
         TrainingRestNotification.cancel(for: draft.id)
         if !draft.exercises[exerciseIndex].sets[setIndex].isCompleted {
             toggleSet(exerciseIndex: exerciseIndex, setIndex: setIndex)
@@ -368,6 +385,7 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
         try? NativeWorkoutEngine.skipRemainingSets(of: exerciseId, in: &draft)
         if let timer = draft.timer, timer.kind == .timedSet, timer.exerciseId == exerciseId {
             draft.timer = nil
+            draft.timerPausedByWorkout = nil
             TrainingRestNotification.cancel(for: draft.id)
         }
         if let nextId, let next = draft.exercises.firstIndex(where: { $0.id == nextId }) {
@@ -513,6 +531,7 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
                                                          seconds: seconds, exerciseId: exercise.id,
                                                          setId: set.id, now: Int(Date().timeIntervalSince1970)) else { return }
         draft.timer = timer
+        draft.timerPausedByWorkout = nil
         scheduleTimerNotification()
     }
 

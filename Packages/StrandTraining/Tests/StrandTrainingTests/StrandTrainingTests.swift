@@ -237,6 +237,20 @@ final class StrandTrainingTests: XCTestCase {
         XCTAssertNil(try JSONDecoder().decode(WorkoutDraft.self, from: legacy).plannedEndTs)
     }
 
+    func testDraftRoundTripKeepsTimerPauseOwnershipAndLegacyDraftCanOmitIt() throws {
+        let draft = WorkoutDraft(title: "Paused", startedAt: 100, plannedDay: "1970-01-01",
+                                 timer: .init(kind: .rest, startedAtTs: 110, endsAtTs: 170,
+                                              pausedRemainingSeconds: 42),
+                                 timerPausedByWorkout: true)
+        let data = try JSONEncoder().encode(draft)
+        XCTAssertEqual(try JSONDecoder().decode(WorkoutDraft.self, from: data).timerPausedByWorkout, true)
+
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        object.removeValue(forKey: "timerPausedByWorkout")
+        let legacy = try JSONSerialization.data(withJSONObject: object)
+        XCTAssertNil(try JSONDecoder().decode(WorkoutDraft.self, from: legacy).timerPausedByWorkout)
+    }
+
     func testLegacyDraftDecodesWithoutLifecycleAndSetSemantics() throws {
         let origin = UUID()
         let cluster = UUID()

@@ -6,5 +6,8 @@ One physiology provider is selected for a workout. A NOOP band, Apple Watch work
 
 On iPhone and Apple Watch, the workout lifecycle covers start, pause, resume, background execution, interruption and completion. Heart-rate samples remain in their physiological store and are linked by session identity; they are not copied into every set or routine. Completion stores source, coverage and pause intervals and presents average and peak heart rate only when available.
 
+Pausing the whole workout also pauses an active rest or timed-set timer and cancels its notification. The draft records that the workout owned this pause, so Resume restarts only that timer; a timer paused manually stays paused. This ownership survives relaunch and is cleared whenever the wearer manually resumes, cancels or replaces the timer.
+
 Logging remains fully usable without heart rate, a network connection or downloaded media. A missing tracker lowers physiological coverage but never removes sets, notes or progression history.
 
+**Analysis migration required: no.** Timer ownership is active-session lifecycle state; completed-set meaning and historical analysis are unchanged.

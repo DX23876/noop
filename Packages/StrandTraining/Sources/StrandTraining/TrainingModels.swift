@@ -559,6 +559,9 @@ public struct WorkoutDraft: Identifiable, Codable, Equatable, Sendable {
     public var state: WorkoutDraftState
     public var cursor: ActiveExerciseCursor?
     public var timer: WorkoutTimerState?
+    /// True only when pausing the whole workout also paused its timer. This distinction survives a
+    /// relaunch, so resuming the workout does not accidentally resume a timer the wearer paused by hand.
+    public var timerPausedByWorkout: Bool?
     public var interruptionReason: WorkoutInterruptionReason?
     public var lifecycleVersion: Int?
     public var trainingSessionId: UUID?
@@ -576,6 +579,7 @@ public struct WorkoutDraft: Identifiable, Codable, Equatable, Sendable {
                 plannedEndTs: Int? = nil,
                 state: WorkoutDraftState = .active, note: String? = nil,
                 cursor: ActiveExerciseCursor? = nil, timer: WorkoutTimerState? = nil,
+                timerPausedByWorkout: Bool? = nil,
                 interruptionReason: WorkoutInterruptionReason? = nil,
                 lifecycleVersion: Int? = 1,
                 trainingSessionId: UUID? = nil,
@@ -595,6 +599,7 @@ public struct WorkoutDraft: Identifiable, Codable, Equatable, Sendable {
         self.state = state
         self.cursor = cursor
         self.timer = timer
+        self.timerPausedByWorkout = timerPausedByWorkout
         self.interruptionReason = interruptionReason
         self.lifecycleVersion = lifecycleVersion
         self.trainingSessionId = trainingSessionId
