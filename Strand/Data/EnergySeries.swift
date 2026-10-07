@@ -723,6 +723,19 @@ extension Repository {
 
     /// UserDefaults key for the `sensorWriteSeq` value the last post-offload energy refresh read up to.
     static let energyInputCursorKey = "energy.postOffloadInputSeq.v1"
+    /// UserDefaults key for the earliest day start a re-score re-derived since the last post-offload refresh.
+    static let energyRederivedFromKey = "energy.rederivedFrom.v1"
+
+    /// Record that a re-score re-derived the days from `dayStartTs` on. Its sleep sessions and workouts are
+    /// energy inputs the write sequence does not see (computed-namespace writes are not stamped), so the
+    /// next post-offload refresh covers them too, from the day before: a night re-derived for one day
+    /// starts the evening before it. Persisted, so a process ended between the two keeps the debt.
+    func noteEnergyInputsRederived(dayStartTs: Int) {
+        let defaults = UserDefaults.standard
+        let lead = dayStartTs - 86_400
+        let pending = defaults.object(forKey: Self.energyRederivedFromKey) as? Int
+        defaults.set(min(pending ?? lead, lead), forKey: Self.energyRederivedFromKey)
+    }
 
     /// The energy refresh after a completed strap offload: re-prices from the first day whose scoring
     /// inputs changed since the previous one, instead of a fixed `energyRefreshMaxDays` window.
@@ -731,8 +744,10 @@ extension Repository {
     /// today alone; measured on a real 3.6 GB store that was 24 to 34 s per offload against about 5 s for
     /// the whole re-score, on the main actor. A short window prices like the full one: days before it
     /// keep their stored rows, and the activity evidence a day needs from the weeks before is read from
-    /// those stored rows (see `refreshWhoopEnergyModel`). Inputs the write sequence does not cover
-    /// (weight, workouts, profile, Apple Health stride) schedule their own refresh through
+    /// those stored rows (see `refreshWhoopEnergyModel`). The re-score's own sleep sessions and workouts are
+    /// not stamped in the write sequence; it reports the days it re-derived through
+    /// `noteEnergyInputsRederived`, and they join the window here. Other inputs the sequence does not cover
+    /// (weight, saved workouts, profile, Apple Health stride) schedule their own refresh through
     /// `scheduleEnergyRefresh`.
     ///
     /// Without a usable cursor (first run, a store restored behind it, a device-wide invalidation) the
@@ -743,20 +758,28 @@ extension Repository {
         let defaults = UserDefaults.standard
         guard let sequence = try? await store.sensorWriteSeq() else { return }
         let recorded = defaults.object(forKey: Self.energyInputCursorKey) as? Int
+        let rederivedFrom = defaults.object(forKey: Self.energyRederivedFromKey) as? Int
+        let now = Date()
         var days = Self.energyRefreshMaxDays
         if let recorded, recorded <= sequence,
            let change = try? await store.analysisInputChange(after: recorded) {
             switch change {
             case .none:
-                return
+                guard let rederivedFrom else { return }
+                days = Self.energyRefreshDays(coveringStart: rederivedFrom, now: now, calendar: .current)
             case .since(let utcDayStart):
-                days = Self.energyRefreshDays(coveringStart: utcDayStart, now: Date(), calendar: .current)
+                days = Self.energyRefreshDays(coveringStart: min(utcDayStart, rederivedFrom ?? utcDayStart),
+                                              now: now, calendar: .current)
             case .everything:
                 days = Self.energyRefreshMaxDays
             }
         }
         if await refreshWhoopEnergyModel(days: days, profile: profile) {
             defaults.set(sequence, forKey: Self.energyInputCursorKey)
+            // Cleared only if no re-score widened it while this refresh ran.
+            if (defaults.object(forKey: Self.energyRederivedFromKey) as? Int) == rederivedFrom {
+                defaults.removeObject(forKey: Self.energyRederivedFromKey)
+            }
         }
     }
 
