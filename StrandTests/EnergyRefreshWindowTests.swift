@@ -44,6 +44,20 @@ final class EnergyRefreshWindowTests: XCTestCase {
         XCTAssertEqual(Repository.energyRefreshDays(coveringStart: future, now: now, calendar: calendar), 1)
     }
 
+    /// A re-derived day reaches the energy window with the evening before it, and the earliest one wins.
+    func testRederivedDaysKeepTheEarliestStartWithADayOfLeadIn() {
+        let defaults = UserDefaults.standard
+        let saved = defaults.object(forKey: Repository.energyRederivedFromKey)
+        defer { defaults.set(saved, forKey: Repository.energyRederivedFromKey) }
+        defaults.removeObject(forKey: Repository.energyRederivedFromKey)
+        let repo = Repository(deviceId: "test")
+        repo.noteEnergyInputsRederived(dayStartTs: 10 * 86_400)
+        repo.noteEnergyInputsRederived(dayStartTs: 12 * 86_400)
+        XCTAssertEqual(defaults.object(forKey: Repository.energyRederivedFromKey) as? Int, 9 * 86_400)
+        repo.noteEnergyInputsRederived(dayStartTs: 8 * 86_400)
+        XCTAssertEqual(defaults.object(forKey: Repository.energyRederivedFromKey) as? Int, 7 * 86_400)
+    }
+
     func testTheHealthSyncRefreshRunsAtMostHourly() {
         XCTAssertFalse(Repository.energyHealthRefreshIsRecent(last: nil, now: 10_000))
         XCTAssertTrue(Repository.energyHealthRefreshIsRecent(last: 10_000, now: 10_000 + 3_599))
@@ -59,9 +73,8 @@ final class EnergyRefreshWindowTests: XCTestCase {
         guard let source = ProcessInfo.processInfo.environment["NOOP_BENCH_DB"], !source.isEmpty else {
             throw XCTSkip("Set TEST_RUNNER_NOOP_BENCH_DB to a store copy to run this equivalence check")
         }
+        BenchDefaultsGuard.preserve(in: self)
         let defaults = UserDefaults.standard
-        let savedCursor = defaults.object(forKey: Repository.energyInputCursorKey)
-        addTeardownBlock { defaults.set(savedCursor, forKey: Repository.energyInputCursorKey) }
 
         let (full, fullStore) = try await clonedRepository(from: source)
         let (short, shortStore) = try await clonedRepository(from: source)
@@ -72,7 +85,9 @@ final class EnergyRefreshWindowTests: XCTestCase {
         let shortSettled = await short.refreshWhoopEnergyModel(days: Repository.energyRefreshMaxDays, profile: profile)
         XCTAssertTrue(fullSettled)
         XCTAssertTrue(shortSettled)
-        defaults.set(try await shortStore.sensorWriteSeq(), forKey: Repository.energyInputCursorKey)
+        let cursorBeforeOffload = try await shortStore.sensorWriteSeq()
+        defaults.set(cursorBeforeOffload, forKey: Repository.energyInputCursorKey)
+        defaults.removeObject(forKey: Repository.energyRederivedFromKey)
 
         // The same offload lands on both.
         let now = Int(Date().timeIntervalSince1970)
@@ -81,14 +96,24 @@ final class EnergyRefreshWindowTests: XCTestCase {
         try await shortStore.insert(Streams(hr: hr), deviceId: "my-whoop")
 
         // Short first, full straight after: both price "now", and the seconds a day represents grow with
-        // the wall clock, so the slow full refresh must not start half a minute after the short one.
-        let shortStart = DispatchTime.now().uptimeNanoseconds
-        await short.refreshWhoopEnergyModelAfterOffload(profile: profile)
-        let shortSeconds = Double(DispatchTime.now().uptimeNanoseconds - shortStart) / 1e9
-        let fullStart = DispatchTime.now().uptimeNanoseconds
-        let fullRefreshed = await full.refreshWhoopEnergyModel(days: Repository.energyRefreshMaxDays, profile: profile)
-        XCTAssertTrue(fullRefreshed)
-        let fullSeconds = Double(DispatchTime.now().uptimeNanoseconds - fullStart) / 1e9
+        // the wall clock, so both must read it in the same second. If a second boundary falls between
+        // them, the pair runs again from the pre-offload cursor (each refresh replaces its window).
+        var shortSeconds = 0.0, fullSeconds = 0.0
+        for attempt in 1...3 {
+            defaults.set(cursorBeforeOffload, forKey: Repository.energyInputCursorKey)
+            let shortSecond = Int(Date().timeIntervalSince1970)
+            let shortStart = DispatchTime.now().uptimeNanoseconds
+            await short.refreshWhoopEnergyModelAfterOffload(profile: profile)
+            shortSeconds = Double(DispatchTime.now().uptimeNanoseconds - shortStart) / 1e9
+            let fullSecond = Int(Date().timeIntervalSince1970)
+            let fullStart = DispatchTime.now().uptimeNanoseconds
+            let fullRefreshed = await full.refreshWhoopEnergyModel(days: Repository.energyRefreshMaxDays,
+                                                                   profile: profile)
+            XCTAssertTrue(fullRefreshed)
+            fullSeconds = Double(DispatchTime.now().uptimeNanoseconds - fullStart) / 1e9
+            if shortSecond == fullSecond { break }
+            if attempt == 3 { throw XCTSkip("three attempts straddled a second boundary") }
+        }
         print(String(format: "BENCH energy after offload: full %.2f s, short %.2f s", fullSeconds, shortSeconds))
 
         let deviceId = full.deviceId
@@ -118,6 +143,7 @@ final class EnergyRefreshWindowTests: XCTestCase {
         guard let source = env["NOOP_BENCH_DB"], !source.isEmpty else {
             throw XCTSkip("Set TEST_RUNNER_NOOP_BENCH_DB to a store copy to run this benchmark")
         }
+        BenchDefaultsGuard.preserve(in: self)
         let (repo, store) = try await clonedRepository(from: source)
         let profile = Repository.analyticsProfile(ProfileStore())
         // A fixed wall clock is not available to the model, so the day being priced right now is left out

@@ -22,6 +22,7 @@ final class PostOffloadCostBenchmarkTests: XCTestCase {
         guard let source = ProcessInfo.processInfo.environment["NOOP_BENCH_DB"], !source.isEmpty else {
             throw XCTSkip("Set TEST_RUNNER_NOOP_BENCH_DB to a store copy to run this benchmark")
         }
+        BenchDefaultsGuard.preserve(in: self)
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("noop-bench-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         addTeardownBlock { try? FileManager.default.removeItem(at: dir) }
