@@ -2801,7 +2801,7 @@ final class IntelligenceEngine: ObservableObject {
         // next post-offload refresh re-prices from there (and the evening before) rather than only where raw
         // samples moved.
         if let oldest = scannedDays.min(), let noon = WeightSeries.date(forDay: oldest) {
-            repo.noteEnergyInputsRederived(dayStartTs: Int(Calendar.current.startOfDay(for: noon).timeIntervalSince1970))
+            await repo.noteEnergyInputsRederived(dayStartTs: Int(Calendar.current.startOfDay(for: noon).timeIntervalSince1970))
         }
 
         // D1: WHY each day was re-derived rather than reused. `day-skip` above reports the COUNT, which

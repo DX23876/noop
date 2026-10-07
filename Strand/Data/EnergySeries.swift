@@ -721,20 +721,20 @@ extension Repository {
         return .off
     }
 
-    /// UserDefaults key for the `sensorWriteSeq` value the last post-offload energy refresh read up to.
-    static let energyInputCursorKey = "energy.postOffloadInputSeq.v1"
-    /// UserDefaults key for the earliest day start a re-score re-derived since the last post-offload refresh.
-    static let energyRederivedFromKey = "energy.rederivedFrom.v1"
+    /// `cursors` row holding the `sensorWriteSeq` value the last post-offload energy refresh read up to.
+    /// In the store rather than UserDefaults so it always describes the database it sits in: a restored
+    /// backup or a copied store brings the cursor its own energy rows were priced under.
+    static let energyInputCursorName = "energy:postOffloadInputSeq"
+    /// `cursors` row holding the earliest day start a re-score re-derived since the last post-offload refresh.
+    static let energyRederivedFromName = "energy:rederivedFrom"
 
     /// Record that a re-score re-derived the days from `dayStartTs` on. Its sleep sessions and workouts are
     /// energy inputs the write sequence does not see (computed-namespace writes are not stamped), so the
     /// next post-offload refresh covers them too, from the day before: a night re-derived for one day
     /// starts the evening before it. Persisted, so a process ended between the two keeps the debt.
-    func noteEnergyInputsRederived(dayStartTs: Int) {
-        let defaults = UserDefaults.standard
-        let lead = dayStartTs - 86_400
-        let pending = defaults.object(forKey: Self.energyRederivedFromKey) as? Int
-        defaults.set(min(pending ?? lead, lead), forKey: Self.energyRederivedFromKey)
+    func noteEnergyInputsRederived(dayStartTs: Int) async {
+        guard let store = await storeHandle() else { return }
+        try? await store.lowerCursor(Self.energyRederivedFromName, to: dayStartTs - 86_400)
     }
 
     /// The energy refresh after a completed strap offload: re-prices from the first day whose scoring
@@ -746,45 +746,56 @@ extension Repository {
     /// keep their stored rows, and the activity evidence a day needs from the weeks before is read from
     /// those stored rows (see `refreshWhoopEnergyModel`). The re-score's own sleep sessions and workouts are
     /// not stamped in the write sequence; it reports the days it re-derived through
-    /// `noteEnergyInputsRederived`, and they join the window here. Other inputs the sequence does not cover
-    /// (weight, saved workouts, profile, Apple Health stride) schedule their own refresh through
-    /// `scheduleEnergyRefresh`.
+    /// `noteEnergyInputsRederived`, and they join the window here. Apple Health inputs are not stamped
+    /// either; a Health sync the hourly limit skipped is settled here (`refreshPendingHealthEnergy`). Other
+    /// inputs the sequence does not cover (weight, saved workouts, profile) schedule their own refresh
+    /// through `scheduleEnergyRefresh`.
     ///
-    /// Without a usable cursor (first run, a store restored behind it, a device-wide invalidation) the
-    /// full window runs as before. The cursor is the sequence read BEFORE the refresh and is stored only
-    /// after it succeeds, so a write that lands meanwhile is picked up by the next one.
+    /// Without a usable cursor (first run, a device-wide invalidation, an unreadable store row) the full
+    /// window runs as before. The cursor is the sequence read BEFORE the refresh and is stored only after
+    /// it succeeds, so a write that lands meanwhile is picked up by the next one.
     func refreshWhoopEnergyModelAfterOffload(profile: UserProfile) async {
-        guard let store = await storeHandle() else { return }
-        let defaults = UserDefaults.standard
-        guard let sequence = try? await store.sensorWriteSeq() else { return }
-        let recorded = defaults.object(forKey: Self.energyInputCursorKey) as? Int
-        let rederivedFrom = defaults.object(forKey: Self.energyRederivedFromKey) as? Int
-        let now = Date()
-        var days = Self.energyRefreshMaxDays
+        await refreshEnergyForChangedInputs(profile: profile)
+        await refreshPendingHealthEnergy(profile: profile)
+    }
+
+    private func refreshEnergyForChangedInputs(profile: UserProfile) async {
+        guard let store = await storeHandle(),
+              let sequence = try? await store.sensorWriteSeq() else { return }
+        let recorded = try? await store.cursor(Self.energyInputCursorName)
+        let rederivedFrom = try? await store.cursor(Self.energyRederivedFromName)
+        // nil: the full window.
+        var coveringStart: Int?
         if let recorded, recorded <= sequence,
            let change = try? await store.analysisInputChange(after: recorded) {
             switch change {
             case .none:
                 guard let rederivedFrom else { return }
-                days = Self.energyRefreshDays(coveringStart: rederivedFrom, now: now, calendar: .current)
+                coveringStart = rederivedFrom
             case .since(let utcDayStart):
-                days = Self.energyRefreshDays(coveringStart: min(utcDayStart, rederivedFrom ?? utcDayStart),
-                                              now: now, calendar: .current)
+                coveringStart = min(utcDayStart, rederivedFrom ?? utcDayStart)
             case .everything:
-                days = Self.energyRefreshMaxDays
+                coveringStart = nil
             }
         }
-        if await refreshWhoopEnergyModel(days: days, profile: profile) {
-            defaults.set(sequence, forKey: Self.energyInputCursorKey)
-            // Cleared only if no re-score widened it while this refresh ran.
-            if (defaults.object(forKey: Self.energyRederivedFromKey) as? Int) == rederivedFrom {
-                defaults.removeObject(forKey: Self.energyRederivedFromKey)
-            }
+        let refreshed = if let coveringStart {
+            await refreshWhoopEnergyModel(coveringStart: coveringStart, profile: profile)
+        } else {
+            await refreshWhoopEnergyModel(days: Self.energyRefreshMaxDays, profile: profile)
+        }
+        guard refreshed else { return }
+        try? await store.setCursor(Self.energyInputCursorName, sequence)
+        // Cleared only if no re-score moved it while this refresh ran.
+        if let rederivedFrom {
+            try? await store.removeCursor(Self.energyRederivedFromName, ifEqualTo: rederivedFrom)
         }
     }
 
     /// UserDefaults key for when the last Health-sync-driven energy refresh succeeded.
     static let energyHealthRefreshKey = "energy.lastHealthSyncRefresh.v1"
+    /// UserDefaults key set when a Health sync's refresh was skipped (hourly limit, or one already running)
+    /// and is still owed.
+    static let energyHealthRefreshPendingKey = "energy.healthRefreshPending.v1"
     /// At most one Health-sync-driven refresh per hour.
     static let energyHealthRefreshInterval: TimeInterval = 3_600
 
@@ -794,14 +805,35 @@ extension Repository {
     /// them in a morning on a field phone, each re-pricing 30 days on the main actor. What a Health sync
     /// feeds the model (step length, the Watch reference for the opt-in calibration) moves slowly, so an
     /// hour's delay changes nothing a reader can see; the window and the calibration rule are unchanged.
+    /// A skipped sync is not dropped: it leaves `energyHealthRefreshPendingKey`, which the next post-offload
+    /// refresh settles once the hour is up, so the last sync of a day is priced even if no other follows.
     func refreshWhoopEnergyModelAfterHealthSync(profile: UserProfile, now: Date = Date()) async {
         let defaults = UserDefaults.standard
-        if Self.energyHealthRefreshIsRecent(last: defaults.object(forKey: Self.energyHealthRefreshKey) as? Double,
-                                            now: now.timeIntervalSince1970) { return }
+        if energyHealthRefreshRunning
+            || Self.energyHealthRefreshIsRecent(last: defaults.object(forKey: Self.energyHealthRefreshKey) as? Double,
+                                                now: now.timeIntervalSince1970) {
+            defaults.set(true, forKey: Self.energyHealthRefreshPendingKey)
+            return
+        }
+        energyHealthRefreshRunning = true
+        defer { energyHealthRefreshRunning = false }
+        // Cleared before the refresh reads, so a sync landing while it runs owes a pass of its own.
+        defaults.removeObject(forKey: Self.energyHealthRefreshPendingKey)
         if await refreshWhoopEnergyModel(days: 30, profile: profile) {
             defaults.set(now.timeIntervalSince1970, forKey: Self.energyHealthRefreshKey)
+        } else {
+            defaults.set(true, forKey: Self.energyHealthRefreshPendingKey)
         }
     }
+
+    /// Settle a Health-sync refresh the hourly limit skipped, once the hour is up.
+    func refreshPendingHealthEnergy(profile: UserProfile) async {
+        guard UserDefaults.standard.bool(forKey: Self.energyHealthRefreshPendingKey) else { return }
+        await refreshWhoopEnergyModelAfterHealthSync(profile: profile)
+    }
+
+    /// The shortest refresh window the opt-in Watch calibration refits from: the Health-sync window.
+    static let energyCalibrationFitMinimumDays = 30
 
     /// Whether a Health-sync refresh already ran within the interval. A clock moved backwards does not
     /// count as recent, so a wrong wall clock can never stop the refresh for good.
@@ -822,11 +854,50 @@ extension Repository {
     /// Rebuilds the auditable WHOOP bucket output and, only after explicit opt-in, learns a bounded
     /// Apple Watch reference factor from time-aligned high-quality buckets. Sources remain separate:
     /// each point compares one WHOOP estimate with one selected Watch source and never adds devices.
+    ///
+    /// Refreshes run one at a time, in the order they were asked for. Each reads its inputs, then
+    /// replaces its window wholesale, and the steps between are awaits on the main actor: two refreshes
+    /// could interleave, and the one that read first would then write last, putting back the rows priced
+    /// on the older inputs. The post-offload refresh trusts its stored cursor that its window is current,
+    /// so such a rewrite would stay until the day's inputs moved again.
     @discardableResult
     func refreshWhoopEnergyModel(days: Int = 120, profile: UserProfile) async -> Bool {
+        await serializedEnergyRefresh(profile: profile) { _ in days }
+    }
+
+    /// A refresh covering the local day holding `startTs` through today. The span is measured when the
+    /// refresh starts, not when it was asked for: a queued refresh that starts after midnight still
+    /// covers the day the change landed on.
+    @discardableResult
+    func refreshWhoopEnergyModel(coveringStart startTs: Int, profile: UserProfile) async -> Bool {
+        await serializedEnergyRefresh(profile: profile) { now in
+            Self.energyRefreshDays(coveringStart: startTs, now: now, calendar: .current)
+        }
+    }
+
+    private func serializedEnergyRefresh(profile: UserProfile, days: @escaping (Date) -> Int) async -> Bool {
+        // A refresh that reaches another through its own readers runs it inline; queueing it behind
+        // itself would never finish.
+        if EnergyRefreshContext.isInside {
+            let now = Date()
+            return await performWhoopEnergyRefresh(days: days(now), profile: profile, now: now)
+        }
+        let previous = energyRefreshTail
+        let run = Task { @MainActor [weak self] () -> Bool in
+            _ = await previous?.value
+            guard let self else { return false }
+            return await EnergyRefreshContext.$isInside.withValue(true) {
+                let now = Date()
+                return await self.performWhoopEnergyRefresh(days: days(now), profile: profile, now: now)
+            }
+        }
+        energyRefreshTail = run
+        return await run.value
+    }
+
+    private func performWhoopEnergyRefresh(days: Int, profile: UserProfile, now: Date) async -> Bool {
         energyProfile = profile
         guard let store = await storeHandle() else { return false }
-        let now = Date()
         let calendar = Calendar.current
         // Callers may request a current-day repair after a model-version upgrade. Calibration still
         // enforces its own seven-day minimum when fitting, so forcing every refresh to read at least
@@ -1068,7 +1139,10 @@ extension Repository {
         // Publish only after the atomic replacement succeeded, including every calibration exit below.
         defer { noteEnergyPresentationChanged() }
 
-        guard EnergyCalibrationPreferences.enabled else { return true }
+        // The Watch fit learns from the window it is handed. A short post-offload window holds a week or
+        // two at most, and fitting it would replace a month's factor with a noisier one; it keeps the
+        // stored model, and the Health-sync and full refreshes refit it as before.
+        guard EnergyCalibrationPreferences.enabled, days >= Self.energyCalibrationFitMinimumDays else { return true }
         let referenceRows = (try? await store.healthEnergyBuckets(
             deviceId: Self.appleHealthSource, from: from, to: to, eligibleOnly: true)) ?? []
         // ACTIVE only, both sides. Apple already reports it separately from basal — nothing to derive
@@ -1226,7 +1300,15 @@ extension Repository {
         }
         let buckets = samples.count >= 2
             ? Self.bucketStepMovement(samples, ticksPerStep: profile.stepTicksPerStep) : [:]
-        if let key { energyStepMovementCache[from] = (key: key, buckets: buckets) }
+        if let key {
+            energyStepMovementCache[from] = (key: key, buckets: buckets)
+            // One entry per day start; the oldest has left every window. Bounded for a process that runs
+            // for weeks, and for day starts a time-zone change orphaned.
+            if energyStepMovementCache.count > Self.energyRefreshMaxDays + 2,
+               let oldest = energyStepMovementCache.keys.min() {
+                energyStepMovementCache.removeValue(forKey: oldest)
+            }
+        }
         return buckets
     }
 
@@ -1555,4 +1637,10 @@ extension Repository {
         let metrics = await bodyMetrics()
         return { metrics.asOf("body_fat", day: $0)?.value }
     }
+}
+
+/// Marks the task running an energy refresh, so a refresh it reaches through its own readers runs inline
+/// instead of queueing behind itself.
+private enum EnergyRefreshContext {
+    @TaskLocal static var isInside = false
 }

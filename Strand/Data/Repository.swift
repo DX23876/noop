@@ -306,13 +306,7 @@ final class Repository: ObservableObject {
         // and a body-data or basal-formula change is exactly what schedules this pass. Pricing it with
         // the profile from before the change would store the old basal under a new revision.
         let profile = ProfileStore.persistedAnalyticsProfile
-        let calendar = Calendar.current
-        let now = Date()
-        let firstDay = calendar.startOfDay(for: Date(timeIntervalSince1970: TimeInterval(max(0, from))))
-        let spanned = (calendar.dateComponents([.day], from: firstDay,
-                                               to: calendar.startOfDay(for: now)).day ?? 0) + 1
-        await refreshWhoopEnergyModel(days: min(Self.energyRefreshMaxDays, max(1, spanned)),
-                                      profile: profile)
+        await refreshWhoopEnergyModel(coveringStart: from, profile: profile)
         // `refreshWhoopEnergyModel` publishes when it wrote; a window with no heart rate returns
         // early, and the bands still moved.
         noteEnergyPresentationChanged()
@@ -367,6 +361,11 @@ final class Repository: ObservableObject {
     /// index seek plus a table read each); a finished day's counter does not move, so a repeat refresh in
     /// the same process reads its revisions instead. Process-lifetime only.
     var energyStepMovementCache: [Int: (key: String, buckets: [Int: EnergyStepMovement])] = [:]
+
+    /// The last queued energy refresh; the next one waits for it (see `refreshWhoopEnergyModel`).
+    var energyRefreshTail: Task<Bool, Never>?
+    /// A Health-sync energy refresh is running; another Health sync meanwhile leaves its pass owed.
+    var energyHealthRefreshRunning = false
 
     /// The profile the energy model last ran with, so a workout change can re-price it without every
     /// mutation site having to carry one. Set by `refreshWhoopEnergyModel` and `energySummaries`.

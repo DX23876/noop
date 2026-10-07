@@ -45,17 +45,77 @@ final class EnergyRefreshWindowTests: XCTestCase {
     }
 
     /// A re-derived day reaches the energy window with the evening before it, and the earliest one wins.
-    func testRederivedDaysKeepTheEarliestStartWithADayOfLeadIn() {
+    func testRederivedDaysKeepTheEarliestStartWithADayOfLeadIn() async throws {
+        let (repo, store) = try await inMemoryRepository()
+        await repo.noteEnergyInputsRederived(dayStartTs: 10 * 86_400)
+        await repo.noteEnergyInputsRederived(dayStartTs: 12 * 86_400)
+        let first = try await store.cursor(Repository.energyRederivedFromName)
+        XCTAssertEqual(first, 9 * 86_400)
+        await repo.noteEnergyInputsRederived(dayStartTs: 8 * 86_400)
+        let earlier = try await store.cursor(Repository.energyRederivedFromName)
+        XCTAssertEqual(earlier, 7 * 86_400)
+    }
+
+    /// The cursor and the re-derived debt live in the store they describe, so a restored backup or a
+    /// copied file brings its own (or none, and gets the full window) instead of another store's.
+    func testTheOffloadRefreshKeepsItsCursorInTheStoreAndSettlesTheDebt() async throws {
+        BenchDefaultsGuard.preserve(in: self)
+        UserDefaults.standard.removeObject(forKey: Repository.energyHealthRefreshPendingKey)
+        let (repo, store) = try await inMemoryRepository()
+        let now = Int(Date().timeIntervalSince1970)
+        _ = try await store.insert(Streams(hr: (0..<600).map { HRSample(ts: now - 600 + $0, bpm: 70 + $0 % 9) }),
+                                   deviceId: repo.deviceId)
+        await repo.noteEnergyInputsRederived(dayStartTs: now - 2 * 86_400)
+        await repo.refreshWhoopEnergyModelAfterOffload(profile: Repository.analyticsProfile(ProfileStore()))
+        let cursor = try await store.cursor(Repository.energyInputCursorName)
+        let sequence = try await store.sensorWriteSeq()
+        XCTAssertEqual(cursor, sequence)
+        let debt = try await store.cursor(Repository.energyRederivedFromName)
+        XCTAssertNil(debt)
+    }
+
+    /// Refreshes asked for at once run one after the other; neither waits for ever on the other.
+    func testOverlappingRefreshesBothFinish() async throws {
+        let (repo, store) = try await inMemoryRepository()
+        let now = Int(Date().timeIntervalSince1970)
+        _ = try await store.insert(Streams(hr: (0..<1_800).map { HRSample(ts: now - 1_800 + $0, bpm: 75 + $0 % 11) }),
+                                   deviceId: repo.deviceId)
+        let profile = Repository.analyticsProfile(ProfileStore())
+        async let wide = repo.refreshWhoopEnergyModel(days: 2, profile: profile)
+        async let narrow = repo.refreshWhoopEnergyModel(coveringStart: now - 600, profile: profile)
+        let (wideDone, narrowDone) = await (wide, narrow)
+        XCTAssertTrue(wideDone)
+        XCTAssertTrue(narrowDone)
+    }
+
+    /// A Health sync inside the hour is owed, not dropped, and the next chance after the hour settles it.
+    func testASkippedHealthSyncRefreshIsSettledOnceTheHourIsUp() async throws {
+        BenchDefaultsGuard.preserve(in: self)
         let defaults = UserDefaults.standard
-        let saved = defaults.object(forKey: Repository.energyRederivedFromKey)
-        defer { defaults.set(saved, forKey: Repository.energyRederivedFromKey) }
-        defaults.removeObject(forKey: Repository.energyRederivedFromKey)
-        let repo = Repository(deviceId: "test")
-        repo.noteEnergyInputsRederived(dayStartTs: 10 * 86_400)
-        repo.noteEnergyInputsRederived(dayStartTs: 12 * 86_400)
-        XCTAssertEqual(defaults.object(forKey: Repository.energyRederivedFromKey) as? Int, 9 * 86_400)
-        repo.noteEnergyInputsRederived(dayStartTs: 8 * 86_400)
-        XCTAssertEqual(defaults.object(forKey: Repository.energyRederivedFromKey) as? Int, 7 * 86_400)
+        let (repo, _) = try await inMemoryRepository()
+        let profile = Repository.analyticsProfile(ProfileStore())
+        let now = Date()
+        defaults.set(now.timeIntervalSince1970 - 60, forKey: Repository.energyHealthRefreshKey)
+        defaults.removeObject(forKey: Repository.energyHealthRefreshPendingKey)
+        await repo.refreshWhoopEnergyModelAfterHealthSync(profile: profile, now: now)
+        XCTAssertTrue(defaults.bool(forKey: Repository.energyHealthRefreshPendingKey))
+
+        await repo.refreshPendingHealthEnergy(profile: profile)
+        XCTAssertTrue(defaults.bool(forKey: Repository.energyHealthRefreshPendingKey), "still inside the hour")
+
+        defaults.set(now.timeIntervalSince1970 - 3_601, forKey: Repository.energyHealthRefreshKey)
+        await repo.refreshPendingHealthEnergy(profile: profile)
+        XCTAssertFalse(defaults.bool(forKey: Repository.energyHealthRefreshPendingKey))
+        XCTAssertGreaterThanOrEqual(defaults.double(forKey: Repository.energyHealthRefreshKey),
+                                    now.timeIntervalSince1970)
+    }
+
+    private func inMemoryRepository() async throws -> (Repository, WhoopStore) {
+        let store = try await WhoopStore.inMemory()
+        try await store.upsertDevice(id: "my-whoop", mac: nil, name: nil)
+        let repo = Repository(deviceId: "my-whoop")
+        repo.setStoreForTesting(store)
+        return (repo, store)
     }
 
     func testTheHealthSyncRefreshRunsAtMostHourly() {
@@ -74,7 +134,6 @@ final class EnergyRefreshWindowTests: XCTestCase {
             throw XCTSkip("Set TEST_RUNNER_NOOP_BENCH_DB to a store copy to run this equivalence check")
         }
         BenchDefaultsGuard.preserve(in: self)
-        let defaults = UserDefaults.standard
 
         let (full, fullStore) = try await clonedRepository(from: source)
         let (short, shortStore) = try await clonedRepository(from: source)
@@ -86,8 +145,6 @@ final class EnergyRefreshWindowTests: XCTestCase {
         XCTAssertTrue(fullSettled)
         XCTAssertTrue(shortSettled)
         let cursorBeforeOffload = try await shortStore.sensorWriteSeq()
-        defaults.set(cursorBeforeOffload, forKey: Repository.energyInputCursorKey)
-        defaults.removeObject(forKey: Repository.energyRederivedFromKey)
 
         // The same offload lands on both.
         let now = Int(Date().timeIntervalSince1970)
@@ -100,7 +157,7 @@ final class EnergyRefreshWindowTests: XCTestCase {
         // them, the pair runs again from the pre-offload cursor (each refresh replaces its window).
         var shortSeconds = 0.0, fullSeconds = 0.0
         for attempt in 1...3 {
-            defaults.set(cursorBeforeOffload, forKey: Repository.energyInputCursorKey)
+            try await shortStore.setCursor(Repository.energyInputCursorName, cursorBeforeOffload)
             let shortSecond = Int(Date().timeIntervalSince1970)
             let shortStart = DispatchTime.now().uptimeNanoseconds
             await short.refreshWhoopEnergyModelAfterOffload(profile: profile)
