@@ -1227,6 +1227,9 @@ public final class LiveState: ObservableObject {
         let healthLines = HealthSyncStats.summaryLines()
         if !healthLines.isEmpty { header += healthLines.joined(separator: "\n") + "\n" }
         #endif
+        // Which strap events kicked a sync this session (see StrapEventStats). Silent when none arrived.
+        let eventLines = StrapEventStats.summaryLines()
+        if !eventLines.isEmpty { header += eventLines.joined(separator: "\n") + "\n" }
         // #453: the BODY is scrubbed as it is appended, but these header lines come from the diagnostics
         // block and never pass through that path - and they carry device ids, which embed a BLE address
         // for a re-added or second strap. Same redactor, so one export cannot be safe while the other leaks.
