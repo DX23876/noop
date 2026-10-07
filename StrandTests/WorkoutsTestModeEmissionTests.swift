@@ -229,4 +229,32 @@ final class WorkoutsTestModeEmissionTests: XCTestCase {
         XCTAssertEqual(recorder.state, .failed, "15 s without a usable fix is a lost signal")
         XCTAssertEqual(recorder.distanceM, 33.36, accuracy: 0.1)
     }
+
+    /// Core Location goes quiet while the walker stands at a crossing. A silence the filter bridges is a
+    /// measured leg: it must not mark the kilometre as a measurement gap (seen on two 2026-10-07 walks,
+    /// one continuous route with every split flagged). An unexplained jump still is one.
+    func testBridgedSilenceIsNoMeasurementGapButAnUnexplainedJumpIs() {
+        let start = Date.now.addingTimeInterval(-300)
+        let recorder = makeRecorder()
+        defer { recorder.stop() }
+        recorder.start(startMs: Int64(start.timeIntervalSince1970 * 1000))
+        var interruptions = 0
+        recorder.onInterruption = { interruptions += 1 }
+        func fix(_ seconds: Double, north metres: Double) -> CLLocation {
+            CLLocation(coordinate: CLLocationCoordinate2D(latitude: 51.5 + metres / 111_195, longitude: -0.1),
+                       altitude: 0, horizontalAccuracy: 5, verticalAccuracy: 5,
+                       timestamp: start.addingTimeInterval(seconds))
+        }
+        recorder.receiveLocations([fix(1, north: 0), fix(6, north: 15), fix(11, north: 30)])
+        // 40 s without any delivery, then the walk resumes 30 m further on.
+        recorder.receiveLocations([fix(51, north: 60), fix(56, north: 75)])
+        XCTAssertEqual(interruptions, 0, "a bridged silence is a measured leg")
+        XCTAssertEqual(recorder.capturedRoute()?.segmentStarts, [0])
+        XCTAssertEqual(recorder.distanceM, 75, accuracy: 0.5)
+        // 60 s later 2 km away: faster than the sport allows, so the route breaks there.
+        recorder.receiveLocations([fix(116, north: 2075), fix(121, north: 2090)])
+        XCTAssertEqual(interruptions, 1)
+        XCTAssertEqual(recorder.capturedRoute()?.segmentStarts, [0, 5])
+        XCTAssertEqual(recorder.distanceM, 90, accuracy: 0.5)
+    }
 }

@@ -401,6 +401,8 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
     @Published private(set) var lastLocationAt: Date?
     @Published private(set) var isStationary = false
     var onAcceptedPoint: ((WorkoutRoutePoint, Double) -> Void)?
+    /// Fires when the route really breaks: a reacquired fix the filter could not bridge. A quiet spell
+    /// that is bridged afterwards (Core Location goes silent while the walker stands still) is not a gap.
     var onInterruption: (() -> Void)?
     /// Trustworthy motion observations only; auto-paused sessions keep these, but never route points.
     var onMotion: ((Bool?, Bool, Date) -> Void)?
@@ -767,10 +769,11 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
                                              stationary: fix.stationary))
     }
 
+    /// Only arms the bridge test. Whether this becomes a measurement gap is decided by the next usable
+    /// fix: joined, the leg is measured; re-anchored, `beginNewSegment` reports the interruption.
     private func markGap() {
         guard !beginsSegment, !gapPending else { return }
         gapPending = true
-        onInterruption?()
     }
 
     private func beginBackgroundActivity() {
@@ -844,8 +847,9 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
                 pt = point
             case .anchored(let point):
                 logFix(fix, decision: "anchor")
-                // The filter already holds this fix as its anchor; a reset would forget it.
-                if !beginsSegment { beginNewSegment(measurementGap: false, resetFilter: false) }
+                // The filter already holds this fix as its anchor; a reset would forget it. Mid-route an
+                // anchor only follows a gap the filter could not bridge, so the movement there is unknown.
+                if !beginsSegment { beginNewSegment(resetFilter: false) }
                 pt = point
             }
             gapPending = false
