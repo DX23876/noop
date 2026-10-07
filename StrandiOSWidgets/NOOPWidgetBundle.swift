@@ -3,7 +3,8 @@ import SwiftUI
 
 /// The widget extension entry point. Bundles the glanceable widget, the three-rings widget
 /// (redesign §9), the energy widget, the live-HR Live Activity, the heart-rate trace widget (#1957),
-/// the stress curve widget (#2040), the Coach brief widget and the strap-sync Live Activity.
+/// the stress curve widget (#2040), the Coach brief widget, the strap-sync Live Activity and the ten
+/// fitness widgets (`NOOPFitnessWidgets`).
 ///
 /// The brief widget renders whatever `CoachBriefScheduler` last stored, and that store is now fed by
 /// this fork's OWN brief (`AICoachEngine.generateBriefText`) rather than a second generation path — so
@@ -20,5 +21,6 @@ struct NOOPWidgetBundle: WidgetBundle {
         CoachBriefWidget()
         NOOPGoalWidget()
         SyncLiveActivity()
+        NOOPFitnessWidgets().body
     }
 }

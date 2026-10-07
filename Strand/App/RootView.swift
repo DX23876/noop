@@ -389,6 +389,10 @@ struct RootView: View {
             case .goals:
                 selection = .goalJourney
                 router.requestedGoalId = nil
+            // The fitness widgets are iOS-only. A forwarded URL on macOS still lands safely on Today.
+            case .todayDetail:
+                selection = .today
+                router.requestedTodayRoute = nil
             case nil: break
             }
             if dest != nil { router.requestedDestination = nil }

@@ -337,6 +337,12 @@ struct RootTabView: View {
                 tabPaths[0] = path
                 router.requestedGoalId = nil
                 router.requestedDestination = nil
+            case .todayDetail:
+                // A fitness widget's deep link: land on Today and push the detail its Today card opens.
+                withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 0 }
+                tabPaths[0] = NavigationPath(router.requestedTodayRoute.map { [$0] } ?? [])
+                router.requestedTodayRoute = nil
+                router.requestedDestination = nil
             case .energy:
                 // Widget deep link: land on Today and push the same detail route the in-app card uses.
                 withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 0 }
@@ -491,6 +497,8 @@ struct RootTabView: View {
                 case .alarms: SmartAlarmView()
                 // .goals is pushed onto Today's own stack (handled above); exhaustive fallback.
                 case .goals: CoachGoalJourneyScreen()
+                // .todayDetail is pushed onto Today's own stack (handled above); exhaustive fallback.
+                case .todayDetail: LiquidTodayView()
                 }
             }
             // The Trends/Today fallbacks above emit TabRoute value pushes (#198), which need a
