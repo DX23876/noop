@@ -2875,8 +2875,12 @@ struct LiquidTodayView: View {
     @State private var loadGeneration = 0
     @State private var committedLoadGeneration = 0
     private var loadKey: DashboardLoadKey {
-        DashboardLoadKey(repo: repo, selection: selectedDayKey,
-            preferences: "\(hydrationEnabled)-\(hostedCardsRaw)-\(dayCycleModeRaw)", profile: profile)
+        // The clock's own day keys join the key: `selectedDayKey` reads the today key cached by load(), so a
+        // day rollover with no repository change would otherwise never change this key and never reload.
+        let now = Date()
+        return DashboardLoadKey(repo: repo, selection: selectedDayKey,
+            preferences: "\(hydrationEnabled)-\(hostedCardsRaw)-\(dayCycleModeRaw)-"
+                + "\(Repository.logicalDayKey(now))-\(Repository.localDayKey(now))", profile: profile)
     }
 
     private func load() async {
