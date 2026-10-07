@@ -1572,6 +1572,38 @@ final class HealthKitBridge: ObservableObject {
         return count
     }
 
+    /// Builds the same sleep samples sent to the versioned writer, without Health-store access.
+    static func sleepSamples(for entry: HealthWriteback.MergedSleepEntry) -> [HKCategorySample] {
+        guard let type = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) else { return [] }
+        let key = HealthWriteback.appleHealthSleepKey(startTs: entry.keyStartTs)
+        // HealthKit validates during construction, before save() can install the durable revision.
+        // This initial version is excluded from fingerprints and replaced by HealthSampleWriter.
+        let meta: [String: Any] = [HKMetadataKeyExternalUUID: key,
+                                  Self.originMetadataKey: Self.originMetadataValue,
+                                  HKMetadataKeySyncVersion: NSNumber(value: 1)]
+        var samples: [HKCategorySample] = []
+        samples.append(HKCategorySample(type: type, value: HKCategoryValueSleepAnalysis.inBed.rawValue,
+                                       start: Date(timeIntervalSince1970: TimeInterval(entry.spanStart)),
+                                       end: Date(timeIntervalSince1970: TimeInterval(entry.spanEnd)),
+                                       metadata: meta.merging([HKMetadataKeySyncIdentifier: key + ":inBed"]) { _, new in new }))
+        for seg in entry.intervals {
+            let value: HKCategoryValueSleepAnalysis
+            switch seg.kind {
+            case .awake:       value = .awake
+            case .light:       value = .asleepCore
+            case .deep:        value = .asleepDeep
+            case .rem:         value = .asleepREM
+            case .unspecified: value = .asleepUnspecified
+            }
+            samples.append(HKCategorySample(
+                type: type, value: value.rawValue,
+                start: Date(timeIntervalSince1970: TimeInterval(seg.start)),
+                end: Date(timeIntervalSince1970: TimeInterval(seg.end)),
+                metadata: meta.merging([HKMetadataKeySyncIdentifier: key + ":stage:\(seg.start)"]) { _, new in new }))
+        }
+        return samples
+    }
+
     /// Write each BRIDGED NIGHT (#364) as one `.inBed` sample plus one category sample per stage
     /// segment (`deep → .asleepDeep`, `rem → .asleepREM`, `light → .asleepCore`, `wake → .awake`) —
     /// the same shape Oura and Apple Watch write, so Health renders the full hypnogram. A night the
@@ -1598,29 +1630,8 @@ final class HealthKitBridge: ObservableObject {
         var samples: [HKCategorySample] = []
         var keys: [String] = []
         for entry in HealthWriteback.mergedSleepPlan(groups: groups) {
-            let key = HealthWriteback.appleHealthSleepKey(startTs: entry.keyStartTs)
-            let meta = [HKMetadataKeyExternalUUID: key,
-                        Self.originMetadataKey: Self.originMetadataValue]
             keys.append(contentsOf: entry.allKeyStartTs.map { HealthWriteback.appleHealthSleepKey(startTs: $0) })
-            samples.append(HKCategorySample(type: type, value: HKCategoryValueSleepAnalysis.inBed.rawValue,
-                                            start: Date(timeIntervalSince1970: TimeInterval(entry.spanStart)),
-                                            end: Date(timeIntervalSince1970: TimeInterval(entry.spanEnd)),
-                                            metadata: meta.merging([HKMetadataKeySyncIdentifier: key + ":inBed"]) { _, new in new }))
-            for seg in entry.intervals {
-                let value: HKCategoryValueSleepAnalysis
-                switch seg.kind {
-                case .awake:       value = .awake
-                case .light:       value = .asleepCore
-                case .deep:        value = .asleepDeep
-                case .rem:         value = .asleepREM
-                case .unspecified: value = .asleepUnspecified
-                }
-                samples.append(HKCategorySample(
-                    type: type, value: value.rawValue,
-                    start: Date(timeIntervalSince1970: TimeInterval(seg.start)),
-                    end: Date(timeIntervalSince1970: TimeInterval(seg.end)),
-                    metadata: meta.merging([HKMetadataKeySyncIdentifier: key + ":stage:\(seg.start)"]) { _, new in new }))
-            }
+            samples.append(contentsOf: Self.sleepSamples(for: entry))
         }
         let count = try await HealthSampleWriter.save(samples, store: store, db: whoopStore)
         let expected = Set(samples.compactMap { ($0.metadata?[HKMetadataKeySyncIdentifier] as? String).map { type.identifier + "|" + $0 } })
