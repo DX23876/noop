@@ -89,6 +89,11 @@ final class BehaviorStore: ObservableObject {
     /// One alert when a Training Load lane moves into "well above your usual". Default OFF.
     @Published var trainingLoadAlert: Bool { didSet { d.set(trainingLoadAlert, forKey: K.trainingLoadAlert) } }
 
+    // MARK: Sync reminder (iOS)
+    /// A silent notification when NOOP has not synced the strap for three hours (`SyncReminderPolicy`). Default
+    /// OFF: permission granted for another alert does not opt the user into this new automation.
+    @Published var syncReminder: Bool { didSet { d.set(syncReminder, forKey: K.syncReminder) } }
+
     private let d: UserDefaults
     private enum K {
         static let dtAction = "behavior.doubleTapAction"
@@ -118,6 +123,7 @@ final class BehaviorStore: ObservableObject {
         static let batteryPredictiveAlerts = "behavior.batteryPredictiveAlerts"
         static let strainTargetNudge = "behavior.strainTargetNudge"
         static let trainingLoadAlert = "behavior.trainingLoadAlert"
+        static let syncReminder = "behavior.syncReminder"
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -149,6 +155,7 @@ final class BehaviorStore: ObservableObject {
         batteryPredictiveAlerts = d.object(forKey: K.batteryPredictiveAlerts) as? Bool ?? true
         strainTargetNudge = d.object(forKey: K.strainTargetNudge) as? Bool ?? false
         trainingLoadAlert = d.object(forKey: K.trainingLoadAlert) as? Bool ?? false
+        syncReminder = d.object(forKey: K.syncReminder) as? Bool ?? false
     }
 
     // MARK: Charge baseline recalibration
