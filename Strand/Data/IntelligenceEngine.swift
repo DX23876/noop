@@ -2978,6 +2978,7 @@ final class IntelligenceEngine: ObservableObject {
         // already staged from raw (idempotent) and for imported nights (raw never dense). This MUST run
         // before the scoring loop so the healed stages flow into Rest/recovery this same pass.
         let editedRows = await repo.selfHealEditedStages(from: windowStart, to: now)
+        markPostLoopPhase("selfHeal")
         var cycleCandidates: [(owner: String, priority: Int)] = regDevices
             .map { device in
                 let priority: Int
@@ -2997,6 +2998,7 @@ final class IntelligenceEngine: ObservableObject {
             if !$0.contains($1) { $0.append($1) }
         }
         let cycleWorkouts = await repo.workoutRows(days: maxDays + 2)
+        markPostLoopPhase("cycleRows")
         let dayCycleMode = DayCycleMode.persisted(UserDefaults.standard.string(forKey: DayCycleMode.storageKey))
         let cycleTrace = DayCycleTraceBuffer()
         let cycleTraceSink: (@Sendable (String) -> Void)?
@@ -3033,6 +3035,7 @@ final class IntelligenceEngine: ObservableObject {
             trace: cycleTraceSink) else { return }
         guard !Task.isCancelled else { return }
         for line in cycleTrace.lines { diagnosticSink?(line, .steps) }
+        markPostLoopPhase("dayCycle")
         // #299: `editsByStart` is now built PER DAY inside the scoring loop (scoped to the day each edit
         // belongs to), NOT window-wide here. sleepEditedDaily folds any edited row that isn't a twin of THIS
         // day's detected sessions in as a "manual" block, so a window-wide edit set let ONE user edit /
@@ -3054,6 +3057,7 @@ final class IntelligenceEngine: ObservableObject {
                                                         from: "0000-01-01", to: "9999-12-31")) ?? [])
             .sorted { $0.day < $1.day }
         let appleHealthDays = Set(appleRows.map { $0.day })
+        markPostLoopPhase("appleRows")
 
         // Recovery (Charge) test mode (Group G): read the zero-cost gate ONCE here (a single Bool) before
         // the scoring loop. When false (the default), no Charge term-breakdown trace is built and the score
