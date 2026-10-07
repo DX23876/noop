@@ -90,20 +90,23 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
             .ignoresSafeArea()
         }
         #if os(iOS)
-        // Keep long pages legible beneath the status bar. Content is allowed to scroll under it, but a
-        // short adaptive fade prevents a large title or form row from competing with the clock and
-        // system icons. At rest this sits entirely in the scaffold's empty top inset.
+        // Keep long pages legible beneath the status bar. iOS 26 already blends scrolled content into
+        // the status bar with its own soft edge effect (see HardTopEdgeIfPinned), and a page that draws
+        // a top backdrop (the sky) must show it edge to edge. In both cases a canvas-coloured fade over
+        // the safe area reads as a hard cut around the notch, so only older iOS without a backdrop keeps it.
         .overlay(alignment: .top) {
-            LinearGradient(
-                colors: [StrandPalette.surfaceBase.opacity(0.98),
-                         StrandPalette.surfaceBase.opacity(0.72), .clear],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .frame(height: 54)
-            .ignoresSafeArea(edges: .top)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
+            if topBackground == nil, #unavailable(iOS 26.0) {
+                LinearGradient(
+                    colors: [StrandPalette.surfaceBase.opacity(0.98),
+                             StrandPalette.surfaceBase.opacity(0.72), .clear],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: 54)
+                .ignoresSafeArea(edges: .top)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+            }
         }
         #endif
         .modifier(RefreshableIfNeeded(onRefresh: onRefresh))

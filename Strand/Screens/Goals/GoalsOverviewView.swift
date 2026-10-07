@@ -887,8 +887,8 @@ enum GoalsOverviewFilter: String, CaseIterable {
     }
 }
 
-/// The chips as the overview pins them above its content: on the page colour, so the cards scrolling
-/// under them do not show through.
+/// The chips as the overview pins them above its content, on a soft material so the cards scrolling
+/// under them stay legible without a solid slab.
 struct GoalsFilterBar: View {
     @AppStorage(GoalPrefs.overviewFilterKey) private var raw = GoalsOverviewFilter.all.rawValue
 
@@ -897,6 +897,12 @@ struct GoalsFilterBar: View {
                         selection: $raw)
             .padding(.vertical, 6)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(StrandPalette.surfaceBase.opacity(0.96).padding(.horizontal, -NoopMetrics.screenHPadding))
+            .background {
+                // A material faded out downward instead of a solid page-colour slab: over the sky
+                // backdrop the slab showed as a black bar behind the chips.
+                Rectangle().fill(.ultraThinMaterial)
+                    .mask(LinearGradient(colors: [.black, .black, .clear], startPoint: .top, endPoint: .bottom))
+                    .padding(.horizontal, -NoopMetrics.screenHPadding)
+            }
     }
 }
