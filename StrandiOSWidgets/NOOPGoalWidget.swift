@@ -119,8 +119,14 @@ struct GoalWidgetView: View {
                 }
             }
         }
-        // A long-term goal's page is not a route the link can open; its tap lands on the goals overview.
-        .widgetURL(URL(string: goal.flatMap { $0.isLongTerm ? nil : "noop://goals/\($0.id)" } ?? "noop://goals"))
+        .widgetURL(link(lines.first))
+    }
+
+    /// Where a tap on a goal lands: its own page for a weekly or monthly goal. A long-term goal's page is
+    /// not a route the link can open, so it lands on the goals overview, as does a tap outside any goal.
+    private func link(_ goal: GoalWidgetSnapshot.Goal?) -> URL? {
+        guard let goal, !goal.isLongTerm else { return URL(string: "noop://goals") }
+        return URL(string: "noop://goals/\(goal.id)")
     }
 
     private var fullColor: Bool { renderingMode == .fullColor }
@@ -129,7 +135,9 @@ struct GoalWidgetView: View {
         guard fullColor else { return .primary }
         switch tone {
         case "positive": return StrandPalette.statusPositive
-        case "warning":  return StrandPalette.statusWarning
+        // The text shade of amber, as the app's state words use (`StrandTone.foregroundColor`): the fill
+        // shade read poorly as a word on the light widget.
+        case "warning":  return StrandPalette.statusWarningForeground
         case "critical": return StrandPalette.statusCritical
         case "accent":   return StrandPalette.accent
         default:         return StrandPalette.textSecondary
@@ -173,13 +181,12 @@ struct GoalWidgetView: View {
         return spot.isEmpty ? entry.snapshot.goals : spot
     }
 
-    /// A goal's shape: the app's glyph, or the plain pace track from an older payload.
-    @ViewBuilder private func shape(_ goal: GoalWidgetSnapshot.Goal) -> some View {
-        if let glyph = goal.glyph {
-            WidgetGoalGlyph(glyph: glyph, tint: goalTint(goal), fullColor: fullColor)
-        } else {
-            track(goal, height: 5)
-        }
+    /// A goal's shape: the app's glyph, or for an older payload without one the pace track built from
+    /// its fraction and plan mark.
+    private func shape(_ goal: GoalWidgetSnapshot.Goal) -> some View {
+        WidgetGoalGlyph(glyph: goal.glyph ?? .init(kind: "track", fraction: goal.fraction,
+                                                    paceFraction: goal.paceFraction),
+                        tint: goalTint(goal), fullColor: fullColor)
     }
 
     /// One goal: name and state, where it stands in its own terms, its shape.
@@ -201,25 +208,6 @@ struct GoalWidgetView: View {
         }
     }
 
-    /// The pace track in widget form, for a payload without a glyph: fill = done, mark = where the plan
-    /// stands. In tinted and clear modes the fill is a solid shape and the mark is wider (design §11).
-    private func track(_ goal: GoalWidgetSnapshot.Goal, height: CGFloat) -> some View {
-        GeometryReader { geo in
-            let width = geo.size.width
-            ZStack(alignment: .leading) {
-                Capsule().fill(fullColor ? StrandPalette.hairline : Color.primary.opacity(0.25))
-                Capsule().fill(tint(goal.tone)).frame(width: width * CGFloat(min(1, max(0, goal.fraction))))
-                    .widgetAccentable()
-                if let pace = goal.paceFraction, goal.fraction < 1 {
-                    Capsule().fill(Color.primary)
-                        .frame(width: fullColor ? 2 : 3, height: height + 6)
-                        .offset(x: max(0, min(width - 3, width * CGFloat(pace) - 1)))
-                }
-            }
-        }
-        .frame(height: height + 6)
-    }
-
     // MARK: Home screen
 
     /// The goal that matters most: its name, its figure large, its shape, its state.
@@ -230,9 +218,13 @@ struct GoalWidgetView: View {
                     .font(.caption.weight(.semibold)).lineLimit(1)
                     .foregroundStyle(StrandPalette.textSecondary)
                 Spacer(minLength: 0)
-                Text(goal.headline)
-                    .font(.title2.weight(.bold)).fontDesign(.rounded).monospacedDigit()
-                    .lineLimit(1).minimumScaleFactor(0.6)
+                // A long figure ("1,012,989") takes the next size down instead of being squeezed.
+                ViewThatFits(in: .horizontal) {
+                    Text(goal.headline).font(.title2.weight(.bold))
+                    Text(goal.headline).font(.title3.weight(.bold))
+                    Text(goal.headline).font(.headline)
+                }
+                .fontDesign(.rounded).monospacedDigit().lineLimit(1)
                 shape(goal)
                 Label(goal.stateWord, systemImage: goal.stateSymbol)
                     .font(.caption2.weight(.semibold)).foregroundStyle(tint(goal.tone))
@@ -255,7 +247,8 @@ struct GoalWidgetView: View {
         VStack(alignment: .leading, spacing: 8) {
             ForEach(Array(lines.prefix(2).enumerated()), id: \.element.id) { index, goal in
                 if index > 0 { Divider() }
-                row(goal)
+                // Each goal opens its own page, not only the first one (the widget's own link).
+                if let url = link(goal) { Link(destination: url) { row(goal) } } else { row(goal) }
             }
             Spacer(minLength: 0)
             HStack {
@@ -268,12 +261,12 @@ struct GoalWidgetView: View {
 
     /// Three goals in their shapes, the day's goals, the week's summary.
     private var large: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             Label("Goals", systemImage: "target")
                 .font(.caption.weight(.semibold)).foregroundStyle(StrandPalette.textSecondary)
             ForEach(Array(lines.prefix(3).enumerated()), id: \.element.id) { index, goal in
                 if index > 0 { Divider() }
-                row(goal)
+                if let url = link(goal) { Link(destination: url) { row(goal) } } else { row(goal) }
             }
             Spacer(minLength: 0)
             dailyLine
@@ -300,14 +293,18 @@ struct GoalWidgetView: View {
     }
 
     private var rectangular: some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 4) {
             ForEach(Array(lines.prefix(2))) { goal in
-                HStack {
-                    Text(goal.name).font(.caption2.weight(.semibold)).lineLimit(1)
-                    Spacer(minLength: 2)
-                    Text(goal.progress).font(.caption2).monospacedDigit().lineLimit(1)
+                Gauge(value: min(1, max(0, goal.fraction))) {
+                    HStack {
+                        Text(goal.name).font(.caption2.weight(.semibold)).lineLimit(1)
+                        Spacer(minLength: 4)
+                        Text(goal.progress).font(.caption2).monospacedDigit().lineLimit(1)
+                    }
                 }
-                track(goal, height: 3)
+                .gaugeStyle(.linearCapacity)
+                .tint(.primary)
+                .widgetAccentable()
             }
         }
     }

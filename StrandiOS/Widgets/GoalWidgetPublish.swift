@@ -65,7 +65,12 @@ enum GoalWidgetPublisher {
     /// A long-term goal with a catalog reading, in the words of its page: "1,012,989" of "1,800,000".
     private static func longTermGoal(_ s: GoalTrackingSnapshot, appleColors: Bool) -> GoalWidgetSnapshot.Goal? {
         guard let content = LongTermGoalContent(s), let reading = s.reading else { return nil }
-        let style = content.style
+        // A glance surface nudges like Today's card (plan §17g, Q14): a long-term goal behind reads in
+        // amber here, red stays on the goals page and the goal's own page.
+        let base = content.style
+        let style = base.tone == .critical
+            ? GoalStatusStyle(word: base.word, wordText: base.wordText, symbol: base.symbol, tone: .warning)
+            : base
         let kindKey = "coach.goal.\(s.goal.kind.rawValue)"
         return .init(id: s.id.uuidString, name: s.displayTitle, title: s.displayTitle,
                      symbol: GoalCatalog.template(for: s.goal)?.icon ?? s.goal.kind.icon, period: "longTerm",

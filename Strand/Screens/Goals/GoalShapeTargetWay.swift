@@ -16,7 +16,7 @@ struct GoalShapeTargetWay: View {
             var track = Path()
             track.move(to: CGPoint(x: 3, y: mid))
             track.addLine(to: CGPoint(x: end, y: mid))
-            context.stroke(track, with: .color(StrandPalette.textTertiary.opacity(0.28)), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+            context.stroke(track, with: .color(StrandPalette.textTertiary.opacity(0.3)), style: StrokeStyle(lineWidth: 4, lineCap: .round))
             for mark in marks {
                 let mx = 3 + (end - 3) * mark
                 var tick = Path()

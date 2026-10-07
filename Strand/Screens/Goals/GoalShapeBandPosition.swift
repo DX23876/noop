@@ -18,7 +18,7 @@ struct GoalShapeBandPosition: View {
             var track = Path()
             track.move(to: CGPoint(x: 5, y: mid))
             track.addLine(to: CGPoint(x: size.width - 5, y: mid))
-            context.stroke(track, with: .color(StrandPalette.textTertiary.opacity(0.28)), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+            context.stroke(track, with: .color(StrandPalette.textTertiary.opacity(0.3)), style: StrokeStyle(lineWidth: 4, lineCap: .round))
             let a = xFor(center - band), b = xFor(center + band)
             context.fill(Path(roundedRect: CGRect(x: a, y: mid - 4, width: b - a, height: 8), cornerRadius: 4),
                          with: .color(tint.opacity(0.3)))
