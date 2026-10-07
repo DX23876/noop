@@ -2997,7 +2997,10 @@ final class IntelligenceEngine: ObservableObject {
         }.map(\.id) + [Repository.whoopSource]).reduce(into: [String]()) {
             if !$0.contains($1) { $0.append($1) }
         }
-        let cycleWorkouts = await repo.workoutRows(days: maxDays + 2)
+        // The day cycle reads only each workout's startTs/endTs (window membership and overlap), so the
+        // display-only Avg/Max-HR reconcile is skipped: it cost one HR-window query per workout, measured
+        // at 17 s of a cold pass, and returns rows with the same bounds either way.
+        let cycleWorkouts = await repo.workoutRows(days: maxDays + 2, reconcileHrCap: 0)
         markPostLoopPhase("cycleRows")
         let dayCycleMode = DayCycleMode.persisted(UserDefaults.standard.string(forKey: DayCycleMode.storageKey))
         let cycleTrace = DayCycleTraceBuffer()
