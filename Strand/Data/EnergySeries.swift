@@ -718,6 +718,81 @@ extension Repository {
         return .off
     }
 
+    /// UserDefaults key for the `sensorWriteSeq` value the last post-offload energy refresh read up to.
+    static let energyInputCursorKey = "energy.postOffloadInputSeq.v1"
+
+    /// The energy refresh after a completed strap offload: re-prices from the first day whose scoring
+    /// inputs changed since the previous one, instead of a fixed `energyRefreshMaxDays` window.
+    ///
+    /// Every offload used to re-price 120 days, although an offload almost always adds samples to
+    /// today alone; measured on a real 3.6 GB store that was 24 to 34 s per offload against about 5 s for
+    /// the whole re-score, on the main actor. A short window prices like the full one: days before it
+    /// keep their stored rows, and the activity evidence a day needs from the weeks before is read from
+    /// those stored rows (see `refreshWhoopEnergyModel`). Inputs the write sequence does not cover
+    /// (weight, workouts, profile, Apple Health stride) schedule their own refresh through
+    /// `scheduleEnergyRefresh`.
+    ///
+    /// Without a usable cursor (first run, a store restored behind it, a device-wide invalidation) the
+    /// full window runs as before. The cursor is the sequence read BEFORE the refresh and is stored only
+    /// after it succeeds, so a write that lands meanwhile is picked up by the next one.
+    func refreshWhoopEnergyModelAfterOffload(profile: UserProfile) async {
+        guard let store = await storeHandle() else { return }
+        let defaults = UserDefaults.standard
+        guard let sequence = try? await store.sensorWriteSeq() else { return }
+        let recorded = defaults.object(forKey: Self.energyInputCursorKey) as? Int
+        var days = Self.energyRefreshMaxDays
+        if let recorded, recorded <= sequence,
+           let change = try? await store.analysisInputChange(after: recorded) {
+            switch change {
+            case .none:
+                return
+            case .since(let utcDayStart):
+                days = Self.energyRefreshDays(coveringStart: utcDayStart, now: Date(), calendar: .current)
+            case .everything:
+                days = Self.energyRefreshMaxDays
+            }
+        }
+        if await refreshWhoopEnergyModel(days: days, profile: profile) {
+            defaults.set(sequence, forKey: Self.energyInputCursorKey)
+        }
+    }
+
+    /// UserDefaults key for when the last Health-sync-driven energy refresh succeeded.
+    static let energyHealthRefreshKey = "energy.lastHealthSyncRefresh.v1"
+    /// At most one Health-sync-driven refresh per hour.
+    static let energyHealthRefreshInterval: TimeInterval = 3_600
+
+    /// The 30-day refresh a completed Apple Health sync asks for, at most once an hour.
+    ///
+    /// It ran after every Health sync, and a history repair alone runs one sync per 31-day chunk: 110 of
+    /// them in a morning on a field phone, each re-pricing 30 days on the main actor. What a Health sync
+    /// feeds the model (step length, the Watch reference for the opt-in calibration) moves slowly, so an
+    /// hour's delay changes nothing a reader can see; the window and the calibration rule are unchanged.
+    func refreshWhoopEnergyModelAfterHealthSync(profile: UserProfile, now: Date = Date()) async {
+        let defaults = UserDefaults.standard
+        if Self.energyHealthRefreshIsRecent(last: defaults.object(forKey: Self.energyHealthRefreshKey) as? Double,
+                                            now: now.timeIntervalSince1970) { return }
+        if await refreshWhoopEnergyModel(days: 30, profile: profile) {
+            defaults.set(now.timeIntervalSince1970, forKey: Self.energyHealthRefreshKey)
+        }
+    }
+
+    /// Whether a Health-sync refresh already ran within the interval. A clock moved backwards does not
+    /// count as recent, so a wrong wall clock can never stop the refresh for good.
+    nonisolated static func energyHealthRefreshIsRecent(last: Double?, now: Double) -> Bool {
+        guard let last else { return false }
+        let age = now - last
+        return age >= 0 && age < energyHealthRefreshInterval
+    }
+
+    /// Whole local days from the one holding `startTs` through today, bounded to `energyRefreshMaxDays`.
+    /// The day holding the instant starts at or before it, so every changed sample is inside the window.
+    nonisolated static func energyRefreshDays(coveringStart startTs: Int, now: Date, calendar: Calendar) -> Int {
+        let first = calendar.startOfDay(for: Date(timeIntervalSince1970: TimeInterval(max(0, startTs))))
+        let spanned = (calendar.dateComponents([.day], from: first, to: calendar.startOfDay(for: now)).day ?? 0) + 1
+        return min(energyRefreshMaxDays, max(1, spanned))
+    }
+
     /// Rebuilds the auditable WHOOP bucket output and, only after explicit opt-in, learns a bounded
     /// Apple Watch reference factor from time-aligned high-quality buckets. Sources remain separate:
     /// each point compares one WHOOP estimate with one selected Watch source and never adds devices.
@@ -743,7 +818,13 @@ extension Repository {
             .filter { $0.bpm.isFinite && $0.conf >= 0.5 }
         guard !hr.isEmpty else { return true }
 
-        let observations = await weightSeries(days: max(days + 100, 100)).compactMap { point in
+        // The weight and VO2max histories are read over the FULL window's span whatever `days` is. Both feed
+        // resolvers that look at every reading they are handed (the causal weight trend, the freshest Apple
+        // VO2max), so a shorter read gave a short refresh a different weight and aerobic ceiling for the same
+        // day than the full 120-day refresh: 210.8 against 211.2 kg on a real store. At the full window this
+        // reads exactly what it always read.
+        let historyDays = max(days, Self.energyRefreshMaxDays)
+        let observations = await weightSeries(days: max(historyDays + 100, 100)).compactMap { point in
             WeightSeries.date(forDay: point.day).map {
                 CausalWeightObservation(timestamp: Int($0.timeIntervalSince1970),
                                         weightKg: point.value,
@@ -882,7 +963,7 @@ extension Repository {
             }
         }
         let appleVO2 = await exploreSeries(key: "vo2max", source: Self.appleHealthSource,
-                                           days: days + PeakMETResolver.appleFreshnessDays)
+                                           days: historyDays + PeakMETResolver.appleFreshnessDays)
             .map { VO2maxReading(day: $0.day, value: $0.value, segment: Self.appleHealthSource) }
         let manualVO2 = FitnessPreferences.manualEntry
         let levelOverride = FitnessPreferences.activityLevelOverride
@@ -1181,8 +1262,11 @@ extension Repository {
 
     private func energyOffWristIntervals(store: WhoopStore, from: Int, to: Int) async
         -> [(start: Int, end: Int)] {
+        // Two days of lead-in, as the workout intervals use: a strap taken off before the window opens is
+        // otherwise seen only by its WRIST_ON, which closes nothing, so a short refresh priced the first
+        // hours of its window as worn while the full refresh, whose window held the WRIST_OFF, did not.
         for id in importedReadIds {
-            let events = (try? await store.events(deviceId: id, from: from, to: to,
+            let events = (try? await store.events(deviceId: id, from: from - 2 * 86_400, to: to,
                                                   limit: 100_000)) ?? []
             let intervals = AnalyticsEngine.offWristIntervals(events: events, windowEnd: to)
             if !intervals.isEmpty { return intervals }
