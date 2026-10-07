@@ -11,7 +11,8 @@ import StrandAnalytics
 struct GoalSpotlight {
 
     enum Reason: Int, Comparable {
-        case behind, decision, close, closing, reachedToday, pinned
+        /// `featured`: a long-term goal shown only because there was room, not because it needs a look.
+        case behind, decision, close, closing, reachedToday, pinned, featured
         static func < (a: Reason, b: Reason) -> Bool { a.rawValue < b.rawValue }
     }
 
@@ -51,7 +52,7 @@ struct GoalSpotlight {
 
     static func make(todayActions: [GoalActionOccurrence], periodSnapshots: [PeriodGoalSnapshot],
                      longTerm: [GoalTrackingSnapshot], pinnedLongTerm: Set<UUID>,
-                     maxRows: Int = maxRows) -> GoalSpotlight {
+                     maxRows: Int = maxRows, fillsWithLongTerm: Bool = false) -> GoalSpotlight {
         var spotlight = GoalSpotlight()
         // Rings: goals marked for one first, then the automatic ones, in the fixed order; three at most.
         let measured = todayActions.filter { $0.fraction != nil && $0.action.showsAsRing != false }
@@ -79,6 +80,16 @@ struct GoalSpotlight {
         candidates.sort { a, b in
             if a.reason != b.reason { return a.reason < b.reason }
             return periodRank(a) < periodRank(b)
+        }
+        // Today's card fills the rows still free with the long-term goals the wearer set, in the order the
+        // goals page lists them, so the card shows their goals rather than a line saying all is well.
+        if fillsWithLongTerm {
+            let shown = Set(candidates.compactMap { row -> UUID? in
+                if case .longTerm(let s, _) = row { return s.id } else { return nil }
+            })
+            for s in longTerm where s.goal.status == .active && s.reading != nil && !shown.contains(s.id) {
+                candidates.append(.longTerm(s, .featured))
+            }
         }
         spotlight.rows = Array(candidates.prefix(maxRows))
         spotlight.summary = summaryLine(open)

@@ -48,6 +48,10 @@ final class NavRouter: ObservableObject {
         /// The goals overview, or one goal's detail when `requestedGoalId` is set. Used by the goal
         /// widget, the lock-screen goal accessories, the goal notifications and Siri.
         case goals
+        /// One detail screen pushed on Today's stack (`requestedTodayRoute`): where the fitness widgets
+        /// (HRV, resting HR, weight, workouts, training load, steps, vitals) land, the same screens their
+        /// cards on Today open.
+        case todayDetail
 
         var id: String { rawValue }
 
@@ -169,6 +173,13 @@ final class NavRouter: ObservableObject {
 
     /// The weekly or monthly goal a `.goals` request should open, if one.
     @Published var requestedGoalId: UUID?
+    /// The screen `.todayDetail` pushes on Today's stack.
+    @Published var requestedTodayRoute: TabRoute?
+
+    func openTodayDetail(_ route: TabRoute) {
+        requestedTodayRoute = route
+        requestedDestination = .todayDetail
+    }
     /// Open the goals overview, or one goal's detail.
     func openGoals(goalId: UUID? = nil) {
         requestedGoalId = goalId

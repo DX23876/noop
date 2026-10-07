@@ -81,6 +81,9 @@ struct WorkoutDetailView: View {
     /// This session's energy and where it came from. Resolved at display time and never written
     /// back: an estimate that got stored would read as a measurement the next time anything asked.
     @State private var energy: WorkoutEnergyEstimate.Resolved?
+    /// Still being worked out, so the tile shows progress instead of the "–" that means "no data".
+    @State private var stepsPending = true
+    @State private var energyPending = true
 
     var body: some View {
         ScreenScaffold(title: "\(WorkoutSource.displaySport(row.sport))",
@@ -155,47 +158,15 @@ struct WorkoutDetailView: View {
             if recorded {
                 self.energy = WorkoutEnergyDisplay.resolve(row, profile: analytics,
                                                            hrMax: Double(profile.hrMax), restingHrByDay: [:])
+                self.energyPending = false
             }
         }
 
-        // Steps for an on-foot session (#398), computed at display time over the exact window so it
-        // "fills in after sync": prefer the strap's own counter (MG/5.0) once it has offloaded the window,
-        // else the phone pedometer (any strap, incl. WHOOP 4.0 / CSV-import). Never shown for non-foot
-        // sports (cycling/rowing/… have no footfalls). Both sources return nil for "no data", so an empty
-        // window stays "–" rather than a fabricated 0.
-        var stepReadout: StepReadout? = nil
-        if WorkoutCatalog.isOnFoot(row.sport) {
-            if let ticks = await repo.strapStepTicks(from: row.startTs, to: row.endTs) {
-                // Same per-user ticks-per-step calibration the daily total applies (#139), floor 0.5.
-                let scaled = Int((Double(ticks) / max(profile.stepTicksPerStep, 0.5)).rounded())
-                if scaled > 0 { stepReadout = StepReadout(count: scaled, origin: .strap) }
-            }
-            // An Apple Health workout's own count (Watch and phone, merged by Health) before the phone's
-            // pedometer alone.
-            if stepReadout == nil, WorkoutSource.isAppleHealth(row.source), let health = row.steps, health > 0 {
-                stepReadout = StepReadout(count: health, origin: .health)
-            }
-            if stepReadout == nil,
-               let ped = await WorkoutPedometer.steps(fromSec: row.startTs, toSec: row.endTs), ped > 0 {
-                stepReadout = StepReadout(count: ped, origin: .phone)
-            }
-        }
-        await MainActor.run { self.steps = stepReadout }
-
-        if !recorded {
-            // The day's resting rate, not a default: it sets the activity gate the estimate is measured
-            // against, and the wrong one moves this session's figure by hundreds of kcal.
-            let day = Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(row.startTs)))
-            let restingByDay = await repo.restingHrByDay(fromDay: day, toDay: day)
-            // The strap model's own figure for this window, when it covered it — the figure the day's
-            // energy already counts. The list reads the same thing, so the two cannot disagree.
-            let strapByKey = await repo.strapSessionEnergy(for: [row])
-            let peakByDay = await repo.energyPeakMETByDay(fromDay: day, toDay: day)
-            let resolvedEnergy = WorkoutEnergyDisplay.resolve(
-                row, profile: analytics, hrMax: Double(profile.hrMax),
-                restingHrByDay: restingByDay, strapKcalByKey: strapByKey, peakMETByDay: peakByDay)
-            await MainActor.run { self.energy = resolvedEnergy }
-        }
+        // Steps and the energy estimate read different streams, so they load side by side rather
+        // than the estimate queueing behind the step count.
+        async let stepsDone: Void = loadSteps()
+        async let energyDone: Void = recorded ? () : loadEstimatedEnergy(profile: analytics)
+        _ = await (stepsDone, energyDone)
 
         // HR curve over the exact session window — a finer bucket than the 24h chart so a short run
         // still reads as a curve, not a handful of points.
@@ -233,6 +204,53 @@ struct WorkoutDetailView: View {
             self.zonesFromImport = fromImport
             self.heartRateRecovery = hrr
             self.loaded = true
+        }
+    }
+
+    /// Steps for an on-foot session (#398), computed at display time over the exact window so it
+    /// "fills in after sync": prefer the strap's own counter (MG/5.0) once it has offloaded the window,
+    /// else the phone pedometer (any strap, incl. WHOOP 4.0 / CSV-import). Never shown for non-foot
+    /// sports (cycling/rowing/… have no footfalls). Both sources return nil for "no data", so an empty
+    /// window stays "–" rather than a fabricated 0.
+    private func loadSteps() async {
+        var stepReadout: StepReadout? = nil
+        if WorkoutCatalog.isOnFoot(row.sport) {
+            if let ticks = await repo.strapStepTicks(from: row.startTs, to: row.endTs) {
+                // Same per-user ticks-per-step calibration the daily total applies (#139), floor 0.5.
+                let scaled = Int((Double(ticks) / max(profile.stepTicksPerStep, 0.5)).rounded())
+                if scaled > 0 { stepReadout = StepReadout(count: scaled, origin: .strap) }
+            }
+            // An Apple Health workout's own count (Watch and phone, merged by Health) before the phone's
+            // pedometer alone.
+            if stepReadout == nil, WorkoutSource.isAppleHealth(row.source), let health = row.steps, health > 0 {
+                stepReadout = StepReadout(count: health, origin: .health)
+            }
+            if stepReadout == nil,
+               let ped = await WorkoutPedometer.steps(fromSec: row.startTs, toSec: row.endTs), ped > 0 {
+                stepReadout = StepReadout(count: ped, origin: .phone)
+            }
+        }
+        await MainActor.run {
+            self.steps = stepReadout
+            self.stepsPending = false
+        }
+    }
+
+    private func loadEstimatedEnergy(profile analytics: UserProfile) async {
+        // The day's resting rate, not a default: it sets the activity gate the estimate is measured
+        // against, and the wrong one moves this session's figure by hundreds of kcal.
+        let day = Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(row.startTs)))
+        let restingByDay = await repo.restingHrByDay(fromDay: day, toDay: day)
+        // The strap model's own figure for this window, when it covered it — the figure the day's
+        // energy already counts. The list reads the same thing, so the two cannot disagree.
+        let strapByKey = await repo.strapSessionEnergy(for: [row])
+        let peakByDay = await repo.energyPeakMETByDay(fromDay: day, toDay: day)
+        let resolvedEnergy = WorkoutEnergyDisplay.resolve(
+            row, profile: analytics, hrMax: Double(profile.hrMax),
+            restingHrByDay: restingByDay, strapKcalByKey: strapByKey, peakMETByDay: peakByDay)
+        await MainActor.run {
+            self.energy = resolvedEnergy
+            self.energyPending = false
         }
     }
 
@@ -334,9 +352,11 @@ struct WorkoutDetailView: View {
             // hand-entered session never records kcal, and the screen said nothing rather than
             // saying what it could work out. The tilde and the caption keep it an estimate.
             StatTile(label: "Calories",
-                     value: WorkoutEnergyDisplay.text(energy) ?? "–",
+                     value: WorkoutEnergyDisplay.text(energy) ?? (energyPending ? "…" : "–"),
                      caption: energyCaption,
-                     accent: energy != nil ? StrandPalette.metricAmber : StrandPalette.textTertiary)
+                     accent: energy != nil ? StrandPalette.metricAmber : StrandPalette.textTertiary) {
+                if energyPending && energy == nil { pendingIndicator }
+            }
             if row.distanceM != nil {
                 StatTile(label: "Distance",
                          value: distanceLabel(row.distanceM),
@@ -355,9 +375,16 @@ struct WorkoutDetailView: View {
                              case .phone: return String(localized: "phone")
                              }
                          },
-                         accent: steps != nil ? StrandPalette.metricCyan : StrandPalette.textTertiary)
+                         accent: steps != nil ? StrandPalette.metricCyan : StrandPalette.textTertiary) {
+                    if stepsPending { pendingIndicator }
+                }
             }
         }
+    }
+
+    /// Marks a tile whose value is still being worked out, as opposed to one with no data.
+    private var pendingIndicator: some View {
+        ProgressView().controlSize(.mini)
     }
 
     // MARK: - GPS route (#524)

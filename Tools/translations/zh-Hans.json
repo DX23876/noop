@@ -2774,5 +2774,17 @@
   "sport.paintball": "彩弹射击",
   "sport.parkour": "跑酷",
   "sport.polo": "马球",
-  "sport.skydiving": "跳伞"
+  "sport.skydiving": "跳伞",
+  "Marks it not done": "标记为未完成",
+  "Marks it done": "标记为已完成",
+  "%@ / %@ h": "%@ / %@ 小时",
+  "≈ %@ / %@ kcal": "≈ %@ / %@ 千卡",
+  "%lld / %lld min": "%lld / %lld 分钟",
+  "%lld of %lld done": "已完成 %lld / %lld",
+  "Reached today": "今天已达成",
+  "Steps, sleep or active calories: your day's progress shows up here.": "步数、睡眠或活动卡路里：今天的进度显示在这里。",
+  "Tap the glowing F next to NOOP at the top of Today to open your notifications: new features, strap notes and goal news.": "轻点“今天”顶部 NOOP 旁边发光的 F，即可打开通知：新功能、手环提示和目标动态。",
+  "Your updates live behind the F": "你的更新就在 F 后面",
+  "Don't show again": "不再显示",
+  "Open updates": "打开更新"
 }

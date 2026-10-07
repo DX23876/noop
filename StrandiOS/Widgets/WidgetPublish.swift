@@ -136,6 +136,8 @@ extension WidgetSnapshot {
             stressDay: stress?.day ?? storedStress?.stressDay
         )
         saveAndReloadIfChanged(snap)
+        // The ten fitness widgets read their own payload, built from the same moment's data.
+        await FitnessWidgetPublisher.publish(from: model, now: now)
     }
 
     /// Publish fields that come directly from the live BLE state without re-reading the Rest metric

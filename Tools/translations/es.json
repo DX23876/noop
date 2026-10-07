@@ -2673,5 +2673,17 @@
   "sport.paintball": "Paintball",
   "sport.parkour": "Parkour",
   "sport.polo": "Polo",
-  "sport.skydiving": "Paracaidismo"
+  "sport.skydiving": "Paracaidismo",
+  "Marks it not done": "Lo marca como no hecho",
+  "Marks it done": "Lo marca como hecho",
+  "%@ / %@ h": "%@ / %@ h",
+  "≈ %@ / %@ kcal": "≈ %@ / %@ kcal",
+  "%lld / %lld min": "%lld / %lld min",
+  "%lld of %lld done": "%lld de %lld hechos",
+  "Reached today": "Alcanzado hoy",
+  "Steps, sleep or active calories: your day's progress shows up here.": "Pasos, sueño o calorías activas: aquí ves cómo va tu día.",
+  "Tap the glowing F next to NOOP at the top of Today to open your notifications: new features, strap notes and goal news.": "Toca la F brillante junto a NOOP, arriba en Hoy, para abrir tus notificaciones: funciones nuevas, avisos de la pulsera y novedades de tus objetivos.",
+  "Your updates live behind the F": "Tus novedades están detrás de la F",
+  "Don't show again": "No volver a mostrar",
+  "Open updates": "Abrir novedades"
 }

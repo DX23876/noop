@@ -285,6 +285,9 @@ struct LiquidTodayView: View {
     @State private var showMomentumMore = false
     @State private var showLiveSession = false
     @State private var showUpdatesInbox = false
+    /// The pointer to the Forge "F" as the inbox's entry, until the wearer ticks "Don't show again".
+    @State private var showUpdatesMarkHint = false
+    @AppStorage(UpdatesMarkHint.dismissedKey) private var updatesMarkHintDismissed = false
     /// Coach: the AI coach engine (injected at the app root) and the full-screen chat presentation. The
     /// prominent Today entries open the redesigned Coach chat directly, so it isn't buried under More.
     /// The banner is configured independently of the shell's floating Coach button.
@@ -1032,6 +1035,14 @@ struct LiquidTodayView: View {
         .sheet(isPresented: $showUpdatesInbox) {
             UpdatesInboxView(onClose: { showUpdatesInbox = false })
         }
+        // Once per launch while something is unread and the F glows, until "Don't show again" is ticked.
+        .overlay {
+            if showUpdatesMarkHint {
+                UpdatesMarkHint(onClose: closeUpdatesMarkHint, onOpenInbox: openInboxFromHint)
+                    .transition(.opacity)
+            }
+        }
+        .task(id: updateStore.unreadCount) { await offerUpdatesMarkHint() }
         // The Charge-breakdown sheet — opened from the readiness hero pill (Maintain/Push/Rest), parity
         // with classic TodayView's `showChargeBreakdown`. Shows the drivers + confidence + calibration
         // countdown + the scoring-guide link, the same sheet the Charge-ring tap opens in classic.
@@ -1152,6 +1163,25 @@ struct LiquidTodayView: View {
         // #today-layout: the hero + Start-session row live in the reorderable section block below;
         // this pad plus the section VStack's 12 spacing keeps a 22 pt gap above the hero.
         .padding(.bottom, 10)
+    }
+
+    /// Shows the hint a moment after Today settles, so it does not land on top of the launch.
+    private func offerUpdatesMarkHint() async {
+        guard !updatesMarkHintDismissed, !UpdatesMarkHint.shownThisLaunch, updateStore.unreadCount > 0 else { return }
+        try? await Task.sleep(nanoseconds: 1_500_000_000)
+        guard !Task.isCancelled, !showUpdatesInbox, !UpdatesMarkHint.shownThisLaunch else { return }
+        UpdatesMarkHint.shownThisLaunch = true
+        withAnimation(.easeOut(duration: 0.2)) { showUpdatesMarkHint = true }
+    }
+
+    private func closeUpdatesMarkHint(dontShowAgain: Bool) {
+        if dontShowAgain { updatesMarkHintDismissed = true }
+        withAnimation(.easeOut(duration: 0.2)) { showUpdatesMarkHint = false }
+    }
+
+    private func openInboxFromHint(dontShowAgain: Bool) {
+        closeUpdatesMarkHint(dontShowAgain: dontShowAgain)
+        showUpdatesInbox = true
     }
 
     /// The wordmark (Updates entry) with the strap/ring sync line beneath it.

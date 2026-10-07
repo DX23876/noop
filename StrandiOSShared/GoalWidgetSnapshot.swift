@@ -12,7 +12,7 @@ public struct GoalWidgetSnapshot: Codable, Equatable {
         /// "4 workouts a week".
         public var title: String
         public var symbol: String
-        /// "week" or "month".
+        /// "week", "month" or "longTerm".
         public var period: String
         /// The state word, already localized ("On track").
         public var stateWord: String
@@ -28,11 +28,21 @@ public struct GoalWidgetSnapshot: Codable, Equatable {
         public var fraction: Double
         public var paceFraction: Double?
         public var needsAttention: Bool
+        /// The goal drawn in its own shape. Nil in an older payload, where the widget falls back to the
+        /// pace track from `fraction` and `paceFraction`.
+        public var glyph: Glyph?
+        /// The identity colour key (`AppleInspiredColors`) the shape is drawn in; empty or nil draws the
+        /// state's tone, as before.
+        public var colorKey: String?
+
+        /// A long-term goal: its page is not one of the routes a widget link can open, so its tap opens
+        /// the goals overview.
+        public var isLongTerm: Bool { period == "longTerm" }
 
         public init(id: String, name: String, title: String, symbol: String, period: String,
                     stateWord: String, stateSymbol: String, tone: String, progress: String,
                     remaining: String, headline: String, fraction: Double, paceFraction: Double?,
-                    needsAttention: Bool) {
+                    needsAttention: Bool, glyph: Glyph? = nil, colorKey: String? = nil) {
             self.id = id
             self.name = name
             self.title = title
@@ -47,6 +57,8 @@ public struct GoalWidgetSnapshot: Codable, Equatable {
             self.fraction = fraction
             self.paceFraction = paceFraction
             self.needsAttention = needsAttention
+            self.glyph = glyph
+            self.colorKey = colorKey
         }
     }
 
@@ -162,28 +174,26 @@ public struct GoalWidgetSnapshot: Codable, Equatable {
         return spotlight.first ?? goals.first(where: \.needsAttention) ?? goals.first
     }
 
+    /// The gallery preview: one goal of each common shape, so the picker shows what the widget draws.
     public static var placeholder: GoalWidgetSnapshot {
         GoalWidgetSnapshot(goals: [
-            .init(id: "a", name: "Runs", title: "4 runs a week", symbol: "figure.run", period: "week",
-                  stateWord: "On track", stateSymbol: "circle.fill", tone: "positive", progress: "2/4",
-                  remaining: "2 to go · 4 days left", headline: "2 to go", fraction: 0.5, paceFraction: 0.57,
-                  needsAttention: false),
+            .init(id: "w", name: "Lose weight", title: "Lose weight", symbol: "scalemass.fill", period: "longTerm",
+                  stateWord: "On track", stateSymbol: "checkmark.circle", tone: "positive", progress: "92.4 kg",
+                  remaining: "target 85 kg", headline: "92.4 kg", fraction: 0.38, paceFraction: nil,
+                  needsAttention: false, glyph: Glyph(kind: "way", fraction: 0.38, marks: [0.25, 0.5, 0.75]),
+                  colorKey: "coach.goal.weight"),
+            .init(id: "d", name: "Run 500 km", title: "Run 500 km", symbol: "figure.run", period: "longTerm",
+                  stateWord: "Behind", stateSymbol: "arrow.down.right", tone: "warning", progress: "312 km",
+                  remaining: "of 500 km", headline: "312 km", fraction: 0.62, paceFraction: nil,
+                  needsAttention: true, glyph: Glyph(kind: "track", fraction: 0.62, paceFraction: 0.7),
+                  colorKey: "coach.goal.run"),
             .init(id: "b", name: "Nights of 7 h", title: "5 nights of 7 h a week", symbol: "moon.stars.fill",
                   period: "week", stateWord: "Close", stateSymbol: "exclamationmark", tone: "warning",
                   progress: "2/5", remaining: "3 to go · 4 days left", headline: "3 to go", fraction: 0.4,
-                  paceFraction: 0.6, needsAttention: true),
-            .init(id: "c", name: "Working sets", title: "60 sets a week", symbol: "dumbbell.fill", period: "week",
-                  stateWord: "Achieved", stateSymbol: "checkmark.circle.fill", tone: "positive", progress: "64/60",
-                  remaining: "4 over target", headline: "Achieved", fraction: 1.07, paceFraction: nil,
-                  needsAttention: false),
+                  paceFraction: 0.6, needsAttention: true,
+                  glyph: Glyph(kind: "days", states: ["met", "missed", "met", "today", "future", "future", "future"]),
+                  colorKey: "coach.goal.sleep"),
         ], weekLabel: "This week · 4 days left", summary: "2 of 3 on course", updated: Date(),
-           daily: [
-            .init(id: "s", name: "Steps", symbol: "figure.walk", colorKey: "coach.goal.weight", value: "7,328",
-                  target: "of 10,000 steps", fraction: 0.73, done: false),
-            .init(id: "k", name: "Active calories", symbol: "flame.fill", colorKey: "goal.activeEnergy",
-                  value: "520", target: "of 500 kcal", fraction: 1, done: true),
-            .init(id: "n", name: "Sleep", symbol: "moon.stars.fill", colorKey: "coach.goal.sleep", value: "6.1 h",
-                  target: "of 7.5 h sleep", fraction: 0.81, done: false),
-           ], spotlightIds: ["b"])
+           daily: [], spotlightIds: ["d", "b", "w"], dailyTotal: 3, dailyDone: 1)
     }
 }

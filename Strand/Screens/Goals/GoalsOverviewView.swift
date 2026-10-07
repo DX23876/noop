@@ -161,7 +161,7 @@ struct GoalsOverviewView: View {
             }
             switch filter {
             case .all:
-                ringsHero
+                todayHero
                 MissedGoalsBlock(inCard: true)
                 chainQuestions
                 linkOffers
@@ -178,7 +178,7 @@ struct GoalsOverviewView: View {
                 reviewSection
                 if !paused.isEmpty { pausedSection }
             case .today:
-                ringsHero
+                todayHero
                 MissedGoalsBlock(inCard: true)
                 dailyList
             case .week:
@@ -215,16 +215,21 @@ struct GoalsOverviewView: View {
 
     private func refresh() { Task { await tracking.refresh(repo: repo) } }
 
-    // MARK: - Today's rings
+    private func toggleDaily(_ occurrence: GoalActionOccurrence) {
+        actions.toggleManual(occurrence.action.id, day: occurrence.day)
+        StrandHaptic.selection.play()
+        refresh()
+    }
+
+    // MARK: - Today's daily goals
 
     @ViewBuilder
-    private var ringsHero: some View {
+    private var todayHero: some View {
         if !tracking.todayActions.isEmpty {
             NoopCard(padding: 16) {
                 VStack(alignment: .leading, spacing: 14) {
                     Text(String(localized: "Today")).strandOverline()
-                    DailyGoalRings(occurrences: tracking.todayActions, motivation: tracking.motivation,
-                                   showsLegend: false)
+                    DailyGoalChips(occurrences: tracking.todayActions, onToggleManual: toggleDaily)
                     GoalNotifyOffer(occurrences: tracking.todayActions)
                 }
             }
@@ -235,7 +240,7 @@ struct GoalsOverviewView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Label("Start with a daily goal", systemImage: "target")
                         .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
-                    Text("Steps, sleep or active calories: a ring here fills up during the day.")
+                    Text("Steps, sleep or active calories: your day's progress shows up here.")
                         .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                     Button { sheet = .slot(.steps) } label: {
@@ -585,7 +590,8 @@ struct GoalsOverviewView: View {
                                .joined(separator: " · "),
                            subtitleTint: attention ? content.style.foreground : StrandPalette.textSecondary,
                            value: content.heroValue,
-                           progress: content.stats.first { $0.fraction != nil }?.fraction)
+                           progress: snapshot.reading == nil ? content.stats.first { $0.fraction != nil }?.fraction : nil,
+                           shape: snapshot.reading)
     }
 
     @ViewBuilder

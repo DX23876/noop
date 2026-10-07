@@ -547,9 +547,6 @@ final class GoalTrackingStore: ObservableObject {
         settlePeriods(computed, inputs: inputs, now: now, calendar: calendar)
         GoalNotifier.reschedule(computed, now: now)
         GoalEvents.announce(computed)
-        #if os(iOS)
-        GoalWidgetPublisher.publish(computed, daily: todayActions, now: now)
-        #endif
         GoalReminderLines.update(periodSnapshots: computed,
                                  todaySteps: stepsByDay[Repository.localDayKey(now)])
         GoalEventNotifier.evaluate(todayActions: todayActions, motivation: motivation, now: now)
@@ -644,6 +641,10 @@ final class GoalTrackingStore: ObservableObject {
                                                                 now: now, calendar: calendar))
         }
         lastUpdated = now
+        // After the long-term readings, so the widget can show those goals in their shapes as Today does.
+        #if os(iOS)
+        GoalWidgetPublisher.publish(computed, daily: todayActions, longTerm: snapshots, now: now)
+        #endif
         CoachNotifier.syncGoalMonitoring(snapshots)
         applyFollowingWeeklyTargets(now: now, calendar: calendar)
         GoalEventNotifier.evaluateLongTerm(snapshots, now: now)

@@ -363,6 +363,12 @@ struct StrandiOSApp: App {
                     } else if url.scheme == "noop", url.host == "goals" {
                         // noop://goals or noop://goals/<uuid> from the goal widget and accessories.
                         router.openGoals(goalId: UUID(uuidString: url.lastPathComponent))
+                    } else if url.scheme == "noop", let link = FitnessWidgetLink(url: url) {
+                        // The fitness widgets: noop://sleep, noop://metric/<key>, noop://weight, …
+                        switch link {
+                        case .sleep: router.openSleep()
+                        case .detail(let route): router.openTodayDetail(route)
+                        }
                     }
                 }
                 // AppModel publishes smoothed HR frequently. Keep the alert observer in a zero-sized leaf

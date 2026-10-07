@@ -106,7 +106,7 @@ struct GoalWidgetView: View {
 
     var body: some View {
         Group {
-            if entry.snapshot.goals.isEmpty && entry.snapshot.dailyGoals.isEmpty {
+            if entry.snapshot.goals.isEmpty && (entry.snapshot.dailyTotal ?? 0) == 0 {
                 emptyState
             } else {
                 switch family {
@@ -119,7 +119,14 @@ struct GoalWidgetView: View {
                 }
             }
         }
-        .widgetURL(URL(string: goal.map { "noop://goals/\($0.id)" } ?? "noop://goals"))
+        .widgetURL(link(lines.first))
+    }
+
+    /// Where a tap on a goal lands: its own page for a weekly or monthly goal. A long-term goal's page is
+    /// not a route the link can open, so it lands on the goals overview, as does a tap outside any goal.
+    private func link(_ goal: GoalWidgetSnapshot.Goal?) -> URL? {
+        guard let goal, !goal.isLongTerm else { return URL(string: "noop://goals") }
+        return URL(string: "noop://goals/\(goal.id)")
     }
 
     private var fullColor: Bool { renderingMode == .fullColor }
@@ -128,47 +135,20 @@ struct GoalWidgetView: View {
         guard fullColor else { return .primary }
         switch tone {
         case "positive": return StrandPalette.statusPositive
-        case "warning":  return StrandPalette.statusWarning
+        // The text shade of amber, as the app's state words use (`StrandTone.foregroundColor`): the fill
+        // shade read poorly as a word on the light widget.
+        case "warning":  return StrandPalette.statusWarningForeground
         case "critical": return StrandPalette.statusCritical
         case "accent":   return StrandPalette.accent
         default:         return StrandPalette.textSecondary
         }
     }
 
-    // MARK: Daily rings (plan §17f: daily goals lead every goal surface)
-
-    /// Daily goals lead unless the widget was set to one particular weekly or monthly goal.
-    private var showsRings: Bool { entry.goalId == nil && !entry.snapshot.dailyGoals.isEmpty }
-
-    private func ringTint(_ daily: GoalWidgetSnapshot.Daily) -> Color {
+    /// The colour a goal's shape is drawn in: its identity colour where the app sent one, else its state.
+    private func goalTint(_ goal: GoalWidgetSnapshot.Goal) -> Color {
         guard fullColor else { return .primary }
-        return daily.colorKey.isEmpty ? StrandPalette.accent : AppleInspiredColors.color(for: daily.colorKey)
-    }
-
-    /// One ring large, two or three nested inside each other: the outer one is the first daily goal.
-    private func nestedRings(_ items: [GoalWidgetSnapshot.Daily], diameter: CGFloat) -> some View {
-        let shown = Array(items.prefix(3))
-        let line = diameter * (shown.count == 1 ? 0.13 : 0.12)
-        let gap = line * 0.25
-        return ZStack {
-            ForEach(Array(shown.enumerated()), id: \.element.id) { index, daily in
-                let size = diameter - CGFloat(index) * 2 * (line + gap)
-                ZStack {
-                    Circle().stroke(ringTint(daily).opacity(fullColor ? 0.2 : 0.25), lineWidth: line)
-                    Circle().trim(from: 0, to: min(1, max(0, daily.fraction)))
-                        .stroke(ringTint(daily), style: StrokeStyle(lineWidth: line, lineCap: .round))
-                        .rotationEffect(.degrees(-90))
-                        .widgetAccentable()
-                }
-                .frame(width: size - line, height: size - line)
-            }
-            if shown.count == 1, let only = shown.first {
-                Image(systemName: only.done ? "star.fill" : only.symbol)
-                    .font(.system(size: diameter * 0.24, weight: .semibold))
-                    .foregroundStyle(only.done && fullColor ? StrandPalette.statusWarning : ringTint(only))
-            }
-        }
-        .frame(width: diameter, height: diameter)
+        if let key = goal.colorKey, !key.isEmpty { return AppleInspiredColors.color(for: key) }
+        return tint(goal.tone)
     }
 
     /// When the numbers were taken: the widget only changes when the app has new data (after a sync or
@@ -183,133 +163,113 @@ struct GoalWidgetView: View {
             .font(.caption2).foregroundStyle(StrandPalette.textTertiary).lineLimit(1)
     }
 
-    @ViewBuilder private var tallyLine: some View {
-        if let tally = entry.snapshot.dailyTally {
-            Label(String(localized: "\(tally.done) of \(tally.total) daily goals done"), systemImage: "checklist")
+    /// "1 of 3 daily goals done": the day's goals counted in one line, as Today's chips sum them up.
+    @ViewBuilder private var dailyLine: some View {
+        if let total = entry.snapshot.dailyTotal, total > 0 {
+            let done = entry.snapshot.dailyDone ?? 0
+            Label(String(localized: "\(done) of \(total) daily goals done"),
+                  systemImage: done == total ? "star.fill" : "checklist")
                 .font(.caption2.weight(.semibold)).foregroundStyle(StrandPalette.textSecondary).lineLimit(1)
         }
     }
 
-    private func legend(_ items: [GoalWidgetSnapshot.Daily], limit: Int = 3) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            ForEach(Array(items.prefix(limit))) { daily in
-                HStack(spacing: 5) {
-                    Circle().fill(ringTint(daily)).frame(width: 7, height: 7)
-                    VStack(alignment: .leading, spacing: 0) {
-                        HStack(spacing: 3) {
-                            Text(daily.value).font(.caption.weight(.semibold)).monospacedDigit()
-                            if daily.done {
-                                Image(systemName: "star.fill").font(.system(size: 8, weight: .bold))
-                                    .foregroundStyle(fullColor ? StrandPalette.statusWarning : .primary)
-                            }
-                        }
-                        Text(daily.target).font(.caption2).foregroundStyle(StrandPalette.textSecondary)
-                    }
-                    .lineLimit(1).minimumScaleFactor(0.7)
-                }
-            }
-        }
+    /// The goals worth a line, in the order Today's card shows them: the one goal the widget was set to,
+    /// else the spotlight (what needs a look, then long-term goals), else the first goals.
+    private var lines: [GoalWidgetSnapshot.Goal] {
+        if entry.goalId != nil, let goal { return [goal] }
+        let spot = entry.snapshot.spotlight
+        return spot.isEmpty ? entry.snapshot.goals : spot
     }
 
-    /// A weekly or monthly goal in one line: name, state, what is left.
-    private func compactRow(_ goal: GoalWidgetSnapshot.Goal) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+    /// A goal's shape: the app's glyph, or for an older payload without one the pace track built from
+    /// its fraction and plan mark.
+    private func shape(_ goal: GoalWidgetSnapshot.Goal) -> some View {
+        WidgetGoalGlyph(glyph: goal.glyph ?? .init(kind: "track", fraction: goal.fraction,
+                                                    paceFraction: goal.paceFraction),
+                        tint: goalTint(goal), fullColor: fullColor)
+    }
+
+    /// One goal: name and state, where it stands in its own terms, its shape.
+    private func row(_ goal: GoalWidgetSnapshot.Goal) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 4) {
-                Image(systemName: goal.symbol).font(.caption2)
+                Image(systemName: goal.symbol).font(.caption2).foregroundStyle(goalTint(goal))
                 Text(goal.name).font(.caption.weight(.semibold)).lineLimit(1)
-                Spacer(minLength: 2)
+                Spacer(minLength: 4)
                 Label(goal.stateWord, systemImage: goal.stateSymbol)
                     .font(.caption2.weight(.semibold)).foregroundStyle(tint(goal.tone)).lineLimit(1)
             }
-            Text([goal.progress, goal.remaining].joined(separator: " · ")).font(.caption2)
-                .foregroundStyle(StrandPalette.textSecondary).lineLimit(1)
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(goal.progress).font(.subheadline.weight(.semibold)).monospacedDigit().lineLimit(1)
+                Text(goal.remaining).font(.caption2).foregroundStyle(StrandPalette.textSecondary).lineLimit(1)
+                Spacer(minLength: 0)
+            }
+            shape(goal)
         }
     }
 
     // MARK: Home screen
 
+    /// The goal that matters most: its name, its figure large, its shape, its state.
     @ViewBuilder private var small: some View {
-        if showsRings {
-            let items = entry.snapshot.dailyGoals
-            VStack(spacing: 6) {
-                nestedRings(items, diameter: 92)
-                if let first = items.first {
-                    VStack(spacing: 0) {
-                        Text(first.value).font(.caption.weight(.bold)).monospacedDigit()
-                        asOfLine
-                    }
-                    .lineLimit(1).minimumScaleFactor(0.7)
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let goal {
-            VStack(alignment: .leading, spacing: 6) {
+        if let goal = lines.first {
+            VStack(alignment: .leading, spacing: 8) {
                 Label(goal.name, systemImage: goal.symbol)
                     .font(.caption.weight(.semibold)).lineLimit(1)
                     .foregroundStyle(StrandPalette.textSecondary)
                 Spacer(minLength: 0)
-                Text(goal.headline)
-                    .font(.system(size: 26, weight: .bold, design: .rounded))
-                    .minimumScaleFactor(0.6).lineLimit(1)
-                track(goal, height: 7)
-                HStack {
-                    Label(goal.stateWord, systemImage: goal.stateSymbol)
-                        .font(.caption2.weight(.semibold)).foregroundStyle(tint(goal.tone))
-                        .labelStyle(.titleAndIcon)
-                    Spacer(minLength: 2)
-                    Text(goal.progress).font(.caption2).monospacedDigit().foregroundStyle(StrandPalette.textSecondary)
+                // A long figure ("1,012,989") takes the next size down instead of being squeezed.
+                ViewThatFits(in: .horizontal) {
+                    Text(goal.headline).font(.title2.weight(.bold))
+                    Text(goal.headline).font(.title3.weight(.bold))
+                    Text(goal.headline).font(.headline)
                 }
+                .fontDesign(.rounded).monospacedDigit().lineLimit(1)
+                shape(goal)
+                Label(goal.stateWord, systemImage: goal.stateSymbol)
+                    .font(.caption2.weight(.semibold)).foregroundStyle(tint(goal.tone))
+                    .lineLimit(1)
             }
-        }
-    }
-
-    /// Rings and their legend on the left; on the right the one goal that needs a look, else the summary.
-    @ViewBuilder private var medium: some View {
-        if showsRings {
-            HStack(alignment: .center, spacing: 12) {
-                nestedRings(entry.snapshot.dailyGoals, diameter: 104)
-                VStack(alignment: .leading, spacing: 6) {
-                    legend(entry.snapshot.dailyGoals, limit: entry.snapshot.spotlight.isEmpty ? 3 : 2)
-                    tallyLine
-                    asOfLine
-                    if let first = entry.snapshot.spotlight.first {
-                        Divider()
-                        compactRow(first)
-                    } else if !entry.snapshot.summary.isEmpty {
-                        Text(entry.snapshot.summary).font(.caption2).foregroundStyle(StrandPalette.textSecondary)
-                            .lineLimit(2)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         } else {
             VStack(alignment: .leading, spacing: 8) {
-                Text(entry.weekLabel).font(.caption.weight(.semibold)).foregroundStyle(StrandPalette.textSecondary)
-                ForEach(Array(periodLines.prefix(2))) { goal in row(goal) }
+                Label("Goals", systemImage: "target").font(.caption.weight(.semibold))
                 Spacer(minLength: 0)
-                Text(entry.snapshot.summary).font(.caption2).foregroundStyle(StrandPalette.textSecondary).lineLimit(1)
+                dailyLine
+                asOfLine
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    /// Two goals in their shapes, then the day's goals in one line.
+    private var medium: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(Array(lines.prefix(2).enumerated()), id: \.element.id) { index, goal in
+                if index > 0 { Divider() }
+                // Each goal opens its own page, not only the first one (the widget's own link).
+                if let url = link(goal) { Link(destination: url) { row(goal) } } else { row(goal) }
+            }
+            Spacer(minLength: 0)
+            HStack {
+                dailyLine
+                Spacer(minLength: 4)
+                asOfLine
             }
         }
     }
 
-    /// Rings with their legend, then up to two goals that need a look, then the summary.
+    /// Three goals in their shapes, the day's goals, the week's summary.
     private var large: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            if showsRings {
-                HStack(alignment: .center, spacing: 14) {
-                    nestedRings(entry.snapshot.dailyGoals, diameter: 120)
-                    VStack(alignment: .leading, spacing: 6) {
-                        legend(entry.snapshot.dailyGoals)
-                        tallyLine
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                Divider()
-            } else {
-                Text(entry.weekLabel).font(.caption.weight(.semibold)).foregroundStyle(StrandPalette.textSecondary)
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Goals", systemImage: "target")
+                .font(.caption.weight(.semibold)).foregroundStyle(StrandPalette.textSecondary)
+            ForEach(Array(lines.prefix(3).enumerated()), id: \.element.id) { index, goal in
+                if index > 0 { Divider() }
+                if let url = link(goal) { Link(destination: url) { row(goal) } } else { row(goal) }
             }
-            ForEach(Array(periodLines.prefix(2))) { goal in row(goal) }
             Spacer(minLength: 0)
+            dailyLine
             HStack {
                 Text(entry.snapshot.summary).font(.caption).foregroundStyle(StrandPalette.textSecondary).lineLimit(1)
                 Spacer(minLength: 4)
@@ -318,113 +278,39 @@ struct GoalWidgetView: View {
         }
     }
 
-    /// The weekly and monthly goals worth a line: the spotlight, else (no goal needs a look) the first ones.
-    private var periodLines: [GoalWidgetSnapshot.Goal] {
-        let spot = entry.snapshot.spotlight
-        return spot.isEmpty && !showsRings ? entry.snapshot.goals : spot
-    }
-
-    private func row(_ goal: GoalWidgetSnapshot.Goal) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 5) {
-                Image(systemName: goal.symbol).font(.caption2)
-                Text(goal.name).font(.caption.weight(.semibold)).lineLimit(1)
-                Spacer(minLength: 4)
-                Label(goal.stateWord, systemImage: goal.stateSymbol)
-                    .font(.caption2).foregroundStyle(tint(goal.tone))
-            }
-            track(goal, height: 5)
-            HStack {
-                Text(goal.remaining).font(.caption2).foregroundStyle(StrandPalette.textSecondary).lineLimit(1)
-                Spacer(minLength: 4)
-                Text(goal.progress).font(.caption2).monospacedDigit().foregroundStyle(StrandPalette.textSecondary)
-            }
-        }
-    }
-
-    /// The pace track in widget form: fill = done, mark = where the plan stands. In tinted and clear
-    /// modes the fill is a solid shape and the mark is wider, so it reads without colour (design §11).
-    private func track(_ goal: GoalWidgetSnapshot.Goal, height: CGFloat) -> some View {
-        GeometryReader { geo in
-            let width = geo.size.width
-            ZStack(alignment: .leading) {
-                Capsule().fill(fullColor ? StrandPalette.hairline : Color.primary.opacity(0.25))
-                Capsule().fill(tint(goal.tone)).frame(width: width * CGFloat(min(1, max(0, goal.fraction))))
-                    .widgetAccentable()
-                if let pace = goal.paceFraction, goal.fraction < 1 {
-                    Capsule().fill(Color.primary)
-                        .frame(width: fullColor ? 2 : 3, height: height + 6)
-                        .offset(x: max(0, min(width - 3, width * CGFloat(pace) - 1)))
-                }
-            }
-        }
-        .frame(height: height + 6)
-    }
-
     // MARK: Lock screen
 
     @ViewBuilder private var circular: some View {
-        if showsRings, let first = entry.snapshot.dailyGoals.first {
-            Gauge(value: min(1, max(0, first.fraction))) {
-                Image(systemName: first.symbol)
-            } currentValueLabel: {
-                Image(systemName: first.done ? "star.fill" : first.symbol)
-            }
-            .gaugeStyle(.accessoryCircularCapacity)
-            .widgetAccentable()
-        } else if let goal {
+        if let goal = lines.first {
             Gauge(value: min(1, max(0, goal.fraction))) {
                 Image(systemName: goal.symbol)
             } currentValueLabel: {
-                Text(goal.progress).font(.system(size: 11, weight: .semibold, design: .rounded)).minimumScaleFactor(0.6)
+                Image(systemName: goal.symbol)
             }
             .gaugeStyle(.accessoryCircularCapacity)
             .widgetAccentable()
         }
     }
 
-    @ViewBuilder private var rectangular: some View {
-        if showsRings {
-            VStack(alignment: .leading, spacing: 3) {
-                ForEach(Array(entry.snapshot.dailyGoals.prefix(2))) { daily in
-                    HStack(spacing: 4) {
-                        Image(systemName: daily.symbol).font(.caption2)
-                        Text(daily.value).font(.caption2.weight(.semibold)).monospacedDigit()
-                        Spacer(minLength: 2)
-                        if daily.done { Image(systemName: "star.fill").font(.caption2) }
+    private var rectangular: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(Array(lines.prefix(2))) { goal in
+                Gauge(value: min(1, max(0, goal.fraction))) {
+                    HStack {
+                        Text(goal.name).font(.caption2.weight(.semibold)).lineLimit(1)
+                        Spacer(minLength: 4)
+                        Text(goal.progress).font(.caption2).monospacedDigit().lineLimit(1)
                     }
-                    GeometryReader { geo in
-                        ZStack(alignment: .leading) {
-                            Capsule().fill(Color.primary.opacity(0.25))
-                            Capsule().fill(Color.primary).frame(width: geo.size.width * CGFloat(daily.fraction))
-                                .widgetAccentable()
-                        }
-                    }
-                    .frame(height: 3)
                 }
-            }
-        } else {
-            periodRectangular
-        }
-    }
-
-    private var periodRectangular: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            ForEach(Array(entry.snapshot.goals.prefix(2))) { goal in
-                HStack {
-                    Text(goal.name).font(.caption2.weight(.semibold)).lineLimit(1)
-                    Spacer(minLength: 2)
-                    Text(goal.progress).font(.caption2).monospacedDigit()
-                }
-                track(goal, height: 3)
+                .gaugeStyle(.linearCapacity)
+                .tint(.primary)
+                .widgetAccentable()
             }
         }
     }
 
     @ViewBuilder private var inline: some View {
-        if showsRings, let first = entry.snapshot.dailyGoals.first {
-            Text([first.name + ":", first.value, first.target].joined(separator: " "))
-        } else if let goal {
+        if let goal = lines.first {
             Text("\(goal.name): \(goal.headline) · \(goal.stateWord)")
         }
     }
@@ -447,7 +333,7 @@ struct NOOPGoalWidget: Widget {
                 .containerBackground(StrandPalette.surfaceBase, for: .widget)
         }
         .configurationDisplayName("NOOP Goals")
-        .description("Your daily goals as rings, and the weekly or monthly goal that needs a look.")
+        .description("Your goals, each drawn in its own shape, and how many of today's goals are done.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge,
                             .accessoryCircular, .accessoryRectangular, .accessoryInline])
     }
