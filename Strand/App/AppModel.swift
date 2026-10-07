@@ -2875,7 +2875,6 @@ final class AppModel: ObservableObject {
         // A newer day can arrive while the journal read is in flight. Never publish the older
         // task's alert over that day's result.
         guard days.last?.day == repo.days.last?.day, days.last?.day == repo.today?.day else { return }
-        let previous = healthAlert
         let recent = Array(days.suffix(2))
         let latest = days[days.count - 1]
         let base = Array(days.suffix(31).dropLast(3))    // ~28 days ending 3 days ago
@@ -2980,10 +2979,10 @@ final class AppModel: ObservableObject {
         case .quiet, .mild, .suppressed:
             healthAlert = nil
         }
-        if healthAlert != nil, previous == nil {
-            // Notifications retain their established copy contract; Home renders the semantic result.
-            IllnessNotifier.post(result.copy)
-        }
+        // Every evaluation is reported, raised or clear: the notifier keeps the clear-to-raised edge in
+        // persisted state, so a cold start (healthAlert starts nil) can no longer fake a transition.
+        // Notifications retain their established copy contract; Home renders the semantic result.
+        IllnessNotifier.report(raised: healthAlert != nil, message: result.copy)
     }
 
     /// #593: once-a-day "optimal strain reached" nudge. Reads the resolved today-row (the same

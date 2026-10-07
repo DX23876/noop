@@ -7,6 +7,31 @@ import UserNotifications
 /// surface. On-device only; the summary is APPROXIMATE — informational, not a diagnosis.
 enum IllnessNotifier {
     private static let lastDayKey = "behavior.illnessLastNotifiedDay"
+    /// Whether the last evaluation was raised. Persisted because the caller's previous state lives in
+    /// memory and starts clear on every launch, so a cold start turned a still-raised alert into a fresh
+    /// clear-to-raised edge and the day gate let it notify again (upstream #2586, fixed there on Android
+    /// only in d1bee8bd7). Global, not per device: the signal describes the wearer.
+    static let wasRaisedKey = "behavior.illnessWasRaised"
+
+    /// Notify only on a genuine clear-to-raised transition, at most once a day. Pure, so the edge is
+    /// testable without UserDefaults. Twin of Android `IllnessAlertPolicy.shouldNotify`.
+    static func shouldNotify(raised: Bool, previouslyRaised: Bool,
+                             lastNotifiedDay: String?, today: String) -> Bool {
+        raised && !previouslyRaised && lastNotifiedDay != today
+    }
+
+    /// Report every evaluation, raised or clear, and post on the persisted edge. Recording the cleared
+    /// evaluations is what lets a later genuine transition be recognised. The flag is written only when
+    /// it changes, since this runs on every days republish.
+    static func report(raised: Bool, message: String) {
+        let defaults = UserDefaults.standard
+        let wasRaised = defaults.bool(forKey: wasRaisedKey)
+        let notify = shouldNotify(raised: raised, previouslyRaised: wasRaised,
+                                  lastNotifiedDay: defaults.string(forKey: lastDayKey), today: dayKey(Date()))
+        if wasRaised != raised { defaults.set(raised, forKey: wasRaisedKey) }
+        guard notify else { return }
+        post(message)
+    }
 
     /// Ask up front (called when the user enables the watch) so the system dialog appears at a
     /// predictable moment, not on the first 3 a.m. transition.
