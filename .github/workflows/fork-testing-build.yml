@@ -8,6 +8,11 @@ name: Testing build (fork)
 
 on:
   workflow_dispatch:
+    inputs:
+      summary:
+        description: "What this testing build is for, one or two sentences for the release text"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -27,6 +32,7 @@ jobs:
       - id: m
         env:
           GH_TOKEN: ${{ github.token }}
+          SUMMARY: ${{ inputs.summary }}
         run: |
           TAG="testing-latest"
           DATE=$(date -u +%Y-%m-%d)
@@ -87,12 +93,16 @@ jobs:
             fi
           fi
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --prerelease --target "${{ github.sha }}" \
-            --title "NOOP Staging — base ${VER} · ${DATE} · ${SHA}" \
-            --notes "Rolling **latest** testing build — refreshed in place, so this tag is always the newest. NOOP main + ryanbr's open PRs + vetted community PRs, built with the **NOOP Staging** identity (installs **beside** the official app, separate data). Filenames carry the base app version (\`v${VER}\`).
+            --title "NOOP Forge testing · base ${VER} · ${DATE} · ${SHA}" \
+            --notes "Rolling testing build of NOOP Forge. Not a release: it is built from a branch under test and refreshed in place, so this tag always holds the newest testing build.
 
-          - **macOS** — \`NOOP-macos-v${VER}.zip\` — unzip, then **right-click → Open** (ad-hoc signed, not notarized; Gatekeeper warns once). If it says *\"damaged\"*, run \`xattr -dr com.apple.quarantine /Applications/NOOP.app\`.
-          - **iOS (AltStore)** — \`NOOP-ios-unsigned-v${VER}.ipa\` — phone/iPad-only IPA for reliable free-Apple-ID sideloading.
-          - **iOS (Full)** — \`NOOP-ios-full-unsigned-v${VER}.ipa\` — includes WidgetKit, Watch app and complication; requires compatible provisioning for every embedded target.
+          ${SUMMARY}
+
+          It installs over NOOP Forge and keeps your data. To go back, install the latest release again.
+
+          - **macOS:** \`NOOP-macos-v${VER}.zip\`. Unzip, then **right-click, Open** (ad-hoc signed, not notarized; Gatekeeper warns once). If it says *\"damaged\"*, run \`xattr -dr com.apple.quarantine /Applications/NOOP.app\`.
+          - **iOS (AltStore):** \`NOOP-ios-unsigned-v${VER}.ipa\`. iPhone and iPad only, for reliable free Apple ID sideloading.
+          - **iOS (Full):** \`NOOP-ios-full-unsigned-v${VER}.ipa\`. Includes the widgets, the Watch app and its complication; needs provisioning for every embedded target.
 
           Base app version ${VER} · built ${DATE} · \`${SHA}\`."
           # Belt-and-braces: a rolling tag is deleted with --cleanup-tag and recreated seconds later, and
