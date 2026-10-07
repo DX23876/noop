@@ -879,20 +879,28 @@ extension Repository {
         // A refresh that reaches another through its own readers runs it inline; queueing it behind
         // itself would never finish.
         if EnergyRefreshContext.isInside {
-            let now = Date()
-            return await performWhoopEnergyRefresh(days: days(now), profile: profile, now: now)
+            return await measuredEnergyRefresh(profile: profile, days: days)
         }
         let previous = energyRefreshTail
         let run = Task { @MainActor [weak self] () -> Bool in
             _ = await previous?.value
             guard let self else { return false }
             return await EnergyRefreshContext.$isInside.withValue(true) {
-                let now = Date()
-                return await self.performWhoopEnergyRefresh(days: days(now), profile: profile, now: now)
+                await self.measuredEnergyRefresh(profile: profile, days: days)
             }
         }
         energyRefreshTail = run
         return await run.value
+    }
+
+    private func measuredEnergyRefresh(profile: UserProfile, days: (Date) -> Int) async -> Bool {
+        let now = Date()
+        let covered = days(now)
+        let start = DispatchTime.now().uptimeNanoseconds
+        let refreshed = await performWhoopEnergyRefresh(days: covered, profile: profile, now: now)
+        EnergyRefreshStats.record(days: covered,
+                                  millis: Int((DispatchTime.now().uptimeNanoseconds - start) / 1_000_000))
+        return refreshed
     }
 
     private func performWhoopEnergyRefresh(days: Int, profile: UserProfile, now: Date) async -> Bool {
