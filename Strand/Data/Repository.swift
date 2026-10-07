@@ -2546,7 +2546,14 @@ final class Repository: ObservableObject {
     /// imported night (raw never dense) is left untouched (`restageFromRaw` returns nil). Reads/writes the
     /// COMPUTED source , the same one `analyzeRecent` reads edited rows from. Returns the (possibly
     /// refreshed) edited rows so the caller recomputes daily aggregates from the corrected stages.
-    func selfHealEditedStages(from windowStart: Int, to windowEnd: Int) async -> [CachedSleepSession] {
+    ///
+    /// `unchangedDays` are the days the caller's per-day fingerprint reused this pass: no raw input and no
+    /// computed-source write (an edit included) landed in their read window since they were last scanned,
+    /// so re-staging their nights reproduces the stored JSON. Those nights are skipped, which on device was
+    /// 6.5–13 s per pass for six edited nights. See `needsSelfHeal` for the two cases that still re-stage.
+    func selfHealEditedStages(from windowStart: Int, to windowEnd: Int,
+                              unchangedDays: Set<String> = [],
+                              tzOffsetSeconds: Int = 0) async -> [CachedSleepSession] {
         guard let store = await ensureStore() else { return [] }
         func editedRows() async -> [CachedSleepSession] {
             ((try? await store.sleepSessions(deviceId: computedDeviceId, from: windowStart,
@@ -2555,8 +2562,17 @@ final class Repository: ObservableObject {
         }
         let edited = await editedRows()
         guard !edited.isEmpty else { return [] }
+        // The staging toggles change what `restageFromRaw` produces without changing any day's
+        // fingerprint, so a change since the last heal re-stages every edited night once, as before.
+        let stagerSignature = Self.selfHealStagerSignature(
+            sleepV2: PuffinExperiment.experimentalSleepV2Enabled,
+            motionAwareWake: PuffinExperiment.motionAwareWakeEnabled)
+        let stagerChanged = UserDefaults.standard.string(forKey: Self.selfHealStagerSignatureKey)
+            != stagerSignature
         var healed = false
-        for row in edited {
+        for row in edited where Self.needsSelfHeal(effectiveStartTs: row.effectiveStartTs, endTs: row.endTs,
+                                                   unchangedDays: stagerChanged ? [] : unchangedDays,
+                                                   tzOffsetSeconds: tzOffsetSeconds) {
             // Re-derive over the LOCKED corrected window (effective onset → wake). Skip when the raw
             // isn't dense yet, or when the result already matches what's stored (steady state , no write).
             guard let newJSON = await restageFromRaw(start: row.effectiveStartTs, end: row.endTs),
@@ -2566,7 +2582,26 @@ final class Repository: ObservableObject {
                                                         stagesJSON: newJSON)) ?? 0
             if n > 0 { healed = true }
         }
+        UserDefaults.standard.set(stagerSignature, forKey: Self.selfHealStagerSignatureKey)
         return healed ? await editedRows() : edited
+    }
+
+    static let selfHealStagerSignatureKey = "analysis.selfHeal.stagerSignature"
+
+    nonisolated static func selfHealStagerSignature(sleepV2: Bool, motionAwareWake: Bool) -> String {
+        "sleepV2=\(sleepV2 ? 1 : 0)|motionAwareWake=\(motionAwareWake ? 1 : 0)"
+    }
+
+    /// Whether an edited night must be re-staged this pass. A night belongs to the day it ENDS on, the
+    /// same key `IntelligenceEngine.editedRowsForDay` uses. It is skipped only when that day is unchanged
+    /// AND the night lies inside the day's scan window (`StreamReadCap.lookbackSeconds` before its local
+    /// midnight), since the fingerprint vouches for nothing older than that window.
+    nonisolated static func needsSelfHeal(effectiveStartTs: Int, endTs: Int, unchangedDays: Set<String>,
+                                          tzOffsetSeconds: Int) -> Bool {
+        let day = AnalyticsEngine.dayString(endTs, offsetSec: tzOffsetSeconds)
+        guard unchangedDays.contains(day) else { return true }
+        let dayStart = IntelligenceEngine.midnightLocal(endTs, offsetSec: tzOffsetSeconds)
+        return effectiveStartTs < dayStart - StreamReadCap.lookbackSeconds
     }
 
     // MARK: - Metric explorer reads (generic substrate)

@@ -2977,7 +2977,9 @@ final class IntelligenceEngine: ObservableObject {
         // refreshed rows so the daily aggregate below scores the corrected breakdown. A no-op for nights
         // already staged from raw (idempotent) and for imported nights (raw never dense). This MUST run
         // before the scoring loop so the healed stages flow into Rest/recovery this same pass.
-        let editedRows = await repo.selfHealEditedStages(from: windowStart, to: now)
+        let editedRows = await repo.selfHealEditedStages(from: windowStart, to: now,
+                                                         unchangedDays: reusedDaySet,
+                                                         tzOffsetSeconds: tzOffset)
         markPostLoopPhase("selfHeal")
         var cycleCandidates: [(owner: String, priority: Int)] = regDevices
             .map { device in
