@@ -4444,6 +4444,64 @@
           }
         }
       }
+    },
+    "Your goals, each drawn in its own shape, and how many of today's goals are done." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Ziele, jedes in seiner eigenen Form, und wie viele Tagesziele schon erledigt sind."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tus objetivos, cada uno con su propia forma, y cuántos objetivos de hoy ya están hechos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tes objectifs, chacun sous sa propre forme, et combien d’objectifs du jour sont déjà faits."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I tuoi obiettivi, ognuno nella sua forma, e quanti obiettivi di oggi sono già fatti."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twoje cele, każdy w swoim własnym kształcie, oraz ile dzisiejszych celów już wykonano."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os teus objetivos, cada um com a sua forma, e quantos objetivos de hoje já estão feitos."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваши цели, каждая в своей форме, и сколько целей на сегодня уже выполнено."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的目标各以自己的形式呈现，并显示今天已完成多少目标。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的目標各以自己的形式呈現，並顯示今天已完成多少目標。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
