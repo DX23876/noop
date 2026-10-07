@@ -17,9 +17,11 @@ struct WidgetHeatGrid: View {
             let gap: CGFloat = 3
             let cell = min((size.width - gap * CGFloat(weeks - 1)) / CGFloat(weeks),
                            (size.height - gap * 6) / 7)
+            // Cells stay square, so a short, wide frame leaves room on the sides: centre the grid in it.
+            let originX = max(0, (size.width - (cell * CGFloat(weeks) + gap * CGFloat(weeks - 1))) / 2)
             let muted = fullColor ? StrandPalette.textTertiary : Color.primary.opacity(0.5)
             for (i, day) in days.enumerated() {
-                let rect = CGRect(x: CGFloat(i / 7) * (cell + gap), y: CGFloat(i % 7) * (cell + gap),
+                let rect = CGRect(x: originX + CGFloat(i / 7) * (cell + gap), y: CGFloat(i % 7) * (cell + gap),
                                   width: cell, height: cell)
                 let shape = Path(roundedRect: rect, cornerRadius: cell * 0.25)
                 switch day {
