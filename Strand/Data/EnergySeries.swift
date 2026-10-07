@@ -3,6 +3,9 @@ import StrandAnalytics
 import WhoopProtocol   // StepSample — the @57 counter + @63 activity class behind bucket movement
 import WhoopStore
 
+/// One five-minute bucket's step movement, as `Repository.bucketStepMovement` derives it.
+typealias EnergyStepMovement = (steps: Int?, activityClass: Int?, covered: Bool, movementSeconds: Int)
+
 struct EnergyTimelinePoint: Identifiable, Equatable, Sendable {
     let timestamp: Date
     let basalKcal: Double
@@ -1175,23 +1178,40 @@ extension Repository {
     /// physiological path; HR alone is never promoted to activity.
     private func stepMovementByBucket(
         from: Int, to: Int, profile: UserProfile
-    ) async -> [Int: (steps: Int?, activityClass: Int?, covered: Bool, movementSeconds: Int)] {
+    ) async -> [Int: EnergyStepMovement] {
         guard let store = await storeHandle() else { return [:] }
+        // The memo key: everything the result depends on. Revisions are per UTC day over the read window,
+        // so any step write that could move this window's buckets (or a device-wide invalidation) changes
+        // it; a probe that fails leaves no key and the window is read as before.
+        let ids = importedReadIds
+        var revisions: [String] = []
+        for id in ids {
+            guard let revision = try? await store.analysisInputRevision(deviceId: id, from: from - 300, to: to) else {
+                revisions.removeAll(); break
+            }
+            revisions.append("\(id):\(revision.inputRevision):\(revision.deviceRevision)")
+        }
+        let key = revisions.count == ids.count
+            ? "\(from)|\(to)|\(profile.stepTicksPerStep)|" + revisions.joined(separator: ",") : nil
+        if let key, let cached = energyStepMovementCache[from], cached.key == key { return cached.buckets }
+
         var samples: [StepSample] = []
-        for id in importedReadIds {   // active strap FIRST, mirroring strapStepTicks
+        for id in ids {   // active strap FIRST, mirroring strapStepTicks
             let rows = (try? await store.stepSamples(deviceId: id, from: from - 300, to: to,
                                                      limit: Int.max)) ?? []
             if StepsCounter.stepsInWindow(rows) != nil { samples = rows; break }
         }
-        guard samples.count >= 2 else { return [:] }
-        return Self.bucketStepMovement(samples, ticksPerStep: profile.stepTicksPerStep)
+        let buckets = samples.count >= 2
+            ? Self.bucketStepMovement(samples, ticksPerStep: profile.stepTicksPerStep) : [:]
+        if let key { energyStepMovementCache[from] = (key: key, buckets: buckets) }
+        return buckets
     }
 
     /// Pure bucketing of a day's step samples, split out (like `latestActivityClass`) so the delta and
     /// gap rules are unit-testable without a store.
     nonisolated static func bucketStepMovement(
         _ samples: [StepSample], ticksPerStep: Double
-    ) -> [Int: (steps: Int?, activityClass: Int?, covered: Bool, movementSeconds: Int)] {
+    ) -> [Int: EnergyStepMovement] {
         let sorted = samples.sorted { $0.ts < $1.ts }
         guard sorted.count >= 2 else { return [:] }
 

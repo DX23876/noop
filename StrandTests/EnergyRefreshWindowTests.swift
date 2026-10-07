@@ -109,6 +109,64 @@ final class EnergyRefreshWindowTests: XCTestCase {
         }
     }
 
+    /// Times one full 120-day refresh on a clone and pins its output across code changes: with
+    /// `TEST_RUNNER_NOOP_ENERGY_DUMP` it writes every stored daily row and the last 30 days of buckets
+    /// to that file; with `TEST_RUNNER_NOOP_ENERGY_EXPECT` it compares against such a file. Skipped
+    /// without `TEST_RUNNER_NOOP_BENCH_DB`. Used to prove an optimisation leaves the output byte-identical.
+    func testTheFullRefreshCostAndOutput() async throws {
+        let env = ProcessInfo.processInfo.environment
+        guard let source = env["NOOP_BENCH_DB"], !source.isEmpty else {
+            throw XCTSkip("Set TEST_RUNNER_NOOP_BENCH_DB to a store copy to run this benchmark")
+        }
+        let (repo, store) = try await clonedRepository(from: source)
+        let profile = Repository.analyticsProfile(ProfileStore())
+        // A fixed wall clock is not available to the model, so the day being priced right now is left out
+        // of the comparison: its represented seconds grow with the clock.
+        let today = Repository.localDayKey(Date())
+        let start = DispatchTime.now().uptimeNanoseconds
+        let ok = await repo.refreshWhoopEnergyModel(days: Repository.energyRefreshMaxDays, profile: profile)
+        let seconds = Double(DispatchTime.now().uptimeNanoseconds - start) / 1e9
+        XCTAssertTrue(ok)
+        print(String(format: "BENCH energy full 120-day refresh %.2f s", seconds))
+
+        let lines = try await storedEnergyLines(store: store, deviceId: repo.deviceId, before: today)
+
+        // A second full refresh in the same process reads the memoised step movement of every unchanged day
+        // and must leave exactly the same rows.
+        let again = DispatchTime.now().uptimeNanoseconds
+        let okAgain = await repo.refreshWhoopEnergyModel(days: Repository.energyRefreshMaxDays, profile: profile)
+        print(String(format: "BENCH energy full refresh again (memoised steps) %.2f s",
+                     Double(DispatchTime.now().uptimeNanoseconds - again) / 1e9))
+        XCTAssertTrue(okAgain)
+        let linesAgain = try await storedEnergyLines(store: store, deviceId: repo.deviceId, before: today)
+        XCTAssertEqual(lines, linesAgain, "a memoised refresh must leave identical rows")
+        let text = lines.joined(separator: "\n")
+        if let dump = env["NOOP_ENERGY_DUMP"], !dump.isEmpty {
+            try text.write(toFile: dump, atomically: true, encoding: .utf8)
+            print("BENCH energy output written: \(lines.count) lines")
+        }
+        if let expect = env["NOOP_ENERGY_EXPECT"], !expect.isEmpty {
+            let expected = try String(contentsOfFile: expect, encoding: .utf8).components(separatedBy: "\n")
+            XCTAssertEqual(expected.count, lines.count, "line count")
+            let firstDiff = zip(expected, lines).enumerated().first { $0.element.0 != $0.element.1 }
+            if let firstDiff {
+                XCTFail("first difference at line \(firstDiff.offset):\nexpected \(firstDiff.element.0)\nactual   \(firstDiff.element.1)")
+            } else {
+                print("BENCH energy output identical: \(lines.count) lines")
+            }
+        }
+    }
+
+    private func storedEnergyLines(store: WhoopStore, deviceId: String, before today: String) async throws -> [String] {
+        let rows = try await store.whoopDailyEnergy(deviceId: deviceId, from: "0000-01-01", to: "9999-12-31")
+            .filter { $0.day < today }
+        var lines = rows.map { "\($0)" }
+        for day in rows.suffix(30).map(\.day) {
+            lines += try await store.whoopEnergyBuckets(deviceId: deviceId, day: day).map { "\($0)" }
+        }
+        return lines
+    }
+
     private func clonedRepository(from source: String) async throws -> (Repository, WhoopStore) {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("noop-energy-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)

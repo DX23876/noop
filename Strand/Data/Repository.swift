@@ -361,6 +361,13 @@ final class Repository: ObservableObject {
     /// and re-split the same 288 buckets on every swipe. Today is deliberately never stored.
     var energyDayRateCache: [String: EnergyDayRate] = [:]
 
+    /// Memo for `stepMovementByBucket`, keyed by the window start. Each entry carries the key it was
+    /// computed under: window, read ids in order, ticks per step and the step owners' input revisions over
+    /// the window. Reading a day's raw step counter is most of an energy refresh (one row a second, an
+    /// index seek plus a table read each); a finished day's counter does not move, so a repeat refresh in
+    /// the same process reads its revisions instead. Process-lifetime only.
+    var energyStepMovementCache: [Int: (key: String, buckets: [Int: EnergyStepMovement])] = [:]
+
     /// The profile the energy model last ran with, so a workout change can re-price it without every
     /// mutation site having to carry one. Set by `refreshWhoopEnergyModel` and `energySummaries`.
     var energyProfile: UserProfile?
