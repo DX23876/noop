@@ -2298,6 +2298,9 @@ final class Repository: ObservableObject {
         if DismissedSleepSpans.writesTombstoneOnDelete(userEdited: snapshot.session.userEdited) {
             dismissedSleepSpans = DismissedSleepSpans.adding(startTs: detectedStartTs, endTs: endTs,
                                                              to: dismissedSleepSpans)
+            // A fresh delete must offer its row again, even if a hidden token outlived a cap-evicted marker.
+            hiddenDismissedSleepSpans = DeletedSleepList.unhiding(startTs: detectedStartTs, endTs: endTs,
+                                                                  hidden: hiddenDismissedSleepSpans)
         }
         // Delete from the same union of possible owners that the Sleep tab reads from.
         var didDelete = false
@@ -2338,6 +2341,12 @@ final class Repository: ObservableObject {
                                                       endTs: snapshot.endTs, from: tombstones)
         }
         dismissedSleepSpans = tombstones
+        var hiddenSpans = hiddenDismissedSleepSpans
+        for snapshot in snapshots {
+            hiddenSpans = DeletedSleepList.unhiding(startTs: snapshot.session.startTs,
+                                                    endTs: snapshot.endTs, hidden: hiddenSpans)
+        }
+        hiddenDismissedSleepSpans = hiddenSpans
         var suppressedDays = suppressedSleepWakeDays
         for snapshot in snapshots {
             if let day = snapshot.suppressedWakeDay { suppressedDays.remove(day) }
@@ -2426,11 +2435,29 @@ final class Repository: ObservableObject {
         DismissedSleepSpans.windows(from: dismissedSleepSpans)
     }
 
-    /// The user's deleted-sleep windows for the "Deleted sleep windows" management list (#65 escape hatch):
-    /// each with its parsed window so the UI can render "d MMM, HH:mm-HH:mm" + an "Allow re-detection"
-    /// action. Ordered newest-first by end-time.
+    /// Tombstones the user hid from the Sleep screen's "Deleted sleep windows" list, as the same "startTs:endTs"
+    /// tokens. Hiding never lifts the tombstone itself: the engine reads `dismissedSleepWindows`, which ignores
+    /// this list, so a hidden night stays deleted (#515; Android twin: `dismissedSleep.managementVisible`).
+    private var hiddenDismissedSleepSpans: [String] {
+        get { UserDefaults.standard.stringArray(forKey: Repository.hiddenDismissedSleepDefaultsKey) ?? [] }
+        set { UserDefaults.standard.set(newValue, forKey: Repository.hiddenDismissedSleepDefaultsKey) }
+    }
+
+    /// UserDefaults key holding the hidden tombstones (see `hiddenDismissedSleepSpans`).
+    static let hiddenDismissedSleepDefaultsKey = "sleep.dismissedSessions.hiddenFromList"
+
+    /// The user's deleted-sleep windows for the Sleep screen's "Deleted sleep windows" list (#65/#515 escape
+    /// hatch), newest first by end-time, minus the ones hidden from it (`DeletedSleepList`).
     func dismissedSleepManagementWindows() -> [(start: Int, end: Int)] {
-        dismissedSleepWindows().sorted { $0.end > $1.end }
+        DeletedSleepList.visible(tokens: dismissedSleepSpans, hidden: hiddenDismissedSleepSpans)
+    }
+
+    /// Take one deleted night off the "Deleted sleep windows" list while keeping its tombstone, so a sleep the
+    /// user deleted on purpose stays deleted once its row is no longer wanted (#515).
+    func hideDeletedSleepWindow(startTs: Int, endTs: Int) {
+        hiddenDismissedSleepSpans = DeletedSleepList.hiding(startTs: startTs, endTs: endTs,
+                                                            hidden: hiddenDismissedSleepSpans,
+                                                            tokens: dismissedSleepSpans)
     }
 
     /// Remove a tombstone by its window (#65 "Allow re-detection" / expiry escape hatch): the night
@@ -2439,6 +2466,8 @@ final class Repository: ObservableObject {
     func allowSleepReDetection(startTs: Int, endTs: Int) async {
         dismissedSleepSpans = DismissedSleepSpans.removing(startTs: startTs, endTs: endTs,
                                                            from: dismissedSleepSpans)
+        hiddenDismissedSleepSpans = DeletedSleepList.unhiding(startTs: startTs, endTs: endTs,
+                                                              hidden: hiddenDismissedSleepSpans)
         suppressedSleepWakeDays.remove(Self.sleepEndDayKey(endTs))
         sleepPresentationRevision &+= 1
         await refresh()
