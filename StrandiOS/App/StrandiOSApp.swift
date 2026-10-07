@@ -181,7 +181,7 @@ struct StrandiOSApp: App {
             let succeeded = await bridge.writeBackAfterNewData()
             // A person can revoke every write type in Settings while NOOP is closed. Stop requesting
             // wakes once the cold-launched bridge can no longer resume a prior share grant.
-            if !bridge.hasWriteAuthorization {
+            if await !bridge.hasWriteAuthorization() {
                 HealthWritebackBackgroundScheduler.cancel()
             }
             return succeeded
@@ -453,7 +453,7 @@ struct StrandiOSApp: App {
                     await model.refreshCurrentDayActivity()
                     await health.refreshAuthIfPreviouslyGranted()
                     HealthWritebackBackgroundScheduler.updateSchedule(
-                        isAuthorized: health.hasWriteAuthorization)
+                        isAuthorized: await health.hasWriteAuthorization())
                     await HealthSyncRefreshCoordinator.run(
                         sync: { await health.sync() },
                         refresh: {
@@ -477,8 +477,10 @@ struct StrandiOSApp: App {
                 SemanticMemoryBackgroundTask.schedule()
                 Task { await model.coach.unloadSemanticMemory() }
                 // Re-submit on every transition because iOS may discard an old best-effort request.
-                HealthWritebackBackgroundScheduler.updateSchedule(
-                    isAuthorized: health.hasWriteAuthorization)
+                Task {
+                    HealthWritebackBackgroundScheduler.updateSchedule(
+                        isAuthorized: await health.hasWriteAuthorization())
+                }
                 // #1538: same reasoning for the re-score continuation, plus one case of its own. A pass
                 // can be left owed with NOTHING scheduled — a foreground pass killed by a force-quit
                 // never runs the deferral path that submits the request, and iOS can discard a request

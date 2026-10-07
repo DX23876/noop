@@ -90,9 +90,14 @@ final class HealthKitBridge: ObservableObject {
 
     private let store = HKHealthStore()
 
-    var hasWriteAuthorization: Bool {
+    /// Whether any write type is shared. Each status read is a synchronous round trip to healthd, so
+    /// the reads run off the main actor: this is called on every foreground and background transition.
+    func hasWriteAuthorization() async -> Bool {
         guard Self.hasHealthKitEntitlement, HKHealthStore.isHealthDataAvailable() else { return false }
-        return writeTypes.contains { store.authorizationStatus(for: $0) == .sharingAuthorized }
+        let store = self.store, types = writeTypes
+        return await Task.detached(priority: .userInitiated) {
+            types.contains { store.authorizationStatus(for: $0) == .sharingAuthorized }
+        }.value
     }
     private let repo: Repository
     /// Source id imported HealthKit data lands under (matches `AppModel.appleDeviceId`).
@@ -364,9 +369,11 @@ final class HealthKitBridge: ObservableObject {
         // relaunch. Requiring every legacy type made partial grants look wholly disconnected.
         // Each status read is a synchronous round trip to healthd; off the main actor, so a slow daemon
         // on launch leaves the UI responsive instead of frozen.
+        // The not-determined probe below is read in the same pass, for the same reason.
         let store = self.store, types = writeTypes
-        let granted = await Task.detached(priority: .userInitiated) {
-            types.contains { store.authorizationStatus(for: $0) == .sharingAuthorized }
+        let (granted, newTypesPending) = await Task.detached(priority: .userInitiated) {
+            let statuses = types.map { store.authorizationStatus(for: $0) }
+            return (statuses.contains(.sharingAuthorized), statuses.contains(.notDetermined))
         }.value
         // Another caller may have resolved `auth` while this one waited.
         guard auth == .unknown else { return }
@@ -394,7 +401,6 @@ final class HealthKitBridge: ObservableObject {
             // also called from the offload write-back (#1021), which runs in processes that were never
             // foregrounded. Asking there would spend the one request we get where no sheet can be
             // presented. The status read above is unaffected, so a legacy grant still resumes.
-            let newTypesPending = writeTypes.contains { store.authorizationStatus(for: $0) == .notDetermined }
             // One signature for the read AND share sets (#2644): a grown read set or new share access
             // for an already-readable type both change it.
             let readGrew = UserDefaults.standard.string(forKey: HealthKitBridge.readTypeSignatureKey)
