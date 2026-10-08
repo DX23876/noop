@@ -124,4 +124,58 @@ final class EcgAnalysisTests: XCTestCase {
         XCTAssertNil(EcgAnalysis.analyze([Int16?](repeating: 0, count: 3000)))
         XCTAssertNil(EcgAnalysis.analyze([1, 2, 3]))
     }
+
+    func testLargeImpulsesDoNotReplaceTheRhythm() throws {
+        var samples = strip(rTimesMs: regular(rrMs: 800))
+        for index in [500, 1000, 1500, 2000] { samples[index] = 30_000 }
+        let result = try XCTUnwrap(EcgAnalysis.analyze(samples))
+        XCTAssertEqual(result.meanHeartRate, 75, accuracy: 2)
+    }
+
+    func testMonophasicComplexHasSymmetricBoundaries() throws {
+        let z = (0..<91).map { index -> Double in
+            let t = Double(index - 35) * 10
+            return (900 * exp(-t * t / (2 * 20 * 20))).rounded()
+        }
+        let f = try XCTUnwrap(EcgAnalysis.locateFiducials(z, rIndex: 35, fs: 100, meanRRms: 1000))
+        XCTAssertEqual(f.jPointMs, -f.qrsOnsetMs, accuracy: 10)
+    }
+
+    func testTEndDoesNotUseTheNextQRS() throws {
+        let z = (0..<91).map { index -> Double in
+            let t = Double(index - 35) * 10
+            func g(_ center: Double, _ sigma: Double, _ amplitude: Double) -> Double {
+                amplitude * exp(-pow(t - center, 2) / (2 * sigma * sigma))
+            }
+            return g(0, 10, 900) + g(30, 8, -220) + g(260, 40, 260) + g(400, 10, 900)
+        }
+        let f = try XCTUnwrap(EcgAnalysis.locateFiducials(z, rIndex: 35, fs: 100, meanRRms: 400))
+        XCTAssertEqual(try XCTUnwrap(f.tEndMs), 340, accuracy: 15)
+    }
+
+    func testNoiseAloneDoesNotProduceRhythm() {
+        var seed: UInt64 = 17
+        let samples: [Int16?] = (0..<3000).map { _ in
+            seed = seed &* 6364136223846793005 &+ 1
+            return Int16(Int(seed >> 48) - 32768)
+        }
+        XCTAssertNil(EcgAnalysis.analyze(samples))
+    }
+
+    func testRatesAndPolarityAcrossSupportedRange() throws {
+        for bpm in [35.0, 50, 75, 100, 150, 180] {
+            var beat = Beat()
+            // Compress P/T timing at high rates so adjacent cycles do not overlap.
+            let scale = min(1, 75 / bpm)
+            beat.p.centerMs *= scale
+            beat.p.sigmaMs *= scale
+            beat.t.centerMs *= scale
+            beat.t.sigmaMs *= scale
+            for sign in [-1.0, 1.0] {
+                let a = try XCTUnwrap(EcgAnalysis.analyze(strip(
+                    rTimesMs: regular(rrMs: 60_000 / bpm), beat: beat, sign: sign)))
+                XCTAssertEqual(a.meanHeartRate, bpm, accuracy: 2, "bpm=\(bpm), sign=\(sign)")
+            }
+        }
+    }
 }

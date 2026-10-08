@@ -1837,6 +1837,7 @@ public final class BLEManager: NSObject, ObservableObject {
             peripheral = nil
             resetCharacteristics()
             state.connected = false
+        ecgReadingLinkLost()
             state.bonded = false
             state.encryptedBond = false
             state.pairingHint = nil
@@ -1865,6 +1866,7 @@ public final class BLEManager: NSObject, ObservableObject {
     public func prepareForModelSwitch() {
         disconnect()
         state.connected = false
+        ecgReadingLinkLost()
         state.bonded = false
         state.encryptedBond = false
     }
@@ -2293,7 +2295,8 @@ public final class BLEManager: NSObject, ObservableObject {
                      writeType: CBCharacteristicWriteType = .withoutResponse) {
         // #314 parity: CoreBluetooth already covers both Android defects here — this `p.state == .connected`
         // guard makes a write a no-op once the radio powers off (no DeadObjectException to crash on), and
-        // centralManagerDidUpdateState publishes state.connected = false on .poweredOff, so the iOS/macOS UI
+        // centralManagerDidUpdateState publishes state.connected = false
+        ecgReadingLinkLost() on .poweredOff, so the iOS/macOS UI
         // can't show a stale-connected link. The Android fix re-creates both behaviours; no Swift change needed.
         guard state.connected, let p = peripheral, p.state == .connected, let ch = cmdCharacteristic else {
             let reason = state.connected ? "command characteristic unavailable" : "not connected"
@@ -2526,6 +2529,7 @@ public final class BLEManager: NSObject, ObservableObject {
     /// flag, kick the strap with sendHistoricalData, and arm the idle timeout.
     @discardableResult
     private func beginBackfill() -> Bool {
+        guard ecgCaptureDeviceId == nil, !ecgMayBeRunning else { return false }
         // #1598: this whole block is WHOOP 4.0 ONLY. A 5/MG has no GET_CLOCK correlation to chase —
         // identity is its correct decode — and deriving one from the Data Range would misdate its
         // history. See BackfillContinuation.derivesClockCorrelation for why.
@@ -4532,6 +4536,7 @@ public final class BLEManager: NSObject, ObservableObject {
     /// a different screen, and it must not queue a verdict 30 s after the user simply switched something
     /// off. The bytes sent are identical either way.
     public func ecgStopCapture(reportsResult: Bool = true) {
+        if ecgCaptureDeviceId != nil { ecgReadingCancelSink?(); return }
         // requiresOptIn: false — see `ecgStopOverride`. The OFF path outlives the opt-in.
         guard ecgGatesAllow(requiresOptIn: false) else {
             // Do NOT clear `ecgMayBeRunning` here: the stop did not reach the strap, so whatever state it
@@ -4569,6 +4574,7 @@ public final class BLEManager: NSObject, ObservableObject {
     /// Whether a reading can start right now: opt-in, attested MG, connected and fully bonded.
     var ecgReadingReady: Bool {
         PuffinExperiment.ecgEnabled && isWhoop5MG && state.connected && state.encryptedBond
+            && ecgCaptureDeviceId == nil && !rawCaptureInFlight
     }
 
     /// The device id a reading is saved under.
@@ -4577,32 +4583,109 @@ public final class BLEManager: NSObject, ObservableObject {
     /// A strap-log line from the reading controller.
     func ecgReadingLog(_ line: String) { log("ECG reading: \(line)") }
 
-    /// PREPARE then START. Returns false when a gate refused, in which case nothing was written.
-    @discardableResult
-    func ecgReadingStart(wrist: Whoop5Ecg.WristSelection) -> Bool {
-        guard ecgGatesAllow() else { return false }
-        ecgMayBeRunning = true      // latched BEFORE the sends, like the probe, so Stop stays offered
-        log("ECG reading: PREPARE wrist=\(wrist.token), filtered ON, raw-save ON; START")
-        send(.selectWrist, payload: Whoop5Ecg.selectWristPayload(wrist))
-        send(.toggleLabradorFiltered, payload: Whoop5Ecg.togglePayload(on: true))
-        send(.toggleLabradorRawSave, payload: Whoop5Ecg.togglePayload(on: true))
-        ecgSendAbortHistorical()
-        send(.toggleLabradorDataGeneration, payload: Whoop5Ecg.controlPayload(.start))
-        return true
+    private var ecgCaptureDeviceId: String?
+    private var ecgCapturePeripheral: UUID?
+    private var ecgCommandEpoch: UInt64 = 0
+    private var ecgReplyPending: (gate: EcgCommandAcknowledgement, continuation: CheckedContinuation<Bool, Never>)?
+    private var ecgReplyTimeout: Task<Void, Never>?
+    private var ecgDeferredSync: BackfillTrigger?
+    var ecgReadingDisconnectSink: (() -> Void)?
+    var ecgReadingCancelSink: (() -> Void)?
+
+    /// Owns the connection until all OFF attempts finish. Existing retained state is recovered only
+    /// as part of this explicit user start, never automatically on reconnect.
+    func ecgReadingStart(wrist: Whoop5Ecg.WristSelection) async -> Bool {
+        guard ecgGatesAllow(), ecgCaptureDeviceId == nil, !rawCaptureInFlight else { return false }
+        ecgCaptureDeviceId = deviceId
+        ecgCapturePeripheral = peripheral?.identifier
+        ecgCommandEpoch &+= 1
+        let epoch = ecgCommandEpoch
+        if ecgMayBeRunning {
+            guard await ecgRunCommands(EcgControlPlan.cleanup, epoch: epoch, cleanup: true) else { return false }
+        }
+        ecgMayBeRunning = true
+        // Cancel the local drain before PREPARE; START still contains the protocol's explicit abort.
+        if backfilling { abortBackfill() }
+        return await ecgRunCommands(EcgControlPlan.start(wrist: wrist), epoch: epoch, cleanup: false)
     }
 
-    /// RESTART: only for the state machine's explicit predicate (state-one flag cleared mid-reading).
-    /// Argument 3 is OpenStrap's restart value; it is not attested on NOOP's own hardware.
-    func ecgReadingRestart() {
-        guard ecgGatesAllow() else { return }
-        log("ECG reading: RESTART (20, then 124 = 3)")
-        ecgSendAbortHistorical()
-        send(.toggleLabradorDataGeneration, payload: Whoop5Ecg.commandPayload(arg: 3))
+    func ecgReadingRestart() async -> Bool {
+        await ecgRunCommands(EcgControlPlan.restart, epoch: ecgCommandEpoch, cleanup: false)
     }
 
-    /// CLEANUP: 124 stop, 125 OFF, 139 OFF through the probe's stop path, which also clears the latch.
-    func ecgReadingStop() {
-        ecgStopCapture(reportsResult: false)
+    /// Every OFF step is attempted even after a refusal or timeout. The durable latch is evidence of
+    /// an unresolved hardware state and only clears after three correlated SUCCESS replies.
+    func ecgReadingStop() async -> Bool {
+        guard ecgCaptureDeviceId == deviceId, ecgCapturePeripheral == peripheral?.identifier else { return false }
+        ecgCommandEpoch &+= 1
+        ecgResolvePending(false)
+        let epoch = ecgCommandEpoch
+        let success = await ecgRunCommands(EcgControlPlan.cleanup, epoch: epoch, cleanup: true)
+        guard epoch == ecgCommandEpoch else { return false }
+        if success { ecgMayBeRunning = false }
+        ecgCaptureDeviceId = nil
+        ecgCapturePeripheral = nil
+        if success, let trigger = ecgDeferredSync {
+            ecgDeferredSync = nil
+            requestSync(trigger)
+        }
+        return success
+    }
+
+    private func ecgRunCommands(_ commands: [EcgControlPlan.Command], epoch: UInt64, cleanup: Bool) async -> Bool {
+        var allAccepted = true
+        for command in commands {
+            guard epoch == ecgCommandEpoch, ecgCaptureDeviceId == deviceId,
+                  ecgCapturePeripheral == peripheral?.identifier else { return false }
+            let accepted = await ecgSendAcknowledged(command, cleanup: cleanup)
+            allAccepted = allAccepted && accepted
+            if !accepted && !cleanup { return false }
+        }
+        return allAccepted
+    }
+
+    private func ecgSendAcknowledged(_ request: EcgControlPlan.Command, cleanup: Bool) async -> Bool {
+        guard ecgGatesAllow(requiresOptIn: !cleanup), ecgReplyPending == nil,
+              let command = WhoopCommand(rawValue: request.opcode) else { return false }
+        return await withCheckedContinuation { continuation in
+            let expectedSequence = seq &+ 1
+            let gate = EcgCommandAcknowledgement(opcode: request.opcode, sequence: expectedSequence,
+                                                  now: ProcessInfo.processInfo.systemUptime)
+            ecgReplyPending = (gate, continuation)
+            ecgStopOverride = cleanup
+            ecgAbortOverride = command == .abortHistoricalTransmits
+            defer { ecgStopOverride = false; ecgAbortOverride = false }
+            send(command, payload: request.payload)
+            guard seq == expectedSequence else { ecgResolvePending(false); return }
+            ecgReplyTimeout = Task { @MainActor [weak self] in
+                do { try await Task.sleep(nanoseconds: 4_000_000_000) } catch { return }
+                self?.ecgResolvePending(false)
+            }
+        }
+    }
+
+    private func ecgReadingHandleReply(_ frame: [UInt8]) {
+        guard let pending = ecgReplyPending,
+              let result = pending.gate.resolve(frame: frame, now: ProcessInfo.processInfo.systemUptime) else { return }
+        ecgResolvePending(result == .accepted)
+    }
+
+    private func ecgResolvePending(_ success: Bool) {
+        ecgReplyTimeout?.cancel()
+        ecgReplyTimeout = nil
+        let pending = ecgReplyPending
+        ecgReplyPending = nil
+        pending?.continuation.resume(returning: success)
+    }
+
+    /// Invalidates the lease immediately, including a rapid disconnect/reconnect between timer ticks.
+    private func ecgReadingLinkLost() {
+        guard ecgCaptureDeviceId != nil else { return }
+        ecgCommandEpoch &+= 1
+        ecgCaptureDeviceId = nil
+        ecgCapturePeripheral = nil
+        ecgResolvePending(false)
+        ecgReadingDisconnectSink?()
     }
 
     private func beginEcgProbeRun(clearingSteps: Bool) {
@@ -4958,6 +5041,10 @@ public final class BLEManager: NSObject, ObservableObject {
     /// gate AND the BackfillPolicy rate-limiter for the trigger. On a go: records the attempt time
     /// (persisted) and starts the offload.
     func requestSync(_ trigger: BackfillTrigger) {
+        if ecgCaptureDeviceId != nil || ecgMayBeRunning {
+            ecgDeferredSync = trigger
+            return
+        }
         guard BLEManager.shouldRunPeriodicBackfill(
             connected: state.connected, bonded: state.bonded, backfilling: backfilling) else { return }
         let now = Date().timeIntervalSince1970
@@ -6274,6 +6361,7 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         }
         bondedAt = nil   // cleared after the bond-loop detector above read it (#617)
         state.connected = false
+        ecgReadingLinkLost()
         state.encryptedBond = false   // cleared with didBond; next session must re-prove the bond (#69)
         state.charging = nil          // a stale charging flag must not outlive the link
         state.batteryMv = nil         // #592: a stale pack voltage must not outlive the link
@@ -6577,6 +6665,7 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
             discoverPrimaryServices(on: p)
         } else {
             state.connected = false
+        ecgReadingLinkLost()
             log("Restored DISCONNECTED peripheral \(p.identifier) — reconnect on poweredOn")
             if central.state == .poweredOn {
                 connectRestored(p, reason: "willRestoreState")
@@ -7608,6 +7697,7 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                     // run, so this costs one Bool read on every other frame.
                     if ecgProbeArmed { noteEcgProbeFrame(frame) }
                     // A full ECG reading (`EcgReadingController`) parses its own frames; nil otherwise.
+                    ecgReadingHandleReply(frame)
                     ecgReadingFrameSink?(frame)
                     // Gated on the FULL verdict for the same reason as the 4.0 path: this reply sets the
                     // window the offload judges its records against. The verdict is taken here rather

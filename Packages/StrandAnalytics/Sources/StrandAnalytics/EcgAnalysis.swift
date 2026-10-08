@@ -66,18 +66,34 @@ public enum EcgAnalysis {
     static let correlationFloor = 0.9
 
     public static func analyze(_ samples: [Int16?], sampleRate: Int = 100) -> Result? {
+        guard sampleRate == 100, samples.count >= sampleRate * 8 else { return nil }
         let fs = Double(sampleRate)
         func n(_ seconds: Double) -> Int { max(1, Int((seconds * fs).rounded())) }
+
+        // Digital saturation and isolated, extreme impulses must not set the detection threshold.
+        // Scale is relative to the strip: the device's physical amplitude calibration is unknown.
+        let present = samples.compactMap { $0.map(Double.init) }
+        guard !present.isEmpty else { return nil }
+        let centre = median(present)
+        let amplitude = percentile(present.map { abs($0 - centre) }, 0.99)
+        guard amplitude > 0 else { return nil }
+        var clean = samples
+        for k in samples.indices {
+            guard let raw = samples[k] else { continue }
+            if abs(Int(raw)) >= 32_760 || abs(Double(raw) - centre) > 6 * amplitude {
+                for j in max(0, k - n(0.08))...min(samples.count - 1, k + n(0.08)) { clean[j] = nil }
+            }
+        }
 
         // 1. Baseline removal, per contiguous run (a lost packet is a gap, never bridged).
         var y = [Double?](repeating: nil, count: samples.count)
         var runs: [Range<Int>] = []
         var i = 0
         while i < samples.count {
-            guard samples[i] != nil else { i += 1; continue }
+            guard clean[i] != nil else { i += 1; continue }
             var end = i
-            while end < samples.count, samples[end] != nil { end += 1 }
-            let run = (i..<end).map { Double(samples[$0]!) }
+            while end < samples.count, clean[end] != nil { end += 1 }
+            let run = (i..<end).map { Double(clean[$0]!) }
             if run.count >= n(2) {
                 let baseline = medianFilter(medianFilter(run, width: n(0.2) | 1), width: n(0.6) | 1)
                 for k in run.indices { y[i + k] = run[k] - baseline[k] }
@@ -185,6 +201,10 @@ public enum EcgAnalysis {
             }
         }
 
+        // Repeated shape agreement is required for rhythm too. Random noise can produce energy peaks
+        // and plausible RR intervals; it must not receive HR/HRV merely because it crossed a threshold.
+        guard !template.isEmpty, (300...2000).contains(median(allRR)) else { return nil }
+
         // 5. Fiducials and intervals on the median beat.
         var fiducials: Fiducials?
         var pr: Double?, qrs: Double?, qt: Double?, qtcF: Double?, qtcB: Double?
@@ -238,9 +258,13 @@ public enum EcgAnalysis {
         var qrsOn: Int?
         for k in stride(from: r0, through: clamp(r0 - s(0.15)) + 1, by: -1)
             where abs(slope[k]) < flat && abs(slope[k - 1]) < flat { qrsOn = k; break }
-        let sTrough = (r0...clamp(r0 + s(0.08))).min { u[$0] < u[$1] } ?? r0
+        let minimum = (r0...clamp(r0 + s(0.08))).min { u[$0] < u[$1] } ?? r0
+        // A monophasic QRS has no S trough. Searching from its window minimum otherwise starts at
+        // +80 ms, after the actual end of the descending R flank.
+        let sTrough = u[minimum] < -0.08 * u[r0] ? minimum : r0
         var jPoint: Int?
-        for k in sTrough..<clamp(sTrough + s(0.12)) where abs(slope[k]) < flat && abs(slope[k + 1]) < flat {
+        for k in sTrough..<clamp(r0 + s(0.18)) where abs(slope[k]) < flat
+            && abs(slope[k + 1]) < flat && abs(u[k]) < 0.15 * u[r0] {
             jPoint = k; break
         }
         guard let qrsOn, let jPoint else { return nil }
@@ -254,24 +278,26 @@ public enum EcgAnalysis {
            abs(u[peak]) > 0.05 * rAmplitude {
             tPeak = peak
             let sign: Double = u[peak] > 0 ? 1 : -1
-            let descentHi = clamp(peak + s(0.2))
+            let nextQRS = r0 + s(meanRRms / 1000 - 0.08)
+            let descentHi = clamp(min(peak + s(0.2), nextQRS))
             if peak < descentHi, let steepest = (peak...descentHi).min(by: { sign * slope[$0] < sign * slope[$1] }),
                sign * slope[steepest] < 0 {
                 let crossing = Double(steepest) - u[steepest] / slope[steepest]
-                if crossing > Double(peak) { tEnd = crossing }
+                if crossing > Double(peak), crossing < Double(clamp(r0 + s(meanRRms / 1000 - 0.03))),
+                   crossing <= Double(u.count - 1) { tEnd = crossing }
             }
         }
 
         // P wave: a positive bump before the QRS, measured only when it stands out.
         var pPeak: Int?, pOnset: Double?
-        let pLo = clamp(r0 - s(0.30)), pHi = clamp(qrsOn - s(0.04))
+        let pLo = clamp(r0 - s(min(0.30, 0.45 * meanRRms / 1000))), pHi = clamp(qrsOn - s(0.04))
         if pLo < pHi, let peak = (pLo...pHi).max(by: { u[$0] < u[$1] }), u[peak] > 0.03 * rAmplitude,
            peak > pLo {
             pPeak = peak
             let riseLo = clamp(peak - s(0.12))
             if riseLo < peak, let steepest = (riseLo..<peak).max(by: { slope[$0] < slope[$1] }), slope[steepest] > 0 {
                 let crossing = Double(steepest) - u[steepest] / slope[steepest]
-                if crossing < Double(peak) { pOnset = crossing }
+                if crossing < Double(peak), crossing >= Double(pLo) { pOnset = crossing }
             }
         }
 

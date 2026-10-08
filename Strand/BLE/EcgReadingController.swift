@@ -21,6 +21,8 @@ final class EcgReadingController: ObservableObject {
 
     enum Phase: Equatable {
         case idle
+        case preparing
+        case stopping
         /// Commands sent, waiting for the first packet with electrode contact.
         case waiting
         case active
@@ -36,13 +38,14 @@ final class EcgReadingController: ObservableObject {
 
         var isRunning: Bool {
             switch self {
-            case .waiting, .active, .contactLost, .restarting, .finishing: return true
+            case .preparing, .waiting, .active, .contactLost, .restarting, .finishing, .stopping: return true
             default: return false
             }
         }
     }
 
     @Published private(set) var phase: Phase = .idle
+    @Published private(set) var cleanupIncomplete = false
     @Published private(set) var progress = 0
     @Published private(set) var liveHr: Int?
     @Published private(set) var quality = 0
@@ -67,14 +70,20 @@ final class EcgReadingController: ObservableObject {
     private var wrist: Whoop5Ecg.WristSelection = .left
     private var retriesUsed = 0
     private var windowStart: Date?
-    private var startedAt: Date?
-    private var finishingSince: Date?
-    private var ignoreFramesUntil: Date?
+    private var startedAt: TimeInterval?
+    private var finishingSince: TimeInterval?
+    private var completion = EcgReadingCompletion()
+    private var finalPhase: Phase = .cancelled
+    private var finalReason: String?
+    private var pendingVariability: Int?
+    private var storedVariability: Int?
+    private let clock: () -> TimeInterval
     private var timer: Timer?
 
-    init(ble: BLEManager, repo: Repository) {
+    init(ble: BLEManager, repo: Repository, clock: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }) {
         self.ble = ble
         self.repo = repo
+        self.clock = clock
     }
 
     var isReady: Bool { ble.ecgReadingReady }
@@ -82,6 +91,7 @@ final class EcgReadingController: ObservableObject {
     /// Start a reading on `wrist`. `retry` spends the single inconclusive retry.
     func begin(wrist: Whoop5Ecg.WristSelection, retry: Bool = false) {
         guard !phase.isRunning else { return }
+        let run = completion.begin()
         self.wrist = wrist
         retriesUsed = retry ? 1 : 0
         reducer = EcgReadingState(retriesUsed: retriesUsed)
@@ -96,24 +106,32 @@ final class EcgReadingController: ObservableObject {
         elapsedSeconds = 0
         windowStart = nil
         finishingSince = nil
-        ignoreFramesUntil = nil
+        cleanupIncomplete = false
+        pendingVariability = nil
+        storedVariability = nil
         guard ble.ecgReadingReady else {
             phase = .failed
             failureReason = "notReady"
             return
         }
+        phase = .preparing
+        startedAt = clock()
         ble.ecgReadingFrameSink = { [weak self] frame in self?.handle(frame) }
-        guard ble.ecgReadingStart(wrist: wrist) else {
-            ble.ecgReadingFrameSink = nil
-            phase = .failed
-            failureReason = "notReady"
-            return
+        ble.ecgReadingDisconnectSink = { [weak self] in
+            guard let self else { return }
+            self.finish(self.savedReadingId != nil || self.completion.saving ? .completed : .failed,
+                        reason: self.savedReadingId != nil || self.completion.saving ? nil : "disconnected")
         }
-        startedAt = Date()
-        phase = .waiting
+        ble.ecgReadingCancelSink = { [weak self] in self?.cancel() }
         timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+        timer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.tick() }
+        }
+        Task { [weak self] in
+            guard let self else { return }
+            let started = await self.ble.ecgReadingStart(wrist: wrist)
+            guard self.completion.isCurrent(run), self.phase == .preparing else { return }
+            if started { self.phase = .waiting } else { self.finish(.failed, reason: "prepare") }
         }
     }
 
@@ -141,24 +159,12 @@ final class EcgReadingController: ObservableObject {
 
     private func handle(_ frame: [UInt8]) {
         guard phase.isRunning, let packet = Whoop5Ecg.r17FromFrame(frame) else { return }
+        guard phase != .preparing, phase != .restarting, phase != .stopping else { return }
         pushLive(packet.samples)
         if phase == .finishing {
-            if let variability = packet.variabilityRaw, let id = savedReadingId {
-                ble.ecgReadingLog("variability \(variability) (raw) after the verdict")
-                Task { [repo] in
-                    if let store = await repo.storeHandle() {
-                        try? await store.updateEcgReadingVariability(id: id, variabilityRaw: Int(variability))
-                    }
-                    await MainActor.run { self.savedRevision &+= 1 }
-                }
-                finish(.completed)
-            }
+            if let value = packet.variabilityRaw { pendingVariability = Int(value) }
+            finishSavedIfReady()
             return
-        }
-        if let until = ignoreFramesUntil {
-            if Date() < until { return }
-            ignoreFramesUntil = nil
-            if phase == .restarting { phase = .active }
         }
         let wasEmpty = reducer.accepted.isEmpty
         let step = reducer.reduce(packet)
@@ -177,11 +183,16 @@ final class EcgReadingController: ObservableObject {
         for effect in step.effects {
             switch effect {
             case .clear:
-                break
+                if reducer.accepted.isEmpty { windowStart = nil }
             case .sendRestart:
                 phase = .restarting
-                ignoreFramesUntil = Date().addingTimeInterval(1.5)
-                ble.ecgReadingRestart()
+                let run = completion.generation
+                Task { [weak self] in
+                    guard let self else { return }
+                    let restarted = await self.ble.ecgReadingRestart()
+                    guard self.completion.isCurrent(run), self.phase == .restarting else { return }
+                    if restarted { self.phase = .active } else { self.finish(.failed, reason: "restart") }
+                }
             case .fail(let reason):
                 finish(.failed, reason: reason)
             case .terminal(let outcome):
@@ -237,57 +248,93 @@ final class EcgReadingController: ObservableObject {
                                 strapSubseconds: $0.isPlaceholder ? nil : Int($0.strapSubseconds),
                                 isPlaceholder: $0.isPlaceholder, samples: $0.samples)
         }
-        savedReadingId = id
-        // The variability wait runs while the save lands; the cleanup waits for neither.
+        let run = completion.generation
+        pendingVariability = row.variabilityRaw
+        storedVariability = row.variabilityRaw
         phase = .finishing
-        finishingSince = now
+        finishingSince = clock()
+        completion.beginSave()
         Task { [repo, ble] in
             do {
                 guard let store = await repo.storeHandle() else { throw CocoaError(.fileNoSuchFile) }
                 try await store.saveEcgReading(row, packets: rows)
+                guard self.completion.saved(run) else { return }
+                self.savedReadingId = id
+                self.savedRevision &+= 1
                 ble.ecgReadingLog("saved \(id): \(stats.sampleCount) samples, \(stats.missingSegments) gap(s)")
-                await MainActor.run { self.savedRevision &+= 1 }
+                if self.completion.finishing { self.publishFinished() } else { self.finishSavedIfReady() }
             } catch {
+                guard self.completion.saved(run) else { return }
                 ble.ecgReadingLog("save failed: \(error.localizedDescription)")
-                await MainActor.run {
-                    self.savedReadingId = nil
-                    if self.phase.isRunning { self.finish(.failed, reason: "save") } else {
-                        self.phase = .failed
-                        self.failureReason = "save"
-                    }
-                }
+                self.savedReadingId = nil
+                self.finalPhase = .failed
+                self.finalReason = "save"
+                if self.completion.finishing { self.publishFinished() } else { self.finish(.failed, reason: "save") }
             }
+        }
+    }
+
+    /// The HRV update is ordered after the initial insert; it cannot silently update a nonexistent row.
+    private func finishSavedIfReady() {
+        guard phase == .finishing, !completion.saving, let id = savedReadingId else { return }
+        let expired = finishingSince.map { clock() - $0 >= Double(Self.variabilityWait) } ?? false
+        guard pendingVariability != nil || expired else { return }
+        guard let value = pendingVariability, value != storedVariability else { finish(.completed); return }
+        let run = completion.generation
+        completion.beginSave()
+        Task { [repo] in
+            do {
+                guard let store = await repo.storeHandle() else { throw CocoaError(.fileNoSuchFile) }
+                try await store.updateEcgReadingVariability(id: id, variabilityRaw: value)
+                guard self.completion.saved(run) else { return }
+                self.storedVariability = value
+                self.savedRevision &+= 1
+            } catch {
+                guard self.completion.saved(run) else { return }
+                self.ble.ecgReadingLog("variability update failed; original reading retained")
+            }
+            if self.completion.finishing { self.publishFinished() } else { self.finish(.completed) }
         }
     }
 
     private func tick() {
         guard phase.isRunning, let startedAt else { return }
-        elapsedSeconds = Int(Date().timeIntervalSince(startedAt))
-        if phase == .finishing {
-            if let since = finishingSince, Date().timeIntervalSince(since) >= Double(Self.variabilityWait) {
-                finish(.completed)
-            }
-            return
-        }
+        elapsedSeconds = max(0, Int(clock() - startedAt))
         if !ble.state.connected {
-            finish(.failed, reason: "disconnected")
+            finish(savedReadingId != nil || completion.saving ? .completed : .failed,
+                   reason: savedReadingId != nil || completion.saving ? nil : "disconnected")
+        } else if phase == .finishing {
+            finishSavedIfReady()
         } else if elapsedSeconds >= Self.captureTimeout {
             finish(.failed, reason: progress == 0 && liveSamples.isEmpty ? "noData" : "timeout")
         }
     }
 
-    /// The one exit path: cleanup is sent once, the sink and the timer are released, then the phase is set.
+    /// Releases the stream immediately, attempts every OFF command once, and publishes the outcome
+    /// after both persistence and cleanup settle. No new reading can start in this interval.
     private func finish(_ final: Phase, reason: String? = nil) {
+        guard completion.requestFinish() else { return }
+        finalPhase = final
+        finalReason = reason
+        phase = .stopping
         timer?.invalidate()
         timer = nil
         ble.ecgReadingFrameSink = nil
-        if ble.state.connected {
-            ble.ecgReadingStop()
-        } else {
-            ble.ecgReadingLog("link down; the strap may still be generating, so Stop stays offered")
+        ble.ecgReadingDisconnectSink = nil
+        ble.ecgReadingCancelSink = nil
+        let run = completion.generation
+        Task { [ble] in
+            let stopped = await ble.ecgReadingStop()
+            guard self.completion.isCurrent(run) else { return }
+            self.completion.cleanedUp(run, success: stopped)
+            self.publishFinished()
         }
-        if let reason { ble.ecgReadingLog("ended: \(reason)") }
-        failureReason = reason
-        phase = final
+    }
+
+    private func publishFinished() {
+        guard completion.canPublish else { return }
+        cleanupIncomplete = completion.cleanupSucceeded != true
+        failureReason = finalReason
+        phase = finalPhase
     }
 }
