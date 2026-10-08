@@ -352,3 +352,33 @@ public enum EcgAnalysis {
         range.contains(value) ? value : nil
     }
 }
+
+/// Brings a strip recorded at another rate onto the 100 Hz grid `EcgAnalysis` measures on, so a
+/// reference recording (an Apple Watch ECG at about 512 Hz) is measured by exactly the same code as the
+/// strap's. A moving average one output period wide stops content above 50 Hz folding back into the
+/// band, then each 10 ms point is read off by linear interpolation.
+public enum EcgResample {
+    public static func toHundredHertz(_ samples: [Double], rate: Double) -> [Int16?] {
+        guard rate > 0, samples.count > 1 else { return [] }
+        let width = max(1, Int((rate / 100).rounded()))
+        var smoothed = samples
+        if width > 1 {
+            var prefix = [0.0]
+            prefix.reserveCapacity(samples.count + 1)
+            for value in samples { prefix.append(prefix[prefix.count - 1] + value) }
+            let half = width / 2
+            for k in samples.indices {
+                let lo = max(0, k - half), hi = min(samples.count, k - half + width)
+                smoothed[k] = (prefix[hi] - prefix[lo]) / Double(hi - lo)
+            }
+        }
+        let count = Int(Double(samples.count - 1) / rate * 100) + 1
+        return (0..<count).map { k -> Int16? in
+            let position = Double(k) / 100 * rate
+            let i = min(Int(position), smoothed.count - 2)
+            let fraction = position - Double(i)
+            let value = smoothed[i] + (smoothed[i + 1] - smoothed[i]) * fraction
+            return Int16(clamping: Int(value.rounded()))
+        }
+    }
+}

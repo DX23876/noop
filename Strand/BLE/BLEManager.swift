@@ -4582,6 +4582,11 @@ public final class BLEManager: NSObject, ObservableObject {
     /// A strap-log line from the reading controller.
     func ecgReadingLog(_ line: String) { log("ECG reading: \(line)") }
 
+    /// What the strap said it is, for a reading's log header: firmware, DIS hardware revision, variant.
+    var ecgReadingStrapIdentity: String {
+        "fw=\(state.strapFirmware ?? "unknown") hw=\(disHwRev ?? "unknown") variant=\(whoop5Variant.label)"
+    }
+
     private var ecgCaptureDeviceId: String?
     private var ecgCapturePeripheral: UUID?
     private var ecgCommandEpoch: UInt64 = 0

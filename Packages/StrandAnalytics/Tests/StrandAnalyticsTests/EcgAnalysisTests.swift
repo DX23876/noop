@@ -212,3 +212,42 @@ final class EcgAnalysisTests: XCTestCase {
         }
     }
 }
+
+final class EcgResampleTests: XCTestCase {
+    func testSlowSignalSurvivesAndLengthMatchesDuration() {
+        let rate = 512.0
+        let source: [Double] = (0..<5120).map { (k: Int) -> Double in
+            500 * sin(2 * Double.pi * 5 * Double(k) / rate)
+        }
+        let out = EcgResample.toHundredHertz(source, rate: rate)
+        XCTAssertEqual(out.count, 1000, accuracy: 1)
+        for k in stride(from: 10, to: 990, by: 37) {
+            let expected = 500 * sin(2 * Double.pi * 5 * Double(k) / 100)
+            XCTAssertEqual(Double(out[k]!), expected, accuracy: 25, "k=\(k)")   // the 5-tap mean costs ~2 %
+        }
+    }
+
+    func testHighFrequencyNoiseIsDamped() {
+        let rate = 512.0
+        let source: [Double] = (0..<5120).map { (k: Int) -> Double in
+            300 * sin(2 * Double.pi * 102.4 * Double(k) / rate)
+        }
+        let out = EcgResample.toHundredHertz(source, rate: rate).compactMap { $0 }.dropFirst(2).dropLast(2)   // edges average a partial window
+        XCTAssertLessThan(out.map { abs(Double($0)) }.max() ?? 0, 30)
+    }
+
+    func testAResampledReferenceStripMeasuresLikeANativeOne() throws {
+        let rate = 512.0
+        let native = EcgAnalysisTests().strip(rTimesMs: EcgAnalysisTests().regular(rrMs: 800))
+        let fine = (0..<Int(30 * rate)).map { k -> Double in
+            let tMs = Double(k) / rate * 1000
+            let i = min(Int(tMs / 10), native.count - 2)
+            let f = tMs / 10 - Double(i)
+            return Double(native[i]!) + (Double(native[i + 1]!) - Double(native[i]!)) * f
+        }
+        let a = try XCTUnwrap(EcgAnalysis.analyze(native))
+        let b = try XCTUnwrap(EcgAnalysis.analyze(EcgResample.toHundredHertz(fine, rate: rate)))
+        XCTAssertEqual(a.meanHeartRate, b.meanHeartRate, accuracy: 0.5)
+        XCTAssertEqual(try XCTUnwrap(a.qtMs), try XCTUnwrap(b.qtMs), accuracy: 10)
+    }
+}

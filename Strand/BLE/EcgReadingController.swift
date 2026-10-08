@@ -78,6 +78,18 @@ final class EcgReadingController: ObservableObject {
     private var pendingVariability: Int?
     private var storedVariability: Int?
     private let clock: () -> TimeInterval
+    /// The reading's timeline for the strap log, on `clock`: when the start list was acknowledged, the
+    /// first R17 frame, the first frame with electrode presence, the first with progress, the verdict,
+    /// and the first variability value after it. #891 asks for exactly these, measured from the first frame.
+    private var timeline = Timeline()
+    private struct Timeline {
+        var commandsAcknowledged: TimeInterval?
+        var firstFrame: TimeInterval?
+        var firstPresence: TimeInterval?
+        var firstProgress: TimeInterval?
+        var verdict: TimeInterval?
+        var frames = 0
+    }
     private var timer: Timer?
 
     init(ble: BLEManager, repo: Repository, clock: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }) {
@@ -114,6 +126,8 @@ final class EcgReadingController: ObservableObject {
             failureReason = "notReady"
             return
         }
+        timeline = Timeline()
+        ble.ecgReadingLog("start wrist=\(wrist.token) retry=\(retry) \(ble.ecgReadingStrapIdentity)")
         phase = .preparing
         startedAt = clock()
         ble.ecgReadingFrameSink = { [weak self] frame in self?.handle(frame) }
@@ -131,7 +145,12 @@ final class EcgReadingController: ObservableObject {
             guard let self else { return }
             let started = await self.ble.ecgReadingStart(wrist: wrist)
             guard self.completion.isCurrent(run), self.phase == .preparing else { return }
-            if started { self.phase = .waiting } else { self.finish(.failed, reason: "prepare") }
+            if started {
+                self.timeline.commandsAcknowledged = self.clock()
+                self.phase = .waiting
+            } else {
+                self.finish(.failed, reason: "prepare")
+            }
         }
     }
 
@@ -159,10 +178,15 @@ final class EcgReadingController: ObservableObject {
 
     private func handle(_ frame: [UInt8]) {
         guard phase.isRunning, let packet = Whoop5Ecg.r17FromFrame(frame) else { return }
+        noteTimeline(packet)
         guard phase != .preparing, phase != .restarting, phase != .stopping else { return }
         pushLive(packet.samples)
         if phase == .finishing {
-            if let value = packet.variabilityRaw { pendingVariability = Int(value) }
+            if let value = packet.variabilityRaw, pendingVariability == nil {
+                pendingVariability = Int(value)
+                let delay = timeline.verdict.map { String(format: "%.1f s", clock() - $0) } ?? "unknown"
+                ble.ecgReadingLog("first variability after the verdict: \(value) (raw), \(delay) after it")
+            }
             finishSavedIfReady()
             return
         }
@@ -209,8 +233,42 @@ final class EcgReadingController: ObservableObject {
         liveSamples = ring
     }
 
+    /// Every CRC-valid R17 frame counts, including the ones that arrive before the start list is acknowledged.
+    private func noteTimeline(_ packet: LabradorR17) {
+        let now = clock()
+        timeline.frames += 1
+        if timeline.firstFrame == nil { timeline.firstFrame = now }
+        if timeline.firstPresence == nil, packet.presence { timeline.firstPresence = now }
+        if timeline.firstProgress == nil, packet.progress.raw > 0, packet.progress.raw != 255 {
+            timeline.firstProgress = now
+        }
+    }
+
+    /// Seconds from the first frame, one decimal, or "none" when the event never happened.
+    private func sinceFirstFrame(_ time: TimeInterval?) -> String {
+        guard let time, let first = timeline.firstFrame else { return "none" }
+        return String(format: "%+.1f s", time - first)
+    }
+
+    private func logTimeline(_ t: LabradorR17) {
+        timeline.verdict = clock()
+        let ack = timeline.commandsAcknowledged.map { start in
+            timeline.firstFrame.map { String(format: "%+.1f s", $0 - start) } ?? "none"
+        } ?? "none"
+        ble.ecgReadingLog("timeline from first frame: presence \(sinceFirstFrame(timeline.firstPresence)), "
+                          + "progress \(sinceFirstFrame(timeline.firstProgress)), verdict "
+                          + "\(sinceFirstFrame(timeline.verdict)); first frame \(ack) after the start list was "
+                          + "acknowledged; \(timeline.frames) frames")
+        ble.ecgReadingLog("terminal frame: result=\(t.arrhythmiaCheckResultRaw) state=\(t.classifierState) "
+                          + "progress=\(t.progress.raw) flags=0x\(String(t.flags.raw, radix: 16)) "
+                          + "unreadable=0x\(String(t.unreadable.raw, radix: 16)) avgHr=\(t.averageHR) "
+                          + "liveHr=\(t.liveHR) quality=\(t.signalQualityRaw) "
+                          + "variability=\(t.variabilityRaw.map(String.init) ?? "unavailable")")
+    }
+
     private func handleTerminal(_ outcome: EcgTerminalOutcome) {
         let t = outcome.terminal
+        logTimeline(t)
         ble.ecgReadingLog("verdict kind=\(outcome.kind.rawValue) resultRaw=\(t.arrhythmiaCheckResultRaw) "
                           + "avgHr=\(t.averageHR) liveHr=\(t.liveHR) quality=\(t.signalQualityRaw) "
                           + "unreadable=0x\(String(t.unreadable.raw, radix: 16)) "

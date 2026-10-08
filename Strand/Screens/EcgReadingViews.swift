@@ -397,25 +397,30 @@ struct EcgReadingListView: View {
 
     var body: some View {
         List {
-            if loaded && readings.isEmpty {
-                Text("No saved ECGs yet.")
-                    .foregroundStyle(StrandPalette.textSecondary)
-            }
-            ForEach(readings) { reading in
-                NavigationLink {
-                    EcgReadingDetailView(reading: reading)
-                } label: {
-                    EcgReadingRowView(reading: reading)
+            Section("WHOOP MG") {
+                if loaded && readings.isEmpty {
+                    Text("No saved ECGs yet.")
+                        .foregroundStyle(StrandPalette.textSecondary)
+                }
+                ForEach(readings) { reading in
+                    NavigationLink {
+                        EcgReadingDetailView(reading: reading)
+                    } label: {
+                        EcgReadingRowView(reading: reading)
+                    }
+                }
+                .onDelete { offsets in
+                    let ids = offsets.map { readings[$0].id }
+                    readings.remove(atOffsets: offsets)
+                    Task {
+                        guard let store = await repo.storeHandle() else { return }
+                        for id in ids { try? await store.deleteEcgReading(id: id) }
+                    }
                 }
             }
-            .onDelete { offsets in
-                let ids = offsets.map { readings[$0].id }
-                readings.remove(atOffsets: offsets)
-                Task {
-                    guard let store = await repo.storeHandle() else { return }
-                    for id in ids { try? await store.deleteEcgReading(id: id) }
-                }
-            }
+            #if os(iOS)
+            AppleWatchEcgSection(noopReadings: readings)
+            #endif
         }
         .navigationTitle("Saved ECGs")
         .task(id: controller.savedRevision) {
