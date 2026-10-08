@@ -153,6 +153,39 @@ final class EcgAnalysisTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(f.tEndMs), 340, accuracy: 15)
     }
 
+    func testIrregularRhythmStillReportsRateAndIrregularity() throws {
+        var seed: UInt64 = 99
+        var times: [Double] = []
+        var t = 400.0
+        var intervals: [Double] = []
+        while t < 29_000 {
+            times.append(t)
+            seed = seed &* 6364136223846793005 &+ 1442695040888963407
+            let rr = 450 + Double(seed >> 54) / 1023 * 650          // 450 to 1100 ms, no pattern
+            intervals.append(rr)
+            t += rr
+        }
+        var beat = Beat()
+        beat.p.microvolts = 0                                       // no P waves, as in atrial fibrillation
+        let result = try XCTUnwrap(EcgAnalysis.analyze(strip(rTimesMs: times, beat: beat)))
+        let expected = 60_000 / (intervals.dropLast().reduce(0, +) / Double(intervals.count - 1))
+        XCTAssertEqual(result.meanHeartRate, expected, accuracy: 3)
+        XCTAssertGreaterThan(result.irregularBeats, 5)
+        XCTAssertNil(result.prMs)
+    }
+
+    func testAlternatingShortLongRhythmStillReportsRate() throws {
+        // Every interval is 40 % off its neighbours' median, so every beat is irregular by timing, yet
+        // every QRS has the same shape (an early beat of normal shape, as in atrial bigeminy).
+        var times: [Double] = []
+        var t = 400.0
+        var short = true
+        while t < 29_000 { times.append(t); t += short ? 500 : 1100; short.toggle() }
+        let result = try XCTUnwrap(EcgAnalysis.analyze(strip(rTimesMs: times)))
+        XCTAssertEqual(result.meanHeartRate, 75, accuracy: 2)
+        XCTAssertGreaterThan(result.irregularBeats, 10)
+    }
+
     func testNoiseAloneDoesNotProduceRhythm() {
         var seed: UInt64 = 17
         let samples: [Int16?] = (0..<3000).map { _ in

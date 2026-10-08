@@ -1837,7 +1837,7 @@ public final class BLEManager: NSObject, ObservableObject {
             peripheral = nil
             resetCharacteristics()
             state.connected = false
-        ecgReadingLinkLost()
+            ecgReadingLinkLost()
             state.bonded = false
             state.encryptedBond = false
             state.pairingHint = nil
@@ -2295,8 +2295,7 @@ public final class BLEManager: NSObject, ObservableObject {
                      writeType: CBCharacteristicWriteType = .withoutResponse) {
         // #314 parity: CoreBluetooth already covers both Android defects here — this `p.state == .connected`
         // guard makes a write a no-op once the radio powers off (no DeadObjectException to crash on), and
-        // centralManagerDidUpdateState publishes state.connected = false
-        ecgReadingLinkLost() on .poweredOff, so the iOS/macOS UI
+        // centralManagerDidUpdateState publishes state.connected = false on .poweredOff, so the iOS/macOS UI
         // can't show a stale-connected link. The Android fix re-creates both behaviours; no Swift change needed.
         guard state.connected, let p = peripheral, p.state == .connected, let ch = cmdCharacteristic else {
             let reason = state.connected ? "command characteristic unavailable" : "not connected"
@@ -2529,7 +2528,7 @@ public final class BLEManager: NSObject, ObservableObject {
     /// flag, kick the strap with sendHistoricalData, and arm the idle timeout.
     @discardableResult
     private func beginBackfill() -> Bool {
-        guard ecgCaptureDeviceId == nil, !ecgMayBeRunning else { return false }
+        guard ecgCaptureDeviceId == nil else { return false }
         // #1598: this whole block is WHOOP 4.0 ONLY. A 5/MG has no GET_CLOCK correlation to chase —
         // identity is its correct decode — and deriving one from the Data Range would misdate its
         // history. See BackfillContinuation.derivesClockCorrelation for why.
@@ -4656,9 +4655,15 @@ public final class BLEManager: NSObject, ObservableObject {
             ecgAbortOverride = command == .abortHistoricalTransmits
             defer { ecgStopOverride = false; ecgAbortOverride = false }
             send(command, payload: request.payload)
-            guard seq == expectedSequence else { ecgResolvePending(false); return }
+            guard seq == expectedSequence else {
+                log("ECG reading: opcode \(request.opcode) was not sent (link or gate refused it)")
+                ecgResolvePending(false)
+                return
+            }
+            log("ECG reading: → opcode \(request.opcode) seq \(expectedSequence) payload=\(hex(request.payload))")
             ecgReplyTimeout = Task { @MainActor [weak self] in
                 do { try await Task.sleep(nanoseconds: 4_000_000_000) } catch { return }
+                self?.log("ECG reading: ← opcode \(request.opcode) seq \(expectedSequence) no reply within 4 s")
                 self?.ecgResolvePending(false)
             }
         }
@@ -4667,6 +4672,7 @@ public final class BLEManager: NSObject, ObservableObject {
     private func ecgReadingHandleReply(_ frame: [UInt8]) {
         guard let pending = ecgReplyPending,
               let result = pending.gate.resolve(frame: frame, now: ProcessInfo.processInfo.systemUptime) else { return }
+        log("ECG reading: ← opcode \(pending.gate.opcode) seq \(pending.gate.sequence) \(result)")
         ecgResolvePending(result == .accepted)
     }
 
@@ -5041,7 +5047,9 @@ public final class BLEManager: NSObject, ObservableObject {
     /// gate AND the BackfillPolicy rate-limiter for the trigger. On a go: records the attempt time
     /// (persisted) and starts the offload.
     func requestSync(_ trigger: BackfillTrigger) {
-        if ecgCaptureDeviceId != nil || ecgMayBeRunning {
+        // Only while a reading owns the link. The persisted `ecgMayBeRunning` latch must never gate a
+        // sync: it survives a reading the link dropped out of, and would then stop every offload.
+        if ecgCaptureDeviceId != nil {
             ecgDeferredSync = trigger
             return
         }
@@ -5946,6 +5954,8 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
                     armUnauthorizedSettleDeadline()
                 }
             case .poweredOff:
+                // The link is gone with the radio; a reading in flight must stop waiting for replies.
+                ecgReadingLinkLost()
                 state.lastSyncError = "Bluetooth is off. Turn it on to connect to your strap."
                 log("Bluetooth is off — cannot scan or connect")
                 radioStateErrorShown = true
@@ -6665,7 +6675,7 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
             discoverPrimaryServices(on: p)
         } else {
             state.connected = false
-        ecgReadingLinkLost()
+            ecgReadingLinkLost()
             log("Restored DISCONNECTED peripheral \(p.identifier) — reconnect on poweredOn")
             if central.state == .poweredOn {
                 connectRestored(p, reason: "willRestoreState")

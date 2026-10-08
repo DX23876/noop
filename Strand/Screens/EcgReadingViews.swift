@@ -49,6 +49,8 @@ enum EcgCategoryText {
     static func failure(_ reason: String?) -> LocalizedStringKey {
         switch reason {
         case "notReady": return "Connect your WHOOP MG and switch on the ECG experiment first."
+        case "prepare": return "The strap did not confirm the start commands."
+        case "restart": return "The strap did not confirm the restart."
         case "disconnected": return "The strap disconnected during the reading."
         case "noData": return "The strap sent no ECG data."
         case "timeout": return "The strap did not finish within two minutes."
@@ -153,10 +155,17 @@ struct EcgReadingSheet: View {
     }
 
     @ViewBuilder private var content: some View {
+        if controller.cleanupIncomplete && !controller.phase.isRunning {
+            Label("The strap did not confirm that ECG recording stopped. Starting a new reading stops it first.",
+                  systemImage: "exclamationmark.triangle")
+                .font(StrandFont.subhead)
+                .foregroundStyle(StrandPalette.statusWarningForeground)
+                .fixedSize(horizontal: false, vertical: true)
+        }
         switch controller.phase {
         case .idle, .cancelled, .failed:
             setup
-        case .waiting, .active, .contactLost, .restarting, .finishing:
+        case .preparing, .waiting, .active, .contactLost, .restarting, .finishing, .stopping:
             running
         case .completed:
             EcgSavedResult(controller: controller) { controller.begin(wrist: wrist) }
@@ -251,6 +260,8 @@ struct EcgReadingSheet: View {
 
     private var statusTitle: LocalizedStringKey {
         switch controller.phase {
+        case .preparing: return "Preparing the strap"
+        case .stopping: return "Stopping"
         case .waiting: return "Touch the clasp"
         case .contactLost: return "Contact lost"
         case .restarting: return "Restarting"
@@ -261,6 +272,8 @@ struct EcgReadingSheet: View {
 
     private var statusHint: LocalizedStringKey {
         switch controller.phase {
+        case .preparing: return "Waiting for the strap to confirm each command."
+        case .stopping: return "Switching the strap's ECG off."
         case .waiting: return "Hold both indents with the fingers of your other hand."
         case .contactLost: return "Hold the clasp again; the reading continues."
         case .restarting: return "Keep holding the clasp."

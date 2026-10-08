@@ -178,10 +178,12 @@ public enum EcgAnalysis {
 
         // 4. Median beat from the regular beats that look like it.
         let pre = n(0.35), post = n(0.55)
-        let irregularBeats = Set(irregular.map { rr[$0].beat })
+        // Every beat is a candidate, irregular timing included: a premature beat with a different shape
+        // fails the correlation below, while an irregular rhythm (atrial fibrillation) keeps normal QRS
+        // shapes and must still get a median beat. Excluding by timing would leave such a strip without
+        // any rhythm values at all, because the shape gate below requires a median beat.
         var windows: [[Double]] = []
-        for (k, beat) in beats.enumerated() {
-            if irregularBeats.contains(k) || irregularBeats.contains(k + 1) { continue }
+        for beat in beats {
             let run = runs[beat.run]
             guard beat.index - pre >= run.lowerBound, beat.index + post < run.upperBound else { continue }
             let iso = median((beat.index - n(0.07)...beat.index - n(0.03)).map { y[$0]! })
