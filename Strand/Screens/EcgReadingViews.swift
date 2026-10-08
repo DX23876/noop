@@ -550,7 +550,7 @@ struct EcgReadingDetailView: View {
 /// Nothing here is stored; a better method later re-measures every saved reading.
 struct EcgMeasurementsSection: View {
     let samples: [Int16?]
-    /// The strip comes from the WHOOP MG: its high-pass is undone first, and PR stays hidden (see below).
+    /// The strip comes from the WHOOP MG: its high-pass is undone before anything is measured.
     var fromStrap = true
     @State private var analysis: EcgAnalysis.Result?
     @State private var done = false
@@ -617,23 +617,7 @@ struct EcgMeasurementsSection: View {
             }
             section("Intervals") {
                 VStack(spacing: 0) {
-                    // On the strap the P wave is about as small as the noise: PR came out 40 to 70 ms below the
-                    // Apple Watch in every pair, with or without the filter undone, so it is not shown.
-                    if fromStrap {
-                        HStack(alignment: .firstTextBaseline) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("PR interval").font(StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
-                                Text("The strap's P wave is too faint to time reliably.")
-                                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                            Spacer()
-                            Text("not shown").font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-                        }
-                        .padding(.vertical, 12)
-                    } else {
-                        interval("PR interval", a.prMs, typical: "Typical: 120 to 200 ms")
-                    }
+                    interval("PR interval", a.prMs, typical: "Typical: 120 to 200 ms")
                     Divider()
                     interval("QRS duration", a.qrsMs, typical: "Typical: under 120 ms")
                     Divider()
@@ -645,7 +629,7 @@ struct EcgMeasurementsSection: View {
                 .background(StrandPalette.surfaceRaised)
                 .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous))
             }
-            Text("Experimental and not validated. The trace has one sample every 10 ms, so no interval can be finer than that, and noise or an unclear wave edge can shift it further. A single wrist lead cannot show the heart's axis or the ST changes a 12-lead ECG looks for.")
+            Text("Experimental. Checked against cardiologist annotations (PhysioNet QT Database) and, for the strap, against an Apple Watch, but not clinically validated. One sample every 10 ms limits every interval. A single wrist lead cannot show the heart's axis or the ST changes a 12-lead ECG looks for.")
                 .font(StrandFont.footnote)
                 .foregroundStyle(StrandPalette.textTertiary)
                 .fixedSize(horizontal: false, vertical: true)

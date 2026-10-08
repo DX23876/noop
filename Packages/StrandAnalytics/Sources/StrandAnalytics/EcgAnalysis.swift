@@ -241,9 +241,35 @@ public enum EcgAnalysis {
         var pr: Double?, qrs: Double?, qt: Double?, qtcF: Double?, qtcB: Double?
         if !template.isEmpty {
             fiducials = locateFiducials(template.map { polarity * $0 }, rIndex: pre, fs: fs, meanRRms: meanRR)
+            // PR from the wavelet delineator: on the QT Database it finds the P onset in 98 to 100 % of
+            // windows (the slope method above: 56 to 77 %) at the same accuracy, and on the strap it
+            // brings PR to within 12 ms of an Apple Watch instead of 40 to 70 ms short. Its QRS onset
+            // pairs with its own P onset; QT keeps the onset of `locateFiducials`, which measured better.
+            // The paper's P significance is relative to the search window alone, so a beat with no P wave
+            // (atrial fibrillation) still yields one out of the noise. A P wave has to reach 4 % of the R
+            // wave on the median beat (it is typically 5 to 15 %), or no PR is reported.
+            let wavelet = (sampleRate == 100 ? WaveletDelineator.pWave(template, rIndex: pre, meanRRms: meanRR) : nil)
+                .flatMap { w -> (pOnsetMs: Double, qrsOnsetMs: Double)? in
+                    let lo = max(0, pre + Int((w.pOnsetMs / 1000 * fs).rounded()))
+                    // up to 20 ms before the QRS onset, where the paper's own P search window ends
+                    let hi = min(template.count - 1, pre + Int(((w.qrsOnsetMs - 20) / 1000 * fs).rounded()))
+                    guard lo < hi else { return nil }
+                    let segment = template[lo...hi]
+                    let height = (segment.max() ?? 0) - (segment.min() ?? 0)
+                    return height >= 0.04 * abs(template[pre]) ? w : nil
+                }
+            if let f = fiducials {
+                fiducials = Fiducials(pOnsetMs: wavelet.map { $0.pOnsetMs } ?? f.pOnsetMs, pPeakMs: f.pPeakMs,
+                                      qrsOnsetMs: f.qrsOnsetMs, jPointMs: f.jPointMs, tPeakMs: f.tPeakMs,
+                                      tEndMs: f.tEndMs)
+            }
             if let f = fiducials {
                 let rrSeconds = (nn.isEmpty ? meanRR : nn.reduce(0, +) / Double(nn.count)) / 1000
-                if let pOn = f.pOnsetMs { pr = within(f.qrsOnsetMs - pOn, 80...320) }
+                if let w = wavelet {
+                    pr = within(w.qrsOnsetMs - w.pOnsetMs, 80...320)
+                } else if let pOn = f.pOnsetMs {
+                    pr = within(f.qrsOnsetMs - pOn, 80...320)
+                }
                 qrs = within(f.jPointMs - f.qrsOnsetMs, 40...200)
                 if let tEnd = f.tEndMs, let value = within(tEnd - f.qrsOnsetMs, 200...650) {
                     qt = value
@@ -411,6 +437,120 @@ public enum EcgAnalysis {
 
     static func within(_ value: Double, _ range: ClosedRange<Double>) -> Double? {
         range.contains(value) ? value : nil
+    }
+}
+
+/// The P-wave part of the wavelet ECG delineator of Martinez, Almeida, Olmos, Rocha and Laguna, "A
+/// wavelet-based ECG delineator: evaluation on standard databases", IEEE Trans. Biomed. Eng. 51(4), 2004,
+/// applied to a median beat. The beat is brought from 100 Hz to the paper's 250 Hz by linear interpolation,
+/// then transformed with the paper's quadratic-spline wavelet a trous (prototype filters h = [1 3 3 1] / 8,
+/// g = 2 [1 -1], dilated by 2^(k-1) at scale 2^k). The thresholds are the paper's: QRS onset where |W_2^2|
+/// falls under 0.05 (0.07 for a negative maximum) of the first significant modulus maximum; P maxima
+/// significant above 0.02 RMS of W_2^4 in the search window (A.4); P onset where |W_2^4| falls under 0.5 of
+/// the first P maximum, or at a local minimum of |W| first.
+enum WaveletDelineator {
+    static let fs = 250.0
+
+    /// P onset and QRS onset in ms relative to R, or nil when either is not found.
+    static func pWave(_ template100: [Double], rIndex: Int, meanRRms: Double) -> (pOnsetMs: Double, qrsOnsetMs: Double)? {
+        guard template100.count > 2 else { return nil }
+        var x: [Double] = []
+        var k = 0
+        while Double(k) * 0.4 <= Double(template100.count - 1) + 1e-9 {
+            let t = Double(k) * 0.4
+            let i = min(Int(t), template100.count - 2)
+            x.append(template100[i] + (template100[i + 1] - template100[i]) * (t - Double(i)))
+            k += 1
+        }
+        let pad = 128
+        x = Array(repeating: x[0], count: pad) + x + Array(repeating: x[x.count - 1], count: pad)
+        let r = Int((Double(rIndex) * 2.5).rounded(.toNearestOrEven)) + pad
+        let w = transform(x, levels: 4)
+        guard let w2 = w[2], let w4 = w[4] else { return nil }
+        func S(_ seconds: Double) -> Int { Int((seconds * fs).rounded(.toNearestOrEven)) }
+        func ms(_ i: Int) -> Double { Double(i - r) * 1000 / fs }
+
+        let near = modulusMaxima(w2, r - S(0.12), r + S(0.12))
+        guard let peak = near.map({ abs(w2[$0]) }).max() else { return nil }
+        let significant = near.filter { abs(w2[$0]) > 0.1 * peak }
+        guard significant.count >= 2 else { return nil }
+        let first = significant[0]
+        let xiOn = (w2[first] > 0 ? 0.05 : 0.07) * abs(w2[first])
+        guard let qon = walk(w2, from: first, step: -1, below: xiOn, stop: r - S(0.2)) else { return nil }
+
+        let rr = meanRRms / 1000
+        let lo = qon - S(min(0.30, 0.45 * rr)), hi = qon - S(0.02)
+        guard lo >= 0, hi > lo else { return nil }
+        let energy = (lo..<hi).map { w4[$0] * w4[$0] }.reduce(0, +) / Double(hi - lo)
+        let eps = 0.02 * energy.squareRoot()
+        let candidates = modulusMaxima(w4, lo, hi).filter { abs(w4[$0]) > eps }
+        guard candidates.count >= 2 else { return nil }
+        // The two largest maxima bound the P wave; the earlier one carries its onset. Ties keep index order,
+        // as a stable sort does.
+        let ranked = candidates.enumerated().sorted { a, b in
+            let ha = abs(w4[a.element]), hb = abs(w4[b.element])
+            return ha != hb ? ha > hb : a.offset < b.offset
+        }
+        let largest = ranked.prefix(2).map { $0.element }.sorted()
+        let na = largest[0]
+        guard let pon = walk(w4, from: na, step: -1, below: 0.5 * abs(w4[na]), stop: lo - S(0.1)) else { return nil }
+        return (ms(pon), ms(qon))
+    }
+
+    /// W_2^k for k = 1 ... levels, signed so W > 0 on a rising slope, each the same length as `x` and
+    /// centred on the equivalent filter's midpoint (the filters are symmetric, so there is no residual delay).
+    static func transform(_ x: [Double], levels: Int) -> [Int: [Double]] {
+        let h = [1.0, 3, 3, 1].map { $0 / 8 }, g = [2.0, -2]
+        var result: [Int: [Double]] = [:]
+        var approx = [1.0]
+        for k in 1...levels {
+            let gk = convolve(approx, dilate(g, k)), hk = convolve(approx, dilate(h, k))
+            result[k] = convolveSame(x, gk).map { -$0 }
+            approx = hk
+        }
+        return result
+    }
+
+    static func dilate(_ f: [Double], _ k: Int) -> [Double] {
+        guard k > 1 else { return f }
+        let step = 1 << (k - 1)
+        var out = [Double](repeating: 0, count: (f.count - 1) * step + 1)
+        for (i, v) in f.enumerated() { out[i * step] = v }
+        return out
+    }
+
+    static func convolve(_ a: [Double], _ b: [Double]) -> [Double] {
+        var out = [Double](repeating: 0, count: a.count + b.count - 1)
+        for i in a.indices { for j in b.indices { out[i + j] += a[i] * b[j] } }
+        return out
+    }
+
+    /// numpy's convolve(x, k, mode="same"): the full convolution's central len(x) values.
+    static func convolveSame(_ x: [Double], _ k: [Double]) -> [Double] {
+        let offset = (k.count - 1) / 2
+        return x.indices.map { i in
+            let n = i + offset
+            var sum = 0.0
+            for j in k.indices { let m = n - j; if m >= 0 && m < x.count { sum += x[m] * k[j] } }
+            return sum
+        }
+    }
+
+    static func modulusMaxima(_ w: [Double], _ lo: Int, _ hi: Int) -> [Int] {
+        let a = max(lo, 1), b = min(hi, w.count - 2)
+        guard a <= b else { return [] }
+        return (a...b).filter { abs(w[$0]) >= abs(w[$0 - 1]) && abs(w[$0]) > abs(w[$0 + 1]) }
+    }
+
+    /// From `start`, step until |W| falls under `below` or reaches a local minimum, never passing `stop`.
+    static func walk(_ w: [Double], from start: Int, step: Int, below: Double, stop: Int) -> Int? {
+        var i = start
+        while i > 0, i < w.count - 1, (i - stop) * step < 0 {
+            if abs(w[i]) < below { return i }
+            if abs(w[i + step]) > abs(w[i]) { return i }
+            i += step
+        }
+        return nil
     }
 }
 

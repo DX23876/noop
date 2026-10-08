@@ -58,7 +58,10 @@ final class EcgAnalysisTests: XCTestCase {
         let tEnd = try XCTUnwrap(f.tEndMs)
         XCTAssertGreaterThanOrEqual(tEnd, 335)                            // 260 + 2 x 40, less a sample
         XCTAssertLessThanOrEqual(tEnd, 385)                               // 260 + 3 x 40, plus a sample
-        XCTAssertEqual(try XCTUnwrap(f.pOnsetMs), -200, accuracy: 12)     // -160 - 2 x 20
+        // A Gaussian P wave has no sharp start either; the wavelet delineator puts it 2 to 3 sigma early.
+        let pOnset = try XCTUnwrap(f.pOnsetMs)
+        XCTAssertLessThanOrEqual(pOnset, -195)                            // -160 - 2 x 20, plus a sample
+        XCTAssertGreaterThanOrEqual(pOnset, -225)                         // -160 - 3 x 20, less a sample
         let qrs = try XCTUnwrap(result.qrsMs)
         XCTAssertTrue((60...110).contains(qrs), "QRS \(qrs)")
         let qt = try XCTUnwrap(result.qtMs)
