@@ -1,6 +1,5 @@
 import SwiftUI
 import Foundation
-import Combine
 import StrandDesign
 import StrandAnalytics
 
@@ -8,7 +7,8 @@ import StrandAnalytics
 //
 // Reimplements the phone Breathe trainer on-watch: [BreathProtocolCatalog.watchSubset] protocols,
 // stage-accurate inhale/hold/exhale pacing, session length Open/5/10/15 with auto-stop, and Taptic cues
-// (one tap inhale, double exhale; holds silent). Zero-arg init; nav lane wires it by name.
+// (one tap inhale, double exhale; holds silent). Pattern and length are chosen in an Options sheet so the
+// page itself stays a ring and a button. Zero-arg init; the page deck wires it by name.
 
 struct WatchBreatheView: View {
 
@@ -51,6 +51,9 @@ struct WatchBreatheView: View {
     @State private var running = false
 
     @State private var ringProgress: CGFloat = 0
+    /// The curve for the next ring change. Applied to the orb alone so a 5 s inhale never drags the
+    /// text changes made in the same update along with it.
+    @State private var ringAnimation: Animation?
     @State private var phase: Phase = .inhale
     @State private var phaseLabel: String? = nil
     @State private var stageIndex: Int = 0
@@ -60,9 +63,8 @@ struct WatchBreatheView: View {
 
     @State private var breathCount = 0
     @State private var sessionSeconds = 0
-
-    private let phaseTimer = Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()
-    private let secondTimer = Timer.publish(every: 1.0, on: .main, in: .common).autoconnect()
+    @State private var sessionStart = Date()
+    @State private var showingOptions = false
 
     private let reducedSteadyRing: CGFloat = 0.5
 
@@ -80,46 +82,46 @@ struct WatchBreatheView: View {
     }
 
     var body: some View {
-        GeometryReader { geo in
-            let totalH = geo.size.height
-            let totalW = geo.size.width
-            let vSpacing: CGFloat = 4
-
-            let headerH: CGFloat = 14
-            let lengthH: CGFloat = 26
-            let pillsH: CGFloat = 28
-            let controlH: CGFloat = 36
-            let reserved = headerH + lengthH + pillsH + controlH + vSpacing * 4
-
-            let remaining = max(totalH - reserved, 36)
-            let ringSide = min(min(totalW, remaining), 140)
-
-            VStack(spacing: vSpacing) {
-                paceLine
-                    .frame(height: headerH)
-                sessionLengthPicker
-                    .frame(height: lengthH)
-                ring(side: ringSide)
-                Spacer(minLength: 0)
-                pacePicker
-                    .frame(height: pillsH)
-                control
-                    .frame(height: controlH)
+        // The face holds only what a session needs: the breathing ring, one status line and Start/Stop.
+        // The pattern and the length live in an Options sheet behind the toolbar button, so the ring gets
+        // the screen instead of sharing it with two rows of pills.
+        // Start/Stop sits in the system bottom bar, so the ring keeps the height a full-width button
+        // would take. The bar floats over the bottom edge, so the ring stops short of it and the status
+        // line sits above the ring, under the title.
+        VStack(spacing: 4) {
+            statusLine
+            ring
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .padding(.horizontal, 4)
+        .padding(.bottom, 16)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Options", systemImage: "slider.horizontal.3") { showingOptions = true }
+                    .disabled(running)
             }
-            .frame(width: totalW, height: totalH)
-            .padding(.horizontal, 4)
+            ToolbarItemGroup(placement: .bottomBar) {
+                Spacer()
+                control
+                Spacer()
+            }
         }
-        .background(StrandPalette.surfaceBase.ignoresSafeArea())
-        .onReceive(phaseTimer) { now in
+        .sheet(isPresented: $showingOptions) { optionsSheet }
+        // One loop drives the whole session and only exists while a session runs (task(id:) cancels it
+        // on Stop). Times are read off the clock rather than counted, so a dimmed wrist or a late wake-up
+        // never stretches the session or a phase.
+        .task(id: running) {
             guard running else { return }
-            advance(now: now)
-            updateCountdown(now: now)
-        }
-        .onReceive(secondTimer) { _ in
-            guard running else { return }
-            sessionSeconds += 1
-            if let target = sessionLength.targetSeconds, sessionSeconds >= target {
-                stop()
+            while running, !Task.isCancelled {
+                let now = Date()
+                advance(now: now)
+                updateCountdown(now: now)
+                sessionSeconds = Int(now.timeIntervalSince(sessionStart))
+                if let target = sessionLength.targetSeconds, sessionSeconds >= target {
+                    stop()
+                    break
+                }
+                try? await Task.sleep(for: .milliseconds(100))
             }
         }
         .onChange(of: protocolId) { _, newId in
@@ -133,38 +135,43 @@ struct WatchBreatheView: View {
 
     // MARK: - Ring
 
-    private func ring(side: CGFloat) -> some View {
-        let maxDiameter = side
-        let minScale: CGFloat = 0.46
-        let scale = minScale + (1.0 - minScale) * ringProgress
-        let guideDiameter = maxDiameter * scale
+    private var ring: some View {
+        GeometryReader { geo in
+            let maxDiameter = min(geo.size.width, geo.size.height)
+            let minScale: CGFloat = 0.46
+            let guideDiameter = maxDiameter * (minScale + (1.0 - minScale) * ringProgress)
 
-        return ZStack {
-            Circle()
-                .strokeBorder(StrandPalette.restColor.opacity(0.26), lineWidth: 1)
-                .frame(width: maxDiameter, height: maxDiameter)
+            ZStack {
+                Circle()
+                    .strokeBorder(StrandPalette.restColor.opacity(0.26), lineWidth: 1)
+                    .frame(width: maxDiameter, height: maxDiameter)
 
-            Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [StrandPalette.restBright.opacity(0.85),
-                                 StrandPalette.restColor.opacity(0.55),
-                                 StrandPalette.restDeep.opacity(0.80)],
-                        center: .init(x: 0.4, y: 0.35),
-                        startRadius: 1,
-                        endRadius: guideDiameter * 0.62
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [StrandPalette.restBright.opacity(0.85),
+                                     StrandPalette.restColor.opacity(0.55),
+                                     StrandPalette.restDeep.opacity(0.80)],
+                            center: .init(x: 0.4, y: 0.35),
+                            startRadius: 1,
+                            endRadius: guideDiameter * 0.62
+                        )
                     )
-                )
-                .frame(width: guideDiameter, height: guideDiameter)
+                    .frame(width: guideDiameter, height: guideDiameter)
+                    .animation(ringAnimation, value: ringProgress)
 
-            Circle()
-                .strokeBorder(StrandPalette.restBright.opacity(running ? 0.70 : 0.40), lineWidth: 2)
-                .frame(width: guideDiameter, height: guideDiameter)
+                Circle()
+                    .strokeBorder(StrandPalette.restBright.opacity(running ? 0.70 : 0.40), lineWidth: 2)
+                    .frame(width: guideDiameter, height: guideDiameter)
+                    .animation(ringAnimation, value: ringProgress)
 
-            centerLabel
+                // The page width, not the ring's: a long localized pace unit may graze the hairline track
+                // rather than truncate.
+                centerLabel
+                    .frame(maxWidth: geo.size.width)
+            }
+            .frame(width: geo.size.width, height: geo.size.height)
         }
-        .frame(width: maxDiameter, height: maxDiameter)
-        .frame(maxWidth: .infinity)
     }
 
     @ViewBuilder
@@ -172,36 +179,36 @@ struct WatchBreatheView: View {
         VStack(spacing: 2) {
             if running {
                 Text(phaseWord)
-                    .font(StrandFont.rounded(14, weight: .semibold))
-                    .foregroundStyle(StrandPalette.restBright)
+                    .font(StrandFont.rounded(15, weight: .semibold))
+                    .foregroundStyle(StrandPalette.textPrimary)
+                    .multilineTextAlignment(.center)
                     .animation(.easeInOut(duration: 0.2), value: phase)
                 if !isGuided {
                     Text("\(max(phaseRemaining, 0))")
-                        .font(StrandFont.number(26))
+                        .font(StrandFont.number(28))
                         .foregroundStyle(StrandPalette.textPrimary)
                         .monospacedDigit()
                         .contentTransition(.numericText())
                 }
             } else {
-                Text("Breathe")
-                    .font(StrandFont.rounded(15, weight: .semibold))
+                // The pattern's name and length are on the status line below; the centre carries the pace.
+                Text(idleDetail)
+                    .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textPrimary)
-                if selectedBpm > 0 {
-                    Text(String(format: String(localized: "%@ br/min"), String(format: "%.1f", selectedBpm)))
-                        .font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.textTertiary)
-                } else if isGuided {
-                    Text(String(localized: "Guided"))
-                        .font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.textTertiary)
-                }
+                    .multilineTextAlignment(.center)
             }
         }
-        .lineLimit(1)
-        .minimumScaleFactor(0.55)
-        .padding(.horizontal, 2)
+        .lineLimit(2)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(running ? phaseAccessibilityLabel : String(localized: "Ready to breathe"))
+    }
+
+    /// The idle centre's second line: the pace for a timed pattern, "Guided" for a cue-driven one.
+    private var idleDetail: String {
+        if isGuided { return String(localized: "Guided") }
+        guard selectedBpm > 0 else { return sessionLength.label }
+        let bpm = selectedBpm.formatted(.number.precision(.fractionLength(1)))
+        return String(format: String(localized: "%@ br/min"), bpm)
     }
 
     private var phaseWord: String {
@@ -226,14 +233,15 @@ struct WatchBreatheView: View {
         }
     }
 
-    // MARK: - Pickers
+    // MARK: - Status line
 
-    private var paceLine: some View {
+    /// Idle: the chosen pattern and length. Running: breaths and time against the target.
+    private var statusLine: some View {
         Text(running ? sessionReadout : idlePaceLine)
-            .font(StrandFont.caption)
-            .foregroundStyle(StrandPalette.textTertiary)
+            .font(StrandFont.footnote)
+            .foregroundStyle(StrandPalette.textSecondary)
+            .monospacedDigit()
             .lineLimit(1)
-            .minimumScaleFactor(0.7)
             .frame(maxWidth: .infinity)
     }
 
@@ -252,56 +260,30 @@ struct WatchBreatheView: View {
         return String(localized: "\(title) · \(sessionLength.label)")
     }
 
-    private var sessionLengthPicker: some View {
-        HStack(spacing: 4) {
-            ForEach(SessionLength.allCases, id: \.self) { len in
-                Button {
-                    StrandHaptic.selection.play()
-                    sessionLength = len
-                } label: {
-                    Text(len.label)
-                        .font(StrandFont.caption)
-                        .foregroundStyle(len == sessionLength ? StrandPalette.textPrimary : StrandPalette.textTertiary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 4)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(len == sessionLength ? StrandPalette.restColor.opacity(0.22) : StrandPalette.surfaceRaised)
-                        )
-                }
-                .buttonStyle(.plain)
-                .disabled(running)
-            }
-        }
-    }
+    // MARK: - Options
 
-    private var pacePicker: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 4) {
-                ForEach(protocols, id: \.id) { proto in
-                    Button {
-                        StrandHaptic.selection.play()
-                        protocolId = proto.id
-                    } label: {
-                        Text(watchLabel(for: proto))
-                            .font(StrandFont.caption)
-                            .foregroundStyle(proto.id == protocolId ? StrandPalette.textPrimary : StrandPalette.textTertiary)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 5)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .fill(proto.id == protocolId ? StrandPalette.restColor.opacity(0.22) : StrandPalette.surfaceRaised)
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .strokeBorder(proto.id == protocolId ? StrandPalette.restBright.opacity(0.6) : Color.clear,
-                                                  lineWidth: 1)
-                            )
+    /// Pattern and length as two inline pickers, the standard watch list with a checkmark on the choice.
+    private var optionsSheet: some View {
+        NavigationStack {
+            List {
+                Picker("Pattern", selection: $protocolId) {
+                    ForEach(protocols, id: \.id) { proto in
+                        Text(watchLabel(for: proto)).tag(proto.id)
                     }
-                    .buttonStyle(.plain)
                 }
+                .pickerStyle(.inline)
+
+                Picker("Length", selection: $sessionLength) {
+                    ForEach(SessionLength.allCases, id: \.self) { length in
+                        Text(length.label).tag(length)
+                    }
+                }
+                .pickerStyle(.inline)
             }
+            .navigationTitle("Options")
         }
+        .onChange(of: protocolId) { StrandHaptic.selection.play() }
+        .onChange(of: sessionLength) { StrandHaptic.selection.play() }
     }
 
     private func watchLabel(for proto: BreathProtocol) -> String {
@@ -323,25 +305,16 @@ struct WatchBreatheView: View {
     // MARK: - Control
 
     private var control: some View {
+        // Icon-only in the bottom bar; the label still carries the word for VoiceOver.
         Button {
             running ? stop() : start()
         } label: {
-            HStack(spacing: 6) {
-                Image(systemName: running ? "stop.fill" : "play.fill")
-                    .font(.system(size: 13, weight: .semibold))
-                Text(running ? String(localized: "Stop") : String(localized: "Start"))
-                    .font(StrandFont.rounded(14, weight: .semibold))
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(running ? StrandPalette.statusCritical.opacity(0.22)
-                                  : StrandPalette.restColor.opacity(0.28))
-            )
-            .foregroundStyle(running ? StrandPalette.statusCritical : StrandPalette.restBright)
+            Label(running ? String(localized: "Stop") : String(localized: "Start"),
+                  systemImage: running ? "stop.fill" : "play.fill")
+                .labelStyle(.iconOnly)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.borderedProminent)
+        .tint(running ? StrandPalette.statusCritical : StrandPalette.restColor)
         .accessibilityLabel(running ? String(localized: "Stop session") : String(localized: "Start session"))
     }
 
@@ -353,6 +326,7 @@ struct WatchBreatheView: View {
 
     private func start() {
         running = true
+        sessionStart = Date()
         sessionSeconds = 0
         breathCount = 0
         stageIndex = 0
@@ -362,7 +336,8 @@ struct WatchBreatheView: View {
             phase = .textOnly
             phaseLabel = selectedProtocol?.title
             phaseDeadline = .distantFuture
-            if reduceMotion { ringProgress = reducedSteadyRing } else { ringProgress = reducedSteadyRing }
+            ringAnimation = nil
+            ringProgress = reducedSteadyRing
         } else {
             armCurrentStage(from: Date(), buzz: true)
         }
@@ -374,11 +349,8 @@ struct WatchBreatheView: View {
         phaseDeadline = .distantFuture
         phaseLabel = nil
         StrandHaptic.commit.play()
-        if reduceMotion {
-            ringProgress = 0
-        } else {
-            withAnimation(.easeInOut(duration: 0.7)) { ringProgress = 0 }
-        }
+        ringAnimation = reduceMotion ? nil : .easeInOut(duration: 0.7)
+        ringProgress = 0
     }
 
     private func armCurrentStage(from now: Date, buzz: Bool) {
@@ -398,14 +370,14 @@ struct WatchBreatheView: View {
         phaseRemaining = Int(duration.rounded(.up))
 
         if reduceMotion {
+            ringAnimation = nil
             ringProgress = reducedSteadyRing
         } else {
-            withAnimation(.easeInOut(duration: duration)) {
-                switch phase {
-                case .inhale: ringProgress = 1.0
-                case .exhale: ringProgress = 0.0
-                case .hold, .textOnly: break
-                }
+            ringAnimation = .easeInOut(duration: duration)
+            switch phase {
+            case .inhale: ringProgress = 1.0
+            case .exhale: ringProgress = 0.0
+            case .hold, .textOnly: break
             }
         }
 

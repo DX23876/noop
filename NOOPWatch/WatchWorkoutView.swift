@@ -1,4 +1,5 @@
 import SwiftUI
+import Observation
 import StrandDesign
 #if canImport(HealthKit)
 import HealthKit
@@ -22,8 +23,9 @@ import HealthKit
 // "Grant Health access" state instead of a dead Start button. StrandHaptic (real WatchKit path now) marks
 // the start / pause / resume / end landings so the wrist confirms each state change without looking.
 struct WatchWorkoutView: View {
-    @EnvironmentObject private var companion: WatchScoreStore
-    @StateObject private var workout = WatchWorkoutSession()
+    @Environment(WatchScoreStore.self) private var companion
+    // App-owned so a recording survives this page being rebuilt by the page deck.
+    @Environment(WatchWorkoutSession.self) private var workout
     @State private var confirmingFinish = false
 
     var body: some View {
@@ -49,10 +51,9 @@ struct WatchWorkoutView: View {
             .frame(width: geo.size.width, height: geo.size.height)
             .padding(.horizontal, 4)
         }
-        .background(StrandPalette.surfaceBase.ignoresSafeArea())
         .onAppear { synchronizeCompanion(companion.strengthWorkout) }
-        .onChange(of: companion.strengthWorkout) { synchronizeCompanion($0) }
-        .onChange(of: workout.bpm) { companion.sendTelemetry(bpm: $0, sampleCount: workout.sampleCount) }
+        .onChange(of: companion.strengthWorkout) { _, state in synchronizeCompanion(state) }
+        .onChange(of: workout.bpm) { _, bpm in companion.sendTelemetry(bpm: bpm, sampleCount: workout.sampleCount) }
         .alert("End workout", isPresented: $confirmingFinish) {
             Button("End", role: .destructive) {
                 if companion.strengthWorkout == nil { workout.end() }
@@ -104,18 +105,18 @@ struct WatchWorkoutView: View {
         .padding(.horizontal, 8)
     }
 
-    /// Ready to record. A single big Effort-tinted Start.
+    /// Ready to record. The activity and a single big Effort-tinted Start.
     private var idle: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 12) {
+            // The page title in the system bar already says "Workout"; the face names the kind instead.
             Image(systemName: "figure.strengthtraining.functional")
-                .font(.system(size: 30))
+                .font(.largeTitle)
                 .foregroundStyle(StrandPalette.effortColor)
-            Text("Workout")
-                .font(StrandFont.rounded(22, weight: .semibold))
-                .foregroundStyle(StrandPalette.textPrimary)
             Text("Functional strength")
-                .font(StrandFont.footnote)
-                .foregroundStyle(StrandPalette.textTertiary)
+                .font(StrandFont.subhead)
+                .foregroundStyle(StrandPalette.textSecondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
             Button {
                 workout.start()
             } label: {
@@ -285,7 +286,6 @@ struct WatchWorkoutView: View {
                         .labelStyle(.iconOnly)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .accessibilityLabel("Done")
                 .tint(StrandPalette.chargeColor)
                 .buttonStyle(.borderedProminent)
             }
@@ -299,7 +299,6 @@ struct WatchWorkoutView: View {
                         .font(StrandFont.subhead)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .accessibilityLabel("Resume")
                 .tint(StrandPalette.effortColor)
                 .buttonStyle(.borderedProminent)
             } else {
@@ -312,7 +311,6 @@ struct WatchWorkoutView: View {
                         .font(StrandFont.subhead)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .accessibilityLabel("Pause")
                 .tint(StrandPalette.surfaceRaised)
                 .buttonStyle(.bordered)
             }
@@ -372,7 +370,8 @@ struct WatchWorkoutView: View {
 // to HealthKit. Every published value comes from the builder's own statistics (HR / active energy) or the
 // session's accumulated duration, so the numbers the wrist shows are the ones HealthKit will save. Nothing
 // is invented: a metric stays nil until its first real sample lands and the UI renders a dash for nil.
-final class WatchWorkoutSession: NSObject, ObservableObject {
+@Observable
+final class WatchWorkoutSession: NSObject {
 
     /// Where we are in the lifecycle. The view switches its whole layout on this.
     enum Phase: Equatable {
@@ -386,27 +385,27 @@ final class WatchWorkoutSession: NSObject, ObservableObject {
         case saved         // saved, showing the recap
     }
 
-    @Published private(set) var phase: Phase = .idle
+    private(set) var phase: Phase = .idle
     /// Live wrist heart rate (whole BPM) from the builder, or nil before the first sample.
-    @Published private(set) var bpm: Int?
+    private(set) var bpm: Int?
     /// Session-average heart rate so far, or nil before the first sample.
-    @Published private(set) var avgBpm: Int?
+    private(set) var avgBpm: Int?
     /// Active energy burned this session in whole kcal, or nil before the first sample.
-    @Published private(set) var activeKcal: Int?
+    private(set) var activeKcal: Int?
     /// Accumulated session duration. Read live by the view's TimelineView while active.
-    @Published private(set) var elapsed: TimeInterval = 0
-    @Published private(set) var sampleCount = 0
+    private(set) var elapsed: TimeInterval = 0
+    private(set) var sampleCount = 0
     /// Non-nil only when this HealthKit session was started for the phone's native strength logger.
     /// A separately started watch workout therefore cannot be paused or ended by a phone command.
-    @Published private(set) var strengthSessionId: UUID?
+    private(set) var strengthSessionId: UUID?
 
     #if canImport(HealthKit) && os(watchOS)
-    private let store = HKHealthStore()
-    private var session: HKWorkoutSession?
-    private var builder: HKLiveWorkoutBuilder?
+    @ObservationIgnored private let store = HKHealthStore()
+    @ObservationIgnored private var session: HKWorkoutSession?
+    @ObservationIgnored private var builder: HKLiveWorkoutBuilder?
 
-    private let hrUnit = HKUnit.count().unitDivided(by: .minute())
-    private let kcalUnit = HKUnit.kilocalorie()
+    @ObservationIgnored private let hrUnit = HKUnit.count().unitDivided(by: .minute())
+    @ObservationIgnored private let kcalUnit = HKUnit.kilocalorie()
 
     /// What we ask to write: the workout itself plus the two series we surface live. Read-only HR is for the
     /// live readout. Mirrors the phone's "we never invent, we record" stance.

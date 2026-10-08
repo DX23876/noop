@@ -1,5 +1,5 @@
 import Foundation
-import Combine
+import Observation
 import WatchConnectivity
 import WidgetKit
 import StrandDesign
@@ -15,11 +15,12 @@ import StrandDesign
 // The published `snapshot` is what the glance binds to. It starts from whatever was last persisted to the
 // App Group (so a relaunch shows the last-known scores immediately, with an honest "as of" age) and is
 // nil only on a truly fresh install, which the glance renders as the "open NOOP on your iPhone" state.
-final class WatchScoreStore: NSObject, ObservableObject, WCSessionDelegate {
+@Observable
+final class WatchScoreStore: NSObject, WCSessionDelegate {
 
     /// The latest snapshot the watch knows about. nil = nothing has ever synced (fresh install).
-    @Published private(set) var snapshot: WatchScoreSnapshot?
-    @Published private(set) var strengthWorkout: StrengthWorkoutCompanionState?
+    private(set) var snapshot: WatchScoreSnapshot?
+    private(set) var strengthWorkout: StrengthWorkoutCompanionState?
 
     /// The shared App Group suite the watch app + its complication both read/write. `Bundle.main` is
     /// process-global, so this is exactly the lookup `WatchScoreSnapshot.appGroupId` itself performs —
@@ -31,7 +32,7 @@ final class WatchScoreStore: NSObject, ObservableObject, WCSessionDelegate {
     static let storageKey = WatchScoreSnapshot.storageKey
 
     /// Prevent duplicate immediate requests when activation and reachability callbacks arrive together.
-    private var requestedLatestForCurrentReachability = false
+    @ObservationIgnored private var requestedLatestForCurrentReachability = false
 
     override init() {
         super.init()
@@ -68,7 +69,7 @@ final class WatchScoreStore: NSObject, ObservableObject, WCSessionDelegate {
     }
 
     /// Apply a freshly received snapshot: store it, publish to the glance, refresh the complication.
-    /// Hops to the main actor because it touches @Published state and WidgetCenter.
+    /// Hops to the main actor because it touches observed state and WidgetCenter.
     private func apply(_ snap: WatchScoreSnapshot) {
         persist(snap)
         DispatchQueue.main.async {

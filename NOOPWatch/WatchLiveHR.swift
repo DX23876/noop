@@ -1,5 +1,5 @@
 import Foundation
-import Combine
+import Observation
 #if canImport(HealthKit)
 import HealthKit
 #endif
@@ -13,18 +13,19 @@ import HealthKit
 //
 // We deliberately keep this lightweight: an anchored query that delivers the newest samples while the app
 // is foregrounded, no HKWorkoutSession. A full session (and the higher-fidelity in-workout stream) is M4.
-final class WatchLiveHR: ObservableObject {
+@Observable
+final class WatchLiveHR {
 
     /// The most recent heart rate in whole BPM, or nil if we have no reading yet.
-    @Published private(set) var bpm: Int?
+    private(set) var bpm: Int?
     /// True once we know HealthKit is unavailable or read access was denied. Drives "HR unavailable".
-    @Published private(set) var denied: Bool = false
+    private(set) var denied: Bool = false
 
     #if canImport(HealthKit)
-    private let store = HKHealthStore()
-    private let hrType = HKQuantityType.quantityType(forIdentifier: .heartRate)
-    private var query: HKAnchoredObjectQuery?
-    private let bpmUnit = HKUnit.count().unitDivided(by: .minute())
+    @ObservationIgnored private let store = HKHealthStore()
+    @ObservationIgnored private let hrType = HKQuantityType.quantityType(forIdentifier: .heartRate)
+    @ObservationIgnored private var query: HKAnchoredObjectQuery?
+    @ObservationIgnored private let bpmUnit = HKUnit.count().unitDivided(by: .minute())
     #endif
 
     /// Ask for permission (idempotent) and start streaming. Call when the glance appears.

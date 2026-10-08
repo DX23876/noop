@@ -848,17 +848,9 @@ struct LiquidTodayView: View {
         // brings Today's scroll behaviour in line with the rest of the app without touching the
         // vertical pull-to-refresh gesture above.
         .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
-        // The root hides its navigation bar, so no system bar covers cards scrolling under
-        // the status bar / Dynamic Island. Cover only the device's actual top safe area.
-        .overlay {
-            GeometryReader { proxy in
-                StrandPalette.surfaceBase
-                    .frame(height: proxy.safeAreaInsets.top)
-                    .offset(y: -proxy.safeAreaInsets.top)
-            }
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
-        }
+        // Cards scrolled under the status bar / Dynamic Island fade out instead of running under the
+        // clock; the sky behind them stays edge to edge (see StatusBarContentFade).
+        .modifier(StatusBarContentFade())
         #endif
         .onPreferenceChange(PullOffsetKey.self) { value in
             Task { @MainActor in handlePull(value) }

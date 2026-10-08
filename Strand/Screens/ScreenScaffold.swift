@@ -77,6 +77,10 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
         // permits horizontal bounce when content genuinely overflows the width (it does not here, the column
         // is width-capped), so the spurious horizontal rubber-band that caused the sideways drift is gone.
         .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+        // Keep long pages legible beneath the status bar without cutting the backdrop off around the
+        // notch (see StatusBarContentFade). A pinned header sits at the very top of the scroll view, inside
+        // the fade, so those pages keep the hard edge from HardTopEdgeIfPinned instead.
+        .modifier(StatusBarContentFade(active: pinnedHeader == nil))
         #endif
         // The flat canvas, plus an optional full-bleed TOP backdrop (Today's day-cycle scene) drawn behind
         // the scroll content — edge-to-edge under the status bar. The scene is CONFINED to the header+hero
@@ -89,26 +93,6 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
             }
             .ignoresSafeArea()
         }
-        #if os(iOS)
-        // Keep long pages legible beneath the status bar. iOS 26 already blends scrolled content into
-        // the status bar with its own soft edge effect (see HardTopEdgeIfPinned), and a page that draws
-        // a top backdrop (the sky) must show it edge to edge. In both cases a canvas-coloured fade over
-        // the safe area reads as a hard cut around the notch, so only older iOS without a backdrop keeps it.
-        .overlay(alignment: .top) {
-            if topBackground == nil, #unavailable(iOS 26.0) {
-                LinearGradient(
-                    colors: [StrandPalette.surfaceBase.opacity(0.98),
-                             StrandPalette.surfaceBase.opacity(0.72), .clear],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(height: 54)
-                .ignoresSafeArea(edges: .top)
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-            }
-        }
-        #endif
         .modifier(RefreshableIfNeeded(onRefresh: onRefresh))
         .modifier(HardTopEdgeIfPinned(active: pinnedHeader != nil))
         #if DEBUG
@@ -452,6 +436,36 @@ extension EnvironmentValues {
         set { self[ScrollToTopSignalKey.self] = newValue }
     }
 }
+
+#if os(iOS)
+/// Fades scroll content out under the top safe area (status bar, Dynamic Island, a transparent navigation
+/// bar). The tab roots hide their navigation bar, so iOS 26's scroll edge effect has no bar to attach to
+/// and cards ran sharp under the clock; an opaque canvas band over the safe area fixed that but cut the
+/// sky off in a hard line around the notch. Masking the content instead hides it in the safe area and
+/// fades it in just below, while a backdrop drawn behind the scroll view (outside the mask) stays edge
+/// to edge.
+struct StatusBarContentFade: ViewModifier {
+    var active = true
+
+    func body(content: Content) -> some View {
+        if active {
+            content.mask {
+                GeometryReader { proxy in
+                    VStack(spacing: 0) {
+                        Color.clear.frame(height: proxy.safeAreaInsets.top)
+                        LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)
+                            .frame(height: 18)
+                        Color.black
+                    }
+                    .ignoresSafeArea()
+                }
+            }
+        } else {
+            content
+        }
+    }
+}
+#endif
 
 /// A page with a pinned header (the goals overview's chips) cuts content cleanly under the navigation bar
 /// (iOS 26): without it the cards scrolled through the gap between the back button and the pinned chips.
