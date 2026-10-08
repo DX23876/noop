@@ -534098,6 +534098,176 @@
           }
         }
       }
+    },
+    "Load Apple Watch ECGs" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple-Watch-EKGs laden"
+          }
+        }
+      }
+    },
+    "Apple Health did not return ECGs." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Health hat keine EKGs geliefert."
+          }
+        }
+      }
+    },
+    "No Apple Watch ECGs found, or NOOP is not allowed to read them. Apple Health settings decide that." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Apple-Watch-EKGs gefunden, oder NOOP darf sie nicht lesen. Das legst du in den Einstellungen von Apple Health fest."
+          }
+        }
+      }
+    },
+    "Measured with the same method as the strap, for comparison. Read from Apple Health, not stored by NOOP." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zum Vergleich mit derselben Methode ausgewertet wie das Band. Aus Apple Health gelesen, NOOP speichert nichts davon."
+          }
+        }
+      }
+    },
+    "Apple's own classification, recorded at %lld Hz and shown here at 100 Hz." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Einstufung von Apple selbst, aufgenommen mit %lld Hz, hier mit 100 Hz dargestellt."
+          }
+        }
+      }
+    },
+    "No strap reading to compare with yet." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch keine Band-Messung zum Vergleich."
+          }
+        }
+      }
+    },
+    "Apple Watch ECG" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple-Watch-EKG"
+          }
+        }
+      }
+    },
+    "Compared with the strap" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vergleich mit dem Band"
+          }
+        }
+      }
+    },
+    "Diff." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diff."
+          }
+        }
+      }
+    },
+    "R wave" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "R-Zacke"
+          }
+        }
+      }
+    },
+    "Strap reading from %@. Heart rate and RMSSD differ between two moments by nature; intervals, QTc and the R wave should agree closely if both devices see the same lead." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Band-Messung vom %@. Puls und RMSSD unterscheiden sich zwischen zwei Zeitpunkten von Natur aus. Die Zeiten, QTc und die R-Zacke sollten eng übereinstimmen, wenn beide Geräte dieselbe Ableitung messen."
+          }
+        }
+      }
+    },
+    "Atrial fibrillation" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vorhofflimmern"
+          }
+        }
+      }
+    },
+    "Inconclusive: low heart rate" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht eindeutig: niedrige Herzfrequenz"
+          }
+        }
+      }
+    },
+    "Inconclusive: high heart rate" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht eindeutig: hohe Herzfrequenz"
+          }
+        }
+      }
+    },
+    "Inconclusive: poor recording" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht eindeutig: schlechte Aufnahme"
+          }
+        }
+      }
+    },
+    "Unrecognized rhythm" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht erkannter Rhythmus"
+          }
+        }
+      }
+    },
+    "WHOOP MG" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WHOOP MG"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
