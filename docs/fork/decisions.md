@@ -247,3 +247,28 @@ number even through a longer gap; the separate route status remains available.
 
 Analysis migration required: no — presentation only; no scoring, persisted evidence, historical route,
 source precedence, analysis window or recipe change. Android parity is retired in this fork.
+
+### 2026-10-08 — Experimental step filter, shown beside the current count
+
+`GaitGatedStepCounter` (StrandAnalytics) re-counts the WHOOP 5/MG `step_motion_counter@57` in bouts:
+a stretch of at least 60 ticks counts in full, a shorter one only when such a stretch lies within
+180 s, and the pedometer's start release (5 to 8 ticks in one record still classed 0) is credited to
+the bout that follows within 5 s. Settings → Profile → "Compare new step filter" (default off) opens
+a 14-day table of current count, filtered count and Apple Health phone steps per calendar day.
+Nothing is written; the daily total, Energy and scores stay on `StepsCounter`.
+
+Why: free-living studies attribute most wrist step error to non-walking movement, and a walking
+detector in front of the peak counter cut the Oxford stepcount error from 63.5 % to 12.5 %. NOOP has
+only per-second records, so the detector is reduced to bout length and walking context. On 24 days
+of the wearer's data (2026-09-14 to 2026-10-07) the filter keeps hours the phone saw as walking at
+1.00 to 1.03 times the phone count and lowers hours the phone saw nearly nothing from 2,206 to
+1,175 counts a day; it keeps 71 % of short-bout counts in walking hours against 25 % in idle hours.
+The daily average falls from 9,282 to 7,719 counts (phone: 6,285).
+Arm posture, `dynAccel` and the APEX cadence byte were tested as extra gates and separated short
+bouts worse than walking context did, so they are not used. The thresholds come from phone step
+hours, which miss every step taken while the phone lies elsewhere; they are a candidate, not a
+validated method. Validation needs labelled sessions (Raw Data Collector markers) and the CC BY
+datasets CAPTURE-24 and OxWalk. The Oxford `stepcount` code is academic-use only and is not used.
+
+Analysis migration required: no — a read-only comparison screen; no stored value, score, window,
+source precedence or recipe changes.

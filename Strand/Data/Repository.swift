@@ -555,6 +555,31 @@ final class Repository: ObservableObject {
         return Self.mergeGravityByTs(lists)
     }
 
+    /// Step-counter samples for `[from, to]` from the one raw WHOOP namespace that holds the most of them,
+    /// active strap first on a tie.
+    ///
+    /// Unlike gravity, two straps' counters can never be merged by timestamp: each is its own running
+    /// total, so interleaving them turns every switch into a large false increment. The experimental step
+    /// filter comparison therefore reads a single namespace per window.
+    func stepSamplesFromBusiestSource(from: Int, to: Int) async -> [StepSample] {
+        guard let store = await storeHandle() else { return [] }
+        var best: [StepSample] = []
+        for id in rawPhysiologyReadIds(store: store) {
+            let rows = (try? await store.stepSamples(deviceId: id, from: from, to: to, limit: Int.max)) ?? []
+            if rows.count > best.count { best = rows }
+        }
+        return best
+    }
+
+    /// Phone step total for `[from, to)` from the hourly Apple Health buckets, nil when none exist.
+    func appleStepTotal(from: Int, toExclusive: Int) async -> Int? {
+        guard let store = await storeHandle(),
+              let rows = try? await store.appleStepHours(
+                  deviceId: Self.appleHealthSource, fromTs: from, toTs: toExclusive - 1),
+              !rows.isEmpty else { return nil }
+        return rows.reduce(0) { $0 + $1.steps }
+    }
+
     /// Merge gravity lists into one time-ordered stream, deduped by timestamp with the FIRST list (the
     /// active strap) winning a tie. A single-id read is returned UNCHANGED, so a single-device install
     /// performs exactly the read it did before the union existed.

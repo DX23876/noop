@@ -1,6 +1,1282 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "STEPS · EXPERIMENTAL" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SCHRITTE · EXPERIMENTELL"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PASOS · EXPERIMENTAL"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PAS · EXPÉRIMENTAL"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PASSI · SPERIMENTALE"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "KROKI · EKSPERYMENTALNE"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PASSOS · EXPERIMENTAL"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ШАГИ · ЭКСПЕРИМЕНТ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "步数 · 实验性"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "步數 · 實驗性"
+          }
+        }
+      }
+    },
+    "Step filter comparison" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schrittfilter im Vergleich"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comparación del filtro de pasos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comparaison du filtre de pas"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confronto del filtro passi"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Porównanie filtra kroków"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comparação do filtro de passos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сравнение фильтра шагов"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "步数过滤对比"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "步數過濾對比"
+          }
+        }
+      }
+    },
+    "Current count next to the new filter" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bisherige Zählung neben dem neuen Filter"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recuento actual junto al nuevo filtro"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comptage actuel à côté du nouveau filtre"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conteggio attuale accanto al nuovo filtro"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obecne liczenie obok nowego filtra"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contagem atual ao lado do novo filtro"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Текущий подсчёт рядом с новым фильтром"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前计数与新过滤并列"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "目前計數與新過濾並列"
+          }
+        }
+      }
+    },
+    "Your step count does not change. This screen only shows what the filter would count." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Schrittzahl ändert sich nicht. Diese Ansicht zeigt nur, was der Filter zählen würde."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu recuento de pasos no cambia. Esta pantalla solo muestra lo que contaría el filtro."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ton nombre de pas ne change pas. Cet écran montre seulement ce que le filtre compterait."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo conteggio dei passi non cambia. Questa schermata mostra solo cosa conterebbe il filtro."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twoja liczba kroków się nie zmienia. Ten ekran pokazuje tylko, co policzyłby filtr."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A tua contagem de passos não muda. Este ecrã mostra apenas o que o filtro contaria."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваше число шагов не меняется. Этот экран лишь показывает, что насчитал бы фильтр."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的步数不会改变。此页面只显示过滤后会计入的数量。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的步數不會改變。此頁面只顯示過濾後會計入的數量。"
+          }
+        }
+      }
+    },
+    "What the new filter does" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Was der neue Filter macht"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qué hace el nuevo filtro"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce que fait le nouveau filtre"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cosa fa il nuovo filtro"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Co robi nowy filtr"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O que faz o novo filtro"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Что делает новый фильтр"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新过滤的作用"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新過濾的作用"
+          }
+        }
+      }
+    },
+    "A stretch of 60 steps or more counts in full." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine Strecke ab 60 Schritten zählt vollständig."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un tramo de 60 pasos o más cuenta entero."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une séquence de 60 pas ou plus compte entièrement."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un tratto di 60 passi o più conta per intero."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odcinek od 60 kroków liczy się w całości."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um trecho de 60 passos ou mais conta por inteiro."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отрезок от 60 шагов засчитывается полностью."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连续 60 步及以上的行走全部计入。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "連續 60 步及以上的行走全部計入。"
+          }
+        }
+      }
+    },
+    "Shorter bursts count only when a longer stretch of walking is within three minutes. Arm movement at home mostly produces isolated bursts." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kürzere Abschnitte zählen nur, wenn innerhalb von drei Minuten eine längere Gehstrecke liegt. Armbewegungen zu Hause erzeugen meist einzelne kurze Abschnitte."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los tramos más cortos solo cuentan si hay una caminata más larga a menos de tres minutos. Los movimientos del brazo en casa suelen producir tramos aislados."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les séquences plus courtes ne comptent que si une marche plus longue a lieu dans les trois minutes. Les mouvements du bras à la maison produisent surtout des séquences isolées."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I tratti più brevi contano solo se entro tre minuti c'è una camminata più lunga. I movimenti del braccio in casa producono per lo più tratti isolati."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Krótsze odcinki liczą się tylko wtedy, gdy w ciągu trzech minut jest dłuższy marsz. Ruchy ręki w domu dają głównie pojedyncze odcinki."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os trechos mais curtos só contam se houver uma caminhada mais longa a menos de três minutos. Os movimentos do braço em casa produzem sobretudo trechos isolados."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Короткие отрезки засчитываются, только если в пределах трёх минут есть более долгая ходьба. Движения руки дома обычно дают отдельные короткие отрезки."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "较短的片段只有在三分钟内有较长步行时才计入。在家时的手臂动作大多只产生零散片段。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "較短的片段只有在三分鐘內有較長步行時才計入。在家時的手臂動作大多只產生零散片段。"
+          }
+        }
+      }
+    },
+    "The first steps of each walk, which the strap releases in one go, are added back. The current count drops them." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die ersten Schritte jeder Gehstrecke, die das Band auf einmal meldet, werden wieder mitgezählt. Die bisherige Zählung verwirft sie."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los primeros pasos de cada caminata, que la correa entrega de golpe, se vuelven a sumar. El recuento actual los descarta."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les premiers pas de chaque marche, que le bracelet transmet d'un coup, sont réintégrés. Le comptage actuel les écarte."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I primi passi di ogni camminata, che la fascia rilascia tutti insieme, vengono ricontati. Il conteggio attuale li scarta."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pierwsze kroki każdego marszu, które opaska zgłasza naraz, są doliczane. Obecne liczenie je pomija."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os primeiros passos de cada caminhada, que a pulseira envia de uma vez, voltam a ser contados. A contagem atual descarta-os."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Первые шаги каждой прогулки, которые браслет передаёт разом, снова учитываются. Текущий подсчёт их отбрасывает."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每段步行开头由手环一次性报告的几步会被补回。当前计数会丢弃它们。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每段步行開頭由手環一次性回報的幾步會被補回。目前計數會丟棄它們。"
+          }
+        }
+      }
+    },
+    "Average per day" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Durchschnitt pro Tag"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Media por día"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moyenne par jour"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Media al giorno"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Średnio na dzień"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Média por dia"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "В среднем за день"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每日平均"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每日平均"
+          }
+        }
+      }
+    },
+    "Current count" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bisherige Zählung"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recuento actual"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comptage actuel"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conteggio attuale"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obecne liczenie"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contagem atual"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Текущий подсчёт"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前计数"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "目前計數"
+          }
+        }
+      }
+    },
+    "New filter" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neuer Filter"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nuevo filtro"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouveau filtre"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nuovo filtro"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nowy filtr"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Novo filtro"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Новый фильтр"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新过滤"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新過濾"
+          }
+        }
+      }
+    },
+    "First steps added" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erste Schritte ergänzt"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Primeros pasos añadidos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Premiers pas ajoutés"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Primi passi aggiunti"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Doliczone pierwsze kroki"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Primeiros passos adicionados"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Добавлено первых шагов"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "补回的起始步数"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "補回的起始步數"
+          }
+        }
+      }
+    },
+    "Isolated bursts removed" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Einzelne Abschnitte entfernt"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tramos aislados eliminados"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Séquences isolées retirées"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tratti isolati rimossi"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usunięte pojedyncze odcinki"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trechos isolados removidos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Удалено отдельных отрезков"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移除的零散片段"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移除的零散片段"
+          }
+        }
+      }
+    },
+    "By day" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nach Tagen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por día"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Par jour"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Per giorno"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Według dni"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por dia"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "По дням"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按天"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按天"
+          }
+        }
+      }
+    },
+    "No step data from a WHOOP 5.0 or MG in the last 14 days." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Schrittdaten von einem WHOOP 5.0 oder MG in den letzten 14 Tagen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No hay datos de pasos de un WHOOP 5.0 o MG en los últimos 14 días."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune donnée de pas d'un WHOOP 5.0 ou MG ces 14 derniers jours."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessun dato sui passi da un WHOOP 5.0 o MG negli ultimi 14 giorni."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak danych o krokach z WHOOP 5.0 lub MG z ostatnich 14 dni."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sem dados de passos de um WHOOP 5.0 ou MG nos últimos 14 dias."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нет данных о шагах с WHOOP 5.0 или MG за последние 14 дней."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "过去 14 天没有来自 WHOOP 5.0 或 MG 的步数数据。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "過去 14 天沒有來自 WHOOP 5.0 或 MG 的步數資料。"
+          }
+        }
+      }
+    },
+    "Calendar days from midnight to midnight, so today can differ slightly from the number on Today. The phone only counts while you carry it." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kalendertage von Mitternacht bis Mitternacht, deshalb kann der heutige Wert leicht von der Zahl auf Heute abweichen. Das Telefon zählt nur, solange du es bei dir trägst."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Días naturales de medianoche a medianoche, así que hoy puede diferir un poco de la cifra de Hoy. El teléfono solo cuenta mientras lo llevas encima."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jours civils de minuit à minuit, donc aujourd'hui peut légèrement différer du chiffre d'Aujourd'hui. Le téléphone ne compte que quand tu le portes sur toi."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Giorni di calendario da mezzanotte a mezzanotte, quindi oggi può differire un po' dal numero in Oggi. Il telefono conta solo mentre lo porti con te."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dni kalendarzowe od północy do północy, więc dzisiejsza wartość może się nieco różnić od liczby na ekranie Dziś. Telefon liczy tylko, gdy masz go przy sobie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dias de calendário de meia-noite a meia-noite, por isso hoje pode diferir um pouco do número em Hoje. O telefone só conta enquanto o trazes contigo."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Календарные дни от полуночи до полуночи, поэтому сегодняшнее значение может немного отличаться от числа на экране «Сегодня». Телефон считает, только пока он при вас."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按自然日（午夜到午夜）计算，因此今天的数值可能与“今天”页面略有不同。手机只在你随身携带时计数。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按自然日（午夜到午夜）計算，因此今天的數值可能與「今天」頁面略有不同。手機只在你隨身攜帶時計數。"
+          }
+        }
+      }
+    },
+    "New" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neu"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nuevo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouveau"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nuovo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nowy"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Novo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Новый"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新"
+          }
+        }
+      }
+    },
+    "%@: current %lld steps, new filter %lld steps, phone %lld steps" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@: bisher %lld Schritte, neuer Filter %lld Schritte, Telefon %lld Schritte"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@: actual %lld pasos, nuevo filtro %lld pasos, teléfono %lld pasos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ : actuel %lld pas, nouveau filtre %lld pas, téléphone %lld pas"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@: attuale %lld passi, nuovo filtro %lld passi, telefono %lld passi"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@: obecnie %lld kroków, nowy filtr %lld kroków, telefon %lld kroków"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@: atual %lld passos, novo filtro %lld passos, telefone %lld passos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@: сейчас %lld шагов, новый фильтр %lld шагов, телефон %lld шагов"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@：当前 %lld 步，新过滤 %lld 步，手机 %lld 步"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@：目前 %lld 步，新過濾 %lld 步，手機 %lld 步"
+          }
+        }
+      }
+    },
+    "%@: current %lld steps, new filter %lld steps" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@: bisher %lld Schritte, neuer Filter %lld Schritte"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@: actual %lld pasos, nuevo filtro %lld pasos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ : actuel %lld pas, nouveau filtre %lld pas"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@: attuale %lld passi, nuovo filtro %lld passi"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@: obecnie %lld kroków, nowy filtr %lld kroków"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@: atual %lld passos, novo filtro %lld passos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@: сейчас %lld шагов, новый фильтр %lld шагов"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@：当前 %lld 步，新过滤 %lld 步"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@：目前 %lld 步，新過濾 %lld 步"
+          }
+        }
+      }
+    },
+    "Experimental, for a WHOOP 5.0 or MG. Shows what a stricter step count would give next to the current one, day by day. Your steps do not change." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Experimentell, für ein WHOOP 5.0 oder MG. Zeigt Tag für Tag, was eine strengere Schrittzählung neben der bisherigen ergeben würde. Deine Schritte ändern sich nicht."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Experimental, para un WHOOP 5.0 o MG. Muestra día a día qué daría un recuento de pasos más estricto junto al actual. Tus pasos no cambian."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expérimental, pour un WHOOP 5.0 ou MG. Montre jour par jour ce que donnerait un comptage plus strict à côté de l'actuel. Tes pas ne changent pas."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sperimentale, per un WHOOP 5.0 o MG. Mostra giorno per giorno cosa darebbe un conteggio più rigoroso accanto a quello attuale. I tuoi passi non cambiano."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eksperymentalne, dla WHOOP 5.0 lub MG. Pokazuje dzień po dniu, ile dałoby ostrzejsze liczenie kroków obok obecnego. Twoje kroki się nie zmieniają."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Experimental, para um WHOOP 5.0 ou MG. Mostra dia a dia o que daria uma contagem de passos mais rigorosa ao lado da atual. Os teus passos não mudam."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Экспериментально, для WHOOP 5.0 или MG. Показывает по дням, сколько дал бы более строгий подсчёт шагов рядом с текущим. Ваши шаги не меняются."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "实验性功能，适用于 WHOOP 5.0 或 MG。逐日显示更严格的步数计数与当前计数的对比。你的步数不会改变。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "實驗性功能，適用於 WHOOP 5.0 或 MG。逐日顯示更嚴格的步數計數與目前計數的對比。你的步數不會改變。"
+          }
+        }
+      }
+    },
+    "Step filter comparison. Opens the comparison screen." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schrittfilter im Vergleich. Öffnet die Vergleichsansicht."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comparación del filtro de pasos. Abre la pantalla de comparación."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comparaison du filtre de pas. Ouvre l'écran de comparaison."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confronto del filtro passi. Apre la schermata di confronto."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Porównanie filtra kroków. Otwiera ekran porównania."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comparação do filtro de passos. Abre o ecrã de comparação."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сравнение фильтра шагов. Открывает экран сравнения."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "步数过滤对比。打开对比页面。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "步數過濾對比。打開對比頁面。"
+          }
+        }
+      }
+    },
+    "Compare new step filter" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neuen Schrittfilter vergleichen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comparar el nuevo filtro de pasos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comparer le nouveau filtre de pas"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confronta il nuovo filtro passi"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Porównaj nowy filtr kroków"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comparar o novo filtro de passos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сравнить новый фильтр шагов"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "对比新的步数过滤"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "對比新的步數過濾"
+          }
+        }
+      }
+    },
     "%@ rpm" : {
       "localizations" : {
         "de" : {
