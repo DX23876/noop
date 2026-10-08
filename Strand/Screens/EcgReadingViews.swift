@@ -1,4 +1,5 @@
 import SwiftUI
+import StrandAnalytics
 import StrandDesign
 import WhoopProtocol
 import WhoopStore
@@ -126,8 +127,10 @@ struct EcgReadingSheet: View {
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(controller.phase.isRunning ? "Stop" : "Close") {
-                        if controller.phase.isRunning { controller.cancel() } else {
+                    if controller.phase.isRunning {
+                        Button("Stop") { controller.cancel() }
+                    } else {
+                        Button("Close") {
                             controller.reset()
                             onClose()
                         }
@@ -308,6 +311,7 @@ private struct EcgSavedResult: View {
             if let loaded {
                 EcgResultHeader(reading: loaded.row)
                 EcgPrintout(samples: loaded.samples)
+                EcgMeasurementsSection(samples: loaded.samples)
                 Button(action: onNewReading) {
                     Text("New reading").frame(maxWidth: .infinity)
                 }
@@ -446,6 +450,7 @@ struct EcgReadingDetailView: View {
                         .font(StrandFont.caption)
                         .foregroundStyle(StrandPalette.textTertiary)
                 }
+                EcgMeasurementsSection(samples: samples)
                 facts
                 Text(EcgCategoryText.disclaimer)
                     .font(StrandFont.footnote)
@@ -508,5 +513,186 @@ struct EcgReadingDetailView: View {
         }
         .font(StrandFont.body)
         .padding(.vertical, 12)
+    }
+}
+
+// MARK: - Measurements
+
+/// Rhythm, HRV and the intervals of the average beat, computed from a reading's samples on display.
+/// Nothing here is stored; a better method later re-measures every saved reading.
+struct EcgMeasurementsSection: View {
+    let samples: [Int16?]
+    @State private var analysis: EcgAnalysis.Result?
+    @State private var done = false
+
+    var body: some View {
+        Group {
+            if let analysis {
+                measurements(analysis)
+            } else if done {
+                Text("Too few clear beats to measure this reading.")
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.textSecondary)
+            }
+        }
+        .task(id: samples.count) {
+            guard !samples.isEmpty else { return }
+            let input = samples
+            analysis = await Task.detached(priority: .userInitiated) { EcgAnalysis.analyze(input) }.value
+            done = true
+        }
+    }
+
+    @ViewBuilder private func measurements(_ a: EcgAnalysis.Result) -> some View {
+        section("Rhythm") {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 16) {
+                    EcgStat(label: "Average", value: "\(Int(a.meanHeartRate.rounded()))", unit: "bpm")
+                    EcgStat(label: "Lowest", value: "\(Int(a.minHeartRate.rounded()))", unit: "bpm")
+                    EcgStat(label: "Highest", value: "\(Int(a.maxHeartRate.rounded()))", unit: "bpm")
+                }
+                Divider()
+                Group {
+                    if a.irregularBeats == 0 {
+                        Text("No irregular beats in this reading.")
+                    } else {
+                        Text("Irregular beats: \(a.irregularBeats)")
+                    }
+                }
+                .font(StrandFont.subhead)
+                .foregroundStyle(StrandPalette.textSecondary)
+            }
+            .ecgCard()
+        }
+        section("Heart rate variability") {
+            HStack(spacing: 16) {
+                EcgStat(label: "RMSSD", value: a.rmssdMs.map { "\(Int($0.rounded()))" } ?? "–", unit: "ms")
+                EcgStat(label: "SDNN", value: a.sdnnMs.map { "\(Int($0.rounded()))" } ?? "–", unit: "ms")
+                EcgStat(label: "pNN50", value: a.pnn50.map { "\(Int($0.rounded()))" } ?? "–", unit: "%")
+            }
+            .ecgCard()
+        }
+        if !a.template.isEmpty {
+            section("Average beat") {
+                VStack(alignment: .leading, spacing: 8) {
+                    EcgAverageBeatView(template: a.template, rIndex: a.templateRIndex, fiducials: a.fiducials)
+                    Text("From \(a.beatsAveraged) of \(a.beatsDetected) beats. P, Q, J and T mark where the intervals are measured.")
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            section("Intervals") {
+                VStack(spacing: 0) {
+                    interval("PR interval", a.prMs, typical: "Typical: 120 to 200 ms")
+                    Divider()
+                    interval("QRS duration", a.qrsMs, typical: "Typical: under 120 ms")
+                    Divider()
+                    interval("QT interval", a.qtMs, typical: nil)
+                    Divider()
+                    interval("QTc (Fridericia)", a.qtcFridericiaMs, typical: "Typical: under 450 ms")
+                }
+                .padding(.horizontal, 16)
+                .background(StrandPalette.surfaceRaised)
+                .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous))
+            }
+            Text("Experimental. Measured on one lead at 100 Hz, so each interval is accurate to about 10 ms. A single wrist lead cannot show the heart's axis or the ST changes a 12-lead ECG looks for.")
+                .font(StrandFont.footnote)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func section<Content: View>(_ title: LocalizedStringKey,
+                                        @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .textCase(.uppercase)
+                .font(StrandFont.overline)
+                .tracking(StrandFont.overlineTracking)
+                .foregroundStyle(StrandPalette.textTertiary)
+            content()
+        }
+    }
+
+    private func interval(_ label: LocalizedStringKey, _ value: Double?, typical: LocalizedStringKey?) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(label)
+                    .font(StrandFont.body)
+                    .foregroundStyle(StrandPalette.textPrimary)
+                if let typical {
+                    Text(typical)
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                }
+            }
+            Spacer()
+            if let value {
+                Text("\(Int(value.rounded())) ms")
+                    .font(StrandFont.bodyNumber)
+                    .foregroundStyle(StrandPalette.textPrimary)
+            } else {
+                Text("not measurable")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+            }
+        }
+        .padding(.vertical, 12)
+    }
+}
+
+/// The median beat on enlarged ECG paper (the same 25 mm/s to 10 mm/mV proportion, zoomed to the width),
+/// with the measuring points marked.
+struct EcgAverageBeatView: View {
+    let template: [Double]
+    let rIndex: Int
+    let fiducials: EcgAnalysis.Fiducials?
+    @State private var width: CGFloat = 0
+
+    private var spanMillimeters: CGFloat {
+        CGFloat(template.count) / CGFloat(EcgPaper.sampleRate) * EcgPaper.millimetersPerSecond
+    }
+
+    /// Millivolts above and below the baseline, rounded out to half millivolts.
+    private var range: (top: Double, bottom: Double) {
+        let hi = (template.max() ?? 0) / 1000, lo = (template.min() ?? 0) / 1000
+        return ((max(0.5, hi * 1.15) * 2).rounded(.up) / 2, (max(0.5, -lo * 1.15) * 2).rounded(.up) / 2)
+    }
+
+    var body: some View {
+        let ppm = width > 0 ? width / spanMillimeters : 1
+        let paper = EcgPaper(pointsPerMillimeter: ppm)
+        let height = CGFloat(range.top + range.bottom) * EcgPaper.millimetersPerMillivolt * ppm
+        Canvas { context, size in
+            paper.drawGrid(in: &context, size: size)
+            let baseline = CGFloat(range.top) * EcgPaper.millimetersPerMillivolt * ppm
+            paper.drawTrace(template.map { Optional($0) }[...], in: &context, originX: 0, baselineY: baseline)
+            guard let f = fiducials else { return }
+            let marks: [(String, Double?)] = [("P", f.pOnsetMs), ("Q", f.qrsOnsetMs), ("J", f.jPointMs), ("T", f.tEndMs)]
+            for (label, ms) in marks {
+                guard let ms else { continue }
+                let x = (CGFloat(rIndex) + CGFloat(ms) / 1000 * CGFloat(EcgPaper.sampleRate)) * paper.pointsPerSample
+                var line = Path()
+                line.move(to: CGPoint(x: x, y: 16))
+                line.addLine(to: CGPoint(x: x, y: size.height))
+                context.stroke(line, with: .color(StrandPalette.accent),
+                               style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                context.draw(Text(verbatim: label).font(StrandFont.diagramLabel).foregroundStyle(StrandPalette.accent),
+                             at: CGPoint(x: x, y: 4), anchor: .top)
+            }
+        }
+        .frame(height: width > 0 ? height : 160)
+        .frame(maxWidth: .infinity)
+        .background(
+            GeometryReader { proxy in
+                Color.clear
+                    .onAppear { width = proxy.size.width }
+                    .onChangeCompat(of: proxy.size.width) { width = $0 }
+            }
+        )
+        .background(StrandPalette.surfaceRaised)
+        .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous))
+        .accessibilityLabel(Text("Average beat"))
     }
 }
