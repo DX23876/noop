@@ -533998,6 +533998,16 @@
           }
         }
       }
+    },
+    "ECG reading" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EKG-Messung"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

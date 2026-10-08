@@ -121,7 +121,7 @@ struct EcgReadingSheet: View {
                 .animation(.default, value: controller.phase)
             }
             .background(StrandPalette.surfaceBase)
-            .navigationTitle("ECG")
+            .navigationTitle("ECG reading")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
@@ -146,7 +146,10 @@ struct EcgReadingSheet: View {
                 }
             }
         }
+        #if os(macOS)
+        // A sheet on macOS needs a size; on iPhone the same minimum would push the content past the screen.
         .frame(minWidth: NoopMetrics.detailSheetMinWidth, minHeight: NoopMetrics.detailSheetMinHeight)
+        #endif
     }
 
     @ViewBuilder private var content: some View {
@@ -460,7 +463,7 @@ struct EcgReadingDetailView: View {
             .padding(16)
         }
         .background(StrandPalette.surfaceBase)
-        .navigationTitle("ECG")
+        .navigationTitle("ECG reading")
         .task {
             guard let store = await repo.storeHandle(),
                   let packets = try? await store.ecgReadingPackets(id: reading.id) else { return }
