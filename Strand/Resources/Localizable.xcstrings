@@ -533818,6 +533818,186 @@
           }
         }
       }
+    },
+    "Too few clear beats to measure this reading." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zu wenige klare Herzschläge, um diese Messung auszuwerten."
+          }
+        }
+      }
+    },
+    "Experimental. Measured on one lead at 100 Hz, so each interval is accurate to about 10 ms. A single wrist lead cannot show the heart's axis or the ST changes a 12-lead ECG looks for." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Experimentell. Gemessen an einer Ableitung mit 100 Hz, jede Zeit ist also auf etwa 10 ms genau. Eine einzelne Ableitung am Handgelenk zeigt weder die Herzachse noch die ST-Veränderungen, auf die ein 12-Kanal-EKG achtet."
+          }
+        }
+      }
+    },
+    "Average beat" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Durchschnittsschlag"
+          }
+        }
+      }
+    },
+    "Lowest" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niedrigster"
+          }
+        }
+      }
+    },
+    "Highest" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Höchster"
+          }
+        }
+      }
+    },
+    "No irregular beats in this reading." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine unregelmäßigen Schläge in dieser Messung."
+          }
+        }
+      }
+    },
+    "Irregular beats: %lld" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unregelmäßige Schläge: %lld"
+          }
+        }
+      }
+    },
+    "SDNN" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SDNN"
+          }
+        }
+      }
+    },
+    "pNN50" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "pNN50"
+          }
+        }
+      }
+    },
+    "From %lld of %lld beats. P, Q, J and T mark where the intervals are measured." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aus %1$lld von %2$lld Schlägen. P, Q, J und T markieren die Messpunkte der Zeiten."
+          }
+        }
+      }
+    },
+    "PR interval" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PR-Zeit"
+          }
+        }
+      }
+    },
+    "Typical: 120 to 200 ms" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Üblich: 120 bis 200 ms"
+          }
+        }
+      }
+    },
+    "QRS duration" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QRS-Dauer"
+          }
+        }
+      }
+    },
+    "Typical: under 120 ms" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Üblich: unter 120 ms"
+          }
+        }
+      }
+    },
+    "QT interval" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QT-Zeit"
+          }
+        }
+      }
+    },
+    "QTc (Fridericia)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QTc (Fridericia)"
+          }
+        }
+      }
+    },
+    "Typical: under 450 ms" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Üblich: unter 450 ms"
+          }
+        }
+      }
+    },
+    "not measurable" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "nicht messbar"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
