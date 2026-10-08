@@ -533258,6 +533258,566 @@
           }
         }
       }
+    },
+    "Sinus rhythm" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sinusrhythmus"
+          }
+        }
+      }
+    },
+    "Low heart rate" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niedrige Herzfrequenz"
+          }
+        }
+      }
+    },
+    "Signs of atrial fibrillation" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hinweise auf Vorhofflimmern"
+          }
+        }
+      }
+    },
+    "Signs of atrial fibrillation, high heart rate" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hinweise auf Vorhofflimmern bei hoher Herzfrequenz"
+          }
+        }
+      }
+    },
+    "High heart rate" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hohe Herzfrequenz"
+          }
+        }
+      }
+    },
+    "High heart rate, no signs of atrial fibrillation" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hohe Herzfrequenz ohne Hinweise auf Vorhofflimmern"
+          }
+        }
+      }
+    },
+    "Inconclusive" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht eindeutig"
+          }
+        }
+      }
+    },
+    "Unreadable" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht auswertbar"
+          }
+        }
+      }
+    },
+    "The strap's built-in classifier reports the result; OpenStrap's table names it. NOOP is not a medical device and this is not a diagnosis. See a doctor if you have symptoms." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Ergebnis meldet der eingebaute Klassifikator des Bands, benannt nach der Tabelle von OpenStrap. NOOP ist kein Medizinprodukt und das ist keine Diagnose. Geh bei Beschwerden zu einer Ärztin oder einem Arzt."
+          }
+        }
+      }
+    },
+    "The signal was too weak." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Signal war zu schwach."
+          }
+        }
+      }
+    },
+    "There was too much noise." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Es gab zu viele Störungen."
+          }
+        }
+      }
+    },
+    "The signal was unstable." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Signal war instabil."
+          }
+        }
+      }
+    },
+    "There was not enough data." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Es kamen zu wenige Daten."
+          }
+        }
+      }
+    },
+    "Connect your WHOOP MG and switch on the ECG experiment first." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbinde zuerst dein WHOOP MG und schalte das EKG-Experiment ein."
+          }
+        }
+      }
+    },
+    "The strap disconnected during the reading." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Band hat während der Messung die Verbindung verloren."
+          }
+        }
+      }
+    },
+    "The strap sent no ECG data." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Band hat keine EKG-Daten gesendet."
+          }
+        }
+      }
+    },
+    "The strap did not finish within two minutes." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Band ist nicht innerhalb von zwei Minuten fertig geworden."
+          }
+        }
+      }
+    },
+    "Contact with the clasp was lost three times." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Kontakt zum Verschluss ist dreimal abgerissen."
+          }
+        }
+      }
+    },
+    "The strap stopped the reading." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Band hat die Messung abgebrochen."
+          }
+        }
+      }
+    },
+    "The reading could not be saved." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Messung konnte nicht gespeichert werden."
+          }
+        }
+      }
+    },
+    "Reading cancelled." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Messung abgebrochen."
+          }
+        }
+      }
+    },
+    "The reading did not finish." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Messung wurde nicht abgeschlossen."
+          }
+        }
+      }
+    },
+    "Rest your arm on a table, keep still and hold the clasp a little firmer." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leg den Arm auf einen Tisch, halte still und fass den Verschluss etwas fester."
+          }
+        }
+      }
+    },
+    "The strap could not decide. One more reading usually settles it." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Band konnte sich nicht festlegen. Eine weitere Messung klärt das meistens."
+          }
+        }
+      }
+    },
+    "Take one more reading" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch einmal messen"
+          }
+        }
+      }
+    },
+    "Saved ECGs" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gespeicherte EKGs"
+          }
+        }
+      }
+    },
+    "Record an ECG" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EKG aufnehmen"
+          }
+        }
+      }
+    },
+    "Sit still and rest your arm. Hold the two indents on the clasp with the fingers of your other hand for about 40 seconds." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Setz dich ruhig hin und leg den Arm ab. Halte die zwei Mulden am Verschluss etwa 40 Sekunden lang mit den Fingern der anderen Hand."
+          }
+        }
+      }
+    },
+    "Wrist" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Handgelenk"
+          }
+        }
+      }
+    },
+    "Left" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Links"
+          }
+        }
+      }
+    },
+    "Right" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rechts"
+          }
+        }
+      }
+    },
+    "Touch the clasp" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verschluss berühren"
+          }
+        }
+      }
+    },
+    "Contact lost" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kontakt verloren"
+          }
+        }
+      }
+    },
+    "Restarting" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neustart"
+          }
+        }
+      }
+    },
+    "Result received" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ergebnis erhalten"
+          }
+        }
+      }
+    },
+    "Hold both indents with the fingers of your other hand." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Halte beide Mulden mit den Fingern der anderen Hand."
+          }
+        }
+      }
+    },
+    "Hold the clasp again; the reading continues." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fass den Verschluss wieder an. Die Messung läuft weiter."
+          }
+        }
+      }
+    },
+    "Keep holding the clasp." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Halte den Verschluss weiter fest."
+          }
+        }
+      }
+    },
+    "Saving the reading." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Messung wird gespeichert."
+          }
+        }
+      }
+    },
+    "Keep still and keep holding the clasp." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Halte still und den Verschluss weiter fest."
+          }
+        }
+      }
+    },
+    "Signal" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signal"
+          }
+        }
+      }
+    },
+    "Interruptions" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unterbrechungen"
+          }
+        }
+      }
+    },
+    "New reading" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neue Messung"
+          }
+        }
+      }
+    },
+    "Length" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dauer"
+          }
+        }
+      }
+    },
+    "s" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "s"
+          }
+        }
+      }
+    },
+    "No saved ECGs yet." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch keine gespeicherten EKGs."
+          }
+        }
+      }
+    },
+    "25 mm/s, 10 mm/mV" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "25 mm/s, 10 mm/mV"
+          }
+        }
+      }
+    },
+    "Strap result code" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ergebniscode des Bands"
+          }
+        }
+      }
+    },
+    "Signal quality" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signalqualität"
+          }
+        }
+      }
+    },
+    "Lost packets" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verlorene Pakete"
+          }
+        }
+      }
+    },
+    "Contact interruptions" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kontaktunterbrechungen"
+          }
+        }
+      }
+    },
+    "Status" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Status"
+          }
+        }
+      }
+    },
+    "Inconclusive after a retry" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auch nach Wiederholung nicht eindeutig"
+          }
+        }
+      }
+    },
+    "Live ECG trace" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Live-EKG-Kurve"
+          }
+        }
+      }
+    },
+    "ECG trace" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EKG-Kurve"
+          }
+        }
+      }
+    },
+    "ECG reading…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EKG-Messung…"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
