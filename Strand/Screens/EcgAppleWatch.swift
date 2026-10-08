@@ -63,18 +63,24 @@ enum AppleWatchEcgSource {
             var values: [Double] = []
             values.reserveCapacity(ecg.numberOfVoltageMeasurements)
             let unit = HKUnit.voltUnit(with: .micro)
+            // HealthKit calls back once per measurement and then once with .done or .error; the continuation
+            // is resumed exactly once whatever arrives after that. A result kind a later iOS adds is skipped.
+            var resumed = false
             let query = HKElectrocardiogramQuery(ecg) { _, result in
+                guard !resumed else { return }
                 switch result {
                 case .measurement(let measurement):
                     if let quantity = measurement.quantity(for: .appleWatchSimilarToLeadI) {
                         values.append(quantity.doubleValue(for: unit))
                     }
                 case .done:
+                    resumed = true
                     continuation.resume(returning: values)
                 case .error(let error):
+                    resumed = true
                     continuation.resume(throwing: error)
                 @unknown default:
-                    continuation.resume(returning: values)
+                    break
                 }
             }
             store.execute(query)
@@ -208,7 +214,7 @@ struct AppleWatchEcgDetailView: View {
                         .font(StrandFont.subhead)
                         .foregroundStyle(StrandPalette.textSecondary)
                 }
-                EcgMeasurementsSection(samples: ecg.samples, fromStrap: false)
+                EcgMeasurementsSection(readingId: ecg.id.uuidString, samples: ecg.samples, fromStrap: false)
             }
             .padding(16)
         }
@@ -227,15 +233,23 @@ struct AppleWatchEcgDetailView: View {
     }
 }
 
-/// A plain-text copy of a compared pair, kept on the device for offline analysis over a cable. It sits
-/// next to the strap log in the app container, is overwritten for the same pair, and never leaves the
-/// device unless the user copies it. Lines: a header, then one line of comma-separated values each for
-/// the strap at 100 Hz, the Apple Watch at 100 Hz and the Apple Watch as recorded.
+/// A plain-text copy of a compared pair for offline analysis over a cable, written only while the Test
+/// Centre's Connection domain is on (the domain that also gates the ECG probe). It holds Apple Health data,
+/// so the folder is excluded from device backups and removed the next time a pair is opened with the
+/// domain off. Lines: a header, then one line of comma-separated values each for the strap at 100 Hz, the
+/// Apple Watch at 100 Hz and the Apple Watch as recorded.
 enum EcgComparisonExport {
     static func write(apple: AppleWatchEcg, strap: EcgReadingRow, strapSamples: [Int16?]) {
         guard let logs = try? StorePaths.strapLogDirectory() else { return }
-        let dir = logs.deletingLastPathComponent().appendingPathComponent("ecg-compare", isDirectory: true)
+        var dir = logs.deletingLastPathComponent().appendingPathComponent("ecg-compare", isDirectory: true)
+        guard TestCentre.active(.connection) else {
+            try? FileManager.default.removeItem(at: dir)
+            return
+        }
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try? dir.setResourceValues(values)
         let appleStart = Int(apple.start.timeIntervalSince1970)
         func csv(_ values: [Int16?]) -> String { values.map { $0.map(String.init) ?? "" }.joined(separator: ",") }
         let text = [

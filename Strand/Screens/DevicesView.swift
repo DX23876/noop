@@ -278,11 +278,10 @@ private struct DevicesContent: View {
                 // opt-in has been switched off mid-session. Turning a feature off must not remove the
                 // only control that turns the STRAP off; the MG gate still applies either way.
                 let ecgGate = probeGate && (ecgEnabled || model.ecgMayBeRunning) && model.isWhoop5MG
-                // A full reading needs no Test Centre domain: the opt-in and an attested MG are the gate. No
-                // live link is required, so saved readings stay reachable; the sheet itself says when a new
-                // reading cannot start.
-                // Not gated on the MG attestation: that comes from a DIS read on a live link, so after a
-                // restart without the strap it is unknown and saved readings would vanish with it.
+                // A full reading needs no Test Centre domain, only the opt-in. Neither a live link nor the MG
+                // attestation is required: the attestation comes from a DIS read on a live link, so after a
+                // restart without the strap it is unknown and saved readings would vanish with it. The sheet
+                // itself says when a new reading cannot start.
                 let ecgReadingGate = device.status == .active && ecgEnabled && SourceCoordinator.isWhoop(device)
                 DeviceCard(
                     device: device,

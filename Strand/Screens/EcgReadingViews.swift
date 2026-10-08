@@ -329,7 +329,7 @@ private struct EcgSavedResult: View {
             if let loaded {
                 EcgResultHeader(reading: loaded.row)
                 EcgPrintout(samples: loaded.samples)
-                EcgMeasurementsSection(samples: loaded.samples)
+                EcgMeasurementsSection(readingId: loaded.row.id, samples: loaded.samples)
                 Button(action: onNewReading) {
                     Text("New reading").frame(maxWidth: .infinity)
                 }
@@ -478,7 +478,7 @@ struct EcgReadingDetailView: View {
                         .font(StrandFont.caption)
                         .foregroundStyle(StrandPalette.textTertiary)
                 }
-                EcgMeasurementsSection(samples: samples)
+                EcgMeasurementsSection(readingId: reading.id, samples: samples)
                 facts
                 Text(EcgCategoryText.disclaimer)
                     .font(StrandFont.footnote)
@@ -549,6 +549,10 @@ struct EcgReadingDetailView: View {
 /// Rhythm, HRV and the intervals of the average beat, computed from a reading's samples on display.
 /// Nothing here is stored; a better method later re-measures every saved reading.
 struct EcgMeasurementsSection: View {
+    /// Which reading `samples` belong to. The measurements are recomputed when it or the sample count
+    /// changes: the count alone misses a different reading of the same length, the id alone misses
+    /// samples that arrive after the view appears.
+    let readingId: String
     let samples: [Int16?]
     /// The strip comes from the WHOOP MG: its high-pass is undone before anything is measured.
     var fromStrap = true
@@ -565,7 +569,7 @@ struct EcgMeasurementsSection: View {
                     .foregroundStyle(StrandPalette.textSecondary)
             }
         }
-        .task(id: samples.count) {
+        .task(id: "\(readingId)#\(samples.count)") {
             guard !samples.isEmpty else { return }
             let input = samples
             let cutoff = fromStrap ? EcgAnalysis.strapHighPassHz : nil

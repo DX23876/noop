@@ -304,3 +304,33 @@ final class EcgResampleTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(a.qtMs), try XCTUnwrap(b.qtMs), accuracy: 10)
     }
 }
+
+/// `WaveletDelineator` against the Python prototype it was ported from (martinez_lin.py, the session's
+/// reference implementation of Martinez et al. 2004). The expected values are that prototype's stdout for
+/// the same synthetic median beats; the port matched it on all 211 QT Database median beats as well.
+final class WaveletDelineatorOracleTests: XCTestCase {
+    /// A median beat at 100 Hz, R at index 35, 91 samples, from Gaussian waves (centre ms, sigma ms, µV).
+    func beat(_ waves: [(Double, Double, Double)]) -> [Double] {
+        (0..<91).map { i in
+            let t = Double(i - 35) * 10
+            let v = waves.reduce(0.0) { $0 + $1.2 * exp(-(t - $1.0) * (t - $1.0) / (2 * $1.1 * $1.1)) }
+            return (v * 10).rounded() / 10
+        }
+    }
+
+    let base: [(Double, Double, Double)] = [(-160, 20, 90), (-28, 8, -90), (0, 10, 900), (28, 8, -220), (260, 40, 260)]
+
+    func check(_ waves: [(Double, Double, Double)], rr: Double, pOnset: Double, qrsOnset: Double,
+               line: UInt = #line) throws {
+        let r = try XCTUnwrap(WaveletDelineator.pWave(beat(waves), rIndex: 35, meanRRms: rr), line: line)
+        XCTAssertEqual(r.pOnsetMs, pOnset, accuracy: 0.01, line: line)
+        XCTAssertEqual(r.qrsOnsetMs, qrsOnset, accuracy: 0.01, line: line)
+    }
+
+    func testMatchesThePrototype() throws {
+        try check(base, rr: 800, pOnset: -216, qrsOnset: -32)
+        try check([(-220, 20, 90)] + base.dropFirst(), rr: 1000, pOnset: -276, qrsOnset: -32)
+        try check(base.map { ($0.0, $0.1, -$0.2) }, rr: 800, pOnset: -216, qrsOnset: -32)
+        try check([(-120, 15, 80)] + base[1...3] + [(200, 30, 240)], rr: 500, pOnset: -168, qrsOnset: -32)
+    }
+}
