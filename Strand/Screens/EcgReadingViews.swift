@@ -148,6 +148,8 @@ struct EcgReadingSheet: View {
                 }
             }
         }
+        // Swiping the sheet away mid-reading would leave the strap recording out of sight; Stop is the way out.
+        .interactiveDismissDisabled(controller.phase.isRunning)
         #if os(macOS)
         // A sheet on macOS needs a size; on iPhone the same minimum would push the content past the screen.
         .frame(minWidth: NoopMetrics.detailSheetMinWidth, minHeight: NoopMetrics.detailSheetMinHeight)
@@ -462,7 +464,7 @@ struct EcgReadingDetailView: View {
                 EcgResultHeader(reading: reading)
                 VStack(alignment: .leading, spacing: 8) {
                     EcgPrintout(samples: samples)
-                    Text("25 mm/s, 10 mm/mV")
+                    Text("25 mm/s, 10 mm/mV nominal: the strap's amplitude scale is not calibrated.")
                         .font(StrandFont.caption)
                         .foregroundStyle(StrandPalette.textTertiary)
                 }
@@ -612,7 +614,7 @@ struct EcgMeasurementsSection: View {
                 .background(StrandPalette.surfaceRaised)
                 .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous))
             }
-            Text("Experimental. Measured on one lead at 100 Hz, so each interval is accurate to about 10 ms. A single wrist lead cannot show the heart's axis or the ST changes a 12-lead ECG looks for.")
+            Text("Experimental and not validated. The trace has one sample every 10 ms, so no interval can be finer than that, and noise or an unclear wave edge can shift it further. A single wrist lead cannot show the heart's axis or the ST changes a 12-lead ECG looks for.")
                 .font(StrandFont.footnote)
                 .foregroundStyle(StrandPalette.textTertiary)
                 .fixedSize(horizontal: false, vertical: true)

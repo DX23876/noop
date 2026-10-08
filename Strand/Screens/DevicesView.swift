@@ -281,7 +281,9 @@ private struct DevicesContent: View {
                 // A full reading needs no Test Centre domain: the opt-in and an attested MG are the gate. No
                 // live link is required, so saved readings stay reachable; the sheet itself says when a new
                 // reading cannot start.
-                let ecgReadingGate = device.status == .active && ecgEnabled && model.isWhoop5MG
+                // Not gated on the MG attestation: that comes from a DIS read on a live link, so after a
+                // restart without the strap it is unknown and saved readings would vanish with it.
+                let ecgReadingGate = device.status == .active && ecgEnabled && SourceCoordinator.isWhoop(device)
                 DeviceCard(
                     device: device,
                     isActive: device.status == .active,

@@ -534008,6 +534008,96 @@
           }
         }
       }
+    },
+    "25 mm/s, 10 mm/mV nominal: the strap's amplitude scale is not calibrated." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "25 mm/s, 10 mm/mV nominell: Die Amplitude des Bands ist nicht geeicht."
+          }
+        }
+      }
+    },
+    "Experimental and not validated. The trace has one sample every 10 ms, so no interval can be finer than that, and noise or an unclear wave edge can shift it further. A single wrist lead cannot show the heart's axis or the ST changes a 12-lead ECG looks for." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Experimentell und nicht validiert. Die Kurve hat alle 10 ms einen Messpunkt, keine Zeit kann also feiner sein. Rauschen oder eine unklare Wellengrenze können sie zusätzlich verschieben. Eine einzelne Ableitung am Handgelenk zeigt weder die Herzachse noch die ST-Veränderungen, auf die ein 12-Kanal-EKG achtet."
+          }
+        }
+      }
+    },
+    "The strap did not confirm that ECG recording stopped. Starting a new reading stops it first." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Band hat nicht bestätigt, dass die EKG-Aufnahme beendet ist. Eine neue Messung beendet sie zuerst."
+          }
+        }
+      }
+    },
+    "Preparing the strap" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Band wird vorbereitet"
+          }
+        }
+      }
+    },
+    "Stopping" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wird beendet"
+          }
+        }
+      }
+    },
+    "Waiting for the strap to confirm each command." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warte, bis das Band jeden Befehl bestätigt."
+          }
+        }
+      }
+    },
+    "Switching the strap's ECG off." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EKG des Bands wird ausgeschaltet."
+          }
+        }
+      }
+    },
+    "The strap did not confirm the start commands." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Band hat die Startbefehle nicht bestätigt."
+          }
+        }
+      }
+    },
+    "The strap did not confirm the restart." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Band hat den Neustart nicht bestätigt."
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
