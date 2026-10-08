@@ -8,19 +8,21 @@ import StrandDesign
 // recomputes a score. The one thing the watch measures locally is its OWN heart rate (HealthKit), shown
 // as a live readout alongside the synced scores.
 //
-// Two long-lived objects own the data:
+// Three long-lived objects own the data:
 //   - WatchScoreStore  receives the phone's snapshot, persists it to the shared App Group, drives the
 //                      complication reload, and publishes it to the glance.
 //   - WatchLiveHR      streams the watch's own heart rate (guarded behind HealthKit authorization).
+//   - WatchWorkoutSession owns the on-wrist HKWorkoutSession, so a recording outlives any one page.
 //
-// Both are created once here and handed to the glance as environment objects so the view stays pure.
+// All three are @Observable, created once here and handed down through the environment so the views stay pure.
 
 @main
 struct NOOPWatchApp: App {
     // Created once for the app's lifetime. The store activates WCSession on init so a snapshot the
     // phone sent while the app was backgrounded is delivered as soon as we come up.
-    @StateObject private var store = WatchScoreStore()
-    @StateObject private var liveHR = WatchLiveHR()
+    @State private var store = WatchScoreStore()
+    @State private var liveHR = WatchLiveHR()
+    @State private var workout = WatchWorkoutSession()
 
     init() {
         #if DEBUG
@@ -31,8 +33,9 @@ struct NOOPWatchApp: App {
     var body: some Scene {
         WindowGroup {
             rootView
-                .environmentObject(store)
-                .environmentObject(liveHR)
+                .environment(store)
+                .environment(liveHR)
+                .environment(workout)
                 // The watch app is dark-only to match the Apple-Fitness-x-WHOOP look. StrandPalette
                 // tokens resolve their dark values here, so the rings read on the near-black canvas.
                 .preferredColorScheme(.dark)
@@ -45,10 +48,10 @@ struct NOOPWatchApp: App {
     @ViewBuilder private var rootView: some View {
         #if DEBUG
         switch ProcessInfo.processInfo.environment["NOOP_DEMO_SCREEN"] {
-        case "breathe":   WatchBreatheView()
-        case "workout":   WatchWorkoutView()
-        case "intervals": WatchIntervalView()
-        case "glance":    WatchGlanceView()
+        case "glance":    WatchRootView(initialPage: .glance)
+        case "breathe":   WatchRootView(initialPage: .breathe)
+        case "workout":   WatchRootView(initialPage: .workout)
+        case "intervals": WatchRootView(initialPage: .intervals)
         default:          WatchRootView()
         }
         #else
