@@ -190,6 +190,37 @@ final class EcgAnalysisTests: XCTestCase {
         XCTAssertGreaterThan(result.irregularBeats, 10)
     }
 
+    /// The strap's stream as a first-order high-pass of the true strip.
+    func highPassed(_ samples: [Int16?], cutoffHz: Double) -> [Int16?] {
+        let a = 1 / (1 + 2 * Double.pi * cutoffHz / 100)
+        var y = 0.0, previous = Double(samples[0] ?? 0)
+        return samples.map { sample in
+            let x = Double(sample ?? 0)
+            y = a * (y + x - previous)
+            previous = x
+            return Int16(clamping: Int(y.rounded()))
+        }
+    }
+
+    func testUndoingTheStrapHighPassRecoversTheIntervals() throws {
+        let truth = strip(rTimesMs: regular(rrMs: 860))
+        let filtered = highPassed(truth, cutoffHz: EcgAnalysis.strapHighPassHz)
+        let reference = try XCTUnwrap(EcgAnalysis.analyze(truth))
+        let compensated = try XCTUnwrap(EcgAnalysis.analyze(
+            filtered, compensatingHighPassHz: EcgAnalysis.strapHighPassHz))
+        XCTAssertEqual(try XCTUnwrap(compensated.qrsMs), try XCTUnwrap(reference.qrsMs), accuracy: 10)
+        XCTAssertEqual(try XCTUnwrap(compensated.qtMs), try XCTUnwrap(reference.qtMs), accuracy: 15)
+        XCTAssertEqual(compensated.meanHeartRate, reference.meanHeartRate, accuracy: 0.5)
+        // And the filter is what distorts: without the inverse the T wave shrinks by a quarter or more.
+        let raw = try XCTUnwrap(EcgAnalysis.analyze(filtered))
+        let tPeak = { (r: EcgAnalysis.Result) -> Double in
+            let i = r.templateRIndex + Int((r.fiducials?.tPeakMs ?? 260) / 10)
+            return r.template[i]
+        }
+        XCTAssertLessThan(tPeak(raw), 0.8 * tPeak(reference))
+        XCTAssertGreaterThan(tPeak(compensated), 0.85 * tPeak(reference))
+    }
+
     func testNoiseAloneDoesNotProduceRhythm() {
         var seed: UInt64 = 17
         let samples: [Int16?] = (0..<3000).map { _ in

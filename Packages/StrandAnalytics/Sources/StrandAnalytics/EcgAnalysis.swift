@@ -65,8 +65,23 @@ public enum EcgAnalysis {
     public static let minimumBeats = 8
     static let correlationFloor = 0.9
 
-    public static func analyze(_ samples: [Int16?], sampleRate: Int = 100) -> Result? {
+    /// The WHOOP MG's live ECG stream behaves like a first-order high-pass at about this cutoff. Measured on
+    /// one wearer on 2026-10-08: three strap readings each followed within two minutes by an Apple Watch
+    /// ECG on the same wrist; passing the Watch strip through this filter reproduced the strap's median beat
+    /// (RMS 75-116 down to 30-33 µV), and each pair on its own put the best cutoff at 1.5 to 1.75 Hz. It
+    /// is the strap's filter, not NOOP's: it deepens the dip after the R wave and flattens the T wave.
+    public static let strapHighPassHz = 1.5
+
+    /// `compensatingHighPassHz` undoes a first-order high-pass at that cutoff before anything is measured,
+    /// for a stream known to carry one (`strapHighPassHz` for the MG). A 0.05 Hz high-pass, the usual
+    /// diagnostic lower corner, is left in place so the inverse cannot drift.
+    public static func analyze(_ samples: [Int16?], sampleRate: Int = 100,
+                               compensatingHighPassHz: Double? = nil) -> Result? {
         guard sampleRate == 100, samples.count >= sampleRate * 8 else { return nil }
+        if let cutoff = compensatingHighPassHz, cutoff > 0 {
+            return analyze(undoHighPass(samples, cutoffHz: cutoff, sampleRate: Double(sampleRate)),
+                           sampleRate: sampleRate)
+        }
         let fs = Double(sampleRate)
         func n(_ seconds: Double) -> Int { max(1, Int((seconds * fs).rounded())) }
 
@@ -322,6 +337,25 @@ public enum EcgAnalysis {
     }
 
     // MARK: - Helpers
+
+    /// Inverts y[n] = a (y[n-1] + x[n] - x[n-1]), a = 1 / (1 + 2 pi fc / fs), per contiguous run, keeping a
+    /// 0.05 Hz high-pass in its place. A gap restarts the run; the runs are never bridged.
+    static func undoHighPass(_ samples: [Int16?], cutoffHz: Double, sampleRate fs: Double) -> [Int16?] {
+        let a = 1 / (1 + 2 * Double.pi * cutoffHz / fs)
+        let keep = 1 / (1 + 2 * Double.pi * 0.05 / fs)
+        var out = [Int16?](repeating: nil, count: samples.count)
+        var previousIn: Double?
+        var previousOut = 0.0
+        for k in samples.indices {
+            guard let raw = samples[k] else { previousIn = nil; continue }
+            let y = Double(raw)
+            let x = previousIn.map { keep * previousOut + y / a - $0 } ?? 0
+            previousIn = y
+            previousOut = x
+            out[k] = Int16(clamping: Int(x.rounded()))
+        }
+        return out
+    }
 
     static func medianFilter(_ x: [Double], width: Int) -> [Double] {
         let half = width / 2

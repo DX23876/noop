@@ -534278,6 +534278,26 @@
           }
         }
       }
+    },
+    "The strap's P wave is too faint to time reliably." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die P-Welle ist beim Band zu schwach, um sie zuverlässig zu vermessen."
+          }
+        }
+      }
+    },
+    "not shown" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "nicht angezeigt"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

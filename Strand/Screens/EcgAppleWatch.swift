@@ -208,7 +208,7 @@ struct AppleWatchEcgDetailView: View {
                         .font(StrandFont.subhead)
                         .foregroundStyle(StrandPalette.textSecondary)
                 }
-                EcgMeasurementsSection(samples: ecg.samples)
+                EcgMeasurementsSection(samples: ecg.samples, fromStrap: false)
             }
             .padding(16)
         }
@@ -298,7 +298,7 @@ struct EcgComparisonCard: View {
         .task {
             let a = noop, b = apple
             results = await Task.detached(priority: .userInitiated) {
-                (EcgAnalysis.analyze(a), EcgAnalysis.analyze(b))
+                (EcgAnalysis.analyze(a, compensatingHighPassHz: EcgAnalysis.strapHighPassHz), EcgAnalysis.analyze(b))
             }.value
         }
     }
