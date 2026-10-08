@@ -715,7 +715,7 @@ struct EcgAverageBeatView: View {
                 line.addLine(to: CGPoint(x: x, y: size.height))
                 context.stroke(line, with: .color(StrandPalette.accent),
                                style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
-                context.draw(Text(verbatim: label).font(StrandFont.diagramLabel).foregroundStyle(StrandPalette.accent),
+                context.draw(Text(verbatim: label).font(StrandFont.diagramLabel).foregroundColor(StrandPalette.accent),
                              at: CGPoint(x: x, y: 4), anchor: .top)
             }
         }

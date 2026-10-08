@@ -181,9 +181,10 @@ struct EcgPrintout: View {
                 guard lo < hi else { break }
                 let top = CGFloat(row) * rowHeight
                 paper.drawTrace(signal[lo..<hi], in: &context, originX: 0, baselineY: top + rowHeight / 2)
+                // `foregroundColor` keeps this a `Text` on macOS 13; `foregroundStyle` returns one only from 14.
                 let label = Text("\(row * layout.secondsPerRow) s")
                     .font(StrandFont.diagramLabel)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundColor(StrandPalette.textTertiary)
                 context.draw(label, at: CGPoint(x: 4, y: top + 4), anchor: .topLeading)
             }
         }
