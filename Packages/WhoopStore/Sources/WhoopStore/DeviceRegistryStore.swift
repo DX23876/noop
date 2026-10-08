@@ -192,6 +192,8 @@ public struct DeviceRegistryStore: Sendable {
         // privacy defect this list exists to close, and one the deviceId-column guard test could not
         // catch for a child table keyed only by its parent.
         "liftExercise", "liftProgram", "liftProgramItem", "liftSession", "liftSet",
+        // v77-ecg-reading: saved MG ECG readings. Their packet rows cascade with the reading.
+        "ecgReading",
     ]
 
     /// Permanently delete every recorded sample/derived row belonging to one device, across all

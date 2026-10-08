@@ -77,7 +77,8 @@
   "v73-workout-heart-rate-fill",
   "v74-rr-whoop5-fill",
   "v75-workout-recording",
-  "v76-health-sync-state"
+  "v76-health-sync-state",
+  "v77-ecg-reading"
  ],
  "divergenceReasons": {
   "android-orphan-synced-column": "REAL COLUMN DRIFT: `synced` exists on Android only. GRDB's v10 note is explicit that stepSample gets no `synced` column ('unused; see StreamStore'), and v12's ppgHrSample never had one either; the Room entities copied the flag from the older per-second entities. Nothing reads it on Android — the per-row upload flag belongs to an upload path that does not exist there — so it is dead width, not divergent data. Removing it needs a Room table rebuild.",
@@ -4878,6 +4879,173 @@
    ],
    "primaryKey": [
     "id"
+   ],
+   "indices": []
+  },
+  "ecgReading": {
+   "platform": "ios_only",
+   "reason": "Saved WHOOP MG ECG readings (OpenStrap port, GRDB v77): the strap's result for a completed reading. This Apple-only checkout has no Room twin.",
+   "columns": [
+    {
+     "name": "id",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "deviceId",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "wrist",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "startTs",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "endTs",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "strapTerminalTs",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "resultCode",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "category",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "averageHr",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "variabilityRaw",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "quality",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "unreadableMask",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "interruptions",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "sampleCount",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "missingSegments",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "status",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "id"
+   ],
+   "indices": [
+    {
+     "name": "ecgReading_startTs",
+     "unique": false,
+     "columns": [
+      "startTs"
+     ]
+    }
+   ]
+  },
+  "ecgReadingPacket": {
+   "platform": "ios_only",
+   "reason": "The accepted filtered-ECG window of a saved reading (GRDB v77), deleted with it. This Apple-only checkout has no Room twin.",
+   "columns": [
+    {
+     "name": "readingId",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "position",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "sequence",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "strapSeconds",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "strapSubseconds",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "isPlaceholder",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "samples",
+     "affinity": "BLOB",
+     "notNull": true,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "readingId",
+    "position"
    ],
    "indices": []
   }

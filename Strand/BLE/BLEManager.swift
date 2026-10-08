@@ -4509,7 +4509,7 @@ public final class BLEManager: NSObject, ObservableObject {
     /// Deliberately NOT recorded as a probe Step. Steps feed the verdict, and a FAILURE here (an abort
     /// the firmware declines) would classify the run as `commandRefused` and mask the ECG outcome the run
     /// exists to establish. Its own log line carries the diagnostic instead.
-    private func ecgSendAbortHistorical() {
+    func ecgSendAbortHistorical() {
         if backfilling {
             log("ECG probe: → ABORT_HISTORICAL_TRANSMITS (20) — an offload is in flight and would compete "
                 + "with the realtime trace, so the local session is torn down with it")
@@ -4555,6 +4555,55 @@ public final class BLEManager: NSObject, ObservableObject {
 
     /// Clear the probe result (dialog dismissed).
     public func clearEcgProbe() { state.ecgProbe = nil }
+
+    // MARK: WHOOP MG ECG reading (OpenStrap port)
+    //
+    // The transport half of a full reading; `EcgReadingController` owns the state machine, the save and
+    // the UI state. The command lists follow OpenStrap's released order: PREPARE is 123 wrist, 139 ON,
+    // 125 ON; START is 20 then 124 = start; RESTART is 20 then 124 = restart (3); CLEANUP is the existing
+    // stop path. Every send still passes the double gate in `send()`.
+
+    /// Receives every 5/MG notify frame while a reading runs. Nil otherwise, so it costs one nil check.
+    var ecgReadingFrameSink: (([UInt8]) -> Void)?
+
+    /// Whether a reading can start right now: opt-in, attested MG, connected and fully bonded.
+    var ecgReadingReady: Bool {
+        PuffinExperiment.ecgEnabled && isWhoop5MG && state.connected && state.encryptedBond
+    }
+
+    /// The device id a reading is saved under.
+    var ecgReadingDeviceId: String { deviceId }
+
+    /// A strap-log line from the reading controller.
+    func ecgReadingLog(_ line: String) { log("ECG reading: \(line)") }
+
+    /// PREPARE then START. Returns false when a gate refused, in which case nothing was written.
+    @discardableResult
+    func ecgReadingStart(wrist: Whoop5Ecg.WristSelection) -> Bool {
+        guard ecgGatesAllow() else { return false }
+        ecgMayBeRunning = true      // latched BEFORE the sends, like the probe, so Stop stays offered
+        log("ECG reading: PREPARE wrist=\(wrist.token), filtered ON, raw-save ON; START")
+        send(.selectWrist, payload: Whoop5Ecg.selectWristPayload(wrist))
+        send(.toggleLabradorFiltered, payload: Whoop5Ecg.togglePayload(on: true))
+        send(.toggleLabradorRawSave, payload: Whoop5Ecg.togglePayload(on: true))
+        ecgSendAbortHistorical()
+        send(.toggleLabradorDataGeneration, payload: Whoop5Ecg.controlPayload(.start))
+        return true
+    }
+
+    /// RESTART: only for the state machine's explicit predicate (state-one flag cleared mid-reading).
+    /// Argument 3 is OpenStrap's restart value; it is not attested on NOOP's own hardware.
+    func ecgReadingRestart() {
+        guard ecgGatesAllow() else { return }
+        log("ECG reading: RESTART (20, then 124 = 3)")
+        ecgSendAbortHistorical()
+        send(.toggleLabradorDataGeneration, payload: Whoop5Ecg.commandPayload(arg: 3))
+    }
+
+    /// CLEANUP: 124 stop, 125 OFF, 139 OFF through the probe's stop path, which also clears the latch.
+    func ecgReadingStop() {
+        ecgStopCapture(reportsResult: false)
+    }
 
     private func beginEcgProbeRun(clearingSteps: Bool) {
         if clearingSteps {
@@ -7558,6 +7607,8 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                     // the ECG records arrive under. `ecgProbeArmed` is false outside a user-initiated
                     // run, so this costs one Bool read on every other frame.
                     if ecgProbeArmed { noteEcgProbeFrame(frame) }
+                    // A full ECG reading (`EcgReadingController`) parses its own frames; nil otherwise.
+                    ecgReadingFrameSink?(frame)
                     // Gated on the FULL verdict for the same reason as the 4.0 path: this reply sets the
                     // window the offload judges its records against. The verdict is taken here rather
                     // than threaded from the seam because the 5/MG loop hands the router raw bytes; a

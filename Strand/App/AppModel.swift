@@ -1765,6 +1765,8 @@ final class AppModel: ObservableObject {
     /// True once a start has been sent this session and no stop has completed — keeps the Stop control
     /// reachable even after the opt-in has been switched back off.
     var ecgMayBeRunning: Bool { ble.ecgMayBeRunning }
+    /// A full MG ECG reading (OpenStrap port): capture, save and the saved-readings list.
+    lazy var ecgReading = EcgReadingController(ble: ble, repo: repo)
     // #103: READ-ONLY device-config READ probe (121/128) — asks the strap for a key's VALUE, the
     // follow-up to #761's key-NAME enumeration. Writes nothing. User-initiated, Test-Centre-gated in
     // DevicesView.

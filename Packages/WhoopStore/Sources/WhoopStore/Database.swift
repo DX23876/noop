@@ -1966,6 +1966,11 @@ extension WhoopStore {
         migrator.registerMigration("v76-health-sync-state") { db in
             try WhoopStore.createHealthSyncTables(db)
         }
+        // Saved WHOOP MG ECG readings (the OpenStrap port): the strap's own result plus the accepted
+        // filtered-ECG window. Nothing existing is rewritten, so no score goes stale.
+        migrator.registerMigration("v77-ecg-reading") { db in
+            try WhoopStore.createEcgReadingTables(db)
+        }
         return migrator
     }
 }

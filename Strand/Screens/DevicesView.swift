@@ -74,6 +74,8 @@ private struct DevicesContent: View {
     /// The SEPARATE wrist-selection confirm. Its own state (and its own dialog) because SELECT_WRIST is a
     /// persistent strap write and must never ride along inside a start flow.
     @State private var ecgWristTarget: PairedDevice?
+    /// The full MG ECG reading sheet (OpenStrap port).
+    @State private var ecgReadingPresented = false
     /// The Experimental ECG opt-in. Read here so the menu entry appears only once the user has opted in.
     @AppStorage(PuffinExperiment.ecgKey) private var ecgEnabled = false
     /// #103 device-config READ probe (Test Centre → Connection) — the device whose dialog is open.
@@ -276,6 +278,8 @@ private struct DevicesContent: View {
                 // opt-in has been switched off mid-session. Turning a feature off must not remove the
                 // only control that turns the STRAP off; the MG gate still applies either way.
                 let ecgGate = probeGate && (ecgEnabled || model.ecgMayBeRunning) && model.isWhoop5MG
+                // A full reading needs no Test Centre domain: the opt-in and an attested MG are the gate.
+                let ecgReadingGate = device.status == .active && live.connected && ecgEnabled && model.isWhoop5MG
                 DeviceCard(
                     device: device,
                     isActive: device.status == .active,
@@ -366,6 +370,7 @@ private struct DevicesContent: View {
                     // `probeGate`; BLEManager gates the sends again, so the UI gate is defence in depth,
                     // never the only thing standing between a 5.0 and an ECG command.
                     onEcgProbe: ecgGate ? { ecgProbeTarget = device } : nil,
+                    onEcgReading: ecgReadingGate ? { ecgReadingPresented = true } : nil,
                     // #103 device-config READ probe: read-only (asks for VALUES, writes none), both
                     // families. Same Test Centre → Connection gate.
                     onDeviceConfigProbe: probeGate ? { deviceConfigProbeTarget = device } : nil)
@@ -481,6 +486,10 @@ private struct DevicesContent: View {
         // MG ECG probe (actions + the separate wrist confirm + result), isolated into its own
         // ViewModifier for the same iOS type-checker reason as the #690 block above.
         .modifier(EcgProbeSheets(target: $ecgProbeTarget, wristTarget: $ecgWristTarget))
+        .sheet(isPresented: $ecgReadingPresented) {
+            EcgReadingSheet(controller: model.ecgReading, onClose: { ecgReadingPresented = false })
+                .environmentObject(model.repo)
+        }
         // #103 device-config READ probe (confirm + result) — same ViewModifier isolation.
         .modifier(DeviceConfigProbeSheets(target: $deviceConfigProbeTarget))
         // Second, strongly-worded delete-data confirm (reached from the Remove card's secondary control)
@@ -885,6 +894,7 @@ private struct DeviceCard: View {
     var onAbortSync: (() -> Void)? = nil
     /// WHOOP MG ECG (Labrador) probe. Non-nil only for an MG with the Experimental ECG opt-in on.
     var onEcgProbe: (() -> Void)? = nil
+    var onEcgReading: (() -> Void)? = nil
     /// #103 device-config READ probe (Test Centre → Connection, both WHOOP families). Read-only: it asks
     /// the strap for a config key's VALUE and writes none.
     var onDeviceConfigProbe: (() -> Void)? = nil
@@ -1182,6 +1192,9 @@ private struct DeviceCard: View {
                 // WHOOP MG ECG (Labrador) probe: WRITES ECG control commands, so unlike the read-only
                 // probes above the parent only passes a closure when the Experimental ECG opt-in is on
                 // AND the strap has identified itself as an MG.
+                if let onEcgReading {
+                    Button { onEcgReading() } label: { Label("ECG reading…", systemImage: "waveform.path.ecg.rectangle") }
+                }
                 if let onEcgProbe {
                     Button { onEcgProbe() } label: { Label("ECG capture (MG, experimental)…", systemImage: "waveform.path.ecg") }
                 }
