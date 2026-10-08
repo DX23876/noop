@@ -280,13 +280,26 @@ public enum EcgAnalysis {
            abs(u[peak]) > 0.05 * rAmplitude {
             tPeak = peak
             let sign: Double = u[peak] > 0 ? 1 : -1
-            let nextQRS = r0 + s(meanRRms / 1000 - 0.08)
-            let descentHi = clamp(min(peak + s(0.2), nextQRS))
+            // The next beat's QRS starts one RR after this one's; neither search may reach it.
+            let nextOnset = qrsOn + s(meanRRms / 1000)
+            let descentHi = clamp(min(peak + s(0.2), nextOnset - s(0.02)))
+            // T end by the trapezium-area method (Vázquez-Seisdedos et al., 2011, BioMed Eng OnLine 10:43):
+            // from the steepest point of the descending limb x_m, each candidate x_i spans a trapezium with
+            // the fixed point x_r after the wave; the T end is the x_i of largest area
+            // A_i = 0.5 * (y_m - y_i) * (2 x_r - x_i - x_m). It does not depend on where the baseline sits,
+            // unlike the tangent method, which crosses the zero line and ends the wave early.
             if peak < descentHi, let steepest = (peak...descentHi).min(by: { sign * slope[$0] < sign * slope[$1] }),
                sign * slope[steepest] < 0 {
-                let crossing = Double(steepest) - u[steepest] / slope[steepest]
-                if crossing > Double(peak), crossing < Double(clamp(r0 + s(meanRRms / 1000 - 0.03))),
-                   crossing <= Double(u.count - 1) { tEnd = crossing }
+                let xr = clamp(min(steepest + s(0.20), nextOnset - s(0.01)))
+                if steepest < xr {
+                    let ym = sign * u[steepest]
+                    let best = (steepest...xr).max { a, b in
+                        let areaA = 0.5 * (ym - sign * u[a]) * Double(2 * xr - a - steepest)
+                        let areaB = 0.5 * (ym - sign * u[b]) * Double(2 * xr - b - steepest)
+                        return areaA < areaB
+                    }
+                    if let best, best > steepest, best < xr { tEnd = Double(best) }
+                }
             }
         }
 

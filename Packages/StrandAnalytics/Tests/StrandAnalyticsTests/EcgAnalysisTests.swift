@@ -53,7 +53,11 @@ final class EcgAnalysisTests: XCTestCase {
         XCTAssertFalse(result.inverted)
         XCTAssertGreaterThanOrEqual(result.beatsAveraged, 30)
         let f = try XCTUnwrap(result.fiducials)
-        XCTAssertEqual(try XCTUnwrap(f.tEndMs), 340, accuracy: 12)        // 260 + 2 x 40
+        // A Gaussian T wave has no sharp end. The trapezium method puts it between 2 and 3 sigma past the
+        // peak (the tangent method stops at exactly 2); the annotated QT Database is what fixed the method.
+        let tEnd = try XCTUnwrap(f.tEndMs)
+        XCTAssertGreaterThanOrEqual(tEnd, 335)                            // 260 + 2 x 40, less a sample
+        XCTAssertLessThanOrEqual(tEnd, 385)                               // 260 + 3 x 40, plus a sample
         XCTAssertEqual(try XCTUnwrap(f.pOnsetMs), -200, accuracy: 12)     // -160 - 2 x 20
         let qrs = try XCTUnwrap(result.qrsMs)
         XCTAssertTrue((60...110).contains(qrs), "QRS \(qrs)")
