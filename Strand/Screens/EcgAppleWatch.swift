@@ -19,6 +19,8 @@ struct AppleWatchEcg: Identifiable {
     let classification: HKElectrocardiogram.Classification
     let averageHeartRate: Double?
     let samplingHz: Double
+    /// The voltages as recorded, in microvolts at `samplingHz`, for the comparison file.
+    let raw: [Double]
     let samples: [Int16?]
 }
 
@@ -50,7 +52,7 @@ enum AppleWatchEcgSource {
             out.append(AppleWatchEcg(
                 id: ecg.uuid, start: ecg.startDate, classification: ecg.classification,
                 averageHeartRate: ecg.averageHeartRate?.doubleValue(for: .count().unitDivided(by: .minute())),
-                samplingHz: rate, samples: EcgResample.toHundredHertz(microvolts, rate: rate)))
+                samplingHz: rate, raw: microvolts, samples: EcgResample.toHundredHertz(microvolts, rate: rate)))
         }
         return out
     }
@@ -218,8 +220,34 @@ struct AppleWatchEcgDetailView: View {
             guard let row = noopReadings.min(by: { abs(Double($0.startTs) - target) < abs(Double($1.startTs) - target) }),
                   let store = await repo.storeHandle(),
                   let packets = try? await store.ecgReadingPackets(id: row.id) else { return }
-            nearest = (row, EcgSamples.flatten(packets))
+            let samples = EcgSamples.flatten(packets)
+            nearest = (row, samples)
+            EcgComparisonExport.write(apple: ecg, strap: row, strapSamples: samples)
         }
+    }
+}
+
+/// A plain-text copy of a compared pair, kept on the device for offline analysis over a cable. It sits
+/// next to the strap log in the app container, is overwritten for the same pair, and never leaves the
+/// device unless the user copies it. Lines: a header, then one line of comma-separated values each for
+/// the strap at 100 Hz, the Apple Watch at 100 Hz and the Apple Watch as recorded.
+enum EcgComparisonExport {
+    static func write(apple: AppleWatchEcg, strap: EcgReadingRow, strapSamples: [Int16?]) {
+        guard let logs = try? StorePaths.strapLogDirectory() else { return }
+        let dir = logs.deletingLastPathComponent().appendingPathComponent("ecg-compare", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let appleStart = Int(apple.start.timeIntervalSince1970)
+        func csv(_ values: [Int16?]) -> String { values.map { $0.map(String.init) ?? "" }.joined(separator: ",") }
+        let text = [
+            "strap id=\(strap.id) start=\(strap.startTs) wrist=\(strap.wrist) result=\(strap.resultCode) "
+                + "avgHr=\(strap.averageHr.map(String.init) ?? "") variability=\(strap.variabilityRaw.map(String.init) ?? "")",
+            "apple start=\(appleStart) hz=\(apple.samplingHz) classification=\(apple.classification.rawValue) "
+                + "avgHr=\(apple.averageHeartRate.map { String(format: "%.1f", $0) } ?? "")",
+            csv(strapSamples),
+            csv(apple.samples),
+            apple.raw.map { String(format: "%.2f", $0) }.joined(separator: ","),
+        ].joined(separator: "\n") + "\n"
+        try? text.write(to: dir.appendingPathComponent("pair-\(appleStart).txt"), atomically: true, encoding: .utf8)
     }
 }
 
