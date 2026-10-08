@@ -63,7 +63,7 @@ public enum EcgAnalysis {
 
     /// Fewer regular beats than this and no median beat (or interval) is reported.
     public static let minimumBeats = 8
-    static let correlationFloor = 0.9
+    static let correlationFloor = 0.8
 
     /// The WHOOP MG's live ECG stream behaves like a first-order high-pass at about this cutoff. Measured on
     /// one wearer on 2026-10-08: three strap readings each followed within two minutes by an Apple Watch
@@ -154,14 +154,28 @@ public enum EcgAnalysis {
         guard candidates.count >= 3 else { return nil }
         let polarity: Double = median(candidates.map(\.signed)) < 0 ? -1 : 1
         // Re-place each R on the dominant deflection, so a deep S never stands in for the R.
-        var beats: [(index: Int, run: Int)] = []
+        var placed: [(index: Int, run: Int, height: Double)] = []
         for c in candidates {
             let lo = max(runs[c.run].lowerBound, c.index - n(0.06))
             let hi = min(runs[c.run].upperBound - 1, c.index + n(0.06))
             let r = (lo...hi).max { polarity * y[$0]! < polarity * y[$1]! } ?? c.index
-            if let last = beats.last, last.run == c.run, r - last.index < n(0.25) { continue }
-            beats.append((r, c.run))
+            placed.append((r, c.run, polarity * y[r]!))
         }
+        // A second, amplitude stage as in Pan-Tompkins' signal and noise levels: on a noisy strip (muscle
+        // tremor on the clasp) the slope energy also peaks on noise bursts, whose R height is a fraction of
+        // a real beat's. Real beats are the majority, so their median sets the level.
+        let typicalHeight = median(placed.map(\.height))
+        var beats: [(index: Int, run: Int)] = []
+        var lastHeight = 0.0
+        for p in placed where p.height >= 0.5 * typicalHeight {
+            if let last = beats.last, last.run == p.run, p.index - last.index < n(0.25) {
+                if p.height > lastHeight { beats[beats.count - 1] = (p.index, p.run); lastHeight = p.height }
+                continue
+            }
+            beats.append((p.index, p.run))
+            lastHeight = p.height
+        }
+        guard beats.count >= 3 else { return nil }
 
         // 3. Rhythm and HRV. Intervals never span a gap.
         var rr: [(ms: Double, beat: Int)] = []

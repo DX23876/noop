@@ -221,6 +221,21 @@ final class EcgAnalysisTests: XCTestCase {
         XCTAssertGreaterThan(tPeak(compensated), 0.85 * tPeak(reference))
     }
 
+    func testNoiseBurstsOnANoisyStripAreNotCountedAsBeats() throws {
+        // Muscle tremor on the clasp: broadband noise of a quarter of the R height, plus short bursts
+        // between beats that peak at about 30 % of an R wave (the false beats seen on a real MG strip).
+        var samples = strip(rTimesMs: regular(rrMs: 960), noise: 200)
+        var seed: UInt64 = 5
+        for beatMs in regular(rrMs: 960).dropLast() where Int(beatMs) % 3 == 1 {
+            let at = Int((beatMs + 480) / 10)
+            seed = seed &* 6364136223846793005 &+ 1442695040888963407
+            for k in 0..<4 { samples[at + k] = Int16(clamping: Int(samples[at + k]!) + (k % 2 == 0 ? 280 : -260)) }
+        }
+        let result = try XCTUnwrap(EcgAnalysis.analyze(samples))
+        XCTAssertEqual(result.meanHeartRate, 62.5, accuracy: 1.5)
+        XCTAssertLessThanOrEqual(result.irregularBeats, 1)
+    }
+
     func testNoiseAloneDoesNotProduceRhythm() {
         var seed: UInt64 = 17
         let samples: [Int16?] = (0..<3000).map { _ in
