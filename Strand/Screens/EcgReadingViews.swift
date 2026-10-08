@@ -394,6 +394,7 @@ struct EcgReadingListView: View {
     @EnvironmentObject var repo: Repository
     @State private var readings: [EcgReadingRow] = []
     @State private var loaded = false
+    @State private var refreshToken = 0
 
     var body: some View {
         List {
@@ -419,8 +420,12 @@ struct EcgReadingListView: View {
                 }
             }
             #if os(iOS)
-            AppleWatchEcgSection(noopReadings: readings)
+            AppleWatchEcgSection(noopReadings: readings, refreshToken: refreshToken)
             #endif
+        }
+        .refreshable {
+            if let store = await repo.storeHandle() { readings = (try? await store.ecgReadings()) ?? [] }
+            refreshToken &+= 1
         }
         .navigationTitle("Saved ECGs")
         .task(id: controller.savedRevision) {

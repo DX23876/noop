@@ -96,8 +96,12 @@ enum AppleWatchEcgSource {
 /// The Apple Watch section of the saved-ECG list: loads on request, newest first.
 struct AppleWatchEcgSection: View {
     let noopReadings: [EcgReadingRow]
+    /// Bumped by the list's pull-to-refresh; any change reloads once access was asked for.
+    var refreshToken: Int = 0
     @State private var ecgs: [AppleWatchEcg] = []
     @State private var state: LoadState = .idle
+    /// Once the user loaded Apple Watch ECGs, the section loads on its own every time it appears.
+    @AppStorage("noopEcgAppleWatchLoaded") private var loadedBefore = false
     private enum LoadState { case idle, loading, loaded, failed }
 
     var body: some View {
@@ -142,15 +146,21 @@ struct AppleWatchEcgSection: View {
                         .padding(.vertical, 4)
                     }
                 }
+                Button("Reload") { Task { await load() } }
             }
         } header: {
             Text("Apple Watch")
         } footer: {
             Text("Measured with the same method as the strap, for comparison. Read from Apple Health, not stored by NOOP.")
         }
+        .task(id: refreshToken) {
+            if loadedBefore || refreshToken > 0 { await load() }
+        }
     }
 
     private func load() async {
+        guard state != .loading else { return }
+        loadedBefore = true
         state = .loading
         do {
             try await AppleWatchEcgSource.requestAccess()
