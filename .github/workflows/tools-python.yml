@@ -50,6 +50,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  ecg-ppg-reference:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install offline signal-analysis dependencies
+        run: pip install -r Tools/EcgPpgReference/requirements.txt
+      - name: Validate ECG/PPG experiment on synthetic signals
+        run: python3 Tools/EcgPpgReference/run_tests.py
+        # The workflow is unfiltered: tests, detector, dependencies and this gate
+        # all invalidate it. The runner requires the exact roster and no skips.
+        # This does not validate sensor hardware or the optional Swift HR control;
+        # PpgHr itself is covered by the separate Swift package test workflow.
+
   linux-capture:
     runs-on: ubuntu-latest
     steps:
