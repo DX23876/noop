@@ -435,7 +435,7 @@ struct StrandiOSApp: App {
                 // and iOS can't re-arm it while suspended, so it would otherwise fire once and stop.
                 model.applySmartAlarm()
                 // #267: pull a reasonably fresh sync on open rather than waiting for the 900s periodic
-                // timer or an incidental reconnect. Floored at 90s and never clock/empty-streak-suppressed
+                // timer or an incidental reconnect. Floored at 5 min and never clock/empty-streak-suppressed
                 // (BackfillPolicy.shouldRun's .foreground case), so this is a safe no-op on rapid re-opens.
                 model.ble.requestSync(.foreground)
                 // Re-learn the wake-time-tracking check-in from fresh sleep on foreground. No-op unless

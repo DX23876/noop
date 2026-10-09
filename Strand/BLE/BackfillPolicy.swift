@@ -20,6 +20,7 @@ enum BackfillTrigger {
 enum BackfillPolicy {
     static let periodicFloorSeconds: TimeInterval = 900   // 15 min
     static let eventFloorSeconds: TimeInterval = 90       // absorbs reconnect-flaps / event bursts
+    static let foregroundFloorSeconds: TimeInterval = 300 // 5 min between app-open offloads
     static let emptyBackoffThreshold = 3                  // empties before the floor starts stretching
     static let maxEmptyBackoff: Double = 4                // cap → ~6-min event / 1-hr periodic floor
 
@@ -27,8 +28,9 @@ enum BackfillPolicy {
     /// Past the threshold the AUTOMATIC triggers (.periodic/.strap) stretch their floor — each further
     /// empty doubles it, capped — so an off-wrist / not-banking strap that still emits EVENT packets
     /// every 90s isn't re-offloaded console-only every 90s, draining its battery and ours (#77/#120/#216).
-    /// `.manual`/`.connect`/`.foreground` never back off, and the first real record resets the streak,
-    /// so baseline cadence resumes instantly — a user- or connection-driven sync is never delayed.
+    /// `.manual`/`.connect`/`.foreground` never use the empty-streak backoff, and the first real record
+    /// resets the streak, so baseline cadence resumes instantly — a user- or connection-driven sync
+    /// is never delayed by an empty streak.
     ///
     /// `clockUntrusted` = the strap's own RTC currently reads future-dated (#928: `BackfillContinuation
     /// .isFutureDatedNewest`). Such a strap still BANKS real rows every pass, so it never trips the
@@ -52,7 +54,8 @@ enum BackfillPolicy {
         // .manual (user-tapped) and .autoContinue (#364 expedited backlog drain) always run — both are
         // deliberately un-floored; .autoContinue's runaway protection lives in BLEManager's cap, not here.
         case .manual, .autoContinue: return true
-        case .connect, .foreground:  return elapsed >= eventFloorSeconds
+        case .connect:               return elapsed >= eventFloorSeconds
+        case .foreground:            return elapsed >= foregroundFloorSeconds
         // #160: a future-dated-clock strap's recurring automatic offloads are near-useless (#1012 won't
         // trust the range) but each holds the link ~60s and starves the WHOOP4 realtime-HR re-arm, so skip
         // them entirely — not just stretch the floor. The .connect pass above still re-checks the clock.
