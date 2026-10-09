@@ -354,13 +354,20 @@ public struct TrendChart: View {
     /// Exposed internally so a unit test can pin the resolution without rendering the chart.
     var resolvedYDomain: ClosedRange<Double> { yDomain ?? valueRange }
 
+    /// Headroom above the top grid line when bar values are shown: enough for a 9 pt label over a bar
+    /// that reaches the top line at the steps chart's height.
+    static let barValueHeadroom = 1.12
+
     /// `resolvedYDomain`, floored at (or below) 0 in bar mode so a `BarMark`'s length stays
     /// proportional to its value — see the `.chartYScale` comment in `body` for why. Line mode is
     /// unaffected. Exposed internally alongside `resolvedYDomain` for the same test-without-rendering
     /// reason.
     var plotYDomain: ClosedRange<Double> {
         if let step = yAxisStep, step > 0 {
-            return 0...max(step, ceil((points.map(\.value).max() ?? 0) / step) * step)
+            let top = max(step, ceil((points.map(\.value).max() ?? 0) / step) * step)
+            // Bar values are drawn above their bars, so the tallest one needs room inside the plot.
+            // That room is data-space headroom, not a resized plot area: see `.chartPlotStyle` in `body`.
+            return 0...(showsBarValues ? top * Self.barValueHeadroom : top)
         }
         return showsBars ? min(0, resolvedYDomain.lowerBound)...resolvedYDomain.upperBound : resolvedYDomain
     }
@@ -489,8 +496,12 @@ public struct TrendChart: View {
         // on sharp turns, and the AreaMark gradient is drawn UNCLIPPED — so on a spiky HR curve the
         // rose fill bled down the page behind the cards below the chart. Clipping the plot area bounds
         // every mark (line, area, points, overshoot) to the chart rectangle.
+        //
+        // The plot area is never resized for bar values. Padding it for them sent Swift Charts into an
+        // endless layout pass inside the steps detail's scroll view on iPhone: choosing W, the one range
+        // that shows bar values there, froze the app at full CPU. `plotYDomain` makes the room instead.
         .chartPlotStyle { plotArea in
-            if showsBarValues { plotArea.padding(.top, 18) } else { plotArea.clipped() }
+            plotArea.clipped()
         }
         // Marks are pinned to WHOLE DAYS, not asked for by count (#2431-style label smear on Trends).
         //
