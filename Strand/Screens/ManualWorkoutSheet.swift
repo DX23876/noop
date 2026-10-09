@@ -26,6 +26,9 @@ struct ManualWorkoutSheet: View {
     let editing: WorkoutRow?
     /// Called with the validated row (and the original, when editing) once the user taps Save.
     let onSave: (_ row: WorkoutRow, _ replacing: WorkoutRow?) -> Void
+    /// Where the HR curve for setting the span on the strap's own heart rate comes from. nil hides the curve
+    /// (previews, or a caller with no repository at hand).
+    let hrSource: Repository?
 
     @Environment(\.dismiss) private var dismiss
 
@@ -66,10 +69,11 @@ struct ManualWorkoutSheet: View {
 
     /// `prefill` seeds a NEW workout (sport, day, times) without making it an edit, e.g. the goals'
     /// "add the workout" for yesterday; `editing` wins when both are given.
-    init(editing: WorkoutRow? = nil, prefill: WorkoutRow? = nil,
+    init(editing: WorkoutRow? = nil, prefill: WorkoutRow? = nil, hrSource: Repository? = nil,
          onSave: @escaping (_ row: WorkoutRow, _ replacing: WorkoutRow?) -> Void) {
         self.editing = editing
         self.onSave = onSave
+        self.hrSource = hrSource
         // Pre-fill from the edited row (display "detected" as "Activity" so a re-label starts clean).
         let e = editing ?? prefill
         // Seeds the LOCALE-STABLE editable form, not the localized display: the field's content is
@@ -159,6 +163,9 @@ struct ManualWorkoutSheet: View {
                 // Raise the Sport field above the following rows so its floating suggestion dropdown
                 // (an overlay, see `sportPicker`) draws ON TOP of Start / End / Duration, not behind them.
                 .zIndex(1)
+                if let hrSource {
+                    WorkoutSpanPicker(repo: hrSource, start: $start, end: $end, editing: editing)
+                }
                 field(String(localized: "Start")) {
                     DatePicker("", selection: startBinding, in: ...Date(),
                                displayedComponents: [.date, .hourAndMinute])

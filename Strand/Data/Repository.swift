@@ -4547,6 +4547,41 @@ final class Repository: ObservableObject {
             detectedDismissedTokens: dismissedDetectedSpans)
     }
 
+    /// Windows the published detector finds on the calendar day of `day`, for the HR curve on the workout
+    /// sheet. Unlike `autoDetectCandidate` this runs whether or not the Settings toggle is on and ignores
+    /// earlier dismissals: the wearer opened the sheet to log a session, so every plausible window on that
+    /// day is offered as a starting point. Saved workouts still exclude their own windows, except the row
+    /// being edited, whose span is the one being adjusted. PURE READ: never writes a workout.
+    func workoutSpanSuggestions(day: Date, excluding editing: WorkoutRow?) async -> [DetectedWorkout] {
+        let cal = Calendar.current
+        let dayStart = cal.startOfDay(for: day)
+        let dayEnd = cal.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart.addingTimeInterval(86_400)
+        let from = Int(dayStart.timeIntervalSince1970)
+        let to = min(Int(dayEnd.timeIntervalSince1970), Int(Date().timeIntervalSince1970))
+        guard to > from else { return [] }
+        let samples = await hrSamples(from: from, to: to, limit: Int.max)
+        guard samples.count >= 2 else { return [] }
+
+        let f = DateFormatter()
+        f.calendar = Calendar(identifier: .gregorian)
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = .current
+        f.dateFormat = "yyyy-MM-dd"
+        let key = f.string(from: dayStart)
+        let resting = await restingHrByDay(fromDay: key, toDay: key)[key].map { Int($0.rounded()) }
+            ?? days.last(where: { $0.restingHr != nil })?.restingHr
+
+        let savedSpans = await workoutRows()
+            .filter { row in
+                guard let editing else { return true }
+                return !(row.startTs == editing.startTs && row.sport == editing.sport)
+            }
+            .map { SavedWorkoutSpan(startSec: $0.startTs, endSec: $0.endTs) }
+        return AutoWorkoutDetector.detect(hr: samples.map { (ts: $0.ts, bpm: $0.bpm) },
+                                          restingBpm: resting, motion: nil, savedSpans: savedSpans,
+                                          minimumSustainedMinutes: AutoWorkoutDetector.minSustainedMin)
+    }
+
     /// SAVE a suggested window as a manual-style "Workout" (generic sport , we don't claim a sport we
     /// didn't classify). Built through the same `WorkoutSource.buildManualRow` the manual sheet uses, so
     /// it persists exactly like a hand-entered session under the strap source. After saving, the screen

@@ -16,6 +16,8 @@ import StrandAnalytics
 struct AutoWorkoutCard: View {
 
     @EnvironmentObject var repo: Repository
+    /// Re-scores the adjusted session from the strap's HR right after it is saved, as the Workouts screen does.
+    @EnvironmentObject var intelligence: IntelligenceEngine
 
     /// Whether the toggle is on. Read here too so the card disappears the instant it's switched off.
     @AppStorage(PuffinExperiment.autoDetectWorkoutsKey) private var autoDetectEnabled = false
@@ -26,6 +28,8 @@ struct AutoWorkoutCard: View {
     @State private var handledThisSession = false
     /// Guards the Save button while the write is in flight.
     @State private var saving = false
+    /// The suggestion opened on the workout sheet to set its span on the HR curve and pick the sport.
+    @State private var adjusting: AdjustTarget?
 
     var body: some View {
         Group {
@@ -37,6 +41,29 @@ struct AutoWorkoutCard: View {
         .task(id: AutoWorkoutLoadKey(seq: repo.refreshSeq, enabled: autoDetectEnabled)) {
             await reload()
         }
+        .sheet(item: $adjusting) { target in
+            ManualWorkoutSheet(prefill: adjustPrefill(target.workout), hrSource: repo) { row, _ in
+                handledThisSession = true
+                Task {
+                    await repo.saveManualWorkout(row)
+                    await intelligence.analyzeRecent(allowDayReuse: false)
+                    await repo.refresh()
+                }
+            }
+        }
+    }
+
+    /// `DetectedWorkout` lives in StrandAnalytics and is not Identifiable; the sheet needs an identity.
+    struct AdjustTarget: Identifiable {
+        let workout: DetectedWorkout
+        var id: Int { workout.startSec }
+    }
+
+    /// The suggestion as a new session on the sheet: its span, no sport yet, so the wearer names it.
+    private func adjustPrefill(_ w: DetectedWorkout) -> WorkoutRow {
+        WorkoutRow(startTs: w.startSec, endTs: w.endSec, sport: "", source: "manual",
+                   durationS: Double(w.endSec - w.startSec), energyKcal: nil, avgHr: nil, maxHr: nil,
+                   strain: nil, distanceM: nil, zonesJSON: nil, notes: nil, steps: nil)
     }
 
     @ViewBuilder
@@ -69,24 +96,50 @@ struct AutoWorkoutCard: View {
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
-                HStack(spacing: NoopMetrics.space3) {
-                    Button {
-                        save(w)
-                    } label: {
-                        Label("Save it", systemImage: "checkmark")
+                // Three buttons do not fit one row on a phone in longer languages; fall back to two rows
+                // rather than truncating a label.
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: NoopMetrics.space3) {
+                        saveButton(w)
+                        adjustButton(w)
+                        dismissButton(w)
+                        Spacer(minLength: 0)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .appleInspiredTint("training")
-                    .disabled(saving)
-
-                    Button("Not a workout") { dismiss(w) }
-                        .buttonStyle(.bordered)
-                        .disabled(saving)
-                    Spacer()
+                    VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                        HStack(spacing: NoopMetrics.space3) {
+                            saveButton(w)
+                            adjustButton(w)
+                        }
+                        dismissButton(w)
+                    }
                 }
             }
         }
         .accessibilityElement(children: .contain)
+    }
+
+    private func saveButton(_ w: DetectedWorkout) -> some View {
+        Button {
+            save(w)
+        } label: {
+            Label("Save it", systemImage: "checkmark")
+        }
+        .buttonStyle(.borderedProminent)
+        .appleInspiredTint("training")
+        .disabled(saving)
+    }
+
+    private func adjustButton(_ w: DetectedWorkout) -> some View {
+        Button("Adjust") { adjusting = AdjustTarget(workout: w) }
+            .buttonStyle(.bordered)
+            .disabled(saving)
+            .accessibilityHint("Opens the heart rate curve to set the start, the end and the sport")
+    }
+
+    private func dismissButton(_ w: DetectedWorkout) -> some View {
+        Button("Not a workout") { dismiss(w) }
+            .buttonStyle(.bordered)
+            .disabled(saving)
     }
 
     /// "Looks like a workout [yesterday ]around 14:05–14:32 (avg HR 148, 27 min). Save it?"

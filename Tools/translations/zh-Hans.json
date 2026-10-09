@@ -2934,5 +2934,16 @@
   "Compared with a calibrated single-lead ECG device, amplitude, QRS width, the T wave and intervals can differ noticeably. Take the numbers as a rough indication, not as a measurement you can rely on.": "与经校准的单导联心电图设备相比，幅度、QRS 宽度、T 波和各间期可能存在明显差异。请把这些数字当作粗略参考，而不是可以依赖的测量结果。",
   "With symptoms such as chest pain, palpitations, dizziness or shortness of breath, contact a doctor. In an emergency, call your local emergency number (112 in Europe, 911 in the US) or alert your emergency contacts. Do not wait for or rely on a reading in NOOP.": "如出现胸痛、心悸、头晕或气短等症状，请就医。紧急情况下，请拨打当地急救电话（中国大陆为 120）或通知你的紧急联系人。不要等待 NOOP 的测量，也不要依赖它。",
   "Battery pack %.1f%%": "电池包 %.1f%%",
-  "Strength logs your sets. Other activities record time, heart rate and route when available.": "力量训练记录你的每组动作。其他活动会在可用时记录时间、心率和路线。"
+  "Strength logs your sets. Other activities record time, heart rate and route when available.": "力量训练记录你的每组动作。其他活动会在可用时记录时间、心率和路线。",
+  "Whole day": "全天",
+  "Time range shown": "显示的时间范围",
+  "No heart rate stored for this time.": "此时间段没有已存储的心率。",
+  "Drag the edges to adjust, or drag across the curve to mark a new span.": "拖动边缘进行调整，或在曲线上拖动以标记新的时间段。",
+  "Heart rate curve with the selected workout span": "带有所选训练时间段的心率曲线",
+  "%@ to %@ · %lld min": "%@ 至 %@ · %lld 分钟",
+  "%@ to %@ · %lld min · avg %lld bpm · max %lld bpm": "%@ 至 %@ · %lld 分钟 · 平均 %lld bpm · 最高 %lld bpm",
+  "Spotted on this day": "当天发现",
+  "%@ to %@ · avg %lld": "%@ 至 %@ · 平均 %lld",
+  "Use the span %@": "使用时间段 %@",
+  "Opens the heart rate curve to set the start, the end and the sport": "打开心率曲线以设置开始、结束和运动类型"
 }

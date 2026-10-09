@@ -2832,5 +2832,16 @@
   "Compared with a calibrated single-lead ECG device, amplitude, QRS width, the T wave and intervals can differ noticeably. Take the numbers as a rough indication, not as a measurement you can rely on.": "Em comparação com um aparelho de ECG de uma derivação calibrado, a amplitude, a largura do QRS, a onda T e os intervalos podem diferir bastante. Encara os números como uma indicação aproximada, não como uma medição fiável.",
   "With symptoms such as chest pain, palpitations, dizziness or shortness of breath, contact a doctor. In an emergency, call your local emergency number (112 in Europe, 911 in the US) or alert your emergency contacts. Do not wait for or rely on a reading in NOOP.": "Com sintomas como dor no peito, palpitações, tonturas ou falta de ar, contacta um médico. Numa emergência, liga 112 ou avisa os teus contactos de emergência. Não esperes por uma medição no NOOP nem confies nela.",
   "Battery pack %.1f%%": "Bateria externa %.1f%%",
-  "Strength logs your sets. Other activities record time, heart rate and route when available.": "A força regista as suas séries. Outras atividades registam tempo, frequência cardíaca e percurso quando disponíveis."
+  "Strength logs your sets. Other activities record time, heart rate and route when available.": "A força regista as suas séries. Outras atividades registam tempo, frequência cardíaca e percurso quando disponíveis.",
+  "Whole day": "Dia inteiro",
+  "Time range shown": "Período apresentado",
+  "No heart rate stored for this time.": "Não há frequência cardíaca guardada para este período.",
+  "Drag the edges to adjust, or drag across the curve to mark a new span.": "Arraste as extremidades para ajustar ou arraste sobre a curva para marcar um novo intervalo.",
+  "Heart rate curve with the selected workout span": "Curva de frequência cardíaca com o intervalo de treino selecionado",
+  "%@ to %@ · %lld min": "das %@ às %@ · %lld min",
+  "%@ to %@ · %lld min · avg %lld bpm · max %lld bpm": "das %@ às %@ · %lld min · média %lld bpm · máx. %lld bpm",
+  "Spotted on this day": "Detetado neste dia",
+  "%@ to %@ · avg %lld": "das %@ às %@ · média %lld",
+  "Use the span %@": "Usar o intervalo %@",
+  "Opens the heart rate curve to set the start, the end and the sport": "Abre a curva de frequência cardíaca para definir o início, o fim e o desporto"
 }

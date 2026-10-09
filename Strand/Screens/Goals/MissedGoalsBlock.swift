@@ -48,7 +48,7 @@ struct MissedGoalsBlock: View {
                 if inCard { NoopCard(padding: 14) { block } } else { block }
             }
             .sheet(item: $addingWorkout) { occurrence in
-                ManualWorkoutSheet(prefill: template(for: occurrence)) { row, _ in
+                ManualWorkoutSheet(prefill: template(for: occurrence), hrSource: repo) { row, _ in
                     Task {
                         await repo.saveManualWorkout(row, replacing: nil)
                         await tracking.refresh(repo: repo)
