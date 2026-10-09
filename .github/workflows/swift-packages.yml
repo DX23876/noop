@@ -16,6 +16,7 @@ on:
       - 'Tools/SleepPSG/**'
       - 'Tools/Backfill/**'
       - 'Tools/MemoryBench/**'
+      - 'Tools/EcgPpgReference/**'
       - '.github/workflows/swift-packages.yml'
       # Mirror of the note in android.yml: package tests read the ANDROID oracles to catch a one-sided
       # edit, and one reads Strand/Liquid/LiquidCore.swift. Editing only that side would otherwise skip
@@ -30,6 +31,7 @@ on:
       - 'Tools/SleepPSG/**'
       - 'Tools/Backfill/**'
       - 'Tools/MemoryBench/**'
+      - 'Tools/EcgPpgReference/**'
       - '.github/workflows/swift-packages.yml'
       # Mirror of the note in android.yml: package tests read the ANDROID oracles to catch a one-sided
       # edit, and one reads Strand/Liquid/LiquidCore.swift. Editing only that side would otherwise skip
@@ -99,6 +101,7 @@ jobs:
           - SleepPSG
           - Backfill
           - MemoryBench
+          - EcgPpgReference
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -116,3 +119,13 @@ jobs:
             echo "no test target in Tools/${{ matrix.tool }} — build-only"
           fi
         working-directory: Tools/${{ matrix.tool }}
+
+      - name: Validate RR reference read and cleaner provenance
+        if: matrix.tool == 'EcgPpgReference'
+        shell: bash
+        run: |
+          set -o pipefail
+          swift test --package-path Packages/WhoopStore --filter ReadOnlyStoreTests 2>&1 | tee "$RUNNER_TEMP/rr-store.log"
+          swift test --package-path Packages/StrandAnalytics --filter HRVCleanProvenanceTests 2>&1 | tee "$RUNNER_TEMP/rr-analysis.log"
+          python3 Tools/EcgPpgReference/check_swift_roster.py "$RUNNER_TEMP/rr-store.log" "$RUNNER_TEMP/rr-analysis.log"
+        # Paths include Packages/**, this tool and this workflow: every invalidator is observed.

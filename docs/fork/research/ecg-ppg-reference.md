@@ -1,6 +1,6 @@
 # ECG as an optical timing reference
 
-Status: offline research tooling, 2026-10-08. Source baseline: `feature/openstrap-ecg`
+Status: offline research tooling, updated 2026-10-09. Source baseline: `feature/openstrap-ecg`
 at `3d204e5d3`. No private recordings, measurements, paths or derived reports are
 stored in this document. **Analysis migration required: no** — instrumentation
 and documentation only; production scoring and capture are unchanged.
@@ -38,7 +38,7 @@ mixing strap-clock and phone-receipt copies when their offsets drift by seconds.
 The detailed exceptions for unlabelled legacy rows are in `RRTransportReconciler`.
 
 The RR values themselves retain millisecond resolution; their integer `ts`
-column is not a millisecond beat timestamp. A future ECG comparison must align
+column is not a millisecond beat timestamp. The stored-RR ECG comparison aligns
 ordered interval sequences using `ord`/`seq`, record provenance and cumulative
 RR durations. Nearest-second matching across transports is not a valid shortcut.
 Read the complete five-minute selection segments and necessary clock margins,
@@ -157,3 +157,31 @@ in R16 alone is also not proof against an upstream high-pass; the input amplitud
 and origin of that drift are unknown. A simultaneous, independently calibrated
 reference or known injected waveform is needed. Treat inverse compensation as
 a model assumption until then, and keep unmodified raw samples for reanalysis.
+
+
+## Read-only stored-RR audit (2026-10-09)
+
+The Swift tool now opens an existing copy through `WhoopStore.readOnly`, which
+skips migrations/adoption and uses SQLite read-only mode while retaining WAL
+visibility. The selected export calls `WhoopStore.rrIntervals` directly. A raw
+observation query lists the stored labels for comparison; it implements no source
+precedence. Multiple device owners are refused rather than silently combined.
+
+`HRVAnalyzer.CleanSeries.originalIndices` exposes provenance already tracked by
+the cleaner. No cleaning threshold, arithmetic, source priority or stored value
+changes. The tool calls this same cleaner to identify rejected intervals; tests
+cover repeated values, range/outlier rejection and short input. Small timing
+errors can remain below the local-median threshold, and time absent from storage
+is not itself a removed array element. Neither retained indices nor an RMSSD
+number prove complete beat coverage or NN validity.
+
+Cross-transport interpretation must account for storage: identical keys may be
+promoted from standard to history while preserving transport metadata. Thus a
+channel-filtered table is not the original wire stream. Synthetic storage tests
+vary RR values and demonstrate this behavior. Exact-value sequence cross-checks
+retain all equal-value assignments; ambiguous matching is reported, not resolved
+by minimizing the measured error. See the tool README for the full procedure and
+limits. All real-data outputs remain private and outside Git.
+
+**Analysis migration required: no.** Read-only instrumentation and output-identical
+provenance exposure; no scoring recipe, migration, or rescore is introduced.

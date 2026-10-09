@@ -222,6 +222,8 @@ public enum HRVAnalyzer {
     public struct CleanSeries: Equatable, Sendable {
         public let nn: [Double]
         public let contiguous: [Bool]
+        /// Indices into the unfiltered input, including distinct occurrences of equal RR values.
+        public let originalIndices: [Int]
     }
 
     /// Clean the RR series (range filter then Malik ectopic rejection, exactly like `cleanRR`) while
@@ -263,7 +265,7 @@ public enum HRVAnalyzer {
         // A survivor is contiguous with its predecessor only when their ORIGINAL indices are adjacent.
         var contiguous: [Bool] = []; contiguous.reserveCapacity(keptVal.count)
         for i in 0..<keptVal.count { contiguous.append(i > 0 && keptOrig[i] == keptOrig[i - 1] + 1) }
-        return CleanSeries(nn: keptVal, contiguous: contiguous)
+        return CleanSeries(nn: keptVal, contiguous: contiguous, originalIndices: keptOrig)
     }
 
     /// Task Force RMSSD that counts a successive difference only when the two beats were adjacent in the

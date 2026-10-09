@@ -93,6 +93,16 @@ public actor WhoopStore {
         self.dbWriter = dbWriter
     }
 
+    /// Open an existing, compatible store for offline inspection. Does not adopt, migrate,
+    /// checkpoint, or tune the database. SQLite rejects writes, even through `registryWriter`.
+    /// Keep a copied database's WAL/SHM siblings alongside it; immutable mode would hide WAL data.
+    /// Unlike the normal initializer, a missing file fails instead of creating an empty store.
+    public static func readOnly(path: String) throws -> WhoopStore {
+        var configuration = Configuration()
+        configuration.readonly = true
+        return WhoopStore(preMigrated: try DatabaseQueue(path: path, configuration: configuration))
+    }
+
     /// Open (creating if needed) a database at `path` and run migrations.
     /// Uses a `DatabasePool`, which enables WAL automatically, plus a 5-second busy timeout so two
     /// handles to the same file (BLEManager + MetricsRepository) don't deadlock on write contention.

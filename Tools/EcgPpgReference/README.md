@@ -21,7 +21,7 @@ python3 Tools/EcgPpgReference/reference.py /path/to/rejected_history.jsonl \
   --start FIRST_STRAP_SECOND --end LAST_STRAP_SECOND > /path/outside/repo/result.json
 ```
 
-No network requests, database access or device commands occur during analysis.
+The R16/R20 command performs no network requests, database access or device commands.
 The input is read only. Reports contain aggregate measurements, not waveforms or
 absolute timestamps, but **are still private health data**. Keep them outside Git.
 No real-user fixtures belong in this directory. CI uses generated signals only.
@@ -99,3 +99,85 @@ sample rate (25/50 Hz), and constant/variable arrival delay. Known gaps and fals
 detections exercise the evaluator independently of its detectors. Archive tests
 cover both CRCs, lengths, signed decoding, duplicates, conflicts and run splits.
 The Python CI job observes every PR and push to main; it fetches no health data.
+
+## Stored band RR against R16
+
+Build the Swift tool, then export a bounded interval from a **local database copy**
+with its WAL/SHM siblings. Keep output outside the repository. This tool reads
+private health data; it never invokes a device or sends data to a server.
+
+```sh
+swift build --package-path Tools/EcgPpgReference
+Tools/EcgPpgReference/.build/debug/rr-reference-export \
+  /path/to/whoop.sqlite FIRST_CONTEXT_SECOND LAST_CONTEXT_SECOND \
+  > /path/outside/repo/rr-export.json
+python3 Tools/EcgPpgReference/rr_reference.py /path/to/rejected_history.jsonl \
+  /path/outside/repo/rr-export.json \
+  --swift-tool Tools/EcgPpgReference/.build/debug/rr-reference-export \
+  --start FIRST_CAPTURE_SECOND --end LAST_CAPTURE_SECOND \
+  > /path/outside/repo/rr-audit.json
+```
+
+The export calls `WhoopStore.readOnly` (SQLite read-only, no migrations or
+checkpoint) and **`WhoopStore.rrIntervals` itself**. There is no second AI-12 SQL
+implementation. Source selection still reads complete five-minute segments before
+clipping. Choose context covering complete segments plus the capture's clock
+margin; insufficient context cannot establish coverage. The tool refuses multiple
+RR owners rather than guessing an alias union. It expects a compatible schema.
+Do not add `immutable=1` to a copy with uncheckpointed WAL: this hides WAL content.
+
+`raw` contains stored labels including quarantined rows; comparisons exclude
+`tsSuspect == 1`, as the app does. `selected` preserves the app's returned order.
+For separate labels, ordering is `ts, ord, rrMs, seq`, matching the app read.
+Neither `ord` nor `seq` is a global sequence number: same-second batches can have
+equal `ord`. The report counts such ties, without inventing a lost emission order.
+
+Integer seconds identify coarse delivery discontinuities (>3 seconds versus
+cumulative RR) and bound capture overlap with a five-second clock margin. Beat
+matching does **not** pair nearest seconds. Ordered interval patterns are matched
+monotonically with explicit omissions/additions, then checked against cumulative
+RR durations in each contiguous run. No rate fit or beatwise time warping occurs.
+Residual curves start at zero and are relative drift, **not physical pulse-arrival
+time**. Missing intervals reset the run and remain in the coverage count.
+
+The local sequence alignment uses reward `2 - abs(error_ms)/20` and a gap penalty
+of 4. Repeating with scales 10/30 must preserve the trace; otherwise the result is
+labelled ambiguous and its point estimate must not be used. This remains an
+exploratory alignment aid: periodic/constant sequences can have indistinguishable
+phases even when the parameter check passes. Equal-scoring endpoint phases are
+refused explicitly; near-ties still require judgement. Inspect every real-data trace.
+Low coverage or a failed sequence match must never be presented as detector accuracy.
+
+A second check compares exact ordered values across history and standard labels
+within established ECG endpoints. **All** possible assignments of equal intervals
+are retained (maximum 64; greater ambiguity fails). This can identify a missing
+stored observation without picking the interpretation with the best ECG error.
+It requires a shared block start and an exact-value prefix spanning the history
+bracket; differing values or more complex overlap require manual investigation.
+A label is not a lossless transport log: `StreamStore` can promote a standard row
+to history when their `(deviceId, ts, rrMs, seq)` keys collide. A missing channel-7
+row alone does not prove a missed optical beat or lost BLE packet.
+
+The Swift executable's `--analyze` mode accepts JSON `[[rrMs,...],...]` on stdin.
+It runs the **actual `HRVAnalyzer`**, returning surviving original indices,
+contiguity, counts and its optional RMSSD. No cleaner is copied into Python.
+The report checks both delivery-block context and the selected five-minute
+source segment, and separately shows the minimum-beat refusal on matched-only
+inputs. Selection segments are not necessarily the nightly sleep-window grid.
+Paired research RMSSD uses the same adjacent intervals in both streams, skips
+missing/rejected neighbours, and does not claim that retained intervals are NN.
+
+Focused Swift validation (in a separate permitted worktree):
+
+```sh
+swift test --package-path Packages/WhoopStore --filter ReadOnlyStoreTests > /path/store-test.log 2>&1
+swift test --package-path Packages/StrandAnalytics --filter HRVCleanProvenanceTests > /path/analysis-test.log 2>&1
+python3 Tools/EcgPpgReference/check_swift_roster.py /path/store-test.log /path/analysis-test.log
+```
+
+The Swift CI builds the tool and requires the exact seven focused XCTest successes.
+Its paths cover the tool, packages and workflow. Python CI requires all 29 synthetic
+tests, including varying RR rates/errors, missing/extra entries, equal-value identity
+ambiguity, source ordering, discontinuities and gate failures. Private fixtures are
+never CI inputs. Analysis migration required: **no**; selection, HRV arithmetic,
+storage schema and live capture behavior are unchanged.
