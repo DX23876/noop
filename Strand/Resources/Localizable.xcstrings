@@ -540048,64 +540048,6 @@
         }
       }
     },
-    "With symptoms such as chest pain, palpitations, dizziness or shortness of breath, contact a doctor. In an emergency, call your local emergency number. Do not wait for or rely on a reading in NOOP." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bei Beschwerden wie Brustschmerzen, Herzrasen, Schwindel oder Atemnot wende dich an eine Ärztin oder einen Arzt. Im Notfall ruf den Notruf an. Warte nicht auf eine Messung in NOOP und verlass dich nicht darauf."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Si tienes síntomas como dolor en el pecho, palpitaciones, mareo o falta de aire, acude a un médico. En una emergencia, llama al número de emergencias. No esperes a una medición en NOOP ni confíes en ella."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "En cas de symptômes comme une douleur thoracique, des palpitations, des vertiges ou un essoufflement, contacte un médecin. En cas d'urgence, appelle le numéro d'urgence. N'attends pas une mesure dans NOOP et ne t'y fie pas."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "In caso di sintomi come dolore al petto, palpitazioni, vertigini o fiato corto, rivolgiti a un medico. In caso di emergenza, chiama il numero di emergenza. Non aspettare una misurazione in NOOP e non farci affidamento."
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Przy objawach takich jak ból w klatce piersiowej, kołatanie serca, zawroty głowy czy duszność skontaktuj się z lekarzem. W nagłym wypadku zadzwoń pod numer alarmowy. Nie czekaj na pomiar w NOOP i nie polegaj na nim."
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Com sintomas como dor no peito, palpitações, tonturas ou falta de ar, contacta um médico. Numa emergência, liga para o número de emergência. Não esperes por uma medição no NOOP nem confies nela."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "При таких симптомах, как боль в груди, сердцебиение, головокружение или одышка, обратитесь к врачу. В экстренной ситуации звоните в службу экстренной помощи. Не ждите измерения в NOOP и не полагайтесь на него."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "如出现胸痛、心悸、头晕或气短等症状，请就医。紧急情况下，请拨打当地急救电话。不要等待 NOOP 的测量，也不要依赖它。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "如出現胸痛、心悸、頭暈或呼吸急促等症狀，請就醫。緊急情況下，請撥打當地急救電話。不要等待 NOOP 的測量，也不要依賴它。"
-          }
-        }
-      }
-    },
     "Your readings stay with you" : {
       "localizations" : {
         "de" : {
@@ -540218,6 +540160,296 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "NOOP 將測量儲存在本裝置上，不會傳送給任何人。你自己建立的備份會包含它們。"
+          }
+        }
+      }
+    },
+    "No approval for NOOP" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Zulassung für NOOP"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin aprobación para NOOP"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune autorisation pour NOOP"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessuna approvazione per NOOP"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak dopuszczenia dla NOOP"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sem aprovação para o NOOP"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нет одобрения для NOOP"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 未获批准"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 未獲核准"
+          }
+        }
+      }
+    },
+    "WHOOP's ECG feature is cleared by the FDA only together with WHOOP's own app. That clearance does not extend to NOOP: reading the strap and analysing the trace here are not cleared or approved by the FDA or any other authority." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die EKG-Funktion von WHOOP ist von der FDA nur zusammen mit WHOOPs eigener App zugelassen. Diese Zulassung gilt nicht für NOOP: Das Auslesen des Bands und die Auswertung der Kurve hier sind weder von der FDA noch von einer anderen Behörde zugelassen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La función de ECG de WHOOP solo está autorizada por la FDA junto con la app propia de WHOOP. Esa autorización no se extiende a NOOP: leer la pulsera y analizar el trazado aquí no está autorizado ni aprobado por la FDA ni por ninguna otra autoridad."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La fonction ECG de WHOOP n'est autorisée par la FDA qu'avec l'application de WHOOP. Cette autorisation ne s'étend pas à NOOP : la lecture du bracelet et l'analyse du tracé ici ne sont autorisées ni approuvées par la FDA ni par aucune autre autorité."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La funzione ECG di WHOOP è autorizzata dalla FDA solo insieme all'app di WHOOP. Tale autorizzazione non si estende a NOOP: la lettura della fascia e l'analisi della traccia qui non sono autorizzate né approvate dalla FDA o da altre autorità."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Funkcja EKG WHOOP jest dopuszczona przez FDA tylko razem z aplikacją WHOOP. To dopuszczenie nie obejmuje NOOP: odczyt opaski i analiza zapisu tutaj nie są dopuszczone ani zatwierdzone przez FDA ani inny urząd."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A funcionalidade de ECG da WHOOP só está autorizada pela FDA em conjunto com a app da própria WHOOP. Essa autorização não abrange o NOOP: a leitura da bracelete e a análise do traçado aqui não estão autorizadas nem aprovadas pela FDA nem por qualquer outra autoridade."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Функция ЭКГ WHOOP одобрена FDA только вместе с приложением WHOOP. Это одобрение не распространяется на NOOP: считывание данных браслета и анализ записи здесь не одобрены ни FDA, ни каким-либо другим органом."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WHOOP 的心电图功能仅在与 WHOOP 自家应用配合使用时获得 FDA 许可。该许可不适用于 NOOP：在这里读取手环和分析曲线均未获得 FDA 或任何其他机构的许可或批准。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WHOOP 的心電圖功能僅在與 WHOOP 自家 App 配合使用時獲得 FDA 許可。該許可不適用於 NOOP：在這裡讀取手環和分析曲線均未獲得 FDA 或任何其他機構的許可或核准。"
+          }
+        }
+      }
+    },
+    "Values can differ from a calibrated ECG" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Werte können von einem geeichten EKG abweichen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los valores pueden diferir de un ECG calibrado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les valeurs peuvent différer d'un ECG étalonné"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I valori possono differire da un ECG calibrato"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wartości mogą odbiegać od skalibrowanego EKG"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os valores podem diferir de um ECG calibrado"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Значения могут отличаться от откалиброванной ЭКГ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数值可能与经校准的心电图不同"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "數值可能與經校準的心電圖不同"
+          }
+        }
+      }
+    },
+    "Compared with a calibrated single-lead ECG device, amplitude, QRS width, the T wave and intervals can differ noticeably. Take the numbers as a rough indication, not as a measurement you can rely on." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Im Vergleich zu einem geeichten Einkanal-EKG-Gerät können Amplitude, QRS-Breite, T-Welle und Zeiten deutlich abweichen. Nimm die Zahlen als groben Anhaltspunkt, nicht als Messung, auf die du dich verlassen kannst."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En comparación con un electrocardiógrafo de una derivación calibrado, la amplitud, la anchura del QRS, la onda T y los intervalos pueden diferir notablemente. Toma los números como una orientación aproximada, no como una medición fiable."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Par rapport à un appareil ECG à une dérivation étalonné, l'amplitude, la largeur du QRS, l'onde T et les intervalles peuvent nettement différer. Considère les chiffres comme une indication approximative, pas comme une mesure fiable."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rispetto a un elettrocardiografo a una derivazione calibrato, ampiezza, larghezza del QRS, onda T e intervalli possono differire sensibilmente. Considera i numeri un'indicazione approssimativa, non una misura affidabile."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "W porównaniu ze skalibrowanym jednokanałowym aparatem EKG amplituda, szerokość QRS, załamek T i odstępy mogą wyraźnie się różnić. Traktuj liczby jako przybliżoną wskazówkę, a nie wiarygodny pomiar."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Em comparação com um aparelho de ECG de uma derivação calibrado, a amplitude, a largura do QRS, a onda T e os intervalos podem diferir bastante. Encara os números como uma indicação aproximada, não como uma medição fiável."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "По сравнению с откалиброванным одноканальным электрокардиографом амплитуда, ширина QRS, зубец T и интервалы могут заметно отличаться. Считайте цифры грубым ориентиром, а не надёжным измерением."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "与经校准的单导联心电图设备相比，幅度、QRS 宽度、T 波和各间期可能存在明显差异。请把这些数字当作粗略参考，而不是可以依赖的测量结果。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "與經校準的單導程心電圖裝置相比，振幅、QRS 寬度、T 波和各間期可能有明顯差異。請把這些數字當作粗略參考，而不是可以依賴的測量結果。"
+          }
+        }
+      }
+    },
+    "With symptoms such as chest pain, palpitations, dizziness or shortness of breath, contact a doctor. In an emergency, call your local emergency number (112 in Europe, 911 in the US) or alert your emergency contacts. Do not wait for or rely on a reading in NOOP." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bei Beschwerden wie Brustschmerzen, Herzrasen, Schwindel oder Atemnot wende dich an eine Ärztin oder einen Arzt. Im Notfall ruf den Notruf 112 an oder verständige deine Notfallkontakte. Warte nicht auf eine Messung in NOOP und verlass dich nicht darauf."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Si tienes síntomas como dolor en el pecho, palpitaciones, mareo o falta de aire, acude a un médico. En una emergencia, llama al 112 o avisa a tus contactos de emergencia. No esperes a una medición en NOOP ni confíes en ella."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En cas de symptômes comme une douleur thoracique, des palpitations, des vertiges ou un essoufflement, contacte un médecin. En cas d'urgence, appelle le 112 (ou le 15) ou préviens tes contacts d'urgence. N'attends pas une mesure dans NOOP et ne t'y fie pas."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In caso di sintomi come dolore al petto, palpitazioni, vertigini o fiato corto, rivolgiti a un medico. In caso di emergenza, chiama il 112 o avvisa i tuoi contatti di emergenza. Non aspettare una misurazione in NOOP e non farci affidamento."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przy objawach takich jak ból w klatce piersiowej, kołatanie serca, zawroty głowy czy duszność skontaktuj się z lekarzem. W nagłym wypadku zadzwoń pod 112 lub powiadom swoje kontakty alarmowe. Nie czekaj na pomiar w NOOP i nie polegaj na nim."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Com sintomas como dor no peito, palpitações, tonturas ou falta de ar, contacta um médico. Numa emergência, liga 112 ou avisa os teus contactos de emergência. Não esperes por uma medição no NOOP nem confies nela."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "При таких симптомах, как боль в груди, сердцебиение, головокружение или одышка, обратитесь к врачу. В экстренной ситуации звоните 112 или 103 либо сообщите своим экстренным контактам. Не ждите измерения в NOOP и не полагайтесь на него."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如出现胸痛、心悸、头晕或气短等症状，请就医。紧急情况下，请拨打当地急救电话（中国大陆为 120）或通知你的紧急联系人。不要等待 NOOP 的测量，也不要依赖它。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如出現胸痛、心悸、頭暈或呼吸急促等症狀，請就醫。緊急情況下，請撥打當地急救電話（台灣為 119）或通知你的緊急聯絡人。不要等待 NOOP 的測量，也不要依賴它。"
           }
         }
       }

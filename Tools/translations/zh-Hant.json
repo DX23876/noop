@@ -2980,7 +2980,11 @@
   "Limits of a wrist ECG": "手腕心電圖的局限",
   "One lead at the wrist, 100 samples per second, an uncalibrated amplitude and a filter inside the strap. Movement, loose contact or a slow heart rate can give wrong results. A single lead cannot replace a 12-lead ECG.": "手腕單導程、每秒 100 個取樣點、未校準的振幅，以及手環內部的濾波器。動作、接觸不良或心率過慢都可能導致錯誤結果。單導程無法取代 12 導程心電圖。",
   "If you feel unwell": "如果你感到不適",
-  "With symptoms such as chest pain, palpitations, dizziness or shortness of breath, contact a doctor. In an emergency, call your local emergency number. Do not wait for or rely on a reading in NOOP.": "如出現胸痛、心悸、頭暈或呼吸急促等症狀，請就醫。緊急情況下，請撥打當地急救電話。不要等待 NOOP 的測量，也不要依賴它。",
   "Your readings stay with you": "你的測量只留在你這裡",
-  "NOOP stores readings on this device and sends them to no one. A backup you make yourself includes them.": "NOOP 將測量儲存在本裝置上，不會傳送給任何人。你自己建立的備份會包含它們。"
+  "NOOP stores readings on this device and sends them to no one. A backup you make yourself includes them.": "NOOP 將測量儲存在本裝置上，不會傳送給任何人。你自己建立的備份會包含它們。",
+  "No approval for NOOP": "NOOP 未獲核准",
+  "WHOOP's ECG feature is cleared by the FDA only together with WHOOP's own app. That clearance does not extend to NOOP: reading the strap and analysing the trace here are not cleared or approved by the FDA or any other authority.": "WHOOP 的心電圖功能僅在與 WHOOP 自家 App 配合使用時獲得 FDA 許可。該許可不適用於 NOOP：在這裡讀取手環和分析曲線均未獲得 FDA 或任何其他機構的許可或核准。",
+  "Values can differ from a calibrated ECG": "數值可能與經校準的心電圖不同",
+  "Compared with a calibrated single-lead ECG device, amplitude, QRS width, the T wave and intervals can differ noticeably. Take the numbers as a rough indication, not as a measurement you can rely on.": "與經校準的單導程心電圖裝置相比，振幅、QRS 寬度、T 波和各間期可能有明顯差異。請把這些數字當作粗略參考，而不是可以依賴的測量結果。",
+  "With symptoms such as chest pain, palpitations, dizziness or shortness of breath, contact a doctor. In an emergency, call your local emergency number (112 in Europe, 911 in the US) or alert your emergency contacts. Do not wait for or rely on a reading in NOOP.": "如出現胸痛、心悸、頭暈或呼吸急促等症狀，請就醫。緊急情況下，請撥打當地急救電話（台灣為 119）或通知你的緊急聯絡人。不要等待 NOOP 的測量，也不要依賴它。"
 }

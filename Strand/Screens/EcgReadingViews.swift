@@ -69,7 +69,7 @@ enum EcgCategoryText {
 /// and that it is not for medical use. Bump `currentVersion` when the wording changes materially, so the
 /// next reading asks again.
 enum EcgReadingConsent {
-    static let currentVersion = "1"
+    static let currentVersion = "2"
     static let acceptedVersionKey = "noopEcgReadingConsentVersion"
 
     static func isAccepted(_ stored: String) -> Bool { stored == currentVersion }
@@ -77,14 +77,18 @@ enum EcgReadingConsent {
     static let points: [(LocalizedStringKey, LocalizedStringKey)] = [
         ("An experimental test feature",
          "ECG readings in NOOP are an experimental feature for testing and personal interest. NOOP is not a medical device, and nothing here has been reviewed or approved for medical use."),
+        ("No approval for NOOP",
+         "WHOOP's ECG feature is cleared by the FDA only together with WHOOP's own app. That clearance does not extend to NOOP: reading the strap and analysing the trace here are not cleared or approved by the FDA or any other authority."),
         ("Not for medical use",
          "Do not use these readings to diagnose, rule out or monitor a heart condition, or to decide on medication or treatment. NOOP does not recommend any medical use."),
         ("Where the result comes from",
          "The rhythm result is calculated by the strap itself. NOOP shows it and cannot check whether it is correct. Heart rate, variability and intervals are NOOP's own estimates from the saved trace and are not validated."),
         ("Limits of a wrist ECG",
          "One lead at the wrist, 100 samples per second, an uncalibrated amplitude and a filter inside the strap. Movement, loose contact or a slow heart rate can give wrong results. A single lead cannot replace a 12-lead ECG."),
+        ("Values can differ from a calibrated ECG",
+         "Compared with a calibrated single-lead ECG device, amplitude, QRS width, the T wave and intervals can differ noticeably. Take the numbers as a rough indication, not as a measurement you can rely on."),
         ("If you feel unwell",
-         "With symptoms such as chest pain, palpitations, dizziness or shortness of breath, contact a doctor. In an emergency, call your local emergency number. Do not wait for or rely on a reading in NOOP."),
+         "With symptoms such as chest pain, palpitations, dizziness or shortness of breath, contact a doctor. In an emergency, call your local emergency number (112 in Europe, 911 in the US) or alert your emergency contacts. Do not wait for or rely on a reading in NOOP."),
         ("Your readings stay with you",
          "NOOP stores readings on this device and sends them to no one. A backup you make yourself includes them."),
     ]
