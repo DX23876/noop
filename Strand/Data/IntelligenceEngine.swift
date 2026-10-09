@@ -188,7 +188,15 @@ final class IntelligenceEngine: ObservableObject {
     // derivations inside the engine's window, so the standard bounded 21-day pass (raw strap history is
     // kept about 35 days, so older days have nothing to re-score from); no raw row is rewritten and the
     // cardio ledger is not refilled.
-    static let currentAnalysisRecipeVersion = 19
+    // AI-19 (2026-10-06) repairs retained Apple daily projections in resumable batches (see its block in
+    // `runAnalysisMaintenance`). No daily row is re-scored.
+    // AI-20 (2026-10-09) re-scores the standard window after the upstream sync through 18de275ef (12.1.0
+    // test beta). Charge now leaves out an optional personal baseline that is not yet usable: the
+    // respiration and Effort baselines, like resting HR before them, no longer enter the score or its
+    // drivers until they are trusted (upstream 0b7294054). Before, a thin respiration or Effort baseline
+    // still moved a stored Charge. Per-night derivations inside the engine's window, so the standard
+    // bounded 21-day pass; no raw row is rewritten and the cardio ledger is not refilled.
+    static let currentAnalysisRecipeVersion = 20
 
     /// The recipe whose migration refills the cardio load ledger.
     static let cardioLedgerRecipe = 9
@@ -224,16 +232,20 @@ final class IntelligenceEngine: ObservableObject {
     /// The recipe whose migration re-scores the standard daily window with the windowed Charge baselines.
     static let chargeBaselineRecipe = 18
 
+    /// The recipe whose migration re-scores the standard daily window once Charge leaves out optional
+    /// baselines that are not yet usable.
+    static let chargeOptionalBaselineRecipe = 20
+
     /// Whether a migration crosses the recipe that fills Apple Health workouts' heart rate.
     static func migrationFillsWorkoutHeartRate(from: Int, to: Int) -> Bool {
         from < workoutHeartRateFillRecipe && to >= workoutHeartRateFillRecipe
     }
 
     /// Days of daily rows a migration from `from` must re-score: the standard window while a recipe that
-    /// changes daily rows (up to AI-8, AI-10, AI-11, AI-12, AI-17 or AI-18) is still owed, none when only
-    /// recipes that leave daily rows alone are — the narrowest interval each change can prove.
+    /// changes daily rows (up to AI-8, AI-10, AI-11, AI-12, AI-17, AI-18 or AI-20) is still owed, none when
+    /// only recipes that leave daily rows alone are — the narrowest interval each change can prove.
     static func migrationDailyDays(from: Int, standard: Int = 21) -> Int {
-        from < cardioLedgerRecipe - 1 || from < chargeBaselineRecipe ? standard : 0
+        from < cardioLedgerRecipe - 1 || from < chargeOptionalBaselineRecipe ? standard : 0
     }
 
     /// The earliest day a build could have scored with #2358's whole-session mean: the upstream commit is

@@ -30,21 +30,32 @@ final class AnalysisRecipeDecisionTests: XCTestCase {
     /// It is deliberately a LITERAL pin. A future bump is supposed to make this line fail, because that
     /// failure is the prompt to answer CLAUDE.md's "Analysis migration required: yes/no" for whatever
     /// the bump carries — the question this file exists to stop anyone skipping.
-    func testRecipeVersionIsNineteenAndOlderInstallsMigrateToIt() {
-        XCTAssertEqual(IntelligenceEngine.currentAnalysisRecipeVersion, 19,
+    func testRecipeVersionIsTwentyAndOlderInstallsMigrateToIt() {
+        XCTAssertEqual(IntelligenceEngine.currentAnalysisRecipeVersion, 20,
                        "recipe version changed — answer 'Analysis migration required' for what moved")
-        for stored in [8, 11, 12, 13, 14, 15, 16, 17, 18] {
+        for stored in [8, 11, 12, 13, 14, 15, 16, 17, 18, 19] {
             XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: stored),
-                           .migrate(from: stored, to: 19))
+                           .migrate(from: stored, to: 20))
         }
     }
 
+    /// AI-20 moves the stored Charge (an optional baseline that is not yet usable is left out), so every
+    /// install below it re-scores the standard window, an AI-19 one included, and an AI-20 one none. It
+    /// touches no workout row and no ledger.
+    func testAI20RescoresTheStandardWindow() {
+        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 19), 21)
+        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 20), 0)
+        XCTAssertFalse(IntelligenceEngine.migrationRefillsCardioLedger(from: 19, to: 20))
+        XCTAssertFalse(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 19, to: 20))
+        XCTAssertFalse(IntelligenceEngine.migrationFillsWorkoutHeartRate(from: 19, to: 20))
+    }
+
     /// AI-18 moves the stored Charge (windowed baselines, the import only seeding, #2525), so every install
-    /// below it re-scores the standard window, an AI-17 one included, and an AI-18 one none. It touches no
-    /// workout row and no ledger.
+    /// below it re-scores the standard window, an AI-17 one included. (An AI-18 install still owes AI-20's
+    /// re-score, pinned above.) It touches no workout row and no ledger.
     func testAI18RescoresTheStandardWindow() {
         XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 17), 21)
-        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 18), 0)
+        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 18), 21)
         XCTAssertFalse(IntelligenceEngine.migrationRefillsCardioLedger(from: 17, to: 18))
         XCTAssertFalse(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 17, to: 18))
         XCTAssertFalse(IntelligenceEngine.migrationFillsWorkoutHeartRate(from: 17, to: 18))
@@ -222,10 +233,10 @@ final class AnalysisRecipeDecisionTests: XCTestCase {
     /// build number here would cause. Pinned because the mistake is invisible until someone's phone
     /// spends twenty minutes re-scoring after a cosmetic update.
     func testAnInstallAlreadyAtTheCurrentRecipeNeverRescoresOnRelaunch() {
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 19), .upToDate)
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 20), .upToDate)
         // And a database written by a NEWER build that was rolled back stays put rather than
         // "migrating" backwards into a rescore that would overwrite better values with worse ones.
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 20), .upToDate)
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 21), .upToDate)
     }
 
     // MARK: - The fork's own recipe lineage

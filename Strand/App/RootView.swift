@@ -649,8 +649,11 @@ private struct SidebarStatus: View {
                 // it showed the strap's last charge with nothing connected: `batteryPct` is never cleared,
                 // which made the honest `nil` branch below unreachable on any install that had paired a
                 // strap once. "Strap not connected" was dead text.
+                // The percent goes through the same rounding seam as the Devices card, so the two never
+                // read 34% and 35% for one charge (this used to truncate).
                 Text(live.connected && live.activeIsWhoop
-                     ? live.batteryPct.map { String(localized: "Battery \(Int($0))%") } ?? String(localized: "Strap not connected")
+                     ? LiveConsoleReadout.batteryPercent(activeIsWhoop: true, whoopPct: live.batteryPct, ringPct: nil)
+                        .map { String(localized: "Battery \($0)%") } ?? String(localized: "Strap not connected")
                      : String(localized: "Strap not connected"))
                     .font(StrandFont.rounded(11))
                     .foregroundStyle(StrandPalette.textTertiary)

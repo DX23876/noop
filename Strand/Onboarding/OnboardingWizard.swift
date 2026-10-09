@@ -715,8 +715,9 @@ private struct BondedStep: View {
     }
 
     private var batteryLine: String {
-        if let pct = live.batteryPct {
-            return String(localized: "Your strap is bonded · \(Int(pct))% battery.")
+        // Rounded through the shared seam so onboarding and the Devices card agree on one charge.
+        if let pct = LiveConsoleReadout.batteryPercent(activeIsWhoop: true, whoopPct: live.batteryPct, ringPct: nil) {
+            return String(localized: "Your strap is bonded · \(pct)% battery.")
         }
         return String(localized: "Your strap is bonded and ready to stream.")
     }

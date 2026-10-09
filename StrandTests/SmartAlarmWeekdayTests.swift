@@ -27,6 +27,44 @@ final class SmartAlarmWeekdayTests: XCTestCase {
 
     // MARK: nextSmartAlarmDate
 
+    func testDailyScheduleCoversEveryWakeMinuteAndRequiresAStrictlyFutureFire() {
+        let start = 1_781_654_400 // 2026-06-17 00:00 UTC
+        let now = 1_781_699_696   // 2026-06-17 12:34:56 UTC
+        for minute in 0..<1440 {
+            let today = start + minute * 60
+            let expected = today <= now ? today + 86_400 : today
+            let next = AppModel.nextSmartAlarmDate(minutes: minute, weekdays: [],
+                from: Date(timeIntervalSince1970: Double(now)), calendar: cal)
+            XCTAssertEqual(next?.timeIntervalSince1970, Double(expected), "minute \(minute)")
+            let exact = AppModel.nextSmartAlarmDate(minutes: minute, weekdays: [],
+                from: Date(timeIntervalSince1970: Double(today)), calendar: cal)
+            XCTAssertEqual(exact?.timeIntervalSince1970, Double(today + 86_400),
+                           "exact wake minute \(minute) must roll to tomorrow")
+        }
+    }
+
+    func testDailySpringRolloverKeepsLocalWakeTimeAcrossTheShortDay() {
+        var calendar = cal
+        calendar.timeZone = TimeZone(identifier: "America/Chicago")!
+        let now = 1_772_892_000 // 2026-03-07 08:00 CST
+        let expected = 1_772_974_800 // 2026-03-08 08:00 CDT, 23 hours later
+        let next = AppModel.nextSmartAlarmDate(minutes: 8 * 60, weekdays: [],
+            from: Date(timeIntervalSince1970: Double(now)), calendar: calendar)
+        XCTAssertEqual(next?.timeIntervalSince1970, Double(expected))
+        XCTAssertEqual(expected - now, 23 * 3600)
+    }
+
+    func testDailyAutumnRolloverKeepsLocalWakeTimeAcrossTheLongDay() {
+        var calendar = cal
+        calendar.timeZone = TimeZone(identifier: "America/Chicago")!
+        let now = 1_793_451_600 // 2026-10-31 08:00 CDT
+        let expected = 1_793_541_600 // 2026-11-01 08:00 CST, 25 hours later
+        let next = AppModel.nextSmartAlarmDate(minutes: 8 * 60, weekdays: [],
+            from: Date(timeIntervalSince1970: Double(now)), calendar: calendar)
+        XCTAssertEqual(next?.timeIntervalSince1970, Double(expected))
+        XCTAssertEqual(expected - now, 25 * 3600)
+    }
+
     func testEveryDay_emptySet_picksTodayWhenTimeStillAhead() {
         // now = Wed 06:00, wake at 07:00 → same day, 07:00.
         let next = AppModel.nextSmartAlarmDate(minutes: 7 * 60, weekdays: [], from: wed(6, 0), calendar: cal)

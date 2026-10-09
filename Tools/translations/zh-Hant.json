@@ -2986,5 +2986,6 @@
   "WHOOP's ECG feature is cleared by the FDA only together with WHOOP's own app. That clearance does not extend to NOOP: reading the strap and analysing the trace here are not cleared or approved by the FDA or any other authority.": "WHOOP 的心電圖功能僅在與 WHOOP 自家 App 配合使用時獲得 FDA 許可。該許可不適用於 NOOP：在這裡讀取手環和分析曲線均未獲得 FDA 或任何其他機構的許可或核准。",
   "Values can differ from a calibrated ECG": "數值可能與經校準的心電圖不同",
   "Compared with a calibrated single-lead ECG device, amplitude, QRS width, the T wave and intervals can differ noticeably. Take the numbers as a rough indication, not as a measurement you can rely on.": "與經校準的單導程心電圖裝置相比，振幅、QRS 寬度、T 波和各間期可能有明顯差異。請把這些數字當作粗略參考，而不是可以依賴的測量結果。",
-  "With symptoms such as chest pain, palpitations, dizziness or shortness of breath, contact a doctor. In an emergency, call your local emergency number (112 in Europe, 911 in the US) or alert your emergency contacts. Do not wait for or rely on a reading in NOOP.": "如出現胸痛、心悸、頭暈或呼吸急促等症狀，請就醫。緊急情況下，請撥打當地急救電話（台灣為 119）或通知你的緊急聯絡人。不要等待 NOOP 的測量，也不要依賴它。"
+  "With symptoms such as chest pain, palpitations, dizziness or shortness of breath, contact a doctor. In an emergency, call your local emergency number (112 in Europe, 911 in the US) or alert your emergency contacts. Do not wait for or rely on a reading in NOOP.": "如出現胸痛、心悸、頭暈或呼吸急促等症狀，請就醫。緊急情況下，請撥打當地急救電話（台灣為 119）或通知你的緊急聯絡人。不要等待 NOOP 的測量，也不要依賴它。",
+  "Battery pack %.1f%%": "電池包 %.1f%%"
 }
