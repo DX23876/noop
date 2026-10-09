@@ -2809,5 +2809,6 @@
   "Values can differ from a calibrated ECG": "Значения могут отличаться от откалиброванной ЭКГ",
   "Compared with a calibrated single-lead ECG device, amplitude, QRS width, the T wave and intervals can differ noticeably. Take the numbers as a rough indication, not as a measurement you can rely on.": "По сравнению с откалиброванным одноканальным электрокардиографом амплитуда, ширина QRS, зубец T и интервалы могут заметно отличаться. Считайте цифры грубым ориентиром, а не надёжным измерением.",
   "With symptoms such as chest pain, palpitations, dizziness or shortness of breath, contact a doctor. In an emergency, call your local emergency number (112 in Europe, 911 in the US) or alert your emergency contacts. Do not wait for or rely on a reading in NOOP.": "При таких симптомах, как боль в груди, сердцебиение, головокружение или одышка, обратитесь к врачу. В экстренной ситуации звоните 112 или 103 либо сообщите своим экстренным контактам. Не ждите измерения в NOOP и не полагайтесь на него.",
-  "Battery pack %.1f%%": "Аккумуляторный блок %.1f%%"
+  "Battery pack %.1f%%": "Аккумуляторный блок %.1f%%",
+  "Strength logs your sets. Other activities record time, heart rate and route when available.": "Силовая тренировка записывает ваши подходы. Другие активности записывают время, пульс и маршрут, если они доступны."
 }

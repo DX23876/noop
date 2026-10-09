@@ -1,6 +1,64 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Strength logs your sets. Other activities record time, heart rate and route when available." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Krafttraining zeichnet deine Sätze auf. Andere Aktivitäten erfassen Zeit, Herzfrequenz und Route, sofern verfügbar."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La fuerza registra tus series. Otras actividades registran tiempo, frecuencia cardíaca y ruta cuando están disponibles."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La musculation enregistre vos séries. Les autres activités enregistrent la durée, la fréquence cardiaque et le parcours lorsqu'ils sont disponibles."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La forza registra le tue serie. Le altre attività registrano tempo, frequenza cardiaca e percorso quando disponibili."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trening siłowy zapisuje Twoje serie. Inne aktywności rejestrują czas, tętno i trasę, gdy są dostępne."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A força regista as suas séries. Outras atividades registam tempo, frequência cardíaca e percurso quando disponíveis."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Силовая тренировка записывает ваши подходы. Другие активности записывают время, пульс и маршрут, если они доступны."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "力量训练记录你的每组动作。其他活动会在可用时记录时间、心率和路线。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重量訓練記錄你的每組動作。其他活動會在可用時記錄時間、心率和路線。"
+          }
+        }
+      }
+    },
     "STEPS · EXPERIMENTAL" : {
       "localizations" : {
         "de" : {

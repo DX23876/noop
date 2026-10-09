@@ -2832,5 +2832,6 @@
   "Values can differ from a calibrated ECG": "Los valores pueden diferir de un ECG calibrado",
   "Compared with a calibrated single-lead ECG device, amplitude, QRS width, the T wave and intervals can differ noticeably. Take the numbers as a rough indication, not as a measurement you can rely on.": "En comparación con un electrocardiógrafo de una derivación calibrado, la amplitud, la anchura del QRS, la onda T y los intervalos pueden diferir notablemente. Toma los números como una orientación aproximada, no como una medición fiable.",
   "With symptoms such as chest pain, palpitations, dizziness or shortness of breath, contact a doctor. In an emergency, call your local emergency number (112 in Europe, 911 in the US) or alert your emergency contacts. Do not wait for or rely on a reading in NOOP.": "Si tienes síntomas como dolor en el pecho, palpitaciones, mareo o falta de aire, acude a un médico. En una emergencia, llama al 112 o avisa a tus contactos de emergencia. No esperes a una medición en NOOP ni confíes en ella.",
-  "Battery pack %.1f%%": "Batería externa %.1f%%"
+  "Battery pack %.1f%%": "Batería externa %.1f%%",
+  "Strength logs your sets. Other activities record time, heart rate and route when available.": "La fuerza registra tus series. Otras actividades registran tiempo, frecuencia cardíaca y ruta cuando están disponibles."
 }

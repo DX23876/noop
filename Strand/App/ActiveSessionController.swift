@@ -243,13 +243,15 @@ final class ActiveSessionController: ObservableObject {
         Task { await loadContextIfNeeded() }
     }
 
-    func requestStrength(routines: [TrainingRoutine]) {
+    /// `closingSheet` is set by the shared start screen, which closes itself as the session begins: the
+    /// full-screen session then waits for it to be gone, as it already does for the strength chooser.
+    func requestStrength(routines: [TrainingRoutine], closingSheet: Bool = false) {
         guard app.workoutCompletion == nil else { isPresented = true; return }
         guard !hasLiveSession else {
             pendingStart = .init(request: .strength(routines: routines), runningTitle: runningTitle)
             return
         }
-        Task { await startStrength(routines: routines) }
+        Task { await startStrength(routines: routines, closingSheet: closingSheet) }
     }
 
     func requestCardio(sport: String, targetZone: Int?, gpsEnabled: Bool? = nil) {
@@ -322,9 +324,9 @@ final class ActiveSessionController: ObservableObject {
         }
     }
 
-    func startStrength(routines: [TrainingRoutine]) async {
+    func startStrength(routines: [TrainingRoutine], closingSheet: Bool = false) async {
         guard app.workoutCompletion == nil else { isPresented = true; return }
-        let closingChooser = isChoosingStrengthStart
+        let closingChooser = isChoosingStrengthStart || closingSheet
         isChoosingStrengthStart = false
         await loadContextIfNeeded()
         let tracker = await currentTrackerAttribution()

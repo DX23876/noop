@@ -17,6 +17,7 @@ struct TrainingHubView: View {
     @EnvironmentObject private var repo: Repository
     @StateObject private var model = TrainingHubModel()
     @State private var showingStarterPlans = false
+    @State private var showingStart = false
     @State private var showingSchedule = false
     @State private var showingLibrary = false
     @State private var showingPlanImporter = false
@@ -72,6 +73,9 @@ struct TrainingHubView: View {
         }
         .sheet(isPresented: $showingStarterPlans) {
             NavigationStack { starterPlans }
+        }
+        .workoutSelectionCover(isPresented: $showingStart) {
+            StartWorkoutSheet(session: session)
         }
         .sheet(isPresented: $showingSchedule) {
             NavigationStack {
@@ -201,23 +205,21 @@ struct TrainingHubView: View {
                             .frame(maxWidth: .infinity).padding(.vertical, 11)
                     }
                     .buttonStyle(.borderedProminent).tint(StrandPalette.accent)
-                } else if !model.routines(on: Date()).isEmpty {
-                    let today = model.routines(on: Date())
-                    Button { start(today) } label: {
-                        Label("Start today's plan", systemImage: "play.fill")
-                            .frame(maxWidth: .infinity).padding(.vertical, 11)
-                    }
-                    .buttonStyle(.borderedProminent).tint(StrandPalette.accent)
                 } else {
+                    // The same start screen as Live, Workouts and the quick actions: today's plan,
+                    // freestyle and routines on top, every other activity below.
                     HStack(spacing: 10) {
-                        Button { start([]) } label: {
-                            Label("Freestyle", systemImage: "play.fill").frame(maxWidth: .infinity)
+                        Button { openStart() } label: {
+                            Label("Start workout", systemImage: "play.fill")
+                                .frame(maxWidth: .infinity).padding(.vertical, 11)
                         }
                         .buttonStyle(.borderedProminent).tint(StrandPalette.accent)
-                        Button { showingStarterPlans = true } label: {
-                            Text("Choose plan").frame(maxWidth: .infinity)
+                        if model.routines(on: Date()).isEmpty {
+                            Button { showingStarterPlans = true } label: {
+                                Text("Choose plan").frame(maxWidth: .infinity).padding(.vertical, 11)
+                            }
+                            .buttonStyle(.bordered)
                         }
-                        .buttonStyle(.bordered)
                     }
                 }
             }
@@ -462,6 +464,13 @@ struct TrainingHubView: View {
     /// same session and a running one is never replaced without asking.
     private func start(_ routines: [TrainingRoutine]) {
         session.requestStrength(routines: routines)
+    }
+
+    /// Hands the plan as this tab shows it to the start screen, so a routine added or rescheduled a
+    /// moment ago is offered there too.
+    private func openStart() {
+        if model.loaded { session.update(context: model.startContext) }
+        showingStart = true
     }
 
     private func exportPlan() {

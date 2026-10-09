@@ -2933,5 +2933,6 @@
   "Values can differ from a calibrated ECG": "数值可能与经校准的心电图不同",
   "Compared with a calibrated single-lead ECG device, amplitude, QRS width, the T wave and intervals can differ noticeably. Take the numbers as a rough indication, not as a measurement you can rely on.": "与经校准的单导联心电图设备相比，幅度、QRS 宽度、T 波和各间期可能存在明显差异。请把这些数字当作粗略参考，而不是可以依赖的测量结果。",
   "With symptoms such as chest pain, palpitations, dizziness or shortness of breath, contact a doctor. In an emergency, call your local emergency number (112 in Europe, 911 in the US) or alert your emergency contacts. Do not wait for or rely on a reading in NOOP.": "如出现胸痛、心悸、头晕或气短等症状，请就医。紧急情况下，请拨打当地急救电话（中国大陆为 120）或通知你的紧急联系人。不要等待 NOOP 的测量，也不要依赖它。",
-  "Battery pack %.1f%%": "电池包 %.1f%%"
+  "Battery pack %.1f%%": "电池包 %.1f%%",
+  "Strength logs your sets. Other activities record time, heart rate and route when available.": "力量训练记录你的每组动作。其他活动会在可用时记录时间、心率和路线。"
 }

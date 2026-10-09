@@ -1,6 +1,7 @@
 import SwiftUI
 import StrandDesign
 import StrandAnalytics
+import StrandTraining
 
 // MARK: - Workout selection browser
 //
@@ -17,6 +18,7 @@ struct StartWorkoutSheet: View {
     private let actionVerb: String
     private let offersZoneTraining: Bool
     private let configuresRoute: Bool
+    private let offersStrength: Bool
 
     init(title: String? = nil, subtitle: String? = nil, actionVerb: String? = nil,
          onStart: @escaping (_ sport: String) -> Void) {
@@ -27,6 +29,7 @@ struct StartWorkoutSheet: View {
         self.actionVerb = actionVerb ?? String(localized: "Start")
         self.offersZoneTraining = false
         self.configuresRoute = false
+        self.offersStrength = false
     }
 
     init(title: String? = nil, subtitle: String? = nil, actionVerb: String? = nil,
@@ -39,12 +42,29 @@ struct StartWorkoutSheet: View {
         self.actionVerb = actionVerb ?? String(localized: "Start")
         self.offersZoneTraining = offersZoneTraining
         self.configuresRoute = true
+        self.offersStrength = false
+    }
+
+    /// The one start screen every live entry opens (Live, Workouts, Training and the quick actions):
+    /// strength from the plan on top, every other activity below. Both kinds start through the shared
+    /// session controller, so where a workout is started no longer decides which kind it can be.
+    init(session: ActiveSessionController) {
+        self.onStart = { sport, targetZone, gpsEnabled in
+            session.requestCardio(sport: sport, targetZone: targetZone, gpsEnabled: gpsEnabled)
+        }
+        self.heading = String(localized: "Start a workout")
+        self.explainer = String(localized: "Strength logs your sets. Other activities record time, heart rate and route when available.")
+        self.actionVerb = String(localized: "Start")
+        self.offersZoneTraining = true
+        self.configuresRoute = true
+        self.offersStrength = true
     }
 
     var body: some View {
         WorkoutSelectionScreen(heading: heading, explainer: explainer, actionVerb: actionVerb,
                                offersZoneTraining: offersZoneTraining,
-                               configuresRoute: configuresRoute, onStart: onStart)
+                               configuresRoute: configuresRoute, offersStrength: offersStrength,
+                               onStart: onStart)
     }
 }
 
@@ -56,6 +76,7 @@ struct WorkoutSelectionScreen: View {
     let actionVerb: String
     let offersZoneTraining: Bool
     let configuresRoute: Bool
+    var offersStrength = false
     let onStart: (_ sport: String, _ targetZone: Int?, _ gpsEnabled: Bool?) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -81,6 +102,11 @@ struct WorkoutSelectionScreen: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: NoopMetrics.space5) {
                     headerCopy
+                    if offersStrength {
+                        StrengthStartSection { dismiss() }
+                        sectionOverline("Activities")
+                            .padding(.top, NoopMetrics.space2)
+                    }
                     if offersZoneTraining {
                         ZoneTrainingTargetPicker(selection: $targetZone, zoneSet: profile.hrZoneSet)
                     }
@@ -166,11 +192,15 @@ struct WorkoutSelectionScreen: View {
         .accessibilityElement(children: .combine)
     }
 
+    private func sectionOverline(_ title: LocalizedStringKey) -> some View {
+        Text(title)
+            .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
+            .foregroundStyle(StrandPalette.textSecondary)
+    }
+
     private var recentSection: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.space3) {
-            Text("Recent")
-                .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
-                .foregroundStyle(StrandPalette.textSecondary)
+            sectionOverline("Recent")
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: NoopMetrics.space2) {
                     ForEach(recentSports) { sport in
@@ -217,6 +247,173 @@ struct WorkoutSelectionScreen: View {
         RecentSportsPrefs.recordSelection(sport.name)
         onStart(sport.name, offersZoneTraining ? targetZone : nil, gpsEnabled)
         dismiss()
+    }
+}
+
+// MARK: - Strength
+
+/// The strength half of the one start screen: today's plan, freestyle and the saved routines. Each
+/// starts through the shared session controller, exactly as the Training tab's own buttons did.
+private struct StrengthStartSection: View {
+    let onStarted: () -> Void
+
+    @EnvironmentObject private var session: ActiveSessionController
+    @State private var showsAllRoutines = false
+
+    /// Up to this many routines are listed directly; more fold behind one row.
+    private static let inlineRoutineLimit = 3
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+            Text("Strength")
+                .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
+                .foregroundStyle(StrandPalette.textSecondary)
+            if !todayRoutines.isEmpty {
+                StrengthStartCard(title: Text("Start today's plan"),
+                                  subtitle: Text(verbatim: todayRoutines.map(\.title).joined(separator: " · ")),
+                                  symbol: "calendar", highlighted: true) { start(todayRoutines) }
+            }
+            StrengthStartCard(title: Text("Freestyle workout"), subtitle: Text("Add exercises as you go."),
+                              symbol: "dumbbell.fill") { start([]) }
+            if !session.contextLoaded {
+                HStack(spacing: NoopMetrics.space2) {
+                    ProgressView()
+                    Text("Loading routines")
+                }
+                .font(StrandFont.subhead)
+                .foregroundStyle(StrandPalette.textSecondary)
+            } else if !otherRoutines.isEmpty {
+                routineList
+            }
+        }
+        .task { await session.loadContextIfNeeded() }
+    }
+
+    /// The saved routines as one grouped list, so a long plan reads as rows rather than a wall of cards.
+    private var routineList: some View {
+        let shown = showsAllRoutines ? otherRoutines : Array(otherRoutines.prefix(Self.inlineRoutineLimit))
+        return VStack(spacing: 0) {
+            ForEach(Array(shown.enumerated()), id: \.element.id) { index, routine in
+                if index > 0 { Divider().padding(.leading, NoopMetrics.space4) }
+                Button { start([routine]) } label: {
+                    HStack(spacing: NoopMetrics.space3) {
+                        VStack(alignment: .leading, spacing: NoopMetrics.space1) {
+                            Text(verbatim: routine.title)
+                                .font(StrandFont.headline)
+                                .foregroundStyle(StrandPalette.textPrimary)
+                                .multilineTextAlignment(.leading)
+                            Text("\(routine.exercises.count) exercises")
+                                .font(StrandFont.footnote)
+                                .foregroundStyle(StrandPalette.textSecondary)
+                        }
+                        Spacer(minLength: NoopMetrics.space2)
+                        Image(systemName: "play.fill")
+                            .font(StrandFont.subhead)
+                            .foregroundStyle(StrandPalette.accent)
+                            .accessibilityHidden(true)
+                    }
+                    .padding(.horizontal, NoopMetrics.space4)
+                    .padding(.vertical, NoopMetrics.space3)
+                    .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(LiquidPressStyle())
+                .accessibilityElement(children: .combine)
+                .accessibilityHint(Text("Double tap to start"))
+            }
+            if otherRoutines.count > shown.count {
+                Divider().padding(.leading, NoopMetrics.space4)
+                Button {
+                    withAnimation(.easeOut(duration: 0.2)) { showsAllRoutines = true }
+                } label: {
+                    HStack {
+                        Text("Show all")
+                        Spacer()
+                        Image(systemName: "chevron.down").accessibilityHidden(true)
+                    }
+                    .font(StrandFont.subhead.weight(.semibold))
+                    .foregroundStyle(StrandPalette.accent)
+                    .padding(.horizontal, NoopMetrics.space4)
+                    .padding(.vertical, NoopMetrics.space3)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .background { NoopPanelSurface(cornerRadius: NoopMetrics.cardRadius) }
+    }
+
+    private var todayRoutines: [TrainingRoutine] {
+        let date = Date()
+        return session.context.plan.routines(day: TrainingHubModel.dayString(date),
+                                             weekday: TrainingHubModel.weekday(date))
+    }
+
+    /// Every saved routine that is not already part of today's plan, in plan order.
+    private var otherRoutines: [TrainingRoutine] {
+        let today = Set(todayRoutines.map(\.id))
+        return session.context.plan.routines.filter { !today.contains($0.id) }
+    }
+
+    private func start(_ routines: [TrainingRoutine]) {
+        session.requestStrength(routines: routines, closingSheet: true)
+        onStarted()
+    }
+}
+
+/// One strength entry, drawn like the activity cards below it so both halves read as one list.
+private struct StrengthStartCard: View {
+    let title: Text
+    let subtitle: Text
+    let symbol: String
+    var highlighted = false
+    let action: () -> Void
+
+    private var accent: Color { StrandPalette.accent }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(alignment: .center, spacing: NoopMetrics.space4) {
+                Image(systemName: symbol)
+                    .font(StrandFont.title2)
+                    .foregroundStyle(accent)
+                    .frame(width: 52, height: 52)
+                    .background(accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: NoopMetrics.space1) {
+                    title
+                        .font(StrandFont.title2)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                    subtitle
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .lineLimit(2)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Image(systemName: "chevron.right")
+                    .font(StrandFont.headline)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .frame(width: 44, height: 44)
+                    .background(StrandPalette.surfaceRaised, in: Circle())
+                    .accessibilityHidden(true)
+            }
+            .padding(.horizontal, NoopMetrics.space4)
+            .padding(.vertical, NoopMetrics.space3)
+            .frame(maxWidth: .infinity, minHeight: 76, alignment: .leading)
+            .background {
+                NoopPanelSurface(tint: highlighted ? accent : nil, cornerRadius: NoopMetrics.cardRadius,
+                                 elevated: highlighted)
+            }
+            .contentShape(RoundedRectangle(cornerRadius: NoopMetrics.cardRadius))
+        }
+        .buttonStyle(LiquidPressStyle())
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
     }
 }
 

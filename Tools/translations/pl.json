@@ -3937,5 +3937,6 @@
   "Values can differ from a calibrated ECG": "Wartości mogą odbiegać od skalibrowanego EKG",
   "Compared with a calibrated single-lead ECG device, amplitude, QRS width, the T wave and intervals can differ noticeably. Take the numbers as a rough indication, not as a measurement you can rely on.": "W porównaniu ze skalibrowanym jednokanałowym aparatem EKG amplituda, szerokość QRS, załamek T i odstępy mogą wyraźnie się różnić. Traktuj liczby jako przybliżoną wskazówkę, a nie wiarygodny pomiar.",
   "With symptoms such as chest pain, palpitations, dizziness or shortness of breath, contact a doctor. In an emergency, call your local emergency number (112 in Europe, 911 in the US) or alert your emergency contacts. Do not wait for or rely on a reading in NOOP.": "Przy objawach takich jak ból w klatce piersiowej, kołatanie serca, zawroty głowy czy duszność skontaktuj się z lekarzem. W nagłym wypadku zadzwoń pod 112 lub powiadom swoje kontakty alarmowe. Nie czekaj na pomiar w NOOP i nie polegaj na nim.",
-  "Battery pack %.1f%%": "Moduł baterii %.1f%%"
+  "Battery pack %.1f%%": "Moduł baterii %.1f%%",
+  "Strength logs your sets. Other activities record time, heart rate and route when available.": "Trening siłowy zapisuje Twoje serie. Inne aktywności rejestrują czas, tętno i trasę, gdy są dostępne."
 }

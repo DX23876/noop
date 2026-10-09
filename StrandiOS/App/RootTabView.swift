@@ -563,13 +563,11 @@ struct RootTabView: View {
         case .live:
             quickScreen(LiveView())
         case .workout:
-            // Straight to the sport picker: "Start workout" should start one, not open the history list.
-            // A running session is re-presented instead (the picker would only offer to stack a second).
+            // Straight to the shared start screen (strength and every other activity): "Start workout"
+            // should start one, not open the history list. A running session is re-presented instead (the picker would only offer to stack a second).
             // The session cover cannot sit on this sheet; the `session.$isPresented` hook below closes the
             // sheet and re-issues the present.
-            StartWorkoutSheet(offersZoneTraining: true) { name, targetZone, gpsEnabled in
-                session.requestCardio(sport: name, targetZone: targetZone, gpsEnabled: gpsEnabled)
-            }
+            StartWorkoutSheet(session: session)
         case .journal:
             quickScreen(InsightsView())
         case .breathe:
