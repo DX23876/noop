@@ -120,6 +120,18 @@ public enum EcgHeartKeyProgress: Equatable, Sendable {
         if case .percent(let v) = self { return v }
         return nil
     }
+
+    /// Length of the classifier's recording. The strap-log timeline (#891) puts the first progress
+    /// about 9 s after the first live frame and the terminal frame at about 38 s, so the percentage
+    /// spans roughly 30 s of settled contact; the lead-in before it is not part of this count.
+    public static let recordingSeconds = 30
+
+    /// Seconds left in the recording, rounded up so the last second still reads 1. Nil outside
+    /// 1...99: before the first progress and after the verdict there is nothing to count down.
+    public var remainingSeconds: Int? {
+        guard let p = percentValue, p > 0, p < 100 else { return nil }
+        return Int((Double(Self.recordingSeconds) * Double(100 - Int(p)) / 100.0).rounded(.up))
+    }
 }
 
 // MARK: - Shared status header

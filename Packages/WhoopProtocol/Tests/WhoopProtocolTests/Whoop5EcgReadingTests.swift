@@ -152,4 +152,14 @@ final class Whoop5EcgReadingTests: XCTestCase {
         XCTAssertEqual(b.kind, .inconclusiveFinal)
         XCTAssertEqual(retried.accepted.count, 2)
     }
+
+    func testCountdownSpansTheThirtySecondRecording() {
+        XCTAssertNil(EcgHeartKeyProgress(raw: 0).remainingSeconds)
+        XCTAssertEqual(EcgHeartKeyProgress(raw: 1).remainingSeconds, 30)
+        XCTAssertEqual(EcgHeartKeyProgress(raw: 10).remainingSeconds, 27)
+        XCTAssertEqual(EcgHeartKeyProgress(raw: 50).remainingSeconds, 15)
+        XCTAssertEqual(EcgHeartKeyProgress(raw: 99).remainingSeconds, 1)
+        XCTAssertNil(EcgHeartKeyProgress(raw: 100).remainingSeconds)
+        XCTAssertNil(EcgHeartKeyProgress(raw: 255).remainingSeconds)
+    }
 }
