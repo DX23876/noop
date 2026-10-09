@@ -1,6 +1,7 @@
 import SwiftUI
 import StrandDesign
 import StrandAnalytics
+import WhoopStore
 
 // MARK: - Auto-detected workout prompt (Today screen)
 //
