@@ -779,7 +779,7 @@ enum MoreDestination: Hashable {
     case profile, devices, training
     case momentum
     case insightsHub, intelligence, coach, coachSettings, goalJourney, insights, explore, compare
-    case live, workouts, health, labBook, stress, breathe, intervals, rhythm, strength, cardio, trainingLoad
+    case live, workouts, health, labBook, stress, breathe, intervals, rhythm, ecg, strength, cardio, trainingLoad
     case body, energyPlan
     case fusedRecord, appleHealth, miBand, dataSources, backupSync, shortcutsExport, noopLimitations
     case alarms, automations, testCentre, siriShortcuts, powerSaving, settings
@@ -818,6 +818,7 @@ enum MoreDestination: Hashable {
         case .breathe:         BreathingView()
         case .intervals:       IntervalTimerView()
         case .rhythm:          RhythmHost()
+        case .ecg:             EcgReadingsScreen()
         case .fusedRecord:     FusedRecordHost()
         case .appleHealth:     AppleHealthView()
         case .miBand:          XiaomiBandView()

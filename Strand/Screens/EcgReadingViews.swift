@@ -7,8 +7,9 @@ import WhoopStore
 // MARK: - WHOOP MG ECG reading screens (OpenStrap port)
 //
 // The capture sheet, the saved-readings list and a saved reading. Every result shown here is the strap's
-// own; the category comes from OpenStrap's result-plus-heart-rate table. NOOP is not a medical device,
-// and each screen that names a category carries the disclaimer once, at the bottom.
+// own; the category comes from OpenStrap's result-plus-heart-rate table. NOOP is not a medical device:
+// a first-use notice states the limits and intended use, and every screen that names a category keeps
+// that notice one tap away behind an info button rather than as text on the screen.
 
 /// User-facing text and styling for the strap's category.
 enum EcgCategoryText {
@@ -34,8 +35,6 @@ enum EcgCategoryText {
         }
     }
 
-    static let disclaimer: LocalizedStringKey = "The strap's built-in classifier reports the result; OpenStrap's table names it. NOOP is not a medical device and this is not a diagnosis. See a doctor if you have symptoms."
-
     static func unreadableReasons(_ mask: UInt8) -> [LocalizedStringKey] {
         let m = EcgUnreadableMask(raw: mask)
         var out: [LocalizedStringKey] = []
@@ -45,6 +44,9 @@ enum EcgCategoryText {
         if m.notEnoughData { out.append("There was not enough data.") }
         return out
     }
+
+    /// Shown under Start while the strap cannot begin a reading; the same text as the `notReady` failure.
+    static var notReady: LocalizedStringKey { failure("notReady") }
 
     static func failure(_ reason: String?) -> LocalizedStringKey {
         switch reason {
@@ -59,6 +61,107 @@ enum EcgCategoryText {
         case "save": return "The reading could not be saved."
         case "cancelled": return "Reading cancelled."
         default: return "The reading did not finish."
+        }
+    }
+}
+
+/// What a person confirms once before their first reading: what the feature is for, what it cannot do,
+/// and that it is not for medical use. Bump `currentVersion` when the wording changes materially, so the
+/// next reading asks again.
+enum EcgReadingConsent {
+    static let currentVersion = "1"
+    static let acceptedVersionKey = "noopEcgReadingConsentVersion"
+
+    static func isAccepted(_ stored: String) -> Bool { stored == currentVersion }
+
+    static let points: [(LocalizedStringKey, LocalizedStringKey)] = [
+        ("An experimental test feature",
+         "ECG readings in NOOP are an experimental feature for testing and personal interest. NOOP is not a medical device, and nothing here has been reviewed or approved for medical use."),
+        ("Not for medical use",
+         "Do not use these readings to diagnose, rule out or monitor a heart condition, or to decide on medication or treatment. NOOP does not recommend any medical use."),
+        ("Where the result comes from",
+         "The rhythm result is calculated by the strap itself. NOOP shows it and cannot check whether it is correct. Heart rate, variability and intervals are NOOP's own estimates from the saved trace and are not validated."),
+        ("Limits of a wrist ECG",
+         "One lead at the wrist, 100 samples per second, an uncalibrated amplitude and a filter inside the strap. Movement, loose contact or a slow heart rate can give wrong results. A single lead cannot replace a 12-lead ECG."),
+        ("If you feel unwell",
+         "With symptoms such as chest pain, palpitations, dizziness or shortness of breath, contact a doctor. In an emergency, call your local emergency number. Do not wait for or rely on a reading in NOOP."),
+        ("Your readings stay with you",
+         "NOOP stores readings on this device and sends them to no one. A backup you make yourself includes them."),
+    ]
+}
+
+/// The intended-use notice: shown in place of the setup until it is confirmed, and on request afterwards.
+private struct EcgReadingIntro: View {
+    /// Nil once confirmed: the notice is then read-only and closes with Done.
+    let onAccept: (() -> Void)?
+    let onDismiss: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Experimental", systemImage: "flask")
+                .font(StrandFont.caption)
+                .foregroundStyle(StrandPalette.statusWarningForeground)
+            Text("Before you record an ECG")
+                .font(StrandFont.title2)
+                .foregroundStyle(StrandPalette.textPrimary)
+        }
+        VStack(alignment: .leading, spacing: 16) {
+            ForEach(EcgReadingConsent.points.indices, id: \.self) { i in
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(EcgReadingConsent.points[i].0)
+                        .font(StrandFont.headline)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                    Text(EcgReadingConsent.points[i].1)
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .ecgCard()
+        if let onAccept {
+            VStack(spacing: 8) {
+                Button(action: onAccept) {
+                    Text("I understand, continue").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                Button("Not now", action: onDismiss)
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(StrandPalette.textSecondary)
+            }
+        } else {
+            Button(action: onDismiss) {
+                Text("Done").frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+        }
+    }
+}
+
+/// The limits and intended-use notice behind an info button: result screens stay uncluttered while the
+/// notice remains one tap away wherever a category is shown.
+struct EcgInfoButton: View {
+    @State private var presented = false
+
+    var body: some View {
+        Button { presented = true } label: {
+            Label("Limits and intended use", systemImage: "info.circle")
+        }
+        .sheet(isPresented: $presented) {
+            NavigationStack {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 24) {
+                        EcgReadingIntro(onAccept: nil, onDismiss: { presented = false })
+                    }
+                    .padding(16)
+                }
+                .background(StrandPalette.surfaceBase)
+            }
+            #if os(macOS)
+            .frame(minWidth: NoopMetrics.detailSheetMinWidth, minHeight: NoopMetrics.detailSheetMinHeight)
+            #endif
         }
     }
 }
@@ -108,6 +211,7 @@ struct EcgReadingSheet: View {
     @ObservedObject var controller: EcgReadingController
     let onClose: () -> Void
     @AppStorage("noopEcgReadingWrist") private var wristRaw = Int(Whoop5Ecg.WristSelection.left.rawValue)
+    @AppStorage(EcgReadingConsent.acceptedVersionKey) private var consentVersion = ""
 
     private var wrist: Whoop5Ecg.WristSelection {
         Whoop5Ecg.WristSelection(rawValue: UInt8(clamping: wristRaw)) ?? .left
@@ -146,6 +250,9 @@ struct EcgReadingSheet: View {
                     }
                     .disabled(controller.phase.isRunning)
                 }
+                ToolbarItem(placement: .primaryAction) {
+                    EcgInfoButton()
+                }
             }
         }
         // Swiping the sheet away mid-reading would leave the strap recording out of sight; Stop is the way out.
@@ -166,7 +273,15 @@ struct EcgReadingSheet: View {
         }
         switch controller.phase {
         case .idle, .cancelled, .failed:
-            setup
+            if !EcgReadingConsent.isAccepted(consentVersion) {
+                EcgReadingIntro(onAccept: { consentVersion = EcgReadingConsent.currentVersion },
+                                onDismiss: {
+                                    controller.reset()
+                                    onClose()
+                                })
+            } else {
+                setup
+            }
         case .preparing, .waiting, .active, .contactLost, .restarting, .finishing, .stopping:
             running
         case .completed:
@@ -219,13 +334,12 @@ struct EcgReadingSheet: View {
             primaryButton("Start") { controller.begin(wrist: wrist) }
                 .disabled(!controller.isReady)
             if !controller.isReady {
-                Text(EcgCategoryText.failure("notReady"))
+                Text(EcgCategoryText.notReady)
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.statusWarningForeground)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        disclaimer
     }
 
     // MARK: Running
@@ -247,7 +361,13 @@ struct EcgReadingSheet: View {
             HStack {
                 Text("\(controller.progress) %")
                 Spacer()
-                Text("\(controller.elapsedSeconds) s")
+                // Once the strap reports progress it is counting down its 30 s recording; before that
+                // (contact settling) only the elapsed time is honest.
+                if let left = EcgHeartKeyProgress(raw: UInt8(clamping: controller.progress)).remainingSeconds {
+                    Text("\(left) s left")
+                } else {
+                    Text("\(controller.elapsedSeconds) s")
+                }
             }
             .font(StrandFont.captionNumber)
             .foregroundStyle(StrandPalette.textSecondary)
@@ -308,13 +428,6 @@ struct EcgReadingSheet: View {
         }
         .ecgCard()
     }
-
-    private var disclaimer: some View {
-        Text(EcgCategoryText.disclaimer)
-            .font(StrandFont.footnote)
-            .foregroundStyle(StrandPalette.textTertiary)
-            .fixedSize(horizontal: false, vertical: true)
-    }
 }
 
 /// The just-saved reading, loaded back from the store so what is shown is what was kept.
@@ -335,10 +448,6 @@ private struct EcgSavedResult: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
-                Text(EcgCategoryText.disclaimer)
-                    .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
             } else {
                 ProgressView().frame(maxWidth: .infinity)
             }
@@ -389,6 +498,31 @@ struct EcgResultHeader: View {
 
 // MARK: - Saved readings
 
+/// Saved readings as a destination of their own, so they stay reachable without the strap's device card:
+/// another strap active, the MG out of range, or the opt-in switched off after recording. A new reading
+/// is offered only with the opt-in on; the capture sheet itself says when the strap cannot start one.
+struct EcgReadingsScreen: View {
+    @EnvironmentObject var model: AppModel
+    @AppStorage(PuffinExperiment.ecgKey) private var ecgEnabled = false
+    @State private var readingPresented = false
+
+    var body: some View {
+        EcgReadingListView(controller: model.ecgReading)
+            .toolbar {
+                if ecgEnabled {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button { readingPresented = true } label: {
+                            Label("New reading", systemImage: "plus")
+                        }
+                    }
+                }
+            }
+            .sheet(isPresented: $readingPresented) {
+                EcgReadingSheet(controller: model.ecgReading, onClose: { readingPresented = false })
+            }
+    }
+}
+
 struct EcgReadingListView: View {
     @ObservedObject var controller: EcgReadingController
     @EnvironmentObject var repo: Repository
@@ -400,8 +534,14 @@ struct EcgReadingListView: View {
         List {
             Section("WHOOP MG") {
                 if loaded && readings.isEmpty {
-                    Text("No saved ECGs yet.")
-                        .foregroundStyle(StrandPalette.textSecondary)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("No saved ECGs yet.")
+                            .foregroundStyle(StrandPalette.textSecondary)
+                        Text("A reading needs a WHOOP MG and the ECG switch under Settings → Experimental · WHOOP 5 / MG.")
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 ForEach(readings) { reading in
                     NavigationLink {
@@ -428,6 +568,11 @@ struct EcgReadingListView: View {
             refreshToken &+= 1
         }
         .navigationTitle("Saved ECGs")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                EcgInfoButton()
+            }
+        }
         .task(id: controller.savedRevision) {
             guard let store = await repo.storeHandle() else { return }
             readings = (try? await store.ecgReadings()) ?? []
@@ -480,15 +625,16 @@ struct EcgReadingDetailView: View {
                 }
                 EcgMeasurementsSection(readingId: reading.id, samples: samples)
                 facts
-                Text(EcgCategoryText.disclaimer)
-                    .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
             }
             .padding(16)
         }
         .background(StrandPalette.surfaceBase)
         .navigationTitle("ECG reading")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                EcgInfoButton()
+            }
+        }
         .task {
             guard let store = await repo.storeHandle(),
                   let packets = try? await store.ecgReadingPackets(id: reading.id) else { return }

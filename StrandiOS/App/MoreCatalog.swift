@@ -165,6 +165,9 @@ enum MoreCatalog {
             // Renamed from "Rhythm": explicit that this is about heartbeat, not daily/circadian rhythm.
             MoreEntry("Beat Rhythm", "waveform.path", .rhythm,
                       keywords: ["beat-to-beat", "R-R", "regularity", "experimental"]),
+            // Saved WHOOP MG readings, independent of the Devices card that starts one.
+            MoreEntry("Saved ECGs", "waveform.path.ecg.rectangle", .ecg,
+                      keywords: ["ECG", "EKG", "electrocardiogram", "WHOOP MG", "atrial fibrillation", "experimental"]),
         ]),
         MoreGroup(category: .tools, entries: [
             MoreEntry("Live", "waveform.path.ecg", .live,
