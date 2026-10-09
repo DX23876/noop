@@ -781,6 +781,12 @@ sleep/recovery data.
 - **Oura ring** (experimental, see [docs/OURA_PROTOCOL.md](OURA_PROTOCOL.md)) — paired locally; NOOP
   owns the ring while it holds the pairing key, and re-setting it up in the official Oura app hands
   ownership back.
+- **WHOOP MG ECG reading** — an explicit wrist-to-finger measurement saves the accepted waveform
+  and the band's result locally. Detail views estimate heart rate, variability and waveform intervals
+  from the saved 100 Hz samples. R-peak timing is refined between neighbouring samples to reduce
+  artificial variability from the 10 ms grid; this does not increase the recording's bandwidth or
+  establish clinical precision. Gaps remain separate. These detail estimates are recomputed on open
+  and do not feed nightly HRV or recovery; the latter use the band's separately recorded RR values.
 - **Protocol-research probes** (advanced, WHOOP only) — read-only, user-triggered diagnostics for
   reverse-engineering unconfirmed BLE opcodes: an extended-battery-info probe, a body-location probe,
   a feature-flag lister, a device-config-value reader, a reboot-frame test (4.0 only, non-destructive),

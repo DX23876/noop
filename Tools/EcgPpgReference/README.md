@@ -171,13 +171,36 @@ Focused Swift validation (in a separate permitted worktree):
 
 ```sh
 swift test --package-path Packages/WhoopStore --filter ReadOnlyStoreTests > /path/store-test.log 2>&1
-swift test --package-path Packages/StrandAnalytics --filter HRVCleanProvenanceTests > /path/analysis-test.log 2>&1
+swift test --package-path Packages/StrandAnalytics --filter 'HRVCleanProvenanceTests|EcgPeakTimingTests' > /path/analysis-test.log 2>&1
 python3 Tools/EcgPpgReference/check_swift_roster.py /path/store-test.log /path/analysis-test.log
 ```
 
-The Swift CI builds the tool and requires the exact seven focused XCTest successes.
+The Swift CI builds the tool and requires the exact 13 focused XCTest successes.
 Its paths cover the tool, packages and workflow. Python CI requires all 29 synthetic
 tests, including varying RR rates/errors, missing/extra entries, equal-value identity
 ambiguity, source ordering, discontinuities and gate failures. Private fixtures are
 never CI inputs. Analysis migration required: **no**; selection, HRV arithmetic,
 storage schema and live capture behavior are unchanged.
+
+
+## ECG detail timing regression (2026-10-09)
+
+`EcgPeakTimingTests` protects the production ECG detail analyzer as well. Integer
+R indices on the 100 Hz grid generated roughly 7.8 ms RMSSD on constant 613/777/
+923/1107 ms inputs. A bounded three-point parabola refines the time of an already
+detected R, leaving detection and template sample indices alone. The tested
+constant inputs now remain below 2.5 ms RMSSD; injected 5/17/43/61 ms alternating
+interval differences are recovered within 2 ms, in either polarity. These limits
+are synthetic regression evidence, not physical accuracy specifications.
+
+Flat/non-maximum/non-finite triplets keep their sample location. A boundary or
+missing neighbour is never used for interpolation, and successive differences
+remain separated across recording gaps. Tests also vary peak width, amplitude,
+small additive noise, signal offset and position within a sample. The exact CI
+roster includes all six timing cases and requires zero non-success results.
+
+These are transient `EcgAnalysis` detail results recomputed from saved waveforms;
+no persisted result, nightly band-RR analysis or recovery recipe is changed.
+**Analysis migration required: no.** This improvement reduces grid quantisation;
+it does not validate the strap's bandwidth, the 1.5 Hz compensation hypothesis,
+P/T delineation, artifact classification or the physical accuracy of interpolation.

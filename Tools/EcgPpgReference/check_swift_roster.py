@@ -8,6 +8,12 @@ import re
 import sys
 
 EXPECTED = {
+    'EcgPeakTimingTests.testConstantOffGridIntervalsDoNotManufactureHRV',
+    'EcgPeakTimingTests.testSmallAndLargeInjectedVariabilityIsRecoveredOffGrid',
+    'EcgPeakTimingTests.testParabolicVertexTracksPositionScaleAndOffset',
+    'EcgPeakTimingTests.testInvalidOrFlatTripletsRetainTheirSamplePosition',
+    'EcgPeakTimingTests.testChangingRateAcrossAGapDoesNotCreateSuccessiveDifferences',
+    'EcgPeakTimingTests.testPeakWidthAmplitudeAndSmallNoiseDoNotRestoreGridArtifact',
     'ReadOnlyStoreTests.testMissingFileIsNotCreated',
     'ReadOnlyStoreTests.testDoesNotMigrateOrAdoptAnOldSchema',
     'ReadOnlyStoreTests.testWALAndSharedResolverAgreeForVariableDriftAndWindowWidths',
@@ -20,11 +26,11 @@ EXPECTED = {
 def check(logs):
     entries = re.findall(r"Test Case '-\[\w+\.(\w+) (test\w+)\]' (passed|failed|skipped)", logs)
     focused = [(f'{cls}.{name}',status) for cls,name,status in entries
-               if cls in ('ReadOnlyStoreTests','HRVCleanProvenanceTests')]
+               if cls in ('ReadOnlyStoreTests','HRVCleanProvenanceTests','EcgPeakTimingTests')]
     names = [name for name,_ in focused]
     if (set(names)!=EXPECTED or len(names)!=len(EXPECTED)
             or any(status!='passed' for _,_,status in entries)):
-        raise ValueError(f'Expected all seven focused XCTest successes, no other non-success. '
+        raise ValueError(f'Expected all 13 focused XCTest successes, no other non-success. '
                          f'Missing: {EXPECTED-set(names)}; observed: {focused}. '
                          'Only macOS XCTest output is supported; absent/unrecognized output fails.')
 
@@ -32,4 +38,4 @@ if __name__=='__main__':
     if len(sys.argv)!=3:
         raise SystemExit(__doc__)
     check('\n'.join(Path(p).read_text() for p in sys.argv[1:]))
-    print('All seven focused XCTest cases passed; no non-success result.')
+    print('All 13 focused XCTest cases passed; no non-success result.')

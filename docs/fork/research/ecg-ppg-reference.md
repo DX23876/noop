@@ -185,3 +185,26 @@ limits. All real-data outputs remain private and outside Git.
 
 **Analysis migration required: no.** Read-only instrumentation and output-identical
 provenance exposure; no scoring recipe, migration, or rescore is introduced.
+
+
+## ECG detail timing improvement (2026-10-09)
+
+The detail analyzer now refines already detected R peaks with a three-sample
+parabolic vertex bounded to half a sample, in the dominant polarity. Rounding
+all beat times to the 10 ms sample grid had produced nonzero RMSSD on constant
+off-grid input. Synthetic tests vary RR, interval modulation, polarity, peak
+shape/amplitude and small noise; changing-rate segments separated by a missing
+packet do not gain a spurious successive difference. Flat or invalid triplets
+retain their integer sample position. The median-beat sample indices and beat
+detector are unchanged; RR-derived quantities use the refined times.
+
+This is a quantisation correction, not new temporal information or proof of
+sub-sample physiological accuracy. It does not settle the uncertain strap filter
+model or increase the available band-RR coverage. No new medical classification
+or default optical estimator is introduced.
+
+**Analysis migration required: no** — `EcgAnalysis.Result` is held transiently by
+ECG detail/comparison views and recomputed from raw packets whenever loaded.
+No persisted derived values become stale, and the nightly RR/HRV/recovery path
+does not consume these estimates. A historical sleep rescore would therefore
+have no affected input or stored result to update.

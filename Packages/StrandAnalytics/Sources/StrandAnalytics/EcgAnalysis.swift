@@ -177,10 +177,22 @@ public enum EcgAnalysis {
         }
         guard beats.count >= 3 else { return nil }
 
+        // Refine the timing of an already detected R using its immediate neighbours. Keeping every
+        // R on the 10 ms input grid manufactures RMSSD even for perfectly constant off-grid RR.
+        // The parabola changes timing only: detection, template alignment and morphology retain their
+        // integer indices. It adds no bandwidth and is not a claim of sub-sample physical accuracy.
+        let positions = beats.map { beat -> Double in
+            let index = beat.index, run = runs[beat.run]
+            guard index > run.lowerBound, index + 1 < run.upperBound else { return Double(index) }
+            return Double(index) + peakOffset(left: polarity * y[index - 1]!,
+                                               center: polarity * y[index]!,
+                                               right: polarity * y[index + 1]!)
+        }
+
         // 3. Rhythm and HRV. Intervals never span a gap.
         var rr: [(ms: Double, beat: Int)] = []
         for k in 1..<beats.count where beats[k].run == beats[k - 1].run {
-            rr.append((Double(beats[k].index - beats[k - 1].index) * 1000 / fs, k))
+            rr.append(((positions[k] - positions[k - 1]) * 1000 / fs, k))
         }
         guard !rr.isEmpty else { return nil }
         var irregular = Set<Int>()       // indices into `rr`
@@ -377,6 +389,18 @@ public enum EcgAnalysis {
     }
 
     // MARK: - Helpers
+
+    /// Vertex of a three-sample parabola around a local maximum, bounded to half a sample.
+    /// Flat, non-finite or non-maximum triplets retain their original sample position.
+    static func peakOffset(left: Double, center: Double, right: Double) -> Double {
+        guard left.isFinite, center.isFinite, right.isFinite,
+              center >= left, center >= right else { return 0 }
+        let curvature = left - 2 * center + right
+        guard curvature.isFinite, curvature < 0 else { return 0 }
+        let offset = 0.5 * (left - right) / curvature
+        guard offset.isFinite else { return 0 }
+        return min(0.5, max(-0.5, offset))
+    }
 
     /// Inverts y[n] = a (y[n-1] + x[n] - x[n-1]), a = 1 / (1 + 2 pi fc / fs), per contiguous run, keeping a
     /// 0.05 Hz high-pass in its place. A gap restarts the run; the runs are never bridged.

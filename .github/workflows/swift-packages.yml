@@ -120,12 +120,12 @@ jobs:
           fi
         working-directory: Tools/${{ matrix.tool }}
 
-      - name: Validate RR reference read and cleaner provenance
+      - name: Validate RR reference read, cleaner provenance and ECG timing
         if: matrix.tool == 'EcgPpgReference'
         shell: bash
         run: |
           set -o pipefail
           swift test --package-path Packages/WhoopStore --filter ReadOnlyStoreTests 2>&1 | tee "$RUNNER_TEMP/rr-store.log"
-          swift test --package-path Packages/StrandAnalytics --filter HRVCleanProvenanceTests 2>&1 | tee "$RUNNER_TEMP/rr-analysis.log"
+          swift test --package-path Packages/StrandAnalytics --filter 'HRVCleanProvenanceTests|EcgPeakTimingTests' 2>&1 | tee "$RUNNER_TEMP/rr-analysis.log"
           python3 Tools/EcgPpgReference/check_swift_roster.py "$RUNNER_TEMP/rr-store.log" "$RUNNER_TEMP/rr-analysis.log"
         # Paths include Packages/**, this tool and this workflow: every invalidator is observed.
