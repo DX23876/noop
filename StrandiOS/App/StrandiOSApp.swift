@@ -232,10 +232,11 @@ struct StrandiOSApp: App {
                 }
                 .onReceive(health.$lastSync.compactMap { $0 }) { _ in
                     // Health sync has just refreshed the time-aligned Watch reference buckets. Refit
-                    // only when the user opted in; the repository always refreshes WHOOP's own row.
+                    // only when the user opted in; the repository always refreshes WHOOP's own row. At most
+                    // once an hour: a history repair runs one Health sync per 31-day chunk.
                     Task {
-                        await model.repo.refreshWhoopEnergyModel(
-                            days: 30, profile: Repository.analyticsProfile(model.profile))
+                        await model.repo.refreshWhoopEnergyModelAfterHealthSync(
+                            profile: Repository.analyticsProfile(model.profile))
                         await WidgetSnapshot.publish(from: model)
                     }
                 }

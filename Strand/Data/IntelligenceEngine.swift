@@ -2796,6 +2796,13 @@ final class IntelligenceEngine: ObservableObject {
         let reusedDaySet = Set(reusedDays)
         diagnosticSink?("re-score: scanned \(scannedDays.count) day(s), reused \(reusedDays.count) "
             + "unchanged day(s) from their stored scores", nil)
+        // The energy model prices buckets by this pass's sleep sessions and workouts, which are written to
+        // the computed namespace without stamping input revisions. Tell it the oldest day re-derived, so its
+        // next post-offload refresh re-prices from there (and the evening before) rather than only where raw
+        // samples moved.
+        if let oldest = scannedDays.min(), let noon = WeightSeries.date(forDay: oldest) {
+            await repo.noteEnergyInputsRederived(dayStartTs: Int(Calendar.current.startOfDay(for: noon).timeIntervalSince1970))
+        }
 
         // D1: WHY each day was re-derived rather than reused. `day-skip` above reports the COUNT, which
         // on a real device was indistinguishable between "the cache is broken" and "a scoring input

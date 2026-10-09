@@ -15,6 +15,23 @@ extension WhoopStore {
             try Int.fetchOne(db, sql: "SELECT value FROM cursors WHERE name = ?", arguments: [name])
         }
     }
+    /// Create the cursor at `value`, or lower it to `value`; never raise it. One statement, so two
+    /// writers that each want the earliest value cannot interleave a read and a write.
+    public func lowerCursor(_ name: String, to value: Int) async throws {
+        try syncWrite { db in
+            try db.execute(sql: """
+                INSERT INTO cursors (name, value) VALUES (?, ?)
+                ON CONFLICT(name) DO UPDATE SET value = MIN(value, excluded.value)
+                """, arguments: [name, value])
+        }
+    }
+    /// Remove the cursor only while it still holds `value`: a consumer clears what it read without
+    /// dropping a value another writer moved it to in the meantime.
+    public func removeCursor(_ name: String, ifEqualTo value: Int) async throws {
+        try syncWrite { db in
+            try db.execute(sql: "DELETE FROM cursors WHERE name = ? AND value = ?", arguments: [name, value])
+        }
+    }
     public func setHighwater(_ stream: String, _ ts: Int) async throws { try await setCursor("highwater:" + stream, ts) }
     public func highwater(_ stream: String) async throws -> Int? { try await cursor("highwater:" + stream) }
 

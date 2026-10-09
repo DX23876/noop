@@ -62,4 +62,38 @@ extension WhoopStore {
             return AnalysisInputRevision(inputRevision: input, deviceRevision: device)
         }
     }
+
+    /// Where scoring inputs changed after a recorded `sensorWriteSeq` value, across every device.
+    ///
+    /// Revisions are values of the monotone write sequence, so a day stamped with a revision above
+    /// `revision` was written after it was read. A device-wide invalidation (an unbounded delete or a
+    /// re-point) cannot name its days and answers `.everything`. Lets a consumer that re-derives a day
+    /// window from these inputs re-run only from the first day that moved.
+    public nonisolated func analysisInputChange(after revision: Int) async throws -> AnalysisInputChange {
+        try await asyncRead { db in
+            let device = try Int.fetchOne(db, sql: """
+                SELECT MAX(revision) FROM analysisDeviceRevision
+                """) ?? 0
+            if device > revision { return .everything }
+            guard let day = try Int.fetchOne(db, sql: """
+                SELECT MIN(utcDay) FROM analysisInputRevision WHERE revision > ?
+                """, arguments: [revision]) else { return .none }
+            return .since(utcDayStart: day * 86_400)
+        }
+    }
+
+    /// Test seam for the device-wide invalidation `analysisInputChange` must answer `.everything` to.
+    func markAnalysisDeviceChangedForTest(deviceId: String) async throws {
+        try syncWrite { db in try WhoopStore.markAnalysisDeviceChanged(db, deviceId: deviceId) }
+    }
+}
+
+/// See `WhoopStore.analysisInputChange(after:)`.
+public enum AnalysisInputChange: Equatable, Sendable {
+    /// Nothing changed after the recorded revision.
+    case none
+    /// The earliest change sits on the UTC day starting at this Unix second.
+    case since(utcDayStart: Int)
+    /// A device-wide invalidation; the changed days are unknown.
+    case everything
 }

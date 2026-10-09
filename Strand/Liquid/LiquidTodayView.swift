@@ -430,7 +430,8 @@ struct LiquidTodayView: View {
     }
     private var effortReadout: DashboardEffortReadout {
         let day = selectedDayKey
-        let stored = resolveDisplayDay()
+        // The load()-resolved row, not a fresh O(days) resolution: this getter runs on every body pass.
+        let stored = cachedDisplayDay
         return .resolve(day: day, storedDay: stored?.day, stored: stored?.strain,
                         live: liveEffortReadout, currentDay: Repository.logicalDayKey(effortPresentationNow),
                         isToday: selectedDayOffset == 0)
@@ -501,7 +502,7 @@ struct LiquidTodayView: View {
     }
     /// The day key the day-scoped read-outs key on. At offset 0 follows repo.today?.day.
     private var selectedDayKey: String {
-        if selectedDayOffset == 0, let todayKey = repo.today?.day { return todayKey }
+        if selectedDayOffset == 0, let todayKey = snapshot.cachedTodayKey ?? repo.today?.day { return todayKey }
         return Repository.localDayKey(selectedLogicalDay)
     }
     /// The DailyMetric shown for the selected day — read from the cache resolved in load() (was an
@@ -2845,6 +2846,10 @@ struct LiquidTodayView: View {
         var hostedSleepModel: SleepModel? = nil
         var kSparks: [String: [(String, Double)]] = [:]
         var cachedDisplayDay: DailyMetric?
+        /// `repo.today?.day`, resolved in load() with the display day. `selectedDayKey` is read dozens of
+        /// times per body pass, and `repo.today` scans every banked day on each read. The outer optional is
+        /// "not loaded yet"; a loaded day with no row for today is `.some(nil)` and is not scanned again.
+        var cachedTodayKey: String??
         var cachedReadiness: ReadinessEngine.Readiness?
         var cachedVitalsDay: DailyMetric?
         var cachedSpo2Day: DailyMetric?
@@ -2862,8 +2867,12 @@ struct LiquidTodayView: View {
     @State private var loadGeneration = 0
     @State private var committedLoadGeneration = 0
     private var loadKey: DashboardLoadKey {
-        DashboardLoadKey(repo: repo, selection: selectedDayKey,
-            preferences: "\(hydrationEnabled)-\(hostedCardsRaw)-\(dayCycleModeRaw)", profile: profile)
+        // The clock's own day keys join the key: `selectedDayKey` reads the today key cached by load(), so a
+        // day rollover with no repository change would otherwise never change this key and never reload.
+        let now = Date()
+        return DashboardLoadKey(repo: repo, selection: selectedDayKey,
+            preferences: "\(hydrationEnabled)-\(hostedCardsRaw)-\(dayCycleModeRaw)-"
+                + "\(Repository.logicalDayKey(now))-\(Repository.localDayKey(now))", profile: profile)
     }
 
     private func load() async {
@@ -2899,6 +2908,7 @@ struct LiquidTodayView: View {
         // Resolve the O(days) lookups ONCE here (not on every body re-render): the selected day and the
         // readiness verdict. Both scan repo.days (up to 599 rows); doing it per-render was the stutter.
         next.cachedDisplayDay = day
+        next.cachedTodayKey = .some(repo.today?.day)
         // Prior-day vitals carry, resolved ONCE here (never in body). Bound to today's own key so it can't
         // echo today's still-forming row; only on today (a past day's own row is the whole story).
         let tkey = next.cachedDisplayDay?.day ?? selectedDayKey

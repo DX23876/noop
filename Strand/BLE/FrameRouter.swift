@@ -461,7 +461,13 @@ public final class FrameRouter {
                 if ev.hasPrefix("DOUBLE_TAP") {
                     dispatchDoubleTapOnce(eventTimestamp: parsed.parsed["event_timestamp"]?.intValue)
                 }
-                // Strap-pushed event = "I may have new data" → kick a (rate-limited) sync.
+                // Strap-pushed event = "I may have new data" → kick a (rate-limited) sync. Counted by name
+                // for the log header, and named per event in Connection test mode, so which events drive
+                // the kicks can be read before any of them is filtered.
+                StrapEventStats.record(ev)
+                if TestCentre.active(.connection) {
+                    state.append(log: "strap event \(ev) -> sync kick (rate-limited)", domain: .connection)
+                }
                 onSyncTrigger?()
                 // Belt-and-suspenders: a BLE_BONDED event confirms the link is bonded.
                 // (BLEManager also sets bonded=true when the confirmed write succeeds.)
