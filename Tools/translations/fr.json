@@ -2845,5 +2845,10 @@
   "Spotted on this day": "Repéré ce jour-là",
   "%@ to %@ · avg %lld": "de %@ à %@ · moy. %lld",
   "Use the span %@": "Utiliser la plage %@",
-  "Opens the heart rate curve to set the start, the end and the sport": "Ouvre la courbe de fréquence cardiaque pour définir le début, la fin et le sport"
+  "Opens the heart rate curve to set the start, the end and the sport": "Ouvre la courbe de fréquence cardiaque pour définir le début, la fin et le sport",
+  "ECG readings, goals and one workout start": "Mesures ECG, objectifs et un seul départ d’entraînement",
+  "**ECG on the WHOOP MG.** Take a 30-second reading from the strap, see it at paper scale with rhythm, HRV and intervals, and compare it with an Apple Watch ECG. Not a medical device.": "**ECG sur le WHOOP MG.** Faites une mesure de 30 secondes avec le bracelet, affichez-la à l’échelle papier avec le rythme, la HRV et les intervalles, et comparez-la à un ECG de l’Apple Watch. Ce n’est pas un dispositif médical.",
+  "**Goals.** Daily, weekly, monthly and long-term goals, each drawn in its own shape, with streaks, records, a widget and Coach drafts.": "**Objectifs.** Objectifs quotidiens, hebdomadaires, mensuels et à long terme, chacun dans sa propre forme, avec séries, records, un widget et des brouillons du Coach.",
+  "**Workouts.** One start screen for every entry, an Apple-style live workout with spoken splits, Lock Screen controls and a span you can set on the heart rate curve afterwards.": "**Entraînements.** Un seul écran de départ pour chaque accès, un entraînement en direct façon Apple avec annonces vocales des intermédiaires, des commandes sur l’écran verrouillé et une plage à définir après coup sur la courbe de fréquence cardiaque.",
+  "Set up your goals": "Définir vos objectifs"
 }

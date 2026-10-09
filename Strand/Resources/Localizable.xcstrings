@@ -541207,6 +541207,296 @@
           }
         }
       }
+    },
+    "ECG readings, goals and one workout start" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EKG-Messungen, Ziele und ein Workout-Start"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lecturas de ECG, objetivos y un único inicio de entrenamiento"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesures ECG, objectifs et un seul départ d’entraînement"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Letture ECG, obiettivi e un solo avvio dell’allenamento"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odczyty EKG, cele i jeden start treningu"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leituras de ECG, objetivos e um único início de treino"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Записи ЭКГ, цели и единый старт тренировки"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心电图读数、目标与统一的锻炼开始"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心電圖讀數、目標與統一的鍛鍊開始"
+          }
+        }
+      }
+    },
+    "**ECG on the WHOOP MG.** Take a 30-second reading from the strap, see it at paper scale with rhythm, HRV and intervals, and compare it with an Apple Watch ECG. Not a medical device." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**EKG mit dem WHOOP MG.** Nimm eine 30-Sekunden-Messung mit dem Band auf, sieh sie im Papiermaßstab mit Rhythmus, HRV und Intervallen und vergleiche sie mit einem Apple-Watch-EKG. Kein Medizinprodukt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**ECG en el WHOOP MG.** Haz una lectura de 30 segundos con la banda, mírala a escala de papel con ritmo, HRV e intervalos y compárala con un ECG del Apple Watch. No es un dispositivo médico."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**ECG sur le WHOOP MG.** Faites une mesure de 30 secondes avec le bracelet, affichez-la à l’échelle papier avec le rythme, la HRV et les intervalles, et comparez-la à un ECG de l’Apple Watch. Ce n’est pas un dispositif médical."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**ECG sul WHOOP MG.** Registra una lettura di 30 secondi con la fascia, vedila in scala carta con ritmo, HRV e intervalli e confrontala con un ECG di Apple Watch. Non è un dispositivo medico."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**EKG na WHOOP MG.** Wykonaj 30-sekundowy odczyt opaską, zobacz go w skali papierowej z rytmem, HRV i odstępami oraz porównaj z EKG z Apple Watch. To nie jest wyrób medyczny."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**ECG no WHOOP MG.** Faça uma leitura de 30 segundos com a pulseira, veja-a à escala de papel com ritmo, HRV e intervalos e compare-a com um ECG do Apple Watch. Não é um dispositivo médico."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**ЭКГ на WHOOP MG.** Сделайте 30-секундную запись браслетом, смотрите её в бумажном масштабе с ритмом, HRV и интервалами и сравнивайте с ЭКГ Apple Watch. Не медицинское изделие."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**WHOOP MG 心电图。**用手环记录 30 秒读数，按标准纸速查看节律、HRV 和间期，并与 Apple Watch 心电图对比。不是医疗器械。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**WHOOP MG 心電圖。**用手環記錄 30 秒讀數，按標準紙速檢視節律、HRV 與間期，並與 Apple Watch 心電圖比較。不是醫療器材。"
+          }
+        }
+      }
+    },
+    "**Goals.** Daily, weekly, monthly and long-term goals, each drawn in its own shape, with streaks, records, a widget and Coach drafts." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Ziele.** Tages-, Wochen-, Monats- und Langzeitziele, jedes in seiner eigenen Form, mit Serien, Rekorden, einem Widget und Entwürfen vom Coach."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Objetivos.** Objetivos diarios, semanales, mensuales y a largo plazo, cada uno con su propia forma, con rachas, récords, un widget y borradores del Coach."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Objectifs.** Objectifs quotidiens, hebdomadaires, mensuels et à long terme, chacun dans sa propre forme, avec séries, records, un widget et des brouillons du Coach."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Obiettivi.** Obiettivi giornalieri, settimanali, mensili e a lungo termine, ognuno nella sua forma, con serie, record, un widget e bozze del Coach."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Cele.** Cele dzienne, tygodniowe, miesięczne i długoterminowe, każdy w swoim kształcie, z seriami, rekordami, widżetem i szkicami od Trenera."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Objetivos.** Objetivos diários, semanais, mensais e de longo prazo, cada um com a sua própria forma, com sequências, recordes, um widget e rascunhos do Coach."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Цели.** Дневные, недельные, месячные и долгосрочные цели, у каждой своя форма, с сериями, рекордами, виджетом и черновиками от ИИ-тренера."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**目标。**每日、每周、每月和长期目标，各有自己的形状，附带连续记录、个人纪录、小组件和教练草案。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**目標。**每日、每週、每月與長期目標，各有自己的形狀，附帶連續紀錄、個人紀錄、小工具與教練草案。"
+          }
+        }
+      }
+    },
+    "**Workouts.** One start screen for every entry, an Apple-style live workout with spoken splits, Lock Screen controls and a span you can set on the heart rate curve afterwards." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Workouts.** Ein Startbildschirm für jeden Einstieg, ein Live-Workout im Apple-Stil mit gesprochenen Zwischenzeiten, Steuerung auf dem Sperrbildschirm und einem Zeitraum, den du nachträglich auf der Herzfrequenzkurve festlegst."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Entrenamientos.** Una sola pantalla de inicio para cada acceso, un entrenamiento en directo al estilo de Apple con parciales hablados, controles en la pantalla de bloqueo y un intervalo que puedes fijar después en la curva de frecuencia cardiaca."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Entraînements.** Un seul écran de départ pour chaque accès, un entraînement en direct façon Apple avec annonces vocales des intermédiaires, des commandes sur l’écran verrouillé et une plage à définir après coup sur la courbe de fréquence cardiaque."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Allenamenti.** Una sola schermata di avvio per ogni accesso, un allenamento dal vivo in stile Apple con parziali vocali, controlli sulla schermata di blocco e un intervallo da impostare dopo sulla curva della frequenza cardiaca."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Treningi.** Jeden ekran startu dla każdego wejścia, trening na żywo w stylu Apple z czytanymi międzyczasami, sterowaniem na ekranie blokady i zakresem, który ustawisz później na krzywej tętna."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Treinos.** Um único ecrã de início para cada entrada, um treino em direto ao estilo Apple com parciais faladas, controlos no ecrã bloqueado e um intervalo que pode definir depois na curva da frequência cardíaca."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Тренировки.** Один стартовый экран для любого входа, тренировка в реальном времени в стиле Apple с озвученными отрезками, управление с экрана блокировки и интервал, который можно задать потом на кривой пульса."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**锻炼。**所有入口共用一个开始界面，Apple 风格的实时锻炼带语音分段播报和锁定屏幕控制，还能事后在心率曲线上设定时段。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**鍛鍊。**所有入口共用一個開始畫面，Apple 風格的即時鍛鍊附語音分段播報與鎖定畫面控制，還能事後在心率曲線上設定時段。"
+          }
+        }
+      }
+    },
+    "Set up your goals" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ziele einrichten"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configura tus objetivos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Définir vos objectifs"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Imposta i tuoi obiettivi"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ustaw swoje cele"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Definir os seus objetivos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Настроить цели"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置你的目标"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "設定你的目標"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

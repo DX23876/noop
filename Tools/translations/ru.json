@@ -2821,5 +2821,10 @@
   "Spotted on this day": "Замечено в этот день",
   "%@ to %@ · avg %lld": "с %@ до %@ · сред. %lld",
   "Use the span %@": "Использовать отрезок %@",
-  "Opens the heart rate curve to set the start, the end and the sport": "Открывает кривую пульса, чтобы задать начало, конец и вид спорта"
+  "Opens the heart rate curve to set the start, the end and the sport": "Открывает кривую пульса, чтобы задать начало, конец и вид спорта",
+  "ECG readings, goals and one workout start": "Записи ЭКГ, цели и единый старт тренировки",
+  "**ECG on the WHOOP MG.** Take a 30-second reading from the strap, see it at paper scale with rhythm, HRV and intervals, and compare it with an Apple Watch ECG. Not a medical device.": "**ЭКГ на WHOOP MG.** Сделайте 30-секундную запись браслетом, смотрите её в бумажном масштабе с ритмом, HRV и интервалами и сравнивайте с ЭКГ Apple Watch. Не медицинское изделие.",
+  "**Goals.** Daily, weekly, monthly and long-term goals, each drawn in its own shape, with streaks, records, a widget and Coach drafts.": "**Цели.** Дневные, недельные, месячные и долгосрочные цели, у каждой своя форма, с сериями, рекордами, виджетом и черновиками от ИИ-тренера.",
+  "**Workouts.** One start screen for every entry, an Apple-style live workout with spoken splits, Lock Screen controls and a span you can set on the heart rate curve afterwards.": "**Тренировки.** Один стартовый экран для любого входа, тренировка в реальном времени в стиле Apple с озвученными отрезками, управление с экрана блокировки и интервал, который можно задать потом на кривой пульса.",
+  "Set up your goals": "Настроить цели"
 }

@@ -7,7 +7,7 @@ enum AppChangelog {
 
     /// Bump this when you add a release below. The "What's New" sheet shows automatically when the
     /// stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
-    static let currentVersion = "11.8.5"
+    static let currentVersion = "12.0.1"
 
     struct Release: Identifiable {
         let version: String
@@ -28,6 +28,17 @@ enum AppChangelog {
 
     /// Newest first.
     static let releases: [Release] = [
+        Release(
+            version: "12.0.1",
+            title: "ECG readings, goals and one workout start",
+            date: "October 2026",
+            items: [
+                "**ECG on the WHOOP MG.** Take a 30-second reading from the strap, see it at paper scale with rhythm, HRV and intervals, and compare it with an Apple Watch ECG. Not a medical device.",
+                "**Goals.** Daily, weekly, monthly and long-term goals, each drawn in its own shape, with streaks, records, a widget and Coach drafts.",
+                "**Workouts.** One start screen for every entry, an Apple-style live workout with spoken splits, Lock Screen controls and a span you can set on the heart rate curve afterwards.",
+            ],
+            link: .init(title: "Set up your goals", target: "goals.intro")
+        ),
         Release(
             version: "11.8.5",
             title: "A new Today, with living rings",

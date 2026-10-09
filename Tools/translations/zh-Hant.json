@@ -2999,5 +2999,10 @@
   "Spotted on this day": "當天發現",
   "%@ to %@ · avg %lld": "%@ 至 %@ · 平均 %lld",
   "Use the span %@": "使用時段 %@",
-  "Opens the heart rate curve to set the start, the end and the sport": "開啟心率曲線以設定開始、結束和運動類型"
+  "Opens the heart rate curve to set the start, the end and the sport": "開啟心率曲線以設定開始、結束和運動類型",
+  "ECG readings, goals and one workout start": "心電圖讀數、目標與統一的鍛鍊開始",
+  "**ECG on the WHOOP MG.** Take a 30-second reading from the strap, see it at paper scale with rhythm, HRV and intervals, and compare it with an Apple Watch ECG. Not a medical device.": "**WHOOP MG 心電圖。**用手環記錄 30 秒讀數，按標準紙速檢視節律、HRV 與間期，並與 Apple Watch 心電圖比較。不是醫療器材。",
+  "**Goals.** Daily, weekly, monthly and long-term goals, each drawn in its own shape, with streaks, records, a widget and Coach drafts.": "**目標。**每日、每週、每月與長期目標，各有自己的形狀，附帶連續紀錄、個人紀錄、小工具與教練草案。",
+  "**Workouts.** One start screen for every entry, an Apple-style live workout with spoken splits, Lock Screen controls and a span you can set on the heart rate curve afterwards.": "**鍛鍊。**所有入口共用一個開始畫面，Apple 風格的即時鍛鍊附語音分段播報與鎖定畫面控制，還能事後在心率曲線上設定時段。",
+  "Set up your goals": "設定你的目標"
 }

@@ -2844,5 +2844,10 @@
   "Spotted on this day": "An diesem Tag erkannt",
   "%@ to %@ · avg %lld": "%@ bis %@ · Ø %lld",
   "Use the span %@": "Zeitraum %@ übernehmen",
-  "Opens the heart rate curve to set the start, the end and the sport": "Öffnet die Herzfrequenzkurve, um Beginn, Ende und Sportart festzulegen"
+  "Opens the heart rate curve to set the start, the end and the sport": "Öffnet die Herzfrequenzkurve, um Beginn, Ende und Sportart festzulegen",
+  "ECG readings, goals and one workout start": "EKG-Messungen, Ziele und ein Workout-Start",
+  "**ECG on the WHOOP MG.** Take a 30-second reading from the strap, see it at paper scale with rhythm, HRV and intervals, and compare it with an Apple Watch ECG. Not a medical device.": "**EKG mit dem WHOOP MG.** Nimm eine 30-Sekunden-Messung mit dem Band auf, sieh sie im Papiermaßstab mit Rhythmus, HRV und Intervallen und vergleiche sie mit einem Apple-Watch-EKG. Kein Medizinprodukt.",
+  "**Goals.** Daily, weekly, monthly and long-term goals, each drawn in its own shape, with streaks, records, a widget and Coach drafts.": "**Ziele.** Tages-, Wochen-, Monats- und Langzeitziele, jedes in seiner eigenen Form, mit Serien, Rekorden, einem Widget und Entwürfen vom Coach.",
+  "**Workouts.** One start screen for every entry, an Apple-style live workout with spoken splits, Lock Screen controls and a span you can set on the heart rate curve afterwards.": "**Workouts.** Ein Startbildschirm für jeden Einstieg, ein Live-Workout im Apple-Stil mit gesprochenen Zwischenzeiten, Steuerung auf dem Sperrbildschirm und einem Zeitraum, den du nachträglich auf der Herzfrequenzkurve festlegst.",
+  "Set up your goals": "Ziele einrichten"
 }
