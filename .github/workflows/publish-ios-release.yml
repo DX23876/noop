@@ -16,9 +16,16 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Swift Packages CI no longer runs on push (see swift-packages.yml), so a release waits on it here
+  # and publishes nothing while it is red.
+  packages:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/swift-packages.yml
+
   publish:
     name: Build and publish unsigned IPA
     if: github.ref == 'refs/heads/main'
+    needs: packages
     runs-on: macos-26
     timeout-minutes: 60
     # Exposed so the macOS and finalize jobs below attach to the SAME release without re-deriving the

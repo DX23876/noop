@@ -121,7 +121,7 @@ which changes what validates a change:
 
 | Workflow | Covers | Trigger |
 |---|---|---|
-| `swift-packages.yml` | `swift test` for `Packages/**` (incl. the fork-only `SemanticMemory`) | PR + push touching `Packages/**` |
+| `swift-packages.yml` | `swift test` for `Packages/**` (incl. the fork-only `SemanticMemory`) | dispatch; called by `publish-ios-release.yml` before it publishes. **Not on PR or push** (since 2026-10-10): run the package tests locally before pushing a change under `Packages/**` or an upstream merge |
 | `app-build.yml` | Compile of `Strand` (macOS) + `NOOPiOS` (iOS), **plus `StrandTests` on the macOS leg only** | PR touching `Strand/**`, `StrandiOS*/**`, `Packages/**`, `project.yml`; dispatch; called by `fork-release.yml` before it publishes. **Not on push to `main`** (since 2026-09-30) |
 | `tools-python.yml` | The `Tools/linux-capture` Python suite (≥200 tests) | PR + push touching `Tools/**` |
 | `source-hygiene.yml` | Detached doc comments + **commit attribution** (above) | every PR and push to `main` |

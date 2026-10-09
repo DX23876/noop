@@ -7,38 +7,12 @@
 # secrets — which makes them a safe, self-contained CI check that leaks nothing.
 name: Swift Packages CI
 
+# Fork: no longer on every push or PR. GitHub paused all of the fork's workflows over Actions usage on
+# 2026-10-08, and this 10-minute macOS job was most of it. Packages are tested locally before a push;
+# this run stays as the older-toolchain check, on demand and as a gate in publish-ios-release.yml.
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'Packages/**'
-      - 'Tools/SleepBench/**'
-      - 'Tools/SleepPSG/**'
-      - 'Tools/Backfill/**'
-      - 'Tools/MemoryBench/**'
-      - 'Tools/EcgPpgReference/**'
-      - '.github/workflows/swift-packages.yml'
-      # Mirror of the note in android.yml: package tests read the ANDROID oracles to catch a one-sided
-      # edit, and one reads Strand/Liquid/LiquidCore.swift. Editing only that side would otherwise skip
-      # the guard written for exactly that case. Keep in step with what the tests read.
-      - 'android/app/src/test/resources/**'
-      - 'Strand/Liquid/LiquidCore.swift'
-  push:
-    branches: [main]
-    paths:
-      - 'Packages/**'
-      - 'Tools/SleepBench/**'
-      - 'Tools/SleepPSG/**'
-      - 'Tools/Backfill/**'
-      - 'Tools/MemoryBench/**'
-      - 'Tools/EcgPpgReference/**'
-      - '.github/workflows/swift-packages.yml'
-      # Mirror of the note in android.yml: package tests read the ANDROID oracles to catch a one-sided
-      # edit, and one reads Strand/Liquid/LiquidCore.swift. Editing only that side would otherwise skip
-      # the guard written for exactly that case. Keep in step with what the tests read.
-      - 'android/app/src/test/resources/**'
-      - 'Strand/Liquid/LiquidCore.swift'
   workflow_dispatch:
+  workflow_call:
 
 concurrency:
   group: swift-packages-${{ github.ref }}
