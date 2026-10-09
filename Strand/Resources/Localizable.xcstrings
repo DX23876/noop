@@ -533266,6 +533266,54 @@
             "state" : "translated",
             "value" : "Sinusrhythmus"
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ritmo sinusal"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rythme sinusal"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ritmo sinusale"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rytm zatokowy"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ritmo sinusal"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Синусовый ритм"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "窦性心律"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "竇性心律"
+          }
         }
       }
     },
@@ -533275,6 +533323,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Niedrige Herzfrequenz"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frecuencia cardíaca baja"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fréquence cardiaque basse"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frequenza cardiaca bassa"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niskie tętno"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frequência cardíaca baixa"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Низкий пульс"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心率偏低"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心率偏低"
           }
         }
       }
@@ -533286,6 +533382,54 @@
             "state" : "translated",
             "value" : "Hinweise auf Vorhofflimmern"
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indicios de fibrilación auricular"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signes de fibrillation auriculaire"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Segni di fibrillazione atriale"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oznaki migotania przedsionków"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sinais de fibrilhação auricular"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Признаки фибрилляции предсердий"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有心房颤动迹象"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有心房顫動跡象"
+          }
         }
       }
     },
@@ -533295,6 +533439,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Hinweise auf Vorhofflimmern bei hoher Herzfrequenz"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indicios de fibrilación auricular con frecuencia cardíaca alta"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signes de fibrillation auriculaire, fréquence cardiaque élevée"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Segni di fibrillazione atriale con frequenza cardiaca alta"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oznaki migotania przedsionków przy wysokim tętnie"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sinais de fibrilhação auricular com frequência cardíaca elevada"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Признаки фибрилляции предсердий при высоком пульсе"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有心房颤动迹象，心率偏高"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有心房顫動跡象，心率偏高"
           }
         }
       }
@@ -533306,6 +533498,54 @@
             "state" : "translated",
             "value" : "Hohe Herzfrequenz"
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frecuencia cardíaca alta"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fréquence cardiaque élevée"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frequenza cardiaca alta"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wysokie tętno"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frequência cardíaca elevada"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Высокий пульс"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心率偏高"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心率偏高"
+          }
         }
       }
     },
@@ -533315,6 +533555,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Hohe Herzfrequenz ohne Hinweise auf Vorhofflimmern"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frecuencia cardíaca alta sin indicios de fibrilación auricular"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fréquence cardiaque élevée, sans signe de fibrillation auriculaire"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frequenza cardiaca alta senza segni di fibrillazione atriale"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wysokie tętno bez oznak migotania przedsionków"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frequência cardíaca elevada sem sinais de fibrilhação auricular"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Высокий пульс без признаков фибрилляции предсердий"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心率偏高，无心房颤动迹象"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心率偏高，無心房顫動跡象"
           }
         }
       }
@@ -533326,6 +533614,54 @@
             "state" : "translated",
             "value" : "Nicht eindeutig"
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No concluyente"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non concluant"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non conclusivo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niejednoznaczny"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inconclusivo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Неоднозначно"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法判断"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法判斷"
+          }
         }
       }
     },
@@ -533336,15 +533672,53 @@
             "state" : "translated",
             "value" : "Nicht auswertbar"
           }
-        }
-      }
-    },
-    "The strap's built-in classifier reports the result; OpenStrap's table names it. NOOP is not a medical device and this is not a diagnosis. See a doctor if you have symptoms." : {
-      "localizations" : {
-        "de" : {
+        },
+        "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Das Ergebnis meldet der eingebaute Klassifikator des Bands, benannt nach der Tabelle von OpenStrap. NOOP ist kein Medizinprodukt und das ist keine Diagnose. Geh bei Beschwerden zu einer Ärztin oder einem Arzt."
+            "value" : "No legible"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Illisible"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non leggibile"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nieczytelny"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ilegível"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не читается"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法读取"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法讀取"
           }
         }
       }
@@ -533356,6 +533730,54 @@
             "state" : "translated",
             "value" : "Das Signal war zu schwach."
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La señal era demasiado débil."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le signal était trop faible."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il segnale era troppo debole."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sygnał był zbyt słaby."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O sinal era demasiado fraco."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сигнал был слишком слабым."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "信号太弱。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "訊號太弱。"
+          }
         }
       }
     },
@@ -533365,6 +533787,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Es gab zu viele Störungen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Había demasiado ruido."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il y avait trop de bruit."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "C'era troppo rumore."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Było zbyt dużo zakłóceń."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Havia demasiado ruído."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Было слишком много помех."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "干扰太多。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "干擾太多。"
           }
         }
       }
@@ -533376,6 +533846,54 @@
             "state" : "translated",
             "value" : "Das Signal war instabil."
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La señal era inestable."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le signal était instable."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il segnale era instabile."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sygnał był niestabilny."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O sinal era instável."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сигнал был нестабильным."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "信号不稳定。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "訊號不穩定。"
+          }
         }
       }
     },
@@ -533385,6 +533903,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Es kamen zu wenige Daten."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No había suficientes datos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il n'y avait pas assez de données."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non c'erano abbastanza dati."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Było za mało danych."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não havia dados suficientes."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Было недостаточно данных."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数据不足。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "資料不足。"
           }
         }
       }
@@ -533396,6 +533962,54 @@
             "state" : "translated",
             "value" : "Verbinde zuerst dein WHOOP MG und schalte das EKG-Experiment ein."
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conecta primero tu WHOOP MG y activa el experimento de ECG."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecte d'abord ton WHOOP MG et active l'expérience ECG."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collega prima il tuo WHOOP MG e attiva l'esperimento ECG."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Najpierw połącz WHOOP MG i włącz eksperyment EKG."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liga primeiro o teu WHOOP MG e ativa a experiência de ECG."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сначала подключите WHOOP MG и включите эксперимент ЭКГ."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请先连接你的 WHOOP MG 并打开心电图实验。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請先連接你的 WHOOP MG 並開啟心電圖實驗。"
+          }
         }
       }
     },
@@ -533405,6 +534019,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Das Band hat während der Messung die Verbindung verloren."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La pulsera se desconectó durante la medición."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le bracelet s'est déconnecté pendant la mesure."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La fascia si è disconnessa durante la misurazione."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opaska rozłączyła się podczas pomiaru."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A bracelete desligou-se durante a medição."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Браслет отключился во время измерения."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "测量期间手环断开了连接。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "測量期間手環中斷了連線。"
           }
         }
       }
@@ -533416,6 +534078,54 @@
             "state" : "translated",
             "value" : "Das Band hat keine EKG-Daten gesendet."
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La pulsera no envió datos de ECG."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le bracelet n'a envoyé aucune donnée ECG."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La fascia non ha inviato dati ECG."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opaska nie wysłała danych EKG."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A bracelete não enviou dados de ECG."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Браслет не передал данные ЭКГ."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手环没有发送心电图数据。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手環沒有傳送心電圖資料。"
+          }
         }
       }
     },
@@ -533425,6 +534135,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Das Band ist nicht innerhalb von zwei Minuten fertig geworden."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La pulsera no terminó en dos minutos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le bracelet n'a pas terminé en deux minutes."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La fascia non ha finito entro due minuti."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opaska nie skończyła w ciągu dwóch minut."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A bracelete não terminou em dois minutos."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Браслет не завершил измерение за две минуты."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手环未在两分钟内完成。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手環未在兩分鐘內完成。"
           }
         }
       }
@@ -533436,6 +534194,54 @@
             "state" : "translated",
             "value" : "Der Kontakt zum Verschluss ist dreimal abgerissen."
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El contacto con el cierre se perdió tres veces."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le contact avec le fermoir a été perdu trois fois."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il contatto con la chiusura si è perso tre volte."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kontakt z zapięciem został utracony trzy razy."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O contacto com o fecho perdeu-se três vezes."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Контакт с застёжкой терялся три раза."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "与表扣的接触中断了三次。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "與錶扣的接觸中斷了三次。"
+          }
         }
       }
     },
@@ -533445,6 +534251,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Das Band hat die Messung abgebrochen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La pulsera detuvo la medición."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le bracelet a arrêté la mesure."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La fascia ha interrotto la misurazione."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opaska przerwała pomiar."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A bracelete parou a medição."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Браслет прервал измерение."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手环中止了测量。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手環中止了測量。"
           }
         }
       }
@@ -533456,6 +534310,54 @@
             "state" : "translated",
             "value" : "Die Messung konnte nicht gespeichert werden."
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo guardar la medición."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La mesure n'a pas pu être enregistrée."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non è stato possibile salvare la misurazione."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nie udało się zapisać pomiaru."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não foi possível guardar a medição."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не удалось сохранить измерение."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法保存这次测量。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法儲存這次測量。"
+          }
         }
       }
     },
@@ -533465,6 +534367,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Messung abgebrochen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medición cancelada."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesure annulée."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Misurazione annullata."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pomiar anulowany."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medição cancelada."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Измерение отменено."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "测量已取消。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "測量已取消。"
           }
         }
       }
@@ -533476,6 +534426,54 @@
             "state" : "translated",
             "value" : "Die Messung wurde nicht abgeschlossen."
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La medición no terminó."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La mesure ne s'est pas terminée."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La misurazione non si è conclusa."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pomiar nie został zakończony."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A medição não terminou."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Измерение не завершилось."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "测量未完成。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "測量未完成。"
+          }
         }
       }
     },
@@ -533485,6 +534483,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Leg den Arm auf einen Tisch, halte still und fass den Verschluss etwas fester."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apoya el brazo en una mesa, quédate quieto y sujeta el cierre con un poco más de firmeza."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pose ton bras sur une table, reste immobile et tiens le fermoir un peu plus fermement."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appoggia il braccio su un tavolo, stai fermo e tieni la chiusura un po' più saldamente."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oprzyj rękę na stole, nie ruszaj się i trzymaj zapięcie nieco mocniej."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apoia o braço numa mesa, fica quieto e segura o fecho com um pouco mais de firmeza."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Положите руку на стол, не двигайтесь и держите застёжку чуть крепче."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "把手臂放在桌上，保持不动，再稍微握紧表扣。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "把手臂放在桌上，保持不動，再稍微握緊錶扣。"
           }
         }
       }
@@ -533496,6 +534542,54 @@
             "state" : "translated",
             "value" : "Das Band konnte sich nicht festlegen. Eine weitere Messung klärt das meistens."
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La pulsera no pudo decidirse. Otra medición suele aclararlo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le bracelet n'a pas pu trancher. Une mesure de plus suffit généralement."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La fascia non è riuscita a decidere. Di solito un'altra misurazione chiarisce."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opaska nie mogła rozstrzygnąć. Kolejny pomiar zwykle to wyjaśnia."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A bracelete não conseguiu decidir. Mais uma medição costuma esclarecer."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Браслет не смог определиться. Обычно ещё одно измерение всё проясняет."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手环无法判断。通常再测一次就能确定。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手環無法判斷。通常再測一次就能確定。"
+          }
         }
       }
     },
@@ -533505,6 +534599,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Noch einmal messen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medir una vez más"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Faire une mesure de plus"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Misura un'altra volta"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zmierz jeszcze raz"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medir mais uma vez"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Измерить ещё раз"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再测一次"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再測一次"
           }
         }
       }
@@ -533516,6 +534658,54 @@
             "state" : "translated",
             "value" : "Gespeicherte EKGs"
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ECG guardados"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ECG enregistrés"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ECG salvati"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zapisane EKG"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ECG guardados"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сохранённые ЭКГ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已保存的心电图"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已儲存的心電圖"
+          }
         }
       }
     },
@@ -533525,6 +534715,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "EKG aufnehmen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registrar un ECG"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enregistrer un ECG"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registra un ECG"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nagraj EKG"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registar um ECG"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Записать ЭКГ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "记录心电图"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "記錄心電圖"
           }
         }
       }
@@ -533536,6 +534774,54 @@
             "state" : "translated",
             "value" : "Setz dich ruhig hin und leg den Arm ab. Halte die zwei Mulden am Verschluss etwa 40 Sekunden lang mit den Fingern der anderen Hand."
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Siéntate tranquilo y apoya el brazo. Sujeta las dos hendiduras del cierre con los dedos de la otra mano durante unos 40 segundos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Assieds-toi au calme et pose ton bras. Tiens les deux creux du fermoir avec les doigts de l'autre main pendant environ 40 secondes."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Siediti tranquillo e appoggia il braccio. Tieni le due rientranze della chiusura con le dita dell'altra mano per circa 40 secondi."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usiądź spokojnie i oprzyj rękę. Trzymaj dwa wgłębienia na zapięciu palcami drugiej ręki przez około 40 sekund."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Senta-te quieto e apoia o braço. Segura as duas reentrâncias do fecho com os dedos da outra mão durante cerca de 40 segundos."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сядьте спокойно и положите руку. Держите две выемки на застёжке пальцами другой руки около 40 секунд."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安静坐好，放松手臂。用另一只手的手指按住表扣上的两个凹槽约 40 秒。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安靜坐好，放鬆手臂。用另一隻手的手指按住錶扣上的兩個凹槽約 40 秒。"
+          }
         }
       }
     },
@@ -533545,6 +534831,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Handgelenk"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muñeca"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Poignet"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Polso"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nadgarstek"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pulso"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Запястье"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手腕"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手腕"
           }
         }
       }
@@ -533556,6 +534890,54 @@
             "state" : "translated",
             "value" : "Links"
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Izquierda"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gauche"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sinistro"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lewy"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esquerdo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Левое"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "左"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "左"
+          }
         }
       }
     },
@@ -533565,6 +534947,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rechts"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Derecha"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Droit"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Destro"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prawy"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Direito"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Правое"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "右"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "右"
           }
         }
       }
@@ -533576,6 +535006,54 @@
             "state" : "translated",
             "value" : "Verschluss berühren"
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toca el cierre"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Touche le fermoir"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tocca la chiusura"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dotknij zapięcia"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toca no fecho"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Коснитесь застёжки"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "触摸表扣"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "觸摸錶扣"
+          }
         }
       }
     },
@@ -533585,6 +535063,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Kontakt verloren"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contacto perdido"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contact perdu"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contatto perso"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utracono kontakt"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contacto perdido"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Контакт потерян"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接触中断"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接觸中斷"
           }
         }
       }
@@ -533596,6 +535122,54 @@
             "state" : "translated",
             "value" : "Neustart"
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reiniciando"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Redémarrage"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Riavvio"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ponowne uruchamianie"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A reiniciar"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Перезапуск"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在重新开始"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在重新開始"
+          }
         }
       }
     },
@@ -533605,6 +535179,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ergebnis erhalten"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resultado recibido"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Résultat reçu"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Risultato ricevuto"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wynik odebrany"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resultado recebido"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Результат получен"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已收到结果"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已收到結果"
           }
         }
       }
@@ -533616,6 +535238,54 @@
             "state" : "translated",
             "value" : "Halte beide Mulden mit den Fingern der anderen Hand."
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sujeta las dos hendiduras con los dedos de la otra mano."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tiens les deux creux avec les doigts de l'autre main."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tieni entrambe le rientranze con le dita dell'altra mano."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trzymaj oba wgłębienia palcami drugiej ręki."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Segura as duas reentrâncias com os dedos da outra mão."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Держите обе выемки пальцами другой руки."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用另一只手的手指按住两个凹槽。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用另一隻手的手指按住兩個凹槽。"
+          }
         }
       }
     },
@@ -533625,6 +535295,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Fass den Verschluss wieder an. Die Messung läuft weiter."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vuelve a sujetar el cierre; la medición continúa."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reprends le fermoir ; la mesure continue."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tieni di nuovo la chiusura; la misurazione continua."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Złap ponownie zapięcie; pomiar trwa dalej."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volta a segurar o fecho; a medição continua."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Снова возьмитесь за застёжку, измерение продолжится."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新按住表扣，测量会继续。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新按住錶扣，測量會繼續。"
           }
         }
       }
@@ -533636,6 +535354,54 @@
             "state" : "translated",
             "value" : "Halte den Verschluss weiter fest."
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sigue sujetando el cierre."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue de tenir le fermoir."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continua a tenere la chiusura."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nadal trzymaj zapięcie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continua a segurar o fecho."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Продолжайте держать застёжку."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请继续按住表扣。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請繼續按住錶扣。"
+          }
         }
       }
     },
@@ -533645,6 +535411,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Die Messung wird gespeichert."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guardando la medición."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enregistrement de la mesure."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Salvataggio della misurazione."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zapisywanie pomiaru."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A guardar a medição."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сохранение измерения."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在保存测量。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在儲存測量。"
           }
         }
       }
@@ -533656,6 +535470,54 @@
             "state" : "translated",
             "value" : "Halte still und den Verschluss weiter fest."
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quédate quieto y sigue sujetando el cierre."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reste immobile et continue de tenir le fermoir."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stai fermo e continua a tenere la chiusura."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nie ruszaj się i nadal trzymaj zapięcie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fica quieto e continua a segurar o fecho."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не двигайтесь и продолжайте держать застёжку."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保持不动并继续按住表扣。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保持不動並繼續按住錶扣。"
+          }
         }
       }
     },
@@ -533665,6 +535527,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Signal"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Señal"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signal"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Segnale"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sygnał"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sinal"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сигнал"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "信号"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "訊號"
           }
         }
       }
@@ -533676,6 +535586,54 @@
             "state" : "translated",
             "value" : "Unterbrechungen"
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Interrupciones"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Interruptions"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Interruzioni"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przerwy"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Interrupções"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Прерывания"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "中断次数"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "中斷次數"
+          }
         }
       }
     },
@@ -533685,6 +535643,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Neue Messung"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nueva medición"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouvelle mesure"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nuova misurazione"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nowy pomiar"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nova medição"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Новое измерение"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新测量"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新測量"
           }
         }
       }
@@ -533696,6 +535702,54 @@
             "state" : "translated",
             "value" : "Dauer"
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duración"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Durée"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Durata"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Długość"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duração"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Длительность"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "时长"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "時長"
+          }
         }
       }
     },
@@ -533705,6 +535759,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "s"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "s"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "s"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "s"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "s"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "s"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "с"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "秒"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "秒"
           }
         }
       }
@@ -533716,18 +535818,59 @@
             "state" : "translated",
             "value" : "Noch keine gespeicherten EKGs."
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aún no hay ECG guardados."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun ECG enregistré pour l'instant."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ancora nessun ECG salvato."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak zapisanych EKG."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ainda não há ECG guardados."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сохранённых ЭКГ пока нет."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还没有已保存的心电图。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "還沒有已儲存的心電圖。"
+          }
         }
       }
     },
     "25 mm/s, 10 mm/mV" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "25 mm/s, 10 mm/mV"
-          }
-        }
-      }
+      "shouldTranslate" : false
     },
     "Strap result code" : {
       "localizations" : {
@@ -533735,6 +535878,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ergebniscode des Bands"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Código de resultado de la pulsera"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Code de résultat du bracelet"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codice risultato della fascia"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kod wyniku opaski"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Código de resultado da bracelete"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Код результата браслета"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手环结果代码"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手環結果代碼"
           }
         }
       }
@@ -533746,6 +535937,54 @@
             "state" : "translated",
             "value" : "Signalqualität"
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calidad de la señal"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qualité du signal"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qualità del segnale"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jakość sygnału"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qualidade do sinal"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Качество сигнала"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "信号质量"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "訊號品質"
+          }
         }
       }
     },
@@ -533755,6 +535994,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Verlorene Pakete"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paquetes perdidos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paquets perdus"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pacchetti persi"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utracone pakiety"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pacotes perdidos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Потерянные пакеты"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "丢失的数据包"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "遺失的封包"
           }
         }
       }
@@ -533766,6 +536053,54 @@
             "state" : "translated",
             "value" : "Kontaktunterbrechungen"
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Interrupciones del contacto"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Interruptions du contact"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Interruzioni del contatto"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przerwy w kontakcie"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Interrupções do contacto"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Прерывания контакта"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接触中断次数"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接觸中斷次數"
+          }
         }
       }
     },
@@ -533775,6 +536110,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Status"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Statut"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stato"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stan"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estado"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Статус"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "状态"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "狀態"
           }
         }
       }
@@ -533786,6 +536169,54 @@
             "state" : "translated",
             "value" : "Auch nach Wiederholung nicht eindeutig"
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No concluyente tras repetir"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non concluant après une nouvelle tentative"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non conclusivo anche dopo un nuovo tentativo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niejednoznaczny także po powtórzeniu"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inconclusivo após repetir"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Неоднозначно и после повтора"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重测后仍无法判断"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重測後仍無法判斷"
+          }
         }
       }
     },
@@ -533795,6 +536226,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Live-EKG-Kurve"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trazado de ECG en directo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tracé ECG en direct"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Traccia ECG in tempo reale"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zapis EKG na żywo"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Traçado de ECG em direto"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ЭКГ в реальном времени"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "实时心电图曲线"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "即時心電圖曲線"
           }
         }
       }
@@ -533806,6 +536285,54 @@
             "state" : "translated",
             "value" : "EKG-Kurve"
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trazado de ECG"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tracé ECG"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Traccia ECG"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zapis EKG"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Traçado de ECG"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Кривая ЭКГ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心电图曲线"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心電圖曲線"
+          }
         }
       }
     },
@@ -533815,6 +536342,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "EKG-Messung…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medición de ECG…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesure ECG…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Misurazione ECG…"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pomiar EKG…"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medição de ECG…"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Измерение ЭКГ…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心电图测量…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心電圖測量…"
           }
         }
       }
@@ -533826,6 +536401,54 @@
             "state" : "translated",
             "value" : "Zu wenige klare Herzschläge, um diese Messung auszuwerten."
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hay muy pocos latidos claros para medir esta lectura."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trop peu de battements nets pour mesurer cet enregistrement."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Troppo pochi battiti chiari per misurare questa registrazione."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Za mało wyraźnych uderzeń, by zmierzyć ten zapis."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Há poucos batimentos nítidos para medir esta leitura."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Слишком мало чётких ударов, чтобы измерить эту запись."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清晰的心跳太少，无法分析这次测量。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清晰的心跳太少，無法分析這次測量。"
+          }
         }
       }
     },
@@ -533835,6 +536458,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Experimentell. Gemessen an einer Ableitung mit 100 Hz, jede Zeit ist also auf etwa 10 ms genau. Eine einzelne Ableitung am Handgelenk zeigt weder die Herzachse noch die ST-Veränderungen, auf die ein 12-Kanal-EKG achtet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Experimental. Medido en una derivación a 100 Hz, por lo que cada intervalo tiene una precisión de unos 10 ms. Una sola derivación en la muñeca no puede mostrar el eje del corazón ni los cambios del ST que busca un ECG de 12 derivaciones."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expérimental. Mesuré sur une dérivation à 100 Hz, chaque intervalle est donc précis à environ 10 ms. Une seule dérivation au poignet ne peut montrer ni l'axe du cœur ni les modifications du segment ST recherchées par un ECG à 12 dérivations."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sperimentale. Misurato su una derivazione a 100 Hz, quindi ogni intervallo è preciso a circa 10 ms. Una sola derivazione al polso non può mostrare l'asse del cuore né le alterazioni del tratto ST che cerca un ECG a 12 derivazioni."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eksperymentalne. Mierzone na jednym odprowadzeniu przy 100 Hz, więc każdy odstęp jest dokładny do około 10 ms. Jedno odprowadzenie z nadgarstka nie pokaże osi serca ani zmian ST, których szuka 12-odprowadzeniowe EKG."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Experimental. Medido numa derivação a 100 Hz, pelo que cada intervalo tem uma precisão de cerca de 10 ms. Uma única derivação no pulso não mostra o eixo do coração nem as alterações do ST que um ECG de 12 derivações procura."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Экспериментально. Измерено в одном отведении с частотой 100 Гц, поэтому точность каждого интервала около 10 мс. Одно отведение с запястья не показывает электрическую ось сердца и изменения ST, которые ищут в ЭКГ в 12 отведениях."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "实验性功能。以 100 Hz 在单导联上测量，因此每个间期的精度约为 10 毫秒。手腕单导联无法显示心电轴，也无法显示 12 导联心电图所关注的 ST 段变化。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "實驗性功能。以 100 Hz 在單導程上測量，因此每個間期的精度約為 10 毫秒。手腕單導程無法顯示心電軸，也無法顯示 12 導程心電圖所關注的 ST 段變化。"
           }
         }
       }
@@ -533846,6 +536517,54 @@
             "state" : "translated",
             "value" : "Durchschnittsschlag"
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Latido promedio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Battement moyen"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Battito medio"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uśrednione uderzenie"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Batimento médio"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Средний удар"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "平均心搏"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "平均心搏"
+          }
         }
       }
     },
@@ -533855,6 +536574,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Niedrigster"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mínimo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Minimum"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Minimo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Najniższe"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mínimo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Минимум"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最低"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最低"
           }
         }
       }
@@ -533866,6 +536633,54 @@
             "state" : "translated",
             "value" : "Höchster"
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Máximo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maximum"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Massimo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Najwyższe"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Máximo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Максимум"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最高"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最高"
+          }
         }
       }
     },
@@ -533875,6 +536690,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Keine unregelmäßigen Schläge in dieser Messung."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin latidos irregulares en esta medición."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun battement irrégulier dans cette mesure."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessun battito irregolare in questa misurazione."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak nieregularnych uderzeń w tym pomiarze."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sem batimentos irregulares nesta medição."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "В этом измерении нет нерегулярных ударов."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这次测量中没有不规则心搏。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這次測量中沒有不規則心搏。"
           }
         }
       }
@@ -533886,12 +536749,108 @@
             "state" : "translated",
             "value" : "Unregelmäßige Schläge: %lld"
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Latidos irregulares: %lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Battements irréguliers : %lld"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Battiti irregolari: %lld"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nieregularne uderzenia: %lld"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Batimentos irregulares: %lld"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нерегулярные удары: %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不规则心搏：%lld"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不規則心搏：%lld"
+          }
         }
       }
     },
     "SDNN" : {
       "localizations" : {
         "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SDNN"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SDNN"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SDNN"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SDNN"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SDNN"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SDNN"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SDNN"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SDNN"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "SDNN"
@@ -533906,6 +536865,54 @@
             "state" : "translated",
             "value" : "pNN50"
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "pNN50"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "pNN50"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "pNN50"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "pNN50"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "pNN50"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "pNN50"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "pNN50"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "pNN50"
+          }
         }
       }
     },
@@ -533915,6 +536922,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Aus %1$lld von %2$lld Schlägen. P, Q, J und T markieren die Messpunkte der Zeiten."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De %1$lld de %2$lld latidos. P, Q, J y T marcan dónde se miden los intervalos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sur %1$lld de %2$lld battements. P, Q, J et T marquent les points de mesure des intervalles."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Da %1$lld di %2$lld battiti. P, Q, J e T indicano dove vengono misurati gli intervalli."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Z %1$lld z %2$lld uderzeń. P, Q, J i T oznaczają miejsca pomiaru odstępów."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De %1$lld de %2$lld batimentos. P, Q, J e T marcam onde os intervalos são medidos."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "По %1$lld из %2$lld ударов. P, Q, J и T отмечают точки измерения интервалов."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取自 %2$lld 次心搏中的 %1$lld 次。P、Q、J 和 T 标出各间期的测量点。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取自 %2$lld 次心搏中的 %1$lld 次。P、Q、J 和 T 標出各間期的測量點。"
           }
         }
       }
@@ -533926,6 +536981,54 @@
             "state" : "translated",
             "value" : "PR-Zeit"
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Intervalo PR"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Intervalle PR"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Intervallo PR"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odstęp PR"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Intervalo PR"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Интервал PR"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PR 间期"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PR 間期"
+          }
         }
       }
     },
@@ -533935,6 +537038,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Üblich: 120 bis 200 ms"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Habitual: de 120 a 200 ms"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Habituel : de 120 à 200 ms"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tipico: da 120 a 200 ms"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Typowo: od 120 do 200 ms"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Habitual: de 120 a 200 ms"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Обычно: от 120 до 200 мс"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "常见范围：120 至 200 毫秒"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "常見範圍：120 至 200 毫秒"
           }
         }
       }
@@ -533946,6 +537097,54 @@
             "state" : "translated",
             "value" : "QRS-Dauer"
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duración del QRS"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Durée du QRS"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Durata del QRS"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Czas trwania QRS"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duração do QRS"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Длительность QRS"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QRS 时限"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QRS 時限"
+          }
         }
       }
     },
@@ -533955,6 +537154,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Üblich: unter 120 ms"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Habitual: menos de 120 ms"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Habituel : moins de 120 ms"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tipico: meno di 120 ms"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Typowo: poniżej 120 ms"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Habitual: menos de 120 ms"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Обычно: меньше 120 мс"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "常见范围：低于 120 毫秒"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "常見範圍：低於 120 毫秒"
           }
         }
       }
@@ -533966,6 +537213,54 @@
             "state" : "translated",
             "value" : "QT-Zeit"
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Intervalo QT"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Intervalle QT"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Intervallo QT"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odstęp QT"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Intervalo QT"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Интервал QT"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QT 间期"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QT 間期"
+          }
         }
       }
     },
@@ -533974,7 +537269,55 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "QTc (Fridericia)"
+            "value" : "QTc nach Fridericia"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QTc según Fridericia"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QTc selon Fridericia"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QTc secondo Fridericia"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QTc według Fridericii"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QTc segundo Fridericia"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QTc по Фридеричи"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QTc（Fridericia 公式）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QTc（Fridericia 公式）"
           }
         }
       }
@@ -533986,6 +537329,54 @@
             "state" : "translated",
             "value" : "Üblich: unter 450 ms"
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Habitual: menos de 450 ms"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Habituel : moins de 450 ms"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tipico: meno di 450 ms"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Typowo: poniżej 450 ms"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Habitual: menos de 450 ms"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Обычно: меньше 450 мс"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "常见范围：低于 450 毫秒"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "常見範圍：低於 450 毫秒"
+          }
         }
       }
     },
@@ -533995,6 +537386,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "nicht messbar"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "no medible"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "non mesurable"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "non misurabile"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "nie do zmierzenia"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "não mensurável"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "не измеряется"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法测量"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法測量"
           }
         }
       }
@@ -534006,6 +537445,54 @@
             "state" : "translated",
             "value" : "EKG-Messung"
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medición de ECG"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesure ECG"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Misurazione ECG"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pomiar EKG"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medição de ECG"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Измерение ЭКГ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心电图测量"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心電圖測量"
+          }
         }
       }
     },
@@ -534015,6 +537502,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "25 mm/s, 10 mm/mV nominell: Die Amplitude des Bands ist nicht geeicht."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "25 mm/s, 10 mm/mV nominales: la escala de amplitud de la pulsera no está calibrada."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "25 mm/s, 10 mm/mV nominaux : l'échelle d'amplitude du bracelet n'est pas étalonnée."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "25 mm/s, 10 mm/mV nominali: la scala di ampiezza della fascia non è calibrata."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nominalnie 25 mm/s, 10 mm/mV: skala amplitudy opaski nie jest skalibrowana."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "25 mm/s, 10 mm/mV nominais: a escala de amplitude da bracelete não está calibrada."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Номинально 25 мм/с, 10 мм/мВ: шкала амплитуды браслета не откалибрована."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "标称 25 mm/s、10 mm/mV：手环的幅度刻度未经校准。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "標稱 25 mm/s、10 mm/mV：手環的振幅刻度未經校準。"
           }
         }
       }
@@ -534026,6 +537561,54 @@
             "state" : "translated",
             "value" : "Experimentell und nicht validiert. Die Kurve hat alle 10 ms einen Messpunkt, keine Zeit kann also feiner sein. Rauschen oder eine unklare Wellengrenze können sie zusätzlich verschieben. Eine einzelne Ableitung am Handgelenk zeigt weder die Herzachse noch die ST-Veränderungen, auf die ein 12-Kanal-EKG achtet."
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Experimental y sin validar. El trazado tiene una muestra cada 10 ms, así que ningún intervalo puede ser más fino, y el ruido o un borde de onda poco claro pueden desplazarlo aún más. Una sola derivación en la muñeca no puede mostrar el eje del corazón ni los cambios del ST que busca un ECG de 12 derivaciones."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expérimental et non validé. Le tracé a un échantillon toutes les 10 ms, aucun intervalle ne peut donc être plus fin, et le bruit ou un bord d'onde flou peut le décaler davantage. Une seule dérivation au poignet ne peut montrer ni l'axe du cœur ni les modifications du segment ST recherchées par un ECG à 12 dérivations."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sperimentale e non validato. La traccia ha un campione ogni 10 ms, quindi nessun intervallo può essere più fine, e il rumore o un bordo d'onda poco chiaro possono spostarlo ulteriormente. Una sola derivazione al polso non può mostrare l'asse del cuore né le alterazioni del tratto ST che cerca un ECG a 12 derivazioni."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eksperymentalne i niezwalidowane. Zapis ma jedną próbkę co 10 ms, więc żaden odstęp nie może być dokładniejszy, a szum lub niewyraźna granica fali mogą go dodatkowo przesunąć. Jedno odprowadzenie z nadgarstka nie pokaże osi serca ani zmian ST, których szuka 12-odprowadzeniowe EKG."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Experimental e não validado. O traçado tem uma amostra a cada 10 ms, pelo que nenhum intervalo pode ser mais fino, e o ruído ou um limite de onda pouco claro podem desviá-lo ainda mais. Uma única derivação no pulso não mostra o eixo do coração nem as alterações do ST que um ECG de 12 derivações procura."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Экспериментально и не проверено. В записи один отсчёт каждые 10 мс, поэтому ни один интервал не может быть точнее, а шум или нечёткая граница волны могут сместить его ещё сильнее. Одно отведение с запястья не показывает электрическую ось сердца и изменения ST, которые ищут в ЭКГ в 12 отведениях."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "实验性功能，未经验证。曲线每 10 毫秒一个采样点，因此任何间期都不可能更精细，噪声或不清晰的波形边界还可能使其进一步偏移。手腕单导联无法显示心电轴，也无法显示 12 导联心电图所关注的 ST 段变化。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "實驗性功能，未經驗證。曲線每 10 毫秒一個取樣點，因此任何間期都不可能更精細，雜訊或不清晰的波形邊界還可能使其進一步偏移。手腕單導程無法顯示心電軸，也無法顯示 12 導程心電圖所關注的 ST 段變化。"
+          }
         }
       }
     },
@@ -534035,6 +537618,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Das Band hat nicht bestätigt, dass die EKG-Aufnahme beendet ist. Eine neue Messung beendet sie zuerst."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La pulsera no confirmó que el registro de ECG se detuviera. Una nueva medición lo detiene primero."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le bracelet n'a pas confirmé l'arrêt de l'enregistrement ECG. Une nouvelle mesure l'arrête d'abord."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La fascia non ha confermato l'arresto della registrazione ECG. Una nuova misurazione la interrompe prima."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opaska nie potwierdziła zatrzymania zapisu EKG. Nowy pomiar najpierw go zatrzyma."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A bracelete não confirmou que o registo de ECG parou. Uma nova medição para-o primeiro."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Браслет не подтвердил остановку записи ЭКГ. Новое измерение сначала остановит её."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手环没有确认心电图记录已停止。开始新测量时会先将其停止。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手環沒有確認心電圖記錄已停止。開始新測量時會先將其停止。"
           }
         }
       }
@@ -534046,6 +537677,54 @@
             "state" : "translated",
             "value" : "Band wird vorbereitet"
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparando la pulsera"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Préparation du bracelet"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparazione della fascia"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przygotowywanie opaski"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A preparar a bracelete"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подготовка браслета"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在准备手环"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在準備手環"
+          }
         }
       }
     },
@@ -534055,6 +537734,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Wird beendet"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deteniendo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arrêt en cours"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arresto in corso"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zatrzymywanie"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A parar"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Остановка"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在停止"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在停止"
           }
         }
       }
@@ -534066,6 +537793,54 @@
             "state" : "translated",
             "value" : "Warte, bis das Band jeden Befehl bestätigt."
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esperando a que la pulsera confirme cada comando."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En attente de la confirmation de chaque commande par le bracelet."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In attesa che la fascia confermi ogni comando."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Czekanie, aż opaska potwierdzi każde polecenie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À espera que a bracelete confirme cada comando."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ожидание подтверждения каждой команды браслетом."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在等待手环确认每条指令。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在等待手環確認每條指令。"
+          }
         }
       }
     },
@@ -534075,6 +537850,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "EKG des Bands wird ausgeschaltet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apagando el ECG de la pulsera."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Désactivation de l'ECG du bracelet."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spegnimento dell'ECG della fascia."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wyłączanie EKG opaski."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A desligar o ECG da bracelete."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отключение ЭКГ браслета."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在关闭手环的心电图功能。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在關閉手環的心電圖功能。"
           }
         }
       }
@@ -534086,6 +537909,54 @@
             "state" : "translated",
             "value" : "Das Band hat die Startbefehle nicht bestätigt."
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La pulsera no confirmó los comandos de inicio."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le bracelet n'a pas confirmé les commandes de démarrage."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La fascia non ha confermato i comandi di avvio."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opaska nie potwierdziła poleceń startowych."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A bracelete não confirmou os comandos de início."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Браслет не подтвердил команды запуска."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手环没有确认启动指令。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手環沒有確認啟動指令。"
+          }
         }
       }
     },
@@ -534095,6 +537966,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Das Band hat den Neustart nicht bestätigt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La pulsera no confirmó el reinicio."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le bracelet n'a pas confirmé le redémarrage."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La fascia non ha confermato il riavvio."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opaska nie potwierdziła ponownego uruchomienia."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A bracelete não confirmou o reinício."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Браслет не подтвердил перезапуск."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手环没有确认重新开始。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手環沒有確認重新開始。"
           }
         }
       }
@@ -534106,6 +538025,54 @@
             "state" : "translated",
             "value" : "Apple-Watch-EKGs laden"
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cargar ECG del Apple Watch"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charger les ECG de l'Apple Watch"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carica ECG di Apple Watch"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wczytaj EKG z Apple Watch"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carregar ECG do Apple Watch"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Загрузить ЭКГ с Apple Watch"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "载入 Apple Watch 心电图"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "載入 Apple Watch 心電圖"
+          }
         }
       }
     },
@@ -534115,6 +538082,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Apple Health hat keine EKGs geliefert."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Health no devolvió ECG."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Santé n'a renvoyé aucun ECG."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Salute non ha restituito ECG."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Zdrowie nie zwróciło żadnych EKG."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A app Saúde não devolveu ECG."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Здоровье не вернуло ЭКГ."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple 健康未返回心电图。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple 健康未傳回心電圖。"
           }
         }
       }
@@ -534126,6 +538141,54 @@
             "state" : "translated",
             "value" : "Keine Apple-Watch-EKGs gefunden, oder NOOP darf sie nicht lesen. Das legst du in den Einstellungen von Apple Health fest."
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se encontraron ECG del Apple Watch, o NOOP no tiene permiso para leerlos. Eso se decide en los ajustes de Apple Health."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun ECG d'Apple Watch trouvé, ou NOOP n'a pas le droit de les lire. Cela se règle dans les réglages d'Apple Santé."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessun ECG di Apple Watch trovato, oppure NOOP non ha il permesso di leggerli. Lo decidono le impostazioni di Apple Salute."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nie znaleziono EKG z Apple Watch albo NOOP nie ma uprawnień do ich odczytu. Decydują o tym ustawienia Apple Zdrowie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não foram encontrados ECG do Apple Watch, ou o NOOP não tem permissão para os ler. Isso decide-se nas definições da app Saúde."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ЭКГ с Apple Watch не найдены, или NOOP не разрешено их читать. Это определяется в настройках Apple Здоровья."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未找到 Apple Watch 心电图，或 NOOP 没有读取权限。这由 Apple 健康的设置决定。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未找到 Apple Watch 心電圖，或 NOOP 沒有讀取權限。這由 Apple 健康的設定決定。"
+          }
         }
       }
     },
@@ -534135,6 +538198,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Zum Vergleich mit derselben Methode ausgewertet wie das Band. Aus Apple Health gelesen, NOOP speichert nichts davon."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Analizado con el mismo método que la pulsera, para comparar. Leído de Apple Health, NOOP no lo guarda."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Analysé avec la même méthode que le bracelet, pour comparaison. Lu depuis Apple Santé, NOOP ne l'enregistre pas."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Analizzato con lo stesso metodo della fascia, per confronto. Letto da Apple Salute, NOOP non lo salva."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przeanalizowane tą samą metodą co opaska, dla porównania. Odczytane z Apple Zdrowie, NOOP tego nie zapisuje."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Analisado com o mesmo método da bracelete, para comparação. Lido da app Saúde, o NOOP não o guarda."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Обработано тем же методом, что и браслет, для сравнения. Прочитано из Apple Здоровья, NOOP это не сохраняет."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用与手环相同的方法分析，以便比较。从 Apple 健康读取，NOOP 不会保存。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用與手環相同的方法分析，以便比較。從 Apple 健康讀取，NOOP 不會儲存。"
           }
         }
       }
@@ -534146,6 +538257,54 @@
             "state" : "translated",
             "value" : "Einstufung von Apple selbst, aufgenommen mit %lld Hz, hier mit 100 Hz dargestellt."
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clasificación propia de Apple, registrada a %lld Hz y mostrada aquí a 100 Hz."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Classification propre à Apple, enregistrée à %lld Hz et affichée ici à 100 Hz."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Classificazione di Apple, registrata a %lld Hz e mostrata qui a 100 Hz."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Własna klasyfikacja Apple, nagrana z częstotliwością %lld Hz i pokazana tu przy 100 Hz."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Classificação da própria Apple, registada a %lld Hz e mostrada aqui a 100 Hz."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Собственная классификация Apple, записано с частотой %lld Гц, здесь показано с частотой 100 Гц."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple 自己的分类，以 %lld Hz 记录，此处以 100 Hz 显示。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple 自己的分類，以 %lld Hz 記錄，此處以 100 Hz 顯示。"
+          }
         }
       }
     },
@@ -534155,6 +538314,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Noch keine Band-Messung zum Vergleich."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aún no hay medición de la pulsera para comparar."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune mesure du bracelet à comparer pour l'instant."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ancora nessuna misurazione della fascia da confrontare."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak jeszcze pomiaru z opaski do porównania."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ainda não há medição da bracelete para comparar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пока нет измерения браслета для сравнения."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还没有可供比较的手环测量。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "還沒有可供比較的手環測量。"
           }
         }
       }
@@ -534166,6 +538373,54 @@
             "state" : "translated",
             "value" : "Apple-Watch-EKG"
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ECG del Apple Watch"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ECG de l'Apple Watch"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ECG di Apple Watch"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EKG z Apple Watch"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ECG do Apple Watch"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ЭКГ Apple Watch"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Watch 心电图"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Watch 心電圖"
+          }
         }
       }
     },
@@ -534175,6 +538430,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Vergleich mit dem Band"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comparado con la pulsera"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comparé au bracelet"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confronto con la fascia"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Porównanie z opaską"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comparado com a bracelete"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сравнение с браслетом"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "与手环比较"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "與手環比較"
           }
         }
       }
@@ -534186,6 +538489,54 @@
             "state" : "translated",
             "value" : "Diff."
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dif."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diff."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diff."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Różn."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dif."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Разн."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "差值"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "差值"
+          }
         }
       }
     },
@@ -534195,6 +538546,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "R-Zacke"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Onda R"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Onde R"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Onda R"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Załamek R"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Onda R"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Зубец R"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "R 波"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "R 波"
           }
         }
       }
@@ -534206,6 +538605,54 @@
             "state" : "translated",
             "value" : "Band-Messung vom %@. Puls und RMSSD unterscheiden sich zwischen zwei Zeitpunkten von Natur aus. Die Zeiten, QTc und die R-Zacke sollten eng übereinstimmen, wenn beide Geräte dieselbe Ableitung messen."
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medición de la pulsera del %@. La frecuencia cardíaca y el RMSSD difieren por naturaleza entre dos momentos; los intervalos, el QTc y la onda R deberían coincidir mucho si ambos dispositivos ven la misma derivación."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesure du bracelet du %@. La fréquence cardiaque et le RMSSD diffèrent naturellement entre deux moments ; les intervalles, le QTc et l'onde R devraient bien concorder si les deux appareils voient la même dérivation."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Misurazione della fascia del %@. Frequenza cardiaca e RMSSD differiscono per natura tra due momenti; intervalli, QTc e onda R dovrebbero coincidere da vicino se entrambi i dispositivi vedono la stessa derivazione."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pomiar z opaski z %@. Tętno i RMSSD z natury różnią się w dwóch momentach; odstępy, QTc i załamek R powinny być bardzo zbliżone, jeśli oba urządzenia mierzą to samo odprowadzenie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medição da bracelete de %@. A frequência cardíaca e o RMSSD diferem naturalmente entre dois momentos; os intervalos, o QTc e a onda R devem coincidir de perto se ambos os dispositivos virem a mesma derivação."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Измерение браслета от %@. Пульс и RMSSD по природе различаются в разные моменты; интервалы, QTc и зубец R должны близко совпадать, если оба устройства видят одно и то же отведение."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手环测量时间：%@。心率和 RMSSD 在两个时刻之间本来就会不同；如果两台设备测量的是同一导联，间期、QTc 和 R 波应当非常接近。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手環測量時間：%@。心率和 RMSSD 在兩個時刻之間本來就會不同；如果兩台裝置測量的是同一導程，間期、QTc 和 R 波應當非常接近。"
+          }
         }
       }
     },
@@ -534215,6 +538662,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Vorhofflimmern"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fibrilación auricular"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fibrillation auriculaire"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fibrillazione atriale"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Migotanie przedsionków"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fibrilhação auricular"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Фибрилляция предсердий"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心房颤动"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心房顫動"
           }
         }
       }
@@ -534226,6 +538721,54 @@
             "state" : "translated",
             "value" : "Nicht eindeutig: niedrige Herzfrequenz"
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No concluyente: frecuencia cardíaca baja"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non concluant : fréquence cardiaque basse"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non conclusivo: frequenza cardiaca bassa"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niejednoznaczny: niskie tętno"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inconclusivo: frequência cardíaca baixa"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Неоднозначно: низкий пульс"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法判断：心率偏低"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法判斷：心率偏低"
+          }
         }
       }
     },
@@ -534235,6 +538778,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nicht eindeutig: hohe Herzfrequenz"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No concluyente: frecuencia cardíaca alta"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non concluant : fréquence cardiaque élevée"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non conclusivo: frequenza cardiaca alta"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niejednoznaczny: wysokie tętno"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inconclusivo: frequência cardíaca elevada"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Неоднозначно: высокий пульс"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法判断：心率偏高"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法判斷：心率偏高"
           }
         }
       }
@@ -534246,6 +538837,54 @@
             "state" : "translated",
             "value" : "Nicht eindeutig: schlechte Aufnahme"
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No concluyente: registro deficiente"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non concluant : enregistrement de mauvaise qualité"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non conclusivo: registrazione scadente"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niejednoznaczny: słaby zapis"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inconclusivo: registo de má qualidade"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Неоднозначно: плохая запись"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法判断：记录质量差"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法判斷：記錄品質差"
+          }
         }
       }
     },
@@ -534256,12 +538895,108 @@
             "state" : "translated",
             "value" : "Nicht erkannter Rhythmus"
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ritmo no reconocido"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rythme non reconnu"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ritmo non riconosciuto"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nierozpoznany rytm"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ritmo não reconhecido"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нераспознанный ритм"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法识别的心律"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法識別的心律"
+          }
         }
       }
     },
     "WHOOP MG" : {
       "localizations" : {
         "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WHOOP MG"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WHOOP MG"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WHOOP MG"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WHOOP MG"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WHOOP MG"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WHOOP MG"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WHOOP MG"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WHOOP MG"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "WHOOP MG"
@@ -534276,6 +539011,54 @@
             "state" : "translated",
             "value" : "Neu laden"
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recargar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recharger"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ricarica"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odśwież"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recarregar"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Обновить"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新载入"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新載入"
+          }
         }
       }
     },
@@ -534285,6 +539068,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Die P-Welle ist beim Band zu schwach, um sie zuverlässig zu vermessen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La onda P de la pulsera es demasiado débil para medirla con fiabilidad."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'onde P du bracelet est trop faible pour être mesurée de façon fiable."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'onda P della fascia è troppo debole per misurarla in modo affidabile."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Załamek P z opaski jest zbyt słaby, by go wiarygodnie zmierzyć."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A onda P da bracelete é demasiado fraca para ser medida com fiabilidade."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Зубец P на браслете слишком слабый для надёжного измерения."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手环的 P 波太弱，无法可靠测量。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手環的 P 波太弱，無法可靠測量。"
           }
         }
       }
@@ -534296,6 +539127,54 @@
             "state" : "translated",
             "value" : "nicht angezeigt"
           }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "no se muestra"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "non affiché"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "non mostrato"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "nie pokazano"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "não mostrado"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "не показано"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未显示"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未顯示"
+          }
         }
       }
     },
@@ -534305,6 +539184,1040 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Experimentell. Geprüft an Markierungen von Kardiologen (PhysioNet QT Database) und beim Band im Vergleich mit einer Apple Watch, aber nicht klinisch validiert. Ein Messpunkt alle 10 ms begrenzt jede Zeitangabe. Eine einzelne Ableitung am Handgelenk zeigt weder die Herzachse noch die ST-Veränderungen, auf die ein 12-Kanal-EKG achtet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Experimental. Comprobado con anotaciones de cardiólogos (PhysioNet QT Database) y, para la pulsera, con un Apple Watch, pero sin validación clínica. Una muestra cada 10 ms limita cada intervalo. Una sola derivación en la muñeca no puede mostrar el eje del corazón ni los cambios del ST que busca un ECG de 12 derivaciones."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expérimental. Vérifié avec des annotations de cardiologues (PhysioNet QT Database) et, pour le bracelet, avec une Apple Watch, mais non validé cliniquement. Un échantillon toutes les 10 ms limite chaque intervalle. Une seule dérivation au poignet ne peut montrer ni l'axe du cœur ni les modifications du segment ST recherchées par un ECG à 12 dérivations."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sperimentale. Verificato con annotazioni di cardiologi (PhysioNet QT Database) e, per la fascia, con un Apple Watch, ma non validato clinicamente. Un campione ogni 10 ms limita ogni intervallo. Una sola derivazione al polso non può mostrare l'asse del cuore né le alterazioni del tratto ST che cerca un ECG a 12 derivazioni."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eksperymentalne. Sprawdzone na adnotacjach kardiologów (PhysioNet QT Database), a dla opaski także względem Apple Watch, ale bez walidacji klinicznej. Jedna próbka co 10 ms ogranicza każdy odstęp. Jedno odprowadzenie z nadgarstka nie pokaże osi serca ani zmian ST, których szuka 12-odprowadzeniowe EKG."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Experimental. Verificado com anotações de cardiologistas (PhysioNet QT Database) e, para a bracelete, com um Apple Watch, mas sem validação clínica. Uma amostra a cada 10 ms limita cada intervalo. Uma única derivação no pulso não mostra o eixo do coração nem as alterações do ST que um ECG de 12 derivações procura."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Экспериментально. Проверено на разметке кардиологов (PhysioNet QT Database), а для браслета ещё и по Apple Watch, но без клинической валидации. Один отсчёт каждые 10 мс ограничивает точность каждого интервала. Одно отведение с запястья не показывает электрическую ось сердца и изменения ST, которые ищут в ЭКГ в 12 отведениях."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "实验性功能。已对照心脏科医生的标注（PhysioNet QT Database）检查，手环还与 Apple Watch 做过比较，但未经临床验证。每 10 毫秒一个采样点限制了每个间期的精度。手腕单导联无法显示心电轴，也无法显示 12 导联心电图所关注的 ST 段变化。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "實驗性功能。已對照心臟科醫師的標註（PhysioNet QT Database）檢查，手環也與 Apple Watch 做過比較，但未經臨床驗證。每 10 毫秒一個取樣點限制了每個間期的精度。手腕單導程無法顯示心電軸，也無法顯示 12 導程心電圖所關注的 ST 段變化。"
+          }
+        }
+      }
+    },
+    "%lld s left" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "noch %lld s"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "quedan %lld s"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "encore %lld s"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ancora %lld s"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "jeszcze %lld s"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "faltam %lld s"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "осталось %lld с"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还剩 %lld 秒"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "還剩 %lld 秒"
+          }
+        }
+      }
+    },
+    "A reading needs a WHOOP MG and the ECG switch under Settings → Experimental · WHOOP 5 / MG." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine Messung braucht ein WHOOP MG und den EKG-Schalter unter Einstellungen → Experimentell · WHOOP 5 / MG."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una medición necesita un WHOOP MG y el interruptor de ECG en Ajustes → Experimental · WHOOP 5 / MG."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une mesure nécessite un WHOOP MG et l'interrupteur ECG dans Paramètres → Expérimental · WHOOP 5 / MG."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una misurazione richiede un WHOOP MG e l'interruttore ECG in Impostazioni → Sperimentale · WHOOP 5 / MG."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pomiar wymaga WHOOP MG i przełącznika EKG w Ustawienia → Eksperymentalne · WHOOP 5 / MG."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uma medição precisa de um WHOOP MG e do interruptor de ECG em Definições → Experimental · WHOOP 5/MG."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Для измерения нужен WHOOP MG и переключатель ЭКГ в разделе Настройки → Экспериментально · WHOOP 5 / MG."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "测量需要 WHOOP MG，并在 设置 → 实验性 · WHOOP 5 / MG 中打开心电图开关。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "測量需要 WHOOP MG，並在 設定 → 實驗性 · WHOOP 5 / MG 中開啟心電圖開關。"
+          }
+        }
+      }
+    },
+    "Before you record an ECG" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bevor du ein EKG aufnimmst"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antes de registrar un ECG"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avant d'enregistrer un ECG"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prima di registrare un ECG"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zanim nagrasz EKG"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antes de registares um ECG"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Перед записью ЭКГ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在记录心电图之前"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在記錄心電圖之前"
+          }
+        }
+      }
+    },
+    "I understand, continue" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verstanden, weiter"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entendido, continuar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "J'ai compris, continuer"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ho capito, continua"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rozumiem, dalej"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compreendi, continuar"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Понятно, продолжить"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我已了解，继续"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我已了解，繼續"
+          }
+        }
+      }
+    },
+    "Limits and intended use" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grenzen und Verwendungszweck"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Límites y uso previsto"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limites et usage prévu"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limiti e uso previsto"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ograniczenia i przeznaczenie"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limites e utilização prevista"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ограничения и назначение"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "局限与用途"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "局限與用途"
+          }
+        }
+      }
+    },
+    "An experimental test feature" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine experimentelle Testfunktion"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una función experimental de prueba"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une fonction expérimentale de test"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una funzione sperimentale di prova"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eksperymentalna funkcja testowa"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uma funcionalidade experimental de teste"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Экспериментальная тестовая функция"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "实验性测试功能"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "實驗性測試功能"
+          }
+        }
+      }
+    },
+    "ECG readings in NOOP are an experimental feature for testing and personal interest. NOOP is not a medical device, and nothing here has been reviewed or approved for medical use." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EKG-Messungen in NOOP sind eine experimentelle Funktion zum Ausprobieren und aus persönlichem Interesse. NOOP ist kein Medizinprodukt, und nichts davon wurde für eine medizinische Verwendung geprüft oder zugelassen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las mediciones de ECG en NOOP son una función experimental para probar y por interés personal. NOOP no es un producto sanitario y nada de esto ha sido revisado ni aprobado para uso médico."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les mesures ECG dans NOOP sont une fonction expérimentale, pour tester et par intérêt personnel. NOOP n'est pas un dispositif médical et rien ici n'a été examiné ni autorisé pour un usage médical."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le misurazioni ECG in NOOP sono una funzione sperimentale per prova e interesse personale. NOOP non è un dispositivo medico e nulla qui è stato verificato o approvato per uso medico."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pomiary EKG w NOOP to funkcja eksperymentalna do testów i z ciekawości. NOOP nie jest wyrobem medycznym i nic tutaj nie zostało sprawdzone ani dopuszczone do użytku medycznego."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As medições de ECG no NOOP são uma funcionalidade experimental para teste e interesse pessoal. O NOOP não é um dispositivo médico e nada aqui foi revisto ou aprovado para uso médico."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Измерения ЭКГ в NOOP — экспериментальная функция для тестирования и личного интереса. NOOP не является медицинским изделием, и ничто здесь не проверялось и не одобрялось для медицинского применения."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 中的心电图测量是一项实验性功能，用于测试和个人兴趣。NOOP 不是医疗器械，这里的任何内容都未经过医疗用途的审查或批准。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 中的心電圖測量是一項實驗性功能，用於測試和個人興趣。NOOP 不是醫療器材，這裡的任何內容都未經醫療用途的審查或核准。"
+          }
+        }
+      }
+    },
+    "Not for medical use" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht für medizinische Zwecke"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No apto para uso médico"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pas pour un usage médical"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non per uso medico"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nie do użytku medycznego"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não se destina a uso médico"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не для медицинского применения"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不用于医疗用途"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不用於醫療用途"
+          }
+        }
+      }
+    },
+    "Do not use these readings to diagnose, rule out or monitor a heart condition, or to decide on medication or treatment. NOOP does not recommend any medical use." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nutze diese Messungen nicht, um eine Herzerkrankung festzustellen, auszuschließen oder zu überwachen, und nicht für Entscheidungen über Medikamente oder Behandlungen. NOOP empfiehlt keine medizinische Verwendung."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No uses estas mediciones para diagnosticar, descartar o vigilar una afección cardíaca, ni para decidir sobre medicación o tratamiento. NOOP no recomienda ningún uso médico."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "N'utilise pas ces mesures pour diagnostiquer, exclure ou surveiller une maladie cardiaque, ni pour décider d'un médicament ou d'un traitement. NOOP ne recommande aucun usage médical."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non usare queste misurazioni per diagnosticare, escludere o monitorare una malattia cardiaca, né per decidere su farmaci o terapie. NOOP non raccomanda alcun uso medico."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nie używaj tych pomiarów do rozpoznawania, wykluczania ani monitorowania chorób serca ani do decyzji o lekach czy leczeniu. NOOP nie zaleca żadnego zastosowania medycznego."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não uses estas medições para diagnosticar, excluir ou acompanhar uma doença cardíaca, nem para decidir sobre medicação ou tratamento. O NOOP não recomenda qualquer uso médico."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не используйте эти измерения, чтобы диагностировать, исключать или наблюдать заболевание сердца, а также для решений о лекарствах или лечении. NOOP не рекомендует никакого медицинского применения."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请勿用这些测量来诊断、排除或监测心脏疾病，也不要据此决定用药或治疗。NOOP 不建议任何医疗用途。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請勿用這些測量來診斷、排除或監測心臟疾病，也不要據此決定用藥或治療。NOOP 不建議任何醫療用途。"
+          }
+        }
+      }
+    },
+    "Where the result comes from" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Woher das Ergebnis kommt"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De dónde sale el resultado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "D'où vient le résultat"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Da dove viene il risultato"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skąd pochodzi wynik"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De onde vem o resultado"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Откуда берётся результат"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "结果从何而来"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "結果從何而來"
+          }
+        }
+      }
+    },
+    "The rhythm result is calculated by the strap itself. NOOP shows it and cannot check whether it is correct. Heart rate, variability and intervals are NOOP's own estimates from the saved trace and are not validated." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Rhythmus-Ergebnis berechnet das Band selbst. NOOP zeigt es nur an und kann nicht prüfen, ob es stimmt. Puls, Variabilität und Zeiten sind eigene Schätzungen von NOOP aus der gespeicherten Kurve und nicht validiert."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El resultado del ritmo lo calcula la propia pulsera. NOOP lo muestra y no puede comprobar si es correcto. La frecuencia cardíaca, la variabilidad y los intervalos son estimaciones propias de NOOP a partir del trazado guardado y no están validados."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le résultat du rythme est calculé par le bracelet lui-même. NOOP l'affiche et ne peut pas vérifier s'il est correct. La fréquence cardiaque, la variabilité et les intervalles sont des estimations propres à NOOP à partir du tracé enregistré et ne sont pas validés."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il risultato del ritmo è calcolato dalla fascia stessa. NOOP lo mostra e non può verificare se è corretto. Frequenza cardiaca, variabilità e intervalli sono stime di NOOP dalla traccia salvata e non sono validati."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wynik rytmu oblicza sama opaska. NOOP go pokazuje i nie może sprawdzić, czy jest poprawny. Tętno, zmienność i odstępy to własne szacunki NOOP z zapisanego przebiegu i nie są zwalidowane."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O resultado do ritmo é calculado pela própria bracelete. O NOOP mostra-o e não consegue verificar se está correto. A frequência cardíaca, a variabilidade e os intervalos são estimativas próprias do NOOP a partir do traçado guardado e não estão validados."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Результат по ритму вычисляет сам браслет. NOOP только показывает его и не может проверить, верен ли он. Пульс, вариабельность и интервалы — собственные оценки NOOP по сохранённой записи, они не проверены."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心律结果由手环自身计算。NOOP 只负责显示，无法核实其是否正确。心率、变异性和各间期是 NOOP 根据保存的曲线自行估算的，未经验证。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心律結果由手環自身計算。NOOP 只負責顯示，無法核實其是否正確。心率、變異性和各間期是 NOOP 根據儲存的曲線自行估算的，未經驗證。"
+          }
+        }
+      }
+    },
+    "Limits of a wrist ECG" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grenzen eines EKGs am Handgelenk"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Límites de un ECG de muñeca"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limites d'un ECG au poignet"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limiti di un ECG al polso"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ograniczenia EKG z nadgarstka"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limites de um ECG no pulso"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ограничения ЭКГ с запястья"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手腕心电图的局限"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手腕心電圖的局限"
+          }
+        }
+      }
+    },
+    "One lead at the wrist, 100 samples per second, an uncalibrated amplitude and a filter inside the strap. Movement, loose contact or a slow heart rate can give wrong results. A single lead cannot replace a 12-lead ECG." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine Ableitung am Handgelenk, 100 Messpunkte pro Sekunde, eine nicht geeichte Amplitude und ein Filter im Band. Bewegung, lockerer Kontakt oder ein langsamer Puls können falsche Ergebnisse liefern. Eine einzelne Ableitung ersetzt kein 12-Kanal-EKG."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una derivación en la muñeca, 100 muestras por segundo, una amplitud sin calibrar y un filtro dentro de la pulsera. El movimiento, un contacto flojo o una frecuencia cardíaca lenta pueden dar resultados erróneos. Una sola derivación no sustituye a un ECG de 12 derivaciones."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une dérivation au poignet, 100 échantillons par seconde, une amplitude non étalonnée et un filtre dans le bracelet. Un mouvement, un mauvais contact ou une fréquence cardiaque lente peuvent fausser le résultat. Une seule dérivation ne remplace pas un ECG à 12 dérivations."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una derivazione al polso, 100 campioni al secondo, un'ampiezza non calibrata e un filtro nella fascia. Movimento, contatto debole o frequenza cardiaca lenta possono dare risultati errati. Una sola derivazione non sostituisce un ECG a 12 derivazioni."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jedno odprowadzenie z nadgarstka, 100 próbek na sekundę, nieskalibrowana amplituda i filtr w opasce. Ruch, słaby kontakt lub wolne tętno mogą dać błędne wyniki. Jedno odprowadzenie nie zastąpi 12-odprowadzeniowego EKG."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uma derivação no pulso, 100 amostras por segundo, uma amplitude não calibrada e um filtro dentro da bracelete. Movimento, mau contacto ou uma frequência cardíaca lenta podem dar resultados errados. Uma única derivação não substitui um ECG de 12 derivações."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Одно отведение с запястья, 100 отсчётов в секунду, неоткалиброванная амплитуда и фильтр внутри браслета. Движение, слабый контакт или медленный пульс могут дать неверный результат. Одно отведение не заменяет ЭКГ в 12 отведениях."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手腕单导联、每秒 100 个采样点、未校准的幅度，以及手环内部的滤波器。动作、接触不良或心率过慢都可能导致错误结果。单导联无法替代 12 导联心电图。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手腕單導程、每秒 100 個取樣點、未校準的振幅，以及手環內部的濾波器。動作、接觸不良或心率過慢都可能導致錯誤結果。單導程無法取代 12 導程心電圖。"
+          }
+        }
+      }
+    },
+    "If you feel unwell" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wenn es dir nicht gut geht"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Si te encuentras mal"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Si tu ne te sens pas bien"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se non ti senti bene"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jeśli źle się czujesz"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se não te sentires bem"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Если вам нехорошо"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如果你感到不适"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如果你感到不適"
+          }
+        }
+      }
+    },
+    "With symptoms such as chest pain, palpitations, dizziness or shortness of breath, contact a doctor. In an emergency, call your local emergency number. Do not wait for or rely on a reading in NOOP." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bei Beschwerden wie Brustschmerzen, Herzrasen, Schwindel oder Atemnot wende dich an eine Ärztin oder einen Arzt. Im Notfall ruf den Notruf an. Warte nicht auf eine Messung in NOOP und verlass dich nicht darauf."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Si tienes síntomas como dolor en el pecho, palpitaciones, mareo o falta de aire, acude a un médico. En una emergencia, llama al número de emergencias. No esperes a una medición en NOOP ni confíes en ella."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En cas de symptômes comme une douleur thoracique, des palpitations, des vertiges ou un essoufflement, contacte un médecin. En cas d'urgence, appelle le numéro d'urgence. N'attends pas une mesure dans NOOP et ne t'y fie pas."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In caso di sintomi come dolore al petto, palpitazioni, vertigini o fiato corto, rivolgiti a un medico. In caso di emergenza, chiama il numero di emergenza. Non aspettare una misurazione in NOOP e non farci affidamento."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przy objawach takich jak ból w klatce piersiowej, kołatanie serca, zawroty głowy czy duszność skontaktuj się z lekarzem. W nagłym wypadku zadzwoń pod numer alarmowy. Nie czekaj na pomiar w NOOP i nie polegaj na nim."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Com sintomas como dor no peito, palpitações, tonturas ou falta de ar, contacta um médico. Numa emergência, liga para o número de emergência. Não esperes por uma medição no NOOP nem confies nela."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "При таких симптомах, как боль в груди, сердцебиение, головокружение или одышка, обратитесь к врачу. В экстренной ситуации звоните в службу экстренной помощи. Не ждите измерения в NOOP и не полагайтесь на него."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如出现胸痛、心悸、头晕或气短等症状，请就医。紧急情况下，请拨打当地急救电话。不要等待 NOOP 的测量，也不要依赖它。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如出現胸痛、心悸、頭暈或呼吸急促等症狀，請就醫。緊急情況下，請撥打當地急救電話。不要等待 NOOP 的測量，也不要依賴它。"
+          }
+        }
+      }
+    },
+    "Your readings stay with you" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Messungen bleiben bei dir"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tus mediciones se quedan contigo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tes mesures restent chez toi"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le tue misurazioni restano con te"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twoje pomiary zostają u ciebie"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As tuas medições ficam contigo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваши измерения остаются у вас"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的测量只留在你这里"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的測量只留在你這裡"
+          }
+        }
+      }
+    },
+    "NOOP stores readings on this device and sends them to no one. A backup you make yourself includes them." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP speichert Messungen auf diesem Gerät und schickt sie niemandem. Ein Backup, das du selbst anlegst, enthält sie."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP guarda las mediciones en este dispositivo y no las envía a nadie. Una copia de seguridad que hagas tú mismo las incluye."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP conserve les mesures sur cet appareil et ne les envoie à personne. Une sauvegarde que tu crées toi-même les contient."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP conserva le misurazioni su questo dispositivo e non le invia a nessuno. Un backup creato da te le include."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP przechowuje pomiary na tym urządzeniu i nikomu ich nie wysyła. Kopia zapasowa, którą sam tworzysz, je zawiera."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O NOOP guarda as medições neste dispositivo e não as envia a ninguém. Uma cópia de segurança que faças tu próprio inclui-as."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP хранит измерения на этом устройстве и никому их не отправляет. Резервная копия, которую вы создаёте сами, их содержит."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 将测量保存在本设备上，不会发送给任何人。你自己创建的备份会包含它们。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 將測量儲存在本裝置上，不會傳送給任何人。你自己建立的備份會包含它們。"
           }
         }
       }
