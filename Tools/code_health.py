@@ -997,7 +997,7 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         report.write_text(text.replace(APPENDIX_MARKER, appendix.rstrip("\n"), 1))
     print(json.dumps({"json": str(out_json), "previous": result["meta"]["previous"],
-                      "headline": headline(result)}, ensure_ascii=False, indent=1))
+                      "headline": result["headline"]}, ensure_ascii=False, indent=1))
     return 0
 
 
