@@ -1,12 +1,12 @@
 {
  "meta": {
-  "method_version": 1,
+  "method_version": 2,
   "run_date": "2026-10-10",
   "ref": "main",
-  "ref_sha": "0389a6decfe5c93325766b162a0fbb347b58420f",
-  "ref_date": "2026-10-10T11:14:17+02:00",
+  "ref_sha": "0b9719dd618dfb09c585f6e812667da3af3cbd30",
+  "ref_date": "2026-10-10T16:44:35+02:00",
   "window_days": 60,
-  "window_since": "2026-08-11T11:14:17+02:00",
+  "window_since": "2026-08-11T16:44:35+02:00",
   "upstream_ref": "upstream/main",
   "product_roots": [
    "NOOPWatch",
@@ -12031,7 +12031,7 @@
    "is_view": true
   }
  ],
- "fork_commits": 542,
+ "fork_commits": 545,
  "hotspots": [
   {
    "path": "Strand/Liquid/LiquidTodayView.swift",
@@ -13688,25 +13688,25 @@
  ],
  "upstream": {
   "upstream_sha": "e58017508d9731c51d0631fe0eb4bb1d7ea0c582",
-  "upstream_commits": 1366,
+  "upstream_commits": 1352,
   "merge_base": "18de275efcca0f2e313aeebd4aed19814b11c7c0",
   "merge_base_date": "2026-10-09",
   "friction": [
    {
     "path": "project.yml",
-    "upstream_commits": 236,
+    "upstream_commits": 233,
     "diff_lines": 156,
     "fork_commits": 19
    },
    {
     "path": "Strand/Resources/Localizable.xcstrings",
-    "upstream_commits": 126,
+    "upstream_commits": 125,
     "diff_lines": 609778,
     "fork_commits": 130
    },
    {
     "path": "Strand/Data/IntelligenceEngine.swift",
-    "upstream_commits": 91,
+    "upstream_commits": 89,
     "diff_lines": 2579,
     "fork_commits": 40
    },
@@ -13718,25 +13718,25 @@
    },
    {
     "path": "Strand/Screens/TodayView.swift",
-    "upstream_commits": 66,
+    "upstream_commits": 62,
     "diff_lines": 2143,
     "fork_commits": 34
    },
    {
     "path": "Strand/Liquid/LiquidTodayView.swift",
-    "upstream_commits": 56,
+    "upstream_commits": 52,
     "diff_lines": 3691,
     "fork_commits": 57
    },
    {
     "path": "Strand/Screens/SettingsView.swift",
-    "upstream_commits": 40,
+    "upstream_commits": 39,
     "diff_lines": 2229,
     "fork_commits": 28
    },
    {
     "path": "Strand/Data/Repository.swift",
-    "upstream_commits": 39,
+    "upstream_commits": 38,
     "diff_lines": 1693,
     "fork_commits": 44
    },
@@ -13765,16 +13765,16 @@
     "fork_commits": 4
    },
    {
-    "path": "Strand/Screens/SleepView.swift",
-    "upstream_commits": 28,
-    "diff_lines": 1391,
-    "fork_commits": 15
-   },
-   {
     "path": "StrandiOS/Health/HealthKitBridge.swift",
     "upstream_commits": 26,
     "diff_lines": 2683,
     "fork_commits": 21
+   },
+   {
+    "path": "Strand/Screens/SleepView.swift",
+    "upstream_commits": 24,
+    "diff_lines": 1391,
+    "fork_commits": 15
    },
    {
     "path": "Strand/BLE/FrameRouter.swift",
@@ -13796,7 +13796,7 @@
    },
    {
     "path": "Tools/i18n_audit_baseline.json",
-    "upstream_commits": 17,
+    "upstream_commits": 16,
     "diff_lines": 1798,
     "fork_commits": 2
    },
@@ -13915,12 +13915,6 @@
     "fork_commits": 3
    },
    {
-    "path": "Strand/Screens/StagesCard.swift",
-    "upstream_commits": 11,
-    "diff_lines": 49,
-    "fork_commits": 1
-   },
-   {
     "path": "Packages/WhoopProtocol/Sources/WhoopProtocol/Streams.swift",
     "upstream_commits": 11,
     "diff_lines": 40,
@@ -13961,6 +13955,12 @@
     "upstream_commits": 10,
     "diff_lines": 73,
     "fork_commits": 8
+   },
+   {
+    "path": "Strand/Screens/StagesCard.swift",
+    "upstream_commits": 10,
+    "diff_lines": 49,
+    "fork_commits": 1
    },
    {
     "path": "Packages/WhoopProtocol/Sources/WhoopProtocol/HistoricalStreams.swift",
@@ -14047,12 +14047,6 @@
     "fork_commits": 0
    },
    {
-    "path": "Strand/Screens/SleepModel.swift",
-    "upstream_commits": 7,
-    "diff_lines": 70,
-    "fork_commits": 3
-   },
-   {
     "path": "Packages/StrandAnalytics/Tests/StrandAnalyticsTests/ConnectionReadoutTests.swift",
     "upstream_commits": 7,
     "diff_lines": 66,
@@ -14099,6 +14093,12 @@
     "upstream_commits": 6,
     "diff_lines": 128,
     "fork_commits": 15
+   },
+   {
+    "path": "Strand/Screens/SleepModel.swift",
+    "upstream_commits": 6,
+    "diff_lines": 70,
+    "fork_commits": 3
    },
    {
     "path": "Strand/Data/Units.swift",
@@ -14281,16 +14281,16 @@
     "fork_commits": 2
    },
    {
-    "path": "Packages/StrandDesign/Sources/StrandDesign/Appearance.swift",
-    "upstream_commits": 4,
-    "diff_lines": 67,
-    "fork_commits": 2
-   },
-   {
     "path": "Packages/WhoopStore/Tests/WhoopStoreTests/BackupSettingsTests.swift",
     "upstream_commits": 4,
     "diff_lines": 60,
     "fork_commits": 3
+   },
+   {
+    "path": "Strand/Screens/BackupSyncView.swift",
+    "upstream_commits": 4,
+    "diff_lines": 58,
+    "fork_commits": 2
    }
   ],
   "modify_delete": [
@@ -14379,7 +14379,7 @@
    "Tools/PARITY_HARNESS.md": 1,
    "Tools/parity_": 8,
    "Tools/tests/test_parity_": 6,
-   "android/": 909
+   "android/": 905
   },
   "deliberate_reasons": {
    "Tools/PARITY_HARNESS.md": "2026-07-23 Cross-platform parity contract is retired",
@@ -15001,150 +15001,6 @@
    "doc": "docs/fork/THIRD_PARTY_NOTICES.md",
    "line": 10,
    "ref": "NOTICE.md",
-   "kind": "file",
-   "verdict": "missing",
-   "owner": "fork"
-  },
-  {
-   "doc": "docs/fork/decisions.md",
-   "line": 39,
-   "ref": "docs/design/design-spec.md",
-   "kind": "file",
-   "verdict": "missing",
-   "owner": "fork"
-  },
-  {
-   "doc": "docs/fork/decisions.md",
-   "line": 44,
-   "ref": "LiquidUpdatesBellButton",
-   "kind": "type",
-   "verdict": "missing",
-   "owner": "fork"
-  },
-  {
-   "doc": "docs/fork/decisions.md",
-   "line": 44,
-   "ref": "LiquidBatteryButton",
-   "kind": "type",
-   "verdict": "android",
-   "owner": "fork"
-  },
-  {
-   "doc": "docs/fork/decisions.md",
-   "line": 49,
-   "ref": "TodayArrangeSheet",
-   "kind": "type",
-   "verdict": "missing",
-   "owner": "fork"
-  },
-  {
-   "doc": "docs/fork/decisions.md",
-   "line": 50,
-   "ref": "CoachEntryMode",
-   "kind": "type",
-   "verdict": "missing",
-   "owner": "fork"
-  },
-  {
-   "doc": "docs/fork/decisions.md",
-   "line": 53,
-   "ref": "KeyMetricsEditorSheet",
-   "kind": "type",
-   "verdict": "missing",
-   "owner": "fork"
-  },
-  {
-   "doc": "docs/fork/decisions.md",
-   "line": 53,
-   "ref": "DashboardCardsEditorSheet",
-   "kind": "type",
-   "verdict": "missing",
-   "owner": "fork"
-  },
-  {
-   "doc": "docs/fork/decisions.md",
-   "line": 59,
-   "ref": "publish-ios-beta.yml",
-   "kind": "file",
-   "verdict": "missing",
-   "owner": "fork"
-  },
-  {
-   "doc": "docs/fork/decisions.md",
-   "line": 71,
-   "ref": "v10.1.0-dx.md",
-   "kind": "file",
-   "verdict": "missing",
-   "owner": "fork"
-  },
-  {
-   "doc": "docs/fork/decisions.md",
-   "line": 76,
-   "ref": "convert_hf_to_gguf.py",
-   "kind": "file",
-   "verdict": "missing",
-   "owner": "fork"
-  },
-  {
-   "doc": "docs/fork/decisions.md",
-   "line": 106,
-   "ref": "SemanticSelection",
-   "kind": "type",
-   "verdict": "missing",
-   "owner": "fork"
-  },
-  {
-   "doc": "docs/fork/decisions.md",
-   "line": 132,
-   "ref": "CoachMessageStore",
-   "kind": "type",
-   "verdict": "missing",
-   "owner": "fork"
-  },
-  {
-   "doc": "docs/fork/decisions.md",
-   "line": 150,
-   "ref": "NOTICE.md",
-   "kind": "file",
-   "verdict": "missing",
-   "owner": "fork"
-  },
-  {
-   "doc": "docs/fork/decisions.md",
-   "line": 180,
-   "ref": "ActiveRouteStore",
-   "kind": "type",
-   "verdict": "missing",
-   "owner": "fork"
-  },
-  {
-   "doc": "docs/fork/decisions.md",
-   "line": 196,
-   "ref": "41.json",
-   "kind": "file",
-   "verdict": "android",
-   "owner": "fork"
-  },
-  {
-   "doc": "docs/fork/decisions.md",
-   "line": 197,
-   "ref": "OpenWhoop",
-   "kind": "type",
-   "verdict": "missing",
-   "owner": "fork"
-  },
-  {
-   "doc": "docs/fork/decisions.md",
-   "line": 206,
-   "ref": "ZIELE_WOCHE_MONAT_PLAN.md",
-   "kind": "file",
-   "verdict": "missing",
-   "owner": "fork"
-  },
-  {
-   "doc": "docs/fork/decisions.md",
-   "line": 206,
-   "ref": "ZIELE_DESIGN.md",
    "kind": "file",
    "verdict": "missing",
    "owner": "fork"
@@ -18236,21 +18092,28 @@
    "decision": "`swift-packages.yml` no longer runs on **push or PR**; `publish-ios-release.yml` calls it (`workflow_call`) and its `publish` job waits on it. Narrows the 2026-"
   },
   {
-   "line": 212,
+   "line": 211,
+   "date": "2026-10-10",
+   "kind": "row",
+   "signals": [],
+   "decision": "**The code-health doc-drift measurement excludes `docs/fork/decisions.md`** (`Tools/code_health.py` method version 2)"
+  },
+  {
+   "line": 213,
    "date": "2026-10-06",
    "kind": "section",
    "signals": [],
    "decision": "Bidirectional Apple Health reconciliation"
   },
   {
-   "line": 235,
+   "line": 236,
    "date": "2026-10-06",
    "kind": "section",
    "signals": [],
    "decision": "Stable live pace/speed display"
   },
   {
-   "line": 252,
+   "line": 253,
    "date": "2026-10-08",
    "kind": "section",
    "signals": [],
@@ -18265,7 +18128,7 @@
   "Größte Datei (Codezeilen)": 3993,
   "Typen ab 500 Codezeilen": 55,
   "Größter Typ (Codezeilen)": 6374,
-  "Eigene Commits im Fenster": 542,
+  "Eigene Commits im Fenster": 545,
   "Hotspot-Score Top 10 (Summe)": 966938,
   "ObservableObject-Klassen": 74,
   "@Published gesamt": 525,
@@ -18276,11 +18139,11 @@
   "try!": 0,
   "as!": 0,
   "fatalError": 5,
-  "Doku-Drift Fork": 38,
+  "Doku-Drift Fork": 22,
   "Doku-Drift upstream": 72,
-  "Doku-Drift bewusst entfernt (nur gezählt)": 173,
-  "Reibung: geänderte Dateien mit upstream-Aktivität": 306,
+  "Doku-Drift bewusst entfernt (nur gezählt)": 171,
+  "Reibung: geänderte Dateien mit upstream-Aktivität": 304,
   "Reibung: modify/delete (nicht bewusst)": 20,
-  "Reibung: modify/delete (bewusst entfernt)": 924
+  "Reibung: modify/delete (bewusst entfernt)": 920
  }
 }
