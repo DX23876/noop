@@ -20,7 +20,8 @@ The second report shows the whole scroll content clipped horizontally during syn
 ## Changes
 
 - Momentum observes the generation of the successfully committed snapshot. The feed waits for the current load key, and the card only displays a feed produced for the committed generation. This also prevents an old feed from appearing between the snapshot commit and the next task execution.
-- `AdaptiveHeaderLayout` keeps the title and individual controls within the offered width. When necessary, controls move below the title and wrap. The same view instances remain mounted while sync expands, preserving their animation/task state. The old asynchronous width-preference feedback loop is removed.
+- *(Superseded the same day: `8110cf10f` replaced this header with the one-line header and its sync line,
+  and `AdaptiveHeaderLayout` with its tests was removed.)* `AdaptiveHeaderLayout` keeps the title and individual controls within the offered width. When necessary, controls move below the title and wrap. The same view instances remain mounted while sync expands, preserving their animation/task state. The old asynchronous width-preference feedback loop is removed.
 - Merged with the Liquid Today redesign of 2 October: its accessibility-size rule (the date needs the full width at accessibility text sizes) is kept as `AdaptiveHeaderLayout(stacksControls:)`, which places the controls below the title instead of measuring the control cluster and padding around it.
 - Existing design tokens supply layout spacing. No UI strings or permissions are added.
 

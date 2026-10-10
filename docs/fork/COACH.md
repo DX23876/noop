@@ -322,8 +322,8 @@ enum Status { case proposed, accepted, declined, modifiedByUser, completed, skip
 
 `propose_plan` is the **only** model-reachable entry point, and it force-resets status to
 `.proposed` no matter what — there is no tool that accepts, schedules, or commits a plan on the
-model's behalf. Turning a proposal into a `ScheduledSession` (day **and time** — "10:00 CrossFit", not
-just "CrossFit sometime") is a UI action the person takes in `CoachPlanView`. **Accept opens the time
+model's behalf. Turning a proposal into a committed session (`PlanProposal` in `.accepted` with a day **and time** — "10:00
+CrossFit", not just "CrossFit sometime") is a UI action the person takes in `CoachPlanView`. **Accept opens the time
 sheet** rather than committing untimed: `accept(_:at:)` always took a time, but the button didn't pass
 one, so agreeing and saying *when* were two steps and the second was easy never to take — leaving
 commitments no reminder can fire for. "Accept without a time" remains the escape hatch.
@@ -1123,9 +1123,9 @@ first within the unread/read split, so a pending session never buries under hint
 `.mobility` reads "Mobility suggested"; everything else keeps "Today's session", which already read
 fine for easy/moderate/hard.
 
-**Liquid Today gained the bell** (`LiquidUpdatesBellButton`, inline in the header's existing utility-icon
-cluster, same `UpdateStore.shared` Classic Today reads) — both Today screens now share one inbox instead
-of Liquid having none.
+**Liquid Today gained the bell** (same `UpdateStore.shared` Classic Today reads) — both Today screens now
+share one inbox instead of Liquid having none. Since 2026-10-03 the entry is the NOOP Forge wordmark in the
+header (its F pulses while something is unread); the separate bell button is gone.
 
 **Deliberately out of scope, so far:** the six independent OS-level local-notification producers
 (`CoachCheckIn`, `WindDownNudge`, `StrainTargetNotifier`, `BatteryNotifier`, `IllnessNotifier`,

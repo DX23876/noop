@@ -1,5 +1,10 @@
 # NOOP Forge · Feature-Spezifikation, Heute-Screen
 
+> **Historisch.** Der Heute-Screen-Prototyp (`StrandiOS/Redesign/`) war seit 2026-07-25 nicht erreichbar und
+> wurde am 2026-10-10 gelöscht, mit ihm `VitalTileConfig` und `HeuteVitalsGridView`. Diese Spezifikation
+> beschreibt den Prototyp, nicht laufenden Code. Weiter gültig ist der Aktivitätsstatus (Abschnitt 1), den
+> heute Liquid und klassisches Today über `ActivityStatusStore` teilen.
+
 Beschreibt **Verhalten und Daten**, nicht Aussehen. Für Optik siehe `design/design-spec.md`.
 
 ---
