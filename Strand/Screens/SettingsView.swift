@@ -2535,10 +2535,6 @@ struct SettingsView: View {
     /// feedback: this belongs with Appearance, not buried in the collapsed Advanced → Experimental
     /// group). Kept as a private helper rather than inline in `appearanceCard` so the picker body stays
     /// readable next to its `@AppStorage` declarations above.
-    ///
-    /// The Heute-screen redesign toggle (StrandiOS/Redesign/) used to live here too — removed, since the
-    /// prototype never got past off-by-default/untested-on-a-real-strap. `RootTabView` no longer reads
-    /// its flag at all, so the fork's code is unreachable but left in place rather than deleted.
     private var appearanceExperimentalSection: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.rowSpacing) {
             Text("EXPERIMENTAL")

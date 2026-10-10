@@ -87,10 +87,9 @@ struct RootTabView: View {
 
     /// The Today tab root, honouring the chosen dashboard style.
     ///
-    /// The Heute-screen redesign (StrandiOS/Redesign/) used to take priority here when its own
-    /// `noop.heuteRedesignEnabled` flag was on — removed along with its Settings toggle, since the
-    /// prototype never got past off-by-default/untested-on-a-real-strap. Its code is left in place,
-    /// just unreached from here, so no persisted `true` from an earlier build can resurrect it.
+    /// The Heute-screen redesign prototype used to take priority here when its own
+    /// `noop.heuteRedesignEnabled` flag was on. The flag is no longer read and the prototype was deleted
+    /// on 2026-10-10, so no persisted `true` from an earlier build can resurrect it.
     @ViewBuilder private var todayTabRoot: some View {
         switch todayDashboardStyle {
         case .classic:  TodayView()

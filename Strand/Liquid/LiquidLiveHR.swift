@@ -4,8 +4,7 @@ import StrandDesign
 /// The live heart-rate readout leaf, shared by BOTH Today screens — `LiquidTodayView.heartRateSection`
 /// and the classic `TodayView.heartRateTrendSection`. It lived inside LiquidTodayView.swift while Liquid
 /// was its only caller; it is styled purely in `StrandPalette` / `StrandFont` tokens, so classic Today
-/// hosts it unchanged rather than growing a second implementation of the same card (the Heute redesign's
-/// `HeuteLiveHR` is a third copy only because it paints in its own `HeuteRedesignPalette`).
+/// hosts it unchanged rather than growing a second implementation of the same card.
 ///
 /// Owns LiveState so the ~1 Hz HR notifies re-render ONLY this card, never the whole Today (the isolation
 /// both Today screens depend on). Keeps its own rolling buffer of live samples, shows the current bpm live

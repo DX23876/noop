@@ -4779,7 +4779,7 @@ struct TodayView: View {
         let requestKey = dashboardLoadKey
         // Paket 4: re-resolve the silent `validUntil` fallback on every (re)load, not just once at view
         // creation — a screen left open across the expiry would otherwise keep showing the stale
-        // exception state. Mirrors HeuteRedesignView.load().
+        // exception state.
         let resolvedStatus = ActivityStatusStore.load()
         if resolvedStatus != status { status = resolvedStatus }
 

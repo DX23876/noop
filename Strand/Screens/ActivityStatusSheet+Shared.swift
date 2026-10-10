@@ -4,13 +4,10 @@ import StrandDesign
 // MARK: - Shared ActivityStatus sheet (StrandPalette-styled)
 //
 // The activity-status concept (Active / Sick / Injured / On break, with a validity window and a silent
-// reset) was born on the Heute redesign; its data model (`ActivityStatus` / `ActivityStatusStore`,
-// Strand/Data/) is screen-neutral, but Heute's own sheet UI (StrandiOS/Redesign/HeuteHeaderView.swift)
-// is styled in the fixed `HeuteRedesignPalette` and cannot be reused on the other two Today screens,
-// which live in the theme-aware `StrandPalette`. This is the SAME sheet in StrandPalette tokens, so
-// Liquid Today and classic Today can offer the exact same set/duration flow without duplicating it or
-// borrowing Heute's fork palette. Behaviour (state rows → duration pills → Apply, writing through
-// `ActivityStatusStore`) is identical to Heute's; only the chrome differs.
+// reset) was born on the Heute redesign prototype, deleted on 2026-10-10; its data model
+// (`ActivityStatus` / `ActivityStatusStore`, Strand/Data/) is screen-neutral. This is the one sheet for it,
+// in theme-aware `StrandPalette` tokens, so Liquid Today and classic Today offer the exact same
+// set/duration flow (state rows → duration pills → Apply, writing through `ActivityStatusStore`).
 //
 // Cross-platform: `Strand/Screens` compiles into both the macOS Strand and the iOS NOOPiOS targets, so
 // this stays free of `UIKit`/`AppKit` and uses only shared SwiftUI + design tokens.

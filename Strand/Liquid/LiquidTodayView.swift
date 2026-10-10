@@ -356,7 +356,7 @@ struct LiquidTodayView: View {
     @State private var selectedDayOffset = 0
     @State private var showDayPicker = false
     /// Manual activity status (sick/injured/onBreak/active), owned here and threaded to the Synthesis
-    /// card's header chip — same pattern as `HeuteRedesignView.status`.
+    /// card's header chip.
     @State private var status = ActivityStatusStore.load()
     /// The rotating one-word "this is tappable / swipeable" hint under the headline; nil shows the date.
     /// Same two words and cadence the classic Today uses, so the affordance is learned once.
@@ -2928,8 +2928,8 @@ struct LiquidTodayView: View {
         // Readiness anchors on the day whose row carries today's vitals (#543): normally today, but while
         // carrying, the last SCORED day — otherwise `evaluate` reads `.insufficient` right after the
         // rollover and the readiness word would vanish/blank instead of carrying forward. Same anchor as
-        // `TodayView.computeReadiness` / `HeuteRedesignView.load` — was previously anchored on `day?.day`
-        // here only, which is what let this screen disagree with the other two (on-device feedback).
+        // `TodayView.computeReadiness` — was previously anchored on `day?.day` here only, which is what
+        // let this screen disagree with classic Today (on-device feedback).
         next.cachedReadiness = ReadinessEngine.evaluate(days: allDays,
                                                    today: priorScored?.day ?? Repository.logicalDayKey(Date()),
                                                    loadContext: repo.readinessLoadContext)
