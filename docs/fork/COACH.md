@@ -19,7 +19,7 @@ Strand/AI/
 │                                presets or fully custom
 ├── CoachPersona.swift         Guardian / Friend / Commander — coaching STYLE only; the name lives
 │                                in CoachIdentity now
-├── CoachTools.swift           The 30 tools: schemas + dispatch
+├── CoachTools.swift           The 38 tools: schemas + dispatch
 ├── CoachDataCatalog.swift     Metadata-only local metric discovery + safe source labels
 ├── CoachLocalContextPlanner.swift  On-device, question-specific context-category selection for tool-less providers
 ├── CoachMetricHistory.swift   Bounded local long-range trend aggregation + source selection
@@ -130,7 +130,7 @@ Three deliberate choices in there:
 
 ---
 
-## 2. The 30 tools
+## 2. The 38 tools
 
 Declared in `CoachTools.swift` as `CoachTool`, offered to the model as JSON Schema, dispatched in
 `runCoachTool(_:input:)`. **All of them are gated behind `dataConsent`** — without it the dispatcher
@@ -165,6 +165,9 @@ breakpoint, and a per-request clock would invalidate the prefix cache every turn
 | `get_data_catalog` | optional `query` | Metadata-only inventory of locally available metric keys, sources and coverage, plus only the separately granted high-level stores (workouts, plan, logs, memory). When given a topic, the app uses a transparent local alias/keyword match before returning metric metadata, so unrelated entries stay on-device. It contains no readings, log text, device IDs or import identifiers. Omit the query only to route a genuinely broad deep-history question. |
 | `get_biometric_summary` | — | 14-day table + 30-day averages: charge, effort, rest, HRV, RHR, SpO₂, respiration, skin-temp deviation, steps, energy |
 | `get_recent_workouts` | `limit` 1–30 | Sport, duration, effort, avg HR, energy, distance |
+| `get_strength_history` | optional `days` 1–3,650, `exercise`, `limit` 1–12 | Detailed strength history from Hevy (API and CSV) and Liftosaur: dated sessions, exercises, sets, reps, weight, RPE, volume, top weight and estimated 1RM trends. Purpose: workouts. |
+| `get_body_metrics` | — | Dated body measurements (weight, body fat, waist) with source and age of each reading, plus the three independent daily-energy estimates with their provenance. The three are never averaged: the model is told to report the spread. Purpose: core biometrics. |
+| `get_training_load` | — | Training Load exactly as the screen shows it: strength (weighted working sets), cardio (heart-rate load) and session load (RPE × minutes) in their own units, each against the user's usual, with band, verdict where performance evidence supports one, coverage, recovery and the last eight week-end bands. The lanes are never added together. Purpose: workouts. |
 | `get_stress_index` | — | Today's Baevsky Stress Index over today's R-R |
 | `get_energy_balance` | — | Today's expenditure with source, coverage, model uncertainty and any applied Apple Watch calibration factor. It reports measured and modelled portions honestly, never sums overlapping sources, and — when enough imported intake/weight history exists — adds a clearly separate retrospective expenditure range. Never infers food intake or diet advice from either figure. |
 | `get_sleep_detail` | `nights` 1–14 | Bed/wake, efficiency, deep/REM/light minutes, disturbances + the rolling 14-night sleep-debt ledger |
@@ -185,10 +188,16 @@ breakpoint, and a per-request clock would invalidate the prefix cache every turn
 
 ### Propose (never commits anything by itself)
 
+The four Hevy tools ride the planning purpose and are only useful once Hevy is connected in Settings.
+
 | Tool | Params | Effect |
 |---|---|---|
 | `propose_plan` | `day`, `sport`, `intent`, `rationale`, optional `zone`, `duration_min`, `target_effort`, `goal_ids` (legacy `goal_id`) | Creates a `PlanProposal` in status `.proposed`. Every ID must be an exact active-goal UUID supplied in context; invalid IDs are rejected, one unambiguous active goal is linked automatically, and otherwise the session stays General. The accept sheet still asks the user to confirm the multi-selection. **Not a schedule** — the user must accept, decline, reschedule or swap it in the app. The model is told to never describe a proposal as settled. With `zone` + `duration_min` the app **computes** `target_effort` and overrides an unreachable one (see below). |
 | `propose_goal_setup` | optional `goal`, up to five `routines`, `rationale` | Stores a review-only create/update bundle. Exact IDs are required for edits; one routine may link to several goals. `use_current_baseline` resolves a consented local measurement and labels its source. Goal/action stores remain untouched until the user edits the bundle, selects individual routines and confirms it in Coach or Goal & Journey. Nutrition, medication, dosage and treatment routines are rejected. |
+| `find_hevy_exercises` | optional `query`, `muscle_group`, `equipment`, `limit` 1–40 | Searches the synced Hevy exercise catalogue and returns `exercise_template_id`s. The model must copy ids from here and never invent one. |
+| `get_hevy_routines` | — | Lists saved Hevy routines with their ids and exercises, required before proposing a change to an existing routine. |
+| `propose_hevy_routine` | `operation` create/update, optional `routine_id`, exercises with sets and rep ranges, `rationale` | Drafts a routine for review in the app. Nothing reaches Hevy until the user opens the draft and sends it. Hevy replaces a whole routine on update, so an update must list every exercise it keeps. |
+| `propose_hevy_workout` | workout and exercise ids from `get_strength_history` | Drafts a completed Hevy workout or a full correction for review. Writes nothing until the user accepts the preview and never creates a future workout as completed. |
 
 ### Write
 
@@ -214,6 +223,7 @@ Real mutations to real app data — the same stores the UI writes.
 | Tool | Params | Effect |
 |---|---|---|
 | `plot_metric` | `metric` (charge/effort/hrv/rhr/sleep), `days` 7–180 | Renders a `StrandDesign.TrendChart` inline in the transcript; the snapshot persists with the conversation |
+| `show_card` | `kind` metric/workout, a metric key or `workout_start` | Shows one metric or one workout as a compact card under the reply. The app fills in every value from the user's own data; the model passes no numbers and does not restate them. |
 
 ---
 
@@ -767,7 +777,7 @@ tools on Custom just to get streaming.
 
 **Gemini's schema is a subset.** `CoachTool.geminiSchema` strips every JSON-Schema keyword Gemini's
 own `Schema` type doesn't model (`minimum`/`maximum` appear in several of ours). This is not tidiness:
-an unsupported keyword rejects the **entire request**, so one stray bound costs all 30 tools at once
+an unsupported keyword rejects the **entire request**, so one stray bound costs all 38 tools at once
 rather than degrading one. A test reduces every real schema and asserts nothing unsupported survives.
 
 **Reasoning tokens are tracked, never rendered.** OpenRouter's `delta.reasoning` (and the

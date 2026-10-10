@@ -63,14 +63,18 @@ Both are user-initiated. See [docs/PRIVACY_SECURITY.md](PRIVACY_SECURITY.md).
 
 ## Are `.noopbak` backups compatible with RyanBR's NOOP?
 
-For the current releases, yes in both practical directions: NOOP AI 10.1.1 migrates older upstream
-Apple backups forward, and its v40 database remains readable by RyanBR's current v37 Apple migrator.
-That backwards-reader behavior has a regression test in `WhoopStore`.
+**From RyanBR's NOOP to NOOP Forge: yes.** Forge migrates an upstream Apple database forward, and
+`UpstreamStoreUpgradeTests` open stores from upstream 11.5 and 11.7 with their history intact.
+
+**From NOOP Forge back to RyanBR's NOOP: not guaranteed.** Forge's database carries many more
+migrations than upstream's (v77 against upstream's v47 at 12.1.0), and some upstream migrations were
+renumbered when they were merged. GRDB ignores unknown later migrations, and
+`testV40DatabaseRemainsReadableByRyanbrV37Migrator` pins that for an older reader, but no test opens a
+current Forge backup in a current upstream build.
 
 The retired Android parity contract means byte-for-byte Swift/Room agreement is no longer a release
-gate, not that the backup was deliberately made incompatible. Future compatibility cannot be
-guaranteed across arbitrary version gaps, so keep an untouched backup before switching between
-forks and restore with the same or a newer build when possible.
+gate, not that the backup was deliberately made incompatible. Keep an untouched backup before
+switching between forks, and restore with the same or a newer build of the same app when possible.
 
 ## Which numbers are measured, and which are NOOP's own estimates?
 

@@ -4,12 +4,12 @@
 > `noopapp/noop` tap referenced by older releases is gone — the upstream `noopapp` GitHub org (and its
 > `homebrew-noop` repo) no longer exists (#1069), so `brew tap noopapp/noop` fails outright.
 >
-> **Install NOOP on macOS by downloading `NOOP-macos-v10.1.1-dx.zip` from the
-> [10.1.1 release](https://github.com/DX23876/noop/releases/tag/v10.1.1-dx)** — it is universal for
+> **Install NOOP on macOS by downloading `NOOP-macos-v12.0.1-dx.zip` from the
+> [12.0.1 release](https://github.com/DX23876/noop/releases/tag/v12.0.1-dx)**. It is universal for
 > Apple Silicon and Intel; unzip it and drag the app to Applications.
-> See **First launch on macOS** in the [README](../README.md#download) for the one-time Gatekeeper step
-> (NOOP ships anonymously and isn't notarized, so macOS blocks it on first open until you clear the
-> download quarantine flag).
+> See **Mac** under [Install](../README.md#install) in the README for the one-time first-launch step
+> (NOOP ships anonymously and isn't notarized, so macOS blocks a plain double-click the first time;
+> right-click → Open clears it).
 
 The rest of this doc is a maintainer reference for **re-publishing** a tap under this fork, should that
 happen later. Until a tap exists and this notice is removed, ignore any `brew …` commands below.

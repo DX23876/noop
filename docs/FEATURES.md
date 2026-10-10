@@ -297,7 +297,7 @@ source corrections and deletions, while raw Health data and manual entries remai
 
 **Tab bar: Today (first tab) · works from imported data; live status/battery in the header.**
 
-iOS uses a bottom tab bar (`RootTabView.swift`: Today, Trends, Sleep, More) instead of macOS's
+iOS uses a bottom tab bar (`RootTabView.swift`: Today, Trends, Training, Sleep, More) instead of macOS's
 sidebar. The Today tab hosts one of three interchangeable home-screen presentations, picked under
 **Settings → Appearance → Experimental**:
 

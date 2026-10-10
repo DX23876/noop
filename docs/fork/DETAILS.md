@@ -2,15 +2,15 @@
 
 👈 Looking for the friendly tour? **[Back to the README](../../README.md)**
 
-This is the technical deep-dive: the fork rationale, the full 25-tool table, token-cost mechanics,
-the architecture, build/signing minutiae, and where this fork stands relative to upstream today. If
-you just want to know what the app does and how to get it running, the README has everything you
-need — this page is for when you want to know *why*, or you're about to touch the code yourself.
+This is the technical deep-dive: the fork rationale, an overview of the coach's tools, token-cost
+mechanics, the architecture, build/signing minutiae, and where this fork stands relative to upstream
+today. If you just want to know what the app does and how to get it running, the README has everything
+you need. This page is for when you want to know *why*, or you're about to touch the code yourself.
 
 ## Contents
 
 - [Why a fork, not a contribution upstream?](#why-a-fork-not-a-contribution-upstream)
-- [The coach's 26 tools, in full](#the-coachs-26-tools-in-full)
+- [The coach's 38 tools](#the-coachs-38-tools)
 - [Token cost and prompt caching](#token-cost-and-prompt-caching)
 - [Under the hood: the architecture](#under-the-hood-the-architecture)
 - [Quickstart: the signing fine print](#quickstart-the-signing-fine-print)
@@ -56,50 +56,42 @@ be worth having. It needs to iterate quickly, for one person. So rather than pus
   one coach file ever needed a manual merge. The additive-files design is *why* that was painless; see
   [Relationship to upstream today](#relationship-to-upstream-today) for where things stand now.
 
-## The coach's 26 tools, in full
+## The coach's 38 tools
 
 The README covers the idea (the coach fetches its own data instead of being handed a fixed
-summary); here's every tool it can reach for, mid-sentence, while answering you. `get_readiness`
-and `get_charge_drivers` in particular read from the **exact same engines** the Today screen does,
-so the coach's verdict can never contradict what you already see there.
+summary). `get_readiness`, `get_charge_drivers` and `get_training_load` read from the **exact same
+engines** the Today and Training Load screens do, so the coach's verdict can never contradict what you
+already see there.
 
-| | Tool | What it pulls |
-|---|---|---|
-| 📊 | `get_biometric_summary` | 14 days of charge/effort/rest/HRV/RHR + 30-day averages |
-| 🏃 | `get_recent_workouts` | Your recent sessions, with effort and heart rate |
-| 😰 | `get_stress_index` | Today's autonomic load (Baevsky index over your R-R intervals) |
-| 😴 | `get_sleep_detail` | Per-night stages, efficiency, and your rolling sleep-debt ledger |
-| 📅 | `get_range_report` | Any 7–365 day window: averages, trends, headline changes |
-| 🗂️ | `get_data_catalog` | Metadata-only local discovery of available metric history, with focused matching kept on-device |
-| 📆 | `get_metric_history` | One selected source's compact, aggregate long-term trend — never raw readings |
-| 🔁 | `get_training_preferences` | Conservative repeated accepted/declined plan patterns; it never changes a plan |
-| 🎯 | `get_readiness` | The same push/maintain/rest verdict Today shows — ACWR, training monotony, contributing signals |
-| 🔬 | `get_charge_drivers` | *Why* today's Charge is what it is, term by term — never an invented reason |
-| 📝 | `propose_plan` | Suggests a session. Never schedules one — that's your call, in the app |
-| ⚖️ | `get_session_outlook` · `simulate_day` | What a session (or a swap, or a hypothetical) actually costs, from your own history |
-| ✅ | `get_plan_adherence` | What you agreed to vs. what happened — and why, when you told it |
-| 🔍 | `get_personal_patterns` | Your own n-of-1 correlations ("late meals cost you 8 % recovery") |
-| 📈 | `plot_metric` | Draws a real chart, inline in the chat |
-| 🧠 | `remember_fact` · `update_fact` · `forget_fact` | Its own long-term memory |
-| 🕰️ | `search_past_conversations` | Finds what you discussed weeks ago — by keyword, by day, or both ("what did I ask you yesterday?") |
-| 📓 | `get_my_logs` | Reads back what you logged: caffeine, journal, lab markers, hydration, mood |
-| 🔒 | `get_sensitive_logs` | Reads only explicitly requested sensitive journal fields, after its separate extra permission |
-| 💓 | `get_zone_minutes` | Minutes per heart-rate zone, so a prescribed intensity can be checked rather than assumed |
-| ☕ | `log_caffeine` · `log_journal` · `log_lab_marker` | **Writes** to your real app data |
+| Group | Tools |
+|---|---|
+| 📊 Today and recovery | `get_biometric_summary`, `get_readiness`, `get_charge_drivers`, `get_stress_index`, `get_body_metrics` |
+| 😴 Sleep | `get_sleep_detail` |
+| 🏃 Training | `get_recent_workouts`, `get_strength_history`, `get_training_load`, `get_zone_minutes`, `get_plan_adherence`, `get_training_preferences` |
+| ⚖️ What-if | `get_session_outlook`, `simulate_day`, `estimate_session_effort` |
+| 🔥 Energy | `get_energy_balance` |
+| 📅 Long range | `get_range_report`, `get_metric_history`, `get_data_catalog` |
+| 🔍 Patterns | `get_personal_patterns` |
+| 📓 Logs | `get_my_logs`, `get_sensitive_logs` |
+| 🧠 Memory | `remember_fact`, `update_fact`, `forget_fact`, `search_past_conversations` |
+| 📝 Propose | `propose_plan`, `propose_goal_setup` |
+| 🏋️ Hevy | `find_hevy_exercises`, `get_hevy_routines`, `propose_hevy_routine`, `propose_hevy_workout` |
+| ☕ Log for you | `log_caffeine`, `log_journal`, `log_lab_marker`, `log_weight` |
+| 📈 Show | `plot_metric`, `show_card` |
 
-That last row is the fun one: **"just had a double espresso"** becomes a genuine entry in the
-Caffeine card. **"drank last night"** becomes a journal entry. **"my Vitamin D came back at 38"**
-becomes a Lab Book marker. Same data the app always had — just logged by talking instead of tapping
-through a form.
+The log tools are the fun ones: **"just had a double espresso"** becomes a genuine entry in the
+Caffeine card, **"drank last night"** a journal entry, **"my Vitamin D came back at 38"** a Lab Book
+marker. Every propose tool only creates a draft; nothing is saved, scheduled or sent to Hevy until the
+user accepts it in the app.
 
-**Access to all 26 is gated per purpose, not by one switch.** Every tool belongs to exactly one of
-nine `CoachPurpose` groups — `coreBiometrics`, `longHistory`, `workouts`, `planning`, `stress`, `logs`,
-`sensitiveLogs`, `memory`, `patterns` — via an exhaustive `switch`, so a new tool literally can't ship
-without being assigned a group. Essentials, Personal and Deep insights are simple presets over these
-groups; Expert mode exposes the individual controls. Sensitive logs remain a separate extra choice.
+**Access to all 38 is gated per purpose, not by one switch.** Every tool belongs to exactly one of
+nine `CoachPurpose` groups (`coreBiometrics`, `longHistory`, `workouts`, `planning`, `stress`, `logs`,
+`sensitiveLogs`, `memory`, `patterns`) via an exhaustive `switch`, so a new tool cannot ship without
+being assigned a group. Essentials, Personal and Deep insights are simple presets over these groups;
+Expert mode exposes the individual controls. Sensitive logs remain a separate extra choice.
 
-📖 The full schema for every one of these — parameters, gating, the two safety gates, the plan
-book's state machine, the memory ranking algorithm — lives in **[`COACH.md`](COACH.md)**.
+📖 The full schema for every one of these (parameters, gating, the two safety gates, the plan book's
+state machine, the memory ranking algorithm) lives in **[`COACH.md`](COACH.md)**.
 
 ## Token cost and prompt caching
 
@@ -123,12 +115,15 @@ design, not this fork's:
 
 | Layer | Where | What lives there |
 |---|---|---|
-| **Protocol** | `Packages/WhoopProtocol` | Raw BLE frames → structs. CRC-checked, pure Swift, no CoreBluetooth. Builds and tests on Linux. |
+| **Protocol** | `Packages/WhoopProtocol`, `OuraProtocol`, `PolarProtocol` | Raw BLE frames → structs. CRC-checked, pure Swift, no CoreBluetooth. Builds and tests on Linux. |
 | **Storage** | `Packages/WhoopStore` | SQLite via GRDB. Migrations, caches. |
-| **Analytics** | `Packages/StrandAnalytics` | The actual science: HRV, recovery, strain, sleep. Database-free, pure functions. |
-| **Design system** | `Packages/StrandDesign` | Palette, components, charts. UI uses tokens only — no hardcoded colours. |
-| **App** | `Strand/`, `StrandiOS/` | CoreBluetooth, the Repository, the screens, `RootTabView`. |
-| **The coach** 🆕 | `Strand/AI/` | Everything this fork adds. All new files. |
+| **Analytics** | `Packages/StrandAnalytics` | The actual science: HRV, recovery, strain, sleep, training load, goal pace. Database-free, pure functions. |
+| **Import** | `Packages/StrandImport` | WHOOP CSV, Apple Health, Strong, Hevy, FitNotes. |
+| **Training** 🆕 | `Packages/StrandTraining`, `Packages/MuscleMap` | Routines, the offline exercise catalogue, set maths, muscle taxonomy and body maps. |
+| **Memory** 🆕 | `Packages/SemanticMemory` | On-device embeddings and retrieval for the coach. |
+| **Design system** | `Packages/StrandDesign` | Palette, components, charts. UI uses tokens only, no hardcoded colours. |
+| **App** | `Strand/`, `StrandiOS/`, `StrandiOSWidgets/`, `NOOPWatch*` | CoreBluetooth, the Repository, the screens, `RootTabView`, widgets and the watch. |
+| **The coach** 🆕 | `Strand/AI/` | Chat, providers, tools, goals and consent. |
 
 The rule that keeps this fork sane: **the more wire-level or math-level a change is, the deeper
 into `Packages/` it belongs — and the more it must be covered by tests that run with no app, no
@@ -138,70 +133,61 @@ the same consent-gated summaries the UI uses.
 One piece worth naming inside `Strand/AI/`: **`CoachNotifier`** is what decides category, priority
 and relevance-window for anything that reaches the user outside the chat itself — a proposed session
 versus a proactive hint versus a status reminder, each rendered and actioned differently in the
-bell. It's the mechanism behind what the README sells as "the coach decides what reaches you, and
-how"; see `docs/COACH.md` §11a for the full mapping.
+bell. It is why a proposal arrives with Accept, Change and Decline while a hint only needs reading;
+see [`COACH.md`](COACH.md) §11a for the full mapping.
 
 Deeper: [`ARCHITECTURE.md`](../ARCHITECTURE.md) · [`ANALYTICS.md`](../ANALYTICS.md) ·
 [`PROTOCOL.md`](../PROTOCOL.md)
 
 ## Quickstart: the signing fine print
 
-The README's Quickstart gets you to `⌘R`. Here's what's actually going on with a free Apple ID,
-and the two trade-offs it carries — both already handled in `project.yml`:
+Source builds and the Full IPA contain everything: the iPhone app, widgets, Live Activities, the
+Apple Watch app and its complications. The AltStore/SideStore IPA is built from the same bundle with
+the `PlugIns/` and `Watch/` folders stripped from a staged copy, because sideloaders install an
+embedded watch bundle unreliably and a failure there costs the whole install.
 
-- **The Watch app and widget are excluded from the iOS build.** A free account gets no App Groups
-  and only 10 app IDs per 7 days, and every embedded extension burns one. The main app and every
-  coach feature are unaffected. Got a paid account? Both are one line each to re-enable, documented
-  inline in `project.yml`.
-- **Free-signed apps expire after 7 days.** Reconnect and ⌘R to renew. (Note that `xcodegen
-  generate` clears the Team field — reselect it, or pin `DEVELOPMENT_TEAM` in `project.yml`.)
+Two things to know when you build and sign it yourself:
+
+- **Your own bundle ID.** Put `BUNDLE_ID_PREFIX` in the gitignored
+  `Config/BundleIdSecrets.xcconfig` so the app signs under your own Apple ID without touching
+  `project.yml`.
+- **Free-signed apps expire after 7 days.** Reconnect and ⌘R to renew. `xcodegen generate` clears
+  the Team field, so reselect it after each generate.
+
+The [iOS guide](../IOS.md) covers the AltStore/SideStore path, free-account limits and known
+AltStore errors.
 
 ## Relationship to upstream today
 
-**As of 2026-07-23, this fork is Apple-only and no longer necessarily tracks upstream — it diverges
-freely.** Android is dropped as a target, and the cross-platform parity contract that used to
-require every feature to land on macOS, iOS *and* Android in lockstep is formally retired. What's
-still binding, and unrelated to that retirement: the app stays fully offline, on-device, no server,
-no account, no cloud sync, no telemetry, anonymous — see `CLAUDE.md`. Currently **815 commits ahead,
-0 behind** upstream/main (re-check with `git rev-list --left-right --count upstream/main...HEAD`;
-this number moves and isn't maintained here).
+**Since 2026-07-23 this fork is Apple-only and diverges freely.** The cross-platform parity contract
+is retired and the Android tree was removed on 2026-08-14. What still binds, and is unrelated to that
+retirement: the app stays offline, on-device, with no server, no account, no cloud sync, no telemetry,
+and the project stays anonymous (see `CLAUDE.md`).
 
-That doesn't make upstream irrelevant — a protocol fix or analytics correction landing there might
-still be worth pulling in on purpose. The mechanism that used to be standing practice still works
-fine for that, on demand:
+Upstream is still merged on purpose. Release 12.0.1 carries three syncs, through upstream 12.0.0 and
+the 12.1.0 test beta. On 2026-10-10 the fork was **692 commits ahead and 0 behind** upstream's `main`
+(re-check with `git rev-list --left-right --count upstream/main...HEAD`; the number moves and is not
+maintained here). How a sync is done, and the gotchas that recur, are in [FORK_GUIDE](../FORK_GUIDE.md);
+every judgement call is recorded in [decisions](decisions.md).
 
-```bash
-git remote add upstream https://github.com/ryanbr/noop.git   # once
-git fetch upstream --tags
-git merge upstream/main    # keep this fork's README/branding + project.yml signing
-```
-
-Because every fork-specific change lives in its own file rather than editing upstream code in
-place, a merge stays clean when you do reach for one — historically (before the pivot) `Strand/AI/`
-never needed a manual conflict resolution across two upstream merges. If you do pull a later
-upstream release, watch for one thing: `Tools/i18n_audit.py` gates German, Spanish and French
-coverage as a *standing invariant*, so a merge that adds upstream UI text needs upstream's own
-translations to already cover it — which they historically have; it's new **fork** strings that
-need adding by hand.
+Because fork-specific work mostly lives in its own files (the coach in `Strand/AI/`, training in its
+own packages), merges stay manageable. Two things still need care on every sync: upstream migrations
+that land in a slot the fork already used must be renumbered, and `Tools/i18n_audit.py` gates
+translation coverage, so new upstream UI text needs its translations before the merge can pass.
 
 ## Full docs index
 
-**This fork**
-- [`COACH.md`](COACH.md) — the coach in full: tools, goal gates, the plan book, memory, providers,
-  architecture.
-- [`IOS.md`](../IOS.md) — iOS build + HealthKit details.
-- [`DETAILS.md`](DETAILS.md) — this page.
+The complete, maintained index is the [documentation map](../README.md). The fork's own guides:
 
-**Inherited from upstream** (still accurate, except `FEATURES.md`, which now also documents this
-fork's own additions — Heute, App icon colors — alongside the inherited content)
-- [`FEATURES.md`](../FEATURES.md) — the full feature guide for NOOP itself.
-- [`ARCHITECTURE.md`](../ARCHITECTURE.md) — how the whole thing fits together.
-- [`ANALYTICS.md`](../ANALYTICS.md) — the recovery/strain/sleep maths, with citations.
-- [`PROTOCOL.md`](../PROTOCOL.md) — the WHOOP BLE protocol.
-- [`PRIVACY_SECURITY.md`](../PRIVACY_SECURITY.md) — the data posture in detail.
-- [`BUILD.md`](../BUILD.md) — full build + signing.
-- [`CONTRIBUTING.md`](../CONTRIBUTING.md) — the BLE safety contract and design-system rules.
-- [`../CHANGELOG.md`](../../CHANGELOG.md) — upstream release history.
+- [`COACH.md`](COACH.md): the coach in full, with tools, goal gates, the plan book, memory, providers
+  and architecture.
+- [`MUSCLE_ANALYTICS.md`](MUSCLE_ANALYTICS.md): Balance, Fatigue and Strength on the muscle map.
+- [`LIVE_STRENGTH_WORKOUTS.md`](LIVE_STRENGTH_WORKOUTS.md): the workout lifecycle, trackers and resume.
+- [`opengym-integration.md`](opengym-integration.md): native training, routines and the logger.
+- [`decisions.md`](decisions.md): every fork decision, in order.
+- [`releases/`](releases/): the fork's release notes.
+- [`IOS.md`](../IOS.md): installing, signing and building for iPhone.
+- [`DETAILS.md`](DETAILS.md): this page.
 
 ## Attribution, in full
 

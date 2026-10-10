@@ -69,10 +69,12 @@ the Android target is dropped and no longer kept in sync. Byte-identical analyti
 FNV-1a hashing, the `.noopbak` byte-identical whitelist and Room/GRDB schema agreement are **no longer
 gates** on a change.
 
-This does not make current Apple backups incompatible. NOOP AI 10.1.1 still migrates older upstream
-backups forward, and `MigrationTests.testV40DatabaseRemainsReadableByRyanbrV37Migrator` pins the
-current backwards-reader contract. What was retired is the promise that every future fork change
-must remain byte-identical to the removed Android/Room implementation.
+This does not make Apple backups deliberately incompatible. NOOP Forge still migrates upstream
+databases forward (`UpstreamStoreUpgradeTests` open upstream 11.5 and 11.7 stores), and
+`MigrationTests.testV40DatabaseRemainsReadableByRyanbrV37Migrator` pins the older backwards-reader case.
+Going back from a current Forge backup (v77) to current upstream (v47) is not tested, because some
+upstream migrations were renumbered when merged. What was retired is the promise that every future
+fork change must remain byte-identical to the removed Android/Room implementation.
 
 The tree itself was removed on 2026-08-14: `android/` (899 files), `.github/workflows/android.yml`,
 and the Android jobs in both release workflows. Nobody here develops it, and a tree nobody builds

@@ -1,17 +1,17 @@
 # iOS / iPadOS — install, sign, and build
 
-NOOP AI 10.1.1 ships as an intentionally unsigned iOS release. You sign it with your own Apple ID
+NOOP Forge 12.0.1 ships as an intentionally unsigned iOS release. You sign it with your own Apple ID
 through AltStore/SideStore or build it with Xcode. There is no App Store or TestFlight distribution
 and no project-owned signing identity.
 
 ## Choose an IPA
 
-The [10.1.1 release](https://github.com/DX23876/noop/releases/tag/v10.1.1-dx) publishes two variants:
+The [12.0.1 release](https://github.com/DX23876/noop/releases/tag/v12.0.1-dx) publishes two variants:
 
 | Artifact | Includes | Intended use |
 |---|---|---|
-| `NOOP-ios-unsigned-v10.1.1-dx.ipa` | iPhone/iPad app, Home/Lock Screen widgets, Live Activity | AltStore/SideStore, including free Apple IDs |
-| `NOOP-ios-full-unsigned-v10.1.1-dx.ipa` | Everything above plus Watch app and complication | A signer/developer team that can provision every nested target |
+| `NOOP-ios-unsigned-v12.0.1-dx.ipa` | iPhone/iPad app, Home/Lock Screen widgets, Live Activity | AltStore/SideStore, including free Apple IDs |
+| `NOOP-ios-full-unsigned-v12.0.1-dx.ipa` | Everything above plus Watch app and complication | A signer/developer team that can provision every nested target |
 
 Both IPAs are unsigned. The AltStore variant removes only the embedded Watch bundle; it keeps the
 widget extension and the capability template used to provision the shared App Group and HealthKit.
@@ -76,8 +76,8 @@ so it is written down here rather than left as a dead end.
 
 1. Install [AltStore](https://altstore.io) or [SideStore](https://sidestore.io) using its official
    setup guide and your own Apple ID.
-2. Download `NOOP-ios-unsigned-v10.1.1-dx.ipa` from the
-   [release page](https://github.com/DX23876/noop/releases/tag/v10.1.1-dx).
+2. Download `NOOP-ios-unsigned-v12.0.1-dx.ipa` from the
+   [release page](https://github.com/DX23876/noop/releases/tag/v12.0.1-dx).
 3. Open the IPA with the sideloader or import it from the sideloader's **My Apps** screen.
 4. If iOS asks, trust your Apple ID under **Settings → General → VPN & Device Management**.
 

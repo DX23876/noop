@@ -52,7 +52,7 @@ access CLI:
 | Optional local access CLI (§1.4) | Local MCP over standard input/output | Bounded, read-only summaries from SQLite → the local client you launch |
 
 The only **network** paths are the opt-in AI Coach, the compile-time-optional Oura history import,
-and the user-initiated public release check; the
+the user-initiated public release check and the opt-in Hevy strength sync; the
 biometric pipeline produces no network traffic of any kind. The Apple Health export above is
 an **on-device** hand-off, not a network upload — see §1.3.
 

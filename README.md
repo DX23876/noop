@@ -635,7 +635,7 @@ has published up to that date.
 | **Body tracking** | Weight in the profile | Weight trend, body fat, tape measurements per body part, progress photos |
 | **Energy** | Calorie estimates | A dedicated page comparing three independent estimates |
 | **ECG (WHOOP MG)** | Experimental capture, no reading screen | Full 30-second readings with analysis and Apple Watch comparison |
-| **AI coach** | Answers questions from a short summary of your data. Anthropic, OpenAI, Gemini or your own server | Looks up 30 kinds of data itself, suggests workouts and goals, remembers what you told it, permission per topic. Adds OpenRouter |
+| **AI coach** | Answers questions from a short summary of your data. Anthropic, OpenAI, Gemini or your own server | Looks up 38 kinds of data itself, suggests workouts and goals, remembers what you told it, permission per topic. Adds OpenRouter |
 | **Hevy** | Import | Two-way sync: reads your workouts and sends routines you approved |
 | **Imports** | WHOOP, Apple Health, Health Connect, Strong, Hevy, nutrition CSV | WHOOP, Apple Health, Strong, Hevy, FitNotes, nutrition CSV, lab reports from a photo or PDF |
 | **Widgets** | Main, heart rate, stress, coach | The same plus score rings, energy and goals |
@@ -650,7 +650,7 @@ has published up to that date.
 |---|---|---|
 | Code base | Swift and Kotlin, kept byte-identical by rule | Swift only. The Android parity rule was retired on 23 July 2026 and the Android tree removed on 14 August 2026 |
 | Swift packages | 8 | 11: adds `StrandTraining`, `MuscleMap` and `SemanticMemory` |
-| Coach | 2 source files plus 4 provider adapters | About 60 source files, 30 tools, nine permission purposes, an on-device embedding model for memory |
+| Coach | 2 source files plus 4 provider adapters | About 60 source files, 38 tools, nine permission purposes, an on-device embedding model for memory |
 | Coach memory | Stored chat messages | Up to 120 facts with confirmation for health facts, expiry and ranking; on-device semantic search |
 | Calorie model | Heart-rate formula | Version 9: walks priced by pace, other sessions by a VO₂max that fits the body, opt-in Apple Watch calibration |
 | Benchmarks | Sleep staging, PSG | Adds energy and memory retrieval benches |
@@ -676,7 +676,7 @@ The app only goes online in these cases, and only if you allow it:
 | **AI coach** | Only if you turn it on, only to the AI provider you picked, never raw heart data |
 | **Update check** | When you tap it, or at most once a day if you allow it |
 | **Hevy sync** | Only if you connect your Hevy account |
-| **Oura import** | Experimental, only if you pair a ring |
+| **Oura cloud import** | Only in a build you compile yourself with your own Oura developer key. Pairing a ring over Bluetooth needs no internet |
 
 - No ads, no tracking, no analytics, no crash reports sent anywhere.
 - NOOP contains no WHOOP software. It talks to the strap you own, the same way a heart-rate app talks to
@@ -762,7 +762,7 @@ down:
 |---|---|
 | How Charge, Effort, Rest, sleep and HRV are calculated, with sources | [Analytics](docs/ANALYTICS.md) · [FAQ](docs/FAQ.md) |
 | Every feature in detail | [Feature guide](docs/FEATURES.md) |
-| The AI coach: all 30 tools, permissions, memory, safety rules | [Coach guide](docs/fork/COACH.md) |
+| The AI coach: all 38 tools, permissions, memory, safety rules | [Coach guide](docs/fork/COACH.md) |
 | Balance, fatigue and strength on the muscle map | [Muscle analytics](docs/fork/MUSCLE_ANALYTICS.md) |
 | Fitness Age and the study behind it | [Fitness Age](docs/FITNESS_AGE.md) |
 | How the app talks to the strap | [Protocol](docs/PROTOCOL.md) · [Device roadmap](docs/DEVICE_SUPPORT_ROADMAP.md) |
