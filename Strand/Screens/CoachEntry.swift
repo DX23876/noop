@@ -443,3 +443,61 @@ struct CoachFloatingButton: View {
     }
 }
 #endif
+
+// MARK: - Dashboard presentations without observing the engine
+
+/// The coach chat and the plan book, presented from a dashboard that does not itself observe
+/// `AICoachEngine`. The engine publishes on every streamed token (`appendDelta` rewrites the active
+/// conversation), so a dashboard holding it as an `@EnvironmentObject` re-ran its whole body once per
+/// token while the chat sat on top of it: 203 body passes of `LiquidTodayView` for 200 tokens, measured
+/// on the simulator on 2026-10-10. This modifier is the only node that observes the engine, so a token
+/// invalidates it and not the dashboard behind it.
+struct CoachDashboardPresentations: ViewModifier {
+    @EnvironmentObject private var coach: AICoachEngine
+    @Binding var showCoach: Bool
+    @Binding var showPlan: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .coachCover(isPresented: $showCoach, coach: coach)
+            .sheet(isPresented: $showPlan) { CoachPlanView().environmentObject(coach) }
+    }
+}
+
+/// A sheet whose content needs the coach engine, injected here for the same reason as
+/// `CoachDashboardPresentations`: the presenting dashboard never observes the engine itself.
+struct CoachInjectedSheet<Sheet: View>: ViewModifier {
+    @EnvironmentObject private var coach: AICoachEngine
+    @Binding var isPresented: Bool
+    @ViewBuilder let sheet: () -> Sheet
+
+    func body(content: Content) -> some View {
+        content.sheet(isPresented: $isPresented) { sheet().environmentObject(coach) }
+    }
+}
+
+/// The unread dot on a coach entry. A leaf of its own so the dashboard around it does not observe the
+/// engine just to draw nine points of red.
+struct CoachUnseenDot: View {
+    @EnvironmentObject private var coach: AICoachEngine
+
+    var body: some View {
+        if coach.hasUnseenCoachMessage {
+            Circle()
+                .fill(StrandPalette.statusCritical)
+                .frame(width: 9, height: 9)
+                .accessibilityHidden(true)
+        }
+    }
+}
+
+extension View {
+    func coachDashboardPresentations(showCoach: Binding<Bool>, showPlan: Binding<Bool>) -> some View {
+        modifier(CoachDashboardPresentations(showCoach: showCoach, showPlan: showPlan))
+    }
+
+    func coachInjectedSheet<Sheet: View>(isPresented: Binding<Bool>,
+                                         @ViewBuilder content: @escaping () -> Sheet) -> some View {
+        modifier(CoachInjectedSheet(isPresented: isPresented, sheet: content))
+    }
+}

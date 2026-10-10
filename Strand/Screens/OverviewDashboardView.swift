@@ -14,7 +14,6 @@ struct OverviewDashboardView: View {
     @EnvironmentObject private var repo: Repository
     @EnvironmentObject private var profile: ProfileStore
     @EnvironmentObject private var updateStore: UpdateStore
-    @EnvironmentObject private var coach: AICoachEngine
     @EnvironmentObject private var router: NavRouter
     @Environment(\.dashboardAppModel) private var model
     // Deliberately NO `@EnvironmentObject live: LiveState` here — see the leaf-isolation note in
@@ -226,7 +225,7 @@ struct OverviewDashboardView: View {
             guard !Task.isCancelled, day == selectedDayKey else { return }
             hydrationTotalML = value
         }
-        .coachCover(isPresented: $showCoach, coach: coach)
+        .coachDashboardPresentations(showCoach: $showCoach, showPlan: $showPlan)
         // Honour a one-shot "open Live Session" request (the coach chat's action chip, or a deep link).
         // Fires on the flag itself, not on appear, so it still works when Today is already the active
         // tab — the same contract `LiquidTodayView.consumeLiveSessionRequest()` implements.
@@ -244,7 +243,6 @@ struct OverviewDashboardView: View {
             showArrangeHint = true
         }
         .dashboardArrangeHint(dashboard: "overview", isPresented: $showArrangeHint)
-        .sheet(isPresented: $showPlan) { CoachPlanView().environmentObject(coach) }
         .sheet(isPresented: $showUpdatesInbox) { UpdatesInboxView(onClose: { showUpdatesInbox = false }) }
         .onAppear { consumeCustomizationRequest() }
         .onChangeCompat(of: router.presentTodayCustomization) { _ in consumeCustomizationRequest() }

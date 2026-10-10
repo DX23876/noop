@@ -288,10 +288,6 @@ struct LiquidTodayView: View {
     /// The pointer to the Forge "F" as the inbox's entry, until the wearer ticks "Don't show again".
     @State private var showUpdatesMarkHint = false
     @AppStorage(UpdatesMarkHint.dismissedKey) private var updatesMarkHintDismissed = false
-    /// Coach: the AI coach engine (injected at the app root) and the full-screen chat presentation. The
-    /// prominent Today entries open the redesigned Coach chat directly, so it isn't buried under More.
-    /// The banner is configured independently of the shell's floating Coach button.
-    @EnvironmentObject private var coach: AICoachEngine
     /// The coach's identity (name/avatar/tone) — observed so the banner's name/photo updates live, same
     /// as classic Today's `CoachTodayRow`.
     @ObservedObject private var identityStore = CoachIdentityStore.shared
@@ -1006,14 +1002,15 @@ struct LiquidTodayView: View {
         // screen on iOS (nothing should compete with the ring mid-workout), a sheet on macOS where
         // fullScreenCover doesn't exist.
         .liveSessionCover(isPresented: $showLiveSession)
-        .coachCover(isPresented: $showCoach, coach: coach)
-        // The plan book, opened from PlanTodayCard when a committed session has a time coming up.
-        .sheet(isPresented: $showPlan) { CoachPlanView().environmentObject(coach) }
+        // The coach chat (the prominent Today entries open it directly, so it isn't buried under More)
+        // and the plan book, opened from PlanTodayCard when a committed session has a time coming up.
+        // Presented through a modifier so this view never observes `AICoachEngine` itself.
+        .coachDashboardPresentations(showCoach: $showCoach, showPlan: $showPlan)
         // Wrapped in a NavigationStack, exactly like the chat's goal shortcut (CoachView). Without one
         // the screen has no navigation host, and `CoachGoalJourneyView`'s guided setup — deliberately a
         // PUSH rather than a sheet, so the wizard can't reset itself mid-flow — had nowhere to go: the
         // "Set up with a few questions" button did nothing at all when opened from Today.
-        .sheet(isPresented: $showGoalJourney) {
+        .coachInjectedSheet(isPresented: $showGoalJourney) {
             NavigationStack {
                 CoachGoalJourneyScreen()
                     .toolbar {
@@ -1022,7 +1019,6 @@ struct LiquidTodayView: View {
                         }
                     }
             }
-            .environmentObject(coach)
         }
         // The bell — same store, same inbox, as the classic Today's (TodayView.swift).
         .sheet(isPresented: $showUpdatesInbox) {
@@ -1979,12 +1975,7 @@ struct LiquidTodayView: View {
                             .foregroundStyle(StrandPalette.textSecondary)
                     }
                     Spacer(minLength: 0)
-                    if coach.hasUnseenCoachMessage {
-                        Circle()
-                            .fill(StrandPalette.statusCritical)
-                            .frame(width: 9, height: 9)
-                            .accessibilityHidden(true)
-                    }
+                    CoachUnseenDot()
                     Image(systemName: "chevron.right")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(StrandPalette.textTertiary)

@@ -244,9 +244,6 @@ struct TodayView: View {
     @EnvironmentObject var router: NavRouter
     /// The "update ringer", the bell in the top bar opens this inbox; dismissed Today cards post into it.
     @EnvironmentObject var updateStore: UpdateStore
-    /// Coach: the AI engine (injected at the app root) + the full-screen chat presentation, so the classic
-    /// Today matches the liquid one's prominent Coach entry instead of burying it under More.
-    @EnvironmentObject var coach: AICoachEngine
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var showCoach = false
     @State private var showPlan = false
@@ -1747,14 +1744,13 @@ struct TodayView: View {
         .sheet(isPresented: $showUpdatesInbox) {
             UpdatesInboxView(onClose: { showUpdatesInbox = false })
         }
-        // The Coach chat, opened by the prominent Coach card above. Uses the shared View.coachCover
-        // helper (defined alongside LiquidTodayView's covers).
-        .coachCover(isPresented: $showCoach, coach: coach)
-        // The plan book, opened from PlanTodayCard when a committed session has a time coming up.
-        .sheet(isPresented: $showPlan) { CoachPlanView().environmentObject(coach) }
+        // The Coach chat, opened by the prominent Coach card above, and the plan book, opened from
+        // PlanTodayCard when a committed session has a time coming up. Presented through a modifier so
+        // this view never observes `AICoachEngine` itself (CoachEntry.swift).
+        .coachDashboardPresentations(showCoach: $showCoach, showPlan: $showPlan)
         // NavigationStack for the same reason as LiquidTodayView's copy: the guided setup inside is a
         // push, and a sheet with no navigation host silently swallowed it.
-        .sheet(isPresented: $showGoalJourney) {
+        .coachInjectedSheet(isPresented: $showGoalJourney) {
             NavigationStack {
                 CoachGoalJourneyScreen()
                     .toolbar {
@@ -1763,7 +1759,6 @@ struct TodayView: View {
                         }
                     }
             }
-            .environmentObject(coach)
         }
         // H6, the steps-calibration sheet, opened from an estimated Steps tile (the same sheet Settings
         // hosts). Presented from Today so a WHOOP 4.0 user can calibrate from where the "est." caption shows.
