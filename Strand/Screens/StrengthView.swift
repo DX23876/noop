@@ -1221,10 +1221,12 @@ struct StrengthView: View {
                          subtitle: String(localized: "your data in full")) {
                 showingAllSessions = true
             }
-            actionButton(icon: "list.bullet",
-                         title: String(localized: "Adjust routine"),
-                         subtitle: String(localized: "coach suggests, you send")) {
-                askCoachForRoutine()
+            CoachHandOffReader { handOff in
+                actionButton(icon: "list.bullet",
+                             title: String(localized: "Adjust routine"),
+                             subtitle: String(localized: "coach suggests, you send")) {
+                    askCoachForRoutine(handOff)
+                }
             }
         }
     }
@@ -1757,23 +1759,14 @@ struct StrengthView: View {
             requiredPurposes: [.workouts])
     }
 
-    private func askCoachForRoutine() {
+    private func askCoachForRoutine(_ handOff: (CoachCardContext) -> Void) {
         guard let context = coachContext else { return }
-        openCoach(with: CoachCardContext(
+        handOff(CoachCardContext(
             title: String(localized: "Strength"),
             summary: context.summary,
             suggestions: [String(localized: "Draft me a routine that fixes my weak spots")],
             requiredPurposes: context.requiredPurposes))
     }
-
-    /// The same hand-off `CoachCardButton` performs, reused rather than reimplemented so a card opened
-    /// from a button and one opened from this row reach the coach identically.
-    private func openCoach(with context: CoachCardContext) {
-        coach.openedFromCard(context)
-        NotificationCenter.default.post(name: .noopOpenCoachCard, object: nil)
-    }
-
-    @EnvironmentObject private var coach: AICoachEngine
 
     /// iPhone portrait. macOS and iPad report `.regular`, so the wide layout stays the default there.
     #if canImport(UIKit)

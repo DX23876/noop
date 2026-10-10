@@ -41,7 +41,6 @@ struct StressView: View {
     /// The empty state's "Open Data Sources" button routes through the shell (`NavRouter`), because
     /// neither shell exposes a selection this screen could set directly.
     @EnvironmentObject var router: NavRouter
-    @EnvironmentObject private var coach: AICoachEngine
 
     /// The stored 0–3 stress series ("my-whoop"), oldest→newest. Empty → derive.
     @State private var storedSeries: [(day: String, value: Double)] = []

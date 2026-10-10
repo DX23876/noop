@@ -25,7 +25,6 @@ import StrandAnalytics
 
 struct CardioView: View {
     @EnvironmentObject var repo: Repository
-    @EnvironmentObject private var coach: AICoachEngine
     /// The wearer's own zone definitions — the same resolver every other zone display reads.
     @EnvironmentObject private var profile: ProfileStore
 

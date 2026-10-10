@@ -491,6 +491,21 @@ struct CoachUnseenDot: View {
     }
 }
 
+/// Hands a card context to the coach for a screen that should not observe `AICoachEngine` (see
+/// `CoachDashboardPresentations` for why). The same hand-off `CoachCardButton` performs: record the
+/// context, then ask the shell to open the chat. Only this reader is invalidated by a streamed token.
+struct CoachHandOffReader<Content: View>: View {
+    @EnvironmentObject private var coach: AICoachEngine
+    @ViewBuilder let content: (_ handOff: @escaping (CoachCardContext) -> Void) -> Content
+
+    var body: some View {
+        content { context in
+            coach.openedFromCard(context)
+            NotificationCenter.default.post(name: .noopOpenCoachCard, object: nil)
+        }
+    }
+}
+
 extension View {
     func coachDashboardPresentations(showCoach: Binding<Bool>, showPlan: Binding<Bool>) -> some View {
         modifier(CoachDashboardPresentations(showCoach: showCoach, showPlan: showPlan))
