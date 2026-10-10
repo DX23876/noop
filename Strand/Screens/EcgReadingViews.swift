@@ -706,27 +706,39 @@ struct EcgMeasurementsSection: View {
     let samples: [Int16?]
     /// The strip comes from the WHOOP MG: its high-pass is undone before anything is measured.
     var fromStrap = true
-    @State private var analysis: EcgAnalysis.Result?
-    @State private var done = false
+    /// The last result and the reading it belongs to; nil analysis = too few clear beats.
+    @State private var result: (key: String, analysis: EcgAnalysis.Result?)?
+
+    private var key: String { "\(readingId)#\(samples.count)" }
 
     var body: some View {
+        // The sections stay direct children of the caller's stack, as before, so its spacing applies
+        // between them. The analysis runs from a zero-height loader that exists only while this reading
+        // has no result: a `.task` on the whole Group never ran, because before the first result the
+        // Group had no child to carry it, so the measurements never appeared.
         Group {
-            if let analysis {
-                measurements(analysis)
-            } else if done {
-                Text("Too few clear beats to measure this reading.")
-                    .font(StrandFont.subhead)
-                    .foregroundStyle(StrandPalette.textSecondary)
+            if let result, result.key == key {
+                if let analysis = result.analysis {
+                    measurements(analysis)
+                } else {
+                    Text("Too few clear beats to measure this reading.")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                }
+            } else if !samples.isEmpty {
+                Color.clear
+                    .frame(height: 0)
+                    .task(id: key) {
+                        let key = key
+                        let input = samples
+                        let cutoff = fromStrap ? EcgAnalysis.strapHighPassHz : nil
+                        let analysis = await Task.detached(priority: .userInitiated) {
+                            EcgAnalysis.analyze(input, compensatingHighPassHz: cutoff)
+                        }.value
+                        guard !Task.isCancelled else { return }
+                        result = (key, analysis)
+                    }
             }
-        }
-        .task(id: "\(readingId)#\(samples.count)") {
-            guard !samples.isEmpty else { return }
-            let input = samples
-            let cutoff = fromStrap ? EcgAnalysis.strapHighPassHz : nil
-            analysis = await Task.detached(priority: .userInitiated) {
-                EcgAnalysis.analyze(input, compensatingHighPassHz: cutoff)
-            }.value
-            done = true
         }
     }
 
