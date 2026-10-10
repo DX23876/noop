@@ -136,6 +136,12 @@ which changes what validates a change:
 step in the same job, so a red *build* step silently **skips** the tests rather than failing them. A
 red `main` is not a background condition to work around.
 
+**`Tools/local-tests.sh` is that local run, and `.githooks/pre-push` enforces it** (since 2026-10-10). It
+diffs against `origin/main` (or a base given as its argument) and runs `swift test` in every changed package
+plus, for any app or package change, the macOS `StrandTests` and the iOS build. On a clean tree that passes,
+it records the tree hash in the git dir. A push to `main` that changes app code, a package or `project.yml`
+is refused without a record for exactly that tree; `NOOP_SKIP_LOCAL_TESTS=1` skips the check on purpose.
+
 **Always pass `-R DX23876/noop` to `gh`, or check what it resolved to.** This clone has two remotes
 and no `gh repo set-default`, so a bare `gh run list` silently answers about **`ryanbr/noop`** —
 where `app-build.yml` is disabled and the last run is old. Reading the upstream answer as the fork's

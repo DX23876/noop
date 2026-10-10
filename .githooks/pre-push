@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# pre-push — refuse to push onto a main whose CI is red, unless the push says it knows.
+# pre-push — refuse to push onto a main whose CI is red, unless the push says it knows; and refuse to push
+# app or package code that `Tools/local-tests.sh` has not passed on.
 #
 # This fork pushes straight to main (no pull requests), so nothing forces anyone to look at CI after a
 # push. `Swift Packages CI` stayed red on main from 2026-09-22 for days while ten more commits landed on
@@ -17,6 +18,12 @@
 # check is skipped with a note rather than blocking every push; source-hygiene and the CI itself remain
 # the backstop.
 #
+# Second check, run first: a push to main that changes app code (Strand*/, NOOPWatch*/, project.yml) or a
+# package needs a stamp from `Tools/local-tests.sh` for exactly the tree being pushed, because no CI runs
+# StrandTests or the package tests on a push (decisions 2026-09-30 and 2026-10-10). Deliberately skipped:
+#
+#   NOOP_SKIP_LOCAL_TESTS=1 git push origin HEAD:main
+#
 # Enable once per clone (hooks are not cloned by git):
 #   git config core.hooksPath .githooks
 set -uo pipefail
@@ -28,15 +35,41 @@ note() { echo "pre-push: $*" >&2; }
 
 # stdin: <local ref> <local sha> <remote ref> <remote sha> per pushed ref.
 TARGET_SHA=""
-while read -r _local_ref _local_sha remote_ref remote_sha; do
+LOCAL_SHA=""
+while read -r _local_ref local_sha remote_ref remote_sha; do
   if [ "$remote_ref" = "refs/heads/main" ]; then
     TARGET_SHA="$remote_sha"
+    LOCAL_SHA="$local_sha"
   fi
 done
 
 # Not a push to main, or main does not exist yet on the remote.
 [ -n "$TARGET_SHA" ] || exit 0
 case "$TARGET_SHA" in 0000000000000000000000000000000000000000) exit 0 ;; esac
+
+# --- local test stamp ---------------------------------------------------------------------------------
+needs_local_tests() {
+  git diff --name-only "$TARGET_SHA" "$LOCAL_SHA" 2>/dev/null | grep -qE \
+    '^(Strand|StrandTests|StrandiOS|StrandiOSShared|StrandiOSWidgets|StrandiOSTests|NOOPWatch[^/]*|Packages/[^/]+)/|^project\.yml$'
+}
+case "$LOCAL_SHA" in ""|0000000000000000000000000000000000000000) ;; *)
+  if [ "${NOOP_SKIP_LOCAL_TESTS:-}" = "1" ]; then
+    note "NOOP_SKIP_LOCAL_TESTS=1 — not checking for a local test run."
+  elif needs_local_tests; then
+    TREE="$(git rev-parse "$LOCAL_SHA^{tree}")"
+    STAMPS="$(git rev-parse --git-common-dir)/noop-local-tests"
+    if ! { [ -f "$STAMPS" ] && grep -q "^$TREE " "$STAMPS"; }; then
+      echo "" >&2
+      echo "  ✖ push rejected: app or package code changed, and Tools/local-tests.sh has not passed on this tree." >&2
+      echo "" >&2
+      echo "    Run it:  Tools/local-tests.sh $TARGET_SHA" >&2
+      echo "    Skip deliberately:  NOOP_SKIP_LOCAL_TESTS=1 git push $REMOTE_NAME HEAD:main" >&2
+      echo "" >&2
+      exit 1
+    fi
+  fi
+  ;;
+esac
 
 if [ "${NOOP_ALLOW_RED_MAIN:-}" = "1" ]; then
   note "NOOP_ALLOW_RED_MAIN=1 — skipping the CI check on $REMOTE_NAME/main."

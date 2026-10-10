@@ -30,6 +30,12 @@ not bump the recipe. Never tie historical analysis to `MARKETING_VERSION`, `CURR
 Xcode installation or an ordinary launch. The confirmation-gated manual 21-day reanalysis in Settings is
 for diagnostics and does not advance the recipe version.
 
+## Before pushing app or package code
+
+Run `Tools/local-tests.sh` on the committed tree. No CI runs StrandTests or the package tests on a push,
+and `.githooks/pre-push` refuses a push to `main` that changes app code, a package or `project.yml` without
+a passing run for exactly that tree.
+
 ## Readout and CI invariants
 
 - Resolve repeated readouts of one fact through one gated resolver and one supplied clock. Prefer one
