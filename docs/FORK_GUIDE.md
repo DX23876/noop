@@ -1,10 +1,11 @@
 # FORK_GUIDE.md — working in the DX23876 fork
 
-Everything in [`../CLAUDE.md`](../CLAUDE.md) still applies. That file is kept **byte-identical to
-upstream** apart from one pointer to this document, so a pull request back to `ryanbr/noop` never
-carries fork context as noise. This file holds what is true *here and not upstream*: where the fork
-deliberately diverges, how its commits are written, what its CI actually runs, and how its docs are
-maintained.
+Everything in [`../AGENTS.md`](../AGENTS.md) (ryanbr's guide, which `CLAUDE.md` imports) still applies,
+as amended by [`fork/AGENT_RULES.md`](fork/AGENT_RULES.md). `CLAUDE.md` and `AGENTS.md` are kept
+**byte-identical to upstream** apart from one line each that points at those rules, so a pull request
+back to `ryanbr/noop` never carries fork context as noise. This file holds what is true *here and not
+upstream*: where the fork deliberately diverges, how its commits are written, what its CI actually runs,
+and how its docs are maintained.
 
 Fork-only documentation lives under [`fork/`](fork/) for the same reason — upstream's `docs/` tree
 stays recognisable, and a sync PR never has to explain a file upstream has never seen.
@@ -12,7 +13,7 @@ stays recognisable, and a sync PR never has to explain a file upstream has never
 ## Commit and attribution conventions
 
 **Commits carry exactly one identity: `DX23876 <176692557+DX23876@users.noreply.github.com>`.**
-NOOP is an anonymous project (see "What NOOP is" in `CLAUDE.md`); the real name belongs in neither
+NOOP is an anonymous project (see "What NOOP is" in `AGENTS.md`); the real name belongs in neither
 the author field nor a trailer.
 
 **No commit message may name an AI assistant.** No `Co-authored-by:` naming Claude, Copilot, ChatGPT
@@ -64,7 +65,7 @@ prereleases, and the in-app update check reads exactly that endpoint).
 
 ### The cross-platform parity contract is RETIRED (2026-07-23), and the Android tree is GONE (2026-08-14)
 
-Upstream's `CLAUDE.md` calls it the #1 rule. **It does not bind here.** The project is iOS/macOS-only;
+Upstream's `AGENTS.md` calls it the #1 rule. **It does not bind here.** The project is iOS/macOS-only;
 the Android target is dropped and no longer kept in sync. Byte-identical analytics, platform-neutral
 FNV-1a hashing, the `.noopbak` byte-identical whitelist and Room/GRDB schema agreement are **no longer
 gates** on a change.
@@ -188,7 +189,7 @@ When two sources disagree, higher wins:
 1. **Source code** — the current implementation; ground truth for what the system actually does.
 2. **[`fork/decisions.md`](fork/decisions.md)** — architectural intent and rationale (the "why").
 3. **Topic documentation** — `ARCHITECTURE.md`, `FEATURES.md`, and the rest of the map below.
-4. **This file** and `CLAUDE.md` — the working guides.
+4. **This file**, `fork/AGENT_RULES.md` and `AGENTS.md` — the working guides.
 5. **Session handoff** — `.claude/handoff/<branch>.md`.
 6. **Chat context** — anything that exists only in the current conversation.
 
