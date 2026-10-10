@@ -278,9 +278,6 @@ struct TrendsView: View {
                         // only when NO week in history has data. Past weeks render in the same format.
                         weeklyDigestNav
                             .staggeredAppear(index: 0)
-                        // The Charge / Effort / Rest trio, presented in NOOP's pip language.
-                        weekInReview(charge: recovery, effort: strain, rest: rest)
-                            .staggeredAppear(index: 1)
                         rangeBar(recovery: recovery)
                             .staggeredAppear(index: 2)
                         heroRecovery(recovery: recovery)
@@ -458,84 +455,6 @@ struct TrendsView: View {
         let n = -weekOffset
         if n == 1 { return String(localized: "Last week") }
         return String(localized: "\(n) weeks ago")
-    }
-
-    // MARK: Week in Review — the Charge / Effort / Rest trio in pip language
-
-    /// The three daily scores as NOOP pip rows over the resolved window: Charge (recovery, 0–100),
-    /// Effort (strain, shown on the WHOOP 0–21 scale per the unit toggle) and Rest (sleep_performance
-    /// composite, 0–100 — the same metric the Today Rest score shows, #732). Each value ticks up via
-    /// `CountUpText`; the segmented `PipBar` cascades on appear. Self-
-    /// hides when none of the three carry a window mean, so an empty history shows nothing here.
-    @ViewBuilder
-    private func weekInReview(charge: ResolvedMetric, effort: ResolvedMetric, rest: ResolvedMetric) -> some View {
-        let chargeAvg = mean(charge.points)
-        let effortAvg = mean(effort.points)   // stored 0–100 internal Effort scale
-        let restAvg = mean(rest.points)
-        if chargeAvg != nil || effortAvg != nil || restAvg != nil {
-            NoopCard {
-                VStack(alignment: .leading, spacing: NoopMetrics.cardInnerSpacing) {
-                    SectionHeader("Week in review", overline: "Charge · Effort · Rest")
-                    if let v = chargeAvg {
-                        pipScoreRow(label: "Charge", value: v, range: 0...100,
-                                    tint: StrandPalette.chargeColor, frac: v / 100,
-                                    format: { "\(Int($0.rounded()))" })
-                    }
-                    if let v = effortAvg {
-                        // Effort is stored 0–100 but reads on the WHOOP 0–21 scale per the unit toggle:
-                        // convert the displayed number + bar position to the user's chosen Effort scale so
-                        // the pip fill and the count-up value agree (both on the same scale).
-                        let display = UnitFormatter.effortValue(v, scale: effortScale)
-                        let maxV = UnitFormatter.effortValue(100, scale: effortScale)
-                        // On the 0–21 WHOOP scale Effort reads to one decimal (e.g. "9.0"); on the 0–100
-                        // scale it's a whole number — match `effortScaleMax` so the count-up format agrees.
-                        let oneDecimal = effortScale == .whoop
-                        // The vessel fills off the stored 0–100 internal scale (v), so it agrees with the
-                        // Charge/Rest vessels regardless of the displayed Effort unit.
-                        pipScoreRow(label: "Effort", value: display, range: 0...maxV,
-                                    tint: StrandPalette.effortColor, frac: v / 100,
-                                    format: { oneDecimal ? String(format: "%.1f", $0) : "\(Int($0.rounded()))" })
-                    }
-                    if let v = restAvg {
-                        pipScoreRow(label: "Rest", value: v, range: 0...100,
-                                    tint: StrandPalette.restColor, frac: v / 100,
-                                    format: { "\(Int($0.rounded()))" })
-                    }
-                }
-            }
-            .accessibilityElement(children: .contain)
-        }
-    }
-
-    /// One pip row matching `PipBarRow`'s layout, but with the value driven by `CountUpText` so the big
-    /// number ticks up. UPPERCASE label + a small liquid vessel (the score as a fill) beside the big white
-    /// count-up value, over the segmented count-up bar. `frac` (0…1) is the score on the shared 0–100
-    /// internal scale so the three vessels read against the same fill — a small liquid accent on a single
-    /// headline metric, exactly where it reads well (not on a chart).
-    private func pipScoreRow(label: LocalizedStringKey, value: Double, range: ClosedRange<Double>,
-                             tint: Color, frac: Double, format: @escaping (Double) -> String) -> some View {
-        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-            Text(label)
-                .font(StrandFont.overline)
-                .tracking(StrandFont.overlineTracking)
-                .textCase(.uppercase)
-                .foregroundStyle(StrandPalette.textSecondary)
-            HStack(spacing: NoopMetrics.space3) {
-                // Static (posed) vessel — a small liquid gauge, not a live 60fps canvas, so the three
-                // in this card cost a single cached frame each (same call as Today's small vessels).
-                LiquidVessel(value: max(0, min(1, frac)), tint: tint, animated: false)
-                    .frame(width: 30, height: 30)
-                    .accessibilityHidden(true)
-                CountUpText(value: value, format: format,
-                            font: StrandFont.number(30, weight: .bold),
-                            color: StrandPalette.textPrimary)
-            }
-            PipBar(value: value, range: range, tint: tint)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(label))
-        .accessibilityValue(Text(format(value)))
     }
 
     // MARK: Export trends report (#436)
