@@ -181,11 +181,12 @@ class DocDriftTests(unittest.TestCase):
                                               self.UP | {"docs/BUILD.md"}, set())[0]["owner"], "upstream")
 
     def test_scope(self):
-        self.assertTrue(ch.is_doc_in_scope("docs/fork/decisions.md"))
         self.assertFalse(ch.is_doc_in_scope("docs/CHANGELOG.md"))
         self.assertFalse(ch.is_doc_in_scope("docs/fork/releases/v12.0.1.md"))
         self.assertFalse(ch.is_doc_in_scope("docs/fork/code-health/2026-10-10.md"))
         self.assertFalse(ch.is_doc_in_scope("README.md"))
+        self.assertFalse(ch.is_doc_in_scope("docs/fork/decisions.md"))
+        self.assertTrue(ch.is_doc_in_scope("docs/fork/COACH.md"))
 
 
 class DecisionTests(unittest.TestCase):

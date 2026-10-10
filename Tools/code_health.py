@@ -19,7 +19,8 @@ so the same commit always yields the same numbers:
    and files the fork deleted that upstream still changes (modify/delete conflicts).
 6. Test gaps: files and types of at least 500 code lines whose type names no test file mentions.
 7. Risk markers per file: `try!`, `as!`, `fatalError(`.
-8. Doc drift: files and type names in backticks under docs/ that no longer exist in the code.
+8. Doc drift: files and type names in backticks under docs/ that no longer exist in the code
+   (CHANGELOG, release notes, these reports and decisions.md excluded: they are historical).
 
 The window ends at the commit date of `--ref` (not at "now"), so re-running an old commit reproduces
 its numbers.
@@ -53,7 +54,7 @@ import sys
 from collections import Counter, defaultdict
 from pathlib import Path, PurePosixPath
 
-METHOD_VERSION = 1
+METHOD_VERSION = 2
 WINDOW_DAYS = 60
 BIG_LINES = 500
 TOP_N = 25
@@ -556,8 +557,13 @@ def doc_spans(text: str) -> list[tuple[int, str]]:
     return spans
 
 
+# Historical by design, like a CHANGELOG: its rows name what was removed, so every such mention would
+# read as drift. Excluded from method version 2 on.
+HISTORICAL_DOCS = {"docs/fork/decisions.md"}
+
+
 def is_doc_in_scope(path: str) -> bool:
-    if not path.startswith("docs/") or not path.endswith(".md"):
+    if not path.startswith("docs/") or not path.endswith(".md") or path in HISTORICAL_DOCS:
         return False
     parts = PurePosixPath(path).parts
     name = parts[-1].upper()
@@ -808,7 +814,7 @@ def render_markdown(result: dict, previous: dict | None) -> str:
     listed = [d for d in drift if d["verdict"] not in COUNTED_ONLY]
     android = Counter(d["owner"] for d in drift if d["verdict"] == "android")
     deliberate = Counter(d["owner"] for d in drift if d["verdict"] == "deliberate")
-    out += ["### 8. Doku-Drift (Backticks in `docs/`, ohne CHANGELOG, releases und code-health)", "",
+    out += ["### 8. Doku-Drift (Backticks in `docs/`, ohne CHANGELOG, releases, code-health und decisions.md)", "",
             "`missing` = existiert weder im Fork noch upstream; `deleted-in-fork` = existiert nur upstream. "
             f"Nur gezählt: Android-Verweise (Fork-Doku {android.get('fork', 0)}, upstream-Doku "
             f"{android.get('upstream', 0)}) und Verweise auf andere bewusst entfernte Pfade (Fork-Doku "
