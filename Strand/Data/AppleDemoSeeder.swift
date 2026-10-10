@@ -111,7 +111,7 @@ enum AppleDemoSeeder {
                 deepMin: round1(deep), remMin: round1(rem), lightMin: round1(light),
                 disturbances: 5, restingHr: rhr, avgHrv: round1(hrv),
                 recovery: round1(recovery), strain: round1(strain), exerciseCount: 1,
-                spo2Pct: 96.5, skinTempDevC: 0.1, respRateBpm: 14.6))
+                spo2Pct: 96.5, skinTempDevC: 0.1, respRateBpm: 14.6, skinTempC: 33.9))
             let onsetDay = cal.startOfDay(for: cal.date(byAdding: .day, value: -1, to: date)!)
             let onset = Int(onsetDay.timeIntervalSince1970) + 23 * 3600 + rng.nextInt(-1200, 1200)
             let inBedSec = Int((totalSleep + totalSleep * (100 - efficiency) / 100) * 60)
@@ -406,7 +406,10 @@ enum AppleDemoSeeder {
                 deepMin: round1(deep), remMin: round1(rem), lightMin: round1(light),
                 disturbances: disturbances, restingHr: rhr, avgHrv: round1(hrv),
                 recovery: round1(recovery), strain: round1(strain), exerciseCount: nWorkouts,
-                spo2Pct: round1(spo2), skinTempDevC: round2(skinTempDev), respRateBpm: round1(resp)))
+                spo2Pct: round1(spo2), skinTempDevC: round2(skinTempDev), respRateBpm: round1(resp),
+                // The measured wrist temperature the deviation sits on, so Today leads with an absolute
+                // reading the way a strap-scored night does instead of falling back to the Δ°C.
+                skinTempC: round2(33.8 + skinTempDev)))
 
             // --- sleep session: previous night ~23:10 → wake, with a REAL stage timeline so the
             //     hypnogram renders the computed segment path (not just the proportional bar). ---
