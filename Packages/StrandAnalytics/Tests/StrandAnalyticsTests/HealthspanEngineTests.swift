@@ -17,7 +17,8 @@ final class HealthspanEngineTests: XCTestCase {
     }
 
     /// The four published anchors (whitepaper Table 2, 30-year-olds). Ranges in the paper use their midpoint;
-    /// the unknown US Zone 4-5 time is 0. Tolerance ±0.5 y, fixed before the curves were written.
+    /// the unknown US Zone 4-5 time is 0. `overlapFactor` is fitted on these same four profiles, so this guards
+    /// against regressions in the curves; it is not an independent validation.
     func testWhitepaperTable2Anchors() {
         let usMale = E.compute(.init(age: 30, sex: .male, sleepHours: 6.35, sleepConsistencyPct: 65,
                                      dailySteps: 5200, zone13MinPerWeek: 69, zone45MinPerWeek: 0,
@@ -82,10 +83,46 @@ final class HealthspanEngineTests: XCTestCase {
         XCTAssertEqual(E.vo2maxTarget(age: 18, sex: .female), 40)
         XCTAssertEqual(E.vo2maxTarget(age: 110, sex: .female), 18)
         XCTAssertEqual(E.target(.dailySteps, age: 45, sex: .male), 8000)
-        XCTAssertEqual(E.target(.dailySteps, age: 65, sex: .male), 5600)
-        XCTAssertEqual(E.target(.zone13, age: 65, sex: .female), 70)
-        XCTAssertEqual(E.target(.zone45, age: 65, sex: .female), 7)
+        XCTAssertEqual(E.target(.dailySteps, age: 60, sex: .male), 6800, accuracy: 1e-9)
+        XCTAssertEqual(E.target(.dailySteps, age: 75, sex: .male), 5600)
+        XCTAssertEqual(E.target(.zone13, age: 70, sex: .female), 70)
+        XCTAssertEqual(E.target(.zone45, age: 70, sex: .female), 7)
         XCTAssertEqual(E.target(.restingHR, age: 40, sex: .female), 64)
+    }
+
+    /// Targets taper with age, so a birthday never moves the age by more than a sliver.
+    func testNoJumpOnABirthday() {
+        let x = { (age: Double) in E.compute(.init(age: age, sex: .male, dailySteps: 6000, zone13MinPerWeek: 80,
+                                                    zone45MinPerWeek: 8))!.deltaYears }
+        for age in stride(from: 45.0, through: 75.0, by: 1.0) {
+            XCTAssertLessThan(abs(x(age + 1.0 / 365) - x(age)), 0.01, "at \(age)")
+        }
+    }
+
+    /// The paper: more than 40 min of strength per week subtracts years; below 70 % consistency keeps adding.
+    func testStrengthAboveTargetAndIrregularSleepStillCount() {
+        let strength = { (m: Double) in E.compute(.init(age: 30, sex: .male, strengthMinPerWeek: m))!.deltaYears }
+        XCTAssertLessThan(strength(60), strength(40) - 0.1)
+        XCTAssertEqual(strength(150), strength(120), accuracy: 1e-9)
+        let consistency = { (c: Double) in E.compute(.init(age: 30, sex: .male, sleepConsistencyPct: c))!.deltaYears }
+        XCTAssertGreaterThan(consistency(50), consistency(64) + 0.3)
+    }
+
+    /// Only a result with every required component counts as complete; lean mass is optional.
+    func testCompleteness() {
+        var x = E.Inputs(age: 30, sex: .male, sleepHours: 7, sleepConsistencyPct: 70, dailySteps: 8000,
+                         zone13MinPerWeek: 100, zone45MinPerWeek: 10, strengthMinPerWeek: 40, vo2max: 44,
+                         restingHR: 60)
+        XCTAssertTrue(E.compute(x)!.isComplete)
+        x.vo2max = nil
+        XCTAssertFalse(E.compute(x)!.isComplete)
+    }
+
+    /// Body fat above the ceiling is not extrapolated.
+    func testBodyFatCeiling() {
+        let a = E.compute(.init(age: 30, sex: .male, leanMassPct: 50))!.deltaYears
+        let b = E.compute(.init(age: 30, sex: .male, leanMassPct: 35))!.deltaYears
+        XCTAssertEqual(a, b, accuracy: 1e-9)
     }
 
     /// Pace of Aging: unchanged habits age at 1.0x; healthier last 30 days slow it; values stay in [-1, 3].

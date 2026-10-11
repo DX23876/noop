@@ -13,21 +13,26 @@ import WhoopProtocol
 //
 // Curves are piecewise linear in ln(HR) between published anchor points and hold their end value outside
 // the studied range (no extrapolation). A missing component contributes 0, as the paper specifies for lean
-// mass. `overlapFactor` k stands in for the paper's unpublished structural-equation correction of
-// correlated components; it is the one free parameter, set by least squares so the paper's four Table 2
-// profiles (US and WHOOP-median 30-year-olds) are reproduced. Assumptions that are not taken from a study
-// are marked ASSUMPTION below.
+// mass; `Result.isComplete` says whether everything but lean mass was present, and only a complete result
+// should be shown. `overlapFactor` k stands in for the paper's unpublished structural-equation correction
+// of correlated components. It is one global scale, not a per-component correction, so it also absorbs
+// any systematic error in the curves; it is the one free parameter, set by least squares on the paper's
+// four Table 2 profiles. Those are effectively two profiles (US average, WHOOP median) in two sexes, so the
+// anchor test is a regression guard, not an independent validation. Assumptions that are not taken from a
+// study are marked ASSUMPTION below.
 public enum HealthspanEngine {
 
     /// Shrinks the summed component years for overlap between correlated inputs (RHR and VO₂max, steps and
-    /// zone time). Least-squares fit to whitepaper Table 2: all four profiles within ±0.25 y; leave-one-out
-    /// fits range 0.606–0.651.
-    public static let overlapFactor = 0.62
+    /// zone time). Least-squares fit to whitepaper Table 2: 0.644, all four profiles within ±0.33 y. Varying
+    /// the values this fit had to assume for the US profiles (sleep 6.1–6.6 h, consistency 60–70, zone 4–5
+    /// 0–5 min) moves it between about 0.60 and 0.73.
+    public static let overlapFactor = 0.64
     /// ln(HR) per year of age in the paper's conversion (≈ 10 % per year).
     static let lnHazardPerYear = 0.1
-    /// ASSUMPTION: the paper gives "younger" and "older" adult targets for steps and zone time without an
-    /// age; 60 is where Paluch 2022 splits its age strata, so the targets step down there.
-    static let olderAdultAge = 60.0
+    /// ASSUMPTION: the paper gives "younger" and "older" adult targets for steps and zone time and says they
+    /// "decrease slightly as members age", without ages. Paluch 2022 splits its strata at 60, so the targets
+    /// move linearly from the younger to the older value between 50 and 70 rather than jumping on a birthday.
+    static let targetTaperAges = (start: 50.0, end: 70.0)
 
     public enum Sex: String, Sendable { case male, female }
 
@@ -91,6 +96,11 @@ public enum HealthspanEngine {
         public let deltaYears: Double
         public let contributions: [Contribution]
         public let componentsUsed: Int
+        /// Every component except the optional lean mass was present. The paper computes nothing without
+        /// them, and a missing component reads as "on target", which would flatter the age.
+        public var isComplete: Bool {
+            contributions.allSatisfy { $0.value != nil || $0.component == .leanMass }
+        }
     }
 
     // MARK: - Targets
@@ -106,13 +116,14 @@ public enum HealthspanEngine {
 
     /// The health-optimised referent value of each component (whitepaper Table 1).
     public static func target(_ c: Component, age: Double, sex: Sex) -> Double {
-        let older = age >= olderAdultAge
+        let older = clamp((age - targetTaperAges.start) / (targetTaperAges.end - targetTaperAges.start), 0, 1)
+        func taper(_ younger: Double, _ olderValue: Double) -> Double { younger + older * (olderValue - younger) }
         switch c {
         case .sleepDuration: return 7
         case .sleepConsistency: return 70
-        case .dailySteps: return older ? 5600 : 8000
-        case .zone13: return older ? 70 : 100
-        case .zone45: return older ? 7 : 10
+        case .dailySteps: return taper(8000, 5600)
+        case .zone13: return taper(100, 70)
+        case .zone45: return taper(10, 7)
         case .strength: return 40
         case .vo2max: return vo2maxTarget(age: age, sex: sex)
         case .restingHR: return sex == .male ? 60 : 64
@@ -128,7 +139,11 @@ public enum HealthspanEngine {
     /// ASSUMPTION: 8 h 0.97 encodes the paper's "minor reduction" for 7–9 h; above 9 h is handled as no effect.
     static let sleepCurve: [(Double, Double)] = [(4, 1.44), (5, 1.29), (7, 1.0), (8, 0.97), (9, 1.0)]
     /// Windred 2024, Sleep 47(1), fully adjusted model: quintile median SRI → HR vs the least regular quintile.
-    static let consistencyCurve: [(Double, Double)] = [(65.1, 1.0), (75.6, 0.80), (81.0, 0.75),
+    /// Below its bottom quintile median the curve continues with Cribb 2023 (eLife, UK Biobank): HR 1.53 at the
+    /// 5th SRI percentile, 19 points under the median. That slope (ln 1.53 / 19 per point) matches Windred's
+    /// slope between its lowest two quintiles (ln 0.80 / 10.5), so only the step size is borrowed; the two
+    /// papers' absolute SRI values differ and are not mixed.
+    static let consistencyCurve: [(Double, Double)] = [(46.1, 1.53), (65.1, 1.0), (75.6, 0.80), (81.0, 0.75),
                                                         (85.2, 0.72), (89.8, 0.70)]
     /// Paluch 2022, Lancet Public Health: quartile median steps/day → HR vs the lowest quartile.
     static let stepsCurve: [(Double, Double)] = [(3553, 1.0), (5801, 0.60), (7842, 0.55), (10901, 0.47)]
@@ -137,9 +152,10 @@ public enum HealthspanEngine {
     static let zone13Curve: [(Double, Double)] = [(0, 1.0), (150, 0.81), (300, 0.81 * 0.92), (600, 0.81 * 0.90)]
     /// Ahmadi 2022, Eur Heart J: 2.2 min/wk reference, ~15 min/wk HR 0.82, nadir 53.6 min/wk HR 0.64.
     static let zone45Curve: [(Double, Double)] = [(2.2, 1.0), (15, 0.82), (53.6, 0.64)]
-    /// Momma 2022, BJSM: maximum 10–20 % lower risk at 30–60 min/wk (J-shaped); the paper caps the benefit
-    /// at 2 h/wk, so the curve stays flat from there.
-    static let strengthCurve: [(Double, Double)] = [(0, 1.0), (40, 0.85), (120, 0.85)]
+    /// Momma 2022, BJSM: maximum 10–20 % lower risk at 30–60 min/wk (J-shaped). The full 15 % is reached at
+    /// 60 min so that time above the 40-min target still subtracts years, as the paper states; it stays flat
+    /// to the paper's 2 h/wk cap and beyond.
+    static let strengthCurve: [(Double, Double)] = [(0, 1.0), (60, 0.85), (120, 0.85)]
     /// Kodama 2009, JAMA: 13 % lower risk per MET (3.5 ml/kg/min), held to ±4 MET around the target.
     static let lnHRPerVO2 = log(0.87) / 3.5
     static let vo2maxSpan = 14.0
@@ -147,9 +163,11 @@ public enum HealthspanEngine {
     static let lnHRPerBpm = log(1.09) / 10
     static let restingHRRange = 45.0...90.0
     /// Jayedi 2022, Int J Obes: HR 1.11 per +10 % body fat. The paper grants only "small reductions" below
-    /// target; ASSUMPTION: capped at 3 points of body fat.
+    /// target; ASSUMPTION: capped at 3 points of body fat. ASSUMPTION: above 50 % body fat the linear
+    /// meta-analytic slope is not extended further.
     static let lnHRPerBodyFatPct = log(1.11) / 10
     static let leanMassMaxCredit = 3.0
+    static let bodyFatCeilingPct = 50.0
 
     /// Component years before the overlap factor.
     static func rawYears(_ c: Component, value v: Double, target t: Double) -> Double {
@@ -172,7 +190,7 @@ public enum HealthspanEngine {
             let bpm = clamp(v, restingHRRange.lowerBound, restingHRRange.upperBound)
             return years(lnHRPerBpm * (bpm - t))
         case .leanMass:
-            let excessFat = (100 - v) - (100 - t)
+            let excessFat = min(100 - v, bodyFatCeilingPct) - (100 - t)
             return years(lnHRPerBodyFatPct * max(excessFat, -leanMassMaxCredit))
         }
     }
