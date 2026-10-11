@@ -825,7 +825,7 @@ struct LiquidTodayView: View {
                 // tab bar is part of that area, normal or minimised. A fixed 90 pt spacer for a bar drawn
                 // over the content left a second, empty gap; this is the same end margin ScreenScaffold uses.
                 .padding(.bottom, 24)
-                .padding(.top, 30) // sit the title lower into the sky, not jammed under the status bar
+                .padding(.top, NoopMetrics.space8) // sit the title lower into the sky, not jammed under the status bar
             }
             #if os(macOS)
             // Keep the phone-shaped column readable + centred on the wide mac detail pane. The sky is a
@@ -1150,8 +1150,8 @@ struct LiquidTodayView: View {
             }
         }
         // #today-layout: the hero + Start-session row live in the reorderable section block below;
-        // this pad plus the section VStack's 12 spacing keeps a 22 pt gap above the hero.
-        .padding(.bottom, 10)
+        // this pad plus the section VStack's spacing keeps a clear gap above the hero.
+        .padding(.bottom, NoopMetrics.space2)
     }
 
     /// Shows the hint a moment after Today settles, so it does not land on top of the launch.
@@ -1175,7 +1175,7 @@ struct LiquidTodayView: View {
 
     /// The wordmark (Updates entry) with the strap/ring sync line beneath it.
     private var headerMark: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: NoopMetrics.space2) {
             LiquidWordmark(onOpen: { showUpdatesInbox = true })
             LiquidSyncLine()
                 .frame(width: 120)
@@ -1209,24 +1209,23 @@ struct LiquidTodayView: View {
                     Text(dayTitle).fixedSize(horizontal: true, vertical: false)
                     // Last resort when even the day name does not fit beside the controls (a
                     // narrow phone, a long weekday, the sync capsule expanding): shrink, never clip.
-                    Text(dayTitle).minimumScaleFactor(0.6)
+                    Text(dayTitle).lineLimit(2).fixedSize(horizontal: false, vertical: true)
                 }
                 .font(StrandFont.rounded(20))
                 .foregroundStyle(StrandPalette.textPrimary)
                 .lineLimit(1)
-                .shadow(color: .black.opacity(0.4), radius: 10, y: 1)
+                .shadow(color: .black.opacity(colorScheme == .dark ? 0.4 : 0.12), radius: 10, y: 1)
                 // The date is the day-picker's trigger, so it needs to READ as tappable without a
                 // second control. Same affordance the classic Today uses (TodayView.dayNavHint): every
                 // ~10s it swaps for ~1.5s to a one-word accent hint, then returns to the date.
                 // Small and light under the title, which shares its line with the logo.
                 Text(dayNavHint ?? headerDateLine)
                     .font(StrandFont.caption.weight(.light))
-                    // Two lines beside the controls ("Freitag, 2." / "Oktober"); shrink before clipping.
+                    // Two lines beside the controls ("Freitag, 2." / "Oktober"); wraps, never shrinks.
                     .lineLimit(2)
-                    .minimumScaleFactor(0.85)
                     .foregroundStyle(dayNavHint != nil ? StrandPalette.accent : StrandPalette.textSecondary)
                     .contentTransition(.opacity)
-                    .shadow(color: .black.opacity(0.35), radius: 8, y: 1)
+                    .shadow(color: .black.opacity(colorScheme == .dark ? 0.35 : 0.10), radius: 8, y: 1)
             }
             .contentShape(Rectangle())
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -1297,7 +1296,7 @@ struct LiquidTodayView: View {
     /// sky scene, quiet by design.
     private var liveSessionStartRow: some View {
         Button { showLiveSession = true } label: {
-            HStack(spacing: 10) {
+            HStack(spacing: NoopMetrics.space3) {
                 Image(systemName: "shield.lefthalf.filled")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(StrandPalette.metricCyan)
@@ -1307,9 +1306,9 @@ struct LiquidTodayView: View {
                     .font(StrandFont.subhead)
                     .foregroundStyle(StrandPalette.textPrimary)
                 Text("BETA")
-                    .font(StrandFont.overlineScaled(8.5)).tracking(StrandFont.overlineTracking)
+                    .font(StrandFont.overlineScaled(11)).tracking(StrandFont.overlineTracking)
                     .foregroundStyle(StrandPalette.onDarkSecondary)
-                    .padding(.horizontal, 8).padding(.vertical, 2.5)
+                    .padding(.horizontal, NoopMetrics.space2).padding(.vertical, NoopMetrics.space1)
                     .background(Capsule().fill(StrandPalette.surfaceInset.opacity(0.72))
                         .overlay(Capsule().strokeBorder(
                             StrandPalette.hairline,
@@ -1513,7 +1512,7 @@ struct LiquidTodayView: View {
             // "Show all metrics" posture `keyMetricsSection` uses — so scrub and tap can't collide and
             // VoiceOver still gets a real link (a drag-only affordance would be unreachable).
             card {
-                VStack(spacing: 10) {
+                VStack(spacing: NoopMetrics.space3) {
                     // Isolated leaf: it observes LiveState so the ~1 Hz HR notifies re-render ONLY
                     // this card, never the whole Today. Shows the current bpm live with a rolling
                     // beat-by-beat trace; falls back to today's banked 5-minute trace when idle.
@@ -1528,7 +1527,7 @@ struct LiquidTodayView: View {
                         HStack(spacing: 4) {
                             Spacer()
                             Text("Full day").font(StrandFont.caption).foregroundStyle(StrandPalette.accent)
-                            Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold))
+                            Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold))
                                 .foregroundStyle(StrandPalette.accent)
                         }
                         // The row spans the card width, so the whole footer strip is the hit target
@@ -1616,7 +1615,7 @@ struct LiquidTodayView: View {
             // only the display. `DaytimeLoadLine` is the tab's OWN line, so the host cannot drift into
             // a second drawing of the same day.
             NoopCard(tint: StressRamp.calm) {
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: NoopMetrics.space3) {
                     Text("Stress through the day").strandOverline()
                     if hostedStressHours.contains(where: { $0.level != nil }) {
                         DaytimeLoadLine(hours: hostedStressHours)
@@ -1944,7 +1943,7 @@ struct LiquidTodayView: View {
                 .tracking(StrandFont.overlineTracking)
                 .foregroundStyle(readinessColor(readiness.level))
                 .padding(.horizontal, NoopMetrics.space3)
-                .padding(.vertical, 5)
+                .padding(.vertical, NoopMetrics.space1)
                 .background(Capsule(style: .continuous).fill(readinessColor(readiness.level).opacity(0.12)))
                 // Restrained surfaces: the tinted fill carries the pill; only Increase Contrast adds an edge.
                 .overlay(Capsule(style: .continuous).stroke(
@@ -2011,7 +2010,7 @@ struct LiquidTodayView: View {
             // is what the row is for, the activity status (own sheet) is a setting beside it. The
             // data-confidence chip only speaks up while the score is still calibrating; "Solid" every
             // day was noise.
-            HStack(spacing: 6) {
+            HStack(spacing: NoopMetrics.space2) {
                 if let word = readinessWord {
                     readinessHeroPill(word)
                 }
@@ -2026,14 +2025,14 @@ struct LiquidTodayView: View {
             // #530 follow-up: the classic hero's "no cardio load yet" note, shown on a calm day so
             // today's ~0 Effort explains itself instead of a bare 0.
             if let note = effortZeroNote {
-                HStack(alignment: .top, spacing: 6) {
+                HStack(alignment: .top, spacing: NoopMetrics.space2) {
                     Image(systemName: "info.circle")
                         .font(StrandFont.footnote)
                         .foregroundStyle(StrandPalette.effortColor)
                         .accessibilityHidden(true)
                     Text(note)
                         .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.textTertiary)
+                        .foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -2238,7 +2237,7 @@ struct LiquidTodayView: View {
                     NavigationLink {
                         ScoringGuideView(initialSection: .charge, onClose: { showChargeBreakdown = false })
                     } label: {
-                        HStack(spacing: 10) {
+                        HStack(spacing: NoopMetrics.space3) {
                             Image(systemName: "function")
                                 .font(.system(size: 14, weight: .semibold))
                                 .foregroundStyle(StrandPalette.chargeColor)
@@ -2253,7 +2252,7 @@ struct LiquidTodayView: View {
                                 .font(.system(size: 12, weight: .semibold))
                                 .foregroundStyle(StrandPalette.textTertiary)
                         }
-                        .padding(14)
+                        .padding(NoopMetrics.space4)
                         .background(RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius).fill(StrandPalette.surfaceInset))
                         .contentShape(Rectangle())
                     }
@@ -2450,6 +2449,10 @@ struct LiquidTodayView: View {
                         .font(StrandFont.overlineScaled(11))
                         .tracking(StrandFont.overlineTracking)
                         .foregroundStyle(StrandPalette.accent)
+                        // A 44 pt hit area around an 11 pt word, without growing the header row.
+                        .padding(NoopMetrics.space4)
+                        .contentShape(Rectangle())
+                        .padding(-NoopMetrics.space4)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Edit Key Metrics")
@@ -2764,7 +2767,7 @@ struct LiquidTodayView: View {
                     NavigationLink(value: TabRoute.workouts) {
                         HStack(spacing: 3) {
                             Text("All").font(StrandFont.caption)
-                            Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold))
+                            Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold))
                         }
                         .foregroundStyle(StrandPalette.accent)
                         .frame(minHeight: 44)
@@ -2817,13 +2820,13 @@ struct LiquidTodayView: View {
                     .foregroundStyle(w.strain == nil ? StrandPalette.textTertiary : StrandPalette.textPrimary)
                 Text(LiquidTodayDefaults.effortBandWord(stored: w.strain)
                         ?? DomainTheme.effort.productName.uppercased())
-                    .font(StrandFont.overlineScaled(9))
+                    .font(StrandFont.overlineScaled(11))
                     .tracking(StrandFont.overlineTracking)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .lineLimit(1)
             }
         }
-        .padding(.vertical, 10)
+        .padding(.vertical, NoopMetrics.space3)
         .contentShape(Rectangle())
     }
 
@@ -2841,8 +2844,8 @@ struct LiquidTodayView: View {
                 Text(LocalizedStringKey(trailing)).font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
             }
         }
-        .padding(.horizontal, 2)
-        .padding(.top, 4)
+        .padding(.horizontal, NoopMetrics.spaceHalf)
+        .padding(.top, NoopMetrics.space1)
     }
 
     private func card<V: View>(@ViewBuilder _ content: () -> V) -> some View {
@@ -3650,18 +3653,18 @@ private struct HeroScoreCell: View {
     }
 
     var body: some View {
-        VStack(spacing: 7) {
+        VStack(spacing: NoopMetrics.space2) {
             // Laid out at the slot's width; the larger ring is drawn centred over it, so its glow may
             // reach into a neighbour's slot without pushing the three apart.
             gaugeView
                 .frame(width: hitDiameter, height: diameter)
             Button(action: onGuide) {
-                HStack(spacing: 3) {
+                HStack(spacing: NoopMetrics.space1) {
                     // #74: one line, shrink-to-fit rather than wrap under large Dynamic Type (mirrors the
                     // score number above) so CHARGE/EFFORT/REST never grow the hero card to two lines.
                     Text(label.uppercased()).font(StrandFont.overline).tracking(StrandFont.overlineTracking)
                         .lineLimit(1).minimumScaleFactor(0.7)
-                    Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold)).opacity(0.6)
+                    Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold)).opacity(0.6)
                 }
                 // Dark sits in the optical chamber (fixed on-dark ink); Light is an ordinary light card.
                 .foregroundStyle(colorScheme == .light ? StrandPalette.textSecondary : StrandPalette.onDarkSecondary)
@@ -3677,7 +3680,7 @@ private struct HeroScoreCell: View {
             // Color on, the band word is written out (VoiceOver already hears it from the ring).
             if differentiateWithoutColor, let band = model.chargeBand {
                 Text(band.word)
-                    .font(StrandFont.overlineScaled(9))
+                    .font(StrandFont.overlineScaled(11))
                     .tracking(StrandFont.overlineTracking)
                     .foregroundStyle(colorScheme == .light ? StrandPalette.textSecondary : StrandPalette.onDarkSecondary)
                     .lineLimit(1).minimumScaleFactor(0.7)
@@ -3716,7 +3719,7 @@ private struct LiquidRefreshIndicator: View {
     var body: some View {
         ZStack {
             if refreshing {
-                VStack(spacing: 6) {
+                VStack(spacing: NoopMetrics.space2) {
                     LiquidVessel(value: 0.6, tint: liquidHeart, animated: true)
                         .frame(width: 34, height: 34)
                     Text("Syncing…")
