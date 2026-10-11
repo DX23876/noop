@@ -1,0 +1,184 @@
+import Foundation
+import WhoopProtocol
+import WhoopStore
+import StrandAnalytics
+
+// IntelligenceEngine+Healthspan.swift — fork feature (backlog plan HEALTHSPAN_AGE_PLAN, spec S5): the weekly
+// healthspan age and Pace of Aging, kept in its own file so the shared analysis pass gains one call only.
+//
+// Two steps per pass. (1) Zone minutes need raw HR, which the store keeps for about five weeks, so they are
+// banked per day for the pass window. (2) Every weekly row is re-derived from banked and permanent per-day
+// values (daily rows, sleep sessions, workouts, series), so a row can never go stale. Weeks follow the
+// Fitness Age convention: keyed to the Saturday on or before, refining until the week ends.
+
+/// Experimental and off by default until the Healthspan card ships (spec S6).
+enum HealthspanFeature {
+    static let defaultsKey = "noopHealthspanAge"
+    static var isEnabled: Bool { UserDefaults.standard.bool(forKey: defaultsKey) }
+}
+
+extension IntelligenceEngine {
+
+    static let healthspanAgeKey = "healthspan_age"
+    static let healthspanPaceKey = "healthspan_pace"
+    static let healthspanCoveredDaysKey = "healthspan_covered_days"
+    static let healthspanZone13Key = "hs_zone13_min"
+    static let healthspanZone45Key = "hs_zone45_min"
+    /// The window input behind a week's age, so the card's breakdown is computed from the same numbers.
+    nonisolated static func healthspanInputKey(_ c: HealthspanEngine.Component) -> String { "hs_in_" + c.rawValue }
+
+    /// Banks zone minutes for `[oldestDay, newestDay]`, then rewrites the weekly rows of the weeks that window
+    /// touches; on the first run, every week back to the first sleep data. Writes nothing for a profile sex
+    /// the paper has no targets for.
+    nonisolated static func runHealthspanPass(store: WhoopStore, strapId: String, computedId: String, age: Int,
+                                              sex: String, hrMaxOverride: Int, oldestDay: String,
+                                              newestDay: String, tzOffset: Int) async {
+        guard age > 0, let sex = HealthspanEngine.Sex(profileValue: sex),
+              let windowStart = midnightForDayKey(oldestDay, offsetSec: tzOffset),
+              let windowEndDay = midnightForDayKey(newestDay, offsetSec: tzOffset) else { return }
+        let windowEnd = windowEndDay + 86_400
+        let maxHR = hrMaxOverride > 0 ? Double(hrMaxOverride) : StrainScorer.tanakaHRmax(age: Double(age))
+
+        // (1) Bank zone minutes while raw HR exists. A day counts as worn when it has a computed daily row.
+        let recentWorkouts = await healthspanWorkouts(store: store, strapId: strapId, computedId: computedId,
+                                                      from: windowStart - 86_400, to: windowEnd)
+        let worn = Set(((try? await store.dailyMetrics(deviceId: computedId, from: oldestDay, to: newestDay)) ?? [])
+            .map(\.day))
+        let sleepHR = Dictionary(((try? await store.metricSeries(deviceId: computedId, key: "rhr_primary_session",
+                                                                 from: oldestDay, to: newestDay)) ?? [])
+            .map { ($0.day, $0.value) }, uniquingKeysWith: { a, _ in a })
+        let fallbackRHR = sleepHR.isEmpty ? nil : sleepHR.values.reduce(0, +) / Double(sleepHR.count)
+        var banked: [MetricPoint] = []
+        var day = oldestDay
+        while day <= newestDay {
+            defer { day = HealthspanWindow.dayKey(day, plus: 1) }
+            guard worn.contains(day), let restingHR = sleepHR[day] ?? fallbackRHR,
+                  let dayStart = midnightForDayKey(day, offsetSec: tzOffset) else { continue }
+            var zone13 = 0.0, zone45 = 0.0
+            for w in recentWorkouts where w.end > dayStart && w.start < dayStart + 86_400 {
+                let s = max(w.start, dayStart), e = min(w.end, dayStart + 86_400)
+                let hr = (try? await store.hrSamples(deviceId: strapId, from: s, to: e - 1, limit: Int.max)) ?? []
+                guard let m = HealthspanEngine.zoneMinutes(hr: hr, restingHR: restingHR, maxHR: maxHR) else { continue }
+                zone13 += m.zone13; zone45 += m.zone45
+            }
+            banked += [MetricPoint(day: day, key: healthspanZone13Key, value: zone13),
+                       MetricPoint(day: day, key: healthspanZone45Key, value: zone45)]
+        }
+        if !banked.isEmpty { _ = try? await store.upsertMetricSeries(banked, deviceId: computedId) }
+
+        // (2) Weekly rows. First run: every week back to the first computed day; afterwards: the pass window.
+        let currentSaturday = saturdayKey(onOrBefore: newestDay)
+        let hasHistory = !(((try? await store.metricSeries(deviceId: computedId, key: healthspanAgeKey,
+                                                           from: HealthspanWindow.dayKey(newestDay, plus: -400),
+                                                           to: newestDay)) ?? []).isEmpty)
+        var firstSaturday = saturdayKey(onOrBefore: oldestDay)
+        if !hasHistory,
+           let firstDay = ((try? await store.dailyMetrics(deviceId: computedId,
+                                                          from: HealthspanWindow.dayKey(newestDay, plus: -365),
+                                                          to: newestDay)) ?? []).map(\.day).min() {
+            firstSaturday = min(firstSaturday, saturdayKey(onOrBefore: firstDay))
+        }
+        let readFrom = HealthspanWindow.dayKey(firstSaturday, plus: -(HealthspanWindow.ageWindowDays - 1))
+        let days = await healthspanDays(store: store, strapId: strapId, computedId: computedId,
+                                        from: readFrom, to: newestDay, tzOffset: tzOffset)
+        let vo2 = ((try? await store.metricSeries(deviceId: computedId, key: "vo2max_est", from: readFrom,
+                                                  to: newestDay)) ?? []).map { (day: $0.day, value: $0.value) }
+        var weekly: [MetricPoint] = []
+        var saturday = firstSaturday
+        while saturday <= currentSaturday {
+            defer { saturday = HealthspanWindow.dayKey(saturday, plus: 7) }
+            let end = min(HealthspanWindow.dayKey(saturday, plus: 6), newestDay)
+            guard let w = HealthspanWindow.weekly(
+                days: days, endingOn: end, age: Double(age), sex: sex,
+                vo2max: HealthspanWindow.latest(vo2, onOrBefore: end, withinDays: HealthspanWindow.ageWindowDays),
+                leanMassPct: nil) else { continue }
+            weekly.append(MetricPoint(day: saturday, key: healthspanAgeKey, value: w.result.healthspanAge))
+            weekly.append(MetricPoint(day: saturday, key: healthspanCoveredDaysKey, value: Double(w.coveredDays)))
+            if let pace = w.pace { weekly.append(MetricPoint(day: saturday, key: healthspanPaceKey, value: pace)) }
+            for c in HealthspanEngine.Component.allCases {
+                if let v = w.inputs.value(c) {
+                    weekly.append(MetricPoint(day: saturday, key: healthspanInputKey(c), value: v))
+                }
+            }
+        }
+        if !weekly.isEmpty { _ = try? await store.upsertMetricSeries(weekly, deviceId: computedId) }
+    }
+
+    /// Per-day healthspan values from NOOP's own computed data: daily rows (sleep, steps), the sleep-mean HR,
+    /// banked zone minutes, timing consistency from sleep sessions, and strength minutes from workouts.
+    nonisolated static func healthspanDays(store: WhoopStore, strapId: String, computedId: String,
+                                           from: String, to: String, tzOffset: Int) async -> [HealthspanDay] {
+        guard let fromTs = midnightForDayKey(from, offsetSec: tzOffset),
+              let toTs = midnightForDayKey(to, offsetSec: tzOffset).map({ $0 + 86_400 }) else { return [] }
+        func series(_ key: String) async -> [String: Double] {
+            Dictionary(((try? await store.metricSeries(deviceId: computedId, key: key, from: from, to: to)) ?? [])
+                .map { ($0.day, $0.value) }, uniquingKeysWith: { a, _ in a })
+        }
+        var byDay: [String: HealthspanDay] = [:]
+        func edit(_ day: String, _ f: (inout HealthspanDay) -> Void) {
+            var d = byDay[day] ?? HealthspanDay(day: day); f(&d); byDay[day] = d
+        }
+        for d in (try? await store.dailyMetrics(deviceId: computedId, from: from, to: to)) ?? [] {
+            edit(d.day) {
+                $0.sleepHours = d.totalSleepMin.flatMap { $0 > 0 ? $0 / 60 : nil }
+                $0.steps = d.steps.flatMap { $0 > 0 ? Double($0) : nil }
+            }
+        }
+        for (day, v) in await series("rhr_primary_session") { edit(day) { $0.sleepMeanHR = v } }
+        for (day, v) in await series(healthspanZone13Key) { edit(day) { $0.zone13Min = v } }
+        for (day, v) in await series(healthspanZone45Key) { edit(day) { $0.zone45Min = v } }
+
+        // Consistency for each night: the longest session ending that day is the main sleep; naps count too.
+        let sessions = ((try? await store.sleepSessions(deviceId: computedId, from: fromTs - 5 * 86_400,
+                                                        to: toTs, limit: 100_000)) ?? [])
+            .map { SleepTimingConsistency.Interval(start: $0.effectiveStartTs, end: $0.endTs) }
+        var mainByDay: [String: SleepTimingConsistency.Interval] = [:]
+        for s in sessions where s.end >= fromTs && s.end < toTs {
+            let day = AnalyticsEngine.dayString(s.end, offsetSec: tzOffset)
+            if let m = mainByDay[day], m.end - m.start >= s.end - s.start { continue }
+            mainByDay[day] = s
+        }
+        for (day, main) in mainByDay {
+            // An unrecorded day would read as awake all day; score only nights with all four prior nights.
+            guard (1...SleepTimingConsistency.priorDays).allSatisfy({
+                mainByDay[HealthspanWindow.dayKey(day, plus: -$0)] != nil
+            }) else { continue }
+            let near = sessions.filter { $0.end > main.end - 5 * 86_400 && $0.start < main.end }
+            if let c = SleepTimingConsistency.score(sleeps: near, wakeAt: main.end) {
+                edit(day) { $0.sleepConsistencyPct = c }
+            }
+        }
+
+        // Strength minutes by local start day; overlapping rows from several sources count once.
+        var strengthByDay: [String: Double] = [:]
+        let workouts = await healthspanWorkouts(store: store, strapId: strapId, computedId: computedId,
+                                                from: fromTs, to: toTs, strengthOnly: true)
+        for w in workouts { strengthByDay[AnalyticsEngine.dayString(w.start, offsetSec: tzOffset), default: 0] += Double(w.end - w.start) / 60 }
+        for day in byDay.keys { edit(day) { $0.strengthMin = strengthByDay[day] ?? 0 } }
+        return byDay.values.sorted { $0.day < $1.day }
+    }
+
+    /// Workouts from every source the analysis reads (strap imports and manual rows, detected bouts, Apple
+    /// Health, Hevy), merged into non-overlapping intervals so a session logged twice counts once.
+    nonisolated static func healthspanWorkouts(store: WhoopStore, strapId: String, computedId: String,
+                                               from: Int, to: Int,
+                                               strengthOnly: Bool = false) async -> [(start: Int, end: Int)] {
+        var rows: [WorkoutRow] = []
+        for source in Set([strapId, computedId, "apple-health", "hevy"]) {
+            rows += (try? await store.workouts(deviceId: source, from: from, to: to, limit: 100_000)) ?? []
+        }
+        let intervals = rows
+            .filter { $0.endTs > $0.startTs && (!strengthOnly || HealthspanWindow.countsAsStrength(storedName: $0.sport)) }
+            .map { (start: $0.startTs, end: $0.endTs) }
+            .sorted { $0.start < $1.start }
+        var merged: [(start: Int, end: Int)] = []
+        for i in intervals {
+            if let last = merged.last, i.start <= last.end {
+                merged[merged.count - 1].end = max(last.end, i.end)
+            } else {
+                merged.append(i)
+            }
+        }
+        return merged
+    }
+}

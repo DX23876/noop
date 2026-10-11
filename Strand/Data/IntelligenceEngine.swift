@@ -851,7 +851,7 @@ final class IntelligenceEngine: ObservableObject {
     }
 
     /// The Saturday on-or-before a "yyyy-MM-dd" local-day string , the weekly key Fitness Age writes to.
-    static func saturdayKey(onOrBefore dayStr: String) -> String {
+    nonisolated static func saturdayKey(onOrBefore dayStr: String) -> String {
         var cal = Calendar(identifier: .gregorian); cal.timeZone = .current
         let fmt = DateFormatter(); fmt.calendar = cal; fmt.timeZone = cal.timeZone
         fmt.locale = Locale(identifier: "en_US_POSIX"); fmt.dateFormat = "yyyy-MM-dd"
@@ -3538,6 +3538,12 @@ final class IntelligenceEngine: ObservableObject {
                 MetricPoint(day: satKey, key: "vitality", value: vRes.vitality),
                 MetricPoint(day: satKey, key: "body_age", value: vRes.bodyAge),
             ], deviceId: computedId)
+        }
+        // Fork: healthspan age, experimental and off by default (IntelligenceEngine+Healthspan.swift).
+        if HealthspanFeature.isEnabled {
+            await Self.runHealthspanPass(store: store, strapId: deviceId, computedId: computedId,
+                                         age: profile.age, sex: profile.sex, hrMaxOverride: profile.hrMaxOverride,
+                                         oldestDay: oldestDay, newestDay: newestDay, tzOffset: tzOffset)
         }
 
         // ── Stress proxy (#R-stress-chart), DAILY, gap-filled under the canonical "my-whoop" source ─────
