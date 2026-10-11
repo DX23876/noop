@@ -71,7 +71,7 @@ extension HealthspanEngine {
 }
 
 extension HealthspanEngine.Inputs {
-    mutating func set(_ c: HealthspanEngine.Component, _ v: Double?) {
+    public mutating func set(_ c: HealthspanEngine.Component, _ v: Double?) {
         switch c {
         case .sleepDuration: sleepHours = v
         case .sleepConsistency: sleepConsistencyPct = v

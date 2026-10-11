@@ -509,10 +509,12 @@ enum AppleDemoSeeder {
         var vo2 = 44.0
         var vitality = 55.0      // weekly Vitality (0–100) trending up as the demo habits improve
         var bodyAgeDemo = 40.0   // Body Age (years) trending down (younger)
+        var demoSaturdays: [String] = []   // fork: Healthspan rows, see IntelligenceEngine+Healthspan.swift
         for i in 0..<DAYS {
             let date = cal.date(byAdding: .day, value: i, to: startDay)!
             guard cal.component(.weekday, from: date) == 7 else { continue }  // 7 = Saturday
             let day = isoFmt.string(from: date)
+            demoSaturdays.append(day)
             series.append(MetricPoint(day: day, key: "fitness_age",
                 value: round1((fitnessAge + gauss(&rng, 0.0, 0.3)).clamped(34.0, 44.0))))
             series.append(MetricPoint(day: day, key: "vo2max_est",
@@ -527,6 +529,7 @@ enum AppleDemoSeeder {
             bodyAgeDemo -= 0.6
         }
 
+        series += IntelligenceEngine.healthspanDemoRows(saturdays: demoSaturdays)
         _ = try await store.upsertDailyMetrics(daily, deviceId: whoop)
         _ = try await store.upsertSleepSessions(sleeps, deviceId: whoop)
         _ = try await store.upsertMetricSeries(series, deviceId: whoop)

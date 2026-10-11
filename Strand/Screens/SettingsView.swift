@@ -105,6 +105,7 @@ struct SettingsView: View {
     @AppStorage(PuffinExperiment.stressPersonalBaselineKey) private var stressPersonalBaselineEnabled = false
     /// [PuffinExperiment.exerciseVO2maxKey].
     @AppStorage(PuffinExperiment.exerciseVO2maxKey) private var exerciseVO2maxEnabled = false
+    @AppStorage(HealthspanFeature.defaultsKey) private var healthspanEnabled = false
     /// #1545 opt-in: score Effort with Banister's exponential TRIMP instead of Edwards' heart-rate zones.
     /// Default OFF — it re-scores the whole window against a different recipe. See
     /// [PuffinExperiment.banisterEffortKey].
@@ -2908,6 +2909,25 @@ struct SettingsView: View {
                 .toggleStyle(.switch)
                 .tint(StrandPalette.accent)
                 Text("Estimates VO₂max from runs and walks with distance and a measured heart-rate trace: the ACSM equations turn your average speed into an oxygen cost, and your heart-rate reserve extrapolates it to maximum. Grade is assumed flat, because routes are kept without altitude. Shown on Training Load beside the weekly estimate, with how it compares to Apple Watch. It never counts as performance evidence until that comparison passes a rule fixed in advance. Off by default.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                // MARK: Fork — Healthspan age (WHOOP's published method). Off by default; replaces Body Age.
+                Divider().overlay(StrandPalette.hairline)
+
+                Toggle(isOn: $healthspanEnabled) {
+                    Text("Healthspan age")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                }
+                .toggleStyle(.switch)
+                .tint(StrandPalette.accent)
+                .onChangeCompat(of: healthspanEnabled) { on in
+                    // Compute right away instead of at the next analysis loop, so the card fills on the flip.
+                    if on { Task { await model.intelligence.analyzeRecent(); await model.repo.refresh() } }
+                }
+                Text("An age from nine measures of sleep, activity and fitness over six months, after the method in WHOOP's published Healthspan white paper, with Pace of Aging and the steps that would help most. Takes Body Age's place on Health. Needs 30 nights of sleep data. A motivation tool, not a medical age. Off by default.")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)

@@ -158,6 +158,35 @@ extension IntelligenceEngine {
         return byDay.values.sorted { $0.day < $1.day }
     }
 
+    /// Weekly rows for `--demo-seed`: habits improving week by week, run through the real engine so the card
+    /// renders under the demo exactly as it would on a wearer's data. Each week's pace compares its window
+    /// with a slightly better last 30 days, as an improving wearer's would.
+    nonisolated static func healthspanDemoRows(saturdays: [String]) -> [MetricPoint] {
+        func inputs(_ t: Double) -> HealthspanEngine.Inputs {
+            func lerp(_ a: Double, _ b: Double) -> Double { a + (b - a) * min(1.25, t) }
+            return HealthspanEngine.Inputs(age: 35, sex: .male, sleepHours: lerp(6.8, 7.4),
+                                           sleepConsistencyPct: lerp(60, 76), dailySteps: lerp(6800, 9400),
+                                           zone13MinPerWeek: lerp(70, 170), zone45MinPerWeek: lerp(3, 18),
+                                           strengthMinPerWeek: lerp(15, 55), vo2max: lerp(44, 50),
+                                           restingHR: lerp(63, 57))
+        }
+        var out: [MetricPoint] = []
+        let last = Double(max(1, saturdays.count - 1))
+        for (i, day) in saturdays.enumerated() {
+            let window = inputs(Double(i) / last), recent = inputs((Double(i) + 2) / last)
+            guard let r = HealthspanEngine.compute(window) else { continue }
+            out.append(MetricPoint(day: day, key: healthspanAgeKey, value: r.healthspanAge))
+            out.append(MetricPoint(day: day, key: healthspanCoveredDaysKey, value: Double(min(182, 30 + 7 * i))))
+            if let pace = HealthspanEngine.paceOfAging(window: window, last30Days: recent) {
+                out.append(MetricPoint(day: day, key: healthspanPaceKey, value: pace))
+            }
+            for c in HealthspanEngine.Component.allCases {
+                if let v = window.value(c) { out.append(MetricPoint(day: day, key: healthspanInputKey(c), value: v)) }
+            }
+        }
+        return out
+    }
+
     /// Workouts from every source the analysis reads (strap imports and manual rows, detected bouts, Apple
     /// Health, Hevy), merged into non-overlapping intervals so a session logged twice counts once.
     nonisolated static func healthspanWorkouts(store: WhoopStore, strapId: String, computedId: String,

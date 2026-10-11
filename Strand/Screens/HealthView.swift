@@ -91,6 +91,9 @@ struct HealthView: View {
 /// HR tick — the static sections depend on `repo`/`profile`/`model` snapshots only. Shared by the
 /// history-present path and the first-run live path so the stack is defined once.
 private struct HealthSectionsStack: View {
+    // Fork: the Healthspan card replaces Body Age while its experiment is on, so Health states one age.
+    @AppStorage(HealthspanFeature.defaultsKey) private var healthspanEnabled = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
             // Manual "Sync now" + honest sync status (#364). Its own view so the ~1Hz HR stream
@@ -106,7 +109,7 @@ private struct HealthSectionsStack: View {
             FitnessAgeSection()
             // Vitality / Body Age (weekly, computed by IntelligenceEngine from the mortality-
             // hazard model). Its own view depending only on repo/profile.
-            VitalitySection()
+            if healthspanEnabled { HealthspanSection() } else { VitalitySection() }
             // Screen-5 recovery detail: the CONTRIBUTORS to today's recovery as
             // labelled progress bars (HRV / Resting HR / Sleep / Respiratory), each
             // scored against the on-device baseline. Depends only on `repo`.
