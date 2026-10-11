@@ -85,6 +85,8 @@ final class HealthspanPassTests: XCTestCase {
         XCTAssertEqual(covered, 40)
         let vo2 = try await input(.vo2max)
         XCTAssertEqual(vo2, 44)
+        let recentRHR = try await value(store, IntelligenceEngine.healthspanRecentInputKey(.restingHR), newestDay)
+        XCTAssertEqual(recentRHR, 60)
     }
 
     func testNoTargetsForAnUnsetSexWritesNothing() async throws {

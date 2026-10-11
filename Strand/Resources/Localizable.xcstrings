@@ -542252,180 +542252,6 @@
         }
       }
     },
-    "%@ yrs older than your age" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ Jahre älter als dein Alter"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ años más que tu edad"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ ans de plus que votre âge"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ anni in più della tua età"
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ l. więcej niż twój wiek"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ anos mais do que a tua idade"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "На %@ г. старше вашего возраста"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "比你的实际年龄大 %@ 岁"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "比你的實際年齡大 %@ 歲"
-          }
-        }
-      }
-    },
-    "%@ yrs younger than your age" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ Jahre jünger als dein Alter"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ años menos que tu edad"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ ans de moins que votre âge"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ anni in meno della tua età"
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ l. mniej niż twój wiek"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ anos menos do que a tua idade"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "На %@ г. моложе вашего возраста"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "比你的实际年龄小 %@ 岁"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "比你的實際年齡小 %@ 歲"
-          }
-        }
-      }
-    },
-    "%@ · target %@" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ · Ziel %2$@"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ · objetivo %2$@"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ · objectif %2$@"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ · obiettivo %2$@"
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ · cel %2$@"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ · objetivo %2$@"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ · цель %2$@"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ · 目标 %2$@"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ · 目標 %2$@"
-          }
-        }
-      }
-    },
     "ACCELERATING" : {
       "localizations" : {
         "de" : {
@@ -542716,64 +542542,6 @@
         }
       }
     },
-    "All nine measures" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Alle neun Messwerte"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Las nueve medidas"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Les neuf mesures"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tutte e nove le misure"
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wszystkie dziewięć miar"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "As nove medidas"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Все девять показателей"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "全部九项指标"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "全部九項指標"
-          }
-        }
-      }
-    },
     "Biggest levers" : {
       "localizations" : {
         "de" : {
@@ -542886,180 +542654,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "體能"
-          }
-        }
-      }
-    },
-    "Healthspan" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Healthspan"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Healthspan"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Healthspan"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Healthspan"
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Healthspan"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Healthspan"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Healthspan"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "健康寿命"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "健康壽命"
-          }
-        }
-      }
-    },
-    "Healthspan age" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Healthspan-Alter"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Edad Healthspan"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Âge Healthspan"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Età Healthspan"
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wiek Healthspan"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Idade Healthspan"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Возраст Healthspan"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "健康寿命年龄"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "健康壽命年齡"
-          }
-        }
-      }
-    },
-    "Healthspan age by week; dashed line is your actual age" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Healthspan-Alter pro Woche; die gestrichelte Linie ist dein tatsächliches Alter"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Edad Healthspan por semana; la línea discontinua es tu edad real"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Âge Healthspan par semaine ; la ligne pointillée est votre âge réel"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Età Healthspan per settimana; la linea tratteggiata è la tua età reale"
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wiek Healthspan tygodniowo; linia przerywana to twój rzeczywisty wiek"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Idade Healthspan por semana; a linha tracejada é a tua idade real"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Возраст Healthspan по неделям; пунктирная линия — ваш реальный возраст"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "每周健康寿命年龄；虚线为你的实际年龄"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "每週健康壽命年齡；虛線為你的實際年齡"
           }
         }
       }
@@ -543354,122 +542948,6 @@
         }
       }
     },
-    "Reading your healthspan…" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Healthspan wird gelesen …"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Leyendo tu healthspan…"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lecture de votre healthspan…"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lettura del tuo healthspan…"
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wczytywanie healthspan…"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A ler o teu healthspan…"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Загрузка healthspan…"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在读取健康寿命…"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在讀取健康壽命…"
-          }
-        }
-      }
-    },
-    "Set your sex in your profile to see your healthspan age." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gib in deinem Profil dein Geschlecht an, um dein Healthspan-Alter zu sehen."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Indica tu sexo en tu perfil para ver tu edad Healthspan."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Indiquez votre sexe dans votre profil pour voir votre âge Healthspan."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Imposta il tuo sesso nel profilo per vedere la tua età Healthspan."
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ustaw płeć w profilu, aby zobaczyć wiek Healthspan."
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Indica o teu sexo no perfil para veres a tua idade Healthspan."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Укажите пол в профиле, чтобы увидеть возраст Healthspan."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "在个人资料中设置性别即可查看健康寿命年龄。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "在個人資料中設定性別即可查看健康壽命年齡。"
-          }
-        }
-      }
-    },
     "Sleep consistency" : {
       "localizations" : {
         "de" : {
@@ -543760,64 +543238,6 @@
         }
       }
     },
-    "Your healthspan age appears after 30 nights of sleep data." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dein Healthspan-Alter erscheint nach 30 Nächten mit Schlafdaten."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tu edad Healthspan aparece tras 30 noches de datos de sueño."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Votre âge Healthspan apparaît après 30 nuits de données de sommeil."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La tua età Healthspan appare dopo 30 notti di dati sul sonno."
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wiek Healthspan pojawi się po 30 nocach danych o śnie."
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A tua idade Healthspan aparece após 30 noites de dados de sono."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Возраст Healthspan появится после 30 ночей данных о сне."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "积累 30 晚睡眠数据后即可显示健康寿命年龄。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "累積 30 晚睡眠資料後即可顯示健康壽命年齡。"
-          }
-        }
-      }
-    },
     "Nine measures of sleep, activity and fitness over the last six months, each compared with a recommendation for good long-term health. Large studies link every measure to all-cause mortality; the difference in risk is turned into years. Meeting every recommendation reads exactly at your age." : {
       "localizations" : {
         "de" : {
@@ -543992,64 +543412,6 @@
         }
       }
     },
-    "An age from nine measures of sleep, activity and fitness over six months, after the method in WHOOP's published Healthspan white paper, with Pace of Aging and the steps that would help most. Takes Body Age's place on Health. Needs 30 nights of sleep data. A motivation tool, not a medical age. Off by default." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ein Alter aus neun Messwerten zu Schlaf, Aktivität und Fitness über sechs Monate, nach der Methode im veröffentlichten Healthspan-Whitepaper von WHOOP, mit Alterungstempo und den Schritten, die am meisten helfen. Ersetzt Body Age unter Gesundheit. Braucht 30 Nächte mit Schlafdaten. Ein Motivationswerkzeug, kein medizinisches Alter. Standardmäßig aus."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Una edad a partir de nueve medidas de sueño, actividad y forma física durante seis meses, según el método del documento técnico Healthspan publicado por WHOOP, con el ritmo de envejecimiento y los pasos que más ayudarían. Sustituye a Body Age en Salud. Necesita 30 noches de datos de sueño. Una herramienta de motivación, no una edad médica. Desactivado por defecto."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Un âge issu de neuf mesures du sommeil, de l'activité et de la condition physique sur six mois, selon la méthode du livre blanc Healthspan publié par WHOOP, avec le rythme de vieillissement et les étapes les plus utiles. Remplace Body Age dans Santé. Nécessite 30 nuits de données de sommeil. Un outil de motivation, pas un âge médical. Désactivé par défaut."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Un'età calcolata da nove misure di sonno, attività e forma fisica in sei mesi, secondo il metodo del white paper Healthspan pubblicato da WHOOP, con il ritmo di invecchiamento e i passi più utili. Sostituisce Body Age in Salute. Richiede 30 notti di dati sul sonno. Uno strumento di motivazione, non un'età medica. Disattivato per impostazione predefinita."
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wiek obliczony z dziewięciu miar snu, aktywności i kondycji z sześciu miesięcy, według metody z opublikowanego przez WHOOP dokumentu Healthspan, z tempem starzenia i krokami, które pomogłyby najbardziej. Zastępuje Body Age w sekcji Zdrowie. Wymaga 30 nocy danych o śnie. Narzędzie motywacyjne, a nie wiek medyczny. Domyślnie wyłączone."
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Uma idade a partir de nove medidas de sono, atividade e condição física ao longo de seis meses, segundo o método do white paper Healthspan publicado pela WHOOP, com o ritmo de envelhecimento e os passos que mais ajudariam. Substitui o Body Age em Saúde. Precisa de 30 noites de dados de sono. Uma ferramenta de motivação, não uma idade médica. Desativado por predefinição."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Возраст по девяти показателям сна, активности и физической формы за шесть месяцев по методу из опубликованного WHOOP документа Healthspan, с темпом старения и шагами, которые помогут больше всего. Заменяет Body Age в разделе «Здоровье». Нужно 30 ночей данных о сне. Инструмент мотивации, а не медицинский возраст. По умолчанию выключено."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "根据 WHOOP 发布的健康寿命白皮书中的方法，用六个月内睡眠、活动和体能的九项指标得出的年龄，并附衰老速度和最有帮助的改进步骤。在“健康”中取代 Body Age。需要 30 晚睡眠数据。这是激励工具，并非医学年龄。默认关闭。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "根據 WHOOP 發布的健康壽命白皮書中的方法，用六個月內睡眠、活動和體能的九項指標得出的年齡，並附衰老速度和最有幫助的改進步驟。在「健康」中取代 Body Age。需要 30 晚睡眠資料。這是激勵工具，並非醫學年齡。預設關閉。"
-          }
-        }
-      }
-    },
     "Dashed line: your actual age" : {
       "localizations" : {
         "de" : {
@@ -544104,6 +543466,1572 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "虛線：你的實際年齡"
+          }
+        }
+      }
+    },
+    "AgeLess" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess"
+          }
+        }
+      }
+    },
+    "AgeLess age" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess-Alter"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edad AgeLess"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Âge AgeLess"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Età AgeLess"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wiek AgeLess"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Idade AgeLess"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Возраст AgeLess"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess 年龄"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess 年齡"
+          }
+        }
+      }
+    },
+    "AgeLess age %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess-Alter %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edad AgeLess %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Âge AgeLess %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Età AgeLess %@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wiek AgeLess %@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Idade AgeLess %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Возраст AgeLess %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess 年龄 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess 年齡 %@"
+          }
+        }
+      }
+    },
+    "AgeLess age by week; dashed line is your actual age" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess-Alter pro Woche; die gestrichelte Linie ist dein tatsächliches Alter"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edad AgeLess por semana; la línea discontinua es tu edad real"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Âge AgeLess par semaine ; la ligne pointillée est votre âge réel"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Età AgeLess per settimana; la linea tratteggiata è la tua età reale"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wiek AgeLess tygodniowo; linia przerywana to twój rzeczywisty wiek"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Idade AgeLess por semana; a linha tracejada é a tua idade real"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Возраст AgeLess по неделям; пунктирная линия — ваш реальный возраст"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每周 AgeLess 年龄；虚线为你的实际年龄"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每週 AgeLess 年齡；虛線為你的實際年齡"
+          }
+        }
+      }
+    },
+    "Based on %lld of 182 days so far" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grundlage bisher: %lld von 182 Tagen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basado en %lld de 182 días hasta ahora"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basé sur %lld jours sur 182 pour l'instant"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basato finora su %lld giorni su 182"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Na podstawie %lld z 182 dni"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Com base em %lld de 182 dias até agora"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "На основе %lld из 182 дней"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "目前基于 182 天中的 %lld 天"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "目前基於 182 天中的 %lld 天"
+          }
+        }
+      }
+    },
+    "Fast" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schnell"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rápido"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rapide"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veloce"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Szybko"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rápido"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Быстро"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "快"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "快"
+          }
+        }
+      }
+    },
+    "Slow" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Langsam"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lento"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lent"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lento"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wolno"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lento"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Медленно"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "慢"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "慢"
+          }
+        }
+      }
+    },
+    "Heading the right way" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auf dem richtigen Weg"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En la dirección correcta"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sur la bonne voie"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sulla strada giusta"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We właściwym kierunku"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No caminho certo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "В правильном направлении"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "方向正确"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "方向正確"
+          }
+        }
+      }
+    },
+    "Keep wearing your strap; the picture sharpens as your six-month window fills." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trag dein Band weiter; das Bild wird schärfer, je mehr sich dein Sechs-Monats-Fenster füllt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sigue llevando tu banda; la imagen se afina a medida que se llena tu ventana de seis meses."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continuez à porter votre bracelet ; l'image s'affine à mesure que votre fenêtre de six mois se remplit."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continua a indossare la fascia; il quadro diventa più preciso man mano che la finestra di sei mesi si riempie."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noś opaskę dalej; obraz będzie dokładniejszy, w miarę jak wypełnia się sześciomiesięczne okno."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continua a usar a tua banda; a imagem fica mais nítida à medida que a janela de seis meses se preenche."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Продолжайте носить браслет: картина станет точнее по мере заполнения шестимесячного окна."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "继续佩戴手环；随着六个月窗口的填满，结果会越来越准确。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "繼續佩戴手環；隨著六個月窗口的填滿，結果會越來越準確。"
+          }
+        }
+      }
+    },
+    "Over time" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Im Verlauf"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A lo largo del tiempo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Au fil du temps"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nel tempo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "W czasie"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ao longo do tempo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Со временем"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "随时间变化"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隨時間變化"
+          }
+        }
+      }
+    },
+    "Reading your AgeLess age…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess-Alter wird gelesen …"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leyendo tu edad AgeLess…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lecture de votre âge AgeLess…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lettura della tua età AgeLess…"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wczytywanie wieku AgeLess…"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A ler a tua idade AgeLess…"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Загрузка возраста AgeLess…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在读取 AgeLess 年龄…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在讀取 AgeLess 年齡…"
+          }
+        }
+      }
+    },
+    "See details" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Details ansehen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ver detalles"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voir les détails"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vedi dettagli"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zobacz szczegóły"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ver detalhes"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подробнее"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看详情"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看詳情"
+          }
+        }
+      }
+    },
+    "Set your sex in your profile to see your AgeLess age." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gib in deinem Profil dein Geschlecht an, um dein AgeLess-Alter zu sehen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indica tu sexo en tu perfil para ver tu edad AgeLess."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indiquez votre sexe dans votre profil pour voir votre âge AgeLess."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Imposta il tuo sesso nel profilo per vedere la tua età AgeLess."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ustaw płeć w profilu, aby zobaczyć wiek AgeLess."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indica o teu sexo no perfil para veres a tua idade AgeLess."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Укажите пол в профиле, чтобы увидеть возраст AgeLess."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在个人资料中设置性别即可查看 AgeLess 年龄。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在個人資料中設定性別即可查看 AgeLess 年齡。"
+          }
+        }
+      }
+    },
+    "Small steps, big impact" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kleine Schritte, große Wirkung"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pequeños pasos, gran impacto"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Petits pas, grand impact"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Piccoli passi, grande impatto"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Małe kroki, duży efekt"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pequenos passos, grande impacto"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Маленькие шаги, большой эффект"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "小步骤，大影响"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "小步驟，大影響"
+          }
+        }
+      }
+    },
+    "Steady and healthy" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stabil und gesund"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estable y saludable"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stable et en bonne santé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stabile e in salute"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stabilnie i zdrowo"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estável e saudável"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Стабильно и здорово"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "稳定且健康"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "穩定且健康"
+          }
+        }
+      }
+    },
+    "Younger, but speeding up" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jünger, aber schneller werdend"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Más joven, pero acelerando"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plus jeune, mais en accélération"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Più giovane, ma in accelerazione"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Młodziej, ale przyspiesza"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mais jovem, mas a acelerar"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Моложе, но ускоряется"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更年轻，但在加速"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更年輕，但在加速"
+          }
+        }
+      }
+    },
+    "Your AgeLess age appears after 30 nights of sleep data." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein AgeLess-Alter erscheint nach 30 Nächten mit Schlafdaten."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu edad AgeLess aparece tras 30 noches de datos de sueño."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre âge AgeLess apparaît après 30 nuits de données de sommeil."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La tua età AgeLess appare dopo 30 notti di dati sul sonno."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wiek AgeLess pojawi się po 30 nocach danych o śnie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A tua idade AgeLess aparece após 30 noites de dados de sono."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Возраст AgeLess появится после 30 ночей данных о сне."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "积累 30 晚睡眠数据后即可显示 AgeLess 年龄。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "累積 30 晚睡眠資料後即可顯示 AgeLess 年齡。"
+          }
+        }
+      }
+    },
+    "Your AgeLess age is below your actual age and your pace is steady or slowing. %@ helps you most; keep it up." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein AgeLess-Alter liegt unter deinem tatsächlichen Alter, und dein Tempo ist stabil oder sinkt. %@ hilft dir am meisten; bleib dran."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu edad AgeLess está por debajo de tu edad real y tu ritmo es estable o se ralentiza. %@ es lo que más te ayuda; sigue así."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre âge AgeLess est inférieur à votre âge réel et votre rythme est stable ou ralentit. %@ vous aide le plus ; continuez ainsi."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La tua età AgeLess è inferiore alla tua età reale e il tuo ritmo è stabile o in calo. %@ ti aiuta di più; continua così."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twój wiek AgeLess jest niższy niż rzeczywisty, a tempo jest stabilne lub spada. Najbardziej pomaga ci: %@. Tak trzymaj."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A tua idade AgeLess está abaixo da tua idade real e o teu ritmo está estável ou a abrandar. %@ é o que mais te ajuda; continua assim."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваш возраст AgeLess ниже реального, а темп стабилен или замедляется. Больше всего помогает: %@. Так держать."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的 AgeLess 年龄低于实际年龄，衰老速度稳定或在放缓。对你帮助最大的是%@，请继续保持。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的 AgeLess 年齡低於實際年齡，衰老速度穩定或在放緩。對你幫助最大的是%@，請繼續保持。"
+          }
+        }
+      }
+    },
+    "Your AgeLess age is rising faster than the calendar. Start with %@; it is your strongest lever." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein AgeLess-Alter steigt schneller als der Kalender. Fang mit %@ an; das ist dein stärkster Hebel."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu edad AgeLess sube más rápido que el calendario. Empieza por %@; es tu palanca más fuerte."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre âge AgeLess augmente plus vite que le calendrier. Commencez par %@ ; c'est votre levier le plus fort."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La tua età AgeLess sale più velocemente del calendario. Inizia da %@: è la tua leva più forte."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twój wiek AgeLess rośnie szybciej niż kalendarz. Zacznij od: %@. To twoja największa dźwignia."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A tua idade AgeLess sobe mais depressa do que o calendário. Começa por %@; é a tua alavanca mais forte."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваш возраст AgeLess растёт быстрее календаря. Начните с этого: %@. Это ваш главный рычаг."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的 AgeLess 年龄增长快于日历。从%@开始，这是你最有效的改进点。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的 AgeLess 年齡增長快於日曆。從%@開始，這是你最有效的改進點。"
+          }
+        }
+      }
+    },
+    "Your last 30 days are less healthy than your six-month average, so your AgeLess age is starting to rise. %@ would help most right now." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine letzten 30 Tage waren weniger gesund als dein Sechs-Monats-Mittel, darum beginnt dein AgeLess-Alter zu steigen. Am meisten hilft jetzt: %@."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tus últimos 30 días son menos saludables que tu media de seis meses, así que tu edad AgeLess empieza a subir. Lo que más ayudaría ahora: %@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vos 30 derniers jours sont moins sains que votre moyenne sur six mois, votre âge AgeLess commence donc à augmenter. Ce qui aiderait le plus maintenant : %@."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gli ultimi 30 giorni sono meno sani della tua media di sei mesi, quindi la tua età AgeLess inizia a salire. Ora aiuterebbe di più: %@."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ostatnie 30 dni było mniej zdrowe niż średnia z sześciu miesięcy, więc wiek AgeLess zaczyna rosnąć. Teraz najbardziej pomoże: %@."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os teus últimos 30 dias foram menos saudáveis do que a tua média de seis meses, por isso a tua idade AgeLess começa a subir. O que mais ajudaria agora: %@."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Последние 30 дней были менее здоровыми, чем в среднем за шесть месяцев, поэтому возраст AgeLess начинает расти. Сейчас больше всего поможет: %@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你最近 30 天不如六个月平均水平健康，因此 AgeLess 年龄开始上升。现在最有帮助的是：%@。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你最近 30 天不如六個月平均水準健康，因此 AgeLess 年齡開始上升。現在最有幫助的是：%@。"
+          }
+        }
+      }
+    },
+    "Your recent habits beat your six-month average, so your AgeLess age is coming down. Your strongest next step: %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine jüngsten Gewohnheiten sind besser als dein Sechs-Monats-Mittel, darum sinkt dein AgeLess-Alter. Dein stärkster nächster Schritt: %@."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tus hábitos recientes superan tu media de seis meses, así que tu edad AgeLess está bajando. Tu mejor siguiente paso: %@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vos habitudes récentes dépassent votre moyenne sur six mois, votre âge AgeLess diminue donc. Votre prochaine étape la plus efficace : %@."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le tue abitudini recenti superano la media di sei mesi, quindi la tua età AgeLess sta scendendo. Il tuo passo successivo più efficace: %@."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ostatnie nawyki są lepsze niż średnia z sześciu miesięcy, więc wiek AgeLess spada. Najskuteczniejszy następny krok: %@."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os teus hábitos recentes superam a tua média de seis meses, por isso a tua idade AgeLess está a descer. O teu próximo passo mais forte: %@."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваши недавние привычки лучше среднего за шесть месяцев, поэтому возраст AgeLess снижается. Самый эффективный следующий шаг: %@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你最近的习惯优于六个月平均水平，因此 AgeLess 年龄正在下降。最有效的下一步：%@。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你最近的習慣優於六個月平均水準，因此 AgeLess 年齡正在下降。最有效的下一步：%@。"
+          }
+        }
+      }
+    },
+    "years" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jahre"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "años"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "años"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "anni"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "lat"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "anos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "лет"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "年"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "年"
+          }
+        }
+      }
+    },
+    "years older" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jahre älter"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "años más"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ans de plus"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "anni in più"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "lat więcej"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "anos a mais"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "лет старше"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "年（更老）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "年（更老）"
+          }
+        }
+      }
+    },
+    "years younger" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jahre jünger"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "años menos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ans de moins"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "anni in meno"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "lat mniej"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "anos a menos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "лет моложе"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "年（更年轻）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "年（更年輕）"
+          }
+        }
+      }
+    },
+    "▲ 30-day avg" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "▲ 30-Tage-Mittel"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "▲ media de 30 días"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "▲ moyenne sur 30 jours"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "▲ media di 30 giorni"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "▲ średnia z 30 dni"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "▲ média de 30 dias"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "▲ среднее за 30 дней"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "▲ 30 天平均"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "▲ 30 天平均"
+          }
+        }
+      }
+    },
+    "▼ 6-month avg" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "▼ 6-Monats-Mittel"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "▼ media de 6 meses"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "▼ moyenne sur 6 mois"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "▼ media di 6 mesi"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "▼ średnia z 6 miesięcy"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "▼ média de 6 meses"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "▼ среднее за 6 месяцев"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "▼ 6 个月平均"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "▼ 6 個月平均"
+          }
+        }
+      }
+    },
+    "AgeLess: an age from nine measures of sleep, activity and fitness over six months, after the method in WHOOP's published Healthspan white paper, with Pace of Aging and the steps that would help most. Takes Body Age's place on Health. Needs 30 nights of sleep data. A motivation tool, not a medical age. Off by default." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess: ein Alter aus neun Messwerten zu Schlaf, Aktivität und Fitness über sechs Monate, nach der Methode im veröffentlichten Healthspan-Whitepaper von WHOOP, mit Alterungstempo und den Schritten, die am meisten helfen. Ersetzt Body Age unter Gesundheit. Braucht 30 Nächte mit Schlafdaten. Ein Motivationswerkzeug, kein medizinisches Alter. Standardmäßig aus."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess: una edad a partir de nueve medidas de sueño, actividad y forma física durante seis meses, según el método del documento técnico Healthspan publicado por WHOOP, con el ritmo de envejecimiento y los pasos que más ayudarían. Sustituye a Body Age en Salud. Necesita 30 noches de datos de sueño. Una herramienta de motivación, no una edad médica. Desactivado por defecto."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess : un âge issu de neuf mesures du sommeil, de l'activité et de la condition physique sur six mois, selon la méthode du livre blanc Healthspan publié par WHOOP, avec le rythme de vieillissement et les étapes les plus utiles. Remplace Body Age dans Santé. Nécessite 30 nuits de données de sommeil. Un outil de motivation, pas un âge médical. Désactivé par défaut."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess: un'età calcolata da nove misure di sonno, attività e forma fisica in sei mesi, secondo il metodo del white paper Healthspan pubblicato da WHOOP, con il ritmo di invecchiamento e i passi più utili. Sostituisce Body Age in Salute. Richiede 30 notti di dati sul sonno. Uno strumento di motivazione, non un'età medica. Disattivato per impostazione predefinita."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess: wiek obliczony z dziewięciu miar snu, aktywności i kondycji z sześciu miesięcy, według metody z opublikowanego przez WHOOP dokumentu Healthspan, z tempem starzenia i krokami, które pomogłyby najbardziej. Zastępuje Body Age w sekcji Zdrowie. Wymaga 30 nocy danych o śnie. Narzędzie motywacyjne, a nie wiek medyczny. Domyślnie wyłączone."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess: uma idade a partir de nove medidas de sono, atividade e condição física ao longo de seis meses, segundo o método do white paper Healthspan publicado pela WHOOP, com o ritmo de envelhecimento e os passos que mais ajudariam. Substitui o Body Age em Saúde. Precisa de 30 noites de dados de sono. Uma ferramenta de motivação, não uma idade médica. Desativado por predefinição."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess: возраст по девяти показателям сна, активности и физической формы за шесть месяцев по методу из опубликованного WHOOP документа Healthspan, с темпом старения и шагами, которые помогут больше всего. Заменяет Body Age в разделе «Здоровье». Нужно 30 ночей данных о сне. Инструмент мотивации, а не медицинский возраст. По умолчанию выключено."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess：根据 WHOOP 发布的健康寿命白皮书中的方法，用六个月内睡眠、活动和体能的九项指标得出的年龄，并附衰老速度和最有帮助的改进步骤。在“健康”中取代 Body Age。需要 30 晚睡眠数据。这是激励工具，并非医学年龄。默认关闭。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess：根據 WHOOP 發布的健康壽命白皮書中的方法，用六個月內睡眠、活動和體能的九項指標得出的年齡，並附衰老速度和最有幫助的改進步驟。在「健康」中取代 Body Age。需要 30 晚睡眠資料。這是激勵工具，並非醫學年齡。預設關閉。"
           }
         }
       }

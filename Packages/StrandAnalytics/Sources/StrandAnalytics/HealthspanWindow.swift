@@ -40,6 +40,8 @@ public enum HealthspanWindow {
     /// One week's healthspan: the age result, its pace, and how much of the 182-day window had data.
     public struct Weekly: Equatable, Sendable {
         public let inputs: HealthspanEngine.Inputs
+        /// The last 30 days' inputs behind the pace; nil until there are enough nights for one.
+        public let recentInputs: HealthspanEngine.Inputs?
         public let result: HealthspanEngine.Result
         public let pace: Double?
         public let coveredDays: Int
@@ -57,12 +59,15 @@ public enum HealthspanWindow {
               let result = HealthspanEngine.compute(window) else { return nil }
         let paceDays = slice(days, endingOn: end, windowDays: paceWindowDays)
         var pace: Double?
+        var recentInputs: HealthspanEngine.Inputs?
         if paceDays.filter({ $0.sleepHours != nil }).count >= minimumPaceNights,
            let recent = inputs(days: paceDays, endingOn: end, windowDays: paceWindowDays, age: age, sex: sex,
                                vo2max: vo2max, leanMassPct: leanMassPct) {
             pace = HealthspanEngine.paceOfAging(window: window, last30Days: recent)
+            recentInputs = recent
         }
-        return Weekly(inputs: window, result: result, pace: pace, coveredDays: span(ageDays, endingOn: end))
+        return Weekly(inputs: window, recentInputs: recentInputs, result: result, pace: pace,
+                      coveredDays: span(ageDays, endingOn: end))
     }
 
     /// Window inputs: per-day means for sleep, steps, sleep HR and consistency; weekly rates for zone and

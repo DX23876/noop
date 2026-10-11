@@ -26,6 +26,10 @@ extension IntelligenceEngine {
     static let healthspanZone45Key = "hs_zone45_min"
     /// The window input behind a week's age, so the card's breakdown is computed from the same numbers.
     nonisolated static func healthspanInputKey(_ c: HealthspanEngine.Component) -> String { "hs_in_" + c.rawValue }
+    /// The last-30-days input behind a week's pace, for the detail screen's second marker.
+    nonisolated static func healthspanRecentInputKey(_ c: HealthspanEngine.Component) -> String {
+        "hs_in30_" + c.rawValue
+    }
 
     /// Banks zone minutes for `[oldestDay, newestDay]`, then rewrites the weekly rows of the weeks that window
     /// touches; on the first run, every week back to the first sleep data. Writes nothing for a profile sex
@@ -98,6 +102,9 @@ extension IntelligenceEngine {
             for c in HealthspanEngine.Component.allCases {
                 if let v = w.inputs.value(c) {
                     weekly.append(MetricPoint(day: saturday, key: healthspanInputKey(c), value: v))
+                }
+                if let v = w.recentInputs?.value(c) {
+                    weekly.append(MetricPoint(day: saturday, key: healthspanRecentInputKey(c), value: v))
                 }
             }
         }
@@ -182,6 +189,7 @@ extension IntelligenceEngine {
             }
             for c in HealthspanEngine.Component.allCases {
                 if let v = window.value(c) { out.append(MetricPoint(day: day, key: healthspanInputKey(c), value: v)) }
+                if let v = recent.value(c) { out.append(MetricPoint(day: day, key: healthspanRecentInputKey(c), value: v)) }
             }
         }
         return out
