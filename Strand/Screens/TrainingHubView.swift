@@ -35,17 +35,19 @@ struct TrainingHubView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
                     header
-                    GoalsContextCard(context: .training)
                     if !model.loaded {
+                        GoalsContextCard(context: .training)
                         ProgressView().frame(maxWidth: .infinity).padding(.top, 80)
                     } else {
+                        // Starting first, then planning, then looking back: the order the tab is used in.
                         startCard
+                        GoalsContextCard(context: .training)
                         weekCard
                         routinesCard
+                        recentCard
                         TrainingActivityHeatmap(days: model.activityDays)
                         TrainingMuscleMapCard(history: model.resolvedHistory)
                         analysisCard
-                        recentCard
                     }
                     DemoScrollBottomAnchor()
                 }
@@ -182,48 +184,33 @@ struct TrainingHubView: View {
         }
     }
 
+    @ViewBuilder
     private var startCard: some View {
-        NoopCard {
-            VStack(alignment: .leading, spacing: NoopMetrics.space3) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(session.hasLiveSession ? "Workout in progress" : "Ready to train?")
+        if session.hasLiveSession {
+            NoopCard {
+                VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                    VStack(alignment: .leading, spacing: NoopMetrics.space1) {
+                        Text("Workout in progress")
                             .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
-                        Text(session.hasLiveSession
-                            ? session.runningTitle
-                            : String(localized: "Log every set locally and keep its source."))
+                        Text(session.runningTitle)
                             .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
                     }
-                    Spacer()
-                    Image(systemName: "dumbbell.fill")
-                        .font(.title2).foregroundStyle(StrandPalette.accent)
-                }
-
-                if session.hasLiveSession {
                     Button { session.present() } label: {
                         Label("Resume workout", systemImage: "play.fill")
-                            .frame(maxWidth: .infinity).padding(.vertical, 11)
+                            .frame(maxWidth: .infinity).padding(.vertical, NoopMetrics.space3)
                     }
                     .buttonStyle(.borderedProminent).tint(StrandPalette.accent)
-                } else {
-                    // The same start screen as Live, Workouts and the quick actions: today's plan,
-                    // freestyle and routines on top, every other activity below.
-                    HStack(spacing: 10) {
-                        Button { openStart() } label: {
-                            Label("Start workout", systemImage: "play.fill")
-                                .frame(maxWidth: .infinity).padding(.vertical, 11)
-                        }
-                        .buttonStyle(.borderedProminent).tint(StrandPalette.accent)
-                        if model.routines(on: Date()).isEmpty {
-                            Button { showingStarterPlans = true } label: {
-                                Text("Choose plan").frame(maxWidth: .infinity).padding(.vertical, 11)
-                            }
-                            .buttonStyle(.bordered)
-                        }
-                    }
                 }
             }
+        } else {
+            TrainingQuickStartCard(strength: strengthEntry, onStartStrength: start, onShowAll: openStart)
         }
+    }
+
+    /// Today's plan when one is scheduled, otherwise a freestyle session.
+    private var strengthEntry: TrainingQuickStartCard.StrengthEntry {
+        let today = model.routines(on: Date())
+        return today.isEmpty ? .freestyle : .today(today)
     }
 
     private var weekCard: some View {

@@ -2950,5 +2950,8 @@
   "**ECG on the WHOOP MG.** Take a 30-second reading from the strap, see it at paper scale with rhythm, HRV and intervals, and compare it with an Apple Watch ECG. Not a medical device.": "**WHOOP MG 心电图。**用手环记录 30 秒读数，按标准纸速查看节律、HRV 和间期，并与 Apple Watch 心电图对比。不是医疗器械。",
   "**Goals.** Daily, weekly, monthly and long-term goals, each drawn in its own shape, with streaks, records, a widget and Coach drafts.": "**目标。**每日、每周、每月和长期目标，各有自己的形状，附带连续记录、个人纪录、小组件和教练草案。",
   "**Workouts.** One start screen for every entry, an Apple-style live workout with spoken splits, Lock Screen controls and a span you can set on the heart rate curve afterwards.": "**锻炼。**所有入口共用一个开始界面，Apple 风格的实时锻炼带语音分段播报和锁定屏幕控制，还能事后在心率曲线上设定时段。",
-  "Set up your goals": "设置你的目标"
+  "Set up your goals": "设置你的目标",
+  "No route": "不记录路线",
+  "All workouts": "全部训练",
+  "Strength, routines and every activity": "力量训练、计划和所有活动"
 }

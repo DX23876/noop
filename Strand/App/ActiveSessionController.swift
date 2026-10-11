@@ -254,7 +254,9 @@ final class ActiveSessionController: ObservableObject {
         Task { await startStrength(routines: routines, closingSheet: closingSheet) }
     }
 
-    func requestCardio(sport: String, targetZone: Int?, gpsEnabled: Bool? = nil) {
+    /// `closingSheet` works as for `requestStrength`: the session presents once the sheet it was
+    /// started from has gone.
+    func requestCardio(sport: String, targetZone: Int?, gpsEnabled: Bool? = nil, closingSheet: Bool = false) {
         guard app.workoutCompletion == nil else { isPresented = true; return }
         if Self.isStrengthSport(sport) {
             chooseStrengthStart()
@@ -267,7 +269,11 @@ final class ActiveSessionController: ObservableObject {
             return
         }
         app.startWorkout(sport: sport, targetZone: targetZone, gpsEnabled: gpsEnabled)
-        isPresented = true
+        guard closingSheet else { isPresented = true; return }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(450))
+            isPresented = true
+        }
     }
 
     /// Resolves a start that collided with a running session.

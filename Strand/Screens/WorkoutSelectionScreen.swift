@@ -50,7 +50,16 @@ struct StartWorkoutSheet: View {
     /// session controller, so where a workout is started no longer decides which kind it can be.
     init(session: ActiveSessionController) {
         self.onStart = { sport, targetZone, gpsEnabled in
-            session.requestCardio(sport: sport, targetZone: targetZone, gpsEnabled: gpsEnabled)
+            // A catalogue activity remembers this start for the Training tab's one-tap list.
+            if let catalogued = WorkoutCatalog.sport(named: sport) {
+                WorkoutQuickStart.start(catalogued,
+                                        with: WorkoutStartSettings(gpsEnabled: gpsEnabled ?? false,
+                                                                   targetZone: targetZone),
+                                        session: session, closingSheet: true)
+            } else {
+                session.requestCardio(sport: sport, targetZone: targetZone, gpsEnabled: gpsEnabled,
+                                      closingSheet: true)
+            }
         }
         self.heading = String(localized: "Start a workout")
         self.explainer = String(localized: "Strength logs your sets. Other activities record time, heart rate and route when available.")
@@ -235,7 +244,8 @@ struct WorkoutSelectionScreen: View {
             return
         }
         selectedSportName = sport.name
-        gpsEnabled = sport.defaultGpsEnabled
+        gpsEnabled = offersStrength ? WorkoutStartSettings.remembered(for: sport).gpsEnabled
+                                    : sport.defaultGpsEnabled
     }
 
     private func startSelected() {
