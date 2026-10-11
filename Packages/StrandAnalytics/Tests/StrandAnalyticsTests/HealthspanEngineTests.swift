@@ -1,4 +1,5 @@
 import XCTest
+import WhoopProtocol
 @testable import StrandAnalytics
 
 final class HealthspanEngineTests: XCTestCase {
@@ -108,5 +109,37 @@ final class HealthspanEngineTests: XCTestCase {
         muchBetter.zone13MinPerWeek = 400; muchBetter.zone45MinPerWeek = 60; muchBetter.strengthMinPerWeek = 60
         muchBetter.restingHR = 52; muchBetter.vo2max = 48
         XCTAssertEqual(E.paceOfAging(window: sixMonths, last30Days: muchBetter)!, -1.0)
+    }
+}
+
+final class HealthspanZoneMinutesTests: XCTestCase {
+
+    /// RHR 60, max 190: reserve 130, so 40 % = 112 bpm and 80 % = 164 bpm.
+    private func minutes(at bpm: [Int]) -> (zone13: Double, zone45: Double)? {
+        let hr = bpm.enumerated().map { HRSample(ts: 1_000_000 + $0.offset * 60, bpm: $0.element) }
+        return HealthspanEngine.zoneMinutes(hr: hr, restingHR: 60, maxHR: 190)
+    }
+
+    func testBandsFollowHeartRateReserve() {
+        let m = minutes(at: [100, 111, 112, 140, 163, 164, 180, 190])!
+        XCTAssertEqual(m.zone13, 3, accuracy: 1e-9)   // 112, 140, 163
+        XCTAssertEqual(m.zone45, 3, accuracy: 1e-9)   // 164, 180, 190
+    }
+
+    /// Dropouts are credited at most 2 minutes, the same rule strain uses.
+    func testGapsAreCappedLikeStrain() {
+        let hr = [HRSample(ts: 0, bpm: 140), HRSample(ts: 600, bpm: 140), HRSample(ts: 660, bpm: 140)]
+        let m = HealthspanEngine.zoneMinutes(hr: hr, restingHR: 60, maxHR: 190)!
+        XCTAssertEqual(m.zone13, 2 + 1 + 1, accuracy: 1e-9)
+    }
+
+    func testInvalidReserveIsNil() {
+        XCTAssertNil(HealthspanEngine.zoneMinutes(hr: [HRSample(ts: 0, bpm: 120)], restingHR: 60, maxHR: 60))
+        XCTAssertEqual(HealthspanEngine.zoneMinutes(hr: [], restingHR: 60, maxHR: 190)!.zone13, 0)
+    }
+
+    func testWeeklyAverage() {
+        XCTAssertEqual(HealthspanEngine.perWeek(totalMinutes: 300, days: 30)!, 70, accuracy: 1e-9)
+        XCTAssertNil(HealthspanEngine.perWeek(totalMinutes: 300, days: 0))
     }
 }

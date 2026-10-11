@@ -1,4 +1,5 @@
 import Foundation
+import WhoopProtocol
 
 // HealthspanEngine.swift — a healthspan "effective age" built from the method WHOOP published for WHOOP Age
 // ("The WHOOP Healthspan Feature", white paper revised 2025-09-04), implemented independently from that
@@ -208,6 +209,34 @@ public enum HealthspanEngine {
         guard let projected = compute(recent) else { return nil }
         let change = (projected.healthspanAge + 0.5) - now.healthspanAge
         return clamp(change / 0.5, -1, 3)
+    }
+
+    // MARK: - Zone time
+
+    /// Lower edges of the paper's zone 1 and zone 4 as fractions of heart-rate reserve (zones 1–5 start at
+    /// 40/60/70/80/90 %). Time below zone 1 does not count, as in WHOOP's own per-activity zone shares.
+    static let zone1LowerPctHRR = 40.0
+    static let zone4LowerPctHRR = 80.0
+
+    /// Minutes at 40–80 % and at ≥ 80 % of heart-rate reserve in one activity's HR samples. Each reading is
+    /// credited with the time to the next, capped exactly as strain caps it, so both describe the same time.
+    /// Pass the same resting HR the healthspan age uses (the in-sleep mean). nil when the reserve is invalid.
+    public static func zoneMinutes(hr: [HRSample], restingHR: Double,
+                                   maxHR: Double) -> (zone13: Double, zone45: Double)? {
+        let reserve = maxHR - restingHR
+        guard reserve > 0 else { return nil }
+        let durations = StrainScorer.sampleDurationsMinutes(hr)
+        var zone13 = 0.0, zone45 = 0.0
+        for (sample, minutes) in zip(hr, durations) {
+            let pct = StrainScorer.pctHRR(Double(sample.bpm), restingHR: restingHR, hrReserve: reserve)
+            if pct >= zone4LowerPctHRR { zone45 += minutes } else if pct >= zone1LowerPctHRR { zone13 += minutes }
+        }
+        return (zone13, zone45)
+    }
+
+    /// Weekly rate from a window's total minutes.
+    public static func perWeek(totalMinutes: Double, days: Double) -> Double? {
+        days > 0 ? totalMinutes / days * 7 : nil
     }
 
     // MARK: - Helpers
