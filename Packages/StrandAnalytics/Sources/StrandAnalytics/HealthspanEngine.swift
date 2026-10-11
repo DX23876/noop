@@ -156,9 +156,13 @@ public enum HealthspanEngine {
     /// 60 min so that time above the 40-min target still subtracts years, as the paper states; it stays flat
     /// to the paper's 2 h/wk cap and beyond.
     static let strengthCurve: [(Double, Double)] = [(0, 1.0), (60, 0.85), (120, 0.85)]
-    /// Kodama 2009, JAMA: 13 % lower risk per MET (3.5 ml/kg/min), held to ±4 MET around the target.
+    /// Kodama 2009, JAMA: 13 % lower risk per MET (3.5 ml/kg/min), at full slope within ±4 MET of the target.
+    /// Above target it stops there. ASSUMPTION: more than 4 MET below target it continues at half the slope, so
+    /// a very unfit wearer still sees each gain (a hard stop froze the largest component for exactly the people
+    /// with the most to gain) while the linear slope is not extrapolated at full strength.
     static let lnHRPerVO2 = log(0.87) / 3.5
     static let vo2maxSpan = 14.0
+    static let vo2maxSlopeBeyondSpan = 0.5
     /// Zhang 2016, CMAJ: HR 1.09 per +10 bpm, linear across the studied 45–90 bpm.
     static let lnHRPerBpm = log(1.09) / 10
     static let restingHRRange = 45.0...90.0
@@ -185,7 +189,10 @@ public enum HealthspanEngine {
         case .strength:
             return years(interpolatedLnHR(v, strengthCurve) - interpolatedLnHR(t, strengthCurve))
         case .vo2max:
-            return years(lnHRPerVO2 * clamp(v - t, -vo2maxSpan, vo2maxSpan))
+            let d = v - t
+            let effective = d >= -vo2maxSpan ? min(d, vo2maxSpan)
+                                             : -vo2maxSpan + (d + vo2maxSpan) * vo2maxSlopeBeyondSpan
+            return years(lnHRPerVO2 * effective)
         case .restingHR:
             let bpm = clamp(v, restingHRRange.lowerBound, restingHRRange.upperBound)
             return years(lnHRPerBpm * (bpm - t))

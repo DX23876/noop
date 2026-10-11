@@ -118,6 +118,17 @@ final class HealthspanEngineTests: XCTestCase {
         XCTAssertFalse(E.compute(x)!.isComplete)
     }
 
+    /// Far below the VO₂max target, progress must stay visible: past 4 MET under target every ml/kg/min still
+    /// counts at half the slope, continuously at the knee. Above target the 4-MET cap stays hard.
+    func testVO2maxProgressVisibleFarBelowTarget() {
+        let at = { (v: Double) in E.compute(.init(age: 35, sex: .male, vo2max: v))!.deltaYears }   // target 42
+        let perMlFull = -10 * log(0.87) / 3.5 * E.overlapFactor
+        XCTAssertEqual(at(23) - at(26), 3 * perMlFull / 2, accuracy: 1e-9)
+        XCTAssertEqual(at(28) - at(29), perMlFull, accuracy: 1e-9)
+        XCTAssertEqual(at(27.9999) - at(28.0001), perMlFull * 0.0001 * 1.5, accuracy: 1e-9)   // no step at the knee
+        XCTAssertEqual(at(56), at(70), accuracy: 1e-9)
+    }
+
     /// Body fat above the ceiling is not extrapolated.
     func testBodyFatCeiling() {
         let a = E.compute(.init(age: 30, sex: .male, leanMassPct: 50))!.deltaYears
