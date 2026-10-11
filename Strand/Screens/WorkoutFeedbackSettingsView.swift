@@ -27,6 +27,18 @@ struct WorkoutFeedbackSettingsView: View {
         UnitPrefs.resolveDistance(system: UnitSystem(rawValue: units) ?? .metric, override: distanceUnits) == .imperial
     }
 
+    private var distanceOptions: [SelectionSheetPicker<Double>.Option] {
+        [.init(value: 0.0, title: String(localized: "Time only"))]
+            + [0.5, 1.0, 2.0].map { value in
+                .init(value: value, title: UnitFormatter.distanceFromMeters(
+                    value * (imperial ? 1609.344 : 1000), system: imperial ? .imperial : .metric))
+            }
+    }
+
+    private var timeOptions: [SelectionSheetPicker<Double>.Option] {
+        [300.0, 600.0, 900.0].map { .init(value: $0, title: WorkoutAnnouncementText.duration(Int($0))) }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -34,17 +46,13 @@ struct WorkoutFeedbackSettingsView: View {
                     Toggle("Voice feedback", isOn: $voice)
                     if voice {
                         if gpsEnabled {
-                            Picker("Distance announcements", selection: $distance) {
-                                Text("Time only").tag(0.0)
-                                ForEach([0.5, 1.0, 2.0], id: \.self) { value in
-                                    Text(UnitFormatter.distanceFromMeters(value * (imperial ? 1609.344 : 1000), system: imperial ? .imperial : .metric)).tag(value)
-                                }
+                            LabeledContent("Distance announcements") {
+                                SelectionSheetPicker(title: "Distance announcements", selection: $distance,
+                                                     options: distanceOptions)
                             }
                         }
-                        Picker("Time announcements", selection: $time) {
-                            ForEach([300.0, 600.0, 900.0], id: \.self) { value in
-                                Text(WorkoutAnnouncementText.duration(Int(value))).tag(value)
-                            }
+                        LabeledContent("Time announcements") {
+                            SelectionSheetPicker(title: "Time announcements", selection: $time, options: timeOptions)
                         }
                         Toggle("Allow speaker", isOn: $speaker)
                     }

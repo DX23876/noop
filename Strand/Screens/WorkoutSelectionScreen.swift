@@ -451,15 +451,8 @@ struct ZoneTrainingTargetPicker: View {
                     .font(StrandFont.body)
                     .foregroundStyle(StrandPalette.textPrimary)
                 Spacer(minLength: NoopMetrics.space2)
-                Picker("Target zone", selection: $selection) {
-                    Text("No zone coach").tag(Int?.none)
-                    ForEach(1...5, id: \.self) { zone in
-                        Text("Zone \(zone)").tag(Optional(zone))
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .fixedSize()
+                SelectionSheetPicker(title: "Target zone", selection: $selection, options: zoneOptions)
+                    .fixedSize()
             }
             if let selection, let range = displayRange(for: selection) {
                 Text("Zone \(selection) · \(range.lower)–\(range.upper) BPM")
@@ -474,6 +467,16 @@ struct ZoneTrainingTargetPicker: View {
         .padding(NoopMetrics.space4)
         .background(NoopPanelSurface(tint: StrandPalette.metricRose, cornerRadius: 20))
         .accessibilityElement(children: .contain)
+    }
+
+    /// No coach first, then each zone with its range from the profile, so the choice shows the numbers.
+    private var zoneOptions: [SelectionSheetPicker<Int?>.Option] {
+        [.init(value: nil, title: String(localized: "No zone coach"),
+               detail: String(localized: "No training buzzes will be sent."))]
+            + (1...5).map { zone in
+                .init(value: zone, title: String(localized: "Zone \(zone)"),
+                      detail: displayRange(for: zone).map { "\($0.lower)–\($0.upper) " + String(localized: "BPM") })
+            }
     }
 
     private func displayRange(for number: Int) -> (lower: Int, upper: Int)? {
