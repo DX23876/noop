@@ -1,7 +1,7 @@
 import Foundation
 
 // HealthspanDetail.swift — the pure parts of the Healthspan detail screen: the fixed scale and coloured ticks
-// of each measure's bar, Pace of Aging in the paper's four bands, and which status line to show. Everything
+// of each measure's bar, Pace of Aging in its four bands, and which status line to show. Everything
 // is read off the engine, so a bar, its marker and its figure cannot disagree.
 
 extension HealthspanEngine {
@@ -52,7 +52,7 @@ extension HealthspanEngine {
         return BarScale(range: range, ticks: ticks)
     }
 
-    /// The paper's four Pace of Aging bands.
+    /// The four Pace of Aging bands.
     public enum PaceClass: Equatable, Sendable {
         case reversing, slowing, steady, accelerating
         public init(pace: Double) {

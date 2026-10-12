@@ -2955,7 +2955,7 @@ struct SettingsView: View {
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
 
-                // MARK: Fork — AgeLess, a healthspan age after WHOOP's published method. Off by default; replaces Body Age.
+                // MARK: Fork — AgeLess, a healthspan age from published mortality studies. Off by default; replaces Body Age.
                 Divider().overlay(StrandPalette.hairline)
 
                 Toggle(isOn: $healthspanEnabled) {
@@ -2969,7 +2969,7 @@ struct SettingsView: View {
                     // Compute right away instead of at the next analysis loop, so the card fills on the flip.
                     if on { Task { await model.intelligence.analyzeRecent(); await model.repo.refresh() } }
                 }
-                Text("AgeLess: an age from nine measures of sleep, activity and fitness over six months, after the method in WHOOP's published Healthspan white paper, with Aging speed and the steps that would help most. Takes Body Age's place on Health. Needs 30 nights of sleep data. A motivation tool, not a medical age. Off by default.")
+                Text("AgeLess: an age from nine measures of sleep, activity and fitness over six months, built on large health studies, with Aging speed and the steps that would help most. Takes Body Age's place on Health. Needs 30 nights of sleep data. A motivation tool, not a medical age. Off by default.")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)

@@ -543006,64 +543006,6 @@
         }
       }
     },
-    "The method follows WHOOP's published Healthspan white paper (2025) and the studies it cites, computed on your device. It is an estimate to motivate healthy habits, not a medical or biological age and not a prediction of lifespan." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Die Methode folgt dem veröffentlichten Healthspan-Whitepaper von WHOOP (2025) und den darin zitierten Studien und wird auf deinem Gerät berechnet. Sie ist eine Schätzung, die gesunde Gewohnheiten motivieren soll, kein medizinisches oder biologisches Alter und keine Vorhersage der Lebensdauer."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "El método sigue el documento técnico Healthspan publicado por WHOOP (2025) y los estudios que cita, calculado en tu dispositivo. Es una estimación para motivar hábitos saludables, no una edad médica o biológica ni una predicción de la esperanza de vida."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La méthode suit le livre blanc Healthspan publié par WHOOP (2025) et les études qu'il cite, calculée sur votre appareil. C'est une estimation pour encourager de bonnes habitudes, pas un âge médical ou biologique ni une prédiction de la durée de vie."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Il metodo segue il white paper Healthspan pubblicato da WHOOP (2025) e gli studi che cita, calcolato sul tuo dispositivo. È una stima per motivare abitudini sane, non un'età medica o biologica né una previsione della durata della vita."
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Metoda opiera się na opublikowanym przez WHOOP dokumencie Healthspan (2025) i cytowanych w nim badaniach, a obliczenia odbywają się na urządzeniu. To oszacowanie motywujące do zdrowych nawyków, a nie wiek medyczny lub biologiczny ani prognoza długości życia."
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O método segue o white paper Healthspan publicado pela WHOOP (2025) e os estudos que cita, calculado no teu dispositivo. É uma estimativa para motivar hábitos saudáveis, não uma idade médica ou biológica nem uma previsão da esperança de vida."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Метод основан на опубликованном WHOOP документе Healthspan (2025) и цитируемых в нём исследованиях и рассчитывается на вашем устройстве. Это оценка для мотивации к здоровым привычкам, а не медицинский или биологический возраст и не прогноз продолжительности жизни."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "该方法依据 WHOOP 发布的健康寿命白皮书（2025）及其引用的研究，在你的设备上计算。它是用于激励健康习惯的估算，并非医学或生物学年龄，也不是寿命预测。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "該方法依據 WHOOP 發布的健康壽命白皮書（2025）及其引用的研究，在你的裝置上計算。它是用於激勵健康習慣的估算，並非醫學或生物學年齡，也不是壽命預測。"
-          }
-        }
-      }
-    },
     "Dashed line: your actual age" : {
       "localizations" : {
         "de" : {
@@ -545152,64 +545094,6 @@
         }
       }
     },
-    "AgeLess: an age from nine measures of sleep, activity and fitness over six months, after the method in WHOOP's published Healthspan white paper, with Aging speed and the steps that would help most. Takes Body Age's place on Health. Needs 30 nights of sleep data. A motivation tool, not a medical age. Off by default." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AgeLess: ein Alter aus neun Messwerten zu Schlaf, Aktivität und Fitness über sechs Monate, nach der Methode im veröffentlichten Healthspan-Whitepaper von WHOOP, mit Alterungstempo und den Schritten, die am meisten helfen. Ersetzt Body Age unter Gesundheit. Braucht 30 Nächte mit Schlafdaten. Ein Motivationswerkzeug, kein medizinisches Alter. Standardmäßig aus."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AgeLess: una edad a partir de nueve medidas de sueño, actividad y forma física durante seis meses, según el método del documento técnico Healthspan publicado por WHOOP, con el ritmo de envejecimiento y los pasos que más ayudarían. Sustituye a Body Age en Salud. Necesita 30 noches de datos de sueño. Una herramienta de motivación, no una edad médica. Desactivado por defecto."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AgeLess : un âge issu de neuf mesures du sommeil, de l'activité et de la condition physique sur six mois, selon la méthode du livre blanc Healthspan publié par WHOOP, avec le rythme de vieillissement et les étapes les plus utiles. Remplace Body Age dans Santé. Nécessite 30 nuits de données de sommeil. Un outil de motivation, pas un âge médical. Désactivé par défaut."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AgeLess: un'età calcolata da nove misure di sonno, attività e forma fisica in sei mesi, secondo il metodo del white paper Healthspan pubblicato da WHOOP, con il ritmo di invecchiamento e i passi più utili. Sostituisce Body Age in Salute. Richiede 30 notti di dati sul sonno. Uno strumento di motivazione, non un'età medica. Disattivato per impostazione predefinita."
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AgeLess: wiek obliczony z dziewięciu miar snu, aktywności i kondycji z sześciu miesięcy, według metody z opublikowanego przez WHOOP dokumentu Healthspan, z tempem starzenia i krokami, które pomogłyby najbardziej. Zastępuje Body Age w sekcji Zdrowie. Wymaga 30 nocy danych o śnie. Narzędzie motywacyjne, a nie wiek medyczny. Domyślnie wyłączone."
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AgeLess: uma idade a partir de nove medidas de sono, atividade e condição física ao longo de seis meses, segundo o método do white paper Healthspan publicado pela WHOOP, com o ritmo de envelhecimento e os passos que mais ajudariam. Substitui o Body Age em Saúde. Precisa de 30 noites de dados de sono. Uma ferramenta de motivação, não uma idade médica. Desativado por predefinição."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AgeLess: возраст по девяти показателям сна, активности и физической формы за шесть месяцев по методу из опубликованного WHOOP документа Healthspan, с темпом старения и шагами, которые помогут больше всего. Заменяет Body Age в разделе «Здоровье». Нужно 30 ночей данных о сне. Инструмент мотивации, а не медицинский возраст. По умолчанию выключено."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AgeLess：根据 WHOOP 发布的健康寿命白皮书中的方法，用六个月内睡眠、活动和体能的九项指标得出的年龄，并附衰老速度和最有帮助的改进步骤。在“健康”中取代 Body Age。需要 30 晚睡眠数据。这是激励工具，并非医学年龄。默认关闭。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AgeLess：根據 WHOOP 發布的健康壽命白皮書中的方法，用六個月內睡眠、活動和體能的九項指標得出的年齡，並附衰老速度和最有幫助的改進步驟。在「健康」中取代 Body Age。需要 30 晚睡眠資料。這是激勵工具，並非醫學年齡。預設關閉。"
-          }
-        }
-      }
-    },
     "Moderate activity" : {
       "localizations" : {
         "de" : {
@@ -545964,64 +545848,6 @@
         }
       }
     },
-    "Method: WHOOP Healthspan white paper (2025)" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Methode: WHOOP-Healthspan-Whitepaper (2025)"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Método: documento técnico Healthspan de WHOOP (2025)"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Méthode : livre blanc Healthspan de WHOOP (2025)"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Metodo: white paper Healthspan di WHOOP (2025)"
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Metoda: dokument Healthspan firmy WHOOP (2025)"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Método: white paper Healthspan da WHOOP (2025)"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Метод: документ WHOOP Healthspan (2025)"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "方法：WHOOP 健康寿命白皮书（2025）"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "方法：WHOOP 健康壽命白皮書（2025）"
-          }
-        }
-      }
-    },
     "How it's calculated" : {
       "localizations" : {
         "de" : {
@@ -546076,64 +545902,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "計算方式"
-          }
-        }
-      }
-    },
-    "Not a medical value. AgeLess is not affiliated with or endorsed by WHOOP." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kein medizinischer Wert. AgeLess ist nicht mit WHOOP verbunden und wird nicht von WHOOP unterstützt."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No es un valor médico. AgeLess no está afiliado a WHOOP ni respaldado por WHOOP."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pas une valeur médicale. AgeLess n'est ni affilié à WHOOP ni approuvé par WHOOP."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Non è un valore medico. AgeLess non è affiliato a WHOOP né approvato da WHOOP."
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "To nie jest wartość medyczna. AgeLess nie jest powiązany z WHOOP ani przez WHOOP wspierany."
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Não é um valor médico. O AgeLess não é afiliado nem apoiado pela WHOOP."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Не медицинский показатель. AgeLess не связан с WHOOP и не одобрен WHOOP."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "非医学数值。AgeLess 与 WHOOP 无关联，也未获得 WHOOP 认可。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "非醫學數值。AgeLess 與 WHOOP 無關聯，也未獲得 WHOOP 認可。"
           }
         }
       }
@@ -546308,6 +546076,238 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "使用 %lld bpm"
+          }
+        }
+      }
+    },
+    "Method: effective age, Spiegelhalter, BMC Med Inform Decis Mak 2016" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Methode: effektives Alter, Spiegelhalter, BMC Med Inform Decis Mak 2016"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Método: edad efectiva, Spiegelhalter, BMC Med Inform Decis Mak 2016"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Méthode : âge effectif, Spiegelhalter, BMC Med Inform Decis Mak 2016"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Metodo: età effettiva, Spiegelhalter, BMC Med Inform Decis Mak 2016"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Metoda: wiek efektywny, Spiegelhalter, BMC Med Inform Decis Mak 2016"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Método: idade efetiva, Spiegelhalter, BMC Med Inform Decis Mak 2016"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Метод: эффективный возраст, Spiegelhalter, BMC Med Inform Decis Mak 2016"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "方法：有效年龄，Spiegelhalter，BMC Med Inform Decis Mak 2016"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "方法：有效年齡，Spiegelhalter，BMC Med Inform Decis Mak 2016"
+          }
+        }
+      }
+    },
+    "Not a medical value." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kein medizinischer Wert."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No es un valor médico."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pas une valeur médicale."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non è un valore medico."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To nie jest wartość medyczna."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não é um valor médico."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не медицинский показатель."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "非医学数值。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "非醫學數值。"
+          }
+        }
+      }
+    },
+    "Computed on your device from the studies above. It is an estimate to motivate healthy habits, not a medical or biological age and not a prediction of lifespan." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auf deinem Gerät aus den Studien oben berechnet. Eine Schätzung, die zu gesunden Gewohnheiten motivieren soll, kein medizinisches oder biologisches Alter und keine Vorhersage der Lebenserwartung."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calculado en tu dispositivo a partir de los estudios anteriores. Es una estimación para motivar hábitos saludables, no una edad médica ni biológica ni una predicción de la esperanza de vida."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calculé sur votre appareil à partir des études ci-dessus. C'est une estimation pour encourager de bonnes habitudes, pas un âge médical ou biologique ni une prédiction de l'espérance de vie."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calcolato sul tuo dispositivo dagli studi qui sopra. È una stima per motivare abitudini sane, non un'età medica o biologica né una previsione dell'aspettativa di vita."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obliczane na twoim urządzeniu na podstawie powyższych badań. To szacunek motywujący do zdrowych nawyków, a nie wiek medyczny czy biologiczny ani prognoza długości życia."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calculado no teu dispositivo a partir dos estudos acima. É uma estimativa para motivar hábitos saudáveis, não uma idade médica ou biológica nem uma previsão da esperança de vida."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Рассчитывается на вашем устройстве по исследованиям выше. Это оценка для мотивации к здоровым привычкам, а не медицинский или биологический возраст и не прогноз продолжительности жизни."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "根据上述研究在你的设备上计算。这是用于激励健康习惯的估算，并非医学或生物学年龄，也不是寿命预测。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "根據上述研究在你的裝置上計算。這是用於激勵健康習慣的估算，並非醫學或生物學年齡，也不是壽命預測。"
+          }
+        }
+      }
+    },
+    "AgeLess: an age from nine measures of sleep, activity and fitness over six months, built on large health studies, with Aging speed and the steps that would help most. Takes Body Age's place on Health. Needs 30 nights of sleep data. A motivation tool, not a medical age. Off by default." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess: ein Alter aus neun Messwerten zu Schlaf, Aktivität und Fitness über sechs Monate, gestützt auf große Gesundheitsstudien, mit Alterungstempo und den Schritten, die am meisten helfen. Ersetzt Body Age unter Gesundheit. Braucht 30 Nächte mit Schlafdaten. Ein Motivationswerkzeug, kein medizinisches Alter. Standardmäßig aus."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess: una edad a partir de nueve medidas de sueño, actividad y forma física durante seis meses, basada en grandes estudios de salud, con el ritmo de envejecimiento y los pasos que más ayudarían. Sustituye a Body Age en Salud. Necesita 30 noches de datos de sueño. Una herramienta de motivación, no una edad médica. Desactivado por defecto."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess : un âge issu de neuf mesures du sommeil, de l'activité et de la condition physique sur six mois, fondé sur de grandes études de santé, avec le rythme de vieillissement et les étapes les plus utiles. Remplace Body Age dans Santé. Nécessite 30 nuits de données de sommeil. Un outil de motivation, pas un âge médical. Désactivé par défaut."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess: un'età calcolata da nove misure di sonno, attività e forma fisica in sei mesi, basata su grandi studi sulla salute, con il ritmo di invecchiamento e i passi più utili. Sostituisce Body Age in Salute. Richiede 30 notti di dati sul sonno. Uno strumento di motivazione, non un'età medica. Disattivato per impostazione predefinita."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess: wiek obliczony z dziewięciu miar snu, aktywności i kondycji z sześciu miesięcy, oparty na dużych badaniach zdrowotnych, z tempem starzenia i krokami, które pomogłyby najbardziej. Zastępuje Body Age w sekcji Zdrowie. Wymaga 30 nocy danych o śnie. Narzędzie motywacyjne, a nie wiek medyczny. Domyślnie wyłączone."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess: uma idade a partir de nove medidas de sono, atividade e condição física ao longo de seis meses, baseada em grandes estudos de saúde, com o ritmo de envelhecimento e os passos que mais ajudariam. Substitui o Body Age em Saúde. Precisa de 30 noites de dados de sono. Uma ferramenta de motivação, não uma idade médica. Desativado por predefinição."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess: возраст по девяти показателям сна, активности и физической формы за шесть месяцев на основе крупных исследований здоровья, с темпом старения и шагами, которые помогут больше всего. Заменяет Body Age в разделе «Здоровье». Нужно 30 ночей данных о сне. Инструмент мотивации, а не медицинский возраст. По умолчанию выключено."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess：基于大型健康研究，用六个月内睡眠、活动和体能的九项指标得出的年龄，并附衰老速度和最有帮助的改进步骤。在“健康”中取代 Body Age。需要 30 晚睡眠数据。这是激励工具，并非医学年龄。默认关闭。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess：基於大型健康研究，用六個月內睡眠、活動和體能的九項指標得出的年齡，並附衰老速度和最有幫助的改進步驟。在「健康」中取代 Body Age。需要 30 晚睡眠資料。這是激勵工具，並非醫學年齡。預設關閉。"
           }
         }
       }

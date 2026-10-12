@@ -1,11 +1,11 @@
 import Foundation
 
-// SleepTimingConsistency.swift — sleep consistency judged by TIMING, the way WHOOP describes its Sleep
-// Consistency publicly: how likely you are to be in the same state (asleep or awake) at the same clock time
+// SleepTimingConsistency.swift — sleep consistency judged by TIMING, after the Sleep Regularity Index
+// (Windred 2024): how likely you are to be in the same state (asleep or awake) at the same clock time
 // across consecutive days, the last 24 h compared with the previous 4 days.
 //
-// Reading of that definition, chosen by reproducing the exported WHOOP values of one wearer (668 nights,
-// 2021–2026): the 24 h ending at the night's wake time are compared minute by minute with the same 24 h on
+// Reading of that definition, chosen by reproducing one wearer's reference values from an earlier
+// wearable's export (668 nights, 2021–2026): the 24 h ending at the night's wake time are compared minute by minute with the same 24 h on
 // each of the 4 days before; agreement is averaged and put on the Sleep Regularity Index scale
 // (200·a − 100), floored at 0. Naps count. Against the export: r 0.95 per night, mean |error| 4 points on
 // monthly averages, bias about +2. The export has no in-sleep wake periods, which plausibly explains most

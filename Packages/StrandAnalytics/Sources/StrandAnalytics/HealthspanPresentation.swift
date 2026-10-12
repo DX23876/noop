@@ -4,7 +4,7 @@ import Foundation
 // engine and inputs so it can never disagree with the headline: totals per domain, the strongest realistic
 // next steps ("levers"), and the half-year projection that Pace of Aging stands for.
 
-/// The paper's three groups of components.
+/// The three groups of components.
 public enum HealthspanDomain: String, CaseIterable, Sendable { case sleep, activity, fitness }
 
 extension HealthspanEngine.Component {

@@ -2873,7 +2873,6 @@
   "Strength activity": "Renforcement musculaire",
   "Unchanged since %@": "Inchangé depuis le %@",
   "Nine measures of sleep, activity and fitness over the last six months, each compared with a recommendation for good long-term health. Large studies link every measure to all-cause mortality; the difference in risk is turned into years. Meeting every recommendation reads exactly at your age.": "Neuf mesures du sommeil, de l'activité et de la condition physique sur les six derniers mois, chacune comparée à une recommandation pour une bonne santé à long terme. De grandes études relient chaque mesure à la mortalité toutes causes ; l'écart de risque est converti en années. Respecter toutes les recommandations donne exactement votre âge.",
-  "The method follows WHOOP's published Healthspan white paper (2025) and the studies it cites, computed on your device. It is an estimate to motivate healthy habits, not a medical or biological age and not a prediction of lifespan.": "La méthode suit le livre blanc Healthspan publié par WHOOP (2025) et les études qu'il cite, calculée sur votre appareil. C'est une estimation pour encourager de bonnes habitudes, pas un âge médical ou biologique ni une prédiction de la durée de vie.",
   "Dashed line: your actual age": "Ligne pointillée : votre âge réel",
   "AgeLess": "AgeLess",
   "AgeLess age %@": "Âge AgeLess %@",
@@ -2910,7 +2909,6 @@
   "Getting younger": "Vous rajeunissez",
   "Your last 30 days beat your six-month average so clearly that your AgeLess age is falling. %@ helps you most; keep it up.": "Vos 30 derniers jours dépassent si nettement votre moyenne sur six mois que votre âge AgeLess baisse. %@ vous aide le plus ; continuez ainsi.",
   "Aging speed assumes your last 30 days continue for six months: 1.0× ages with the calendar, below 1.0× slower, below 0 you get younger.": "Le rythme de vieillissement suppose que vos 30 derniers jours se poursuivent pendant six mois : 1.0× vieillit avec le calendrier, en dessous de 1.0× plus lentement, en dessous de 0 vous rajeunissez.",
-  "AgeLess: an age from nine measures of sleep, activity and fitness over six months, after the method in WHOOP's published Healthspan white paper, with Aging speed and the steps that would help most. Takes Body Age's place on Health. Needs 30 nights of sleep data. A motivation tool, not a medical age. Off by default.": "AgeLess : un âge issu de neuf mesures du sommeil, de l'activité et de la condition physique sur six mois, selon la méthode du livre blanc Healthspan publié par WHOOP, avec le rythme de vieillissement et les étapes les plus utiles. Remplace Body Age dans Santé. Nécessite 30 nuits de données de sommeil. Un outil de motivation, pas un âge médical. Désactivé par défaut.",
   "Moderate activity": "Activité modérée",
   "Vigorous activity": "Activité intense",
   "Average sleeping heart rate": "Fréquence cardiaque moyenne pendant le sommeil",
@@ -2924,10 +2922,12 @@
   "Aging speed shows where your last month is taking you.": "Le rythme de vieillissement montre où votre dernier mois vous mène.",
   "Built on science": "Fondé sur la science",
   "Each of the nine measures is linked to a long, healthy life in large studies with tens of thousands of people. Tap a study to read it.": "Chacune des neuf mesures est liée à une vie longue et en bonne santé dans de grandes études portant sur des dizaines de milliers de personnes. Touchez une étude pour la lire.",
-  "Method: WHOOP Healthspan white paper (2025)": "Méthode : livre blanc Healthspan de WHOOP (2025)",
   "How it's calculated": "Comment c'est calculé",
-  "Not a medical value. AgeLess is not affiliated with or endorsed by WHOOP.": "Pas une valeur médicale. AgeLess n'est ni affilié à WHOOP ni approuvé par WHOOP.",
   "Your workouts reached %lld bpm, held for 30 seconds on at least two days. Use it as your maximum heart rate?": "Vos entraînements ont atteint %lld bpm, maintenus 30 secondes au moins deux jours. L'utiliser comme fréquence cardiaque maximale ?",
   "Applies from now on; Effort already scored stays as it is.": "S'applique dès maintenant ; l'Effort déjà calculé reste inchangé.",
-  "Use %lld bpm": "Utiliser %lld bpm"
+  "Use %lld bpm": "Utiliser %lld bpm",
+  "Method: effective age, Spiegelhalter, BMC Med Inform Decis Mak 2016": "Méthode : âge effectif, Spiegelhalter, BMC Med Inform Decis Mak 2016",
+  "Not a medical value.": "Pas une valeur médicale.",
+  "Computed on your device from the studies above. It is an estimate to motivate healthy habits, not a medical or biological age and not a prediction of lifespan.": "Calculé sur votre appareil à partir des études ci-dessus. C'est une estimation pour encourager de bonnes habitudes, pas un âge médical ou biologique ni une prédiction de l'espérance de vie.",
+  "AgeLess: an age from nine measures of sleep, activity and fitness over six months, built on large health studies, with Aging speed and the steps that would help most. Takes Body Age's place on Health. Needs 30 nights of sleep data. A motivation tool, not a medical age. Off by default.": "AgeLess : un âge issu de neuf mesures du sommeil, de l'activité et de la condition physique sur six mois, fondé sur de grandes études de santé, avec le rythme de vieillissement et les étapes les plus utiles. Remplace Body Age dans Santé. Nécessite 30 nuits de données de sommeil. Un outil de motivation, pas un âge médical. Désactivé par défaut."
 }

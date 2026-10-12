@@ -16,26 +16,26 @@ final class HealthspanEngineTests: XCTestCase {
         for c in r.contributions { XCTAssertEqual(c.years, 0, accuracy: 1e-9, "\(c.component)") }
     }
 
-    /// The four published anchors (whitepaper Table 2, 30-year-olds). Ranges in the paper use their midpoint;
+    /// The four published reference profiles (30-year-olds). Ranges use their midpoint;
     /// the unknown US Zone 4-5 time is 0. `overlapFactor` is fitted on these same four profiles, so this guards
     /// against regressions in the curves; it is not an independent validation.
-    func testWhitepaperTable2Anchors() {
+    func testReferenceProfileAnchors() {
         let usMale = E.compute(.init(age: 30, sex: .male, sleepHours: 6.35, sleepConsistencyPct: 65,
                                      dailySteps: 5200, zone13MinPerWeek: 69, zone45MinPerWeek: 0,
                                      strengthMinPerWeek: 0, vo2max: 42.4, restingHR: 67, leanMassPct: 73.9))!
-        let whoopMale = E.compute(.init(age: 30, sex: .male, sleepHours: 7.0, sleepConsistencyPct: 67,
+        let activeMale = E.compute(.init(age: 30, sex: .male, sleepHours: 7.0, sleepConsistencyPct: 67,
                                         dailySteps: 10900, zone13MinPerWeek: 141, zone45MinPerWeek: 6,
                                         strengthMinPerWeek: 46, vo2max: 46.8, restingHR: 58, leanMassPct: 81))!
         let usFemale = E.compute(.init(age: 30, sex: .female, sleepHours: 6.35, sleepConsistencyPct: 65,
                                        dailySteps: 5000, zone13MinPerWeek: 46, zone45MinPerWeek: 0,
                                        strengthMinPerWeek: 0, vo2max: 30.2, restingHR: 72, leanMassPct: 62.2))!
-        let whoopFemale = E.compute(.init(age: 30, sex: .female, sleepHours: 7.3, sleepConsistencyPct: 68,
+        let activeFemale = E.compute(.init(age: 30, sex: .female, sleepHours: 7.3, sleepConsistencyPct: 68,
                                           dailySteps: 11500, zone13MinPerWeek: 124, zone45MinPerWeek: 7,
                                           strengthMinPerWeek: 56, vo2max: 40, restingHR: 63, leanMassPct: 73))!
         XCTAssertEqual(usMale.deltaYears, 6.0, accuracy: 0.5)
-        XCTAssertEqual(whoopMale.deltaYears, -1.6, accuracy: 0.5)
+        XCTAssertEqual(activeMale.deltaYears, -1.6, accuracy: 0.5)
         XCTAssertEqual(usFemale.deltaYears, 7.5, accuracy: 0.5)
-        XCTAssertEqual(whoopFemale.deltaYears, -1.6, accuracy: 0.5)
+        XCTAssertEqual(activeFemale.deltaYears, -1.6, accuracy: 0.5)
     }
 
     /// Improving any single component never makes the age older, and a clear improvement makes it younger.
@@ -72,11 +72,11 @@ final class HealthspanEngineTests: XCTestCase {
         let a = E.compute(.init(age: 30, sex: .male, dailySteps: 10901))!.healthspanAge
         let b = E.compute(.init(age: 30, sex: .male, dailySteps: 20000))!.healthspanAge
         XCTAssertEqual(a, b, accuracy: 1e-9)
-        // Over 9 h of sleep has no effect, by the whitepaper's rule.
+        // Over 9 h of sleep has no effect, by the method's rule.
         XCTAssertEqual(E.compute(.init(age: 30, sex: .male, sleepHours: 10))!.deltaYears, 0, accuracy: 1e-9)
     }
 
-    /// Age- and sex-dependent targets follow the whitepaper tables.
+    /// Age- and sex-dependent targets follow the published tables.
     func testTargets() {
         XCTAssertEqual(E.vo2maxTarget(age: 30, sex: .male), 44)
         XCTAssertEqual(E.vo2maxTarget(age: 32.5, sex: .male), 43, accuracy: 1e-9)
@@ -99,7 +99,7 @@ final class HealthspanEngineTests: XCTestCase {
         }
     }
 
-    /// The paper: more than 40 min of strength per week subtracts years; below 70 % consistency keeps adding.
+    /// More than 40 min of strength per week subtracts years; below 70 % consistency keeps adding.
     func testStrengthAboveTargetAndIrregularSleepStillCount() {
         let strength = { (m: Double) in E.compute(.init(age: 30, sex: .male, strengthMinPerWeek: m))!.deltaYears }
         XCTAssertLessThan(strength(60), strength(40) - 0.1)

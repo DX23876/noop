@@ -22,7 +22,8 @@ struct AgeLessAboutSheet: View {
         (.restingHR, "Zhang et al., CMAJ 2016", "10.1503/cmaj.150535"),
         (.leanMass, "Jayedi et al., Int J Obes 2022", "10.1038/s41366-022-01165-5"),
     ]
-    private static let whitePaper = URL(string: "https://www.whoop.com/us/en/thelocker/Healthspan-Data-Meets-Longevity/")!
+    /// How mortality risk becomes an age: the "effective age" method.
+    private static let method = URL(string: "https://doi.org/10.1186/s12911-016-0342-z")!
 
     var body: some View {
         NavigationStack {
@@ -49,7 +50,7 @@ struct AgeLessAboutSheet: View {
                     section("Your pace", "Aging speed shows where your last month is taking you.")
                     science
                     method
-                    Text("Not a medical value. AgeLess is not affiliated with or endorsed by WHOOP.")
+                    Text("Not a medical value.")
                         .font(StrandFont.caption)
                         .foregroundStyle(StrandPalette.textTertiary)
                 }
@@ -98,8 +99,8 @@ struct AgeLessAboutSheet: View {
                 }
                 .buttonStyle(.plain)
             }
-            Link(destination: Self.whitePaper) {
-                Label("Method: WHOOP Healthspan white paper (2025)", systemImage: "doc.text")
+            Link(destination: Self.method) {
+                Label("Method: effective age, Spiegelhalter, BMC Med Inform Decis Mak 2016", systemImage: "doc.text")
                     .font(StrandFont.subhead)
             }
         }
@@ -112,7 +113,7 @@ struct AgeLessAboutSheet: View {
                 Text("Nine measures of sleep, activity and fitness over the last six months, each compared with a recommendation for good long-term health. Large studies link every measure to all-cause mortality; the difference in risk is turned into years. Meeting every recommendation reads exactly at your age.")
                 Text("Moderate activity counts minutes in workouts at 40 to 80 % of your heart-rate reserve, vigorous activity above 80 %. The reserve runs from your average sleeping heart rate to your maximum heart rate.")
                 Text("Aging speed assumes your last 30 days continue for six months: 1.0× ages with the calendar, below 1.0× slower, below 0 you get younger.")
-                Text("The method follows WHOOP's published Healthspan white paper (2025) and the studies it cites, computed on your device. It is an estimate to motivate healthy habits, not a medical or biological age and not a prediction of lifespan.")
+                Text("Computed on your device from the studies above. It is an estimate to motivate healthy habits, not a medical or biological age and not a prediction of lifespan.")
             }
             .font(StrandFont.subhead)
             .foregroundStyle(StrandPalette.textSecondary)

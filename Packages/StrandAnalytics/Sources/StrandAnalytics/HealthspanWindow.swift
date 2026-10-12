@@ -1,7 +1,7 @@
 import Foundation
 
 // HealthspanWindow.swift — turns banked per-day values into `HealthspanEngine.Inputs` for a window: 182 days
-// for the age, the last 30 for Pace of Aging, as the WHOOP white paper describes.
+// for the age, the last 30 for Pace of Aging.
 //
 // Raw heart rate is kept for only about five weeks, so anything derived from it (zone minutes) is banked per
 // day while it exists; workouts, sleep sessions and daily rows are kept for good. Everything here is pure and
@@ -114,7 +114,7 @@ public enum HealthspanWindow {
         return values.filter { $0.day >= start && $0.day <= end }.max { $0.day < $1.day }?.value
     }
 
-    /// Activities the paper counts as strength: NOOP's strength family plus the paper's list (yoga, pilates,
+    /// Activities that count as strength: NOOP's strength family plus a published list (yoga, pilates,
     /// barre, HIIT, functional fitness, rucking, …), which NOOP files under other families.
     public static func countsAsStrength(storedName name: String) -> Bool {
         if TrainingActivityClassifier.kind(forStoredName: name) == .strength { return true }
@@ -152,7 +152,7 @@ public enum HealthspanWindow {
 }
 
 extension HealthspanEngine.Sex {
-    /// The profile stores "male", "female" or "nonbinary"; the paper's targets need one of the first two.
+    /// The profile stores "male", "female" or "nonbinary"; the targets need one of the first two.
     public init?(profileValue: String) {
         switch profileValue.lowercased() {
         case "male": self = .male

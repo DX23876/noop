@@ -10,7 +10,7 @@ final class HealthspanPresentationTests: XCTestCase {
                                                 dailySteps: 9646, zone13MinPerWeek: 284, zone45MinPerWeek: 6.1,
                                                 strengthMinPerWeek: 23, vo2max: 23.1, restingHR: 66.1)
 
-    /// The three domain totals add up to the whole delta, grouped as the paper groups them.
+    /// The three domain totals add up to the whole delta, grouped by domain.
     func testDomainTotalsSumToDelta() {
         let r = E.compute(trial)!
         let total = HealthspanDomain.allCases.reduce(0) { $0 + r.years(in: $1) }

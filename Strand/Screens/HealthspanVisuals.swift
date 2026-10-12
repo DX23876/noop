@@ -4,7 +4,7 @@ import StrandAnalytics
 
 // HealthspanVisuals.swift — fork feature (backlog plan HEALTHSPAN_AGE_PLAN, spec S6): the drawn pieces of the
 // AgeLess screens. A half-circle gauge carries the age against the actual age; a tick slider carries Pace of
-// Aging on the paper's −1.0× to 3.0× scale; a ticked bar per measure shows where a value sits on that
+// Aging on a −1.0× to 3.0× scale; a ticked bar per measure shows where a value sits on that
 // measure's curve, coloured by the years each value would add (coral) or remove (cyan to indigo).
 
 // MARK: - Card
@@ -170,7 +170,7 @@ struct HealthspanAgeGauge: View, Animatable {
 
 // MARK: - Pace slider
 
-/// Aging speed (the paper's Pace of Aging) on a tick scale from −1.0× to 3.0×, the calendar's 1.0× in the middle, a marker at the pace;
+/// Aging speed (Pace of Aging) on a tick scale from −1.0× to 3.0×, the calendar's 1.0× in the middle, a marker at the pace;
 /// the slow side carries the young colours, the fast side the old one.
 struct HealthspanPaceSlider: View {
     let pace: Double

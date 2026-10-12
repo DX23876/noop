@@ -199,7 +199,7 @@ struct HealthspanSection: View {
         case .sleepConsistency: return String(localized: "Sleep consistency")
         case .dailySteps: return String(localized: "Daily steps")
         // Named for what the studies measured, not "zones": the app's own zones are % of maximum heart rate,
-        // these follow the paper's heart-rate reserve.
+        // these follow the heart-rate reserve.
         case .zone13: return String(localized: "Moderate activity")
         case .zone45: return String(localized: "Vigorous activity")
         case .strength: return String(localized: "Strength activity")

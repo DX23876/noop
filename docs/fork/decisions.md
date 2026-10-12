@@ -314,9 +314,9 @@ takes each day's median and no longer banks its own values.
 
 Resting HR keeps two named roles. The daily resting HR (lowest five minutes of the main night) is what the
 app shows and what Charge, Effort, Training Load and this estimator use. AgeLess's own measure and its
-zone reference stay the whole-sleep mean, because WHOOP describes its resting HR as an average at rest and
-the Apple Health bridge put WHOOP 6.5 to 11 bpm above the nadir; the screens name it "average sleeping
-heart rate". Effort's reference is unchanged for now (backlog note, later an upstream proposal).
+zone reference stay the whole-sleep mean: the reference profiles the age is calibrated on use an average
+at rest, which sat 6.5 to 11 bpm above the nadir on the wearer's own data; the screens name it "average
+sleeping heart rate". Effort's reference is unchanged for now (backlog note, later an upstream proposal).
 
 The AgeLess pass now aborts on any failed read instead of reading it as an empty history, so its window
 replacement can no longer erase weeks. A first run banks zone minutes over every day the raw heart rate

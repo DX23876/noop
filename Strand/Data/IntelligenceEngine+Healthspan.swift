@@ -44,7 +44,7 @@ extension IntelligenceEngine {
     /// Banks zone minutes for `[oldestDay, newestDay]`, then rewrites the weekly rows of the weeks that window
     /// touches. On the first run (no stored week) it banks every day the band's raw heart rate still covers
     /// (`HealthspanWindow.rawRetentionDays`) and writes every week back to the first sleep data. Writes nothing
-    /// for a profile sex the paper has no targets for, and nothing at all when a read fails: a failed read is
+    /// for a profile sex without targets, and nothing at all when a read fails: a failed read is
     /// not an empty history, and replacing the weeks with it would erase them.
     ///
     /// `manualVO2max` is the value the wearer entered with its day; `trainingVO2max` one training-based value
