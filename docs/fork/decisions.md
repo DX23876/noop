@@ -302,3 +302,27 @@ target and that the age's biggest driver came from its least certain input. Deci
 Analysis migration required: yes (AI-21). The meaning of every stored AgeLess week changes, so the
 migration deletes all AgeLess weekly rows and the next pass rebuilds them from banked inputs; banked
 zone minutes and training VO₂max days are kept. No daily row is re-scored, no ledger is refilled.
+
+### 2026-10-12 — AgeLess reads Training Load's VO₂max estimator; safe, complete banking (AI-22)
+
+A code review of AI-21 found that AgeLess estimated VO₂max from walks and runs with its own copy of the
+method (sleep-mean resting HR, its own session filter), so with Training Load's experimental reading on,
+the same walk could show two figures. There is now one estimator (`Repository.trainingVO2maxEstimates`):
+fused sessions, on foot, with a trace the cardio load could price, against the cardio load's resting rate
+(the week's median of the daily resting HR) and maximum HR. Training Load and AgeLess both read it; AgeLess
+takes each day's median and no longer banks its own values.
+
+Resting HR keeps two named roles. The daily resting HR (lowest five minutes of the main night) is what the
+app shows and what Charge, Effort, Training Load and this estimator use. AgeLess's own measure and its
+zone reference stay the whole-sleep mean, because WHOOP describes its resting HR as an average at rest and
+the Apple Health bridge put WHOOP 6.5 to 11 bpm above the nadir; the screens name it "average sleeping
+heart rate". Effort's reference is unchanged for now (backlog note, later an upstream proposal).
+
+The AgeLess pass now aborts on any failed read instead of reading it as an empty history, so its window
+replacement can no longer erase weeks. A first run banks zone minutes over every day the raw heart rate
+still covers (about 35 days) instead of the pass window, and a worn day whose raw heart rate is gone keeps
+the value banked while it existed.
+
+Analysis migration required: yes (AI-22). The AgeLess weeks and AI-21's banked training VO₂max days are
+deleted (`deleteHealthspanWeeks`) and the next pass rebuilds them; zone minutes are kept. No daily row is
+re-scored.

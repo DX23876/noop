@@ -581,21 +581,10 @@ final class TrainingLoadModel: ObservableObject {
     nonisolated static func exerciseVO2max(sessions: [UnifiedTrainingSession], resolution: TrainingCardioLoadResolution,
                                            restingByDay: [String: Double], maxHR: Double,
                                            apple: [VO2maxReading], offset: Int) -> ExerciseVO2maxReading {
-        var estimates: [ExerciseVO2max.SessionEstimate] = []
-        var onFoot = 0
-        for session in sessions where !resolution.duplicateSessionIds.contains(session.id) {
-            let metrics = CardioSession.metrics(for: session.row, tzOffsetSeconds: offset)
-            guard metrics.modality == .foot else { continue }
-            onFoot += 1
-            let input = ExerciseVO2max.SessionInput(
-                day: metrics.day, startTs: metrics.startTs, modality: metrics.modality,
-                distanceM: metrics.distanceM, durationS: metrics.durationS,
-                averageHR: metrics.avgHr.map(Double.init),
-                heartRateMeasured: resolution.loads[session.id] != nil,
-                restingHR: Repository.cardioLoadRestingHR(day: metrics.day, restingByDay: restingByDay),
-                maxHR: maxHR)
-            if case let .estimate(estimate) = ExerciseVO2max.estimate(input) { estimates.append(estimate) }
-        }
+        // The one estimator AgeLess reads too (TrainingVO2maxEstimates.swift).
+        let (estimates, onFoot) = Repository.trainingVO2maxEstimates(sessions: sessions, resolution: resolution,
+                                                                     restingByDay: restingByDay, maxHR: maxHR,
+                                                                     offset: offset)
         let weekly = ExerciseVO2max.weekly(estimates)
         return ExerciseVO2maxReading(weekly: weekly, sessionsUsed: estimates.count, sessionsOnFoot: onFoot,
                                      report: ExerciseVO2max.validate(weekly: weekly, apple: apple))

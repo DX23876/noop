@@ -30,6 +30,9 @@ public enum HealthspanWindow {
 
     public static let ageWindowDays = 182
     public static let paceWindowDays = 30
+    /// Days of raw heart rate the store keeps (about five weeks): how far back zone minutes can be banked on a
+    /// first run.
+    public static let rawRetentionDays = 35
     /// Nights of sleep data before an age is stated at all (spec S5).
     public static let minimumNights = 30
     /// ASSUMPTION: nights in the last 30 days before a pace is stated.

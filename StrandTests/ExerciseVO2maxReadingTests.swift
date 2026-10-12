@@ -38,4 +38,22 @@ final class ExerciseVO2maxReadingTests: XCTestCase {
         XCTAssertEqual(reading.weekly.count, 1)
         XCTAssertFalse(reading.report.passes)
     }
+
+    /// Training Load and AgeLess read one estimator: the reading's weeks are exactly the weeks of the shared
+    /// estimates, and AgeLess's day values are those estimates' daily medians.
+    func testTrainingLoadAndAgeLessShareTheEstimator() {
+        let sessions = [session("a", day: 2), session("b", day: 2, km: 10), session("c", day: 9)]
+        let resolution = measured(["a", "b", "c"])
+        let resting = ["2025-09-13": 52.0, "2025-09-06": 56.0]
+        let shared = Repository.trainingVO2maxEstimates(sessions: sessions, resolution: resolution,
+                                                        restingByDay: resting, maxHR: 190, offset: 0)
+        let reading = TrainingLoadModel.exerciseVO2max(sessions: sessions, resolution: resolution,
+                                                       restingByDay: resting, maxHR: 190, apple: [], offset: 0)
+        XCTAssertEqual(reading.weekly, ExerciseVO2max.weekly(shared.estimates))
+        XCTAssertEqual(reading.sessionsUsed, shared.estimates.count)
+        let byDay = Repository.trainingVO2maxByDay(shared.estimates)
+        XCTAssertEqual(byDay.count, 2)
+        let day2 = shared.estimates.filter { $0.day == byDay[1].day }.map(\.vo2max)
+        XCTAssertEqual(byDay[1].value, day2.reduce(0, +) / Double(day2.count), accuracy: 1e-9)
+    }
 }

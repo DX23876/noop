@@ -47,6 +47,12 @@ final class HealthspanPassTests: XCTestCase {
                        notes: nil, steps: nil)
         ], deviceId: strap)
         _ = try await store.insert(Streams(hr: (0..<1_800).map { HRSample(ts: walk + $0, bpm: 140) }), deviceId: strap)
+        // Raw heart rate for every worn day (one quiet reading an hour, away from the walk) except one whose
+        // raw data is already gone, 25 days back.
+        let rawGone = HealthspanWindow.dayKey(newestDay, plus: -25)
+        _ = try await store.insert(Streams(hr: days.filter { $0 != rawGone }.flatMap { day in
+            (0..<24).filter { $0 != 17 }.map { HRSample(ts: midnight(day) + $0 * 3_600 + 30, bpm: 58) }
+        }), deviceId: strap)
         return store
     }
 
@@ -83,22 +89,18 @@ final class HealthspanPassTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(strength), 6 * 60.0 / 40 * 7, accuracy: 1e-9)
         let covered = try await value(store, IntelligenceEngine.healthspanCoveredDaysKey, newestDay)
         XCTAssertEqual(covered, 40)
-        // VO₂max from the walk (ACSM at 80 m/min, 61.5 % of reserve), never from the non-exercise estimate.
-        let walkVO2 = 3.5 + (0.1 * 80) / (80.0 / 130)
-        let banked = try await value(store, IntelligenceEngine.healthspanTrainingVO2Key, newestDay)
-        XCTAssertEqual(try XCTUnwrap(banked), walkVO2, accuracy: 0.05)
+        // Without an entered value, Apple Health or a training estimate there is no VO₂max: the stored
+        // non-exercise estimate is never read.
         let vo2 = try await input(.vo2max)
-        XCTAssertEqual(try XCTUnwrap(vo2), walkVO2, accuracy: 0.05)
-        let source = try await value(store, IntelligenceEngine.healthspanVO2SourceKey, newestDay)
-        XCTAssertEqual(source, Double(HealthspanVO2.Source.training.rawValue))
+        XCTAssertNil(vo2)
         let lean = try await input(.leanMass)
         XCTAssertNil(lean)
         let recentRHR = try await value(store, IntelligenceEngine.healthspanRecentInputKey(.restingHR), newestDay)
         XCTAssertEqual(recentRHR, 60)
     }
 
-    /// An entered VO₂max outranks the walk; body fat gives lean mass; a later pass without them leaves no
-    /// stale input behind.
+    /// An entered VO₂max outranks the training estimate; body fat gives lean mass; a later pass without them
+    /// leaves no stale input behind.
     func testManualVO2maxAndBodyFatThenRewrite() async throws {
         let store = try await seededStore()
         let window = HealthspanWindow.dayKey(newestDay, plus: -20)
@@ -106,6 +108,7 @@ final class HealthspanPassTests: XCTestCase {
                                                    sex: "male", hrMaxOverride: 190, oldestDay: window,
                                                    newestDay: newestDay, tzOffset: 0,
                                                    manualVO2max: (day: "2026-10-01", value: 51),
+                                                   trainingVO2max: [(day: "2026-10-08", value: 44)],
                                                    bodyFat: [(day: "2026-09-01", value: 18)])
         let vo2 = try await value(store, IntelligenceEngine.healthspanInputKey(.vo2max), newestDay)
         XCTAssertEqual(vo2, 51)
@@ -116,11 +119,67 @@ final class HealthspanPassTests: XCTestCase {
 
         await IntelligenceEngine.runHealthspanPass(store: store, strapId: strap, computedId: computed, age: 30,
                                                    sex: "male", hrMaxOverride: 190, oldestDay: window,
-                                                   newestDay: newestDay, tzOffset: 0)
+                                                   newestDay: newestDay, tzOffset: 0,
+                                                   trainingVO2max: [(day: "2026-10-08", value: 44)])
+        let vo2After = try await value(store, IntelligenceEngine.healthspanInputKey(.vo2max), newestDay)
+        XCTAssertEqual(vo2After, 44)
         let leanAfter = try await value(store, IntelligenceEngine.healthspanInputKey(.leanMass), newestDay)
         XCTAssertNil(leanAfter)
         let sourceAfter = try await value(store, IntelligenceEngine.healthspanVO2SourceKey, newestDay)
         XCTAssertEqual(sourceAfter, Double(HealthspanVO2.Source.training.rawValue))
+    }
+
+    /// A first run banks zone minutes for every day raw heart rate still covers, not only the pass window;
+    /// a worn day whose raw heart rate is gone keeps what was banked while it existed.
+    func testFirstRunBanksTheWholeRawRetention() async throws {
+        let store = try await seededStore()
+        let early = HealthspanWindow.dayKey(newestDay, plus: -30)
+        let walk = midnight(early) + 17 * 3_600
+        _ = try await store.upsertWorkouts([
+            WorkoutRow(startTs: walk, endTs: walk + 1_200, sport: "Walking", source: strap, durationS: 1_200,
+                       energyKcal: nil, avgHr: 140, maxHr: nil, strain: nil, distanceM: nil, zonesJSON: nil,
+                       notes: nil, steps: nil)
+        ], deviceId: strap)
+        _ = try await store.insert(Streams(hr: (0..<1_200).map { HRSample(ts: walk + $0, bpm: 140) }), deviceId: strap)
+        let noRaw = HealthspanWindow.dayKey(newestDay, plus: -25)
+        _ = try await store.upsertMetricSeries([MetricPoint(day: noRaw, key: IntelligenceEngine.healthspanZone13Key,
+                                                            value: 77)], deviceId: computed)
+        await IntelligenceEngine.runHealthspanPass(store: store, strapId: strap, computedId: computed, age: 30,
+                                                   sex: "male", hrMaxOverride: 190,
+                                                   oldestDay: HealthspanWindow.dayKey(newestDay, plus: -2),
+                                                   newestDay: newestDay, tzOffset: 0)
+        let earlyZone = try await value(store, IntelligenceEngine.healthspanZone13Key, early)
+        XCTAssertEqual(try XCTUnwrap(earlyZone), 20, accuracy: 0.1)
+        let kept = try await value(store, IntelligenceEngine.healthspanZone13Key, noRaw)
+        XCTAssertEqual(kept, 77)
+    }
+
+    /// The AI-21/AI-22 rebuild end to end: the deletion clears every week and the AI-21 training days but
+    /// keeps banked zone minutes, and the next pass writes the weeks again.
+    func testMigrationDeletesThenPassRebuilds() async throws {
+        let store = try await seededStore()
+        let window = HealthspanWindow.dayKey(newestDay, plus: -20)
+        await IntelligenceEngine.runHealthspanPass(store: store, strapId: strap, computedId: computed, age: 30,
+                                                   sex: "male", hrMaxOverride: 190, oldestDay: window,
+                                                   newestDay: newestDay, tzOffset: 0)
+        _ = try await store.upsertMetricSeries([MetricPoint(day: newestDay,
+                                                            key: IntelligenceEngine.healthspanLegacyTrainingVO2Key,
+                                                            value: 40)], deviceId: computed)
+        try await IntelligenceEngine.deleteHealthspanWeeks(store: store, deviceId: strap)
+        let cleared = try await store.metricSeries(deviceId: computed, key: IntelligenceEngine.healthspanAgeKey,
+                                                   from: "2026-01-01", to: newestDay)
+        XCTAssertTrue(cleared.isEmpty)
+        let legacy = try await value(store, IntelligenceEngine.healthspanLegacyTrainingVO2Key, newestDay)
+        XCTAssertNil(legacy)
+        let zone = try await value(store, IntelligenceEngine.healthspanZone13Key, newestDay)
+        XCTAssertNotNil(zone)
+
+        await IntelligenceEngine.runHealthspanPass(store: store, strapId: strap, computedId: computed, age: 30,
+                                                   sex: "male", hrMaxOverride: 190, oldestDay: window,
+                                                   newestDay: newestDay, tzOffset: 0)
+        let rebuilt = try await store.metricSeries(deviceId: computed, key: IntelligenceEngine.healthspanAgeKey,
+                                                   from: "2026-01-01", to: newestDay)
+        XCTAssertEqual(rebuilt.map(\.day), ["2026-09-26", "2026-10-03", "2026-10-10"])
     }
 
     func testNoTargetsForAnUnsetSexWritesNothing() async throws {
