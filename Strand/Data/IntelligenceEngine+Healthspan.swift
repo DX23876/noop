@@ -223,15 +223,25 @@ extension IntelligenceEngine {
 
     /// Weekly rows for `--demo-seed`: habits improving week by week, run through the real engine so the card
     /// renders under the demo exactly as it would on a wearer's data. Each week's pace compares its window
-    /// with a slightly better last 30 days, as an improving wearer's would.
-    nonisolated static func healthspanDemoRows(saturdays: [String]) -> [MetricPoint] {
+    /// with a slightly better last 30 days, as an improving wearer's would. `--demo-ageless-older` seeds the
+    /// other story instead: habits slipping, an age above the actual one and a pace above the calendar.
+    nonisolated static func healthspanDemoRows(saturdays: [String],
+                                               older: Bool = CommandLine.arguments.contains("--demo-ageless-older"))
+        -> [MetricPoint] {
         func inputs(_ t: Double) -> HealthspanEngine.Inputs {
             func lerp(_ a: Double, _ b: Double) -> Double { a + (b - a) * min(1.25, t) }
+            if older {
+                return HealthspanEngine.Inputs(age: 35, sex: .male, sleepHours: lerp(6.9, 6.0),
+                                               sleepConsistencyPct: lerp(62, 45), dailySteps: lerp(6500, 4000),
+                                               zone13MinPerWeek: lerp(90, 25), zone45MinPerWeek: lerp(8, 0),
+                                               strengthMinPerWeek: lerp(30, 0), vo2max: lerp(40, 35),
+                                               restingHR: lerp(62, 71), leanMassPct: lerp(74, 70))
+            }
             return HealthspanEngine.Inputs(age: 35, sex: .male, sleepHours: lerp(6.8, 7.4),
                                            sleepConsistencyPct: lerp(60, 76), dailySteps: lerp(6800, 9400),
                                            zone13MinPerWeek: lerp(70, 170), zone45MinPerWeek: lerp(3, 18),
                                            strengthMinPerWeek: lerp(15, 55), vo2max: lerp(44, 50),
-                                           restingHR: lerp(63, 57))
+                                           restingHR: lerp(63, 57), leanMassPct: lerp(76, 79))
         }
         var out: [MetricPoint] = []
         let last = Double(max(1, saturdays.count - 1))

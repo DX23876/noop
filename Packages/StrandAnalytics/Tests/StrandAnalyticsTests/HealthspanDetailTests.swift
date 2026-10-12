@@ -49,4 +49,25 @@ final class HealthspanDetailTests: XCTestCase {
         XCTAssertEqual(E.narrative(result: young, pace: 1.0, levers: []).kind, .youngerSteady)
         XCTAssertEqual(E.narrative(result: young, pace: 1.5, levers: []).kind, .youngerAccelerating)
     }
+
+    /// A falling age leads the status, younger or older.
+    func testReversingPaceLeads() {
+        let x = E.Inputs(age: 30, sex: .male, sleepHours: 6, sleepConsistencyPct: 60, dailySteps: 5000,
+                         restingHR: 70)
+        let r = E.compute(x)!
+        XCTAssertGreaterThan(r.deltaYears, 0)
+        XCTAssertEqual(E.narrative(result: r, pace: -0.4, levers: []).kind, .reversing)
+        XCTAssertEqual(E.narrative(result: r, pace: 0.4, levers: []).kind, .olderImproving)
+    }
+
+    /// The arrow follows the value; its colour follows the years; small shifts get none.
+    func testTrendArrow() {
+        let lowerHR = E.trend(windowValue: 60, recentValue: 56, windowYears: 0.4, recentYears: 0.1)!
+        XCTAssertFalse(lowerHR.rising)
+        XCTAssertTrue(lowerHR.better)
+        let fewerSteps = E.trend(windowValue: 9000, recentValue: 7000, windowYears: -0.5, recentYears: -0.2)!
+        XCTAssertFalse(fewerSteps.rising)
+        XCTAssertFalse(fewerSteps.better)
+        XCTAssertNil(E.trend(windowValue: 9000, recentValue: 9100, windowYears: -0.5, recentYears: -0.55))
+    }
 }

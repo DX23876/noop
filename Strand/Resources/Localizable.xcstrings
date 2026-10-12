@@ -542832,122 +542832,6 @@
         }
       }
     },
-    "Pace of Aging" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Alterungstempo"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ritmo de envejecimiento"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rythme de vieillissement"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ritmo di invecchiamento"
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tempo starzenia"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ritmo de envelhecimento"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Темп старения"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "衰老速度"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "衰老速度"
-          }
-        }
-      }
-    },
-    "Pace of Aging %@, %@" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Alterungstempo %1$@, %2$@"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ritmo de envejecimiento %1$@, %2$@"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rythme de vieillissement %1$@, %2$@"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ritmo di invecchiamento %1$@, %2$@"
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tempo starzenia %1$@, %2$@"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ritmo de envelhecimento %1$@, %2$@"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Темп старения %1$@, %2$@"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "衰老速度 %1$@，%2$@"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "衰老速度 %1$@，%2$@"
-          }
-        }
-      }
-    },
     "Sleep consistency" : {
       "localizations" : {
         "de" : {
@@ -543292,64 +543176,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "過去六個月的睡眠、活動和體能共九項指標，每項都與有益長期健康的建議值比較。大型研究將每項指標與全因死亡率相關聯，風險差異被換算為年數。全部達到建議值時，結果正好等於你的實際年齡。"
-          }
-        }
-      }
-    },
-    "Pace of Aging assumes your last 30 days continue for six months: 1.0× ages with the calendar, below 1.0× slower, below 0 you get younger." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Das Alterungstempo nimmt an, dass deine letzten 30 Tage sechs Monate so weitergehen: 1,0× altert mit dem Kalender, unter 1,0× langsamer, unter 0 wirst du jünger."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "El ritmo de envejecimiento supone que tus últimos 30 días continúan durante seis meses: 1,0× envejece con el calendario, por debajo de 1,0× más despacio, por debajo de 0 rejuveneces."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Le rythme de vieillissement suppose que vos 30 derniers jours se poursuivent pendant six mois : 1,0× vieillit avec le calendrier, en dessous de 1,0× plus lentement, en dessous de 0 vous rajeunissez."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Il ritmo di invecchiamento presuppone che gli ultimi 30 giorni continuino per sei mesi: 1,0× invecchia con il calendario, sotto 1,0× più lentamente, sotto 0 ringiovanisci."
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tempo starzenia zakłada, że ostatnie 30 dni utrzyma się przez sześć miesięcy: 1,0× to starzenie zgodne z kalendarzem, poniżej 1,0× wolniej, poniżej 0 młodniejesz."
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O ritmo de envelhecimento assume que os teus últimos 30 dias continuam durante seis meses: 1,0× envelhece com o calendário, abaixo de 1,0× mais devagar, abaixo de 0 rejuvenesces."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Темп старения предполагает, что последние 30 дней продлятся шесть месяцев: 1,0× — старение по календарю, ниже 1,0× — медленнее, ниже 0 — вы молодеете."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "衰老速度假设最近 30 天的状态持续六个月：1.0× 与日历同步变老，低于 1.0× 更慢，低于 0 则变年轻。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "衰老速度假設最近 30 天的狀態持續六個月：1.0× 與日曆同步變老，低於 1.0× 更慢，低於 0 則變年輕。"
           }
         }
       }
@@ -544862,123 +544688,761 @@
         }
       }
     },
-    "▲ 30-day avg" : {
+    "Aging speed" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "▲ 30-Tage-Mittel"
+            "value" : "Alterungstempo"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "▲ media de 30 días"
+            "value" : "Ritmo de envejecimiento"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "▲ moyenne sur 30 jours"
+            "value" : "Rythme de vieillissement"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "▲ media di 30 giorni"
+            "value" : "Ritmo di invecchiamento"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "▲ średnia z 30 dni"
+            "value" : "Tempo starzenia"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "▲ média de 30 dias"
+            "value" : "Ritmo de envelhecimento"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "▲ среднее за 30 дней"
+            "value" : "Темп старения"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "▲ 30 天平均"
+            "value" : "衰老速度"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "▲ 30 天平均"
+            "value" : "衰老速度"
           }
         }
       }
     },
-    "▼ 6-month avg" : {
+    "Aging speed %@, %@" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "▼ 6-Monats-Mittel"
+            "value" : "Alterungstempo %@, %@"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "▼ media de 6 meses"
+            "value" : "Ritmo de envejecimiento %@, %@"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "▼ moyenne sur 6 mois"
+            "value" : "Rythme de vieillissement %@, %@"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "▼ media di 6 mesi"
+            "value" : "Ritmo di invecchiamento %@, %@"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "▼ średnia z 6 miesięcy"
+            "value" : "Tempo starzenia %@, %@"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "▼ média de 6 meses"
+            "value" : "Ritmo de envelhecimento %@, %@"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "▼ среднее за 6 месяцев"
+            "value" : "Темп старения %@, %@"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "▼ 6 个月平均"
+            "value" : "衰老速度 %@，%@"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "▼ 6 個月平均"
+            "value" : "衰老速度 %@，%@"
           }
         }
       }
     },
-    "AgeLess: an age from nine measures of sleep, activity and fitness over six months, after the method in WHOOP's published Healthspan white paper, with Pace of Aging and the steps that would help most. Takes Body Age's place on Health. Needs 30 nights of sleep data. A motivation tool, not a medical age. Off by default." : {
+    "Based on %lld of %lld measures" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aus %lld von %lld Messwerten"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basado en %lld de %lld medidas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basé sur %lld mesures sur %lld"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basato su %lld misure su %lld"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Na podstawie %lld z %lld pomiarów"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Com base em %lld de %lld medidas"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "На основе %lld из %lld показателей"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基于 %2$lld 项中的 %1$lld 项指标"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基於 %2$lld 項中的 %1$lld 項指標"
+          }
+        }
+      }
+    },
+    "▼ 6-month average · ↑↓ last 30 days" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "▼ 6-Monats-Mittel · ↑↓ letzte 30 Tage"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "▼ media de 6 meses · ↑↓ últimos 30 días"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "▼ moyenne sur 6 mois · ↑↓ 30 derniers jours"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "▼ media di 6 mesi · ↑↓ ultimi 30 giorni"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "▼ średnia z 6 miesięcy · ↑↓ ostatnie 30 dni"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "▼ média de 6 meses · ↑↓ últimos 30 dias"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "▼ среднее за 6 месяцев · ↑↓ последние 30 дней"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "▼ 6 个月平均 · ↑↓ 最近 30 天"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "▼ 6 個月平均 · ↑↓ 最近 30 天"
+          }
+        }
+      }
+    },
+    "Entered · measure again?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eingetragen · neu messen?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Introducido · ¿medir de nuevo?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saisi · mesurer à nouveau ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inserito · misurare di nuovo?"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wprowadzono · zmierzyć ponownie?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Introduzido · medir de novo?"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Введено вручную · измерить снова?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手动输入 · 重新测量？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手動輸入 · 重新測量？"
+          }
+        }
+      }
+    },
+    "From Apple Watch" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Von der Apple Watch"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De Apple Watch"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Depuis l'Apple Watch"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Da Apple Watch"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Z Apple Watch"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Do Apple Watch"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "С Apple Watch"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "来自 Apple Watch"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "來自 Apple Watch"
+          }
+        }
+      }
+    },
+    "From walks and runs, grade not counted" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aus Spaziergängen und Läufen, Steigung nicht berücksichtigt"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De caminatas y carreras, sin contar la pendiente"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "D'après marches et courses, pente non prise en compte"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Da camminate e corse, pendenza non considerata"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ze spacerów i biegów, bez uwzględnienia nachylenia"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De caminhadas e corridas, sem contar o declive"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "По прогулкам и пробежкам, без учёта уклона"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "来自步行和跑步，未计入坡度"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "來自步行和跑步，未計入坡度"
+          }
+        }
+      }
+    },
+    "Record a walk or run of 20 minutes or more, or enter your VO₂max." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zeichne einen Spaziergang oder Lauf ab 20 Minuten auf oder trag deine VO₂max ein."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registra una caminata o carrera de 20 minutos o más, o introduce tu VO₂máx."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enregistrez une marche ou une course d'au moins 20 minutes, ou saisissez votre VO₂max."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registra una camminata o una corsa di almeno 20 minuti, oppure inserisci il tuo VO₂max."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zarejestruj spacer lub bieg trwający co najmniej 20 minut albo wpisz swoje VO₂max."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regista uma caminhada ou corrida de 20 minutos ou mais, ou introduz o teu VO₂máx."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Запишите прогулку или пробежку от 20 минут или введите свой VO₂max."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "记录一次 20 分钟以上的步行或跑步，或输入你的最大摄氧量。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "記錄一次 20 分鐘以上的步行或跑步，或輸入你的最大攝氧量。"
+          }
+        }
+      }
+    },
+    "Add your body fat on the Body page." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trag deinen Körperfettanteil auf der Seite „Körper“ ein."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añade tu grasa corporal en la página Cuerpo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajoutez votre masse grasse sur la page Corps."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aggiungi la tua massa grassa nella pagina Corpo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dodaj tkankę tłuszczową na stronie Ciało."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adiciona a tua gordura corporal na página Corpo."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Добавьте процент жира на странице «Тело»."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在“身体”页面添加你的体脂率。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在「身體」頁面新增你的體脂率。"
+          }
+        }
+      }
+    },
+    "Getting younger" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Du wirst jünger"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rejuveneciendo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous rajeunissez"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stai ringiovanendo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Młodniejesz"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estás a rejuvenescer"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вы молодеете"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在变年轻"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在變年輕"
+          }
+        }
+      }
+    },
+    "Your last 30 days beat your six-month average so clearly that your AgeLess age is falling. %@ helps you most; keep it up." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine letzten 30 Tage sind so klar besser als dein Sechs-Monats-Mittel, dass dein AgeLess-Alter sinkt. %@ hilft dir am meisten; bleib dran."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tus últimos 30 días superan tan claramente tu media de seis meses que tu edad AgeLess está bajando. %@ es lo que más te ayuda; sigue así."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vos 30 derniers jours dépassent si nettement votre moyenne sur six mois que votre âge AgeLess baisse. %@ vous aide le plus ; continuez ainsi."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gli ultimi 30 giorni superano così chiaramente la media di sei mesi che la tua età AgeLess sta scendendo. %@ ti aiuta di più; continua così."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ostatnie 30 dni są tak wyraźnie lepsze od średniej z sześciu miesięcy, że wiek AgeLess spada. Najbardziej pomaga ci: %@. Tak trzymaj."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os teus últimos 30 dias superam tão claramente a tua média de seis meses que a tua idade AgeLess está a descer. %@ é o que mais te ajuda; continua assim."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Последние 30 дней настолько лучше среднего за шесть месяцев, что ваш возраст AgeLess снижается. Больше всего помогает: %@. Так держать."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你最近 30 天明显优于六个月平均水平，AgeLess 年龄正在下降。对你帮助最大的是%@，请继续保持。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你最近 30 天明顯優於六個月平均水準，AgeLess 年齡正在下降。對你幫助最大的是%@，請繼續保持。"
+          }
+        }
+      }
+    },
+    "Aging speed assumes your last 30 days continue for six months: 1.0× ages with the calendar, below 1.0× slower, below 0 you get younger." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Alterungstempo nimmt an, dass deine letzten 30 Tage sechs Monate lang so weitergehen: 1.0× altert mit dem Kalender, unter 1.0× langsamer, unter 0 wirst du jünger."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El ritmo de envejecimiento supone que tus últimos 30 días continúan durante seis meses: 1.0× envejece con el calendario, por debajo de 1.0× más despacio, por debajo de 0 rejuveneces."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le rythme de vieillissement suppose que vos 30 derniers jours se poursuivent pendant six mois : 1.0× vieillit avec le calendrier, en dessous de 1.0× plus lentement, en dessous de 0 vous rajeunissez."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il ritmo di invecchiamento presuppone che gli ultimi 30 giorni continuino per sei mesi: 1.0× invecchia con il calendario, sotto 1.0× più lentamente, sotto 0 ringiovanisci."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tempo starzenia zakłada, że ostatnie 30 dni potrwa przez sześć miesięcy: 1.0× to starzenie zgodne z kalendarzem, poniżej 1.0× wolniej, poniżej 0 młodniejesz."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O ritmo de envelhecimento assume que os teus últimos 30 dias continuam durante seis meses: 1.0× envelhece com o calendário, abaixo de 1.0× mais devagar, abaixo de 0 rejuvenesces."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Темп старения предполагает, что последние 30 дней продлятся шесть месяцев: 1.0× — старение по календарю, ниже 1.0× — медленнее, ниже 0 — вы молодеете."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "衰老速度假设你最近 30 天的状态持续六个月：1.0× 表示与日历同步衰老，低于 1.0× 表示更慢，低于 0 表示你在变年轻。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "衰老速度假設你最近 30 天的狀態持續六個月：1.0× 表示與日曆同步衰老，低於 1.0× 表示更慢，低於 0 表示你在變年輕。"
+          }
+        }
+      }
+    },
+    "AgeLess is not affiliated with or endorsed by WHOOP." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess ist nicht mit WHOOP verbunden und wird nicht von WHOOP unterstützt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess no está afiliado a WHOOP ni respaldado por WHOOP."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess n'est ni affilié à WHOOP ni approuvé par WHOOP."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess non è affiliato a WHOOP né approvato da WHOOP."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess nie jest powiązany z WHOOP ani przez WHOOP wspierany."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O AgeLess não é afiliado nem apoiado pela WHOOP."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess не связан с WHOOP и не одобрен WHOOP."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess 与 WHOOP 无关联，也未获得 WHOOP 认可。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess 與 WHOOP 無關聯，也未獲得 WHOOP 認可。"
+          }
+        }
+      }
+    },
+    "AgeLess: an age from nine measures of sleep, activity and fitness over six months, after the method in WHOOP's published Healthspan white paper, with Aging speed and the steps that would help most. Takes Body Age's place on Health. Needs 30 nights of sleep data. A motivation tool, not a medical age. Off by default." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {

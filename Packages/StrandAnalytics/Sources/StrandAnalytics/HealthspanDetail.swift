@@ -66,7 +66,7 @@ extension HealthspanEngine {
     /// Which status line the screen leads with, and the measures it names.
     public struct Narrative: Equatable, Sendable {
         public enum Kind: Equatable, Sendable {
-            case youngerSteady, youngerAccelerating, olderImproving, olderAccelerating
+            case reversing, youngerSteady, youngerAccelerating, olderImproving, olderAccelerating
         }
         public let kind: Kind
         /// The measure removing the most years, if any removes years.
@@ -75,17 +75,40 @@ extension HealthspanEngine {
         public let lever: Component?
     }
 
-    /// Younger or on target pairs with a pace at or below the calendar as steady; older pairs with a pace
-    /// below the calendar as improving. Without a pace yet, the delta alone decides and nothing is "accelerating".
+    /// A pace below zero leads, whatever the delta: the age is falling. Otherwise younger or on target pairs
+    /// with a pace at or below the calendar as steady; older pairs with a pace below the calendar as improving.
+    /// Without a pace yet, the delta alone decides and nothing is "accelerating".
     public static func narrative(result: Result, pace: Double?, levers: [Lever]) -> Narrative {
         let accelerating = pace.map { PaceClass(pace: $0) == .accelerating } ?? false
         let kind: Narrative.Kind
-        if result.deltaYears <= 0 {
+        if let pace, PaceClass(pace: pace) == .reversing {
+            kind = .reversing
+        } else if result.deltaYears <= 0 {
             kind = accelerating ? .youngerAccelerating : .youngerSteady
         } else {
             kind = accelerating ? .olderAccelerating : .olderImproving
         }
         let helper = result.contributions.filter { $0.years < -0.05 }.min { $0.years < $1.years }?.component
         return Narrative(kind: kind, helper: helper, lever: levers.first?.component)
+    }
+
+    /// How the last 30 days stand against the six months for one measure, when the difference matters.
+    public struct Trend: Equatable, Sendable {
+        /// The recent value is higher than the six-month one.
+        public let rising: Bool
+        /// The recent value would take years off compared with the six-month one.
+        public let better: Bool
+    }
+
+    /// Smallest change in a measure's years worth an arrow.
+    public static let trendThresholdYears = 0.1
+
+    /// The trend arrow for a measure: the direction its value moved and whether that helps, shown only when
+    /// the recent value would move its years by at least `trendThresholdYears`.
+    public static func trend(windowValue: Double, recentValue: Double, windowYears: Double,
+                             recentYears: Double) -> Trend? {
+        let shift = recentYears - windowYears
+        guard abs(shift) >= trendThresholdYears, recentValue != windowValue else { return nil }
+        return Trend(rising: recentValue > windowValue, better: shift < 0)
     }
 }

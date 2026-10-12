@@ -169,7 +169,7 @@ struct HealthspanAgeGauge: View, Animatable {
 
 // MARK: - Pace slider
 
-/// Pace of Aging on a tick scale from −1.0× to 3.0×, the calendar's 1.0× in the middle, a marker at the pace;
+/// Aging speed (the paper's Pace of Aging) on a tick scale from −1.0× to 3.0×, the calendar's 1.0× in the middle, a marker at the pace;
 /// the slow side carries the young colours, the fast side the old one.
 struct HealthspanPaceSlider: View {
     let pace: Double
@@ -222,7 +222,7 @@ struct HealthspanPaceSlider: View {
             .foregroundStyle(StrandPalette.textTertiary)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("Pace of Aging \(Self.paceText(pace)), \(HealthspanSection.paceState(pace))"))
+        .accessibilityLabel(Text("Aging speed \(Self.paceText(pace)), \(HealthspanSection.paceState(pace))"))
     }
 
     static func paceText(_ v: Double) -> String { v.formatted(.number.precision(.fractionLength(1))) + "×" }
@@ -327,13 +327,16 @@ struct HealthspanLeverRow: View {
 // MARK: - Measure bar
 
 /// One measure as a ticked bar over its curve: coral ticks add years, grey are neutral, cyan to indigo remove
-/// them, deeper the further they go. ▼ marks the six-month average (the age uses it), ▲ the last 30 days.
+/// them, deeper the further they go. ▼ marks the six-month average the age uses; an arrow beside the years
+/// says where the last 30 days are taking the measure, and a note says where the value came from or how to
+/// supply a missing one.
 struct HealthspanMeasureRow: View {
     let component: HealthspanEngine.Component
     let value: Double?
-    let recentValue: Double?
     let years: Double?
     let scale: HealthspanEngine.BarScale
+    var trend: HealthspanEngine.Trend? = nil
+    var note: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.space2) {
@@ -343,12 +346,26 @@ struct HealthspanMeasureRow: View {
             HStack(alignment: .center, spacing: NoopMetrics.space3) {
                 bar
                 VStack(alignment: .trailing, spacing: 0) {
-                    Text(years.map { HealthspanSection.signedNumber($0) } ?? "—")
-                        .font(StrandFont.number(20).monospacedDigit())
-                        .foregroundStyle(Self.textColour(years))
+                    HStack(spacing: 2) {
+                        if let trend {
+                            Image(systemName: trend.rising ? "arrow.up" : "arrow.down")
+                                .font(StrandFont.caption.weight(.bold))
+                                .foregroundStyle(trend.better ? StrandPalette.agelessYoungDeep.legibleText
+                                                 : StrandPalette.agelessOld.legibleText)
+                        }
+                        Text(years.map { HealthspanSection.signedNumber($0) } ?? "—")
+                            .font(StrandFont.number(20).monospacedDigit())
+                            .foregroundStyle(Self.textColour(years))
+                    }
                     Text("years").font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                 }
-                .frame(minWidth: 56, alignment: .trailing)
+                .frame(minWidth: 64, alignment: .trailing)
+            }
+            if let note {
+                Text(note)
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .accessibilityElement(children: .ignore)
@@ -357,8 +374,9 @@ struct HealthspanMeasureRow: View {
 
     private var accessibilitySummary: String {
         let name = HealthspanSection.componentName(component)
-        guard let value, let years else { return "\(name), \(String(localized: "No data yet"))" }
-        return "\(name), \(HealthspanSection.value(component, value)), \(HealthspanSection.signedYears(years))"
+        guard let value, let years else { return [name, String(localized: "No data yet"), note].compactMap { $0 }.joined(separator: ", ") }
+        return [name, HealthspanSection.value(component, value), HealthspanSection.signedYears(years), note]
+            .compactMap { $0 }.joined(separator: ", ")
     }
 
     private var bar: some View {
@@ -381,13 +399,6 @@ struct HealthspanMeasureRow: View {
                         down.move(to: CGPoint(x: x - 5, y: 11)); down.addLine(to: CGPoint(x: x + 5, y: 11))
                         down.addLine(to: CGPoint(x: x, y: 18)); down.closeSubpath()
                         context.fill(down, with: .color(StrandPalette.textPrimary))
-                    }
-                    if let recentValue {
-                        let x = scale.position(recentValue) * size.width
-                        var up = Path()
-                        up.move(to: CGPoint(x: x - 4, y: 39)); up.addLine(to: CGPoint(x: x + 4, y: 39))
-                        up.addLine(to: CGPoint(x: x, y: 32)); up.closeSubpath()
-                        context.fill(up, with: .color(StrandPalette.textSecondary))
                     }
                 }
                 if let value {

@@ -17,8 +17,12 @@ struct HealthspanWeek {
     let result: HealthspanEngine.Result
     let pace: Double?
     let coveredDays: Int
+    /// Where the week's VO₂max came from; nil without one.
+    let vo2Source: HealthspanVO2.Source?
 
     var isProvisional: Bool { coveredDays < HealthspanWindow.ageWindowDays }
+    /// The last 30 days run through the engine, for each measure's trend.
+    var recentResult: HealthspanEngine.Result? { recentInputs.flatMap(HealthspanEngine.compute) }
     var levers: [HealthspanEngine.Lever] { HealthspanEngine.levers(inputs) }
 }
 
@@ -43,6 +47,7 @@ struct HealthspanSnapshot {
         }
         let paces = await byDay(IntelligenceEngine.healthspanPaceKey)
         let covered = await byDay(IntelligenceEngine.healthspanCoveredDaysKey)
+        let vo2Sources = await byDay(IntelligenceEngine.healthspanVO2SourceKey)
         func inputs(_ series: [HealthspanEngine.Component: [String: Double]], _ day: String) -> HealthspanEngine.Inputs? {
             var x = HealthspanEngine.Inputs(age: Double(age), sex: sex)
             var any = false
@@ -54,7 +59,8 @@ struct HealthspanSnapshot {
         let weeks = days.compactMap { day -> HealthspanWeek? in
             guard let x = inputs(window, day), let result = HealthspanEngine.compute(x) else { return nil }
             return HealthspanWeek(day: day, inputs: x, recentInputs: inputs(recent, day), result: result,
-                                  pace: paces[day], coveredDays: Int(covered[day] ?? 0))
+                                  pace: paces[day], coveredDays: Int(covered[day] ?? 0),
+                                  vo2Source: vo2Sources[day].flatMap { HealthspanVO2.Source(rawValue: Int($0)) })
         }
         return weeks.isEmpty ? nil : HealthspanSnapshot(weeks: weeks)
     }
@@ -88,7 +94,7 @@ struct HealthspanSection: View {
         .task(id: repo.refreshSeq) { await load() }
         .sheet(isPresented: $showsDetail) {
             if let snapshot {
-                NavigationStack { HealthspanDetailView(snapshot: snapshot) }
+                NavigationStack { HealthspanDetailView(snapshot: snapshot, manualVO2Day: profile.vo2maxManualDay) }
                     .tint(StrandPalette.agelessYoungDeep)
                     #if os(macOS)
                     .frame(width: 900, height: 820)
@@ -153,6 +159,30 @@ struct HealthspanSection: View {
         }
     }
 
+    /// Under a measure's bar: where VO₂max came from, or how to supply VO₂max or lean mass when missing.
+    /// An entered VO₂max older than six months asks to be measured again.
+    static func note(_ c: HealthspanEngine.Component, week: HealthspanWeek, manualVO2Day: String,
+                     today: String = Repository.localDayKey(Date())) -> String? {
+        switch c {
+        case .vo2max:
+            guard week.inputs.vo2max != nil, let source = week.vo2Source else {
+                return String(localized: "Record a walk or run of 20 minutes or more, or enter your VO₂max.")
+            }
+            switch source {
+            case .manual:
+                let stale = !manualVO2Day.isEmpty
+                    && manualVO2Day < HealthspanWindow.dayKey(today, plus: -HealthspanWindow.ageWindowDays)
+                return stale ? String(localized: "Entered · measure again?") : String(localized: "Entered")
+            case .appleHealth: return String(localized: "From Apple Watch")
+            case .training: return String(localized: "From walks and runs, grade not counted")
+            }
+        case .leanMass:
+            return week.inputs.leanMassPct == nil ? String(localized: "Add your body fat on the Body page.") : nil
+        default:
+            return nil
+        }
+    }
+
     static func domainName(_ d: HealthspanDomain) -> String {
         switch d {
         case .sleep: return String(localized: "Sleep")
@@ -197,8 +227,8 @@ struct HealthspanSection: View {
     static func date(_ day: String) -> Date? { dayFormatter.date(from: day) }
 }
 
-/// The headline both screens share: the age gauge, then Pace of Aging in a pill below it unless the screen
-/// shows the pace on its own slider.
+/// The headline both screens share: the age gauge, how many measures it stands on when some are missing, then
+/// Aging speed in a pill below it unless the screen shows the pace on its own slider.
 struct HealthspanTopRow: View {
     let week: HealthspanWeek
     var showsPace = true
@@ -209,6 +239,12 @@ struct HealthspanTopRow: View {
         VStack(spacing: NoopMetrics.space3) {
             HealthspanAgeGauge(age: week.result.healthspanAge, actualAge: week.result.chronologicalAge, progress: progress)
                 .frame(maxWidth: .infinity)
+            let used = week.result.componentsUsed, all = HealthspanEngine.Component.allCases.count
+            if used < all {
+                Text("Based on \(used) of \(all) measures")
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textSecondary)
+            }
             if showsPace, let pace = week.pace { pacePill(pace) }
         }
         .onAppear {
@@ -222,7 +258,7 @@ struct HealthspanTopRow: View {
             if HealthspanEngine.PaceClass(pace: pace) != .steady {
                 Image(systemName: pace < 1 ? "arrow.down" : "arrow.up")
             }
-            Text("Pace of Aging")
+            Text("Aging speed")
             Text(verbatim: HealthspanPaceSlider.paceText(pace)).monospacedDigit()
         }
         .font(StrandFont.subhead.weight(.semibold))

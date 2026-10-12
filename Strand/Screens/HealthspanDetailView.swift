@@ -3,17 +3,20 @@ import StrandDesign
 import StrandAnalytics
 
 // HealthspanDetailView.swift — fork feature "AgeLess" (backlog plan HEALTHSPAN_AGE_PLAN, spec S6): the full
-// AgeLess screen behind the Health card. Week by week: the age in its orb, Pace of Aging on its slider, a
+// AgeLess screen behind the Health card. Week by week: the age on its gauge, Aging speed on its slider, a
 // status line naming the strongest helper and lever, the next steps, every measure on its bar grouped as
 // sleep, activity and fitness, and the age over time against the actual age.
 
 struct HealthspanDetailView: View {
     let snapshot: HealthspanSnapshot
+    /// The day an entered VO₂max was measured, for the "measure again?" note; "" without one.
+    let manualVO2Day: String
     @State private var index: Int
     @Environment(\.dismiss) private var dismiss
 
-    init(snapshot: HealthspanSnapshot) {
+    init(snapshot: HealthspanSnapshot, manualVO2Day: String = "") {
         self.snapshot = snapshot
+        self.manualVO2Day = manualVO2Day
         _index = State(initialValue: snapshot.weeks.count - 1)
     }
 
@@ -28,7 +31,7 @@ struct HealthspanDetailView: View {
                 HealthspanTopRow(week: week, showsPace: false)
                 if let pace = week.pace {
                     VStack(alignment: .leading, spacing: NoopMetrics.space3) {
-                        Text("Pace of Aging").font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
+                        Text("Aging speed").font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
                         HealthspanPaceSlider(pace: pace)
                         Text("In 6 months: \(HealthspanSection.years(HealthspanEngine.projectedAge(currentAge: week.result.healthspanAge, pace: pace))) if the last 30 days continue")
                             .font(StrandFont.footnote)
@@ -109,6 +112,7 @@ struct HealthspanDetailView: View {
 
     static func title(_ k: HealthspanEngine.Narrative.Kind) -> String {
         switch k {
+        case .reversing: return String(localized: "Getting younger")
         case .youngerSteady: return String(localized: "Steady and healthy")
         case .youngerAccelerating: return String(localized: "Younger, but speeding up")
         case .olderImproving: return String(localized: "Heading the right way")
@@ -120,6 +124,8 @@ struct HealthspanDetailView: View {
         let helper = n.helper.map(HealthspanSection.componentName)
         let lever = n.lever.map(HealthspanSection.componentName)
         switch n.kind {
+        case .reversing:
+            if let helper { return String(localized: "Your last 30 days beat your six-month average so clearly that your AgeLess age is falling. \(helper) helps you most; keep it up.") }
         case .youngerSteady:
             if let helper { return String(localized: "Your AgeLess age is below your actual age and your pace is steady or slowing. \(helper) helps you most; keep it up.") }
         case .youngerAccelerating:
@@ -137,8 +143,7 @@ struct HealthspanDetailView: View {
     /// What the two markers on every bar mean, said once in the first of the three cards.
     private var legend: some View {
         HStack(spacing: NoopMetrics.space3) {
-            Text("▼ 6-month avg")
-            Text("▲ 30-day avg")
+            Text("▼ 6-month average · ↑↓ last 30 days")
         }
         .font(StrandFont.caption)
         .foregroundStyle(StrandPalette.textSecondary)
@@ -146,6 +151,7 @@ struct HealthspanDetailView: View {
 
     private func domain(_ d: HealthspanDomain) -> some View {
         let total = week.result.years(in: d)
+        let recent = week.recentResult
         return VStack(alignment: .leading, spacing: NoopMetrics.space4) {
             HStack(alignment: .firstTextBaseline) {
                 Text(HealthspanSection.domainName(d))
@@ -159,9 +165,16 @@ struct HealthspanDetailView: View {
             if d == HealthspanDomain.allCases.first { legend }
             ForEach(HealthspanEngine.Component.allCases.filter { $0.domain == d }, id: \.self) { c in
                 let contribution = week.result.contributions.first { $0.component == c }
-                HealthspanMeasureRow(component: c, value: week.inputs.value(c), recentValue: week.recentInputs?.value(c),
+                let recentContribution = recent?.contributions.first { $0.component == c }
+                let trend: HealthspanEngine.Trend? = {
+                    guard let w = contribution, let wv = w.value, let r = recentContribution, let rv = r.value else { return nil }
+                    return HealthspanEngine.trend(windowValue: wv, recentValue: rv, windowYears: w.years, recentYears: r.years)
+                }()
+                HealthspanMeasureRow(component: c, value: week.inputs.value(c),
                                      years: contribution?.value == nil ? nil : contribution?.years,
-                                     scale: HealthspanEngine.barScale(c, age: week.inputs.age, sex: week.inputs.sex))
+                                     scale: HealthspanEngine.barScale(c, age: week.inputs.age, sex: week.inputs.sex),
+                                     trend: trend,
+                                     note: HealthspanSection.note(c, week: week, manualVO2Day: manualVO2Day))
             }
         }
         .agelessCard()
@@ -208,8 +221,9 @@ struct HealthspanInfoButton: View {
                     VStack(alignment: .leading, spacing: NoopMetrics.space4) {
                         Text("AgeLess age").font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
                         Text("Nine measures of sleep, activity and fitness over the last six months, each compared with a recommendation for good long-term health. Large studies link every measure to all-cause mortality; the difference in risk is turned into years. Meeting every recommendation reads exactly at your age.")
-                        Text("Pace of Aging assumes your last 30 days continue for six months: 1.0× ages with the calendar, below 1.0× slower, below 0 you get younger.")
+                        Text("Aging speed assumes your last 30 days continue for six months: 1.0× ages with the calendar, below 1.0× slower, below 0 you get younger.")
                         Text("The method follows WHOOP's published Healthspan white paper (2025) and the studies it cites, computed on your device. It is an estimate to motivate healthy habits, not a medical or biological age and not a prediction of lifespan.")
+                        Text("AgeLess is not affiliated with or endorsed by WHOOP.")
                     }
                     .font(StrandFont.body)
                     .foregroundStyle(StrandPalette.textSecondary)
