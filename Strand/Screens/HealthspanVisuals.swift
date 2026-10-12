@@ -22,8 +22,8 @@ extension View {
 // MARK: - Age gauge
 
 /// The AgeLess age on a half-circle gauge spanning ten years either side of the actual age, which sits at the
-/// top with its own mark. The arc fills from the young end to the age in an indigo to cyan glow; past the actual
-/// age the extra years turn coral. The age and the years younger or older sit in the gauge's centre.
+/// top with its own mark. Younger, the arc fills from the young end to the age in an indigo to cyan glow; older,
+/// only the years past the actual age fill, in coral. The age and the years younger or older sit in the gauge's centre.
 struct HealthspanAgeGauge: View, Animatable {
     let age: Double
     let actualAge: Double
@@ -137,19 +137,20 @@ struct HealthspanAgeGauge: View, Animatable {
         }
         context.stroke(arc(centre, r, from: 0, to: 1), with: .color(StrandPalette.textTertiary.opacity(0.14)), style: style)
 
-        // The glow under the fill, then the fill itself.
-        let filled = arc(centre, r, from: 0, to: min(knob, 0.5))
+        // The glow under the fill, then the fill itself. Younger: the young end up to the age glows. Older: only
+        // the years past the actual age glow, so the young half cannot read as years gained.
+        let isOlder = knob > 0.5
+        let filled = isOlder ? arc(centre, r, from: 0.5, to: knob) : arc(centre, r, from: 0, to: knob)
+        let fill = isOlder ? older : young
         context.drawLayer { glow in
             glow.addFilter(.blur(radius: line * 1.1))
             glow.opacity = 0.9
-            glow.stroke(filled, with: young, style: StrokeStyle(lineWidth: line * 1.8, lineCap: .round))
-            if knob > 0.5 { glow.stroke(arc(centre, r, from: 0.5, to: knob), with: older, style: StrokeStyle(lineWidth: line * 1.8, lineCap: .round)) }
+            glow.stroke(filled, with: fill, style: StrokeStyle(lineWidth: line * 1.8, lineCap: .round))
         }
-        if knob < 0.5 {
+        if !isOlder {
             context.stroke(arc(centre, r, from: knob, to: 0.5), with: .color(StrandPalette.agelessYoung.opacity(0.18)), style: style)
         }
-        context.stroke(filled, with: young, style: style)
-        if knob > 0.5 { context.stroke(arc(centre, r, from: 0.5, to: knob), with: older, style: style) }
+        context.stroke(filled, with: fill, style: style)
 
         var mark = Path()
         mark.move(to: point(centre, r - line / 2, 0.5)); mark.addLine(to: point(centre, r + line / 2 + 20, 0.5))
@@ -211,6 +212,8 @@ struct HealthspanPaceSlider: View {
                     .position(x: min(max(x, 24), w - 24), y: 6)
             }
             .frame(height: 46)
+            // The value label rides above ticks drawn at fixed heights; past this size it would cover them.
+            .dynamicTypeSize(...DynamicTypeSize.xLarge)
             HStack {
                 Text(verbatim: Self.paceText(-1))
                 Spacer()
@@ -410,6 +413,8 @@ struct HealthspanMeasureRow: View {
                 }
             }
             .frame(height: 40)
+            // The value label rides above ticks drawn at fixed heights; past this size it would cover them.
+            .dynamicTypeSize(...DynamicTypeSize.xLarge)
             HStack {
                 Text(HealthspanSection.value(component, scale.range.lowerBound))
                 Spacer()
