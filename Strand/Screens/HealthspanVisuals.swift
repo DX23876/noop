@@ -5,13 +5,13 @@ import StrandAnalytics
 // HealthspanVisuals.swift — fork feature (backlog plan HEALTHSPAN_AGE_PLAN, spec S6): the drawn pieces of the
 // AgeLess screens. A half-circle gauge carries the age against the actual age; a tick slider carries Pace of
 // Aging on the paper's −1.0× to 3.0× scale; a ticked bar per measure shows where a value sits on that
-// measure's curve, coloured by the years each value would add (amber) or remove (green).
+// measure's curve, coloured by the years each value would add (coral) or remove (cyan to indigo).
 
 // MARK: - Age gauge
 
 /// The AgeLess age on a half-circle gauge spanning ten years either side of the actual age, which sits at the
-/// top with its own mark. The arc fills from the young end to the age in a lime to teal glow; past the actual
-/// age the extra years turn amber. The age and the years younger or older sit in the gauge's centre.
+/// top with its own mark. The arc fills from the young end to the age in an indigo to cyan glow; past the actual
+/// age the extra years turn coral. The age and the years younger or older sit in the gauge's centre.
 struct HealthspanAgeGauge: View, Animatable {
     let age: Double
     let actualAge: Double
@@ -24,6 +24,7 @@ struct HealthspanAgeGauge: View, Animatable {
     }
 
     static let span = 10.0
+    static let bleed: CGFloat = 40
 
     /// Where an age sits on the gauge, 0 at the young end and 1 at the old end.
     static func fraction(_ age: Double, actualAge: Double) -> Double {
@@ -41,7 +42,14 @@ struct HealthspanAgeGauge: View, Animatable {
             let line = r * 0.15
             let centre = CGPoint(x: w / 2, y: r + line / 2 + 46)
             ZStack {
-                Canvas { context, _ in draw(&context, centre: centre, r: r, line: line) }
+                // The canvas overhangs the gauge so the glow fades out instead of ending at its frame.
+                Canvas { context, _ in
+                    context.translateBy(x: Self.bleed, y: Self.bleed)
+                    draw(&context, centre: centre, r: r, line: line)
+                }
+                .frame(width: g.size.width + 2 * Self.bleed, height: g.size.height + 2 * Self.bleed)
+                .position(x: g.size.width / 2, y: g.size.height / 2)
+                .allowsHitTesting(false)
                 Text(verbatim: Self.whole(actualAge))
                     .font(StrandFont.number(17).monospacedDigit())
                     .foregroundStyle(StrandPalette.textSecondary)
@@ -75,7 +83,7 @@ struct HealthspanAgeGauge: View, Animatable {
         return (Text(verbatim: HealthspanSection.years(abs(delta)) + " ")
                 + Text(delta <= 0 ? "years younger" : "years older"))
             .font(StrandFont.subhead.weight(.medium))
-            .foregroundStyle(delta <= 0 ? StrandPalette.statusPositive.legibleText : StrandPalette.statusWarningForeground)
+            .foregroundStyle(delta <= 0 ? StrandPalette.agelessYoungDeep.legibleText : StrandPalette.agelessOld.legibleText)
             .lineLimit(1)
             .minimumScaleFactor(0.7)
     }
@@ -97,10 +105,10 @@ struct HealthspanAgeGauge: View, Animatable {
         let knob = Self.fraction(shownAge, actualAge: actualAge)
         let style = StrokeStyle(lineWidth: line, lineCap: .round)
         let young = GraphicsContext.Shading.linearGradient(
-            Gradient(colors: [StrandPalette.recovery078, StrandPalette.recovery100, NoopVisualStyle.mint]),
+            Gradient(colors: [StrandPalette.agelessYoungDeep, StrandPalette.agelessYoung]),
             startPoint: point(centre, r, 0), endPoint: point(centre, r, max(0.12, min(knob, 0.5))))
-        let amber = GraphicsContext.Shading.color(StrandPalette.metricAmber)
-        let knobColour = knob <= 0.5 ? NoopVisualStyle.mint : StrandPalette.metricAmber
+        let older = GraphicsContext.Shading.color(StrandPalette.agelessOld)
+        let knobColour = knob <= 0.5 ? StrandPalette.agelessYoung : StrandPalette.agelessOld
 
         // Ticks, one per year, outside the arc; the actual age gets the long dark mark across the arc.
         for i in 0...20 where i != 10 {
@@ -117,13 +125,13 @@ struct HealthspanAgeGauge: View, Animatable {
             glow.addFilter(.blur(radius: line * 1.1))
             glow.opacity = 0.9
             glow.stroke(filled, with: young, style: StrokeStyle(lineWidth: line * 1.8, lineCap: .round))
-            if knob > 0.5 { glow.stroke(arc(centre, r, from: 0.5, to: knob), with: amber, style: StrokeStyle(lineWidth: line * 1.8, lineCap: .round)) }
+            if knob > 0.5 { glow.stroke(arc(centre, r, from: 0.5, to: knob), with: older, style: StrokeStyle(lineWidth: line * 1.8, lineCap: .round)) }
         }
         if knob < 0.5 {
-            context.stroke(arc(centre, r, from: knob, to: 0.5), with: .color(NoopVisualStyle.mint.opacity(0.18)), style: style)
+            context.stroke(arc(centre, r, from: knob, to: 0.5), with: .color(StrandPalette.agelessYoung.opacity(0.18)), style: style)
         }
         context.stroke(filled, with: young, style: style)
-        if knob > 0.5 { context.stroke(arc(centre, r, from: 0.5, to: knob), with: amber, style: style) }
+        if knob > 0.5 { context.stroke(arc(centre, r, from: 0.5, to: knob), with: older, style: style) }
 
         var mark = Path()
         mark.move(to: point(centre, r - line / 2, 0.5)); mark.addLine(to: point(centre, r + line / 2 + 20, 0.5))
@@ -198,8 +206,8 @@ struct HealthspanPaceSlider: View {
 
 // MARK: - Measure bar
 
-/// One measure as a ticked bar over its curve: amber ticks add years, grey are neutral, green remove them,
-/// deeper the further they go. ▼ marks the six-month average (the age uses it), ▲ the last 30 days.
+/// One measure as a ticked bar over its curve: coral ticks add years, grey are neutral, cyan to indigo remove
+/// them, deeper the further they go. ▼ marks the six-month average (the age uses it), ▲ the last 30 days.
 struct HealthspanMeasureRow: View {
     let component: HealthspanEngine.Component
     let value: Double?
@@ -282,15 +290,18 @@ struct HealthspanMeasureRow: View {
     /// Solid ink for a years figure: the tick colours fade with magnitude, text must not.
     static func textColour(_ years: Double?) -> Color {
         guard let years else { return StrandPalette.textTertiary }
-        if years > 0.05 { return StrandPalette.statusWarningForeground }
-        if years < -0.05 { return StrandPalette.statusPositive.legibleText }
+        if years > 0.05 { return StrandPalette.agelessOld.legibleText }
+        if years < -0.05 { return StrandPalette.agelessYoungDeep.legibleText }
         return StrandPalette.textSecondary
     }
 
-    /// Amber adds years, green removes them; within a few weeks of neutral the tick stays grey.
+    /// Coral adds years, cyan to indigo removes them; within a few weeks of neutral the tick stays grey.
     static func colour(_ years: Double, max: Double) -> Color {
-        if years > 0.05 { return StrandPalette.metricAmber.opacity(0.45 + 0.55 * min(1, years / max)) }
-        if years < -0.05 { return StrandPalette.statusPositive.opacity(0.45 + 0.55 * min(1, -years / max)) }
+        if years > 0.05 { return StrandPalette.agelessOld.opacity(0.4 + 0.6 * min(1, years / max)) }
+        if years < -0.05 {
+            let t = min(1, -years / max)
+            return t < 0.5 ? StrandPalette.agelessYoung.opacity(0.55 + 0.9 * t) : StrandPalette.agelessYoungDeep.opacity(0.5 + t / 2)
+        }
         return StrandPalette.textTertiary.opacity(0.35)
     }
 }

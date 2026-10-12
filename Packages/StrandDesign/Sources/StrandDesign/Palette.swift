@@ -582,6 +582,13 @@ public enum StrandPalette {
         }
     }
 
+    // MARK: AgeLess — its own scale, deliberately not the recovery greens and ambers: cyan for a little
+    // younger, deepening to indigo for much younger, coral for older. Fixed across chart styles so the
+    // feature keeps one identity.
+    public static let agelessYoung = Color(light: "#0E9FC2", dark: "#4FD8F5")
+    public static let agelessYoungDeep = Color(light: "#4B4FD6", dark: "#7B7FFF")
+    public static let agelessOld = Color(light: "#D9435A", dark: "#FF6B80")
+
     // MARK: - Energy
 
     /// A small, fixed colour world for expenditure. These colours intentionally do not follow the

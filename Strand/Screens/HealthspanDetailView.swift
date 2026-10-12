@@ -103,7 +103,7 @@ struct HealthspanDetailView: View {
         }
         .padding(NoopMetrics.space4)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background { FrostedCardSurface(tint: StrandPalette.recovery055, cornerRadius: NoopMetrics.cardRadius) }
+        .background { FrostedCardSurface(tint: StrandPalette.agelessYoungDeep, cornerRadius: NoopMetrics.cardRadius) }
         .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous))
     }
 
@@ -146,7 +146,7 @@ struct HealthspanDetailView: View {
                     Spacer(minLength: NoopMetrics.space2)
                     Text(HealthspanSection.signedYears(l.years))
                         .font(StrandFont.subhead.monospacedDigit())
-                        .foregroundStyle(StrandPalette.statusPositive.legibleText)
+                        .foregroundStyle(StrandPalette.agelessYoungDeep.legibleText)
                 }
                 .accessibilityElement(children: .combine)
             }
@@ -181,7 +181,7 @@ struct HealthspanDetailView: View {
             }
         }
         .padding(NoopMetrics.space4)
-        .background { FrostedCardSurface(tint: StrandPalette.recovery055, cornerRadius: NoopMetrics.cardRadius) }
+        .background { FrostedCardSurface(tint: StrandPalette.agelessYoungDeep, cornerRadius: NoopMetrics.cardRadius) }
         .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous))
     }
 
@@ -198,7 +198,7 @@ struct HealthspanDetailView: View {
             Text(HealthspanSection.sinceLine(change, since: HealthspanSection.date(weeks[0].day)))
                 .font(StrandFont.footnote)
                 .foregroundStyle(StrandPalette.textSecondary)
-            TrendChart(points: points, gradient: Gradient(colors: [StrandPalette.recovery055, StrandPalette.recovery055]),
+            TrendChart(points: points, gradient: Gradient(colors: [StrandPalette.agelessYoung, StrandPalette.agelessYoungDeep]),
                        valueRange: lo...hi, showsArea: false, baselineValue: week.result.chronologicalAge, height: 160,
                        valueFormat: { HealthspanSection.years($0) },
                        accessibilityLabel: String(localized: "AgeLess age by week; dashed line is your actual age"),

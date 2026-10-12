@@ -89,6 +89,7 @@ struct HealthspanSection: View {
         .sheet(isPresented: $showsDetail) {
             if let snapshot {
                 NavigationStack { HealthspanDetailView(snapshot: snapshot) }
+                    .tint(StrandPalette.agelessYoungDeep)
                     #if os(macOS)
                     .frame(width: 900, height: 820)
                     #endif
@@ -114,7 +115,7 @@ struct HealthspanSection: View {
         }
         .padding(NoopMetrics.space5)
         .frame(maxWidth: .infinity)
-        .background { FrostedCardSurface(tint: StrandPalette.recovery055, cornerRadius: NoopMetrics.cardRadius) }
+        .background { FrostedCardSurface(tint: StrandPalette.agelessYoungDeep, cornerRadius: NoopMetrics.cardRadius) }
         .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous))
         .contentShape(RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous))
     }
@@ -214,14 +215,14 @@ struct HealthspanTopRow: View {
     }
 
     private func pacePill(_ pace: Double) -> some View {
-        let colour = pace <= 1 ? StrandPalette.statusPositive : StrandPalette.metricAmber
+        let colour = pace <= 1 ? StrandPalette.agelessYoungDeep : StrandPalette.agelessOld
         return HStack(spacing: NoopMetrics.space2) {
             Image(systemName: pace <= 1 ? "arrow.down" : "arrow.up")
             Text("Pace of Aging")
             Text(verbatim: HealthspanPaceSlider.paceText(pace)).monospacedDigit()
         }
         .font(StrandFont.subhead.weight(.semibold))
-        .foregroundStyle(pace <= 1 ? StrandPalette.statusPositive.legibleText : StrandPalette.statusWarningForeground)
+        .foregroundStyle(pace <= 1 ? StrandPalette.agelessYoungDeep.legibleText : StrandPalette.agelessOld.legibleText)
         .padding(.horizontal, NoopMetrics.space4)
         .padding(.vertical, NoopMetrics.space2)
         .background(Capsule().fill(colour.opacity(0.14)))
