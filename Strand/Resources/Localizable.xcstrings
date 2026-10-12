@@ -542948,122 +542948,6 @@
         }
       }
     },
-    "Time in zones 1–3" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zeit in Zone 1–3"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tiempo en zonas 1–3"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Temps en zones 1–3"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tempo nelle zone 1–3"
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Czas w strefach 1–3"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tempo nas zonas 1–3"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Время в зонах 1–3"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "1–3 区时间"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "1–3 區時間"
-          }
-        }
-      }
-    },
-    "Time in zones 4–5" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zeit in Zone 4–5"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tiempo en zonas 4–5"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Temps en zones 4–5"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tempo nelle zone 4–5"
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Czas w strefach 4–5"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tempo nas zonas 4–5"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Время в зонах 4–5"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "4–5 区时间"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "4–5 區時間"
-          }
-        }
-      }
-    },
     "Unchanged since %@" : {
       "localizations" : {
         "de" : {
@@ -545496,6 +545380,238 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "AgeLess：根據 WHOOP 發布的健康壽命白皮書中的方法，用六個月內睡眠、活動和體能的九項指標得出的年齡，並附衰老速度和最有幫助的改進步驟。在「健康」中取代 Body Age。需要 30 晚睡眠資料。這是激勵工具，並非醫學年齡。預設關閉。"
+          }
+        }
+      }
+    },
+    "Moderate activity" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mittlere Belastung"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Actividad moderada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activité modérée"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attività moderata"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Umiarkowana aktywność"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Atividade moderada"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Умеренная нагрузка"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "中等强度活动"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "中等強度活動"
+          }
+        }
+      }
+    },
+    "Vigorous activity" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hohe Belastung"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Actividad intensa"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activité intense"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attività intensa"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Intensywna aktywność"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Atividade intensa"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Высокая нагрузка"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高强度活动"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高強度活動"
+          }
+        }
+      }
+    },
+    "Average sleeping heart rate" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ø Herzfrequenz im Schlaf"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frecuencia cardíaca media durante el sueño"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fréquence cardiaque moyenne pendant le sommeil"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frequenza cardiaca media nel sonno"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Średnie tętno podczas snu"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frequência cardíaca média durante o sono"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Средний пульс во сне"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠平均心率"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠平均心率"
+          }
+        }
+      }
+    },
+    "Moderate activity counts minutes in workouts at 40 to 80 % of your heart-rate reserve, vigorous activity above 80 %. The reserve runs from your average sleeping heart rate to your maximum heart rate." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mittlere Belastung zählt Minuten in Trainings bei 40 bis 80 % deiner Herzfrequenzreserve, hohe Belastung darüber. Die Reserve reicht von deiner Ø Herzfrequenz im Schlaf bis zu deinem Maximalpuls."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La actividad moderada cuenta los minutos de entrenamiento entre el 40 y el 80 % de tu reserva de frecuencia cardíaca; la intensa, por encima del 80 %. La reserva va de tu frecuencia cardíaca media durante el sueño a tu frecuencia cardíaca máxima."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'activité modérée compte les minutes d'entraînement entre 40 et 80 % de votre réserve cardiaque, l'activité intense au-delà de 80 %. La réserve va de votre fréquence cardiaque moyenne pendant le sommeil à votre fréquence cardiaque maximale."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'attività moderata conta i minuti di allenamento tra il 40 e l'80 % della tua riserva di frequenza cardiaca, quella intensa oltre l'80 %. La riserva va dalla frequenza cardiaca media nel sonno alla frequenza cardiaca massima."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Umiarkowana aktywność to minuty treningu przy 40–80 % rezerwy tętna, intensywna to powyżej 80 %. Rezerwa sięga od średniego tętna podczas snu do tętna maksymalnego."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A atividade moderada conta os minutos de treino entre 40 e 80 % da tua reserva de frequência cardíaca, a intensa acima de 80 %. A reserva vai da tua frequência cardíaca média durante o sono à tua frequência cardíaca máxima."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Умеренная нагрузка — минуты тренировок при 40–80 % резерва пульса, высокая — выше 80 %. Резерв — от среднего пульса во сне до максимального пульса."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "中等强度活动计入训练中达到心率储备 40% 至 80% 的分钟数，高强度活动为 80% 以上。心率储备从睡眠平均心率到最大心率。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "中等強度活動計入訓練中達到心率儲備 40% 至 80% 的分鐘數，高強度活動為 80% 以上。心率儲備從睡眠平均心率到最大心率。"
           }
         }
       }

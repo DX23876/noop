@@ -3976,8 +3976,6 @@
   "No data yet": "Brak danych",
   "Sleep consistency": "Regularność snu",
   "Strength activity": "Trening siłowy",
-  "Time in zones 1–3": "Czas w strefach 1–3",
-  "Time in zones 4–5": "Czas w strefach 4–5",
   "Unchanged since %@": "Bez zmian od %@",
   "Nine measures of sleep, activity and fitness over the last six months, each compared with a recommendation for good long-term health. Large studies link every measure to all-cause mortality; the difference in risk is turned into years. Meeting every recommendation reads exactly at your age.": "Dziewięć miar snu, aktywności i kondycji z ostatnich sześciu miesięcy, każda porównana z zaleceniem dla dobrego zdrowia w długim okresie. Duże badania łączą każdą miarę ze śmiertelnością ogólną; różnica ryzyka jest przeliczana na lata. Spełnienie wszystkich zaleceń daje dokładnie twój wiek.",
   "The method follows WHOOP's published Healthspan white paper (2025) and the studies it cites, computed on your device. It is an estimate to motivate healthy habits, not a medical or biological age and not a prediction of lifespan.": "Metoda opiera się na opublikowanym przez WHOOP dokumencie Healthspan (2025) i cytowanych w nim badaniach, a obliczenia odbywają się na urządzeniu. To oszacowanie motywujące do zdrowych nawyków, a nie wiek medyczny lub biologiczny ani prognoza długości życia.",
@@ -4019,5 +4017,9 @@
   "Your last 30 days beat your six-month average so clearly that your AgeLess age is falling. %@ helps you most; keep it up.": "Ostatnie 30 dni są tak wyraźnie lepsze od średniej z sześciu miesięcy, że wiek AgeLess spada. Najbardziej pomaga ci: %@. Tak trzymaj.",
   "Aging speed assumes your last 30 days continue for six months: 1.0× ages with the calendar, below 1.0× slower, below 0 you get younger.": "Tempo starzenia zakłada, że ostatnie 30 dni potrwa przez sześć miesięcy: 1.0× to starzenie zgodne z kalendarzem, poniżej 1.0× wolniej, poniżej 0 młodniejesz.",
   "AgeLess is not affiliated with or endorsed by WHOOP.": "AgeLess nie jest powiązany z WHOOP ani przez WHOOP wspierany.",
-  "AgeLess: an age from nine measures of sleep, activity and fitness over six months, after the method in WHOOP's published Healthspan white paper, with Aging speed and the steps that would help most. Takes Body Age's place on Health. Needs 30 nights of sleep data. A motivation tool, not a medical age. Off by default.": "AgeLess: wiek obliczony z dziewięciu miar snu, aktywności i kondycji z sześciu miesięcy, według metody z opublikowanego przez WHOOP dokumentu Healthspan, z tempem starzenia i krokami, które pomogłyby najbardziej. Zastępuje Body Age w sekcji Zdrowie. Wymaga 30 nocy danych o śnie. Narzędzie motywacyjne, a nie wiek medyczny. Domyślnie wyłączone."
+  "AgeLess: an age from nine measures of sleep, activity and fitness over six months, after the method in WHOOP's published Healthspan white paper, with Aging speed and the steps that would help most. Takes Body Age's place on Health. Needs 30 nights of sleep data. A motivation tool, not a medical age. Off by default.": "AgeLess: wiek obliczony z dziewięciu miar snu, aktywności i kondycji z sześciu miesięcy, według metody z opublikowanego przez WHOOP dokumentu Healthspan, z tempem starzenia i krokami, które pomogłyby najbardziej. Zastępuje Body Age w sekcji Zdrowie. Wymaga 30 nocy danych o śnie. Narzędzie motywacyjne, a nie wiek medyczny. Domyślnie wyłączone.",
+  "Moderate activity": "Umiarkowana aktywność",
+  "Vigorous activity": "Intensywna aktywność",
+  "Average sleeping heart rate": "Średnie tętno podczas snu",
+  "Moderate activity counts minutes in workouts at 40 to 80 % of your heart-rate reserve, vigorous activity above 80 %. The reserve runs from your average sleeping heart rate to your maximum heart rate.": "Umiarkowana aktywność to minuty treningu przy 40–80 % rezerwy tętna, intensywna to powyżej 80 %. Rezerwa sięga od średniego tętna podczas snu do tętna maksymalnego."
 }

@@ -3026,8 +3026,6 @@
   "No data yet": "暫無資料",
   "Sleep consistency": "睡眠規律性",
   "Strength activity": "力量訓練",
-  "Time in zones 1–3": "1–3 區時間",
-  "Time in zones 4–5": "4–5 區時間",
   "Unchanged since %@": "自 %@ 以來無變化",
   "Nine measures of sleep, activity and fitness over the last six months, each compared with a recommendation for good long-term health. Large studies link every measure to all-cause mortality; the difference in risk is turned into years. Meeting every recommendation reads exactly at your age.": "過去六個月的睡眠、活動和體能共九項指標，每項都與有益長期健康的建議值比較。大型研究將每項指標與全因死亡率相關聯，風險差異被換算為年數。全部達到建議值時，結果正好等於你的實際年齡。",
   "The method follows WHOOP's published Healthspan white paper (2025) and the studies it cites, computed on your device. It is an estimate to motivate healthy habits, not a medical or biological age and not a prediction of lifespan.": "該方法依據 WHOOP 發布的健康壽命白皮書（2025）及其引用的研究，在你的裝置上計算。它是用於激勵健康習慣的估算，並非醫學或生物學年齡，也不是壽命預測。",
@@ -3069,5 +3067,9 @@
   "Your last 30 days beat your six-month average so clearly that your AgeLess age is falling. %@ helps you most; keep it up.": "你最近 30 天明顯優於六個月平均水準，AgeLess 年齡正在下降。對你幫助最大的是%@，請繼續保持。",
   "Aging speed assumes your last 30 days continue for six months: 1.0× ages with the calendar, below 1.0× slower, below 0 you get younger.": "衰老速度假設你最近 30 天的狀態持續六個月：1.0× 表示與日曆同步衰老，低於 1.0× 表示更慢，低於 0 表示你在變年輕。",
   "AgeLess is not affiliated with or endorsed by WHOOP.": "AgeLess 與 WHOOP 無關聯，也未獲得 WHOOP 認可。",
-  "AgeLess: an age from nine measures of sleep, activity and fitness over six months, after the method in WHOOP's published Healthspan white paper, with Aging speed and the steps that would help most. Takes Body Age's place on Health. Needs 30 nights of sleep data. A motivation tool, not a medical age. Off by default.": "AgeLess：根據 WHOOP 發布的健康壽命白皮書中的方法，用六個月內睡眠、活動和體能的九項指標得出的年齡，並附衰老速度和最有幫助的改進步驟。在「健康」中取代 Body Age。需要 30 晚睡眠資料。這是激勵工具，並非醫學年齡。預設關閉。"
+  "AgeLess: an age from nine measures of sleep, activity and fitness over six months, after the method in WHOOP's published Healthspan white paper, with Aging speed and the steps that would help most. Takes Body Age's place on Health. Needs 30 nights of sleep data. A motivation tool, not a medical age. Off by default.": "AgeLess：根據 WHOOP 發布的健康壽命白皮書中的方法，用六個月內睡眠、活動和體能的九項指標得出的年齡，並附衰老速度和最有幫助的改進步驟。在「健康」中取代 Body Age。需要 30 晚睡眠資料。這是激勵工具，並非醫學年齡。預設關閉。",
+  "Moderate activity": "中等強度活動",
+  "Vigorous activity": "高強度活動",
+  "Average sleeping heart rate": "睡眠平均心率",
+  "Moderate activity counts minutes in workouts at 40 to 80 % of your heart-rate reserve, vigorous activity above 80 %. The reserve runs from your average sleeping heart rate to your maximum heart rate.": "中等強度活動計入訓練中達到心率儲備 40% 至 80% 的分鐘數，高強度活動為 80% 以上。心率儲備從睡眠平均心率到最大心率。"
 }

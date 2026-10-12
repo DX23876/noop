@@ -174,7 +174,8 @@ struct HealthspanDetailView: View {
                                      years: contribution?.value == nil ? nil : contribution?.years,
                                      scale: HealthspanEngine.barScale(c, age: week.inputs.age, sex: week.inputs.sex),
                                      trend: trend,
-                                     note: HealthspanSection.note(c, week: week, manualVO2Day: manualVO2Day))
+                                     note: HealthspanSection.note(c, week: week, manualVO2Day: manualVO2Day,
+                                                                 today: snapshot.today))
             }
         }
         .agelessCard()
@@ -221,6 +222,7 @@ struct HealthspanInfoButton: View {
                     VStack(alignment: .leading, spacing: NoopMetrics.space4) {
                         Text("AgeLess age").font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
                         Text("Nine measures of sleep, activity and fitness over the last six months, each compared with a recommendation for good long-term health. Large studies link every measure to all-cause mortality; the difference in risk is turned into years. Meeting every recommendation reads exactly at your age.")
+                        Text("Moderate activity counts minutes in workouts at 40 to 80 % of your heart-rate reserve, vigorous activity above 80 %. The reserve runs from your average sleeping heart rate to your maximum heart rate.")
                         Text("Aging speed assumes your last 30 days continue for six months: 1.0× ages with the calendar, below 1.0× slower, below 0 you get younger.")
                         Text("The method follows WHOOP's published Healthspan white paper (2025) and the studies it cites, computed on your device. It is an estimate to motivate healthy habits, not a medical or biological age and not a prediction of lifespan.")
                         Text("AgeLess is not affiliated with or endorsed by WHOOP.")

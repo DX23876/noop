@@ -29,6 +29,8 @@ struct HealthspanWeek {
 /// Every stored week, oldest first, resolved once.
 struct HealthspanSnapshot {
     let weeks: [HealthspanWeek]
+    /// The day the snapshot was read, the one clock its notes are judged by.
+    var today: String = Repository.localDayKey(Date())
     var latest: HealthspanWeek { weeks[weeks.count - 1] }
 
     @MainActor
@@ -162,7 +164,7 @@ struct HealthspanSection: View {
     /// Under a measure's bar: where VO₂max came from, or how to supply VO₂max or lean mass when missing.
     /// An entered VO₂max older than six months asks to be measured again.
     static func note(_ c: HealthspanEngine.Component, week: HealthspanWeek, manualVO2Day: String,
-                     today: String = Repository.localDayKey(Date())) -> String? {
+                     today: String) -> String? {
         switch c {
         case .vo2max:
             guard week.inputs.vo2max != nil, let source = week.vo2Source else {
@@ -196,11 +198,14 @@ struct HealthspanSection: View {
         case .sleepDuration: return String(localized: "Hours of sleep")
         case .sleepConsistency: return String(localized: "Sleep consistency")
         case .dailySteps: return String(localized: "Daily steps")
-        case .zone13: return String(localized: "Time in zones 1–3")
-        case .zone45: return String(localized: "Time in zones 4–5")
+        // Named for what the studies measured, not "zones": the app's own zones are % of maximum heart rate,
+        // these follow the paper's heart-rate reserve.
+        case .zone13: return String(localized: "Moderate activity")
+        case .zone45: return String(localized: "Vigorous activity")
         case .strength: return String(localized: "Strength activity")
         case .vo2max: return String(localized: "VO₂max")
-        case .restingHR: return String(localized: "Resting heart rate")
+        // Not the app's resting HR (the night's lowest five minutes): the whole-sleep mean the method uses.
+        case .restingHR: return String(localized: "Average sleeping heart rate")
         case .leanMass: return String(localized: "Lean body mass")
         }
     }
