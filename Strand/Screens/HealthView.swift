@@ -716,10 +716,10 @@ private struct RecoveryContributorsSection: View {
     }
 }
 
-/// One README "zone / stage bar": a label + qualitative word on top, the signature liquid `LiquidTube`
-/// (a metric-tinted horizontal tube that fills to the 0…100 strength, matching Today's Key-Metrics and
-/// Last-Workouts tubes), and a right-aligned raw reading. Used for the recovery contributors. A nil
-/// strength (calibrating) renders an empty tube — no fabricated fill.
+/// One contributor row in the segmented style of the AgeLess measure bars: the name, a row of ticks that fill
+/// to the 0…100 strength in the contributor's tint (deeper towards the fill end) with a ▼ at the reading,
+/// and the raw value with its qualitative word on the right. A nil strength (calibrating) leaves every tick
+/// unfilled and drops the marker: no fabricated fill.
 private struct ContributorBar: View {
     let label: LocalizedStringKey
     /// 0…100 strength; nil renders an empty (calibrating) track.
@@ -728,25 +728,51 @@ private struct ContributorBar: View {
     let detail: String
     let tint: Color
 
+    static let segments = 30
+
     var body: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(label).strandOverline()
-                Text("· \(word)")
-                    .font(StrandFont.footnote)
-                    .foregroundStyle(strength == nil ? StrandPalette.textTertiary : tint)
-                Spacer()
-                Text(detail)
-                    .font(StrandFont.captionNumber)
-                    .foregroundStyle(StrandPalette.textSecondary)
+            Text(label)
+                .font(StrandFont.subhead.weight(.medium))
+                .foregroundStyle(StrandPalette.textPrimary)
+            HStack(alignment: .center, spacing: NoopMetrics.space3) {
+                Canvas { context, size in
+                    let n = Self.segments
+                    let step = size.width / CGFloat(n)
+                    let frac = (strength ?? 0) / 100
+                    let filled = Int((frac * Double(n)).rounded())
+                    for i in 0..<n {
+                        let colour = i < filled
+                            ? tint.opacity(0.45 + 0.55 * Double(i + 1) / Double(max(filled, 1)))
+                            : StrandPalette.textTertiary.opacity(0.18)
+                        context.fill(Path(roundedRect: CGRect(x: CGFloat(i) * step + 1, y: 10, width: step - 2, height: 10),
+                                          cornerRadius: 1.5), with: .color(colour))
+                    }
+                    if strength != nil {
+                        let x = min(max(CGFloat(frac) * size.width, 5), size.width - 5)
+                        var down = Path()
+                        down.move(to: CGPoint(x: x - 5, y: 1)); down.addLine(to: CGPoint(x: x + 5, y: 1))
+                        down.addLine(to: CGPoint(x: x, y: 8)); down.closeSubpath()
+                        context.fill(down, with: .color(StrandPalette.textPrimary))
+                    }
+                }
+                .frame(height: 20)
+                VStack(alignment: .trailing, spacing: 0) {
+                    Text(detail)
+                        .font(StrandFont.number(20).monospacedDigit())
+                        .foregroundStyle(StrandPalette.textPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    Text(word)
+                        .font(StrandFont.caption)
+                        .foregroundStyle(strength == nil ? StrandPalette.textTertiary : tint.legibleText)
+                }
+                // A fixed column keeps every bar the same length whatever the reading's width.
+                .frame(width: 96, alignment: .trailing)
             }
-            // The signature liquid tube: fills to the 0…1 strength, tinted to the contributor's world.
-            // Static (posed) — a row of small bars shouldn't each run a live 30fps Canvas. Calibrating
-            // (nil) reads as an empty 0 tube.
-            LiquidTube(frac: (strength ?? 0) / 100, tint: tint, height: 10, animated: false)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(detail), \(word)")
+        .accessibilityLabel(Text("\(Text(label)), \(detail), \(word)"))
     }
 }
 
