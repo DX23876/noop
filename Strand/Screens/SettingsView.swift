@@ -105,6 +105,10 @@ struct SettingsView: View {
     @AppStorage(PuffinExperiment.stressPersonalBaselineKey) private var stressPersonalBaselineEnabled = false
     /// [PuffinExperiment.exerciseVO2maxKey].
     @AppStorage(PuffinExperiment.exerciseVO2maxKey) private var exerciseVO2maxEnabled = false
+    /// A measured maximum the wearer declined; the suggestion returns only for a higher one.
+    @AppStorage("noopMaxHRSuggestionDeclined") private var maxHRSuggestionDeclined = 0
+    /// The measured maximum to offer (`MaxHRSuggestion`), nil when there is none.
+    @State private var maxHRSuggestion: Int?
     @AppStorage(HealthspanFeature.defaultsKey) private var healthspanEnabled = false
     /// #1545 opt-in: score Effort with Banister's exponential TRIMP instead of Edwards' heart-rate zones.
     /// Default OFF — it re-scores the whole window against a different recipe. See
@@ -774,6 +778,8 @@ struct SettingsView: View {
                                              : StrandPalette.textTertiary)
                     }
                 }
+                .task(id: "\(profile.hrMaxOverride)|\(profile.hrMax)|\(maxHRSuggestionDeclined)") { await loadMaxHRSuggestion() }
+                if let suggested = maxHRSuggestion { maxHRSuggestionRow(suggested) }
                 rowDivider
                 // The aerobic capacity the energy model scales workouts to (`PeakMETResolver`). Empty is
                 // the normal state: a fresh Apple Watch reading or the Jurca estimate then applies.
@@ -1358,6 +1364,42 @@ struct SettingsView: View {
         let date = WeightSeries.date(forDay: profile.vo2maxManualDay)
             .map { $0.formatted(date: .abbreviated, time: .omitted) } ?? profile.vo2maxManualDay
         return String(localized: "Entered \(date)")
+    }
+
+    /// Offers a measured maximum the band has seen held above the value in use; the wearer decides.
+    private func maxHRSuggestionRow(_ suggested: Int) -> some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+            Text("Your workouts reached \(suggested) bpm, held for 30 seconds on at least two days. Use it as your maximum heart rate?")
+                .font(StrandFont.subhead)
+                .foregroundStyle(StrandPalette.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("Applies from now on; Effort already scored stays as it is.")
+                .font(StrandFont.caption)
+                .foregroundStyle(StrandPalette.textSecondary)
+            HStack(spacing: NoopMetrics.space3) {
+                Button("Use \(suggested) bpm") {
+                    profile.hrMaxOverride = suggested
+                    maxHRSuggestion = nil
+                }
+                .buttonStyle(.borderedProminent)
+                Button("Not now") {
+                    maxHRSuggestionDeclined = suggested
+                    maxHRSuggestion = nil
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .padding(.vertical, NoopMetrics.space2)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func loadMaxHRSuggestion() async {
+        let peaks = await model.repo.exploreSeries(key: IntelligenceEngine.heldPeakKey, source: Repository.whoopSource,
+                                                   days: MaxHRSuggestion.windowDays)
+        let current = Double(profile.hrMaxOverride > 0 ? profile.hrMaxOverride : profile.hrMax)
+        maxHRSuggestion = MaxHRSuggestion.suggestion(dayPeaks: peaks.map { (day: $0.day, value: $0.value) },
+                                                     current: current, declined: maxHRSuggestionDeclined,
+                                                     today: Repository.localDayKey(Date()))
     }
 
     /// HR-max override: 0 = auto. Shown as a compact tabular value with a stepper.

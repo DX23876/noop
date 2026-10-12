@@ -3571,6 +3571,9 @@ final class IntelligenceEngine: ObservableObject {
                 MetricPoint(day: satKey, key: "body_age", value: vRes.bodyAge),
             ], deviceId: computedId)
         }
+        // Fork: each day's held workout peak, for the measured-maximum suggestion in Settings (MaxHRPeakSeries.swift).
+        await Self.bankHeldPeaks(store: store, strapId: deviceId, computedId: computedId,
+                                 oldestDay: oldestDay, newestDay: newestDay, tzOffset: tzOffset)
         // Fork: healthspan age, experimental and off by default (IntelligenceEngine+Healthspan.swift).
         if HealthspanFeature.isEnabled {
             let manualVO2 = profile.vo2maxManual > 0 && !profile.vo2maxManualDay.isEmpty
