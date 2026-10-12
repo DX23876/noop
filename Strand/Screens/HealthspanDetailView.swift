@@ -56,6 +56,9 @@ struct HealthspanDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         #endif
         .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                HealthspanInfoButton().labelStyle(.iconOnly)
+            }
             ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
         }
     }
@@ -207,39 +210,15 @@ struct HealthspanDetailView: View {
     }
 }
 
-/// How the estimate is made and what it is not, one tap away instead of a footnote on every screen.
+/// What AgeLess is and what it rests on, one tap away instead of a footnote on every screen.
 struct HealthspanInfoButton: View {
     @State private var presented = false
 
     var body: some View {
         Button { presented = true } label: {
-            Label("About this estimate", systemImage: "info.circle")
+            Label("About AgeLess", systemImage: "info.circle")
         }
         .buttonStyle(.plain)
-        .sheet(isPresented: $presented) {
-            NavigationStack {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: NoopMetrics.space4) {
-                        Text("AgeLess age").font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
-                        Text("Nine measures of sleep, activity and fitness over the last six months, each compared with a recommendation for good long-term health. Large studies link every measure to all-cause mortality; the difference in risk is turned into years. Meeting every recommendation reads exactly at your age.")
-                        Text("Moderate activity counts minutes in workouts at 40 to 80 % of your heart-rate reserve, vigorous activity above 80 %. The reserve runs from your average sleeping heart rate to your maximum heart rate.")
-                        Text("Aging speed assumes your last 30 days continue for six months: 1.0× ages with the calendar, below 1.0× slower, below 0 you get younger.")
-                        Text("The method follows WHOOP's published Healthspan white paper (2025) and the studies it cites, computed on your device. It is an estimate to motivate healthy habits, not a medical or biological age and not a prediction of lifespan.")
-                        Text("AgeLess is not affiliated with or endorsed by WHOOP.")
-                    }
-                    .font(StrandFont.body)
-                    .foregroundStyle(StrandPalette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(NoopMetrics.space4)
-                }
-                .background(StrandPalette.surfaceBase)
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) { Button("Done") { presented = false } }
-                }
-            }
-            #if os(macOS)
-            .frame(minWidth: NoopMetrics.detailSheetMinWidth, minHeight: NoopMetrics.detailSheetMinHeight)
-            #endif
-        }
+        .sheet(isPresented: $presented) { AgeLessAboutSheet() }
     }
 }

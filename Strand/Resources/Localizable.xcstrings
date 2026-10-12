@@ -542484,64 +542484,6 @@
         }
       }
     },
-    "About this estimate" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Über diese Schätzung"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sobre esta estimación"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "À propos de cette estimation"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Informazioni su questa stima"
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O tym oszacowaniu"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sobre esta estimativa"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Об этой оценке"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "关于此估算"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "關於此估算"
-          }
-        }
-      }
-    },
     "Biggest levers" : {
       "localizations" : {
         "de" : {
@@ -543234,64 +543176,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "AgeLess"
-          }
-        }
-      }
-    },
-    "AgeLess age" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AgeLess-Alter"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Edad AgeLess"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Âge AgeLess"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Età AgeLess"
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wiek AgeLess"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Idade AgeLess"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Возраст AgeLess"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AgeLess 年龄"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AgeLess 年齡"
           }
         }
       }
@@ -545268,64 +545152,6 @@
         }
       }
     },
-    "AgeLess is not affiliated with or endorsed by WHOOP." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AgeLess ist nicht mit WHOOP verbunden und wird nicht von WHOOP unterstützt."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AgeLess no está afiliado a WHOOP ni respaldado por WHOOP."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AgeLess n'est ni affilié à WHOOP ni approuvé par WHOOP."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AgeLess non è affiliato a WHOOP né approvato da WHOOP."
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AgeLess nie jest powiązany z WHOOP ani przez WHOOP wspierany."
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O AgeLess não é afiliado nem apoiado pela WHOOP."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AgeLess не связан с WHOOP и не одобрен WHOOP."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AgeLess 与 WHOOP 无关联，也未获得 WHOOP 认可。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AgeLess 與 WHOOP 無關聯，也未獲得 WHOOP 認可。"
-          }
-        }
-      }
-    },
     "AgeLess: an age from nine measures of sleep, activity and fitness over six months, after the method in WHOOP's published Healthspan white paper, with Aging speed and the steps that would help most. Takes Body Age's place on Health. Needs 30 nights of sleep data. A motivation tool, not a medical age. Off by default." : {
       "localizations" : {
         "de" : {
@@ -545612,6 +545438,876 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "中等強度活動計入訓練中達到心率儲備 40% 至 80% 的分鐘數，高強度活動為 80% 以上。心率儲備從睡眠平均心率到最大心率。"
+          }
+        }
+      }
+    },
+    "About AgeLess" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Über AgeLess"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Acerca de AgeLess"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À propos d'AgeLess"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Informazioni su AgeLess"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O AgeLess"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sobre o AgeLess"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Об AgeLess"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关于 AgeLess"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "關於 AgeLess"
+          }
+        }
+      }
+    },
+    "How young does your everyday life keep you?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wie jung hält dich dein Alltag?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Cuánto te mantiene joven tu día a día?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À quel point votre quotidien vous garde-t-il jeune ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quanto ti mantiene giovane la tua vita quotidiana?"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jak młodo utrzymuje cię twoja codzienność?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quão jovem te mantém o teu dia a dia?"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Насколько молодым вас держит ваша повседневность?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的日常生活让你保持多年轻？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的日常生活讓你保持多年輕？"
+          }
+        }
+      }
+    },
+    "AgeLess shows how old your body seems, measured by sleep, movement and fitness. Sleep well, move a lot, stay fit, and the number gets younger." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess zeigt, wie alt dein Körper wirkt, gemessen an Schlaf, Bewegung und Fitness. Gut schlafen, viel bewegen, fit bleiben, und die Zahl wird jünger."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess muestra qué edad aparenta tu cuerpo según tu sueño, tu movimiento y tu forma física. Duerme bien, muévete mucho, mantente en forma y el número rejuvenece."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess montre l'âge que semble avoir votre corps, d'après votre sommeil, vos mouvements et votre condition physique. Dormez bien, bougez beaucoup, restez en forme, et le chiffre rajeunit."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess mostra quanti anni sembra avere il tuo corpo, in base a sonno, movimento e forma fisica. Dormi bene, muoviti molto, resta in forma e il numero ringiovanisce."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess pokazuje, na ile lat wygląda twoje ciało, na podstawie snu, ruchu i kondycji. Dobrze śpij, dużo się ruszaj, dbaj o formę, a liczba będzie młodsza."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O AgeLess mostra a idade que o teu corpo aparenta, com base no sono, no movimento e na condição física. Dorme bem, mexe-te muito, mantém-te em forma e o número rejuvenesce."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess показывает, на сколько лет выглядит ваше тело по сну, движению и физической форме. Хорошо спите, больше двигайтесь, держите форму — и число станет моложе."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess 根据睡眠、活动和体能，显示你的身体看起来有多年轻。睡得好、多活动、保持健康，数字就会变年轻。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess 根據睡眠、活動和體能，顯示你的身體看起來有多年輕。睡得好、多活動、保持健康，數字就會變年輕。"
+          }
+        }
+      }
+    },
+    "Getting younger is possible" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jünger werden geht"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rejuvenecer es posible"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rajeunir, c'est possible"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ringiovanire è possibile"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odmłodnienie jest możliwe"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rejuvenescer é possível"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Помолодеть возможно"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "变年轻是可能的"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "變年輕是可能的"
+          }
+        }
+      }
+    },
+    "Small steps count. AgeLess shows you which one helps you most." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schon kleine Schritte zählen. AgeLess zeigt dir, welcher bei dir am meisten bringt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los pequeños pasos cuentan. AgeLess te muestra cuál te ayuda más."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les petits pas comptent. AgeLess vous montre lequel vous aide le plus."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anche i piccoli passi contano. AgeLess ti mostra quale ti aiuta di più."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Małe kroki się liczą. AgeLess pokazuje, który pomoże ci najbardziej."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os pequenos passos contam. O AgeLess mostra-te qual te ajuda mais."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Маленькие шаги важны. AgeLess покажет, какой поможет вам больше всего."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "小步骤也有用。AgeLess 会告诉你哪一步对你最有帮助。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "小步驟也有用。AgeLess 會告訴你哪一步對你最有幫助。"
+          }
+        }
+      }
+    },
+    "Your pace" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Tempo"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu ritmo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre rythme"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo ritmo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twoje tempo"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O teu ritmo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваш темп"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的节奏"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的節奏"
+          }
+        }
+      }
+    },
+    "Aging speed shows where your last month is taking you." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Alterungstempo zeigt, wohin dich dein letzter Monat führt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El ritmo de envejecimiento muestra adónde te lleva tu último mes."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le rythme de vieillissement montre où votre dernier mois vous mène."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il ritmo di invecchiamento mostra dove ti sta portando l'ultimo mese."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tempo starzenia pokazuje, dokąd prowadzi cię ostatni miesiąc."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O ritmo de envelhecimento mostra para onde te leva o teu último mês."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Темп старения показывает, куда ведёт вас последний месяц."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "衰老速度显示你最近一个月正把你带向何方。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "衰老速度顯示你最近一個月正把你帶向何方。"
+          }
+        }
+      }
+    },
+    "Built on science" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wissenschaftlich fundiert"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basado en la ciencia"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fondé sur la science"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basato sulla scienza"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oparte na nauce"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Baseado em ciência"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Основано на науке"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "以科学为基础"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "以科學為基礎"
+          }
+        }
+      }
+    },
+    "Each of the nine measures is linked to a long, healthy life in large studies with tens of thousands of people. Tap a study to read it." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jeder der neun Messwerte ist in großen Studien mit Zehntausenden Menschen mit einem langen, gesunden Leben verbunden. Tipp auf eine Studie, um sie zu lesen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cada una de las nueve medidas se asocia a una vida larga y sana en grandes estudios con decenas de miles de personas. Toca un estudio para leerlo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chacune des neuf mesures est liée à une vie longue et en bonne santé dans de grandes études portant sur des dizaines de milliers de personnes. Touchez une étude pour la lire."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ognuna delle nove misure è legata a una vita lunga e sana in grandi studi con decine di migliaia di persone. Tocca uno studio per leggerlo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Każda z dziewięciu miar wiąże się z długim, zdrowym życiem w dużych badaniach z udziałem dziesiątek tysięcy osób. Dotknij badania, aby je przeczytać."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cada uma das nove medidas está associada a uma vida longa e saudável em grandes estudos com dezenas de milhares de pessoas. Toca num estudo para o ler."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Каждый из девяти показателей в крупных исследованиях с десятками тысяч людей связан с долгой и здоровой жизнью. Нажмите на исследование, чтобы прочитать его."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "九项指标中的每一项都在涉及数万人的大型研究中与长寿和健康相关。轻点一项研究即可阅读。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "九項指標中的每一項都在涉及數萬人的大型研究中與長壽和健康相關。輕點一項研究即可閱讀。"
+          }
+        }
+      }
+    },
+    "Method: WHOOP Healthspan white paper (2025)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Methode: WHOOP-Healthspan-Whitepaper (2025)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Método: documento técnico Healthspan de WHOOP (2025)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Méthode : livre blanc Healthspan de WHOOP (2025)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Metodo: white paper Healthspan di WHOOP (2025)"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Metoda: dokument Healthspan firmy WHOOP (2025)"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Método: white paper Healthspan da WHOOP (2025)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Метод: документ WHOOP Healthspan (2025)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "方法：WHOOP 健康寿命白皮书（2025）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "方法：WHOOP 健康壽命白皮書（2025）"
+          }
+        }
+      }
+    },
+    "How it's calculated" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wie gerechnet wird"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cómo se calcula"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comment c'est calculé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Come viene calcolato"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jak to jest liczone"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Como é calculado"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Как это рассчитывается"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "计算方式"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "計算方式"
+          }
+        }
+      }
+    },
+    "Not a medical value. AgeLess is not affiliated with or endorsed by WHOOP." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kein medizinischer Wert. AgeLess ist nicht mit WHOOP verbunden und wird nicht von WHOOP unterstützt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No es un valor médico. AgeLess no está afiliado a WHOOP ni respaldado por WHOOP."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pas une valeur médicale. AgeLess n'est ni affilié à WHOOP ni approuvé par WHOOP."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non è un valore medico. AgeLess non è affiliato a WHOOP né approvato da WHOOP."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To nie jest wartość medyczna. AgeLess nie jest powiązany z WHOOP ani przez WHOOP wspierany."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não é um valor médico. O AgeLess não é afiliado nem apoiado pela WHOOP."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не медицинский показатель. AgeLess не связан с WHOOP и не одобрен WHOOP."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "非医学数值。AgeLess 与 WHOOP 无关联，也未获得 WHOOP 认可。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "非醫學數值。AgeLess 與 WHOOP 無關聯，也未獲得 WHOOP 認可。"
+          }
+        }
+      }
+    },
+    "Your workouts reached %lld bpm, held for 30 seconds on at least two days. Use it as your maximum heart rate?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Trainings haben %lld bpm erreicht, an mindestens zwei Tagen 30 Sekunden gehalten. Als Maximalpuls übernehmen?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tus entrenamientos alcanzaron %lld lpm, mantenidos 30 segundos en al menos dos días. ¿Usarlo como frecuencia cardíaca máxima?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vos entraînements ont atteint %lld bpm, maintenus 30 secondes au moins deux jours. L'utiliser comme fréquence cardiaque maximale ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I tuoi allenamenti hanno raggiunto %lld bpm, mantenuti per 30 secondi in almeno due giorni. Usarlo come frequenza cardiaca massima?"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twoje treningi osiągnęły %lld bpm, utrzymane przez 30 sekund w co najmniej dwa dni. Użyć jako tętna maksymalnego?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os teus treinos atingiram %lld bpm, mantidos 30 segundos em pelo menos dois dias. Usar como frequência cardíaca máxima?"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "На тренировках пульс достигал %lld уд/мин и держался 30 секунд как минимум в два дня. Использовать как максимальный пульс?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的训练达到 %lld bpm，并在至少两天中保持 30 秒。要将其设为最大心率吗？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的訓練達到 %lld bpm，並在至少兩天中保持 30 秒。要將其設為最大心率嗎？"
+          }
+        }
+      }
+    },
+    "Applies from now on; Effort already scored stays as it is." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gilt ab jetzt; bereits berechnete Effort-Werte bleiben, wie sie sind."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se aplica a partir de ahora; el Effort ya calculado no cambia."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S'applique dès maintenant ; l'Effort déjà calculé reste inchangé."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vale da ora in poi; l'Effort già calcolato resta invariato."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obowiązuje od teraz; już obliczony Effort się nie zmienia."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aplica-se a partir de agora; o Effort já calculado mantém-se."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Действует с этого момента; уже рассчитанный Effort не меняется."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从现在起生效；已计算的 Effort 保持不变。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "從現在起生效；已計算的 Effort 保持不變。"
+          }
+        }
+      }
+    },
+    "Use %lld bpm" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld bpm übernehmen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar %lld lpm"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utiliser %lld bpm"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa %lld bpm"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Użyj %lld bpm"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar %lld bpm"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Использовать %lld уд/мин"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用 %lld bpm"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用 %lld bpm"
           }
         }
       }
