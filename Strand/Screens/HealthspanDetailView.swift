@@ -27,17 +27,17 @@ struct HealthspanDetailView: View {
                 weekSwitcher
                 HealthspanTopRow(week: week, showsPace: false)
                 if let pace = week.pace {
-                    VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-                        Text("Pace of Aging").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                    VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                        Text("Pace of Aging").font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
                         HealthspanPaceSlider(pace: pace)
                         Text("In 6 months: \(HealthspanSection.years(HealthspanEngine.projectedAge(currentAge: week.result.healthspanAge, pace: pace))) if the last 30 days continue")
-                            .font(StrandFont.caption)
+                            .font(StrandFont.footnote)
                             .foregroundStyle(StrandPalette.textSecondary)
                     }
+                    .agelessCard()
                 }
                 narrative
-                if !week.levers.isEmpty { levers }
-                legend
+                if !week.levers.isEmpty { HealthspanLeversCard(week: week) }
                 ForEach(HealthspanDomain.allCases, id: \.self) { domain($0) }
                 if shown > 0 { trend }
                 HealthspanInfoButton()
@@ -104,10 +104,7 @@ struct HealthspanDetailView: View {
                 .foregroundStyle(StrandPalette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(NoopMetrics.space4)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background { FrostedCardSurface(tint: StrandPalette.agelessYoungDeep, cornerRadius: NoopMetrics.cardRadius) }
-        .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous))
+        .agelessCard()
     }
 
     static func title(_ k: HealthspanEngine.Narrative.Kind) -> String {
@@ -135,30 +132,9 @@ struct HealthspanDetailView: View {
         return String(localized: "Keep wearing your strap; the picture sharpens as your six-month window fills.")
     }
 
-    private var levers: some View {
-        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-            Text("Biggest levers").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
-            ForEach(week.levers, id: \.component) { l in
-                HStack(alignment: .firstTextBaseline) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(HealthspanSection.componentName(l.component))
-                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                        Text(verbatim: "\(HealthspanSection.value(l.component, l.currentValue)) → \(HealthspanSection.value(l.component, l.newValue))")
-                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
-                    }
-                    Spacer(minLength: NoopMetrics.space2)
-                    Text(HealthspanSection.signedYears(l.years))
-                        .font(StrandFont.subhead.monospacedDigit())
-                        .foregroundStyle(StrandPalette.agelessYoungDeep.legibleText)
-                }
-                .accessibilityElement(children: .combine)
-            }
-        }
-    }
-
     // MARK: Measures
 
-    /// What the two markers on every bar mean, said once above the three cards.
+    /// What the two markers on every bar mean, said once in the first of the three cards.
     private var legend: some View {
         HStack(spacing: NoopMetrics.space3) {
             Text("▼ 6-month avg")
@@ -180,6 +156,7 @@ struct HealthspanDetailView: View {
                     .font(StrandFont.subhead.weight(.semibold).monospacedDigit())
                     .foregroundStyle(HealthspanMeasureRow.textColour(total))
             }
+            if d == HealthspanDomain.allCases.first { legend }
             ForEach(HealthspanEngine.Component.allCases.filter { $0.domain == d }, id: \.self) { c in
                 let contribution = week.result.contributions.first { $0.component == c }
                 HealthspanMeasureRow(component: c, value: week.inputs.value(c), recentValue: week.recentInputs?.value(c),
@@ -187,9 +164,7 @@ struct HealthspanDetailView: View {
                                      scale: HealthspanEngine.barScale(c, age: week.inputs.age, sex: week.inputs.sex))
             }
         }
-        .padding(NoopMetrics.space4)
-        .background { FrostedCardSurface(tint: StrandPalette.agelessYoungDeep, cornerRadius: NoopMetrics.cardRadius) }
-        .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous))
+        .agelessCard()
     }
 
     // MARK: Trend
@@ -201,7 +176,7 @@ struct HealthspanDetailView: View {
         let lo = (values.min() ?? 0).rounded(.down) - 1, hi = (values.max() ?? 0).rounded(.up) + 1
         let change = week.result.healthspanAge - weeks[0].result.healthspanAge
         return VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-            Text("Over time").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+            Text("Over time").font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
             Text(HealthspanSection.sinceLine(change, since: HealthspanSection.date(weeks[0].day)))
                 .font(StrandFont.footnote)
                 .foregroundStyle(StrandPalette.textSecondary)
@@ -212,8 +187,9 @@ struct HealthspanDetailView: View {
                        yDomain: lo...hi)
             Text("Dashed line: your actual age")
                 .font(StrandFont.caption)
-                .foregroundStyle(StrandPalette.textTertiary)
+                .foregroundStyle(StrandPalette.textSecondary)
         }
+        .agelessCard()
     }
 }
 
