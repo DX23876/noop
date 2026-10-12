@@ -326,3 +326,29 @@ the value banked while it existed.
 Analysis migration required: yes (AI-22). The AgeLess weeks and AI-21's banked training VO₂max days are
 deleted (`deleteHealthspanWeeks`) and the next pass rebuilds them; zone minutes are kept. No daily row is
 re-scored.
+
+### 2026-10-12 — Measured maximum heart rate offered, never applied silently
+
+The analysis pass banks each day's highest heart rate held for 30 seconds without a gap in a workout
+(`hr_peak_held_30s`, `MaxHRSuggestion.heldPeak`) while the band's raw trace exists, over the whole
+retention on its first run. Settings offers that level under Max heart rate when it appears on two days of
+the last six months, five beats above the value in use and above one already declined. Taking it sets the
+override from then on; Effort already scored is not re-scored, and the row says so. Imported Apple Health
+workouts are not used: their stored peak is a single sample, not a held level.
+
+Why: the maximum is entered or estimated (Tanaka) everywhere; when the real one is higher, Effort reads too
+hard and the heart-rate reserve too small. A band artefact must not move every score on its own, so the
+wearer decides.
+
+Analysis migration required: no — a new banked series; no score, window or stored value changes.
+
+### 2026-10-12 — AgeLess explains itself and cites only the studies
+
+AgeLess's About sheet says what it is in a few plain sentences, links each of the nine studies and the
+effective-age method (Spiegelhalter 2016), and keeps the calculation one level down. The app, its source
+comments, tests and docs cite only these published studies; no other product or its documents are named.
+The resting-HR row reads "Average sleeping heart rate" (not the app's resting HR), the activity rows
+"Moderate activity" and "Vigorous activity" (the app's own zones are % of maximum heart rate), and "Pace
+of Aging" reads "Aging speed". Method document: `docs/AGELESS.md`.
+
+Analysis migration required: no

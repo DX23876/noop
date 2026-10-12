@@ -721,6 +721,14 @@ Windows are taken relative to your latest recorded day and auto-widen on sparse 
 
 With no live HR and no imported day, NOOP prompts you to connect or import.
 
+- **Recovery contributors** — HRV, resting HR, sleep and respiratory rate as segmented bars that fill to
+  each one's strength against your own baseline, a marker at the reading, the value and its word beside it.
+- **AgeLess** (fork, Settings → Experimental, default off; takes Body Age's place while on) — an age built
+  from six months of nine measures of sleep, activity and fitness, each tied to a large mortality study,
+  shown on a half-circle gauge around your actual age with **Aging speed** beside it. Its screen ranks the
+  biggest levers, shows every measure on a ticked bar with a 30-day trend arrow, and an **About AgeLess**
+  sheet links each study. Method, sources and limits: [`AGELESS.md`](AGELESS.md).
+
 ---
 
 ## Stress
@@ -1087,6 +1095,9 @@ informational only, **not** a diagnosis.
 
 - **Profile** — age, sex, weight, height, and max heart rate (auto-estimated via Tanaka, or a
   manual override). These power your zones, calorie estimates and Charge baselines.
+  When your workouts have held a higher heart rate for 30 seconds on two days of the last six months,
+  five beats above the value in use, the max heart rate row offers it ("Use 196 bpm" / "Not now"); taking
+  it sets the override from then on and leaves Effort already scored as it is.
 - **Heart-rate zones** — set where each of your five zones starts, instead of accepting the standard
   50/60/70/80/90 % of maximum. Two ways to say it: **% of max**, which moves with your maximum when
   it is re-estimated, or **beats**, the absolute heart rates a threshold or lactate test gives you,
