@@ -103,7 +103,7 @@ struct HealthspanSection: View {
 
     private func card(_ w: HealthspanWeek) -> some View {
         VStack(spacing: NoopMetrics.space3) {
-            HealthspanTopRow(week: w, orbDiameter: 150)
+            HealthspanTopRow(week: w)
             HStack {
                 Text("See details").font(StrandFont.subhead)
                 Spacer()
@@ -194,41 +194,37 @@ struct HealthspanSection: View {
     }
 }
 
-/// The headline row both screens share: years younger or older, the orb with the age, Pace of Aging.
+/// The headline both screens share: the age gauge, then Pace of Aging in a pill below it unless the screen
+/// shows the pace on its own slider.
 struct HealthspanTopRow: View {
     let week: HealthspanWeek
-    var orbDiameter: CGFloat = 200
+    var showsPace = true
+    @State private var progress = 0.0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        let delta = week.result.deltaYears
-        HStack(alignment: .center, spacing: NoopMetrics.space2) {
-            stat(HealthspanSection.years(abs(delta)),
-                 label: delta <= 0 ? String(localized: "years younger") : String(localized: "years older"),
-                 colour: delta <= 0 ? StrandPalette.statusPositive.legibleText : StrandPalette.statusWarningForeground)
-            HealthspanOrb(age: week.result.healthspanAge, diameter: orbDiameter)
+        VStack(spacing: NoopMetrics.space3) {
+            HealthspanAgeGauge(age: week.result.healthspanAge, actualAge: week.result.chronologicalAge, progress: progress)
                 .frame(maxWidth: .infinity)
-            stat(week.pace.map { HealthspanPaceSlider.paceText($0) } ?? "—",
-                 label: String(localized: "Pace of Aging"),
-                 colour: StrandPalette.textPrimary)
+            if showsPace, let pace = week.pace { pacePill(pace) }
+        }
+        .onAppear {
+            if reduceMotion { progress = 1 } else { withAnimation(.easeOut(duration: 0.9)) { progress = 1 } }
         }
     }
 
-    private func stat(_ value: String, label: String, colour: Color) -> some View {
-        VStack(spacing: NoopMetrics.space1) {
-            Text(value)
-                .font(StrandFont.number(22).monospacedDigit())
-                .foregroundStyle(colour)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-            Text(label)
-                .font(StrandFont.overline)
-                .tracking(StrandFont.overlineTracking)
-                .textCase(.uppercase)
-                .multilineTextAlignment(.center)
-                .foregroundStyle(StrandPalette.textTertiary)
-                .fixedSize(horizontal: false, vertical: true)
+    private func pacePill(_ pace: Double) -> some View {
+        let colour = pace <= 1 ? StrandPalette.statusPositive : StrandPalette.metricAmber
+        return HStack(spacing: NoopMetrics.space2) {
+            Image(systemName: pace <= 1 ? "arrow.down" : "arrow.up")
+            Text("Pace of Aging")
+            Text(verbatim: HealthspanPaceSlider.paceText(pace)).monospacedDigit()
         }
-        .frame(width: 76)
+        .font(StrandFont.subhead.weight(.semibold))
+        .foregroundStyle(pace <= 1 ? StrandPalette.statusPositive.legibleText : StrandPalette.statusWarningForeground)
+        .padding(.horizontal, NoopMetrics.space4)
+        .padding(.vertical, NoopMetrics.space2)
+        .background(Capsule().fill(colour.opacity(0.14)))
         .accessibilityElement(children: .combine)
     }
 }

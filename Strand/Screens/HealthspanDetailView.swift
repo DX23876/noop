@@ -23,7 +23,7 @@ struct HealthspanDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: NoopMetrics.space6) {
                 weekSwitcher
-                HealthspanTopRow(week: week, orbDiameter: 210)
+                HealthspanTopRow(week: week, showsPace: false)
                 if let pace = week.pace {
                     VStack(alignment: .leading, spacing: NoopMetrics.space2) {
                         Text("Pace of Aging").strandOverline()

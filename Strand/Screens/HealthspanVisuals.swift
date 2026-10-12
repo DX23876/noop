@@ -3,160 +3,141 @@ import StrandDesign
 import StrandAnalytics
 
 // HealthspanVisuals.swift — fork feature (backlog plan HEALTHSPAN_AGE_PLAN, spec S6): the drawn pieces of the
-// Healthspan screens. A glowing orb filled with particles carries the age; a tick slider carries Pace of
+// AgeLess screens. A half-circle gauge carries the age against the actual age; a tick slider carries Pace of
 // Aging on the paper's −1.0× to 3.0× scale; a ticked bar per measure shows where a value sits on that
 // measure's curve, coloured by the years each value would add (amber) or remove (green).
 
-// MARK: - Orb
+// MARK: - Age gauge
 
-/// The healthspan age inside a slowly breathing organic disc densely filled with twinkling particles in the
-/// app's metric colours, with a luminous rim. Still under Reduce Motion.
-struct HealthspanOrb: View {
+/// The AgeLess age on a half-circle gauge spanning ten years either side of the actual age, which sits at the
+/// top with its own mark. The arc fills from the young end to the age in a lime to teal glow; past the actual
+/// age the extra years turn amber. The age and the years younger or older sit in the gauge's centre.
+struct HealthspanAgeGauge: View, Animatable {
     let age: Double
-    var diameter: CGFloat = 220
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let actualAge: Double
+    /// 0 draws the needle at the actual age, 1 at the AgeLess age; animated once on appear.
+    var progress: Double = 1
+
+    var animatableData: Double {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    static let span = 10.0
+
+    /// Where an age sits on the gauge, 0 at the young end and 1 at the old end.
+    static func fraction(_ age: Double, actualAge: Double) -> Double {
+        min(1, max(0, (age - actualAge + span) / (2 * span)))
+    }
+
+    static func whole(_ v: Double) -> String { v.formatted(.number.precision(.fractionLength(0))) }
+
+    private var shownAge: Double { actualAge + (age - actualAge) * progress }
 
     var body: some View {
-        Group {
-            if reduceMotion {
-                orb(time: 0)
-            } else {
-                TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
-                    orb(time: timeline.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 3_600))
+        GeometryReader { g in
+            let w = g.size.width
+            let r = w * 0.36
+            let line = r * 0.15
+            let centre = CGPoint(x: w / 2, y: r + line / 2 + 46)
+            ZStack {
+                Canvas { context, _ in draw(&context, centre: centre, r: r, line: line) }
+                Text(verbatim: Self.whole(actualAge))
+                    .font(StrandFont.number(17).monospacedDigit())
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .position(x: centre.x, y: 10)
+                ForEach([-Self.span, Self.span], id: \.self) { offset in
+                    Text(verbatim: Self.whole(actualAge + offset))
+                        .font(StrandFont.number(15).monospacedDigit())
+                        .foregroundStyle(StrandPalette.textTertiary)
+                        .position(x: centre.x + (offset < 0 ? -r : r), y: centre.y + line / 2 + 16)
                 }
+                VStack(spacing: NoopMetrics.space1) {
+                    Text(verbatim: HealthspanSection.years(shownAge))
+                        .font(StrandFont.number(r * 0.55, weight: .bold).monospacedDigit())
+                        .foregroundStyle(StrandPalette.textPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                    deltaLine
+                }
+                .frame(width: r * 1.5)
+                .position(x: centre.x, y: centre.y - r * 0.28)
             }
         }
-        .frame(width: diameter, height: diameter)
+        .aspectRatio(1.55, contentMode: .fit)
+        .frame(maxWidth: 380)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("AgeLess age \(HealthspanSection.years(age))"))
     }
 
-    private func orb(time: Double) -> some View {
-        ZStack {
-            Canvas(opaque: false, rendersAsynchronously: true) { context, size in
-                HealthspanOrbRenderer.draw(context: &context, size: size, time: time)
-            }
-            .frame(width: diameter * HealthspanOrbRenderer.overscan, height: diameter * HealthspanOrbRenderer.overscan)
-            .allowsHitTesting(false)
-            VStack(spacing: NoopMetrics.space1) {
-                Text(HealthspanSection.years(age))
-                    .font(StrandFont.rounded(diameter * 0.2, weight: .bold))
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
-                Text("AgeLess age")
-                    .font(StrandFont.overline)
-                    .tracking(StrandFont.overlineTracking)
-                    .textCase(.uppercase)
-            }
-            .foregroundStyle(StrandPalette.onDarkPrimary)
-            .shadow(color: .black.opacity(0.6), radius: 4, y: 1)
+    private var deltaLine: some View {
+        let delta = age - actualAge
+        return (Text(verbatim: HealthspanSection.years(abs(delta)) + " ")
+                + Text(delta <= 0 ? "years younger" : "years older"))
+            .font(StrandFont.subhead.weight(.medium))
+            .foregroundStyle(delta <= 0 ? StrandPalette.statusPositive.legibleText : StrandPalette.statusWarningForeground)
             .lineLimit(1)
-            .minimumScaleFactor(0.6)
-            .frame(width: diameter * 0.62)
-        }
-    }
-}
-
-private enum HealthspanOrbRenderer {
-    /// The glow reaches past the orb's square; the canvas overscans so it fades instead of being cut.
-    static let overscan: CGFloat = 1.3
-
-    struct Particle {
-        let angle, radial, size, phase, speed, drift: Double
-        let colour: Int
+            .minimumScaleFactor(0.7)
     }
 
-    /// Fixed particle field (deterministic, so the orb looks the same on every launch). Radii lean toward
-    /// the rim, where the glow is brightest, while still filling the centre.
-    static let particles: [Particle] = {
-        var seed: UInt64 = 0x4845_414C_5448
-        func next() -> Double {
-            seed = seed &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
-            return Double(seed >> 11) / Double(1 << 53)
-        }
-        return (0..<1_100).map { _ in
-            let u = next()
-            return Particle(angle: next() * 2 * .pi, radial: pow(u, 0.38), size: 0.7 + pow(next(), 2.6) * 2.9,
-                            phase: next() * 2 * .pi, speed: 0.6 + next() * 2.2, drift: (next() - 0.5) * 0.08,
-                            colour: Int(next() * 100))
-        }
-    }()
+    private func angle(_ fraction: Double) -> Angle { .degrees(180 + 180 * fraction) }
 
-    /// Gold leads; the other metric colours sparkle through it.
-    static func colour(_ index: Int) -> Color {
-        switch index % 100 {
-        case 0..<46: return StrandPalette.recovery055
-        case 46..<64: return StrandPalette.metricAmber
-        case 64..<74: return StrandPalette.metricRose
-        case 74..<84: return StrandPalette.metricPurple
-        case 84..<92: return StrandPalette.metricCyan
-        default: return StrandPalette.chargeColor
-        }
+    private func arc(_ centre: CGPoint, _ r: CGFloat, from: Double, to: Double) -> Path {
+        var p = Path()
+        p.addArc(center: centre, radius: r, startAngle: angle(from), endAngle: angle(to), clockwise: false)
+        return p
     }
 
-    /// The breathing outline: a few slow harmonics around the base circle.
-    static func contour(_ angle: Double, _ t: Double) -> Double {
-        1 + 0.032 * sin(3 * angle + 0.5 * t) + 0.022 * sin(5 * angle - 0.35 * t + 1.3)
-            + 0.012 * sin(8 * angle + 0.8 * t + 2.1)
+    private func point(_ centre: CGPoint, _ r: CGFloat, _ fraction: Double) -> CGPoint {
+        let a = angle(fraction).radians
+        return CGPoint(x: centre.x + r * cos(a), y: centre.y + r * sin(a))
     }
 
-    static func draw(context: inout GraphicsContext, size: CGSize, time t: Double) {
-        let side = min(size.width, size.height) / overscan
-        let centre = CGPoint(x: size.width / 2, y: size.height / 2)
-        let radius = side * 0.46
-        var outline = Path()
-        for i in 0...96 {
-            let a = Double(i) / 96 * 2 * .pi
-            let r = radius * contour(a, t)
-            let p = CGPoint(x: centre.x + cos(a) * r, y: centre.y + sin(a) * r)
-            if i == 0 { outline.move(to: p) } else { outline.addLine(to: p) }
-        }
-        outline.closeSubpath()
-        let breathe = 0.85 + 0.15 * sin(t * 0.9)
-        let gold = StrandPalette.recovery055
+    private func draw(_ context: inout GraphicsContext, centre: CGPoint, r: CGFloat, line: CGFloat) {
+        let knob = Self.fraction(shownAge, actualAge: actualAge)
+        let style = StrokeStyle(lineWidth: line, lineCap: .round)
+        let young = GraphicsContext.Shading.linearGradient(
+            Gradient(colors: [StrandPalette.recovery078, StrandPalette.recovery100, NoopVisualStyle.mint]),
+            startPoint: point(centre, r, 0), endPoint: point(centre, r, max(0.12, min(knob, 0.5))))
+        let amber = GraphicsContext.Shading.color(StrandPalette.metricAmber)
+        let knobColour = knob <= 0.5 ? NoopVisualStyle.mint : StrandPalette.metricAmber
 
-        // Halo around the orb.
-        context.drawLayer { layer in
-            layer.addFilter(.blur(radius: radius * 0.16))
-            layer.fill(outline, with: .color(gold.opacity(0.32 * breathe)))
+        // Ticks, one per year, outside the arc; the actual age gets the long dark mark across the arc.
+        for i in 0...20 where i != 10 {
+            let f = Double(i) / 20
+            let inner = point(centre, r + line / 2 + 8, f), outer = point(centre, r + line / 2 + (i % 5 == 0 ? 18 : 14), f)
+            var t = Path(); t.move(to: inner); t.addLine(to: outer)
+            context.stroke(t, with: .color(StrandPalette.textTertiary.opacity(i % 5 == 0 ? 0.7 : 0.4)), lineWidth: 1.2)
         }
-        // The dark chamber the particles glow in.
-        context.fill(outline, with: .radialGradient(
-            Gradient(stops: [.init(color: .black.opacity(0.92), location: 0),
-                             .init(color: .black.opacity(0.8), location: 0.75),
-                             .init(color: .black.opacity(0.55), location: 1)]),
-            center: centre, startRadius: 0, endRadius: radius * 1.05))
-        // Luminous rim in the mixed colours.
-        context.drawLayer { layer in
-            layer.blendMode = .plusLighter
-            layer.addFilter(.blur(radius: radius * 0.07))
-            layer.stroke(outline, with: .conicGradient(
-                Gradient(colors: [gold, StrandPalette.metricAmber, StrandPalette.metricRose, gold,
-                                  StrandPalette.metricPurple, StrandPalette.metricCyan, gold]),
-                center: centre, angle: .radians(t * 0.15)), lineWidth: radius * 0.16 * breathe)
+        context.stroke(arc(centre, r, from: 0, to: 1), with: .color(StrandPalette.textTertiary.opacity(0.14)), style: style)
+
+        // The glow under the fill, then the fill itself.
+        let filled = arc(centre, r, from: 0, to: min(knob, 0.5))
+        context.drawLayer { glow in
+            glow.addFilter(.blur(radius: line * 1.1))
+            glow.opacity = 0.9
+            glow.stroke(filled, with: young, style: StrokeStyle(lineWidth: line * 1.8, lineCap: .round))
+            if knob > 0.5 { glow.stroke(arc(centre, r, from: 0.5, to: knob), with: amber, style: StrokeStyle(lineWidth: line * 1.8, lineCap: .round)) }
         }
-        // Particles, twinkling and drifting slowly around the centre.
-        context.drawLayer { layer in
-            layer.blendMode = .plusLighter
-            for p in particles {
-                let a = p.angle + p.drift * t
-                let r = radius * contour(a, t) * p.radial * 0.97
-                let point = CGPoint(x: centre.x + cos(a) * r, y: centre.y + sin(a) * r)
-                let twinkle = 0.4 + 0.6 * (0.5 + 0.5 * sin(t * p.speed + p.phase))
-                let rimBoost = 0.7 + 0.5 * p.radial
-                let alpha = min(1, twinkle * rimBoost)
-                let s = p.size * side / 220
-                let c = colour(p.colour)
-                if s > 1.4 {
-                    let halo = s * 3.4
-                    layer.fill(Path(ellipseIn: CGRect(x: point.x - halo / 2, y: point.y - halo / 2, width: halo, height: halo)),
-                               with: .color(c.opacity(alpha * 0.22)))
-                }
-                layer.fill(Path(ellipseIn: CGRect(x: point.x - s / 2, y: point.y - s / 2, width: s, height: s)),
-                           with: .color(c.opacity(alpha)))
-            }
+        if knob < 0.5 {
+            context.stroke(arc(centre, r, from: knob, to: 0.5), with: .color(NoopVisualStyle.mint.opacity(0.18)), style: style)
         }
-        context.stroke(outline, with: .color(.white.opacity(0.22)), lineWidth: 0.7)
+        context.stroke(filled, with: young, style: style)
+        if knob > 0.5 { context.stroke(arc(centre, r, from: 0.5, to: knob), with: amber, style: style) }
+
+        var mark = Path()
+        mark.move(to: point(centre, r - line / 2, 0.5)); mark.addLine(to: point(centre, r + line / 2 + 20, 0.5))
+        context.stroke(mark, with: .color(StrandPalette.textPrimary), style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+
+        // The needle: a ringed dot riding the arc at the age.
+        let k = point(centre, r, knob), d = line * 1.45
+        context.drawLayer { glow in
+            glow.addFilter(.blur(radius: line * 0.8))
+            glow.fill(Path(ellipseIn: CGRect(x: k.x - d * 0.75, y: k.y - d * 0.75, width: d * 1.5, height: d * 1.5)), with: .color(knobColour.opacity(0.8)))
+        }
+        context.fill(Path(ellipseIn: CGRect(x: k.x - d / 2, y: k.y - d / 2, width: d, height: d)), with: .color(.white))
+        let inner = d * 0.66
+        context.fill(Path(ellipseIn: CGRect(x: k.x - inner / 2, y: k.y - inner / 2, width: inner, height: inner)), with: .color(knobColour))
     }
 }
 
