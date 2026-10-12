@@ -75,6 +75,29 @@ final class HealthspanWindowTests: XCTestCase {
         XCTAssertEqual(full.result.healthspanAge, 30, accuracy: 1e-9)
     }
 
+    /// No age without the four measures the band always supplies; any other gap still yields one, and the
+    /// result says how many measures it stands on.
+    func testCoreComponentsGateTheAge() {
+        XCTAssertNil(W.weekly(days: days(40, end: "2026-10-10", consistency: nil), endingOn: "2026-10-10",
+                              age: 30, sex: .male, vo2max: 44, leanMassPct: nil))
+        XCTAssertNil(W.weekly(days: days(40, end: "2026-10-10", hr: nil), endingOn: "2026-10-10",
+                              age: 30, sex: .male, vo2max: 44, leanMassPct: nil))
+        let noVO2 = W.weekly(days: days(40, end: "2026-10-10"), endingOn: "2026-10-10", age: 30, sex: .male,
+                             vo2max: nil, leanMassPct: nil)!
+        XCTAssertEqual(noVO2.result.componentsUsed, 7)
+    }
+
+    /// The pace uses its own VO₂max when one is given, so fitness moves the pace.
+    func testRecentVO2maxDrivesThePace() {
+        let same = W.weekly(days: days(40, end: "2026-10-10"), endingOn: "2026-10-10", age: 30, sex: .male,
+                            vo2max: 44, leanMassPct: nil)!
+        let fitter = W.weekly(days: days(40, end: "2026-10-10"), endingOn: "2026-10-10", age: 30, sex: .male,
+                              vo2max: 44, recentVO2max: 48, leanMassPct: nil)!
+        XCTAssertEqual(same.pace!, 1.0, accuracy: 1e-9)
+        XCTAssertLessThan(fitter.pace!, 1.0)
+        XCTAssertEqual(fitter.result.healthspanAge, same.result.healthspanAge, accuracy: 1e-9)
+    }
+
     /// The latest VO₂max on or before the week, within the window.
     func testLatestValue() {
         let v = [(day: "2026-01-01", value: 30.0), (day: "2026-09-01", value: 33.0), (day: "2026-11-01", value: 40.0)]

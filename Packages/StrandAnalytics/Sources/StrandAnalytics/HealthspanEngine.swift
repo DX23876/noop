@@ -13,8 +13,9 @@ import WhoopProtocol
 //
 // Curves are piecewise linear in ln(HR) between published anchor points and hold their end value outside
 // the studied range (no extrapolation). A missing component contributes 0, as the paper specifies for lean
-// mass; `Result.isComplete` says whether everything but lean mass was present, and only a complete result
-// should be shown. `overlapFactor` k stands in for the paper's unpublished structural-equation correction
+// mass; `Result.componentsUsed` says how many measures a result stands on. `HealthspanWindow` withholds an age
+// without its four band measures and the screens state any other gap, so a missing measure never reads as a
+// met recommendation. `overlapFactor` k stands in for the paper's unpublished structural-equation correction
 // of correlated components. It is one global scale, not a per-component correction, so it also absorbs
 // any systematic error in the curves; it is the one free parameter, set by least squares on the paper's
 // four Table 2 profiles. Those are effectively two profiles (US average, WHOOP median) in two sexes, so the

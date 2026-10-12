@@ -49,20 +49,29 @@ public enum HealthspanWindow {
         public var isProvisional: Bool { coveredDays < HealthspanWindow.ageWindowDays }
     }
 
-    /// The week ending on `end`; nil before `minimumNights` nights of sleep data or without a result.
+    /// The measures the band always supplies. Without all four there is no age at all; any other measure may
+    /// be missing, and the screens then say how many of the nine the age stands on rather than letting a gap
+    /// read as a met recommendation.
+    public static let coreComponents: [HealthspanEngine.Component] = [.sleepDuration, .sleepConsistency,
+                                                                      .dailySteps, .restingHR]
+
+    /// The week ending on `end`; nil before `minimumNights` nights of sleep data, without one of the
+    /// `coreComponents`, or without a result. `recentVO2max` is the VO₂max behind the pace (defaults to
+    /// `vo2max`).
     public static func weekly(days: [HealthspanDay], endingOn end: String, age: Double, sex: HealthspanEngine.Sex,
-                              vo2max: Double?, leanMassPct: Double?) -> Weekly? {
+                              vo2max: Double?, recentVO2max: Double? = nil, leanMassPct: Double?) -> Weekly? {
         let ageDays = slice(days, endingOn: end, windowDays: ageWindowDays)
         guard ageDays.filter({ $0.sleepHours != nil }).count >= minimumNights,
               let window = inputs(days: ageDays, endingOn: end, windowDays: ageWindowDays, age: age, sex: sex,
                                   vo2max: vo2max, leanMassPct: leanMassPct),
+              coreComponents.allSatisfy({ window.value($0) != nil }),
               let result = HealthspanEngine.compute(window) else { return nil }
         let paceDays = slice(days, endingOn: end, windowDays: paceWindowDays)
         var pace: Double?
         var recentInputs: HealthspanEngine.Inputs?
         if paceDays.filter({ $0.sleepHours != nil }).count >= minimumPaceNights,
            let recent = inputs(days: paceDays, endingOn: end, windowDays: paceWindowDays, age: age, sex: sex,
-                               vo2max: vo2max, leanMassPct: leanMassPct) {
+                               vo2max: recentVO2max ?? vo2max, leanMassPct: leanMassPct) {
             pace = HealthspanEngine.paceOfAging(window: window, last30Days: recent)
             recentInputs = recent
         }

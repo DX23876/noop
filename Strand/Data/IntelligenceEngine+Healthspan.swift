@@ -24,6 +24,10 @@ extension IntelligenceEngine {
     static let healthspanCoveredDaysKey = "healthspan_covered_days"
     static let healthspanZone13Key = "hs_zone13_min"
     static let healthspanZone45Key = "hs_zone45_min"
+    /// A day's training-based VO₂max (median of its walks and runs), banked while the band's trace exists.
+    static let healthspanTrainingVO2Key = "hs_vo2_training"
+    /// Which `HealthspanVO2.Source` a week's VO₂max came from.
+    static let healthspanVO2SourceKey = "hs_vo2_source"
     /// The window input behind a week's age, so the card's breakdown is computed from the same numbers.
     nonisolated static func healthspanInputKey(_ c: HealthspanEngine.Component) -> String { "hs_in_" + c.rawValue }
     /// The last-30-days input behind a week's pace, for the detail screen's second marker.
@@ -31,12 +35,21 @@ extension IntelligenceEngine {
         "hs_in30_" + c.rawValue
     }
 
-    /// Banks zone minutes for `[oldestDay, newestDay]`, then rewrites the weekly rows of the weeks that window
-    /// touches; on the first run, every week back to the first sleep data. Writes nothing for a profile sex
-    /// the paper has no targets for.
+    /// Every key a weekly row writes, so a rewrite can clear what a week no longer has.
+    nonisolated static var healthspanWeeklyKeys: [String] {
+        [healthspanAgeKey, healthspanPaceKey, healthspanCoveredDaysKey, healthspanVO2SourceKey]
+            + HealthspanEngine.Component.allCases.flatMap { [healthspanInputKey($0), healthspanRecentInputKey($0)] }
+    }
+
+    /// Banks zone minutes and training-based VO₂max for `[oldestDay, newestDay]`, then rewrites the weekly rows
+    /// of the weeks that window touches; on the first run, every week back to the first sleep data. Writes
+    /// nothing for a profile sex the paper has no targets for. `manualVO2max` is the value the wearer entered
+    /// with the day it was measured; `bodyFat` every body-fat reading, entered or from Apple Health.
     nonisolated static func runHealthspanPass(store: WhoopStore, strapId: String, computedId: String, age: Int,
                                               sex: String, hrMaxOverride: Int, oldestDay: String,
-                                              newestDay: String, tzOffset: Int) async {
+                                              newestDay: String, tzOffset: Int,
+                                              manualVO2max: (day: String, value: Double)? = nil,
+                                              bodyFat: [(day: String, value: Double)] = []) async {
         guard age > 0, let sex = HealthspanEngine.Sex(profileValue: sex),
               let windowStart = midnightForDayKey(oldestDay, offsetSec: tzOffset),
               let windowEndDay = midnightForDayKey(newestDay, offsetSec: tzOffset) else { return }
@@ -68,6 +81,9 @@ extension IntelligenceEngine {
             banked += [MetricPoint(day: day, key: healthspanZone13Key, value: zone13),
                        MetricPoint(day: day, key: healthspanZone45Key, value: zone45)]
         }
+        banked += await healthspanTrainingVO2(store: store, strapId: strapId, computedId: computedId,
+                                              from: windowStart, to: windowEnd, sleepHR: sleepHR,
+                                              fallbackRHR: fallbackRHR, maxHR: maxHR, tzOffset: tzOffset)
         if !banked.isEmpty { _ = try? await store.upsertMetricSeries(banked, deviceId: computedId) }
 
         // (2) Weekly rows. First run: every week back to the first computed day; afterwards: the pass window.
@@ -85,18 +101,27 @@ extension IntelligenceEngine {
         let readFrom = HealthspanWindow.dayKey(firstSaturday, plus: -(HealthspanWindow.ageWindowDays - 1))
         let days = await healthspanDays(store: store, strapId: strapId, computedId: computedId,
                                         from: readFrom, to: newestDay, tzOffset: tzOffset)
-        let vo2 = ((try? await store.metricSeries(deviceId: computedId, key: "vo2max_est", from: readFrom,
-                                                  to: newestDay)) ?? []).map { (day: $0.day, value: $0.value) }
+        func series(_ deviceId: String, _ key: String) async -> [(day: String, value: Double)] {
+            ((try? await store.metricSeries(deviceId: deviceId, key: key, from: readFrom, to: newestDay)) ?? [])
+                .map { (day: $0.day, value: $0.value) }
+        }
+        let appleVO2 = await series(Repository.appleHealthSource, "vo2max")
+        let trainingVO2 = await series(computedId, healthspanTrainingVO2Key)
         var weekly: [MetricPoint] = []
         var saturday = firstSaturday
         while saturday <= currentSaturday {
             defer { saturday = HealthspanWindow.dayKey(saturday, plus: 7) }
             let end = min(HealthspanWindow.dayKey(saturday, plus: 6), newestDay)
+            let vo2 = HealthspanVO2.resolve(manual: manualVO2max, appleHealth: appleVO2, training: trainingVO2,
+                                            endingOn: end)
             guard let w = HealthspanWindow.weekly(
-                days: days, endingOn: end, age: Double(age), sex: sex,
-                vo2max: HealthspanWindow.latest(vo2, onOrBefore: end, withinDays: HealthspanWindow.ageWindowDays),
-                leanMassPct: nil) else { continue }
+                days: days, endingOn: end, age: Double(age), sex: sex, vo2max: vo2?.window,
+                recentVO2max: vo2?.recent, leanMassPct: HealthspanVO2.leanMassPct(bodyFat: bodyFat, endingOn: end))
+            else { continue }
             weekly.append(MetricPoint(day: saturday, key: healthspanAgeKey, value: w.result.healthspanAge))
+            if let vo2 {
+                weekly.append(MetricPoint(day: saturday, key: healthspanVO2SourceKey, value: Double(vo2.source.rawValue)))
+            }
             weekly.append(MetricPoint(day: saturday, key: healthspanCoveredDaysKey, value: Double(w.coveredDays)))
             if let pace = w.pace { weekly.append(MetricPoint(day: saturday, key: healthspanPaceKey, value: pace)) }
             for c in HealthspanEngine.Component.allCases {
@@ -108,7 +133,38 @@ extension IntelligenceEngine {
                 }
             }
         }
-        if !weekly.isEmpty { _ = try? await store.upsertMetricSeries(weekly, deviceId: computedId) }
+        // Replace the whole span, so a week that lost a measure (or its age) keeps no stale row.
+        _ = try? await store.replaceMetricSeriesWindow(weekly, deviceId: computedId, keys: healthspanWeeklyKeys,
+                                                       from: firstSaturday, to: currentSaturday)
+    }
+
+    /// Training-based VO₂max per day for walks and runs starting in `[from, to)`: the session's average heart
+    /// rate from the band's trace (or, for an Apple Health session, the watch's own measured average) through
+    /// `ExerciseVO2max`, the day's median banked under `healthspanTrainingVO2Key`. A session logged by two
+    /// sources yields two estimates of the same day, which the median absorbs.
+    nonisolated static func healthspanTrainingVO2(store: WhoopStore, strapId: String, computedId: String,
+                                                  from: Int, to: Int, sleepHR: [String: Double],
+                                                  fallbackRHR: Double?, maxHR: Double,
+                                                  tzOffset: Int) async -> [MetricPoint] {
+        var byDay: [String: [Double]] = [:]
+        for source in Set([strapId, computedId, Repository.appleHealthSource]) {
+            for row in (try? await store.workouts(deviceId: source, from: from, to: to, limit: 100_000)) ?? [] {
+                let m = CardioSession.metrics(for: row, tzOffsetSeconds: tzOffset)
+                guard m.modality == .foot, let seconds = m.durationS, let restingHR = sleepHR[m.day] ?? fallbackRHR
+                else { continue }
+                let trace = (try? await store.hrSamples(deviceId: strapId, from: row.startTs, to: row.endTs - 1,
+                                                        limit: Int.max)) ?? []
+                let averageHR = HealthspanVO2.bandAverageHR(trace, sessionSeconds: seconds)
+                    ?? (row.source == WorkoutSource.appleHealthSource ? m.avgHr.map(Double.init) : nil)
+                let input = ExerciseVO2max.SessionInput(
+                    day: m.day, startTs: m.startTs, modality: m.modality, distanceM: m.distanceM, durationS: seconds,
+                    averageHR: averageHR, heartRateMeasured: averageHR != nil, restingHR: restingHR, maxHR: maxHR)
+                if case let .estimate(e) = ExerciseVO2max.estimate(input) { byDay[m.day, default: []].append(e.vo2max) }
+            }
+        }
+        return byDay.compactMap { day, xs in
+            HealthspanVO2.median(xs).map { MetricPoint(day: day, key: healthspanTrainingVO2Key, value: $0) }
+        }
     }
 
     /// Per-day healthspan values from NOOP's own computed data: daily rows (sleep, steps), the sleep-mean HR,
@@ -183,6 +239,8 @@ extension IntelligenceEngine {
             let window = inputs(Double(i) / last), recent = inputs((Double(i) + 2) / last)
             guard let r = HealthspanEngine.compute(window) else { continue }
             out.append(MetricPoint(day: day, key: healthspanAgeKey, value: r.healthspanAge))
+            out.append(MetricPoint(day: day, key: healthspanVO2SourceKey,
+                                   value: Double(HealthspanVO2.Source.training.rawValue)))
             out.append(MetricPoint(day: day, key: healthspanCoveredDaysKey, value: Double(min(182, 30 + 7 * i))))
             if let pace = HealthspanEngine.paceOfAging(window: window, last30Days: recent) {
                 out.append(MetricPoint(day: day, key: healthspanPaceKey, value: pace))

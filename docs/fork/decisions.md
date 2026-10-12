@@ -278,3 +278,27 @@ datasets CAPTURE-24 and OxWalk. The Oxford `stepcount` code is academic-use only
 
 Analysis migration required: no — a read-only comparison screen; no stored value, score, window,
 source precedence or recipe changes.
+
+### 2026-10-12 — AgeLess: VO₂max from what was measured, lean mass from body fat, no age without the band measures (AI-21)
+
+AgeLess (the fork's healthspan age, default off) no longer takes VO₂max from the weekly non-exercise
+estimate (`vo2max_est`, Nes 2011 or Uth 2004). That estimate is the least certain input NOOP has and was
+the largest single driver of the age. A week now takes, in this order, a value the wearer entered (valid
+for a year from its day), Apple Watch's Cardio Fitness from Apple Health, or a training-based estimate
+from walks and runs (`ExerciseVO2max`: ACSM oxygen cost at the session's speed, extrapolated over the
+heart-rate reserve, grade assumed flat). The training estimate uses the band's trace when it covers at
+least 80 % of the session, else an Apple Health session's own watch average, and is banked per day
+(`hs_vo2_training`) while the trace exists. The age takes the six-month median of the first source with
+readings; the pace takes the last 30 days' median from two readings on, so fitness can move the pace.
+Lean mass enters from the latest body-fat reading of the past year (entered on the Body page or from
+Apple Health). A week without sleep duration, sleep consistency, steps and resting HR has no age; any
+other gap stays visible instead of counting as a met recommendation. Weekly rows are rewritten as a
+window, so a week that lost a measure keeps no stale value.
+
+Why: an adversarial review of the shipped screens found that missing measures silently read as on
+target and that the age's biggest driver came from its least certain input. Decided with the wearer
+(backlog plan HEALTHSPAN_AGE_PLAN, 2026-10-12).
+
+Analysis migration required: yes (AI-21). The meaning of every stored AgeLess week changes, so the
+migration deletes all AgeLess weekly rows and the next pass rebuilds them from banked inputs; banked
+zone minutes and training VO₂max days are kept. No daily row is re-scored, no ledger is refilled.

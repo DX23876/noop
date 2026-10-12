@@ -24,8 +24,8 @@ extension HealthspanEngine {
         }
     }
 
-    /// The bar range for a measure: wide enough to show where the target and the curve's end sit, matching
-    /// the spans WHOOP's own bars use where its screenshots show them (sleep 5–9 h, steps 0–16K, strength 0–2 h).
+    /// The bar range for a measure: wide enough to show where the target and the curve's end sit, over the
+    /// span of values most adults fall in (sleep 4–10 h, steps 0–16K, strength 0–2.5 h).
     static func barRange(_ c: Component, age: Double, sex: Sex) -> ClosedRange<Double> {
         switch c {
         case .sleepDuration: return 4...10

@@ -30,13 +30,29 @@ final class AnalysisRecipeDecisionTests: XCTestCase {
     /// It is deliberately a LITERAL pin. A future bump is supposed to make this line fail, because that
     /// failure is the prompt to answer CLAUDE.md's "Analysis migration required: yes/no" for whatever
     /// the bump carries — the question this file exists to stop anyone skipping.
-    func testRecipeVersionIsTwentyAndOlderInstallsMigrateToIt() {
-        XCTAssertEqual(IntelligenceEngine.currentAnalysisRecipeVersion, 20,
+    func testRecipeVersionIsTwentyOneAndOlderInstallsMigrateToIt() {
+        XCTAssertEqual(IntelligenceEngine.currentAnalysisRecipeVersion, 21,
                        "recipe version changed — answer 'Analysis migration required' for what moved")
-        for stored in [8, 11, 12, 13, 14, 15, 16, 17, 18, 19] {
+        for stored in [8, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20] {
             XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: stored),
-                           .migrate(from: stored, to: 20))
+                           .migrate(from: stored, to: 21))
         }
+    }
+
+    /// AI-21 rebuilds every AgeLess week and nothing else: no daily row, no ledger, no workout row.
+    func testAI21RebuildsOnlyTheAgeLessWeeks() {
+        XCTAssertTrue(IntelligenceEngine.migrationRebuildsHealthspan(from: 20, to: 21))
+        XCTAssertTrue(IntelligenceEngine.migrationRebuildsHealthspan(from: 8, to: 21))
+        XCTAssertFalse(IntelligenceEngine.migrationRebuildsHealthspan(from: 21, to: 21))
+        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 20), 0)
+        XCTAssertFalse(IntelligenceEngine.migrationRefillsCardioLedger(from: 20, to: 21))
+        XCTAssertFalse(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 20, to: 21))
+        XCTAssertFalse(IntelligenceEngine.migrationFillsWorkoutHeartRate(from: 20, to: 21))
+        // The rebuild clears the weeks but keeps what cannot be recomputed: banked zone and VO₂max days.
+        let keys = Set(IntelligenceEngine.healthspanWeeklyKeys)
+        XCTAssertTrue(keys.contains(IntelligenceEngine.healthspanAgeKey))
+        XCTAssertFalse(keys.contains(IntelligenceEngine.healthspanZone13Key))
+        XCTAssertFalse(keys.contains(IntelligenceEngine.healthspanTrainingVO2Key))
     }
 
     /// AI-20 moves the stored Charge (an optional baseline that is not yet usable is left out), so every
@@ -233,10 +249,10 @@ final class AnalysisRecipeDecisionTests: XCTestCase {
     /// build number here would cause. Pinned because the mistake is invisible until someone's phone
     /// spends twenty minutes re-scoring after a cosmetic update.
     func testAnInstallAlreadyAtTheCurrentRecipeNeverRescoresOnRelaunch() {
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 20), .upToDate)
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 21), .upToDate)
         // And a database written by a NEWER build that was rolled back stays put rather than
         // "migrating" backwards into a rescore that would overwrite better values with worse ones.
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 21), .upToDate)
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 22), .upToDate)
     }
 
     // MARK: - The fork's own recipe lineage

@@ -39,11 +39,11 @@ final class HealthspanPassTests: XCTestCase {
                            avgHr: nil, maxHr: nil, strain: nil, distanceM: nil, zonesJSON: nil, notes: nil, steps: nil)
             }, deviceId: source)
         }
-        // A 30-minute walk on the newest day at 140 bpm: 61 % of the 60–190 reserve, zone 1–3.
+        // A 30-minute, 2.4 km walk on the newest day at 140 bpm: 61 % of the 60–190 reserve, zone 1–3.
         let walk = midnight(newestDay) + 17 * 3_600
         _ = try await store.upsertWorkouts([
             WorkoutRow(startTs: walk, endTs: walk + 1_800, sport: "Walking", source: strap, durationS: 1_800,
-                       energyKcal: nil, avgHr: 140, maxHr: nil, strain: nil, distanceM: nil, zonesJSON: nil,
+                       energyKcal: nil, avgHr: 140, maxHr: nil, strain: nil, distanceM: 2_400, zonesJSON: nil,
                        notes: nil, steps: nil)
         ], deviceId: strap)
         _ = try await store.insert(Streams(hr: (0..<1_800).map { HRSample(ts: walk + $0, bpm: 140) }), deviceId: strap)
@@ -83,10 +83,44 @@ final class HealthspanPassTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(strength), 6 * 60.0 / 40 * 7, accuracy: 1e-9)
         let covered = try await value(store, IntelligenceEngine.healthspanCoveredDaysKey, newestDay)
         XCTAssertEqual(covered, 40)
+        // VO₂max from the walk (ACSM at 80 m/min, 61.5 % of reserve), never from the non-exercise estimate.
+        let walkVO2 = 3.5 + (0.1 * 80) / (80.0 / 130)
+        let banked = try await value(store, IntelligenceEngine.healthspanTrainingVO2Key, newestDay)
+        XCTAssertEqual(try XCTUnwrap(banked), walkVO2, accuracy: 0.05)
         let vo2 = try await input(.vo2max)
-        XCTAssertEqual(vo2, 44)
+        XCTAssertEqual(try XCTUnwrap(vo2), walkVO2, accuracy: 0.05)
+        let source = try await value(store, IntelligenceEngine.healthspanVO2SourceKey, newestDay)
+        XCTAssertEqual(source, Double(HealthspanVO2.Source.training.rawValue))
+        let lean = try await input(.leanMass)
+        XCTAssertNil(lean)
         let recentRHR = try await value(store, IntelligenceEngine.healthspanRecentInputKey(.restingHR), newestDay)
         XCTAssertEqual(recentRHR, 60)
+    }
+
+    /// An entered VO₂max outranks the walk; body fat gives lean mass; a later pass without them leaves no
+    /// stale input behind.
+    func testManualVO2maxAndBodyFatThenRewrite() async throws {
+        let store = try await seededStore()
+        let window = HealthspanWindow.dayKey(newestDay, plus: -20)
+        await IntelligenceEngine.runHealthspanPass(store: store, strapId: strap, computedId: computed, age: 30,
+                                                   sex: "male", hrMaxOverride: 190, oldestDay: window,
+                                                   newestDay: newestDay, tzOffset: 0,
+                                                   manualVO2max: (day: "2026-10-01", value: 51),
+                                                   bodyFat: [(day: "2026-09-01", value: 18)])
+        let vo2 = try await value(store, IntelligenceEngine.healthspanInputKey(.vo2max), newestDay)
+        XCTAssertEqual(vo2, 51)
+        let source = try await value(store, IntelligenceEngine.healthspanVO2SourceKey, newestDay)
+        XCTAssertEqual(source, Double(HealthspanVO2.Source.manual.rawValue))
+        let lean = try await value(store, IntelligenceEngine.healthspanInputKey(.leanMass), newestDay)
+        XCTAssertEqual(lean, 82)
+
+        await IntelligenceEngine.runHealthspanPass(store: store, strapId: strap, computedId: computed, age: 30,
+                                                   sex: "male", hrMaxOverride: 190, oldestDay: window,
+                                                   newestDay: newestDay, tzOffset: 0)
+        let leanAfter = try await value(store, IntelligenceEngine.healthspanInputKey(.leanMass), newestDay)
+        XCTAssertNil(leanAfter)
+        let sourceAfter = try await value(store, IntelligenceEngine.healthspanVO2SourceKey, newestDay)
+        XCTAssertEqual(sourceAfter, Double(HealthspanVO2.Source.training.rawValue))
     }
 
     func testNoTargetsForAnUnsetSexWritesNothing() async throws {

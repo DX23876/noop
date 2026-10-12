@@ -196,7 +196,12 @@ final class IntelligenceEngine: ObservableObject {
     // drivers until they are trusted (upstream 0b7294054). Before, a thin respiration or Effort baseline
     // still moved a stored Charge. Per-night derivations inside the engine's window, so the standard
     // bounded 21-day pass; no raw row is rewritten and the cardio ledger is not refilled.
-    static let currentAnalysisRecipeVersion = 20
+    // AI-21 (2026-10-12, fork AgeLess) changes what the stored AgeLess weeks mean: VO₂max no longer comes from
+    // the non-exercise weekly estimate but from an entered value, Apple Health or walks and runs; lean mass
+    // enters from body fat; and a week without the four band measures has no age. The migration deletes
+    // every AgeLess weekly row, so the next pass rebuilds all weeks from banked inputs. Banked zone minutes
+    // are kept (their raw HR is gone). No daily row is re-scored and the cardio ledger is not refilled.
+    static let currentAnalysisRecipeVersion = 21
 
     /// The recipe whose migration refills the cardio load ledger.
     static let cardioLedgerRecipe = 9
@@ -235,6 +240,14 @@ final class IntelligenceEngine: ObservableObject {
     /// The recipe whose migration re-scores the standard daily window once Charge leaves out optional
     /// baselines that are not yet usable.
     static let chargeOptionalBaselineRecipe = 20
+
+    /// The recipe whose migration rebuilds every AgeLess week on the new VO₂max and lean-mass sources.
+    static let healthspanSourcesRecipe = 21
+
+    /// Whether a migration crosses the recipe that rebuilds the AgeLess weeks.
+    static func migrationRebuildsHealthspan(from: Int, to: Int) -> Bool {
+        from < healthspanSourcesRecipe && to >= healthspanSourcesRecipe
+    }
 
     /// Whether a migration crosses the recipe that fills Apple Health workouts' heart rate.
     static func migrationFillsWorkoutHeartRate(from: Int, to: Int) -> Bool {
@@ -1051,6 +1064,18 @@ final class IntelligenceEngine: ObservableObject {
         analysisMaintenancePhase = phase
         let task = Task { @MainActor [weak self] in
             guard let self, let store = await self.repo.storeHandle() else { return false }
+            if case .migrating(let from, let to) = phase, Self.migrationRebuildsHealthspan(from: from, to: to) {
+                // Every AgeLess week goes; the next pass finds no history and rebuilds them all.
+                do {
+                    for owner in Set([self.deviceId + "-noop", Repository.whoopSource + "-noop"]) {
+                        for key in Self.healthspanWeeklyKeys { try await store.deleteMetricSeries(deviceId: owner, key: key) }
+                    }
+                } catch {
+                    self.analysisMaintenancePhase = .failed(error.localizedDescription)
+                    return false
+                }
+                guard !Task.isCancelled else { return false }
+            }
             if maxDays > 0 {
                 await self.analyzeRecent(maxDays: maxDays, force: true, allowDayReuse: false,
                                          reason: .semanticChange)
@@ -3541,9 +3566,13 @@ final class IntelligenceEngine: ObservableObject {
         }
         // Fork: healthspan age, experimental and off by default (IntelligenceEngine+Healthspan.swift).
         if HealthspanFeature.isEnabled {
+            let manualVO2 = profile.vo2maxManual > 0 && !profile.vo2maxManualDay.isEmpty
+                ? (day: profile.vo2maxManualDay, value: profile.vo2maxManual) : nil
+            let bodyFat = await repo.bodyMetrics().series("body_fat").map { (day: $0.day, value: $0.value) }
             await Self.runHealthspanPass(store: store, strapId: deviceId, computedId: computedId,
                                          age: profile.age, sex: profile.sex, hrMaxOverride: profile.hrMaxOverride,
-                                         oldestDay: oldestDay, newestDay: newestDay, tzOffset: tzOffset)
+                                         oldestDay: oldestDay, newestDay: newestDay, tzOffset: tzOffset,
+                                         manualVO2max: manualVO2, bodyFat: bodyFat)
         }
 
         // ── Stress proxy (#R-stress-chart), DAILY, gap-filled under the canonical "my-whoop" source ─────
