@@ -17,7 +17,9 @@ struct HealthspanDetailView: View {
         _index = State(initialValue: snapshot.weeks.count - 1)
     }
 
-    private var week: HealthspanWeek { snapshot.weeks[index] }
+    /// A reload while the sheet is open can bring fewer weeks; the index never reads past them.
+    private var shown: Int { min(max(index, 0), snapshot.weeks.count - 1) }
+    private var week: HealthspanWeek { snapshot.weeks[shown] }
 
     var body: some View {
         ScrollView {
@@ -26,7 +28,7 @@ struct HealthspanDetailView: View {
                 HealthspanTopRow(week: week, showsPace: false)
                 if let pace = week.pace {
                     VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-                        Text("Pace of Aging").strandOverline()
+                        Text("Pace of Aging").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
                         HealthspanPaceSlider(pace: pace)
                         Text("In 6 months: \(HealthspanSection.years(HealthspanEngine.projectedAge(currentAge: week.result.healthspanAge, pace: pace))) if the last 30 days continue")
                             .font(StrandFont.caption)
@@ -35,8 +37,9 @@ struct HealthspanDetailView: View {
                 }
                 narrative
                 if !week.levers.isEmpty { levers }
+                legend
                 ForEach(HealthspanDomain.allCases, id: \.self) { domain($0) }
-                if index > 0 { trend }
+                if shown > 0 { trend }
                 HealthspanInfoButton()
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textSecondary)
@@ -58,8 +61,8 @@ struct HealthspanDetailView: View {
 
     private var weekSwitcher: some View {
         HStack {
-            Button { index -= 1 } label: { Image(systemName: "chevron.left").frame(width: 44, height: 44) }
-                .disabled(index == 0)
+            Button { index = shown - 1 } label: { Image(systemName: "chevron.left").frame(width: 44, height: 44) }
+                .disabled(shown == 0)
                 .accessibilityLabel(Text("Previous week"))
             Spacer()
             VStack(spacing: 2) {
@@ -73,8 +76,8 @@ struct HealthspanDetailView: View {
                 }
             }
             Spacer()
-            Button { index += 1 } label: { Image(systemName: "chevron.right").frame(width: 44, height: 44) }
-                .disabled(index == snapshot.weeks.count - 1)
+            Button { index = shown + 1 } label: { Image(systemName: "chevron.right").frame(width: 44, height: 44) }
+                .disabled(shown >= snapshot.weeks.count - 1)
                 .accessibilityLabel(Text("Next week"))
         }
         .buttonStyle(.plain)
@@ -134,7 +137,7 @@ struct HealthspanDetailView: View {
 
     private var levers: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-            Text("Biggest levers").strandOverline()
+            Text("Biggest levers").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
             ForEach(week.levers, id: \.component) { l in
                 HStack(alignment: .firstTextBaseline) {
                     VStack(alignment: .leading, spacing: 2) {
@@ -155,6 +158,16 @@ struct HealthspanDetailView: View {
 
     // MARK: Measures
 
+    /// What the two markers on every bar mean, said once above the three cards.
+    private var legend: some View {
+        HStack(spacing: NoopMetrics.space3) {
+            Text("▼ 6-month avg")
+            Text("▲ 30-day avg")
+        }
+        .font(StrandFont.caption)
+        .foregroundStyle(StrandPalette.textSecondary)
+    }
+
     private func domain(_ d: HealthspanDomain) -> some View {
         let total = week.result.years(in: d)
         return VStack(alignment: .leading, spacing: NoopMetrics.space4) {
@@ -167,12 +180,6 @@ struct HealthspanDetailView: View {
                     .font(StrandFont.subhead.weight(.semibold).monospacedDigit())
                     .foregroundStyle(HealthspanMeasureRow.textColour(total))
             }
-            HStack(spacing: NoopMetrics.space3) {
-                Text("▼ 6-month avg")
-                Text("▲ 30-day avg")
-            }
-            .font(StrandFont.caption)
-            .foregroundStyle(StrandPalette.textTertiary)
             ForEach(HealthspanEngine.Component.allCases.filter { $0.domain == d }, id: \.self) { c in
                 let contribution = week.result.contributions.first { $0.component == c }
                 HealthspanMeasureRow(component: c, value: week.inputs.value(c), recentValue: week.recentInputs?.value(c),
@@ -188,13 +195,13 @@ struct HealthspanDetailView: View {
     // MARK: Trend
 
     private var trend: some View {
-        let weeks = Array(snapshot.weeks.prefix(index + 1))
+        let weeks = Array(snapshot.weeks.prefix(shown + 1))
         let points = weeks.compactMap { w in HealthspanSection.date(w.day).map { TrendPoint(date: $0, value: w.result.healthspanAge) } }
         let values = weeks.map(\.result.healthspanAge) + [week.result.chronologicalAge]
         let lo = (values.min() ?? 0).rounded(.down) - 1, hi = (values.max() ?? 0).rounded(.up) + 1
         let change = week.result.healthspanAge - weeks[0].result.healthspanAge
         return VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-            Text("Over time").strandOverline()
+            Text("Over time").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
             Text(HealthspanSection.sinceLine(change, since: HealthspanSection.date(weeks[0].day)))
                 .font(StrandFont.footnote)
                 .foregroundStyle(StrandPalette.textSecondary)

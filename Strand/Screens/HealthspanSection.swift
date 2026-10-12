@@ -188,11 +188,13 @@ struct HealthspanSection: View {
         }
     }
 
-    static func date(_ day: String) -> Date? {
+    private static let dayFormatter: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX"); f.timeZone = .current; f.dateFormat = "yyyy-MM-dd"
-        return f.date(from: day)
-    }
+        return f
+    }()
+
+    static func date(_ day: String) -> Date? { dayFormatter.date(from: day) }
 }
 
 /// The headline both screens share: the age gauge, then Pace of Aging in a pill below it unless the screen
@@ -217,7 +219,9 @@ struct HealthspanTopRow: View {
     private func pacePill(_ pace: Double) -> some View {
         let colour = pace <= 1 ? StrandPalette.agelessYoungDeep : StrandPalette.agelessOld
         return HStack(spacing: NoopMetrics.space2) {
-            Image(systemName: pace <= 1 ? "arrow.down" : "arrow.up")
+            if HealthspanEngine.PaceClass(pace: pace) != .steady {
+                Image(systemName: pace < 1 ? "arrow.down" : "arrow.up")
+            }
             Text("Pace of Aging")
             Text(verbatim: HealthspanPaceSlider.paceText(pace)).monospacedDigit()
         }

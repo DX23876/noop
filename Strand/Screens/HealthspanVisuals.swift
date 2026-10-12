@@ -75,13 +75,19 @@ struct HealthspanAgeGauge: View, Animatable {
         .aspectRatio(1.55, contentMode: .fit)
         .frame(maxWidth: 380)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("AgeLess age \(HealthspanSection.years(age))"))
+        .accessibilityLabel(Text("\(Text("AgeLess age \(HealthspanSection.years(age))")), \(deltaText)"))
+    }
+
+    /// "4.4 years younger" from the already translated "years younger" / "years older".
+    private var deltaText: Text {
+        let delta = age - actualAge
+        let words = Text(delta <= 0 ? "years younger" : "years older")
+        return Text("\(Text(verbatim: HealthspanSection.years(abs(delta)))) \(words)")
     }
 
     private var deltaLine: some View {
         let delta = age - actualAge
-        return (Text(verbatim: HealthspanSection.years(abs(delta)) + " ")
-                + Text(delta <= 0 ? "years younger" : "years older"))
+        return deltaText
             .font(StrandFont.subhead.weight(.medium))
             .foregroundStyle(delta <= 0 ? StrandPalette.agelessYoungDeep.legibleText : StrandPalette.agelessOld.legibleText)
             .lineLimit(1)
@@ -217,7 +223,9 @@ struct HealthspanMeasureRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-            Text(HealthspanSection.componentName(component)).strandOverline()
+            Text(HealthspanSection.componentName(component))
+                .font(StrandFont.subhead.weight(.medium))
+                .foregroundStyle(StrandPalette.textPrimary)
             HStack(alignment: .center, spacing: NoopMetrics.space3) {
                 bar
                 VStack(alignment: .trailing, spacing: 0) {
