@@ -2921,5 +2921,15 @@
   "During a workout": "Во время тренировки",
   "today %@": "сегодня %@",
   "tomorrow %@": "завтра %@",
-  "Next alarm %@": "Следующий будильник %@"
+  "Next alarm %@": "Следующий будильник %@",
+  "6 months": "6 месяцев",
+  "Nights: %lld of %lld · %@": "Ночи: %lld из %lld · %@",
+  "Days: %lld of %lld · %@": "Дни: %lld из %lld · %@",
+  "Days measured: %lld · %@": "Дней с замерами: %lld · %@",
+  "Sessions: %lld · %@": "Тренировки: %lld · %@",
+  "Entered %@ · measure again?": "Введено вручную %@ · измерить снова?",
+  "From Apple Health, %@": "Из Apple Health, %@",
+  "Walks and runs: %lld · %@ · grade not counted": "Прогулки и пробежки: %lld · %@ · без учёта уклона",
+  "Body fat from %@": "Процент жира от %@",
+  "thin data": "мало данных"
 }

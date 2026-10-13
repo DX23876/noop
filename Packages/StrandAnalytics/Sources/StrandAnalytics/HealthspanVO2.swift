@@ -28,6 +28,8 @@ public enum HealthspanVO2 {
         public let source: Source
         /// Readings behind `window` (1 for an entered value).
         public let readings: Int
+        /// The day of the newest reading behind `window`, or the day an entered value was measured.
+        public let latestDay: String
     }
 
     /// An entered value counts for a year from the day it was measured.
@@ -41,24 +43,31 @@ public enum HealthspanVO2 {
                                endingOn end: String) -> Resolved? {
         if let manual, manual.value > 0, manual.day <= end,
            manual.day >= HealthspanWindow.dayKey(end, plus: -(manualValidDays - 1)) {
-            return Resolved(window: manual.value, recent: manual.value, source: .manual, readings: 1)
+            return Resolved(window: manual.value, recent: manual.value, source: .manual, readings: 1,
+                            latestDay: manual.day)
         }
         for (source, readings) in [(Source.appleHealth, appleHealth), (Source.training, training)] {
-            let window = values(readings, endingOn: end, windowDays: HealthspanWindow.ageWindowDays)
-            guard let windowMedian = median(window) else { continue }
+            let inWindow = slice(readings, endingOn: end, windowDays: HealthspanWindow.ageWindowDays)
+            guard let windowMedian = median(inWindow.map(\.value)), let latest = inWindow.map(\.day).max() else { continue }
             let recent = values(readings, endingOn: end, windowDays: HealthspanWindow.paceWindowDays)
             let recentMedian = recent.count >= minimumRecentReadings ? median(recent) ?? windowMedian : windowMedian
-            return Resolved(window: windowMedian, recent: recentMedian, source: source, readings: window.count)
+            return Resolved(window: windowMedian, recent: recentMedian, source: source, readings: inWindow.count,
+                            latestDay: latest)
         }
         return nil
     }
 
     /// Lean mass as a share of body mass from the latest body-fat reading of the past year, on or before `end`.
     public static func leanMassPct(bodyFat: [(day: String, value: Double)], endingOn end: String) -> Double? {
+        latestBodyFat(bodyFat, endingOn: end).map { 100 - $0.value }
+    }
+
+    /// The body-fat reading lean mass is taken from: the latest plausible one of the past year, on or before `end`.
+    public static func latestBodyFat(_ bodyFat: [(day: String, value: Double)],
+                                     endingOn end: String) -> (day: String, value: Double)? {
         let start = HealthspanWindow.dayKey(end, plus: -(manualValidDays - 1))
-        guard let fat = bodyFat.filter({ $0.day >= start && $0.day <= end && $0.value > 0 && $0.value < 100 })
-            .max(by: { $0.day < $1.day })?.value else { return nil }
-        return 100 - fat
+        return bodyFat.filter { $0.day >= start && $0.day <= end && $0.value > 0 && $0.value < 100 }
+            .max { $0.day < $1.day }
     }
 
     /// A session's measured average heart rate from the band's trace, weighted by each sample's (gap-capped)
@@ -74,8 +83,13 @@ public enum HealthspanVO2 {
     }
 
     static func values(_ readings: [(day: String, value: Double)], endingOn end: String, windowDays: Int) -> [Double] {
+        slice(readings, endingOn: end, windowDays: windowDays).map(\.value)
+    }
+
+    static func slice(_ readings: [(day: String, value: Double)], endingOn end: String,
+                      windowDays: Int) -> [(day: String, value: Double)] {
         let start = HealthspanWindow.dayKey(end, plus: -(windowDays - 1))
-        return readings.filter { $0.day >= start && $0.day <= end && $0.value > 0 }.map(\.value)
+        return readings.filter { $0.day >= start && $0.day <= end && $0.value > 0 }
     }
 
     public static func median(_ xs: [Double]) -> Double? {

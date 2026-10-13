@@ -3099,5 +3099,15 @@
   "During a workout": "訓練期間",
   "today %@": "今天 %@",
   "tomorrow %@": "明天 %@",
-  "Next alarm %@": "下一個鬧鐘 %@"
+  "Next alarm %@": "下一個鬧鐘 %@",
+  "6 months": "6 個月",
+  "Nights: %lld of %lld · %@": "夜晚：%lld/%lld · %@",
+  "Days: %lld of %lld · %@": "天數：%lld/%lld · %@",
+  "Days measured: %lld · %@": "已測天數：%lld · %@",
+  "Sessions: %lld · %@": "訓練次數：%lld · %@",
+  "Entered %@ · measure again?": "%@ 手動輸入 · 重新測量？",
+  "From Apple Health, %@": "來自 Apple 健康，%@",
+  "Walks and runs: %lld · %@ · grade not counted": "步行和跑步：%lld 次 · %@ · 未計入坡度",
+  "Body fat from %@": "%@ 的體脂率",
+  "thin data": "資料不足"
 }

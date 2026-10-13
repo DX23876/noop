@@ -327,6 +327,19 @@ Analysis migration required: yes (AI-22). The AgeLess weeks and AI-21's banked t
 deleted (`deleteHealthspanWeeks`) and the next pass rebuilds them; zone minutes are kept. No daily row is
 re-scored.
 
+### 2026-10-13 — AgeLess says what each measure stands on (AI-23)
+
+The AgeLess screen now names, under every measure, how much data stands behind it and where it came from,
+and flags in coral when that is too thin to lean on (thresholds in `HealthspanBasis`, plan section
+"Nächste Ausbaustufe" of 2026-10-13). The counts are taken in the pass from the same window days the
+week's inputs are averaged over and stored with the week (`hs_n_*`, `hs_vo2_day`, `hs_fat_day`), so a
+value and its basis cannot disagree. The "measure again?" hint now judges the entered VO₂max the week
+actually used instead of the profile's current entry.
+
+Analysis migration required: yes (AI-23). No stored value changes meaning, but every week written before
+lacks its basis, so the AgeLess weeks are deleted once more and the next pass rebuilds them; zone minutes
+are kept. No daily row is re-scored.
+
 ### 2026-10-12 — Measured maximum heart rate offered, never applied silently
 
 The analysis pass banks each day's highest heart rate held for 30 seconds without a gap in a workout

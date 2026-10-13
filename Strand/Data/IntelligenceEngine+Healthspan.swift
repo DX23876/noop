@@ -34,11 +34,20 @@ extension IntelligenceEngine {
     nonisolated static func healthspanRecentInputKey(_ c: HealthspanEngine.Component) -> String {
         "hs_in30_" + c.rawValue
     }
+    /// What a week's input stands on (`HealthspanBasis.counts`; for VO₂max, its readings), since AI-23.
+    nonisolated static func healthspanCountKey(_ c: HealthspanEngine.Component) -> String { "hs_n_" + c.rawValue }
+    /// The day of the newest VO₂max reading behind a week, as `HealthspanBasis.dayNumber`.
+    static let healthspanVO2DayKey = "hs_vo2_day"
+    /// The day of the body-fat reading behind a week's lean mass, as `HealthspanBasis.dayNumber`.
+    static let healthspanBodyFatDayKey = "hs_fat_day"
 
     /// Every key a weekly row writes, so a rewrite can clear what a week no longer has.
     nonisolated static var healthspanWeeklyKeys: [String] {
-        [healthspanAgeKey, healthspanPaceKey, healthspanCoveredDaysKey, healthspanVO2SourceKey]
-            + HealthspanEngine.Component.allCases.flatMap { [healthspanInputKey($0), healthspanRecentInputKey($0)] }
+        [healthspanAgeKey, healthspanPaceKey, healthspanCoveredDaysKey, healthspanVO2SourceKey, healthspanVO2DayKey,
+         healthspanBodyFatDayKey]
+            + HealthspanEngine.Component.allCases.flatMap {
+                [healthspanInputKey($0), healthspanRecentInputKey($0), healthspanCountKey($0)]
+            }
     }
 
     /// Banks zone minutes for `[oldestDay, newestDay]`, then rewrites the weekly rows of the weeks that window
@@ -149,13 +158,24 @@ extension IntelligenceEngine {
             let end = min(HealthspanWindow.dayKey(saturday, plus: 6), newestDay)
             let vo2 = HealthspanVO2.resolve(manual: manualVO2max, appleHealth: appleVO2, training: trainingVO2max,
                                             endingOn: end)
+            let fat = HealthspanVO2.latestBodyFat(bodyFat, endingOn: end)
             guard let w = HealthspanWindow.weekly(
                 days: days, endingOn: end, age: Double(age), sex: sex, vo2max: vo2?.window,
-                recentVO2max: vo2?.recent, leanMassPct: HealthspanVO2.leanMassPct(bodyFat: bodyFat, endingOn: end))
+                recentVO2max: vo2?.recent, leanMassPct: fat.map { 100 - $0.value })
             else { continue }
             weekly.append(MetricPoint(day: saturday, key: healthspanAgeKey, value: w.result.healthspanAge))
             if let vo2 {
                 weekly.append(MetricPoint(day: saturday, key: healthspanVO2SourceKey, value: Double(vo2.source.rawValue)))
+                weekly.append(MetricPoint(day: saturday, key: healthspanCountKey(.vo2max), value: Double(vo2.readings)))
+                if let d = HealthspanBasis.dayNumber(vo2.latestDay) {
+                    weekly.append(MetricPoint(day: saturday, key: healthspanVO2DayKey, value: d))
+                }
+            }
+            if let d = fat.flatMap({ HealthspanBasis.dayNumber($0.day) }) {
+                weekly.append(MetricPoint(day: saturday, key: healthspanBodyFatDayKey, value: d))
+            }
+            for (c, n) in w.counts {
+                weekly.append(MetricPoint(day: saturday, key: healthspanCountKey(c), value: Double(n)))
             }
             weekly.append(MetricPoint(day: saturday, key: healthspanCoveredDaysKey, value: Double(w.coveredDays)))
             if let pace = w.pace { weekly.append(MetricPoint(day: saturday, key: healthspanPaceKey, value: pace)) }
@@ -219,12 +239,19 @@ extension IntelligenceEngine {
             }
         }
 
-        // Strength minutes by local start day; overlapping rows from several sources count once.
+        // Strength minutes and sessions by local start day; overlapping rows from several sources count once.
         var strengthByDay: [String: Double] = [:]
+        var sessionsByDay: [String: Int] = [:]
         let workouts = try await healthspanWorkouts(store: store, strapId: strapId, computedId: computedId,
                                                     from: fromTs, to: toTs, strengthOnly: true)
-        for w in workouts { strengthByDay[AnalyticsEngine.dayString(w.start, offsetSec: tzOffset), default: 0] += Double(w.end - w.start) / 60 }
-        for day in byDay.keys { edit(day) { $0.strengthMin = strengthByDay[day] ?? 0 } }
+        for w in workouts {
+            let day = AnalyticsEngine.dayString(w.start, offsetSec: tzOffset)
+            strengthByDay[day, default: 0] += Double(w.end - w.start) / 60
+            sessionsByDay[day, default: 0] += 1
+        }
+        for day in byDay.keys {
+            edit(day) { $0.strengthMin = strengthByDay[day] ?? 0; $0.strengthSessions = sessionsByDay[day] ?? 0 }
+        }
         return byDay.values.sorted { $0.day < $1.day }
     }
 
@@ -258,7 +285,20 @@ extension IntelligenceEngine {
             out.append(MetricPoint(day: day, key: healthspanAgeKey, value: r.healthspanAge))
             out.append(MetricPoint(day: day, key: healthspanVO2SourceKey,
                                    value: Double(HealthspanVO2.Source.training.rawValue)))
-            out.append(MetricPoint(day: day, key: healthspanCoveredDaysKey, value: Double(min(182, 30 + 7 * i))))
+            let covered = min(182, 30 + 7 * i)
+            out.append(MetricPoint(day: day, key: healthspanCoveredDaysKey, value: Double(covered)))
+            // The basis lines: nearly every night worn, a few step-less days, a month of zone minutes at most, one
+            // strength session a week, a walk or run every five days and a body-fat reading a month back.
+            let counts: [HealthspanEngine.Component: Int] = [
+                .sleepDuration: covered - covered / 20, .sleepConsistency: covered - covered / 12,
+                .dailySteps: covered - covered / 10, .restingHR: covered - covered / 20,
+                .zone13: min(covered, 35), .zone45: min(covered, 35), .strength: covered / 7, .vo2max: covered / 5]
+            for (c, n) in counts { out.append(MetricPoint(day: day, key: healthspanCountKey(c), value: Double(n))) }
+            for (key, back) in [(healthspanVO2DayKey, 3), (healthspanBodyFatDayKey, 30)] {
+                if let d = HealthspanBasis.dayNumber(HealthspanWindow.dayKey(day, plus: -back)) {
+                    out.append(MetricPoint(day: day, key: key, value: d))
+                }
+            }
             if let pace = HealthspanEngine.paceOfAging(window: window, last30Days: recent) {
                 out.append(MetricPoint(day: day, key: healthspanPaceKey, value: pace))
             }

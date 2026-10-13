@@ -17,12 +17,13 @@ public struct HealthspanDay: Equatable, Sendable {
     public var zone13Min: Double?           // banked activity minutes at 40–80 % HR reserve
     public var zone45Min: Double?           // banked activity minutes at ≥ 80 % HR reserve
     public var strengthMin: Double?         // minutes of strength-type activities
+    public var strengthSessions: Int?       // strength-type sessions starting this day, overlaps merged
     public init(day: String, sleepHours: Double? = nil, steps: Double? = nil, sleepMeanHR: Double? = nil,
                 sleepConsistencyPct: Double? = nil, zone13Min: Double? = nil, zone45Min: Double? = nil,
-                strengthMin: Double? = nil) {
+                strengthMin: Double? = nil, strengthSessions: Int? = nil) {
         self.day = day; self.sleepHours = sleepHours; self.steps = steps; self.sleepMeanHR = sleepMeanHR
         self.sleepConsistencyPct = sleepConsistencyPct; self.zone13Min = zone13Min; self.zone45Min = zone45Min
-        self.strengthMin = strengthMin
+        self.strengthMin = strengthMin; self.strengthSessions = strengthSessions
     }
 }
 
@@ -48,6 +49,8 @@ public enum HealthspanWindow {
         public let result: HealthspanEngine.Result
         public let pace: Double?
         public let coveredDays: Int
+        /// How much of the 182-day window stands behind each measure (`HealthspanBasis.counts`).
+        public let counts: [HealthspanEngine.Component: Int]
         /// Fewer than 182 days of data so far: the age will still move as the window fills.
         public var isProvisional: Bool { coveredDays < HealthspanWindow.ageWindowDays }
     }
@@ -79,7 +82,7 @@ public enum HealthspanWindow {
             recentInputs = recent
         }
         return Weekly(inputs: window, recentInputs: recentInputs, result: result, pace: pace,
-                      coveredDays: span(ageDays, endingOn: end))
+                      coveredDays: span(ageDays, endingOn: end), counts: HealthspanBasis.counts(ageDays))
     }
 
     /// Window inputs: per-day means for sleep, steps, sleep HR and consistency; weekly rates for zone and

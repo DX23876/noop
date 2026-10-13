@@ -30,21 +30,24 @@ final class AnalysisRecipeDecisionTests: XCTestCase {
     /// It is deliberately a LITERAL pin. A future bump is supposed to make this line fail, because that
     /// failure is the prompt to answer CLAUDE.md's "Analysis migration required: yes/no" for whatever
     /// the bump carries — the question this file exists to stop anyone skipping.
-    func testRecipeVersionIsTwentyTwoAndOlderInstallsMigrateToIt() {
-        XCTAssertEqual(IntelligenceEngine.currentAnalysisRecipeVersion, 22,
+    func testRecipeVersionIsTwentyThreeAndOlderInstallsMigrateToIt() {
+        XCTAssertEqual(IntelligenceEngine.currentAnalysisRecipeVersion, 23,
                        "recipe version changed — answer 'Analysis migration required' for what moved")
-        for stored in [8, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21] {
+        for stored in [8, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22] {
             XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: stored),
-                           .migrate(from: stored, to: 22))
+                           .migrate(from: stored, to: 23))
         }
     }
 
-    /// AI-21 and AI-22 rebuild every AgeLess week and nothing else: no daily row, no ledger, no workout row.
-    func testAI21AndAI22RebuildOnlyTheAgeLessWeeks() {
-        XCTAssertTrue(IntelligenceEngine.migrationRebuildsHealthspan(from: 20, to: 22))
-        XCTAssertTrue(IntelligenceEngine.migrationRebuildsHealthspan(from: 21, to: 22))
-        XCTAssertTrue(IntelligenceEngine.migrationRebuildsHealthspan(from: 8, to: 22))
-        XCTAssertFalse(IntelligenceEngine.migrationRebuildsHealthspan(from: 22, to: 22))
+    /// AI-21, AI-22 and AI-23 rebuild every AgeLess week and nothing else: no daily row, no ledger, no
+    /// workout row.
+    func testAI21ToAI23RebuildOnlyTheAgeLessWeeks() {
+        XCTAssertTrue(IntelligenceEngine.migrationRebuildsHealthspan(from: 20, to: 23))
+        XCTAssertTrue(IntelligenceEngine.migrationRebuildsHealthspan(from: 21, to: 23))
+        XCTAssertTrue(IntelligenceEngine.migrationRebuildsHealthspan(from: 22, to: 23))
+        XCTAssertTrue(IntelligenceEngine.migrationRebuildsHealthspan(from: 8, to: 23))
+        XCTAssertFalse(IntelligenceEngine.migrationRebuildsHealthspan(from: 23, to: 23))
+        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 22), 0)
         XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 21), 0)
         XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 20), 0)
         XCTAssertFalse(IntelligenceEngine.migrationRefillsCardioLedger(from: 20, to: 21))
@@ -55,6 +58,10 @@ final class AnalysisRecipeDecisionTests: XCTestCase {
         XCTAssertTrue(keys.contains(IntelligenceEngine.healthspanAgeKey))
         XCTAssertFalse(keys.contains(IntelligenceEngine.healthspanZone13Key))
         XCTAssertFalse(keys.contains(IntelligenceEngine.healthspanLegacyTrainingVO2Key))
+        // AI-23's basis keys go with the weeks, so a rebuild cannot leave a stale count behind.
+        XCTAssertTrue(keys.contains(IntelligenceEngine.healthspanCountKey(.dailySteps)))
+        XCTAssertTrue(keys.contains(IntelligenceEngine.healthspanVO2DayKey))
+        XCTAssertTrue(keys.contains(IntelligenceEngine.healthspanBodyFatDayKey))
     }
 
     /// AI-20 moves the stored Charge (an optional baseline that is not yet usable is left out), so every
@@ -251,10 +258,10 @@ final class AnalysisRecipeDecisionTests: XCTestCase {
     /// build number here would cause. Pinned because the mistake is invisible until someone's phone
     /// spends twenty minutes re-scoring after a cosmetic update.
     func testAnInstallAlreadyAtTheCurrentRecipeNeverRescoresOnRelaunch() {
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 22), .upToDate)
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 23), .upToDate)
         // And a database written by a NEWER build that was rolled back stays put rather than
         // "migrating" backwards into a rescore that would overwrite better values with worse ones.
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 23), .upToDate)
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 24), .upToDate)
     }
 
     // MARK: - The fork's own recipe lineage

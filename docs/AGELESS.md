@@ -79,6 +79,12 @@ against regressions rather than validating the age.
 - **AgeLess screen:** week switcher, Aging speed on its scale (leaf for slow, flame for fast), a status
   line, the biggest levers ranked with what all of them together would take off, and each measure on a
   ticked bar with its years and a trend arrow for the last 30 days, grouped as sleep, activity and fitness.
+  Under each bar a line says what the measure stands on ("Nights: 152 of 182 · 6 months", "Days measured",
+  "Sessions", "Walks and runs", "Entered", "Apple Health" or "Body fat from" with the reading's day) and, in
+  coral, "thin data" when that is too little to lean on: a daily measure on fewer than 60 % of the days the
+  window covers, zone minutes on fewer than four weeks of banked days, a training VO₂max on fewer than three
+  walks and runs, or body fat older than 90 days at the week's end. Strength is never thin; no sessions is a
+  fact. The thresholds are reasoned starting values in `HealthspanBasis`.
   An info button opens **About AgeLess**: the idea in plain words, each study linked, the calculation one
   level down.
 - Colours are AgeLess's own: cyan to indigo for younger, coral for older.
@@ -86,9 +92,11 @@ against regressions rather than validating the age.
 ## Stored values and migrations
 
 Weekly rows under the computed source, keyed to the Saturday on or before: `healthspan_age`,
-`healthspan_pace`, `healthspan_covered_days`, `hs_vo2_source`, and per measure `hs_in_*` (six months) and
-`hs_in30_*` (30 days). Each pass rewrites its weeks as one window and writes nothing when a read fails.
-Recipes **AI-21** and **AI-22** rebuild every week (see `docs/fork/decisions.md`).
+`healthspan_pace`, `healthspan_covered_days`, `hs_vo2_source`, `hs_vo2_day` and `hs_fat_day` (newest
+VO₂max and body-fat reading behind the week, as yyyymmdd), and per measure `hs_in_*` (six months),
+`hs_in30_*` (30 days) and `hs_n_*` (days, sessions or readings behind the six-month value). Each pass
+rewrites its weeks as one window and writes nothing when a read fails. Recipes **AI-21**, **AI-22** and
+**AI-23** rebuild every week (see `docs/fork/decisions.md`).
 
 ## Limits
 

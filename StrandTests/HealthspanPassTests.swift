@@ -97,6 +97,24 @@ final class HealthspanPassTests: XCTestCase {
         XCTAssertNil(lean)
         let recentRHR = try await value(store, IntelligenceEngine.healthspanRecentInputKey(.restingHR), newestDay)
         XCTAssertEqual(recentRHR, 60)
+
+        // What each measure stands on, from the same window days: every night and day, consistency from the
+        // fifth night on (it needs four before it), zone minutes on the 34 days raw HR still covered, and six
+        // strength sessions with the two-source copies counted once. No VO₂max, so no readings.
+        func count(_ c: HealthspanEngine.Component) async throws -> Double? {
+            try await value(store, IntelligenceEngine.healthspanCountKey(c), newestDay)
+        }
+        let nights = try await count(.sleepDuration), steps = try await count(.dailySteps)
+        let hrNights = try await count(.restingHR), consistent = try await count(.sleepConsistency)
+        let zoneDays = try await count(.zone13), sessions = try await count(.strength)
+        let readings = try await count(.vo2max)
+        XCTAssertEqual(nights, 40)
+        XCTAssertEqual(steps, 40)
+        XCTAssertEqual(hrNights, 40)
+        XCTAssertEqual(consistent, 36)
+        XCTAssertEqual(zoneDays, 34)
+        XCTAssertEqual(sessions, 6)
+        XCTAssertNil(readings)
     }
 
     /// An entered VO₂max outranks the training estimate; body fat gives lean mass; a later pass without them
@@ -116,6 +134,13 @@ final class HealthspanPassTests: XCTestCase {
         XCTAssertEqual(source, Double(HealthspanVO2.Source.manual.rawValue))
         let lean = try await value(store, IntelligenceEngine.healthspanInputKey(.leanMass), newestDay)
         XCTAssertEqual(lean, 82)
+        // The basis: one entered reading measured 10-01, lean mass from the 09-01 body-fat reading.
+        let readings = try await value(store, IntelligenceEngine.healthspanCountKey(.vo2max), newestDay)
+        XCTAssertEqual(readings, 1)
+        let vo2Day = try await value(store, IntelligenceEngine.healthspanVO2DayKey, newestDay)
+        XCTAssertEqual(vo2Day.flatMap { HealthspanBasis.dayKey(number: $0) }, "2026-10-01")
+        let fatDay = try await value(store, IntelligenceEngine.healthspanBodyFatDayKey, newestDay)
+        XCTAssertEqual(fatDay.flatMap { HealthspanBasis.dayKey(number: $0) }, "2026-09-01")
 
         await IntelligenceEngine.runHealthspanPass(store: store, strapId: strap, computedId: computed, age: 30,
                                                    sex: "male", hrMaxOverride: 190, oldestDay: window,
@@ -127,6 +152,10 @@ final class HealthspanPassTests: XCTestCase {
         XCTAssertNil(leanAfter)
         let sourceAfter = try await value(store, IntelligenceEngine.healthspanVO2SourceKey, newestDay)
         XCTAssertEqual(sourceAfter, Double(HealthspanVO2.Source.training.rawValue))
+        let vo2DayAfter = try await value(store, IntelligenceEngine.healthspanVO2DayKey, newestDay)
+        XCTAssertEqual(vo2DayAfter.flatMap { HealthspanBasis.dayKey(number: $0) }, "2026-10-08")
+        let fatDayAfter = try await value(store, IntelligenceEngine.healthspanBodyFatDayKey, newestDay)
+        XCTAssertNil(fatDayAfter)
     }
 
     /// A first run banks zone minutes for every day raw heart rate still covers, not only the pass window;

@@ -339,7 +339,10 @@ struct HealthspanMeasureRow: View {
     let years: Double?
     let scale: HealthspanEngine.BarScale
     var trend: HealthspanEngine.Trend? = nil
+    /// What the measure stands on, or how to supply it.
     var note: String? = nil
+    /// The basis is too thin to lean on (`HealthspanBasis`).
+    var thin = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.space2) {
@@ -364,10 +367,9 @@ struct HealthspanMeasureRow: View {
                 }
                 .frame(minWidth: 64, alignment: .trailing)
             }
-            if let note {
-                Text(note)
+            if note != nil || thin {
+                Text(noteText)
                     .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -375,10 +377,23 @@ struct HealthspanMeasureRow: View {
         .accessibilityLabel(Text(accessibilitySummary))
     }
 
+    /// The note in secondary ink, then "thin data" in coral when the basis is thin.
+    private var noteText: AttributedString {
+        var text = AttributedString(note ?? "")
+        text.foregroundColor = StrandPalette.textSecondary
+        if thin {
+            var flag = AttributedString((note == nil ? "" : " · ") + String(localized: "thin data"))
+            flag.foregroundColor = StrandPalette.agelessOld.legibleText
+            text += flag
+        }
+        return text
+    }
+
     private var accessibilitySummary: String {
         let name = HealthspanSection.componentName(component)
+        let thinNote = thin ? String(localized: "thin data") : nil
         guard let value, let years else { return [name, String(localized: "No data yet"), note].compactMap { $0 }.joined(separator: ", ") }
-        return [name, HealthspanSection.value(component, value), HealthspanSection.signedYears(years), note]
+        return [name, HealthspanSection.value(component, value), HealthspanSection.signedYears(years), note, thinNote]
             .compactMap { $0 }.joined(separator: ", ")
     }
 

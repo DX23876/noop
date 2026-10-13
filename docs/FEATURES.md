@@ -732,7 +732,8 @@ With no live HR and no imported day, NOOP prompts you to connect or import.
 - **AgeLess** (fork, Settings → Experimental, default off; takes Body Age's place while on) — an age built
   from six months of nine measures of sleep, activity and fitness, each tied to a large mortality study,
   shown on a half-circle gauge around your actual age with **Aging speed** beside it. Its screen ranks the
-  biggest levers, shows every measure on a ticked bar with a 30-day trend arrow, and an **About AgeLess**
+  biggest levers, shows every measure on a ticked bar with a 30-day trend arrow and a line saying what it
+  stands on (flagged when the data is thin), and an **About AgeLess**
   sheet links each study. Method, sources and limits: [`AGELESS.md`](AGELESS.md).
 
 ---

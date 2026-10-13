@@ -206,7 +206,12 @@ final class IntelligenceEngine: ObservableObject {
     // median resting HR as the reference) instead of AgeLess's own copy, and a first run banks zone minutes
     // over every day the raw heart rate still covers. The migration deletes the AgeLess weeks and the
     // training VO₂max days AI-21 banked; zone minutes are kept. No daily row is re-scored.
-    static let currentAnalysisRecipeVersion = 22
+    // AI-23 (2026-10-13, fork AgeLess) stores what each week's measures stand on: days with data, banked zone
+    // days, strength sessions, VO₂max readings and the days of the newest VO₂max and body-fat readings, for the
+    // detail screen's basis lines. No stored value changes meaning, but every week written before has none of
+    // them, so the migration deletes the AgeLess weeks once more and the next pass rebuilds them all. Zone
+    // minutes are kept. No daily row is re-scored.
+    static let currentAnalysisRecipeVersion = 23
 
     /// The recipe whose migration refills the cardio load ledger.
     static let cardioLedgerRecipe = 9
@@ -252,10 +257,13 @@ final class IntelligenceEngine: ObservableObject {
     /// The recipe whose migration rebuilds the AgeLess weeks on Training Load's VO₂max estimator.
     static let healthspanEstimatorRecipe = 22
 
-    /// Whether a migration crosses a recipe that rebuilds the AgeLess weeks (AI-21 or AI-22; one rebuild
-    /// serves both).
+    /// The recipe whose migration rebuilds the AgeLess weeks with what each measure stands on.
+    static let healthspanBasisRecipe = 23
+
+    /// Whether a migration crosses a recipe that rebuilds the AgeLess weeks (AI-21, AI-22 or AI-23; one
+    /// rebuild serves all three).
     static func migrationRebuildsHealthspan(from: Int, to: Int) -> Bool {
-        from < healthspanEstimatorRecipe && to >= healthspanSourcesRecipe
+        from < healthspanBasisRecipe && to >= healthspanSourcesRecipe
     }
 
     /// Whether a migration crosses the recipe that fills Apple Health workouts' heart rate.

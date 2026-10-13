@@ -9,14 +9,11 @@ import StrandAnalytics
 
 struct HealthspanDetailView: View {
     let snapshot: HealthspanSnapshot
-    /// The day an entered VO₂max was measured, for the "measure again?" note; "" without one.
-    let manualVO2Day: String
     @State private var index: Int
     @Environment(\.dismiss) private var dismiss
 
-    init(snapshot: HealthspanSnapshot, manualVO2Day: String = "") {
+    init(snapshot: HealthspanSnapshot) {
         self.snapshot = snapshot
-        self.manualVO2Day = manualVO2Day
         _index = State(initialValue: snapshot.weeks.count - 1)
     }
 
@@ -177,8 +174,8 @@ struct HealthspanDetailView: View {
                                      years: contribution?.value == nil ? nil : contribution?.years,
                                      scale: HealthspanEngine.barScale(c, age: week.inputs.age, sex: week.inputs.sex),
                                      trend: trend,
-                                     note: HealthspanSection.note(c, week: week, manualVO2Day: manualVO2Day,
-                                                                 today: snapshot.today))
+                                     note: HealthspanSection.note(c, week: week, today: snapshot.today),
+                                     thin: HealthspanSection.isThin(c, week: week, today: snapshot.today))
             }
         }
         .agelessCard()

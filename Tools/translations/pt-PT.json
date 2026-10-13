@@ -2943,5 +2943,15 @@
   "During a workout": "Durante o treino",
   "today %@": "hoje %@",
   "tomorrow %@": "amanhã %@",
-  "Next alarm %@": "Próximo alarme %@"
+  "Next alarm %@": "Próximo alarme %@",
+  "6 months": "6 meses",
+  "Nights: %lld of %lld · %@": "Noites: %lld de %lld · %@",
+  "Days: %lld of %lld · %@": "Dias: %lld de %lld · %@",
+  "Days measured: %lld · %@": "Dias medidos: %lld · %@",
+  "Sessions: %lld · %@": "Sessões: %lld · %@",
+  "Entered %@ · measure again?": "Introduzido a %@ · medir de novo?",
+  "From Apple Health, %@": "Do Apple Health, %@",
+  "Walks and runs: %lld · %@ · grade not counted": "Caminhadas e corridas: %lld · %@ · sem contar o declive",
+  "Body fat from %@": "Gordura corporal de %@",
+  "thin data": "poucos dados"
 }
