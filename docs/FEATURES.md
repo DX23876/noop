@@ -1050,6 +1050,12 @@ reminder, after user reports conflated the two when they lived apart (#766).
 - **Strap-rejected warning** — appears only if the strap keeps reporting back a different alarm time
   than NOOP sent (usually a strap whose clock/alarm register has reset), with a concrete fix (reset
   in the official WHOOP app, or fully charge and reconnect).
+- **Next alarm on Today** — while the strap alarm is on and will be armed, Today's header names its
+  next fire in a small line under the date (Liquid) or under the header bar (classic): "tomorrow 06:00", "today
+  15:00", or the weekday further out. It is display only, reads to VoiceOver as "Next alarm …", and on
+  a tight header steps down one text size, then to the bare time. Nothing shows when the alarm is off or
+  a WHOOP 5/MG will not take it. Today and this screen resolve the moment through one gated resolver
+  (`NextStrapAlarm`), and every time on both follows the Clock setting (12 or 24 hours).
 - **Wind-down nudge** — a calm evening notification timed from your wake time and usual sleep need
   ("a suggestion, not an alarm"); the screen shows the next reminder, per-day time included. If notifications are denied at the OS level, NOOP reverts the
   toggle instead of silently scheduling something that can never fire, and offers a direct link to

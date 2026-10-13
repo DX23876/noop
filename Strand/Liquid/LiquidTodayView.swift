@@ -1183,7 +1183,21 @@ struct LiquidTodayView: View {
         .fixedSize()
     }
 
+    /// The day button, with the next strap alarm under it on today. The alarm line sits outside the
+    /// button: tapping it must not open the day picker, and the button's own accessibility label would
+    /// otherwise hide it from VoiceOver.
     private var headerTitle: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            headerDayButton
+            if selectedDayOffset == 0 {
+                TodayNextAlarmLine()
+                    .shadow(color: .black.opacity(0.35), radius: 8, y: 1)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var headerDayButton: some View {
         Button { showDayPicker = true } label: {
             VStack(alignment: .leading, spacing: 2) {
                 // On TODAY the headline greets the user; a navigated past day falls back to the

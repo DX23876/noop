@@ -2942,5 +2942,8 @@
   "While the workout is open, a timer ends with the sound only, without a banner. While it is minimized, the notification shows as usual.": "Quand la séance est ouverte, la fin d'un minuteur émet seulement le son, sans bannière. Quand elle est réduite, la notification s'affiche normalement.",
   "Lock Screen display": "Affichage sur l'écran verrouillé",
   "Sets and rest countdown while a workout runs. Separate from the notification.": "Séries et compte à rebours du repos pendant une séance. Indépendant de la notification.",
-  "During a workout": "Pendant la séance"
+  "During a workout": "Pendant la séance",
+  "today %@": "aujourd'hui %@",
+  "tomorrow %@": "demain %@",
+  "Next alarm %@": "Prochaine alarme %@"
 }

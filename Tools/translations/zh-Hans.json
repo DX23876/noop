@@ -3042,5 +3042,8 @@
   "While the workout is open, a timer ends with the sound only, without a banner. While it is minimized, the notification shows as usual.": "训练界面打开时，计时结束只播放声音，不显示横幅。训练最小化时，通知照常显示。",
   "Lock Screen display": "锁定屏幕显示",
   "Sets and rest countdown while a workout runs. Separate from the notification.": "训练进行时显示训练组和休息倒计时。与通知相互独立。",
-  "During a workout": "训练期间"
+  "During a workout": "训练期间",
+  "today %@": "今天 %@",
+  "tomorrow %@": "明天 %@",
+  "Next alarm %@": "下一个闹钟 %@"
 }

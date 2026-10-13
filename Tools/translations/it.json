@@ -3035,5 +3035,8 @@
   "While the workout is open, a timer ends with the sound only, without a banner. While it is minimized, the notification shows as usual.": "Con l'allenamento aperto, alla fine di un timer si sente solo il suono, senza banner. Quando è ridotto a icona, la notifica appare come al solito.",
   "Lock Screen display": "Visualizzazione nella schermata di blocco",
   "Sets and rest countdown while a workout runs. Separate from the notification.": "Serie e conto alla rovescia del recupero durante un allenamento. Indipendente dalla notifica.",
-  "During a workout": "Durante l'allenamento"
+  "During a workout": "Durante l'allenamento",
+  "today %@": "oggi %@",
+  "tomorrow %@": "domani %@",
+  "Next alarm %@": "Prossima sveglia %@"
 }

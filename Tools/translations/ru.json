@@ -2918,5 +2918,8 @@
   "While the workout is open, a timer ends with the sound only, without a banner. While it is minimized, the notification shows as usual.": "Когда тренировка открыта, по окончании таймера раздаётся только звук, без баннера. Когда она свёрнута, уведомление показывается как обычно.",
   "Lock Screen display": "Отображение на экране блокировки",
   "Sets and rest countdown while a workout runs. Separate from the notification.": "Подходы и обратный отсчёт отдыха во время тренировки. Не зависит от уведомления.",
-  "During a workout": "Во время тренировки"
+  "During a workout": "Во время тренировки",
+  "today %@": "сегодня %@",
+  "tomorrow %@": "завтра %@",
+  "Next alarm %@": "Следующий будильник %@"
 }

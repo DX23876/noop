@@ -367,3 +367,24 @@ With the logger on screen, the rest-end notification is presented with sound onl
 banner only covered the timer. Minimized, the banner is the only sign that the rest is over and stays.
 
 Analysis migration required: no
+
+### 2026-10-13 — Today names the next strap alarm; the Alarms screen follows the Clock setting
+
+A user asked for the next alarm on the main screen, as WHOOP shows it. Today's header now carries a small
+line with a bell and the next fire ("tomorrow 06:00"), under the date in Liquid Today and under the header bar
+in the classic layout, on today only. It appears only while the alarm is on and will be armed: a line on Today is
+a promise, so an alarm a WHOOP 5/MG will not take shows nothing, and an alarm switched off shows no "no
+alarm" line either. No countdown: that stays on the Alarms screen, which keeps the one live tick. The line
+is display only and sits outside the date button, so a tap does not open the day picker and VoiceOver
+reads it. On a tight header it steps down one text size, then drops the day word. The classic bar is
+full with the date and five buttons, so beside the date it fit on almost no phone; there it takes its own
+line. Trends and Overview,
+which have no day header, do not show it.
+
+The Alarms screen's private resolver moved into `NextStrapAlarm`, so both screens resolve one moment
+through one gate. Its times did not follow the Clock setting: the wake and wind-down figures were fixed at
+24 hours and the dated lines took the region's hour cycle. All of them, and Today's line, now format
+through `AppClock`.
+
+Analysis migration required: no
+

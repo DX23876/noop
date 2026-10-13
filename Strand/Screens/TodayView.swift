@@ -1573,7 +1573,12 @@ struct TodayView: View {
                 #if os(iOS)
                 // Compact top bar: profile/settings (left) · ‹ Today › day-nav (centre, bold) · strap
                 // battery (right). Replaces the big title + the full-width day-nav pill (WHOOP-style).
-                todayTopBar
+                // The next strap alarm on its own line under the bar, on today only: the bar's row is full
+                // with the date and five buttons, so beside the date it fit on almost no phone.
+                VStack(alignment: .leading, spacing: 2) {
+                    todayTopBar
+                    if selectedDayOffset == 0 { TodayNextAlarmLine() }
+                }
                 if selectedDayOffset == 0, let currentDay = repo.today?.day,
                    currentDay == repo.days.last?.day { HealthAlertBanner() }
                 #else
@@ -1584,6 +1589,7 @@ struct TodayView: View {
                 // the data shown in the 00:00-04:00 window instead of jumping a calendar day ahead (#14).
                 DayNavBar(selectedOffset: selectedDayOffset,
                           today: Repository.logicalDay(Date())) { selectedDayOffset = $0 }
+                if selectedDayOffset == 0 { TodayNextAlarmLine() }
                 #endif
                 // A "workout in progress" indicator whenever a manual workout is active. A tap routes to Live
                 // and opens the in-exercise screen. Its own leaf owns the AppModel observation + per-second
