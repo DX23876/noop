@@ -102,8 +102,10 @@ final class AlarmWakeTimeLabellingTests: XCTestCase {
     /// stop people misreading which time wakes them cannot itself state a time that will not.
     func testTheWakesYouLineResolvesTheNextFireRatherThanTheBaseTime() throws {
         let src = try Self.alarmViewSource()
-        XCTAssertTrue(src.contains("AppModel.nextSmartAlarmDate("),
-                      "the answer line must come from the same resolver applySmartAlarm arms the strap from")
+        XCTAssertTrue(src.contains("NextStrapAlarm.date("),
+                      "the answer line must come from the shared resolver, which calls the one applySmartAlarm arms from")
+        XCTAssertTrue(try Self.source("Strand/Data/NextStrapAlarm.swift").contains("AppModel.nextSmartAlarmDate("),
+                      "the shared resolver is the same function applySmartAlarm arms the strap from")
         guard let range = src.range(of: "private var nextStrapAlarmLabel: String? {") else {
             return XCTFail("nextStrapAlarmLabel not found")
         }
@@ -115,7 +117,7 @@ final class AlarmWakeTimeLabellingTests: XCTestCase {
         XCTAssertTrue(body.contains("nextStrapAlarm()"),
                       "it must resolve through the funnel, which is what passes the per-day overrides in")
         XCTAssertFalse(body.contains("timeLabel("),
-                       "timeLabel is 24-hour regardless of locale; this line uses a localised template")
+                       "timeLabel is a time of day; this line names the weekday of the next fire")
     }
 
     /// No countdown, and no hero alarm figure, for an alarm that will not arm.
@@ -132,16 +134,18 @@ final class AlarmWakeTimeLabellingTests: XCTestCase {
         // Every readout resolves through one funnel, and the funnel carries the gate. Counting gated call
         // sites was the weaker test and it passed while `nextStrapAlarmLabel` went ungated: it resolved
         // the alarm by itself, so the wind-down card still promised a buzz a 5/MG would never give.
-        XCTAssertEqual(src.components(separatedBy: "AppModel.nextSmartAlarmDate(").count - 1, 1,
+        XCTAssertEqual(src.components(separatedBy: "NextStrapAlarm.date(").count - 1, 1,
                        "exactly one resolver call: every alarm readout must come through nextStrapAlarm")
+        XCTAssertFalse(src.contains("AppModel.nextSmartAlarmDate("),
+                       "the screen must not resolve the alarm past the shared, gated resolver")
         guard let funnel = src.range(of: "private func nextStrapAlarm(from now: Date = Date()) -> Date? {") else {
             return XCTFail("nextStrapAlarm funnel not found")
         }
         let after = src[funnel.upperBound...]
         let close = try XCTUnwrap(after.range(of: "\n    }"), "nextStrapAlarm's closing brace not found")
         let body = String(after[..<close.lowerBound])
-        XCTAssertTrue(body.contains("guard behavior.smartAlarmEnabled, strapAlarmWillArm else"),
-                      "the funnel is where the gate belongs, so no readout can skip it")
+        XCTAssertTrue(body.contains("NextStrapAlarm.date(enabled: behavior.smartAlarmEnabled, willArm: strapAlarmWillArm,"),
+                      "the funnel hands the gate to the shared resolver, so no readout can skip it")
     }
 
     /// The hero is the first figure on the screen and it must not call the reminder's input "Wake".
@@ -267,18 +271,23 @@ final class AlarmWakeTimeLabellingTests: XCTestCase {
     /// silently checks nothing.
     private struct SourceNotReachable: Error, CustomStringConvertible {
         let path: String
-        var description: String { "SmartAlarmView.swift not reachable from \(path)" }
+        var description: String { "source not reachable: \(path)" }
     }
 
     private static func alarmViewSource(file: StaticString = #filePath) throws -> String {
+        try source("Strand/Screens/SmartAlarmView.swift", file: file)
+    }
+
+    /// A repository file, found by walking up from this test file.
+    static func source(_ relativePath: String, file: StaticString = #filePath) throws -> String {
         var dir = URL(fileURLWithPath: "\(file)").deletingLastPathComponent()
         for _ in 0..<4 {
-            let candidate = dir.appendingPathComponent("Strand/Screens/SmartAlarmView.swift")
+            let candidate = dir.appendingPathComponent(relativePath)
             if FileManager.default.fileExists(atPath: candidate.path) {
                 return try String(contentsOf: candidate, encoding: .utf8)
             }
             dir = dir.deletingLastPathComponent()
         }
-        throw SourceNotReachable(path: "\(file)")
+        throw SourceNotReachable(path: "\(relativePath) from \(file)")
     }
 }

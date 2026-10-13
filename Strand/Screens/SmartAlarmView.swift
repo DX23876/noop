@@ -478,16 +478,10 @@ struct SmartAlarmView: View {
     /// `nextSmartAlarmDate` is the same pure resolver `applySmartAlarm` arms the strap from, so this cannot
     /// drift from what the strap is actually told.
     ///
-    /// The template formatter also follows the reader's 12/24-hour setting, unlike `timeLabel`.
+    /// Like every time on this screen it follows the Clock setting, through `NextStrapAlarm.Style`.
     private var nextStrapAlarmLabel: String? {
         guard let next = nextStrapAlarm() else { return nil }
-        let formatter = DateFormatter()
-        // `AppLanguage.activeLocale`, not `.current`: the app language is an in-app setting, so a reader
-        // running NOOP in German on an English device must get German weekday words here, while keeping
-        // their device's 24-hour convention. The same reason every other formatter in the app uses it.
-        formatter.locale = AppLanguage.activeLocale
-        formatter.setLocalizedDateFormatFromTemplate("EEEE jj:mm")
-        return formatter.string(from: next)
+        return NextStrapAlarm.Style.app.format(next, skeleton: "EEEE")
     }
 
     /// Whether switching the alarm on actually arms anything that will go off.
@@ -505,7 +499,7 @@ struct SmartAlarmView: View {
     /// A strap that is merely disconnected is NOT excluded here: `armStrapAlarm` queues and arms on
     /// reconnect, so the alarm is real and the countdown to it is true.
     private var strapAlarmWillArm: Bool {
-        !(model.whoop5Detected && !PuffinExperiment.isEnabled)
+        NextStrapAlarm.willArm(whoop5Detected: model.whoop5Detected)
     }
 
     /// The one moment every alarm readout on this screen is derived from, or nil when nothing will fire.
@@ -518,11 +512,9 @@ struct SmartAlarmView: View {
     /// `from` is a parameter so the ticking countdown re-resolves against the clock it is given rather
     /// than a `Date()` captured somewhere else.
     private func nextStrapAlarm(from now: Date = Date()) -> Date? {
-        guard behavior.smartAlarmEnabled, strapAlarmWillArm else { return nil }
-        return AppModel.nextSmartAlarmDate(minutes: behavior.smartAlarmMinutes,
-                                           weekdays: behavior.smartAlarmWeekdays,
-                                           overrides: overrides,
-                                           from: now)
+        NextStrapAlarm.date(enabled: behavior.smartAlarmEnabled, willArm: strapAlarmWillArm,
+                            minutes: behavior.smartAlarmMinutes, weekdays: behavior.smartAlarmWeekdays,
+                            overrides: overrides, from: now)
     }
 
     /// The next alarm as a weekday, date and time: "Mon 21 Sep 10:28".
@@ -536,12 +528,7 @@ struct SmartAlarmView: View {
     /// fire: straddle that moment and the countdown says "less than a minute" while the stamp names
     /// tomorrow. Two lines disagreeing about one fact is the exact defect this screen exists to remove.
     private func nextStrapAlarmStamp(from now: Date = Date()) -> String? {
-        nextStrapAlarm(from: now).map { date in
-            let formatter = DateFormatter()
-            formatter.locale = AppLanguage.activeLocale
-            formatter.setLocalizedDateFormatFromTemplate("EEE d MMM jj:mm")
-            return formatter.string(from: date)
-        }
+        nextStrapAlarm(from: now).map { NextStrapAlarm.Style.app.format($0, skeleton: "EEE d MMM") }
     }
 
     /// How long until the strap alarm next buzzes, as "18 hours, 6 minutes", or nil when no alarm is set.
@@ -705,7 +692,7 @@ struct SmartAlarmView: View {
     }
 
     private func timeLabel(_ minutes: Int) -> String {
-        String(format: "%02d:%02d", minutes / 60, minutes % 60)
+        NextStrapAlarm.timeOfDay(minutes: minutes)
     }
 
     // MARK: - Strap alarm weekday picker (#766, moved here from Automations, behaviour intact)
