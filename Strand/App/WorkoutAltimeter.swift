@@ -15,18 +15,21 @@ import CoreMotion
 /// Without a barometer (every Mac, an unauthorised Motion & Fitness permission) nothing is reported, and
 /// the workout shows no elevation rather than a guessed one. A paused workout keeps the streams running
 /// but counts nothing; on resume the counter starts from a new baseline.
+///
+/// Not observable: the workout's recording timeline holds the totals the screens show, and the live page
+/// reads the heights on its own refresh.
 @MainActor
-final class WorkoutAltimeter: ObservableObject {
+final class WorkoutAltimeter {
 
     /// Gain and loss counted since the last call to `start`/`restore`, in metres; nil until the first reading.
-    @Published private(set) var gainM: Double?
-    @Published private(set) var lossM: Double?
+    private(set) var gainM: Double?
+    private(set) var lossM: Double?
     /// Height above sea level, metres, from Apple's barometer and GPS fusion. nil until it settles.
-    @Published private(set) var altitudeM: Double?
+    private(set) var altitudeM: Double?
     /// Apple's stated accuracy of `altitudeM`, metres.
     private(set) var altitudeAccuracyM: Double?
     /// Barometric height relative to where this stream started, metres.
-    @Published private(set) var relativeAltitudeM: Double?
+    private(set) var relativeAltitudeM: Double?
     /// Fires with the gain and loss one reading added, while the workout is not paused.
     var onElevation: ((Double, Double) -> Void)?
 

@@ -3094,5 +3094,6 @@
   "On the flat": "In piano",
   "On the flat: the pace this effort equals on level ground (Minetti 2002).": "In piano: il passo a cui corrisponde questo sforzo su terreno pianeggiante (Minetti 2002).",
   "Steepest": "Pendenza max",
-  "This device has no barometer, so NOOP shows no elevation rather than guessing it from GPS.": "Questo dispositivo non ha un barometro, quindi NOOP non mostra l'altitudine invece di stimarla dal GPS."
+  "This device has no barometer, so NOOP shows no elevation rather than guessing it from GPS.": "Questo dispositivo non ha un barometro, quindi NOOP non mostra l'altitudine invece di stimarla dal GPS.",
+  "No barometer": "Nessun barometro"
 }

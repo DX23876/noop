@@ -2977,5 +2977,6 @@
   "On the flat": "По ровному",
   "On the flat: the pace this effort equals on level ground (Minetti 2002).": "По ровному: темп, которому это усилие соответствует на ровной местности (Minetti 2002).",
   "Steepest": "Макс. уклон",
-  "This device has no barometer, so NOOP shows no elevation rather than guessing it from GPS.": "На этом устройстве нет барометра, поэтому NOOP не показывает высоту, а не угадывает её по GPS."
+  "This device has no barometer, so NOOP shows no elevation rather than guessing it from GPS.": "На этом устройстве нет барометра, поэтому NOOP не показывает высоту, а не угадывает её по GPS.",
+  "No barometer": "Нет барометра"
 }

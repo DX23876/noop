@@ -11,6 +11,22 @@ struct WorkoutElevationCard: View {
     let elevation: WorkoutElevationRow?
     let sport: String
     let system: UnitSystem
+    /// Read once here rather than on every render: the steepest climb and the whole route's flat pace walk
+    /// every point of the route.
+    private let gait: ExerciseVO2max.Gait?
+    private let steepest: Double?
+    private let flatPace: Double?
+
+    init(series: WorkoutElevationSeries?, elevation: WorkoutElevationRow?, sport: String, system: UnitSystem) {
+        self.series = series
+        self.elevation = elevation
+        self.sport = sport
+        self.system = system
+        let gait = WorkoutElevationSeries.gait(forSport: sport)
+        self.gait = gait
+        steepest = series.flatMap { GradeAdjustedPace.extremes($0.grades)?.maxUp }
+        flatPace = gait.flatMap { series?.wholeGradeAdjustedPace(gait: $0) }
+    }
 
     private var ascent: Double? { elevation?.ascentM }
     private var descent: Double? { elevation?.descentM }
@@ -26,7 +42,17 @@ struct WorkoutElevationCard: View {
                             ElevationProfileGraph(samples: series.drawable(), system: system,
                                                   isAbsolute: series.isAbsolute)
                         }
-                        stats
+                        HStack(alignment: .top, spacing: 0) {
+                            WorkoutElevationStat(title: String(localized: "Climbed"), value: format(ascent))
+                            WorkoutElevationStat(title: String(localized: "Descended"), value: format(descent))
+                            WorkoutElevationStat(title: String(localized: "Steepest"),
+                                                 value: steepest.map(UnitFormatter.gradePercent),
+                                                 tint: steepest.map(ElevationGradeStyle.color(forGrade:)))
+                            if gait != nil {
+                                WorkoutElevationStat(title: String(localized: "On the flat"),
+                                                     value: flatPace.map { UnitFormatter.paceFromSecPerKm($0, system: system) })
+                            }
+                        }
                     }
                 }
                 if let note = sourceNote {
@@ -39,34 +65,8 @@ struct WorkoutElevationCard: View {
         }
     }
 
-    private var stats: some View {
-        let extremes = series.flatMap { GradeAdjustedPace.extremes($0.grades) }
-        let gait = WorkoutElevationSeries.gait(forSport: sport)
-        let flatPace = gait.flatMap { series?.wholeGradeAdjustedPace(gait: $0) }
-        return HStack(alignment: .top, spacing: 0) {
-            stat(String(localized: "Climbed"), ascent.map { UnitFormatter.elevationFromMeters($0, system: system) })
-            stat(String(localized: "Descended"), descent.map { UnitFormatter.elevationFromMeters($0, system: system) })
-            stat(String(localized: "Steepest"), extremes.map { UnitFormatter.gradePercent($0.maxUp) },
-                 tint: extremes.map { ElevationProfileGraph.color(forGrade: $0.maxUp) })
-            if gait != nil {
-                stat(String(localized: "On the flat"), flatPace.map { UnitFormatter.paceFromSecPerKm($0, system: system) })
-            }
-        }
-    }
-
-    private func stat(_ title: String, _ value: String?, tint: Color? = nil) -> some View {
-        VStack(alignment: .leading, spacing: NoopMetrics.space1) {
-            Text(value ?? "–")
-                .font(StrandFont.number(17))
-                .foregroundStyle(value == nil ? StrandPalette.textTertiary : (tint ?? StrandPalette.textPrimary))
-                .lineLimit(1)
-            Text(title)
-                .font(StrandFont.caption)
-                .foregroundStyle(StrandPalette.textSecondary)
-                .lineLimit(1)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .combine)
+    private func format(_ meters: Double?) -> String? {
+        meters.map { UnitFormatter.elevationFromMeters($0, system: system) }
     }
 
     /// One short line on where the climb came from, and what "on the flat" means when it is shown.
@@ -77,7 +77,7 @@ struct WorkoutElevationCard: View {
         case WorkoutElevationSource.file: String(localized: "Climb from the imported file.")
         default: nil
         }
-        guard WorkoutElevationSeries.gait(forSport: sport) != nil, series != nil else { return origin }
+        guard gait != nil, series != nil else { return origin }
         let flat = String(localized: "On the flat: the pace this effort equals on level ground (Minetti 2002).")
         return [origin, flat].compactMap { $0 }.joined(separator: " ")
     }

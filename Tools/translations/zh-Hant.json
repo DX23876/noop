@@ -3155,5 +3155,6 @@
   "On the flat": "平路配速",
   "On the flat: the pace this effort equals on level ground (Minetti 2002).": "平路配速：同等用力在平地上對應的配速（Minetti 2002）。",
   "Steepest": "最大坡度",
-  "This device has no barometer, so NOOP shows no elevation rather than guessing it from GPS.": "此裝置沒有氣壓計，因此 NOOP 不顯示海拔，而不是根據 GPS 猜測。"
+  "This device has no barometer, so NOOP shows no elevation rather than guessing it from GPS.": "此裝置沒有氣壓計，因此 NOOP 不顯示海拔，而不是根據 GPS 猜測。",
+  "No barometer": "沒有氣壓計"
 }

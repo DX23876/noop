@@ -3000,5 +3000,6 @@
   "On the flat": "In der Ebene",
   "On the flat: the pace this effort equals on level ground (Minetti 2002).": "In der Ebene: das Tempo, dem diese Anstrengung auf ebener Strecke entspricht (Minetti 2002).",
   "Steepest": "Steilste Stelle",
-  "This device has no barometer, so NOOP shows no elevation rather than guessing it from GPS.": "Dieses Gerät hat kein Barometer. NOOP zeigt deshalb keine Höhe an, statt sie aus GPS zu raten."
+  "This device has no barometer, so NOOP shows no elevation rather than guessing it from GPS.": "Dieses Gerät hat kein Barometer. NOOP zeigt deshalb keine Höhe an, statt sie aus GPS zu raten.",
+  "No barometer": "Kein Barometer"
 }
