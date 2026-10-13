@@ -211,7 +211,12 @@ final class IntelligenceEngine: ObservableObject {
     // detail screen's basis lines. No stored value changes meaning, but every week written before has none of
     // them, so the migration deletes the AgeLess weeks once more and the next pass rebuilds them all. Zone
     // minutes are kept. No daily row is re-scored.
-    static let currentAnalysisRecipeVersion = 23
+    // AI-24 (2026-10-13, fork AgeLess) changes which VO₂max a week reads: an entered value now stands only until
+    // two newer measurements arrive (a year at most), and Apple Health leads only while it measured in the last
+    // 30 days, else walks and runs do. Weeks stored under the old order can name a VO₂max the new one would not,
+    // so the AgeLess weeks are deleted once more and the next pass rebuilds them; zone minutes are kept. No daily
+    // row is re-scored. VO₂max goals set before this re-read their start once (`rebaselineVO2maxGoals`).
+    static let currentAnalysisRecipeVersion = 24
 
     /// The recipe whose migration refills the cardio load ledger.
     static let cardioLedgerRecipe = 9
@@ -260,10 +265,13 @@ final class IntelligenceEngine: ObservableObject {
     /// The recipe whose migration rebuilds the AgeLess weeks with what each measure stands on.
     static let healthspanBasisRecipe = 23
 
-    /// Whether a migration crosses a recipe that rebuilds the AgeLess weeks (AI-21, AI-22 or AI-23; one
-    /// rebuild serves all three).
+    /// The recipe whose migration rebuilds the AgeLess weeks on the newer-beats-older VO₂max rule.
+    static let healthspanVO2RuleRecipe = 24
+
+    /// Whether a migration crosses a recipe that rebuilds the AgeLess weeks (AI-21 to AI-24; one rebuild
+    /// serves them all).
     static func migrationRebuildsHealthspan(from: Int, to: Int) -> Bool {
-        from < healthspanBasisRecipe && to >= healthspanSourcesRecipe
+        from < healthspanVO2RuleRecipe && to >= healthspanSourcesRecipe
     }
 
     /// Whether a migration crosses the recipe that fills Apple Health workouts' heart rate.
@@ -3584,8 +3592,7 @@ final class IntelligenceEngine: ObservableObject {
                                  oldestDay: oldestDay, newestDay: newestDay, tzOffset: tzOffset)
         // Fork: healthspan age, experimental and off by default (IntelligenceEngine+Healthspan.swift).
         if HealthspanFeature.isEnabled {
-            let manualVO2 = profile.vo2maxManual > 0 && !profile.vo2maxManualDay.isEmpty
-                ? (day: profile.vo2maxManualDay, value: profile.vo2maxManual) : nil
+            let manualVO2 = Repository.enteredVO2max()
             let bodyFat = await repo.bodyMetrics().series("body_fat").map { (day: $0.day, value: $0.value) }
             // A first run writes weeks back a year, each reading six months of VO₂max; later runs only the
             // pass window's weeks.

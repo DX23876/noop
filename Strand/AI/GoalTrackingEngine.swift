@@ -623,6 +623,7 @@ final class GoalTrackingStore: ObservableObject {
         let unresolved = Set(resolutions.map(\.proposalId))
         let levelMetrics = Set(CoachGoalStore.shared.goals.compactMap { $0.measure?.metric })
         let levelSeries = await loadLevelSeries(repo: repo, metrics: levelMetrics)
+        if let vo2 = levelSeries[.vo2max] { CoachGoalStore.shared.rebaselineVO2maxGoals(readings: vo2, now: now) }
         let readerInputs = LongTermReaderInputs(workouts: workouts, days: repo.days, stepsByDay: stepsByDay,
                                                 weight: measurementByKind[.weight], weightSamples: weightSamples,
                                                 weightReadings: weightReadings, series: levelSeries)
@@ -703,9 +704,11 @@ final class GoalTrackingStore: ObservableObject {
 
     /// Everything, for recommendations in the setup flow.
     /// The target-value series catalog goals read besides weight (`LongTermReaderInputs.series`):
-    /// resting heart rate from the nightly metrics, VO2max from the strap's estimate (Apple Health's when
-    /// the strap has none), body fat, lean mass and waist from the body-measurement resolver. Read only
-    /// for the metrics asked for, so a refresh without such goals reads nothing extra.
+    /// resting heart rate from the nightly metrics, the sleeping heart rate AgeLess reads, VO2max by
+    /// AgeLess's rule (`HealthspanVO2.goalReadings`: an entered value until two newer measurements, Apple
+    /// Health while it is current, else walks and runs), body fat, lean mass and waist from the
+    /// body-measurement resolver. Read only for the metrics asked for, so a refresh without such goals
+    /// reads nothing extra.
     func loadLevelSeries(repo: Repository, metrics: Set<LongTermMetric>) async -> [LongTermMetric: [GoalMilestones.Sample]] {
         var out: [LongTermMetric: [GoalMilestones.Sample]] = [:]
         func samples(_ rows: [(day: String, value: Double)]) -> [GoalMilestones.Sample] {
@@ -716,10 +719,15 @@ final class GoalTrackingStore: ObservableObject {
                 day.restingHr.flatMap { $0 > 0 ? (day.day, Double($0)) : nil }
             })
         }
+        if metrics.contains(.sleepHeartRate) {
+            out[.sleepHeartRate] = samples(await repo.exploreSeries(key: "rhr_primary_session",
+                                                                     source: Repository.whoopSource, days: 400))
+        }
         if metrics.contains(.vo2max) {
-            let strap = await repo.exploreSeries(key: "vo2max_est", source: Repository.whoopSource, days: 400)
-            let apple = strap.isEmpty ? await repo.exploreSeries(key: "vo2max", source: Repository.appleHealthSource, days: 400) : []
-            out[.vo2max] = samples(strap.isEmpty ? apple : strap)
+            let vo2 = await repo.agelessVO2Inputs(days: 400)
+            out[.vo2max] = samples(HealthspanVO2.goalReadings(manual: vo2.manual, appleHealth: vo2.appleHealth,
+                                                              training: vo2.training,
+                                                              today: Repository.localDayKey(Date())))
         }
         let bodyKeys: [(LongTermMetric, String)] = [(.bodyFat, "body_fat"), (.leanMass, "lean_mass"), (.waist, "waist")]
         if bodyKeys.contains(where: { metrics.contains($0.0) }) {

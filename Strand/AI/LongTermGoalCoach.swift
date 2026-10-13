@@ -12,6 +12,7 @@ extension LongTermMetric {
         case .minutesTotal: return "min"
         case .workoutsTotal: return "workouts"
         case .stepsTotal: return "steps"
+        case .stepsAverage: return "steps a day"
         case .paceAverage: return "s/km"
         case .hrvAverage: return "ms"
         case .sleepAverage: return "h"
@@ -19,7 +20,7 @@ extension LongTermMetric {
         case .weight, .leanMass: return "kg"
         case .waist: return "cm"
         case .vo2max: return "ml/kg/min"
-        case .restingHr: return "bpm"
+        case .restingHr, .sleepHeartRate: return "bpm"
         case .weeklyAdherence: return "share of weeks"
         }
     }

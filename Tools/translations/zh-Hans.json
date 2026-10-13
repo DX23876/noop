@@ -3055,5 +3055,14 @@
   "From Apple Health, %@": "来自 Apple 健康，%@",
   "Walks and runs: %lld · %@ · grade not counted": "步行和跑步：%lld 次 · %@ · 未计入坡度",
   "Body fat from %@": "%@ 的体脂率",
-  "thin data": "数据不足"
+  "thin data": "数据不足",
+  "%@ days from %@ steps": "%@ 天，至少 %@ 步",
+  "Goal running": "目标进行中",
+  "Set as goal": "设为目标",
+  "Lower sleeping heart rate": "降低睡眠心率",
+  "Your average heart rate over the whole night, as AgeLess reads it.": "整晚的平均心率，与 AgeLess 读取的一致。",
+  "More steps a day": "每天多走几步",
+  "Your average daily steps over four weeks.": "你四周内的日均步数。",
+  "Your aerobic fitness: a value you entered, Apple Watch, or estimated from your walks and runs.": "你的有氧能力：手动输入的数值、Apple Watch，或根据步行和跑步估算。",
+  "Worth about %@ years in AgeLess": "按 AgeLess 约 %@ 年"
 }

@@ -52,13 +52,17 @@ against regressions rather than validating the age.
 
 ## Where each value comes from
 
-- **VO₂max**, first source with a reading in the window wins: (1) a value entered in Settings, valid for
-  a year from its day; (2) Apple Watch's Cardio Fitness from Apple Health; (3) the training-based estimate
-  from walks and runs, the same estimator Training Load reads (`Repository.trainingVO2maxEstimates`: fused
-  sessions on foot, a trace the cardio load could price, ACSM oxygen cost at the session's speed,
-  extrapolated over the heart-rate reserve against the week's median resting HR; grade assumed flat). The
-  age takes the six-month median, Aging speed the 30-day median from two readings on. The weekly
-  non-exercise estimate (Fitness Age's VO₂max) is never used.
+- **VO₂max**, newer measurements beat older ones (AI-24): (1) a value entered in Settings, until two
+  newer measurements arrive and for a year at most; from then on only measurements after the entry count;
+  (2) Apple Watch's Cardio Fitness from Apple Health, while it measured in the last 30 days; (3) the
+  training-based estimate from walks and runs, the same estimator Training Load reads
+  (`Repository.trainingVO2maxEstimates`: fused sessions on foot, a trace the cardio load could price, ACSM
+  oxygen cost at the session's speed, extrapolated over the heart-rate reserve against the week's median
+  resting HR; grade assumed flat); (4) older Apple Health readings when there are no walks or runs either.
+  Two readings rather than one replace an entry because a single walk can be off by a few ml/kg/min and the
+  mean of two halves such an outlier. The age takes the six-month median, Aging speed the 30-day median from
+  two readings on. The weekly non-exercise estimate (Fitness Age's VO₂max) is never used. The VO₂max goal
+  follows the same readings (`HealthspanVO2.goalReadings`).
 - **Lean mass:** the latest body-fat reading of the past year, entered on the Body page or from Apple
   Health.
 - **Activity minutes:** time in logged and detected workouts, from the band's raw heart rate against the
@@ -85,6 +89,15 @@ against regressions rather than validating the age.
   window covers, zone minutes on fewer than four weeks of banked days, a training VO₂max on fewer than three
   walks and runs, or body fat older than 90 days at the week's end. Strength is never thin; no sessions is a
   fact. The thresholds are reasoned starting values in `HealthspanBasis`.
+- **Levers as goals:** a lever whose number has a goal template carries a **Set as goal** button that opens
+  the goal setup on its value step: sleep duration (sleep goal), daily steps (**More steps a day**, mean over
+  28 days), average sleeping heart rate (**Lower sleeping heart rate**, 28 nights like resting heart rate),
+  VO₂max, and lean mass (a **body-fat** goal: lean mass is 100 % minus body fat). The target is the further of
+  the lever's value and the goal's own current value plus the lever's step, so it is never reached on the day
+  it is set. An open goal on the same number replaces the button with **Goal running**. A goal on one of these
+  numbers shows on its page what reaching its target would take off the AgeLess age (from 0.1 years, while
+  AgeLess is on), from the same rule the levers use (`HealthspanEngine.years(reaching:on:from:)`). A lean-mass
+  goal is kept in kilograms and is not priced.
   An info button opens **About AgeLess**: the idea in plain words, each study linked, the calculation one
   level down.
 - Colours are AgeLess's own: cyan to indigo for younger, coral for older.
@@ -95,8 +108,8 @@ Weekly rows under the computed source, keyed to the Saturday on or before: `heal
 `healthspan_pace`, `healthspan_covered_days`, `hs_vo2_source`, `hs_vo2_day` and `hs_fat_day` (newest
 VO₂max and body-fat reading behind the week, as yyyymmdd), and per measure `hs_in_*` (six months),
 `hs_in30_*` (30 days) and `hs_n_*` (days, sessions or readings behind the six-month value). Each pass
-rewrites its weeks as one window and writes nothing when a read fails. Recipes **AI-21**, **AI-22** and
-**AI-23** rebuild every week (see `docs/fork/decisions.md`).
+rewrites its weeks as one window and writes nothing when a read fails. Recipes **AI-21** to **AI-24**
+rebuild every week (see `docs/fork/decisions.md`).
 
 ## Limits
 

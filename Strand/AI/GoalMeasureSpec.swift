@@ -26,14 +26,17 @@ enum LongTermMetric: String, Codable, CaseIterable {
     case paceAverage, hrvAverage, sleepAverage, recoveryAverage
     case weight, bodyFat, leanMass, waist, vo2max, restingHr
     case weeklyAdherence
+    /// AgeLess's own measures (plan HEALTHSPAN_AGE_PLAN, stage 2): mean daily steps, and the whole-sleep mean
+    /// heart rate (`rhr_primary_session`), which is not the app's resting heart rate.
+    case stepsAverage, sleepHeartRate
 
     /// The shape before the maintain variant, which `GoalMeasureSpec.shape` adds from its band.
     var baseShape: GoalShape {
         switch self {
         case .distanceTotal, .minutesTotal, .workoutsTotal, .stepsTotal: return .sum
         case .longestDistance: return .best
-        case .paceAverage, .hrvAverage, .sleepAverage, .recoveryAverage: return .average
-        case .weight, .bodyFat, .leanMass, .waist, .vo2max, .restingHr: return .target
+        case .paceAverage, .hrvAverage, .sleepAverage, .recoveryAverage, .stepsAverage: return .average
+        case .weight, .bodyFat, .leanMass, .waist, .vo2max, .restingHr, .sleepHeartRate: return .target
         case .weeklyAdherence: return .consistency
         }
     }
@@ -132,10 +135,12 @@ enum GoalTemplateID: String, CaseIterable {
     case setsWeekly = "strength.setsWeekly"
     case vo2max = "fitness.vo2max"
     case restingHr = "fitness.restingHr"
+    case sleepHeartRate = "fitness.sleepHeartRate"
     case hrvAverage = "fitness.hrvAverage"
     case zoneWeekly = "fitness.zoneWeekly"
     case stepDays = "daily.stepDays"
     case stepsTotal = "daily.stepsTotal"
+    case stepsAverage = "daily.stepsAverage"
     case activeEnergyWeekly = "daily.activeEnergyWeekly"
     case trainingDays = "daily.trainingDays"
     case weightLose = "body.weightLose"
@@ -158,8 +163,8 @@ enum GoalTemplateID: String, CaseIterable {
         case .event, .paceAverage: return .run
         case .trainingWeekly: return .consistency
         case .setsWeekly: return .hardSets
-        case .vo2max, .restingHr, .hrvAverage, .zoneWeekly: return .fitness
-        case .stepDays, .stepsTotal, .activeEnergyWeekly, .trainingDays: return .activity
+        case .vo2max, .restingHr, .sleepHeartRate, .hrvAverage, .zoneWeekly: return .fitness
+        case .stepDays, .stepsTotal, .stepsAverage, .activeEnergyWeekly, .trainingDays: return .activity
         // All three stay `.weight` so `GoalSafetyGate` judges their rate.
         case .weightLose, .weightGain, .weightMaintain: return .weight
         case .bodyFat, .leanMass, .waist: return .body
@@ -176,6 +181,8 @@ enum GoalTemplateID: String, CaseIterable {
         case .timeTotal: return .minutesTotal
         case .workoutsTotal: return .workoutsTotal
         case .stepsTotal: return .stepsTotal
+        case .stepsAverage: return .stepsAverage
+        case .sleepHeartRate: return .sleepHeartRate
         case .longest, .event: return .longestDistance
         case .paceAverage: return .paceAverage
         case .hrvAverage: return .hrvAverage

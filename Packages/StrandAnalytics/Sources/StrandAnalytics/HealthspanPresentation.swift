@@ -53,17 +53,25 @@ extension HealthspanEngine {
 
     /// The strongest next steps, strongest first; only steps worth at least `minimumYears`.
     public static func levers(_ inputs: Inputs, limit: Int = 3, minimumYears: Double = 0.05) -> [Lever] {
-        guard let now = compute(inputs) else { return [] }
         var out: [Lever] = []
         for c in Component.allCases {
-            guard let v = inputs.value(c), let step = nextStep(c, value: v) else { continue }
-            var after = inputs
-            after.set(c, step)
-            guard let then = compute(after) else { continue }
-            let gain = then.deltaYears - now.deltaYears
+            guard let v = inputs.value(c), let step = nextStep(c, value: v),
+                  let gain = years(reaching: step, on: c, from: inputs) else { continue }
             if gain <= -minimumYears { out.append(Lever(component: c, currentValue: v, newValue: step, years: gain)) }
         }
         return Array(out.sorted { $0.years < $1.years }.prefix(limit))
+    }
+
+    /// What one measure at `target` would change the age by, against the week's inputs: negative is younger. Nil
+    /// when the measure is missing or `target` would take nothing off. The levers and a goal's AgeLess line both
+    /// read it, so a goal and the lever it came from cannot name different years.
+    public static func years(reaching target: Double, on c: Component, from inputs: Inputs) -> Double? {
+        guard inputs.value(c) != nil, let now = compute(inputs) else { return nil }
+        var after = inputs
+        after.set(c, target)
+        guard let then = compute(after) else { return nil }
+        let gain = then.deltaYears - now.deltaYears
+        return gain < 0 ? gain : nil
     }
 
     /// The age half a year from now at the current pace: Pace of Aging is (projected − current) / 0.5.

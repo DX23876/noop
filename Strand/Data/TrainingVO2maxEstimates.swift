@@ -43,6 +43,24 @@ extension Repository {
                                             offset: TimeZone.current.secondsFromGMT()).estimates
     }
 
+    /// The VO₂max inputs AgeLess and the VO₂max goal resolve with `HealthspanVO2`, so the two cannot follow
+    /// different readings: the entered value, Apple Health's readings and one training estimate per day.
+    func agelessVO2Inputs(days: Int) async -> (manual: (day: String, value: Double)?,
+                                               appleHealth: [(day: String, value: Double)],
+                                               training: [(day: String, value: Double)]) {
+        (Self.enteredVO2max(),
+         await exploreSeries(key: "vo2max", source: Self.appleHealthSource, days: days),
+         Self.trainingVO2maxByDay(await trainingVO2maxEstimates(days: days)))
+    }
+
+    /// The VO₂max the wearer entered in Settings and the day it was measured; nil without one. Read raw, as
+    /// AgeLess weighs it: the energy model's rescaling by body weight is its own business.
+    nonisolated static func enteredVO2max(defaults: UserDefaults = .standard) -> (day: String, value: Double)? {
+        let value = defaults.double(forKey: FitnessPreferences.manualKey)
+        guard value > 0, let day = defaults.string(forKey: FitnessPreferences.manualDayKey), !day.isEmpty else { return nil }
+        return (day, value)
+    }
+
     /// One value per day for AgeLess: the median of that day's session estimates.
     nonisolated static func trainingVO2maxByDay(_ estimates: [ExerciseVO2max.SessionEstimate]) -> [(day: String, value: Double)] {
         Dictionary(grouping: estimates, by: \.day)

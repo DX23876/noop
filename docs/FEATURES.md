@@ -610,6 +610,12 @@ recommended a little above your usual, ambitious) and how often each would have 
 (max 10) and 6 weekly/monthly goals (max 12), adjustable. Today shows the first three weekly goals in
 your order, the month, long-term goals that need a look or are pinned, and today's daily goals.
 
+Long-term goals include **More steps a day** (mean daily steps over four weeks) and **Lower sleeping heart
+rate** (the whole-night mean AgeLess reads, not the resting heart rate). The **VO₂max** goal follows the
+VO₂max AgeLess uses: an entered value until two newer measurements, Apple Watch while it is current, else
+walks and runs. With AgeLess on, a lever on the AgeLess screen can be **set as a goal** on the same number,
+and such a goal's page says what reaching it would take off the AgeLess age.
+
 Long-term goals keep the honest Journey: **no invented percentages**, milestones are **facts, not a
 streak counter**. The weekly series counts achieved and "almost" periods and is protected by pauses;
 there are no trophies or flames. Hints arrive through Momentum (at most one goal check-in), the weekly
@@ -732,7 +738,7 @@ With no live HR and no imported day, NOOP prompts you to connect or import.
 - **AgeLess** (fork, Settings → Experimental, default off; takes Body Age's place while on) — an age built
   from six months of nine measures of sleep, activity and fitness, each tied to a large mortality study,
   shown on a half-circle gauge around your actual age with **Aging speed** beside it. Its screen ranks the
-  biggest levers, shows every measure on a ticked bar with a 30-day trend arrow and a line saying what it
+  biggest levers (each one can be set as a goal), shows every measure on a ticked bar with a 30-day trend arrow and a line saying what it
   stands on (flagged when the data is thin), and an **About AgeLess**
   sheet links each study. Method, sources and limits: [`AGELESS.md`](AGELESS.md).
 

@@ -11,6 +11,9 @@ struct LongTermGoalSetupView: View {
     /// False when `onDone` closes the screen this one was pushed from: that pop takes this page with
     /// it, and a second pop in the same moment is dropped, leaving the wearer on the screen before.
     var dismissesItself = true
+    /// Set when an AgeLess lever opens the setup: it starts on the value step with this template and the
+    /// lever's step pre-filled (`AgeLessGoalLink`), and Back leaves instead of returning to the catalog.
+    var prefill: AgeLessGoalPrefill? = nil
 
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var repo: Repository
@@ -65,6 +68,8 @@ struct LongTermGoalSetupView: View {
         ScreenScaffold(title: stepTitle, subtitle: stepSubtitle, topBackground: liquidScaffoldSky()) {
             progressDots
             switch step {
+            // A lever's prefill lands on the value step once the data is in; until then nothing to pick.
+            case .area where prefill != nil: ProgressView().frame(maxWidth: .infinity, minHeight: 120)
             case .area: areaStep
             case .template: templateStep
             case .value: valueStep
@@ -103,10 +108,25 @@ struct LongTermGoalSetupView: View {
         loaded = true
         inputs = await tracking.loadFullPeriodInputs(repo: repo)
         importedQuestions = Array(Set(await repo.importedJournalEntries().map(\.question))).sorted()
-        series = await tracking.loadLevelSeries(repo: repo, metrics: [.restingHr, .vo2max, .bodyFat, .leanMass, .waist])
+        series = await tracking.loadLevelSeries(repo: repo, metrics: [.restingHr, .sleepHeartRate, .vo2max, .bodyFat,
+                                                                      .leanMass, .waist])
         let weights = await repo.weightDailyValues(days: GoalMeasure.weightWindowDays)
         // The last weigh-in, the same number the goal page will show as its start: a trend lags the scale.
         currentWeight = weights.last { GoalMeasure.isPlausible($0.value, cfg: GoalMeasure.weightTrend) }?.value
+        if let prefill { applyPrefill(prefill) }
+    }
+
+    /// Opens the value step on the lever's template with its target, once the data the suggestion reads is in.
+    private func applyPrefill(_ prefill: AgeLessGoalPrefill) {
+        guard let item = GoalCatalog.template(prefill.template) else { return }
+        area = item.area
+        template = item
+        sportIndex = 0
+        suggest()
+        target = AgeLessGoalLink.target(prefill, goalCurrent: currentLevel, step: levelStep.step,
+                                        range: levelStep.range)
+        suggestWeekly()
+        step = .value
     }
 
     private var metric: LongTermMetric? { template?.id.metric }
@@ -180,14 +200,15 @@ struct LongTermGoalSetupView: View {
         guard let metric else { return nil }
         switch metric {
         case .weight: return currentWeight ?? ProfileStore.persistedWeightKg
-        case .bodyFat, .leanMass, .waist, .vo2max, .restingHr:
+        case .bodyFat, .leanMass, .waist, .vo2max, .restingHr, .sleepHeartRate:
             let rule = LongTermGoalReader.levelRule(metric)
             return LongTermGoalMath.level(samples: series[metric] ?? [], now: now, windowDays: rule.windowDays,
                                           minValues: rule.minValues)?.value
-        case .sleepAverage, .hrvAverage, .recoveryAverage:
+        case .sleepAverage, .hrvAverage, .recoveryAverage, .stepsAverage:
             let values = inputs.days.sorted { $0.day < $1.day }.suffix(28).compactMap { day -> Double? in
                 switch metric {
                 case .sleepAverage: return day.totalSleepMin.map { $0 / 60 }
+                case .stepsAverage: return day.steps.flatMap { $0 > 0 ? Double($0) : nil }
                 case .hrvAverage: return day.avgHrv
                 default: return day.recovery
                 }
@@ -216,7 +237,8 @@ struct LongTermGoalSetupView: View {
         case .bodyFat?: return (0.5, 3...60)
         case .waist?: return (1, 40...200)
         case .vo2max?: return (0.5, 15...90)
-        case .restingHr?: return (1, 30...110)
+        case .restingHr?, .sleepHeartRate?: return (1, 30...110)
+        case .stepsAverage?: return (500, 1_000...40_000)
         case .sleepAverage?: return (0.25, 5...10)
         case .hrvAverage?: return (1, 10...250)
         case .recoveryAverage?: return (1, 10...99)
@@ -236,7 +258,8 @@ struct LongTermGoalSetupView: View {
         case .leanMass: return round(current + 1, 0.5)
         case .waist: return round(current - 3, 1)
         case .vo2max: return round(current + 2, 0.5)
-        case .restingHr: return round(current - 3, 1)
+        case .restingHr, .sleepHeartRate: return round(current - 3, 1)
+        case .stepsAverage: return max(1_000, round(current + 1_000, 500))
         case .sleepAverage: return min(10, max(7.5, ((current + 0.25) * 4).rounded(.up) / 4))
         case .hrvAverage: return (current * 1.05).rounded()
         case .recoveryAverage: return min(99, (current + 5).rounded())
@@ -340,7 +363,7 @@ struct LongTermGoalSetupView: View {
         case .timeTotal:
             // Minutes in tens: "681 min a week" is a precision nobody plans by.
             weeklyTarget = max(10, ((target - collectedSoFar) / weeksToEnd / 10).rounded() * 10)
-        case .stepsTotal:
+        case .stepsTotal, .stepsAverage:
             weeklyTarget = 5
         case .longest, .event:
             weeklyTarget = max(5, recentKmPerWeek.rounded())
@@ -351,7 +374,7 @@ struct LongTermGoalSetupView: View {
             weeklyTarget = hasLiftingLog ? 40 : 3
         case .bodyFat, .waist:
             weeklyTarget = 3
-        case .vo2max, .restingHr:
+        case .vo2max, .restingHr, .sleepHeartRate:
             weeklyTarget = 150
         case .sleepAverage, .hrvAverage, .recoveryAverage:
             weeklyTarget = 5
@@ -437,6 +460,9 @@ struct LongTermGoalSetupView: View {
         case .stepsTotal:
             return PeriodGoal(metric: .stepDays, period: .week, target: weeklyTarget,
                               threshold: PeriodMetric.stepDays.defaultThreshold, parentGoalId: parentId)
+        case .stepsAverage:
+            return PeriodGoal(metric: .stepDays, period: .week, target: weeklyTarget, threshold: target,
+                              parentGoalId: parentId)
         case .longest, .event:
             return PeriodGoal(metric: .distance, period: .week, target: weeklyTarget, sportFilter: sportFilter,
                               parentGoalId: parentId)
@@ -450,7 +476,7 @@ struct LongTermGoalSetupView: View {
                               parentGoalId: parentId)
         case .bodyFat, .waist:
             return PeriodGoal(metric: .workouts, period: .week, target: weeklyTarget, parentGoalId: parentId)
-        case .vo2max, .restingHr:
+        case .vo2max, .restingHr, .sleepHeartRate:
             return PeriodGoal(metric: .zoneMinutes, period: .week, target: weeklyTarget, parentGoalId: parentId)
         case .sleepAverage:
             return PeriodGoal(metric: .sleepNights, period: .week, target: weeklyTarget,
@@ -897,6 +923,9 @@ struct LongTermGoalSetupView: View {
         case .stepsTotal:
             stepperRow("Days of 8,000 steps", value: $weeklyTarget, step: 1, range: 1...7,
                        text: LongTermFormat.perWeek(weeklyTarget, .stepDays))
+        case .stepsAverage:
+            stepperRow("Step days", value: $weeklyTarget, step: 1, range: 1...7,
+                       text: String(localized: "\(LongTermFormat.number(weeklyTarget)) days from \(LongTermFormat.value(target, .stepsAverage)) steps"))
         case .longest, .event:
             stepperRow("Per week", value: $weeklyTarget, step: 1, range: 1...300,
                        text: LongTermFormat.value(weeklyTarget, .distanceTotal))
@@ -922,7 +951,7 @@ struct LongTermGoalSetupView: View {
         case .bodyFat, .waist:
             stepperRow("Workouts", value: $weeklyTarget, step: 1, range: 1...14,
                        text: LongTermFormat.perWeek(weeklyTarget, .workouts))
-        case .vo2max, .restingHr:
+        case .vo2max, .restingHr, .sleepHeartRate:
             stepperRow("Zone 2+ minutes", value: $weeklyTarget, step: 10, range: 30...1_200,
                        text: LongTermFormat.perWeek(weeklyTarget, .zoneMinutes))
             factLine(String(localized: "Time in zone 2 and above is what moves aerobic fitness. The WHO suggests 150 minutes a week."))
@@ -999,7 +1028,8 @@ struct LongTermGoalSetupView: View {
         HStack {
             if step != .area {
                 Button("Back") {
-                    if let previous = Step(rawValue: step.rawValue - 1) { step = previous }
+                    if prefill != nil, step == .value { dismiss() }
+                    else if let previous = Step(rawValue: step.rawValue - 1) { step = previous }
                 }
             }
             Spacer()

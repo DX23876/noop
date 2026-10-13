@@ -53,4 +53,21 @@ final class HealthspanPresentationTests: XCTestCase {
         XCTAssertEqual(E.projectedAge(currentAge: 40, pace: 1.0), 40.5, accuracy: 1e-9)
         XCTAssertEqual(E.projectedAge(currentAge: 40, pace: -1.0), 39.5, accuracy: 1e-9)
     }
+
+    /// A goal's AgeLess years come from the same rule as the levers: the lever's own step gives the lever's years,
+    /// and a target that takes nothing off gives none.
+    func testYearsReachingATargetMatchTheLevers() {
+        let x = HealthspanEngine.Inputs(age: 35, sex: .male, sleepHours: 6.4, sleepConsistencyPct: 60, dailySteps: 5000,
+                                        zone13MinPerWeek: 60, zone45MinPerWeek: 0, strengthMinPerWeek: 0, vo2max: 40,
+                                        restingHR: 66, leanMassPct: 74)
+        for lever in HealthspanEngine.levers(x, limit: 9) {
+            XCTAssertEqual(HealthspanEngine.years(reaching: lever.newValue, on: lever.component, from: x),
+                           lever.years)
+        }
+        XCTAssertNil(HealthspanEngine.years(reaching: 4000, on: .dailySteps, from: x))
+        XCTAssertNil(HealthspanEngine.years(reaching: 5000, on: .dailySteps, from: x))
+        var missing = x
+        missing.vo2max = nil
+        XCTAssertNil(HealthspanEngine.years(reaching: 45, on: .vo2max, from: missing))
+    }
 }

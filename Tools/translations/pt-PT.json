@@ -2953,5 +2953,14 @@
   "From Apple Health, %@": "Do Apple Health, %@",
   "Walks and runs: %lld · %@ · grade not counted": "Caminhadas e corridas: %lld · %@ · sem contar o declive",
   "Body fat from %@": "Gordura corporal de %@",
-  "thin data": "poucos dados"
+  "thin data": "poucos dados",
+  "%@ days from %@ steps": "%@ dias a partir de %@ passos",
+  "Goal running": "Objetivo em curso",
+  "Set as goal": "Definir como objetivo",
+  "Lower sleeping heart rate": "Baixar a frequência durante o sono",
+  "Your average heart rate over the whole night, as AgeLess reads it.": "A tua frequência cardíaca média durante toda a noite, como o AgeLess a lê.",
+  "More steps a day": "Mais passos por dia",
+  "Your average daily steps over four weeks.": "Os teus passos diários médios em quatro semanas.",
+  "Your aerobic fitness: a value you entered, Apple Watch, or estimated from your walks and runs.": "A tua forma aeróbica: um valor introduzido, o Apple Watch ou uma estimativa das tuas caminhadas e corridas.",
+  "Worth about %@ years in AgeLess": "Cerca de %@ anos segundo o AgeLess"
 }

@@ -2931,5 +2931,14 @@
   "From Apple Health, %@": "Из Apple Health, %@",
   "Walks and runs: %lld · %@ · grade not counted": "Прогулки и пробежки: %lld · %@ · без учёта уклона",
   "Body fat from %@": "Процент жира от %@",
-  "thin data": "мало данных"
+  "thin data": "мало данных",
+  "%@ days from %@ steps": "%@ дн. от %@ шагов",
+  "Goal running": "Цель активна",
+  "Set as goal": "Сделать целью",
+  "Lower sleeping heart rate": "Снизить пульс во сне",
+  "Your average heart rate over the whole night, as AgeLess reads it.": "Средний пульс за всю ночь, как его считает AgeLess.",
+  "More steps a day": "Больше шагов в день",
+  "Your average daily steps over four weeks.": "Среднее число шагов в день за четыре недели.",
+  "Your aerobic fitness: a value you entered, Apple Watch, or estimated from your walks and runs.": "Аэробная форма: введённое значение, Apple Watch или оценка по прогулкам и пробежкам.",
+  "Worth about %@ years in AgeLess": "По AgeLess примерно %@ г."
 }

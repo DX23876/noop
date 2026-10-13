@@ -238,6 +238,7 @@ struct HealthspanPaceSlider: View {
 /// biggest one and the step from today's value to the next.
 struct HealthspanLeversCard: View {
     let week: HealthspanWeek
+    @ObservedObject private var goals = CoachGoalStore.shared
 
     /// The years all levers together would remove, computed on the combined inputs rather than summed,
     /// since the curves do not add up exactly.
@@ -262,10 +263,19 @@ struct HealthspanLeversCard: View {
                 }
             }
             ForEach(Array(week.levers.enumerated()), id: \.element.component) { rank, lever in
-                HealthspanLeverRow(rank: rank + 1, lever: lever, share: -lever.years / max(biggest, 0.01))
+                HealthspanLeverRow(rank: rank + 1, lever: lever, share: -lever.years / max(biggest, 0.01),
+                                   goal: goalAction(lever))
             }
         }
         .agelessCard()
+    }
+
+    /// A running goal on the same number takes the button's place; a measure without a template has neither.
+    private func goalAction(_ lever: HealthspanEngine.Lever) -> HealthspanLeverRow.GoalAction? {
+        if let running = AgeLessGoalLink.runningGoal(for: lever.component, in: goals.goals) {
+            return .running(running.id)
+        }
+        return AgeLessGoalLink.prefill(for: lever).map { .create($0) }
     }
 }
 
@@ -276,15 +286,63 @@ struct HealthspanLeverRow: View {
     let lever: HealthspanEngine.Lever
     /// This lever's gain as a fraction of the biggest one's, 0…1.
     let share: Double
+    var goal: GoalAction? = nil
+
+    /// What the row offers under its step: setting the lever as a goal, or the goal already on that number.
+    enum GoalAction {
+        case create(AgeLessGoalPrefill)
+        case running(UUID)
+    }
 
     static let segments = 24
+    private static let rankWidth: CGFloat = 28
 
     var body: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space1) {
+            summary
+            if let goal {
+                goalLink(goal)
+                    .padding(.leading, Self.rankWidth + NoopMetrics.space3)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func goalLink(_ goal: GoalAction) -> some View {
+        switch goal {
+        case .create(let prefill):
+            NavigationLink { LongTermGoalSetupView(prefill: prefill) } label: {
+                Label("Set as goal", systemImage: "target")
+                    .font(StrandFont.caption.weight(.semibold))
+                    .foregroundStyle(StrandPalette.agelessYoungDeep.legibleText)
+                    .padding(.horizontal, NoopMetrics.space3)
+                    .padding(.vertical, NoopMetrics.space1)
+                    .background(Capsule().fill(StrandPalette.agelessYoungDeep.opacity(0.14)))
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        case .running(let id):
+            NavigationLink { LongTermGoalPage(goalId: id) } label: {
+                HStack(spacing: NoopMetrics.space1) {
+                    Text("Goal running")
+                    Image(systemName: "chevron.right").font(StrandFont.footnote.weight(.semibold))
+                }
+                .font(StrandFont.caption.weight(.semibold))
+                .foregroundStyle(StrandPalette.textSecondary)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var summary: some View {
         HStack(alignment: .center, spacing: NoopMetrics.space3) {
             Text(verbatim: "\(rank)")
                 .font(StrandFont.subhead.weight(.semibold).monospacedDigit())
                 .foregroundStyle(StrandPalette.agelessYoungDeep.legibleText)
-                .frame(width: 28, height: 28)
+                .frame(width: Self.rankWidth, height: Self.rankWidth)
                 .background(Circle().fill(StrandPalette.agelessYoungDeep.opacity(0.14)))
             VStack(alignment: .leading, spacing: NoopMetrics.space1) {
                 Text(HealthspanSection.componentName(lever.component))

@@ -801,6 +801,51 @@ final class CoachGoalStore: ObservableObject {
         if changed { goals = updated }
     }
 
+    /// VO₂max goals set before AgeLess's VO₂max rule (AI-24, plan HEALTHSPAN_AGE_PLAN stage 2) started on the
+    /// non-exercise estimate, which the goal no longer reads. Each such goal re-reads its start once from the
+    /// readings it follows now (`readings`, oldest first): the first one on or after the day the goal was set.
+    /// The goals are listed on the first run, so a goal set later is never touched; one without a reading yet
+    /// stays listed for a later refresh. A start that would land on or beyond the target is left as it was,
+    /// since the goal would read as reached before it began. The app's own waypoints are re-derived from the
+    /// new start; waypoints the wearer moved stay.
+    static let vo2maxRebaselinePendingKey = "goals.vo2maxRebaseline.pending"
+    static let vo2maxRebaselineListedKey = "goals.vo2maxRebaseline.listed"
+
+    func rebaselineVO2maxGoals(readings: [GoalMilestones.Sample], calendar: Calendar = .current, now: Date = Date()) {
+        let defaults = d
+        if !defaults.bool(forKey: Self.vo2maxRebaselineListedKey) {
+            defaults.set(goals.filter { $0.measure?.metric == .vo2max }.map(\.id.uuidString),
+                         forKey: Self.vo2maxRebaselinePendingKey)
+            defaults.set(true, forKey: Self.vo2maxRebaselineListedKey)
+        }
+        var pending = Set(defaults.stringArray(forKey: Self.vo2maxRebaselinePendingKey) ?? [])
+        guard !pending.isEmpty else { return }
+        var updated = goals
+        var changed = false
+        for index in updated.indices where pending.contains(updated[index].id.uuidString) {
+            let goal = updated[index]
+            let start = calendar.startOfDay(for: goal.createdAt)
+            guard let first = readings.filter({ $0.date >= start && $0.value.isFinite })
+                .min(by: { $0.date < $1.date }) else { continue }
+            pending.remove(goal.id.uuidString)
+            let newStart = (first.value * 2).rounded() / 2
+            guard let old = goal.baseline, let target = goal.target, newStart != old,
+                  (old < target) == (newStart < target), newStart != target else { continue }
+            updated[index].baseline = newStart
+            updated[index].milestones = goal.milestones.filter(\.isCustom)
+            updated[index].history.append(.init(date: now, what: "Start re-read from the VO₂max AgeLess uses"))
+            if updated[index].history.count > 20 {
+                updated[index].history.removeFirst(updated[index].history.count - 20)
+            }
+            changed = true
+        }
+        defaults.set(Array(pending).sorted(), forKey: Self.vo2maxRebaselinePendingKey)
+        if changed {
+            goals = updated
+            ensureMilestones(now: now)
+        }
+    }
+
     /// Move a waypoint. Marks it `isCustom`, which is what protects it from the next re-suggest.
     func updateMilestone(goalId: UUID, milestoneId: UUID, value: Double, expectedDate: Date) {
         guard let g = goals.firstIndex(where: { $0.id == goalId }),

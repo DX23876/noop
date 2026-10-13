@@ -14,7 +14,7 @@ enum LongTermFormat {
             return String(localized: "\((value / 60).formatted(.number.precision(.fractionLength(0)))) h")
         case .workoutsTotal:
             return Int(value.rounded()).formatted()
-        case .stepsTotal:
+        case .stepsTotal, .stepsAverage:
             return Int(value.rounded()).formatted()
         case .weight, .leanMass:
             return String(localized: "\(value.formatted(.number.precision(.fractionLength(1)))) kg")
@@ -30,7 +30,7 @@ enum LongTermFormat {
             return String(localized: "\(Int(value.rounded())) %")
         case .vo2max:
             return value.formatted(.number.precision(.fractionLength(1)))
-        case .restingHr:
+        case .restingHr, .sleepHeartRate:
             return String(localized: "\(Int(value.rounded())) bpm")
         case .paceAverage:
             let seconds = Int(value.rounded())
@@ -438,6 +438,8 @@ struct LongTermGoalPage: View {
     @State private var showRaise = false
     @State private var raisedTarget: Double = 0
     @State private var allMilestones: [MilestoneTrack.Point]?
+    /// The latest AgeLess week's inputs while AgeLess is on, for the goal's AgeLess line.
+    @State private var agelessWeek: HealthspanEngine.Inputs?
 
     private var snapshot: GoalTrackingSnapshot? { tracking.snapshot(for: goalId) }
 
@@ -452,6 +454,14 @@ struct LongTermGoalPage: View {
                         if snapshot.reading?.state == .achieved, snapshot.goal.status == .active {
                             reachedCard(snapshot)
                         }
+                        if let week = agelessWeek, let years = AgeLessGoalLink.years(goal: snapshot.goal, week: week) {
+                            NoopCard(padding: NoopMetrics.space3) {
+                                Label(String(localized: "Worth about \(HealthspanSection.signedNumber(years)) years in AgeLess"),
+                                      systemImage: "hourglass")
+                                    .font(StrandFont.footnote)
+                                    .foregroundStyle(StrandPalette.agelessYoungDeep.legibleText)
+                            }
+                        }
                         if let note = GoalConflicts.longTermNotes(goals.goals).first(where: { $0.goalId == goalId }) {
                             NoopCard(padding: NoopMetrics.space3) {
                                 Label(note.text, systemImage: "exclamationmark.triangle")
@@ -464,6 +474,10 @@ struct LongTermGoalPage: View {
                     insightsSection(content.insights)
                     manageSection(snapshot)
                 }
+            } else if goals.goal(id: goalId)?.measure?.metric == .vo2max {
+                // The VO₂max AgeLess reads has no reading in the goal's window yet: say how to give it one.
+                Text(String(localized: "Record a walk or run of 20 minutes or more, or enter your VO₂max."))
+                    .font(StrandFont.body).foregroundStyle(StrandPalette.textSecondary)
             } else {
                 Text("This goal has no page yet.")
                     .font(StrandFont.body).foregroundStyle(StrandPalette.textSecondary)
@@ -473,11 +487,21 @@ struct LongTermGoalPage: View {
         .navigationBarTitleDisplayMode(.inline)
         #endif
         .task { await tracking.refresh(repo: repo) }
+        .task { await loadAgeLessWeek() }
         .sheet(isPresented: $showJourney) { JourneyView(goalId: goalId) }
         .sheet(isPresented: $showRaise) { raiseSheet }
         .sheet(isPresented: Binding(get: { allMilestones != nil }, set: { if !$0 { allMilestones = nil } })) {
             MilestoneListSheet(points: allMilestones ?? [])
         }
+    }
+
+    /// The week the AgeLess line prices the goal against: the newest one, read by the resolver the AgeLess
+    /// screens use. Nothing while AgeLess is off.
+    private func loadAgeLessWeek() async {
+        guard HealthspanFeature.isEnabled else { agelessWeek = nil; return }
+        let profile = ProfileStore.persistedAnalyticsProfile
+        guard let sex = HealthspanEngine.Sex(profileValue: profile.sex) else { return }
+        agelessWeek = await HealthspanSnapshot.load(repo: repo, age: Int(profile.age), sex: sex)?.latest.inputs
     }
 
     /// The goal reached (plan Q24): the wearer decides what happens next, nothing closes by itself.

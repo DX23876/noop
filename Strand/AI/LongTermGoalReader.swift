@@ -169,11 +169,11 @@ enum LongTermGoalReader {
                                weeklyMetric: weekly.goal.metric, weeklyThreshold: weekly.goal.threshold,
                                workouts: weekly.goal.isWorkoutBasedWeekly ? matching(inputs.workouts, weekly.goal.sportFilter) : [],
                                now: now, calendar: calendar)
-        case .sleepAverage, .hrvAverage, .recoveryAverage:
+        case .sleepAverage, .hrvAverage, .recoveryAverage, .stepsAverage:
             return average(goal: goal, metric: spec.metric, days: inputs.days, now: now, calendar: calendar)
         case .paceAverage:
             return pace(goal: goal, workouts: inputs.workouts, now: now)
-        case .bodyFat, .leanMass, .waist, .vo2max, .restingHr:
+        case .bodyFat, .leanMass, .waist, .vo2max, .restingHr, .sleepHeartRate:
             return level(goal: goal, metric: spec.metric, samples: inputs.series[spec.metric] ?? [], now: now,
                          calendar: calendar)
         }
@@ -292,7 +292,7 @@ enum LongTermGoalReader {
         switch metric {
         // A lower resting heart rate only means something once it holds: the level is four weeks of
         // nights, not a good week, so "reached" says it was kept.
-        case .restingHr:
+        case .restingHr, .sleepHeartRate:
             return LevelRule(windowDays: 28, minValues: 14, rateWindowDays: 56, rateMinPoints: 14, resolution: 1)
         case .vo2max:
             return LevelRule(windowDays: 21, minValues: 2, rateWindowDays: 84, rateMinPoints: 4, resolution: 0.5)
@@ -460,6 +460,7 @@ enum LongTermGoalReader {
             case .sleepAverage: return row.totalSleepMin.map { $0 / 60 }
             case .hrvAverage: return row.avgHrv
             case .recoveryAverage: return row.recovery
+            case .stepsAverage: return row.steps.flatMap { $0 > 0 ? Double($0) : nil }
             default: return nil
             }
         }

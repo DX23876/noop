@@ -105,11 +105,14 @@ enum GoalCatalog {
               blurb: "Training volume from your lifting log.",
               icon: "square.3.layers.3d", sportChoices: [], inWalkthrough: true),
         .init(id: .vo2max, area: .fitness, title: "Raise VO2max",
-              blurb: "Your aerobic fitness, estimated by your strap or taken from Apple Health.",
+              blurb: "Your aerobic fitness: a value you entered, Apple Watch, or estimated from your walks and runs.",
               icon: "lungs.fill", sportChoices: [], inWalkthrough: true),
         .init(id: .restingHr, area: .fitness, title: "Lower resting heart rate",
               blurb: "A calmer heart at rest, read every night.",
               icon: "heart.fill", sportChoices: [], inWalkthrough: true),
+        .init(id: .sleepHeartRate, area: .fitness, title: "Lower sleeping heart rate",
+              blurb: "Your average heart rate over the whole night, as AgeLess reads it.",
+              icon: "bed.double.circle", sportChoices: [], inWalkthrough: true),
         .init(id: .hrvAverage, area: .fitness, title: "Raise HRV",
               blurb: "Your average heart-rate variability over four weeks.",
               icon: "waveform.path.ecg", sportChoices: [], inWalkthrough: true),
@@ -122,6 +125,9 @@ enum GoalCatalog {
         .init(id: .stepsTotal, area: .daily, title: "Collect steps",
               blurb: "Steps to gather by a date.",
               icon: "shoeprints.fill", sportChoices: [], inWalkthrough: true),
+        .init(id: .stepsAverage, area: .daily, title: "More steps a day",
+              blurb: "Your average daily steps over four weeks.",
+              icon: "figure.walk.motion", sportChoices: [], inWalkthrough: true),
         .init(id: .activeEnergyWeekly, area: .daily, title: "Active energy every week",
               blurb: "Active calories each week, as NOOP estimates them.",
               icon: "flame.fill", sportChoices: [], inWalkthrough: true),
@@ -205,6 +211,10 @@ enum GoalCatalog {
             return .available
         case .stepsTotal:
             return inputs.stepsByDay.isEmpty ? .unavailable("Needs step data") : .available
+        case .stepsAverage:
+            return inputs.days.contains { ($0.steps ?? 0) > 0 } ? .available : .unavailable("Needs step data")
+        case .sleepHeartRate:
+            return (series[.sleepHeartRate] ?? []).isEmpty ? .unavailable("Needs nights recorded by your strap") : .available
         case .sleepAverage:
             return inputs.days.contains { $0.totalSleepMin != nil }
                 ? .available : .unavailable("Needs nights recorded by your strap")
@@ -216,7 +226,7 @@ enum GoalCatalog {
             return (series[.restingHr] ?? []).isEmpty ? .unavailable("Needs nights recorded by your strap") : .available
         case .vo2max:
             return (series[.vo2max] ?? []).isEmpty
-                ? .unavailable("Needs a VO2max estimate from your strap or Apple Health") : .available
+                ? .unavailable("Record a walk or run of 20 minutes or more, or enter your VO₂max.") : .available
         case .bodyFat:
             return (series[.bodyFat] ?? []).isEmpty ? .unavailable("Needs a body fat reading, from a smart scale or entered in Body") : .available
         case .leanMass:

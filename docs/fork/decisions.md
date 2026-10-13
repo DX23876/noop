@@ -327,6 +327,25 @@ Analysis migration required: yes (AI-22). The AgeLess weeks and AI-21's banked t
 deleted (`deleteHealthspanWeeks`) and the next pass rebuilds them; zone minutes are kept. No daily row is
 re-scored.
 
+### 2026-10-13 — AgeLess levers become goals; newer VO₂max measurements beat older ones (AI-24)
+
+An AgeLess lever can now be set as a goal on the same number (plan HEALTHSPAN_AGE_PLAN stage 2): the sleep
+goal, a new mean-daily-steps goal, a new sleeping-heart-rate goal (the whole-sleep mean, not the resting HR),
+the VO₂max goal, or a body-fat goal for lean mass. One table (`AgeLessGoalLink`) pairs measures with goals
+for the lever card, the setup and the goal page; a goal's AgeLess years come from the rule the levers use.
+
+The VO₂max goal used to read the non-exercise estimate AgeLess had dropped, so a goal and AgeLess could show
+two VO₂max values. Both now read one rule, and the rule itself changed after the wearer pointed out that
+regular walks and runs must be able to move the value: an entered value stands only until two newer
+measurements arrive (a year at most), and Apple Health leads only while it measured in the last 30 days.
+Before, one entry or one old watch reading hid every walk and run for months. Two rather than one, because a
+single walk can be off by a few ml/kg/min and two halve such an outlier. VO₂max goals set before re-read their
+start once from the first reading on or after the day they were set.
+
+Analysis migration required: yes (AI-24). Stored AgeLess weeks can name a VO₂max the new rule would not, so
+they are deleted once more and the next pass rebuilds them; zone minutes are kept. No daily row is re-scored.
+Grade from GPS altitude is a later change to the walk-and-run estimate and will need its own recipe.
+
 ### 2026-10-13 — AgeLess says what each measure stands on (AI-23)
 
 The AgeLess screen now names, under every measure, how much data stands behind it and where it came from,
