@@ -169,8 +169,9 @@ enum LongTermGoalReader {
                                weeklyMetric: weekly.goal.metric, weeklyThreshold: weekly.goal.threshold,
                                workouts: weekly.goal.isWorkoutBasedWeekly ? matching(inputs.workouts, weekly.goal.sportFilter) : [],
                                now: now, calendar: calendar)
-        case .sleepAverage, .hrvAverage, .recoveryAverage, .stepsAverage:
-            return average(goal: goal, metric: spec.metric, days: inputs.days, now: now, calendar: calendar)
+        case .sleepAverage, .hrvAverage, .recoveryAverage, .stepsAverage, .sleepConsistency:
+            return average(goal: goal, metric: spec.metric, days: inputs.days,
+                           samples: inputs.series[spec.metric] ?? [], now: now, calendar: calendar)
         case .paceAverage:
             return pace(goal: goal, workouts: inputs.workouts, now: now)
         case .bodyFat, .leanMass, .waist, .vo2max, .restingHr, .sleepHeartRate:
@@ -452,7 +453,9 @@ enum LongTermGoalReader {
 
     // MARK: - Average
 
-    static func average(goal: CoachGoal, metric: LongTermMetric, days: [DailyMetric], now: Date,
+    /// `samples` carries the nightly values of a metric the daily rows do not hold (sleep consistency).
+    static func average(goal: CoachGoal, metric: LongTermMetric, days: [DailyMetric],
+                        samples daySamples: [GoalMilestones.Sample] = [], now: Date,
                         calendar: Calendar) -> GoalShapeReading? {
         guard let target = goal.target, target > 0 else { return nil }
         func value(_ row: DailyMetric) -> Double? {
@@ -466,6 +469,7 @@ enum LongTermGoalReader {
         }
         var byDay: [String: Double] = [:]
         for row in days { if let v = value(row) { byDay[row.day] = v } }
+        for sample in daySamples where sample.value.isFinite { byDay[dayKey(sample.date, calendar)] = sample.value }
         let samples = byDay.compactMap { day, v -> GoalMilestones.Sample? in
             noon(of: day, calendar).map { GoalMilestones.Sample(date: $0, value: v) }
         }

@@ -119,7 +119,8 @@ enum GoalFormat {
     static func unit(_ metric: PeriodMetric) -> String {
         switch metric {
         case .workouts:        return String(localized: "workouts")
-        case .trainingMinutes, .zoneMinutes: return String(localized: "min")
+        case .trainingMinutes, .zoneMinutes, .strengthMinutes, .moderateMinutes, .vigorousMinutes:
+            return String(localized: "min")
         case .distance:        return UnitFormatter.distanceUnit(distanceSystem)
         case .stepDays, .sleepNights, .restDays, .hydrationDays, .habitDays: return String(localized: "days")
         case .sleepAverage:    return String(localized: "h")

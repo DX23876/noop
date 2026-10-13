@@ -16,7 +16,7 @@ extension LongTermMetric {
         case .paceAverage: return "s/km"
         case .hrvAverage: return "ms"
         case .sleepAverage: return "h"
-        case .recoveryAverage, .bodyFat: return "%"
+        case .recoveryAverage, .bodyFat, .sleepConsistency: return "%"
         case .weight, .leanMass: return "kg"
         case .waist: return "cm"
         case .vo2max: return "ml/kg/min"

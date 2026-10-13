@@ -18,37 +18,37 @@ struct AgeLessGoalPrefill: Hashable {
 
 enum AgeLessGoalLink {
 
-    /// The template a lever turns into; nil for the measures without one yet (sleep consistency, strength and
-    /// the two activity measures arrive with their own templates in stage 3).
+    /// The template a lever turns into. Every measure has one since stage 3.
     static func template(for c: HealthspanEngine.Component) -> GoalTemplateID? {
         switch c {
         case .sleepDuration: return .sleepAverage
+        case .sleepConsistency: return .sleepConsistency
         case .dailySteps: return .stepsAverage
+        case .zone13: return .moderateWeekly
+        case .zone45: return .vigorousWeekly
+        case .strength: return .strengthMinutesWeekly
         case .restingHR: return .sleepHeartRate
         case .vo2max: return .vo2max
         case .leanMass: return .bodyFat
-        case .sleepConsistency, .zone13, .zone45, .strength: return nil
         }
     }
 
-    /// The goal metrics that count as the same number as a measure, for "Goal running": a lean-mass lever is
-    /// already served by a body-fat or a lean-mass goal.
-    static func metrics(for c: HealthspanEngine.Component) -> Set<LongTermMetric> {
+    /// The templates that count as the same number as a measure, for "Goal running": a lean-mass lever is
+    /// already served by a body-fat or a lean-mass goal. Templates, not metrics, because the three weekly
+    /// rhythms share one metric and differ only in what their weeks count.
+    static func templates(for c: HealthspanEngine.Component) -> Set<GoalTemplateID> {
         switch c {
-        case .sleepDuration: return [.sleepAverage]
-        case .dailySteps: return [.stepsAverage]
-        case .restingHR: return [.sleepHeartRate]
-        case .vo2max: return [.vo2max]
         case .leanMass: return [.bodyFat, .leanMass]
-        case .sleepConsistency, .zone13, .zone45, .strength: return []
+        default: return template(for: c).map { [$0] } ?? []
         }
     }
 
     /// The open goal on the same number as `c`, if any.
     static func runningGoal(for c: HealthspanEngine.Component, in goals: [CoachGoal]) -> CoachGoal? {
-        let wanted = metrics(for: c)
+        let wanted = templates(for: c)
         return goals.first { goal in
-            (goal.status == .active || goal.status == .paused) && goal.measure.map { wanted.contains($0.metric) } == true
+            (goal.status == .active || goal.status == .paused)
+                && goal.templateId.flatMap(GoalTemplateID.init(rawValue:)).map { wanted.contains($0) } == true
         }
     }
 
@@ -76,13 +76,18 @@ enum AgeLessGoalLink {
         return min(range.upperBound, max(range.lowerBound, rounded))
     }
 
-    /// The AgeLess measure a goal's target speaks to, in that measure's unit; nil for a metric AgeLess does not
-    /// read (a lean-mass goal is kept in kilograms, AgeLess in percent of body mass).
-    static func agelessTarget(metric: LongTermMetric, target: Double) -> (component: HealthspanEngine.Component,
-                                                                         value: Double)? {
-        switch metric {
+    /// The AgeLess measure a goal's target speaks to, in that measure's unit; nil for a template AgeLess does
+    /// not read (a lean-mass goal is kept in kilograms, AgeLess in percent of body mass). A weekly rhythm's
+    /// target is its weekly amount, the unit AgeLess rates those measures in.
+    static func agelessTarget(template: GoalTemplateID, target: Double) -> (component: HealthspanEngine.Component,
+                                                                           value: Double)? {
+        switch template {
         case .sleepAverage: return (.sleepDuration, target)
+        case .sleepConsistency: return (.sleepConsistency, target)
         case .stepsAverage: return (.dailySteps, target)
+        case .moderateWeekly: return (.zone13, target)
+        case .vigorousWeekly: return (.zone45, target)
+        case .strengthMinutesWeekly: return (.strength, target)
         case .sleepHeartRate: return (.restingHR, target)
         case .vo2max: return (.vo2max, target)
         case .bodyFat: return (.leanMass, 100 - target)
@@ -97,8 +102,8 @@ enum AgeLessGoalLink {
     /// goal, the week already meets the target, or the effect is under `minimumYears`. The same rule the levers
     /// use (`HealthspanEngine.years(reaching:on:from:)`), so a goal and its lever name the same years.
     static func years(goal: CoachGoal, week: HealthspanEngine.Inputs) -> Double? {
-        guard let metric = goal.measure?.metric, let target = goal.target,
-              let mapped = agelessTarget(metric: metric, target: target),
+        guard let template = goal.templateId.flatMap(GoalTemplateID.init(rawValue:)), let target = goal.target,
+              let mapped = agelessTarget(template: template, target: target),
               let years = HealthspanEngine.years(reaching: mapped.value, on: mapped.component, from: week),
               years <= -minimumYears else { return nil }
         return years

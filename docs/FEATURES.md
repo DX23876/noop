@@ -611,7 +611,10 @@ recommended a little above your usual, ambitious) and how often each would have 
 your order, the month, long-term goals that need a look or are pinned, and today's daily goals.
 
 Long-term goals include **More steps a day** (mean daily steps over four weeks) and **Lower sleeping heart
-rate** (the whole-night mean AgeLess reads, not the resting heart rate). The **VO₂max** goal follows the
+rate** (the whole-night mean AgeLess reads, not the resting heart rate), **Sleep more regularly** (sleep
+consistency by timing over four weeks), and three weekly rhythms that measure what AgeLess measures:
+**Strength activity**, **Moderate** and **Vigorous activity every week** (the last two only while AgeLess
+is on, from the minutes it banks). The **VO₂max** goal follows the
 VO₂max AgeLess uses: an entered value until two newer measurements, Apple Watch while it is current, else
 walks and runs. With AgeLess on, a lever on the AgeLess screen can be **set as a goal** on the same number,
 and such a goal's page says what reaching it would take off the AgeLess age.

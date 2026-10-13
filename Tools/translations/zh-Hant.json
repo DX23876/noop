@@ -3118,5 +3118,22 @@
   "More steps a day": "每天多走幾步",
   "Your average daily steps over four weeks.": "你四週內的日均步數。",
   "Your aerobic fitness: a value you entered, Apple Watch, or estimated from your walks and runs.": "你的有氧能力：手動輸入的數值、Apple Watch，或根據步行和跑步估算。",
-  "Worth about %@ years in AgeLess": "按 AgeLess 約 %@ 年"
+  "Worth about %@ years in AgeLess": "按 AgeLess 約 %@ 年",
+  "75 to 150 minutes of vigorous activity a week": "每週 75 至 150 分鐘高強度活動",
+  "Minutes at 40 to 80 % of your heart-rate reserve, as AgeLess measures them.": "心率儲備 40% 至 80% 的分鐘數，按 AgeLess 的方式計算。",
+  "Minutes at a high heart rate, as AgeLess measures them.": "高心率分鐘數，按 AgeLess 的方式計算。",
+  "Minutes at a moderate heart rate, as AgeLess measures them.": "中等心率分鐘數，按 AgeLess 的方式計算。",
+  "Minutes from 80 % of your heart-rate reserve, as AgeLess measures them.": "心率儲備 80% 以上的分鐘數，按 AgeLess 的方式計算。",
+  "Minutes of strength training, yoga, pilates and HIIT each week.": "每週力量訓練、瑜伽、皮拉提斯和 HIIT 的分鐘數。",
+  "Minutes of strength training, yoga, pilates and HIIT.": "力量訓練、瑜伽、皮拉提斯和 HIIT 的分鐘數。",
+  "Moderate activity every week": "每週中等強度活動",
+  "Needs AgeLess": "需要 AgeLess",
+  "Needs five nights in a row recorded by your strap": "需要手環連續記錄五晚",
+  "Not a strength activity": "不是力量訓練",
+  "Regularity is judged night by night against the four nights before, so this goal needs no weekly goal.": "規律性逐晚與前四晚比較，因此此目標無需每週目標。",
+  "Sleep more regularly": "作息更規律",
+  "Strength activity every week": "每週力量訓練",
+  "Strength minutes": "力量分鐘",
+  "Vigorous activity every week": "每週高強度活動",
+  "Your sleep consistency over four weeks: asleep and awake at the same times.": "你四週內的睡眠規律性：在相同時間入睡和醒來。"
 }

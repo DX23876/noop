@@ -12,21 +12,27 @@ final class AgeLessGoalLinkTests: XCTestCase {
                                                dailySteps: 5200, zone13MinPerWeek: 60, zone45MinPerWeek: 0,
                                                strengthMinPerWeek: 0, vo2max: 40, restingHR: 66, leanMassPct: 74)
 
-    func testEachLeverWithATemplateMapsToTheSameNumber() {
+    func testEveryLeverMapsToTheGoalOnTheSameNumber() throws {
         XCTAssertEqual(AgeLessGoalLink.template(for: .sleepDuration), .sleepAverage)
+        XCTAssertEqual(AgeLessGoalLink.template(for: .sleepConsistency), .sleepConsistency)
         XCTAssertEqual(AgeLessGoalLink.template(for: .dailySteps), .stepsAverage)
+        XCTAssertEqual(AgeLessGoalLink.template(for: .zone13), .moderateWeekly)
+        XCTAssertEqual(AgeLessGoalLink.template(for: .zone45), .vigorousWeekly)
+        XCTAssertEqual(AgeLessGoalLink.template(for: .strength), .strengthMinutesWeekly)
         XCTAssertEqual(AgeLessGoalLink.template(for: .restingHR), .sleepHeartRate)
         XCTAssertEqual(AgeLessGoalLink.template(for: .vo2max), .vo2max)
         XCTAssertEqual(AgeLessGoalLink.template(for: .leanMass), .bodyFat)
-        for c in [HealthspanEngine.Component.sleepConsistency, .zone13, .zone45, .strength] {
-            XCTAssertNil(AgeLessGoalLink.template(for: c))
-            XCTAssertTrue(AgeLessGoalLink.metrics(for: c).isEmpty)
-        }
-        // Every lever's template measures a number its "Goal running" set recognises.
         for c in HealthspanEngine.Component.allCases {
-            guard let t = AgeLessGoalLink.template(for: c) else { continue }
-            XCTAssertTrue(AgeLessGoalLink.metrics(for: c).contains(t.metric), "\(c)")
+            let t = try XCTUnwrap(AgeLessGoalLink.template(for: c), "\(c)")
+            // "Goal running" recognises the lever's own template, and the goal prices back onto the measure.
+            XCTAssertTrue(AgeLessGoalLink.templates(for: c).contains(t), "\(c)")
+            XCTAssertEqual(AgeLessGoalLink.agelessTarget(template: t, target: 50)?.component, c, "\(c)")
+            XCTAssertNotNil(GoalCatalog.template(t), "\(c)")
         }
+        // The weekly rhythms read the AgeLess weekly metrics.
+        XCTAssertEqual(GoalTemplateID.moderateWeekly.weeklyMetric, .moderateMinutes)
+        XCTAssertEqual(GoalTemplateID.vigorousWeekly.weeklyMetric, .vigorousMinutes)
+        XCTAssertEqual(GoalTemplateID.strengthMinutesWeekly.weeklyMetric, .strengthMinutes)
     }
 
     /// The further of the lever's value and the goal's own current value plus the step, rounded ambitiously.
@@ -50,10 +56,10 @@ final class AgeLessGoalLinkTests: XCTestCase {
         XCTAssertEqual(p.leverValue, 24)
         XCTAssertEqual(p.stepSize, 2)
         XCTAssertFalse(p.higherIsBetter)
-        let mapped = try XCTUnwrap(AgeLessGoalLink.agelessTarget(metric: .bodyFat, target: 24))
+        let mapped = try XCTUnwrap(AgeLessGoalLink.agelessTarget(template: .bodyFat, target: 24))
         XCTAssertEqual(mapped.component, .leanMass)
         XCTAssertEqual(mapped.value, 76)
-        XCTAssertNil(AgeLessGoalLink.agelessTarget(metric: .leanMass, target: 60), "lean mass goals are in kg")
+        XCTAssertNil(AgeLessGoalLink.agelessTarget(template: .leanMass, target: 60), "lean mass goals are in kg")
     }
 
     /// A goal on a lever's number names the lever's years; one AgeLess already meets names none.
@@ -68,6 +74,19 @@ final class AgeLessGoalLinkTests: XCTestCase {
         let lean = CoachGoal(kind: .body, title: "Lean", baseline: 60, target: 62,
                              templateId: GoalTemplateID.leanMass.rawValue, measure: .init(metric: .leanMass))
         XCTAssertNil(AgeLessGoalLink.years(goal: lean, week: week))
+    }
+
+    /// A weekly rhythm's target is its weekly amount, priced as AgeLess's weekly rate.
+    func testWeeklyRhythmGoalsArePricedPerWeek() throws {
+        let lever = try XCTUnwrap(HealthspanEngine.levers(week, limit: 9).first { $0.component == .zone13 })
+        let goal = CoachGoal(kind: .fitness, title: "Moderate", target: lever.newValue,
+                             templateId: GoalTemplateID.moderateWeekly.rawValue, measure: .init(metric: .weeklyAdherence))
+        XCTAssertEqual(try XCTUnwrap(AgeLessGoalLink.years(goal: goal, week: week)), lever.years, accuracy: 1e-12)
+        // The three rhythms share a metric; only the template tells them apart.
+        let vigorous = CoachGoal(kind: .fitness, title: "Vigorous", target: 20,
+                                 templateId: GoalTemplateID.vigorousWeekly.rawValue, measure: .init(metric: .weeklyAdherence))
+        XCTAssertNil(AgeLessGoalLink.runningGoal(for: .zone13, in: [vigorous]))
+        XCTAssertEqual(AgeLessGoalLink.runningGoal(for: .zone45, in: [vigorous])?.id, vigorous.id)
     }
 
     /// "Goal running" counts open goals on the same number only.
@@ -168,5 +187,66 @@ final class AgeLessGoalLinkTests: XCTestCase {
         XCTAssertEqual(GoalTemplateID.stepsAverage.metric.baseShape, .average)
         XCTAssertNotNil(GoalCatalog.template(.sleepHeartRate))
         XCTAssertNotNil(GoalCatalog.template(.stepsAverage))
+    }
+
+    // MARK: - Stage 3: the weekly rhythms and sleep consistency
+
+    private func workout(_ sport: String, minutes: Double) -> WorkoutRow {
+        WorkoutRow(startTs: 1_791_374_400, endTs: 1_791_374_400 + Int(minutes * 60), sport: sport, source: "apple_health",
+                   durationS: minutes * 60, energyKcal: nil, avgHr: nil, maxHr: nil, strain: nil, distanceM: nil,
+                   zonesJSON: nil, notes: nil, steps: nil)
+    }
+
+    /// Strength minutes count what AgeLess counts as strength, yoga and HIIT included, and nothing else.
+    func testStrengthMinutesCountWhatAgeLessCounts() {
+        let goal = PeriodGoal(metric: .strengthMinutes, period: .week, target: 40)
+        XCTAssertTrue(PeriodGoalTracker.workoutMatches(goal, workout("Yoga", minutes: 30)))
+        XCTAssertTrue(PeriodGoalTracker.workoutMatches(goal, workout("HIIT", minutes: 20)))
+        XCTAssertFalse(PeriodGoalTracker.workoutMatches(goal, workout("Running", minutes: 30)))
+        XCTAssertEqual(PeriodGoalTracker.workoutAmount(.strengthMinutes, workout("Yoga", minutes: 30)), 30)
+        XCTAssertEqual(PeriodMetric.strengthMinutes.aggregation, .sum)
+        XCTAssertTrue(PeriodMetric.strengthMinutes.isWorkoutBased)
+    }
+
+    /// Moderate and vigorous minutes need AgeLess: without its banked minutes they are unavailable, and an open
+    /// goal rests instead of missing its weeks.
+    func testActivityMinutesNeedAgeLess() {
+        let key = HealthspanFeature.defaultsKey
+        let before = UserDefaults.standard.object(forKey: key)
+        defer { UserDefaults.standard.set(before, forKey: key) }
+        var inputs = PeriodGoalInputs()
+        let now = Date(timeIntervalSince1970: 1_791_374_400)
+        XCTAssertEqual(PeriodGoalTracker.availability(.moderateMinutes, inputs: inputs, now: now, calendar: .current),
+                       .unavailable("Needs AgeLess"))
+        inputs.agelessModerateByDay = ["2026-10-06": 30]
+        inputs.agelessVigorousByDay = [:]
+        XCTAssertEqual(PeriodGoalTracker.availability(.vigorousMinutes, inputs: inputs, now: now, calendar: .current),
+                       .available)
+        let goal = PeriodGoal(metric: .vigorousMinutes, period: .week, target: 10)
+        let days = ["2026-10-05", "2026-10-06", "2026-10-07"]
+        UserDefaults.standard.set(false, forKey: key)
+        XCTAssertTrue(PeriodGoalTracker.isProtected(goal, days: days, calendar: .current))
+        UserDefaults.standard.set(true, forKey: key)
+        XCTAssertFalse(PeriodGoalTracker.isProtected(goal, days: days, calendar: .current))
+        XCTAssertFalse(PeriodGoalTracker.isProtected(PeriodGoal(metric: .strengthMinutes, period: .week, target: 40),
+                                                     days: days, calendar: .current))
+    }
+
+    /// The consistency goal averages the nightly scores AgeLess reads, carried as samples.
+    func testSleepConsistencyAveragesTheNightlyScores() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        let now = Date(timeIntervalSince1970: 1_791_374_400)
+        let samples = (0..<35).map { GoalMilestones.Sample(date: now.addingTimeInterval(-Double($0) * 86_400), value: 70) }
+        let goal = CoachGoal(kind: .sleep, title: "Regular", baseline: 60, target: 80,
+                             templateId: GoalTemplateID.sleepConsistency.rawValue,
+                             measure: .init(metric: .sleepConsistency))
+        let reading = LongTermGoalReader.reading(goal: goal, course: nil,
+                                                 inputs: LongTermReaderInputs(series: [.sleepConsistency: samples]),
+                                                 periodSnapshots: [], now: now, calendar: calendar)
+        guard case .average(let data)? = reading else { return XCTFail("expected an average reading") }
+        XCTAssertEqual(data.metric, .sleepConsistency)
+        XCTAssertEqual(data.days.compactMap { $0 }.count, 28)
+        XCTAssertEqual(GoalTemplateID.sleepConsistency.kind, .sleep)
     }
 }

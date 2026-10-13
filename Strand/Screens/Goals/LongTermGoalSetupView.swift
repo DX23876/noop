@@ -109,7 +109,7 @@ struct LongTermGoalSetupView: View {
         inputs = await tracking.loadFullPeriodInputs(repo: repo)
         importedQuestions = Array(Set(await repo.importedJournalEntries().map(\.question))).sorted()
         series = await tracking.loadLevelSeries(repo: repo, metrics: [.restingHr, .sleepHeartRate, .vo2max, .bodyFat,
-                                                                      .leanMass, .waist])
+                                                                      .leanMass, .waist, .sleepConsistency])
         let weights = await repo.weightDailyValues(days: GoalMeasure.weightWindowDays)
         // The last weigh-in, the same number the goal page will show as its start: a trend lags the scale.
         currentWeight = weights.last { GoalMeasure.isPlausible($0.value, cfg: GoalMeasure.weightTrend) }?.value
@@ -123,8 +123,10 @@ struct LongTermGoalSetupView: View {
         template = item
         sportIndex = 0
         suggest()
-        target = AgeLessGoalLink.target(prefill, goalCurrent: currentLevel, step: levelStep.step,
-                                        range: levelStep.range)
+        let rhythm = item.shape == .consistency
+        target = AgeLessGoalLink.target(prefill, goalCurrent: rhythm ? recentAgeLessPerWeek : currentLevel,
+                                        step: rhythm ? perWeekStep.step : levelStep.step,
+                                        range: rhythm ? perWeekStep.range : levelStep.range)
         suggestWeekly()
         step = .value
     }
@@ -214,6 +216,10 @@ struct LongTermGoalSetupView: View {
                 }
             }
             return values.count >= 7 ? values.reduce(0, +) / Double(values.count) : nil
+        case .sleepConsistency:
+            let from = calendar.date(byAdding: .day, value: -28, to: now) ?? now
+            let values = (series[.sleepConsistency] ?? []).filter { $0.date >= from }.map(\.value)
+            return values.count >= 7 ? values.reduce(0, +) / Double(values.count) : nil
         case .paceAverage:
             let runs = matchingRows().compactMap { row -> LongTermGoalMath.RunSample? in
                 guard let meters = row.distanceM, meters > 0 else { return nil }
@@ -239,6 +245,7 @@ struct LongTermGoalSetupView: View {
         case .vo2max?: return (0.5, 15...90)
         case .restingHr?, .sleepHeartRate?: return (1, 30...110)
         case .stepsAverage?: return (500, 1_000...40_000)
+        case .sleepConsistency?: return (1, 30...100)
         case .sleepAverage?: return (0.25, 5...10)
         case .hrvAverage?: return (1, 10...250)
         case .recoveryAverage?: return (1, 10...99)
@@ -260,6 +267,7 @@ struct LongTermGoalSetupView: View {
         case .vo2max: return round(current + 2, 0.5)
         case .restingHr, .sleepHeartRate: return round(current - 3, 1)
         case .stepsAverage: return max(1_000, round(current + 1_000, 500))
+        case .sleepConsistency: return min(100, round(current + 10, 1))
         case .sleepAverage: return min(10, max(7.5, ((current + 0.25) * 4).rounded(.up) / 4))
         case .hrvAverage: return (current * 1.05).rounded()
         case .recoveryAverage: return min(99, (current + 5).rounded())
@@ -310,6 +318,25 @@ struct LongTermGoalSetupView: View {
         suggestWeekly()
     }
 
+    /// The last four weeks' weekly amount of an AgeLess activity measure: strength minutes from the sessions
+    /// AgeLess counts, moderate and vigorous minutes from what AgeLess banked. Nil without the data.
+    private var recentAgeLessPerWeek: Double? {
+        let from = calendar.date(byAdding: .weekOfYear, value: -4, to: weekStart) ?? weekStart
+        let fromKey = Repository.localDayKey(from), toKey = Repository.localDayKey(weekStart)
+        switch weeklyMetric {
+        case .strengthMinutes?:
+            return inputs.workouts.filter {
+                let date = Date(timeIntervalSince1970: Double($0.startTs))
+                return date >= from && date < weekStart && HealthspanWindow.countsAsStrength(storedName: $0.sport)
+            }.compactMap { PeriodGoalTracker.workoutAmount(.strengthMinutes, $0) }.reduce(0, +) / 4
+        case .moderateMinutes?, .vigorousMinutes?:
+            let byDay = weeklyMetric == .moderateMinutes ? inputs.agelessModerateByDay : inputs.agelessVigorousByDay
+            return byDay.map { $0.filter { $0.key >= fromKey && $0.key < toKey }.values.reduce(0, +) / 4 }
+        default:
+            return nil
+        }
+    }
+
     /// The suggested weekly amount for a consistency template: the wearer's own level where one exists.
     private func suggestedPerWeek() -> Double {
         switch weeklyMetric {
@@ -319,6 +346,12 @@ struct LongTermGoalSetupView: View {
             let sets = (inputs.setsByDay ?? [:]).filter { $0.key >= from }.values.reduce(0, +) / 4
             return sets > 0 ? max(5, (sets / 5).rounded() * 5) : 40
         case .zoneMinutes?: return 150
+        case .strengthMinutes?, .moderateMinutes?, .vigorousMinutes?:
+            // The wearer's last four weeks, one step up; AgeLess's own target without history.
+            guard let metric = weeklyMetric else { return 5 }
+            let step = metric.step(for: .week)
+            guard let recent = recentAgeLessPerWeek, recent > 0 else { return metric.defaultTarget(for: .week) }
+            return min(metric.range(for: .week).upperBound, ((recent / step).rounded() + 1) * step)
         case .activeEnergy?:
             let from = Repository.localDayKey(calendar.date(byAdding: .weekOfYear, value: -4, to: weekStart) ?? weekStart)
             let kcal = inputs.activeKcalByDay.filter { $0.key >= from }.values.reduce(0, +) / 4
@@ -841,6 +874,9 @@ struct LongTermGoalSetupView: View {
         case .zoneMinutes?: return (10, 30...1_200)
         case .activeEnergy?: return (100, 500...30_000)
         case .restDays?: return (1, 1...5)
+        case .strengthMinutes?, .moderateMinutes?, .vigorousMinutes?:
+            let metric = weeklyMetric ?? .strengthMinutes
+            return (metric.step(for: .week), metric.range(for: .week))
         default: return (1, 1...7)
         }
     }
@@ -902,6 +938,8 @@ struct LongTermGoalSetupView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     if let weekly = template.id.weeklyMetric {
                         factLine(String(localized: "This goal is measured by its weekly goal: \(LongTermFormat.perWeek(target, weekly)). Each week you keep counts."))
+                    } else if template.id == .sleepConsistency {
+                        factLine(String(localized: "Regularity is judged night by night against the four nights before, so this goal needs no weekly goal."))
                     } else {
                         Toggle("Add a weekly goal", isOn: $weeklyOn)
                         if weeklyOn { weeklyControls(template) }

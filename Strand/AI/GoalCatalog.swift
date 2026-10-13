@@ -101,6 +101,9 @@ enum GoalCatalog {
         .init(id: .trainingWeekly, area: .training, title: "Train regularly",
               blurb: "A number of sessions every week, kept up over months.",
               icon: "calendar.badge.checkmark", sportChoices: training, inWalkthrough: true),
+        .init(id: .strengthMinutesWeekly, area: .training, title: "Strength activity every week",
+              blurb: "Minutes of strength training, yoga, pilates and HIIT each week.",
+              icon: "figure.strengthtraining.traditional", sportChoices: [], inWalkthrough: true),
         .init(id: .setsWeekly, area: .training, title: "Working sets per week",
               blurb: "Training volume from your lifting log.",
               icon: "square.3.layers.3d", sportChoices: [], inWalkthrough: true),
@@ -116,6 +119,12 @@ enum GoalCatalog {
         .init(id: .hrvAverage, area: .fitness, title: "Raise HRV",
               blurb: "Your average heart-rate variability over four weeks.",
               icon: "waveform.path.ecg", sportChoices: [], inWalkthrough: true),
+        .init(id: .moderateWeekly, area: .fitness, title: "Moderate activity every week",
+              blurb: "Minutes at 40 to 80 % of your heart-rate reserve, as AgeLess measures them.",
+              icon: "figure.walk", sportChoices: [], inWalkthrough: true),
+        .init(id: .vigorousWeekly, area: .fitness, title: "Vigorous activity every week",
+              blurb: "Minutes from 80 % of your heart-rate reserve, as AgeLess measures them.",
+              icon: "figure.run", sportChoices: [], inWalkthrough: true),
         .init(id: .zoneWeekly, area: .fitness, title: "Zone minutes every week",
               blurb: "Minutes in zone 2 and above, like the WHO's 150.",
               icon: "heart.circle", sportChoices: [], inWalkthrough: true),
@@ -155,6 +164,9 @@ enum GoalCatalog {
         .init(id: .sleepAverage, area: .sleep, title: "Sleep longer",
               blurb: "Your average sleep over four weeks.",
               icon: "bed.double.fill", sportChoices: [], inWalkthrough: true),
+        .init(id: .sleepConsistency, area: .sleep, title: "Sleep more regularly",
+              blurb: "Your sleep consistency over four weeks: asleep and awake at the same times.",
+              icon: "clock.arrow.circlepath", sportChoices: [], inWalkthrough: true),
         .init(id: .sleepNightsWeekly, area: .sleep, title: "Nights of enough sleep",
               blurb: "A number of long enough nights each week.",
               icon: "moon.stars.fill", sportChoices: [], inWalkthrough: true),
@@ -213,6 +225,9 @@ enum GoalCatalog {
             return inputs.stepsByDay.isEmpty ? .unavailable("Needs step data") : .available
         case .stepsAverage:
             return inputs.days.contains { ($0.steps ?? 0) > 0 } ? .available : .unavailable("Needs step data")
+        case .sleepConsistency:
+            return (series[.sleepConsistency] ?? []).isEmpty
+                ? .unavailable("Needs five nights in a row recorded by your strap") : .available
         case .sleepHeartRate:
             return (series[.sleepHeartRate] ?? []).isEmpty ? .unavailable("Needs nights recorded by your strap") : .available
         case .sleepAverage:

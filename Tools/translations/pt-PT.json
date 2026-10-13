@@ -2962,5 +2962,22 @@
   "More steps a day": "Mais passos por dia",
   "Your average daily steps over four weeks.": "Os teus passos diários médios em quatro semanas.",
   "Your aerobic fitness: a value you entered, Apple Watch, or estimated from your walks and runs.": "A tua forma aeróbica: um valor introduzido, o Apple Watch ou uma estimativa das tuas caminhadas e corridas.",
-  "Worth about %@ years in AgeLess": "Cerca de %@ anos segundo o AgeLess"
+  "Worth about %@ years in AgeLess": "Cerca de %@ anos segundo o AgeLess",
+  "75 to 150 minutes of vigorous activity a week": "75 a 150 minutos de atividade vigorosa por semana",
+  "Minutes at 40 to 80 % of your heart-rate reserve, as AgeLess measures them.": "Minutos entre 40 e 80 % da tua reserva cardíaca, como o AgeLess os mede.",
+  "Minutes at a high heart rate, as AgeLess measures them.": "Minutos com frequência cardíaca alta, como o AgeLess os mede.",
+  "Minutes at a moderate heart rate, as AgeLess measures them.": "Minutos com frequência cardíaca moderada, como o AgeLess os mede.",
+  "Minutes from 80 % of your heart-rate reserve, as AgeLess measures them.": "Minutos a partir de 80 % da tua reserva cardíaca, como o AgeLess os mede.",
+  "Minutes of strength training, yoga, pilates and HIIT each week.": "Minutos de força, ioga, pilates e HIIT por semana.",
+  "Minutes of strength training, yoga, pilates and HIIT.": "Minutos de força, ioga, pilates e HIIT.",
+  "Moderate activity every week": "Atividade moderada todas as semanas",
+  "Needs AgeLess": "Requer o AgeLess",
+  "Needs five nights in a row recorded by your strap": "Requer cinco noites seguidas registadas pela banda",
+  "Not a strength activity": "Não é uma atividade de força",
+  "Regularity is judged night by night against the four nights before, so this goal needs no weekly goal.": "A regularidade é avaliada noite a noite face às quatro anteriores, por isso este objetivo não precisa de objetivo semanal.",
+  "Sleep more regularly": "Dormir com mais regularidade",
+  "Strength activity every week": "Força todas as semanas",
+  "Strength minutes": "Minutos de força",
+  "Vigorous activity every week": "Atividade vigorosa todas as semanas",
+  "Your sleep consistency over four weeks: asleep and awake at the same times.": "A tua regularidade do sono em quatro semanas: dormir e acordar às mesmas horas."
 }

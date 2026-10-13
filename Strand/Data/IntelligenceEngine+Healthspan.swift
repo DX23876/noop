@@ -222,22 +222,10 @@ extension IntelligenceEngine {
         let sessions = try await store.sleepSessions(deviceId: computedId, from: fromTs - 5 * 86_400,
                                                      to: toTs, limit: 100_000)
             .map { SleepTimingConsistency.Interval(start: $0.effectiveStartTs, end: $0.endTs) }
-        var mainByDay: [String: SleepTimingConsistency.Interval] = [:]
-        for s in sessions where s.end >= fromTs && s.end < toTs {
-            let day = AnalyticsEngine.dayString(s.end, offsetSec: tzOffset)
-            if let m = mainByDay[day], m.end - m.start >= s.end - s.start { continue }
-            mainByDay[day] = s
+        let consistency = SleepTimingConsistency.scoresByDay(sessions: sessions, from: fromTs, to: toTs) {
+            AnalyticsEngine.dayString($0, offsetSec: tzOffset)
         }
-        for (day, main) in mainByDay {
-            // An unrecorded day would read as awake all day; score only nights with all four prior nights.
-            guard (1...SleepTimingConsistency.priorDays).allSatisfy({
-                mainByDay[HealthspanWindow.dayKey(day, plus: -$0)] != nil
-            }) else { continue }
-            let near = sessions.filter { $0.end > main.end - 5 * 86_400 && $0.start < main.end }
-            if let c = SleepTimingConsistency.score(sleeps: near, wakeAt: main.end) {
-                edit(day) { $0.sleepConsistencyPct = c }
-            }
-        }
+        for (day, c) in consistency { edit(day) { $0.sleepConsistencyPct = c } }
 
         // Strength minutes and sessions by local start day; overlapping rows from several sources count once.
         var strengthByDay: [String: Double] = [:]

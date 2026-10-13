@@ -88,7 +88,8 @@ struct PeriodGoalSetupView: View {
         let now = Date()
         let calendar = TrainingPreferences.weekCalendar
         let order: [PeriodMetric] = [.workouts, .stepDays, .sleepNights, .trainingMinutes, .distance, .workingSets,
-                                     .sleepAverage, .zoneMinutes, .restDays, .activeEnergy, .hydrationDays]
+                                     .sleepAverage, .zoneMinutes, .restDays, .activeEnergy, .hydrationDays,
+                                     .strengthMinutes, .moderateMinutes, .vigorousMinutes]
         let items: [Suggestion] = order.compactMap { metric in
             guard PeriodGoalTracker.availability(metric, inputs: effectiveInputs, now: now, calendar: calendar)
                     == .available else { return nil }

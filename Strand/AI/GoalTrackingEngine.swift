@@ -699,6 +699,16 @@ final class GoalTrackingStore: ObservableObject {
         if full || open.contains(where: { $0.metric == .habitDays }) {
             inputs.journal = await repo.journalEntries(days: 400)
         }
+        // AgeLess's banked activity minutes, read whenever AgeLess is on: their presence is what makes the
+        // two metrics available, and the same per-day values feed the AgeLess measures.
+        if HealthspanFeature.isEnabled {
+            func byDay(_ key: String) async -> [String: Double] {
+                Dictionary(await repo.exploreSeries(key: key, source: Repository.whoopSource, days: 400)
+                    .map { ($0.day, $0.value) }, uniquingKeysWith: { _, b in b })
+            }
+            inputs.agelessModerateByDay = await byDay(IntelligenceEngine.healthspanZone13Key)
+            inputs.agelessVigorousByDay = await byDay(IntelligenceEngine.healthspanZone45Key)
+        }
         return inputs
     }
 
@@ -722,6 +732,18 @@ final class GoalTrackingStore: ObservableObject {
         if metrics.contains(.sleepHeartRate) {
             out[.sleepHeartRate] = samples(await repo.exploreSeries(key: "rhr_primary_session",
                                                                      source: Repository.whoopSource, days: 400))
+        }
+        if metrics.contains(.sleepConsistency) {
+            // The nightly score AgeLess averages, from the same computed sleep sessions and the same function.
+            let now = Date()
+            let to = Int(now.timeIntervalSince1970) + 86_400, from = to - 70 * 86_400
+            let offset = TimeZone.current.secondsFromGMT()
+            let sessions = await repo.computedSleepSessions(from: from - 5 * 86_400, to: to, limit: 1_000)
+                .map { SleepTimingConsistency.Interval(start: $0.effectiveStartTs, end: $0.endTs) }
+            let scores = SleepTimingConsistency.scoresByDay(sessions: sessions, from: from, to: to) {
+                AnalyticsEngine.dayString($0, offsetSec: offset)
+            }
+            out[.sleepConsistency] = samples(scores.map { (day: $0.key, value: $0.value) }.sorted { $0.day < $1.day })
         }
         if metrics.contains(.vo2max) {
             let vo2 = await repo.agelessVO2Inputs(days: 400)

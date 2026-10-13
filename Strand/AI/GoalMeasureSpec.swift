@@ -29,13 +29,16 @@ enum LongTermMetric: String, Codable, CaseIterable {
     /// AgeLess's own measures (plan HEALTHSPAN_AGE_PLAN, stage 2): mean daily steps, and the whole-sleep mean
     /// heart rate (`rhr_primary_session`), which is not the app's resting heart rate.
     case stepsAverage, sleepHeartRate
+    /// Sleep consistency by timing (`SleepTimingConsistency`), the nightly score AgeLess averages (stage 3).
+    case sleepConsistency
 
     /// The shape before the maintain variant, which `GoalMeasureSpec.shape` adds from its band.
     var baseShape: GoalShape {
         switch self {
         case .distanceTotal, .minutesTotal, .workoutsTotal, .stepsTotal: return .sum
         case .longestDistance: return .best
-        case .paceAverage, .hrvAverage, .sleepAverage, .recoveryAverage, .stepsAverage: return .average
+        case .paceAverage, .hrvAverage, .sleepAverage, .recoveryAverage, .stepsAverage, .sleepConsistency:
+            return .average
         case .weight, .bodyFat, .leanMass, .waist, .vo2max, .restingHr, .sleepHeartRate: return .target
         case .weeklyAdherence: return .consistency
         }
@@ -150,6 +153,10 @@ enum GoalTemplateID: String, CaseIterable {
     case leanMass = "body.leanMass"
     case waist = "body.waist"
     case sleepAverage = "sleep.average"
+    case sleepConsistency = "sleep.consistency"
+    case strengthMinutesWeekly = "strength.minutesWeekly"
+    case moderateWeekly = "fitness.moderateWeekly"
+    case vigorousWeekly = "fitness.vigorousWeekly"
     case sleepNightsWeekly = "sleep.nightsWeekly"
     case recoveryAverage = "recovery.average"
     case restDays = "recovery.restDays"
@@ -163,12 +170,14 @@ enum GoalTemplateID: String, CaseIterable {
         case .event, .paceAverage: return .run
         case .trainingWeekly: return .consistency
         case .setsWeekly: return .hardSets
-        case .vo2max, .restingHr, .sleepHeartRate, .hrvAverage, .zoneWeekly: return .fitness
+        case .vo2max, .restingHr, .sleepHeartRate, .hrvAverage, .zoneWeekly, .moderateWeekly, .vigorousWeekly:
+            return .fitness
+        case .strengthMinutesWeekly: return .strength
         case .stepDays, .stepsTotal, .stepsAverage, .activeEnergyWeekly, .trainingDays: return .activity
         // All three stay `.weight` so `GoalSafetyGate` judges their rate.
         case .weightLose, .weightGain, .weightMaintain: return .weight
         case .bodyFat, .leanMass, .waist: return .body
-        case .sleepAverage, .sleepNightsWeekly: return .sleep
+        case .sleepAverage, .sleepNightsWeekly, .sleepConsistency: return .sleep
         case .recoveryAverage, .restDays: return .recovery
         case .hydration, .journalHabit: return .habit
         }
@@ -183,6 +192,7 @@ enum GoalTemplateID: String, CaseIterable {
         case .stepsTotal: return .stepsTotal
         case .stepsAverage: return .stepsAverage
         case .sleepHeartRate: return .sleepHeartRate
+        case .sleepConsistency: return .sleepConsistency
         case .longest, .event: return .longestDistance
         case .paceAverage: return .paceAverage
         case .hrvAverage: return .hrvAverage
@@ -195,7 +205,8 @@ enum GoalTemplateID: String, CaseIterable {
         case .leanMass: return .leanMass
         case .waist: return .waist
         case .trainingWeekly, .setsWeekly, .zoneWeekly, .stepDays, .activeEnergyWeekly, .trainingDays,
-             .sleepNightsWeekly, .restDays, .hydration, .journalHabit:
+             .sleepNightsWeekly, .restDays, .hydration, .journalHabit, .strengthMinutesWeekly, .moderateWeekly,
+             .vigorousWeekly:
             return .weeklyAdherence
         }
     }
@@ -213,6 +224,9 @@ enum GoalTemplateID: String, CaseIterable {
         case .restDays: return .restDays
         case .hydration: return .hydrationDays
         case .journalHabit: return .habitDays
+        case .strengthMinutesWeekly: return .strengthMinutes
+        case .moderateWeekly: return .moderateMinutes
+        case .vigorousWeekly: return .vigorousMinutes
         default: return nil
         }
     }

@@ -419,8 +419,10 @@ struct PeriodGoalDetailView: View {
         switch goal.metric {
         case .workouts:
             return "\(date) · \(item.title)"
-        case .trainingMinutes, .distance, .zoneMinutes:
+        case .trainingMinutes, .distance, .zoneMinutes, .strengthMinutes:
             return "\(date) · \(item.title) · \(GoalFormat.amount(item.value, goal.metric))"
+        case .moderateMinutes, .vigorousMinutes:
+            return "\(date) · \(GoalFormat.amount(item.value, goal.metric))"
         case .stepDays:
             return "\(date) · \(Int(item.value).formatted()) \(String(localized: "steps"))"
         case .sleepNights, .sleepAverage:

@@ -50,4 +50,26 @@ public enum SleepTimingConsistency {
         let agreement = agreementSum / Double(priorDays)
         return max(0, 200 * agreement - 100)
     }
+
+    /// The score of every night whose main sleep ends in `from ..< to`, keyed by the local day it ends on
+    /// (`dayOf`). The longest session ending on a day is its main sleep; naps count in the comparison. Only
+    /// nights with all `priorDays` nights before them recorded are scored, since an unrecorded day would read
+    /// as awake all day. `sessions` should reach five days before `from`. AgeLess and the sleep-consistency
+    /// goal both read this, so the two cannot score a night differently.
+    public static func scoresByDay(sessions: [Interval], from: Int, to: Int,
+                                   dayOf: (Int) -> String) -> [String: Double] {
+        var mainByDay: [String: Interval] = [:]
+        for s in sessions where s.end >= from && s.end < to {
+            let day = dayOf(s.end)
+            if let m = mainByDay[day], m.end - m.start >= s.end - s.start { continue }
+            mainByDay[day] = s
+        }
+        var out: [String: Double] = [:]
+        for (day, main) in mainByDay {
+            guard (1...priorDays).allSatisfy({ mainByDay[HealthspanWindow.dayKey(day, plus: -$0)] != nil }) else { continue }
+            let near = sessions.filter { $0.end > main.end - 5 * 86_400 && $0.start < main.end }
+            if let c = score(sleeps: near, wakeAt: main.end) { out[day] = c }
+        }
+        return out
+    }
 }

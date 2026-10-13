@@ -54,4 +54,26 @@ final class SleepTimingConsistencyTests: XCTestCase {
         let wake = 100 * day + 7 * hour
         XCTAssertNil(SleepTimingConsistency.score(sleeps: nightly(3, lastWake: wake - 2 * day), wakeAt: wake))
     }
+
+    /// Every night ending in the range is scored from its fifth recorded night on; a nap does not become the
+    /// main sleep, and a gap night resets the four-night lead-in.
+    func testScoresByDayNeedsFourPriorNights() {
+        let day0 = 1_790_000_000 - 1_790_000_000 % 86_400   // a UTC midnight
+        func night(_ i: Int) -> SleepTimingConsistency.Interval {
+            .init(start: day0 + i * 86_400 - 3_600, end: day0 + i * 86_400 + 6 * 3_600)
+        }
+        let nap = SleepTimingConsistency.Interval(start: day0 + 6 * 86_400 + 14 * 3_600,
+                                                  end: day0 + 6 * 86_400 + 14 * 3_600 + 1_200)
+        var sessions = (0..<10).filter { $0 != 8 }.map(night) + [nap]
+        sessions.sort { $0.start < $1.start }
+        let fmt = DateFormatter()
+        fmt.locale = Locale(identifier: "en_US_POSIX"); fmt.timeZone = TimeZone(identifier: "UTC")
+        fmt.dateFormat = "yyyy-MM-dd"
+        func key(_ ts: Int) -> String { fmt.string(from: Date(timeIntervalSince1970: Double(ts))) }
+        let scores = SleepTimingConsistency.scoresByDay(sessions: sessions, from: day0, to: day0 + 10 * 86_400,
+                                                        dayOf: key)
+        XCTAssertEqual(Set(scores.keys), Set([4, 5, 6, 7].map { key(day0 + $0 * 86_400) }))
+        XCTAssertEqual(scores[key(day0 + 4 * 86_400)] ?? 0, 100, accuracy: 1e-9)
+        XCTAssertLessThan(scores[key(day0 + 7 * 86_400)] ?? 100, 100, "the afternoon nap falls in the next night's 24 h")
+    }
 }

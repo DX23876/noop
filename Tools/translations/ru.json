@@ -2940,5 +2940,22 @@
   "More steps a day": "Больше шагов в день",
   "Your average daily steps over four weeks.": "Среднее число шагов в день за четыре недели.",
   "Your aerobic fitness: a value you entered, Apple Watch, or estimated from your walks and runs.": "Аэробная форма: введённое значение, Apple Watch или оценка по прогулкам и пробежкам.",
-  "Worth about %@ years in AgeLess": "По AgeLess примерно %@ г."
+  "Worth about %@ years in AgeLess": "По AgeLess примерно %@ г.",
+  "75 to 150 minutes of vigorous activity a week": "75–150 минут интенсивной нагрузки в неделю",
+  "Minutes at 40 to 80 % of your heart-rate reserve, as AgeLess measures them.": "Минуты при 40–80 % резерва пульса, как их считает AgeLess.",
+  "Minutes at a high heart rate, as AgeLess measures them.": "Минуты с высоким пульсом, как их считает AgeLess.",
+  "Minutes at a moderate heart rate, as AgeLess measures them.": "Минуты с умеренным пульсом, как их считает AgeLess.",
+  "Minutes from 80 % of your heart-rate reserve, as AgeLess measures them.": "Минуты от 80 % резерва пульса, как их считает AgeLess.",
+  "Minutes of strength training, yoga, pilates and HIIT each week.": "Минуты силовых, йоги, пилатеса и HIIT в неделю.",
+  "Minutes of strength training, yoga, pilates and HIIT.": "Минуты силовых, йоги, пилатеса и HIIT.",
+  "Moderate activity every week": "Умеренная нагрузка каждую неделю",
+  "Needs AgeLess": "Нужен AgeLess",
+  "Needs five nights in a row recorded by your strap": "Нужны пять ночей подряд, записанных браслетом",
+  "Not a strength activity": "Не силовая тренировка",
+  "Regularity is judged night by night against the four nights before, so this goal needs no weekly goal.": "Регулярность оценивается каждую ночь по четырём предыдущим, поэтому этой цели не нужна недельная цель.",
+  "Sleep more regularly": "Спать регулярнее",
+  "Strength activity every week": "Силовые каждую неделю",
+  "Strength minutes": "Минуты силовых",
+  "Vigorous activity every week": "Интенсивная нагрузка каждую неделю",
+  "Your sleep consistency over four weeks: asleep and awake at the same times.": "Регулярность сна за четыре недели: спать и бодрствовать в одно и то же время."
 }

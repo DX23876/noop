@@ -2964,5 +2964,22 @@
   "More steps a day": "Plus de pas par jour",
   "Your average daily steps over four weeks.": "Ta moyenne de pas par jour sur quatre semaines.",
   "Your aerobic fitness: a value you entered, Apple Watch, or estimated from your walks and runs.": "Ta forme aérobie : une valeur saisie, l'Apple Watch ou une estimation d'après tes marches et courses.",
-  "Worth about %@ years in AgeLess": "Environ %@ ans selon AgeLess"
+  "Worth about %@ years in AgeLess": "Environ %@ ans selon AgeLess",
+  "75 to 150 minutes of vigorous activity a week": "75 à 150 minutes d'activité intense par semaine",
+  "Minutes at 40 to 80 % of your heart-rate reserve, as AgeLess measures them.": "Minutes entre 40 et 80 % de ta réserve cardiaque, telles qu'AgeLess les mesure.",
+  "Minutes at a high heart rate, as AgeLess measures them.": "Minutes à fréquence cardiaque élevée, telles qu'AgeLess les mesure.",
+  "Minutes at a moderate heart rate, as AgeLess measures them.": "Minutes à fréquence cardiaque modérée, telles qu'AgeLess les mesure.",
+  "Minutes from 80 % of your heart-rate reserve, as AgeLess measures them.": "Minutes à partir de 80 % de ta réserve cardiaque, telles qu'AgeLess les mesure.",
+  "Minutes of strength training, yoga, pilates and HIIT each week.": "Minutes de renforcement, yoga, pilates et HIIT chaque semaine.",
+  "Minutes of strength training, yoga, pilates and HIIT.": "Minutes de renforcement, yoga, pilates et HIIT.",
+  "Moderate activity every week": "Activité modérée chaque semaine",
+  "Needs AgeLess": "Nécessite AgeLess",
+  "Needs five nights in a row recorded by your strap": "Nécessite cinq nuits d'affilée enregistrées par ton bracelet",
+  "Not a strength activity": "Pas une activité de renforcement",
+  "Regularity is judged night by night against the four nights before, so this goal needs no weekly goal.": "La régularité est jugée nuit après nuit par rapport aux quatre précédentes, donc cet objectif n'a pas besoin d'objectif hebdomadaire.",
+  "Sleep more regularly": "Dormir plus régulièrement",
+  "Strength activity every week": "Renforcement chaque semaine",
+  "Strength minutes": "Minutes de renforcement",
+  "Vigorous activity every week": "Activité intense chaque semaine",
+  "Your sleep consistency over four weeks: asleep and awake at the same times.": "Ta régularité de sommeil sur quatre semaines : dormir et être éveillé aux mêmes heures."
 }

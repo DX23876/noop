@@ -26,7 +26,7 @@ enum LongTermFormat {
             return hoursAndMinutes(value)
         case .hrvAverage:
             return String(localized: "\(Int(value.rounded())) ms")
-        case .recoveryAverage:
+        case .recoveryAverage, .sleepConsistency:
             return String(localized: "\(Int(value.rounded())) %")
         case .vo2max:
             return value.formatted(.number.precision(.fractionLength(1)))
@@ -73,7 +73,8 @@ enum LongTermFormat {
         let n = number(value)
         switch metric {
         case .workouts: return String(localized: "\(n)× / week")
-        case .trainingMinutes, .zoneMinutes: return String(localized: "\(n) min / week")
+        case .trainingMinutes, .zoneMinutes, .strengthMinutes, .moderateMinutes, .vigorousMinutes:
+            return String(localized: "\(n) min / week")
         case .distance: return String(localized: "\(n) km / week")
         case .workingSets: return String(localized: "\(n) sets / week")
         case .activeEnergy: return String(localized: "\(n) kcal / week")

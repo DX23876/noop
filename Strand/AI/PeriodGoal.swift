@@ -17,13 +17,18 @@ enum PeriodMetric: String, Codable, CaseIterable, Identifiable {
     case restDays          // days without a workout
     case hydrationDays     // days the drinking goal was reached
     case habitDays         // days a journal habit was kept
+    // AgeLess's activity measures (plan HEALTHSPAN_AGE_PLAN, stage 3), measured the way AgeLess measures them.
+    case strengthMinutes   // minutes of strength-type activities, yoga, pilates and HIIT included
+    case moderateMinutes   // minutes at 40–80 % of the heart-rate reserve, banked by AgeLess
+    case vigorousMinutes   // minutes from 80 % of the heart-rate reserve, banked by AgeLess
 
     var id: String { rawValue }
 
     var aggregation: PeriodAggregation {
         switch self {
         case .workouts: return .count
-        case .trainingMinutes, .distance, .zoneMinutes, .workingSets, .activeEnergy: return .sum
+        case .trainingMinutes, .distance, .zoneMinutes, .workingSets, .activeEnergy,
+             .strengthMinutes, .moderateMinutes, .vigorousMinutes: return .sum
         case .stepDays, .sleepNights, .restDays, .hydrationDays, .habitDays: return .hitDays
         case .sleepAverage: return .average
         }
@@ -44,6 +49,9 @@ enum PeriodMetric: String, Codable, CaseIterable, Identifiable {
         case .restDays:        return "Rest days"
         case .hydrationDays:   return "Hydration days"
         case .habitDays:       return "Habit days"
+        case .strengthMinutes: return "Strength minutes"
+        case .moderateMinutes: return "Moderate activity"
+        case .vigorousMinutes: return "Vigorous activity"
         }
     }
 
@@ -62,6 +70,9 @@ enum PeriodMetric: String, Codable, CaseIterable, Identifiable {
         case .restDays:        return "Days you give your body off."
         case .hydrationDays:   return "Days you reach your drinking goal."
         case .habitDays:       return "Days you keep a journal habit."
+        case .strengthMinutes: return "Minutes of strength training, yoga, pilates and HIIT."
+        case .moderateMinutes: return "Minutes at a moderate heart rate, as AgeLess measures them."
+        case .vigorousMinutes: return "Minutes at a high heart rate, as AgeLess measures them."
         }
     }
 
@@ -79,6 +90,9 @@ enum PeriodMetric: String, Codable, CaseIterable, Identifiable {
         case .restDays:        return "leaf.fill"
         case .hydrationDays:   return "drop.fill"
         case .habitDays:       return "checklist"
+        case .strengthMinutes: return "figure.strengthtraining.traditional"
+        case .moderateMinutes: return "figure.walk"
+        case .vigorousMinutes: return "figure.run"
         }
     }
 
@@ -95,16 +109,22 @@ enum PeriodMetric: String, Codable, CaseIterable, Identifiable {
         case .workingSets:                     return "coach.goal.strength"
         case .restDays:                        return "goal.restDays"
         case .habitDays:                       return "coach.goal.custom"
+        case .strengthMinutes:                 return "coach.goal.strength"
+        case .moderateMinutes, .vigorousMinutes: return "goal.zoneMinutes"
         }
     }
 
     /// Training goals share their pace only over training days; the central rest days apply to them.
     var usesRestDays: Bool {
         switch self {
-        case .workouts, .trainingMinutes, .distance, .zoneMinutes, .workingSets: return true
+        case .workouts, .trainingMinutes, .distance, .zoneMinutes, .workingSets,
+             .strengthMinutes, .moderateMinutes, .vigorousMinutes: return true
         default: return false
         }
     }
+
+    /// Read from minutes AgeLess banks while it is on; with AgeLess off the goal has nothing to read.
+    var needsAgeLess: Bool { self == .moderateMinutes || self == .vigorousMinutes }
 
     /// Whether the goal carries a per-day threshold (steps, hours) rather than only a target.
     var hasThreshold: Bool { self == .stepDays || self == .sleepNights }
@@ -115,7 +135,7 @@ enum PeriodMetric: String, Codable, CaseIterable, Identifiable {
     /// Whether the goal is fed by individual workouts (and so has "what counted" with corrections).
     var isWorkoutBased: Bool {
         switch self {
-        case .workouts, .trainingMinutes, .distance, .zoneMinutes: return true
+        case .workouts, .trainingMinutes, .distance, .zoneMinutes, .strengthMinutes: return true
         default: return false
         }
     }
@@ -124,7 +144,8 @@ enum PeriodMetric: String, Codable, CaseIterable, Identifiable {
     func step(for period: PeriodGoal.Period) -> Double {
         switch self {
         case .workouts, .stepDays, .sleepNights, .restDays, .hydrationDays, .habitDays: return 1
-        case .trainingMinutes, .zoneMinutes: return period == .week ? 15 : 30
+        case .trainingMinutes, .zoneMinutes, .strengthMinutes, .moderateMinutes: return period == .week ? 15 : 30
+        case .vigorousMinutes: return period == .week ? 5 : 15
         case .distance:        return period == .week ? 1 : 5
         case .sleepAverage:    return 0.25
         case .workingSets:     return 5
@@ -142,6 +163,8 @@ enum PeriodMetric: String, Codable, CaseIterable, Identifiable {
             return 1...Double(month ? 31 : 7)
         case .sleepAverage:    return 5...10
         case .zoneMinutes:     return 15...(month ? 6000 : 1500)
+        case .strengthMinutes, .moderateMinutes: return 15...(month ? 6000 : 1500)
+        case .vigorousMinutes: return 5...(month ? 2000 : 500)
         case .workingSets:     return 5...(month ? 1000 : 250)
         case .activeEnergy:    return 250...(month ? 60000 : 15000)
         }
@@ -163,6 +186,10 @@ enum PeriodMetric: String, Codable, CaseIterable, Identifiable {
         case .restDays:        week = 2
         case .hydrationDays:   week = 5
         case .habitDays:       week = 5
+        // AgeLess's own targets for a younger adult (`HealthspanEngine.target`).
+        case .strengthMinutes: week = 40
+        case .moderateMinutes: week = 100
+        case .vigorousMinutes: week = 10
         }
         guard period == .month else { return week }
         switch aggregation {
@@ -192,7 +219,7 @@ enum PeriodMetric: String, Codable, CaseIterable, Identifiable {
     /// An accepted guideline worth showing beside the personal recommendation, or nil.
     func guideline(for period: PeriodGoal.Period) -> (text: String, source: String)? {
         switch self {
-        case .trainingMinutes, .zoneMinutes:
+        case .trainingMinutes, .zoneMinutes, .moderateMinutes:
             return period == .week
                 ? ("150 to 300 minutes of moderate activity a week", "WHO")
                 : ("About 650 to 1,300 minutes of moderate activity a month", "WHO")
@@ -202,6 +229,8 @@ enum PeriodMetric: String, Codable, CaseIterable, Identifiable {
             return ("About 10 working sets per muscle group a week", "Schoenfeld 2017")
         case .stepDays:
             return ("Around 7,000 to 10,000 steps a day", "Paluch 2022")
+        case .vigorousMinutes:
+            return period == .week ? ("75 to 150 minutes of vigorous activity a week", "WHO") : nil
         default:
             return nil
         }

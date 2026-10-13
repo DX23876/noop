@@ -327,6 +327,18 @@ Analysis migration required: yes (AI-22). The AgeLess weeks and AI-21's banked t
 deleted (`deleteHealthspanWeeks`) and the next pass rebuilds them; zone minutes are kept. No daily row is
 re-scored.
 
+### 2026-10-13 — Every AgeLess measure has a goal
+
+Stage 3 of the AgeLess plan: the four measures without a goal get one, measured exactly as AgeLess measures
+them. **Sleep more regularly** averages the nightly timing score over 28 days; the score now comes from one
+function (`SleepTimingConsistency.scoresByDay`) that the AgeLess pass and the goal both call. **Strength
+activity every week** counts the sessions AgeLess counts as strength (yoga, pilates, HIIT included).
+**Moderate** and **Vigorous activity every week** read the minutes AgeLess banks at 40–80 % and from 80 % of the
+heart-rate reserve; without AgeLess nothing banks them, so they are greyed "Needs AgeLess" and an open one
+rests (counts as protected) rather than missing weeks. The older "Zone minutes" goal (zones of maximum heart
+rate) stays beside them. Analysis migration required: no (stored values unchanged; the shared consistency
+function scores nights exactly as before).
+
 ### 2026-10-13 — AgeLess levers become goals; newer VO₂max measurements beat older ones (AI-24)
 
 An AgeLess lever can now be set as a goal on the same number (plan HEALTHSPAN_AGE_PLAN stage 2): the sleep

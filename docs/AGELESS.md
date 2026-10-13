@@ -89,10 +89,13 @@ against regressions rather than validating the age.
   window covers, zone minutes on fewer than four weeks of banked days, a training VO₂max on fewer than three
   walks and runs, or body fat older than 90 days at the week's end. Strength is never thin; no sessions is a
   fact. The thresholds are reasoned starting values in `HealthspanBasis`.
-- **Levers as goals:** a lever whose number has a goal template carries a **Set as goal** button that opens
-  the goal setup on its value step: sleep duration (sleep goal), daily steps (**More steps a day**, mean over
-  28 days), average sleeping heart rate (**Lower sleeping heart rate**, 28 nights like resting heart rate),
-  VO₂max, and lean mass (a **body-fat** goal: lean mass is 100 % minus body fat). The target is the further of
+- **Levers as goals:** every lever carries a **Set as goal** button that opens the goal setup on its value
+  step: sleep duration (sleep goal), sleep consistency (**Sleep more regularly**, the same nightly score over
+  28 days), daily steps (**More steps a day**, mean over 28 days), moderate and vigorous activity (**Moderate**
+  and **Vigorous activity every week**, from the minutes AgeLess banks; with AgeLess off they are unavailable
+  and an open one rests), strength (**Strength activity every week**, the sessions AgeLess counts as strength),
+  average sleeping heart rate (**Lower sleeping heart rate**, 28 nights like resting heart rate), VO₂max, and
+  lean mass (a **body-fat** goal: lean mass is 100 % minus body fat). The target is the further of
   the lever's value and the goal's own current value plus the lever's step, so it is never reached on the day
   it is set. An open goal on the same number replaces the button with **Goal running**. A goal on one of these
   numbers shows on its page what reaching its target would take off the AgeLess age (from 0.1 years, while

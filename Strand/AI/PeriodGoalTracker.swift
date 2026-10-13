@@ -14,6 +14,10 @@ struct PeriodGoalInputs {
     /// Working sets per day from the lifting log; nil when no lifting log is connected.
     var setsByDay: [String: Double]?
     var hydrationByDay: [String: Double] = [:]
+    /// Minutes AgeLess banked per day at a moderate and at a vigorous share of the heart-rate reserve
+    /// (`hs_zone13_min`, `hs_zone45_min`); nil while AgeLess is off, which leaves those goals nothing to read.
+    var agelessModerateByDay: [String: Double]?
+    var agelessVigorousByDay: [String: Double]?
     var hydrationEnabled = false
     var profileSex = ""
     var journal: [JournalEntry] = []
@@ -202,7 +206,7 @@ enum PeriodGoalTracker {
         let values: [Double?] = days.map { day in
             let isFuture = day > today
             switch goal.metric {
-            case .workouts, .trainingMinutes, .distance, .zoneMinutes:
+            case .workouts, .trainingMinutes, .distance, .zoneMinutes, .strengthMinutes:
                 guard !isFuture else { return 0 }
                 var total = 0.0
                 for row in index.workoutsByDay[day] ?? [] {
@@ -246,6 +250,12 @@ enum PeriodGoalTracker {
                 let sets = byDay[day] ?? 0
                 if sets > 0 { counted.append(dayItem(day, sets)) }
                 return sets
+            case .moderateMinutes, .vigorousMinutes:
+                guard !isFuture else { return 0 }
+                let byDay = goal.metric == .moderateMinutes ? inputs.agelessModerateByDay : inputs.agelessVigorousByDay
+                guard let minutes = byDay?[day] else { return nil }
+                if minutes > 0 { counted.append(dayItem(day, minutes)) }
+                return minutes
             case .activeEnergy:
                 guard !isFuture else { return 0 }
                 guard let kcal = inputs.activeKcalByDay[day] else { return nil }
@@ -290,7 +300,7 @@ enum PeriodGoalTracker {
         switch metric {
         case .workouts:
             return 1
-        case .trainingMinutes:
+        case .trainingMinutes, .strengthMinutes:
             let seconds = row.durationS ?? Double(max(0, row.endTs - row.startTs))
             return seconds / 60
         case .distance:
@@ -309,6 +319,8 @@ enum PeriodGoalTracker {
         switch goal.metric {
         case .distance:    return (row.distanceM ?? 0) > 0
         case .zoneMinutes: return WorkoutZones.percents(row.zonesJSON) != nil
+        // The list AgeLess counts as strength, so the goal and the AgeLess measure count the same sessions.
+        case .strengthMinutes: return HealthspanWindow.countsAsStrength(storedName: row.sport)
         default:           return true
         }
     }
@@ -322,6 +334,7 @@ enum PeriodGoalTracker {
         switch goal.metric {
         case .distance:    return String(localized: "No distance recorded")
         case .zoneMinutes: return String(localized: "No heart-rate zones recorded")
+        case .strengthMinutes: return String(localized: "Not a strength activity")
         default:           return String(localized: "Not counted")
         }
     }
@@ -343,6 +356,9 @@ enum PeriodGoalTracker {
               let endDay = date(last, calendar: calendar),
               let end = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: endDay)) else { return false }
         let interval = DateInterval(start: calendar.startOfDay(for: start), end: end)
+        // A goal on AgeLess's activity minutes rests while AgeLess is off: nothing banks them, and a week
+        // without them must not count as missed.
+        if goal.metric.needsAgeLess, !HealthspanFeature.isEnabled { return true }
         return goal.pauseIntervals.contains { $0.intersects(interval) }
     }
 
@@ -463,6 +479,10 @@ enum PeriodGoalTracker {
             return inputs.hydrationEnabled ? .available : .unavailable("Turn on hydration tracking first")
         case .habitDays:
             return .available
+        case .strengthMinutes:
+            return .available
+        case .moderateMinutes, .vigorousMinutes:
+            return inputs.agelessModerateByDay == nil ? .unavailable("Needs AgeLess") : .available
         }
     }
 
