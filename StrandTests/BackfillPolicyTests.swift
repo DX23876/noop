@@ -6,6 +6,7 @@ import XCTest
 final class BackfillPolicyTests: XCTestCase {
     private let fe = BackfillPolicy.eventFloorSeconds      // 90
     private let fp = BackfillPolicy.periodicFloorSeconds   // 900
+    private let ff = BackfillPolicy.foregroundFloorSeconds // 300
 
     func testFirstSyncAlwaysRuns() {
         XCTAssertTrue(BackfillPolicy.shouldRun(trigger: .periodic, now: 1000, lastBackfillAt: nil))
@@ -48,9 +49,16 @@ final class BackfillPolicyTests: XCTestCase {
     }
 
     func testBackoffNeverDelaysConnectOrForeground() {
-        let last = 1000 - fe   // exactly at the baseline event floor
-        XCTAssertTrue(BackfillPolicy.shouldRun(trigger: .connect, now: 1000, lastBackfillAt: last, emptyStreak: 99))
-        XCTAssertTrue(BackfillPolicy.shouldRun(trigger: .foreground, now: 1000, lastBackfillAt: last, emptyStreak: 99))
+        XCTAssertTrue(BackfillPolicy.shouldRun(trigger: .connect, now: 1000, lastBackfillAt: 1000 - fe, emptyStreak: 99))
+        XCTAssertTrue(BackfillPolicy.shouldRun(trigger: .foreground, now: 1000, lastBackfillAt: 1000 - ff, emptyStreak: 99))
+    }
+
+    func testForegroundFiveMinuteFloorDoesNotChangeOtherTriggers() {
+        XCTAssertFalse(BackfillPolicy.shouldRun(trigger: .foreground, now: 1000, lastBackfillAt: 1000 - ff + 1))
+        XCTAssertTrue(BackfillPolicy.shouldRun(trigger: .foreground, now: 1000, lastBackfillAt: 1000 - ff))
+        XCTAssertTrue(BackfillPolicy.shouldRun(trigger: .connect, now: 1000, lastBackfillAt: 1000 - fe))
+        XCTAssertTrue(BackfillPolicy.shouldRun(trigger: .strap, now: 1000, lastBackfillAt: 1000 - fe))
+        XCTAssertFalse(BackfillPolicy.shouldRun(trigger: .periodic, now: 1000, lastBackfillAt: 1000 - ff))
     }
 
     // MARK: - #160: future-dated clock backoff
@@ -85,9 +93,8 @@ final class BackfillPolicyTests: XCTestCase {
     /// clockUntrusted must never delay a user- or connection-driven sync — the .connect pass is exactly
     /// how a self-corrected clock gets picked up again after the automatic triggers were skipped.
     func testClockUntrustedNeverDelaysConnectForegroundManualOrAutoContinue() {
-        let last = 1000 - fe
-        XCTAssertTrue(BackfillPolicy.shouldRun(trigger: .connect, now: 1000, lastBackfillAt: last, clockUntrusted: true))
-        XCTAssertTrue(BackfillPolicy.shouldRun(trigger: .foreground, now: 1000, lastBackfillAt: last, clockUntrusted: true))
+        XCTAssertTrue(BackfillPolicy.shouldRun(trigger: .connect, now: 1000, lastBackfillAt: 1000 - fe, clockUntrusted: true))
+        XCTAssertTrue(BackfillPolicy.shouldRun(trigger: .foreground, now: 1000, lastBackfillAt: 1000 - ff, clockUntrusted: true))
         XCTAssertTrue(BackfillPolicy.shouldRun(trigger: .manual, now: 1000, lastBackfillAt: 999, clockUntrusted: true))
         XCTAssertTrue(BackfillPolicy.shouldRun(trigger: .autoContinue, now: 1000, lastBackfillAt: 999, clockUntrusted: true))
     }
