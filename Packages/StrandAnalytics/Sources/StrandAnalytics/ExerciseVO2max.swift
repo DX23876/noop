@@ -19,10 +19,17 @@ import Foundation
 //      reserve (Swain & Leutholtz 1997), so
 //        VO₂max = 3.5 + (VO₂ − 3.5) / ((HR − HRrest) / (HRmax − HRrest))
 //
-// THE DEPARTURE: grade is taken as zero. NOOP keeps routes as polylines without altitude and has no
-// per-minute speed, so a session's average speed over its whole duration stands in for a steady pace
-// on the flat. Hills make the estimate read low, stops make it read low, warm-up makes it read high.
-// Every surface says "grade assumed flat" beside the number.
+// THE DEPARTURE: a session's average speed over its whole duration stands in for a steady pace, so
+// stops make the estimate read low and warm-up makes it read high.
+//
+// GRADE: the ACSM equations are built for level and uphill work; they say nothing valid about descents.
+// When the session's climb is known (the barometer's gain, Apple Health's or a file's), the uphill term
+// enters as the equations write it and descents count as level: because the grade term is linear in
+// S · G, its time average is the metres climbed per minute, so
+//        walking  VO₂ = 0.1·S + 1.8·(ascent / minutes) + 3.5
+//        running  VO₂ = 0.2·S + 0.9·(ascent / minutes) + 3.5
+// Without a known climb, grade is taken as zero, hills make the estimate read low, and the surface says
+// "grade assumed flat" beside that week.
 //
 // THE STATUS: an instrument, behind a default-off Experimental switch, never performance evidence. It
 // may enter the evidence chain only once `validate` passes the rule fixed here in advance (CLAUDE.md:
@@ -74,12 +81,16 @@ public enum ExerciseVO2max {
         public let heartRateMeasured: Bool
         public let restingHR: Double
         public let maxHR: Double
+        /// Metres climbed over the session, when measured; nil means the grade is unknown.
+        public let ascentM: Double?
 
         public init(day: String, startTs: Int, modality: CardioModality, distanceM: Double?, durationS: Double?,
-                    averageHR: Double?, heartRateMeasured: Bool, restingHR: Double, maxHR: Double) {
+                    averageHR: Double?, heartRateMeasured: Bool, restingHR: Double, maxHR: Double,
+                    ascentM: Double? = nil) {
             self.day = day; self.startTs = startTs; self.modality = modality
             self.distanceM = distanceM; self.durationS = durationS; self.averageHR = averageHR
             self.heartRateMeasured = heartRateMeasured; self.restingHR = restingHR; self.maxHR = maxHR
+            self.ascentM = ascentM.flatMap { $0.isFinite && $0 >= 0 ? $0 : nil }
         }
     }
 
@@ -93,6 +104,8 @@ public enum ExerciseVO2max {
         /// The session's oxygen cost, ml/kg/min.
         public let vo2: Double
         public let vo2max: Double
+        /// True when the session's measured climb entered the oxygen cost; false when grade was assumed flat.
+        public var gradeIncluded: Bool = false
     }
 
     public enum Outcome: Equatable, Sendable {
@@ -107,6 +120,8 @@ public enum ExerciseVO2max {
         public let lastDay: String
         public let value: Double
         public let sessions: Int
+        /// How many of `sessions` had their measured climb included.
+        public var sessionsWithGrade: Int = 0
     }
 
     // MARK: - The equations
@@ -117,6 +132,12 @@ public enum ExerciseVO2max {
         case .walking: return 0.1 * speed + 1.8 * speed * grade + restingVO2
         case .running: return 0.2 * speed + 0.9 * speed * grade + restingVO2
         }
+    }
+
+    /// The ACSM uphill term for a session: the coefficient of S · G times the metres climbed per minute.
+    public static func climbVO2(ascentM: Double, minutes: Double, gait: Gait) -> Double {
+        guard ascentM.isFinite, ascentM > 0, minutes > 0 else { return 0 }
+        return (gait == .walking ? 1.8 : 0.9) * ascentM / minutes
     }
 
     /// The equation a speed belongs to, or nil between the two ranges and outside them.
@@ -148,10 +169,12 @@ public enum ExerciseVO2max {
         guard input.maxHR > input.restingHR, input.restingHR > 0 else { return .excluded(.invalidHeartRateBounds) }
         let fraction = (hr - input.restingHR) / (input.maxHR - input.restingHR)
         guard intensityRange.contains(fraction) else { return .excluded(.intensityOutOfRange) }
-        let vo2 = acsmVO2(speedMPerMin: speed, gait: gait)
+        let climb = input.ascentM.map { climbVO2(ascentM: $0, minutes: seconds / 60, gait: gait) } ?? 0
+        let vo2 = acsmVO2(speedMPerMin: speed, gait: gait) + climb
         return .estimate(SessionEstimate(day: input.day, startTs: input.startTs, gait: gait, speedMPerMin: speed,
                                          fractionOfReserve: fraction, vo2: vo2,
-                                         vo2max: extrapolate(vo2: vo2, fractionOfReserve: fraction)))
+                                         vo2max: extrapolate(vo2: vo2, fractionOfReserve: fraction),
+                                         gradeIncluded: input.ascentM != nil))
     }
 
     // MARK: - Weeks
@@ -165,7 +188,8 @@ public enum ExerciseVO2max {
         return byWeek.keys.sorted().compactMap { monday in
             guard let week = byWeek[monday], let value = median(week.map(\.vo2max)),
                   let last = week.map(\.day).max() else { return nil }
-            return WeeklyEstimate(mondayKey: monday, lastDay: last, value: value, sessions: week.count)
+            return WeeklyEstimate(mondayKey: monday, lastDay: last, value: value, sessions: week.count,
+                                  sessionsWithGrade: week.filter(\.gradeIncluded).count)
         }
     }
 

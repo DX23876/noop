@@ -170,4 +170,28 @@ final class ExerciseVO2maxTests: XCTestCase {
             apple: [VO2maxReading(day: "2026-06-20", value: 45, segment: "apple-health")])
         XCTAssertEqual(report.pairs, 0)
     }
+
+    /// A measured climb enters through the ACSM uphill term as metres climbed per minute; descents count as
+    /// level, and an unknown climb keeps the flat assumption.
+    func testMeasuredClimbRaisesTheOxygenCost() {
+        func input(ascent: Double?) -> ExerciseVO2max.SessionInput {
+            ExerciseVO2max.SessionInput(day: "2026-10-12", startTs: 0, modality: .foot, distanceM: 4_500,
+                                        durationS: 3_600, averageHR: 120, heartRateMeasured: true,
+                                        restingHR: 60, maxHR: 180, ascentM: ascent)
+        }
+        guard case let .estimate(flat) = ExerciseVO2max.estimate(input(ascent: nil)),
+              case let .estimate(hilly) = ExerciseVO2max.estimate(input(ascent: 120)),
+              case let .estimate(level) = ExerciseVO2max.estimate(input(ascent: 0)) else {
+            return XCTFail("expected estimates")
+        }
+        XCTAssertFalse(flat.gradeIncluded)
+        XCTAssertTrue(hilly.gradeIncluded)
+        XCTAssertTrue(level.gradeIncluded)
+        XCTAssertEqual(level.vo2, flat.vo2, accuracy: 1e-12)
+        XCTAssertEqual(hilly.vo2 - flat.vo2, 1.8 * 120 / 60, accuracy: 1e-12)
+        XCTAssertGreaterThan(hilly.vo2max, flat.vo2max)
+        XCTAssertEqual(ExerciseVO2max.climbVO2(ascentM: 60, minutes: 30, gait: .running), 0.9 * 2, accuracy: 1e-12)
+        XCTAssertEqual(ExerciseVO2max.climbVO2(ascentM: -5, minutes: 30, gait: .running), 0)
+        XCTAssertEqual(ExerciseVO2max.weekly([flat, hilly]).first?.sessionsWithGrade, 1)
+    }
 }

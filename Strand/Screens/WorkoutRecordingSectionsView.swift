@@ -8,6 +8,8 @@ struct WorkoutRecordingSectionsView: View {
     let seconds: Double
     let sport: String
     var isLive = false
+    /// The route's heights, for each section's grade-adjusted pace after the workout; nil live.
+    var elevation: WorkoutElevationSeries? = nil
     @AppStorage(UnitPrefs.systemKey) private var units = UnitSystem.metric.rawValue
     @AppStorage(UnitPrefs.distanceSystemKey) private var distanceUnits = ""
 
@@ -52,6 +54,13 @@ struct WorkoutRecordingSectionsView: View {
                                     .foregroundStyle(StrandPalette.statusWarningForeground)
                             } else if let speed = section.speedMps {
                                 Text(motion(speed)).font(StrandFont.captionNumber)
+                                if let flat = gradeAdjusted(section) {
+                                    Text("\(flat) on the flat").font(StrandFont.captionNumber)
+                                }
+                            }
+                            if let ascent = section.ascentM {
+                                Text(verbatim: "↑ " + UnitFormatter.elevationFromMeters(ascent, system: system))
+                                    .font(StrandFont.captionNumber)
                             }
                         }
                         if let bpm = timeline.averageBpm(in: section) {
@@ -65,6 +74,14 @@ struct WorkoutRecordingSectionsView: View {
                 }
             }
         }
+    }
+
+    /// Minetti's flat-equivalent pace for a walk or run section; nil for other sports and live.
+    private func gradeAdjusted(_ section: WorkoutRecordingTimeline.Section) -> String? {
+        guard let elevation, let gait = WorkoutElevationSeries.gait(forSport: sport),
+              let pace = elevation.gradeAdjustedPace(gait: gait, from: section.startSeconds, to: section.endSeconds)
+        else { return nil }
+        return UnitFormatter.paceFromSecPerKm(pace, system: system)
     }
 
     private func motion(_ speed: Double) -> String {

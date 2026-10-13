@@ -216,7 +216,14 @@ final class IntelligenceEngine: ObservableObject {
     // 30 days, else walks and runs do. Weeks stored under the old order can name a VO₂max the new one would not,
     // so the AgeLess weeks are deleted once more and the next pass rebuilds them; zone minutes are kept. No daily
     // row is re-scored. VO₂max goals set before this re-read their start once (`rebaselineVO2maxGoals`).
-    static let currentAnalysisRecipeVersion = 24
+    // AI-25 (2026-10-13, fork GPS elevation) changes the training-based VO₂max that AgeLess weeks read: a walk
+    // or run whose climb is known (NOOP's barometer, Apple Health's ascent, an imported file) now pays the
+    // ACSM uphill term for the metres climbed per minute, where before every session counted as level. Weeks
+    // stored under the flat assumption can carry a lower VO₂max, so the AgeLess weeks are deleted once more
+    // and the next pass rebuilds them; zone minutes are kept. No daily row is re-scored, no workout row is
+    // touched and the cardio ledger is not refilled. Goal starts are not re-read. Climbs that Apple Health
+    // delivers later (the one-time elevation read) clear the weeks again when that read completes.
+    static let currentAnalysisRecipeVersion = 25
 
     /// The recipe whose migration refills the cardio load ledger.
     static let cardioLedgerRecipe = 9
@@ -268,10 +275,13 @@ final class IntelligenceEngine: ObservableObject {
     /// The recipe whose migration rebuilds the AgeLess weeks on the newer-beats-older VO₂max rule.
     static let healthspanVO2RuleRecipe = 24
 
-    /// Whether a migration crosses a recipe that rebuilds the AgeLess weeks (AI-21 to AI-24; one rebuild
+    /// The recipe whose migration rebuilds the AgeLess weeks on a VO₂max that includes measured climbs.
+    static let healthspanGradeRecipe = 25
+
+    /// Whether a migration crosses a recipe that rebuilds the AgeLess weeks (AI-21 to AI-25; one rebuild
     /// serves them all).
     static func migrationRebuildsHealthspan(from: Int, to: Int) -> Bool {
-        from < healthspanVO2RuleRecipe && to >= healthspanSourcesRecipe
+        from < healthspanGradeRecipe && to >= healthspanSourcesRecipe
     }
 
     /// Whether a migration crosses the recipe that fills Apple Health workouts' heart rate.

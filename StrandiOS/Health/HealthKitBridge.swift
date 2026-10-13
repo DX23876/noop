@@ -971,6 +971,7 @@ final class HealthKitBridge: ObservableObject {
             for (componentKey, buckets) in workoutImport.heartRateBuckets {
                 try await store.replaceWorkoutHeartRateBuckets(componentKey: componentKey, rows: buckets)
             }
+            try await store.upsertWorkoutElevations(workoutImport.elevations)
             // Imported water (#949) goes to the hydration source, not apple-health, because the hydration
             // screen is what reads it. Every day in the window is written — including the ones with no
             // water at all, as 0 — so deleting a drink in the source app takes it away here on the next
@@ -1050,6 +1051,7 @@ final class HealthKitBridge: ObservableObject {
             progress(1)
             if !repairingHistory {
                 scheduleWorkoutHistoryBackfill()
+                scheduleWorkoutElevationBackfill()
                 scheduleImportHistoryRepair()
                 schedulePendingWorkoutImports()
             }
@@ -2270,10 +2272,18 @@ final class HealthKitBridge: ObservableObject {
             // Only unchanged original capture is eligible: an edited/merged envelope is not the event clock.
             do {
                 try await builder.beginCollection(at: start)
-                try await builder.addMetadata([HKMetadataKeyExternalUUID: key(row),
-                                               HKMetadataKeySyncIdentifier: version.id,
-                                               HKMetadataKeySyncVersion: NSNumber(value: version.revision),
-                                               Self.originMetadataKey: Self.originMetadataValue])
+                var workoutMetadata: [String: Any] = [HKMetadataKeyExternalUUID: key(row),
+                                                      HKMetadataKeySyncIdentifier: version.id,
+                                                      HKMetadataKeySyncVersion: NSNumber(value: version.revision),
+                                                      Self.originMetadataKey: Self.originMetadataValue]
+                // The barometer's climb, as Apple's own workouts carry it.
+                if let ascent = recording?.timeline.ascentM {
+                    workoutMetadata[HKMetadataKeyElevationAscended] = HKQuantity(unit: .meter(), doubleValue: ascent)
+                }
+                if let descent = recording?.timeline.descentM {
+                    workoutMetadata[HKMetadataKeyElevationDescended] = HKQuantity(unit: .meter(), doubleValue: descent)
+                }
+                try await builder.addMetadata(workoutMetadata)
                 if let recording {
                     // This is one real sport, not a synthetic multisport workout. Interval phases
                     // belong to segment events; the captured activity covers the original session.
@@ -2330,8 +2340,11 @@ final class HealthKitBridge: ObservableObject {
                     let routeBuilder = HKWorkoutRouteBuilder(healthStore: store, device: .local())
                     do {
                         let locs = points.map { point in
+                            // Without a measured height, or without Apple's accuracy for it, the location says
+                            // so (vertical accuracy −1), so Health never reads the route as lying at sea level.
                             CLLocation(coordinate: CLLocationCoordinate2D(latitude: point.lat, longitude: point.lon),
-                                       altitude: 0, horizontalAccuracy: point.accuracyM, verticalAccuracy: -1,
+                                       altitude: point.altitudeM ?? 0, horizontalAccuracy: point.accuracyM,
+                                       verticalAccuracy: point.altitudeM == nil ? -1 : (point.altitudeAccuracyM ?? -1),
                                        timestamp: Date(timeIntervalSince1970: Double(point.tMs) / 1000))
                         }
                         try await routeBuilder.insertRouteData(locs)
@@ -3047,6 +3060,7 @@ final class HealthKitBridge: ObservableObject {
         var metadata: [WorkoutSourceMetadataRow] = []
         var heartRateBuckets: [String: [WorkoutHeartRateBucketRow]] = [:]
         var sessionLinks: [TrainingSessionLinkRow] = []
+        var elevations: [WorkoutElevationRow] = []
     }
 
     private func collectWorkouts(start: Date, end: Date) async -> WorkoutImportBatch? {
@@ -3121,6 +3135,7 @@ final class HealthKitBridge: ObservableObject {
                 for (componentKey, buckets) in batch.heartRateBuckets {
                     try await db.replaceWorkoutHeartRateBuckets(componentKey: componentKey, rows: buckets)
                 }
+                try await db.upsertWorkoutElevations(batch.elevations)
                 if try await repo.fillAppleWorkoutHeartRate(from: oldest, to: newest) > 0 { freed = true }
             } catch {
                 break   // the cursor stays; the next sync tries this batch again
@@ -3233,8 +3248,90 @@ final class HealthKitBridge: ObservableObject {
             if let buckets = await workoutHeartRateBuckets(for: workout, componentKey: componentKey) {
                 batch.heartRateBuckets[componentKey] = buckets
             }
+            if let elevation = Self.elevationRow(for: workout, row: row, deviceId: appleDeviceId, nowTs: nowTs) {
+                batch.elevations.append(elevation)
+            }
         }
         return batch
+    }
+
+    /// The climb Apple Health stored with a workout (`HKMetadataKeyElevationAscended`, and the descent
+    /// when present), as NOOP keeps it beside the row. nil when Health has none.
+    nonisolated static func elevationRow(for workout: HKWorkout, row: WorkoutRow, deviceId: String,
+                                         nowTs: Int) -> WorkoutElevationRow? {
+        guard let ascent = (workout.metadata?[HKMetadataKeyElevationAscended] as? HKQuantity)?
+            .doubleValue(for: .meter()) else { return nil }
+        let descent = (workout.metadata?[HKMetadataKeyElevationDescended] as? HKQuantity)?.doubleValue(for: .meter())
+        let elevation = WorkoutElevationRow(
+            key: WorkoutKey(deviceId: deviceId, startTs: row.startTs, sport: row.sport),
+            ascentM: ascent, descentM: descent, source: WorkoutElevationSource.appleHealth, updatedAtTs: nowTs)
+        return elevation.isValid ? elevation : nil
+    }
+
+    // MARK: - Workout elevation backfill
+
+    /// Workouts older than this timestamp still have their Health elevation to be read.
+    static let elevationBackfillCursorKey = "health.workoutElevationBackfillBeforeTs"
+    /// Set once every workout Health holds was read for its elevation.
+    static let elevationBackfillDoneKey = "health.workoutElevationBackfillDone"
+    /// Whether the read stored any climb, so its end must clear the AgeLess weeks built without it.
+    static let elevationBackfillFoundKey = "health.workoutElevationBackfillFound"
+    private static var elevationBackfillRunning = false
+
+    /// Reads the climb of every workout imported before NOOP kept elevation, newest first, a few batches
+    /// per sync. Only the workout's own metadata is read, never its route, so the pass stays cheap.
+    /// Resumable: the cursor moves only after a batch is written.
+    func scheduleWorkoutElevationBackfill() {
+        guard !UserDefaults.standard.bool(forKey: Self.elevationBackfillDoneKey),
+              !Self.elevationBackfillRunning else { return }
+        Self.elevationBackfillRunning = true
+        Task { @MainActor [weak self] in
+            await self?.backfillWorkoutElevation(maxBatches: Self.workoutBackfillBatchesPerPass)
+            Self.elevationBackfillRunning = false
+        }
+    }
+
+    private func backfillWorkoutElevation(maxBatches: Int) async {
+        guard auth == .authorized, let db = await repo.storeHandle() else { return }
+        let defaults = UserDefaults.standard
+        var cursor = defaults.object(forKey: Self.elevationBackfillCursorKey) as? Int
+            ?? Int(Date().timeIntervalSince1970) + 86_400
+        var batches = 0
+        while batches < maxBatches, !syncing, !Task.isCancelled {
+            let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+                NSPredicate(format: "%K < %@", HKPredicateKeyPathStartDate,
+                            Date(timeIntervalSince1970: TimeInterval(cursor)) as NSDate),
+                Self.notNoopAuthored,
+            ])
+            guard let pairs = await queryWorkouts(predicate: predicate, newestFirst: true,
+                                                  limit: Self.workoutBackfillBatchSize) else { break }
+            guard let oldest = pairs.map({ $0.1.startTs }).min() else {
+                // The training VO₂max now sees climbs the AgeLess weeks were built without (AI-25): clear
+                // them once, and the next pass rebuilds them. Done is set only after that succeeds.
+                if defaults.bool(forKey: Self.elevationBackfillFoundKey) {
+                    do {
+                        try await IntelligenceEngine.deleteHealthspanWeeks(store: db, deviceId: noopDeviceId)
+                    } catch {
+                        break
+                    }
+                }
+                defaults.set(true, forKey: Self.elevationBackfillDoneKey)
+                break
+            }
+            let nowTs = Int(Date().timeIntervalSince1970)
+            let rows = pairs.compactMap {
+                Self.elevationRow(for: $0.0, row: $0.1, deviceId: appleDeviceId, nowTs: nowTs)
+            }
+            do {
+                try await db.upsertWorkoutElevations(rows)
+            } catch {
+                break   // the cursor stays; the next sync tries this batch again
+            }
+            if !rows.isEmpty { defaults.set(true, forKey: Self.elevationBackfillFoundKey) }
+            cursor = oldest
+            defaults.set(cursor, forKey: Self.elevationBackfillCursorKey)
+            batches += 1
+        }
     }
 
     /// Steps Health counted over one workout's window, Watch and phone merged by Health's own priority.
@@ -3308,10 +3405,14 @@ final class HealthKitBridge: ObservableObject {
             await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
                 let query = HKWorkoutRouteQuery(route: route) { _, locations, done, _ in
                     for loc in locations ?? [] {
+                        // A negative vertical accuracy is CoreLocation's "no valid altitude".
+                        let altitude = loc.verticalAccuracy >= 0 && loc.altitude.isFinite ? loc.altitude : nil
                         points.append(WorkoutRoutePoint(lat: loc.coordinate.latitude,
                                                         lon: loc.coordinate.longitude,
                                                         accuracyM: loc.horizontalAccuracy,
-                                                        tMs: Int64(loc.timestamp.timeIntervalSince1970 * 1000)))
+                                                        tMs: Int64(loc.timestamp.timeIntervalSince1970 * 1000),
+                                                        altitudeM: altitude,
+                                                        altitudeAccuracyM: altitude == nil ? nil : loc.verticalAccuracy))
                     }
                     if done { cont.resume(returning: ()) }
                 }

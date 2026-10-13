@@ -2976,7 +2976,7 @@ struct SettingsView: View {
                 }
                 .toggleStyle(.switch)
                 .tint(StrandPalette.accent)
-                Text("Estimates VO₂max from runs and walks with distance and a measured heart-rate trace: the ACSM equations turn your average speed into an oxygen cost, and your heart-rate reserve extrapolates it to maximum. Grade is assumed flat, because routes are kept without altitude. Shown on Training Load beside the weekly estimate, with how it compares to Apple Watch. It never counts as performance evidence until that comparison passes a rule fixed in advance. Off by default.")
+                Text("Estimates VO₂max from runs and walks with distance and a measured heart-rate trace: the ACSM equations turn your average speed into an oxygen cost, and your heart-rate reserve extrapolates it to maximum. A measured climb (your iPhone's barometer, Apple Health or an imported file) is included; without one, grade is assumed flat. Shown on Training Load beside the weekly estimate, with how it compares to Apple Watch. It never counts as performance evidence until that comparison passes a rule fixed in advance. Off by default.")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)

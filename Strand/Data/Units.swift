@@ -240,6 +240,20 @@ enum UnitFormatter {
         }
     }
 
+    /// 1 metre = 3.28084 feet.
+    static let feetPerMeter = 3.28084
+
+    /// A height or a climb given in METRES, whole units. Metric: "412 m". Imperial: "1352 ft".
+    static func elevationFromMeters(_ meters: Double, system: UnitSystem) -> String {
+        system == .imperial ? "\(Int((meters * feetPerMeter).rounded())) ft" : "\(Int(meters.rounded())) m"
+    }
+
+    /// A grade given as a fraction, whole percent: "6 %", "−3 %".
+    static func gradePercent(_ fraction: Double) -> String {
+        let percent = Int((fraction * 100).rounded())
+        return percent < 0 ? "−\(-percent) %" : "\(percent) %"
+    }
+
     /// Unit label only, for sites that format the number separately. "km" / "mi".
     static func distanceUnit(_ system: UnitSystem) -> String {
         system == .imperial ? "mi" : "km"

@@ -64,6 +64,35 @@ final class RouteExporterTests: XCTestCase {
         XCTAssertEqual(Int(a!.end.timeIntervalSince1970), endTs)
     }
 
+    /// Measured heights travel in both formats and come back through the importer; a point without one
+    /// stays without one instead of reading as sea level.
+    func testElevationsRoundTripInGpxAndFit() {
+        let heights: [Double?] = (0..<route.count).map { $0 == 1 ? nil : 400 + Double($0) * 4 }
+        for format in [RouteExporter.Format.gpx, .fit] {
+            let data = RouteExporter.render(format, route: route, startTs: startTs, endTs: endTs,
+                                            sport: "running", distanceM: 1234.5, elevations: heights)
+            let a = ActivityFileImporter.parse(data: data, filename: "route.\(format.ext)").activity
+            XCTAssertEqual(a?.route.count, route.count)
+            XCTAssertEqual(a?.ascentM ?? 0, Double(route.count - 1) * 4, accuracy: 0.5, "\(format)")
+        }
+        let gpx = RouteExporter.buildGpx(route: route, startTs: startTs, endTs: endTs, sport: "running",
+                                         elevations: heights)
+        XCTAssertEqual(gpx.components(separatedBy: "<ele>").count - 1, route.count - 1)
+        XCTAssertTrue(gpx.contains("<ele>400.0</ele><time>"))
+    }
+
+    func testNoElevationsWritesNone() {
+        let gpx = RouteExporter.buildGpx(route: route, startTs: startTs, endTs: endTs, sport: "running",
+                                         elevations: Array(repeating: nil, count: route.count))
+        XCTAssertFalse(gpx.contains("<ele>"))
+        let mismatched = RouteExporter.buildGpx(route: route, startTs: startTs, endTs: endTs, sport: "running",
+                                                elevations: [100])
+        XCTAssertFalse(mismatched.contains("<ele>"))
+        XCTAssertEqual(RouteExporter.fitAltitude(nil), 0xFFFF)
+        XCTAssertEqual(RouteExporter.fitAltitude(0), 2500)
+        XCTAssertEqual(RouteExporter.fitAltitude(-600), 0xFFFF)
+    }
+
     func testFitHasValidHeaderAndCrc() {
         let bytes = [UInt8](RouteExporter.render(.fit, route: route, startTs: startTs, endTs: endTs, sport: "run"))
         XCTAssertEqual(Int(bytes[0]), 12)                  // header size

@@ -432,3 +432,22 @@ through `AppClock`.
 
 Analysis migration required: no
 
+### 2026-10-13 — GPS workouts record elevation; the training VO₂max includes the climb
+
+The owner wanted the climb in the VO₂max and, for runners and walkers, the values Strava, Garmin and Apple
+show. Nothing is invented: elevation gain and loss port OpenTracks unchanged (barometer, 3 m threshold),
+the per-point grade ports gpx.studio's 50 m window, and the grade-adjusted pace uses Minetti 2002's
+published cost curves, checked against the paper (the walking fit gives 17.6 J/kg/m at +45 % against a
+measured 17.3). GPS altitude is never summed: it wanders by 10 to 20 m, so a device without a barometer
+shows no elevation. Strava's fallback, a terrain lookup, would send coordinates off the device or need a
+multi-gigabyte map, so it is out.
+
+The ACSM equations are built for level and uphill work. Their grade term is linear in speed times grade, so
+over a session it equals the metres climbed per minute; descents count as level, which keeps the method
+inside its stated scope. Minetti covers descents too, but switching the estimator belongs to the later
+unification with AgeLess. The climb lives in its own table beside the workout, like the heart-rate fill,
+because the row's columns belong to its source and `WorkoutRow` deliberately has no defaulted fields (119
+construction sites). Old workouts without heights stay flat and Training Load says how many sessions carried
+their climb.
+
+Analysis migration required: yes — AI-25 rebuilds the AgeLess weeks once.

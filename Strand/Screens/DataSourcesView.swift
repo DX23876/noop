@@ -659,7 +659,8 @@ struct DataSourcesView: View {
 
     /// Parse a single GPX / TCX / FIT activity file and upsert it as one workout (source
     /// "activity-file"). The route polyline isn't persisted on macOS (the shared WorkoutRow has no route
-    /// column), but distance / HR / energy / ascent and an honest "N GPS points · M HR samples" note are.
+    /// column), but distance / HR / energy and an honest "N GPS points · M HR samples" note are, and the
+    /// file's ascent is kept beside the row (v78).
     ///
     /// #137: the imported ride's REAL per-sample HR is now ALSO persisted as an HR stream under the
     /// `activity-file` deviceId, and `activity-file` is registered as an `.activityFile` device. Together
@@ -719,6 +720,13 @@ struct DataSourcesView: View {
                     steps: activity.steps                 // #1058: per-session steps, summed into the day below
                 )
                 try await store.upsertWorkouts([row], deviceId: ActivityFileImporter.sourceId)
+                // v78: the file's climb sits beside the row, where every reader of elevation looks for it.
+                if let ascent = activity.ascentM {
+                    try await store.upsertWorkoutElevations([WorkoutElevationRow(
+                        key: WorkoutKey(deviceId: ActivityFileImporter.sourceId, startTs: row.startTs, sport: row.sport),
+                        ascentM: ascent, descentM: nil, source: WorkoutElevationSource.file,
+                        updatedAtTs: Int(Date().timeIntervalSince1970))])
+                }
 
                 // #137 (A): persist the ride's real per-sample HR under the activity-file source. The
                 // insert is keyed on (deviceId, ts), so re-importing the same file is idempotent (an

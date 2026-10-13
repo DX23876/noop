@@ -1,5 +1,6 @@
 #if DEBUG
 import Foundation
+import StrandAnalytics
 import StrandImport
 import StrandTraining
 import WhoopProtocol
@@ -62,6 +63,7 @@ enum AppleDemoSeeder {
         guard requested else { return }
         seedDemoDeviceIfNeeded(into: store)
         await seedDemoGoalIfNeeded()
+        defer { Task { await seedDemoRecordedWalkIfNeeded(into: store) } }
         let existing = (try? await store.dailyMetrics(deviceId: whoop, from: "0000-00-00", to: "9999-99-99")) ?? []
         guard existing.isEmpty else {
             await topUpIfDemoStore(store, newestDay: existing.map(\.day).max())
@@ -69,6 +71,68 @@ enum AppleDemoSeeder {
         }
         do { try await seed(into: store) }
         catch { NSLog("AppleDemoSeeder: seed failed — \(error)") }
+    }
+
+    // MARK: - A recorded GPS walk with barometer heights
+
+    static let demoRecordedWalkKey = "demo.recordedHillWalkStartTs"
+
+    /// One hilly walk recorded the way the phone records it: measured route points with barometer and
+    /// absolute heights, the climb counted by `BarometricElevationCounter`, kilometre splits and a heart
+    /// trace, saved as recording evidence with its elevation row. Lets the elevation profile, the live
+    /// page's history and the per-split climb be seen under `--demo-seed`. Seeded once per store; a new
+    /// store gets its own yesterday-morning walk.
+    private static func seedDemoRecordedWalkIfNeeded(into store: WhoopStore) async {
+        let defaults = UserDefaults.standard
+        if let seeded = defaults.object(forKey: demoRecordedWalkKey) as? Int,
+           (try? await store.workoutRecording(for: WorkoutKey(deviceId: whoop, startTs: seeded, sport: "Walking"))) != nil {
+            return
+        }
+        let cal = Calendar.current
+        let yesterday = cal.date(byAdding: .day, value: -1, to: cal.startOfDay(for: Date())) ?? Date()
+        let start = Int(yesterday.timeIntervalSince1970) + 7 * 3600 + 30 * 60
+        let duration = 45 * 60, step = 5
+        let speed = 1.35
+        var points: [WorkoutRoutePoint] = []
+        var timeline = WorkoutRecordingTimeline(splitLengthM: 1000)
+        timeline.startUnixSeconds = Double(start)
+        timeline.endUnixSeconds = Double(start + duration)
+        var counter = BarometricElevationCounter()
+        let loop = 3_600.0, radius = loop / (2 * .pi)
+        for t in stride(from: 0, through: duration, by: step) {
+            let d = Double(t) * speed
+            let angle = d / radius
+            let lat = 47.3700 + (radius * sin(angle)) / 111_320
+            let lon = 8.5500 + (radius * (1 - cos(angle))) / (111_320 * cos(47.37 * .pi / 180))
+            // Two hills on the loop: a long climb and a short steep one.
+            let height = 28 * (1 - cos(2 * .pi * d / loop)) / 2 + 9 * max(0, sin(2 * .pi * (d - 2_300) / 600))
+            let added = counter.add(pressureHPa: BarometricElevationCounter.pressureHPa(altitudeM: 412 + height))
+            timeline.recordElevation(gainM: added.gainM, lossM: added.lossM)
+            timeline.recordDistance(d, at: Double(t), segment: 0)
+            timeline.recordHeartRate(Int(104 + height * 0.9), at: Double(t))
+            points.append(WorkoutRoutePoint(lat: lat, lon: lon, accuracyM: 5, tMs: Int64(start + t) * 1000,
+                                            segment: 0, activeSeconds: Double(t), altitudeM: 412 + height,
+                                            altitudeAccuracyM: 8, baroAltitudeM: height))
+        }
+        let latLngs = points.map { RouteMath.LatLng($0.lat, $0.lon) }
+        let distance = RouteMath.totalMeters(latLngs)
+        let row = WorkoutRow(startTs: start, endTs: start + duration, sport: "Walking", source: "manual",
+                             durationS: Double(duration), energyKcal: 230, avgHr: 116, maxHr: 138, strain: nil,
+                             distanceM: distance, zonesJSON: nil, notes: nil, steps: nil)
+        let route = WorkoutRoute(polyline: RouteMath.encode(latLngs), distanceM: distance, points: points,
+                                 segmentStarts: [0])
+        let recording = CompletedWorkoutRecording(id: UUID(uuidString: "0000E1E7-0000-4000-8000-000000000001")!,
+                                                  deviceId: whoop, row: row, route: route, timeline: timeline)
+        do {
+            let payload = String(decoding: try JSONEncoder().encode([recording]), as: UTF8.self)
+            try await store.saveWorkoutRecording(row, deviceId: whoop, payloadJSON: payload)
+            if let elevation = Repository.recordedElevation([recording], row: row, deviceId: whoop) {
+                try await store.upsertWorkoutElevations([elevation])
+            }
+            defaults.set(start, forKey: demoRecordedWalkKey)
+        } catch {
+            NSLog("AppleDemoSeeder: recorded walk failed — \(error)")
+        }
     }
 
     /// A demo store seeded on an earlier date ends before today, so Today shows a carried Charge and an

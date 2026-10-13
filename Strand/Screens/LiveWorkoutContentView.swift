@@ -3,7 +3,7 @@ import StrandDesign
 
 /// Content paging is separate from lifecycle/confirmation modifiers to keep SwiftUI type checking bounded.
 struct LiveWorkoutContentView: View {
-    enum Page: Hashable { case metrics, zones, sections }
+    enum Page: Hashable { case metrics, zones, elevation, sections }
     @Binding var page: Page
     @EnvironmentObject private var model: AppModel
     let onMinimize: () -> Void
@@ -30,6 +30,7 @@ struct LiveWorkoutContentView: View {
             Picker("Workout view", selection: $page) {
                 Text("Metrics").tag(Page.metrics)
                 Text("Zones").tag(Page.zones)
+                if model.activeWorkoutUsesGPS { Text("Elevation").tag(Page.elevation) }
                 Text("Laps").tag(Page.sections)
             }
             .pickerStyle(.segmented).screenPadding()
@@ -37,6 +38,7 @@ struct LiveWorkoutContentView: View {
             TabView(selection: $page) {
                 LiveWorkoutMetricsPage().tag(Page.metrics)
                 LiveWorkoutZonesPage().tag(Page.zones)
+                if model.activeWorkoutUsesGPS { LiveWorkoutElevationPage().tag(Page.elevation) }
                 LiveWorkoutSectionsPage().tag(Page.sections)
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
@@ -45,6 +47,7 @@ struct LiveWorkoutContentView: View {
                 switch page {
                 case .metrics: LiveWorkoutMetricsPage()
                 case .zones: LiveWorkoutZonesPage()
+                case .elevation: LiveWorkoutElevationPage()
                 case .sections: LiveWorkoutSectionsPage()
                 }
             }

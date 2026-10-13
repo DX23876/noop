@@ -549269,6 +549269,1166 @@
           }
         }
       }
+    },
+    "%@ on the flat" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ auf ebener Strecke"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ en llano"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ sur le plat"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ in piano"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ po płaskim"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ em plano"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ по ровной местности"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "平路 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "平路 %@"
+          }
+        }
+      }
+    },
+    "Climb from Apple Health." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anstieg aus Apple Health."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desnivel desde Apple Health."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dénivelé depuis Apple Health."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dislivello da Apple Health."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przewyższenie z Apple Health."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desnível do Apple Health."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Набор высоты из Apple Health."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "爬升来自 Apple 健康。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "爬升來自 Apple 健康。"
+          }
+        }
+      }
+    },
+    "Climb from the imported file." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anstieg aus der importierten Datei."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desnivel del archivo importado."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dénivelé issu du fichier importé."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dislivello dal file importato."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przewyższenie z zaimportowanego pliku."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desnível do ficheiro importado."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Набор высоты из импортированного файла."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "爬升来自导入的文件。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "爬升來自匯入的檔案。"
+          }
+        }
+      }
+    },
+    "Climbed" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bergauf"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subida"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Montée"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Salita"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pod górę"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subida"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подъём"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "爬升"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "爬升"
+          }
+        }
+      }
+    },
+    "Counted from your iPhone's barometer." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vom Barometer deines iPhones gezählt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contado por el barómetro de tu iPhone."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compté par le baromètre de votre iPhone."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contato dal barometro del tuo iPhone."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zliczone przez barometr Twojego iPhone'a."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contado pelo barómetro do teu iPhone."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подсчитано барометром вашего iPhone."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "由你的 iPhone 气压计计算。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "由你的 iPhone 氣壓計計算。"
+          }
+        }
+      }
+    },
+    "Current elevation" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktuelle Höhe"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Altitud actual"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Altitude actuelle"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Altitudine attuale"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktualna wysokość"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Altitude atual"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Текущая высота"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前海拔"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "目前海拔"
+          }
+        }
+      }
+    },
+    "Descended" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bergab"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bajada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descente"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discesa"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Z górki"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descida"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Спуск"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下降"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下降"
+          }
+        }
+      }
+    },
+    "Elevation" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Höhenmeter"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desnivel"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dénivelé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dislivello"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przewyższenie"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desnível"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Высота"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "海拔"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "海拔"
+          }
+        }
+      }
+    },
+    "Elevation gain" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Höhenmeter bergauf"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desnivel positivo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dénivelé positif"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dislivello positivo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suma podejść"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desnível positivo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Набор высоты"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "累计爬升"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "累計爬升"
+          }
+        }
+      }
+    },
+    "Elevation loss" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Höhenmeter bergab"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desnivel negativo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dénivelé négatif"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dislivello negativo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suma zejść"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desnível negativo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Потеря высоты"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "累计下降"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "累計下降"
+          }
+        }
+      }
+    },
+    "Elevation profile over %@, from %@ to %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Höhenprofil über %1$@, von %2$@ bis %3$@."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Perfil de altitud a lo largo de %1$@, de %2$@ a %3$@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profil d'altitude sur %1$@, de %2$@ à %3$@."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profilo altimetrico su %1$@, da %2$@ a %3$@."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profil wysokości na %1$@, od %2$@ do %3$@."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Perfil de altitude ao longo de %1$@, de %2$@ a %3$@."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Профиль высоты на %1$@, от %2$@ до %3$@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ 的海拔剖面，从 %2$@ 到 %3$@。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ 的海拔剖面，從 %2$@ 到 %3$@。"
+          }
+        }
+      }
+    },
+    "Elevation profile over %@, relative to the start." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Höhenprofil über %@, relativ zum Start."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Perfil de altitud a lo largo de %@, relativo al inicio."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profil d'altitude sur %@, relatif au départ."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profilo altimetrico su %@, relativo alla partenza."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profil wysokości na %@, względem startu."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Perfil de altitude ao longo de %@, relativo ao início."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Профиль высоты на %@ относительно старта."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 的海拔剖面，相对于起点。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 的海拔剖面，相對於起點。"
+          }
+        }
+      }
+    },
+    "Estimates VO₂max from runs and walks with distance and a measured heart-rate trace: the ACSM equations turn your average speed into an oxygen cost, and your heart-rate reserve extrapolates it to maximum. A measured climb (your iPhone's barometer, Apple Health or an imported file) is included; without one, grade is assumed flat. Shown on Training Load beside the weekly estimate, with how it compares to Apple Watch. It never counts as performance evidence until that comparison passes a rule fixed in advance. Off by default." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schätzt die VO₂max aus Läufen und Spaziergängen mit Distanz und gemessenem Pulsverlauf: Die ACSM-Gleichungen machen aus deiner Durchschnittsgeschwindigkeit einen Sauerstoffbedarf, und deine Herzfrequenzreserve rechnet ihn auf das Maximum hoch. Ein gemessener Anstieg (Barometer deines iPhones, Apple Health oder eine importierte Datei) fließt ein; ohne ihn gilt die Strecke als flach. Wird in der Trainingslast neben der Wochenschätzung gezeigt, mit dem Vergleich zur Apple Watch. Zählt nie als Leistungsnachweis, bevor dieser Vergleich eine vorab festgelegte Regel besteht. Standardmäßig aus."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estima el VO₂max a partir de carreras y caminatas con distancia y un registro de frecuencia cardíaca medido: las ecuaciones del ACSM convierten tu velocidad media en un coste de oxígeno y tu reserva de frecuencia cardíaca lo extrapola al máximo. Se incluye el desnivel medido (barómetro de tu iPhone, Apple Health o un archivo importado); sin él, se supone terreno llano. Se muestra en Carga de entrenamiento junto a la estimación semanal, con su comparación con el Apple Watch. Nunca cuenta como prueba de rendimiento hasta que esa comparación cumpla una regla fijada de antemano. Desactivado por defecto."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estime la VO₂max à partir des courses et marches avec distance et un tracé de fréquence cardiaque mesuré : les équations de l'ACSM transforment votre vitesse moyenne en coût en oxygène, et votre réserve de fréquence cardiaque l'extrapole au maximum. Un dénivelé mesuré (baromètre de votre iPhone, Apple Health ou un fichier importé) est pris en compte ; sans lui, le terrain est supposé plat. Affiché dans Charge d'entraînement à côté de l'estimation hebdomadaire, avec la comparaison à l'Apple Watch. Ne compte jamais comme preuve de performance tant que cette comparaison ne satisfait pas une règle fixée à l'avance. Désactivé par défaut."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stima il VO₂max da corse e camminate con distanza e traccia della frequenza cardiaca misurata: le equazioni ACSM trasformano la tua velocità media in un costo di ossigeno e la tua riserva di frequenza cardiaca lo estrapola al massimo. Il dislivello misurato (barometro del tuo iPhone, Apple Health o un file importato) viene incluso; senza, la pendenza è considerata piana. Mostrato in Carico di allenamento accanto alla stima settimanale, con il confronto con Apple Watch. Non conta mai come prova di prestazione finché quel confronto non rispetta una regola fissata in anticipo. Disattivato per impostazione predefinita."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Szacuje VO₂max na podstawie biegów i marszów z dystansem i zmierzonym przebiegiem tętna: równania ACSM zamieniają średnią prędkość na zapotrzebowanie tlenowe, a rezerwa tętna ekstrapoluje je do maksimum. Zmierzone przewyższenie (barometr Twojego iPhone'a, Apple Health lub zaimportowany plik) jest uwzględniane; bez niego przyjmuje się płaski teren. Wyświetlane w Obciążeniu treningowym obok cotygodniowego szacunku, wraz z porównaniem z Apple Watch. Nigdy nie liczy się jako dowód wyników, dopóki to porównanie nie spełni reguły ustalonej z góry. Domyślnie wyłączone."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estima o VO₂max a partir de corridas e caminhadas com distância e registo de frequência cardíaca medido: as equações do ACSM transformam a tua velocidade média num custo de oxigénio e a tua reserva de frequência cardíaca extrapola-o ao máximo. O desnível medido (barómetro do teu iPhone, Apple Health ou um ficheiro importado) é incluído; sem ele, assume-se terreno plano. Mostrado em Carga de treino ao lado da estimativa semanal, com a comparação com o Apple Watch. Nunca conta como prova de desempenho enquanto essa comparação não cumprir uma regra fixada antecipadamente. Desativado por predefinição."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Оценивает VO₂max по пробежкам и прогулкам с дистанцией и измеренной записью пульса: уравнения ACSM переводят вашу среднюю скорость в потребление кислорода, а резерв пульса экстраполирует его до максимума. Измеренный набор высоты (барометр вашего iPhone, Apple Health или импортированный файл) учитывается; без него уклон принимается нулевым. Показывается в «Тренировочной нагрузке» рядом с еженедельной оценкой вместе со сравнением с Apple Watch. Никогда не считается подтверждением результатов, пока это сравнение не выполнит заранее заданное правило. По умолчанию выключено."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "根据带距离和实测心率记录的跑步与步行估算 VO₂max：ACSM 公式将你的平均速度换算为耗氧量，再用心率储备外推到最大值。已测得的爬升（你的 iPhone 气压计、Apple 健康或导入的文件）会计入；没有时按平地计算。显示在训练负荷中每周估算旁，并附与 Apple Watch 的对比。在该对比满足事先确定的规则之前，它从不作为表现依据。默认关闭。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "根據帶距離和實測心率記錄的跑步與步行估算 VO₂max：ACSM 公式將你的平均速度換算為耗氧量，再用心率儲備外推到最大值。已測得的爬升（你的 iPhone 氣壓計、Apple 健康或匯入的檔案）會計入；沒有時按平地計算。顯示在訓練負荷中每週估算旁，並附與 Apple Watch 的對比。在該對比滿足事先確定的規則之前，它從不作為表現依據。預設關閉。"
+          }
+        }
+      }
+    },
+    "Grade · last 50 m" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Steigung · letzte 50 m"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pendiente · últimos 50 m"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pente · 50 derniers m"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pendenza · ultimi 50 m"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nachylenie · ostatnie 50 m"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inclinação · últimos 50 m"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Уклон · последние 50 м"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "坡度 · 最近 50 米"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "坡度 · 最近 50 公尺"
+          }
+        }
+      }
+    },
+    "Measured climb in %lld of %lld sessions, the rest counted as flat. Not used as performance evidence." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gemessener Anstieg in %1$lld von %2$lld Einheiten, der Rest als flach gerechnet. Zählt nicht als Leistungsnachweis."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desnivel medido en %1$lld de %2$lld sesiones; el resto se cuenta como llano. No se usa como prueba de rendimiento."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dénivelé mesuré pour %1$lld séances sur %2$lld, le reste compté comme plat. Pas utilisé comme preuve de performance."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dislivello misurato in %1$lld sessioni su %2$lld, le altre considerate piane. Non usato come prova di prestazione."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zmierzone przewyższenie w %1$lld z %2$lld sesji, reszta liczona jako płaski teren. Nie służy jako dowód wyników."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desnível medido em %1$lld de %2$lld sessões, o resto contado como plano. Não é usado como prova de desempenho."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Измеренный набор высоты: тренировок с ним %1$lld из %2$lld, остальные считаются ровными. Не используется как подтверждение результатов."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%2$lld 次训练中有 %1$lld 次计入了实测爬升，其余按平地计算。不作为表现依据。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%2$lld 次訓練中有 %1$lld 次計入了實測爬升，其餘按平地計算。不作為表現依據。"
+          }
+        }
+      }
+    },
+    "Measured climbs included. Not used as performance evidence." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gemessene Anstiege einbezogen. Zählt nicht als Leistungsnachweis."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desnivel medido incluido. No se usa como prueba de rendimiento."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dénivelés mesurés inclus. Pas utilisé comme preuve de performance."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dislivelli misurati inclusi. Non usato come prova di prestazione."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uwzględniono zmierzone przewyższenia. Nie służy jako dowód wyników."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desníveis medidos incluídos. Não é usado como prova de desempenho."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Измеренный набор высоты учтён. Не используется как подтверждение результатов."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已计入实测爬升。不作为表现依据。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已計入實測爬升。不作為表現依據。"
+          }
+        }
+      }
+    },
+    "On the flat" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In der Ebene"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En llano"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sur le plat"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In piano"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Po płaskim"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Em plano"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "По ровному"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "平路配速"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "平路配速"
+          }
+        }
+      }
+    },
+    "On the flat: the pace this effort equals on level ground (Minetti 2002)." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In der Ebene: das Tempo, dem diese Anstrengung auf ebener Strecke entspricht (Minetti 2002)."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En llano: el ritmo al que equivale este esfuerzo en terreno llano (Minetti 2002)."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sur le plat : l'allure à laquelle cet effort correspond sur terrain plat (Minetti 2002)."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In piano: il passo a cui corrisponde questo sforzo su terreno pianeggiante (Minetti 2002)."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Po płaskim: tempo, któremu ten wysiłek odpowiada na płaskim terenie (Minetti 2002)."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Em plano: o ritmo a que este esforço equivale em terreno plano (Minetti 2002)."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "По ровному: темп, которому это усилие соответствует на ровной местности (Minetti 2002)."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "平路配速：同等用力在平地上对应的配速（Minetti 2002）。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "平路配速：同等用力在平地上對應的配速（Minetti 2002）。"
+          }
+        }
+      }
+    },
+    "Steepest" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Steilste Stelle"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Máx. pendiente"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pente max."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pendenza max"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Najstromiej"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inclinação máx."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Макс. уклон"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最大坡度"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最大坡度"
+          }
+        }
+      }
+    },
+    "This device has no barometer, so NOOP shows no elevation rather than guessing it from GPS." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieses Gerät hat kein Barometer. NOOP zeigt deshalb keine Höhe an, statt sie aus GPS zu raten."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este dispositivo no tiene barómetro, así que NOOP no muestra la altitud en lugar de adivinarla con el GPS."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cet appareil n'a pas de baromètre : NOOP n'affiche donc pas d'altitude plutôt que de la deviner par GPS."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo dispositivo non ha un barometro, quindi NOOP non mostra l'altitudine invece di stimarla dal GPS."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To urządzenie nie ma barometru, więc NOOP nie pokazuje wysokości zamiast zgadywać ją z GPS."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este dispositivo não tem barómetro, por isso o NOOP não mostra a altitude em vez de a adivinhar pelo GPS."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "На этом устройстве нет барометра, поэтому NOOP не показывает высоту, а не угадывает её по GPS."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此设备没有气压计，因此 NOOP 不显示海拔，而不是根据 GPS 猜测。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此裝置沒有氣壓計，因此 NOOP 不顯示海拔，而不是根據 GPS 猜測。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

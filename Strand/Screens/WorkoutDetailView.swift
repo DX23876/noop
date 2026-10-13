@@ -62,6 +62,9 @@ struct WorkoutDetailView: View {
     @State private var route: [RouteMath.LatLng] = []
     @State private var routeSegments: [[RouteMath.LatLng]]? = nil
     @State private var recordings: [CompletedWorkoutRecording] = []
+    /// The route's heights (recorded barometer or Apple Health altitude) and the workout's resolved climb.
+    @State private var elevationSeries: WorkoutElevationSeries?
+    @State private var elevation: WorkoutElevationRow?
 
     /// Drives the GPX/FIT export chooser for the recorded route.
     @State private var showRouteExport = false
@@ -102,10 +105,13 @@ struct WorkoutDetailView: View {
             GoalContributionNote(row: row)
             statStrip
             routeCard
+            WorkoutElevationCard(series: elevationSeries, elevation: elevation, sport: row.sport,
+                                 system: distanceUnitSystem)
             ForEach(recordings) { recording in
                 WorkoutRecordingSectionsView(timeline: recording.timeline,
                                              seconds: recording.row.durationS ?? 0,
-                                             sport: recording.row.sport)
+                                             sport: recording.row.sport,
+                                             elevation: elevationSeries)
             }
             hrCurveCard
             zonesCard
@@ -146,7 +152,15 @@ struct WorkoutDetailView: View {
         let analytics = Repository.analyticsProfile(profile)
         let recorded = (row.energyKcal ?? 0) > 0
         let fill = await repo.workoutHeartRateFill(for: row)
+        let elevation = await repo.workoutElevation(for: row)
+        let measured = recordings.flatMap { $0.route?.points ?? [] }
+        let heightPoints = measured.isEmpty
+            ? (RouteStore.loadWithPoints(startTs: row.startTs, sport: row.sport)?.points ?? [])
+            : measured
+        let series = WorkoutElevationSeries.make(points: heightPoints)
         await MainActor.run {
+            self.elevation = elevation
+            self.elevationSeries = series
             self.route = routePoints
             self.routeSegments = segments.isEmpty ? nil : segments
             self.recordings = recordings
@@ -450,6 +464,7 @@ struct WorkoutDetailView: View {
         let distanceM = row.distanceM, energyKcal = row.energyKcal, avgHr = row.avgHr, maxHr = row.maxHr
         let measured = recordings.flatMap { $0.route?.points ?? [] }
         let times = measured.count == points.count ? measured.map { Int($0.tMs / 1000) } : nil
+        let elevations = measured.count == points.count ? measured.map(\.altitudeM) : nil
         var offset = 0
         let boundaries = (routeSegments ?? []).map { segment in
             defer { offset += segment.count }
@@ -460,7 +475,8 @@ struct WorkoutDetailView: View {
             let data = RouteExporter.render(
                 format, route: points, startTs: startTs, endTs: endTs, sport: sport,
                 distanceM: distanceM, energyKcal: energyKcal, avgHr: avgHr, maxHr: maxHr,
-                recordedTimes: times, segmentStarts: boundaries, activeDurationS: activeDuration)
+                recordedTimes: times, segmentStarts: boundaries, activeDurationS: activeDuration,
+                elevations: elevations)
             let url = NoopScratch.file(name)
             do { try data.write(to: url) } catch { return }
             await MainActor.run { FileExport.exportFile(at: url, suggestedName: name) }

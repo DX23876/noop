@@ -6,7 +6,8 @@ import Foundation
 /// `swift-packages.yml`.
 ///
 /// FIDELITY NOTE: the stored route (`RouteMath` polyline) is lat/lon ONLY — no per-point timestamp,
-/// elevation, speed, or HR is persisted. So an export carries the lat/lon track plus per-point timestamps
+/// elevation, speed, or HR is persisted. (A route NOOP recorded with measured points passes their real
+/// times as `recordedTimes` and, when a barometer reported, their heights as `elevations`.) So an export carries the lat/lon track plus per-point timestamps
 /// INTERPOLATED evenly across the workout window `[startTs, endTs]` (total duration is exact; instantaneous
 /// pace is not), and workout-level metadata (sport, distance, calories, avg/max HR). That's the honest
 /// maximum from what's stored, and what Strava / Garmin Connect need to read the track as a timed activity.
@@ -38,20 +39,31 @@ public enum RouteExporter {
         maxHr: Int? = nil,
         recordedTimes: [Int]? = nil,
         segmentStarts: [Int] = [],
-        activeDurationS: Double? = nil
+        activeDurationS: Double? = nil,
+        elevations: [Double?]? = nil
     ) -> Data {
         switch format {
         case .gpx:
             return Data(buildGpx(route: route, startTs: startTs, endTs: endTs, sport: sport,
-                                 recordedTimes: recordedTimes, segmentStarts: segmentStarts).utf8)
+                                 recordedTimes: recordedTimes, segmentStarts: segmentStarts,
+                                 elevations: elevations).utf8)
         case .fit:
             return buildFit(route: route, startTs: startTs, endTs: endTs, sport: sport,
                             distanceM: distanceM, energyKcal: energyKcal, avgHr: avgHr, maxHr: maxHr,
-                            recordedTimes: recordedTimes, activeDurationS: activeDurationS)
+                            recordedTimes: recordedTimes, activeDurationS: activeDurationS,
+                            elevations: elevations)
         }
     }
 
-    /// GPX 1.1 track. Each `trkpt` carries lat/lon + an interpolated `time`; no `ele`/HR (none stored).
+    /// Per-point heights aligned with the route, or nil when the array does not match it or holds none.
+    static func alignedElevations(_ elevations: [Double?]?, count: Int) -> [Double?]? {
+        guard let elevations, elevations.count == count,
+              elevations.contains(where: { $0.map(\.isFinite) ?? false }) else { return nil }
+        return elevations.map { $0.flatMap { $0.isFinite ? $0 : nil } }
+    }
+
+    /// GPX 1.1 track. Each `trkpt` carries lat/lon, an `ele` when a measured height is given, and a `time`;
+    /// no HR (none stored).
     /// Takes no distance: GPX 1.1 has no track-level distance element, so a reader derives it from the
     /// trackpoints. FIT does carry one, which is why ``buildFit`` still takes it. Kotlin twin matches.
     public static func buildGpx(
@@ -60,11 +72,13 @@ public enum RouteExporter {
         endTs: Int,
         sport: String?,
         recordedTimes: [Int]? = nil,
-        segmentStarts: [Int] = []
+        segmentStarts: [Int] = [],
+        elevations: [Double?]? = nil
     ) -> String {
         let canon = canonicalSport(sport)
         let times = recordedTimes.flatMap { $0.count == route.count ? $0 : nil }
             ?? interpolatedTimes(route.count, startTs, endTs)
+        let heights = alignedElevations(elevations, count: route.count)
         let boundaries = Set(segmentStarts.filter { $0 > 0 && $0 < route.count })
         var s = ""
         s += "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
@@ -78,6 +92,8 @@ public enum RouteExporter {
             if boundaries.contains(i) { s += "    </trkseg>\n    <trkseg>\n" }
             let p = route[i]
             s += "      <trkpt lat=\"\(coord(p.lat))\" lon=\"\(coord(p.lon))\">"
+            // GPX 1.1 orders `ele` before `time`.
+            if let height = heights?[i] { s += "<ele>\(String(format: "%.1f", height))</ele>" }
             s += "<time>\(iso(times[i]))</time></trkpt>\n"
         }
         s += "    </trkseg>\n  </trk>\n</gpx>\n"
@@ -97,11 +113,13 @@ public enum RouteExporter {
         avgHr: Int? = nil,
         maxHr: Int? = nil,
         recordedTimes: [Int]? = nil,
-        activeDurationS: Double? = nil
+        activeDurationS: Double? = nil,
+        elevations: [Double?]? = nil
     ) -> Data {
         let canon = canonicalSport(sport)
         let times = recordedTimes.flatMap { $0.count == route.count ? $0 : nil }
             ?? interpolatedTimes(route.count, startTs, endTs)
+        let heights = alignedElevations(elevations, count: route.count)
         var body: [UInt8] = []
 
         // file_id (global 0): type=activity, manufacturer=development, time_created.
@@ -109,13 +127,17 @@ public enum RouteExporter {
         body.append(0)
         u8(&body, 4); u16(&body, 255); u32(&body, fitTime(startTs))
 
-        // record (global 20): timestamp + position.
-        defn(&body, local: 1, global: 20, fields: [(253, 4, 0x86), (0, 4, 0x85), (1, 4, 0x85)])
+        // record (global 20): timestamp + position, and altitude (field 2, uint16, scale 5, offset 500)
+        // when heights were measured. A point without one carries FIT's invalid 0xFFFF.
+        var recordFields = [(253, 4, 0x86), (0, 4, 0x85), (1, 4, 0x85)]
+        if heights != nil { recordFields.append((2, 2, 0x84)) }
+        defn(&body, local: 1, global: 20, fields: recordFields)
         for i in route.indices {
             body.append(1)
             u32(&body, fitTime(times[i]))
             s32(&body, semicircles(route[i].lat))
             s32(&body, semicircles(route[i].lon))
+            if let heights { u16(&body, fitAltitude(heights[i])) }
         }
 
         let elapsedMs = UInt32(max(0, endTs - startTs)) &* 1000
@@ -278,6 +300,14 @@ public enum RouteExporter {
         b.append(UInt8((v >> 16) & 0xFF)); b.append(UInt8((v >> 24) & 0xFF))
     }
     private static func s32(_ b: inout [UInt8], _ v: Int32) { u32(&b, UInt32(bitPattern: v)) }
+
+    /// FIT altitude: (metres + 500) × 5 as uint16; 0xFFFF (invalid) when absent or out of range.
+    static func fitAltitude(_ metres: Double?) -> UInt16 {
+        guard let metres, metres.isFinite else { return 0xFFFF }
+        let raw = ((metres + 500) * 5).rounded()
+        guard raw >= 0, raw < 0xFFFF else { return 0xFFFF }
+        return UInt16(raw)
+    }
 
     /// The standard FIT CRC-16 (nibble-table variant), computed over `data`.
     static func fitCrc(_ data: [UInt8]) -> Int {

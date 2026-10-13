@@ -1,10 +1,12 @@
 import Foundation
 import StrandAnalytics
+import WhoopStore
 
 // TrainingVO2maxEstimates.swift — the one place NOOP estimates VO₂max from walks and runs. Training Load's
 // experimental reading and AgeLess both read it, so the same session can never give two figures: fused
 // sessions (each bout once), on foot, with a heart-rate trace the cardio load could price, against the
-// cardio load's own resting rate (the week's median of the daily resting HR) and maximum heart rate.
+// cardio load's own resting rate (the week's median of the daily resting HR) and maximum heart rate. A
+// session's measured climb (v78, resolved by `WorkoutElevationRow.resolve`) enters the oxygen cost (AI-25).
 
 extension Repository {
 
@@ -12,7 +14,9 @@ extension Repository {
     nonisolated static func trainingVO2maxEstimates(sessions: [UnifiedTrainingSession],
                                                     resolution: TrainingCardioLoadResolution,
                                                     restingByDay: [String: Double], maxHR: Double,
-                                                    offset: Int) -> (estimates: [ExerciseVO2max.SessionEstimate], onFoot: Int) {
+                                                    offset: Int,
+                                                    elevations: [WorkoutKey: WorkoutElevationRow] = [:])
+        -> (estimates: [ExerciseVO2max.SessionEstimate], onFoot: Int) {
         var estimates: [ExerciseVO2max.SessionEstimate] = []
         var onFoot = 0
         for session in sessions where !resolution.duplicateSessionIds.contains(session.id) {
@@ -25,7 +29,9 @@ extension Repository {
                 averageHR: metrics.avgHr.map(Double.init),
                 heartRateMeasured: resolution.loads[session.id] != nil,
                 restingHR: cardioLoadRestingHR(day: metrics.day, restingByDay: restingByDay),
-                maxHR: maxHR)
+                maxHR: maxHR,
+                ascentM: WorkoutElevationRow.resolve(startTs: session.row.startTs, sport: session.row.sport,
+                                                     rowSource: session.row.source, in: elevations)?.ascentM)
             if case let .estimate(estimate) = ExerciseVO2max.estimate(input) { estimates.append(estimate) }
         }
         return (estimates, onFoot)
@@ -38,9 +44,12 @@ extension Repository {
         let resolution = await cardioLoads(for: unified)
         let resting = await restingHrByDay(fromDay: Self.localDayKey(now.addingTimeInterval(-Double(days) * 86_400)),
                                            toDay: Self.localDayKey(now))
+        let nowTs = Int(now.timeIntervalSince1970)
+        let elevations = await workoutElevations(from: nowTs - (days + 1) * 86_400, to: nowTs)
         return Self.trainingVO2maxEstimates(sessions: unified, resolution: resolution, restingByDay: resting,
                                             maxHR: Self.cardioLoadMaxHR(strainProfile),
-                                            offset: TimeZone.current.secondsFromGMT()).estimates
+                                            offset: TimeZone.current.secondsFromGMT(),
+                                            elevations: elevations).estimates
     }
 
     /// The VO₂max inputs AgeLess and the VO₂max goal resolve with `HealthspanVO2`, so the two cannot follow

@@ -135,5 +135,18 @@ extension Repository {
                                                        from: row.startTs, to: row.startTs))?[key]
     }
 
+    /// Every stored elevation for workouts starting in `[from, to]` (v78), for a batch reader that resolves
+    /// each row through `WorkoutElevationRow.resolve`.
+    func workoutElevations(from: Int, to: Int) async -> [WorkoutKey: WorkoutElevationRow] {
+        guard let store = await storeHandle() else { return [:] }
+        return (try? await store.workoutElevations(from: from, to: to)) ?? [:]
+    }
+
+    /// The resolved elevation of one workout, for its detail screen.
+    func workoutElevation(for row: WorkoutRow) async -> WorkoutElevationRow? {
+        WorkoutElevationRow.resolve(startTs: row.startTs, sport: row.sport, rowSource: row.source,
+                                    in: await workoutElevations(from: row.startTs, to: row.startTs))
+    }
+
     func noteWorkoutAnnotationsChanged() { workoutAnnotationRevision &+= 1 }
 }

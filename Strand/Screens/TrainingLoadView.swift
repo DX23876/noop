@@ -163,6 +163,7 @@ final class TrainingLoadModel: ObservableObject {
                    .map { VO2maxReading(day: $0.day, value: $0.value, segment: Repository.appleHealthSource) })
             : nil
         let maxHR = Repository.cardioLoadMaxHR(repo.strainProfile)
+        let elevations = exerciseInputs == nil ? [:] : await repo.workoutElevations(from: from - 86_400, to: now)
 
         let today = Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(now)))
         let prepared = await Task.detached(priority: .userInitiated) { () -> Prepared in
@@ -173,7 +174,7 @@ final class TrainingLoadModel: ObservableObject {
         }.value
         let exerciseVO2max = exerciseInputs.map { inputs in
             Self.exerciseVO2max(sessions: unified, resolution: cardioResolution, restingByDay: inputs.resting,
-                                maxHR: maxHR, apple: inputs.apple, offset: offset)
+                                maxHR: maxHR, apple: inputs.apple, offset: offset, elevations: elevations)
         }
         return Snapshot(prepared: prepared, fusion: fusion, rpeEntries: rpeEntries, exerciseVO2max: exerciseVO2max)
     }
@@ -580,11 +581,12 @@ final class TrainingLoadModel: ObservableObject {
     /// with Apple Watch's readings.
     nonisolated static func exerciseVO2max(sessions: [UnifiedTrainingSession], resolution: TrainingCardioLoadResolution,
                                            restingByDay: [String: Double], maxHR: Double,
-                                           apple: [VO2maxReading], offset: Int) -> ExerciseVO2maxReading {
+                                           apple: [VO2maxReading], offset: Int,
+                                           elevations: [WorkoutKey: WorkoutElevationRow] = [:]) -> ExerciseVO2maxReading {
         // The one estimator AgeLess reads too (TrainingVO2maxEstimates.swift).
         let (estimates, onFoot) = Repository.trainingVO2maxEstimates(sessions: sessions, resolution: resolution,
                                                                      restingByDay: restingByDay, maxHR: maxHR,
-                                                                     offset: offset)
+                                                                     offset: offset, elevations: elevations)
         let weekly = ExerciseVO2max.weekly(estimates)
         return ExerciseVO2maxReading(weekly: weekly, sessionsUsed: estimates.count, sessionsOnFoot: onFoot,
                                      report: ExerciseVO2max.validate(weekly: weekly, apple: apple))
@@ -1654,15 +1656,27 @@ struct TrainingLoadView: View {
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Text("Grade assumed flat. Not used as performance evidence.")
+            gradeLine(reading.weekly.last)
                 .font(StrandFont.caption)
                 .foregroundStyle(StrandPalette.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
             Text(validationText(reading.report))
                 .font(StrandFont.caption)
                 .foregroundStyle(StrandPalette.textTertiary)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .combine)
+    }
+
+    /// Whether the latest week's sessions carried their measured climb (AI-25) or were counted as level.
+    private func gradeLine(_ week: ExerciseVO2max.WeeklyEstimate?) -> Text {
+        guard let week, week.sessionsWithGrade > 0 else {
+            return Text("Grade assumed flat. Not used as performance evidence.")
+        }
+        if week.sessionsWithGrade == week.sessions {
+            return Text("Measured climbs included. Not used as performance evidence.")
+        }
+        return Text("Measured climb in \(week.sessionsWithGrade) of \(week.sessions) sessions, the rest counted as flat. Not used as performance evidence.")
     }
 
     private func validationText(_ report: ExerciseVO2max.ValidationReport) -> String {

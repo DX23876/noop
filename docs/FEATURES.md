@@ -1232,6 +1232,37 @@ feed, refresh battery, scan/reconnect, or disconnect.
 Analysis migration required: no — prospective capture and additive evidence only. Existing scores, raw
 samples, corrections, historical routes and analysis recipe versions are not rewritten.
 
+### GPS elevation, grade and grade-adjusted pace (2026-10-13)
+
+- A GPS workout on iPhone reads the barometer beside the route. Elevation gain and loss are counted with
+  OpenTracks' method, ported unchanged (Apache 2.0): pressure smoothed 0.3 against the previous reading,
+  a change counted only from 3 m and then in 3 m steps. Paused time counts nothing; after a pause the next
+  reading is a new baseline. Without a barometer (every Mac) no elevation is shown, never GPS altitude.
+- Each route point keeps Apple's absolute altitude (barometer and GPS fusion) with its stated accuracy and
+  the barometric height; the crash journal carries them across a relaunch.
+- The live screen has an Elevation page: gain, loss, current elevation, the grade over the last 50 m and
+  the profile so far. Kilometre or mile splits and manual laps carry their own climb.
+- The workout detail shows an elevation profile over distance (labelled height and distance axes, a finger
+  reads out distance, height and grade; the line warms to the Effort colour on climbs of 3 % and 8 %),
+  climbed, descended, the steepest grade and, for walks and runs, the pace the effort equals on the flat.
+- Grade follows gpx.studio (MIT): per point, the height difference over a window reaching 50 m either side.
+  Grade-adjusted pace follows Minetti et al. 2002 (J Appl Physiol 93:1039): each leg counts its length
+  times Cr(i)/Cr(0) for runs or Cw(i)/Cw(0) for walks, the fits held at their measured ±45 %.
+- The climb is stored beside the workout (`workoutElevation`, v78) and resolved through one function for
+  every reader: NOOP's barometer, Apple Health's `HKMetadataKeyElevationAscended`/`Descended`, or an
+  imported GPX/TCX/FIT file's ascent. Workouts already imported from Apple Health are read once more for
+  their climb. Edits and merges of a recorded workout carry the climb onto the new key.
+- Apple Health exports now carry each point's altitude (vertical accuracy −1 where unknown) and the
+  workout's climb; GPX exports write `<ele>`, FIT exports the record altitude.
+- The training-based VO₂max includes a measured climb through the ACSM uphill term (metres climbed per
+  minute times 1.8 walking or 0.9 running); descents count as level, and a session without a measured climb
+  keeps the flat assumption. Training Load says per week how many sessions carried their climb.
+
+Analysis migration required: yes — AI-25. AgeLess weeks read the training-based VO₂max, which now
+includes measured climbs, so every AgeLess week is deleted once and the next pass rebuilds it; zone minutes
+are kept, no daily row is re-scored, no workout row or raw sample is touched. When the one-time Apple Health
+elevation read finishes and found any climb, it clears the AgeLess weeks once more.
+
 ### Live workout guidance — stages 2 and 3 (2026-10-06)
 
 Extends the existing recording flow; does not introduce a second recorder or change workout scoring.
