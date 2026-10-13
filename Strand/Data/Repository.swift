@@ -4185,6 +4185,10 @@ final class Repository: ObservableObject {
                 if !evidence.isEmpty {
                     let payload = String(decoding: try JSONEncoder().encode(evidence), as: UTF8.self)
                     try await store.saveWorkoutRecording(row, deviceId: deviceId, payloadJSON: payload, computedEnergy: false)
+                    // v78: the climb follows the recording onto the new key; the old key's goes with its row.
+                    if let elevation = Self.recordedElevation(evidence, row: row, deviceId: deviceId) {
+                        try await store.upsertWorkoutElevations([elevation])
+                    }
                 }
                 _ = try await store.deleteWorkouts(deviceId: deviceId, sport: old.sport,
                                                    from: old.startTs, to: old.startTs)
@@ -4346,6 +4350,20 @@ final class Repository: ObservableObject {
     ///      a span the merged row now occupies).
     /// The caller runs `analyzeRecent` (rescores the merged row's strain from the strap HR, the #598
     /// pattern) + reloads afterwards.
+    /// The barometric climb of recordings re-keyed onto `row` (an edit or a merge): their gains and losses
+    /// summed, or nil when none counted any.
+    nonisolated static func recordedElevation(_ recordings: [CompletedWorkoutRecording], row: WorkoutRow,
+                                              deviceId: String) -> WorkoutElevationRow? {
+        let ascents = recordings.compactMap(\.timeline.ascentM)
+        guard !ascents.isEmpty else { return nil }
+        let descents = recordings.compactMap(\.timeline.descentM)
+        let elevation = WorkoutElevationRow(
+            key: WorkoutKey(deviceId: deviceId, startTs: row.startTs, sport: row.sport),
+            ascentM: ascents.reduce(0, +), descentM: descents.isEmpty ? nil : descents.reduce(0, +),
+            source: WorkoutElevationSource.barometer, updatedAtTs: Int(Date().timeIntervalSince1970))
+        return elevation.isValid ? elevation : nil
+    }
+
     func mergeWorkouts(_ rows: [WorkoutRow], into merged: WorkoutRow) async {
         guard rows.count >= 2 else { return }
         // Pick the richest route to carry onto the merged key BEFORE deleting the originals (the DB write
@@ -4376,6 +4394,9 @@ final class Repository: ObservableObject {
             } else {
                 let payload = String(decoding: try JSONEncoder().encode(recordings), as: UTF8.self)
                 try await store.saveWorkoutRecording(merged, deviceId: deviceId, payloadJSON: payload, computedEnergy: false)
+                if let elevation = Self.recordedElevation(recordings, row: merged, deviceId: deviceId) {
+                    try await store.upsertWorkoutElevations([elevation])
+                }
             }
         }
         catch { return }

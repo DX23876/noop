@@ -163,6 +163,13 @@ struct WorkoutRoutePoint: Equatable, Codable, Sendable {
     var tMs: Int64
     var segment: Int? = nil
     var activeSeconds: Double? = nil
+    /// Height above sea level from Apple's barometer and GPS fusion, metres; nil without a barometer.
+    var altitudeM: Double? = nil
+    /// Apple's stated accuracy of `altitudeM`, metres.
+    var altitudeAccuracyM: Double? = nil
+    /// Barometric height relative to the start of the barometer stream, metres. Smooth enough for a grade;
+    /// comparable only within one route segment, since a relaunch restarts the stream.
+    var baroAltitudeM: Double? = nil
 }
 
 /// The route persisted for one finished workout: an encoded polyline, its GPS distance, and (when
@@ -398,9 +405,14 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
     @Published private(set) var paceSecPerKm: Double?
     /// Number of accepted route points so far (lets the UI distinguish "recording, no fix yet" from "off").
     @Published private(set) var pointCount = 0
+    /// The measured points accepted so far, for the live elevation profile. Empty after a restore from a
+    /// journal without measurements.
+    var measuredPoints: [WorkoutRoutePoint] { routePoints }
     @Published private(set) var lastLocationAt: Date?
     @Published private(set) var isStationary = false
     var onAcceptedPoint: ((WorkoutRoutePoint, Double) -> Void)?
+    /// The barometer's latest heights, read as each point is accepted. nil (or nil values) without one.
+    var currentAltitude: (() -> (absolute: Double?, accuracy: Double?, relative: Double?))?
     /// Fires when the route really breaks: a reacquired fix the filter could not bridge. A quiet spell
     /// that is bridged afterwards (Core Location goes silent while the walker stands still) is not a gap.
     var onInterruption: (() -> Void)?
@@ -860,12 +872,16 @@ final class GpsWorkoutRecorder: NSObject, ObservableObject {
                 beginsSegment = false
             } else if let last = track.last { added += RouteMath.haversineMeters(last, pt) }
             track.append(pt)
+            let heights = currentAltitude?()
             let measured = WorkoutRoutePoint(lat: fix.lat, lon: fix.lon,
                                              accuracyM: fix.accuracyM, tMs: fix.tMs,
                                              segment: segment,
                                              activeSeconds: max(0, RouteMath.activeElapsedSeconds(
                                                 startMs: startMs, nowMs: fix.tMs,
-                                                pausedDurationMs: pausedDurationMs)))
+                                                pausedDurationMs: pausedDurationMs)),
+                                             altitudeM: heights?.absolute,
+                                             altitudeAccuracyM: heights?.absolute == nil ? nil : heights?.accuracy,
+                                             baroAltitudeM: heights?.relative)
             routePoints.append(measured)
             unjournaledPoints.append(measured)
             lastLocationAt = Date(timeIntervalSince1970: Double(fix.tMs) / 1000)

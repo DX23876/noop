@@ -150,6 +150,8 @@ public struct DeviceRegistryStore: Sendable {
         "rawBatch", "labMarker", "sleepStateSample", "liveSession",
         // v75: the live recording evidence of a workout; keyed like `workout`, so it goes with it.
         "workoutRecording",
+        // v78: the height a workout climbed; keyed like `workout`, so it goes with it.
+        "workoutElevation",
         // v25-oura-raw: the opt-in Oura cloud-import raw archive is deviceId-keyed too, so "delete this
         // device's data" must clear it — else an imported Oura source's payloads would survive deletion.
         "ouraRaw",

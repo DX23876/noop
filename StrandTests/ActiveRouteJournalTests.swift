@@ -53,4 +53,21 @@ final class ActiveRouteJournalTests: XCTestCase {
         XCTAssertEqual(restored.track, [.init(47.1, 8.1), .init(47.2, 8.2)])
         XCTAssertNil(restored.points)
     }
+
+    func testBarometerHeightsRestoreAndAMissingHeightStaysMissing() {
+        let journal = ActiveRouteJournal(url: url)
+        journal.append(measured: [
+            WorkoutRoutePoint(lat: 47.1, lon: 8.1, accuracyM: 5, tMs: 1_700_000_000_000, segment: 0,
+                              activeSeconds: 1, altitudeM: 412.25, altitudeAccuracyM: 6.5, baroAltitudeM: 0.5),
+            WorkoutRoutePoint(lat: 47.2, lon: 8.2, accuracyM: 5, tMs: 1_700_000_001_000, segment: 0,
+                              activeSeconds: 2, altitudeM: nil, baroAltitudeM: 1.25),
+            WorkoutRoutePoint(lat: 47.3, lon: 8.3, accuracyM: 5, tMs: 1_700_000_002_000, segment: 0,
+                              activeSeconds: 3),
+        ])
+        let points = journal.loadMeasured().points
+        XCTAssertEqual(points?.map(\.altitudeM), [412.25, nil, nil])
+        XCTAssertEqual(points?.map(\.altitudeAccuracyM), [6.5, nil, nil])
+        XCTAssertEqual(points?.map(\.baroAltitudeM), [0.5, 1.25, nil])
+        XCTAssertEqual(points?.map(\.segment), [0, 0, 0])
+    }
 }

@@ -194,7 +194,13 @@ extension WhoopStore {
                 DELETE FROM workout
                 WHERE deviceId = ? AND sport = ? AND startTs >= ? AND startTs <= ?
                 """, arguments: [deviceId, sport, from, to])
-            return db.changesCount
+            let deleted = db.changesCount
+            // v78: a workout's elevation goes with it, so a later row on the same key never inherits it.
+            try db.execute(sql: """
+                DELETE FROM workoutElevation
+                WHERE deviceId = ? AND sport = ? AND startTs >= ? AND startTs <= ?
+                """, arguments: [deviceId, sport, from, to])
+            return deleted
         }
     }
 

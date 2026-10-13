@@ -26,6 +26,9 @@ public struct WorkoutRecordingTimeline: Codable, Equatable, Sendable {
         public let distanceM: Double?
         public let interrupted: Bool
         public let partial: Bool
+        /// Barometric height climbed and descended inside the section; nil when nothing measured height.
+        public var ascentM: Double? = nil
+        public var descentM: Double? = nil
         public var id: Int { index }
         public var duration: Double { max(0, endSeconds - startSeconds) }
         public var speedMps: Double? {
@@ -48,6 +51,13 @@ public struct WorkoutRecordingTimeline: Codable, Equatable, Sendable {
     public var startUnixSeconds: Double? = nil
     public var endUnixSeconds: Double? = nil
     public private(set) var hasRouteGap: Bool? = nil
+    /// Barometric elevation gain and loss over the active workout (`BarometricElevationCounter`); nil when
+    /// no barometer reported, so a missing measurement never reads as a flat route.
+    public private(set) var ascentM: Double? = nil
+    public private(set) var descentM: Double? = nil
+    // Optional so a payload written before elevation existed still decodes.
+    private var splitElevationStart: ElevationMark? = nil
+    private var lapElevationStart: ElevationMark? = nil
     private var splitStart = 0.0
     private var splitInterrupted = false
     private var lapStart = 0.0
@@ -74,6 +84,8 @@ public struct WorkoutRecordingTimeline: Codable, Equatable, Sendable {
             && recentPositions.allSatisfy { time($0.seconds) && $0.distanceM.isFinite && $0.distanceM >= 0 && $0.segment >= 0 }
             && splits.allSatisfy(section) && laps.allSatisfy(section)
             && time(splitStart) && time(lapStart) && lapDistance.isFinite && lapDistance >= 0
+            && [ascentM, descentM].allSatisfy { $0.map { $0.isFinite && $0 >= 0 } ?? true }
+            && (splits + laps).allSatisfy { [$0.ascentM, $0.descentM].allSatisfy { $0.map { $0.isFinite && $0 >= 0 } ?? true } }
             && (pauses?.enumerated().allSatisfy { index, pause in
                 pause.startUnixSeconds.isFinite && pause.startUnixSeconds > 0
                     && (pause.endUnixSeconds.map { $0.isFinite && $0 >= pause.startUnixSeconds } ?? (index == (pauses?.count ?? 0) - 1))
@@ -138,9 +150,12 @@ public struct WorkoutRecordingTimeline: Codable, Equatable, Sendable {
             while boundary <= meters {
                 let fraction = (boundary - previous.distanceM) / (meters - previous.distanceM)
                 let time = previous.seconds + fraction * (seconds - previous.seconds)
+                let climb = elevation(since: splitElevationStart)
                 splits.append(Section(index: splits.count + 1, startSeconds: splitStart,
                                       endSeconds: time, distanceM: length,
-                                      interrupted: splitInterrupted, partial: false))
+                                      interrupted: splitInterrupted, partial: false,
+                                      ascentM: climb?.ascentM, descentM: climb?.descentM))
+                splitElevationStart = currentElevationMark
                 splitStart = time
                 splitInterrupted = false
                 boundary += length
@@ -175,9 +190,12 @@ public struct WorkoutRecordingTimeline: Codable, Equatable, Sendable {
     @discardableResult
     public mutating func markLap(at seconds: Double) -> Bool {
         guard seconds.isFinite, seconds > lapStart else { return false }
+        let climb = elevation(since: lapElevationStart)
         laps.append(Section(index: laps.count + 1, startSeconds: lapStart, endSeconds: seconds,
                             distanceM: splitLengthM == nil ? nil : max(0, distanceM - lapDistance),
-                            interrupted: lapInterrupted, partial: false))
+                            interrupted: lapInterrupted, partial: false,
+                            ascentM: climb?.ascentM, descentM: climb?.descentM))
+        lapElevationStart = currentElevationMark
         lapStart = seconds
         lapDistance = distanceM
         lapInterrupted = false
@@ -188,15 +206,45 @@ public struct WorkoutRecordingTimeline: Codable, Equatable, Sendable {
         guard let length = splitLengthM else { return [] }
         let remainder = max(0, distanceM - Double(splits.count) * length)
         guard remainder > 0, seconds > splitStart else { return splits }
+        let climb = elevation(since: splitElevationStart)
         return splits + [Section(index: splits.count + 1, startSeconds: splitStart, endSeconds: seconds,
-                                 distanceM: remainder, interrupted: splitInterrupted, partial: true)]
+                                 distanceM: remainder, interrupted: splitInterrupted, partial: true,
+                                 ascentM: climb?.ascentM, descentM: climb?.descentM)]
     }
 
     public func manualSections(at seconds: Double) -> [Section] {
         guard !laps.isEmpty, seconds > lapStart else { return laps }
+        let climb = elevation(since: lapElevationStart)
         return laps + [Section(index: laps.count + 1, startSeconds: lapStart, endSeconds: seconds,
                                distanceM: splitLengthM == nil ? nil : max(0, distanceM - lapDistance),
-                               interrupted: lapInterrupted, partial: true)]
+                               interrupted: lapInterrupted, partial: true,
+                               ascentM: climb?.ascentM, descentM: climb?.descentM)]
+    }
+
+    /// Adds the height one barometer reading counted. A zero reading still marks elevation as measured,
+    /// so a flat workout shows 0 m rather than no measurement.
+    public mutating func recordElevation(gainM: Double, lossM: Double) {
+        guard gainM.isFinite, gainM >= 0, lossM.isFinite, lossM >= 0 else { return }
+        ascentM = (ascentM ?? 0) + gainM
+        descentM = (descentM ?? 0) + lossM
+    }
+
+    /// Cumulative gain and loss at a section boundary.
+    private struct ElevationMark: Codable, Equatable, Sendable {
+        let ascentM: Double
+        let descentM: Double
+    }
+
+    private var currentElevationMark: ElevationMark? {
+        guard let ascentM, let descentM else { return nil }
+        return ElevationMark(ascentM: ascentM, descentM: descentM)
+    }
+
+    /// Height counted since a boundary. A boundary set before the first reading counts from zero.
+    private func elevation(since mark: ElevationMark?) -> ElevationMark? {
+        guard let ascentM, let descentM else { return nil }
+        return ElevationMark(ascentM: max(0, ascentM - (mark?.ascentM ?? 0)),
+                             descentM: max(0, descentM - (mark?.descentM ?? 0)))
     }
 
     public func averageBpm(in section: Section) -> Int? {

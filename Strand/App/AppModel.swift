@@ -175,6 +175,9 @@ final class AppModel: ObservableObject {
     /// sport: a route-capable sport can default on or remain optional, and capture begins only after the
     /// user grants When-In-Use location.
     let gpsRecorder = GpsWorkoutRecorder()
+    /// The barometer beside the route: elevation gain and loss for a GPS workout, and the height of each
+    /// route point. Runs only while a GPS workout records; reports nothing on a device without one.
+    let workoutAltimeter = WorkoutAltimeter()
     /// Spoken split, interval, pause and recap announcements for the active workout (headphones only).
     let voiceCoach = WorkoutVoiceCoach()
     /// True while this session is recording a phone route. It is the wearer's per-session choice, seeded
@@ -603,6 +606,15 @@ final class AppModel: ObservableObject {
             if Int(Date.now.timeIntervalSince1970) - self.lastWorkoutPersistTs >= Self.workoutPersistIntervalSeconds {
                 self.persistActiveWorkout()
             }
+        }
+        gpsRecorder.currentAltitude = { [weak self] in
+            (self?.workoutAltimeter.altitudeM, self?.workoutAltimeter.altitudeAccuracyM,
+             self?.workoutAltimeter.relativeAltitudeM)
+        }
+        workoutAltimeter.onElevation = { [weak self] gain, loss in
+            guard let self, self.activeWorkout?.isPaused == false else { return }
+            self.workoutRecording.recordElevation(gainM: gain, lossM: loss)
+            if gain > 0 || loss > 0 { self.objectWillChange.send() }
         }
         gpsRecorder.onInterruption = { [weak self] in
             guard let self, self.activeWorkout?.isPaused == false else { return }
@@ -1153,6 +1165,7 @@ final class AppModel: ObservableObject {
         if activeWorkoutIsGps {
             gpsRecorder.start(startMs: Int64(started.timeIntervalSince1970 * 1000),
                               maxSpeedMps: WorkoutCatalog.gpsMaxSpeedMps(for: resolved))
+            workoutAltimeter.start()
         }
         if let workout = activeWorkout { voiceCoach.begin(usesRoute: activeWorkoutIsGps, workoutID: workout.id) }
         // Make the session durable from the first instant (#529): persist it now so an OS kill right
@@ -1266,6 +1279,7 @@ final class AppModel: ObservableObject {
                 pausedDurationMs: Int64(w.pausedDuration * 1000),
                 maxSpeedMps: WorkoutCatalog.gpsMaxSpeedMps(for: snap.sport)
             )
+            workoutAltimeter.restore(paused: w.pausedAt != nil)
         }
         zoneTrainingTargetZone = snap.targetZone
         zoneTrainingEngine.reset()
@@ -1294,13 +1308,13 @@ final class AppModel: ObservableObject {
             w.pausedDuration += now.timeIntervalSince(pausedAt)
             w.pausedAt = nil
             workoutRecording.endPause(atUnixSeconds: now.timeIntervalSince1970)
-            if activeWorkoutIsGps { gpsRecorder.resume(at: now) }
+            if activeWorkoutIsGps { gpsRecorder.resume(at: now); workoutAltimeter.resume() }
             systemWorkoutSession?.resume()
             voiceCoach.resumed()
         } else {
             w.pausedAt = now
             workoutRecording.beginPause(atUnixSeconds: now.timeIntervalSince1970)
-            if activeWorkoutIsGps { gpsRecorder.pause(at: now, observingMotion: automatically) }
+            if activeWorkoutIsGps { gpsRecorder.pause(at: now, observingMotion: automatically); workoutAltimeter.pause() }
             systemWorkoutSession?.pause()
             voiceCoach.paused()
         }
@@ -1349,7 +1363,7 @@ final class AppModel: ObservableObject {
         workoutMotion = nil
         workoutAutoPauseEngine.reset()
         activeWorkout = nil
-        if activeWorkoutIsGps { gpsRecorder.stop() }
+        if activeWorkoutIsGps { gpsRecorder.stop(); workoutAltimeter.stop() }
         activeWorkoutIsGps = false
         ActiveWorkoutPersistence.clear()
         lastWorkout = nil
@@ -1453,7 +1467,7 @@ final class AppModel: ObservableObject {
         workoutAutomaticallyPaused = false
         workoutMotion = nil
         workoutAutoPauseEngine.reset()
-        if wasGps { gpsRecorder.stop(preserveJournal: true) }
+        if wasGps { gpsRecorder.stop(preserveJournal: true); workoutAltimeter.stop() }
         activeWorkoutIsGps = false
         activeWorkout = nil
         // Workouts & GPS test mode: one session-end summary tagged `.workouts` (the lastSessionSummary readout
@@ -1488,6 +1502,10 @@ final class AppModel: ObservableObject {
                 let data = try JSONEncoder().encode([recording])
                 let payload = String(decoding: data, as: UTF8.self)
                 try await store.saveWorkoutRecording(recording.row, deviceId: recording.deviceId, payloadJSON: payload)
+                if let elevation = Repository.recordedElevation([recording], row: recording.row,
+                                                                 deviceId: recording.deviceId) {
+                    try await store.upsertWorkoutElevations([elevation])
+                }
                 // Removing recovery state is part of acknowledging success. Retrying the same key is safe.
                 try pendingWorkoutCompletion.clear()
                 ActiveWorkoutPersistence.clear()

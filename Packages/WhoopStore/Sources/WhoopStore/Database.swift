@@ -1971,6 +1971,22 @@ extension WhoopStore {
         migrator.registerMigration("v77-ecg-reading") { db in
             try WhoopStore.createEcgReadingTables(db)
         }
+        // v78-workout-elevation: the height a workout climbed and descended, counted by NOOP's barometer
+        // (OpenTracks' method) or brought by its source (Apple Health, an activity file). Kept beside the row
+        // like v73's heart rate fill, because the row's columns belong to its source and are rewritten on
+        // every sync. Additive; nothing existing is rewritten, so no score goes stale.
+        migrator.registerMigration("v78-workout-elevation") { db in
+            try db.create(table: "workoutElevation") { t in
+                t.column("deviceId", .text).notNull()
+                t.column("startTs", .integer).notNull()
+                t.column("sport", .text).notNull()
+                t.column("ascentM", .double).notNull()
+                t.column("descentM", .double)
+                t.column("source", .text).notNull()
+                t.column("updatedAtTs", .integer).notNull()
+                t.primaryKey(["deviceId", "startTs", "sport"])
+            }
+        }
         return migrator
     }
 }

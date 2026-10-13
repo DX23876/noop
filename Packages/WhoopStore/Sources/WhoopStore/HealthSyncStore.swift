@@ -168,6 +168,7 @@ extension WhoopStore {
                     if other == 0 {
                         try db.execute(sql: "DELETE FROM workout WHERE deviceId = ? AND source = 'apple-health' AND startTs = ? AND sport = ?", arguments: [deviceId, start, sport])
                         try db.execute(sql: "DELETE FROM workoutHeartRateFill WHERE deviceId = ? AND startTs = ? AND sport = ?", arguments: [deviceId, start, sport])
+                        try db.execute(sql: "DELETE FROM workoutElevation WHERE deviceId = ? AND startTs = ? AND sport = ?", arguments: [deviceId, start, sport])
                     }
                     // Stored loads for this exact start must be recomputed after a component disappears.
                     try db.execute(sql: "DELETE FROM trainingSessionLoad WHERE startTs = ?", arguments: [start])
