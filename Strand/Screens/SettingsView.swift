@@ -570,6 +570,14 @@ struct SettingsView: View {
             AppleWatchAboutView(onStartSetup: { presentedSheet = .appleWatchSetup })
         case .storage:
             StorageView()
+        case .liveNotifications:
+            #if os(iOS)
+            ScreenScaffold(title: "Live notifications") {
+                liveNotificationsCard.environment(\.settingsSectionHeaderHidden, true)
+            }
+            #else
+            EmptyView()
+            #endif
         }
     }
 
@@ -1441,8 +1449,9 @@ struct SettingsView: View {
 
     private var trainingCard: some View {
         SettingsSection(icon: "dumbbell.fill", title: "Training",
-                        blurb: "Choose how workout entry, rest timers and optional exercise media behave.") {
+                        blurb: "Logging sets, rest timers and the workout screen.") {
             VStack(spacing: 0) {
+                trainingGroupLabel("Logging sets")
                 FormRow(label: "Set effort") {
                     Picker("Set effort", selection: $trainingEffortRaw) {
                         Text("Off").tag(TrainingEffortPreference.off.rawValue)
@@ -1479,15 +1488,6 @@ struct SettingsView: View {
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 rowDivider
-                Stepper("Default rest: \(trainingRestSeconds) sec", value: $trainingRestSeconds,
-                        in: 0...600, step: 15).font(StrandFont.subhead)
-                rowDivider
-                Stepper("Warm-up rest: \(trainingWarmupRestSeconds) sec",
-                        value: $trainingWarmupRestSeconds, in: 0...300, step: 15).font(StrandFont.subhead)
-                rowDivider
-                Stepper("Rest-pause: \(trainingRestPauseSeconds) sec",
-                        value: $trainingRestPauseSeconds, in: 5...60, step: 5).font(StrandFont.subhead)
-                rowDivider
                 FormRow(label: "Weight step") {
                     Picker("Weight step", selection: trainingWeightIncrementBinding) {
                         ForEach(trainingWeightUnit == .pounds
@@ -1502,6 +1502,58 @@ struct SettingsView: View {
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 rowDivider
+                FormRow(label: "Week starts") {
+                    Picker("Week starts", selection: $trainingWeekStartRaw) {
+                        Text("Monday").tag(TrainingWeekStart.monday.rawValue)
+                        Text("Sunday").tag(TrainingWeekStart.sunday.rawValue)
+                    }.labelsHidden().pickerStyle(.menu)
+                }
+                Text("Used by the training week, the weekly schedule, the consistency heatmap and active weeks in Strength.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                rowDivider
+                trainingGroupLabel("Rest times")
+                Stepper("Default rest: \(trainingRestSeconds) sec", value: $trainingRestSeconds,
+                        in: 0...600, step: 15).font(StrandFont.subhead)
+                rowDivider
+                Stepper("Warm-up rest: \(trainingWarmupRestSeconds) sec",
+                        value: $trainingWarmupRestSeconds, in: 0...300, step: 15).font(StrandFont.subhead)
+                rowDivider
+                Stepper("Rest-pause: \(trainingRestPauseSeconds) sec",
+                        value: $trainingRestPauseSeconds, in: 5...60, step: 5).font(StrandFont.subhead)
+                rowDivider
+                trainingGroupLabel("When a timer ends")
+                Toggle("Show a notification", isOn: $trainingTimerFeedback)
+                    .accessibilityHint(Text("Notifies you when rest or a timed set ends"))
+                Toggle("Play a sound", isOn: $trainingSound).disabled(!trainingTimerFeedback)
+                Toggle("Vibration", isOn: $trainingHaptics)
+                    .accessibilityHint(Text("Vibrates when you complete a set and, with the notification on, when a timer ends"))
+                Toggle("Buzz the strap 5 seconds early", isOn: $trainingStrapRestBuzz)
+                    .accessibilityHint(Text("The strap vibrates three times five seconds before a rest ends"))
+                Text("While the workout is open, a timer ends with the sound only, without a banner. While it is minimized, the notification shows as usual.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                #if os(iOS)
+                rowDivider
+                // The Lock Screen display is a Live Activity with its own switch; this row leads there rather
+                // than repeating the switch, whose default follows the live heart rate one.
+                SettingsNavRow(icon: (symbol: "lock.iphone", id: "notifications"),
+                               title: "Lock Screen display",
+                               subtitle: "Sets and rest countdown while a workout runs. Separate from the notification.",
+                               route: .liveNotifications)
+                #endif
+                rowDivider
+                trainingGroupLabel("Strap")
+                Toggle("Strap double-tap completes a set", isOn: $trainingStrapDoubleTap)
+                    .accessibilityHint(Text("During a strength workout, a double-tap on the strap logs the next set"))
+                Text("During strength training, a double-tap completes the next prepared set and one buzz confirms it. A quick second tap is ignored.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                rowDivider
+                trainingGroupLabel("During a workout")
                 FormRow(label: "Workout view") {
                     Picker("Workout view", selection: $trainingLayoutRaw) {
                         Text("Focus").tag("focus"); Text("List").tag("list"); Text("Compact").tag("compact")
@@ -1524,32 +1576,6 @@ struct SettingsView: View {
                 SettingsNavRow(icon: (symbol: "dumbbell", id: "training"),
                                title: "Available equipment",
                                route: .equipment)
-                rowDivider
-                FormRow(label: "Week starts") {
-                    Picker("Week starts", selection: $trainingWeekStartRaw) {
-                        Text("Monday").tag(TrainingWeekStart.monday.rawValue)
-                        Text("Sunday").tag(TrainingWeekStart.sunday.rawValue)
-                    }.labelsHidden().pickerStyle(.menu)
-                }
-                Text("Used by the training week, the weekly schedule, the consistency heatmap and active weeks in Strength.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                rowDivider
-                Toggle("Timer feedback", isOn: $trainingTimerFeedback)
-                    .accessibilityHint(Text("Notifies you when rest or a timed set ends"))
-                Toggle("Timer sound", isOn: $trainingSound).disabled(!trainingTimerFeedback)
-                Toggle("Haptics", isOn: $trainingHaptics)
-                    .accessibilityHint(Text("Vibrates when you complete a set and, with timer feedback on, when a timer ends"))
-                rowDivider
-                Toggle("Strap double-tap completes a set", isOn: $trainingStrapDoubleTap)
-                    .accessibilityHint(Text("During a strength workout, a double-tap on the strap logs the next set"))
-                Toggle("Buzz the strap before rest ends", isOn: $trainingStrapRestBuzz)
-                    .accessibilityHint(Text("The strap vibrates three times five seconds before a rest ends"))
-                Text("During strength training, a double-tap completes the next prepared set and one buzz confirms it. A quick second tap is ignored.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
                 rowDivider
                 Toggle("Keep screen on during a workout", isOn: $workoutKeepScreenOn)
                     .accessibilityHint("Stops the screen dimming while a workout is recording")
@@ -4004,6 +4030,18 @@ struct SettingsView: View {
     #endif
 
     // MARK: - Shared bits
+
+    /// A small heading over one group of the Training card, so its long list reads in parts.
+    private func trainingGroupLabel(_ title: LocalizedStringKey) -> some View {
+        Text(title)
+            .font(StrandFont.overline)
+            .tracking(StrandFont.overlineTracking)
+            .foregroundStyle(StrandPalette.textTertiary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, NoopMetrics.space2)
+            .padding(.bottom, NoopMetrics.space1)
+            .accessibilityAddTraits(.isHeader)
+    }
 
     private var rowDivider: some View {
         Rectangle()

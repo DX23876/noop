@@ -1,7 +1,6 @@
 import Foundation
 import StrandDesign
 import StrandTraining
-import UserNotifications
 
 /// The editing model of one strength session: the persisted `WorkoutDraft` and every change a wearer
 /// makes to it. Owned by `ActiveSessionController`, so there is exactly one per session no matter how
@@ -785,36 +784,5 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
             do { try await repo.saveNativeWorkoutDraft(snapshot) }
             catch { errorMessage = String(localized: "Changes could not be saved.") }
         }
-    }
-}
-
-private enum TrainingRestNotification {
-    private static func id(_ workoutId: UUID) -> String { "training-rest-\(workoutId.uuidString)" }
-
-    static func schedule(identifier workoutId: UUID, at date: Date,
-                         kind: WorkoutTimerKind, sound: Bool) {
-        let center = UNUserNotificationCenter.current()
-        Task {
-            let settings = await center.notificationSettings()
-            let allowed: Bool
-            switch settings.authorizationStatus {
-            case .authorized, .provisional, .ephemeral: allowed = true
-            case .notDetermined: allowed = (try? await center.requestAuthorization(options: [.alert, .sound])) == true
-            default: allowed = false
-            }
-            guard allowed else { return }
-            center.removePendingNotificationRequests(withIdentifiers: [id(workoutId)])
-            let content = UNMutableNotificationContent()
-            content.title = String(localized: kind == .timedSet ? "Set complete" : "Rest complete")
-            content.body = String(localized: kind == .timedSet ? "Your timed set is ready to finish." : "Your next set is ready.")
-            if sound { content.sound = .default }
-            let seconds = max(1, date.timeIntervalSinceNow)
-            try? await center.add(UNNotificationRequest(identifier: id(workoutId), content: content,
-                trigger: UNTimeIntervalNotificationTrigger(timeInterval: seconds, repeats: false)))
-        }
-    }
-
-    static func cancel(for workoutId: UUID) {
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [id(workoutId)])
     }
 }

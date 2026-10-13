@@ -35,6 +35,11 @@ final class NotificationPresenter: NSObject, UNUserNotificationCenterDelegate {
             completionHandler([.list])
             return
         }
+        if let options = TrainingRestNotification.foregroundOptions(
+            identifier: notification.request.identifier, loggerOnScreen: TrainingRestNotification.loggerOnScreen) {
+            completionHandler(options)
+            return
+        }
         completionHandler([.banner, .sound, .list])
     }
 

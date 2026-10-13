@@ -352,3 +352,18 @@ The resting-HR row reads "Average sleeping heart rate" (not the app's resting HR
 of Aging" reads "Aging speed". Method document: `docs/AGELESS.md`.
 
 Analysis migration required: no
+
+### 2026-10-13 — Rest-end signals stay in Settings; no banner over the open logger
+
+A tester reported that the strength workout's tones cannot be turned off and that the rest timer always
+reaches the Lock Screen. Both have switches; they were hard to find. Settings › Training now groups its
+controls under headings, names the timer switches for what they do ("Show a notification", "Play a
+sound", "Vibration", "Buzz the strap 5 seconds early") and links to the Workout Live Activity switch
+instead of repeating it, since that switch's default follows the live heart rate one. There is no mute
+button in the logger: the signals are a standing preference and belong in Settings.
+
+With the logger on screen, the rest-end notification is presented with sound only
+(`TrainingRestNotification.foregroundOptions`): the logger already shows the countdown and vibrates, so a
+banner only covered the timer. Minimized, the banner is the only sign that the rest is over and stays.
+
+Analysis migration required: no

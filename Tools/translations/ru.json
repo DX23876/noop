@@ -2905,5 +2905,18 @@
   "Method: effective age, Spiegelhalter, BMC Med Inform Decis Mak 2016": "Метод: эффективный возраст, Spiegelhalter, BMC Med Inform Decis Mak 2016",
   "Not a medical value.": "Не медицинский показатель.",
   "Computed on your device from the studies above. It is an estimate to motivate healthy habits, not a medical or biological age and not a prediction of lifespan.": "Рассчитывается на вашем устройстве по исследованиям выше. Это оценка для мотивации к здоровым привычкам, а не медицинский или биологический возраст и не прогноз продолжительности жизни.",
-  "AgeLess: an age from nine measures of sleep, activity and fitness over six months, built on large health studies, with Aging speed and the steps that would help most. Takes Body Age's place on Health. Needs 30 nights of sleep data. A motivation tool, not a medical age. Off by default.": "AgeLess: возраст по девяти показателям сна, активности и физической формы за шесть месяцев на основе крупных исследований здоровья, с темпом старения и шагами, которые помогут больше всего. Заменяет Body Age в разделе «Здоровье». Нужно 30 ночей данных о сне. Инструмент мотивации, а не медицинский возраст. По умолчанию выключено."
+  "AgeLess: an age from nine measures of sleep, activity and fitness over six months, built on large health studies, with Aging speed and the steps that would help most. Takes Body Age's place on Health. Needs 30 nights of sleep data. A motivation tool, not a medical age. Off by default.": "AgeLess: возраст по девяти показателям сна, активности и физической формы за шесть месяцев на основе крупных исследований здоровья, с темпом старения и шагами, которые помогут больше всего. Заменяет Body Age в разделе «Здоровье». Нужно 30 ночей данных о сне. Инструмент мотивации, а не медицинский возраст. По умолчанию выключено.",
+  "Logging sets, rest timers and the workout screen.": "Запись подходов, таймеры отдыха и вид тренировки.",
+  "Logging sets": "Запись подходов",
+  "Rest times": "Время отдыха",
+  "When a timer ends": "Когда таймер заканчивается",
+  "Show a notification": "Показывать уведомление",
+  "Play a sound": "Воспроизводить звук",
+  "Vibration": "Вибрация",
+  "Vibrates when you complete a set and, with the notification on, when a timer ends": "Вибрирует при завершении подхода и, если уведомление включено, по окончании таймера",
+  "Buzz the strap 5 seconds early": "Вибрация браслета за 5 секунд",
+  "While the workout is open, a timer ends with the sound only, without a banner. While it is minimized, the notification shows as usual.": "Когда тренировка открыта, по окончании таймера раздаётся только звук, без баннера. Когда она свёрнута, уведомление показывается как обычно.",
+  "Lock Screen display": "Отображение на экране блокировки",
+  "Sets and rest countdown while a workout runs. Separate from the notification.": "Подходы и обратный отсчёт отдыха во время тренировки. Не зависит от уведомления.",
+  "During a workout": "Во время тренировки"
 }

@@ -1120,6 +1120,9 @@ struct NativeWorkoutLoggerView: View {
             }
             // Live heart rate is only worth streaming while someone is looking at it; the session's
             // stored heart rate does not depend on it.
+            // While the logger is visible, a rest-end notification shows no banner over it.
+            .onAppear { TrainingRestNotification.loggerOnScreen = true }
+            .onDisappear { TrainingRestNotification.loggerOnScreen = false }
             .onAppear {
                 guard !model.isRetrospective else { return }
                 session.startLiveHeartRate()

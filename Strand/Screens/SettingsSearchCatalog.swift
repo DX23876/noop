@@ -162,7 +162,8 @@ enum SettingsSearchCatalog {
             id: .training,
             title: "Training",
             keywords: ["strength", "workout", "RPE", "RIR", "effort", "rest timer", "warm-up",
-                       "rest-pause", "timer sound", "haptics", "vibration", "keep screen on",
+                       "rest-pause", "timer sound", "haptics", "vibration", "notification", "lock screen",
+                       "keep screen on",
                        "screen awake", "workout view", "exercise media", "download media",
                        "week start", "equipment", "kilograms", "weight step", "plates"]
         ),

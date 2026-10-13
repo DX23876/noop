@@ -3083,5 +3083,18 @@
   "Method: effective age, Spiegelhalter, BMC Med Inform Decis Mak 2016": "方法：有效年齡，Spiegelhalter，BMC Med Inform Decis Mak 2016",
   "Not a medical value.": "非醫學數值。",
   "Computed on your device from the studies above. It is an estimate to motivate healthy habits, not a medical or biological age and not a prediction of lifespan.": "根據上述研究在你的裝置上計算。這是用於激勵健康習慣的估算，並非醫學或生物學年齡，也不是壽命預測。",
-  "AgeLess: an age from nine measures of sleep, activity and fitness over six months, built on large health studies, with Aging speed and the steps that would help most. Takes Body Age's place on Health. Needs 30 nights of sleep data. A motivation tool, not a medical age. Off by default.": "AgeLess：基於大型健康研究，用六個月內睡眠、活動和體能的九項指標得出的年齡，並附衰老速度和最有幫助的改進步驟。在「健康」中取代 Body Age。需要 30 晚睡眠資料。這是激勵工具，並非醫學年齡。預設關閉。"
+  "AgeLess: an age from nine measures of sleep, activity and fitness over six months, built on large health studies, with Aging speed and the steps that would help most. Takes Body Age's place on Health. Needs 30 nights of sleep data. A motivation tool, not a medical age. Off by default.": "AgeLess：基於大型健康研究，用六個月內睡眠、活動和體能的九項指標得出的年齡，並附衰老速度和最有幫助的改進步驟。在「健康」中取代 Body Age。需要 30 晚睡眠資料。這是激勵工具，並非醫學年齡。預設關閉。",
+  "Logging sets, rest timers and the workout screen.": "記錄訓練組、休息計時器和訓練視圖。",
+  "Logging sets": "記錄訓練組",
+  "Rest times": "休息時間",
+  "When a timer ends": "計時結束時",
+  "Show a notification": "顯示通知",
+  "Play a sound": "播放聲音",
+  "Vibration": "震動",
+  "Vibrates when you complete a set and, with the notification on, when a timer ends": "完成一組時震動；開啟通知後，計時結束時也會震動",
+  "Buzz the strap 5 seconds early": "提前 5 秒手環震動",
+  "While the workout is open, a timer ends with the sound only, without a banner. While it is minimized, the notification shows as usual.": "訓練畫面開啟時，計時結束只播放聲音，不顯示橫幅。訓練縮小時，通知照常顯示。",
+  "Lock Screen display": "鎖定畫面顯示",
+  "Sets and rest countdown while a workout runs. Separate from the notification.": "訓練進行時顯示訓練組和休息倒數。與通知相互獨立。",
+  "During a workout": "訓練期間"
 }

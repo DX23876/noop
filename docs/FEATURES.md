@@ -137,8 +137,14 @@ Strength also summarises the selected range: sessions, weekly frequency, working
 volume, RPE coverage and average RPE, active weeks, the longest weekly streak and recent personal
 records, beside a past-year consistency heatmap that follows the chosen week start. Routines can be
 previewed with their muscle involvement and edited with exercise order, supersets, progression rules
-and scheduled weekdays. Settings › Training collects effort entry, rest timers, timer sound, haptics,
-keeping the screen awake, exercise-media display and download, equipment and the training week start.
+and scheduled weekdays. Settings › Training groups its controls under small headings: logging sets
+(effort entry, session ratings, weight unit and step, week start), rest times, what happens when a timer
+ends (notification, sound, phone vibration, the strap buzz five seconds early), the strap double-tap,
+and the workout screen (layout, exercise media and download, equipment, keeping the screen awake). On
+iPhone a "Lock Screen display" row leads to the Workout switch under Live notifications, which is
+separate from the rest-end notification. While the strength logger is on screen, the rest-end
+notification plays only its sound and shows no banner over the countdown it announces; with the
+workout minimized it shows as usual.
 Training weight has its own **Kilograms / Pounds** choice there, independent of body-measurement units.
 The active logger, routines, prior sessions, estimated 1RM, increments and plate calculator all follow
 it while values remain stored canonically in kilograms. Switching during a workout redraws the fields

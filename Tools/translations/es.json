@@ -2928,5 +2928,18 @@
   "Method: effective age, Spiegelhalter, BMC Med Inform Decis Mak 2016": "Método: edad efectiva, Spiegelhalter, BMC Med Inform Decis Mak 2016",
   "Not a medical value.": "No es un valor médico.",
   "Computed on your device from the studies above. It is an estimate to motivate healthy habits, not a medical or biological age and not a prediction of lifespan.": "Calculado en tu dispositivo a partir de los estudios anteriores. Es una estimación para motivar hábitos saludables, no una edad médica ni biológica ni una predicción de la esperanza de vida.",
-  "AgeLess: an age from nine measures of sleep, activity and fitness over six months, built on large health studies, with Aging speed and the steps that would help most. Takes Body Age's place on Health. Needs 30 nights of sleep data. A motivation tool, not a medical age. Off by default.": "AgeLess: una edad a partir de nueve medidas de sueño, actividad y forma física durante seis meses, basada en grandes estudios de salud, con el ritmo de envejecimiento y los pasos que más ayudarían. Sustituye a Body Age en Salud. Necesita 30 noches de datos de sueño. Una herramienta de motivación, no una edad médica. Desactivado por defecto."
+  "AgeLess: an age from nine measures of sleep, activity and fitness over six months, built on large health studies, with Aging speed and the steps that would help most. Takes Body Age's place on Health. Needs 30 nights of sleep data. A motivation tool, not a medical age. Off by default.": "AgeLess: una edad a partir de nueve medidas de sueño, actividad y forma física durante seis meses, basada en grandes estudios de salud, con el ritmo de envejecimiento y los pasos que más ayudarían. Sustituye a Body Age en Salud. Necesita 30 noches de datos de sueño. Una herramienta de motivación, no una edad médica. Desactivado por defecto.",
+  "Logging sets, rest timers and the workout screen.": "Registro de series, temporizadores de descanso y vista del entrenamiento.",
+  "Logging sets": "Registro de series",
+  "Rest times": "Tiempos de descanso",
+  "When a timer ends": "Al terminar un temporizador",
+  "Show a notification": "Mostrar una notificación",
+  "Play a sound": "Reproducir un sonido",
+  "Vibration": "Vibración",
+  "Vibrates when you complete a set and, with the notification on, when a timer ends": "Vibra al completar una serie y, con la notificación activada, al terminar un temporizador",
+  "Buzz the strap 5 seconds early": "Vibrar la pulsera 5 segundos antes",
+  "While the workout is open, a timer ends with the sound only, without a banner. While it is minimized, the notification shows as usual.": "Con el entrenamiento abierto, al terminar un temporizador solo suena el sonido, sin banner. Si está minimizado, la notificación aparece como siempre.",
+  "Lock Screen display": "Visualización en la pantalla bloqueada",
+  "Sets and rest countdown while a workout runs. Separate from the notification.": "Series y cuenta atrás del descanso durante un entrenamiento. Independiente de la notificación.",
+  "During a workout": "Durante el entrenamiento"
 }

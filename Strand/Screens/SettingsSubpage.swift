@@ -11,4 +11,6 @@ enum SettingsSubpage: Hashable {
     case backupSync
     case appleWatchData
     case storage
+    /// The Live Activity switches alone, reached from the Training page (iOS only).
+    case liveNotifications
 }
