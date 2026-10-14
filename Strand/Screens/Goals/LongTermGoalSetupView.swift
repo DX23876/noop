@@ -322,19 +322,7 @@ struct LongTermGoalSetupView: View {
     /// AgeLess counts, moderate and vigorous minutes from what AgeLess banked. Nil without the data.
     private var recentAgeLessPerWeek: Double? {
         let from = calendar.date(byAdding: .weekOfYear, value: -4, to: weekStart) ?? weekStart
-        let fromKey = Repository.localDayKey(from), toKey = Repository.localDayKey(weekStart)
-        switch weeklyMetric {
-        case .strengthMinutes?:
-            return inputs.workouts.filter {
-                let date = Date(timeIntervalSince1970: Double($0.startTs))
-                return date >= from && date < weekStart && HealthspanWindow.countsAsStrength(storedName: $0.sport)
-            }.compactMap { PeriodGoalTracker.workoutAmount(.strengthMinutes, $0) }.reduce(0, +) / 4
-        case .moderateMinutes?, .vigorousMinutes?:
-            return weeklyMetric.flatMap(inputs.agelessMinutes(for:))
-                .map { $0.filter { $0.key >= fromKey && $0.key < toKey }.values.reduce(0, +) / 4 }
-        default:
-            return nil
-        }
+        return weeklyMetric.flatMap { AgeLessGoalLink.recentPerWeek($0, inputs: inputs, from: from, to: weekStart) }
     }
 
     /// The suggested weekly amount for a consistency template: the wearer's own level where one exists.

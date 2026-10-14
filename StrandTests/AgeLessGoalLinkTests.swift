@@ -243,4 +243,22 @@ final class AgeLessGoalLinkTests: XCTestCase {
         XCTAssertEqual(data.days.compactMap { $0 }.count, 28)
         XCTAssertEqual(GoalTemplateID.sleepConsistency.kind, .sleep)
     }
+
+    /// The setup pre-fills a weekly rhythm from the last four weeks, counted the way AgeLess counts them.
+    func testRecentPerWeek() {
+        let to = Date(timeIntervalSince1970: 1_791_374_400)
+        let from = to.addingTimeInterval(-28 * 86_400)
+        var inputs = PeriodGoalInputs()
+        inputs.workouts = [workout("Yoga", minutes: 40), workout("Running", minutes: 60)].map { row in
+            WorkoutRow(startTs: row.startTs - 3 * 86_400, endTs: row.endTs - 3 * 86_400, sport: row.sport,
+                       source: row.source, durationS: row.durationS, energyKcal: nil, avgHr: nil, maxHr: nil,
+                       strain: nil, distanceM: nil, zonesJSON: nil, notes: nil, steps: nil)
+        }
+        XCTAssertEqual(AgeLessGoalLink.recentPerWeek(.strengthMinutes, inputs: inputs, from: from, to: to), 10)
+        XCTAssertNil(AgeLessGoalLink.recentPerWeek(.moderateMinutes, inputs: inputs, from: from, to: to), "AgeLess off")
+        inputs.agelessModerateByDay = [Repository.localDayKey(to.addingTimeInterval(-86_400)): 80,
+                                       Repository.localDayKey(to.addingTimeInterval(-40 * 86_400)): 500]
+        XCTAssertEqual(AgeLessGoalLink.recentPerWeek(.moderateMinutes, inputs: inputs, from: from, to: to), 20)
+        XCTAssertNil(AgeLessGoalLink.recentPerWeek(.workouts, inputs: inputs, from: from, to: to))
+    }
 }

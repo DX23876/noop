@@ -76,6 +76,26 @@ enum AgeLessGoalLink {
         return min(range.upperBound, max(range.lowerBound, rounded))
     }
 
+    /// A weekly AgeLess activity metric's amount per week over `from ..< to` (whole weeks): strength minutes from
+    /// the sessions AgeLess counts as strength, moderate and vigorous minutes from what AgeLess banked. Nil for any
+    /// other metric, or for the banked two while AgeLess is off. What the goal setup pre-fills from.
+    static func recentPerWeek(_ metric: PeriodMetric, inputs: PeriodGoalInputs, from: Date, to: Date) -> Double? {
+        let weeks = max(1, (to.timeIntervalSince(from) / (7 * 86_400)).rounded())
+        switch metric {
+        case .strengthMinutes:
+            return inputs.workouts.filter {
+                let date = Date(timeIntervalSince1970: Double($0.startTs))
+                return date >= from && date < to && HealthspanWindow.countsAsStrength(storedName: $0.sport)
+            }.compactMap { PeriodGoalTracker.workoutAmount(.strengthMinutes, $0) }.reduce(0, +) / weeks
+        case .moderateMinutes, .vigorousMinutes:
+            let fromKey = Repository.localDayKey(from), toKey = Repository.localDayKey(to)
+            return inputs.agelessMinutes(for: metric)
+                .map { $0.filter { $0.key >= fromKey && $0.key < toKey }.values.reduce(0, +) / weeks }
+        default:
+            return nil
+        }
+    }
+
     /// The AgeLess measure a goal's target speaks to, in that measure's unit; nil for a template AgeLess does
     /// not read (a lean-mass goal is kept in kilograms, AgeLess in percent of body mass). A weekly rhythm's
     /// target is its weekly amount, the unit AgeLess rates those measures in.
