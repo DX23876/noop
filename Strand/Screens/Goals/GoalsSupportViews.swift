@@ -552,10 +552,27 @@ struct GoalsSettingsView: View {
     @State private var notify: [GoalPrefs.NotificationKind: Bool] = [:]
     @State private var motivationOn = GoalPrefs.motivationEnabled
     @State private var eventNotify: [GoalEventNotifier.Kind: Bool] = [:]
+    /// The optional daily step goal the Momentum card counts down to. 0 = not set, which is the default
+    /// and NOT a broken state: with no goal, Momentum compares against the wearer's own recent median.
+    /// Moved here from Settings › Features in the 2026-10 Settings reorganisation.
+    @AppStorage("momentum.stepGoal") private var momentumStepGoal = 0
     @EnvironmentObject private var repo: Repository
 
+    /// Day streak (#569): consecutive days with a Charge score. Shown here since the 2026-10 Settings
+    /// reorganisation; it is a number, not a setting, so it sits beside the motivation switch.
+    private var streak: (current: Int, longest: Int) {
+        let days = repo.days
+        let today = AnalyticsEngine.dayString(Int(Date().timeIntervalSince1970),
+                                              offsetSec: TimeZone.current.secondsFromGMT())
+        let s = StreakCalculator.streaks(dayKeys: days.map { $0.day },
+                                         qualified: days.map { $0.recovery != nil },
+                                         today: today)
+        return (s.current, s.longest)
+    }
+
     var body: some View {
-        ScreenScaffold(title: "Goal settings", topBackground: liquidScaffoldSky()) {
+        ScreenScaffold(title: "Goals", subtitle: "Number of goals, rest days and step goal",
+                       topBackground: liquidScaffoldSky()) {
             NoopCard(padding: 14) {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("How many goals").strandOverline()
@@ -577,7 +594,20 @@ struct GoalsSettingsView: View {
                             TrainingPreferences.setRestWeekdays(Array(value))
                             Task { await GoalTrackingStore.shared.refresh(repo: repo) }
                         }
-                    Text("Training goals spread their pace over the other days. The week starts on the day set in the training settings.")
+                    Text("Training goals spread their pace over the other days. The week starts on the day set under Language & Units.")
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            NoopCard(padding: 14) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Daily step goal").strandOverline()
+                    Stepper(value: $momentumStepGoal, in: 0...30_000, step: 500) {
+                        Text(momentumStepGoal > 0 ? String(localized: "\(momentumStepGoal) steps") : String(localized: "Not set"))
+                            .font(StrandFont.footnote)
+                    }
+                    .accessibilityHint("Momentum counts down to this goal during the day")
+                    Text("Momentum counts down to it during the day. Not set, it compares your day with your own recent normal.")
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -616,6 +646,15 @@ struct GoalsSettingsView: View {
                     Text("Badges for steps, streaks and reached goals, your personal records and a cheering line near the goal. Worked out on this device from your own data.")
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
+                    let streak = streak
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("Streak").font(StrandFont.footnote)
+                        Spacer()
+                        Text(streak.current == 1 ? "1 day in a row" : "\(streak.current) days in a row")
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.accent)
+                    }
+                    Text(streak.longest == 1 ? "Longest: 1 day" : "Longest: \(streak.longest) days")
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                 }
             }
             NoopCard(padding: 14) {

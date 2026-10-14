@@ -1,13 +1,13 @@
 import SwiftUI
 import StrandDesign
 
-// MARK: - Power saving (#477)
+// MARK: - Battery & Recording (#477, 2026-10 Settings reorganisation)
 //
-// Lifted out of Settings into its own screen: on iPhone it is a first-class More row (between Test
-// Centre and Settings) and on macOS its own sidebar item, so the strap-battery levers are one tap away
-// instead of buried in the middle of the Settings scroll. The controls, their prefs and their wiring are
-// UNCHANGED — `AppModel.applyPowerSaving()` still reads every value from `PuffinExperiment`, so moving
-// the surface cannot alter behaviour.
+// Power saving was lifted out of Settings into its own screen (#477). The 2026-10 reorganisation made
+// it the Settings page "Battery & Recording" and put Continuous HRV beside it: the two pull in opposite
+// directions (Continuous HRV is the biggest steady drain on the strap, "Pause HRV capture" is the
+// biggest saving), so they belong on one page. The controls, their prefs and their wiring are
+// UNCHANGED — `AppModel.applyPowerSaving()` still reads every value from `PuffinExperiment`.
 //
 // The master gates the sub-options: the threshold slider, "Pause HRV capture" and "Low refresh" only
 // appear (and only apply) while Power saving is on — `applyPowerSaving` ANDs each one with the master.
@@ -21,18 +21,17 @@ struct PowerSavingView: View {
     @AppStorage(PuffinExperiment.lowRefreshKey) private var lowRefreshEnabled = false
 
     var body: some View {
-        ScreenScaffold(title: "Power saving",
-                       subtitle: "Ease the load on your strap when its battery is running low.") {
+        ScreenScaffold(title: "Battery & Recording",
+                       subtitle: "Power saving and continuous HRV",
+                       topBackground: liquidScaffoldSky()) {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
-                NoopCard {
+                ContinuousHrvSettingsCard()
+                SettingsSection(
+                    icon: "battery.25",
+                    title: "Power saving",
+                    blurb: "The strap keeps banking data on its own, so nothing is lost — NOOP just talks to it less often to help it last until you can charge it."
+                ) {
                     VStack(alignment: .leading, spacing: 16) {
-                        Text("Power saving").strandOverline()
-                        Text("The strap keeps banking data on its own, so nothing is lost — NOOP just talks to it less often to help it last until you can charge it.")
-                            .font(StrandFont.caption)
-                            .foregroundStyle(StrandPalette.textTertiary)
-                            .fixedSize(horizontal: false, vertical: true)
-
-                        rowDivider
                         Toggle(isOn: $powerSavingEnabled) {
                             Text("Power saving mode")
                                 .font(StrandFont.subhead)

@@ -470,3 +470,29 @@ construction sites). Old workouts without heights stay flat and Training Load sa
 their climb.
 
 Analysis migration required: yes — AI-25 rebuilds the AgeLess weeks once.
+
+### 2026-10-14 — Settings sorted by what people want to do; one home per control
+
+Testers could not find their way around Settings and misread several switches. An audit that followed every
+stored value to the code that reads it found that controls lived in two places (Settings and the More tab,
+whose Coach, Automations, Power saving, Siri, Apple Health and backup rows are settings too), that one
+topic was split across pages (strap buzzes on Training and Automations, Continuous HRV on Recovery while its
+battery counterpart sat under Power saving), and that names hid what a switch does: the "Effort:
+exponential intensity scale" switch under Units recomputes the Effort history, "Day cycle" under Profile
+decides which day a workout counts toward, "Journal reminder" hides the whole journal card, the day-cycle
+background is drawn behind more than Today, and "Live Sessions (beta)", filed as an experiment, is on for
+everyone. Stress baseline, training-based VO₂max and AgeLess sat in the WHOOP 5/MG card, which only renders
+for a 5/MG, so a 4.0 owner could not reach them.
+
+Settings now has 17 pages in six groups (You, Strap & Devices, Training & Everyday, Display, Data, Help).
+Every control has one page; other screens link there (`SettingsNavRow(page:)`). Six pages are existing
+screens (Goals, Battery & Recording, Strap Actions, Notifications, AI Coach, Siri) and every entry point
+opens a page through `SettingsPageDestination`. Everything that changes how a score is computed sits on
+Calculations with a warning that past days can be recomputed. Unfinished features sit in Lab for every
+strap. Names follow the iOS Settings convention: a noun of one or two words, the chosen value on the right,
+the explanation in the footer. The German UI says "Strap" throughout. Phone and strap heart rate sharing
+moved together to their own screen under Strap; the phone broadcaster still runs only while that screen
+is open, as it did on Data Sources. More keeps what you look at or use, with Alarms on its first level.
+
+Analysis migration required: no — every control writes the same key as before; only places, names and help
+texts change.

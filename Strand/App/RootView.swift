@@ -89,7 +89,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         // Automations) and the evening wind-down reminder, in one place. Previously "Wind-Down" (#730).
         // The case name and rawValue stay `smartAlarm`/"Smart Alarm" as the in-memory nav identifier only.
         case .smartAlarm: return "Alarms"
-        case .powerSaving: return "Power saving"
+        case .powerSaving: return "Battery & Recording"
         case .settings: return "Settings"
         case .testCentre: return "Test Centre"
         }
@@ -140,7 +140,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         case .automation: return String(localized: "Automations")
         // Mirrors the `titleKey` remap above (#766): the row reads "Alarms", not the raw "Smart Alarm".
         case .smartAlarm: return String(localized: "Alarms")
-        case .powerSaving: return String(localized: "Power saving")
+        case .powerSaving: return String(localized: "Battery & Recording")
         case .settings: return String(localized: "Settings")
         case .testCentre: return String(localized: "Test Centre")
         }

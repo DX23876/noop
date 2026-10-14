@@ -11,6 +11,12 @@ enum SettingsSubpage: Hashable {
     case backupSync
     case appleWatchData
     case storage
-    /// The Live Activity switches alone, reached from the Training page (iOS only).
-    case liveNotifications
+    /// Heart rate sharing owns the phone-side broadcaster, so it is a screen of its own: the phone
+    /// shares only while that screen is open.
+    case heartRateSharing
+    case appleHealth
+    case dataSources
+    /// iOS only (the Shortcuts drop file is an iPhone sideload path).
+    case shortcutsExport
+    case noopLimitations
 }

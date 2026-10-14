@@ -39,7 +39,7 @@ The sidebar itself is five collapsible groups (macOS `RootView.swift`; the exact
 Health, Stress, Intervals, Breathe), **Insights** (Intelligence, What Moves You, Coach, Goal &
 Journey, Explore, Compare, Insights, Lab Book, Rhythm, Trends), and **Data & App** (Devices, NOOP
 Limitations, Data Sources, Apple Health, Mi Band, Backup & Sync, Your Data Fused, Notifications,
-Automations, Alarms, Power saving, Settings, Test Centre) — and auto-expands whichever group owns
+Automations, Alarms, Battery & Recording, Settings, Test Centre) — and auto-expands whichever group owns
 the destination you're on. iOS reaches the same destinations through the tab bar's **More** tab
 instead of a sidebar.
 
@@ -305,7 +305,7 @@ source corrections and deletions, while raw Health data and manual entries remai
 
 iOS uses a bottom tab bar (`RootTabView.swift`: Today, Trends, Training, Sleep, More) instead of macOS's
 sidebar. The Today tab hosts one of three interchangeable home-screen presentations, picked under
-**Settings → Appearance → Experimental**:
+**Settings → Today & Trends → Dashboard**:
 
 - **Liquid Today** (default, `LiquidTodayView.swift`) — a sky-gradient page led by one hero of three
   organic waveform rings for Charge / Effort / Rest (`OrganicScoreRing`, pure model in
@@ -314,7 +314,7 @@ sidebar. The Today tab hosts one of three interchangeable home-screen presentati
   Fixed geometry parameters are prepared once per particle seed and common frame calculations are
   reused across contour points. Full-quality contours use 256 points for finer edges at the same size.
   Charge takes its band colour; Effort glows and breathes deeper from Moderate up. The rings react
-  to device tilt and movement (Settings → "React to device movement", default on), and stand still
+  to device tilt and movement (Settings → Appearance → "Motion effect", default on), and stand still
   under Reduce Motion, NOOP's quiet-motion switch, Low Power Mode or when off screen. Light mode
   shows a light hero card, Dark an optical chamber. Below it: readiness pills, Momentum, Goals,
   Key Metrics (two columns and no empty automatic tiles on a fresh layout), a compact Energy
@@ -737,7 +737,7 @@ With no live HR and no imported day, NOOP prompts you to connect or import.
 
 - **Recovery contributors** — HRV, resting HR, sleep and respiratory rate as segmented bars that fill to
   each one's strength against your own baseline, a marker at the reading, the value and its word beside it.
-- **AgeLess** (fork, Settings → Experimental, default off; takes Body Age's place while on) — an age built
+- **AgeLess** (fork, Settings → Lab, default off; takes Body Age's place while on) — an age built
   from six months of nine measures of sleep, activity and fitness, each tied to a large mortality study,
   shown on a half-circle gauge around your actual age with **Aging speed** beside it. Its screen ranks the
   biggest levers (each one can be set as a goal), shows every measure on a ticked bar with a 30-day trend arrow and a line saying what it
@@ -1074,10 +1074,11 @@ reminder, after user reports conflated the two when they lived apart (#766).
 
 ## Power saving
 
-**Sidebar: Power saving · levers a connected strap's own sync cadence; the screen itself needs no live connection.**
+**Sidebar: Battery & Recording (iPhone: Settings → Battery & Recording) · levers a connected strap's own sync cadence; the screen itself needs no live connection.**
 
-`PowerSavingView.swift` — lifted out of Settings into its own destination so the strap-battery
-levers are one tap away (#477); the controls and their behavior are unchanged, only their location.
+`PowerSavingView.swift` — lifted out of Settings into its own destination (#477) and, since the 2026-10
+Settings reorganisation, the Settings page "Battery & Recording", with Continuous HRV on top: the biggest
+steady drain on the strap and the biggest saving belong on one page. Controls and behavior are unchanged.
 The strap keeps recording regardless — these settings only change how often NOOP talks to it.
 
 - **Power saving mode** (master toggle) — slows background strap-sync from every 15 minutes to every
@@ -1112,12 +1113,40 @@ informational only, **not** a diagnosis.
 
 **Sidebar: Settings · always available.**
 
-`SettingsView.swift`:
+`SettingsView.swift` (cards), `SettingsSearchCatalog.swift` (pages, sections, search) and
+`SettingsPageDestination` (one router for every way a page opens). On iPhone the landing page is a
+searchable list of 17 pages in six groups, sorted by what a person wants to get done (2026-10
+reorganisation). Every control has exactly one page; other screens link to it instead of repeating it.
+On macOS the card pages run as one scrolling column and the six screen pages stay sidebar items.
 
-- **Profile** — age, sex, weight, height, and max heart rate (auto-estimated via Tanaka, or a
-  manual override). These power your zones, calorie estimates and Charge baselines.
-  When your workouts have held a higher heart rate for 30 seconds on two days of the last six months,
-  five beats above the value in use, the max heart rate row offers it ("Use 196 bpm" / "Not now"); taking
+- **You** — **Profile** (photo, date of birth, sex, weight, height, waist, body measurements, max heart
+  rate with the measured-maximum offer, VO₂max, activity level, heart-rate zones) and **Goals** (number
+  of goals, rest days, goal notifications, motivation and streak, the daily step goal Momentum counts
+  down to).
+- **Strap & Devices** — **Strap** (connection, rename on a 4.0, keep screen on while syncing, step
+  correction and the 4.0 step estimate, and **Heart rate sharing**: via iPhone, which shares while that
+  screen is open, and via the strap on a 5/MG), **Battery & Recording** (Continuous HRV and Power
+  saving) and **Strap Actions** (double-tap, in-session buzzes, wear and presence, heart-rate ceiling).
+- **Training & Everyday** — **Training** (sets, rest timers and their signals, weights, workout view,
+  exercise media, equipment, guided training, workout suggestions), **Today & Trends** (dashboard
+  style and layout, water and journal cards), **Notifications** (live notifications, wrist alerts,
+  inactivity, illness, battery and sync reminders, strain target, training load alert, cycle
+  awareness), **AI Coach** and **Siri & Shortcuts** (iOS).
+- **Display** — **Language & Units** (language, clock, week start, body, distance and temperature
+  units, Effort scale) and **Appearance** (design, background, charts, motion).
+- **Data** — **Calculations** ("How NOOP calculates": day start, Effort model, HRV window, sleep stage
+  method, wake check; every switch here can recompute past days; and "If scores look wrong": refresh
+  today, recalculate 21 days, reset the Charge baseline) and **Data & Backup** (backup and restore,
+  folder backup, Apple Health, Data Sources, Shortcuts export, storage).
+- **Help** — **Help & Diagnostics** (guides, what each strap can do, Test Centre, raw sensor export,
+  device details), **Lab** (personal stress baseline, training-based VO₂max, AgeLess, step filter
+  comparison, blood oxygen estimate, Oura all-day heart rate, and the WHOOP 5/MG developer probes) and
+  **About** (version, what's new, updates, source, acknowledgements, medical disclaimer).
+
+Details:
+
+- **Max heart rate** — when your workouts have held a higher heart rate for 30 seconds on two days of the
+  last six months, five beats above the value in use, the max heart rate row offers it ("Use 196 bpm" / "Not now"); taking
   it sets the override from then on and leaves Effort already scored as it is.
 - **Heart-rate zones** — set where each of your five zones starts, instead of accepting the standard
   50/60/70/80/90 % of maximum. Two ways to say it: **% of max**, which moves with your maximum when
@@ -1128,23 +1157,6 @@ informational only, **not** a diagnosis.
   is measured against your heart-rate reserve on a published method with its own fixed thresholds, so
   your history stays comparable; nor zone bars that arrived inside a WHOOP export, which carry
   WHOOP's own bands.
-- **Step calibration** — tune the stride/step estimate to your own walking so step and distance
-  figures read closer to reality.
-- **Units** — choose your preferred measurement units (metric / imperial) across the app.
-- **Appearance** — card transparency, whether the coach tile pulses on Today, and **App icon
-  colors** (on by default): recolors the leading icons across the app — the More tab, Chat and its
-  submenus (Coach Settings, Coach Info, Goal & Journey), Journey, and Settings' own section headers —
-  to an Apple Health-style palette instead of plain blue. Purely cosmetic — chevrons, checkmarks and
-  state icons (e.g. bell vs. bell with a badge) are unaffected either way. Also here: chart colours
-  (Apple Health palette by default) and the day-cycle sky backdrop / "sky behind cards" (both off by
-  default). The **Day-cycle motif** picker chooses the artwork behind the day-cycle backdrop: an
-  Alpine lake and hut at ten times of day (default), a dune path to the sea at ten times of day, or the
-  original painted meadow. All three sets share one hour mapping (`DayCycleScene`), so a given hour
-  shows the same light whichever you pick.
-- **Strap** — connection status, battery, and Re-scan / Disconnect controls.
-- **Sync (iOS)** — its own section with **Keep screen on while syncing**: opt-in (off by default). Holds
-  the screen awake for as long as a strap history sync runs while NOOP is open, then lets it sleep
-  normally.
 - **Siri & Shortcuts (iOS)** — a **Sync Strap** action ("Sync my NOOP strap") starts the same on-demand
   history sync as the Sync now button, from Siri, Spotlight, the Shortcuts app, a Back Tap or an
   automation, **without opening NOOP**. If the strap link is already up (NOOP in the background) the
@@ -1157,13 +1169,14 @@ informational only, **not** a diagnosis.
   interrupted" for a few seconds. No progress bar, because the strap never says how much is pending. A
   sync started from the app or the Sync Strap shortcut shows it; an automatic background sync can only
   update one that is already showing (iOS does not let a background app start a Live Activity). Its own
-  switch in Settings → Strap ("Strap sync in Dynamic Island", default on), independent of the live
+  switch in Settings → Notifications ("Strap sync", default on), independent of the live
   heart rate one.
 - **Export for Shortcuts (iOS)** — a **HealthKit-free** path that hands your NOOP metrics to Apple
   Health via the Shortcuts app, so an anonymous build (with no HealthKit entitlement) can still get
   data into Health on your terms.
-- **About** — version, the "all your data, none of the cloud" note, a **medical disclaimer**, and
-  attribution to the community protocols NOOP is built on.
+
+The More tab keeps what you look at or use: Analysis, Health & Body and Tools, with Settings and Alarms
+on its first level. Its search still finds every Settings page and opens it directly.
 
 ---
 

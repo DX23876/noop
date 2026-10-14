@@ -56,45 +56,19 @@ struct DataSourcesView: View {
     @State private var confirmDeleteAppleHealth = false
     @State private var appleHealthDeletedSummary: String?
 
-    // "Broadcast heart rate" (opt-in, OFF by default): make NOOP a standard BLE Heart Rate peripheral
-    // (0x180D / 0x2A37) so a gym treadmill / Zwift / Peloton can read the live strap HR NOOP receives.
-    // LOCAL Bluetooth only — nothing leaves the device. The toggle is persisted; the broadcaster is owned
-    // here (a pure consumer of LiveState, isolated from the WHOOP/central path).
-    @AppStorage(HrBroadcaster.defaultsKey) private var broadcastHrEnabled = false
-    @AppStorage(PuffinExperiment.broadcastHrKey) private var strapBroadcastHrEnabled = false
-
-    // The broadcaster's diagnostic sink forwards to THIS box, which `onAppear` points at the screen's
-    // `live`. A reference box lets the `@StateObject` capture a stable target at init even though the
-    // `@EnvironmentObject` `live` isn't available until the view runs — so the broadcast-out lifecycle
-    // lines (advertised / who subscribed / why the radio refused) reach the SAME exported strap log the
-    // WHOOP path writes, mirroring Android's `HrBroadcaster(log = { ble.externalLog(it) })`. Every line is
-    // already prefixed "HR-out: " inside HrBroadcaster; privacy-safe (statuses + a subscriber COUNT only).
-    private final class LogSink { weak var live: LiveState? }
-    private let broadcastLogSink: LogSink
-    @StateObject private var hrBroadcaster: HrBroadcaster
-
-    init() {
-        let sink = LogSink()
-        self.broadcastLogSink = sink
-        _hrBroadcaster = StateObject(wrappedValue: HrBroadcaster(log: { [weak sink] line in
-            // HrBroadcaster is @MainActor, so it only ever calls this closure from the main actor — assume
-            // that isolation to forward straight into LiveState (also @MainActor) without an extra runloop
-            // hop, matching Android's synchronous `ble.externalLog(it)`.
-            MainActor.assumeIsolated { sink?.live?.append(log: line) }
-        }))
-    }
+    // Heart rate sharing (phone broadcaster + strap broadcast) moved to Settings › Strap › Heart rate
+    // sharing (`HeartRateSharingView`) in the 2026-10 Settings reorganisation.
 
     var body: some View {
         ScreenScaffold(title: "Data Sources",
                        subtitle: "Everything stays on \(Platform.deviceNounPhrase). Bring your history in once, then it's yours.",
                        onRefresh: { await repo.refresh() },
-                       // PERF: a ten-card import/source column (WHOOP, Apple Health, Xiaomi, nutrition,
-                       // lifting, activity files, wearables, Oura cloud, broadcast-out, live strap). The LazyVStack
+                       // PERF: a nine-card import/source column (WHOOP, Apple Health, Xiaomi, nutrition,
+                       // lifting, activity files, wearables, Oura cloud, live strap). The LazyVStack
                        // path is byte-identical layout. The cards stay in their inner VStack(sectionSpacing)
                        // for pixel-identical spacing, so the lazy win is partial until they're promoted to
-                       // direct children. NOTE: this screen still observes `LiveState` for the broadcaster
-                       // lifecycle binding in onAppear/onDisappear, so a ~1 Hz tick still re-evaluates the
-                       // built cards — that observation can't be removed here (see the lane-B2 note).
+                       // direct children. NOTE: this screen still observes `LiveState` for the live strap
+                       // card, so a ~1 Hz tick still re-evaluates the built cards (see the lane-B2 note).
                        lazy: true) {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
                 whoopCard.staggeredAppear(index: 0)
@@ -108,22 +82,8 @@ struct DataSourcesView: View {
                 #if OURA_CLOUD_IMPORT
                 ouraCloudCard.staggeredAppear(index: 8)
                 #endif
-                broadcastHrCard.staggeredAppear(index: 9)
                 liveCard.staggeredAppear(index: 10)
             }
-        }
-        .onAppear {
-            // Point the broadcaster's diagnostic sink at this screen's `live` so its broadcast-out
-            // lifecycle lines land in the same exported strap log the WHOOP path uses (issue #421 parity).
-            broadcastLogSink.live = live
-            // Bind the broadcaster to the live HR once, and resume broadcasting if the user left it on.
-            hrBroadcaster.bind(to: live)
-            if broadcastHrEnabled { hrBroadcaster.start() }
-        }
-        .onDisappear {
-            // The broadcast is a foreground convenience tied to this screen's owned object — release the
-            // radio when the screen goes away; toggling it back on (or revisiting) re-starts it.
-            hrBroadcaster.stop()
         }
         // A single target-aware importer avoids SwiftUI collapsing competing importers on the same screen.
         .fileImporter(isPresented: $showingImporter,
@@ -971,107 +931,6 @@ struct DataSourcesView: View {
             }
         }
     }
-    private var broadcastHrCard: some View {
-        // Status pill reflects the real broadcast state once it's on: advertising vs starting up.
-        let status: StatePill? = broadcastHrEnabled
-            ? StatePill(hrBroadcaster.advertising ? "Broadcasting" : "Starting…",
-                        tone: hrBroadcaster.advertising ? .positive : .warning,
-                        pulsing: !hrBroadcaster.advertising)
-            : nil
-        return card(title: String(localized: "Broadcast HR from this phone"), icon: "dot.radiowaves.up.forward",
-             tint: DomainTheme.effort.color,
-             status: status ?? StatePill("Off", tone: .neutral, showsDot: false),
-             subtitle: String(localized: "Re-share your live strap heart rate over Bluetooth as a standard heart-rate sensor, so a gym treadmill, bike, Zwift, Peloton or any fitness app nearby can read it. Local Bluetooth only. Nothing leaves \(Platform.deviceNounPhrase). Off by default.")) {
-            Toggle(isOn: $broadcastHrEnabled) {
-                Text("Broadcast HR from this phone")
-                    .font(StrandFont.subhead)
-                    .foregroundStyle(StrandPalette.textPrimary)
-            }
-            .toggleStyle(.switch)
-            .tint(DomainTheme.effort.color)
-            .accessibilityLabel("Broadcast heart rate as a Bluetooth sensor")
-            .onChangeCompat(of: broadcastHrEnabled) { on in
-                if on { hrBroadcaster.start() } else { hrBroadcaster.stop() }
-            }
-            Text("Acts as a standard Bluetooth heart-rate strap. Pair NOOP from your treadmill, bike or app to see your strap's heart rate there.")
-                .font(StrandFont.footnote)
-                .foregroundStyle(StrandPalette.textTertiary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            // FI-2 (#490) — the 4.0-vs-5.0 explainer. Broadcast works for BOTH strap generations because it
-            // re-shares whatever LIVE heart rate NOOP already has off the strap; it doesn't depend on the
-            // 5/MG-only deep-data path. The honest distinction is WHERE that live HR comes from (4.0 = the
-            // strap's standard HR characteristic; 5/MG = PPG-derived once connected), not whether broadcast
-            // works at all. Stated plainly so a 4.0 owner knows this is for them too.
-            generationExplainer
-
-            // Honest live status only while it's on: a warning note if the radio can't run, else either
-            // who's reading it or that we're waiting (never a fabricated "connected").
-            if broadcastHrEnabled {
-                if let note = hrBroadcaster.statusNote {
-                    Text(note)
-                        .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.statusWarningForeground)
-                        .fixedSize(horizontal: false, vertical: true)
-                } else if hrBroadcaster.subscriberCount > 0 {
-                    let n = hrBroadcaster.subscriberCount
-                    // Whole-phrase variants per count so translators never see a stitched plural.
-                    Text(n == 1 ? "1 device reading your heart rate"
-                                : "\(n) devices reading your heart rate")
-                        .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.textSecondary)
-                } else if let hr = live.heartRate {
-                    Text("Sharing \(hr) bpm. Waiting for a device to pair.")
-                        .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.textTertiary)
-                } else {
-                    Text("No live heart rate yet. Open Live to pair your strap.")
-                        .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.textTertiary)
-                }
-            }
-        }
-    }
-
-    /// FI-2 (#490) — a compact, honest "works with both strap generations" explainer under the broadcast
-    /// toggle. Two short lines (4.0 / 5.0·MG) frame WHERE the live HR comes from on each, so a WHOOP 4.0
-    /// owner knows broadcast is for them and a 5/MG owner understands the PPG-derived source — without
-    /// over-promising. Plain copy, no claim that either generation is "better".
-    private var generationExplainer: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            generationRow(title: "WHOOP 4.0",
-                          detail: String(localized: "Broadcasts the strap's own live heart rate over Bluetooth."))
-            generationRow(title: "WHOOP 5.0 & MG",
-                          detail: String(localized: "Broadcasts the live heart rate NOOP derives from the strap once connected."))
-        }
-        .padding(.top, 2)
-        .padding(.horizontal, 10).padding(.vertical, 8)
-        .background(DomainTheme.effort.color.opacity(0.08),
-                    in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-    }
-
-    private func generationRow(title: String, detail: String) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(DomainTheme.effort.color)
-                .padding(.top, 1)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title)
-                    .font(StrandFont.footnote.weight(.semibold))
-                    .foregroundStyle(StrandPalette.textSecondary)
-                Text(detail)
-                    .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: 0)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(title): \(detail)")
-    }
-
     private var liveCard: some View {
         // Three-state, consistent with the Live screen's connection pill — a connected-but-
         // not-yet-streaming strap (e.g. an experimental WHOOP 5/MG link) no longer reads as
@@ -1094,20 +953,10 @@ struct DataSourcesView: View {
              tint: StrandPalette.accent,
              status: StatePill(label, tone: tone, pulsing: live.connected && !live.bonded),
              subtitle: String(localized: "Pairs directly with your strap over Bluetooth: no WHOOP app, no cloud.")) {
-            Toggle(isOn: $strapBroadcastHrEnabled) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Broadcast heart rate from the strap")
-                        .font(StrandFont.subhead)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                    Text("Broadcasts the strap's own live heart rate over Bluetooth.")
-                        .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.textTertiary)
-                }
-            }
-            .toggleStyle(.switch)
-            .tint(StrandPalette.accent)
-            .accessibilityLabel("Broadcast heart rate from the strap")
-            .onChangeCompat(of: strapBroadcastHrEnabled) { model.ble.setBroadcastHr($0) }
+            Text("Heart rate sharing with other devices is in Settings, under Strap.")
+                .font(StrandFont.footnote)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 

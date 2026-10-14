@@ -1,11 +1,14 @@
 import Foundation
 
-/// Stable, testable page order for the Settings landing screen.
+/// Stable, testable page order for the Settings landing screen: six groups, sorted by what a person
+/// wants to get done rather than by how the app is built.
 enum SettingsHubLayout {
-    static let personal: [SettingsPage] = [.profile, .units, .appearance]
-    static let trainingAndDevices: [SettingsPage] = [.training, .strap, .features]
-    static let healthAndData: [SettingsPage] = [.recoverySleep, .dataBackup]
-    static let support: [SettingsPage] = [.advanced, .about]
+    static let you: [SettingsPage] = [.profile, .goals]
+    static let strapAndDevices: [SettingsPage] = [.strap, .batteryRecording, .strapActions]
+    static let trainingAndEveryday: [SettingsPage] = [.training, .todayTrends, .notifications, .coach, .siri]
+    static let display: [SettingsPage] = [.languageUnits, .appearance]
+    static let data: [SettingsPage] = [.calculations, .dataBackup]
+    static let help: [SettingsPage] = [.help, .lab, .about]
 
-    static let allPages = personal + trainingAndDevices + healthAndData + support
+    static let allPages = you + strapAndDevices + trainingAndEveryday + display + data + help
 }

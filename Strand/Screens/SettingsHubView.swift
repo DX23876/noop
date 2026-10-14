@@ -30,10 +30,12 @@ struct SettingsHubView: View {
             if isSearching {
                 searchResults
             } else {
-                SettingsHubGroup(title: "Personal", pages: SettingsHubLayout.personal)
-                SettingsHubGroup(title: "Training & Devices", pages: SettingsHubLayout.trainingAndDevices)
-                SettingsHubGroup(title: "Health & Data", pages: SettingsHubLayout.healthAndData)
-                SettingsHubGroup(title: "Support", pages: SettingsHubLayout.support)
+                SettingsHubGroup(title: "You", pages: SettingsHubLayout.you)
+                SettingsHubGroup(title: "Strap & Devices", pages: SettingsHubLayout.strapAndDevices)
+                SettingsHubGroup(title: "Training & Everyday", pages: SettingsHubLayout.trainingAndEveryday)
+                SettingsHubGroup(title: "Display", pages: SettingsHubLayout.display)
+                SettingsHubGroup(title: "Data", pages: SettingsHubLayout.data)
+                SettingsHubGroup(title: "Help", pages: SettingsHubLayout.help)
             }
         }
     }

@@ -728,20 +728,16 @@ enum DemoScreens {
         // Analysis migration required: no. This DEBUG-only route only makes the existing filtered
         // Training settings state directly screenshot-able; it changes no stored data or analysis.
         case "trainingsettings": return AnyView(SettingsView(initialPage: .training))
-        case "settingsprofile": return AnyView(SettingsView(initialPage: .profile))
-        case "settingsunits": return AnyView(SettingsView(initialPage: .units))
-        case "settingsrecovery": return AnyView(SettingsView(initialPage: .recoverySleep))
-        case "settingsappearance": return AnyView(SettingsView(initialPage: .appearance))
-        case "settingsstrap": return AnyView(SettingsView(initialPage: .strap))
-        case "settingsfeatures": return AnyView(SettingsView(initialPage: .features))
-        case "settingsdata": return AnyView(SettingsView(initialPage: .dataBackup))
-        case "settingsadvanced": return AnyView(SettingsView(initialPage: .advanced))
-        case "settingsabout": return AnyView(SettingsView(initialPage: .about))
+        // One screenshot route per Settings page: "settings-<page rawValue>", e.g. settings-calculations.
+        // Routed through `SettingsPageDestination` like every other entry point.
+        case let route where route.hasPrefix("settings-"):
+            // The route arrives lowercased, the raw values are camelCase.
+            let name = String(route.dropFirst("settings-".count))
+            guard let page = SettingsPage.allCases.first(where: { $0.rawValue.lowercased() == name }) else { return nil }
+            return AnyView(SettingsPageDestination(page: page))
         case "moreanalysis": return AnyView(MoreCategoryView(category: .analysis))
         case "morehealth": return AnyView(MoreCategoryView(category: .healthBody))
         case "moretools": return AnyView(MoreCategoryView(category: .tools))
-        case "moredata": return AnyView(MoreCategoryView(category: .data))
-        case "moreapp": return AnyView(MoreCategoryView(category: .app))
         case "chargebreakdown": return AnyView(ChargeBreakdownDemoHost())
         case "devices":  return AnyView(DevicesView())
         case "devicescatalog": return AnyView(DeviceCardCatalog())

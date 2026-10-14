@@ -29,12 +29,24 @@ final class SettingsSearchCatalogTests: XCTestCase {
 
     func testSettingsHubListsEveryPageExactlyOnceInStableOrder() {
         XCTAssertEqual(SettingsHubLayout.allPages, [
-            .profile, .units, .appearance,
-            .training, .strap, .features,
-            .recoverySleep, .dataBackup,
-            .advanced, .about,
+            .profile, .goals,
+            .strap, .batteryRecording, .strapActions,
+            .training, .todayTrends, .notifications, .coach, .siri,
+            .languageUnits, .appearance,
+            .calculations, .dataBackup,
+            .help, .lab, .about,
         ])
         XCTAssertEqual(Set(SettingsHubLayout.allPages), Set(SettingsPage.allCases))
+    }
+
+    /// The six pages that are complete screens of their own carry exactly one section each, so a search
+    /// hit on them names the screen it opens and never a card that page does not draw.
+    func testStandaloneScreensAreExactlyTheSixScreenPages() {
+        let standalone = SettingsPage.allCases.filter(\.isStandaloneScreen)
+        XCTAssertEqual(standalone, [.goals, .batteryRecording, .strapActions, .notifications, .coach, .siri])
+        for page in standalone {
+            XCTAssertEqual(page.sectionIDs.count, 1, "\(page.rawValue) is one screen, so one section")
+        }
     }
 
     func testEveryEntryCarriesSearchableText() {
@@ -56,22 +68,25 @@ final class SettingsSearchCatalogTests: XCTestCase {
 
     /// The queries in the plan's own acceptance list, plus the ones that motivated the keywords.
     func testRealQueriesReachTheirSection() {
-        XCTAssertTrue(SettingsSearchCatalog.section(.strap, matches: "live activity"))
+        XCTAssertTrue(SettingsSearchCatalog.section(.notifications, matches: "live activity"))
         XCTAssertTrue(SettingsSearchCatalog.section(.strap, matches: "bluetooth"))
-        XCTAssertTrue(SettingsSearchCatalog.section(.appearance, matches: "dark mode"))
-        XCTAssertTrue(SettingsSearchCatalog.section(.appearance, matches: "language"))
+        XCTAssertTrue(SettingsSearchCatalog.section(.design, matches: "dark mode"))
+        XCTAssertTrue(SettingsSearchCatalog.section(.language, matches: "language"))
+        XCTAssertTrue(SettingsSearchCatalog.section(.language, matches: "week start"))
         XCTAssertTrue(SettingsSearchCatalog.section(.backup, matches: "restore"))
-        XCTAssertTrue(SettingsSearchCatalog.section(.experimentalWhoop5, matches: "ecg"))
-        XCTAssertTrue(SettingsSearchCatalog.section(.features, matches: "hydration"))
+        XCTAssertTrue(SettingsSearchCatalog.section(.labWhoop5, matches: "ecg"))
+        XCTAssertTrue(SettingsSearchCatalog.section(.todayCards, matches: "hydration"))
         XCTAssertTrue(SettingsSearchCatalog.section(.training, matches: "rest timer"))
         XCTAssertTrue(SettingsSearchCatalog.section(.training, matches: "keep screen on"))
         XCTAssertTrue(SettingsSearchCatalog.section(.training, matches: "exercise media"))
-        XCTAssertTrue(SettingsSearchCatalog.section(.training, matches: "week start"))
+        XCTAssertTrue(SettingsSearchCatalog.section(.batteryRecording, matches: "battery"))
+        XCTAssertTrue(SettingsSearchCatalog.section(.heartRateSharing, matches: "zwift"))
+        XCTAssertTrue(SettingsSearchCatalog.section(.calculation, matches: "day start"))
+        XCTAssertTrue(SettingsSearchCatalog.section(.lab, matches: "ageless"))
+        XCTAssertTrue(SettingsSearchCatalog.section(.coach, matches: "api key"))
     }
 
     func testAQueryNarrowsRatherThanReturningTheWholeScreen() {
-        // Power saving moved out of Settings into its own screen (upstream #1431), so "battery" is no
-        // longer a Settings query at all — the narrowing property is pinned on a query that still is one.
         let hits = SettingsSearchCatalog.matching("bluetooth")
         XCTAssertTrue(hits.contains { $0.id == .strap })
         XCTAssertLessThan(hits.count, SettingsSectionID.allCases.count,

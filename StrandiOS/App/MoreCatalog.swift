@@ -52,8 +52,6 @@ enum MoreCategory: String, CaseIterable, Identifiable, Hashable {
     case analysis
     case healthBody
     case tools
-    case data
-    case app
 
     var id: String { rawValue }
 
@@ -62,8 +60,6 @@ enum MoreCategory: String, CaseIterable, Identifiable, Hashable {
         case .analysis: return "Analysis"
         case .healthBody: return "Health & Body"
         case .tools: return "Tools"
-        case .data: return "Data"
-        case .app: return "App"
         }
     }
 
@@ -72,8 +68,6 @@ enum MoreCategory: String, CaseIterable, Identifiable, Hashable {
         case .analysis: return "Patterns, goals, journaling and your coach"
         case .healthBody: return "Training, body, energy and health signals"
         case .tools: return "Live heart rate, breathing and intervals"
-        case .data: return "Sources, Apple Health, backup and portability"
-        case .app: return "Alarms, automations, shortcuts and power"
         }
     }
 
@@ -82,8 +76,6 @@ enum MoreCategory: String, CaseIterable, Identifiable, Hashable {
         case .analysis: return "wand.and.sparkles"
         case .healthBody: return "heart.text.square.fill"
         case .tools: return "wrench.and.screwdriver.fill"
-        case .data: return "square.stack.3d.up.fill"
-        case .app: return "slider.horizontal.3"
         }
     }
 
@@ -92,8 +84,6 @@ enum MoreCategory: String, CaseIterable, Identifiable, Hashable {
         case .analysis: return "insightsHub"
         case .healthBody: return "health"
         case .tools: return "intervals"
-        case .data: return "fusedRecord"
-        case .app: return "settings"
         }
     }
 }
@@ -135,10 +125,10 @@ enum MoreCatalog {
                       keywords: ["metrics", "trends", "history", "every signal"]),
             MoreEntry("Compare", "rectangle.split.2x1.fill", .compare,
                       keywords: ["two metrics", "overlay", "correlation"]),
-            // This row remains reachable while the Coach itself is off: it is where a person
-            // connects a provider and explicitly turns the feature on again.
-            MoreEntry("AI Coach", "sparkles", .coachSettings,
-                      keywords: ["Svea", "chat", "API key", "provider", "model", "memory"]),
+            // Coach settings moved to Settings › AI Coach (2026-10 reorganisation). It stays reachable
+            // there while the Coach itself is off, which is where a person turns it on again.
+            MoreEntry("Your Data, Fused", "square.stack.3d.up.fill", .fusedRecord,
+                      keywords: ["merged record", "all sources", "one timeline"]),
         ]),
         MoreGroup(category: .healthBody, entries: [
             MoreEntry("Training", "dumbbell.fill", .training,
@@ -177,45 +167,6 @@ enum MoreCatalog {
             MoreEntry("Intervals", "timer", .intervals,
                       keywords: ["interval timer", "rounds", "HIIT"]),
         ]),
-        MoreGroup(category: .data, entries: [
-            MoreEntry("Your Data, Fused", "square.stack.3d.up.fill", .fusedRecord,
-                      keywords: ["merged record", "all sources", "one timeline"]),
-            MoreEntry("Apple Health", "heart.fill", .appleHealth,
-                      keywords: ["HealthKit", "import", "export", "sync", "iPhone"]),
-            MoreEntry("Data Sources", "externaldrive.fill", .dataSources,
-                      keywords: ["import", "WHOOP export", "CSV", "zip", "history", "Mi Band", "Xiaomi", "Mi Fitness"]),
-            MoreEntry("Backup & Sync", "externaldrive.fill.badge.icloud", .backupSync,
-                      keywords: ["backup", "restore", "noopbak", "folder", "iCloud"]),
-            // #155: HealthKit-free Apple Health path for sideloaded installs (Siri Shortcut
-            // reads the opt-in Documents/noop_sync.txt drop file).
-            MoreEntry("Shortcuts Export", "square.and.arrow.up.fill", .shortcutsExport,
-                      keywords: ["Siri Shortcut", "sideload", "drop file", "no HealthKit"]),
-            // The plain 4.0 vs 5.0/MG capability grid — what NOOP reads live off each strap.
-            MoreEntry("NOOP Limitations", "list.bullet.rectangle", .noopLimitations,
-                      keywords: ["what works", "WHOOP 4.0", "WHOOP 5", "MG", "capabilities"]),
-        ]),
-        MoreGroup(category: .app, entries: [
-            // #805/#811: the v7.3.1 #766 alarm consolidation moved Smart Alarm under a single
-            // "Alarms" sidebar entry (RootView .smartAlarm) but the regression dropped the row
-            // from the iPhone More list, leaving Alarms unreachable on iPhone. Restore it here
-            // (route to SmartAlarmView, the cross-platform iOS/macOS surface).
-            //
-            // Notifications (RootView .notifications) is deliberately NOT added: that screen is
-            // macOS-only (it picks which Mac apps tap your wrist via NSWorkspace, imports AppKit,
-            // and project.yml excludes Screens/NotificationSettingsView.swift from the iOS target),
-            // so it can't compile or apply on iPhone. iPhone's wrist-alert controls live on the
-            // Automations screen instead. Its absence from the iPhone More list is correct.
-            MoreEntry("Alarms", "alarm.fill", .alarms,
-                      keywords: ["smart alarm", "wake", "wake-up window"]),
-            MoreEntry("Automations", "wand.and.stars", .automations,
-                      keywords: ["rules", "notifications", "wrist alerts", "reminders"]),
-            MoreEntry("Siri & Shortcuts", "mic.fill", .siriShortcuts,
-                      keywords: ["voice", "App Intents", "automation"]),
-            // #477 lives here rather than inside Settings: the strap-battery levers are the ones
-            // people reach for when a strap is running down, so they get their own row.
-            MoreEntry("Power saving", "battery.25", .powerSaving,
-                      keywords: ["battery", "strap battery", "low power", "sampling"]),
-        ]),
     ]
 
     /// Direct root rows stay one tap away instead of being buried under App.
@@ -227,8 +178,11 @@ enum MoreCatalog {
     static let rootEntries: [MoreEntry] = [
         MoreEntry("Settings", "gearshape.fill", .settings,
                   keywords: ["preferences", "options", "configuration"]),
-        MoreEntry("Test Centre", "stethoscope", .testCentre,
-                  keywords: ["diagnostics", "bug report", "strap log", "probes"]),
+        // Used every day, so one tap from the tab rather than inside a group. The settings-like screens
+        // that lived in More (Coach, Automations, Power saving, Siri, Apple Health, backup, Test Centre)
+        // are Settings pages since the 2026-10 reorganisation; the More search still finds them there.
+        MoreEntry("Alarms", "alarm.fill", .alarms,
+                  keywords: ["smart alarm", "wake", "wake-up window"]),
     ]
 
     /// Destinations consolidated behind Training/Data Sources remain globally searchable, so the new

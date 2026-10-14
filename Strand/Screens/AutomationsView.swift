@@ -4,7 +4,17 @@ import StrandAnalytics
 
 /// Automations — turn the strap's physical inputs (double-tap, wrist on/off) and live biometrics
 /// into actions (Shortcuts, and Mac-only screen lock) and haptic coaching. All on-device.
+///
+/// Since the 2026-10 Settings reorganisation the screen is shown as two Settings pages: `.strapActions`
+/// (what the strap does: double-tap, buzzes, wear, heart-rate ceiling) and `.notifications` (the live
+/// notifications, wrist alerts and reminders). `.all` keeps the whole column for the macOS sidebar.
 struct AutomationsView: View {
+    enum Scope {
+        case all, strapActions, notifications
+    }
+
+    var scope: Scope = .all
+
     @EnvironmentObject var model: AppModel
     @EnvironmentObject var behavior: BehaviorStore
     @EnvironmentObject var profile: ProfileStore
@@ -50,31 +60,55 @@ struct AutomationsView: View {
     @AppStorage(HapticPrefs.workout) private var workoutHaptic = true
 
     var body: some View {
-        ScreenScaffold(title: "Automations",
-                       subtitle: "Make the strap do things: tap to act, walk away to lock, train by feel.",
+        ScreenScaffold(title: screenTitle,
+                       subtitle: screenSubtitle,
                        // PERF: the cards are direct children of the scaffold column, so the LazyVStack
                        // path (byte-identical layout) genuinely builds the off-screen cards on demand
                        // instead of constructing all eight/nine + their toggle subtrees up-front.
-                       lazy: true) {
-            #if os(iOS)
-            wristAlertsCard
-            #endif
-            doubleTapCard
-            hapticsCard
-            wearCard
-            coachingCard
+                       lazy: true,
+                       topBackground: liquidScaffoldSky()) {
+            if scope != .strapActions {
+                #if os(iOS)
+                LiveNotificationSettingsCard()
+                wristAlertsCard
+                #endif
+            }
+            if scope != .notifications {
+                doubleTapCard
+                hapticsCard
+                wearCard
+                coachingCard
+            }
             // #766: the strap's silent wake-alarm card used to sit here, which let users conflate it with
             // the wind-down reminder. It's moved to the dedicated Alarms screen (SmartAlarmView) so every
             // wake/wind-down control lives in one place. Automations is just inputs-to-actions now.
-            inactivityCard
-            illnessCard
-            healthInsightsCard
-            batteryCard
-            #if os(iOS)
-            syncReminderCard
-            #endif
-            strainTargetCard
-            trainingLoadAlertCard
+            if scope != .strapActions {
+                inactivityCard
+                illnessCard
+                healthInsightsCard
+                batteryCard
+                #if os(iOS)
+                syncReminderCard
+                #endif
+                strainTargetCard
+                trainingLoadAlertCard
+            }
+        }
+    }
+
+    private var screenTitle: LocalizedStringKey {
+        switch scope {
+        case .all: return "Automations"
+        case .strapActions: return "Strap Actions"
+        case .notifications: return "Notifications"
+        }
+    }
+
+    private var screenSubtitle: LocalizedStringKey {
+        switch scope {
+        case .all: return "Make the strap do things: tap to act, walk away to lock, train by feel."
+        case .strapActions: return "Double-tap, buzzes and heart-rate alerts"
+        case .notifications: return "Lock Screen, wrist alerts and reminders"
         }
     }
 
@@ -680,7 +714,6 @@ private struct Section2<Content: View>: View {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 8) {
-                        Text("Automation").strandOverline()
                         if active {
                             Text("ON").font(StrandFont.overline)
                                 .tracking(StrandFont.overlineTracking)

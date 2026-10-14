@@ -2801,25 +2801,25 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Custom"
+            "value" : "Eigene"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Custom"
+            "value" : "Personalizado"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Custom"
+            "value" : "Personnalisé"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Custom"
+            "value" : "Personalizzato"
           }
         },
         "pl" : {
@@ -2831,25 +2831,25 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Custom"
+            "value" : "Personalizado"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Custom"
+            "value" : "Своё"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Custom"
+            "value" : "自定义"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Custom"
+            "value" : "自訂"
           }
         }
       }

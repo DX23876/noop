@@ -1,79 +1,122 @@
 import Foundation
 
-/// Stable identity for each `SettingsSection` card on the Settings screen.
+/// Stable identity for each section on the Settings screen: a card inside a Settings page, or a whole
+/// page that is its own screen (Coach, Notifications, …).
 ///
 /// Exists so a section can be *addressed* — filtered by the Settings search field, and named as a
 /// result row in the More tab's index search — without matching on its display title, which is
 /// translated and therefore not a key.
 enum SettingsSectionID: String, CaseIterable, Hashable, Sendable {
     case profile
-    case units
-    case training
-    case streak
-    case appearance
+    case goals
     case strap
-    case recovery
-    case analysisMaintenance
-    /// HRV tuning, moved out of the always-visible Strap card into Advanced (upstream #518).
-    case hrv
-    case testCentre
-    case features
-    case liveSessions
-    case sleepStaging
-    case experimentalWhoop5
-    case diagnostics
+    case steps
+    case heartRateSharing
+    case batteryRecording
+    case strapActions
+    case training
+    case guidedTraining
+    case todayLayout
+    case todayCards
+    case notifications
+    case coach
+    case siri
+    case language
+    case units
+    case design
+    case background
+    case charts
+    case motion
+    case calculation
+    case scoreRepair
     case backup
+    case dataConnections
+    case guides
+    case testCentre
+    case diagnostics
+    case lab
+    case labWhoop5
     case about
 }
 
-/// The iPhone Settings hierarchy. Every existing card belongs to exactly one page, so shortening the
-/// root does not remove a control or make it search-only.
+/// The Settings hierarchy (2026-10 reorganisation). Every control has exactly one page; other screens
+/// may link to that page but never carry a copy of the control.
+///
+/// Six pages are complete screens of their own (`isStandaloneScreen`); the rest are built from cards
+/// inside `SettingsView`.
 enum SettingsPage: String, CaseIterable, Identifiable, Hashable, Sendable {
-    case profile, units, training, appearance, strap, features, recoverySleep, dataBackup, advanced, about
+    case profile, goals
+    case strap, batteryRecording, strapActions
+    case training, todayTrends, notifications, coach, siri
+    case languageUnits, appearance
+    case calculations, dataBackup
+    case help, lab, about
 
     var id: String { rawValue }
 
     var title: LocalizedStringResource {
         switch self {
         case .profile: return "Profile"
-        case .units: return "Units & Formats"
+        case .goals: return "Goals"
+        case .strap: return "Strap"
+        case .batteryRecording: return "Battery & Recording"
+        case .strapActions: return "Strap Actions"
         case .training: return "Training"
+        case .todayTrends: return "Today & Trends"
+        case .notifications: return "Notifications"
+        case .coach: return "AI Coach"
+        case .siri: return "Siri & Shortcuts"
+        case .languageUnits: return "Language & Units"
         case .appearance: return "Appearance"
-        case .strap: return "Strap & Live Activities"
-        case .features: return "Features"
-        case .recoverySleep: return "Recovery & Sleep Analysis"
+        case .calculations: return "Calculations"
         case .dataBackup: return "Data & Backup"
-        case .advanced: return "Advanced"
+        case .help: return "Help & Diagnostics"
+        case .lab: return "Lab"
         case .about: return "About"
         }
     }
 
+    /// A short list of nouns, never a sentence: it names what is on the page.
     var subtitle: LocalizedStringResource {
         switch self {
-        case .profile: return "Your basics, body metrics, heart-rate zones and streak"
-        case .units: return "Body, distance, temperature and score display"
-        case .training: return "Weight unit, timers, equipment and workout display"
-        case .appearance: return "Language, theme, colours and dashboard style"
-        case .strap: return "Connection, sync and Live Activities"
-        case .features: return "Optional trackers and everyday features"
-        case .recoverySleep: return "Charge baseline, HRV and sleep staging"
-        case .dataBackup: return "Export, restore and move your local data"
-        case .advanced: return "Refresh tools, diagnostics and device experiments"
-        case .about: return "Version, guides, updates, licences and source code"
+        case .profile: return "Body, heart rate and fitness"
+        case .goals: return "Number of goals, rest days and step goal"
+        case .strap: return "Connection, steps and heart rate sharing"
+        case .batteryRecording: return "Power saving and continuous HRV"
+        case .strapActions: return "Double-tap, buzzes and heart-rate alerts"
+        case .training: return "Sets, rest timers and weights"
+        case .todayTrends: return "Cards, order and style"
+        case .notifications: return "Lock Screen, wrist alerts and reminders"
+        case .coach: return "Provider, model and memory"
+        case .siri: return "Voice commands and shortcuts"
+        case .languageUnits: return "Language, clock, week start and units"
+        case .appearance: return "Theme, background, charts and motion"
+        case .calculations: return "Day start, effort, HRV and sleep"
+        case .dataBackup: return "Backup, Apple Health, imports and storage"
+        case .help: return "Guides, Test Centre and bug reports"
+        case .lab: return "Experimental features"
+        case .about: return "Version, updates and source code"
         }
     }
 
     var icon: String {
         switch self {
         case .profile: return "person.crop.circle"
-        case .units: return "ruler"
-        case .training: return "dumbbell.fill"
-        case .appearance: return "circle.lefthalf.filled"
+        case .goals: return "target"
         case .strap: return "antenna.radiowaves.left.and.right"
-        case .features: return "switch.2"
-        case .recoverySleep: return "bed.double.fill"
+        case .batteryRecording: return "battery.75percent"
+        case .strapActions: return "hand.tap.fill"
+        case .training: return "dumbbell.fill"
+        case .todayTrends: return "square.grid.2x2.fill"
+        case .notifications: return "bell.badge.fill"
+        case .coach: return "sparkles"
+        case .siri: return "mic.fill"
+        case .languageUnits: return "globe"
+        case .appearance: return "circle.lefthalf.filled"
+        case .calculations: return "function"
         case .dataBackup: return "externaldrive.fill"
-        case .advanced: return "slider.horizontal.3"
+        case .help: return "questionmark.circle.fill"
+        case .lab: return "flask.fill"
         case .about: return "info.circle.fill"
         }
     }
@@ -81,29 +124,52 @@ enum SettingsPage: String, CaseIterable, Identifiable, Hashable, Sendable {
     var colorKey: String {
         switch self {
         case .profile: return "settings.profile"
-        case .units: return "settings.units"
-        case .training: return "training"
-        case .appearance: return "settings.appearance"
+        case .goals: return "goalJourney"
         case .strap: return "settings.strap"
-        case .features: return "settings.features"
-        case .recoverySleep: return "settings.sleep"
+        case .batteryRecording: return "powerSaving"
+        case .strapActions: return "automations"
+        case .training: return "training"
+        case .todayTrends: return "settings.features"
+        case .notifications: return "notifications"
+        case .coach: return "coachSettings"
+        case .siri: return "siriShortcuts"
+        case .languageUnits: return "settings.units"
+        case .appearance: return "settings.appearance"
+        case .calculations: return "intelligence"
         case .dataBackup: return "backupSync"
-        case .advanced: return "settings.diagnostics"
+        case .help: return "testCentre"
+        case .lab: return "settings.experimental"
         case .about: return "settings.about"
+        }
+    }
+
+    /// True for the pages that are a complete screen of their own rather than cards inside
+    /// `SettingsView`. `SettingsPageDestination` routes them.
+    var isStandaloneScreen: Bool {
+        switch self {
+        case .goals, .batteryRecording, .strapActions, .notifications, .coach, .siri: return true
+        default: return false
         }
     }
 
     var sectionIDs: [SettingsSectionID] {
         switch self {
-        case .profile: return [.profile, .streak]
-        case .units: return [.units]
-        case .training: return [.training]
-        case .appearance: return [.appearance]
-        case .strap: return [.strap]
-        case .features: return [.features]
-        case .recoverySleep: return [.recovery, .hrv, .sleepStaging]
-        case .dataBackup: return [.backup]
-        case .advanced: return [.analysisMaintenance, .testCentre, .liveSessions, .experimentalWhoop5, .diagnostics]
+        case .profile: return [.profile]
+        case .goals: return [.goals]
+        case .strap: return [.strap, .steps, .heartRateSharing]
+        case .batteryRecording: return [.batteryRecording]
+        case .strapActions: return [.strapActions]
+        case .training: return [.training, .guidedTraining]
+        case .todayTrends: return [.todayLayout, .todayCards]
+        case .notifications: return [.notifications]
+        case .coach: return [.coach]
+        case .siri: return [.siri]
+        case .languageUnits: return [.language, .units]
+        case .appearance: return [.design, .background, .charts, .motion]
+        case .calculations: return [.calculation, .scoreRepair]
+        case .dataBackup: return [.backup, .dataConnections]
+        case .help: return [.guides, .testCentre, .diagnostics]
+        case .lab: return [.lab, .labWhoop5]
         case .about: return [.about]
         }
     }
@@ -148,113 +214,179 @@ enum SettingsSearchCatalog {
             id: .profile,
             title: "Profile",
             keywords: ["photo", "picture", "avatar", "name", "date of birth", "age",
-                       "sex", "height", "weight", "scaling", "heart-rate zones",
-                       "hr zones", "zone bands", "custom zones", "zone 2", "max heart rate",
-                       "calories", "background image"]
+                       "sex", "height", "weight", "waist", "heart-rate zones", "hr zones", "zone bands",
+                       "custom zones", "zone 2", "max heart rate", "VO2max", "activity level",
+                       "calories", "body fat", "body measurements"]
         ),
         SettingsSearchEntry(
-            id: .units,
-            title: "Units",
-            keywords: ["measurement system", "metric", "imperial", "temperature",
-                       "celsius", "fahrenheit", "kilograms", "pounds", "effort scale"]
-        ),
-        SettingsSearchEntry(
-            id: .training,
-            title: "Training",
-            keywords: ["strength", "workout", "RPE", "RIR", "effort", "rest timer", "warm-up",
-                       "rest-pause", "timer sound", "haptics", "vibration", "notification", "lock screen",
-                       "keep screen on",
-                       "screen awake", "workout view", "exercise media", "download media",
-                       "week start", "equipment", "kilograms", "weight step", "plates"]
-        ),
-        SettingsSearchEntry(
-            id: .streak,
-            title: "Streak",
-            keywords: ["current streak", "longest streak", "days worn", "consistency"]
-        ),
-        SettingsSearchEntry(
-            id: .appearance,
-            title: "Appearance",
-            keywords: ["language", "theme", "dark mode", "light mode", "accent colour",
-                       "chart colours", "app icon", "reduce motion", "day-cycle background",
-                       "sky behind cards", "transparent cards", "card transparency",
-                       "breathing coach tile", "sleep chart", "trend charts", "preset",
-                       "Liquid Today"]
+            id: .goals,
+            title: "Goals",
+            keywords: ["goal", "rest days", "step goal", "daily steps", "streak", "badges", "records",
+                       "motivation", "week bar", "goal notifications"]
         ),
         SettingsSearchEntry(
             id: .strap,
             title: "Strap",
-            keywords: ["bluetooth", "pairing", "strap log", "strap name", "rename",
-                       "live activity", "lock screen", "dynamic island",
-                       "sync", "keep screen on"]
+            keywords: ["bluetooth", "pairing", "connection", "re-scan", "disconnect", "strap log",
+                       "strap name", "rename", "sync", "keep screen on"]
         ),
         SettingsSearchEntry(
-            id: .hrv,
-            title: "HRV",
-            keywords: ["continuous HRV capture", "HRV window", "overnight only",
-                       "beat-to-beat", "R-R", "deep sleep", "whole night"]
+            id: .steps,
+            title: "Steps",
+            keywords: ["step count", "step-count correction", "steps estimate", "calibration",
+                       "too many steps", "WHOOP 4.0 steps"]
         ),
         SettingsSearchEntry(
-            id: .recovery,
-            title: "Recovery",
-            keywords: ["charge", "baseline", "recalibrate", "re-learn", "HRV",
-                       "resting heart rate"]
+            id: .heartRateSharing,
+            title: "Heart rate sharing",
+            keywords: ["broadcast", "heart-rate sensor", "Garmin", "Zwift", "Peloton", "treadmill",
+                       "bike computer", "gym"]
         ),
         SettingsSearchEntry(
-            id: .analysisMaintenance,
-            title: "Analysis & maintenance",
-            keywords: ["reanalysis", "recompute", "21 days", "refresh today",
-                       "analysis recipe", "migration", "scores stuck"]
+            id: .batteryRecording,
+            title: "Battery & Recording",
+            keywords: ["battery", "power saving", "low power", "strap battery", "low refresh",
+                       "continuous HRV", "beat-to-beat", "R-R", "overnight only"]
+        ),
+        SettingsSearchEntry(
+            id: .strapActions,
+            title: "Strap Actions",
+            keywords: ["double-tap", "haptics", "buzz", "vibration", "heart-rate ceiling",
+                       "haptic coaching", "lock the Mac", "wear"]
+        ),
+        SettingsSearchEntry(
+            id: .training,
+            title: "Training",
+            keywords: ["strength", "workout", "RPE", "RIR", "set effort", "session rating", "rest timer",
+                       "warm-up", "rest-pause", "timer sound", "haptics", "vibration", "notification",
+                       "keep screen on", "screen awake", "workout view", "exercise media",
+                       "download media", "equipment", "kilograms", "weight unit", "weight step", "plates",
+                       "double-tap"]
+        ),
+        SettingsSearchEntry(
+            id: .guidedTraining,
+            title: "Guided training",
+            keywords: ["live session", "guarded workout", "heart-rate band", "auto-detect workouts",
+                       "workout suggestions"]
+        ),
+        SettingsSearchEntry(
+            id: .todayLayout,
+            title: "Dashboard",
+            keywords: ["dashboard style", "arrange dashboard", "Liquid Today", "trends slots",
+                       "card order", "layout"]
+        ),
+        SettingsSearchEntry(
+            id: .todayCards,
+            title: "Today cards",
+            keywords: ["water", "hydration", "journal", "journal card", "optional trackers"]
+        ),
+        SettingsSearchEntry(
+            id: .notifications,
+            title: "Notifications",
+            keywords: ["live activity", "lock screen", "dynamic island", "wrist alerts", "inactivity",
+                       "illness", "battery alerts", "sync reminder", "strain target", "training load alert",
+                       "cycle awareness", "reminders"]
+        ),
+        SettingsSearchEntry(
+            id: .coach,
+            title: "AI Coach",
+            keywords: ["Svea", "chat", "API key", "provider", "model", "memory"]
+        ),
+        SettingsSearchEntry(
+            id: .siri,
+            title: "Siri & Shortcuts",
+            keywords: ["voice", "App Intents", "automation", "shortcut"]
+        ),
+        SettingsSearchEntry(
+            id: .language,
+            title: "Language",
+            keywords: ["language", "clock", "12-hour", "24-hour", "week start", "Monday", "Sunday"]
+        ),
+        SettingsSearchEntry(
+            id: .units,
+            title: "Units",
+            keywords: ["measurement system", "metric", "imperial", "distance", "pace", "temperature",
+                       "celsius", "fahrenheit", "kilograms", "pounds", "skin temperature", "effort scale"]
+        ),
+        SettingsSearchEntry(
+            id: .design,
+            title: "Style",
+            keywords: ["theme", "dark mode", "light mode", "preset", "accent colour", "app icon",
+                       "coloured icons", "tab bar"]
+        ),
+        SettingsSearchEntry(
+            id: .background,
+            title: "Background",
+            keywords: ["time-of-day sky", "day-cycle background", "motif", "sky behind cards",
+                       "transparent cards", "card transparency", "custom photo", "background image"]
+        ),
+        SettingsSearchEntry(
+            id: .charts,
+            title: "Charts",
+            keywords: ["chart colours", "sleep chart", "trend charts", "line", "bars"]
+        ),
+        SettingsSearchEntry(
+            id: .motion,
+            title: "Motion",
+            keywords: ["reduce motion", "animation", "motion effect", "coach animation", "tilt"]
+        ),
+        SettingsSearchEntry(
+            id: .calculation,
+            title: "Calculations",
+            keywords: ["day start", "day cycle", "midnight", "effort model", "Banister", "TRIMP",
+                       "HRV window", "deep sleep", "sleep stage method", "wake check", "scoring"]
+        ),
+        SettingsSearchEntry(
+            id: .scoreRepair,
+            title: "If scores look wrong",
+            keywords: ["recalibrate", "reset baseline", "re-learn", "charge baseline", "refresh today",
+                       "recalculate", "21 days", "reanalysis", "scores stuck"]
+        ),
+        SettingsSearchEntry(
+            id: .backup,
+            title: "Backup",
+            keywords: ["export", "import", "backup file", "noopbak", "restore",
+                       "move to another machine", "sync to a folder", "auto-backup"]
+        ),
+        SettingsSearchEntry(
+            id: .dataConnections,
+            title: "Apple Health & imports",
+            keywords: ["Apple Health", "HealthKit", "data sources", "WHOOP export", "CSV", "Mi Band",
+                       "shortcuts export", "storage", "clean up"]
+        ),
+        SettingsSearchEntry(
+            id: .guides,
+            title: "Guides",
+            keywords: ["how NOOP works", "how your scores work", "Apple Watch data", "limitations",
+                       "what works", "help"]
         ),
         SettingsSearchEntry(
             id: .testCentre,
             title: "Test Centre",
-            keywords: ["diagnostics", "bug report", "strap log", "scheduled export",
-                       "experimental probes"]
-        ),
-        SettingsSearchEntry(
-            id: .features,
-            title: "Features",
-            keywords: ["hydration tracking", "auto-detect workouts", "journal reminder",
-                       "keep screen on", "optional trackers"]
-        ),
-        SettingsSearchEntry(
-            id: .liveSessions,
-            // The section header's own wording, which is already a translated key — a search result
-            // labelled differently from the card it lands on would read as a different thing.
-            title: "Experimental · Live Sessions",
-            keywords: ["guarded workout", "heart-rate band", "guardian", "beta",
-                       "experimental"]
-        ),
-        SettingsSearchEntry(
-            id: .sleepStaging,
-            title: "Sleep staging",
-            keywords: ["light", "deep", "REM", "staging recipe", "V1", "V2",
-                       "motion-aware wake refinement"]
-        ),
-        SettingsSearchEntry(
-            id: .experimentalWhoop5,
-            title: "Experimental · WHOOP 5 / MG",
-            keywords: ["deep-data unlock", "broadcast heart rate", "SpO₂ estimate",
-                       "ECG", "MG", "WHOOP 5", "experimental probes"]
+            keywords: ["diagnostics", "bug report", "strap log", "scheduled export", "experimental probes"]
         ),
         SettingsSearchEntry(
             id: .diagnostics,
             title: "Diagnostics",
-            keywords: ["export raw sensor data", "CSV", "decoded streams", "read-only"]
+            keywords: ["export raw sensor data", "CSV", "decoded streams", "device info", "sideload"]
         ),
         SettingsSearchEntry(
-            id: .backup,
-            title: "Backup & restore",
-            keywords: ["export", "import", "backup file", "noopbak", "restore",
-                       "move to another machine", "sync to a folder"]
+            id: .lab,
+            title: "Lab",
+            keywords: ["experimental", "beta", "stress baseline", "training-based VO2max", "AgeLess",
+                       "healthspan", "blood oxygen", "SpO₂ estimate", "step filter", "Oura"]
+        ),
+        SettingsSearchEntry(
+            id: .labWhoop5,
+            title: "Lab · WHOOP 5 / MG",
+            keywords: ["deep-data unlock", "R22", "ECG", "MG", "WHOOP 5", "protocol probes",
+                       "frame capture"]
         ),
         SettingsSearchEntry(
             id: .about,
             title: "About",
-            keywords: ["version", "how NOOP works", "how your scores work",
-                       "Apple Watch data", "storage", "update check", "source code",
-                       "GitHub", "licence"]
+            keywords: ["version", "what's new", "update check", "source code", "GitHub", "licence",
+                       "acknowledgements", "medical"]
         ),
     ]
 

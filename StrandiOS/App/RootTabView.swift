@@ -753,9 +753,9 @@ struct RootTabView: View {
                                 let matches = settings.filter { $0.page == page }
                                     .map { String(localized: $0.title) }
                                     .joined(separator: " · ")
-                                // Carry the query into Settings so the pushed screen opens already
-                                // filtered. Each page appears once even if several controls match it.
-                                MoreRow(matches, page.icon, .settingsSearch(moreQuery),
+                                // Straight to the page that holds the match. Each page appears once even
+                                // if several of its controls match.
+                                MoreRow(matches, page.icon, .settingsPage(page),
                                         caption: String(localized: page.title), colorKey: page.colorKey)
                             }
                         }
@@ -784,6 +784,8 @@ enum MoreDestination: Hashable {
     /// the matching section. Distinct from `.settings` (the plain row) so an ordinary tap on the
     /// Settings row still opens the whole screen.
     case settingsSearch(String)
+    /// One Settings page, opened from a More search hit.
+    case settingsPage(SettingsPage)
 
     @ViewBuilder var destination: some View {
         switch self {
@@ -830,6 +832,7 @@ enum MoreDestination: Hashable {
         case .powerSaving:     PowerSavingView()
         case .settings:        SettingsView()
         case .settingsSearch(let query): SettingsView(searchSeed: query)
+        case .settingsPage(let page): SettingsPageDestination(page: page)
         }
     }
 }
