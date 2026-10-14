@@ -50,6 +50,23 @@ struct HealthspanSnapshot {
     var today: String = Repository.localDayKey(Date())
     var latest: HealthspanWeek { weeks[weeks.count - 1] }
 
+    /// The newest week's window inputs only, for a surface that prices one value against it (a goal's AgeLess
+    /// line), without reading every stored week. The same stored rows `load` turns into weeks.
+    @MainActor
+    static func latestInputs(repo: Repository, age: Int, sex: HealthspanEngine.Sex) async -> HealthspanEngine.Inputs? {
+        let source = Repository.whoopSource
+        // Weeks are keyed to the Saturday on or before their last day, so the newest lies within the last week.
+        guard let day = await repo.exploreSeries(key: IntelligenceEngine.healthspanAgeKey, source: source, days: 14)
+            .map(\.day).max() else { return nil }
+        var x = HealthspanEngine.Inputs(age: Double(age), sex: sex)
+        for c in HealthspanEngine.Component.allCases {
+            let v = await repo.exploreSeries(key: IntelligenceEngine.healthspanInputKey(c), source: source, days: 14)
+                .first { $0.day == day }?.value
+            x.set(c, v)
+        }
+        return x
+    }
+
     @MainActor
     static func load(repo: Repository, age: Int, sex: HealthspanEngine.Sex) async -> HealthspanSnapshot? {
         let source = Repository.whoopSource
@@ -201,15 +218,8 @@ struct HealthspanSection: View {
         if c == .leanMass, week.inputs.leanMassPct == nil {
             return String(localized: "Add your body fat on the Body page.")
         }
-        guard let line = week.basis(c, today: today) else {
-            // A week stored before AI-23 has no counts; its VO₂max still names its source.
-            guard c == .vo2max, let source = week.vo2Source else { return nil }
-            switch source {
-            case .manual: return String(localized: "Entered")
-            case .appleHealth: return String(localized: "From Apple Watch")
-            case .training: return String(localized: "From walks and runs, grade not counted")
-            }
-        }
+        // Every week since the AI-23 to AI-26 rebuilds carries its basis.
+        guard let line = week.basis(c, today: today) else { return nil }
         let window = String(localized: "6 months")
         switch line.kind {
         case .days(let count, let of):
@@ -247,8 +257,8 @@ struct HealthspanSection: View {
         case .appleHealth:
             return String(localized: "From Apple Health, \(date)")
         case .training:
-            // Weeks stored before AI-26 only; the rebuild replaces them.
-            return String(localized: "Walks and runs: \(readings) · \(window) · grade not counted")
+            // No week is written with this source since AI-26; the rebuild replaces older ones.
+            return String(localized: "From walks and runs, grade not counted")
         }
     }
 

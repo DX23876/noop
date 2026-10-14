@@ -623,7 +623,9 @@ final class GoalTrackingStore: ObservableObject {
         let unresolved = Set(resolutions.map(\.proposalId))
         let levelMetrics = Set(CoachGoalStore.shared.goals.compactMap { $0.measure?.metric })
         let levelSeries = await loadLevelSeries(repo: repo, metrics: levelMetrics)
-        if let vo2 = levelSeries[.vo2max] { CoachGoalStore.shared.rebaselineVO2maxGoals(readings: vo2, now: now) }
+        // Always called, so the one-time listing happens on the first refresh after the update even with no VO₂max
+        // goal yet; a goal set later is then never listed.
+        CoachGoalStore.shared.rebaselineVO2maxGoals(readings: levelSeries[.vo2max] ?? [], now: now)
         let readerInputs = LongTermReaderInputs(workouts: workouts, days: repo.days, stepsByDay: stepsByDay,
                                                 weight: measurementByKind[.weight], weightSamples: weightSamples,
                                                 weightReadings: weightReadings, series: levelSeries)
@@ -699,9 +701,10 @@ final class GoalTrackingStore: ObservableObject {
         if full || open.contains(where: { $0.metric == .habitDays }) {
             inputs.journal = await repo.journalEntries(days: 400)
         }
-        // AgeLess's banked activity minutes, read whenever AgeLess is on: their presence is what makes the
-        // two metrics available, and the same per-day values feed the AgeLess measures.
-        if HealthspanFeature.isEnabled {
+        // AgeLess's banked activity minutes, while AgeLess is on and something reads them: an open goal on them,
+        // or the setup flow (`full`), where their presence makes the two metrics available. Nil leaves an open
+        // goal on them resting (`PeriodGoalTracker.restsWithoutAgeLess`).
+        if HealthspanFeature.isEnabled, full || open.contains(where: { $0.metric.needsAgeLess }) {
             func byDay(_ key: String) async -> [String: Double] {
                 Dictionary(await repo.exploreSeries(key: key, source: Repository.whoopSource, days: 400)
                     .map { ($0.day, $0.value) }, uniquingKeysWith: { _, b in b })

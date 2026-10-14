@@ -211,9 +211,6 @@ final class AgeLessGoalLinkTests: XCTestCase {
     /// Moderate and vigorous minutes need AgeLess: without its banked minutes they are unavailable, and an open
     /// goal rests instead of missing its weeks.
     func testActivityMinutesNeedAgeLess() {
-        let key = HealthspanFeature.defaultsKey
-        let before = UserDefaults.standard.object(forKey: key)
-        defer { UserDefaults.standard.set(before, forKey: key) }
         var inputs = PeriodGoalInputs()
         let now = Date(timeIntervalSince1970: 1_791_374_400)
         XCTAssertEqual(PeriodGoalTracker.availability(.moderateMinutes, inputs: inputs, now: now, calendar: .current),
@@ -223,13 +220,10 @@ final class AgeLessGoalLinkTests: XCTestCase {
         XCTAssertEqual(PeriodGoalTracker.availability(.vigorousMinutes, inputs: inputs, now: now, calendar: .current),
                        .available)
         let goal = PeriodGoal(metric: .vigorousMinutes, period: .week, target: 10)
-        let days = ["2026-10-05", "2026-10-06", "2026-10-07"]
-        UserDefaults.standard.set(false, forKey: key)
-        XCTAssertTrue(PeriodGoalTracker.isProtected(goal, days: days, calendar: .current))
-        UserDefaults.standard.set(true, forKey: key)
-        XCTAssertFalse(PeriodGoalTracker.isProtected(goal, days: days, calendar: .current))
-        XCTAssertFalse(PeriodGoalTracker.isProtected(PeriodGoal(metric: .strengthMinutes, period: .week, target: 40),
-                                                     days: days, calendar: .current))
+        XCTAssertFalse(PeriodGoalTracker.restsWithoutAgeLess(goal, inputs: inputs))
+        XCTAssertTrue(PeriodGoalTracker.restsWithoutAgeLess(goal, inputs: PeriodGoalInputs()), "AgeLess off: rests")
+        XCTAssertFalse(PeriodGoalTracker.restsWithoutAgeLess(PeriodGoal(metric: .strengthMinutes, period: .week,
+                                                                        target: 40), inputs: PeriodGoalInputs()))
     }
 
     /// The consistency goal averages the nightly scores AgeLess reads, carried as samples.

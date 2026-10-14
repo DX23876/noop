@@ -63,6 +63,8 @@ final class HealthspanVO2Tests: XCTestCase {
         XCTAssertEqual(hilly - cost, 1.8, accuracy: 1e-9)
         XCTAssertNil(V.longSessionCost(distanceM: 3_000, durationS: 45 * 60, ascentM: nil), "under an hour")
         XCTAssertNil(V.longSessionCost(distanceM: 48, durationS: 70 * 60, ascentM: nil), "no walking speed")
+        XCTAssertNil(V.longSessionCost(distanceM: 10_500, durationS: 70 * 60, ascentM: nil),
+                     "a 9 km/h run would overstate a trained runner's VO₂max")
         let sessions = [V.LongSession(day: "2026-09-20", oxygenCost: 10.0), V.LongSession(day: "2026-09-25", oxygenCost: 9.8),
                         V.LongSession(day: "2026-09-27", oxygenCost: 9.9), V.LongSession(day: "2026-01-01", oxygenCost: 30)]
         XCTAssertEqual(try XCTUnwrap(V.enduranceFloor(sessions, endingOn: end)), 9.9 / 0.6, accuracy: 1e-9)

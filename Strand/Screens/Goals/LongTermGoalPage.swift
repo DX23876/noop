@@ -496,13 +496,13 @@ struct LongTermGoalPage: View {
         }
     }
 
-    /// The week the AgeLess line prices the goal against: the newest one, read by the resolver the AgeLess
-    /// screens use. Nothing while AgeLess is off.
+    /// The week the AgeLess line prices the goal against: the newest one, from the rows the AgeLess screens read.
+    /// Nothing while AgeLess is off.
     private func loadAgeLessWeek() async {
         guard HealthspanFeature.isEnabled else { agelessWeek = nil; return }
         let profile = ProfileStore.persistedAnalyticsProfile
         guard let sex = HealthspanEngine.Sex(profileValue: profile.sex) else { return }
-        agelessWeek = await HealthspanSnapshot.load(repo: repo, age: Int(profile.age), sex: sex)?.latest.inputs
+        agelessWeek = await HealthspanSnapshot.latestInputs(repo: repo, age: Int(profile.age), sex: sex)
     }
 
     /// The goal reached (plan Q24): the wearer decides what happens next, nothing closes by itself.

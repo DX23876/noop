@@ -60,7 +60,7 @@ extension Repository {
         (Self.enteredVO2max(), await exploreSeries(key: "vo2max", source: Self.appleHealthSource, days: days))
     }
 
-    /// Walks and runs of an hour or more with their oxygen cost, for AgeLess's endurance floor: the sessions
+    /// Walks of an hour or more with their oxygen cost, for AgeLess's endurance floor: the sessions
     /// Training Load reads (fused, each bout once, on foot), their measured climb where there is one. No heart
     /// rate enters, so medication, a meal or heat cannot move the bound.
     func agelessLongSessions(days: Int) async -> [HealthspanVO2.LongSession] {

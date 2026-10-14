@@ -125,6 +125,7 @@ enum PeriodGoalTracker {
         let createdDay = dayKey(goal.createdAt, calendar: calendar)
         let activeFrom = currentDays.firstIndex(where: { $0 >= createdDay }) ?? 0
         let protected = goal.status == .paused || isProtected(goal, days: currentDays, calendar: calendar)
+            || restsWithoutAgeLess(goal, inputs: inputs)
 
         let capacity = typicalUpper(goal: goal, today: today, index: index, inputs: inputs,
                                     overrides: overrides, calendar: calendar)
@@ -157,7 +158,8 @@ enum PeriodGoalTracker {
                         days: zip(days, pastValues).map { PeriodDay(key: $0, value: $1, isRest: pastRest.contains($0)) },
                         todayIndex: days.count,
                         activeFromIndex: createdDay > first ? (days.firstIndex(where: { $0 >= createdDay }) ?? 0) : 0,
-                        isProtected: isProtected(goal, days: days, calendar: calendar))
+                        isProtected: isProtected(goal, days: days, calendar: calendar)
+                            || restsWithoutAgeLess(goal, inputs: inputs))
                     let evaluated = PeriodGoalPace.evaluate(pastInput)
                     history.append(.init(periodStart: first, target: evaluated.target, value: evaluated.current,
                                          outcome: PeriodGoalPace.outcome(pastInput)))
@@ -356,10 +358,15 @@ enum PeriodGoalTracker {
               let endDay = date(last, calendar: calendar),
               let end = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: endDay)) else { return false }
         let interval = DateInterval(start: calendar.startOfDay(for: start), end: end)
-        // A goal on AgeLess's activity minutes rests while AgeLess is off: nothing banks them, and a week
-        // without them must not count as missed.
-        if goal.metric.needsAgeLess, !HealthspanFeature.isEnabled { return true }
         return goal.pauseIntervals.contains { $0.intersects(interval) }
+    }
+
+    /// A goal on AgeLess's activity minutes rests while the inputs carry none (AgeLess off): nothing banks them,
+    /// and a week without them must not count as missed. Read from the inputs, not the setting, so the tracker
+    /// stays a function of what it is handed.
+    static func restsWithoutAgeLess(_ goal: PeriodGoal, inputs: PeriodGoalInputs) -> Bool {
+        guard goal.metric.needsAgeLess else { return false }
+        return (goal.metric == .moderateMinutes ? inputs.agelessModerateByDay : inputs.agelessVigorousByDay) == nil
     }
 
     /// Evenly spaced planned days for what is still missing, ending on the period's last planned day.

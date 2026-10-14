@@ -76,7 +76,7 @@ public enum HealthspanVO2 {
 
     // MARK: - Endurance floor
 
-    /// A walk or run long enough to say something about VO₂max without a pulse.
+    /// A walk long enough to say something about VO₂max without a pulse.
     public struct LongSession: Equatable, Sendable {
         public let day: String
         /// The session's oxygen cost, ml/kg/min (ACSM, with the measured climb when there is one).
@@ -87,20 +87,22 @@ public enum HealthspanVO2 {
     /// Sessions at least this long count: over an hour or more the share of VO₂max a person sustains is bounded.
     public static let floorMinimumMinutes = 60.0
     /// ASSUMPTION: the share of VO₂max an untrained adult sustains over one to several hours, the upper end of the
-    /// 50–60 % range in endurance physiology, so the bound errs low. Trained athletes sustain more, which makes the
-    /// bound weaker for them, never wrong.
+    /// 50–60 % range in endurance physiology. The bound holds only for a session at or below this share; someone who
+    /// sustains more would read high. Walks only: at walking pace the cost is low, so a fit walker sits far below
+    /// 60 % and the bound is merely weak, while a run of an hour can reach 75–85 % of a trained runner's VO₂max and
+    /// would overstate it.
     public static let sustainableShare = 0.6
     /// Long sessions in the window before a bound is stated.
     public static let floorMinimumSessions = 3
 
-    /// The oxygen cost of a session on foot if it qualifies for the floor: at least `floorMinimumMinutes`, at a
-    /// walking or running speed the ACSM equations cover, with the measured climb when known. Stops in the session
-    /// lower the average speed and so the cost, which keeps the bound conservative.
+    /// The oxygen cost of a walk if it qualifies for the floor: at least `floorMinimumMinutes`, at a walking speed
+    /// the ACSM equation covers, with the measured climb when known. Runs never qualify (see `sustainableShare`).
+    /// Stops in the session lower the average speed and so the cost, which keeps the bound conservative.
     public static func longSessionCost(distanceM: Double, durationS: Double, ascentM: Double?) -> Double? {
         let minutes = durationS / 60
         guard minutes >= floorMinimumMinutes, distanceM > 0 else { return nil }
         let speed = distanceM / minutes
-        guard let gait = ExerciseVO2max.gait(speedMPerMin: speed) else { return nil }
+        guard let gait = ExerciseVO2max.gait(speedMPerMin: speed), gait == .walking else { return nil }
         let climb = ascentM.map { ExerciseVO2max.climbVO2(ascentM: $0, minutes: minutes, gait: gait) } ?? 0
         return ExerciseVO2max.acsmVO2(speedMPerMin: speed, gait: gait) + climb
     }
