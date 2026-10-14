@@ -90,11 +90,4 @@ extension Repository {
         guard value > 0, let day = defaults.string(forKey: FitnessPreferences.manualDayKey), !day.isEmpty else { return nil }
         return (day, value)
     }
-
-    /// One value per day for AgeLess: the median of that day's session estimates.
-    nonisolated static func trainingVO2maxByDay(_ estimates: [ExerciseVO2max.SessionEstimate]) -> [(day: String, value: Double)] {
-        Dictionary(grouping: estimates, by: \.day)
-            .compactMap { day, xs in HealthspanVO2.median(xs.map(\.vo2max)).map { (day: day, value: $0) } }
-            .sorted { $0.day < $1.day }
-    }
 }

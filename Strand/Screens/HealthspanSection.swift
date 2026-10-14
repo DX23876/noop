@@ -50,21 +50,38 @@ struct HealthspanSnapshot {
     var today: String = Repository.localDayKey(Date())
     var latest: HealthspanWeek { weeks[weeks.count - 1] }
 
+    /// A stored week's values as engine inputs: the one builder every reader of an AgeLess week uses. Nil when the
+    /// week holds none.
+    static func weekInputs(_ series: [HealthspanEngine.Component: [String: Double]], day: String, age: Int,
+                           sex: HealthspanEngine.Sex) -> HealthspanEngine.Inputs? {
+        var x = HealthspanEngine.Inputs(age: Double(age), sex: sex)
+        var any = false
+        for c in HealthspanEngine.Component.allCases {
+            let v = series[c]?[day]
+            x.set(c, v)
+            any = any || v != nil
+        }
+        return any ? x : nil
+    }
+
     /// The newest week's window inputs only, for a surface that prices one value against it (a goal's AgeLess
-    /// line), without reading every stored week. The same stored rows `load` turns into weeks.
+    /// line), without reading every stored week. Same builder and same gate as `load`, so it names the week the
+    /// AgeLess screens show as the newest: the latest stored week whose inputs price. Should that week not price,
+    /// the full snapshot decides, so the two readers still agree.
     @MainActor
     static func latestInputs(repo: Repository, age: Int, sex: HealthspanEngine.Sex) async -> HealthspanEngine.Inputs? {
         let source = Repository.whoopSource
-        // Weeks are keyed to the Saturday on or before their last day, so the newest lies within the last week.
-        guard let day = await repo.exploreSeries(key: IntelligenceEngine.healthspanAgeKey, source: source, days: 14)
+        guard let newest = await repo.exploreSeries(key: IntelligenceEngine.healthspanAgeKey, source: source)
             .map(\.day).max() else { return nil }
-        var x = HealthspanEngine.Inputs(age: Double(age), sex: sex)
+        let daysBack = HealthspanSection.date(newest).map { Int(Date().timeIntervalSince($0) / 86_400) } ?? 0
+        var window: [HealthspanEngine.Component: [String: Double]] = [:]
         for c in HealthspanEngine.Component.allCases {
-            let v = await repo.exploreSeries(key: IntelligenceEngine.healthspanInputKey(c), source: source, days: 14)
-                .first { $0.day == day }?.value
-            x.set(c, v)
+            window[c] = Dictionary(await repo.exploreSeries(key: IntelligenceEngine.healthspanInputKey(c), source: source,
+                                                            days: daysBack + 7).map { ($0.day, $0.value) },
+                                   uniquingKeysWith: { _, b in b })
         }
-        return x
+        if let x = weekInputs(window, day: newest, age: age, sex: sex), HealthspanEngine.compute(x) != nil { return x }
+        return await load(repo: repo, age: age, sex: sex)?.latest.inputs
     }
 
     @MainActor
@@ -92,12 +109,7 @@ struct HealthspanSnapshot {
             counts[c] = await byDay(IntelligenceEngine.healthspanCountKey(c))
         }
         func inputs(_ series: [HealthspanEngine.Component: [String: Double]], _ day: String) -> HealthspanEngine.Inputs? {
-            var x = HealthspanEngine.Inputs(age: Double(age), sex: sex)
-            var any = false
-            for c in HealthspanEngine.Component.allCases {
-                let v = series[c]?[day]; x.set(c, v); any = any || v != nil
-            }
-            return any ? x : nil
+            weekInputs(series, day: day, age: age, sex: sex)
         }
         let weeks = days.compactMap { day -> HealthspanWeek? in
             guard let x = inputs(window, day), let result = HealthspanEngine.compute(x) else { return nil }
@@ -231,24 +243,22 @@ struct HealthspanSection: View {
             return String(localized: "Days measured: \(count) · \(window)")
         case .sessions(let count):
             return String(localized: "Sessions: \(count) · \(window)")
-        case .vo2max(let source, let readings, let latestDay):
+        case .vo2max(let source, _, let latestDay):
             let date = shortDate(latestDay)
             // A measured value below what the long walks allow is worth saying, not correcting.
+            let line = vo2Line(source: source, date: date, latestDay: latestDay, today: today)
             if let floor = week.vo2Floor, let v = week.inputs.vo2max, floor > v + 0.5 {
-                let line = vo2Line(source: source, readings: readings, date: date, latestDay: latestDay, today: today,
-                                   window: window)
                 return String(localized: "\(line) · long walks suggest at least \(value(.vo2max, floor))")
             }
-            return vo2Line(source: source, readings: readings, date: date, latestDay: latestDay, today: today,
-                           window: window)
+            return line
         case .bodyFat(let day):
             return String(localized: "Body fat from \(shortDate(day))")
         }
     }
 
-    /// Where a week's VO₂max came from, with its day or its count.
-    private static func vo2Line(source: HealthspanVO2.Source, readings: Int, date: String, latestDay: String,
-                                today: String, window: String) -> String {
+    /// Where a week's VO₂max came from, with its day.
+    private static func vo2Line(source: HealthspanVO2.Source, date: String, latestDay: String,
+                                today: String) -> String {
         switch source {
         case .manual:
             let stale = latestDay < HealthspanWindow.dayKey(today, plus: -HealthspanWindow.ageWindowDays)
@@ -256,9 +266,6 @@ struct HealthspanSection: View {
                 : String(localized: "Entered \(date)")
         case .appleHealth:
             return String(localized: "From Apple Health, \(date)")
-        case .training:
-            // No week is written with this source since AI-26; the rebuild replaces older ones.
-            return String(localized: "From walks and runs, grade not counted")
         }
     }
 

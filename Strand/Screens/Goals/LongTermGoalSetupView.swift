@@ -330,8 +330,8 @@ struct LongTermGoalSetupView: View {
                 return date >= from && date < weekStart && HealthspanWindow.countsAsStrength(storedName: $0.sport)
             }.compactMap { PeriodGoalTracker.workoutAmount(.strengthMinutes, $0) }.reduce(0, +) / 4
         case .moderateMinutes?, .vigorousMinutes?:
-            let byDay = weeklyMetric == .moderateMinutes ? inputs.agelessModerateByDay : inputs.agelessVigorousByDay
-            return byDay.map { $0.filter { $0.key >= fromKey && $0.key < toKey }.values.reduce(0, +) / 4 }
+            return weeklyMetric.flatMap(inputs.agelessMinutes(for:))
+                .map { $0.filter { $0.key >= fromKey && $0.key < toKey }.values.reduce(0, +) / 4 }
         default:
             return nil
         }

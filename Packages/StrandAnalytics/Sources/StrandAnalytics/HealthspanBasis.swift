@@ -14,7 +14,6 @@ public enum HealthspanBasis {
     /// Banked days of zone minutes before a weekly rate is more than a glimpse: four weeks.
     public static let minimumZoneDays = 28
     /// Walks and runs behind a training-based VO₂max before it is more than a glimpse.
-    public static let minimumTrainingReadings = 3
     /// A body-fat reading older than this no longer describes the body the week measured.
     public static let bodyFatFreshDays = 90
 
@@ -65,8 +64,8 @@ public enum HealthspanBasis {
             return Line(kind: .sessions(count: count), isThin: false)
         case .vo2max:
             guard let vo2Source, let count, let latestDay else { return nil }
-            return Line(kind: .vo2max(source: vo2Source, readings: count, latestDay: latestDay),
-                        isThin: vo2Source == .training && count < minimumTrainingReadings)
+            // A measurement is a measurement: an entered lab value or Apple Watch's readings are never thin.
+            return Line(kind: .vo2max(source: vo2Source, readings: count, latestDay: latestDay), isThin: false)
         case .leanMass:
             guard let latestDay else { return nil }
             return Line(kind: .bodyFat(day: latestDay),

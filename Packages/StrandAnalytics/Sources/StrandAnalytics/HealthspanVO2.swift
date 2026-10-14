@@ -21,7 +21,8 @@ import WhoopProtocol
 public enum HealthspanVO2 {
 
     public enum Source: Int, Equatable, Sendable, CaseIterable {
-        case manual = 1, appleHealth = 2, training = 3
+        // 3 was NOOP's estimate from walks and runs until AI-26; the rebuild leaves no week stored with it.
+        case manual = 1, appleHealth = 2
     }
 
     public struct Resolved: Equatable, Sendable {

@@ -48,6 +48,11 @@ final class HealthspanBasisTests: XCTestCase {
         XCTAssertEqual(thin?.isThin, true)
         XCTAssertEqual(B.line(.sleepDuration, count: 30, coveredDays: 40, vo2Source: nil, latestDay: nil,
                               weekEnd: end), .init(kind: .days(count: 30, of: 40), isThin: false))
+        // Exactly 60 % is enough; one day less is thin.
+        XCTAssertEqual(B.line(.dailySteps, count: 24, coveredDays: 40, vo2Source: nil, latestDay: nil, weekEnd: end)?
+            .isThin, false)
+        XCTAssertEqual(B.line(.dailySteps, count: 23, coveredDays: 40, vo2Source: nil, latestDay: nil, weekEnd: end)?
+            .isThin, true)
         XCTAssertEqual(B.line(.restingHR, count: 200, coveredDays: 400, vo2Source: nil, latestDay: nil,
                               weekEnd: end)?.kind, .days(count: 200, of: 182))
         XCTAssertNil(B.line(.sleepConsistency, count: nil, coveredDays: 182, vo2Source: nil, latestDay: nil,
@@ -64,15 +69,11 @@ final class HealthspanBasisTests: XCTestCase {
                        .init(kind: .sessions(count: 0), isThin: false))
     }
 
-    /// Only a training estimate on fewer than three walks and runs is thin; an entered value has its own hint.
+    /// A measured VO₂max is never thin, whether entered or from Apple Watch.
     func testVO2max() {
-        XCTAssertEqual(B.line(.vo2max, count: 2, coveredDays: 182, vo2Source: .training, latestDay: "2026-10-01",
-                              weekEnd: end),
-                       .init(kind: .vo2max(source: .training, readings: 2, latestDay: "2026-10-01"), isThin: true))
-        XCTAssertEqual(B.line(.vo2max, count: 3, coveredDays: 182, vo2Source: .training, latestDay: "2026-10-01",
-                              weekEnd: end)?.isThin, false)
         XCTAssertEqual(B.line(.vo2max, count: 1, coveredDays: 182, vo2Source: .appleHealth,
-                              latestDay: "2026-10-01", weekEnd: end)?.isThin, false)
+                              latestDay: "2026-08-24", weekEnd: end),
+                       .init(kind: .vo2max(source: .appleHealth, readings: 1, latestDay: "2026-08-24"), isThin: false))
         XCTAssertEqual(B.line(.vo2max, count: 1, coveredDays: 182, vo2Source: .manual, latestDay: "2025-12-01",
                               weekEnd: end)?.isThin, false)
         XCTAssertNil(B.line(.vo2max, count: nil, coveredDays: 182, vo2Source: nil, latestDay: nil, weekEnd: end))

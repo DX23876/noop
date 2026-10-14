@@ -18,6 +18,15 @@ struct PeriodGoalInputs {
     /// (`hs_zone13_min`, `hs_zone45_min`); nil while AgeLess is off, which leaves those goals nothing to read.
     var agelessModerateByDay: [String: Double]?
     var agelessVigorousByDay: [String: Double]?
+
+    /// The banked minutes behind an AgeLess activity metric; nil for any other metric or while AgeLess is off.
+    func agelessMinutes(for metric: PeriodMetric) -> [String: Double]? {
+        switch metric {
+        case .moderateMinutes: return agelessModerateByDay
+        case .vigorousMinutes: return agelessVigorousByDay
+        default: return nil
+        }
+    }
     var hydrationEnabled = false
     var profileSex = ""
     var journal: [JournalEntry] = []
@@ -254,8 +263,7 @@ enum PeriodGoalTracker {
                 return sets
             case .moderateMinutes, .vigorousMinutes:
                 guard !isFuture else { return 0 }
-                let byDay = goal.metric == .moderateMinutes ? inputs.agelessModerateByDay : inputs.agelessVigorousByDay
-                guard let minutes = byDay?[day] else { return nil }
+                guard let minutes = inputs.agelessMinutes(for: goal.metric)?[day] else { return nil }
                 if minutes > 0 { counted.append(dayItem(day, minutes)) }
                 return minutes
             case .activeEnergy:
@@ -365,8 +373,7 @@ enum PeriodGoalTracker {
     /// and a week without them must not count as missed. Read from the inputs, not the setting, so the tracker
     /// stays a function of what it is handed.
     static func restsWithoutAgeLess(_ goal: PeriodGoal, inputs: PeriodGoalInputs) -> Bool {
-        guard goal.metric.needsAgeLess else { return false }
-        return (goal.metric == .moderateMinutes ? inputs.agelessModerateByDay : inputs.agelessVigorousByDay) == nil
+        goal.metric.needsAgeLess && inputs.agelessMinutes(for: goal.metric) == nil
     }
 
     /// Evenly spaced planned days for what is still missing, ending on the period's last planned day.
