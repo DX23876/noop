@@ -1,7 +1,7 @@
 # NOOP Forge · Feature-Spezifikation, Heute-Screen
 
 > **Historisch.** Der Heute-Screen-Prototyp (`StrandiOS/Redesign/`) war seit 2026-07-25 nicht erreichbar und
-> wurde am 2026-10-10 gelöscht, mit ihm `VitalTileConfig` und `HeuteVitalsGridView`. Diese Spezifikation
+> wurde am 2026-10-10 gelöscht, mit ihm die Typen VitalTileConfig und HeuteVitalsGridView. Diese Spezifikation
 > beschreibt den Prototyp, nicht laufenden Code. Weiter gültig ist der Aktivitätsstatus (Abschnitt 1), den
 > heute Liquid und klassisches Today über `ActivityStatusStore` teilen.
 
@@ -102,8 +102,8 @@ Ephemere, einzeln wegwischbare Hinweise, die über der Basiskarte liegen.
 
 ### Erweiterbarkeit (wichtig für die Datenmodellierung)
 
-- Die Menge der verfügbaren Vitalwerte ist **größer** als die ursprünglich gezeigten sechs — aktuell sind es vierzehn registrierte IDs (`VitalGridMetric.available`, `Strand/Data/VitalTileConfig.swift`): HRV, Ruhepuls, Atmung, Blutsauerstoff, Fitness-Alter, Schritte, Gewicht, Kalorien, Vitality, Stress, Skin Temp sowie die drei Sonderkacheln Sleep, Hydration und Coupled view (`heute:`-IDs). Charge/Effort/Rest sind bewusst NICHT Teil dieser Liste — sie stehen schon als die drei Ringe da ("ein Wert, ein Ort"). Gewicht bleibt aktuell unverdrahtet (wie auf Liquid Today auch — kein Datenweg vorhanden), erscheint also nie als Kachel, obwohl registriert. Das Raster muss so gebaut sein, dass neue Metriken hinzukommen können, ohne die Bearbeitungslogik zu ändern — d. h. Kacheln werden aus einer Liste verfügbarer Metriken gerendert, nicht hartkodiert.
-- **Sonderkacheln** (Sleep/Hydration/Coupled view) sind Liquid Todays "Your Cards", die nicht ins generische Zahl+Sparkline-Schema passen: Sleep zeigt eine Dauer ("7h 32m") und öffnet den Sleep-Screen, Hydration die Logging-Ansicht, Coupled view trägt gar keinen Wert (reine Navigationskachel, Icon + Titel + Chevron). Sie durchlaufen dieselbe Sichtbarkeits-/Reorder-/Hidden-Tray-Mechanik wie jede andere Kachel; ihre Titel/Icons/Routen werden lokal aufgelöst (`HeuteVitalsGridView.specialDescriptors`), nicht über `MetricCatalog`.
+- Die Menge der verfügbaren Vitalwerte ist **größer** als die ursprünglich gezeigten sechs — im Prototyp waren es vierzehn registrierte IDs: HRV, Ruhepuls, Atmung, Blutsauerstoff, Fitness-Alter, Schritte, Gewicht, Kalorien, Vitality, Stress, Skin Temp sowie die drei Sonderkacheln Sleep, Hydration und Coupled view (`heute:`-IDs). Charge/Effort/Rest sind bewusst NICHT Teil dieser Liste — sie stehen schon als die drei Ringe da ("ein Wert, ein Ort"). Gewicht bleibt aktuell unverdrahtet (wie auf Liquid Today auch — kein Datenweg vorhanden), erscheint also nie als Kachel, obwohl registriert. Das Raster muss so gebaut sein, dass neue Metriken hinzukommen können, ohne die Bearbeitungslogik zu ändern — d. h. Kacheln werden aus einer Liste verfügbarer Metriken gerendert, nicht hartkodiert.
+- **Sonderkacheln** (Sleep/Hydration/Coupled view) sind Liquid Todays "Your Cards", die nicht ins generische Zahl+Sparkline-Schema passen: Sleep zeigt eine Dauer ("7h 32m") und öffnet den Sleep-Screen, Hydration die Logging-Ansicht, Coupled view trägt gar keinen Wert (reine Navigationskachel, Icon + Titel + Chevron). Sie durchlaufen dieselbe Sichtbarkeits-/Reorder-/Hidden-Tray-Mechanik wie jede andere Kachel; ihre Titel/Icons/Routen wurden im Prototyp lokal aufgelöst, nicht über `MetricCatalog`.
 - Diese Erweiterbarkeit muss in beiden Rasterdichten (2 und 3) funktionieren.
 
 ```
