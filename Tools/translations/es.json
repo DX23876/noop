@@ -3001,5 +3001,10 @@
   "On the flat: the pace this effort equals on level ground (Minetti 2002).": "En llano: el ritmo al que equivale este esfuerzo en terreno llano (Minetti 2002).",
   "Steepest": "Máx. pendiente",
   "This device has no barometer, so NOOP shows no elevation rather than guessing it from GPS.": "Este dispositivo no tiene barómetro, así que NOOP no muestra la altitud en lugar de adivinarla con el GPS.",
-  "No barometer": "Sin barómetro"
+  "No barometer": "Sin barómetro",
+  "%@ · long walks suggest at least %@": "%@ · las caminatas largas indican al menos %@",
+  "A rough estimate: at walking pace it barely followed measured VO₂max in a lab check, and a pulse raised by medication or a meal reads as effort. AgeLess and goals do not use it.": "Una estimación aproximada: al caminar apenas siguió el VO₂máx medido en una prueba de laboratorio, y un pulso elevado por medicación o una comida cuenta como esfuerzo. AgeLess y los objetivos no la usan.",
+  "Wear your Apple Watch on walks, or enter a lab value.": "Lleva tu Apple Watch al caminar o introduce un valor de laboratorio.",
+  "Wear your Apple Watch on walks, or enter a lab value. Your long walks put it at %@ or more.": "Lleva tu Apple Watch al caminar o introduce un valor de laboratorio. Tus caminatas largas indican %@ o más.",
+  "Your aerobic fitness, measured: a lab value you entered or Apple Watch's readings.": "Tu forma aeróbica, medida: un valor de laboratorio que introdujiste o las mediciones del Apple Watch."
 }

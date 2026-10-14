@@ -52,17 +52,22 @@ against regressions rather than validating the age.
 
 ## Where each value comes from
 
-- **VO₂max**, newer measurements beat older ones (AI-24): (1) a value entered in Settings, until two
-  newer measurements arrive and for a year at most; from then on only measurements after the entry count;
-  (2) Apple Watch's Cardio Fitness from Apple Health, while it measured in the last 30 days; (3) the
-  training-based estimate from walks and runs, the same estimator Training Load reads
-  (`Repository.trainingVO2maxEstimates`: fused sessions on foot, a trace the cardio load could price, ACSM
-  oxygen cost at the session's speed, extrapolated over the heart-rate reserve against the week's median
-  resting HR; grade assumed flat); (4) older Apple Health readings when there are no walks or runs either.
-  Two readings rather than one replace an entry because a single walk can be off by a few ml/kg/min and the
-  mean of two halves such an outlier. The age takes the six-month median, Aging speed the 30-day median from
-  two readings on. The weekly non-exercise estimate (Fitness Age's VO₂max) is never used. The VO₂max goal
-  follows the same readings (`HealthspanVO2.goalReadings`).
+- **VO₂max**, measurements only (AI-26): (1) a value entered in Settings, ideally from a lab test
+  (cardiopulmonary exercise test), for a year from its day; (2) Apple Watch's Cardio Fitness from Apple
+  Health over the six-month window. Without either the week has no VO₂max and the card counts 8 of 9. The
+  age takes the six-month median, Aging speed the 30-day median from two readings on. The VO₂max goal follows
+  the same readings (`HealthspanVO2.goalReadings`).
+  Not used: the weekly non-exercise estimate (Fitness Age's VO₂max), which predicts fitness from risk factors
+  AgeLess counts already; and the estimate from walks and runs (`ExerciseVO2max`, Training Load's
+  experimental readout). Against 981 treadmill tests with measured VO₂max (University of Málaga, PhysioNet)
+  that estimate read about 21 at walking pace whatever the measured value (r 0.23): extrapolating a walk over
+  the heart-rate reserve is capped by the reserve gate, and a pulse raised by medication, a meal or heat
+  reads as effort.
+  **Endurance floor:** walks and runs of an hour or more bound VO₂max from below without any pulse, since an
+  untrained adult sustains about 50–60 % of VO₂max for hours: the median over at least three such sessions in
+  six months of ACSM cost (with the measured climb) ÷ 0.6 (`HealthspanVO2.enduranceFloor`, stored as
+  `hs_vo2_floor`). The card shows it beside the measure and says when a measured value lies below it; it is
+  never the measure's value.
 - **Lean mass:** the latest body-fat reading of the past year, entered on the Body page or from Apple
   Health.
 - **Activity minutes:** time in logged and detected workouts, from the band's raw heart rate against the
@@ -84,10 +89,10 @@ against regressions rather than validating the age.
   line, the biggest levers ranked with what all of them together would take off, and each measure on a
   ticked bar with its years and a trend arrow for the last 30 days, grouped as sleep, activity and fitness.
   Under each bar a line says what the measure stands on ("Nights: 152 of 182 · 6 months", "Days measured",
-  "Sessions", "Walks and runs", "Entered", "Apple Health" or "Body fat from" with the reading's day) and, in
+  "Sessions", "Entered", "Apple Health" or "Body fat from" with the reading's day) and, in
   coral, "thin data" when that is too little to lean on: a daily measure on fewer than 60 % of the days the
-  window covers, zone minutes on fewer than four weeks of banked days, a training VO₂max on fewer than three
-  walks and runs, or body fat older than 90 days at the week's end. Strength is never thin; no sessions is a
+  window covers, zone minutes on fewer than four weeks of banked days, or body fat older than 90 days at the
+  week's end. Strength is never thin; no sessions is a
   fact. The thresholds are reasoned starting values in `HealthspanBasis`.
 - **Levers as goals:** every lever carries a **Set as goal** button that opens the goal setup on its value
   step: sleep duration (sleep goal), sleep consistency (**Sleep more regularly**, the same nightly score over
@@ -112,13 +117,14 @@ Weekly rows under the computed source, keyed to the Saturday on or before: `heal
 VO₂max and body-fat reading behind the week, as yyyymmdd), and per measure `hs_in_*` (six months),
 `hs_in30_*` (30 days) and `hs_n_*` (days, sessions or readings behind the six-month value). Each pass
 rewrites its weeks as one window and writes nothing when a read fails. Recipes **AI-21** to **AI-24**
-rebuild every week (see `docs/fork/decisions.md`).
+rebuild every week, as does AI-26 (see `docs/fork/decisions.md`).
 
 ## Limits
 
 - An estimate in years built from population studies; it says nothing about any one person's health.
 - The calibration rests on four reference profiles; no independent validation exists.
-- VO₂max from walks and runs assumes flat ground; hills read low.
+- Every VO₂max short of a lab test rests on heart rate; a pulse raised by medication or a meal makes Apple
+  Watch read low too. The endurance floor's 60 % is a reasoned share, not a measured one.
 - Steps and sleep come from a wrist band's own estimates.
 
 ## References

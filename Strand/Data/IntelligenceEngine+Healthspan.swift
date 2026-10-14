@@ -38,13 +38,16 @@ extension IntelligenceEngine {
     nonisolated static func healthspanCountKey(_ c: HealthspanEngine.Component) -> String { "hs_n_" + c.rawValue }
     /// The day of the newest VO₂max reading behind a week, as `HealthspanBasis.dayNumber`.
     static let healthspanVO2DayKey = "hs_vo2_day"
+    /// The least VO₂max the week's long walks and runs allow (`HealthspanVO2.enduranceFloor`), since AI-26. A
+    /// plausibility bound shown beside the measure, never its value.
+    static let healthspanVO2FloorKey = "hs_vo2_floor"
     /// The day of the body-fat reading behind a week's lean mass, as `HealthspanBasis.dayNumber`.
     static let healthspanBodyFatDayKey = "hs_fat_day"
 
     /// Every key a weekly row writes, so a rewrite can clear what a week no longer has.
     nonisolated static var healthspanWeeklyKeys: [String] {
         [healthspanAgeKey, healthspanPaceKey, healthspanCoveredDaysKey, healthspanVO2SourceKey, healthspanVO2DayKey,
-         healthspanBodyFatDayKey]
+         healthspanBodyFatDayKey, healthspanVO2FloorKey]
             + HealthspanEngine.Component.allCases.flatMap {
                 [healthspanInputKey($0), healthspanRecentInputKey($0), healthspanCountKey($0)]
             }
@@ -56,21 +59,21 @@ extension IntelligenceEngine {
     /// for a profile sex without targets, and nothing at all when a read fails: a failed read is
     /// not an empty history, and replacing the weeks with it would erase them.
     ///
-    /// `manualVO2max` is the value the wearer entered with its day; `trainingVO2max` one training-based value
-    /// per day (`Repository.trainingVO2maxByDay`, the estimator Training Load reads); `bodyFat` every body-fat
-    /// reading, entered or from Apple Health.
+    /// `manualVO2max` is the value the wearer entered with its day; `longSessions` the walks and runs of an hour
+    /// or more with their oxygen cost, for the endurance floor (`Repository.agelessLongSessions`); `bodyFat` every
+    /// body-fat reading, entered or from Apple Health. Since AI-26 no estimate from walks or runs is a VO₂max source.
     nonisolated static func runHealthspanPass(store: WhoopStore, strapId: String, computedId: String, age: Int,
                                               sex: String, hrMaxOverride: Int, oldestDay: String,
                                               newestDay: String, tzOffset: Int,
                                               manualVO2max: (day: String, value: Double)? = nil,
-                                              trainingVO2max: [(day: String, value: Double)] = [],
+                                              longSessions: [HealthspanVO2.LongSession] = [],
                                               bodyFat: [(day: String, value: Double)] = []) async {
         guard age > 0, let sex = HealthspanEngine.Sex(profileValue: sex) else { return }
         do {
             try await healthspanPass(store: store, strapId: strapId, computedId: computedId, age: age, sex: sex,
                                      hrMaxOverride: hrMaxOverride, oldestDay: oldestDay, newestDay: newestDay,
                                      tzOffset: tzOffset, manualVO2max: manualVO2max,
-                                     trainingVO2max: trainingVO2max, bodyFat: bodyFat)
+                                     longSessions: longSessions, bodyFat: bodyFat)
         } catch {
             // Leave every stored row as it was; the next pass tries again.
         }
@@ -97,7 +100,7 @@ extension IntelligenceEngine {
                                                    sex: HealthspanEngine.Sex, hrMaxOverride: Int, oldestDay: String,
                                                    newestDay: String, tzOffset: Int,
                                                    manualVO2max: (day: String, value: Double)?,
-                                                   trainingVO2max: [(day: String, value: Double)],
+                                                   longSessions: [HealthspanVO2.LongSession],
                                                    bodyFat: [(day: String, value: Double)]) async throws {
         let hasHistory = try await healthspanHasHistory(store: store, computedId: computedId, newestDay: newestDay)
         let bankFrom = hasHistory ? oldestDay
@@ -156,8 +159,8 @@ extension IntelligenceEngine {
         while saturday <= currentSaturday {
             defer { saturday = HealthspanWindow.dayKey(saturday, plus: 7) }
             let end = min(HealthspanWindow.dayKey(saturday, plus: 6), newestDay)
-            let vo2 = HealthspanVO2.resolve(manual: manualVO2max, appleHealth: appleVO2, training: trainingVO2max,
-                                            endingOn: end)
+            let vo2 = HealthspanVO2.resolve(manual: manualVO2max, appleHealth: appleVO2, endingOn: end)
+            let vo2Floor = HealthspanVO2.enduranceFloor(longSessions, endingOn: end)
             let fat = HealthspanVO2.latestBodyFat(bodyFat, endingOn: end)
             guard let w = HealthspanWindow.weekly(
                 days: days, endingOn: end, age: Double(age), sex: sex, vo2max: vo2?.window,
@@ -174,6 +177,7 @@ extension IntelligenceEngine {
             if let d = fat.flatMap({ HealthspanBasis.dayNumber($0.day) }) {
                 weekly.append(MetricPoint(day: saturday, key: healthspanBodyFatDayKey, value: d))
             }
+            if let vo2Floor { weekly.append(MetricPoint(day: saturday, key: healthspanVO2FloorKey, value: vo2Floor)) }
             for (c, n) in w.counts {
                 weekly.append(MetricPoint(day: saturday, key: healthspanCountKey(c), value: Double(n)))
             }
@@ -272,7 +276,7 @@ extension IntelligenceEngine {
             guard let r = HealthspanEngine.compute(window) else { continue }
             out.append(MetricPoint(day: day, key: healthspanAgeKey, value: r.healthspanAge))
             out.append(MetricPoint(day: day, key: healthspanVO2SourceKey,
-                                   value: Double(HealthspanVO2.Source.training.rawValue)))
+                                   value: Double(HealthspanVO2.Source.appleHealth.rawValue)))
             let covered = min(182, 30 + 7 * i)
             out.append(MetricPoint(day: day, key: healthspanCoveredDaysKey, value: Double(covered)))
             // The basis lines: nearly every night worn, a few step-less days, a month of zone minutes at most, one

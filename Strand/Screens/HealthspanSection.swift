@@ -26,6 +26,9 @@ struct HealthspanWeek {
     var vo2Day: String? = nil
     /// The body-fat reading behind the week's lean mass.
     var bodyFatDay: String? = nil
+    /// The least VO₂max the week's long walks and runs allow (`HealthspanVO2.enduranceFloor`); a plausibility
+    /// bound, never the measure's value.
+    var vo2Floor: Double? = nil
 
     var isProvisional: Bool { coveredDays < HealthspanWindow.ageWindowDays }
 
@@ -66,6 +69,7 @@ struct HealthspanSnapshot {
         let vo2Sources = await byDay(IntelligenceEngine.healthspanVO2SourceKey)
         let vo2Days = await byDay(IntelligenceEngine.healthspanVO2DayKey)
         let bodyFatDays = await byDay(IntelligenceEngine.healthspanBodyFatDayKey)
+        let vo2Floors = await byDay(IntelligenceEngine.healthspanVO2FloorKey)
         var counts: [HealthspanEngine.Component: [String: Double]] = [:]
         for c in HealthspanEngine.Component.allCases {
             counts[c] = await byDay(IntelligenceEngine.healthspanCountKey(c))
@@ -85,7 +89,8 @@ struct HealthspanSnapshot {
                                   vo2Source: vo2Sources[day].flatMap { HealthspanVO2.Source(rawValue: Int($0)) },
                                   counts: counts.compactMapValues { $0[day].map { Int($0) } },
                                   vo2Day: vo2Days[day].flatMap { HealthspanBasis.dayKey(number: $0) },
-                                  bodyFatDay: bodyFatDays[day].flatMap { HealthspanBasis.dayKey(number: $0) })
+                                  bodyFatDay: bodyFatDays[day].flatMap { HealthspanBasis.dayKey(number: $0) },
+                                  vo2Floor: vo2Floors[day])
         }
         return weeks.isEmpty ? nil : HealthspanSnapshot(weeks: weeks)
     }
@@ -188,7 +193,10 @@ struct HealthspanSection: View {
     /// VO₂max older than six months asks to be measured again.
     static func note(_ c: HealthspanEngine.Component, week: HealthspanWeek, today: String) -> String? {
         if c == .vo2max, week.inputs.vo2max == nil || week.vo2Source == nil {
-            return String(localized: "Record a walk or run of 20 minutes or more, or enter your VO₂max.")
+            guard let floor = week.vo2Floor else {
+                return String(localized: "Wear your Apple Watch on walks, or enter a lab value.")
+            }
+            return String(localized: "Wear your Apple Watch on walks, or enter a lab value. Your long walks put it at \(value(.vo2max, floor)) or more.")
         }
         if c == .leanMass, week.inputs.leanMassPct == nil {
             return String(localized: "Add your body fat on the Body page.")
@@ -215,18 +223,32 @@ struct HealthspanSection: View {
             return String(localized: "Sessions: \(count) · \(window)")
         case .vo2max(let source, let readings, let latestDay):
             let date = shortDate(latestDay)
-            switch source {
-            case .manual:
-                let stale = latestDay < HealthspanWindow.dayKey(today, plus: -HealthspanWindow.ageWindowDays)
-                return stale ? String(localized: "Entered \(date) · measure again?")
-                    : String(localized: "Entered \(date)")
-            case .appleHealth:
-                return String(localized: "From Apple Health, \(date)")
-            case .training:
-                return String(localized: "Walks and runs: \(readings) · \(window) · grade not counted")
+            // A measured value below what the long walks allow is worth saying, not correcting.
+            if let floor = week.vo2Floor, let v = week.inputs.vo2max, floor > v + 0.5 {
+                let line = vo2Line(source: source, readings: readings, date: date, latestDay: latestDay, today: today,
+                                   window: window)
+                return String(localized: "\(line) · long walks suggest at least \(value(.vo2max, floor))")
             }
+            return vo2Line(source: source, readings: readings, date: date, latestDay: latestDay, today: today,
+                           window: window)
         case .bodyFat(let day):
             return String(localized: "Body fat from \(shortDate(day))")
+        }
+    }
+
+    /// Where a week's VO₂max came from, with its day or its count.
+    private static func vo2Line(source: HealthspanVO2.Source, readings: Int, date: String, latestDay: String,
+                                today: String, window: String) -> String {
+        switch source {
+        case .manual:
+            let stale = latestDay < HealthspanWindow.dayKey(today, plus: -HealthspanWindow.ageWindowDays)
+            return stale ? String(localized: "Entered \(date) · measure again?")
+                : String(localized: "Entered \(date)")
+        case .appleHealth:
+            return String(localized: "From Apple Health, \(date)")
+        case .training:
+            // Weeks stored before AI-26 only; the rebuild replaces them.
+            return String(localized: "Walks and runs: \(readings) · \(window) · grade not counted")
         }
     }
 

@@ -550487,6 +550487,296 @@
           }
         }
       }
+    },
+    "%@ · long walks suggest at least %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · lange Gänge sprechen für mindestens %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · las caminatas largas indican al menos %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · les longues marches indiquent au moins %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · le camminate lunghe indicano almeno %@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · długie spacery wskazują co najmniej %@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · as caminhadas longas indicam pelo menos %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · долгие прогулки говорят минимум о %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · 长时间步行显示至少 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · 長時間步行顯示至少 %@"
+          }
+        }
+      }
+    },
+    "A rough estimate: at walking pace it barely followed measured VO₂max in a lab check, and a pulse raised by medication or a meal reads as effort. AgeLess and goals do not use it." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine grobe Schätzung: Beim Gehen folgte sie in einer Laborprüfung kaum der gemessenen VO₂max, und ein durch Medikamente oder Essen erhöhter Puls zählt als Anstrengung. AgeLess und Ziele nutzen sie nicht."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una estimación aproximada: al caminar apenas siguió el VO₂máx medido en una prueba de laboratorio, y un pulso elevado por medicación o una comida cuenta como esfuerzo. AgeLess y los objetivos no la usan."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une estimation grossière : à la marche, elle a à peine suivi la VO₂max mesurée lors d'un contrôle en laboratoire, et un pouls élevé par un médicament ou un repas compte comme effort. AgeLess et les objectifs ne l'utilisent pas."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una stima approssimativa: camminando ha seguito a malapena il VO₂max misurato in un controllo di laboratorio, e un battito alzato da farmaci o da un pasto conta come sforzo. AgeLess e gli obiettivi non la usano."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przybliżony szacunek: przy chodzeniu w teście laboratoryjnym ledwo podążał za zmierzonym VO₂max, a tętno podniesione lekiem lub posiłkiem liczy się jako wysiłek. AgeLess i cele go nie używają."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uma estimativa aproximada: a caminhar mal acompanhou o VO₂máx medido num teste de laboratório, e um pulso elevado por medicação ou uma refeição conta como esforço. O AgeLess e os objetivos não a usam."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Грубая оценка: при ходьбе в лабораторной проверке она почти не следовала за измеренным VO2max, а пульс, повышенный лекарством или едой, считается нагрузкой. AgeLess и цели её не используют."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "粗略估算：实验室核查中，步行时它几乎不随实测最大摄氧量变化，药物或进食导致的心率升高会被当作用力。AgeLess 和目标不使用它。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "粗略估算：實驗室核查中，步行時它幾乎不隨實測最大攝氧量變化，藥物或進食導致的心率升高會被當作用力。AgeLess 和目標不使用它。"
+          }
+        }
+      }
+    },
+    "Wear your Apple Watch on walks, or enter a lab value." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trag beim Gehen deine Apple Watch oder trag einen Laborwert ein."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lleva tu Apple Watch al caminar o introduce un valor de laboratorio."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Porte ton Apple Watch pendant tes marches ou saisis une valeur de laboratoire."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indossa l'Apple Watch quando cammini o inserisci un valore di laboratorio."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noś Apple Watch na spacerach albo wpisz wynik z laboratorium."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa o Apple Watch nas caminhadas ou introduz um valor de laboratório."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Носите Apple Watch на прогулках или введите лабораторное значение."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "步行时佩戴 Apple Watch，或输入实验室数值。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "步行時佩戴 Apple Watch，或輸入實驗室數值。"
+          }
+        }
+      }
+    },
+    "Wear your Apple Watch on walks, or enter a lab value. Your long walks put it at %@ or more." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trag beim Gehen deine Apple Watch oder trag einen Laborwert ein. Deine langen Gänge sprechen für %@ oder mehr."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lleva tu Apple Watch al caminar o introduce un valor de laboratorio. Tus caminatas largas indican %@ o más."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Porte ton Apple Watch pendant tes marches ou saisis une valeur de laboratoire. Tes longues marches indiquent %@ ou plus."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indossa l'Apple Watch quando cammini o inserisci un valore di laboratorio. Le tue camminate lunghe indicano %@ o più."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noś Apple Watch na spacerach albo wpisz wynik z laboratorium. Twoje długie spacery wskazują %@ lub więcej."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa o Apple Watch nas caminhadas ou introduz um valor de laboratório. As tuas caminhadas longas indicam %@ ou mais."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Носите Apple Watch на прогулках или введите лабораторное значение. Ваши долгие прогулки говорят о %@ или больше."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "步行时佩戴 Apple Watch，或输入实验室数值。你的长时间步行显示至少 %@。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "步行時佩戴 Apple Watch，或輸入實驗室數值。你的長時間步行顯示至少 %@。"
+          }
+        }
+      }
+    },
+    "Your aerobic fitness, measured: a lab value you entered or Apple Watch's readings." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Ausdauerfitness, gemessen: ein eingetragener Laborwert oder die Messungen der Apple Watch."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu forma aeróbica, medida: un valor de laboratorio que introdujiste o las mediciones del Apple Watch."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ta forme aérobie, mesurée : une valeur de laboratoire saisie ou les mesures de l'Apple Watch."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La tua forma aerobica, misurata: un valore di laboratorio inserito o le misure dell'Apple Watch."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twoja wydolność tlenowa, zmierzona: wpisany wynik z laboratorium albo pomiary Apple Watch."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A tua forma aeróbica, medida: um valor de laboratório introduzido ou as medições do Apple Watch."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Аэробная форма, измеренная: введённое лабораторное значение или измерения Apple Watch."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的有氧能力（实测）：手动输入的实验室数值或 Apple Watch 的测量值。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的有氧能力（實測）：手動輸入的實驗室數值或 Apple Watch 的測量值。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

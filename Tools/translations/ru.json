@@ -2978,5 +2978,10 @@
   "On the flat: the pace this effort equals on level ground (Minetti 2002).": "По ровному: темп, которому это усилие соответствует на ровной местности (Minetti 2002).",
   "Steepest": "Макс. уклон",
   "This device has no barometer, so NOOP shows no elevation rather than guessing it from GPS.": "На этом устройстве нет барометра, поэтому NOOP не показывает высоту, а не угадывает её по GPS.",
-  "No barometer": "Нет барометра"
+  "No barometer": "Нет барометра",
+  "%@ · long walks suggest at least %@": "%@ · долгие прогулки говорят минимум о %@",
+  "A rough estimate: at walking pace it barely followed measured VO₂max in a lab check, and a pulse raised by medication or a meal reads as effort. AgeLess and goals do not use it.": "Грубая оценка: при ходьбе в лабораторной проверке она почти не следовала за измеренным VO2max, а пульс, повышенный лекарством или едой, считается нагрузкой. AgeLess и цели её не используют.",
+  "Wear your Apple Watch on walks, or enter a lab value.": "Носите Apple Watch на прогулках или введите лабораторное значение.",
+  "Wear your Apple Watch on walks, or enter a lab value. Your long walks put it at %@ or more.": "Носите Apple Watch на прогулках или введите лабораторное значение. Ваши долгие прогулки говорят о %@ или больше.",
+  "Your aerobic fitness, measured: a lab value you entered or Apple Watch's readings.": "Аэробная форма, измеренная: введённое лабораторное значение или измерения Apple Watch."
 }

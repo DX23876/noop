@@ -477,7 +477,7 @@ struct LongTermGoalPage: View {
                 }
             } else if goals.goal(id: goalId)?.measure?.metric == .vo2max {
                 // The VO₂max AgeLess reads has no reading in the goal's window yet: say how to give it one.
-                Text(String(localized: "Record a walk or run of 20 minutes or more, or enter your VO₂max."))
+                Text(String(localized: "Wear your Apple Watch on walks, or enter a lab value."))
                     .font(StrandFont.body).foregroundStyle(StrandPalette.textSecondary)
             } else {
                 Text("This goal has no page yet.")

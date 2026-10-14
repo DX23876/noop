@@ -108,7 +108,7 @@ enum GoalCatalog {
               blurb: "Training volume from your lifting log.",
               icon: "square.3.layers.3d", sportChoices: [], inWalkthrough: true),
         .init(id: .vo2max, area: .fitness, title: "Raise VO2max",
-              blurb: "Your aerobic fitness: a value you entered, Apple Watch, or estimated from your walks and runs.",
+              blurb: "Your aerobic fitness, measured: a lab value you entered or Apple Watch's readings.",
               icon: "lungs.fill", sportChoices: [], inWalkthrough: true),
         .init(id: .restingHr, area: .fitness, title: "Lower resting heart rate",
               blurb: "A calmer heart at rest, read every night.",
@@ -241,7 +241,7 @@ enum GoalCatalog {
             return (series[.restingHr] ?? []).isEmpty ? .unavailable("Needs nights recorded by your strap") : .available
         case .vo2max:
             return (series[.vo2max] ?? []).isEmpty
-                ? .unavailable("Record a walk or run of 20 minutes or more, or enter your VO₂max.") : .available
+                ? .unavailable("Wear your Apple Watch on walks, or enter a lab value.") : .available
         case .bodyFat:
             return (series[.bodyFat] ?? []).isEmpty ? .unavailable("Needs a body fat reading, from a smart scale or entered in Body") : .available
         case .leanMass:

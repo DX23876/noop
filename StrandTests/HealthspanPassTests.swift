@@ -117,8 +117,8 @@ final class HealthspanPassTests: XCTestCase {
         XCTAssertNil(readings)
     }
 
-    /// An entered VO₂max outranks the training estimate; body fat gives lean mass; a later pass without them
-    /// leaves no stale input behind.
+    /// An entered VO₂max counts; body fat gives lean mass; a later pass without them leaves no stale input behind,
+    /// and long walks give only the floor, never a VO₂max (AI-26).
     func testManualVO2maxAndBodyFatThenRewrite() async throws {
         let store = try await seededStore()
         let window = HealthspanWindow.dayKey(newestDay, plus: -20)
@@ -126,7 +126,6 @@ final class HealthspanPassTests: XCTestCase {
                                                    sex: "male", hrMaxOverride: 190, oldestDay: window,
                                                    newestDay: newestDay, tzOffset: 0,
                                                    manualVO2max: (day: "2026-10-01", value: 51),
-                                                   trainingVO2max: [(day: "2026-10-08", value: 44)],
                                                    bodyFat: [(day: "2026-09-01", value: 18)])
         let vo2 = try await value(store, IntelligenceEngine.healthspanInputKey(.vo2max), newestDay)
         XCTAssertEqual(vo2, 51)
@@ -145,15 +144,19 @@ final class HealthspanPassTests: XCTestCase {
         await IntelligenceEngine.runHealthspanPass(store: store, strapId: strap, computedId: computed, age: 30,
                                                    sex: "male", hrMaxOverride: 190, oldestDay: window,
                                                    newestDay: newestDay, tzOffset: 0,
-                                                   trainingVO2max: [(day: "2026-10-08", value: 44)])
+                                                   longSessions: ["2026-09-20", "2026-09-25", "2026-09-27"].map {
+                                                       HealthspanVO2.LongSession(day: $0, oxygenCost: 10.2)
+                                                   })
         let vo2After = try await value(store, IntelligenceEngine.healthspanInputKey(.vo2max), newestDay)
-        XCTAssertEqual(vo2After, 44)
+        XCTAssertNil(vo2After, "walks are no VO₂max source")
         let leanAfter = try await value(store, IntelligenceEngine.healthspanInputKey(.leanMass), newestDay)
         XCTAssertNil(leanAfter)
         let sourceAfter = try await value(store, IntelligenceEngine.healthspanVO2SourceKey, newestDay)
-        XCTAssertEqual(sourceAfter, Double(HealthspanVO2.Source.training.rawValue))
+        XCTAssertNil(sourceAfter)
         let vo2DayAfter = try await value(store, IntelligenceEngine.healthspanVO2DayKey, newestDay)
-        XCTAssertEqual(vo2DayAfter.flatMap { HealthspanBasis.dayKey(number: $0) }, "2026-10-08")
+        XCTAssertNil(vo2DayAfter)
+        let floor = try await value(store, IntelligenceEngine.healthspanVO2FloorKey, newestDay)
+        XCTAssertEqual(try XCTUnwrap(floor), 17, accuracy: 1e-9)
         let fatDayAfter = try await value(store, IntelligenceEngine.healthspanBodyFatDayKey, newestDay)
         XCTAssertNil(fatDayAfter)
     }

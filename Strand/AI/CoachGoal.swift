@@ -801,15 +801,16 @@ final class CoachGoalStore: ObservableObject {
         if changed { goals = updated }
     }
 
-    /// VO₂max goals set before AgeLess's VO₂max rule (AI-24, plan HEALTHSPAN_AGE_PLAN stage 2) started on the
-    /// non-exercise estimate, which the goal no longer reads. Each such goal re-reads its start once from the
+    /// VO₂max goals set before AgeLess's VO₂max rule (AI-24, plan HEALTHSPAN_AGE_PLAN stage 2; AI-26) started on
+    /// readings the goal no longer reads (the non-exercise estimate, then the estimate from walks). Each such goal re-reads its start once from the
     /// readings it follows now (`readings`, oldest first): the first one on or after the day the goal was set.
     /// The goals are listed on the first run, so a goal set later is never touched; one without a reading yet
     /// stays listed for a later refresh. A start that would land on or beyond the target is left as it was,
     /// since the goal would read as reached before it began. The app's own waypoints are re-derived from the
     /// new start; waypoints the wearer moved stay.
-    static let vo2maxRebaselinePendingKey = "goals.vo2maxRebaseline.pending"
-    static let vo2maxRebaselineListedKey = "goals.vo2maxRebaseline.listed"
+    // Versioned: AI-26 changed the readings once more, so every VO₂max goal is listed and re-read again.
+    static let vo2maxRebaselinePendingKey = "goals.vo2maxRebaseline.v2.pending"
+    static let vo2maxRebaselineListedKey = "goals.vo2maxRebaseline.v2.listed"
 
     func rebaselineVO2maxGoals(readings: [GoalMilestones.Sample], calendar: Calendar = .current, now: Date = Date()) {
         let defaults = d

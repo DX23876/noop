@@ -327,6 +327,25 @@ Analysis migration required: yes (AI-22). The AgeLess weeks and AI-21's banked t
 deleted (`deleteHealthspanWeeks`) and the next pass rebuilds them; zone minutes are kept. No daily row is
 re-scored.
 
+### 2026-10-14 — AgeLess counts measured VO₂max only (AI-26)
+
+On the wearer's data AgeLess read VO₂max 13.7 from walks against 18.5 to 19.2 from Apple Watch, which cost
+about five years of AgeLess age; the wearer was fitter than in August, when the watch last measured. A lab
+check (981 treadmill tests with measured VO₂max, PhysioNet, data git-ignored under backlog/research) showed
+the walking estimate does not track measured VO₂max (about 21 whatever the measured value, r 0.23): the %HRR
+extrapolation from a walk is capped by its reserve gate, and medication, meals or heat raise the pulse it
+reads as effort. GPS elevation (AI-25) does not change that on flat routes. Calibrating it to Apple Watch was
+considered and dropped: calibration cannot make a reading track fitness that it does not track.
+
+AgeLess and the VO₂max goal now take an entered value (a lab test, for a year, ahead of everything) or Apple
+Health's readings over six months, else no VO₂max ("8 of 9"). This reverts AI-24's 30-day limit on Apple Health
+and its "two newer measurements replace an entry" rule, both of which existed to let walks take over. Long
+walks give a pulse-free lower bound (cost ÷ 0.6 over sessions of an hour or more), shown beside the measure,
+never its value. Training Load keeps the walking estimate as an experimental readout, now saying it is rough.
+
+Analysis migration required: yes (AI-26). The AgeLess weeks are deleted once more and rebuilt; zone minutes
+are kept, no daily row is re-scored. VO₂max goals re-read their start once more (listing key v2).
+
 ### 2026-10-13 — Every AgeLess measure has a goal
 
 Stage 3 of the AgeLess plan: the four measures without a goal get one, measured exactly as AgeLess measures

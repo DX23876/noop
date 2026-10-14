@@ -3102,5 +3102,10 @@
   "On the flat: the pace this effort equals on level ground (Minetti 2002).": "平路配速：同等用力在平地上对应的配速（Minetti 2002）。",
   "Steepest": "最大坡度",
   "This device has no barometer, so NOOP shows no elevation rather than guessing it from GPS.": "此设备没有气压计，因此 NOOP 不显示海拔，而不是根据 GPS 猜测。",
-  "No barometer": "没有气压计"
+  "No barometer": "没有气压计",
+  "%@ · long walks suggest at least %@": "%@ · 长时间步行显示至少 %@",
+  "A rough estimate: at walking pace it barely followed measured VO₂max in a lab check, and a pulse raised by medication or a meal reads as effort. AgeLess and goals do not use it.": "粗略估算：实验室核查中，步行时它几乎不随实测最大摄氧量变化，药物或进食导致的心率升高会被当作用力。AgeLess 和目标不使用它。",
+  "Wear your Apple Watch on walks, or enter a lab value.": "步行时佩戴 Apple Watch，或输入实验室数值。",
+  "Wear your Apple Watch on walks, or enter a lab value. Your long walks put it at %@ or more.": "步行时佩戴 Apple Watch，或输入实验室数值。你的长时间步行显示至少 %@。",
+  "Your aerobic fitness, measured: a lab value you entered or Apple Watch's readings.": "你的有氧能力（实测）：手动输入的实验室数值或 Apple Watch 的测量值。"
 }

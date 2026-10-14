@@ -1660,6 +1660,11 @@ struct TrainingLoadView: View {
                 .font(StrandFont.caption)
                 .foregroundStyle(StrandPalette.textTertiary)
                 .fixedSize(horizontal: false, vertical: true)
+            // AI-26: the lab check behind keeping this out of AgeLess and the VO₂max goal.
+            Text("A rough estimate: at walking pace it barely followed measured VO₂max in a lab check, and a pulse raised by medication or a meal reads as effort. AgeLess and goals do not use it.")
+                .font(StrandFont.caption)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
             Text(validationText(reading.report))
                 .font(StrandFont.caption)
                 .foregroundStyle(StrandPalette.textTertiary)

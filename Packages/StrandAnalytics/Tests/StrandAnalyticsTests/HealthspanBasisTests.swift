@@ -91,10 +91,10 @@ final class HealthspanBasisTests: XCTestCase {
     func testResolvedLatestDay() {
         let apple = [(day: "2026-05-01", value: 44.0), (day: "2026-09-20", value: 45.0),
                      (day: "2026-10-20", value: 46.0)]
-        let r = HealthspanVO2.resolve(manual: nil, appleHealth: apple, training: [], endingOn: end)!
+        let r = HealthspanVO2.resolve(manual: nil, appleHealth: apple, endingOn: end)!
         XCTAssertEqual(r.latestDay, "2026-09-20")
         XCTAssertEqual(r.readings, 2)
-        let m = HealthspanVO2.resolve(manual: (day: "2026-08-01", value: 48), appleHealth: apple, training: [],
+        let m = HealthspanVO2.resolve(manual: (day: "2026-08-01", value: 48), appleHealth: apple,
                                       endingOn: end)!
         XCTAssertEqual(m.latestDay, "2026-08-01")
     }

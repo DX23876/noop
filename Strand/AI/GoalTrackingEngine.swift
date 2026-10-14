@@ -715,8 +715,8 @@ final class GoalTrackingStore: ObservableObject {
     /// Everything, for recommendations in the setup flow.
     /// The target-value series catalog goals read besides weight (`LongTermReaderInputs.series`):
     /// resting heart rate from the nightly metrics, the sleeping heart rate AgeLess reads, VO2max by
-    /// AgeLess's rule (`HealthspanVO2.goalReadings`: an entered value until two newer measurements, Apple
-    /// Health while it is current, else walks and runs), body fat, lean mass and waist from the
+    /// AgeLess's rule (`HealthspanVO2.goalReadings`: an entered value for a year, else Apple Health's
+    /// readings), body fat, lean mass and waist from the
     /// body-measurement resolver. Read only for the metrics asked for, so a refresh without such goals
     /// reads nothing extra.
     func loadLevelSeries(repo: Repository, metrics: Set<LongTermMetric>) async -> [LongTermMetric: [GoalMilestones.Sample]] {
@@ -748,7 +748,6 @@ final class GoalTrackingStore: ObservableObject {
         if metrics.contains(.vo2max) {
             let vo2 = await repo.agelessVO2Inputs(days: 400)
             out[.vo2max] = samples(HealthspanVO2.goalReadings(manual: vo2.manual, appleHealth: vo2.appleHealth,
-                                                              training: vo2.training,
                                                               today: Repository.localDayKey(Date())))
         }
         let bodyKeys: [(LongTermMetric, String)] = [(.bodyFat, "body_fat"), (.leanMass, "lean_mass"), (.waist, "waist")]

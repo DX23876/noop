@@ -223,7 +223,13 @@ final class IntelligenceEngine: ObservableObject {
     // and the next pass rebuilds them; zone minutes are kept. No daily row is re-scored, no workout row is
     // touched and the cardio ledger is not refilled. Goal starts are not re-read. Climbs that Apple Health
     // delivers later (the one-time elevation read) clear the weeks again when that read completes.
-    static let currentAnalysisRecipeVersion = 25
+    // AI-26 (2026-10-14, fork AgeLess) takes the estimate from walks and runs out of AgeLess. A lab check against
+    // 981 treadmill tests showed it does not track measured VO₂max at walking pace, and a pulse raised by
+    // medication or a meal reads as effort. A week's VO₂max is now an entered value (a year) or Apple Health's
+    // readings (six months), else none; long walks give only a pulse-free lower bound shown beside it. Stored
+    // weeks can name a VO₂max the new rule would not, so the AgeLess weeks are deleted once more and the next pass
+    // rebuilds them; zone minutes are kept. No daily row is re-scored. VO₂max goals re-read their start once more.
+    static let currentAnalysisRecipeVersion = 26
 
     /// The recipe whose migration refills the cardio load ledger.
     static let cardioLedgerRecipe = 9
@@ -278,10 +284,13 @@ final class IntelligenceEngine: ObservableObject {
     /// The recipe whose migration rebuilds the AgeLess weeks on a VO₂max that includes measured climbs.
     static let healthspanGradeRecipe = 25
 
-    /// Whether a migration crosses a recipe that rebuilds the AgeLess weeks (AI-21 to AI-25; one rebuild
+    /// The recipe whose migration rebuilds the AgeLess weeks on measured VO₂max only.
+    static let healthspanMeasuredVO2Recipe = 26
+
+    /// Whether a migration crosses a recipe that rebuilds the AgeLess weeks (AI-21 to AI-26; one rebuild
     /// serves them all).
     static func migrationRebuildsHealthspan(from: Int, to: Int) -> Bool {
-        from < healthspanGradeRecipe && to >= healthspanSourcesRecipe
+        from < healthspanMeasuredVO2Recipe && to >= healthspanSourcesRecipe
     }
 
     /// Whether a migration crosses the recipe that fills Apple Health workouts' heart rate.
@@ -3608,12 +3617,12 @@ final class IntelligenceEngine: ObservableObject {
             // pass window's weeks.
             let firstRun = (try? await Self.healthspanHasHistory(store: store, computedId: computedId,
                                                                  newestDay: newestDay)) == false
-            let trainingVO2 = Repository.trainingVO2maxByDay(
-                await repo.trainingVO2maxEstimates(days: (firstRun ? 365 : maxDays + 7) + HealthspanWindow.ageWindowDays))
+            let longSessions = await repo.agelessLongSessions(
+                days: (firstRun ? 365 : maxDays + 7) + HealthspanWindow.ageWindowDays)
             await Self.runHealthspanPass(store: store, strapId: deviceId, computedId: computedId,
                                          age: profile.age, sex: profile.sex, hrMaxOverride: profile.hrMaxOverride,
                                          oldestDay: oldestDay, newestDay: newestDay, tzOffset: tzOffset,
-                                         manualVO2max: manualVO2, trainingVO2max: trainingVO2, bodyFat: bodyFat)
+                                         manualVO2max: manualVO2, longSessions: longSessions, bodyFat: bodyFat)
         }
 
         // ── Stress proxy (#R-stress-chart), DAILY, gap-filled under the canonical "my-whoop" source ─────
