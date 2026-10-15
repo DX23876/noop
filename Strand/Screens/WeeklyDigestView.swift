@@ -124,6 +124,22 @@ struct WeeklyDigestView: View {
     }
 }
 
+// MARK: - Localized metric names
+
+extension WeeklyMetric {
+    /// The display name in the current locale. `WeeklyMetric.label` is the English name the
+    /// pure StrandAnalytics narration uses, so the UI resolves its own through the catalogue.
+    var localizedName: String {
+        switch self {
+        case .charge: return String(localized: "Charge")
+        case .effort: return String(localized: "Effort")
+        case .rest:   return String(localized: "Rest")
+        case .rhr:    return String(localized: "Resting HR")
+        case .hrv:    return String(localized: "HRV")
+        }
+    }
+}
+
 // MARK: - Shared content
 
 /// Compact, localized range shared by the standalone digest card and the Trends week navigator.
@@ -372,7 +388,7 @@ struct WeeklyDigestContent: View {
             Circle().fill(domain(for: s.metric).color)
                 .frame(width: 7, height: 7)
                 .accessibilityHidden(true)
-            Text(s.metric.label)
+            Text(s.metric.localizedName)
                 .font(StrandFont.subhead)
                 .foregroundStyle(StrandPalette.textSecondary)
                 .frame(width: 84, alignment: .leading)
@@ -474,18 +490,18 @@ struct WeeklyDigestContent: View {
     private func rowAccessibility(_ s: WeeklyMetricSummary, effortScale: EffortScale) -> String {
         let mean = meanText(s, effortScale: effortScale)
         guard s.weekOverWeek.current.n > 0, s.weekOverWeek.previous.n > 0 else {
-            return String(localized: "\(s.metric.label): \(mean) this week, no comparison.")
+            return String(localized: "\(s.metric.localizedName): \(mean) this week, no comparison.")
         }
         // Whole-phrase variants per direction, then a whole-key wrapper per goodness frame, so
         // VoiceOver never hears a stitched half-English fragment.
         let delta = deltaText(s)
         let base: String
         if s.wowDelta > 0 {
-            base = String(localized: "\(s.metric.label): \(mean) this week, up \(delta) week over week")
+            base = String(localized: "\(s.metric.localizedName): \(mean) this week, up \(delta) week over week")
         } else if s.wowDelta < 0 {
-            base = String(localized: "\(s.metric.label): \(mean) this week, down \(delta) week over week")
+            base = String(localized: "\(s.metric.localizedName): \(mean) this week, down \(delta) week over week")
         } else {
-            base = String(localized: "\(s.metric.label): \(mean) this week, unchanged \(delta) week over week")
+            base = String(localized: "\(s.metric.localizedName): \(mean) this week, unchanged \(delta) week over week")
         }
         // A rough comparison drops the verdict framing too, so VoiceOver matches the neutral chip.
         if WeeklyDigestChipStyle.dropsVerdictFrame(s) { return String(localized: "\(base).") }
@@ -587,7 +603,7 @@ private struct DigestScoreCard: View {
     private var content: some View {
         VStack(spacing: NoopMetrics.space2) {
             if isEmbedded {
-                Text(summary.metric.label)
+                Text(summary.metric.localizedName)
                     .font(StrandFont.overline)
                     .tracking(StrandFont.overlineTracking)
                     .textCase(.uppercase)
@@ -624,7 +640,7 @@ private struct DigestScoreCard: View {
             .onTapGesture { showScaleGuide = true }
             .popover(isPresented: $showScaleGuide, arrowEdge: .bottom) {
                 VStack(spacing: NoopMetrics.space1) {
-                    Text(summary.metric.label)
+                    Text(summary.metric.localizedName)
                         .font(StrandFont.subhead.weight(.semibold))
                         .foregroundStyle(domain.color)
                     Text(captionText)
@@ -645,7 +661,7 @@ private struct DigestScoreCard: View {
     }
 
     private var metricLabel: some View {
-        Text(summary.metric.label)
+        Text(summary.metric.localizedName)
             .font(StrandFont.overline)
             .tracking(StrandFont.overlineTracking)
             .textCase(.uppercase)

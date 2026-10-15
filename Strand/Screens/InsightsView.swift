@@ -837,9 +837,8 @@ struct InsightsView: View {
 
     /// Behaviours the user actually has data for: distinct logged journal questions
     /// (`behaviours.keys`) ∪ imported-export questions, minus the catalog's hidden set.
-    /// Triage fix (a)/(b): we do NOT route this through `mergeCatalog`, which would inject
-    /// the whole starter catalog (and re-surface hidden behaviours) as eligible, so the
-    /// empty-state guard is real and only behaviours with history can be tested.
+    /// The full catalog resolver includes starter questions without history. Experiment eligibility
+    /// instead includes only behaviours with history and excludes hidden questions.
     /// Memoized like `ranked` / `relationships` above, and for the same reason: both of these walked the
     /// full history on EVERY body evaluation — the snapshot sorts the outcome series' day keys twice,
     /// the candidate list sorts and de-duplicates the behaviour set. On a multi-year journal that is
