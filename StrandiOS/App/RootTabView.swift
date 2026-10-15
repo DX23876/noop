@@ -90,13 +90,18 @@ struct RootTabView: View {
     /// The Heute-screen redesign prototype used to take priority here when its own
     /// `noop.heuteRedesignEnabled` flag was on. The flag is no longer read and the prototype was deleted
     /// on 2026-10-10, so no persisted `true` from an earlier build can resurrect it.
+    ///
+    /// Every style carries the same `AnalysisUpdateBanner` at its foot while an analysis migration runs.
     @ViewBuilder private var todayTabRoot: some View {
-        switch todayDashboardStyle {
-        case .classic:  TodayView()
-        case .liquid:   LiquidTodayView()
-        case .trends:   TrendsDashboardView()
-        case .overview: OverviewDashboardView()
+        Group {
+            switch todayDashboardStyle {
+            case .classic:  TodayView()
+            case .liquid:   LiquidTodayView()
+            case .trends:   TrendsDashboardView()
+            case .overview: OverviewDashboardView()
+            }
         }
+        .safeAreaInset(edge: .bottom, spacing: 0) { AnalysisUpdateBanner() }
     }
 
     /// Clear the selection indicator UIKit derives from the bar's tint. With NOOP's gold accent the

@@ -3238,5 +3238,7 @@
   "Your strap is sending its heart rate right now and drains its battery faster. Turn this off when no other device needs it.": "你的手环正在发送心率，电量消耗更快。没有其他设备需要时请关闭。",
   "Style": "风格",
   "Bonded · idle": "已配对 · 空闲",
-  "Session rating": "训练评分"
+  "Session rating": "训练评分",
+  "Calculations updated": "计算已更新",
+  "The recalculation stopped": "重新计算已停止"
 }

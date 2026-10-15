@@ -569,6 +569,7 @@ struct RootView: View {
                 case .overview: OverviewDashboardView()
                 }
             }
+            .safeAreaInset(edge: .bottom, spacing: 0) { AnalysisUpdateBanner() }
             .tabRouteDestinations()
         }
         #else

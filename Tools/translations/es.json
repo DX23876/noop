@@ -3137,5 +3137,7 @@
   "Your strap is sending its heart rate right now and drains its battery faster. Turn this off when no other device needs it.": "Tu pulsera está enviando su pulso ahora y gasta la batería más rápido. Desactívalo cuando ningún otro dispositivo lo necesite.",
   "Style": "Estilo",
   "Bonded · idle": "Vinculada · en reposo",
-  "Session rating": "Valoración de la sesión"
+  "Session rating": "Valoración de la sesión",
+  "Calculations updated": "Cálculos actualizados",
+  "The recalculation stopped": "El recálculo se detuvo"
 }

@@ -3231,5 +3231,7 @@
   "Your strap is sending its heart rate right now and drains its battery faster. Turn this off when no other device needs it.": "La tua fascia sta inviando il battito ora e scarica più in fretta la batteria. Disattiva quando nessun altro dispositivo ne ha bisogno.",
   "Style": "Stile",
   "Bonded · idle": "Associata · inattiva",
-  "Session rating": "Valutazione della sessione"
+  "Session rating": "Valutazione della sessione",
+  "Calculations updated": "Calcoli aggiornati",
+  "The recalculation stopped": "Il ricalcolo si è interrotto"
 }

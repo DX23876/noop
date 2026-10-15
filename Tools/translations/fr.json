@@ -3138,5 +3138,7 @@
   "Your strap is sending its heart rate right now and drains its battery faster. Turn this off when no other device needs it.": "Votre bracelet envoie son pouls en ce moment et se décharge plus vite. Désactivez quand aucun autre appareil n'en a besoin.",
   "Style": "Style",
   "Bonded · idle": "Appairé · inactif",
-  "Session rating": "Évaluation de la séance"
+  "Session rating": "Évaluation de la séance",
+  "Calculations updated": "Calculs mis à jour",
+  "The recalculation stopped": "Le recalcul s’est arrêté"
 }
