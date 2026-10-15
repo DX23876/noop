@@ -229,7 +229,12 @@ final class IntelligenceEngine: ObservableObject {
     // readings (six months), else none; long walks give only a pulse-free lower bound shown beside it. Stored
     // weeks can name a VO₂max the new rule would not, so the AgeLess weeks are deleted once more and the next pass
     // rebuilds them; zone minutes are kept. No daily row is re-scored. VO₂max goals re-read their start once more.
-    static let currentAnalysisRecipeVersion = 26
+    // AI-27 (2026-10-15, fork AgeLess) stops crediting body fat below the lean-mass target. The body-fat study's
+    // curve is J-shaped with its lowest risk near 25 % body fat, so less fat than the target shows no further
+    // benefit; before, up to 3 points earned years. Stored weeks can carry that credit, so the AgeLess weeks are
+    // deleted once more and the next pass rebuilds them; zone minutes are kept. No daily row is re-scored and no
+    // goal start is re-read (a body-fat goal is kept in kilograms and not priced).
+    static let currentAnalysisRecipeVersion = 27
 
     /// The recipe whose migration refills the cardio load ledger.
     static let cardioLedgerRecipe = 9
@@ -287,10 +292,13 @@ final class IntelligenceEngine: ObservableObject {
     /// The recipe whose migration rebuilds the AgeLess weeks on measured VO₂max only.
     static let healthspanMeasuredVO2Recipe = 26
 
-    /// Whether a migration crosses a recipe that rebuilds the AgeLess weeks (AI-21 to AI-26; one rebuild
+    /// The recipe whose migration rebuilds the AgeLess weeks without a credit for body fat below target.
+    static let healthspanBodyFatRecipe = 27
+
+    /// Whether a migration crosses a recipe that rebuilds the AgeLess weeks (AI-21 to AI-27; one rebuild
     /// serves them all).
     static func migrationRebuildsHealthspan(from: Int, to: Int) -> Bool {
-        from < healthspanMeasuredVO2Recipe && to >= healthspanSourcesRecipe
+        from < healthspanBodyFatRecipe && to >= healthspanSourcesRecipe
     }
 
     /// Whether a migration crosses the recipe that fills Apple Health workouts' heart rate.

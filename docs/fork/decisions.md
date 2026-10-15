@@ -538,3 +538,17 @@ The daily count stays on `StepsCounter`. A later attempt needs hand-counted stre
 pottering, where the chip and the reference disagree.
 
 Analysis migration required: no — the filter only ever fed a read-only comparison screen.
+
+### 2026-10-15 — AgeLess no longer credits body fat below the target (AI-27)
+
+AgeLess took up to 0.2 years off for body fat up to 3 points below the lean-mass target (80 % lean mass for men,
+67 % for women). Its own source does not support that: Jayedi 2022 finds a J-shaped curve with the lowest risk
+near 25 % body fat, so body fat below the male target shows no further benefit. A measure now takes years off
+only where the studies show benefit beyond the target; lean mass can add years or stay neutral, never subtract.
+Fat-free mass per height (FFMI, Sedlmeier 2021) was considered and left out: it needs a fat term beside it, a
+scale's body-fat reading is least reliable at high body weight where the credit would be largest, and it would
+mean a new term and a refit on thin anchors. The four reference profiles move by at most 0.07 years; the
+least-squares overlap factor moves from 0.644 to 0.647, so k stays 0.64 (all four within ±0.36 years).
+
+Analysis migration required: yes (AI-27). The AgeLess weeks are deleted once more and rebuilt; zone minutes
+are kept, no daily row is re-scored and no goal start is re-read (a body-fat goal is kept in kilograms).

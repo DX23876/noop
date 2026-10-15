@@ -129,6 +129,18 @@ final class HealthspanEngineTests: XCTestCase {
         XCTAssertEqual(at(56), at(70), accuracy: 1e-9)
     }
 
+    /// Body fat below the lean-mass target takes no years off (AI-27): the study's J-shaped curve shows no further
+    /// benefit there. Above the target every point still adds years.
+    func testBodyFatBelowTargetEarnsNothing() {
+        let at = { (lean: Double, sex: E.Sex) in E.compute(.init(age: 30, sex: sex, leanMassPct: lean))!.deltaYears }
+        XCTAssertEqual(at(80, .male), 0, accuracy: 1e-9)
+        XCTAssertEqual(at(83, .male), 0, accuracy: 1e-9)
+        XCTAssertEqual(at(90, .male), 0, accuracy: 1e-9)
+        XCTAssertEqual(at(72, .female), 0, accuracy: 1e-9)
+        XCTAssertGreaterThan(at(77, .male), 0.1)
+        XCTAssertNil(E.levers(.init(age: 30, sex: .male, leanMassPct: 80)).first { $0.component == .leanMass })
+    }
+
     /// Body fat above the ceiling is not extrapolated.
     func testBodyFatCeiling() {
         let a = E.compute(.init(age: 30, sex: .male, leanMassPct: 50))!.deltaYears

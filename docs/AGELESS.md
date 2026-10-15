@@ -69,7 +69,9 @@ against regressions rather than validating the age.
   `hs_vo2_floor`). The card shows it beside the measure and says when a measured value lies below it; it is
   never the measure's value.
 - **Lean mass:** the latest body-fat reading of the past year, entered on the Body page or from Apple
-  Health.
+  Health. Body fat above the target adds years; body fat below it takes none off (since AI-27), because the
+  study's curve is J-shaped with its lowest risk near 25 % body fat and shows no further benefit below the
+  target.
 - **Activity minutes:** time in logged and detected workouts, from the band's raw heart rate against the
   heart-rate reserve between the average sleeping heart rate and the maximum heart rate. Raw heart rate is
   kept about five weeks, so minutes are banked per day while it exists (`hs_zone13_min`, `hs_zone45_min`);

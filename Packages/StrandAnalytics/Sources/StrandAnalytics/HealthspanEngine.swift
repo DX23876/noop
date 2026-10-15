@@ -22,9 +22,9 @@ import WhoopProtocol
 public enum HealthspanEngine {
 
     /// Shrinks the summed component years for overlap between correlated inputs (RHR and VO₂max, steps and
-    /// zone time). Least-squares fit to the four reference profiles: 0.644, all four within ±0.33 y. Varying
-    /// the values this fit had to assume for the US profiles (sleep 6.1–6.6 h, consistency 60–70, zone 4–5
-    /// 0–5 min) moves it between about 0.60 and 0.73.
+    /// zone time). Least-squares fit to the four reference profiles: 0.647 since AI-27 (0.644 before), all four
+    /// within ±0.36 y at 0.64. Varying the values this fit had to assume for the US profiles (sleep 6.1–6.6 h,
+    /// consistency 60–70, zone 4–5 0–5 min) moves it between about 0.60 and 0.73.
     public static let overlapFactor = 0.64
     /// ln(HR) per year of age in the effective-age conversion (≈ 10 % per year).
     static let lnHazardPerYear = 0.1
@@ -165,11 +165,11 @@ public enum HealthspanEngine {
     /// Zhang 2016, CMAJ: HR 1.09 per +10 bpm, linear across the studied 45–90 bpm.
     static let lnHRPerBpm = log(1.09) / 10
     static let restingHRRange = 45.0...90.0
-    /// Jayedi 2022, Int J Obes: HR 1.11 per +10 % body fat. Only "small reductions" are granted below
-    /// target; ASSUMPTION: capped at 3 points of body fat. ASSUMPTION: above 50 % body fat the linear
+    /// Jayedi 2022, Int J Obes: HR 1.11 per +10 % body fat. The curve is J-shaped with its lowest risk near 25 %
+    /// body fat, above the male target, so less body fat than the target shows no further benefit and earns no
+    /// years (since AI-27; before, up to 3 points were credited). ASSUMPTION: above 50 % body fat the linear
     /// meta-analytic slope is not extended further.
     static let lnHRPerBodyFatPct = log(1.11) / 10
-    static let leanMassMaxCredit = 3.0
     static let bodyFatCeilingPct = 50.0
 
     /// Component years before the overlap factor.
@@ -197,7 +197,7 @@ public enum HealthspanEngine {
             return years(lnHRPerBpm * (bpm - t))
         case .leanMass:
             let excessFat = min(100 - v, bodyFatCeilingPct) - (100 - t)
-            return years(lnHRPerBodyFatPct * max(excessFat, -leanMassMaxCredit))
+            return years(lnHRPerBodyFatPct * max(excessFat, 0))
         }
     }
 
