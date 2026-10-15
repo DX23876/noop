@@ -10,7 +10,6 @@ enum SettingsSheet: String, Identifiable {
     case appleWatchSetup
     case heartRateZones
     case stepCalibration
-    case stepFilterComparison
     case diagnostics
 
     var id: String { rawValue }

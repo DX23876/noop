@@ -273,9 +273,6 @@ struct SettingsView: View {
     // hidden. Mirrors the Android pref so the toggle reads the same on both platforms.
     @AppStorage(HydrationStore.enabledKey) private var hydrationEnabled = false
 
-    /// Reveals the experimental step filter comparison (`StepFilterComparisonSheet`). Off by default.
-    @AppStorage(StepFilterComparisonSheet.enabledKey) private var stepFilterComparisonEnabled = false
-
     /// Opt-in "Auto-detect workouts" (default OFF). When ON, Today scans the last day or two of HR for a
     /// sustained-elevated window and offers — via a single dismissible card — to save it as a workout.
     /// Nothing is ever created automatically. Mirrors the Android `NoopPrefs.KEY_AUTO_DETECT_WORKOUTS`.
@@ -520,9 +517,6 @@ struct SettingsView: View {
             HRZoneEditorSheet(onClose: dismissPresentedSheet)
         case .stepCalibration:
             StepsCalibrationSheet(repo: model.repo, onClose: dismissPresentedSheet)
-                .environmentObject(profile)
-        case .stepFilterComparison:
-            StepFilterComparisonSheet(repo: model.repo, onClose: dismissPresentedSheet)
                 .environmentObject(profile)
         case .diagnostics:
             #if os(iOS)
@@ -3698,35 +3692,6 @@ struct SettingsView: View {
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
-
-                Divider().overlay(StrandPalette.hairline)
-
-                // Experimental WHOOP 5/MG step filter, shown beside the current count and never replacing it.
-                Toggle(isOn: $stepFilterComparisonEnabled) {
-                    Text("Step filter comparison")
-                        .font(StrandFont.subhead)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                }
-                .toggleStyle(.switch)
-                .appleInspiredTint("settings.controls")
-                Text("WHOOP 5.0 and MG. Shows a stricter step count next to the current one, day by day. Your steps do not change.")
-                    .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                if stepFilterComparisonEnabled {
-                    Button {
-                        presentedSheet = .stepFilterComparison
-                    } label: {
-                        FormRow(label: "Open comparison") {
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(StrandPalette.textTertiary)
-                        }
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(LiquidPressStyle())
-                    .accessibilityLabel("Step filter comparison. Opens the comparison screen.")
-                }
             }
         }
     }

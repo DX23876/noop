@@ -1139,8 +1139,8 @@ On macOS the card pages run as one scrolling column and the six screen pages sta
   today, recalculate 21 days, reset the Charge baseline) and **Data & Backup** (backup and restore,
   folder backup, Apple Health, Data Sources, Shortcuts export, storage).
 - **Help** — **Help & Diagnostics** (guides, what each strap can do, Test Centre, raw sensor export,
-  device details), **Lab** (personal stress baseline, training-based VO₂max, AgeLess, step filter
-  comparison, blood oxygen estimate, Oura all-day heart rate, and the WHOOP 5/MG developer probes) and
+  device details), **Lab** (personal stress baseline, training-based VO₂max, AgeLess, blood oxygen
+  estimate, Oura all-day heart rate, and the WHOOP 5/MG developer probes) and
   **About** (version, what's new, updates, source, acknowledgements, medical disclaimer).
 
 Details:

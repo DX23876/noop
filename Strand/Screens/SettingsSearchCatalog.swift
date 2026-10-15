@@ -374,7 +374,7 @@ enum SettingsSearchCatalog {
             id: .lab,
             title: "Lab",
             keywords: ["experimental", "beta", "stress baseline", "training-based VO2max", "AgeLess",
-                       "healthspan", "blood oxygen", "SpO₂ estimate", "step filter", "Oura"]
+                       "healthspan", "blood oxygen", "SpO₂ estimate", "Oura"]
         ),
         SettingsSearchEntry(
             id: .labWhoop5,

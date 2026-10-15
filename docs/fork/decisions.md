@@ -496,3 +496,15 @@ is open, as it did on Data Sources. More keeps what you look at or use, with Ala
 
 Analysis migration required: no — every control writes the same key as before; only places, names and help
 texts change.
+
+### 2026-10-15 — Experimental step filter removed
+
+`GaitGatedStepCounter` and its comparison screen (2026-10-08) are removed. Against a research step reference
+computed locally from a week of the wearer's raw 100 Hz IMU (2026-10-08 to 15; nothing of it is part of NOOP),
+the filter counted 23 % fewer steps than the reference (the chip 5 % more), dropped about 400 minutes the reference scored
+as walking, counted zero on one day with 866 reference steps, and agreed worse than the chip at every window
+(5-minute r 0.850 against 0.913). No setting of its bout-length and context thresholds beat the chip clearly.
+The daily count stays on `StepsCounter`. A later attempt needs hand-counted stretches of slow walking and indoor
+pottering, where the chip and the reference disagree.
+
+Analysis migration required: no — the filter only ever fed a read-only comparison screen.
