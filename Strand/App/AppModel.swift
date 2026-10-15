@@ -689,6 +689,8 @@ final class AppModel: ObservableObject {
             await PlanReconciliationCoordinator.reconcile(repo: self.repo)
             await GoalTrackingStore.shared.refresh(repo: self.repo)
             await self.recordAppVersionChangeIfNeeded()        // #1410: stamp an update transition once
+            // Move GPS points out of the preferences file into their own files. A no-op once done.
+            await Task.detached(priority: .utility) { RoutePointStore.migrateFromDefaults() }.value
             // Retire the undated body scalars into dated readings. Runs after the first refresh so
             // `days` is populated — the migration stamps the readings at the wearer's earliest
             // recorded day, which is what makes it behaviour-preserving. Latched, so this is a single

@@ -208,20 +208,41 @@ struct WorkoutRoute: Equatable, Codable, Sendable {
     }
 }
 
-/// Per-workout GPS point measurements, held in one `UserDefaults` key EACH rather than in `RouteStore`'s
+/// Per-workout GPS point measurements, one file EACH in Application Support rather than in `RouteStore`'s
 /// map. Never leaves the device.
 ///
 /// A point array is around thirteen times the size of the polyline that encodes the same path, roughly 75
 /// bytes of JSON per fix against six. A long workout can retain thousands of fixes. Kept
 /// in the routes map, 400 of those would be tens of megabytes that EVERY `RouteStore.load` decodes in full
 /// to answer one key: the same cost `RouteStore.storeAll` already exists to avoid on the write side, and the
-/// detail screen pays it just to draw a polyline it does not need points for. One key per workout keeps the
-/// routes map the handful of bytes its cap assumes, and leaves the heavy series to the one reader that wants
-/// it, a blob at a time.
+/// detail screen pays it just to draw a polyline it does not need points for.
+///
+/// They used to sit in one `UserDefaults` key per workout. That kept the routes map small but not the
+/// preferences file: on one iPhone 391 of those keys made 61 of its 62 MB, and every unrelated preference
+/// write rewrote all of it. Files keep the heavy series out of the preferences entirely. A legacy key is
+/// still read when its file is missing, and `migrateFromDefaults` moves the keys over once, file first
+/// and key second, so a reader racing the move finds the points in one place or the other.
 enum RoutePointStore {
 
-    /// `UserDefaults` key for one workout's points, suffixed with the same natural key `RouteStore` uses.
-    static func defaultsKey(for mapKey: String) -> String { "noop.workoutRoutePoints." + mapKey }
+    /// Legacy `UserDefaults` key for one workout's points, suffixed with the natural key `RouteStore` uses.
+    static func defaultsKey(for mapKey: String) -> String { legacyKeyPrefix + mapKey }
+
+    static let legacyKeyPrefix = "noop.workoutRoutePoints."
+
+    /// `Application Support/WorkoutRoutePoints`. Backed up like the preferences it replaces, since a route
+    /// recorded on this device before recordings moved into the database has no other copy.
+    static var defaultDirectory: URL {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
+        return base.appendingPathComponent("WorkoutRoutePoints", isDirectory: true)
+    }
+
+    /// The file for one workout. The natural key carries `|` and a free-text sport name, so it is
+    /// percent-encoded to a plain, reversible file name.
+    static func fileURL(for mapKey: String, in directory: URL) -> URL {
+        let name = mapKey.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? mapKey
+        return directory.appendingPathComponent(name + ".json")
+    }
 
     /// Encode / decode are pure so the round-trip is unit-testable. An empty array reads back as nil, so
     /// "recorded no points" and "saved before points existed" are the same absent answer to a caller.
@@ -234,22 +255,67 @@ enum RoutePointStore {
         return points
     }
 
-    static func load(for mapKey: String, from defaults: UserDefaults = .standard) -> [WorkoutRoutePoint]? {
-        decode(defaults.data(forKey: defaultsKey(for: mapKey)))
+    static func load(for mapKey: String, from defaults: UserDefaults = .standard,
+                     in directory: URL = defaultDirectory) -> [WorkoutRoutePoint]? {
+        decode(try? Data(contentsOf: fileURL(for: mapKey, in: directory)))
+            ?? decode(defaults.data(forKey: defaultsKey(for: mapKey)))
     }
 
-    /// Persist or clear one workout's points. nil / empty removes the key rather than storing a placeholder.
+    /// Persist or clear one workout's points. nil / empty removes them rather than storing a placeholder.
+    /// Either way the legacy key goes, so it can never shadow or outlive the file.
     static func store(_ points: [WorkoutRoutePoint]?, for mapKey: String,
-                      into defaults: UserDefaults = .standard) {
+                      into defaults: UserDefaults = .standard, in directory: URL = defaultDirectory) {
         guard let points, !points.isEmpty, let data = encode(points) else {
-            defaults.removeObject(forKey: defaultsKey(for: mapKey))
+            remove(for: mapKey, from: defaults, in: directory)
             return
         }
-        defaults.set(data, forKey: defaultsKey(for: mapKey))
+        guard write(data, to: fileURL(for: mapKey, in: directory)) else { return }
+        defaults.removeObject(forKey: defaultsKey(for: mapKey))
     }
 
-    static func remove(for mapKey: String, from defaults: UserDefaults = .standard) {
+    static func remove(for mapKey: String, from defaults: UserDefaults = .standard,
+                       in directory: URL = defaultDirectory) {
+        try? FileManager.default.removeItem(at: fileURL(for: mapKey, in: directory))
         defaults.removeObject(forKey: defaultsKey(for: mapKey))
+    }
+
+    /// Moves every legacy key into its file and removes the key once the file is written. A key whose
+    /// file cannot be written stays, and is read from where it is. Returns how many keys moved; after the
+    /// first successful run it finds nothing and costs one scan of the in-memory preferences.
+    @discardableResult
+    static func migrateFromDefaults(_ defaults: UserDefaults = .standard,
+                                    in directory: URL = defaultDirectory) -> Int {
+        let keys = defaults.dictionaryRepresentation().keys.filter { $0.hasPrefix(legacyKeyPrefix) }
+        var moved = 0
+        for key in keys {
+            let mapKey = String(key.dropFirst(legacyKeyPrefix.count))
+            let file = fileURL(for: mapKey, in: directory)
+            // A file already there is newer than the key: `store` writes the file and drops the key.
+            if FileManager.default.fileExists(atPath: file.path) {
+                defaults.removeObject(forKey: key)
+                moved += 1
+                continue
+            }
+            guard let data = defaults.data(forKey: key), decode(data) != nil else {
+                defaults.removeObject(forKey: key)
+                continue
+            }
+            guard write(data, to: file) else { continue }
+            defaults.removeObject(forKey: key)
+            moved += 1
+        }
+        return moved
+    }
+
+    private static func write(_ data: Data, to url: URL) -> Bool {
+        do {
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
+                                                    withIntermediateDirectories: true)
+            try data.write(to: url, options: .atomic)
+            return true
+        } catch {
+            return false
+        }
     }
 }
 
@@ -307,8 +373,9 @@ enum RouteStore {
     /// Persist `route` for a workout, evicting the oldest entries if the cap is exceeded. A no-op when the
     /// route has no usable polyline (so we never store an empty placeholder — honest "no route").
     static func store(_ route: WorkoutRoute, startTs: Int, sport: String,
-                      into defaults: UserDefaults = .standard) {
-        storeAll([(route, startTs, sport)], into: defaults)
+                      into defaults: UserDefaults = .standard,
+                      pointsIn directory: URL = RoutePointStore.defaultDirectory) {
+        storeAll([(route, startTs, sport)], into: defaults, pointsIn: directory)
     }
 
     /// Persist MANY routes in one blob rewrite.
@@ -324,18 +391,19 @@ enum RouteStore {
     /// imported history is older than anything recorded since, a large import evicts its own oldest
     /// entries rather than the routes this device recorded.
     static func storeAll(_ entries: [(route: WorkoutRoute, startTs: Int, sport: String)],
-                         into defaults: UserDefaults = .standard) {
+                         into defaults: UserDefaults = .standard,
+                         pointsIn directory: URL = RoutePointStore.defaultDirectory) {
         let usable = entries.filter { !$0.route.polyline.isEmpty }
         guard !usable.isEmpty else { return }
         var map = loadMap(from: defaults)
         for e in usable {
             let k = key(startTs: e.startTs, sport: e.sport)
-            // The map holds the polyline only. Points go to their own key (`RoutePointStore`), so the map
+            // The map holds the polyline only. Points go to their own file (`RoutePointStore`), so the map
             // stays small enough for the every-read full decode its cap assumes.
             var light = e.route
             light.points = nil
             map[k] = light
-            RoutePointStore.store(e.route.points, for: k, into: defaults)
+            RoutePointStore.store(e.route.points, for: k, into: defaults, in: directory)
         }
         if map.count > maxRoutes {
             // Keys lead with the startTs, so a lexicographic sort by the numeric prefix evicts the oldest.
@@ -346,7 +414,7 @@ enum RouteStore {
             for k in ordered.prefix(map.count - maxRoutes) {
                 map.removeValue(forKey: k)
                 // Evict the points with the route, or their keys would outlive it forever.
-                RoutePointStore.remove(for: k, from: defaults)
+                RoutePointStore.remove(for: k, from: defaults, in: directory)
             }
         }
         guard let data = encodeMap(map) else { return }
@@ -354,9 +422,10 @@ enum RouteStore {
     }
 
     /// Remove a workout's route (used when a session is deleted; keeps the side-store from leaking).
-    static func remove(startTs: Int, sport: String, from defaults: UserDefaults = .standard) {
+    static func remove(startTs: Int, sport: String, from defaults: UserDefaults = .standard,
+                       pointsIn directory: URL = RoutePointStore.defaultDirectory) {
         var map = loadMap(from: defaults)
-        RoutePointStore.remove(for: key(startTs: startTs, sport: sport), from: defaults)
+        RoutePointStore.remove(for: key(startTs: startTs, sport: sport), from: defaults, in: directory)
         guard map.removeValue(forKey: key(startTs: startTs, sport: sport)) != nil,
               let data = encodeMap(map) else { return }
         defaults.set(data, forKey: defaultsKey)
@@ -364,11 +433,11 @@ enum RouteStore {
 
     /// The route WITH its recorded point measurements, for the one caller that needs them (the HealthKit
     /// route export). Everything that only draws the path uses `load`, which never touches the points.
-    static func loadWithPoints(startTs: Int, sport: String,
-                               from defaults: UserDefaults = .standard) -> WorkoutRoute? {
+    static func loadWithPoints(startTs: Int, sport: String, from defaults: UserDefaults = .standard,
+                               pointsIn directory: URL = RoutePointStore.defaultDirectory) -> WorkoutRoute? {
         let k = key(startTs: startTs, sport: sport)
         guard var route = loadMap(from: defaults)[k] else { return nil }
-        route.points = RoutePointStore.load(for: k, from: defaults)
+        route.points = RoutePointStore.load(for: k, from: defaults, in: directory)
         return route
     }
 }

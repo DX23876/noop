@@ -433,29 +433,83 @@ final class GpsRouteMathTests: XCTestCase {
         XCTAssertNil(RouteStore.load(startTs: 1_700_000_000, sport: "Running", from: defaults))
     }
 
+    private func freshPointsDirectory() -> URL {
+        FileManager.default.temporaryDirectory
+            .appendingPathComponent("test.workoutRoutePoints.\(UUID().uuidString)", isDirectory: true)
+    }
+
     func testRouteStorePreservesOriginalPointMeasurements() {
         let defaults = freshDefaults()
+        let directory = freshPointsDirectory()
         let points = [
             WorkoutRoutePoint(lat: a.lat, lon: a.lon, accuracyM: 3.2, tMs: 1_700_000_000_000),
             WorkoutRoutePoint(lat: b.lat, lon: b.lon, accuracyM: 7.8, tMs: 1_700_000_012_345),
         ]
         let route = WorkoutRoute(polyline: RouteMath.encode([a, b]), distanceM: 451, points: points)
-        RouteStore.store(route, startTs: 1_700_000_000, sport: "Running", into: defaults)
-        let loaded = RouteStore.loadWithPoints(startTs: 1_700_000_000, sport: "Running", from: defaults)
+        RouteStore.store(route, startTs: 1_700_000_000, sport: "Running", into: defaults, pointsIn: directory)
+        let loaded = RouteStore.loadWithPoints(startTs: 1_700_000_000, sport: "Running", from: defaults,
+                                               pointsIn: directory)
         XCTAssertEqual(loaded?.points, points)
         XCTAssertTrue(loaded?.hasExportableMeasurements == true)
 
-        // The routes map itself stays the handful of bytes its cap assumes: points live in their own key,
-        // so the every-read full decode never carries them and `load` hands back a drawable route only.
+        // The routes map itself stays the handful of bytes its cap assumes, and the points stay out of the
+        // preferences altogether: they live in their own file, so `load` hands back a drawable route only.
         XCTAssertNil(RouteStore.load(startTs: 1_700_000_000, sport: "Running", from: defaults)?.points)
         let mapJSON = String(data: defaults.data(forKey: RouteStore.defaultsKey) ?? Data(), encoding: .utf8)
         XCTAssertFalse(mapJSON?.contains("accuracyM") ?? true, "points must not reach the routes map")
+        let key = RouteStore.key(startTs: 1_700_000_000, sport: "Running")
+        XCTAssertNil(defaults.data(forKey: RoutePointStore.defaultsKey(for: key)),
+                     "points must not reach the preferences")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: RoutePointStore.fileURL(for: key, in: directory).path))
 
-        // Deleting the session takes the points with it, so their key cannot outlive the route.
-        RouteStore.remove(startTs: 1_700_000_000, sport: "Running", from: defaults)
-        XCTAssertNil(RouteStore.loadWithPoints(startTs: 1_700_000_000, sport: "Running", from: defaults))
-        XCTAssertNil(RoutePointStore.load(for: RouteStore.key(startTs: 1_700_000_000, sport: "Running"),
-                                          from: defaults))
+        // Deleting the session takes the points with it, so their file cannot outlive the route.
+        RouteStore.remove(startTs: 1_700_000_000, sport: "Running", from: defaults, pointsIn: directory)
+        XCTAssertNil(RouteStore.loadWithPoints(startTs: 1_700_000_000, sport: "Running", from: defaults,
+                                               pointsIn: directory))
+        XCTAssertNil(RoutePointStore.load(for: key, from: defaults, in: directory))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: RoutePointStore.fileURL(for: key, in: directory).path))
+    }
+
+    /// Points saved before the move to files sit in one preferences key per workout. They stay readable
+    /// until the launch migration moves them, the migration writes the file before it drops the key, and a
+    /// second run finds nothing to do.
+    func testLegacyPointKeysStayReadableAndMigrateToFiles() {
+        let defaults = freshDefaults()
+        let directory = freshPointsDirectory()
+        let points = [
+            WorkoutRoutePoint(lat: a.lat, lon: a.lon, accuracyM: 3.2, tMs: 1_700_000_000_000),
+            WorkoutRoutePoint(lat: b.lat, lon: b.lon, accuracyM: 7.8, tMs: 1_700_000_012_345),
+        ]
+        let key = RouteStore.key(startTs: 1_700_000_000, sport: "Outdoor Walk/Hike")
+        defaults.set(RoutePointStore.encode(points), forKey: RoutePointStore.defaultsKey(for: key))
+        defaults.set(Data("not json".utf8), forKey: RoutePointStore.defaultsKey(for: "1|Broken"))
+
+        XCTAssertEqual(RoutePointStore.load(for: key, from: defaults, in: directory), points)
+
+        XCTAssertEqual(RoutePointStore.migrateFromDefaults(defaults, in: directory), 1)
+        XCTAssertNil(defaults.data(forKey: RoutePointStore.defaultsKey(for: key)))
+        XCTAssertNil(defaults.data(forKey: RoutePointStore.defaultsKey(for: "1|Broken")),
+                     "an undecodable legacy key is dropped, not carried into a file")
+        XCTAssertEqual(RoutePointStore.load(for: key, from: defaults, in: directory), points)
+        XCTAssertEqual(RoutePointStore.migrateFromDefaults(defaults, in: directory), 0)
+    }
+
+    /// A store after the move replaces a legacy key that a migration has not reached yet, so the stale key
+    /// can never come back as the answer once the file is removed.
+    func testStoringPointsDropsTheLegacyKey() {
+        let defaults = freshDefaults()
+        let directory = freshPointsDirectory()
+        let old = [WorkoutRoutePoint(lat: a.lat, lon: a.lon, accuracyM: 9, tMs: 1)]
+        let new = [WorkoutRoutePoint(lat: b.lat, lon: b.lon, accuracyM: 3, tMs: 2)]
+        let key = RouteStore.key(startTs: 1_700_000_000, sport: "Running")
+        defaults.set(RoutePointStore.encode(old), forKey: RoutePointStore.defaultsKey(for: key))
+
+        RoutePointStore.store(new, for: key, into: defaults, in: directory)
+        XCTAssertEqual(RoutePointStore.load(for: key, from: defaults, in: directory), new)
+        XCTAssertNil(defaults.data(forKey: RoutePointStore.defaultsKey(for: key)))
+
+        RoutePointStore.remove(for: key, from: defaults, in: directory)
+        XCTAssertNil(RoutePointStore.load(for: key, from: defaults, in: directory))
     }
 
     func testLegacyRouteWithoutPointMeasurementsRemainsReadableButCannotExport() throws {
