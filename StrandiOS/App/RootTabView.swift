@@ -347,6 +347,12 @@ struct RootTabView: View {
                 tabPaths[0] = NavigationPath(router.requestedTodayRoute.map { [$0] } ?? [])
                 router.requestedTodayRoute = nil
                 router.requestedDestination = nil
+            case .lab:
+                // A feature introduction in the bell: Settings → Lab on the More tab's own stack, appended
+                // like Data Sources so Back returns the reader to where they were.
+                withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 4 }
+                tabPaths[4].append(MoreDestination.settingsPage(.lab))
+                router.requestedDestination = nil
             case .energy:
                 // Widget deep link: land on Today and push the same detail route the in-app card uses.
                 withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 0 }
@@ -503,6 +509,8 @@ struct RootTabView: View {
                 case .goals: CoachGoalJourneyScreen()
                 // .todayDetail is pushed onto Today's own stack (handled above); exhaustive fallback.
                 case .todayDetail: LiquidTodayView()
+                // .lab is pushed onto the More tab's own stack (handled above); exhaustive fallback.
+                case .lab: SettingsView(initialPage: .lab)
                 }
             }
             // The Trends/Today fallbacks above emit TabRoute value pushes (#198), which need a
@@ -783,6 +791,7 @@ enum MoreDestination: Hashable {
     case insightsHub, intelligence, coach, coachSettings, goalJourney, insights, explore, compare
     case live, workouts, health, labBook, stress, breathe, intervals, rhythm, ecg, strength, cardio, trainingLoad
     case body, energyPlan
+    case ageless, rhythmAge
     case fusedRecord, appleHealth, miBand, dataSources, backupSync, shortcutsExport, noopLimitations
     case alarms, automations, testCentre, siriShortcuts, powerSaving, settings
     /// Settings opened from a search hit, carrying the query so the screen lands already filtered to
@@ -817,6 +826,8 @@ enum MoreDestination: Hashable {
         case .body:            BodyView()
         case .energyPlan:      EnergyPlanView()
         case .health:          HealthView()
+        case .ageless:         AgeLessScreen()
+        case .rhythmAge:       RhythmAgeDetailView()
         case .labBook:         LabBookView()
         case .stress:          StressView()
         case .breathe:         BreathingView()
@@ -1188,6 +1199,9 @@ private struct MoreCategoryRow: View {
 
 struct MoreCategoryView: View {
     let category: MoreCategory
+    // Observed so a Lab switch flipped elsewhere adds or removes its row here.
+    @AppStorage(HealthspanFeature.defaultsKey) private var healthspanEnabled = false
+    @AppStorage(RhythmAgeFeature.defaultsKey) private var rhythmAgeEnabled = false
 
     var body: some View {
         ScreenScaffold(
@@ -1197,7 +1211,7 @@ struct MoreCategoryView: View {
         ) {
             NoopCard(padding: 0, cornerRadius: NoopMetrics.groupedRadius) {
                 VStack(spacing: 0) {
-                    ForEach(MoreCatalog.group(for: category).entries) { entry in MoreRow(entry) }
+                    ForEach(MoreCatalog.group(for: category).entries.filter(\.isAvailable)) { entry in MoreRow(entry) }
                 }
                 .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous))
             }

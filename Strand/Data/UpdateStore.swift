@@ -342,10 +342,58 @@ final class UpdateStore: ObservableObject {
         ))
     }
 
+    /// Post the bell introduction of each Lab feature ONCE per device, skipping one whose switch is already
+    /// on. The seeded flag is set before posting and never cleared, so a deleted introduction stays gone.
+    func seedFeatureIntrosIfNeeded(isEnabled: (FeatureIntro) -> Bool = {
+        UserDefaults.standard.bool(forKey: $0.featureKey)
+    }) {
+        for intro in FeatureIntro.allCases where !d.bool(forKey: intro.seededKey) {
+            d.set(true, forKey: intro.seededKey)
+            guard !isEnabled(intro) else { continue }
+            post(UpdateItem(kind: .whatsNew, title: intro.title, message: intro.message,
+                            deepLink: intro.deepLink))
+        }
+    }
+
     // MARK: Persistence
 
     private func persist() {
         guard let data = try? JSONEncoder().encode(items) else { return }
         d.set(data, forKey: K.items)
+    }
+}
+
+// MARK: - FeatureIntro
+
+/// A Lab feature the bell introduces once after an update: what it is, and a link to its switch.
+enum FeatureIntro: String, CaseIterable {
+    case ageless
+    case rhythmAge
+
+    /// The Lab switch's UserDefaults key.
+    var featureKey: String {
+        switch self {
+        case .ageless: return HealthspanFeature.defaultsKey
+        case .rhythmAge: return RhythmAgeFeature.defaultsKey
+        }
+    }
+
+    var seededKey: String { "updates.featureIntro." + rawValue }
+    var deepLink: String { "lab." + rawValue }
+
+    var title: String {
+        switch self {
+        case .ageless: return String(localized: "New in Lab: AgeLess")
+        case .rhythmAge: return String(localized: "New in Lab: Daily rhythm")
+        }
+    }
+
+    var message: String {
+        switch self {
+        case .ageless:
+            return String(localized: "How young your everyday life keeps you, and which habit helps most.")
+        case .rhythmAge:
+            return String(localized: "How young your daily rhythm keeps you. For WHOOP 5.0 and MG.")
+        }
     }
 }

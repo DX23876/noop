@@ -104,6 +104,7 @@ struct SettingsView: View {
     /// The measured maximum to offer (`MaxHRSuggestion`), nil when there is none.
     @State private var maxHRSuggestion: Int?
     @AppStorage(HealthspanFeature.defaultsKey) private var healthspanEnabled = false
+    @AppStorage(RhythmAgeFeature.defaultsKey) private var rhythmAgeEnabled = false
     /// #1545 opt-in: score Effort with Banister's exponential TRIMP instead of Edwards' heart-rate zones.
     /// Default OFF — it re-scores the whole window against a different recipe. See
     /// [PuffinExperiment.banisterEffortKey].
@@ -3689,6 +3690,25 @@ struct SettingsView: View {
                     if on { Task { await model.intelligence.analyzeRecent(); await model.repo.refresh() } }
                 }
                 Text("An age from nine measures of sleep, activity and fitness over six months, with the steps that would help most. Replaces Body Age on Health. Needs 30 nights. A motivation tool, not a medical age.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                // MARK: Fork — daily rhythm (CosinorAge beta), WHOOP 5.0 and MG. Off by default.
+                Divider().overlay(StrandPalette.hairline)
+
+                Toggle(isOn: $rhythmAgeEnabled) {
+                    Text("Daily rhythm")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                }
+                .toggleStyle(.switch)
+                .tint(StrandPalette.accent)
+                .onChangeCompat(of: rhythmAgeEnabled) { on in
+                    // Score today right away instead of at the next analysis pass, so the card fills on the flip.
+                    if on { Task { await model.intelligence.rescoreRhythmAgeNow(); await model.repo.refresh() } }
+                }
+                Text("WHOOP 5.0 and MG. How your day moves over a week, compared with a large study, as a rhythm age. Shown on Health. Needs three days worn day and night. Beta, not a medical age.")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)

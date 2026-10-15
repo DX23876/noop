@@ -25,16 +25,23 @@ struct MoreEntry: Identifiable, Hashable {
     /// precisely what `Tools/i18n_audit.py`'s echo gate exists to reject. A curated per-language alias
     /// list is a worthwhile thing to add later; machine-translating this one is not.
     let keywords: [String]
+    /// A Lab switch (UserDefaults key) the row needs. nil = always listed. A row whose switch is off is
+    /// neither listed nor found by the search, so the index never offers a screen that would be empty.
+    let featureKey: String?
 
     init(_ title: LocalizedStringResource,
          _ icon: String,
          _ route: MoreDestination,
-         keywords: [String] = []) {
+         keywords: [String] = [],
+         featureKey: String? = nil) {
         self.title = title
         self.icon = icon
         self.route = route
         self.keywords = keywords
+        self.featureKey = featureKey
     }
+
+    var isAvailable: Bool { featureKey.map { UserDefaults.standard.bool(forKey: $0) } ?? true }
 
     /// The route identifies the row — no two rows lead to the same screen.
     var id: MoreDestination { route }
@@ -145,6 +152,13 @@ enum MoreCatalog {
                                  "planning", "kcal", "diet", "surplus"]),
             MoreEntry("Health", "heart.text.square.fill", .health,
                       keywords: ["biometrics", "fitness age", "vitality", "skin temperature"]),
+            // Fork Lab features, listed only while their switch is on.
+            MoreEntry("AgeLess", "hourglass", .ageless,
+                      keywords: ["healthspan", "biological age", "age", "levers"],
+                      featureKey: HealthspanFeature.defaultsKey),
+            MoreEntry("Daily rhythm", "sun.and.horizon", .rhythmAge,
+                      keywords: ["rhythm age", "CosinorAge", "circadian", "movement", "day and night"],
+                      featureKey: RhythmAgeFeature.defaultsKey),
             // Renamed from "Lab Book": names the content directly (blood/BP/body numbers), not the
             // record-keeping metaphor.
             MoreEntry("Biomarkers", "books.vertical.fill", .labBook,
@@ -213,7 +227,7 @@ enum MoreCatalog {
     /// Rows matching a raw query, in screen order. An empty query returns everything, so a caller can
     /// pass the field's text straight through.
     static func matching(_ query: String) -> [MoreEntry] {
-        allEntries.filter { SearchMatch.matches(query: query, in: $0.searchTerms) }
+        allEntries.filter { $0.isAvailable && SearchMatch.matches(query: query, in: $0.searchTerms) }
     }
 }
 #endif

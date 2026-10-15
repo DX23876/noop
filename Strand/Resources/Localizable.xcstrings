@@ -558723,6 +558723,3486 @@
           }
         }
       }
+    },
+    "%lld of 72 hours collected" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld von 72 Stunden gesammelt"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld de 72 horas recopiladas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld heures sur 72 collectées"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld di 72 ore raccolte"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zebrano %lld z 72 godzin"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld de 72 horas recolhidas"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Собрано %lld из 72 часов"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已收集 %lld / 72 小时"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已收集 %lld / 72 小時"
+          }
+        }
+      }
+    },
+    "About the rhythm age" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Über das Rhythmus-Alter"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Acerca de la edad del ritmo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À propos de l'âge du rythme"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Informazioni sull'età del ritmo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O wieku rytmu"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sobre a idade do ritmo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "О возрасте ритма"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关于节律年龄"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "關於節律年齡"
+          }
+        }
+      }
+    },
+    "Adds up nine habits, from sleep to fitness, each measured against its own large study. Shows which habit helps you most." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zählt neun Gewohnheiten zusammen, vom Schlaf bis zur Fitness, jede gemessen an ihrer eigenen großen Studie. Zeigt, welche Gewohnheit dir am meisten hilft."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suma nueve hábitos, del sueño a la forma física, cada uno medido con su propio gran estudio. Muestra qué hábito te ayuda más."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Additionne neuf habitudes, du sommeil à la forme, chacune mesurée par sa propre grande étude. Montre l'habitude qui t'aide le plus."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Somma nove abitudini, dal sonno alla forma fisica, ognuna misurata con il proprio grande studio. Mostra quale abitudine ti aiuta di più."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sumuje dziewięć nawyków, od snu po kondycję, każdy mierzony własnym dużym badaniem. Pokazuje, który nawyk pomaga ci najbardziej."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Soma nove hábitos, do sono à forma física, cada um medido pelo seu próprio grande estudo. Mostra que hábito mais te ajuda."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Складывает девять привычек, от сна до формы, каждая оценена по своему крупному исследованию. Показывает, какая привычка помогает вам больше всего."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "汇总从睡眠到体能的九项习惯，每项都对照各自的大型研究。显示哪项习惯对你帮助最大。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "匯總從睡眠到體能的九項習慣，每項都對照各自的大型研究。顯示哪項習慣對你幫助最大。"
+          }
+        }
+      }
+    },
+    "AgeLess counts your steps. The rhythm age also sees the hours between your walks. If you walk a lot but sit for long stretches in between, AgeLess rates you well and the rhythm age less so." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess zählt deine Schritte. Das Rhythmus-Alter sieht auch die Stunden zwischen deinen Spaziergängen. Wer viel geht, aber dazwischen lange sitzt, schneidet bei AgeLess gut ab und beim Rhythmus-Alter schlechter."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess cuenta tus pasos. La edad del ritmo también ve las horas entre tus paseos. Si caminas mucho pero pasas largos ratos sentado, AgeLess te valora bien y la edad del ritmo, peor."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess compte tes pas. L'âge du rythme voit aussi les heures entre tes marches. Si tu marches beaucoup mais restes longtemps assis entre-temps, AgeLess te note bien et l'âge du rythme moins bien."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess conta i tuoi passi. L'età del ritmo vede anche le ore tra una camminata e l'altra. Se cammini molto ma stai a lungo seduto nel mezzo, AgeLess ti valuta bene e l'età del ritmo meno."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess liczy twoje kroki. Wiek rytmu widzi też godziny między spacerami. Jeśli dużo chodzisz, ale pomiędzy długo siedzisz, AgeLess ocenia cię dobrze, a wiek rytmu gorzej."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O AgeLess conta os teus passos. A idade do ritmo também vê as horas entre as tuas caminhadas. Se andas muito mas ficas muito tempo sentado entretanto, o AgeLess avalia-te bem e a idade do ritmo pior."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess считает ваши шаги. Возраст ритма видит и часы между прогулками. Если вы много ходите, но подолгу сидите в промежутках, AgeLess оценит вас хорошо, а возраст ритма хуже."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess 计算你的步数。节律年龄还会看到你两次步行之间的时间。如果你走得多但中间久坐，AgeLess 会给你好评，节律年龄则较差。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess 計算你的步數。節律年齡還會看到你兩次步行之間的時間。如果你走得多但中間久坐，AgeLess 會給你好評，節律年齡則較差。"
+          }
+        }
+      }
+    },
+    "Beta. Not a medical value." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beta. Kein medizinischer Wert."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beta. No es un valor médico."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bêta. Pas une valeur médicale."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beta. Non è un valore medico."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beta. To nie wartość medyczna."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beta. Não é um valor médico."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Бета. Не медицинский показатель."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "测试版。非医学数值。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "測試版。非醫學數值。"
+          }
+        }
+      }
+    },
+    "Built from a week of wrist movement of 53,218 people aged 40 to 69 in the UK Biobank, then tested on further people in the UK and the US. Tap to read the study." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entwickelt aus einer Woche Handgelenksbewegung von 53.218 Menschen zwischen 40 und 69 in der UK Biobank, danach an weiteren Menschen in Großbritannien und den USA geprüft. Tippe, um die Studie zu lesen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Creado a partir de una semana de movimiento de muñeca de 53.218 personas de 40 a 69 años del UK Biobank y probado después en más personas del Reino Unido y EE. UU. Toca para leer el estudio."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Construit à partir d'une semaine de mouvements du poignet de 53 218 personnes de 40 à 69 ans de l'UK Biobank, puis testé sur d'autres personnes au Royaume-Uni et aux États-Unis. Touche pour lire l'étude."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Costruito su una settimana di movimento del polso di 53.218 persone tra 40 e 69 anni della UK Biobank, poi verificato su altre persone nel Regno Unito e negli Stati Uniti. Tocca per leggere lo studio."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opracowany na podstawie tygodnia ruchu nadgarstka 53 218 osób w wieku od 40 do 69 lat z UK Biobank, a potem sprawdzony na kolejnych osobach w Wielkiej Brytanii i USA. Dotknij, aby przeczytać badanie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Construído a partir de uma semana de movimento do pulso de 53 218 pessoas entre os 40 e os 69 anos do UK Biobank e depois testado noutras pessoas no Reino Unido e nos EUA. Toca para ler o estudo."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Построена по неделе движений запястья 53 218 человек от 40 до 69 лет из UK Biobank и проверена на других людях в Великобритании и США. Нажмите, чтобы прочитать исследование."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基于英国生物样本库中 53,218 名 40 至 69 岁人群一周的手腕活动建立，之后在英国和美国的更多人群中验证。轻点阅读研究。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基於英國生物樣本庫中 53,218 名 40 至 69 歲人群一週的手腕活動建立，之後在英國和美國的更多人群中驗證。輕點閱讀研究。"
+          }
+        }
+      }
+    },
+    "Clear difference" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klarer Unterschied"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diferencia clara"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Différence nette"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Differenza netta"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wyraźna różnica"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diferença clara"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Чёткая разница"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "差别明显"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "差別明顯"
+          }
+        }
+      }
+    },
+    "Daily rhythm" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tagesrhythmus"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ritmo diario"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rythme quotidien"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ritmo quotidiano"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rytm dobowy"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ritmo diário"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Дневной ритм"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日常节律"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日常節律"
+          }
+        }
+      }
+    },
+    "Day vs night" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tag und Nacht"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Día y noche"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jour et nuit"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Giorno e notte"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dzień i noc"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dia e noite"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "День и ночь"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "昼与夜"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "晝與夜"
+          }
+        }
+      }
+    },
+    "Get up for a few minutes every hour in the afternoon. That is where you're missing movement." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Steh nachmittags jede Stunde für ein paar Minuten auf. Genau dort fehlt dir Bewegung."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Levántate unos minutos cada hora por la tarde. Justo ahí te falta movimiento."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lève-toi quelques minutes chaque heure l'après-midi. C'est là que le mouvement te manque."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alzati qualche minuto ogni ora di pomeriggio. È proprio lì che ti manca movimento."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wstawaj po południu co godzinę na kilka minut. Właśnie wtedy brakuje ci ruchu."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Levanta-te alguns minutos a cada hora à tarde. É aí que te falta movimento."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вставайте днём каждый час на несколько минут. Именно тогда вам не хватает движения."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下午每小时起身活动几分钟。你缺少活动的正是这段时间。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下午每小時起身活動幾分鐘。你缺少活動的正是這段時間。"
+          }
+        }
+      }
+    },
+    "Get up for a few minutes every hour in the evening. That is where you're missing movement." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Steh abends jede Stunde für ein paar Minuten auf. Genau dort fehlt dir Bewegung."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Levántate unos minutos cada hora por la noche. Justo ahí te falta movimiento."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lève-toi quelques minutes chaque heure le soir. C'est là que le mouvement te manque."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alzati qualche minuto ogni ora di sera. È proprio lì che ti manca movimento."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wstawaj wieczorem co godzinę na kilka minut. Właśnie wtedy brakuje ci ruchu."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Levanta-te alguns minutos a cada hora à noite. É aí que te falta movimento."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вставайте вечером каждый час на несколько минут. Именно тогда вам не хватает движения."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "晚上每小时起身活动几分钟。你缺少活动的正是这段时间。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "晚上每小時起身活動幾分鐘。你缺少活動的正是這段時間。"
+          }
+        }
+      }
+    },
+    "Get up for a few minutes every hour in the morning. That is where you're missing movement." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Steh vormittags jede Stunde für ein paar Minuten auf. Genau dort fehlt dir Bewegung."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Levántate unos minutos cada hora por la mañana. Justo ahí te falta movimiento."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lève-toi quelques minutes chaque heure le matin. C'est là que le mouvement te manque."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alzati qualche minuto ogni ora di mattina. È proprio lì che ti manca movimento."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wstawaj rano co godzinę na kilka minut. Właśnie wtedy brakuje ci ruchu."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Levanta-te alguns minutos a cada hora de manhã. É aí que te falta movimento."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вставайте утром каждый час на несколько минут. Именно тогда вам не хватает движения."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上午每小时起身活动几分钟。你缺少活动的正是这段时间。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上午每小時起身活動幾分鐘。你缺少活動的正是這段時間。"
+          }
+        }
+      }
+    },
+    "Get up for a few minutes every hour of the day. That gives your day more movement and a clearer rhythm." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Steh jede Stunde für ein paar Minuten auf. Das bringt mehr Bewegung in deinen Tag und einen klareren Rhythmus."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Levántate unos minutos cada hora. Así tu día tendrá más movimiento y un ritmo más claro."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lève-toi quelques minutes chaque heure. Ta journée gagne en mouvement et ton rythme devient plus net."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alzati qualche minuto ogni ora. La giornata avrà più movimento e un ritmo più chiaro."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wstawaj co godzinę na kilka minut. Dzień zyska więcej ruchu i wyraźniejszy rytm."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Levanta-te alguns minutos a cada hora. O teu dia ganha mais movimento e um ritmo mais claro."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вставайте каждый час на несколько минут. В дне станет больше движения, а ритм станет чётче."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每小时起身活动几分钟。这会让你的一天活动更多、节律更清晰。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每小時起身活動幾分鐘。這會讓你的一天活動更多、節律更清晰。"
+          }
+        }
+      }
+    },
+    "Getting up for a few minutes every hour already shows in your rhythm." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schon ein paar Minuten auf den Beinen in jeder Stunde zeigen sich in deinem Rhythmus."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Levantarte unos minutos cada hora ya se nota en tu ritmo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Te lever quelques minutes chaque heure se voit déjà dans ton rythme."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alzarti qualche minuto ogni ora si vede già nel tuo ritmo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Już kilka minut na nogach co godzinę widać w twoim rytmie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Levantares-te alguns minutos a cada hora já se nota no teu ritmo."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Даже несколько минут на ногах каждый час уже видны в вашем ритме."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每小时起身活动几分钟，就会体现在你的节律里。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每小時起身活動幾分鐘，就會體現在你的節律裡。"
+          }
+        }
+      }
+    },
+    "Hardly any difference" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kaum Unterschied"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Casi sin diferencia"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Presque aucune différence"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quasi nessuna differenza"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prawie bez różnicy"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quase sem diferença"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Почти нет разницы"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "几乎没有差别"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "幾乎沒有差別"
+          }
+        }
+      }
+    },
+    "Hour" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stunde"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hora"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heure"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ora"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Godzina"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hora"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Час"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "小时"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "小時"
+          }
+        }
+      }
+    },
+    "How young does your daily rhythm keep you?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wie jung hält dich dein Tagesrhythmus?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Cuánto te rejuvenece tu ritmo diario?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À quel point ton rythme quotidien te garde-t-il jeune ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quanto ti mantiene giovane il tuo ritmo quotidiano?"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jak młodo utrzymuje cię twój rytm dobowy?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quão jovem te mantém o teu ritmo diário?"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Насколько молодым вас сохраняет ваш дневной ритм?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的日常节律让你保持多年轻？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的日常節律讓你保持多年輕？"
+          }
+        }
+      }
+    },
+    "How young your daily rhythm keeps you. For WHOOP 5.0 and MG." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wie jung dich dein Tagesrhythmus hält. Für WHOOP 5.0 und MG."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cuánto te rejuvenece tu ritmo diario. Para WHOOP 5.0 y MG."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À quel point ton rythme quotidien te garde jeune. Pour WHOOP 5.0 et MG."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quanto ti mantiene giovane il tuo ritmo quotidiano. Per WHOOP 5.0 e MG."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jak młodo utrzymuje cię twój rytm dobowy. Dla WHOOP 5.0 i MG."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quão jovem te mantém o teu ritmo diário. Para WHOOP 5.0 e MG."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Насколько молодым вас сохраняет дневной ритм. Для WHOOP 5.0 и MG."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的日常节律让你保持多年轻。适用于 WHOOP 5.0 和 MG。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的日常節律讓你保持多年輕。適用於 WHOOP 5.0 和 MG。"
+          }
+        }
+      }
+    },
+    "How young your everyday life keeps you, and which habit helps most." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wie jung dich dein Alltag hält und welche Gewohnheit am meisten hilft."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cuánto te rejuvenece tu día a día y qué hábito ayuda más."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À quel point ton quotidien te garde jeune, et quelle habitude aide le plus."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quanto ti mantiene giovane la tua vita quotidiana e quale abitudine aiuta di più."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jak młodo utrzymuje cię codzienność i który nawyk pomaga najbardziej."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quão jovem te mantém o teu dia a dia e que hábito mais ajuda."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Насколько молодым вас сохраняет повседневная жизнь и какая привычка помогает больше всего."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的日常生活让你保持多年轻，以及哪项习惯最有帮助。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的日常生活讓你保持多年輕，以及哪項習慣最有幫助。"
+          }
+        }
+      }
+    },
+    "In the afternoon and evening much less." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nachmittags und abends deutlich weniger."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por la tarde y por la noche, mucho menos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'après-midi et le soir, nettement moins."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Di pomeriggio e di sera molto meno."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Po południu i wieczorem znacznie mniej."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À tarde e à noite, muito menos."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Днём и вечером заметно меньше."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下午和晚上则明显较少。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下午和晚上則明顯較少。"
+          }
+        }
+      }
+    },
+    "In the afternoon much less." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nachmittags deutlich weniger."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por la tarde, mucho menos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'après-midi, nettement moins."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Di pomeriggio molto meno."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Po południu znacznie mniej."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À tarde, muito menos."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Днём заметно меньше."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下午则明显较少。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下午則明顯較少。"
+          }
+        }
+      }
+    },
+    "In the afternoon you move like most people." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nachmittags bewegst du dich wie die meisten."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por la tarde te mueves como la mayoría."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'après-midi, tu bouges comme la plupart."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Di pomeriggio ti muovi come la maggior parte delle persone."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Po południu ruszasz się jak większość."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À tarde mexes-te como a maioria."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Днём вы двигаетесь как большинство."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下午你的活动量与多数人相当。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下午你的活動量與多數人相當。"
+          }
+        }
+      }
+    },
+    "In the afternoon you move more than most people." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nachmittags bewegst du dich mehr als die meisten."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por la tarde te mueves más que la mayoría."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'après-midi, tu bouges plus que la plupart."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Di pomeriggio ti muovi più della maggior parte delle persone."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Po południu ruszasz się więcej niż większość."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À tarde mexes-te mais do que a maioria."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Днём вы двигаетесь больше большинства."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下午你的活动量多于多数人。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下午你的活動量多於多數人。"
+          }
+        }
+      }
+    },
+    "In the evening much less." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abends deutlich weniger."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por la noche, mucho menos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le soir, nettement moins."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Di sera molto meno."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wieczorem znacznie mniej."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À noite, muito menos."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вечером заметно меньше."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "晚上则明显较少。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "晚上則明顯較少。"
+          }
+        }
+      }
+    },
+    "In the evening you move like most people." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abends bewegst du dich wie die meisten."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por la noche te mueves como la mayoría."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le soir, tu bouges comme la plupart."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Di sera ti muovi come la maggior parte delle persone."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wieczorem ruszasz się jak większość."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À noite mexes-te como a maioria."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вечером вы двигаетесь как большинство."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "晚上你的活动量与多数人相当。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "晚上你的活動量與多數人相當。"
+          }
+        }
+      }
+    },
+    "In the evening you move more than most people." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abends bewegst du dich mehr als die meisten."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por la noche te mueves más que la mayoría."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le soir, tu bouges plus que la plupart."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Di sera ti muovi più della maggior parte delle persone."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wieczorem ruszasz się więcej niż większość."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À noite mexes-te mais do que a maioria."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вечером вы двигаетесь больше большинства."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "晚上你的活动量多于多数人。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "晚上你的活動量多於多數人。"
+          }
+        }
+      }
+    },
+    "In the morning and afternoon much less." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vormittags und nachmittags deutlich weniger."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por la mañana y por la tarde, mucho menos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le matin et l'après-midi, nettement moins."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Di mattina e di pomeriggio molto meno."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rano i po południu znacznie mniej."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De manhã e à tarde, muito menos."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Утром и днём заметно меньше."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上午和下午则明显较少。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上午和下午則明顯較少。"
+          }
+        }
+      }
+    },
+    "In the morning and evening much less." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vormittags und abends deutlich weniger."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por la mañana y por la noche, mucho menos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le matin et le soir, nettement moins."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Di mattina e di sera molto meno."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rano i wieczorem znacznie mniej."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De manhã e à noite, muito menos."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Утром и вечером заметно меньше."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上午和晚上则明显较少。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上午和晚上則明顯較少。"
+          }
+        }
+      }
+    },
+    "In the morning much less." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vormittags deutlich weniger."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por la mañana, mucho menos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le matin, nettement moins."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Di mattina molto meno."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rano znacznie mniej."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De manhã, muito menos."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Утром заметно меньше."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上午则明显较少。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上午則明顯較少。"
+          }
+        }
+      }
+    },
+    "In the morning you move like most people." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vormittags bewegst du dich wie die meisten."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por la mañana te mueves como la mayoría."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le matin, tu bouges comme la plupart."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Di mattina ti muovi come la maggior parte delle persone."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rano ruszasz się jak większość."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De manhã mexes-te como a maioria."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Утром вы двигаетесь как большинство."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上午你的活动量与多数人相当。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上午你的活動量與多數人相當。"
+          }
+        }
+      }
+    },
+    "In the morning you move more than most people." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vormittags bewegst du dich mehr als die meisten."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por la mañana te mueves más que la mayoría."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le matin, tu bouges plus que la plupart."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Di mattina ti muovi più della maggior parte delle persone."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rano ruszasz się więcej niż większość."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De manhã mexes-te mais do que a maioria."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Утром вы двигаетесь больше большинства."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上午你的活动量多于多数人。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上午你的活動量多於多數人。"
+          }
+        }
+      }
+    },
+    "It needs three days of wear, day and night, without the same hours missing every day. NOOP calculates it once a day on your device. Below age 40 it is a rough guide." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Es braucht drei Tage Tragen, bei Tag und Nacht, ohne dass jeden Tag dieselben Stunden fehlen. NOOP rechnet es einmal am Tag auf deinem Gerät. Unter 40 ist es eine grobe Einordnung."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Necesita tres días de uso, de día y de noche, sin que falten las mismas horas cada día. NOOP lo calcula una vez al día en tu dispositivo. Por debajo de los 40 es orientativo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il faut trois jours de port, jour et nuit, sans que les mêmes heures manquent chaque jour. NOOP le calcule une fois par jour sur ton appareil. Avant 40 ans, ce n'est qu'un repère."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Servono tre giorni di uso, giorno e notte, senza che manchino le stesse ore ogni giorno. NOOP lo calcola una volta al giorno sul tuo dispositivo. Sotto i 40 anni è solo indicativo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Potrzeba trzech dni noszenia w dzień i w nocy, bez braku tych samych godzin każdego dnia. NOOP liczy to raz dziennie na twoim urządzeniu. Poniżej 40 lat to tylko orientacja."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Precisa de três dias de uso, de dia e de noite, sem faltarem as mesmas horas todos os dias. O NOOP calcula-o uma vez por dia no teu dispositivo. Abaixo dos 40 anos é apenas indicativo."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нужно три дня ношения днём и ночью, чтобы каждый день не выпадали одни и те же часы. NOOP считает это раз в день на вашем устройстве. До 40 лет это лишь грубая оценка."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要昼夜佩戴三天，且不能每天都缺同一时段。NOOP 每天在你的设备上计算一次。40 岁以下仅供粗略参考。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要晝夜佩戴三天，且不能每天都缺同一時段。NOOP 每天在你的裝置上計算一次。40 歲以下僅供粗略參考。"
+          }
+        }
+      }
+    },
+    "Like most people" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wie die meisten"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Como la mayoría"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comme la plupart"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Come la maggior parte"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jak większość"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Como a maioria"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Как у большинства"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "与多数人相同"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "與多數人相同"
+          }
+        }
+      }
+    },
+    "Line" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linie"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Línea"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ligne"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linea"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linia"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linha"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Линия"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "线"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "線"
+          }
+        }
+      }
+    },
+    "Most active" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Am aktivsten"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Más activo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le plus actif"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Più attivo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Najaktywniej"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mais ativo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пик активности"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最活跃"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最活躍"
+          }
+        }
+      }
+    },
+    "Movement over the day" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bewegung über den Tag"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Movimiento durante el día"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mouvement sur la journée"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Movimento nella giornata"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ruch w ciągu dnia"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Movimento ao longo do dia"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Движение за день"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全天活动量"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全天活動量"
+          }
+        }
+      }
+    },
+    "Movement per hour, average of the week" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bewegung pro Stunde, Durchschnitt der Woche"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Movimiento por hora, media de la semana"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mouvement par heure, moyenne de la semaine"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Movimento per ora, media della settimana"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ruch na godzinę, średnia z tygodnia"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Movimento por hora, média da semana"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Движение по часам, среднее за неделю"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每小时活动量，一周平均"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每小時活動量，一週平均"
+          }
+        }
+      }
+    },
+    "NOOP draws a smooth 24-hour curve through every minute of the last seven days. Its average height is your movement over the day and its swing the difference between day and night. The study's model turns these, the time the curve peaks and your age into years." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP legt eine glatte 24-Stunden-Kurve durch jede Minute der letzten sieben Tage. Ihre mittlere Höhe ist deine Bewegung über den Tag, ihr Ausschlag der Unterschied zwischen Tag und Nacht. Das Modell der Studie macht daraus, aus dem Zeitpunkt ihres Gipfels und aus deinem Alter Jahre."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP traza una curva suave de 24 horas por cada minuto de los últimos siete días. Su altura media es tu movimiento durante el día y su oscilación la diferencia entre día y noche. El modelo del estudio convierte estos valores, la hora del pico de la curva y tu edad en años."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP trace une courbe lisse de 24 heures à travers chaque minute des sept derniers jours. Sa hauteur moyenne est ton mouvement sur la journée et son amplitude l'écart entre le jour et la nuit. Le modèle de l'étude transforme ces valeurs, l'heure du sommet de la courbe et ton âge en années."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP traccia una curva morbida di 24 ore attraverso ogni minuto degli ultimi sette giorni. La sua altezza media è il tuo movimento nella giornata e la sua oscillazione la differenza tra giorno e notte. Il modello dello studio trasforma questi valori, l'ora del picco della curva e la tua età in anni."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP prowadzi gładką 24-godzinną krzywą przez każdą minutę ostatnich siedmiu dni. Jej średnia wysokość to twój ruch w ciągu dnia, a jej wahanie to różnica między dniem a nocą. Model z badania zamienia te wartości, porę szczytu krzywej i twój wiek na lata."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O NOOP traça uma curva suave de 24 horas por cada minuto dos últimos sete dias. A sua altura média é o teu movimento ao longo do dia e a sua oscilação a diferença entre o dia e a noite. O modelo do estudo transforma estes valores, a hora do pico da curva e a tua idade em anos."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP проводит плавную 24-часовую кривую через каждую минуту последних семи дней. Её средняя высота — ваше движение за день, а размах — разница между днём и ночью. Модель исследования переводит эти значения, время пика кривой и ваш возраст в годы."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 用一条平滑的 24 小时曲线拟合最近七天的每一分钟。曲线的平均高度是你全天的活动量，起伏是昼夜之间的差别。研究中的模型把这些值、曲线峰值的时间和你的年龄换算成年数。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 用一條平滑的 24 小時曲線擬合最近七天的每一分鐘。曲線的平均高度是你全天的活動量，起伏是晝夜之間的差別。研究中的模型把這些值、曲線峰值的時間和你的年齡換算成年數。"
+          }
+        }
+      }
+    },
+    "New in Lab: AgeLess" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neu im Lab: AgeLess"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Novedad en Lab: AgeLess"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouveau dans Lab : AgeLess"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Novità in Lab: AgeLess"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nowość w Lab: AgeLess"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Novo no Lab: AgeLess"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Новое в Lab: AgeLess"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lab 新功能：AgeLess"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lab 新功能：AgeLess"
+          }
+        }
+      }
+    },
+    "New in Lab: Daily rhythm" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neu im Lab: Tagesrhythmus"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Novedad en Lab: Ritmo diario"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouveau dans Lab : Rythme quotidien"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Novità in Lab: Ritmo quotidiano"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nowość w Lab: Rytm dobowy"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Novo no Lab: Ritmo diário"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Новое в Lab: Дневной ритм"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lab 新功能：日常节律"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lab 新功能：日常節律"
+          }
+        }
+      }
+    },
+    "One model, built from the movement of 53,218 people and tested as a whole. Looks only at how your day moves and needs nothing but your strap." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein einziges Modell, entwickelt aus der Bewegung von 53.218 Menschen und als Ganzes geprüft. Schaut nur darauf, wie sich dein Tag bewegt, und braucht nichts außer deinem Strap."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un único modelo, creado a partir del movimiento de 53.218 personas y probado en conjunto. Solo mira cómo se mueve tu día y no necesita más que tu pulsera."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un seul modèle, construit à partir du mouvement de 53 218 personnes et testé dans son ensemble. Il ne regarde que la façon dont ta journée bouge et n'a besoin que de ton bracelet."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un unico modello, costruito sul movimento di 53.218 persone e verificato nel suo insieme. Guarda solo come si muove la tua giornata e gli basta la tua fascia."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jeden model, zbudowany na ruchu 53 218 osób i sprawdzony jako całość. Patrzy tylko na to, jak porusza się twój dzień, i wystarczy mu twoja opaska."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um único modelo, construído a partir do movimento de 53 218 pessoas e testado no seu todo. Só olha para como se move o teu dia e basta-lhe a tua pulseira."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Одна модель, построенная на движении 53 218 человек и проверенная целиком. Смотрит только на то, как движется ваш день, и ей нужен только ваш браслет."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "单一模型，基于 53,218 人的活动数据建立并经过整体验证。只看你一天如何活动，除了你的手环什么都不需要。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "單一模型，基於 53,218 人的活動數據建立並經過整體驗證。只看你一天如何活動，除了你的手環什麼都不需要。"
+          }
+        }
+      }
+    },
+    "Reading your daily rhythm…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tagesrhythmus wird gelesen…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leyendo tu ritmo diario…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lecture de ton rythme quotidien…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lettura del ritmo quotidiano…"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odczytywanie rytmu dobowego…"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A ler o teu ritmo diário…"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Читаем ваш дневной ритм…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在读取你的日常节律…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在讀取你的日常節律…"
+          }
+        }
+      }
+    },
+    "Rhythm age" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rhythmus-Alter"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edad del ritmo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Âge du rythme"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Età del ritmo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wiek rytmu"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Idade do ritmo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Возраст ритма"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "节律年龄"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "節律年齡"
+          }
+        }
+      }
+    },
+    "Rhythm age %@, %@ %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rhythmus-Alter %@, %@ %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edad del ritmo %@, %@ %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Âge du rythme %@, %@ %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Età del ritmo %@, %@ %@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wiek rytmu %@, %@ %@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Idade do ritmo %@, %@ %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Возраст ритма %@, %@ %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "节律年龄 %@，%@ %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "節律年齡 %@，%@ %@"
+          }
+        }
+      }
+    },
+    "Rhythm age by day, in years older or younger than you; dashed line is your actual age" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rhythmus-Alter pro Tag, in Jahren älter oder jünger als du; die gestrichelte Linie ist dein tatsächliches Alter"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edad del ritmo por día, en años más o menos que tú; la línea discontinua es tu edad real"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Âge du rythme par jour, en années de plus ou de moins que toi ; la ligne pointillée est ton âge réel"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Età del ritmo per giorno, in anni in più o in meno di te; la linea tratteggiata è la tua età reale"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wiek rytmu dla każdego dnia, w latach więcej lub mniej niż ty; linia przerywana to twój faktyczny wiek"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Idade do ritmo por dia, em anos a mais ou a menos do que tu; a linha tracejada é a tua idade real"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Возраст ритма по дням, в годах старше или моложе вас; пунктир — ваш фактический возраст"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每天的节律年龄，以比你实际年龄大或小的年数表示；虚线为你的实际年龄"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每天的節律年齡，以比你實際年齡大或小的年數表示；虛線為你的實際年齡"
+          }
+        }
+      }
+    },
+    "Rhythm age · last 7 days" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rhythmus-Alter · letzte 7 Tage"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edad del ritmo · últimos 7 días"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Âge du rythme · 7 derniers jours"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Età del ritmo · ultimi 7 giorni"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wiek rytmu · ostatnie 7 dni"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Idade do ritmo · últimos 7 dias"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Возраст ритма · последние 7 дней"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "节律年龄 · 最近 7 天"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "節律年齡 · 最近 7 天"
+          }
+        }
+      }
+    },
+    "Small changes count" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kleine Schritte zählen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los pequeños cambios cuentan"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les petits changements comptent"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anche i piccoli cambiamenti contano"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Małe zmiany się liczą"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As pequenas mudanças contam"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Важны и маленькие шаги"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "小改变也有用"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "小改變也有用"
+          }
+        }
+      }
+    },
+    "Two views of your age" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zwei Blickwinkel auf dein Alter"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dos miradas a tu edad"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deux regards sur ton âge"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Due sguardi sulla tua età"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dwa spojrzenia na twój wiek"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dois olhares sobre a tua idade"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Два взгляда на ваш возраст"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "看待年龄的两个角度"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "看待年齡的兩個角度"
+          }
+        }
+      }
+    },
+    "Typical day in the study" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Typischer Tag in der Studie"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Día típico del estudio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Journée type de l'étude"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Giornata tipica dello studio"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Typowy dzień w badaniu"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dia típico do estudo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Типичный день в исследовании"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "研究中的典型一天"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "研究中的典型一天"
+          }
+        }
+      }
+    },
+    "WHOOP 5.0 and MG. How your day moves over a week, compared with a large study, as a rhythm age. Shown on Health. Needs three days worn day and night. Beta, not a medical age." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WHOOP 5.0 und MG. Wie sich dein Tag über eine Woche bewegt, verglichen mit einer großen Studie, als Rhythmus-Alter. Erscheint unter Gesundheit. Braucht drei Tage Tragen bei Tag und Nacht. Beta, kein medizinisches Alter."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WHOOP 5.0 y MG. Cómo se mueve tu día durante una semana, comparado con un gran estudio, como edad del ritmo. Se muestra en Salud. Necesita tres días de uso de día y de noche. Beta, no es una edad médica."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WHOOP 5.0 et MG. Comment bouge ta journée sur une semaine, comparé à une grande étude, sous forme d'âge du rythme. Affiché dans Santé. Nécessite trois jours de port jour et nuit. Bêta, pas un âge médical."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WHOOP 5.0 e MG. Come si muove la tua giornata nell'arco di una settimana, confrontata con un grande studio, come età del ritmo. Mostrato in Salute. Servono tre giorni di uso giorno e notte. Beta, non è un'età medica."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WHOOP 5.0 i MG. Jak porusza się twój dzień w ciągu tygodnia, w porównaniu z dużym badaniem, jako wiek rytmu. Widoczne w Zdrowiu. Wymaga trzech dni noszenia w dzień i w nocy. Beta, to nie wiek medyczny."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WHOOP 5.0 e MG. Como se move o teu dia ao longo de uma semana, comparado com um grande estudo, como idade do ritmo. Mostrado em Saúde. Precisa de três dias de uso de dia e de noite. Beta, não é uma idade médica."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WHOOP 5.0 и MG. Как движется ваш день за неделю в сравнении с крупным исследованием, в виде возраста ритма. Показывается в разделе «Здоровье». Нужно три дня ношения днём и ночью. Бета, не медицинский возраст."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "适用于 WHOOP 5.0 和 MG。你一周内的活动方式，与一项大型研究对比，以节律年龄呈现。显示在健康页面。需要昼夜佩戴三天。测试版，不是医学年龄。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "適用於 WHOOP 5.0 和 MG。你一週內的活動方式，與一項大型研究對比，以節律年齡呈現。顯示在健康頁面。需要晝夜佩戴三天。測試版，不是醫學年齡。"
+          }
+        }
+      }
+    },
+    "Wear your strap day and night, and charge it at different times so no part of the day stays empty." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trage deinen Strap Tag und Nacht und lade ihn zu wechselnden Zeiten, damit keine Tageszeit leer bleibt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lleva tu pulsera día y noche y cárgala a horas distintas para que ninguna parte del día quede vacía."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Porte ton bracelet jour et nuit et recharge-le à des heures différentes pour qu'aucun moment de la journée ne reste vide."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indossa la fascia giorno e notte e caricala a orari diversi, così nessuna parte della giornata resta vuota."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noś opaskę w dzień i w nocy i ładuj ją o różnych porach, żeby żadna część dnia nie została pusta."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa a tua pulseira dia e noite e carrega-a a horas diferentes para que nenhuma parte do dia fique vazia."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Носите браслет днём и ночью и заряжайте его в разное время, чтобы ни одна часть суток не оставалась пустой."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请昼夜佩戴手环，并在不同时间充电，避免一天中的某个时段总是空缺。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請晝夜佩戴手環，並在不同時間充電，避免一天中的某個時段總是空缺。"
+          }
+        }
+      }
+    },
+    "What helps most" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Was am meisten hilft"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lo que más ayuda"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce qui aide le plus"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cosa aiuta di più"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Co pomaga najbardziej"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O que mais ajuda"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Что помогает больше всего"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最有帮助的做法"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最有幫助的做法"
+          }
+        }
+      }
+    },
+    "Why the two can differ" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warum die beiden abweichen können"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por qué pueden diferir"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pourquoi les deux peuvent différer"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Perché possono differire"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dlaczego mogą się różnić"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Porque podem diferir"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Почему они могут расходиться"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "两者为何可能不同"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "兩者為何可能不同"
+          }
+        }
+      }
+    },
+    "Years older (above zero) or younger (below zero) than you" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jahre älter (über null) oder jünger (unter null) als du"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Años más (sobre cero) o menos (bajo cero) que tú"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Années de plus (au-dessus de zéro) ou de moins (en dessous) que toi"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anni in più (sopra lo zero) o in meno (sotto lo zero) di te"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lata więcej (powyżej zera) lub mniej (poniżej zera) niż ty"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anos a mais (acima de zero) ou a menos (abaixo de zero) do que tu"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "На сколько лет старше (выше нуля) или моложе (ниже нуля) вас"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "比你大（零以上）或小（零以下）的年数"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "比你大（零以上）或小（零以下）的年數"
+          }
+        }
+      }
+    },
+    "You move much less than most people all day." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Du bewegst dich den ganzen Tag deutlich weniger als die meisten."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Durante todo el día te mueves mucho menos que la mayoría."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu bouges nettement moins que la plupart toute la journée."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Per tutto il giorno ti muovi molto meno della maggior parte delle persone."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przez cały dzień ruszasz się znacznie mniej niż większość."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Durante todo o dia mexes-te muito menos do que a maioria."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Весь день вы двигаетесь заметно меньше большинства."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你全天的活动量都明显少于多数人。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你全天的活動量都明顯少於多數人。"
+          }
+        }
+      }
+    },
+    "Your daily rhythm appears after three days of wearing a WHOOP 5.0 or MG day and night." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Tagesrhythmus erscheint, nachdem du einen WHOOP 5.0 oder MG drei Tage lang Tag und Nacht getragen hast."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu ritmo diario aparece tras llevar un WHOOP 5.0 o MG tres días, de día y de noche."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ton rythme quotidien apparaît après trois jours de port d'un WHOOP 5.0 ou MG, jour et nuit."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo ritmo quotidiano compare dopo tre giorni di uso di un WHOOP 5.0 o MG, giorno e notte."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twój rytm dobowy pojawi się po trzech dniach noszenia WHOOP 5.0 lub MG w dzień i w nocy."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O teu ritmo diário aparece após três dias a usar um WHOOP 5.0 ou MG, de dia e de noite."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваш дневной ритм появится после трёх дней ношения WHOOP 5.0 или MG днём и ночью."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "昼夜佩戴 WHOOP 5.0 或 MG 三天后，你的日常节律就会出现。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "晝夜佩戴 WHOOP 5.0 或 MG 三天後，你的日常節律就會出現。"
+          }
+        }
+      }
+    },
+    "Your day" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Tag"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu día"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ta journée"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La tua giornata"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twój dzień"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O teu dia"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваш день"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的一天"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的一天"
+          }
+        }
+      }
+    },
+    "Your day moves like most people's. Keep it that way." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Tag bewegt sich wie bei den meisten. Bleib dabei."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu día se mueve como el de la mayoría. Sigue así."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ta journée bouge comme celle de la plupart. Continue ainsi."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La tua giornata si muove come quella della maggior parte. Continua così."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twój dzień wygląda jak u większości. Tak trzymaj."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O teu dia mexe-se como o da maioria. Continua assim."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваш день движется как у большинства. Так держать."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你一天的活动与多数人相当。保持下去。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你一天的活動與多數人相當。保持下去。"
+          }
+        }
+      }
+    },
+    "Your strap feels every move you make. Over a week that shows how much you move, how clearly your days stand out from your nights and when you are most active. A large study turned exactly this rhythm into an age." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Strap spürt jede Bewegung. Über eine Woche zeigt sich daran, wie viel du dich bewegst, wie klar sich deine Tage von deinen Nächten abheben und wann du am aktivsten bist. Eine große Studie hat genau diesen Rhythmus in ein Alter übersetzt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu pulsera nota cada movimiento. En una semana muestra cuánto te mueves, cuánto se distinguen tus días de tus noches y cuándo estás más activo. Un gran estudio convirtió justo este ritmo en una edad."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ton bracelet sent chacun de tes mouvements. Sur une semaine, cela montre combien tu bouges, à quel point tes journées se distinguent de tes nuits et quand tu es le plus actif. Une grande étude a traduit exactement ce rythme en âge."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La tua fascia sente ogni tuo movimento. In una settimana mostra quanto ti muovi, quanto le giornate si distinguono dalle notti e quando sei più attivo. Un grande studio ha tradotto proprio questo ritmo in un'età."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twoja opaska czuje każdy ruch. W ciągu tygodnia widać, ile się ruszasz, jak wyraźnie dni odróżniają się od nocy i kiedy jesteś najbardziej aktywny. Duże badanie przełożyło właśnie ten rytm na wiek."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A tua pulseira sente cada movimento. Ao longo de uma semana mostra quanto te mexes, quão bem os teus dias se distinguem das noites e quando estás mais ativo. Um grande estudo transformou exatamente este ritmo numa idade."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваш браслет чувствует каждое движение. За неделю видно, сколько вы двигаетесь, насколько чётко дни отличаются от ночей и когда вы активнее всего. Крупное исследование перевело именно этот ритм в возраст."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的手环能感知你的每个动作。一周下来，就能看出你活动多少、白天与夜晚区别有多明显，以及你何时最活跃。一项大型研究正是把这种节律换算成了年龄。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的手環能感知你的每個動作。一週下來，就能看出你活動多少、白天與夜晚區別有多明顯，以及你何時最活躍。一項大型研究正是把這種節律換算成了年齡。"
+          }
+        }
+      }
+    },
+    "Your strap measures movement its own way. NOOP translates it into the study's measure with a table built from one person's week of raw strap data, so for very active people the result may come out too low." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Strap misst Bewegung auf seine eigene Art. NOOP übersetzt sie mit einer Tabelle in das Maß der Studie, die aus einer Woche Rohdaten einer einzigen Person entstanden ist. Bei sehr aktiven Menschen kann das Ergebnis deshalb zu niedrig ausfallen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu pulsera mide el movimiento a su manera. NOOP lo traduce a la medida del estudio con una tabla hecha a partir de una semana de datos en bruto de una sola persona, así que en personas muy activas el resultado puede quedarse corto."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ton bracelet mesure le mouvement à sa façon. NOOP le traduit dans la mesure de l'étude avec une table construite à partir d'une semaine de données brutes d'une seule personne ; chez les personnes très actives, le résultat peut donc être trop bas."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La tua fascia misura il movimento a modo suo. NOOP lo traduce nella misura dello studio con una tabella costruita su una settimana di dati grezzi di una sola persona, quindi per le persone molto attive il risultato può risultare troppo basso."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twoja opaska mierzy ruch na swój sposób. NOOP przekłada go na miarę z badania za pomocą tabeli zbudowanej z tygodnia surowych danych jednej osoby, więc u bardzo aktywnych osób wynik może wyjść za niski."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A tua pulseira mede o movimento à sua maneira. O NOOP traduz isso para a medida do estudo com uma tabela feita a partir de uma semana de dados brutos de uma só pessoa, por isso em pessoas muito ativas o resultado pode ficar baixo."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваш браслет измеряет движение по-своему. NOOP переводит его в меру исследования по таблице, построенной на неделе сырых данных одного человека, поэтому у очень активных людей результат может оказаться заниженным."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的手环以自己的方式测量活动。NOOP 用一张基于单人一周原始数据建立的换算表，把它转换为研究所用的度量，因此对非常活跃的人，结果可能偏低。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的手環以自己的方式測量活動。NOOP 用一張基於單人一週原始數據建立的換算表，把它轉換為研究所用的度量，因此對非常活躍的人，結果可能偏低。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

@@ -497,6 +497,36 @@ is open, as it did on Data Sources. More keeps what you look at or use, with Ala
 Analysis migration required: no — every control writes the same key as before; only places, names and help
 texts change.
 
+### 2026-10-15 — Daily rhythm: CosinorAge as a beta beside AgeLess, never inside it
+
+The Lab switch "Daily rhythm" (default off, WHOOP 5.0 and MG) shows the CosinorAge rhythm age on AgeLess's
+age gauge, the last seven days as 24 hourly bars against the study's typical day (the cohort's median MESOR,
+amplitude and acrophase through the model's cosine) with one sentence on what that shows, movement over the day
+(MESOR) and the day-night difference (amplitude) on three worded steps against the cohort's interquartile
+range (Shim, Fleisch & Barata 2024, Table 1, UK Biobank, n = 53 218, aged 40 to 69), the wearer's busiest three
+real hours, and the one part of the day where movement is missing. No unit appears on screen. A straight
+24-hour bar chart replaced a radial dial because non-experts read daily patterns more accurately on it
+(Waldner et al., IEEE TVCG 2020), and the busiest hours come from the measured profile because the fitted
+cosine's peak can miss them (13:10 fitted against 09:00 to 12:00 measured in the calibration week).
+
+The strap's per-second `dynamic_acceleration@41` is not ENMO: none of twelve candidate definitions reproduces it
+per second. Per minute it tracks ENMO from the strap's own 100 Hz IMU closely (r 0.91 over the wearer's
+2026-10-08 to 15 week, 9 018 minutes), so minute means go through a 32-knot isotonic table fitted on that week
+(`RhythmAge.swift`). Held out on half the week the table is off by 4.9 mg per minute without bias, worth at most
+0.36 years at the wearer's rhythm and about 1.8 years for a much more active one. The pre-registered limit was
+1 year; for a labelled beta 2 years is accepted deliberately. One person calibrated the table, so the beta
+says so, and a later refit needs other wearers' raw weeks.
+
+The rhythm age is not added to AgeLess: AgeLess already prices steps and sleep regularity, which is what
+CosinorAge measures, so it would count the same behaviour twice. The two are shown as different questions with
+an explanation of why they can differ. The readout is scored once per local day in the analysis pass from the
+seven days before (about 600 000 rows) and stored under `rhythm_*`, including the 24 hourly averages; screens
+read the stored values, and turning
+the switch on scores today at once. Two one-off bell entries introduce AgeLess and Daily rhythm and link to
+Settings › Lab; More › Health & Body lists both screens while their switch is on.
+
+Analysis migration required: no — new series only; no stored value, score, window or source precedence changes.
+
 ### 2026-10-15 — Experimental step filter removed
 
 `GaitGatedStepCounter` and its comparison screen (2026-10-08) are removed. Against a research step reference

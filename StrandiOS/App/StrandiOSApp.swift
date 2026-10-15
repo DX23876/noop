@@ -631,6 +631,7 @@ private struct iOSRootView: View {
             // Seed the current What's New into the Updates inbox (idempotent per version) so the bell
             // collects it even if the user dismisses the auto sheet.
             UpdateStore.shared.seedWhatsNewIfNeeded()
+            UpdateStore.shared.seedFeatureIntrosIfNeeded()
             // #1659: iOS cannot auto-update a sideloaded build - no API lets an app install or re-sign an
             // .ipa - so the most NOOP can do is NOTICE a release and say so.
             //

@@ -995,6 +995,17 @@ final class IntelligenceEngine: ObservableObject {
         )]
     }
 
+    /// Score today's readout now, without waiting for the next analysis pass: the Lab switch calls this when
+    /// it is turned on, so the card does not stay empty until tomorrow.
+    func rescoreRhythmAgeNow() async {
+        guard let store = await repo.storeHandle() else { return }
+        let tzOffset = TimeZone.current.secondsFromGMT()
+        let midnight = Self.midnightLocal(Int(Date().timeIntervalSince1970), offsetSec: tzOffset)
+        let day = AnalyticsEngine.dayString(midnight, offsetSec: tzOffset)
+        await Self.runRhythmAgePass(store: store, strapId: deviceId, computedId: deviceId + "-noop",
+                                    age: profile.age, sex: profile.sex, day: day, tzOffset: tzOffset, force: true)
+    }
+
     /// Manual "refresh Fitness Age" (the button on the not-ready card): recompute the weekly Fitness Age NOW
     /// from the PERSISTED merged daily history , NO raw-HR rescoring , and upsert it. Same gate
     /// (`fitnessAgeRows`) + date/window logic as the recompute pass, so it reads exactly what the readiness
@@ -3623,6 +3634,11 @@ final class IntelligenceEngine: ObservableObject {
                                          age: profile.age, sex: profile.sex, hrMaxOverride: profile.hrMaxOverride,
                                          oldestDay: oldestDay, newestDay: newestDay, tzOffset: tzOffset,
                                          manualVO2max: manualVO2, longSessions: longSessions, bodyFat: bodyFat)
+        }
+        // Fork: daily-rhythm readout (CosinorAge beta), once per local day (IntelligenceEngine+RhythmAge.swift).
+        if RhythmAgeFeature.isEnabled {
+            await Self.runRhythmAgePass(store: store, strapId: deviceId, computedId: computedId, age: profile.age,
+                                        sex: profile.sex, day: newestDay, tzOffset: tzOffset)
         }
 
         // ── Stress proxy (#R-stress-chart), DAILY, gap-filled under the canonical "my-whoop" source ─────

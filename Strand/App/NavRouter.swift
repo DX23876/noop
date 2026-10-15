@@ -52,6 +52,9 @@ final class NavRouter: ObservableObject {
         /// (HRV, resting HR, weight, workouts, training load, steps, vitals) land, the same screens their
         /// cards on Today open.
         case todayDetail
+        /// Settings → Lab, the page with the experimental switches. A feature introduction in the bell
+        /// links here as `lab.<feature>`, so each introduction stays its own inbox row.
+        case lab
 
         var id: String { rawValue }
 
@@ -59,6 +62,7 @@ final class NavRouter: ObservableObject {
         /// Updates inbox route a tapped item generically (e.g. a `.reading` item's "trends") without the
         /// inbox knowing every shell. Unknown keys return nil → the inbox just dismisses.
         init?(deepLinkKey: String) {
+            if deepLinkKey.hasPrefix("lab.") { self = .lab; return }
             self.init(rawValue: deepLinkKey)
         }
     }

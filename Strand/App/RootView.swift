@@ -397,6 +397,8 @@ struct RootView: View {
             case .todayDetail:
                 selection = .today
                 router.requestedTodayRoute = nil
+            // A feature introduction in the bell: the Settings pane, which lists Lab.
+            case .lab: selection = .settings
             case nil: break
             }
             if dest != nil { router.requestedDestination = nil }

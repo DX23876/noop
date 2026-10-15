@@ -93,6 +93,7 @@ struct HealthView: View {
 private struct HealthSectionsStack: View {
     // Fork: the Healthspan card replaces Body Age while its experiment is on, so Health states one age.
     @AppStorage(HealthspanFeature.defaultsKey) private var healthspanEnabled = false
+    @AppStorage(RhythmAgeFeature.defaultsKey) private var rhythmAgeEnabled = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
@@ -110,6 +111,8 @@ private struct HealthSectionsStack: View {
             // Vitality / Body Age (weekly, computed by IntelligenceEngine from the mortality-
             // hazard model). Its own view depending only on repo/profile.
             if healthspanEnabled { HealthspanSection() } else { VitalitySection() }
+            // Fork: daily rhythm (CosinorAge beta), Lab switch, off by default. Reads the stored daily readout.
+            if rhythmAgeEnabled { RhythmAgeSection() }
             // Screen-5 recovery detail: the CONTRIBUTORS to today's recovery as
             // labelled progress bars (HRV / Resting HR / Sleep / Respiratory), each
             // scored against the on-device baseline. Depends only on `repo`.
