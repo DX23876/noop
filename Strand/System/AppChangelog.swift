@@ -7,7 +7,7 @@ enum AppChangelog {
 
     /// Bump this when you add a release below. The "What's New" sheet shows automatically when the
     /// stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
-    static let currentVersion = "12.0.1"
+    static let currentVersion = "12.1.0"
 
     struct Release: Identifiable {
         let version: String
@@ -28,6 +28,16 @@ enum AppChangelog {
 
     /// Newest first.
     static let releases: [Release] = [
+        Release(
+            version: "12.1.0",
+            title: "Climbs, a quicker start and clearer Settings",
+            date: "October 2026",
+            items: [
+                "**Elevation on GPS workouts.** The iPhone counts climbs with its barometer and shows an elevation profile, the grade and a grade-adjusted pace.",
+                "**Start in one tap.** The Training tab starts your recent activities directly, with the route and zone choice each had last time.",
+                "**Settings sorted by task.** Seventeen pages in six groups, and every control has exactly one home.",
+            ]
+        ),
         Release(
             version: "12.0.1",
             title: "ECG readings, goals and one workout start",

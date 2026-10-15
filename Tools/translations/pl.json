@@ -4244,5 +4244,9 @@
   "Bonded · idle": "Sparowano · bezczynny",
   "Session rating": "Ocena treningu",
   "Calculations updated": "Obliczenia zaktualizowane",
-  "The recalculation stopped": "Ponowne obliczanie zostało przerwane"
+  "The recalculation stopped": "Ponowne obliczanie zostało przerwane",
+  "Climbs, a quicker start and clearer Settings": "Przewyższenia, szybszy start i czytelniejsze Ustawienia",
+  "**Elevation on GPS workouts.** The iPhone counts climbs with its barometer and shows an elevation profile, the grade and a grade-adjusted pace.": "**Przewyższenia w treningach GPS.** iPhone liczy podejścia barometrem i pokazuje profil wysokości, nachylenie oraz tempo skorygowane o nachylenie.",
+  "**Start in one tap.** The Training tab starts your recent activities directly, with the route and zone choice each had last time.": "**Start jednym dotknięciem.** Karta Trening od razu uruchamia ostatnie aktywności, każdą z wyborem trasy i strefy z poprzedniego razu.",
+  "**Settings sorted by task.** Seventeen pages in six groups, and every control has exactly one home.": "**Ustawienia według zadań.** Siedemnaście stron w sześciu grupach, a każda opcja ma dokładnie jedno miejsce."
 }

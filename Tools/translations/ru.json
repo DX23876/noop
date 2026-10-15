@@ -3116,5 +3116,9 @@
   "Bonded · idle": "Сопряжён · ожидание",
   "Session rating": "Оценка тренировки",
   "Calculations updated": "Расчёты обновлены",
-  "The recalculation stopped": "Пересчёт остановлен"
+  "The recalculation stopped": "Пересчёт остановлен",
+  "Climbs, a quicker start and clearer Settings": "Набор высоты, быстрый старт и понятные настройки",
+  "**Elevation on GPS workouts.** The iPhone counts climbs with its barometer and shows an elevation profile, the grade and a grade-adjusted pace.": "**Набор высоты в GPS-тренировках.** iPhone считает подъёмы по барометру и показывает профиль высоты, уклон и темп с поправкой на уклон.",
+  "**Start in one tap.** The Training tab starts your recent activities directly, with the route and zone choice each had last time.": "**Старт одним касанием.** Вкладка «Тренировки» сразу запускает недавние занятия, каждое с выбором маршрута и зоны, как в прошлый раз.",
+  "**Settings sorted by task.** Seventeen pages in six groups, and every control has exactly one home.": "**Настройки по задачам.** Семнадцать страниц в шести группах, и у каждого параметра ровно одно место."
 }

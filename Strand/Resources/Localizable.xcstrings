@@ -558491,6 +558491,238 @@
           }
         }
       }
+    },
+    "Climbs, a quicker start and clearer Settings" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Höhenmeter, schneller Start und klarere Einstellungen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desnivel, un inicio más rápido y Ajustes más claros"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dénivelé, un démarrage plus rapide et des Réglages plus clairs"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dislivello, un avvio più rapido e Impostazioni più chiare"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przewyższenia, szybszy start i czytelniejsze Ustawienia"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desnível, um início mais rápido e Definições mais claras"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Набор высоты, быстрый старт и понятные настройки"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "爬升、更快开始与更清晰的设置"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "爬升、更快開始與更清晰的設定"
+          }
+        }
+      }
+    },
+    "**Elevation on GPS workouts.** The iPhone counts climbs with its barometer and shows an elevation profile, the grade and a grade-adjusted pace." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Höhenmeter bei GPS-Workouts.** Das iPhone zählt Anstiege mit seinem Barometer und zeigt ein Höhenprofil, die Steigung und eine steigungsbereinigte Pace."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Desnivel en entrenamientos con GPS.** El iPhone cuenta las subidas con su barómetro y muestra un perfil de altitud, la pendiente y un ritmo ajustado a la pendiente."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Dénivelé des entraînements GPS.** L’iPhone compte les montées avec son baromètre et affiche un profil d’altitude, la pente et une allure ajustée à la pente."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Dislivello negli allenamenti GPS.** L’iPhone conta le salite con il barometro e mostra un profilo altimetrico, la pendenza e un passo corretto per la pendenza."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Przewyższenia w treningach GPS.** iPhone liczy podejścia barometrem i pokazuje profil wysokości, nachylenie oraz tempo skorygowane o nachylenie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Desnível nos treinos com GPS.** O iPhone conta as subidas com o barómetro e mostra um perfil de altitude, a inclinação e um ritmo ajustado à inclinação."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Набор высоты в GPS-тренировках.** iPhone считает подъёмы по барометру и показывает профиль высоты, уклон и темп с поправкой на уклон."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**GPS 训练的海拔。**iPhone 用气压计计算爬升，并显示海拔剖面、坡度和坡度校正配速。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**GPS 訓練的海拔。**iPhone 用氣壓計計算爬升，並顯示海拔剖面、坡度與坡度校正配速。"
+          }
+        }
+      }
+    },
+    "**Start in one tap.** The Training tab starts your recent activities directly, with the route and zone choice each had last time." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Start mit einem Tipp.** Der Tab Training startet deine letzten Aktivitäten direkt, jeweils mit der Routen- und Zonenwahl vom letzten Mal."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Empieza con un toque.** La pestaña Entrenamiento inicia tus actividades recientes directamente, cada una con la ruta y la zona que tuvo la última vez."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Démarrer en un geste.** L’onglet Entraînement lance directement tes activités récentes, chacune avec le choix de parcours et de zone de la dernière fois."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Avvio con un tocco.** La scheda Allenamento avvia subito le tue attività recenti, ognuna con la scelta di percorso e zona dell’ultima volta."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Start jednym dotknięciem.** Karta Trening od razu uruchamia ostatnie aktywności, każdą z wyborem trasy i strefy z poprzedniego razu."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Começa com um toque.** O separador Treino inicia diretamente as tuas atividades recentes, cada uma com a escolha de percurso e zona da última vez."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Старт одним касанием.** Вкладка «Тренировки» сразу запускает недавние занятия, каждое с выбором маршрута и зоны, как в прошлый раз."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**一键开始。**训练标签页可直接开始最近的活动，每项都沿用上次的路线和心率区间选择。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**一鍵開始。**訓練分頁可直接開始最近的活動，每項都沿用上次的路線與心率區間選擇。"
+          }
+        }
+      }
+    },
+    "**Settings sorted by task.** Seventeen pages in six groups, and every control has exactly one home." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Einstellungen nach Aufgaben sortiert.** Siebzehn Seiten in sechs Gruppen, und jede Einstellung hat genau einen Platz."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Ajustes ordenados por tarea.** Diecisiete páginas en seis grupos, y cada control tiene un único lugar."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Réglages classés par tâche.** Dix-sept pages en six groupes, et chaque réglage a une seule place."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Impostazioni ordinate per attività.** Diciassette pagine in sei gruppi, e ogni controllo ha un solo posto."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Ustawienia według zadań.** Siedemnaście stron w sześciu grupach, a każda opcja ma dokładnie jedno miejsce."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Definições organizadas por tarefa.** Dezassete páginas em seis grupos, e cada controlo tem um único lugar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Настройки по задачам.** Семнадцать страниц в шести группах, и у каждого параметра ровно одно место."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**按任务整理的设置。**六组共十七页，每个选项只有一个位置。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**依任務整理的設定。**六組共十七頁，每個選項只有一個位置。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

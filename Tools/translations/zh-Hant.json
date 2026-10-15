@@ -3294,5 +3294,9 @@
   "Bonded · idle": "已配對 · 閒置",
   "Session rating": "訓練評分",
   "Calculations updated": "計算已更新",
-  "The recalculation stopped": "重新計算已停止"
+  "The recalculation stopped": "重新計算已停止",
+  "Climbs, a quicker start and clearer Settings": "爬升、更快開始與更清晰的設定",
+  "**Elevation on GPS workouts.** The iPhone counts climbs with its barometer and shows an elevation profile, the grade and a grade-adjusted pace.": "**GPS 訓練的海拔。**iPhone 用氣壓計計算爬升，並顯示海拔剖面、坡度與坡度校正配速。",
+  "**Start in one tap.** The Training tab starts your recent activities directly, with the route and zone choice each had last time.": "**一鍵開始。**訓練分頁可直接開始最近的活動，每項都沿用上次的路線與心率區間選擇。",
+  "**Settings sorted by task.** Seventeen pages in six groups, and every control has exactly one home.": "**依任務整理的設定。**六組共十七頁，每個選項只有一個位置。"
 }
