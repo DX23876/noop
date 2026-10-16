@@ -67,7 +67,11 @@ final class RouteExporterTests: XCTestCase {
     /// Measured heights travel in both formats and come back through the importer; a point without one
     /// stays without one instead of reading as sea level.
     func testElevationsRoundTripInGpxAndFit() {
-        let heights: [Double?] = (0..<route.count).map { $0 == 1 ? nil : 400 + Double($0) * 4 }
+        // Spelled out: the one-line ternary over nil and arithmetic timed out the type checker on CI runners.
+        let heights: [Double?] = (0..<route.count).map { i -> Double? in
+            if i == 1 { return nil }
+            return 400.0 + Double(i) * 4.0
+        }
         for format in [RouteExporter.Format.gpx, .fit] {
             let data = RouteExporter.render(format, route: route, startTs: startTs, endTs: endTs,
                                             sport: "running", distanceM: 1234.5, elevations: heights)
