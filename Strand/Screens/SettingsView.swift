@@ -27,13 +27,18 @@ struct SettingsView: View {
     /// rather than read top to bottom.
     @State private var query: String
     private let initialPage: SettingsPage?
+    /// Whether this screen declares the Settings page and subpage destinations. False for a page pushed
+    /// from a screen that already declared them: a second declaration of the same type further up the
+    /// stack is what iOS 17/18 hang on, and every row on the hub opened one (12.0.0 onward).
+    private let declaresDestinations: Bool
 
     /// `searchSeed` pre-fills the field, so a Settings hit tapped in the More tab's index search
     /// arrives already filtered to what was typed there instead of dropping the reader back into the
     /// full wall of cards. Empty (the default) is the ordinary "opened Settings" case.
-    init(searchSeed: String = "", initialPage: SettingsPage? = nil) {
+    init(searchSeed: String = "", initialPage: SettingsPage? = nil, declaresDestinations: Bool = true) {
         _query = State(initialValue: searchSeed)
         self.initialPage = initialPage
+        self.declaresDestinations = declaresDestinations
     }
 
     /// Whitespace alone is not a search — a stray space must not blank the screen.
@@ -402,10 +407,7 @@ struct SettingsView: View {
         #if os(iOS)
         .noopCardKind(.navigation)
         #endif
-        .navigationDestination(for: SettingsPage.self) { page in
-            SettingsPageDestination(page: page)
-        }
-        .navigationDestination(for: SettingsSubpage.self) { route in
+        .settingsDestinations(declaresDestinations) { route in
             settingsSubpageContent(route)
         }
         .alert(backupAlertTitle, isPresented: $showBackupAlert) {
@@ -3877,6 +3879,8 @@ struct SettingsView: View {
 /// one way from one place and another way from the next.
 struct SettingsPageDestination: View {
     let page: SettingsPage
+    /// True when a screen below this one in the stack already declared the Settings destinations.
+    var belowDeclaringScreen = false
 
     var body: some View {
         switch page {
@@ -3897,7 +3901,27 @@ struct SettingsPageDestination: View {
             EmptyView()
             #endif
         default:
-            SettingsView(initialPage: page)
+            SettingsView(initialPage: page, declaresDestinations: !belowDeclaringScreen)
+        }
+    }
+}
+
+private extension View {
+    /// The Settings page and subpage destinations, declared once per stack. A page opened from the hub
+    /// is told it sits below a declaring screen, so it does not declare them again.
+    @ViewBuilder
+    func settingsDestinations<Subpage: View>(
+        _ declares: Bool, subpage: @escaping (SettingsSubpage) -> Subpage
+    ) -> some View {
+        if declares {
+            navigationDestination(for: SettingsPage.self) { page in
+                SettingsPageDestination(page: page, belowDeclaringScreen: true)
+            }
+            .navigationDestination(for: SettingsSubpage.self) { route in
+                subpage(route)
+            }
+        } else {
+            self
         }
     }
 }
