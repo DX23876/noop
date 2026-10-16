@@ -52,7 +52,11 @@ struct DashboardExtraSectionsSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        DashboardLayoutEditor(dashboard: dashboard, title: title, onDone: { dismiss() })
+        // The sheet owns the stack. The editor has none of its own, because Settings pushes it onto the
+        // More stack, and a stack inside a pushed screen is what iOS 17/18 hang or blank on.
+        NavigationStack {
+            DashboardLayoutEditor(dashboard: dashboard, title: title, onDone: { dismiss() })
+        }
     }
 }
 
@@ -79,38 +83,36 @@ struct DashboardLayoutEditor: View {
     }
 
     var body: some View {
-        NavigationStack {
-            EditableLayoutList(
-                draft: $draft,
-                shownTitle: String(localized: "Shown"),
-                hiddenTitle: String(localized: "Hidden"),
-                title: \.title,
-                subtitle: { $0.isExtra ? String(localized: "Optional") : nil },
-                icon: \.icon,
-                tint: { $0.isExtra ? StrandPalette.accent : StrandPalette.textSecondary },
-                configurationLabel: { _ in nil },
-                onConfigure: { _ in },
-                onReset: reset
-            ) {
-                Section("Cards") {
-                    DashboardCardSelectionEditor()
-                    HostedCardSelectionEditor()
-                    if dashboard == "overview" {
-                        NavigationLink { OverviewFocusEditor() } label: {
-                            Label("Configure today's focus", systemImage: "rectangle.3.group")
-                                .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                        }
-                        NavigationLink { OverviewHealthCardsEditor() } label: {
-                            Label("Configure health metrics", systemImage: "heart.text.square")
-                                .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                        }
+        EditableLayoutList(
+            draft: $draft,
+            shownTitle: String(localized: "Shown"),
+            hiddenTitle: String(localized: "Hidden"),
+            title: \.title,
+            subtitle: { $0.isExtra ? String(localized: "Optional") : nil },
+            icon: \.icon,
+            tint: { $0.isExtra ? StrandPalette.accent : StrandPalette.textSecondary },
+            configurationLabel: { _ in nil },
+            onConfigure: { _ in },
+            onReset: reset
+        ) {
+            Section("Cards") {
+                DashboardCardSelectionEditor()
+                HostedCardSelectionEditor()
+                if dashboard == "overview" {
+                    NavigationLink { OverviewFocusEditor() } label: {
+                        Label("Configure today's focus", systemImage: "rectangle.3.group")
+                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                    }
+                    NavigationLink { OverviewHealthCardsEditor() } label: {
+                        Label("Configure health metrics", systemImage: "heart.text.square")
+                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                     }
                 }
             }
-            .navigationTitle(title)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) { Button("Done", action: save).foregroundStyle(StrandPalette.accent) }
-            }
+        }
+        .navigationTitle(title)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) { Button("Done", action: save).foregroundStyle(StrandPalette.accent) }
         }
         .onAppear { loadDraft() }
     }
