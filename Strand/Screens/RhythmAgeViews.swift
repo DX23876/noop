@@ -630,10 +630,27 @@ struct RhythmWave: Shape {
 // MARK: - More › Health & Body
 
 /// AgeLess as its own screen under More › Health & Body: the same section the Health screen shows.
+/// AgeLess from More: the detail page itself once there is a week to show. Until then (no sex in the
+/// profile, too few nights, still loading) the Health card says why, so the row never opens a blank page.
 struct AgeLessScreen: View {
+    @EnvironmentObject var repo: Repository
+    @EnvironmentObject var profile: ProfileStore
+    @State private var snapshot: HealthspanSnapshot?
+
     var body: some View {
-        ScreenScaffold(title: "AgeLess", subtitle: nil) {
-            HealthspanSection()
+        Group {
+            if let snapshot {
+                HealthspanDetailView(snapshot: snapshot, showsDone: false)
+                    .tint(StrandPalette.agelessYoungDeep)
+            } else {
+                ScreenScaffold(title: "AgeLess", subtitle: nil) {
+                    HealthspanSection()
+                }
+            }
+        }
+        .task(id: repo.refreshSeq) {
+            guard let sex = HealthspanEngine.Sex(profileValue: profile.sex) else { snapshot = nil; return }
+            snapshot = await HealthspanSnapshot.load(repo: repo, age: profile.age, sex: sex)
         }
     }
 }

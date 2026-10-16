@@ -9,11 +9,15 @@ import StrandAnalytics
 
 struct HealthspanDetailView: View {
     let snapshot: HealthspanSnapshot
+    /// True in the Health card's sheet, which needs a way out; false when pushed from More, where the
+    /// back button is that way out.
+    var showsDone = true
     @State private var index: Int
     @Environment(\.dismiss) private var dismiss
 
-    init(snapshot: HealthspanSnapshot) {
+    init(snapshot: HealthspanSnapshot, showsDone: Bool = true) {
         self.snapshot = snapshot
+        self.showsDone = showsDone
         _index = State(initialValue: snapshot.weeks.count - 1)
     }
 
@@ -53,10 +57,16 @@ struct HealthspanDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         #endif
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                HealthspanInfoButton().labelStyle(.iconOnly)
+            if showsDone {
+                ToolbarItem(placement: .cancellationAction) {
+                    HealthspanInfoButton().labelStyle(.iconOnly)
+                }
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+            } else {
+                ToolbarItem(placement: .primaryAction) {
+                    HealthspanInfoButton().labelStyle(.iconOnly)
+                }
             }
-            ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
         }
     }
 
