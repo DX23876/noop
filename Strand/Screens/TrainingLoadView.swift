@@ -1541,22 +1541,25 @@ struct TrainingLoadView: View {
     }
 
     /// A donut with the counts beside it; a bar with the counts under it before macOS 14.
-    @ViewBuilder private func liftDirections(_ response: StrengthResponseReading) -> some View {
+    /// Erased rather than `@ViewBuilder`: with the iOS 27 SDK a builder `if #available … else` types the
+    /// fallback as `TupleContent`, a View only from iOS 26, which would fail on iOS 17/18 at run time.
+    private func liftDirections(_ response: StrengthResponseReading) -> AnyView {
         if #available(iOS 17.0, macOS 14.0, *) {
-            HStack(spacing: NoopMetrics.space4) {
+            return AnyView(HStack(spacing: NoopMetrics.space4) {
                 LiftDirectionDonut(rising: response.rising, unclear: response.unclear, falling: response.falling)
                     .frame(width: 116, height: 116)
                 VStack(alignment: .leading, spacing: NoopMetrics.space3) {
                     directionCounts(response)
                 }
                 Spacer(minLength: 0)
-            }
-        } else {
+            })
+        }
+        return AnyView(VStack(alignment: .leading, spacing: NoopMetrics.space3) {
             DirectionBar(rising: response.rising, unclear: response.unclear, falling: response.falling)
             HStack(spacing: NoopMetrics.space4) {
                 directionCounts(response)
             }
-        }
+        })
     }
 
     @ViewBuilder private func directionCounts(_ response: StrengthResponseReading) -> some View {
