@@ -814,6 +814,12 @@ public final class BLEManager: NSObject, ObservableObject {
     private var linkUpSince: DispatchTime?
     /// Last time ANY notification arrived — drives the liveness watchdog.
     private var lastDataAt = Date()
+    /// 0x2A37 renewal state (see `LiveHeartRateResubscribe`). Puffin traffic feeds `lastDataAt`, so the
+    /// watchdog above cannot see a link whose heart-rate stream alone has gone silent. Reset on disconnect.
+    private var liveHrConfirmedBeforeBond = false
+    private var liveHrConfirmedAt: Date?
+    private var lastLiveHrValueAt: Date?
+    private var liveHrRenewalTried = false
     /// True while a Live/Health screen is on-screen and wants the realtime stream. One of the two
     /// inputs to `wantsRealtime`. Driven by `startRealtime()` / `stopRealtime()`.
     private var screenWantsRealtime = false
@@ -5080,6 +5086,15 @@ public final class BLEManager: NSObject, ObservableObject {
         }
         guard didBond else { return }
         guard !backfilling else { return }            // never poke the strap mid-offload
+        if selectedModel.deviceFamily == .whoop5, let p = peripheral,
+           let hr = heartRateCharacteristic, hr.isNotifying,
+           LiveHeartRateResubscribe.shouldRenewSilent(now: Date(), confirmedAt: liveHrConfirmedAt,
+                                                      lastValueAt: lastLiveHrValueAt,
+                                                      alreadyTried: liveHrRenewalTried) {
+            liveHrRenewalTried = true
+            renewNotify(hr, on: p, reason: "no heart rate for \(Int(LiveHeartRateResubscribe.silenceSeconds)) s "
+                        + "while it reads as notifying")
+        }
         // #927: continuous capture can be overnight-only, which makes the want TIME-dependent; nothing
         // else re-evaluates it while the app just sits connected, so the keep-alive tick re-derives it.
         // A window-close tick DISARMS (stop the heavy R10/R11 burst, then the reconciler sends TOGGLE 0
@@ -5676,6 +5691,14 @@ public final class BLEManager: NSObject, ObservableObject {
         }
         p.setNotifyValue(true, for: c)
         log("Notify requested \(c.uuid) (\(reason))")
+    }
+
+    /// One real off→on subscription cycle for a characteristic that reads as notifying, the same write
+    /// pair the #613 restore path uses. Logged always: it is rare, and it is the evidence a report needs.
+    private func renewNotify(_ c: CBCharacteristic, on p: CBPeripheral, reason: String) {
+        log("Notify renewing \(c.uuid) (\(reason))")
+        p.setNotifyValue(false, for: c)
+        p.setNotifyValue(true, for: c)
     }
 
     // MARK: Alarm API (M6 — additive; does NOT touch connect/offload/sync flows)
@@ -6566,6 +6589,10 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         cmdNotifyConfirmedActive = false   // #34: a fresh connection needs its own notify-confirm + settle
         connectSettledSignaled = false
         restoreNeedsResubscribe = false    // #613: a real reconnect isn't a restore — never force-toggle here
+        liveHrConfirmedBeforeBond = false
+        liveHrConfirmedAt = nil
+        lastLiveHrValueAt = nil
+        liveHrRenewalTried = false
         realtimeArmedAt = nil   // cleared after the marginal-radio detector above read it (#80)
         // Reset backfill state so the next connect starts a fresh offload (incl. the syncing pill —
         // a dropped link mid-offload must not leave "Syncing strap history…" stuck on, #77).
@@ -7173,6 +7200,12 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
             for c in whoop5NotifyCharacteristics where !c.isNotifying || restoreNeedsResubscribe {
                 requestNotify(c, on: peripheral, reason: "post-bond puffin")   // #613: force re-arm on restore
             }
+            if liveHrConfirmedBeforeBond, state.encryptedBond,
+               let hr = heartRateCharacteristic, hr.isNotifying {
+                liveHrConfirmedBeforeBond = false
+                renewNotify(hr, on: peripheral,
+                            reason: "it was confirmed before the bond was proven on this link")
+            }
             enableLiveNotifications(reason: "post-bond 5/MG")   // standard HR/battery that failed pre-bond
             // Arm realtime HR with puffin framing — the verified step that makes a bonded 5/MG strap start
             // streaming (issue #17). Once per connection; keep-alive skips 5/MG, so this is the trigger.
@@ -7563,6 +7596,8 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
         switch characteristic.uuid {
         case BLEManager.heartRateChar:
             parseStandardHR(bytes)
+            lastLiveHrValueAt = Date()
+            liveHrRenewalTried = false
             // EXPERIMENTAL WHOOP 5.0/MG: there is no confirmed-write bond for a 5/MG strap, so once
             // live HR actually streams over the standard profile we treat the link as established —
             // otherwise the UI sits on "Connecting…" forever even though data is flowing (issue #8).
@@ -7892,6 +7927,14 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
             log("Notify enable failed for \(characteristic.uuid): \(error.localizedDescription)")
         } else {
             log("Notify \(characteristic.isNotifying ? "active" : "off") \(characteristic.uuid)")
+            if characteristic.uuid == BLEManager.heartRateChar, characteristic.isNotifying {
+                liveHrConfirmedAt = Date()
+                if LiveHeartRateResubscribe.confirmedBeforeBond(
+                    isNotifying: true, encryptedBond: state.encryptedBond,
+                    isWhoop5: selectedModel.deviceFamily == .whoop5) {
+                    liveHrConfirmedBeforeBond = true
+                }
+            }
             // #34: the cmd-notify channel carries GET_ALARM_TIME's (and every other COMMAND_RESPONSE's)
             // reply. Once IT confirms subscribed, check whether the handshake side of connectSettled is
             // also done — this is the "notify confirmed" half arriving AFTER the handshake body, the
