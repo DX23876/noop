@@ -562319,6 +562319,238 @@
           }
         }
       }
+    },
+    "Settings opens again on iOS 17 and 18" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Einstellungen öffnen wieder unter iOS 17 und 18"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajustes vuelve a abrirse en iOS 17 y 18"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les Paramètres s'ouvrent à nouveau sur iOS 17 et 18"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impostazioni si apre di nuovo su iOS 17 e 18"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ustawienia znów otwierają się na iOS 17 i 18"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As Definições voltam a abrir no iOS 17 e 18"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Настройки снова открываются на iOS 17 и 18"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置在 iOS 17 和 18 上可再次打开"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "設定在 iOS 17 和 18 上可再次開啟"
+          }
+        }
+      }
+    },
+    "**Settings opens again.** On iOS 17 and 18 the app closed as soon as you opened Settings. That is fixed." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Einstellungen öffnen wieder.** Unter iOS 17 und 18 schloss sich die App, sobald du die Einstellungen geöffnet hast. Das ist behoben."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Ajustes vuelve a abrirse.** En iOS 17 y 18 la app se cerraba en cuanto abrías Ajustes. Ya está corregido."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Les Paramètres s'ouvrent à nouveau.** Sur iOS 17 et 18, l'app se fermait dès l'ouverture des Paramètres. C'est corrigé."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Impostazioni si apre di nuovo.** Su iOS 17 e 18 l'app si chiudeva appena aprivi Impostazioni. Ora è risolto."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Ustawienia znów się otwierają.** Na iOS 17 i 18 aplikacja zamykała się zaraz po otwarciu Ustawień. To zostało naprawione."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**As Definições voltam a abrir.** No iOS 17 e 18 a app fechava-se assim que abrias as Definições. Já está corrigido."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Настройки снова открываются.** На iOS 17 и 18 приложение закрывалось сразу при открытии настроек. Это исправлено."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**设置可再次打开。** 在 iOS 17 和 18 上，打开设置时应用会立即关闭。此问题已修复。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**設定可再次開啟。** 在 iOS 17 和 18 上，開啟設定時 App 會立即關閉。此問題已修正。"
+          }
+        }
+      }
+    },
+    "**Live heart rate recovers.** If heart rate stops arriving while the strap stays connected, the app now restarts it on its own. After repeated connection drops it keeps reconnecting in the background." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Live-Herzfrequenz kommt zurück.** Kommt keine Herzfrequenz mehr an, obwohl der Strap verbunden ist, startet die App sie jetzt selbst neu. Nach wiederholten Verbindungsabbrüchen verbindet sie sich im Hintergrund weiter neu."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**La frecuencia cardíaca en vivo se recupera.** Si deja de llegar la frecuencia cardíaca mientras la pulsera sigue conectada, la app la reinicia por sí sola. Tras varias desconexiones seguidas sigue reconectando en segundo plano."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**La fréquence cardiaque en direct reprend.** Si la fréquence cardiaque n'arrive plus alors que le bracelet reste connecté, l'app la relance d'elle-même. Après plusieurs coupures de connexion, elle continue de se reconnecter en arrière-plan."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**La frequenza cardiaca in diretta riprende.** Se la frequenza cardiaca smette di arrivare mentre la fascia resta connessa, l'app la riavvia da sola. Dopo ripetute interruzioni della connessione continua a riconnettersi in background."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Tętno na żywo wraca.** Jeśli tętno przestaje docierać, choć pasek jest połączony, aplikacja sama je wznawia. Po kilku zerwaniach połączenia nadal łączy się ponownie w tle."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**A frequência cardíaca em direto recupera.** Se a frequência cardíaca deixar de chegar enquanto a alça continua ligada, a app reinicia-a sozinha. Após várias quebras de ligação continua a religar em segundo plano."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Пульс в реальном времени восстанавливается.** Если пульс перестаёт поступать, хотя браслет подключён, приложение само перезапускает его. После повторных обрывов связи оно продолжает переподключаться в фоне."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**实时心率自动恢复。** 如果手环保持连接但心率不再传来，应用现在会自动重新启动心率。多次断开连接后，应用会在后台继续重新连接。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**即時心率自動恢復。** 如果手環保持連線但心率不再傳來，App 現在會自動重新啟動心率。多次中斷連線後，App 會在背景繼續重新連線。"
+          }
+        }
+      }
+    },
+    "**Effort without live heart rate.** A workout recorded while the strap was out of reach gets its Effort from the strap's heart rate once it syncs." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Belastung ohne Live-Herzfrequenz.** Ein Workout, das ohne Verbindung zum Strap aufgezeichnet wurde, bekommt seine Belastung aus der Herzfrequenz des Straps, sobald er synchronisiert."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Esfuerzo sin frecuencia cardíaca en vivo.** Un entrenamiento grabado mientras la pulsera estaba fuera de alcance obtiene su Esfuerzo de la frecuencia cardíaca de la pulsera en cuanto se sincroniza."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Effort sans fréquence cardiaque en direct.** Un entraînement enregistré hors de portée du bracelet reçoit son Effort à partir de la fréquence cardiaque du bracelet dès sa synchronisation."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Sforzo senza frequenza cardiaca in diretta.** Un allenamento registrato mentre la fascia era fuori portata ottiene il suo Sforzo dalla frequenza cardiaca della fascia appena si sincronizza."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Wysiłek bez tętna na żywo.** Trening nagrany, gdy pasek był poza zasięgiem, otrzymuje Wysiłek z tętna paska po synchronizacji."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Esforço sem frequência cardíaca em direto.** Um treino gravado com a alça fora de alcance recebe o seu Esforço a partir da frequência cardíaca da alça assim que sincroniza."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Усилие без пульса в реальном времени.** Тренировка, записанная вне связи с браслетом, получает Усилие по пульсу браслета после синхронизации."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**无实时心率时的消耗。** 手环不在范围内时录制的锻炼，会在同步后根据手环的心率获得消耗值。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**無即時心率時的消耗。** 手環不在範圍內時錄製的鍛鍊，會在同步後根據手環的心率取得消耗值。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

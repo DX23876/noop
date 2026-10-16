@@ -7,7 +7,7 @@ enum AppChangelog {
 
     /// Bump this when you add a release below. The "What's New" sheet shows automatically when the
     /// stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
-    static let currentVersion = "12.1.0"
+    static let currentVersion = "12.1.1"
 
     struct Release: Identifiable {
         let version: String
@@ -28,6 +28,16 @@ enum AppChangelog {
 
     /// Newest first.
     static let releases: [Release] = [
+        Release(
+            version: "12.1.1",
+            title: "Settings opens again on iOS 17 and 18",
+            date: "October 2026",
+            items: [
+                "**Settings opens again.** On iOS 17 and 18 the app closed as soon as you opened Settings. That is fixed.",
+                "**Live heart rate recovers.** If heart rate stops arriving while the strap stays connected, the app now restarts it on its own. After repeated connection drops it keeps reconnecting in the background.",
+                "**Effort without live heart rate.** A workout recorded while the strap was out of reach gets its Effort from the strap's heart rate once it syncs.",
+            ]
+        ),
         Release(
             version: "12.1.0",
             title: "Climbs, a quicker start and clearer Settings",

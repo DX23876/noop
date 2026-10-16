@@ -3360,5 +3360,9 @@
   "Your strap feels every move you make. Over a week that shows how much you move, how clearly your days stand out from your nights and when you are most active. A large study turned exactly this rhythm into an age.": "你的手環能感知你的每個動作。一週下來，就能看出你活動多少、白天與夜晚區別有多明顯，以及你何時最活躍。一項大型研究正是把這種節律換算成了年齡。",
   "Your strap measures movement its own way. NOOP translates it into the study's measure with a table built from one person's week of raw strap data, so for very active people the result may come out too low.": "你的手環以自己的方式測量活動。NOOP 用一張基於單人一週原始數據建立的換算表，把它轉換為研究所用的度量，因此對非常活躍的人，結果可能偏低。",
   "**Two ages to try, both in beta.** AgeLess and the new Daily rhythm compare your habits and your day's movement with large studies. Turn them on in Settings › Lab.": "**兩種年齡可供試用，均為測試版。** AgeLess 和全新的日常節律會把你的習慣和一天的活動與大型研究進行對比。可在設定 › Lab 中開啟。",
-  "Beta. An age from nine measures of sleep, activity and fitness over six months, with the steps that would help most. Replaces Body Age on Health. Needs 30 nights. A motivation tool, not a medical age.": "測試版。根據六個月內睡眠、活動和體能的九項指標得出的年齡，並給出最有幫助的改進步驟。在健康中取代身體年齡。需要 30 晚。這是激勵工具，不是醫學年齡。"
+  "Beta. An age from nine measures of sleep, activity and fitness over six months, with the steps that would help most. Replaces Body Age on Health. Needs 30 nights. A motivation tool, not a medical age.": "測試版。根據六個月內睡眠、活動和體能的九項指標得出的年齡，並給出最有幫助的改進步驟。在健康中取代身體年齡。需要 30 晚。這是激勵工具，不是醫學年齡。",
+  "Settings opens again on iOS 17 and 18": "設定在 iOS 17 和 18 上可再次開啟",
+  "**Settings opens again.** On iOS 17 and 18 the app closed as soon as you opened Settings. That is fixed.": "**設定可再次開啟。** 在 iOS 17 和 18 上，開啟設定時 App 會立即關閉。此問題已修正。",
+  "**Live heart rate recovers.** If heart rate stops arriving while the strap stays connected, the app now restarts it on its own. After repeated connection drops it keeps reconnecting in the background.": "**即時心率自動恢復。** 如果手環保持連線但心率不再傳來，App 現在會自動重新啟動心率。多次中斷連線後，App 會在背景繼續重新連線。",
+  "**Effort without live heart rate.** A workout recorded while the strap was out of reach gets its Effort from the strap's heart rate once it syncs.": "**無即時心率時的消耗。** 手環不在範圍內時錄製的鍛鍊，會在同步後根據手環的心率取得消耗值。"
 }
