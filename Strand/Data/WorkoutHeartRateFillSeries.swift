@@ -101,22 +101,91 @@ extension Repository {
         return fills.count
     }
 
-    /// Lays stored fills and Health step counts over Apple Health rows that came without them. Runs after
-    /// twins are resolved, so a filled value never decides which twin stands for a session.
+    /// Fill namespace of workouts NOOP recorded itself or the wearer entered (`WorkoutSource.manual`). Their
+    /// rows carry no device id, so one namespace keyed by start and sport stands for all of them.
+    nonisolated static let recordedWorkoutFillNamespace = "noop-recorded"
+
+    /// Computes and stores the heart rate of every recorded or entered workout starting in `[from, to]` that
+    /// was saved without one, from the band's own trace, and removes fills whose trace no longer covers their
+    /// session. A live recording takes its heart rate from the stream; with the link down while it ran it is
+    /// saved empty, though the strap kept the trace and hands it over at the next sync. Returns the number of
+    /// workouts filled.
+    @discardableResult
+    func fillRecordedWorkoutHeartRate(from: Int, to: Int) async throws -> Int {
+        guard let store = await storeHandle() else { return 0 }
+        var rows: [WorkoutRow] = []
+        for id in Self.rawWhoopSourceIds(activeDeviceId: deviceId, registeredWhoopIds: []) {
+            var offset = 0
+            while true {
+                let page = try await store.workouts(deviceId: id, from: from, to: to, limit: 500, offset: offset)
+                rows += page
+                if page.count < 500 { break }
+                offset += page.count
+            }
+        }
+        let candidates = rows.filter {
+            WorkoutSource.classify($0.source) == .manual && $0.avgHr == nil && $0.endTs > $0.startTs
+        }
+        guard let first = candidates.map(\.startTs).min(),
+              let last = candidates.map(\.startTs).max() else { return 0 }
+        let own = await restingHrByDay(fromDay: Self.localDayKey(Date(timeIntervalSince1970: TimeInterval(first))),
+                                       toDay: Self.localDayKey(Date(timeIntervalSince1970: TimeInterval(last))))
+        let maxHR = Self.cardioLoadMaxHR(strainProfile)
+        let sex = strainProfile?.sex ?? ""
+        let method = PuffinExperiment.effortMethod
+        let now = Int(Date().timeIntervalSince1970)
+        var keys: [WorkoutKey] = []
+        var fills: [WorkoutHeartRateFillRow] = []
+        for row in candidates {
+            let key = WorkoutKey(deviceId: Self.recordedWorkoutFillNamespace, startTs: row.startTs, sport: row.sport)
+            keys.append(key)
+            let band = await hrSamples(from: row.startTs, to: row.endTs, limit: 20_000)
+            let day = Self.localDayKey(Date(timeIntervalSince1970: TimeInterval(row.startTs)))
+            let resting = WorkoutHeartRateFill.restingHR(on: day, own: own, apple: [:])
+            guard let result = WorkoutHeartRateFill.resolve(
+                band: band, watchMinutes: [], start: row.startTs, end: row.endTs,
+                maxHR: maxHR, restingHR: resting, method: method, sex: sex) else { continue }
+            fills.append(WorkoutHeartRateFillRow(
+                key: key, avgHr: result.averageHR, maxHr: result.maxHR, strain: result.strain,
+                hrSource: result.source.rawValue, restingHrUsed: result.restingHR,
+                coveredMinutes: result.coveredMinutes, possibleMinutes: result.possibleMinutes,
+                updatedAtTs: now))
+        }
+        guard !keys.isEmpty else { return 0 }
+        try await store.replaceWorkoutHeartRateFills(fills, keys: keys)
+        noteWorkoutAnnotationsChanged()
+        return fills.count
+    }
+
+    /// The fill namespace a row's stored fill lives in, or nil for a source that is never filled.
+    nonisolated static func fillNamespace(for row: WorkoutRow) -> String? {
+        if WorkoutSource.isAppleHealth(row.source) { return appleHealthSource }
+        if WorkoutSource.classify(row.source) == .manual { return recordedWorkoutFillNamespace }
+        return nil
+    }
+
+    /// Lays stored fills over Apple Health rows and recorded or entered workouts that came without heart rate,
+    /// and Health step counts over Apple Health rows. Runs after twins are resolved, so a filled value never
+    /// decides which twin stands for a session.
     func overlayWorkoutFills(_ rows: [WorkoutRow], store: WhoopStore) async -> [WorkoutRow] {
         let apple = rows.filter { WorkoutSource.isAppleHealth($0.source) }
-        guard let lo = apple.map(\.startTs).min(), let hi = apple.map(\.startTs).max() else { return rows }
-        let fills = (try? await store.workoutHeartRateFills(deviceId: Self.appleHealthSource,
+        let fillable = rows.filter { Self.fillNamespace(for: $0) != nil }
+        guard let lo = fillable.map(\.startTs).min(), let hi = fillable.map(\.startTs).max() else { return rows }
+        var fills = (try? await store.workoutHeartRateFills(deviceId: Self.appleHealthSource,
                                                             from: lo, to: hi)) ?? [:]
+        for (key, fill) in (try? await store.workoutHeartRateFills(deviceId: Self.recordedWorkoutFillNamespace,
+                                                                   from: lo, to: hi)) ?? [:] {
+            fills[key] = fill
+        }
         var steps: [String: Int] = [:]
-        for meta in (try? await store.workoutSourceMetadata(from: lo, to: hi)) ?? []
+        for meta in apple.isEmpty ? [] : ((try? await store.workoutSourceMetadata(from: lo, to: hi)) ?? [])
         where WorkoutSource.isAppleHealth(meta.source) {
             if let value = meta.steps, value > 0 { steps["\(meta.startTs)|\(meta.sport)"] = value }
         }
         guard !fills.isEmpty || !steps.isEmpty else { return rows }
         return rows.map { row in
-            guard WorkoutSource.isAppleHealth(row.source) else { return row }
-            let fill = fills[WorkoutKey(deviceId: Self.appleHealthSource, startTs: row.startTs, sport: row.sport)]
+            guard let namespace = Self.fillNamespace(for: row) else { return row }
+            let fill = fills[WorkoutKey(deviceId: namespace, startTs: row.startTs, sport: row.sport)]
             let healthSteps = steps["\(row.startTs)|\(row.sport)"]
             guard fill != nil || healthSteps != nil else { return row }
             return WorkoutRow(startTs: row.startTs, endTs: row.endTs, sport: row.sport, source: row.source,
@@ -127,11 +196,12 @@ extension Repository {
         }
     }
 
-    /// The stored fill of one Apple Health row, for the detail screen's heart-rate source line.
+    /// The stored fill of one Apple Health, recorded or entered row, for the detail screen's heart-rate
+    /// source line.
     func workoutHeartRateFill(for row: WorkoutRow) async -> WorkoutHeartRateFillRow? {
-        guard WorkoutSource.isAppleHealth(row.source), let store = await storeHandle() else { return nil }
-        let key = WorkoutKey(deviceId: Self.appleHealthSource, startTs: row.startTs, sport: row.sport)
-        return (try? await store.workoutHeartRateFills(deviceId: Self.appleHealthSource,
+        guard let namespace = Self.fillNamespace(for: row), let store = await storeHandle() else { return nil }
+        let key = WorkoutKey(deviceId: namespace, startTs: row.startTs, sport: row.sport)
+        return (try? await store.workoutHeartRateFills(deviceId: namespace,
                                                        from: row.startTs, to: row.startTs))?[key]
     }
 

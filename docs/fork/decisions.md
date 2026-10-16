@@ -552,3 +552,21 @@ least-squares overlap factor moves from 0.644 to 0.647, so k stays 0.64 (all fou
 
 Analysis migration required: yes (AI-27). The AgeLess weeks are deleted once more and rebuilt; zone minutes
 are kept, no daily row is re-scored and no goal start is re-read (a body-fat goal is kept in kilograms).
+
+### 2026-10-16 — A recorded workout without live heart rate gets its Effort from the strap trace
+
+A workout recorded in NOOP takes average, peak and Effort from the live stream when it ends. If the strap link
+was down while it ran (on 2026-10-16 for 49 minutes, see the bond-loop fix of the same day), the row is saved
+without them, although the strap kept its own trace and hands it over at the next sync. The list and detail
+already showed average and peak from that trace at read time (#77/#499, display only), so the chart and those
+figures agreed, but the Effort stayed empty everywhere.
+
+`Repository.fillRecordedWorkoutHeartRate` now stores average, peak and Effort for recorded or entered workouts
+(`WorkoutSource.manual`) that were saved without heart rate, in the same `workoutHeartRateFill` table and with
+the same rules as the Apple Health fill (`WorkoutHeartRateFill.resolve`: at least 10 covered minutes and 70 % of
+the session; Effort only with a known resting rate). Fills live in their own namespace (`noop-recorded`) and
+are laid over the row at read time like the Apple ones, so the saved row is never rewritten. The analysis pass
+runs it over its window after every sync; only rows still missing heart rate are read.
+
+Analysis migration required: no. New fills for rows that had no heart rate; no stored value changes meaning
+and nothing already scored is re-scored. Workouts older than the pass window are not filled.

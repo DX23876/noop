@@ -4090,6 +4090,11 @@ final class IntelligenceEngine: ObservableObject {
         }
 
         markPostLoopPhase("workouts")
+        // Fork: a workout recorded while the strap link was down was saved without heart rate; once a sync
+        // has brought the strap's own trace for it, its average, peak and Effort come from that trace
+        // (`Repository.fillRecordedWorkoutHeartRate`). Only rows still missing heart rate are read.
+        _ = try? await repo.fillRecordedWorkoutHeartRate(from: nowLocalMidnight - maxDays * 86_400,
+                                                         to: now + 86_400)
         // #836/#sleep-sync: record the complete raw-analysis fingerprint this run scored against, so a later
         // NON-forced tick can short-circuit while it's unchanged. Written ONLY at the end of a completed run (never on an
         // early guard-return), so an interrupted/failed run can't advance the watermark past unscored data.
