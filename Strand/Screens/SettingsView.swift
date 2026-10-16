@@ -3689,7 +3689,7 @@ struct SettingsView: View {
                     // Compute right away instead of at the next analysis loop, so the card fills on the flip.
                     if on { Task { await model.intelligence.analyzeRecent(); await model.repo.refresh() } }
                 }
-                Text("An age from nine measures of sleep, activity and fitness over six months, with the steps that would help most. Replaces Body Age on Health. Needs 30 nights. A motivation tool, not a medical age.")
+                Text("Beta. An age from nine measures of sleep, activity and fitness over six months, with the steps that would help most. Replaces Body Age on Health. Needs 30 nights. A motivation tool, not a medical age.")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)

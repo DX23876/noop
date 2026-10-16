@@ -50,7 +50,7 @@ struct AgeLessAboutSheet: View {
                     section("Your pace", "Aging speed shows where your last month is taking you.")
                     science
                     method
-                    Text("Not a medical value.")
+                    Text("Beta. Not a medical value.")
                         .font(StrandFont.caption)
                         .foregroundStyle(StrandPalette.textTertiary)
                 }

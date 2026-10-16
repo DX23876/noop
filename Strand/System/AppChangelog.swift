@@ -36,6 +36,7 @@ enum AppChangelog {
                 "**Elevation on GPS workouts.** The iPhone counts climbs with its barometer and shows an elevation profile, the grade and a grade-adjusted pace.",
                 "**Start in one tap.** The Training tab starts your recent activities directly, with the route and zone choice each had last time.",
                 "**Settings sorted by task.** Seventeen pages in six groups, and every control has exactly one home.",
+                "**Two ages to try, both in beta.** AgeLess and the new Daily rhythm compare your habits and your day's movement with large studies. Turn them on in Settings › Lab.",
             ]
         ),
         Release(

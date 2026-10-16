@@ -562203,6 +562203,122 @@
           }
         }
       }
+    },
+    "**Two ages to try, both in beta.** AgeLess and the new Daily rhythm compare your habits and your day's movement with large studies. Turn them on in Settings › Lab." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Zwei Alter zum Ausprobieren, beide in der Beta.** AgeLess und der neue Tagesrhythmus vergleichen deine Gewohnheiten und die Bewegung deines Tages mit großen Studien. Schalte sie unter Einstellungen › Lab ein."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Dos edades para probar, ambas en beta.** AgeLess y el nuevo Ritmo diario comparan tus hábitos y el movimiento de tu día con grandes estudios. Actívalos en Ajustes › Lab."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Deux âges à essayer, tous deux en bêta.** AgeLess et le nouveau Rythme quotidien comparent tes habitudes et les mouvements de ta journée à de grandes études. Active-les dans Réglages › Lab."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Due età da provare, entrambe in beta.** AgeLess e il nuovo Ritmo quotidiano confrontano le tue abitudini e il movimento della tua giornata con grandi studi. Attivali in Impostazioni › Lab."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Dwa wieki do wypróbowania, oba w wersji beta.** AgeLess i nowy Rytm dobowy porównują twoje nawyki i ruch w ciągu dnia z dużymi badaniami. Włącz je w Ustawieniach › Lab."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Duas idades para experimentar, ambas em beta.** O AgeLess e o novo Ritmo diário comparam os teus hábitos e o movimento do teu dia com grandes estudos. Ativa-os em Definições › Lab."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Два возраста на пробу, оба в бета-версии.** AgeLess и новый Дневной ритм сравнивают ваши привычки и движение за день с крупными исследованиями. Включите их в Настройки › Lab."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**两种年龄可供试用，均为测试版。** AgeLess 和全新的日常节律会把你的习惯和一天的活动与大型研究进行对比。可在设置 › Lab 中开启。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**兩種年齡可供試用，均為測試版。** AgeLess 和全新的日常節律會把你的習慣和一天的活動與大型研究進行對比。可在設定 › Lab 中開啟。"
+          }
+        }
+      }
+    },
+    "Beta. An age from nine measures of sleep, activity and fitness over six months, with the steps that would help most. Replaces Body Age on Health. Needs 30 nights. A motivation tool, not a medical age." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beta. Ein Alter aus neun Messgrößen zu Schlaf, Aktivität und Fitness über sechs Monate, mit den Schritten, die am meisten helfen. Ersetzt das Körperalter unter Gesundheit. Braucht 30 Nächte. Ein Motivationswerkzeug, kein medizinisches Alter."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beta. Una edad a partir de nueve medidas de sueño, actividad y forma física durante seis meses, con los pasos que más ayudarían. Sustituye a la Edad corporal en Salud. Necesita 30 noches. Una herramienta de motivación, no una edad médica."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bêta. Un âge issu de neuf mesures de sommeil, d'activité et de forme sur six mois, avec les actions qui aideraient le plus. Remplace l'Âge corporel dans Santé. Nécessite 30 nuits. Un outil de motivation, pas un âge médical."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beta. Un'età da nove misure di sonno, attività e forma fisica su sei mesi, con i passi che aiuterebbero di più. Sostituisce l'Età corporea in Salute. Servono 30 notti. Uno strumento motivazionale, non un'età medica."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beta. Wiek z dziewięciu miar snu, aktywności i kondycji z sześciu miesięcy, z krokami, które najbardziej by pomogły. Zastępuje Wiek ciała w Zdrowiu. Wymaga 30 nocy. Narzędzie motywacyjne, nie wiek medyczny."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beta. Uma idade a partir de nove medidas de sono, atividade e forma física ao longo de seis meses, com os passos que mais ajudariam. Substitui a Idade Corporal em Saúde. Precisa de 30 noites. Uma ferramenta de motivação, não uma idade médica."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Бета. Возраст по девяти показателям сна, активности и формы за шесть месяцев, с шагами, которые помогли бы больше всего. Заменяет «Возраст тела» в разделе «Здоровье». Нужно 30 ночей. Инструмент мотивации, а не медицинский возраст."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "测试版。根据六个月内睡眠、活动和体能的九项指标得出的年龄，并给出最有帮助的改进步骤。在健康中取代身体年龄。需要 30 晚。这是激励工具，不是医学年龄。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "測試版。根據六個月內睡眠、活動和體能的九項指標得出的年齡，並給出最有幫助的改進步驟。在健康中取代身體年齡。需要 30 晚。這是激勵工具，不是醫學年齡。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
