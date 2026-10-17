@@ -562551,6 +562551,180 @@
           }
         }
       }
+    },
+    "Settings works again on iOS 17 and 18" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Einstellungen funktionieren wieder unter iOS 17 und 18"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajustes vuelve a funcionar en iOS 17 y 18"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les Paramètres fonctionnent à nouveau sur iOS 17 et 18"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impostazioni funziona di nuovo su iOS 17 e 18"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ustawienia znów działają na iOS 17 i 18"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As Definições voltam a funcionar no iOS 17 e 18"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Настройки снова работают на iOS 17 и 18"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置在 iOS 17 和 18 上恢复正常"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "設定在 iOS 17 和 18 上恢復正常"
+          }
+        }
+      }
+    },
+    "**Every Settings page opens.** On iOS 17 and 18 the app froze as soon as you tapped a row in Settings. That is fixed." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Alle Einstellungsseiten öffnen sich.** Unter iOS 17 und 18 fror die App ein, sobald du in den Einstellungen auf eine Zeile getippt hast. Das ist behoben."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Todas las páginas de Ajustes se abren.** En iOS 17 y 18 la app se bloqueaba en cuanto tocabas una fila de Ajustes. Ya está solucionado."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Toutes les pages des Paramètres s'ouvrent.** Sur iOS 17 et 18, l'app se figeait dès que tu touchais une ligne des Paramètres. C'est corrigé."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Tutte le pagine di Impostazioni si aprono.** Su iOS 17 e 18 l'app si bloccava appena toccavi una riga in Impostazioni. Ora è risolto."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Każda strona Ustawień się otwiera.** Na iOS 17 i 18 aplikacja zawieszała się, gdy tylko dotknąłeś wiersza w Ustawieniach. To zostało naprawione."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Todas as páginas das Definições abrem.** No iOS 17 e 18 a app bloqueava assim que tocavas numa linha das Definições. Já está corrigido."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Все страницы настроек открываются.** На iOS 17 и 18 приложение зависало, как только ты нажимал на строку в настройках. Это исправлено."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**每个设置页面都能打开。** 在 iOS 17 和 18 上，只要点按设置中的任一行，应用就会卡死。此问题已修复。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**每個設定頁面都能開啟。** 在 iOS 17 和 18 上，只要點按設定中的任一列，App 就會卡住。此問題已修正。"
+          }
+        }
+      }
+    },
+    "**AgeLess opens straight to its details.** In More › Health & Body, AgeLess now shows the detail page right away." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**AgeLess öffnet direkt die Details.** Unter Mehr › Gesundheit & Körper zeigt AgeLess jetzt sofort die Detailseite."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**AgeLess abre directamente sus detalles.** En Más › Salud y cuerpo, AgeLess muestra ahora la página de detalles al instante."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**AgeLess ouvre directement ses détails.** Dans Plus › Santé et corps, AgeLess affiche maintenant tout de suite la page de détails."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**AgeLess apre subito i dettagli.** In Altro › Salute e corpo, AgeLess ora mostra subito la pagina dei dettagli."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**AgeLess od razu pokazuje szczegóły.** W Więcej › Zdrowie i ciało AgeLess otwiera teraz od razu stronę szczegółów."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**O AgeLess abre logo os detalhes.** Em Mais › Saúde e corpo, o AgeLess mostra agora de imediato a página de detalhes."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**AgeLess сразу открывает подробности.** В разделе Ещё › Здоровье и тело AgeLess теперь сразу показывает страницу подробностей."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**AgeLess 直接打开详情。** 在“更多 › 健康与身体”中，AgeLess 现在会直接显示详情页。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**AgeLess 直接開啟詳情。** 在「更多 › 健康與身體」中，AgeLess 現在會直接顯示詳情頁。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

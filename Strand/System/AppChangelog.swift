@@ -7,7 +7,7 @@ enum AppChangelog {
 
     /// Bump this when you add a release below. The "What's New" sheet shows automatically when the
     /// stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
-    static let currentVersion = "12.1.1"
+    static let currentVersion = "12.1.2"
 
     struct Release: Identifiable {
         let version: String
@@ -28,6 +28,15 @@ enum AppChangelog {
 
     /// Newest first.
     static let releases: [Release] = [
+        Release(
+            version: "12.1.2",
+            title: "Settings works again on iOS 17 and 18",
+            date: "October 2026",
+            items: [
+                "**Every Settings page opens.** On iOS 17 and 18 the app froze as soon as you tapped a row in Settings. That is fixed.",
+                "**AgeLess opens straight to its details.** In More › Health & Body, AgeLess now shows the detail page right away.",
+            ]
+        ),
         Release(
             version: "12.1.1",
             title: "Settings opens again on iOS 17 and 18",

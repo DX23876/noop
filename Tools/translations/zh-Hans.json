@@ -3310,5 +3310,8 @@
   "Settings opens again on iOS 17 and 18": "设置在 iOS 17 和 18 上可再次打开",
   "**Settings opens again.** On iOS 17 and 18 the app closed as soon as you opened Settings. That is fixed.": "**设置可再次打开。** 在 iOS 17 和 18 上，打开设置时应用会立即关闭。此问题已修复。",
   "**Live heart rate recovers.** If heart rate stops arriving while the strap stays connected, the app now restarts it on its own. After repeated connection drops it keeps reconnecting in the background.": "**实时心率自动恢复。** 如果手环保持连接但心率不再传来，应用现在会自动重新启动心率。多次断开连接后，应用会在后台继续重新连接。",
-  "**Effort without live heart rate.** A workout recorded while the strap was out of reach gets its Effort from the strap's heart rate once it syncs.": "**无实时心率时的消耗。** 手环不在范围内时录制的锻炼，会在同步后根据手环的心率获得消耗值。"
+  "**Effort without live heart rate.** A workout recorded while the strap was out of reach gets its Effort from the strap's heart rate once it syncs.": "**无实时心率时的消耗。** 手环不在范围内时录制的锻炼，会在同步后根据手环的心率获得消耗值。",
+  "Settings works again on iOS 17 and 18": "设置在 iOS 17 和 18 上恢复正常",
+  "**Every Settings page opens.** On iOS 17 and 18 the app froze as soon as you tapped a row in Settings. That is fixed.": "**每个设置页面都能打开。** 在 iOS 17 和 18 上，只要点按设置中的任一行，应用就会卡死。此问题已修复。",
+  "**AgeLess opens straight to its details.** In More › Health & Body, AgeLess now shows the detail page right away.": "**AgeLess 直接打开详情。** 在“更多 › 健康与身体”中，AgeLess 现在会直接显示详情页。"
 }
