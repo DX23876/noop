@@ -28,8 +28,8 @@ struct SettingsView: View {
     @State private var query: String
     private let initialPage: SettingsPage?
     /// Whether this screen declares the Settings page and subpage destinations. False for a page pushed
-    /// from a screen that already declared them: a second declaration of the same type further up the
-    /// stack is what iOS 17/18 hang on, and every row on the hub opened one (12.0.0 onward).
+    /// from a screen that already declared them, so a stack holds one declaration per type, as SwiftUI
+    /// expects. (Not the iOS 17/18 freeze; that was `openURL`, see `UpdateDownloadButton`.)
     private let declaresDestinations: Bool
 
     /// `searchSeed` pre-fills the field, so a Settings hit tapped in the More tab's index search
@@ -358,7 +358,6 @@ struct SettingsView: View {
     /// #1659. Default comes from `UpdateAvailability.defaultEnabled` so the toggle and the launch check
     /// cannot disagree about what "unset" means.
     @AppStorage(UpdateWatch.Keys.enabled) private var autoCheckUpdates = UpdateAvailability.defaultEnabled
-    @Environment(\.openURL) private var openURL
 
     var body: some View {
         ScreenScaffold(title: settingsScreenTitle,
@@ -3078,9 +3077,7 @@ struct SettingsView: View {
                                     .font(StrandFont.subhead)
                                     .foregroundStyle(StrandPalette.textPrimary)
                                 Spacer()
-                                NoopButton("Download", systemImage: "arrow.down.circle.fill", kind: .primary) {
-                                    openURL(url)
-                                }
+                                UpdateDownloadButton(url: url)
                             }
                             if !notes.isEmpty {
                                 ScrollView {
@@ -3923,6 +3920,19 @@ private extension View {
         } else {
             self
         }
+    }
+}
+
+/// The update card's Download button. It reads `openURL` itself so `SettingsView` does not. On iOS 17.5,
+/// once a Settings page was pushed above the hub, SwiftUI re-evaluated the hub about a hundred times a
+/// second and named `openURL` as the change every time, so the app froze on the first tap of any row
+/// (12.0.0 onward). With the read moved here, every page opens; iOS 26 never showed the loop.
+private struct UpdateDownloadButton: View {
+    let url: URL
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        NoopButton("Download", systemImage: "arrow.down.circle.fill", kind: .primary) { openURL(url) }
     }
 }
 

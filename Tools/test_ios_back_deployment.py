@@ -55,6 +55,21 @@ class IOSBackDeploymentTests(unittest.TestCase):
             "(EnumeratedSequence is a Collection only from iOS 26). Wrap it in Array(...).",
         )
 
+    def test_settings_view_does_not_read_open_url(self) -> None:
+        # On iOS 17.5 a SettingsView that read @Environment(\.openURL) was re-evaluated about a hundred
+        # times a second once a page was pushed above the hub, with openURL named as the change, and the
+        # app froze on the first tap of any Settings row. The read lives in UpdateDownloadButton instead.
+        text = (REPO_ROOT / "Strand/Screens/SettingsView.swift").read_text(encoding="utf-8")
+        reads = [m.start() for m in re.finditer(r"@Environment\(\\\.openURL\)", text)]
+        button = text.find("private struct UpdateDownloadButton")
+        self.assertGreater(button, 0, "UpdateDownloadButton is gone; find where the Download button reads openURL")
+        self.assertEqual(
+            [r for r in reads if r < button],
+            [],
+            "SettingsView reads @Environment(\\.openURL) again; on iOS 17/18 that froze every Settings page. "
+            "Read it in a small child view such as UpdateDownloadButton.",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
