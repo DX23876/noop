@@ -3323,5 +3323,22 @@
   "Longer": "更久",
   "Rebuild": "重建",
   "Sets for a new exercise: %lld": "新动作的组数：%lld",
-  "Not logged: %@ of %@ has no numbers yet": "未记录：%2$@ 的%1$@还没有数值"
+  "Not logged: %@ of %@ has no numbers yet": "未记录：%2$@ 的%1$@还没有数值",
+  "Add to my weekly schedule": "添加到我的每周日程",
+  "Connect Hevy under More, Data sources to import its routines.": "在“更多”>“数据来源”中连接 Hevy 以导入其例程。",
+  "Import Hevy routines": "导入 Hevy 例程",
+  "Import OpenGym plan": "导入 OpenGym 计划",
+  "Import routines": "导入例程",
+  "Imported before. Importing again updates it.": "之前已导入。再次导入会更新它。",
+  "Loading Hevy routines": "正在加载 Hevy 例程",
+  "New exercises to add: %lld": "新增动作：%lld",
+  "No routines were found in Hevy.": "在 Hevy 中未找到例程。",
+  "None of the plan's exercises could be found in NOOP.": "计划中的动作在 NOOP 中都找不到。",
+  "Not found in NOOP, left out: %lld": "NOOP 中未找到，已略过：%lld",
+  "Only routines are imported, no workouts or body data. None of your own routines is changed.": "只导入例程，不导入训练或身体数据。你自己的例程不会改变。",
+  "Routines from %@": "来自 %@ 的例程",
+  "The Hevy routines could not be loaded.": "无法加载 Hevy 例程。",
+  "The routines could not be imported.": "无法导入例程。",
+  "This file is not an OpenGym plan. Export it in OpenGym under Plan, Export plan file.": "此文件不是 OpenGym 计划。请在 OpenGym 的 Plan > Export plan file 中导出。",
+  "Your planned days stay. The routines are added beside them.": "你已计划的日子保持不变，例程会添加进去。"
 }

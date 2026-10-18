@@ -363,3 +363,28 @@ Accessibility behaviour of the training surfaces:
   accompanied by text or an accessibility summary.
 - **Decimal separators:** weights, volumes and averages use locale-aware number formatting.
 - **Languages:** every training string is in the String Catalog for all NOOP languages.
+
+## Routine imports from Hevy and OpenGym
+
+Training › Add offers two routine imports beside NOOP's own plan file. Both show a preview first, let the
+wearer leave routines out and add the chosen ones beside the existing plan; none of the wearer's own
+routines is changed. Each imported routine's id is derived from the source's routine id, so importing
+the same routine again updates the earlier copy instead of adding a second one.
+
+- **OpenGym plan file** (Plan › Export plan file, `opengym_plan: 1`). The format was read from what
+  OpenGym writes; no OpenGym code, strings or fixtures are included, and the tests use fixtures written
+  for NOOP. OpenGym's exercise ids are ExerciseDB numbers, so a built-in exercise maps onto `exdb:<id>`;
+  custom exercises in the file become the wearer's own. Sets, repetition ranges, loads (pounds converted),
+  warm-ups, pyramids, drops, rest-pause, last set to failure, rest, supersets and notes carry over. The
+  file's week is added only when the wearer switches it on, beside the days already planned. Progression
+  rules and cardio slots are left out, and an exercise id NOOP cannot resolve is counted, not guessed.
+  Picking an OpenGym file under "Import training plan" takes the same path.
+- **Hevy routines** need a connected Hevy account (Hevy Pro API key); Hevy offers no routine file. The
+  routines are pulled fresh on the import, and one deleted in Hevy is no longer offered. Each routine is
+  read from the document Hevy sent, because planned sets often carry only a repetition range. A Hevy
+  exercise resolves to the wearer's alias, then the reviewed anatomy catalogue (Hevy's "Bench Press
+  (Barbell)" is tried as "Barbell Bench Press"), then an exact name; only then is a new exercise made
+  from Hevy's own description, and a later import reuses it.
+
+**Analysis migration required: no.** Routine imports add plan definitions only; stored workouts and
+historical analysis are unchanged.

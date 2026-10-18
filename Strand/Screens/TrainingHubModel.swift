@@ -16,6 +16,16 @@ final class TrainingHubModel: ObservableObject {
         var setCount: Int { result.workouts.flatMap(\.exercises).flatMap(\.sets).count }
     }
 
+    /// Routines from another app, shown before anything is stored.
+    struct RoutineImportPreview: Identifiable {
+        enum Source { case hevy, openGym }
+        let id = UUID()
+        let source: Source
+        let result: TrainingRoutineImport
+        /// Routines an earlier import of the same routines made; importing again updates them in place.
+        let alreadyImported: Set<UUID>
+    }
+
     @Published private(set) var loaded = false
     @Published private(set) var exercises: [TrainingExercise] = []
     @Published private(set) var plan = TrainingPlan()
@@ -27,6 +37,8 @@ final class TrainingHubModel: ObservableObject {
     /// Days of the past year with minutes logged, computed once per load rather than in a view body.
     @Published private(set) var activityDays: [TrainingActivityDay] = []
     @Published var historyImportPreview: HistoryImportPreview?
+    @Published var routineImportPreview: RoutineImportPreview?
+    @Published private(set) var loadingHevyRoutines = false
     @Published var errorMessage: String?
 
     /// Reads the plan and the whole resolved history. While a live session runs this is skipped once
@@ -135,6 +147,11 @@ final class TrainingHubModel: ObservableObject {
     }
 
     func importPlan(_ data: Data, repo: Repository) async {
+        // An OpenGym plan file picked here goes through its own preview rather than failing as NOOP's.
+        if (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["opengym_plan"] != nil {
+            prepareOpenGymImport(data)
+            return
+        }
         do {
             let archive = try TrainingPlanArchive.decode(data)
             try await repo.importNativeTrainingPlan(archive)
@@ -169,6 +186,63 @@ final class TrainingHubModel: ObservableObject {
                 ? String(localized: "The history was imported. Some incomplete rows were skipped.") : nil
         } catch {
             errorMessage = String(localized: "The workout history could not be imported.")
+        }
+    }
+
+    private var defaultRestSeconds: Int {
+        UserDefaults.standard.object(forKey: TrainingPreferences.defaultRestKey) as? Int
+            ?? TrainingPreferences.defaultRestSeconds
+    }
+
+    func prepareOpenGymImport(_ data: Data) {
+        do {
+            let result = try OpenGymPlanImporter.parse(data, existingExercises: exercises,
+                                                       defaultRestSeconds: defaultRestSeconds)
+            showRoutineImport(result, source: .openGym)
+        } catch TrainingRoutineImportError.noRoutines {
+            errorMessage = String(localized: "None of the plan's exercises could be found in NOOP.")
+        } catch {
+            errorMessage = String(localized: "This file is not an OpenGym plan. Export it in OpenGym under Plan, Export plan file.")
+        }
+    }
+
+    func prepareHevyImport(repo: Repository) async {
+        loadingHevyRoutines = true
+        defer { loadingHevyRoutines = false }
+        do {
+            let result = try await repo.hevyRoutineImport(exercises: exercises,
+                                                          defaultRestSeconds: defaultRestSeconds)
+            guard !result.routines.isEmpty else {
+                errorMessage = HevyCredentials.isConnected
+                    ? String(localized: "No routines were found in Hevy.")
+                    : String(localized: "Connect Hevy under More, Data sources to import its routines.")
+                return
+            }
+            showRoutineImport(result, source: .hevy)
+        } catch {
+            errorMessage = String(localized: "The Hevy routines could not be loaded.")
+        }
+    }
+
+    private func showRoutineImport(_ result: TrainingRoutineImport, source: RoutineImportPreview.Source) {
+        let existing = Set(plan.routines.map(\.id))
+        routineImportPreview = .init(source: source, result: result,
+                                     alreadyImported: Set(result.routines.map(\.id)).intersection(existing))
+    }
+
+    /// Adds the chosen routines; ones an earlier import made are updated. The source's week joins the
+    /// schedule only when asked for, beside what is already planned, never in its place.
+    func confirmRoutineImport(_ selected: Set<UUID>, includingSchedule: Bool, repo: Repository) async {
+        guard let preview = routineImportPreview else { return }
+        let chosen = preview.result.keeping(selected)
+        guard !chosen.routines.isEmpty else { routineImportPreview = nil; return }
+        do {
+            try await repo.importNativeTrainingPlan(
+                chosen.archive(includingSchedule: includingSchedule, weekStartsOn: plan.weekStartsOn))
+            routineImportPreview = nil
+            await load(repo: repo, weekStartsOn: plan.weekStartsOn, force: true)
+        } catch {
+            errorMessage = String(localized: "The routines could not be imported.")
         }
     }
 

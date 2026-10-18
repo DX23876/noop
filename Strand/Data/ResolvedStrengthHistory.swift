@@ -278,13 +278,13 @@ extension Repository {
         }
     }
 
-    private nonisolated static func measurementMode(_ raw: String?) -> TrainingMeasurementMode? {
+    nonisolated static func measurementMode(_ raw: String?) -> TrainingMeasurementMode? {
         guard let raw else { return nil }
         if let exact = TrainingMeasurementMode(rawValue: raw) { return exact }
         return raw == "reps_only" ? .repetitions : nil
     }
 
-    private nonisolated static func equipmentIds(_ equipment: HevyEquipment?) -> [String] {
+    nonisolated static func equipmentIds(_ equipment: HevyEquipment?) -> [String] {
         guard let equipment else { return [] }
         switch equipment {
         case .none: return ["bodyweight"]

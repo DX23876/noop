@@ -3222,5 +3222,22 @@
   "Longer": "Más tiempo",
   "Rebuild": "Reconstruir",
   "Sets for a new exercise: %lld": "Series para un ejercicio nuevo: %lld",
-  "Not logged: %@ of %@ has no numbers yet": "No registrado: %1$@ de %2$@ aún no tiene valores"
+  "Not logged: %@ of %@ has no numbers yet": "No registrado: %1$@ de %2$@ aún no tiene valores",
+  "Add to my weekly schedule": "Añadir a mi horario semanal",
+  "Connect Hevy under More, Data sources to import its routines.": "Conecta Hevy en Más, Fuentes de datos para importar sus rutinas.",
+  "Import Hevy routines": "Importar rutinas de Hevy",
+  "Import OpenGym plan": "Importar plan de OpenGym",
+  "Import routines": "Importar rutinas",
+  "Imported before. Importing again updates it.": "Ya importada. Importarla de nuevo la actualiza.",
+  "Loading Hevy routines": "Cargando rutinas de Hevy",
+  "New exercises to add: %lld": "Ejercicios nuevos: %lld",
+  "No routines were found in Hevy.": "No se encontraron rutinas en Hevy.",
+  "None of the plan's exercises could be found in NOOP.": "Ninguno de los ejercicios del plan está en NOOP.",
+  "Not found in NOOP, left out: %lld": "No encontrados en NOOP, omitidos: %lld",
+  "Only routines are imported, no workouts or body data. None of your own routines is changed.": "Solo se importan rutinas, ni entrenamientos ni datos corporales. Tus propias rutinas no cambian.",
+  "Routines from %@": "Rutinas de %@",
+  "The Hevy routines could not be loaded.": "No se pudieron cargar las rutinas de Hevy.",
+  "The routines could not be imported.": "No se pudieron importar las rutinas.",
+  "This file is not an OpenGym plan. Export it in OpenGym under Plan, Export plan file.": "Este archivo no es un plan de OpenGym. Expórtalo en OpenGym en Plan, Export plan file.",
+  "Your planned days stay. The routines are added beside them.": "Tus días planificados se mantienen. Las rutinas se añaden a ellos."
 }

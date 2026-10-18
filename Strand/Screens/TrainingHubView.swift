@@ -22,6 +22,7 @@ struct TrainingHubView: View {
     @State private var showingLibrary = false
     @State private var showingPlanImporter = false
     @State private var showingHistoryImporter = false
+    @State private var showingOpenGymImporter = false
     @State private var showingPastWorkout = false
     @State private var editingDay: TrainingDaySelection?
     @State private var editingRoutine: TrainingRoutine?
@@ -72,6 +73,21 @@ struct TrainingHubView: View {
             TrainingHistoryImportPreviewView(preview: preview,
                 onCancel: { model.historyImportPreview = nil },
                 onImport: { Task { await model.confirmHistoryImport(repo: repo) } })
+        }
+        .sheet(item: $model.routineImportPreview) { preview in
+            TrainingRoutineImportPreviewView(preview: preview, exercises: model.exerciseById,
+                onCancel: { model.routineImportPreview = nil },
+                onImport: { selected, schedule in
+                    Task { await model.confirmRoutineImport(selected, includingSchedule: schedule, repo: repo) }
+                })
+        }
+        .overlay {
+            if model.loadingHevyRoutines {
+                ProgressView("Loading Hevy routines")
+                    .padding(NoopMetrics.screenPadding)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius,
+                                                                      style: .continuous))
+            }
         }
         .sheet(isPresented: $showingStarterPlans) {
             NavigationStack { starterPlans }
@@ -126,6 +142,8 @@ struct TrainingHubView: View {
                     onExportPDF: { exportPlanPDF() },
                     onImportPlan: { showingPlanImporter = true },
                     onImportHistory: { showingHistoryImporter = true },
+                    onImportHevyRoutines: { Task { await model.prepareHevyImport(repo: repo) } },
+                    onImportOpenGymPlan: { showingOpenGymImporter = true },
                     onLogPastWorkout: { showingPastWorkout = true })
             }
         }
@@ -162,6 +180,9 @@ struct TrainingHubView: View {
         }
         .fileImporter(isPresented: $showingPlanImporter, allowedContentTypes: [.json]) { result in
             consume(result) { data in await model.importPlan(data, repo: repo) }
+        }
+        .fileImporter(isPresented: $showingOpenGymImporter, allowedContentTypes: [.json]) { result in
+            consume(result) { data in model.prepareOpenGymImport(data) }
         }
         .fileImporter(isPresented: $showingHistoryImporter,
                       allowedContentTypes: [.commaSeparatedText, .plainText]) { result in
@@ -497,6 +518,126 @@ struct TrainingHubView: View {
 private struct TrainingDaySelection: Identifiable {
     let date: Date
     var id: TimeInterval { date.timeIntervalSinceReferenceDate }
+}
+
+/// Routines from Hevy or OpenGym before they are stored: each can be left out, the source's week is
+/// offered separately, and what could not be matched is said rather than dropped silently.
+private struct TrainingRoutineImportPreviewView: View {
+    let preview: TrainingHubModel.RoutineImportPreview
+    let exercises: [String: TrainingExercise]
+    let onCancel: () -> Void
+    let onImport: (Set<UUID>, Bool) -> Void
+    @State private var selected: Set<UUID>
+    @State private var includeSchedule = false
+
+    init(preview: TrainingHubModel.RoutineImportPreview, exercises: [String: TrainingExercise],
+         onCancel: @escaping () -> Void, onImport: @escaping (Set<UUID>, Bool) -> Void) {
+        self.preview = preview
+        self.exercises = exercises
+        self.onCancel = onCancel
+        self.onImport = onImport
+        _selected = State(initialValue: Set(preview.result.routines.map(\.id)))
+    }
+
+    private var sourceName: String {
+        switch preview.source {
+        case .hevy: "Hevy"
+        case .openGym: "OpenGym"
+        }
+    }
+
+    private var scheduledDays: [TrainingWeekday] {
+        TrainingWeekday.allCases.filter { day in
+            (preview.result.schedule[day] ?? []).contains(where: selected.contains)
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    ForEach(preview.result.routines) { routine in
+                        Toggle(isOn: Binding(
+                            get: { selected.contains(routine.id) },
+                            set: { on in
+                                if on { selected.insert(routine.id) } else { selected.remove(routine.id) }
+                            })) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(verbatim: routine.title).font(StrandFont.headline)
+                                Text(routineSummary(routine))
+                                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                                if preview.alreadyImported.contains(routine.id) {
+                                    Text("Imported before. Importing again updates it.")
+                                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                                }
+                            }
+                        }
+                        .tint(StrandPalette.accent)
+                    }
+                } header: {
+                    Text("Routines from \(sourceName)")
+                }
+                if !preview.result.schedule.isEmpty {
+                    Section {
+                        Toggle("Add to my weekly schedule", isOn: $includeSchedule)
+                            .tint(StrandPalette.accent)
+                            .disabled(scheduledDays.isEmpty)
+                        if !scheduledDays.isEmpty {
+                            Text(scheduledDays.map(Self.dayName).formatted(.list(type: .and)))
+                                .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                        }
+                    } footer: {
+                        Text("Your planned days stay. The routines are added beside them.")
+                    }
+                }
+                if !preview.result.newExercises.isEmpty || preview.result.skippedExercises > 0 {
+                    Section("Exercises") {
+                        if !preview.result.newExercises.isEmpty {
+                            Label("New exercises to add: \(preview.result.newExercises.count)",
+                                  systemImage: "plus.circle")
+                            Text(preview.result.newExercises.map(\.title).formatted(.list(type: .and)))
+                                .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                        }
+                        if preview.result.skippedExercises > 0 {
+                            Label("Not found in NOOP, left out: \(preview.result.skippedExercises)",
+                                  systemImage: "exclamationmark.triangle.fill")
+                                .foregroundStyle(StrandPalette.statusWarningForeground)
+                        }
+                    }
+                }
+                Section {
+                    Text("Only routines are imported, no workouts or body data. None of your own routines is changed.")
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                }
+            }
+            .navigationTitle(Text("Import routines"))
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel", action: onCancel) }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Import") { onImport(selected, includeSchedule) }
+                        .fontWeight(.semibold)
+                        .disabled(selected.isEmpty)
+                }
+            }
+        }
+    }
+
+    private func routineSummary(_ routine: TrainingRoutine) -> String {
+        let names = routine.exercises.prefix(3).compactMap { slot in
+            exercises[slot.exerciseId]?.title
+                ?? preview.result.newExercises.first { $0.id == slot.exerciseId }?.title
+        }
+        let more = routine.exercises.count > 3 ? ", …" : ""
+        return String(localized: "\(routine.exercises.count) exercises") + " · " + names.joined(separator: ", ") + more
+    }
+
+    private static func dayName(_ day: TrainingWeekday) -> String {
+        // TrainingWeekday counts Monday as 1; the calendar's symbols start on Sunday.
+        Calendar.current.weekdaySymbols[day.rawValue % 7]
+    }
 }
 
 private struct TrainingHistoryImportPreviewView: View {
@@ -2834,6 +2975,8 @@ private struct AddRoutineActionsSheet: View {
     let onExportPDF: () -> Void
     let onImportPlan: () -> Void
     let onImportHistory: () -> Void
+    let onImportHevyRoutines: () -> Void
+    let onImportOpenGymPlan: () -> Void
     let onLogPastWorkout: () -> Void
 
     var body: some View {
@@ -2846,6 +2989,8 @@ private struct AddRoutineActionsSheet: View {
                 actionRow("Share training plan", systemImage: "square.and.arrow.up", action: onShare)
                 actionRow("Export plan as PDF", systemImage: "doc.richtext", action: onExportPDF)
                 actionRow("Import training plan", systemImage: "square.and.arrow.down", action: onImportPlan)
+                actionRow("Import Hevy routines", systemImage: "list.bullet.rectangle", action: onImportHevyRoutines)
+                actionRow("Import OpenGym plan", systemImage: "doc.badge.arrow.up", action: onImportOpenGymPlan)
                 actionRow("Import FitNotes or Strong history", systemImage: "clock.arrow.circlepath",
                           action: onImportHistory)
                 actionRow("Log past workout", systemImage: "calendar.badge.clock", action: onLogPastWorkout)

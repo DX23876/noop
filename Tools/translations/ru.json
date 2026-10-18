@@ -3199,5 +3199,22 @@
   "Longer": "Дольше",
   "Rebuild": "Перестройка",
   "Sets for a new exercise: %lld": "Подходов для нового упражнения: %lld",
-  "Not logged: %@ of %@ has no numbers yet": "Не записано: %2$@, %1$@ ещё без значений"
+  "Not logged: %@ of %@ has no numbers yet": "Не записано: %2$@, %1$@ ещё без значений",
+  "Add to my weekly schedule": "Добавить в моё недельное расписание",
+  "Connect Hevy under More, Data sources to import its routines.": "Подключите Hevy в разделе «Ещё», «Источники данных», чтобы импортировать распорядки.",
+  "Import Hevy routines": "Импортировать распорядки из Hevy",
+  "Import OpenGym plan": "Импортировать план OpenGym",
+  "Import routines": "Импорт распорядков",
+  "Imported before. Importing again updates it.": "Уже импортирован. Повторный импорт обновит его.",
+  "Loading Hevy routines": "Загрузка распорядков Hevy",
+  "New exercises to add: %lld": "Новые упражнения: %lld",
+  "No routines were found in Hevy.": "В Hevy не найдено распорядков.",
+  "None of the plan's exercises could be found in NOOP.": "Ни одно упражнение плана не найдено в NOOP.",
+  "Not found in NOOP, left out: %lld": "Не найдено в NOOP, пропущено: %lld",
+  "Only routines are imported, no workouts or body data. None of your own routines is changed.": "Импортируются только распорядки, без тренировок и данных о теле. Ваши собственные распорядки не меняются.",
+  "Routines from %@": "Распорядки из %@",
+  "The Hevy routines could not be loaded.": "Не удалось загрузить распорядки Hevy.",
+  "The routines could not be imported.": "Не удалось импортировать распорядки.",
+  "This file is not an OpenGym plan. Export it in OpenGym under Plan, Export plan file.": "Этот файл не является планом OpenGym. Экспортируйте его в OpenGym: Plan, Export plan file.",
+  "Your planned days stay. The routines are added beside them.": "Запланированные дни сохраняются. Распорядки добавляются к ним."
 }

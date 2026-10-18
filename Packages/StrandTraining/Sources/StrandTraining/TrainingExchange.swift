@@ -291,19 +291,19 @@ public enum TrainingCSVImporter {
         return numbers[0]
     }
 
-    private static func normalizeName(_ value: String) -> String {
+    static func normalizeName(_ value: String) -> String {
         value.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
             .unicodeScalars.filter(CharacterSet.alphanumerics.contains).map(String.init).joined()
     }
 
-    private static func stableSlug(_ value: String) -> String {
+    static func stableSlug(_ value: String) -> String {
         let slug = value.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
             .lowercased().unicodeScalars.map { CharacterSet.alphanumerics.contains($0) ? String($0) : "-" }
             .joined().split(separator: "-").filter { !$0.isEmpty }.joined(separator: "-")
         return slug.isEmpty ? UUID().uuidString.lowercased() : slug
     }
 
-    private static func deterministicUUID(_ value: String) -> UUID {
+    static func deterministicUUID(_ value: String) -> UUID {
         var a: UInt64 = 0xcbf29ce484222325
         var b: UInt64 = 0x84222325cbf29ce4
         for byte in value.utf8 {

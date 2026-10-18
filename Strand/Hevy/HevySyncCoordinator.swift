@@ -215,10 +215,18 @@ actor HevySyncCoordinator {
         return written
     }
 
+    /// Pulls the routines alone, for a routine import the wearer asked for: the regular run fetches them
+    /// only on a backfill or a catalogue refresh. Returns the ids Hevy holds now, since a routine deleted
+    /// in Hevy stays in the store and must not be offered again.
+    func refreshRoutines() async throws -> Set<String> {
+        try await syncRoutines(onProgress: { _ in }).ids
+    }
+
     private func syncRoutines(onProgress: @Sendable (HevySyncProgress) -> Void) async throws
-        -> (written: Int, skipped: Int) {
+        -> (written: Int, skipped: Int, ids: Set<String>) {
         var written = 0
         var skipped = 0
+        var ids = Set<String>()
         var page = 1
         var total = 1
         repeat {
@@ -231,10 +239,11 @@ actor HevySyncCoordinator {
             if !parsed.items.isEmpty {
                 try await store.upsertHevyRoutines(parsed.items)
                 written += parsed.items.count
+                ids.formUnion(parsed.items.map(\.id))
             }
             page += 1
         } while page <= total
-        return (written, skipped)
+        return (written, skipped, ids)
     }
 
     /// True when any stored workout names an exercise the catalogue does not hold.
