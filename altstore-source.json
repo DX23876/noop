@@ -20,6 +20,15 @@
       "screenshotURLs": [],
       "versions": [
         {
+          "version": "12.2.0",
+          "buildVersion": "331",
+          "date": "2026-10-18",
+          "localizedDescription": "NOOP Forge 12.2.0. See the release notes for what changed.",
+          "downloadURL": "https://github.com/DX23876/noop/releases/download/v12.2.0-dx/NOOP-ios-unsigned-v12.2.0-dx.ipa",
+          "size": 411979759,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "12.1.2",
           "buildVersion": "330",
           "date": "2026-10-17",
@@ -194,12 +203,12 @@
           "NSHealthUpdateUsageDescription": "NOOP writes the metrics it computes from your strap back into Apple Health, on-device and only when you allow it."
         }
       },
-      "version": "12.1.2",
-      "buildVersion": "330",
-      "versionDate": "2026-10-17",
-      "versionDescription": "NOOP Forge 12.1.2. See the release notes for what changed.",
-      "downloadURL": "https://github.com/DX23876/noop/releases/download/v12.1.2-dx/NOOP-ios-unsigned-v12.1.2-dx.ipa",
-      "size": 411662553,
+      "version": "12.2.0",
+      "buildVersion": "331",
+      "versionDate": "2026-10-18",
+      "versionDescription": "NOOP Forge 12.2.0. See the release notes for what changed.",
+      "downloadURL": "https://github.com/DX23876/noop/releases/download/v12.2.0-dx/NOOP-ios-unsigned-v12.2.0-dx.ipa",
+      "size": 411979759,
       "minOSVersion": "17.0"
     }
   ]
