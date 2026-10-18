@@ -6,70 +6,75 @@ import StrandTraining
 // MARK: - Header
 
 /// Where the session stands at a glance: active time without pauses, completed sets and progress.
-struct WorkoutLoggerHeader: View {
+struct WorkoutLoggerHeader<HeartRate: View>: View {
     @ObservedObject var model: NativeWorkoutSessionModel
+    private let heartRate: HeartRate
 
+    init(model: NativeWorkoutSessionModel, @ViewBuilder heartRate: () -> HeartRate) {
+        self.model = model
+        self.heartRate = heartRate()
+    }
+
+    /// One slim row of running figures, so the sets start high on the screen.
     var body: some View {
         NoopCard {
-            VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-                HStack(alignment: .firstTextBaseline) {
-                    TimelineView(.periodic(from: .now, by: 1)) { context in
-                        Text(ActiveSessionMiniBar.clock(model.activeSeconds(now: Int(context.date.timeIntervalSince1970))))
-                            .font(StrandFont.number(34)).monospacedDigit()
-                            .foregroundStyle(StrandPalette.textPrimary)
-                            .accessibilityLabel(Text("Active time"))
+            VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                HStack(alignment: .center, spacing: NoopMetrics.space3) {
+                    let paused = model.draft.state != .active
+                    WorkoutHeaderStat(title: paused ? String(localized: "Paused") : String(localized: "Duration"),
+                                      titleColor: paused ? StrandPalette.statusWarningForeground : nil) {
+                        TimelineView(.periodic(from: .now, by: 1)) { context in
+                            Text(ActiveSessionMiniBar.clock(model.activeSeconds(now: Int(context.date.timeIntervalSince1970))))
+                                .accessibilityLabel(Text("Active time"))
+                        }
                     }
-                    if model.draft.state != .active {
-                        Text("Paused").font(StrandFont.caption.weight(.semibold))
-                            .foregroundStyle(StrandPalette.statusWarningForeground)
+                    WorkoutHeaderStat(title: String(localized: "Volume")) {
+                        Text(TrainingPreferences.formattedWeight(model.completedVolumeKg.rounded()))
                     }
-                    Spacer()
+                    WorkoutHeaderStat(title: String(localized: "Sets")) {
+                        Text("\(model.completedSetCount)/\(model.totalSetCount)")
+                    }
+                    heartRate
+                    Spacer(minLength: 0)
                     if !model.isRetrospective {
                         Button { model.toggleWorkoutPause() } label: {
                             Image(systemName: model.draft.state == .active ? "pause.fill" : "play.fill")
-                                .font(.title3)
-                                .frame(width: 44, height: 44)
-                                .background(StrandPalette.surfaceRaised, in: Circle())
+                                .font(.headline)
+                                .frame(width: 40, height: 40)
+                                .background(StrandPalette.surfaceInset, in: Circle())
                         }
                         .buttonStyle(.plain)
                         .foregroundStyle(StrandPalette.textPrimary)
                         .accessibilityLabel(Text(model.draft.state == .active ? "Pause" : "Resume"))
                     }
                 }
-                let done = model.completedSetCount, total = model.totalSetCount
-                HStack {
-                    Text("\(done) / \(total) sets")
-                        .font(StrandFont.subhead.monospacedDigit())
-                        .foregroundStyle(StrandPalette.textSecondary)
-                    Spacer()
-                }
-                ProgressView(value: Double(done), total: Double(max(total, 1)))
+                ProgressView(value: Double(model.completedSetCount), total: Double(max(model.totalSetCount, 1)))
                     .tint(StrandPalette.chargeColor)
                     .accessibilityHidden(true)
-                if let next = model.nextSetReadout {
-                    VStack(alignment: .leading, spacing: NoopMetrics.space1) {
-                        HStack(spacing: NoopMetrics.space2) {
-                            Text(next.heading)
-                                .foregroundStyle(StrandPalette.chargeColor)
-                            Text(next.label)
-                                .foregroundStyle(StrandPalette.textSecondary)
-                            Spacer(minLength: 0)
-                            if let target = next.target {
-                                Text(target)
-                                    .foregroundStyle(StrandPalette.textSecondary)
-                                    .lineLimit(1)
-                            }
-                        }
-                        .font(StrandFont.caption.monospacedDigit())
-                        Text(next.exercise)
-                            .font(StrandFont.subhead.weight(.semibold))
-                            .foregroundStyle(StrandPalette.textPrimary)
-                            .lineLimit(1)
-                    }
-                    .accessibilityElement(children: .combine)
-                }
             }
         }
+    }
+}
+
+/// A small caption over a figure, the unit of the logger's header row.
+struct WorkoutHeaderStat<Value: View>: View {
+    let title: String
+    var titleColor: Color?
+    @ViewBuilder let value: Value
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(StrandFont.caption)
+                .foregroundStyle(titleColor ?? StrandPalette.textTertiary)
+                .lineLimit(1)
+            value
+                .font(StrandFont.number(17).monospacedDigit())
+                .foregroundStyle(StrandPalette.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -120,49 +125,22 @@ struct StrengthLiveHeartRatePanel: View {
     private var bpm: Int? { provider == .appleWatch ? watchFeed.bpm : app.bpm }
     private var zone: Int { bpm.map { app.profile.hrZoneSet.zoneNumber(forBPM: Double($0)) } ?? 0 }
 
+    /// The live value as one more figure in the header row; nothing without a source. A tap opens the
+    /// full view with the zone and the effort so far.
     var body: some View {
-        if provider == .none {
-            // No source means no number is coming: one quiet line instead of a large empty card, so the
-            // sets move up where they are reachable.
-            Label { Text(sourceText) } icon: { Image(systemName: "heart.slash") }
-                .font(StrandFont.caption)
-                .foregroundStyle(StrandPalette.textTertiary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, NoopMetrics.space4)
-        } else {
-            panel
-        }
-    }
-
-    private var panel: some View {
-        Button { showingDetail = true } label: {
-            VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-                HStack(alignment: .center, spacing: NoopMetrics.space3) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        HStack(alignment: .firstTextBaseline, spacing: 4) {
-                            LiveHeartRateValue(bpm: bpm, zone: zone, size: 40)
-                            Text("bpm").font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
-                        }
-                        if bpm != nil {
-                            Text(LiveHeartRateStyle.zoneTitle(zone))
-                                .font(StrandFont.captionNumber)
-                                .foregroundStyle(LiveHeartRateStyle.tint(zone: zone))
-                        }
-                    }
-                    Spacer()
-                    if effort.strain != nil { LiveEffortReadout(strain: effort.strain, size: 26) }
+        if provider != .none {
+            Button { showingDetail = true } label: {
+                // The unit is the caption: "Herzfrequenz" would not fit beside three figures on a phone.
+                WorkoutHeaderStat(title: "bpm") {
+                    LiveHeartRateValue(bpm: bpm, zone: zone, size: 17)
                 }
-                if bpm != nil { HeartRateZoneRail(zone: zone, compact: true) }
-                Text(sourceText).font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
             }
-            .padding()
-            .background(StrandPalette.surfaceRaised, in: RoundedRectangle(cornerRadius: 16))
-        }
-        .buttonStyle(.plain)
-        .accessibilityHint(Text("Shows heart rate full screen"))
-        .sheet(isPresented: $showingDetail) {
-            StrengthLiveHeartRateDetail(bpm: bpm, zone: zone, strain: effort.strain, sourceText: sourceText)
-                .presentationDetents([.medium, .large])
+            .buttonStyle(.plain)
+            .accessibilityHint(Text("Shows heart rate full screen"))
+            .sheet(isPresented: $showingDetail) {
+                StrengthLiveHeartRateDetail(bpm: bpm, zone: zone, strain: effort.strain, sourceText: sourceText)
+                    .presentationDetents([.medium, .large])
+            }
         }
     }
 }
@@ -376,6 +354,20 @@ struct WorkoutRestDock: View {
 
 /// Plain-language reason for a prefilled target, or nil where there is nothing worth saying.
 enum ProgressionReasonText {
+    /// One or two words for the chip above the sets; the full sentence is `text`.
+    static func short(_ reason: ProgressionReason) -> String? {
+        switch reason {
+        case .disabled, .firstSession: return nil
+        case .repeatTarget: return String(localized: "Hold")
+        case .successfulSession, .topOfRepRange, .exceptionalAMRAP: return String(localized: "Increase")
+        case .stalledDeload: return String(localized: "Rebuild")
+        case .addRepetition: return String(localized: "+1 rep")
+        case .addSet: return String(localized: "+1 set")
+        case .addLoadOrVariation: return String(localized: "Harder")
+        case .addTime: return String(localized: "Longer")
+        }
+    }
+
     static func text(_ reason: ProgressionReason) -> String? {
         switch reason {
         case .disabled, .firstSession: return nil

@@ -3370,5 +3370,10 @@
   "**AgeLess opens straight to its details.** In More › Health & Body, AgeLess now shows the detail page right away.": "**AgeLess 直接開啟詳情。** 在「更多 › 健康與身體」中，AgeLess 現在會直接顯示詳情頁。",
   "PREVIOUS": "上次",
   "Rest: %@": "休息：%@",
-  "Rest timer": "休息計時器"
+  "Rest timer": "休息計時器",
+  "+1 rep": "+1 次",
+  "+1 set": "+1 組",
+  "Harder": "加難",
+  "Longer": "更久",
+  "Rebuild": "重建"
 }

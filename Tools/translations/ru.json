@@ -3192,5 +3192,10 @@
   "**AgeLess opens straight to its details.** In More › Health & Body, AgeLess now shows the detail page right away.": "**AgeLess сразу открывает подробности.** В разделе Ещё › Здоровье и тело AgeLess теперь сразу показывает страницу подробностей.",
   "PREVIOUS": "РАНЕЕ",
   "Rest: %@": "Отдых: %@",
-  "Rest timer": "Таймер отдыха"
+  "Rest timer": "Таймер отдыха",
+  "+1 rep": "+1 повт.",
+  "+1 set": "+1 подход",
+  "Harder": "Сложнее",
+  "Longer": "Дольше",
+  "Rebuild": "Перестройка"
 }

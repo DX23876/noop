@@ -54,6 +54,7 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
         self.exerciseModes = Dictionary(uniqueKeysWithValues: exercises.map { ($0.id, $0.mode) })
         self.strapBuzz = strapBuzz
         self.strapLog = strapLog
+        restoreConfirmedFields()
         publishCompanionState()
         // A session restored mid-rest still gets its buzz.
         scheduleStrapCues()
@@ -180,6 +181,46 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
 
     var completedSetCount: Int { draft.exercises.reduce(0) { $0 + $1.sets.filter(\.isCompleted).count } }
     var totalSetCount: Int { draft.exercises.reduce(0) { $0 + $1.sets.count } }
+
+    /// Load times repetitions over the completed working sets that carry a load. Warm-ups stay out, and so
+    /// does plain bodyweight and assistance, whose number is not lifted load; a weighted bodyweight set
+    /// counts its added load.
+    var completedVolumeKg: Double {
+        draft.exercises.reduce(0) { total, exercise in
+            switch exerciseModes[exercise.exerciseId] {
+            case .weightReps, .weightedBodyweight: break
+            default: return total
+            }
+            return exercise.sets.reduce(total) { sum, set in
+                guard set.isCompleted, set.phase == .work, let kg = set.weightKg, kg > 0 else { return sum }
+                let reps = set.reps ?? [set.leftReps, set.rightReps].compactMap { $0 }.min() ?? 0
+                return sum + kg * Double(reps)
+            }
+        }
+    }
+
+    /// Values typed in, copied from the last session or otherwise owned by the wearer this session, as
+    /// "setId:metric". Prefilled values outside it read as suggestions until the set is completed.
+    @Published private(set) var confirmedFields: Set<String> = []
+    private static let confirmedFieldsKey = "training.activeWorkout.confirmedFields"
+
+    func isFieldConfirmed(_ setId: UUID, _ metric: String) -> Bool {
+        confirmedFields.contains("\(setId.uuidString):\(metric)")
+    }
+
+    func confirmField(_ setId: UUID, _ metric: String) {
+        guard confirmedFields.insert("\(setId.uuidString):\(metric)").inserted else { return }
+        // Stored beside the draft's id, so a relaunch keeps it and the next session starts empty.
+        UserDefaults.standard.set(["draft": draft.id.uuidString, "fields": Array(confirmedFields)],
+                                  forKey: Self.confirmedFieldsKey)
+    }
+
+    private func restoreConfirmedFields() {
+        guard let stored = UserDefaults.standard.dictionary(forKey: Self.confirmedFieldsKey),
+              stored["draft"] as? String == draft.id.uuidString,
+              let fields = stored["fields"] as? [String] else { return }
+        confirmedFields = Set(fields)
+    }
 
     /// Active seconds so far: wall time since the start without the time spent paused.
     func activeSeconds(now: Int = Int(Date().timeIntervalSince1970)) -> Int {

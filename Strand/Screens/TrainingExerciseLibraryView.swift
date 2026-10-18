@@ -887,3 +887,33 @@ private struct TrainingCustomExerciseEditor: View {
         }
     }
 }
+
+/// The library's exercise page, opened from a running workout's exercise name: no add action, the
+/// favourite star shared with the library.
+struct TrainingExerciseDetailSheet: View {
+    let exercise: TrainingExercise
+    let performance: TrainingPerformanceHistory
+    @AppStorage("training.favoriteExerciseIds") private var favoritePayload = ""
+
+    init(exercise: TrainingExercise, performance: TrainingPerformanceHistory) {
+        self.exercise = exercise
+        self.performance = performance
+    }
+
+    private var favorites: Set<String> { Set(favoritePayload.split(separator: "\n").map(String.init)) }
+
+    var body: some View {
+        NavigationStack {
+            TrainingExerciseDetailView(
+                exercise: exercise, isFavorite: favorites.contains(exercise.id),
+                records: performance.records(for: exercise.id, mode: exercise.mode),
+                recent: Array(performance.entries(for: exercise.id).reversed().prefix(5)),
+                onAddToWorkout: nil,
+                onToggleFavorite: {
+                    var values = favorites
+                    if !values.insert(exercise.id).inserted { values.remove(exercise.id) }
+                    favoritePayload = values.sorted().joined(separator: "\n")
+                })
+        }
+    }
+}

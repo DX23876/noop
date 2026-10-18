@@ -1006,11 +1006,14 @@ struct NativeWorkoutLoggerView: View {
     @State private var historyRequest: TrainingHistoryRequest?
     @State private var effortRequest: EffortPickerRequest?
     @State private var restRequest: TrainingRestRequest?
+    @State private var noteRequest: TrainingNoteRequest?
+    @State private var detailExercise: TrainingExercise?
+    @State private var scrolledExerciseId: UUID?
     /// Exercises whose demonstration is open. Closed by default so the sets stay in view.
     @State private var expandedMedia: Set<UUID> = []
     @State private var showingRoutinePicker = false
     @StateObject private var liveEffort = StrengthLiveEffort()
-    @AppStorage("training.activeWorkout.layout") private var layoutRaw = ActiveWorkoutLayout.focus.rawValue
+    @AppStorage("training.activeWorkout.layout") private var layoutRaw = ActiveWorkoutLayout.list.rawValue
     @AppStorage("workoutKeepScreenOn") private var keepScreenOn = false
     @AppStorage(TrainingPreferences.effortKey) private var effortRaw = TrainingEffortPreference.rpe.rawValue
     @AppStorage(TrainingPreferences.mediaPresentationKey) private var mediaPresentationRaw = TrainingMediaPresentation.large.rawValue
@@ -1034,9 +1037,11 @@ struct NativeWorkoutLoggerView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
+                ScrollViewReader { proxy in
                 LazyVStack(spacing: 14) {
-                    WorkoutLoggerHeader(model: model)
-                    if !model.isRetrospective { physiologyCard }
+                    WorkoutLoggerHeader(model: model) {
+                        if !model.isRetrospective { physiologyCard }
+                    }
                     if showsStrapTapHint { StrapTapHint() }
                     if let notice = model.strapNotice {
                         StrapTapNotice(text: notice) { model.dismissStrapNotice() }
@@ -1048,6 +1053,21 @@ struct NativeWorkoutLoggerView: View {
                     }.buttonStyle(.bordered).tint(StrandPalette.accent)
                     noteCard
                 }.padding(NoopMetrics.screenPadding)
+                // In the list, finishing an exercise brings the next one up. Supersets alternate between
+                // their exercises every set and stay put, which would otherwise jump on every check.
+                .onChange(of: nextExerciseId) { id in
+                    guard layout == .list, let id, let previous = scrolledExerciseId else {
+                        scrolledExerciseId = id
+                        return
+                    }
+                    scrolledExerciseId = id
+                    let group = { (exerciseId: UUID) in
+                        model.draft.exercises.first { $0.id == exerciseId }?.supersetId
+                    }
+                    if let shared = group(id), shared == group(previous) { return }
+                    withAnimation(.snappy) { proxy.scrollTo(id, anchor: .top) }
+                }
+                }
             }
             .background(StrandPalette.surfaceBase.ignoresSafeArea())
             // The rest countdown stays in view while scrolling through sets.
@@ -1072,10 +1092,19 @@ struct NativeWorkoutLoggerView: View {
                         .tint(StrandPalette.chargeColor)
                 }
             }
-            .trainingKeyboardDoneButton { focusedSetField = nil }
+            .trainingKeyboardToolbar(showsCalculator: focusedSetField?.metric == .weight,
+                                     calculator: openPlateCalculatorForFocusedField,
+                                     done: { focusedSetField = nil })
             .sheet(isPresented: $showingExercises) { exercisePicker }
             .sheet(item: $plateRequest) { request in
                 NavigationStack { TrainingPlateCalculatorView(targetKg: request.targetKg) }
+            }
+            .sheet(item: $noteRequest) { request in
+                TrainingExerciseNoteSheet(request: request) { model.setExerciseNote(request.exerciseId, $0) }
+                    .presentationDetents([.medium])
+            }
+            .sheet(item: $detailExercise) { exercise in
+                TrainingExerciseDetailSheet(exercise: exercise, performance: performance)
             }
             .sheet(item: $restRequest) { request in
                 TrainingRestPickerSheet(request: request) { model.setRestSeconds(request.exerciseId, $0) }
@@ -1162,7 +1191,7 @@ struct NativeWorkoutLoggerView: View {
     }
 
     private var layout: ActiveWorkoutLayout {
-        ActiveWorkoutLayout(rawValue: layoutRaw) ?? .focus
+        ActiveWorkoutLayout(rawValue: layoutRaw) ?? .list
     }
 
     /// The strap double-tap is explained only where it works: a live session recording from the strap,
@@ -1279,11 +1308,18 @@ struct NativeWorkoutLoggerView: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: NoopMetrics.space3) {
                     if let definition { mediaThumbnail(definition, exerciseId: exercise.id) }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(definition?.title ?? exercise.exerciseId).font(StrandFont.headline)
-                        Text(definition?.primaryMuscleId.map(TrainingDisplayNames.muscle) ?? "")
-                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                    // The name opens the exercise's page: how to do it, records and recent sessions.
+                    Button { detailExercise = definition } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(definition?.title ?? exercise.exerciseId).font(StrandFont.headline)
+                                .foregroundStyle(definition == nil ? StrandPalette.textPrimary : StrandPalette.accent)
+                                .multilineTextAlignment(.leading)
+                            Text(definition?.primaryMuscleId.map(TrainingDisplayNames.muscle) ?? "")
+                                .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                        }
                     }
+                    .buttonStyle(.plain)
+                    .disabled(definition == nil)
                     Spacer()
                     Menu {
                         if definition?.mode == .weightReps {
@@ -1336,22 +1372,17 @@ struct NativeWorkoutLoggerView: View {
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.metricCyan)
                 }
                 if let definition, expandedMedia.contains(exercise.id) { workoutMedia(definition, animated: true) }
-                restChip(exercise, title: definition?.title ?? exercise.exerciseId)
-                if let reason = exercise.progressionReason, let text = ProgressionReasonText.text(reason) {
-                    Label(text, systemImage: "arrow.up.right")
-                        .font(StrandFont.caption.weight(.semibold))
-                        .foregroundStyle(StrandPalette.chargeColor)
+                if let note = exercise.note {
+                    Text(note).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary).lineLimit(2)
                 }
+                exerciseChips(exercise, title: definition?.title ?? exercise.exerciseId)
                 setTable(exerciseIndex, exercise, mode: definition?.mode ?? .weightReps,
                          unilateral: definition?.isUnilateral == true)
                 Button { model.addSet(to: exercise.id) } label: { Label("Add set", systemImage: "plus") }
                     .font(StrandFont.caption.weight(.semibold)).buttonStyle(.plain).foregroundStyle(StrandPalette.accent)
-                TextField("Exercise notes", text: Binding(
-                    get: { exercise.note ?? "" },
-                    set: { model.setExerciseNote(exercise.id, $0) }), axis: .vertical)
-                    .font(StrandFont.caption)
             }
         }
+        .id(exercise.id)
     }
 
     private func compactExerciseCard(_ exerciseIndex: Int, _ exercise: NativeWorkoutExercise) -> some View {
@@ -1782,7 +1813,10 @@ struct NativeWorkoutLoggerView: View {
                            field: field, width: width,
                            minus: { model.adjustWeight(exerciseIndex: exerciseIndex, setIndex: setIndex, by: -step) },
                            plus: { model.adjustWeight(exerciseIndex: exerciseIndex, setIndex: setIndex, by: step) }) {
-            decimalField(set.weightKg.map { TrainingPreferences.displayWeight($0, unit: weightUnit) }, field: field) {
+            let shown = set.weightKg.map { TrainingPreferences.displayWeight($0, unit: weightUnit) }
+            decimalField(shown, field: field, suggested: isSuggested(set, field)) {
+                guard $0 != shown else { return }
+                model.confirmField(set.id, "weight")
                 model.setWeight(exerciseIndex: exerciseIndex, setIndex: setIndex,
                                 kg: $0.map { TrainingPreferences.kilograms(fromDisplay: $0, unit: weightUnit) })
             }
@@ -1796,7 +1830,9 @@ struct NativeWorkoutLoggerView: View {
                            field: field, width: width,
                            minus: { model.adjustReps(exerciseIndex: exerciseIndex, setIndex: setIndex, by: -1) },
                            plus: { model.adjustReps(exerciseIndex: exerciseIndex, setIndex: setIndex, by: 1) }) {
-            integerField(set.reps, field: field) {
+            integerField(set.reps, field: field, suggested: isSuggested(set, field)) {
+                guard $0 != set.reps else { return }
+                model.confirmField(set.id, "reps")
                 model.setReps(exerciseIndex: exerciseIndex, setIndex: setIndex, reps: $0)
             }
         }
@@ -1823,7 +1859,9 @@ struct NativeWorkoutLoggerView: View {
                                                          left: left, by: -1) },
                            plus: { model.adjustSideReps(exerciseIndex: exerciseIndex, setIndex: setIndex,
                                                         left: left, by: 1) }) {
-            integerField(value, field: field) {
+            integerField(value, field: field, suggested: isSuggested(set, field)) {
+                guard $0 != value else { return }
+                model.confirmField(set.id, left ? "leftReps" : "rightReps")
                 model.setSideReps(exerciseIndex: exerciseIndex, setIndex: setIndex, left: left, reps: $0)
             }
         }
@@ -1841,7 +1879,7 @@ struct NativeWorkoutLoggerView: View {
 
     /// Typed entry commits when the field loses focus or the keyboard's Done button is pressed; the
     /// number format follows the reader's locale, including its decimal separator.
-    private func decimalField(_ value: Double?, field: TrainingSetField,
+    private func decimalField(_ value: Double?, field: TrainingSetField, suggested: Bool = false,
                               onCommit: @escaping (Double?) -> Void) -> some View {
         TextField("—", value: Binding(get: { value }, set: { onCommit($0) }),
                   format: .number.precision(.fractionLength(0...2)))
@@ -1849,15 +1887,30 @@ struct NativeWorkoutLoggerView: View {
             .focused($focusedSetField, equals: field)
             .multilineTextAlignment(.center)
             .font(StrandFont.subhead.monospacedDigit())
+            .foregroundStyle(suggested ? StrandPalette.textTertiary : StrandPalette.textPrimary)
     }
 
-    private func integerField(_ value: Int?, field: TrainingSetField,
+    private func integerField(_ value: Int?, field: TrainingSetField, suggested: Bool = false,
                               onCommit: @escaping (Int?) -> Void) -> some View {
         TextField("—", value: Binding(get: { value }, set: { onCommit($0) }), format: .number)
             .trainingNumberKeyboard(decimal: false)
             .focused($focusedSetField, equals: field)
             .multilineTextAlignment(.center)
             .font(StrandFont.subhead.monospacedDigit())
+            .foregroundStyle(suggested ? StrandPalette.textTertiary : StrandPalette.textPrimary)
+    }
+
+    /// A prefilled value nobody has typed, copied or completed yet: grey, like a suggestion.
+    private func isSuggested(_ set: NativeWorkoutSet, _ field: TrainingSetField) -> Bool {
+        guard !set.isCompleted else { return false }
+        let key: String = switch field.metric {
+        case .weight: "weight"
+        case .reps: "reps"
+        case .leftReps: "leftReps"
+        case .rightReps: "rightReps"
+        case .distance: "distance"
+        }
+        return !model.isFieldConfirmed(set.id, key)
     }
 
     private func setKindMenu(_ exerciseIndex: Int, _ setIndex: Int,
@@ -1886,16 +1939,23 @@ struct NativeWorkoutLoggerView: View {
                 model.removeSet(exerciseIndex: exerciseIndex, setIndex: setIndex)
             }
         } label: {
-            Text(setLabel(set, index: setIndex)).font(StrandFont.subhead.weight(.semibold))
-                .lineLimit(1).minimumScaleFactor(0.7).frame(width: SetColumns.set)
+            let ordinal = model.draft.exercises[exerciseIndex].sets[..<setIndex]
+                .filter { $0.phase == .work && $0.parentSetId == nil }.count + 1
+            Text(setLabel(set, ordinal: ordinal)).font(StrandFont.subhead.weight(.semibold))
+                .foregroundStyle(set.phase == .warmup ? StrandPalette.metricAmber
+                                 : set.intensifier == .none ? StrandPalette.textPrimary : StrandPalette.accent)
+                .lineLimit(1).minimumScaleFactor(0.7)
+                .frame(width: SetColumns.set, height: SetColumns.set)
+                .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
         .accessibilityLabel(Text("Set \(setIndex + 1) options"))
     }
 
-    private func setLabel(_ set: NativeWorkoutSet, index: Int) -> String {
-        if set.phase == .warmup { return "W\(index + 1)" }
+    /// "W" for every warm-up and the working sets counted from one, as on a gym sheet.
+    private func setLabel(_ set: NativeWorkoutSet, ordinal: Int) -> String {
+        if set.phase == .warmup { return "W" }
         switch set.intensifier {
-        case .none: return "\(index + 1)"
+        case .none: return "\(ordinal)"
         case .dropSet: return "D"
         case .restPause: return "RP"
         case .amrap: return "A"
@@ -1950,14 +2010,18 @@ struct NativeWorkoutLoggerView: View {
             switch mode {
             case .weightReps, .weightedBodyweight, .assistedBodyweight:
                 if let kg = previous.weightKg {
+                    model.confirmField(set.id, "weight")
                     model.setWeight(exerciseIndex: exerciseIndex, setIndex: setIndex, kg: kg)
                 }
             default: break
             }
             if unilateral {
+                model.confirmField(set.id, "leftReps")
+                model.confirmField(set.id, "rightReps")
                 model.setSideReps(exerciseIndex: exerciseIndex, setIndex: setIndex, left: true, reps: previous.leftReps)
                 model.setSideReps(exerciseIndex: exerciseIndex, setIndex: setIndex, left: false, reps: previous.rightReps)
             } else if let reps = previous.reps {
+                model.confirmField(set.id, "reps")
                 model.setReps(exerciseIndex: exerciseIndex, setIndex: setIndex, reps: reps)
             }
         } label: {
@@ -1975,19 +2039,60 @@ struct NativeWorkoutLoggerView: View {
         .accessibilityValue(Text(previous.map { previousSetSummary($0, mode: mode, unilateral: unilateral) } ?? "—"))
     }
 
-    /// This exercise's rest after each set, changeable mid-session.
-    private func restChip(_ exercise: NativeWorkoutExercise, title: String) -> some View {
-        Button {
-            restRequest = TrainingRestRequest(exerciseId: exercise.id, title: title, seconds: exercise.restSeconds)
-        } label: {
-            Label(String(localized: "Rest: \(TrainingRestText.text(exercise.restSeconds))"), systemImage: "timer")
-                .font(StrandFont.caption.weight(.semibold).monospacedDigit())
-                .foregroundStyle(StrandPalette.textSecondary)
-                .padding(.horizontal, NoopMetrics.space3)
-                .padding(.vertical, NoopMetrics.space2)
-                .background(StrandPalette.surfaceInset, in: Capsule())
+    /// Rest, note and progression as one row of small buttons above the sets.
+    private func exerciseChips(_ exercise: NativeWorkoutExercise, title: String) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: NoopMetrics.space2) {
+                Button {
+                    restRequest = TrainingRestRequest(exerciseId: exercise.id, title: title, seconds: exercise.restSeconds)
+                } label: {
+                    chipLabel(String(localized: "Rest: \(TrainingRestText.text(exercise.restSeconds))"), symbol: "timer")
+                }
+                .buttonStyle(.plain)
+                Button {
+                    noteRequest = TrainingNoteRequest(exerciseId: exercise.id, title: title, note: exercise.note ?? "")
+                } label: {
+                    chipLabel(String(localized: "Note"), symbol: "square.and.pencil")
+                }
+                .buttonStyle(.plain)
+                if let reason = exercise.progressionReason, let short = ProgressionReasonText.short(reason),
+                   let text = ProgressionReasonText.text(reason) {
+                    // The short word fits the row; the sentence behind it opens on a tap.
+                    Menu { Text(text) } label: {
+                        chipLabel(short, symbol: "arrow.up.right", tint: StrandPalette.chargeColor)
+                    }
+                    .menuStyle(.button)
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Text(text))
+                }
+            }
         }
-        .buttonStyle(.plain)
+    }
+
+    private func chipLabel(_ title: String, symbol: String, tint: Color = StrandPalette.textSecondary) -> some View {
+        Label(title, systemImage: symbol)
+            .font(StrandFont.caption.weight(.semibold).monospacedDigit())
+            .foregroundStyle(tint)
+            .lineLimit(1)
+            .padding(.horizontal, NoopMetrics.space3)
+            .padding(.vertical, NoopMetrics.space2)
+            .background(StrandPalette.surfaceInset, in: Capsule())
+    }
+
+    /// The exercise holding the next open set, which the list scrolls to when it changes.
+    private var nextExerciseId: UUID? {
+        guard let setId = model.nextSetReadout?.setId else { return nil }
+        return model.draft.exercises.first { $0.sets.contains { $0.id == setId } }?.id
+    }
+
+    /// Committing the typed weight first, so the calculator starts from the number on the pad.
+    private func openPlateCalculatorForFocusedField() {
+        guard let field = focusedSetField else { return }
+        focusedSetField = nil
+        DispatchQueue.main.async {
+            let kg = model.draft.exercises.lazy.flatMap(\.sets).first { $0.id == field.setId }?.weightKg
+            plateRequest = TrainingPlateRequest(targetKg: kg ?? 60)
+        }
     }
 
     /// One adjustable element for VoiceOver: swiping up or down runs the same step as the buttons, and a
@@ -2235,6 +2340,53 @@ private struct TrainingExerciseHistorySheet: View {
     }
 }
 
+private struct TrainingNoteRequest: Identifiable {
+    let exerciseId: UUID
+    let title: String
+    let note: String
+    var id: UUID { exerciseId }
+}
+
+/// The exercise note, written in its own sheet so the set table keeps its room.
+private struct TrainingExerciseNoteSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let request: TrainingNoteRequest
+    let onSave: (String) -> Void
+    @State private var text: String
+    @FocusState private var focused: Bool
+
+    init(request: TrainingNoteRequest, onSave: @escaping (String) -> Void) {
+        self.request = request
+        self.onSave = onSave
+        _text = State(initialValue: request.note)
+    }
+
+    var body: some View {
+        NavigationStack {
+            TextField("Exercise notes", text: $text, axis: .vertical)
+                .lineLimit(3...8)
+                .focused($focused)
+                .padding(NoopMetrics.screenPadding)
+                .frame(maxHeight: .infinity, alignment: .top)
+                .navigationTitle(Text(request.title))
+                #if os(iOS)
+                .navigationBarTitleDisplayMode(.inline)
+                #endif
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") {
+                            onSave(text)
+                            dismiss()
+                        }
+                        .fontWeight(.semibold)
+                    }
+                }
+                .onAppear { focused = true }
+        }
+    }
+}
+
 private struct TrainingRestRequest: Identifiable {
     let exerciseId: UUID
     let title: String
@@ -2321,13 +2473,21 @@ private extension View {
         #endif
     }
 
+    /// The plate calculator sits over the number pad while a weight is typed; Done is always there.
     @ViewBuilder
-    func trainingKeyboardDoneButton(_ action: @escaping () -> Void) -> some View {
+    func trainingKeyboardToolbar(showsCalculator: Bool, calculator: @escaping () -> Void,
+                                 done: @escaping () -> Void) -> some View {
         #if os(iOS)
         toolbar {
             ToolbarItemGroup(placement: .keyboard) {
+                if showsCalculator {
+                    Button(action: calculator) {
+                        Label("Plate calculator", systemImage: "plus.forwardslash.minus")
+                            .labelStyle(.titleAndIcon)
+                    }
+                }
                 Spacer()
-                Button("Done", action: action)
+                Button("Done", action: done)
             }
         }
         #else

@@ -3216,5 +3216,10 @@
   "**AgeLess opens straight to its details.** In More › Health & Body, AgeLess now shows the detail page right away.": "**AgeLess ouvre directement ses détails.** Dans Plus › Santé et corps, AgeLess affiche maintenant tout de suite la page de détails.",
   "PREVIOUS": "PRÉCÉDENT",
   "Rest: %@": "Repos : %@",
-  "Rest timer": "Minuteur de repos"
+  "Rest timer": "Minuteur de repos",
+  "+1 rep": "+1 rép.",
+  "+1 set": "+1 série",
+  "Harder": "Plus dur",
+  "Longer": "Plus long",
+  "Rebuild": "Reconstruire"
 }
