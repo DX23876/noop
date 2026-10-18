@@ -38,14 +38,15 @@ struct WorkoutLoggerHeader<HeartRate: View>: View {
                     Spacer(minLength: 0)
                     if !model.isRetrospective {
                         Button { model.toggleWorkoutPause() } label: {
-                            Image(systemName: model.draft.state == .active ? "pause.fill" : "play.fill")
+                            Label(model.draft.state == .active ? "Pause" : "Resume",
+                                  systemImage: model.draft.state == .active ? "pause.fill" : "play.fill")
+                                .labelStyle(.iconOnly)
                                 .font(.headline)
                                 .frame(width: 40, height: 40)
                                 .background(StrandPalette.surfaceInset, in: Circle())
                         }
                         .buttonStyle(.plain)
                         .foregroundStyle(StrandPalette.textPrimary)
-                        .accessibilityLabel(Text(model.draft.state == .active ? "Pause" : "Resume"))
                     }
                 }
                 ProgressView(value: Double(model.completedSetCount), total: Double(max(model.totalSetCount, 1)))
@@ -288,6 +289,10 @@ struct EffortPickerSheet: View {
                 }
             }
             .navigationTitle(Text("How hard was that set?"))
+            // A large title cut the question off ("Wie schwer war der S…") in a half-height sheet.
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             }
@@ -365,6 +370,15 @@ enum ProgressionReasonText {
         case .addSet: return String(localized: "+1 set")
         case .addLoadOrVariation: return String(localized: "Harder")
         case .addTime: return String(localized: "Longer")
+        }
+    }
+
+    /// The arrow says which way the load moves: up, level or down.
+    static func symbol(_ reason: ProgressionReason) -> String {
+        switch reason {
+        case .repeatTarget: return "equal"
+        case .stalledDeload: return "arrow.down.right"
+        default: return "arrow.up.right"
         }
     }
 

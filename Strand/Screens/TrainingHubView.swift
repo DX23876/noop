@@ -1009,6 +1009,8 @@ struct NativeWorkoutLoggerView: View {
     @State private var noteRequest: TrainingNoteRequest?
     @State private var detailExercise: TrainingExercise?
     @State private var scrolledExerciseId: UUID?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
     /// Exercises whose demonstration is open. Closed by default so the sets stay in view.
     @State private var expandedMedia: Set<UUID> = []
     @State private var showingRoutinePicker = false
@@ -1055,7 +1057,13 @@ struct NativeWorkoutLoggerView: View {
                 }.padding(NoopMetrics.screenPadding)
                 // In the list, finishing an exercise brings the next one up. Supersets alternate between
                 // their exercises every set and stay put, which would otherwise jump on every check.
-                .onChange(of: nextExerciseId) { id in
+                // The pad covers the lower half; the row being typed moves to the middle.
+                .onChangeCompat(of: focusedSetField) { field in
+                    guard let field else { return }
+                    withAnimation(reduceMotion ? nil : .snappy) { proxy.scrollTo(field.setId, anchor: .center) }
+                }
+                .onAppear { scrolledExerciseId = nextExerciseId }
+                .onChangeCompat(of: nextExerciseId) { id in
                     guard layout == .list, let id, let previous = scrolledExerciseId else {
                         scrolledExerciseId = id
                         return
@@ -1065,14 +1073,18 @@ struct NativeWorkoutLoggerView: View {
                         model.draft.exercises.first { $0.id == exerciseId }?.supersetId
                     }
                     if let shared = group(id), shared == group(previous) { return }
-                    withAnimation(.snappy) { proxy.scrollTo(id, anchor: .top) }
+                    withAnimation(reduceMotion ? nil : .snappy) { proxy.scrollTo(id, anchor: .top) }
                 }
                 }
             }
             .background(StrandPalette.surfaceBase.ignoresSafeArea())
             // The rest countdown stays in view while scrolling through sets.
             .safeAreaInset(edge: .bottom) {
-                if let timer = model.activeTimer {
+                // While a number is typed, the bar over the pad replaces the rest dock. A bottom inset rises
+                // with the keyboard; SwiftUI's keyboard toolbar never appeared over this pad.
+                if showsNumberPadBar {
+                    numberPadBar
+                } else if let timer = model.activeTimer {
                     WorkoutRestDock(timer: timer, model: model, onFinished: timerFinishedFeedback)
                 }
             }
@@ -1092,9 +1104,6 @@ struct NativeWorkoutLoggerView: View {
                         .tint(StrandPalette.chargeColor)
                 }
             }
-            .trainingKeyboardToolbar(showsCalculator: focusedSetField?.metric == .weight,
-                                     calculator: openPlateCalculatorForFocusedField,
-                                     done: { focusedSetField = nil })
             .sheet(isPresented: $showingExercises) { exercisePicker }
             .sheet(item: $plateRequest) { request in
                 NavigationStack { TrainingPlateCalculatorView(targetKg: request.targetKg) }
@@ -1658,6 +1667,7 @@ struct NativeWorkoutLoggerView: View {
             }
         }
         .opacity(set.isCompleted ? 0.72 : 1)
+        .id(set.id)
         // A container keeps every control reachable; combining the row would hide them behind one label.
         .accessibilityElement(children: .contain)
         .accessibilityLabel(setAccessibilityLabel(set, mode: mode, unilateral: unilateral))
@@ -1885,9 +1895,12 @@ struct NativeWorkoutLoggerView: View {
                   format: .number.precision(.fractionLength(0...2)))
             .trainingNumberKeyboard(decimal: true)
             .focused($focusedSetField, equals: field)
+
             .multilineTextAlignment(.center)
             .font(StrandFont.subhead.monospacedDigit())
             .foregroundStyle(suggested ? StrandPalette.textTertiary : StrandPalette.textPrimary)
+            // Grey alone tells a suggestion from a typed value; without colour cues it also slants.
+            .italic(suggested && differentiateWithoutColor)
     }
 
     private func integerField(_ value: Int?, field: TrainingSetField, suggested: Bool = false,
@@ -1895,9 +1908,12 @@ struct NativeWorkoutLoggerView: View {
         TextField("—", value: Binding(get: { value }, set: { onCommit($0) }), format: .number)
             .trainingNumberKeyboard(decimal: false)
             .focused($focusedSetField, equals: field)
+
             .multilineTextAlignment(.center)
             .font(StrandFont.subhead.monospacedDigit())
             .foregroundStyle(suggested ? StrandPalette.textTertiary : StrandPalette.textPrimary)
+            // Grey alone tells a suggestion from a typed value; without colour cues it also slants.
+            .italic(suggested && differentiateWithoutColor)
     }
 
     /// A prefilled value nobody has typed, copied or completed yet: grey, like a suggestion.
@@ -1987,6 +2003,8 @@ struct NativeWorkoutLoggerView: View {
             }
             .padding(.vertical, 2)
             .contentShape(Rectangle())
+            // A tap on the padding around the number focuses it too. Not a Button: one wrapped around the
+            // text field would take the field's own taps, and the element is already adjustable for VoiceOver.
             .onTapGesture { focusedSetField = field }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(Text(title))
@@ -2041,7 +2059,7 @@ struct NativeWorkoutLoggerView: View {
 
     /// Rest, note and progression as one row of small buttons above the sets.
     private func exerciseChips(_ exercise: NativeWorkoutExercise, title: String) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        ScrollView(.horizontal) {
             HStack(spacing: NoopMetrics.space2) {
                 Button {
                     restRequest = TrainingRestRequest(exerciseId: exercise.id, title: title, seconds: exercise.restSeconds)
@@ -2059,7 +2077,7 @@ struct NativeWorkoutLoggerView: View {
                    let text = ProgressionReasonText.text(reason) {
                     // The short word fits the row; the sentence behind it opens on a tap.
                     Menu { Text(text) } label: {
-                        chipLabel(short, symbol: "arrow.up.right", tint: StrandPalette.chargeColor)
+                        chipLabel(short, symbol: ProgressionReasonText.symbol(reason), tint: StrandPalette.chargeColor)
                     }
                     .menuStyle(.button)
                     .buttonStyle(.plain)
@@ -2067,6 +2085,7 @@ struct NativeWorkoutLoggerView: View {
                 }
             }
         }
+        .scrollIndicators(.hidden)
     }
 
     private func chipLabel(_ title: String, symbol: String, tint: Color = StrandPalette.textSecondary) -> some View {
@@ -2085,11 +2104,38 @@ struct NativeWorkoutLoggerView: View {
         return model.draft.exercises.first { $0.sets.contains { $0.id == setId } }?.id
     }
 
+    /// The Mac types with its own keyboard and has no pad to sit above.
+    private var showsNumberPadBar: Bool {
+        #if os(iOS)
+        focusedSetField != nil
+        #else
+        false
+        #endif
+    }
+
+    /// Above the number pad: the plate calculator for a weight, and Done.
+    private var numberPadBar: some View {
+        HStack {
+            if focusedSetField?.metric == .weight {
+                Button(action: openPlateCalculatorForFocusedField) {
+                    Label("Plate calculator", systemImage: "plus.forwardslash.minus")
+                }
+            }
+            Spacer()
+            Button("Done") { focusedSetField = nil }.fontWeight(.semibold)
+        }
+        .font(StrandFont.subhead)
+        .padding(.horizontal, NoopMetrics.screenPadding)
+        .padding(.vertical, NoopMetrics.space3)
+        .background(.bar)
+    }
+
     /// Committing the typed weight first, so the calculator starts from the number on the pad.
     private func openPlateCalculatorForFocusedField() {
         guard let field = focusedSetField else { return }
         focusedSetField = nil
-        DispatchQueue.main.async {
+        Task { @MainActor in
+            await Task.yield()
             let kg = model.draft.exercises.lazy.flatMap(\.sets).first { $0.id == field.setId }?.weightKg
             plateRequest = TrainingPlateRequest(targetKg: kg ?? 60)
         }
@@ -2468,28 +2514,6 @@ private extension View {
     func trainingNumberKeyboard(decimal: Bool) -> some View {
         #if os(iOS)
         keyboardType(decimal ? .decimalPad : .numberPad)
-        #else
-        self
-        #endif
-    }
-
-    /// The plate calculator sits over the number pad while a weight is typed; Done is always there.
-    @ViewBuilder
-    func trainingKeyboardToolbar(showsCalculator: Bool, calculator: @escaping () -> Void,
-                                 done: @escaping () -> Void) -> some View {
-        #if os(iOS)
-        toolbar {
-            ToolbarItemGroup(placement: .keyboard) {
-                if showsCalculator {
-                    Button(action: calculator) {
-                        Label("Plate calculator", systemImage: "plus.forwardslash.minus")
-                            .labelStyle(.titleAndIcon)
-                    }
-                }
-                Spacer()
-                Button("Done", action: done)
-            }
-        }
         #else
         self
         #endif
