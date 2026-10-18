@@ -155,8 +155,10 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
                              reps: prior.reps, leftReps: prior.leftReps, rightReps: prior.rightReps,
                              durationS: prior.durationS, distanceM: prior.distanceM)
         } ?? []
-        let initial = NativeWorkoutEngine.setsForAddedExercise(lastPerformance: last,
-                                                               unilateral: exercise.isUnilateral)
+        let initial = NativeWorkoutEngine.setsForAddedExercise(
+            lastPerformance: last, unilateral: exercise.isUnilateral,
+            workingSets: UserDefaults.standard.object(forKey: TrainingPreferences.newExerciseSetsKey) as? Int
+                ?? TrainingPreferences.defaultNewExerciseSets)
         NativeWorkoutEngine.addExercise(exercise.id, to: &draft,
             sets: initial, definition: exercise)
         if let index = draft.exercises.indices.last {
@@ -500,9 +502,17 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
         touchAndPersist()
     }
 
-    func removeSet(exerciseIndex: Int, setIndex: Int) {
+    /// Whether this set may go: never the only set of its exercise, which is removed as an exercise from its
+    /// menu instead, and never a drop-set parent while its segments remain.
+    func canRemoveSet(exerciseIndex: Int, setIndex: Int) -> Bool {
         guard draft.exercises.indices.contains(exerciseIndex),
-              draft.exercises[exerciseIndex].sets.indices.contains(setIndex) else { return }
+              draft.exercises[exerciseIndex].sets.indices.contains(setIndex) else { return false }
+        let sets = draft.exercises[exerciseIndex].sets
+        return sets.count > 1 && !sets.contains { $0.parentSetId == sets[setIndex].id }
+    }
+
+    func removeSet(exerciseIndex: Int, setIndex: Int) {
+        guard canRemoveSet(exerciseIndex: exerciseIndex, setIndex: setIndex) else { return }
         draft.exercises[exerciseIndex].sets.remove(at: setIndex)
         reindexSets(exerciseIndex)
         touchAndPersist()

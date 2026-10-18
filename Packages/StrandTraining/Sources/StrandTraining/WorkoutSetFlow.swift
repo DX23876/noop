@@ -86,10 +86,10 @@ extension NativeWorkoutEngine {
     }
 
     /// The rows an exercise added to a running session starts with: its last performance set by set, or,
-    /// without one, a single set of 8 repetitions with the weight left EMPTY. An empty weight shows it has
-    /// to be entered; 0 kg would look like a real number and be logged as one.
+    /// without one, `workingSets` sets of 8 repetitions with the weight left EMPTY. An empty weight shows it
+    /// has to be entered; 0 kg would look like a real number and be logged as one.
     public static func setsForAddedExercise(lastPerformance: [NativeWorkoutSet],
-                                            unilateral: Bool) -> [NativeWorkoutSet] {
+                                            unilateral: Bool, workingSets: Int = 1) -> [NativeWorkoutSet] {
         guard lastPerformance.isEmpty else {
             return lastPerformance.enumerated().map { index, prior in
                 NativeWorkoutSet(index: index, phase: prior.phase, weightKg: prior.weightKg,
@@ -97,7 +97,9 @@ extension NativeWorkoutEngine {
                                  durationS: prior.durationS, distanceM: prior.distanceM)
             }
         }
-        return [unilateral ? NativeWorkoutSet(index: 0, leftReps: 8, rightReps: 8)
-                           : NativeWorkoutSet(index: 0, reps: 8)]
+        return (0..<max(1, workingSets)).map { index in
+            unilateral ? NativeWorkoutSet(index: index, leftReps: 8, rightReps: 8)
+                       : NativeWorkoutSet(index: index, reps: 8)
+        }
     }
 }

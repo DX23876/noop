@@ -32,6 +32,9 @@ enum TrainingPreferences {
     static let effortKey = "training.effortScale"
     static let sessionRatingPromptKey = "training.sessionRatingPrompt"
     static let defaultRestKey = "training.defaultRestSeconds"
+    /// Working sets an exercise without history starts with when added to a running session.
+    static let newExerciseSetsKey = "training.newExerciseSets"
+    static let defaultNewExerciseSets = 3
     static let warmupRestKey = "training.warmupRestSeconds"
     static let restPauseKey = "training.restPauseSeconds"
     static let mediaPresentationKey = "training.mediaPresentation"

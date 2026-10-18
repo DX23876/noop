@@ -163,4 +163,19 @@ final class WorkoutSetFlowTests: XCTestCase {
         let sides = NativeWorkoutEngine.setsForAddedExercise(lastPerformance: [], unilateral: true)
         XCTAssertEqual([sides[0].leftReps, sides[0].rightReps, sides[0].reps], [8, 8, nil])
     }
+
+    func testWithoutHistoryTheChosenNumberOfWorkingSetsIsCreated() {
+        let sets = NativeWorkoutEngine.setsForAddedExercise(lastPerformance: [], unilateral: false, workingSets: 3)
+        XCTAssertEqual(sets.map(\.index), [0, 1, 2])
+        XCTAssertTrue(sets.allSatisfy { $0.phase == .work && $0.weightKg == nil && $0.reps == 8 })
+        XCTAssertEqual(Set(sets.map(\.id)).count, 3)
+        XCTAssertEqual(NativeWorkoutEngine.setsForAddedExercise(lastPerformance: [], unilateral: false,
+                                                                workingSets: 0).count, 1)
+    }
+
+    func testHistoryWinsOverTheChosenNumberOfWorkingSets() {
+        let work = NativeWorkoutSet(index: 0, weightKg: 50, reps: 5)
+        XCTAssertEqual(NativeWorkoutEngine.setsForAddedExercise(lastPerformance: [work], unilateral: false,
+                                                                workingSets: 4).count, 1)
+    }
 }

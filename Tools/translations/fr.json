@@ -3221,5 +3221,6 @@
   "+1 set": "+1 série",
   "Harder": "Plus dur",
   "Longer": "Plus long",
-  "Rebuild": "Reconstruire"
+  "Rebuild": "Reconstruire",
+  "Sets for a new exercise: %lld": "Séries pour un nouvel exercice : %lld"
 }

@@ -238,7 +238,10 @@ struct SettingsView: View {
     @AppStorage(TrainingPreferences.strapDoubleTapKey) private var trainingStrapDoubleTap = true
     @AppStorage(HapticPrefs.liftRest) private var trainingStrapRestBuzz = true
     @AppStorage(TrainingPreferences.weekStartKey) private var trainingWeekStartRaw = TrainingWeekStart.monday.rawValue
-    @AppStorage(TrainingPreferences.activeLayoutKey) private var trainingLayoutRaw = "focus"
+    // The logger's own default since all exercises became the starting layout; the two must agree.
+    @AppStorage(TrainingPreferences.activeLayoutKey) private var trainingLayoutRaw = "list"
+    @AppStorage(TrainingPreferences.newExerciseSetsKey) private var trainingNewExerciseSets =
+        TrainingPreferences.defaultNewExerciseSets
     @AppStorage(UnitPrefs.hrvWindowKey) private var hrvWindowRaw = HrvWindow.whole.rawValue
     @AppStorage(DayCycleMode.storageKey) private var dayCycleModeRaw = DayCycleMode.sleepOnset.rawValue
     // Alternate app icon (iOS only) — false = Titanium (primary AppIcon), true = Blue Titanium
@@ -1332,6 +1335,9 @@ struct SettingsView: View {
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 rowDivider
+                rowDivider
+                Stepper("Sets for a new exercise: \(trainingNewExerciseSets)", value: $trainingNewExerciseSets,
+                        in: 1...6).font(StrandFont.subhead)
                 rowDivider
                 trainingGroupLabel("Rest times")
                 Stepper("Default rest: \(trainingRestSeconds) sec", value: $trainingRestSeconds,

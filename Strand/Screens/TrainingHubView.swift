@@ -1387,8 +1387,7 @@ struct NativeWorkoutLoggerView: View {
                 exerciseChips(exercise, title: definition?.title ?? exercise.exerciseId)
                 setTable(exerciseIndex, exercise, mode: definition?.mode ?? .weightReps,
                          unilateral: definition?.isUnilateral == true)
-                Button { model.addSet(to: exercise.id) } label: { Label("Add set", systemImage: "plus") }
-                    .font(StrandFont.caption.weight(.semibold)).buttonStyle(.plain).foregroundStyle(StrandPalette.accent)
+                setCountButtons(exercise)
             }
         }
         .id(exercise.id)
@@ -1422,8 +1421,25 @@ struct NativeWorkoutLoggerView: View {
                     Label("Complete", systemImage: "checkmark.circle.fill")
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.chargeColor)
                 }
+                setCountButtons(exercise)
             }
         }
+    }
+
+    /// One more set, wide enough to hit mid-workout. It works on a finished exercise too, so an extra set
+    /// after moving on needs no new exercise. A set goes by swiping its row to the left.
+    private func setCountButtons(_ exercise: NativeWorkoutExercise) -> some View {
+        HStack(spacing: NoopMetrics.space2) {
+            Button { model.addSet(to: exercise.id) } label: {
+                Label("Add set", systemImage: "plus")
+                    .frame(maxWidth: .infinity, minHeight: 40)
+                    .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius,
+                                                                                 style: .continuous))
+            }
+            .foregroundStyle(StrandPalette.textPrimary)
+        }
+        .font(StrandFont.subhead.weight(.semibold))
+        .buttonStyle(.plain)
     }
 
     private func previousPerformance(for exercise: NativeWorkoutExercise,
@@ -1667,6 +1683,11 @@ struct NativeWorkoutLoggerView: View {
             }
         }
         .opacity(set.isCompleted ? 0.72 : 1)
+        .modifier(SetSwipeToDelete(enabled: model.canRemoveSet(exerciseIndex: exerciseIndex, setIndex: setIndex)) {
+            withAnimation(reduceMotion ? nil : .snappy) {
+                model.removeSet(exerciseIndex: exerciseIndex, setIndex: setIndex)
+            }
+        })
         .id(set.id)
         // A container keeps every control reachable; combining the row would hide them behind one label.
         .accessibilityElement(children: .contain)
@@ -1954,6 +1975,7 @@ struct NativeWorkoutLoggerView: View {
             Button("Remove this set", role: .destructive) {
                 model.removeSet(exerciseIndex: exerciseIndex, setIndex: setIndex)
             }
+            .disabled(!model.canRemoveSet(exerciseIndex: exerciseIndex, setIndex: setIndex))
         } label: {
             let ordinal = model.draft.exercises[exerciseIndex].sets[..<setIndex]
                 .filter { $0.phase == .work && $0.parentSetId == nil }.count + 1
@@ -2383,6 +2405,51 @@ private struct TrainingExerciseHistorySheet: View {
         }
         .navigationTitle(Text(title))
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+    }
+}
+
+/// Swipe a set row left to reveal a delete button, as in the common gym loggers. The rows sit in a scroll view,
+/// not a List, so `swipeActions` is not available; a horizontal drag runs beside the vertical scroll.
+private struct SetSwipeToDelete: ViewModifier {
+    let enabled: Bool
+    let onDelete: () -> Void
+    @State private var offset: CGFloat = 0
+    private let revealed: CGFloat = 76
+
+    func body(content: Content) -> some View {
+        content
+            .offset(x: offset)
+            .background(alignment: .trailing) {
+                if offset < 0 {
+                    Button(role: .destructive) {
+                        offset = 0
+                        onDelete()
+                    } label: {
+                        Label("Remove this set", systemImage: "trash")
+                            .labelStyle(.iconOnly)
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                            .frame(width: revealed - NoopMetrics.space2)
+                            .frame(maxHeight: .infinity)
+                            .background(StrandPalette.statusCritical,
+                                        in: RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 20)
+                    .onChanged { value in
+                        guard enabled, abs(value.translation.width) > abs(value.translation.height) else { return }
+                        let start = offset <= -revealed ? -revealed : 0
+                        offset = min(0, max(-revealed * 1.4, start + value.translation.width))
+                    }
+                    .onEnded { _ in
+                        withAnimation(.snappy) { offset = offset < -revealed / 2 ? -revealed : 0 }
+                    },
+                isEnabled: enabled)
+            .onChangeCompat(of: enabled) { if !$0 { offset = 0 } }
+            .accessibilityAction(named: Text("Remove this set")) { if enabled { onDelete() } }
     }
 }
 

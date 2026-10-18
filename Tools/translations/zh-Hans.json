@@ -3321,5 +3321,6 @@
   "+1 set": "+1 组",
   "Harder": "加难",
   "Longer": "更久",
-  "Rebuild": "重建"
+  "Rebuild": "重建",
+  "Sets for a new exercise: %lld": "新动作的组数：%lld"
 }

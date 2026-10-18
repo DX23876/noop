@@ -3220,5 +3220,6 @@
   "+1 set": "+1 Satz",
   "Harder": "Schwerer",
   "Longer": "Länger",
-  "Rebuild": "Neuaufbau"
+  "Rebuild": "Neuaufbau",
+  "Sets for a new exercise: %lld": "Sätze für neue Übung: %lld"
 }
