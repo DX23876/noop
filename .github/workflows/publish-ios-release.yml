@@ -218,21 +218,28 @@ jobs:
   # 9.3.0 onwards the release carries a macOS build too — 9.2.1/9.2.2 were iOS-only, which left
   # Mac users with no artifact at all for a fork whose reference platform IS macOS. Runs AFTER `publish`
   # so the release already exists and this job only has to upload into it. Steps mirror
-  # fork-release.yml's proven macOS job rather than inventing a second recipe.
+  # fork-release.yml's proven macOS jobs rather than inventing a second recipe.
   #
   # macos-26, not macos-15: the macOS app targets macOS 13+ and needs no iOS 26 SDK, so macos-15 used
   # to be enough — until its Xcode 16.4 (Swift 6.1.2) started crashing swift-frontend compiling the
   # Strand module (x86_64 module emission, then SILGen on the arm64 slice under whole-module mode). The
   # macos-26 toolchain builds the same sources cleanly (matches app-build.yml's fix, ee8fd84f2), so this
   # now waits for a macos-26 runner like the iOS legs already did.
-  macos:
-    name: Build and attach macOS app
+  #
+  # One slice per job, merged with lipo in `macos` below, the same split fork-testing-build.yml made in
+  # cd927823b and fork-release.yml in 5ab07c89d. This job used to build Debug in one `ARCHS="x86_64
+  # arm64"` invocation, which only fit its 40 min timeout because Debug skips the whole-module compile.
+  # Release runs both whole-module compiles of the Strand module at once on the runner's 3 cores, and
+  # that phase alone passed 31 min on the testing build (2026-10-16 and -17). Each slice now has a
+  # runner to itself, so the critical path is one compile, not two sharing a CPU.
+  macos-slice:
+    name: Build macOS slice (${{ matrix.arch }})
     needs: publish
     runs-on: macos-26
     timeout-minutes: 40
-    env:
-      TAG: ${{ needs.publish.outputs.tag }}
-      VER: ${{ needs.publish.outputs.version }}
+    strategy:
+      matrix:
+        arch: [arm64, x86_64]
 
     steps:
       - name: Checkout the released commit
@@ -248,33 +255,104 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate
 
-      - name: Build NOOP.app (macOS, unsigned, universal)
+      - name: Build NOOP.app (macOS, unsigned, ${{ matrix.arch }})
         # #51: 'platform=macOS' on an Apple-Silicon runner resolves to the host arch and thins the binary
-        # to arm64-only (project.yml's ONLY_ACTIVE_ARCH: NO is set only under configs.Release, so a Debug
-        # build inherits the default YES). That shipped an arm64-only app that will not launch on Intel.
-        # The generic destination + explicit ARCHS/ONLY_ACTIVE_ARCH force a true universal build.
+        # to arm64-only. That shipped an arm64-only app that will not launch on Intel. The generic
+        # destination + explicit ARCHS/ONLY_ACTIVE_ARCH override whatever the configuration says, so the
+        # x86_64 slice is really x86_64; the merge job verifies every Mach-O carries both.
+        #
+        # #2393: Release, matching the iOS leg, for the reasons spelled out in fork-release.yml: the Debug
+        # artefact was a 120 KB stub plus a 195 MB `.debug.dylib` and a `__preview.dylib`, and it cost a
+        # measurable share of a CPU core at idle. Release also drops `#if DEBUG` code (previews, sample
+        # data, the `--demo-sync` screenshot harness), as the iOS artefact always has. Use a local Debug
+        # build for the harness.
         run: >-
-          xcodebuild -scheme Strand -configuration Debug
-          -destination 'generic/platform=macOS' ARCHS="x86_64 arm64" ONLY_ACTIVE_ARCH=NO
+          xcodebuild -scheme Strand -configuration Release
+          -destination 'generic/platform=macOS' ARCHS="${{ matrix.arch }}" ONLY_ACTIVE_ARCH=NO
           -derivedDataPath build/dd
           CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
           build
 
-      - name: Verify universal binary
+      - name: Archive the slice
+        # tar, not the artifact zip: the bundle carries framework symlinks the artifact store would flatten.
+        run: |
+          APP=$(find build/dd/Build/Products -maxdepth 3 -name '*.app' -type d | head -1)
+          test -n "$APP" || { echo "::error::.app not found"; exit 1; }
+          for f in "$APP/Contents/MacOS/"*; do echo "${f##*/}: $(lipo -archs "$f")"; done
+          tar -C "$(dirname "$APP")" -cf "slice-${{ matrix.arch }}.tar" "$(basename "$APP")"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-slice-${{ matrix.arch }}
+          path: slice-${{ matrix.arch }}.tar
+          retention-days: 1
+          if-no-files-found: error
+
+  macos:
+    name: Build and attach macOS app
+    needs: [publish, macos-slice]
+    runs-on: macos-26
+    timeout-minutes: 15
+    env:
+      TAG: ${{ needs.publish.outputs.tag }}
+      VER: ${{ needs.publish.outputs.version }}
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: macos-slice-*
+          merge-multiple: true
+
+      - name: Merge the slices into a universal NOOP.app
+        # Every Mach-O in the arm64 bundle is joined with its x86_64 twin; everything else is taken from the
+        # arm64 bundle. A Mach-O present in only one slice, or one lipo refuses (both already the same arch),
+        # fails the merge rather than shipping a bundle that is universal in its main binary only.
         run: |
           set -euo pipefail
-          APP=$(find build/dd/Build/Products -maxdepth 3 -name '*.app' -type d | head -1)
-          EXE=$(find "$APP/Contents/MacOS" -maxdepth 1 -type f ! -name '*.dylib' | head -1)
-          echo "archs: $(lipo -archs "$EXE")"
-          { lipo -archs "$EXE" | grep -qw x86_64 && lipo -archs "$EXE" | grep -qw arm64; } \
-            || { echo "::error::macOS binary is not universal (expected x86_64 + arm64)"; exit 1; }
+          mkdir -p arm64 x86_64 universal
+          tar -C arm64 -xf slice-arm64.tar
+          tar -C x86_64 -xf slice-x86_64.tar
+          NAME=$(cd arm64 && ls -d *.app | head -1)
+          test -d "x86_64/$NAME" || { echo "::error::the slices built different bundles ($NAME missing from x86_64)"; exit 1; }
+          ditto "arm64/$NAME" "universal/$NAME"
+          merged=0
+          while IFS= read -r -d '' f; do
+            rel="${f#arm64/$NAME/}"
+            lipo -archs "$f" >/dev/null 2>&1 || continue
+            test -f "x86_64/$NAME/$rel" || { echo "::error::$rel has no x86_64 twin"; exit 1; }
+            lipo -create "$f" "x86_64/$NAME/$rel" -output "universal/$NAME/$rel"
+            merged=$((merged + 1))
+          done < <(find "arm64/$NAME" -type f -print0)
+          while IFS= read -r -d '' f; do
+            rel="${f#x86_64/$NAME/}"
+            lipo -archs "$f" >/dev/null 2>&1 || continue
+            test -f "arm64/$NAME/$rel" || { echo "::error::$rel exists only in the x86_64 slice"; exit 1; }
+          done < <(find "x86_64/$NAME" -type f -print0)
+          echo "merged $merged Mach-O file(s)"
+          # Resources come from one compile of the same commit; a difference is worth seeing, not fatal.
+          { diff -rq "arm64/$NAME" "x86_64/$NAME" || true; } | while IFS= read -r line; do
+            f=$(printf '%s' "$line" | sed -E 's/^Files (.*) and .* differ$/\1/')
+            [ "$f" != "$line" ] && lipo -archs "$f" >/dev/null 2>&1 && continue
+            echo "::warning::slices differ outside Mach-O: $line"
+          done
+
+      - name: Verify universal binary
+        run: |
+          APP=$(find universal -maxdepth 1 -name '*.app' -type d | head -1)
+          bad=0
+          while IFS= read -r -d '' f; do
+            archs=$(lipo -archs "$f" 2>/dev/null) || continue
+            echo "${f#universal/}: $archs"
+            { echo "$archs" | grep -qw x86_64 && echo "$archs" | grep -qw arm64; } || bad=1
+          done < <(find "$APP" -type f -print0)
+          [ "$bad" -eq 0 ] || { echo "::error::macOS bundle is not universal (expected x86_64 + arm64 in every Mach-O)"; exit 1; }
 
       - name: Package + attach
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          APP=$(find build/dd/Build/Products -maxdepth 3 -name '*.app' -type d | head -1)
+          APP=$(find universal -maxdepth 1 -name '*.app' -type d | head -1)
           test -n "$APP" || { echo "::error::.app not found"; exit 1; }
           # #429: ad-hoc sign the BUNDLE so it has a stable per-build code identity. macOS 26 (Tahoe)
           # will not bind a Bluetooth TCC grant to an UNSIGNED bundle, so users wedge at CBManagerState
