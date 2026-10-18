@@ -4326,5 +4326,6 @@
   "Harder": "Trudniej",
   "Longer": "Dłużej",
   "Rebuild": "Odbudowa",
-  "Sets for a new exercise: %lld": "Serie dla nowego ćwiczenia: %lld"
+  "Sets for a new exercise: %lld": "Serie dla nowego ćwiczenia: %lld",
+  "Not logged: %@ of %@ has no numbers yet": "Nie zapisano: %1$@ (%2$@) nie ma jeszcze wartości"
 }

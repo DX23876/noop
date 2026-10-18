@@ -1853,8 +1853,9 @@ struct NativeWorkoutLoggerView: View {
                            plus: { model.adjustWeight(exerciseIndex: exerciseIndex, setIndex: setIndex, by: step) }) {
             let shown = set.weightKg.map { TrainingPreferences.displayWeight($0, unit: weightUnit) }
             decimalField(shown, field: field, suggested: isSuggested(set, field)) {
-                guard $0 != shown else { return }
+                // Typing a value, the suggested one included, makes it the lifter's own.
                 model.confirmField(set.id, "weight")
+                guard $0 != shown else { return }
                 model.setWeight(exerciseIndex: exerciseIndex, setIndex: setIndex,
                                 kg: $0.map { TrainingPreferences.kilograms(fromDisplay: $0, unit: weightUnit) })
             }
@@ -1869,8 +1870,8 @@ struct NativeWorkoutLoggerView: View {
                            minus: { model.adjustReps(exerciseIndex: exerciseIndex, setIndex: setIndex, by: -1) },
                            plus: { model.adjustReps(exerciseIndex: exerciseIndex, setIndex: setIndex, by: 1) }) {
             integerField(set.reps, field: field, suggested: isSuggested(set, field)) {
-                guard $0 != set.reps else { return }
                 model.confirmField(set.id, "reps")
+                guard $0 != set.reps else { return }
                 model.setReps(exerciseIndex: exerciseIndex, setIndex: setIndex, reps: $0)
             }
         }
@@ -1898,8 +1899,8 @@ struct NativeWorkoutLoggerView: View {
                            plus: { model.adjustSideReps(exerciseIndex: exerciseIndex, setIndex: setIndex,
                                                         left: left, by: 1) }) {
             integerField(value, field: field, suggested: isSuggested(set, field)) {
-                guard $0 != value else { return }
                 model.confirmField(set.id, left ? "leftReps" : "rightReps")
+                guard $0 != value else { return }
                 model.setSideReps(exerciseIndex: exerciseIndex, setIndex: setIndex, left: left, reps: $0)
             }
         }
@@ -2065,10 +2066,16 @@ struct NativeWorkoutLoggerView: View {
             default: break
             }
             if unilateral {
-                model.confirmField(set.id, "leftReps")
-                model.confirmField(set.id, "rightReps")
-                model.setSideReps(exerciseIndex: exerciseIndex, setIndex: setIndex, left: true, reps: previous.leftReps)
-                model.setSideReps(exerciseIndex: exerciseIndex, setIndex: setIndex, left: false, reps: previous.rightReps)
+                // A side the last session has no number for keeps its value; one logged as plain
+                // repetitions lends that number to both sides.
+                if let left = previous.leftReps ?? previous.reps {
+                    model.confirmField(set.id, "leftReps")
+                    model.setSideReps(exerciseIndex: exerciseIndex, setIndex: setIndex, left: true, reps: left)
+                }
+                if let right = previous.rightReps ?? previous.reps {
+                    model.confirmField(set.id, "rightReps")
+                    model.setSideReps(exerciseIndex: exerciseIndex, setIndex: setIndex, left: false, reps: right)
+                }
             } else if let reps = previous.reps {
                 model.confirmField(set.id, "reps")
                 model.setReps(exerciseIndex: exerciseIndex, setIndex: setIndex, reps: reps)

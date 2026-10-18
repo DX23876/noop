@@ -29,7 +29,7 @@ struct WorkoutLoggerHeader<HeartRate: View>: View {
                         }
                     }
                     WorkoutHeaderStat(title: String(localized: "Volume")) {
-                        Text(TrainingPreferences.formattedWeight(model.completedVolumeKg.rounded()))
+                        Text(TrainingPreferences.formattedVolume(model.completedVolumeKg))
                     }
                     WorkoutHeaderStat(title: String(localized: "Sets")) {
                         Text("\(model.completedSetCount)/\(model.totalSetCount)")

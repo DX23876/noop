@@ -563301,6 +563301,64 @@
           }
         }
       }
+    },
+    "Not logged: %@ of %@ has no numbers yet" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht geloggt: %1$@ von %2$@ hat noch keine Zahlen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No registrado: %1$@ de %2$@ aún no tiene valores"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non enregistré : %1$@ de %2$@ n'a pas encore de valeurs"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non registrato: %1$@ di %2$@ non ha ancora valori"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nie zapisano: %1$@ (%2$@) nie ma jeszcze wartości"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não registado: %1$@ de %2$@ ainda não tem valores"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не записано: %2$@, %1$@ ещё без значений"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未记录：%2$@ 的%1$@还没有数值"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未記錄：%2$@ 的%1$@還沒有數值"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

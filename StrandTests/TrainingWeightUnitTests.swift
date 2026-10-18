@@ -26,4 +26,9 @@ final class TrainingWeightUnitTests: XCTestCase {
         XCTAssertEqual(TrainingPreferences.formattedWeight(127.5, unit: .pounds), "281.1 lb")
         XCTAssertEqual(TrainingPreferences.formattedWeight(12.25, unit: .kilograms), "12.25 kg")
     }
+
+    func testVolumeIsRoundedInTheUnitItIsShownIn() {
+        XCTAssertEqual(TrainingPreferences.formattedVolume(127.5, unit: .pounds), "281 lb")
+        XCTAssertEqual(TrainingPreferences.formattedVolume(412.6, unit: .kilograms), "413 kg")
+    }
 }

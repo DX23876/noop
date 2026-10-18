@@ -38,6 +38,8 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
     private var lastStrapStepAt: Int?
     /// The pending buzz for the running timer, replaced whenever the timer changes.
     private var strapCueTask: Task<Void, Never>?
+    /// The pending Lock Screen refresh at the running rest's end, keyed by that end.
+    private var restEndPublish: (end: Int, task: Task<Void, Never>)?
 
     /// How long ordinary edits (steppers, notes) are gathered before one save. A completed set, a pause,
     /// backgrounding and finishing all save immediately.
@@ -661,6 +663,27 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
     private func publishCompanionState() {
         let next = nextSetReadout
         controller.publishCompanion(draft, exerciseTitle: next?.exercise, setNumber: next?.number)
+        scheduleRestEndPublish()
+    }
+
+    /// The Lock Screen drops a rest once it has run out and offers the next set instead. Nothing else changes
+    /// at that moment, so the session republishes itself just past the deadline. A suspended app cannot,
+    /// and the Lock Screen then holds the rest at zero until NOOP runs again.
+    private func scheduleRestEndPublish() {
+        let end = draft.timer.flatMap { timer in
+            timer.kind != .timedSet && timer.pausedRemainingSeconds == nil ? timer.endsAtTs : nil
+        }
+        guard end != restEndPublish?.end else { return }
+        restEndPublish?.task.cancel()
+        restEndPublish = nil
+        guard let end, !isRetrospective, !discarded else { return }
+        let delay = Date(timeIntervalSince1970: TimeInterval(end)).timeIntervalSinceNow + 0.5
+        guard delay > 0 else { return }
+        restEndPublish = (end, Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            self?.controller.publishActivity()
+        })
     }
 
     func handleWatchCommand(_ command: StrengthWorkoutCompanionCommand) {
@@ -678,8 +701,7 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
             guard isLoggableUnseen(exerciseIndex: next.exercise, setIndex: next.set) else {
                 strapLog("Strength session: Watch \"complete set\" not acted on, set \(next.set + 1) of "
                          + "\(title(ofExercise: next.exercise)) has no numbers to log")
-                showStrapNotice(Self.missingNumbersNotice(set: next.set + 1,
-                                                          exercise: title(ofExercise: next.exercise)))
+                showStrapNotice(missingNumbersNotice(exerciseIndex: next.exercise, setIndex: next.set))
                 return
             }
             toggleSet(exerciseIndex: next.exercise, setIndex: next.set)
@@ -733,7 +755,7 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
             // No buzz: the missing confirmation sends the lifter to the phone, where the empty field shows.
             strapLog("Strength session: double-tap not acted on, set \(next.set + 1) of "
                      + "\(title(ofExercise: next.exercise)) has no numbers to log")
-            showStrapNotice(Self.missingNumbersNotice(set: next.set + 1, exercise: title(ofExercise: next.exercise)))
+            showStrapNotice(missingNumbersNotice(exerciseIndex: next.exercise, setIndex: next.set))
             return
         }
         lastStrapStepAt = now
@@ -772,8 +794,10 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
         controller.publishActivity()
     }
 
-    static func missingNumbersNotice(set: Int, exercise: String) -> String {
-        String(localized: "Not logged: set \(set) of \(exercise) has no numbers yet")
+    /// Names the set as the logger and the Lock Screen do, not by its row, which counts the warm-ups.
+    private func missingNumbersNotice(exerciseIndex: Int, setIndex: Int) -> String {
+        let label = StrengthNextSet.label(of: setIndex, in: draft.exercises[exerciseIndex].sets)
+        return String(localized: "Not logged: \(label) of \(title(ofExercise: exerciseIndex)) has no numbers yet")
     }
 
     private func title(ofExercise index: Int) -> String {

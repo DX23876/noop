@@ -3220,5 +3220,6 @@
   "Harder": "Mais difícil",
   "Longer": "Mais tempo",
   "Rebuild": "Reconstruir",
-  "Sets for a new exercise: %lld": "Séries para um exercício novo: %lld"
+  "Sets for a new exercise: %lld": "Séries para um exercício novo: %lld",
+  "Not logged: %@ of %@ has no numbers yet": "Não registado: %1$@ de %2$@ ainda não tem valores"
 }

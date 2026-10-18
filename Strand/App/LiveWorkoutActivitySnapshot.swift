@@ -25,6 +25,18 @@ struct StrengthNextSet: Equatable {
         return next
     }
 
+    /// What a surface that names one set calls it: "Set 2", "Warm-up", "Drop set" or "Rest-pause". Numbered
+    /// as the logger's set column numbers it, so a segment never borrows the next set's number.
+    static func label(of setIndex: Int, in sets: [NativeWorkoutSet]) -> String {
+        guard sets.indices.contains(setIndex) else { return String(localized: "Set \(setIndex + 1)") }
+        let set = sets[setIndex]
+        if set.phase == .warmup { return String(localized: "Warm-up") }
+        if set.parentSetId != nil {
+            return set.intensifier == .restPause ? String(localized: "Rest-pause") : String(localized: "Drop set")
+        }
+        return String(localized: "Set \(NativeWorkoutEngine.workingSetNumber(of: setIndex, in: sets) ?? 1)")
+    }
+
     static func resolve(in draft: WorkoutDraft, titles: [String: String],
                         modes: [String: TrainingMeasurementMode],
                         unit: TrainingWeightUnit) -> StrengthNextSet? {
@@ -44,21 +56,11 @@ struct StrengthNextSet: Equatable {
         case .duration, .distanceDuration, nil:
             target = nil
         }
-        // Numbered as the logger's set column numbers it, so a segment never borrows the next set's number.
-        let number = NativeWorkoutEngine.workingSetNumber(of: next.set, in: exercise.sets)
-        let label: String
-        if set.phase == .warmup {
-            label = String(localized: "Warm-up")
-        } else if set.parentSetId != nil {
-            label = set.intensifier == .restPause ? String(localized: "Rest-pause") : String(localized: "Drop set")
-        } else {
-            label = String(localized: "Set \(number ?? 1)")
-        }
         return StrengthNextSet(
             sessionId: draft.id, setId: set.id,
             exercise: titles[exercise.exerciseId] ?? exercise.exerciseId,
-            number: number,
-            label: label,
+            number: NativeWorkoutEngine.workingSetNumber(of: next.set, in: exercise.sets),
+            label: label(of: next.set, in: exercise.sets),
             heading: String(localized: "Up next"), target: target,
             canCompleteWithoutOpening: setToComplete(in: draft, sessionId: draft.id,
                                                      setId: set.id, modes: modes) != nil)
@@ -98,7 +100,7 @@ struct LiveWorkoutActivitySnapshot: Equatable {
     var setsTotal: Int?
     /// End of the current strength rest, when one is counting down.
     var restEndsAt: Date?
-    /// The interval's start keeps the Lock Screen at zero after the deadline until rest is skipped.
+    /// The interval's start, so the Lock Screen counts down the real length of the rest.
     var restStartedAt: Date? = nil
     var strengthSessionId: UUID? = nil
     /// Next open strength set, resolved once for the logger and the system surfaces.

@@ -143,6 +143,14 @@ enum TrainingPreferences {
         return "\(displayWeight(kilograms, unit: selected).formatted(style)) \(selected.symbol)"
     }
 
+    /// A load total such as a session's volume, rounded in the unit it is shown in: "281 lb", never the
+    /// "281.1 lb" a kilogram total rounded before converting would read.
+    static func formattedVolume(_ kilograms: Double, unit: TrainingWeightUnit? = nil) -> String {
+        let selected = unit ?? weightUnit
+        let whole = displayWeight(kilograms, unit: selected).rounded()
+        return "\(whole.formatted(.number.precision(.fractionLength(0)))) \(selected.symbol)"
+    }
+
     /// An empty selection means that no equipment filter is active.
     static var availableEquipment: Set<String> {
         Set((UserDefaults.standard.stringArray(forKey: equipmentKey) ?? []).map {

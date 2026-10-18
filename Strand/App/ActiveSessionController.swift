@@ -559,8 +559,10 @@ final class ActiveSessionController: ObservableObject {
             let bpm = draft.physiologyProvider == .appleWatch ? watchHeartRate.bpm : app.bpm
             var restEnds: Date?
             var restStarted: Date?
+            // A rest that has run out leaves the Lock Screen, which then offers the next set. The session
+            // republishes at the deadline (`scheduleRestEndPublish`), so this needs no polling.
             if let timer = draft.timer, timer.kind != .timedSet, timer.pausedRemainingSeconds == nil,
-               draft.state == .active {
+               draft.state == .active, timer.endsAtTs > Int(Date().timeIntervalSince1970) {
                 restEnds = Date(timeIntervalSince1970: TimeInterval(timer.endsAtTs))
                 restStarted = Date(timeIntervalSince1970: TimeInterval(timer.startedAtTs))
             }

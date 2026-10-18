@@ -3221,5 +3221,6 @@
   "Harder": "Schwerer",
   "Longer": "Länger",
   "Rebuild": "Neuaufbau",
-  "Sets for a new exercise: %lld": "Sätze für neue Übung: %lld"
+  "Sets for a new exercise: %lld": "Sätze für neue Übung: %lld",
+  "Not logged: %@ of %@ has no numbers yet": "Nicht geloggt: %1$@ von %2$@ hat noch keine Zahlen"
 }

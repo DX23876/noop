@@ -3322,5 +3322,6 @@
   "Harder": "加难",
   "Longer": "更久",
   "Rebuild": "重建",
-  "Sets for a new exercise: %lld": "新动作的组数：%lld"
+  "Sets for a new exercise: %lld": "新动作的组数：%lld",
+  "Not logged: %@ of %@ has no numbers yet": "未记录：%2$@ 的%1$@还没有数值"
 }

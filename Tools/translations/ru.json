@@ -3198,5 +3198,6 @@
   "Harder": "Сложнее",
   "Longer": "Дольше",
   "Rebuild": "Перестройка",
-  "Sets for a new exercise: %lld": "Подходов для нового упражнения: %lld"
+  "Sets for a new exercise: %lld": "Подходов для нового упражнения: %lld",
+  "Not logged: %@ of %@ has no numbers yet": "Не записано: %2$@, %1$@ ещё без значений"
 }
