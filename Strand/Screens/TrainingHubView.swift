@@ -1519,7 +1519,7 @@ struct NativeWorkoutLoggerView: View {
                 case .assistedBodyweight: Text("ASSIST").frame(maxWidth: .infinity)
                 default: Spacer(minLength: 0)
                 }
-                if effortPreference != .off { Text("EFFORT").frame(width: SetColumns.effort) }
+                if effortPreference != .off { effortHeader }
                 Color.clear.frame(width: SetColumns.check, height: 1)
             }
             HStack(spacing: SetColumns.spacing) {
@@ -1552,12 +1552,17 @@ struct NativeWorkoutLoggerView: View {
             case .distanceDuration:
                 Text("DISTANCE").frame(maxWidth: .infinity); Text("TIME").frame(maxWidth: .infinity)
             }
-            if effortPreference != .off { Text("EFFORT").frame(width: SetColumns.effort) }
+            if effortPreference != .off { effortHeader }
             Color.clear.frame(width: SetColumns.check, height: 1)
         }
         .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
         // Column labels stay on one line in longer languages instead of breaking mid-word.
         .lineLimit(1).minimumScaleFactor(0.6)
+    }
+
+    /// The scale's own short name, the same in every language, so the header names what the badges hold.
+    private var effortHeader: some View {
+        Text(verbatim: effortPreference == .rir ? "RIR" : "RPE").frame(width: SetColumns.effort)
     }
 
     @ViewBuilder private func repsHeader(unilateral: Bool, compact: Bool = false) -> some View {
