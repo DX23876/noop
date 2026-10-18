@@ -121,6 +121,20 @@ struct StrengthLiveHeartRatePanel: View {
     private var zone: Int { bpm.map { app.profile.hrZoneSet.zoneNumber(forBPM: Double($0)) } ?? 0 }
 
     var body: some View {
+        if provider == .none {
+            // No source means no number is coming: one quiet line instead of a large empty card, so the
+            // sets move up where they are reachable.
+            Label { Text(sourceText) } icon: { Image(systemName: "heart.slash") }
+                .font(StrandFont.caption)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, NoopMetrics.space4)
+        } else {
+            panel
+        }
+    }
+
+    private var panel: some View {
         Button { showingDetail = true } label: {
             VStack(alignment: .leading, spacing: NoopMetrics.space2) {
                 HStack(alignment: .center, spacing: NoopMetrics.space3) {

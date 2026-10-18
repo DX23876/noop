@@ -1397,11 +1397,14 @@ struct NativeWorkoutLoggerView: View {
         // what to lift now and used to hide the useful one behind it.
         guard let entry = performance.entries(for: exercise.exerciseId).last(where: { !$0.workingSets.isEmpty })
         else { return nil }
-        let sets = entry.workingSets
-        let summaries = sets.prefix(4).map { previousSetSummary($0, mode: mode, unilateral: unilateral) }
-        let date = Date(timeIntervalSince1970: TimeInterval(entry.startTs))
-            .formatted(date: .abbreviated, time: .omitted)
-        return "\(date) · \(summaries.joined(separator: ", "))"
+        let sets = Array(entry.workingSets.prefix(4))
+        let day = Date(timeIntervalSince1970: TimeInterval(entry.startTs))
+        // The year only when it is not this one: "8. Okt." reads faster than "8. Okt. 2026" mid-set.
+        let date = Calendar.current.isDate(day, equalTo: Date(), toGranularity: .year)
+            ? day.formatted(.dateTime.day().month(.abbreviated))
+            : day.formatted(date: .abbreviated, time: .omitted)
+        let list = TrainingSetText.compactList(sets, mode: mode, unilateral: unilateral, unit: weightUnit)
+        return "\(date) · \(list)"
     }
 
     private func previousSetSummary(_ set: TrainingPerformanceHistory.PerformedSet,
@@ -1980,14 +1983,37 @@ private enum TrainingSetText {
                         unit: TrainingWeightUnit = TrainingPreferences.weightUnit) -> String {
         let reps = repetitions(set, unilateral: unilateral)
         switch mode {
-        case .weightReps: return "\(weight(set.weightKg, unit: unit)) × \(reps)"
-        case .weightedBodyweight: return "+\(weight(set.weightKg, unit: unit)) × \(reps)"
-        case .assistedBodyweight: return "−\(weight(set.weightKg, unit: unit)) × \(reps)"
+        case .weightReps, .weightedBodyweight, .assistedBodyweight:
+            return "\(load(set, mode: mode, unit: unit) ?? "—") × \(reps)"
         case .bodyweightReps, .repetitions: return String(localized: "\(reps) reps")
         case .duration: return duration(set.durationS)
         case .distanceDuration:
             let meters = set.distanceM?.formatted(.number.precision(.fractionLength(0...2))) ?? "—"
             return "\(meters) m · \(duration(set.durationS))"
+        }
+    }
+
+    /// Several sets on one line. Sets that share one load name it once ("142,5 kg × 4, 4, 6") instead of
+    /// repeating it per set, which wrapped the line on a phone.
+    static func compactList(_ sets: [TrainingPerformanceHistory.PerformedSet],
+                            mode: TrainingMeasurementMode, unilateral: Bool,
+                            unit: TrainingWeightUnit = TrainingPreferences.weightUnit) -> String {
+        if !unilateral, sets.count > 1, let first = sets.first, first.weightKg != nil,
+           sets.allSatisfy({ $0.weightKg == first.weightKg }), let shared = load(first, mode: mode, unit: unit) {
+            let reps = sets.map { repetitions($0, unilateral: false) }.joined(separator: ", ")
+            return "\(shared) × \(reps)"
+        }
+        return sets.map { summary($0, mode: mode, unilateral: unilateral, unit: unit) }.joined(separator: ", ")
+    }
+
+    /// The signed load of a weighted set, nil for a mode that carries no load.
+    static func load(_ set: TrainingPerformanceHistory.PerformedSet, mode: TrainingMeasurementMode,
+                     unit: TrainingWeightUnit = TrainingPreferences.weightUnit) -> String? {
+        switch mode {
+        case .weightReps: weight(set.weightKg, unit: unit)
+        case .weightedBodyweight: "+\(weight(set.weightKg, unit: unit))"
+        case .assistedBodyweight: "−\(weight(set.weightKg, unit: unit))"
+        case .bodyweightReps, .repetitions, .duration, .distanceDuration: nil
         }
     }
 
