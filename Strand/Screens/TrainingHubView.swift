@@ -1006,6 +1006,8 @@ struct NativeWorkoutLoggerView: View {
     @State private var historyRequest: TrainingHistoryRequest?
     @State private var effortRequest: EffortPickerRequest?
     @State private var restRequest: TrainingRestRequest?
+    /// Exercises whose demonstration is open. Closed by default so the sets stay in view.
+    @State private var expandedMedia: Set<UUID> = []
     @State private var showingRoutinePicker = false
     @StateObject private var liveEffort = StrengthLiveEffort()
     @AppStorage("training.activeWorkout.layout") private var layoutRaw = ActiveWorkoutLayout.focus.rawValue
@@ -1275,7 +1277,8 @@ struct NativeWorkoutLoggerView: View {
         let definition = exercises.first { $0.id == exercise.exerciseId }
         return NoopCard {
             VStack(alignment: .leading, spacing: 10) {
-                HStack {
+                HStack(spacing: NoopMetrics.space3) {
+                    if let definition { mediaThumbnail(definition, exerciseId: exercise.id) }
                     VStack(alignment: .leading, spacing: 2) {
                         Text(definition?.title ?? exercise.exerciseId).font(StrandFont.headline)
                         Text(definition?.primaryMuscleId.map(TrainingDisplayNames.muscle) ?? "")
@@ -1332,7 +1335,7 @@ struct NativeWorkoutLoggerView: View {
                     Label("Superset", systemImage: "link")
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.metricCyan)
                 }
-                if let definition { workoutMedia(definition, animated: exerciseIndex == model.activeExerciseIndex) }
+                if let definition, expandedMedia.contains(exercise.id) { workoutMedia(definition, animated: true) }
                 restChip(exercise, title: definition?.title ?? exercise.exerciseId)
                 if let reason = exercise.progressionReason, let text = ProgressionReasonText.text(reason) {
                     Label(text, systemImage: "arrow.up.right")
@@ -1669,6 +1672,25 @@ struct NativeWorkoutLoggerView: View {
 
     /// The exercise's animation above its sets. Only the exercise being logged animates; the others
     /// show a still, so a list of exercises never decodes several animations at once.
+    /// A still beside the title; tapping it opens or closes the full demonstration under the title.
+    @ViewBuilder private func mediaThumbnail(_ exercise: TrainingExercise, exerciseId: UUID) -> some View {
+        let presentation = TrainingMediaPresentation(rawValue: mediaPresentationRaw) ?? .large
+        if presentation != .hidden, media.isAvailable,
+           let item = ExerciseMediaRegistry.shared.media(for: exercise, variant: .still) {
+            Button {
+                withAnimation(.snappy) {
+                    if expandedMedia.contains(exerciseId) { expandedMedia.remove(exerciseId) }
+                    else { expandedMedia.insert(exerciseId) }
+                }
+            } label: {
+                ExerciseMediaView(media: item, minHeight: 48, maxHeight: 48)
+                    .frame(width: 48, height: 48)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(String(localized: "Exercise demonstration for \(exercise.title)"))
+        }
+    }
+
     @ViewBuilder private func workoutMedia(_ exercise: TrainingExercise, animated: Bool) -> some View {
         let presentation = TrainingMediaPresentation(rawValue: mediaPresentationRaw) ?? .large
         if presentation != .hidden, media.isAvailable,
