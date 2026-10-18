@@ -3211,5 +3211,8 @@
   "**Effort without live heart rate.** A workout recorded while the strap was out of reach gets its Effort from the strap's heart rate once it syncs.": "**Esforço sem frequência cardíaca em direto.** Um treino gravado com a alça fora de alcance recebe o seu Esforço a partir da frequência cardíaca da alça assim que sincroniza.",
   "Settings works again on iOS 17 and 18": "As Definições voltam a funcionar no iOS 17 e 18",
   "**Every Settings page opens.** On iOS 17 and 18 the app froze as soon as you tapped a row in Settings. That is fixed.": "**Todas as páginas das Definições abrem.** No iOS 17 e 18 a app bloqueava assim que tocavas numa linha das Definições. Já está corrigido.",
-  "**AgeLess opens straight to its details.** In More › Health & Body, AgeLess now shows the detail page right away.": "**O AgeLess abre logo os detalhes.** Em Mais › Saúde e corpo, o AgeLess mostra agora de imediato a página de detalhes."
+  "**AgeLess opens straight to its details.** In More › Health & Body, AgeLess now shows the detail page right away.": "**O AgeLess abre logo os detalhes.** Em Mais › Saúde e corpo, o AgeLess mostra agora de imediato a página de detalhes.",
+  "PREVIOUS": "ANTERIOR",
+  "Rest: %@": "Descanso: %@",
+  "Rest timer": "Temporizador de descanso"
 }

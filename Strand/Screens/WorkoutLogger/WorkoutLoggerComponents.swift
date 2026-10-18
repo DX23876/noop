@@ -238,7 +238,7 @@ struct EffortBadge: View {
             .font(StrandFont.subhead.weight(.bold).monospacedDigit())
             .foregroundStyle(color == nil ? StrandPalette.textTertiary : StrandPalette.textPrimary)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background((color ?? StrandPalette.surfaceRaised).opacity(color == nil ? 1 : 0.28),
+            .background((color ?? StrandPalette.surfaceInset).opacity(color == nil ? 1 : 0.28),
                         in: RoundedRectangle(cornerRadius: 8))
             .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(color ?? .clear, lineWidth: 1.5))
     }

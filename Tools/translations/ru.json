@@ -3189,5 +3189,8 @@
   "**Effort without live heart rate.** A workout recorded while the strap was out of reach gets its Effort from the strap's heart rate once it syncs.": "**Усилие без пульса в реальном времени.** Тренировка, записанная вне связи с браслетом, получает Усилие по пульсу браслета после синхронизации.",
   "Settings works again on iOS 17 and 18": "Настройки снова работают на iOS 17 и 18",
   "**Every Settings page opens.** On iOS 17 and 18 the app froze as soon as you tapped a row in Settings. That is fixed.": "**Все страницы настроек открываются.** На iOS 17 и 18 приложение зависало, как только ты нажимал на строку в настройках. Это исправлено.",
-  "**AgeLess opens straight to its details.** In More › Health & Body, AgeLess now shows the detail page right away.": "**AgeLess сразу открывает подробности.** В разделе Ещё › Здоровье и тело AgeLess теперь сразу показывает страницу подробностей."
+  "**AgeLess opens straight to its details.** In More › Health & Body, AgeLess now shows the detail page right away.": "**AgeLess сразу открывает подробности.** В разделе Ещё › Здоровье и тело AgeLess теперь сразу показывает страницу подробностей.",
+  "PREVIOUS": "РАНЕЕ",
+  "Rest: %@": "Отдых: %@",
+  "Rest timer": "Таймер отдыха"
 }

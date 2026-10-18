@@ -401,6 +401,14 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
         touchAndPersist()
     }
 
+    /// The rest that follows each working set of this exercise from now on. A running rest keeps its
+    /// deadline; the next completed set uses the new length.
+    func setRestSeconds(_ exerciseId: UUID, _ seconds: Int) {
+        guard let index = draft.exercises.firstIndex(where: { $0.id == exerciseId }) else { return }
+        draft.exercises[index].restSeconds = max(0, seconds)
+        touchAndPersist()
+    }
+
     /// Ends the exercise early and moves on to the next exercise that still has open sets.
     func skipExercise(_ exerciseId: UUID) {
         guard let index = draft.exercises.firstIndex(where: { $0.id == exerciseId }) else { return }

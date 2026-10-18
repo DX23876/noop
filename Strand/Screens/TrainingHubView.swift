@@ -1005,6 +1005,7 @@ struct NativeWorkoutLoggerView: View {
     @FocusState private var focusedSetField: TrainingSetField?
     @State private var historyRequest: TrainingHistoryRequest?
     @State private var effortRequest: EffortPickerRequest?
+    @State private var restRequest: TrainingRestRequest?
     @State private var showingRoutinePicker = false
     @StateObject private var liveEffort = StrengthLiveEffort()
     @AppStorage("training.activeWorkout.layout") private var layoutRaw = ActiveWorkoutLayout.focus.rawValue
@@ -1073,6 +1074,10 @@ struct NativeWorkoutLoggerView: View {
             .sheet(isPresented: $showingExercises) { exercisePicker }
             .sheet(item: $plateRequest) { request in
                 NavigationStack { TrainingPlateCalculatorView(targetKg: request.targetKg) }
+            }
+            .sheet(item: $restRequest) { request in
+                TrainingRestPickerSheet(request: request) { model.setRestSeconds(request.exerciseId, $0) }
+                    .presentationDetents([.height(340)])
             }
             .sheet(item: $effortRequest) { request in
                 EffortPickerSheet(request: request) { value in
@@ -1328,19 +1333,7 @@ struct NativeWorkoutLoggerView: View {
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.metricCyan)
                 }
                 if let definition { workoutMedia(definition, animated: exerciseIndex == model.activeExerciseIndex) }
-                if let previous = previousPerformance(for: exercise, mode: definition?.mode ?? .weightReps,
-                                                      unilateral: definition?.isUnilateral == true) {
-                    HStack(alignment: .firstTextBaseline, spacing: NoopMetrics.space2) {
-                        Label("Last time", systemImage: "clock.arrow.circlepath")
-                            .font(StrandFont.caption.weight(.semibold))
-                            .foregroundStyle(StrandPalette.metricCyan)
-                        Text(previous)
-                            .font(StrandFont.caption.monospacedDigit())
-                            .foregroundStyle(StrandPalette.textSecondary)
-                            .lineLimit(2)
-                    }
-                    .padding(.vertical, NoopMetrics.space1)
-                }
+                restChip(exercise, title: definition?.title ?? exercise.exerciseId)
                 if let reason = exercise.progressionReason, let text = ProgressionReasonText.text(reason) {
                     Label(text, systemImage: "arrow.up.right")
                         .font(StrandFont.caption.weight(.semibold))
@@ -1435,9 +1428,24 @@ struct NativeWorkoutLoggerView: View {
     private enum SetColumns {
         static let spacing: CGFloat = 4
         static let set: CGFloat = 32
+        static let previous: CGFloat = 52
+        static let weight: CGFloat = 64
+        static let reps: CGFloat = 52
+        static let sideReps: CGFloat = 48
         static let effort: CGFloat = 44
         static let check: CGFloat = 44
         static let stepButton: CGFloat = 24
+    }
+
+    /// Typed fields leave room for the last session's set beside each row, as long as the row stays on
+    /// one line and its metric is load or repetitions: weight plus reps with the previous column is
+    /// 32 + 52 + 64 + 52 + 44 + 44 and five gaps, 308 pt, inside the 311 pt a 375 pt phone leaves.
+    private func showsPreviousColumn(_ mode: TrainingMeasurementMode, stacked: Bool) -> Bool {
+        guard !stacked else { return false }
+        switch mode {
+        case .weightReps, .weightedBodyweight, .assistedBodyweight, .bodyweightReps, .repetitions: return true
+        case .duration, .distanceDuration: return false
+        }
     }
 
     /// Whether a set row can move its repetitions onto a second line when one line does not fit.
@@ -1473,6 +1481,19 @@ struct NativeWorkoutLoggerView: View {
     private func setRows(_ exerciseIndex: Int, _ exercise: NativeWorkoutExercise,
                          mode: TrainingMeasurementMode, unilateral: Bool, stacked: Bool) -> some View {
         VStack(alignment: .leading, spacing: 10) {
+            // Where the rows have no column for it, the last session stays readable as one line.
+            if !showsPreviousColumn(mode, stacked: stacked),
+               let previous = previousPerformance(for: exercise, mode: mode, unilateral: unilateral) {
+                HStack(alignment: .firstTextBaseline, spacing: NoopMetrics.space2) {
+                    Label("Last time", systemImage: "clock.arrow.circlepath")
+                        .font(StrandFont.caption.weight(.semibold))
+                        .foregroundStyle(StrandPalette.metricCyan)
+                    Text(previous)
+                        .font(StrandFont.caption.monospacedDigit())
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .lineLimit(2)
+                }
+            }
             setHeader(mode, unilateral: unilateral, stacked: stacked)
             ForEach(Array(exercise.sets.enumerated()), id: \.element.id) { setIndex, set in
                 setRow(exerciseIndex, setIndex, set, mode: mode, unilateral: unilateral, stacked: stacked)
@@ -1514,15 +1535,18 @@ struct NativeWorkoutLoggerView: View {
     private func setHeader(_ mode: TrainingMeasurementMode, unilateral: Bool) -> some View {
         HStack(spacing: SetColumns.spacing) {
             Text("SET").frame(width: SetColumns.set)
+            if showsPreviousColumn(mode, stacked: false) {
+                Text("PREVIOUS").frame(minWidth: SetColumns.previous, maxWidth: .infinity)
+            }
             switch mode {
             case .weightReps, .weightedBodyweight:
-                Text("WEIGHT").frame(maxWidth: .infinity)
-                repsHeader(unilateral: unilateral)
+                Text("WEIGHT").frame(width: SetColumns.weight)
+                repsHeader(unilateral: unilateral, compact: true)
             case .assistedBodyweight:
-                Text("ASSIST").frame(maxWidth: .infinity)
-                repsHeader(unilateral: unilateral)
+                Text("ASSIST").frame(width: SetColumns.weight)
+                repsHeader(unilateral: unilateral, compact: true)
             case .bodyweightReps, .repetitions:
-                repsHeader(unilateral: unilateral)
+                repsHeader(unilateral: unilateral, compact: true)
             case .duration:
                 Text("TIME").frame(maxWidth: .infinity)
             case .distanceDuration:
@@ -1536,12 +1560,12 @@ struct NativeWorkoutLoggerView: View {
         .lineLimit(1).minimumScaleFactor(0.6)
     }
 
-    @ViewBuilder private func repsHeader(unilateral: Bool) -> some View {
+    @ViewBuilder private func repsHeader(unilateral: Bool, compact: Bool = false) -> some View {
         if unilateral {
-            Text("LEFT").frame(maxWidth: .infinity)
-            Text("RIGHT").frame(maxWidth: .infinity)
+            Text("LEFT").frame(maxWidth: compact ? SetColumns.sideReps : .infinity)
+            Text("RIGHT").frame(maxWidth: compact ? SetColumns.sideReps : .infinity)
         } else {
-            Text("REPS").frame(maxWidth: .infinity)
+            Text("REPS").frame(maxWidth: compact ? SetColumns.reps : .infinity)
         }
     }
 
@@ -1549,7 +1573,6 @@ struct NativeWorkoutLoggerView: View {
                         mode: TrainingMeasurementMode, unilateral: Bool,
                         stacked: Bool = false) -> some View {
         let isNextSet = model.nextSetReadout?.setId == set.id
-        let previous = isNextSet ? previousWorkingSet(exerciseIndex: exerciseIndex, setIndex: setIndex) : nil
         return VStack(alignment: .leading, spacing: NoopMetrics.space1) {
             Group {
                 if stacked {
@@ -1575,22 +1598,13 @@ struct NativeWorkoutLoggerView: View {
                 } else {
                     HStack(spacing: SetColumns.spacing) {
                         setKindMenu(exerciseIndex, setIndex, set)
+                        if showsPreviousColumn(mode, stacked: false) {
+                            previousCell(exerciseIndex, setIndex, set, mode: mode, unilateral: unilateral)
+                        }
                         metricControls(exerciseIndex, setIndex, set, mode: mode, unilateral: unilateral)
                         trailingSetControls(exerciseIndex, setIndex, set, isNextSet: isNextSet)
                     }
                 }
-            }
-            if let previous {
-                HStack(spacing: NoopMetrics.space1) {
-                    Text("Last time")
-                        .foregroundStyle(StrandPalette.metricCyan)
-                    Text(previousSetSummary(previous, mode: mode, unilateral: unilateral))
-                        .foregroundStyle(StrandPalette.textSecondary)
-                }
-                .font(StrandFont.caption.monospacedDigit())
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-                .padding(.leading, SetColumns.set + SetColumns.spacing)
             }
         }
         .padding(.vertical, NoopMetrics.space1)
@@ -1695,10 +1709,10 @@ struct NativeWorkoutLoggerView: View {
                                              unilateral: Bool) -> some View {
         switch mode {
         case .weightReps, .weightedBodyweight, .assistedBodyweight:
-            loadControl(exerciseIndex, setIndex, set, mode: mode)
-            repsControls(exerciseIndex, setIndex, set, unilateral: unilateral)
+            loadControl(exerciseIndex, setIndex, set, mode: mode, width: SetColumns.weight)
+            repsControls(exerciseIndex, setIndex, set, unilateral: unilateral, compact: true)
         case .bodyweightReps, .repetitions:
-            repsControls(exerciseIndex, setIndex, set, unilateral: unilateral)
+            repsControls(exerciseIndex, setIndex, set, unilateral: unilateral, compact: true)
         case .duration:
             stepControl(String(localized: "Duration"), value: durationText(set.durationS), field: nil,
                         minus: { model.adjustDuration(exerciseIndex: exerciseIndex, setIndex: setIndex, by: -5) },
@@ -1730,15 +1744,15 @@ struct NativeWorkoutLoggerView: View {
 
     /// The weight (or assistance) stepper of a loaded set.
     private func loadControl(_ exerciseIndex: Int, _ setIndex: Int, _ set: NativeWorkoutSet,
-                             mode: TrainingMeasurementMode) -> some View {
+                             mode: TrainingMeasurementMode, width: CGFloat? = nil) -> some View {
         let step = weightStep(exerciseIndex)
         let field = TrainingSetField(setId: set.id, metric: .weight)
         let title = mode == .assistedBodyweight
             ? String(localized: "Assistance in \(weightUnit.symbol)")
             : String(localized: "Weight in \(weightUnit.symbol)")
-        return stepControl(title,
+        return fieldControl(title,
                            value: set.weightKg.map { TrainingPreferences.formattedWeight($0, unit: weightUnit) } ?? "—",
-                           field: field,
+                           field: field, width: width,
                            minus: { model.adjustWeight(exerciseIndex: exerciseIndex, setIndex: setIndex, by: -step) },
                            plus: { model.adjustWeight(exerciseIndex: exerciseIndex, setIndex: setIndex, by: step) }) {
             decimalField(set.weightKg.map { TrainingPreferences.displayWeight($0, unit: weightUnit) }, field: field) {
@@ -1749,10 +1763,10 @@ struct NativeWorkoutLoggerView: View {
     }
 
     private func repsControl(_ exerciseIndex: Int, _ setIndex: Int,
-                             _ set: NativeWorkoutSet) -> some View {
+                             _ set: NativeWorkoutSet, width: CGFloat? = nil) -> some View {
         let field = TrainingSetField(setId: set.id, metric: .reps)
-        return stepControl(String(localized: "Repetitions"), value: set.reps.map(String.init) ?? "—",
-                           field: field,
+        return fieldControl(String(localized: "Repetitions"), value: set.reps.map(String.init) ?? "—",
+                           field: field, width: width,
                            minus: { model.adjustReps(exerciseIndex: exerciseIndex, setIndex: setIndex, by: -1) },
                            plus: { model.adjustReps(exerciseIndex: exerciseIndex, setIndex: setIndex, by: 1) }) {
             integerField(set.reps, field: field) {
@@ -1762,21 +1776,22 @@ struct NativeWorkoutLoggerView: View {
     }
 
     @ViewBuilder private func repsControls(_ exerciseIndex: Int, _ setIndex: Int,
-                                           _ set: NativeWorkoutSet, unilateral: Bool) -> some View {
+                                           _ set: NativeWorkoutSet, unilateral: Bool,
+                                           compact: Bool = false) -> some View {
         if unilateral {
-            sideRepsControl(exerciseIndex, setIndex, set, left: true)
-            sideRepsControl(exerciseIndex, setIndex, set, left: false)
+            sideRepsControl(exerciseIndex, setIndex, set, left: true, width: compact ? SetColumns.sideReps : nil)
+            sideRepsControl(exerciseIndex, setIndex, set, left: false, width: compact ? SetColumns.sideReps : nil)
         } else {
-            repsControl(exerciseIndex, setIndex, set)
+            repsControl(exerciseIndex, setIndex, set, width: compact ? SetColumns.reps : nil)
         }
     }
 
     private func sideRepsControl(_ exerciseIndex: Int, _ setIndex: Int,
-                                 _ set: NativeWorkoutSet, left: Bool) -> some View {
+                                 _ set: NativeWorkoutSet, left: Bool, width: CGFloat? = nil) -> some View {
         let value = left ? set.leftReps : set.rightReps
         let field = TrainingSetField(setId: set.id, metric: left ? .leftReps : .rightReps)
-        return stepControl(left ? String(localized: "Left repetitions") : String(localized: "Right repetitions"),
-                           value: value.map(String.init) ?? "—", field: field,
+        return fieldControl(left ? String(localized: "Left repetitions") : String(localized: "Right repetitions"),
+                           value: value.map(String.init) ?? "—", field: field, width: width,
                            minus: { model.adjustSideReps(exerciseIndex: exerciseIndex, setIndex: setIndex,
                                                          left: left, by: -1) },
                            plus: { model.adjustSideReps(exerciseIndex: exerciseIndex, setIndex: setIndex,
@@ -1864,6 +1879,88 @@ struct NativeWorkoutLoggerView: View {
     private func durationText(_ seconds: Int?) -> String {
         guard let seconds else { return "—" }
         return "\(seconds / 60):\(String(format: "%02d", seconds % 60))"
+    }
+
+    /// A typed value in a quiet field: tapping it opens the number pad. The steps the old buttons ran stay
+    /// available to VoiceOver as the adjustable action.
+    private func fieldControl<Editor: View>(_ title: String, value: String, field: TrainingSetField,
+                                            width: CGFloat?, minus: @escaping () -> Void,
+                                            plus: @escaping () -> Void,
+                                            @ViewBuilder editor: () -> Editor) -> some View {
+        let focused = focusedSetField == field
+        return editor()
+            .frame(minWidth: width, maxWidth: width ?? .infinity, minHeight: 40)
+            .background {
+                RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous)
+                    .fill(StrandPalette.surfaceInset)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous)
+                    .strokeBorder(focused ? StrandPalette.accent : .clear, lineWidth: 1.5)
+            }
+            .padding(.vertical, 2)
+            .contentShape(Rectangle())
+            .onTapGesture { focusedSetField = field }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text(title))
+            .accessibilityValue(Text(value))
+            .accessibilityAdjustableAction { direction in
+                switch direction {
+                case .increment: plus()
+                case .decrement: minus()
+                @unknown default: break
+                }
+            }
+            .accessibilityAction(named: Text("Enter value")) { focusedSetField = field }
+    }
+
+    /// The matching set of the last session. Tapping it copies its numbers into this set.
+    private func previousCell(_ exerciseIndex: Int, _ setIndex: Int, _ set: NativeWorkoutSet,
+                              mode: TrainingMeasurementMode, unilateral: Bool) -> some View {
+        let previous = previousWorkingSet(exerciseIndex: exerciseIndex, setIndex: setIndex)
+        return Button {
+            guard let previous else { return }
+            switch mode {
+            case .weightReps, .weightedBodyweight, .assistedBodyweight:
+                if let kg = previous.weightKg {
+                    model.setWeight(exerciseIndex: exerciseIndex, setIndex: setIndex, kg: kg)
+                }
+            default: break
+            }
+            if unilateral {
+                model.setSideReps(exerciseIndex: exerciseIndex, setIndex: setIndex, left: true, reps: previous.leftReps)
+                model.setSideReps(exerciseIndex: exerciseIndex, setIndex: setIndex, left: false, reps: previous.rightReps)
+            } else if let reps = previous.reps {
+                model.setReps(exerciseIndex: exerciseIndex, setIndex: setIndex, reps: reps)
+            }
+        } label: {
+            Text(previous.map { TrainingSetText.cell($0, mode: mode, unilateral: unilateral, unit: weightUnit) } ?? "—")
+                .font(StrandFont.caption.monospacedDigit())
+                .foregroundStyle(StrandPalette.textTertiary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .frame(minWidth: SetColumns.previous, maxWidth: .infinity, minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(previous == nil || set.isCompleted)
+        .accessibilityLabel(Text("Last time"))
+        .accessibilityValue(Text(previous.map { previousSetSummary($0, mode: mode, unilateral: unilateral) } ?? "—"))
+    }
+
+    /// This exercise's rest after each set, changeable mid-session.
+    private func restChip(_ exercise: NativeWorkoutExercise, title: String) -> some View {
+        Button {
+            restRequest = TrainingRestRequest(exerciseId: exercise.id, title: title, seconds: exercise.restSeconds)
+        } label: {
+            Label(String(localized: "Rest: \(TrainingRestText.text(exercise.restSeconds))"), systemImage: "timer")
+                .font(StrandFont.caption.weight(.semibold).monospacedDigit())
+                .foregroundStyle(StrandPalette.textSecondary)
+                .padding(.horizontal, NoopMetrics.space3)
+                .padding(.vertical, NoopMetrics.space2)
+                .background(StrandPalette.surfaceInset, in: Capsule())
+        }
+        .buttonStyle(.plain)
     }
 
     /// One adjustable element for VoiceOver: swiping up or down runs the same step as the buttons, and a
@@ -2006,6 +2103,22 @@ private enum TrainingSetText {
         return sets.map { summary($0, mode: mode, unilateral: unilateral, unit: unit) }.joined(separator: ", ")
     }
 
+    /// The previous-column text: the load without its unit, which the column header carries.
+    static func cell(_ set: TrainingPerformanceHistory.PerformedSet, mode: TrainingMeasurementMode,
+                     unilateral: Bool, unit: TrainingWeightUnit = TrainingPreferences.weightUnit) -> String {
+        let reps = repetitions(set, unilateral: unilateral)
+        let number = set.weightKg.map {
+            TrainingPreferences.displayWeight($0, unit: unit).formatted(.number.precision(.fractionLength(0...2)))
+        } ?? "—"
+        switch mode {
+        case .weightReps: return "\(number) × \(reps)"
+        case .weightedBodyweight: return "+\(number) × \(reps)"
+        case .assistedBodyweight: return "−\(number) × \(reps)"
+        case .bodyweightReps, .repetitions: return reps
+        case .duration, .distanceDuration: return summary(set, mode: mode, unilateral: unilateral, unit: unit)
+        }
+    }
+
     /// The signed load of a weighted set, nil for a mode that carries no load.
     static func load(_ set: TrainingPerformanceHistory.PerformedSet, mode: TrainingMeasurementMode,
                      unit: TrainingWeightUnit = TrainingPreferences.weightUnit) -> String? {
@@ -2092,6 +2205,76 @@ private struct TrainingExerciseHistorySheet: View {
         }
         .navigationTitle(Text(title))
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+    }
+}
+
+private struct TrainingRestRequest: Identifiable {
+    let exerciseId: UUID
+    let title: String
+    let seconds: Int
+    var id: UUID { exerciseId }
+}
+
+private enum TrainingRestText {
+    /// "2 Min., 30 Sek." in the reader's language; "Off" for no rest.
+    static func text(_ seconds: Int) -> String {
+        guard seconds > 0 else { return String(localized: "Off") }
+        return Duration.seconds(seconds).formatted(.units(allowed: [.minutes, .seconds], width: .abbreviated))
+    }
+
+    /// Quarter-minute steps up to five minutes, then half minutes up to ten.
+    static let choices: [Int] = [0] + Array(stride(from: 15, through: 300, by: 15))
+        + Array(stride(from: 330, through: 600, by: 30))
+}
+
+/// Picks the rest after each set of one exercise on a wheel, like a timer.
+private struct TrainingRestPickerSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let request: TrainingRestRequest
+    let onPick: (Int) -> Void
+    @State private var seconds: Int
+
+    init(request: TrainingRestRequest, onPick: @escaping (Int) -> Void) {
+        self.request = request
+        self.onPick = onPick
+        let nearest = TrainingRestText.choices.min { abs($0 - request.seconds) < abs($1 - request.seconds) }
+        _seconds = State(initialValue: nearest ?? request.seconds)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Picker(selection: $seconds) {
+                ForEach(TrainingRestText.choices, id: \.self) { value in
+                    Text(TrainingRestText.text(value)).monospacedDigit().tag(value)
+                }
+            } label: {
+                Text("Rest timer")
+            }
+            #if os(iOS)
+            .pickerStyle(.wheel)
+            #endif
+            .labelsHidden()
+            .padding(.horizontal, NoopMetrics.screenPadding)
+            .navigationTitle(Text("Rest timer"))
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    VStack(spacing: 0) {
+                        Text("Rest timer").font(StrandFont.headline)
+                        Text(request.title).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        onPick(seconds)
+                        dismiss()
+                    }
+                    .fontWeight(.semibold)
+                }
+            }
+        }
     }
 }
 
