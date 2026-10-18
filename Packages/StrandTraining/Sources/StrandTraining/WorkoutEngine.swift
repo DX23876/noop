@@ -109,7 +109,8 @@ public enum NativeWorkoutEngine {
         touch(&draft)
     }
 
-    /// Appends one technique segment to a work set. The origin and every segment share one cluster;
+    /// Adds one technique segment to a work set, right after the set and the segments it already has, so
+    /// the drop follows the set it drops from. The origin and every segment share one cluster;
     /// analytics can therefore distinguish one logical effort from several recorded rows.
     public static func appendSegment(to originSetId: UUID, intensifier: TrainingSetIntensifier,
                                      in draft: inout WorkoutDraft) throws {
@@ -126,13 +127,19 @@ public enum NativeWorkoutEngine {
             let segmentNumber = draft.exercises[exerciseIndex].sets.filter {
                 $0.clusterId == cluster && $0.parentSetId == originSetId
             }.count + 1
-            draft.exercises[exerciseIndex].sets.append(.init(
-                index: draft.exercises[exerciseIndex].sets.count, phase: .work,
+            let insertion = (draft.exercises[exerciseIndex].sets.lastIndex {
+                $0.parentSetId == originSetId
+            } ?? originIndex) + 1
+            draft.exercises[exerciseIndex].sets.insert(.init(
+                index: insertion, phase: .work,
                 intensifier: intensifier, weightKg: origin.weightKg, reps: origin.reps,
                 leftReps: origin.leftReps, rightReps: origin.rightReps,
                 targetDurationS: origin.targetDurationS, durationS: origin.durationS,
                 distanceM: origin.distanceM, clusterId: cluster,
-                parentSetId: originSetId, segmentIndex: segmentNumber))
+                parentSetId: originSetId, segmentIndex: segmentNumber), at: insertion)
+            for index in draft.exercises[exerciseIndex].sets.indices {
+                draft.exercises[exerciseIndex].sets[index].index = index
+            }
             touch(&draft)
             return
         }

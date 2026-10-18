@@ -341,6 +341,20 @@ final class StrandTrainingTests: XCTestCase {
         XCTAssertEqual(added.segmentIndex, 3)
     }
 
+    func testASegmentFollowsItsSetNotTheEndOfTheExercise() throws {
+        let sets = (0..<3).map { NativeWorkoutSet(index: $0, weightKg: 100, reps: 5) }
+        var draft = WorkoutDraft(title: "Bench", startedAt: 1, plannedDay: "1970-01-01",
+                                 exercises: [.init(exerciseId: "bench", sets: sets)])
+        try NativeWorkoutEngine.appendSegment(to: sets[1].id, intensifier: .dropSet, in: &draft)
+        try NativeWorkoutEngine.appendSegment(to: sets[1].id, intensifier: .dropSet, in: &draft)
+
+        let result = draft.exercises[0].sets
+        XCTAssertEqual(result.map(\.parentSetId), [nil, nil, sets[1].id, sets[1].id, nil])
+        XCTAssertEqual(result.map(\.segmentIndex), [nil, nil, 1, 2, nil])
+        XCTAssertEqual(result.map(\.index), [0, 1, 2, 3, 4])
+        XCTAssertEqual(result.last?.id, sets[2].id)
+    }
+
     func testUnilateralTechniqueSegmentAndNewNormalSetKeepSides() throws {
         let origin = NativeWorkoutSet(index: 0, weightKg: 24, leftReps: 9, rightReps: 8)
         var draft = WorkoutDraft(title: "Split squat", startedAt: 1, plannedDay: "1970-01-01",
