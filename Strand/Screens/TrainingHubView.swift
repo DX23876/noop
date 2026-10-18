@@ -1410,6 +1410,18 @@ struct NativeWorkoutLoggerView: View {
         TrainingSetText.summary(set, mode: mode, unilateral: unilateral, unit: weightUnit)
     }
 
+    private func previousWorkingSet(exerciseIndex: Int, setIndex: Int) -> TrainingPerformanceHistory.PerformedSet? {
+        guard model.draft.exercises.indices.contains(exerciseIndex) else { return nil }
+        let exercise = model.draft.exercises[exerciseIndex]
+        guard exercise.sets.indices.contains(setIndex),
+              exercise.sets[setIndex].phase == .work,
+              exercise.sets[setIndex].parentSetId == nil,
+              let entry = performance.entries(for: exercise.exerciseId).last(where: { !$0.workingSets.isEmpty })
+        else { return nil }
+        let workingIndex = exercise.sets[..<setIndex].filter { $0.phase == .work && $0.parentSetId == nil }.count
+        return entry.workingSets.indices.contains(workingIndex) ? entry.workingSets[workingIndex] : nil
+    }
+
     /// Column widths shared by the set header and every set row, in both layouts, so each label sits
     /// over the control it names and the stacked second line lands under the first.
     ///
@@ -1533,36 +1545,62 @@ struct NativeWorkoutLoggerView: View {
     private func setRow(_ exerciseIndex: Int, _ setIndex: Int, _ set: NativeWorkoutSet,
                         mode: TrainingMeasurementMode, unilateral: Bool,
                         stacked: Bool = false) -> some View {
-        Group {
-            if stacked {
-                VStack(spacing: 0) {
+        let isNextSet = model.nextSetReadout?.setId == set.id
+        let previous = isNextSet ? previousWorkingSet(exerciseIndex: exerciseIndex, setIndex: setIndex) : nil
+        return VStack(alignment: .leading, spacing: NoopMetrics.space1) {
+            Group {
+                if stacked {
+                    VStack(spacing: 0) {
+                        HStack(spacing: SetColumns.spacing) {
+                            setKindMenu(exerciseIndex, setIndex, set)
+                            switch mode {
+                            case .weightReps, .weightedBodyweight, .assistedBodyweight:
+                                loadControl(exerciseIndex, setIndex, set, mode: mode)
+                            default:
+                                Spacer(minLength: 0)
+                            }
+                            trailingSetControls(exerciseIndex, setIndex, set, isNextSet: isNextSet)
+                        }
+                        // The repetitions sit under the load, not across the effort and check columns, so the
+                        // second line reads as part of the same column rather than a stray full-width row.
+                        HStack(spacing: SetColumns.spacing) {
+                            Color.clear.frame(width: SetColumns.set, height: 1)
+                            repsControls(exerciseIndex, setIndex, set, unilateral: unilateral)
+                            trailingColumnsPlaceholder
+                        }
+                    }
+                } else {
                     HStack(spacing: SetColumns.spacing) {
                         setKindMenu(exerciseIndex, setIndex, set)
-                        switch mode {
-                        case .weightReps, .weightedBodyweight, .assistedBodyweight:
-                            loadControl(exerciseIndex, setIndex, set, mode: mode)
-                        default:
-                            Spacer(minLength: 0)
-                        }
-                        trailingSetControls(exerciseIndex, setIndex, set)
+                        metricControls(exerciseIndex, setIndex, set, mode: mode, unilateral: unilateral)
+                        trailingSetControls(exerciseIndex, setIndex, set, isNextSet: isNextSet)
                     }
-                    // The repetitions sit under the load, not across the effort and check columns, so the
-                    // second line reads as part of the same column rather than a stray full-width row.
-                    HStack(spacing: SetColumns.spacing) {
-                        Color.clear.frame(width: SetColumns.set, height: 1)
-                        repsControls(exerciseIndex, setIndex, set, unilateral: unilateral)
-                        trailingColumnsPlaceholder
-                    }
-                }
-            } else {
-                HStack(spacing: SetColumns.spacing) {
-                    setKindMenu(exerciseIndex, setIndex, set)
-                    metricControls(exerciseIndex, setIndex, set, mode: mode, unilateral: unilateral)
-                    trailingSetControls(exerciseIndex, setIndex, set)
                 }
             }
+            if let previous {
+                HStack(spacing: NoopMetrics.space1) {
+                    Text("Last time")
+                        .foregroundStyle(StrandPalette.metricCyan)
+                    Text(previousSetSummary(previous, mode: mode, unilateral: unilateral))
+                        .foregroundStyle(StrandPalette.textSecondary)
+                }
+                .font(StrandFont.caption.monospacedDigit())
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .padding(.leading, SetColumns.set + SetColumns.spacing)
+            }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, NoopMetrics.space1)
+        .background {
+            RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous)
+                .fill(isNextSet ? StrandPalette.chargeColor.opacity(0.10) : Color.clear)
+        }
+        .overlay {
+            if isNextSet {
+                RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous)
+                    .strokeBorder(StrandPalette.chargeColor.opacity(0.45), lineWidth: 1)
+            }
+        }
         .opacity(set.isCompleted ? 0.72 : 1)
         // A container keeps every control reachable; combining the row would hide them behind one label.
         .accessibilityElement(children: .contain)
@@ -1577,7 +1615,7 @@ struct NativeWorkoutLoggerView: View {
 
     /// Effort rating and the completion check — the right-hand end of a set row in either layout.
     @ViewBuilder private func trailingSetControls(_ exerciseIndex: Int, _ setIndex: Int,
-                                                  _ set: NativeWorkoutSet) -> some View {
+                                                  _ set: NativeWorkoutSet, isNextSet: Bool) -> some View {
         if effortPreference != .off {
             Button {
                 effortRequest = EffortPickerRequest(
@@ -1598,8 +1636,11 @@ struct NativeWorkoutLoggerView: View {
             model.toggleSet(exerciseIndex: exerciseIndex, setIndex: setIndex)
             setCompletionHaptic()
         } label: {
-            Image(systemName: set.isCompleted ? "checkmark.circle.fill" : "circle")
-                .font(.title3).foregroundStyle(set.isCompleted ? StrandPalette.chargeColor : StrandPalette.textTertiary)
+            Image(systemName: set.isCompleted ? "checkmark.circle.fill"
+                  : isNextSet ? "checkmark.circle" : "circle")
+                .font(.title3)
+                .foregroundStyle(set.isCompleted || isNextSet
+                                 ? StrandPalette.chargeColor : StrandPalette.textTertiary)
         }.buttonStyle(.plain).frame(width: SetColumns.check, height: 44)
         .accessibilityLabel(Text(set.isCompleted ? "Mark set incomplete" : "Mark set complete"))
     }
@@ -1839,6 +1880,10 @@ struct NativeWorkoutLoggerView: View {
             .buttonStyle(.plain)
         }
         .frame(maxWidth: .infinity, minHeight: 44)
+        .background {
+            RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous)
+                .fill(StrandPalette.surfaceInset)
+        }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(title))
         .accessibilityValue(Text(value))

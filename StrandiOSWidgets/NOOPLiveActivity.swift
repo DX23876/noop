@@ -44,12 +44,14 @@ struct NOOPLiveActivity: Widget {
                 WorkoutSecondaryStat(workout: workout).font(.headline)
             }
             DynamicIslandExpandedRegion(.center) {
-                Text(workout.title).font(.caption).lineLimit(1).foregroundStyle(.secondary)
+                Text(workout.nextSet?.exercise ?? workout.title)
+                    .font(.caption).lineLimit(1).foregroundStyle(.secondary)
             }
             DynamicIslandExpandedRegion(.bottom) {
                 VStack(spacing: 8) {
                     WorkoutClock(workout: workout, style: .large)
                     if workout.kind == .cardio { WorkoutActivityControls(workout: workout) }
+                    if workout.kind == .strength { StrengthActivityControls(workout: workout) }
                 }
             }
         } compactLeading: {
@@ -144,6 +146,27 @@ private struct WorkoutActivityBanner: View {
         VStack(alignment: .leading, spacing: 6) {
             stats
             if workout.kind == .cardio { WorkoutActivityControls(workout: workout) }
+            if workout.kind == .strength {
+                if let next = workout.nextSet {
+                    VStack(alignment: .leading, spacing: NoopMetrics.spaceHalf) {
+                        HStack(spacing: NoopMetrics.space2) {
+                            Text(next.heading).foregroundStyle(StrandPalette.chargeColor)
+                            Text(next.label).foregroundStyle(StrandPalette.textSecondary)
+                            Spacer(minLength: 0)
+                            if let target = next.target {
+                                Text(target).foregroundStyle(StrandPalette.textSecondary).lineLimit(1)
+                            }
+                        }
+                        .font(.caption.monospacedDigit())
+                        Text(next.exercise)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(StrandPalette.textPrimary)
+                            .lineLimit(1)
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+                StrengthActivityControls(workout: workout)
+            }
             // Why the last strap double-tap was not logged: the missing buzz alone does not say.
             if let notice = workout.notice {
                 Label { Text(verbatim: notice) } icon: { Image(systemName: "hand.tap") }
@@ -181,16 +204,22 @@ private struct WorkoutClock: View {
     let style: Style
 
     var body: some View {
-        if let restEnds = workout.restEndsAt, restEnds > Date() {
+        if let restEnds = workout.restEndsAt {
             HStack(spacing: 4) {
                 if style == .large {
                     Text("Rest").font(.caption.weight(.semibold)).foregroundStyle(StrandPalette.accent)
                 }
-                Text(timerInterval: Date()...restEnds, countsDown: true)
-                    .monospacedDigit()
-                    .font(font)
-                    .foregroundStyle(StrandPalette.accent)
-                    .frame(maxWidth: style == .compact ? 52 : nil)
+                let start = workout.restStartedAt ?? restEnds.addingTimeInterval(-1)
+                if restEnds > start {
+                    Text(timerInterval: start...restEnds, countsDown: true)
+                        .monospacedDigit()
+                        .font(font)
+                        .foregroundStyle(StrandPalette.accent)
+                        .frame(maxWidth: style == .compact ? 52 : nil)
+                } else {
+                    Text(verbatim: "0:00").monospacedDigit().font(font)
+                        .foregroundStyle(StrandPalette.accent)
+                }
             }
         } else if let paused = workout.pausedElapsedSeconds {
             HStack(spacing: 4) {

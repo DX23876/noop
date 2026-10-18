@@ -11,3 +11,9 @@ Pausing the whole workout also pauses an active rest or timed-set timer and canc
 Logging remains fully usable without heart rate, a network connection or downloaded media. A missing tracker lowers physiological coverage but never removes sets, notes or progression history.
 
 **Analysis migration required: no.** Timer ownership is active-session lifecycle state; completed-set meaning and historical analysis are unchanged.
+
+## Running workout and Lock Screen readout
+
+The running logger and iOS Live Activity now resolve the next open set through the same session flow used by hands-free logging, including superset order. Both show the exercise, set number and available target values. The logger highlights the next set in the table, emphasizes its completion control and places the corresponding working set from the last performance directly below its inputs when available. The Live Activity offers set completion only when the set has values suitable for an unseen action; it checks the session and set identities again when the intent runs. Rest controls adjust by 15 seconds or skip the exact timer shown when tapped. The Lock Screen rest clock stays at zero after its deadline until the session moves on. [Hevy's public Live Activity guide](https://www.hevyapp.com/features/live-activity/) and [previous-values guide](https://www.hevyapp.com/features/track-exercises/) informed the choice of glanceable details and set context; no Hevy code or assets are included.
+
+**Analysis migration required: no.** These are active-session controls and presentation changes; stored workout values and historical analysis are unchanged.

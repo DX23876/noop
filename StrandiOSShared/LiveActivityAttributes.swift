@@ -30,6 +30,24 @@ public struct NOOPActivityAttributes: ActivityAttributes {
     /// system rather than by per-second pushes.
     public struct Workout: Codable, Hashable {
         public enum Kind: String, Codable, Hashable { case strength, cardio }
+        public struct NextSet: Codable, Hashable {
+            public var id: String
+            public var exercise: String
+            public var label: String
+            public var heading: String
+            public var target: String?
+            public var canComplete: Bool
+
+            public init(id: String, exercise: String, label: String, heading: String,
+                        target: String?, canComplete: Bool) {
+                self.id = id
+                self.exercise = exercise
+                self.label = label
+                self.heading = heading
+                self.target = target
+                self.canComplete = canComplete
+            }
+        }
         public var kind: Kind
         public var title: String
         /// Elapsed time counts from here once pauses are taken out.
@@ -42,6 +60,10 @@ public struct NOOPActivityAttributes: ActivityAttributes {
         public var setsDone: Int?
         public var setsTotal: Int?
         public var restEndsAt: Date?
+        public var restStartedAt: Date?
+        /// Optional for activities started by an older build.
+        public var strengthSessionId: String?
+        public var nextSet: NextSet?
         /// Why the last strap double-tap was not logged, already localized by the app. OPTIONAL so an
         /// activity started by an older build still decodes.
         public var notice: String?
@@ -51,7 +73,9 @@ public struct NOOPActivityAttributes: ActivityAttributes {
 
         public init(kind: Kind, title: String, elapsedAnchor: Date, pausedElapsedSeconds: Int?, zone: Int?,
                     distanceM: Double?, paceSecPerKm: Double?, setsDone: Int?, setsTotal: Int?,
-                    restEndsAt: Date?, notice: String? = nil, symbol: String? = nil) {
+                    restEndsAt: Date?, restStartedAt: Date? = nil,
+                    strengthSessionId: String? = nil, nextSet: NextSet? = nil,
+                    notice: String? = nil, symbol: String? = nil) {
             self.kind = kind
             self.title = title
             self.elapsedAnchor = elapsedAnchor
@@ -62,6 +86,9 @@ public struct NOOPActivityAttributes: ActivityAttributes {
             self.setsDone = setsDone
             self.setsTotal = setsTotal
             self.restEndsAt = restEndsAt
+            self.restStartedAt = restStartedAt
+            self.strengthSessionId = strengthSessionId
+            self.nextSet = nextSet
             self.notice = notice
             self.symbol = symbol
         }

@@ -3687,6 +3687,64 @@
         }
       }
     },
+    "Set done" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Satz fertig"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serie hecha"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Série terminée"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serie completata"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seria gotowa"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Série concluída"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подход выполнен"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完成这一组"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完成這一組"
+          }
+        }
+      }
+    },
     "Set a weekly goal in NOOP to see it here." : {
       "localizations" : {
         "de" : {
@@ -7090,6 +7148,19 @@
             "value" : "有一天評分後會顯示在這裡。"
           }
         }
+      }
+    },
+    "Skip" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Überspringen" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Omitir" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Passer" } },
+        "it" : { "stringUnit" : { "state" : "translated", "value" : "Salta" } },
+        "pl" : { "stringUnit" : { "state" : "translated", "value" : "Pomiń" } },
+        "pt-PT" : { "stringUnit" : { "state" : "translated", "value" : "Pular" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Пропустить" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "跳过" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "跳過" } }
       }
     },
     "Sleep" : {

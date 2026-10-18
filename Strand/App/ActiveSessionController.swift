@@ -151,7 +151,10 @@ final class ActiveSessionController: ObservableObject {
         // The Training setting can be switched mid-session; the claim follows it without a relaunch.
         NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
             .receive(on: RunLoop.main)
-            .sink { [weak self] _ in self?.updateStrapClaim() }
+            .sink { [weak self] _ in
+                self?.updateStrapClaim()
+                if self?.hasLiveSession == true { self?.publishActivity() }
+            }
             .store(in: &cancellables)
     }
 
@@ -539,14 +542,13 @@ final class ActiveSessionController: ObservableObject {
         app.liveWorkoutActivitySink?(activitySnapshot())
     }
 
-    func activitySnapshot(now: Date = Date()) -> LiveWorkoutActivitySnapshot? {
+    func activitySnapshot() -> LiveWorkoutActivitySnapshot? {
         let zoneSet = app.workoutZoneSet
         func zone(_ bpm: Int?) -> Int? {
             bpm.map { zoneSet.zoneNumber(forBPM: Double($0)) }.flatMap { $0 > 0 ? $0 : nil }
         }
         if let strength, !strength.isRetrospective {
             let draft = strength.draft
-            let nowTs = Int(now.timeIntervalSince1970)
             let intervals = draft.pauseIntervals ?? []
             let open = intervals.last.flatMap { $0.endedAtTs == nil ? $0.startedAtTs : nil }
             let closedPaused = intervals.reduce(0) { total, interval in
@@ -556,9 +558,11 @@ final class ActiveSessionController: ObservableObject {
             let sets = draft.exercises.flatMap(\.sets)
             let bpm = draft.physiologyProvider == .appleWatch ? watchHeartRate.bpm : app.bpm
             var restEnds: Date?
+            var restStarted: Date?
             if let timer = draft.timer, timer.kind != .timedSet, timer.pausedRemainingSeconds == nil,
-               timer.endsAtTs > nowTs {
+               draft.state == .active {
                 restEnds = Date(timeIntervalSince1970: TimeInterval(timer.endsAtTs))
+                restStarted = Date(timeIntervalSince1970: TimeInterval(timer.startedAtTs))
             }
             return LiveWorkoutActivitySnapshot(
                 kind: .strength, title: draft.title,
@@ -567,6 +571,9 @@ final class ActiveSessionController: ObservableObject {
                 pausedSeconds: TimeInterval(closedPaused), bpm: bpm, zone: zone(bpm),
                 distanceM: nil, paceSecPerKm: nil,
                 setsDone: sets.filter(\.isCompleted).count, setsTotal: sets.count, restEndsAt: restEnds,
+                restStartedAt: restStarted,
+                strengthSessionId: draft.id,
+                nextStrengthSet: strength.nextSetReadout,
                 notice: strength.strapNotice)
         }
         if let workout = app.activeWorkout {

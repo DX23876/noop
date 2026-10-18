@@ -100,6 +100,17 @@ struct StrandiOSApp: App {
         // Lock Screen pause/resume (`ToggleWorkoutPauseIntent`) runs in this process; install its handler
         // before launch finishes, since iOS may launch NOOP in the background just to run that intent.
         WorkoutActivityActions.togglePause = { [weak model] in model?.toggleWorkoutPause() }
+        WorkoutActivityActions.completeStrengthSet = { [weak model] sessionId, setId in
+            guard let model else { return }
+            await model.session.restoreIfNeeded()
+            model.session.strength?.completeSetFromActivity(sessionId: sessionId, setId: setId)
+        }
+        WorkoutActivityActions.adjustStrengthRest = { [weak model] sessionId, end, seconds in
+            guard let model else { return }
+            await model.session.restoreIfNeeded()
+            model.session.strength?.adjustRestFromActivity(sessionId: sessionId,
+                                                           expectedEnd: end, seconds: seconds)
+        }
         SemanticMemoryBackgroundTask.attach(coach: model.coach)
         // The scheduled morning brief's BGTask handler, registered before launch finishes for the same
         // reason as the three above: iOS only delivers a task whose identifier was registered at launch

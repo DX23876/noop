@@ -64,6 +64,32 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
 
     var activeTimer: WorkoutTimerState? { draft.timer }
 
+    var nextSetReadout: StrengthNextSet? {
+        StrengthNextSet.resolve(in: draft, titles: exerciseTitles, modes: exerciseModes,
+                                unit: TrainingPreferences.weightUnit)
+    }
+
+    /// A Lock Screen action names the exact set it displayed. Ignore a delayed tap after the user has
+    /// moved on or restarted the session, and require the values that an unseen action cannot inspect.
+    func completeSetFromActivity(sessionId: UUID, setId: UUID) {
+        guard !isRetrospective,
+              let next = StrengthNextSet.setToComplete(in: draft, sessionId: sessionId,
+                                                       setId: setId, modes: exerciseModes) else { return }
+        toggleSet(exerciseIndex: next.exercise, setIndex: next.set)
+    }
+
+    /// The end time protects a rest control from changing a later timer after ActivityKit delivery lags.
+    func adjustRestFromActivity(sessionId: UUID, expectedEnd: Int, seconds: Int) {
+        guard !isRetrospective,
+              StrengthRestAction.canApply(to: draft, sessionId: sessionId,
+                                          expectedEnd: expectedEnd, seconds: seconds) else { return }
+        switch seconds {
+        case -15, 15: adjustTimer(by: seconds)
+        case 0: skipRest()
+        default: break
+        }
+    }
+
     var activeExerciseIndex: Int {
         guard let id = draft.cursor?.exerciseId,
               let index = draft.exercises.firstIndex(where: { $0.id == id }) else { return 0 }

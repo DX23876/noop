@@ -46,6 +46,28 @@ struct WorkoutLoggerHeader: View {
                 ProgressView(value: Double(done), total: Double(max(total, 1)))
                     .tint(StrandPalette.chargeColor)
                     .accessibilityHidden(true)
+                if let next = model.nextSetReadout {
+                    VStack(alignment: .leading, spacing: NoopMetrics.space1) {
+                        HStack(spacing: NoopMetrics.space2) {
+                            Text(next.heading)
+                                .foregroundStyle(StrandPalette.chargeColor)
+                            Text(next.label)
+                                .foregroundStyle(StrandPalette.textSecondary)
+                            Spacer(minLength: 0)
+                            if let target = next.target {
+                                Text(target)
+                                    .foregroundStyle(StrandPalette.textSecondary)
+                                    .lineLimit(1)
+                            }
+                        }
+                        .font(StrandFont.caption.monospacedDigit())
+                        Text(next.exercise)
+                            .font(StrandFont.subhead.weight(.semibold))
+                            .foregroundStyle(StrandPalette.textPrimary)
+                            .lineLimit(1)
+                    }
+                    .accessibilityElement(children: .combine)
+                }
             }
         }
     }

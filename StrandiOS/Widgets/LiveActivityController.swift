@@ -412,11 +412,19 @@ final class LiveActivityController {
     }
 
     static func workoutState(_ snapshot: LiveWorkoutActivitySnapshot, now: Date) -> NOOPActivityAttributes.Workout {
-        .init(kind: snapshot.kind == .strength ? .strength : .cardio, title: snapshot.title,
+        let next = snapshot.nextStrengthSet.map {
+            NOOPActivityAttributes.Workout.NextSet(
+                id: $0.setId.uuidString, exercise: $0.exercise, label: $0.label,
+                heading: $0.heading, target: $0.target, canComplete: $0.canCompleteWithoutOpening)
+        }
+        return .init(kind: snapshot.kind == .strength ? .strength : .cardio, title: snapshot.title,
               elapsedAnchor: snapshot.elapsedAnchor,
               pausedElapsedSeconds: snapshot.pausedAt == nil ? nil : snapshot.activeSeconds(at: now),
               zone: snapshot.zone, distanceM: snapshot.distanceM, paceSecPerKm: snapshot.paceSecPerKm,
               setsDone: snapshot.setsDone, setsTotal: snapshot.setsTotal, restEndsAt: snapshot.restEndsAt,
+              restStartedAt: snapshot.restStartedAt,
+              strengthSessionId: snapshot.strengthSessionId?.uuidString,
+              nextSet: next,
               notice: snapshot.notice, symbol: snapshot.symbol)
     }
 
@@ -426,9 +434,11 @@ final class LiveActivityController {
         guard let old else { return true }
         return (old.pausedElapsedSeconds == nil) != (new.pausedElapsedSeconds == nil)
             || old.restEndsAt != new.restEndsAt
+            || old.restStartedAt != new.restStartedAt
             || old.notice != new.notice
             || old.setsDone != new.setsDone
             || old.setsTotal != new.setsTotal
+            || old.nextSet != new.nextSet
             || old.title != new.title
             || old.elapsedAnchor != new.elapsedAnchor
     }
