@@ -97,6 +97,11 @@ class MuscleMappingTests(unittest.TestCase):
 
 
 class TitleCaseTests(unittest.TestCase):
+    def test_a_garbled_degree_sign_is_repaired(self):
+        self.assertEqual(generator.repair_text("sled 45\u0432\u00b0 leg press"), "sled 45\u00b0 leg press")
+        self.assertEqual(generator.repair_text("sled 45\u00b0 leg press"), "sled 45\u00b0 leg press")
+        self.assertEqual(generator.repair_text("\u0432\u0435\u0441"), "\u0432\u0435\u0441")
+
     def test_ordinary_words_are_capitalized(self):
         self.assertEqual(generator.title_case("barbell bench press"), "Barbell Bench Press")
         self.assertEqual(generator.title_case("airbike"), "Airbike")

@@ -38,7 +38,8 @@ ATTRIBUTION = ("Exercise data: ExerciseDB v1 via hasaneyldrm/exercises-dataset, 
 # Bumped whenever the normalization changes what a stored definition means, so the app can re-seed.
 # 2: titles are title-cased instead of shipping upstream's all-lowercase names verbatim.
 # 3: lateral/rotational core work targets the obliques; upstream "shins" credits the tibialis.
-CONTENT_VERSION = 3
+# 4: a degree sign upstream stored garbled ("45в°") reads as "45°" in titles and instructions.
+CONTENT_VERSION = 4
 
 # NOOP's muscle vocabulary is `TrainingMuscleCatalog`; every id below must exist there.
 KNOWN_MUSCLES = {
@@ -213,6 +214,17 @@ def secondary_muscles(record: dict, primary: str | None) -> list[str]:
     return values
 
 
+# UTF-8 text that went through a Cyrillic (Windows-1251) round trip somewhere upstream. Only the
+# sequences actually found in the pinned data are repaired, so nothing else is rewritten by guesswork.
+MOJIBAKE_REPAIRS = {"\u0432\u00b0": "\u00b0"}   # "в°" -> "°", in "sled 45в° leg press"
+
+
+def repair_text(value: str) -> str:
+    for broken, fixed in MOJIBAKE_REPAIRS.items():
+        value = value.replace(broken, fixed)
+    return value
+
+
 def normalize_name(value: str) -> str:
     folded = re.sub(r"[^a-z0-9]+", " ", value.lower())
     return folded.strip()
@@ -255,7 +267,7 @@ def build(records: list[dict]) -> tuple[list[dict], list[str]]:
     # First pass: how often a name minus its leading equipment word occurs. Only an alias that stays
     # unique may ship, so an import can never be silently attached to the wrong variant.
     for record in records:
-        name = str(record.get("name", "")).strip()
+        name = repair_text(str(record.get("name", "")).strip())
         equipment = str(record.get("equipment", "")).strip().lower()
         stripped = normalize_name(name)
         prefix = normalize_name(equipment)
@@ -264,7 +276,7 @@ def build(records: list[dict]) -> tuple[list[dict], list[str]]:
 
     for record in records:
         upstream_id = str(record.get("id", "")).strip()
-        name = str(record.get("name", "")).strip()
+        name = repair_text(str(record.get("name", "")).strip())
         equipment_raw = str(record.get("equipment", "")).strip().lower()
         body_part = str(record.get("body_part", "")).strip().lower()
         target = str(record.get("target", "")).strip().lower()
@@ -306,7 +318,7 @@ def build(records: list[dict]) -> tuple[list[dict], list[str]]:
         if mode == "weight_reps" and not any(item in LOAD_BEARING for item in equipment_ids):
             issues.append(f"{identifier}: weight and repetitions without a loaded implement")
 
-        steps = [str(step).strip() for step in (record.get("instruction_steps") or {}).get("en", [])]
+        steps = [repair_text(str(step).strip()) for step in (record.get("instruction_steps") or {}).get("en", [])]
         steps = [step for step in steps if step]
         if not steps:
             issues.append(f"{identifier}: no English instructions")

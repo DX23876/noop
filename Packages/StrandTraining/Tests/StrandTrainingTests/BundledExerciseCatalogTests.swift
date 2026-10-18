@@ -29,6 +29,19 @@ final class BundledExerciseCatalogTests: XCTestCase {
         }
     }
 
+    /// The upstream data carries a degree sign garbled by a Cyrillic round trip ("45в°"). The generator
+    /// repairs it; no English title or instruction may show a Cyrillic letter at all.
+    func testNoTitleOrInstructionCarriesGarbledText() {
+        for exercise in BundledExerciseCatalog.exercises {
+            for text in [exercise.title] + exercise.instructions {
+                XCTAssertFalse(text.unicodeScalars.contains { (0x0400...0x04FF).contains($0.value) },
+                               "\(exercise.id): \(text)")
+            }
+        }
+        XCTAssertEqual(BundledExerciseCatalog.exercises.first { $0.id == "exdb:0739" }?.title,
+                       "Sled 45° Leg Press")
+    }
+
     /// The upstream's MIT licence covers the data; the images and animations belong to Gym visual and
     /// are expressly not licensed by cloning. Nothing but an opaque identifier may ship here — no file
     /// name, no path, no URL — and the provider that could resolve one is withdrawn.

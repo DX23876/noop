@@ -19,7 +19,8 @@ public enum BundledExerciseCatalog {
     /// 2: titles are title-cased at build time (`Tools/build_exercise_catalog.py`) instead of shipping
     /// upstream's all-lowercase names verbatim — display only, no id/muscle/mode change.
     /// 3: lateral/rotational core work targets the obliques; upstream "shins" credits the tibialis.
-    public static let contentVersion = 3
+    /// 4: a degree sign upstream stored garbled ("Sled 45в° Leg Press") reads as "45°" — display only.
+    public static let contentVersion = 4
 
     public static let archive: ExerciseCatalogArchive = {
         guard let url = Bundle.module.url(forResource: "exercise-catalog", withExtension: "json"),
