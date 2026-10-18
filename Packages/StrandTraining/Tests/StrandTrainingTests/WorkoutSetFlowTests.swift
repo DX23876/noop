@@ -178,4 +178,19 @@ final class WorkoutSetFlowTests: XCTestCase {
         XCTAssertEqual(NativeWorkoutEngine.setsForAddedExercise(lastPerformance: [work], unilateral: false,
                                                                 workingSets: 4).count, 1)
     }
+
+    func testWorkingSetNumbersSkipWarmUpsAndTechniqueSegments() {
+        let first = NativeWorkoutSet(index: 2, weightKg: 100, reps: 5)
+        let sets = [
+            NativeWorkoutSet(index: 0, phase: .warmup, weightKg: 40, reps: 10),
+            NativeWorkoutSet(index: 1, phase: .warmup, weightKg: 60, reps: 5),
+            first,
+            NativeWorkoutSet(index: 3, intensifier: .dropSet, weightKg: 80, reps: 6, parentSetId: first.id),
+            NativeWorkoutSet(index: 4, intensifier: .amrap, weightKg: 100, reps: 7),
+            NativeWorkoutSet(index: 5, weightKg: 100, reps: 5),
+        ]
+        XCTAssertEqual(sets.indices.map { NativeWorkoutEngine.workingSetNumber(of: $0, in: sets) },
+                       [nil, nil, 1, nil, 2, 3])
+        XCTAssertNil(NativeWorkoutEngine.workingSetNumber(of: 6, in: sets))
+    }
 }

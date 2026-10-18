@@ -657,14 +657,10 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
         if immediate { persistNow() } else { schedulePersist() }
     }
 
+    /// The Watch names the set its "complete set" acts on: the one the logger and the Lock Screen show.
     private func publishCompanionState() {
-        guard draft.exercises.indices.contains(activeExerciseIndex) else {
-            controller.publishCompanion(draft, exerciseTitle: nil, setNumber: nil); return
-        }
-        let exercise = draft.exercises[activeExerciseIndex]
-        let setNumber = exercise.sets.firstIndex(where: { !$0.isCompleted }).map { $0 + 1 }
-        controller.publishCompanion(draft, exerciseTitle: exerciseTitles[exercise.exerciseId],
-                                    setNumber: setNumber)
+        let next = nextSetReadout
+        controller.publishCompanion(draft, exerciseTitle: next?.exercise, setNumber: next?.number)
     }
 
     func handleWatchCommand(_ command: StrengthWorkoutCompanionCommand) {
@@ -676,17 +672,17 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
         case .pause where draft.state == .active: toggleWorkoutPause()
         case .resume where draft.state != .active: toggleWorkoutPause()
         case .completeSet:
-            guard draft.exercises.indices.contains(activeExerciseIndex),
-                  let setIndex = draft.exercises[activeExerciseIndex].sets.firstIndex(where: { !$0.isCompleted }) else { return }
+            // The revision check above pins the draft the Watch saw, so this resolves the set it named.
+            guard let next = NativeWorkoutEngine.nextOpenSet(in: draft) else { return }
             // The Watch cannot show the whole row either, so a set without its numbers stays open.
-            guard isLoggableUnseen(exerciseIndex: activeExerciseIndex, setIndex: setIndex) else {
-                strapLog("Strength session: Watch \"complete set\" not acted on, set \(setIndex + 1) of "
-                         + "\(title(ofExercise: activeExerciseIndex)) has no numbers to log")
-                showStrapNotice(Self.missingNumbersNotice(set: setIndex + 1,
-                                                          exercise: title(ofExercise: activeExerciseIndex)))
+            guard isLoggableUnseen(exerciseIndex: next.exercise, setIndex: next.set) else {
+                strapLog("Strength session: Watch \"complete set\" not acted on, set \(next.set + 1) of "
+                         + "\(title(ofExercise: next.exercise)) has no numbers to log")
+                showStrapNotice(Self.missingNumbersNotice(set: next.set + 1,
+                                                          exercise: title(ofExercise: next.exercise)))
                 return
             }
-            toggleSet(exerciseIndex: activeExerciseIndex, setIndex: setIndex)
+            toggleSet(exerciseIndex: next.exercise, setIndex: next.set)
         case .finish: watchFinishRequested = true
         default: break
         }

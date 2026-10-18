@@ -65,6 +65,15 @@ extension NativeWorkoutEngine {
         return nil
     }
 
+    /// The number a lifter reads for a set: working sets count from one past the warm-ups, and a drop or
+    /// rest-pause segment belongs to its parent set and takes no number. Nil for a warm-up or a segment.
+    /// The logger's set column, its previous column, the Lock Screen and the Watch all number sets here.
+    public static func workingSetNumber(of setIndex: Int, in sets: [NativeWorkoutSet]) -> Int? {
+        guard sets.indices.contains(setIndex), sets[setIndex].phase == .work,
+              sets[setIndex].parentSetId == nil else { return nil }
+        return sets[..<setIndex].filter { $0.phase == .work && $0.parentSetId == nil }.count + 1
+    }
+
     /// Whether a set holds the numbers its exercise is logged with, so a step that cannot see the row (the
     /// strap, the Watch) may complete it. Loaded work needs a weight and repetitions, bodyweight work only
     /// repetitions, a timed set its time, a distance set its distance or time. `mode` nil (an exercise the

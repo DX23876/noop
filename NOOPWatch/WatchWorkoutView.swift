@@ -167,9 +167,9 @@ struct WatchWorkoutView: View {
                 .tracking(StrandFont.overlineTracking)
                 .foregroundStyle(workout.phase == .paused ? StrandPalette.statusWarning : StrandPalette.metricRose)
             Spacer()
-            if let state = companion.strengthWorkout,
-               let exercise = state.exerciseTitle, let set = state.setNumber {
-                Text(verbatim: "\(exercise) · \(set)")
+            // A warm-up or a drop segment has no set number; the exercise alone still says what is next.
+            if let state = companion.strengthWorkout, let exercise = state.exerciseTitle {
+                Text(verbatim: state.setNumber.map { "\(exercise) · \($0)" } ?? exercise)
                     .font(StrandFont.overlineScaled(8)).lineLimit(1)
             }
             // Elapsed time ticks itself off the session start via a TimelineView, so we never run a manual

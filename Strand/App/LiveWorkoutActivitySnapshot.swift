@@ -7,7 +7,8 @@ struct StrengthNextSet: Equatable {
     let sessionId: UUID
     let setId: UUID
     let exercise: String
-    let number: Int
+    /// The working-set number, nil for a warm-up or a drop or rest-pause segment, which have none.
+    let number: Int?
     let label: String
     let heading: String
     let target: String?
@@ -43,13 +44,21 @@ struct StrengthNextSet: Equatable {
         case .duration, .distanceDuration, nil:
             target = nil
         }
-        // Working sets count from one past the warm-ups, as the logger's set column does.
-        let number = exercise.sets[..<next.set].filter { $0.phase == .work && $0.parentSetId == nil }.count + 1
+        // Numbered as the logger's set column numbers it, so a segment never borrows the next set's number.
+        let number = NativeWorkoutEngine.workingSetNumber(of: next.set, in: exercise.sets)
+        let label: String
+        if set.phase == .warmup {
+            label = String(localized: "Warm-up")
+        } else if set.parentSetId != nil {
+            label = set.intensifier == .restPause ? String(localized: "Rest-pause") : String(localized: "Drop set")
+        } else {
+            label = String(localized: "Set \(number ?? 1)")
+        }
         return StrengthNextSet(
             sessionId: draft.id, setId: set.id,
             exercise: titles[exercise.exerciseId] ?? exercise.exerciseId,
             number: number,
-            label: set.phase == .warmup ? String(localized: "Warm-up") : String(localized: "Set \(number)"),
+            label: label,
             heading: String(localized: "Up next"), target: target,
             canCompleteWithoutOpening: setToComplete(in: draft, sessionId: draft.id,
                                                      setId: set.id, modes: modes) != nil)

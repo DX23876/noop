@@ -306,7 +306,6 @@ struct EffortPickerSheet: View {
 struct WorkoutRestDock: View {
     let timer: WorkoutTimerState
     @ObservedObject var model: NativeWorkoutSessionModel
-    let onFinished: () -> Void
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -348,9 +347,6 @@ struct WorkoutRestDock: View {
             .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).noopRestingRim())
             .padding(.horizontal, NoopMetrics.screenPadding)
             .padding(.bottom, NoopMetrics.space2)
-            .onChange(of: remaining == 0) { finished in
-                if finished, timer.pausedRemainingSeconds == nil { onFinished() }
-            }
         }
     }
 }

@@ -44,6 +44,28 @@ final class LiveWorkoutActivitySnapshotTests: XCTestCase {
         XCTAssertEqual(working.number, 1)
     }
 
+    func testADropSegmentIsNamedByItsTechniqueAndTakesNoSetNumber() throws {
+        let top = NativeWorkoutSet(index: 0, weightKg: 100, reps: 5, isCompleted: true)
+        let bench = NativeWorkoutExercise(exerciseId: "bench", sets: [
+            top,
+            NativeWorkoutSet(index: 1, intensifier: .dropSet, weightKg: 80, reps: 6, parentSetId: top.id),
+            NativeWorkoutSet(index: 2, weightKg: 100, reps: 5),
+        ])
+        var draft = WorkoutDraft(title: "Strength", startedAt: 1_000, plannedDay: "2026-10-18",
+                                 exercises: [bench], cursor: ActiveExerciseCursor(exerciseId: bench.id))
+        let modes: [String: TrainingMeasurementMode] = ["bench": .weightReps]
+
+        let segment = try XCTUnwrap(StrengthNextSet.resolve(in: draft, titles: [:], modes: modes, unit: .kilograms))
+        XCTAssertEqual(segment.setId, bench.sets[1].id)
+        XCTAssertNil(segment.number)
+        XCTAssertEqual(segment.label, String(localized: "Drop set"))
+
+        draft.exercises[0].sets[1].isCompleted = true
+        let second = try XCTUnwrap(StrengthNextSet.resolve(in: draft, titles: [:], modes: modes, unit: .kilograms))
+        XCTAssertEqual(second.number, 2)
+        XCTAssertEqual(second.label, String(localized: "Set 2"))
+    }
+
     func testNextStrengthSetFollowsTheSessionCursorAndItsActualValues() throws {
         let bench = NativeWorkoutExercise(exerciseId: "bench", sets: [
             NativeWorkoutSet(index: 0, weightKg: 60, reps: 8, isCompleted: true),

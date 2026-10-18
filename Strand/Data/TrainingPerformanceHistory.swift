@@ -18,6 +18,9 @@ struct TrainingPerformanceHistory: Sendable {
         var durationS: Int?
         var distanceM: Double?
         var effort: TrainingEffortRating?
+        /// A drop or rest-pause segment of the set before it. It has no set number of its own, so the
+        /// previous column skips it when it lines last session's sets up with this one's.
+        var isSegment: Bool = false
 
         var completedReps: Int? {
             if let reps { return reps }
@@ -32,6 +35,12 @@ struct TrainingPerformanceHistory: Sendable {
         let sets: [PerformedSet]
 
         var workingSets: [PerformedSet] { sets.filter { !$0.isWarmup } }
+
+        /// The working set that took a given number (`NativeWorkoutEngine.workingSetNumber`), or nil.
+        func workingSet(number: Int) -> PerformedSet? {
+            let numbered = sets.filter { !$0.isWarmup && !$0.isSegment }
+            return numbered.indices.contains(number - 1) ? numbered[number - 1] : nil
+        }
     }
 
     static let empty = TrainingPerformanceHistory(
@@ -136,13 +145,14 @@ extension TrainingPerformanceHistory.PerformedSet {
     init(_ set: NativeWorkoutSet) {
         self.init(isWarmup: set.phase == .warmup, weightKg: set.weightKg, reps: set.reps,
                   leftReps: set.leftReps, rightReps: set.rightReps, durationS: set.durationS,
-                  distanceM: set.distanceM, effort: set.effort)
+                  distanceM: set.distanceM, effort: set.effort, isSegment: set.parentSetId != nil)
     }
 
     init(_ set: HevySet) {
         self.init(isWarmup: set.type == .warmup, weightKg: set.weightKg, reps: set.reps,
                   leftReps: nil, rightReps: nil, durationS: set.durationS.map { Int($0.rounded()) },
                   distanceM: set.distanceM,
-                  effort: set.rpe.flatMap { TrainingEffortRating(scale: .rpe, value: $0) })
+                  effort: set.rpe.flatMap { TrainingEffortRating(scale: .rpe, value: $0) },
+                  isSegment: set.type == .dropset)
     }
 }

@@ -8,6 +8,23 @@ final class TrainingPerformanceHistoryTests: XCTestCase {
         TrainingStarterCatalog.exercises.first { $0.id == "noop:barbell-bench-press" }!
     }
 
+    func testNumberedWorkingSetsSkipWarmUpsAndSegments() throws {
+        let top = NativeWorkoutSet(index: 1, weightKg: 100, reps: 5, isCompleted: true)
+        let entry = TrainingPerformanceHistory.Entry(startTs: 1_000, isNative: true, sets: [
+            NativeWorkoutSet(index: 0, phase: .warmup, weightKg: 60, reps: 5, isCompleted: true),
+            top,
+            NativeWorkoutSet(index: 2, intensifier: .dropSet, weightKg: 80, reps: 6, isCompleted: true,
+                             parentSetId: top.id),
+            NativeWorkoutSet(index: 3, weightKg: 100, reps: 4, isCompleted: true),
+        ].map(TrainingPerformanceHistory.PerformedSet.init))
+
+        // Set 2 of last session is the second top-level set, not the drop segment between them.
+        XCTAssertEqual(entry.workingSet(number: 1)?.weightKg, 100)
+        XCTAssertEqual(entry.workingSet(number: 2)?.reps, 4)
+        XCTAssertNil(entry.workingSet(number: 3))
+        XCTAssertNil(entry.workingSet(number: 0))
+    }
+
     func testImportedSessionOfTheSameReviewedLiftCountsAndTheNewestWins() throws {
         let anatomy = try XCTUnwrap(TrainingMuscleProjection.anatomy(for: bench))
         let native = try nativeWorkout(start: 1_000, weight: 80)

@@ -1085,8 +1085,18 @@ struct NativeWorkoutLoggerView: View {
                 if showsNumberPadBar {
                     numberPadBar
                 } else if let timer = model.activeTimer {
-                    WorkoutRestDock(timer: timer, model: model, onFinished: timerFinishedFeedback)
+                    WorkoutRestDock(timer: timer, model: model)
                 }
+            }
+            // The end-of-rest haptic waits here, not in the dock: the pad's bar replaces the dock while a value
+            // is typed, which is just when a rest tends to run out.
+            .task(id: runningTimerEnd) {
+                guard let end = runningTimerEnd else { return }
+                let wait = Date(timeIntervalSince1970: TimeInterval(end)).timeIntervalSinceNow
+                guard wait > 0 else { return }
+                try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
+                guard !Task.isCancelled else { return }
+                timerFinishedFeedback()
             }
             .navigationTitle(model.draft.title)
             .trainingInlineNavigationTitle()
@@ -1468,13 +1478,10 @@ struct NativeWorkoutLoggerView: View {
     private func previousWorkingSet(exerciseIndex: Int, setIndex: Int) -> TrainingPerformanceHistory.PerformedSet? {
         guard model.draft.exercises.indices.contains(exerciseIndex) else { return nil }
         let exercise = model.draft.exercises[exerciseIndex]
-        guard exercise.sets.indices.contains(setIndex),
-              exercise.sets[setIndex].phase == .work,
-              exercise.sets[setIndex].parentSetId == nil,
+        guard let number = NativeWorkoutEngine.workingSetNumber(of: setIndex, in: exercise.sets),
               let entry = performance.entries(for: exercise.exerciseId).last(where: { !$0.workingSets.isEmpty })
         else { return nil }
-        let workingIndex = exercise.sets[..<setIndex].filter { $0.phase == .work && $0.parentSetId == nil }.count
-        return entry.workingSets.indices.contains(workingIndex) ? entry.workingSets[workingIndex] : nil
+        return entry.workingSet(number: number)
     }
 
     /// Column widths shared by the set header and every set row, in both layouts, so each label sits
@@ -1977,9 +1984,9 @@ struct NativeWorkoutLoggerView: View {
             }
             .disabled(!model.canRemoveSet(exerciseIndex: exerciseIndex, setIndex: setIndex))
         } label: {
-            let ordinal = model.draft.exercises[exerciseIndex].sets[..<setIndex]
-                .filter { $0.phase == .work && $0.parentSetId == nil }.count + 1
-            Text(setLabel(set, ordinal: ordinal)).font(StrandFont.subhead.weight(.semibold))
+            let number = NativeWorkoutEngine.workingSetNumber(of: setIndex,
+                                                              in: model.draft.exercises[exerciseIndex].sets)
+            Text(setLabel(set, number: number)).font(StrandFont.subhead.weight(.semibold))
                 .foregroundStyle(set.phase == .warmup ? StrandPalette.metricAmber
                                  : set.intensifier == .none ? StrandPalette.textPrimary : StrandPalette.accent)
                 .lineLimit(1).minimumScaleFactor(0.7)
@@ -1990,10 +1997,12 @@ struct NativeWorkoutLoggerView: View {
     }
 
     /// "W" for every warm-up and the working sets counted from one, as on a gym sheet.
-    private func setLabel(_ set: NativeWorkoutSet, ordinal: Int) -> String {
+    /// A segment reads as its technique whatever its kind was changed to, since it still has no number.
+    private func setLabel(_ set: NativeWorkoutSet, number: Int?) -> String {
         if set.phase == .warmup { return "W" }
+        if set.parentSetId != nil { return set.intensifier == .restPause ? "RP" : "D" }
         switch set.intensifier {
-        case .none: return "\(ordinal)"
+        case .none: return number.map(String.init) ?? "—"
         case .dropSet: return "D"
         case .restPause: return "RP"
         case .amrap: return "A"
@@ -2124,6 +2133,12 @@ struct NativeWorkoutLoggerView: View {
     private var nextExerciseId: UUID? {
         guard let setId = model.nextSetReadout?.setId else { return nil }
         return model.draft.exercises.first { $0.sets.contains { $0.id == setId } }?.id
+    }
+
+    /// The end of a rest or timed set that is counting down; nil while none runs or it is paused.
+    private var runningTimerEnd: Int? {
+        guard let timer = model.activeTimer, timer.pausedRemainingSeconds == nil else { return nil }
+        return timer.endsAtTs
     }
 
     /// The Mac types with its own keyboard and has no pad to sit above.
