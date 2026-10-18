@@ -7,7 +7,7 @@ enum AppChangelog {
 
     /// Bump this when you add a release below. The "What's New" sheet shows automatically when the
     /// stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
-    static let currentVersion = "12.1.2"
+    static let currentVersion = "12.2.0"
 
     struct Release: Identifiable {
         let version: String
@@ -28,6 +28,17 @@ enum AppChangelog {
 
     /// Newest first.
     static let releases: [Release] = [
+        Release(
+            version: "12.2.0",
+            title: "A quicker logger and routine imports",
+            date: "October 2026",
+            items: [
+                "**A logger for the gym floor.** Type weight and reps on the number pad, and see last session's set beside each row. A tap copies it.",
+                "**The next set on your Lock Screen.** It names the set that comes next, counts down your rest and logs the set with one tap.",
+                "**Bring your routines along.** Import routines from Hevy or an OpenGym plan file under Training › Add.",
+                "**Add or remove sets mid-workout.** Every exercise has an Add set button, and a swipe to the left removes a set.",
+            ]
+        ),
         Release(
             version: "12.1.2",
             title: "Settings works again on iOS 17 and 18",

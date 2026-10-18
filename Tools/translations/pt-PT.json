@@ -3238,5 +3238,10 @@
   "The Hevy routines could not be loaded.": "Não foi possível carregar as rotinas do Hevy.",
   "The routines could not be imported.": "Não foi possível importar as rotinas.",
   "This file is not an OpenGym plan. Export it in OpenGym under Plan, Export plan file.": "Este ficheiro não é um plano do OpenGym. Exporta-o no OpenGym em Plan, Export plan file.",
-  "Your planned days stay. The routines are added beside them.": "Os teus dias planeados mantêm-se. As rotinas são acrescentadas."
+  "Your planned days stay. The routines are added beside them.": "Os teus dias planeados mantêm-se. As rotinas são acrescentadas.",
+  "A quicker logger and routine imports": "Um registo mais rápido e importação de rotinas",
+  "**A logger for the gym floor.** Type weight and reps on the number pad, and see last session's set beside each row. A tap copies it.": "**Um registo para o ginásio.** Escreve peso e repetições no teclado numérico e vê a série da última sessão ao lado de cada linha. Um toque copia-a.",
+  "**The next set on your Lock Screen.** It names the set that comes next, counts down your rest and logs the set with one tap.": "**A próxima série no ecrã bloqueado.** Mostra a série seguinte, faz a contagem decrescente do descanso e regista a série com um toque.",
+  "**Bring your routines along.** Import routines from Hevy or an OpenGym plan file under Training › Add.": "**Traz as tuas rotinas.** Importa rotinas do Hevy ou de um ficheiro de plano do OpenGym em Treino › Adicionar.",
+  "**Add or remove sets mid-workout.** Every exercise has an Add set button, and a swipe to the left removes a set.": "**Adiciona ou remove séries a meio do treino.** Cada exercício tem um botão Adicionar série e deslizar para a esquerda remove uma série."
 }

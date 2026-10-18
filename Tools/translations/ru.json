@@ -3216,5 +3216,10 @@
   "The Hevy routines could not be loaded.": "Не удалось загрузить распорядки Hevy.",
   "The routines could not be imported.": "Не удалось импортировать распорядки.",
   "This file is not an OpenGym plan. Export it in OpenGym under Plan, Export plan file.": "Этот файл не является планом OpenGym. Экспортируйте его в OpenGym: Plan, Export plan file.",
-  "Your planned days stay. The routines are added beside them.": "Запланированные дни сохраняются. Распорядки добавляются к ним."
+  "Your planned days stay. The routines are added beside them.": "Запланированные дни сохраняются. Распорядки добавляются к ним.",
+  "A quicker logger and routine imports": "Более быстрый журнал и импорт распорядков",
+  "**A logger for the gym floor.** Type weight and reps on the number pad, and see last session's set beside each row. A tap copies it.": "**Журнал для зала.** Вес и повторения вводятся на цифровой клавиатуре, а рядом с каждым подходом виден подход прошлой тренировки. Касание копирует его.",
+  "**The next set on your Lock Screen.** It names the set that comes next, counts down your rest and logs the set with one tap.": "**Следующий подход на экране блокировки.** Он показывает, какой подход следующий, отсчитывает отдых и отмечает подход одним касанием.",
+  "**Bring your routines along.** Import routines from Hevy or an OpenGym plan file under Training › Add.": "**Перенесите свои распорядки.** Импортируйте распорядки из Hevy или из файла плана OpenGym в разделе «Тренировки» › «Добавить».",
+  "**Add or remove sets mid-workout.** Every exercise has an Add set button, and a swipe to the left removes a set.": "**Добавляйте и удаляйте подходы во время тренировки.** У каждого упражнения есть кнопка «Добавить подход», а свайп влево удаляет подход."
 }

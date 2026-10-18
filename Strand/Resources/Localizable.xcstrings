@@ -564345,6 +564345,296 @@
           }
         }
       }
+    },
+    "A quicker logger and routine imports" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schnellerer Logger und Routinen-Import"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un registro más rápido e importación de rutinas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un journal plus rapide et l'import de routines"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un registro più veloce e l'importazione delle routine"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Szybszy dziennik treningu i import rutyn"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um registo mais rápido e importação de rotinas"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Более быстрый журнал и импорт распорядков"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更快的记录和例程导入"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更快的記錄和例程匯入"
+          }
+        }
+      }
+    },
+    "**A logger for the gym floor.** Type weight and reps on the number pad, and see last session's set beside each row. A tap copies it." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Ein Logger fürs Studio.** Gewicht und Wiederholungen tippst du auf dem Ziffernblock ein, neben jedem Satz steht der Satz vom letzten Mal. Ein Tipp übernimmt ihn."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Un registro para el gimnasio.** Escribe peso y repeticiones en el teclado numérico y ve la serie de la última sesión junto a cada fila. Un toque la copia."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Un journal pensé pour la salle.** Saisissez poids et répétitions au pavé numérique et voyez la série de la dernière séance à côté de chaque ligne. Un toucher la recopie."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Un registro per la palestra.** Inserisci peso e ripetizioni con il tastierino numerico e vedi la serie dell'ultima sessione accanto a ogni riga. Un tocco la copia."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Dziennik na siłownię.** Wpisuj ciężar i powtórzenia na klawiaturze numerycznej, a obok każdej serii zobaczysz serię z ostatniego treningu. Dotknięcie ją kopiuje."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Um registo para o ginásio.** Escreve peso e repetições no teclado numérico e vê a série da última sessão ao lado de cada linha. Um toque copia-a."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Журнал для зала.** Вес и повторения вводятся на цифровой клавиатуре, а рядом с каждым подходом виден подход прошлой тренировки. Касание копирует его."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**为健身房设计的记录。** 用数字键盘输入重量和次数，每一行旁边显示上次训练的对应组。轻点即可复制。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**為健身房設計的記錄。** 用數字鍵盤輸入重量和次數，每一列旁邊顯示上次訓練的對應組。輕點即可複製。"
+          }
+        }
+      }
+    },
+    "**The next set on your Lock Screen.** It names the set that comes next, counts down your rest and logs the set with one tap." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Der nächste Satz auf dem Sperrbildschirm.** Er zeigt, welcher Satz als Nächstes kommt, zählt deine Pause herunter und hakt den Satz mit einem Tipp ab."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**La siguiente serie en la pantalla de bloqueo.** Indica qué serie viene, cuenta atrás tu descanso y registra la serie con un toque."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**La série suivante sur l'écran verrouillé.** Elle indique la série à venir, décompte votre repos et enregistre la série d'un toucher."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**La prossima serie sulla schermata di blocco.** Indica la serie successiva, fa il conto alla rovescia del recupero e registra la serie con un tocco."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Następna seria na ekranie blokady.** Pokazuje, która seria jest następna, odlicza przerwę i zapisuje serię jednym dotknięciem."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**A próxima série no ecrã bloqueado.** Mostra a série seguinte, faz a contagem decrescente do descanso e regista a série com um toque."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Следующий подход на экране блокировки.** Он показывает, какой подход следующий, отсчитывает отдых и отмечает подход одним касанием."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**锁定屏幕上的下一组。** 显示接下来的一组，倒数你的休息时间，轻点一下即可记录这一组。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**鎖定畫面上的下一組。** 顯示接下來的一組，倒數你的休息時間，輕點一下即可記錄這一組。"
+          }
+        }
+      }
+    },
+    "**Bring your routines along.** Import routines from Hevy or an OpenGym plan file under Training › Add." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Nimm deine Routinen mit.** Importiere Routinen aus Hevy oder aus einer OpenGym-Plandatei unter Training › Hinzufügen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Trae tus rutinas.** Importa rutinas de Hevy o de un archivo de plan de OpenGym en Entrenamiento › Añadir."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Apportez vos routines.** Importez des routines depuis Hevy ou un fichier de plan OpenGym dans Entraînement › Ajouter."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Porta con te le tue routine.** Importa routine da Hevy o da un file di piano OpenGym in Allenamento › Aggiungi."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Zabierz swoje rutyny.** Importuj rutyny z Hevy lub z pliku planu OpenGym w Trening › Dodać."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Traz as tuas rotinas.** Importa rotinas do Hevy ou de um ficheiro de plano do OpenGym em Treino › Adicionar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Перенесите свои распорядки.** Импортируйте распорядки из Hevy или из файла плана OpenGym в разделе «Тренировки» › «Добавить»."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**带上你的例程。** 在“训练” › “添加”中从 Hevy 或 OpenGym 计划文件导入例程。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**帶上你的例程。** 在「訓練」›「新增」中從 Hevy 或 OpenGym 計畫檔案匯入例程。"
+          }
+        }
+      }
+    },
+    "**Add or remove sets mid-workout.** Every exercise has an Add set button, and a swipe to the left removes a set." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Sätze mitten im Training hinzufügen oder entfernen.** Jede Übung hat die Schaltfläche „Satz hinzufügen“, ein Wischen nach links entfernt einen Satz."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Añade o quita series durante el entrenamiento.** Cada ejercicio tiene un botón Añadir serie y deslizar a la izquierda quita una serie."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Ajoutez ou retirez des séries en pleine séance.** Chaque exercice a un bouton Ajouter une série, et un balayage vers la gauche retire une série."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Aggiungi o togli serie durante l'allenamento.** Ogni esercizio ha un pulsante Aggiungi serie e uno scorrimento a sinistra toglie una serie."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Dodawaj i usuwaj serie w trakcie treningu.** Każde ćwiczenie ma przycisk Dodaj serię, a przesunięcie w lewo usuwa serię."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Adiciona ou remove séries a meio do treino.** Cada exercício tem um botão Adicionar série e deslizar para a esquerda remove uma série."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Добавляйте и удаляйте подходы во время тренировки.** У каждого упражнения есть кнопка «Добавить подход», а свайп влево удаляет подход."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**训练中添加或删除组。** 每个动作都有“添加一组”按钮，向左轻扫即可删除一组。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**訓練中新增或刪除組。** 每個動作都有「新增一組」按鈕，向左輕掃即可刪除一組。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
