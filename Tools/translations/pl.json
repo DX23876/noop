@@ -4349,5 +4349,6 @@
   "**A logger for the gym floor.** Type weight and reps on the number pad, and see last session's set beside each row. A tap copies it.": "**Dziennik na siłownię.** Wpisuj ciężar i powtórzenia na klawiaturze numerycznej, a obok każdej serii zobaczysz serię z ostatniego treningu. Dotknięcie ją kopiuje.",
   "**The next set on your Lock Screen.** It names the set that comes next, counts down your rest and logs the set with one tap.": "**Następna seria na ekranie blokady.** Pokazuje, która seria jest następna, odlicza przerwę i zapisuje serię jednym dotknięciem.",
   "**Bring your routines along.** Import routines from Hevy or an OpenGym plan file under Training › Add.": "**Zabierz swoje rutyny.** Importuj rutyny z Hevy lub z pliku planu OpenGym w Trening › Dodać.",
-  "**Add or remove sets mid-workout.** Every exercise has an Add set button, and a swipe to the left removes a set.": "**Dodawaj i usuwaj serie w trakcie treningu.** Każde ćwiczenie ma przycisk Dodaj serię, a przesunięcie w lewo usuwa serię."
+  "**Add or remove sets mid-workout.** Every exercise has an Add set button, and a swipe to the left removes a set.": "**Dodawaj i usuwaj serie w trakcie treningu.** Każde ćwiczenie ma przycisk Dodaj serię, a przesunięcie w lewo usuwa serię.",
+  "Delete and download again": "Usuń i pobierz ponownie"
 }

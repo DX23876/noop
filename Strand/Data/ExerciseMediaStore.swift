@@ -13,8 +13,13 @@ final class ExerciseMediaStore: ObservableObject, ExerciseMediaProvider {
     /// Free space a pack must leave behind, so installing media can never fill the device.
     static let freeSpaceMarginBytes: Int64 = 50_000_000
     /// One store per app. A download belongs to the app, not to the screen that started it, so
-    /// closing that screen can no longer discard an in-flight pack.
-    static let shared = ExerciseMediaStore()
+    /// closing that screen can no longer discard an in-flight pack. Creating it reconnects the
+    /// background session, which is what delivers a pack that finished while the app was closed.
+    static let shared: ExerciseMediaStore = {
+        let store = ExerciseMediaStore()
+        store.reconnectPendingTransfer()
+        return store
+    }()
 
     struct Provider: Identifiable, Sendable {
         let id: String
@@ -62,6 +67,7 @@ final class ExerciseMediaStore: ObservableObject, ExerciseMediaProvider {
     private let maximumMetadataBytes: Int64
     private let usesBackgroundTransfer: Bool
     private var downloader: ExerciseMediaDownloader?
+    @Published private(set) var canResumeDownload = false
     private var isTransferring = false
     /// Per-folder name index, dropped whenever the installed pack changes.
     private var fileIndexCache: [URL: [String: String]] = [:]
@@ -147,8 +153,6 @@ final class ExerciseMediaStore: ObservableObject, ExerciseMediaProvider {
 
     var isWithdrawn: Bool { ExerciseMediaRegistry.isWithdrawn(provider.id) }
 
-    var canResumeDownload: Bool { downloader?.canResume ?? false }
-
     func refresh() {
         fileIndexCache.removeAll(keepingCapacity: true)
         guard !isDisabled else { state = .disabled; return }
@@ -185,15 +189,37 @@ final class ExerciseMediaStore: ObservableObject, ExerciseMediaProvider {
         guard !isDisabled, !isTransferring else { return }
         isTransferring = true
         state = .downloading(progress: 0)
-        let provider = provider
         // Reusing the existing downloader is what makes "Resume" cost only the remaining bytes.
-        let transfer = downloader ?? ExerciseMediaDownloader(background: usesBackgroundTransfer)
-        downloader = transfer
-        transfer.start(url: provider.source) { [weak self] value in
+        transfer().start(url: provider.source)
+    }
+
+    /// Picks up a transfer from an earlier launch: a finished one is delivered by the session itself,
+    /// a running one shows its progress again instead of offering a second download.
+    func reconnectPendingTransfer() {
+        guard usesBackgroundTransfer, !isDisabled else { return }
+        transfer().pendingTransfer { [weak self] running in
+            guard running else { return }
+            Task { @MainActor in self?.adoptRunningTransfer() }
+        }
+    }
+
+    private func adoptRunningTransfer() {
+        guard !isTransferring, !isAvailable, !isDisabled else { return }
+        isTransferring = true
+        state = .downloading(progress: 0)
+    }
+
+    private func transfer() -> ExerciseMediaDownloader {
+        if let downloader { return downloader }
+        let transfer = usesBackgroundTransfer ? ExerciseMediaDownloader.background
+            : ExerciseMediaDownloader(background: false)
+        transfer.attach(expectedBytes: provider.approximateBytes) { [weak self] value in
             Task { @MainActor in self?.progressed(value) }
         } onCompletion: { [weak self] result in
-            Task { @MainActor in await self?.finish(result, provider: provider) }
+            Task { @MainActor in await self?.finish(result) }
         }
+        downloader = transfer
+        return transfer
     }
 
     func cancel() {
@@ -201,15 +227,30 @@ final class ExerciseMediaStore: ObservableObject, ExerciseMediaProvider {
         downloader?.cancel()
         isTransferring = false
         if case .downloading = state { state = .unavailable }
+        // The resume data arrives from the session a moment after the cancel.
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            self?.canResumeDownload = self?.downloader?.canResume ?? false
+        }
     }
 
+    /// Removes the installed pack together with anything a transfer left behind: a running download,
+    /// its resume data and a failure message. Afterwards the pack can be downloaded again from scratch.
     func deleteMedia() {
-        cancel()
-        downloader = nil
+        downloader?.discard()
+        isTransferring = false
+        canResumeDownload = false
         try? FileManager.default.removeItem(at: providerRoot)
         defaults.removeObject(forKey: activeVersionKey)
         defaults.removeObject(forKey: activeBytesKey)
         refresh()
+    }
+
+    /// Whether there is anything to delete: an installed pack, a failed or half-finished transfer.
+    var hasDownloadedData: Bool {
+        if isAvailable || canResumeDownload || isTransferring { return true }
+        if case .failed = state { return true }
+        return FileManager.default.fileExists(atPath: providerRoot.path)
     }
 
     private func progressed(_ value: Double) {
@@ -217,13 +258,24 @@ final class ExerciseMediaStore: ObservableObject, ExerciseMediaProvider {
         state = .downloading(progress: value)
     }
 
-    private func finish(_ result: Result<URL, Error>, provider: Provider) async {
+    private func finish(_ result: Result<URL, Error>) async {
+        let wasTransferring = isTransferring
         isTransferring = false
+        canResumeDownload = downloader?.canResume ?? false
         switch result {
         case .failure(let error):
+            // A transfer from an earlier launch that nobody is waiting for changes nothing on screen.
+            guard wasTransferring else { return }
             if case ExerciseMediaTransferError.cancelled = error { state = .unavailable }
             else { state = .failed(error.localizedDescription) }
         case .success(let archive):
+            // Delivered after a relaunch or as a second copy: install only when nothing is installed
+            // yet and no install is already running.
+            if isDisabled || isAvailable || state == .installing {
+                try? FileManager.default.removeItem(at: archive)
+                return
+            }
+            let provider = provider
             state = .installing
             let root = providerRoot
             let limits = Limits(media: maximumMediaBytes, metadata: maximumMetadataBytes)

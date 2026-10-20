@@ -62,6 +62,8 @@ final class HomeScreenQuickActionAppDelegate: NSObject, UIApplicationDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         HomeScreenQuickAction.install(in: application)
+        // Reconnects the media download session, so a pack that finished in the background installs.
+        _ = ExerciseMediaStore.shared
         return true
     }
 
@@ -75,6 +77,8 @@ final class HomeScreenQuickActionAppDelegate: NSObject, UIApplicationDelegate {
         ExerciseMediaDownloader.backgroundCompletionHandler = { @Sendable in
             DispatchQueue.main.async { completionHandler() }
         }
+        // The session has to exist again for iOS to deliver the finished transfer to it.
+        _ = ExerciseMediaStore.shared
     }
 
     func application(

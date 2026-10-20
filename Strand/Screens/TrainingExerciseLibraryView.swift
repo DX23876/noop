@@ -543,6 +543,9 @@ struct ExerciseMediaManagementView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var media = ExerciseMediaStore.shared
     @State private var showingDisclosure = false
+    /// Set when the disclosure was opened to replace the installed pack: its confirmation deletes the
+    /// old files first, so cancelling the sheet leaves the working pack in place.
+    @State private var replacingPack = false
     @State private var manifest: MediaManifest?
 
     var body: some View {
@@ -572,14 +575,23 @@ struct ExerciseMediaManagementView: View {
                 } else {
                     Toggle("Disable this media provider", isOn: Binding(get: { media.isDisabled }, set: { media.setDisabled($0) }))
                 }
-                if media.isAvailable {
-                    Button("Delete downloaded media", role: .destructive) { media.deleteMedia() }
+                if media.isAvailable, !media.isDisabled {
+                    Button("Delete and download again") {
+                        replacingPack = true
+                        showingDisclosure = true
+                    }
                 } else if !media.isDisabled {
                     Button(media.canResumeDownload ? "Resume download" : "Download media") {
+                        replacingPack = false
                         showingDisclosure = true
                     }
                 }
                 if case .downloading = media.state { Button("Cancel download", role: .cancel) { media.cancel() } }
+                // Also offered for a failed or half-finished transfer, which otherwise had no way back
+                // to a clean start.
+                if media.hasDownloadedData {
+                    Button("Delete downloaded media", role: .destructive) { media.deleteMedia() }
+                }
             }
         }
         .navigationTitle(Text("Exercise media"))
@@ -589,6 +601,7 @@ struct ExerciseMediaManagementView: View {
             NavigationStack {
                 ExerciseMediaDisclosureView(provider: media.provider) {
                     showingDisclosure = false
+                    if replacingPack { media.deleteMedia() }
                     media.download()
                 }
             }

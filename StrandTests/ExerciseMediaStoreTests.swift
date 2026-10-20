@@ -166,6 +166,41 @@ final class ExerciseMediaStoreTests: XCTestCase {
         XCTAssertEqual(store.state, .disabled)
     }
 
+    /// The wearer's way out of a broken pack: delete it and fetch it again. Both downloads go through
+    /// the real transfer path, from a local file instead of the network.
+    func testAPackCanBeDeletedAndDownloadedAgain() async throws {
+        let archiveURL = try makeArchive(named: "again.zip", path: "upstream/images/dip.gif",
+                                         payload: Data("gif".utf8))
+        let provider = ExerciseMediaStore.Provider(
+            id: "again", version: "v1", source: archiveURL,
+            attribution: "Test", rightsStatus: "Unknown", approximateBytes: 3)
+        let store = ExerciseMediaStore(provider: provider, rootDirectory: root, defaults: defaults,
+                                       usesBackgroundTransfer: false)
+
+        store.download()
+        try await waitUntilReady(store)
+        XCTAssertTrue(store.hasDownloadedData)
+
+        store.deleteMedia()
+        XCTAssertEqual(store.state, .unavailable)
+        XCTAssertFalse(store.hasDownloadedData)
+        XCTAssertFalse(FileManager.default.fileExists(
+            atPath: root.appendingPathComponent("ExerciseMedia/again").path))
+
+        store.download()
+        try await waitUntilReady(store)
+        XCTAssertEqual(store.installedManifest()?.files.map(\.path), ["images/dip.gif"])
+    }
+
+    private func waitUntilReady(_ store: ExerciseMediaStore) async throws {
+        for _ in 0..<200 {
+            if store.isAvailable { return }
+            if case .failed(let message) = store.state { return XCTFail(message) }
+            try await Task.sleep(nanoseconds: 25_000_000)
+        }
+        XCTFail("the pack never installed: \(store.state)")
+    }
+
     private func makeArchive(named name: String, path: String, payload: Data) throws -> URL {
         let url = root.appendingPathComponent(name)
         let archive = try Archive(url: url, accessMode: .create)

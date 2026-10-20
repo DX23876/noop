@@ -3345,5 +3345,6 @@
   "**A logger for the gym floor.** Type weight and reps on the number pad, and see last session's set beside each row. A tap copies it.": "**为健身房设计的记录。** 用数字键盘输入重量和次数，每一行旁边显示上次训练的对应组。轻点即可复制。",
   "**The next set on your Lock Screen.** It names the set that comes next, counts down your rest and logs the set with one tap.": "**锁定屏幕上的下一组。** 显示接下来的一组，倒数你的休息时间，轻点一下即可记录这一组。",
   "**Bring your routines along.** Import routines from Hevy or an OpenGym plan file under Training › Add.": "**带上你的例程。** 在“训练” › “添加”中从 Hevy 或 OpenGym 计划文件导入例程。",
-  "**Add or remove sets mid-workout.** Every exercise has an Add set button, and a swipe to the left removes a set.": "**训练中添加或删除组。** 每个动作都有“添加一组”按钮，向左轻扫即可删除一组。"
+  "**Add or remove sets mid-workout.** Every exercise has an Add set button, and a swipe to the left removes a set.": "**训练中添加或删除组。** 每个动作都有“添加一组”按钮，向左轻扫即可删除一组。",
+  "Delete and download again": "删除并重新下载"
 }
