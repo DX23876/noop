@@ -438,6 +438,7 @@ struct OverviewDashboardView: View {
         lastLoadedAt = Date()
         DashboardMomentum.publish(
             context: DashboardMomentum.context(displayDay: next.displayDay, allDays: allDays,
+                                               hrvBaseline: repo.chargeBaselines?.hrv,
                                                dayKey: selectedDayKey, isToday: selectedDayOffset == 0,
                                                steps: DailyStepsReading.resolve(strapSteps: next.displayDay?.steps, appleSteps: next.appleDays.last(where: { $0.day == selectedDayKey })?.steps, estimatedSteps: next.stepsEstToday), stepGoal: stepGoal, live: liveInput),
             allDays: allDays,

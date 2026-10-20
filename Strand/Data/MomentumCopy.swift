@@ -27,8 +27,8 @@ enum MomentumCopy {
     }
 
     /// The headline: the HRV-vs-baseline read when the baseline is established, else the state word.
-    static func headline(row: DailyMetric?, allDays: [DailyMetric], fallbackDayKey: String) -> String {
-        guard let pct = baselineDeltaPct(row: row, allDays: allDays, fallbackDayKey: fallbackDayKey) else {
+    static func headline(row: DailyMetric?, hrvBaseline: BaselineState?) -> String {
+        guard let pct = baselineDeltaPct(row: row, hrvBaseline: hrvBaseline) else {
             return stateWord(row?.recovery)
         }
         return pct >= 0
@@ -38,9 +38,8 @@ enum MomentumCopy {
 
     /// The detail line. When the read is CARRIED from an earlier day it appends that day's provenance,
     /// so a prior read is never quietly passed off as today's.
-    static func detail(row: DailyMetric?, allDays: [DailyMetric], fallbackDayKey: String,
-                       carriedCaption: String?) -> String {
-        let body = detailBody(row: row, allDays: allDays, fallbackDayKey: fallbackDayKey)
+    static func detail(row: DailyMetric?, hrvBaseline: BaselineState?, carriedCaption: String?) -> String {
+        let body = detailBody(row: row, hrvBaseline: hrvBaseline)
         guard let carriedCaption, !carriedCaption.isEmpty else { return body }
         // The caption is a formatted date and frequently already ends in a period — an abbreviated
         // month ("Latest sleep · 15 Aug.") is the common case. Appending one unconditionally is what
@@ -49,9 +48,8 @@ enum MomentumCopy {
         return body + " " + tail
     }
 
-    private static func detailBody(row: DailyMetric?, allDays: [DailyMetric],
-                                   fallbackDayKey: String) -> String {
-        guard let pct = baselineDeltaPct(row: row, allDays: allDays, fallbackDayKey: fallbackDayKey) else {
+    private static func detailBody(row: DailyMetric?, hrvBaseline: BaselineState?) -> String {
+        guard let pct = baselineDeltaPct(row: row, hrvBaseline: hrvBaseline) else {
             return stateDetail(row)
         }
         let lead: String
@@ -62,17 +60,34 @@ enum MomentumCopy {
     }
 
     /// The row's HRV as a whole percent above/below the learned baseline, or nil when there is not
-    /// enough banked history for the comparison to be honest. Excludes the row's OWN day so a carried
-    /// read is not compared against a baseline that contains it (#543).
-    static func baselineDeltaPct(row: DailyMetric?, allDays: [DailyMetric],
-                                 fallbackDayKey: String) -> Int? {
-        guard let today = row?.avgHrv, today > 0 else { return nil }
-        let excludeDay = row?.day ?? fallbackDayKey
-        let prior = allDays
-            .filter { $0.day != excludeDay }
-            .compactMap(\.avgHrv)
-            .filter { $0 > 0 }
-        return TodayView.hrvBaselineDeltaPct(today: today, priorHrvs: prior)
+    /// enough banked history for the comparison to be honest.
+    ///
+    /// `hrvBaseline` is `Repository.chargeBaselines?.hrv`: the baseline Charge scored against and the
+    /// "What shaped it" rows describe. This used to average every loaded day's HRV itself, which kept
+    /// the nights before a manual "Recalibrate baseline" and the imported history that Charge had
+    /// already dropped, so a week after a reset the card still said "HRV 9% under baseline" while the
+    /// breakdown below it read HRV as above baseline. One resolver now feeds both readouts.
+    static func baselineDeltaPct(row: DailyMetric?, hrvBaseline: BaselineState?) -> Int? {
+        guard let today = row?.avgHrv else { return nil }
+        return hrvBaselineDeltaPct(today: today, baseline: hrvBaseline)
+    }
+
+    /// Pure core of the HRV-vs-baseline delta, rounded to a whole percent. nil until the baseline is
+    /// usable (the same gate Charge scores on), the insight then falls back to the state word.
+    ///
+    /// STOPGAP (#696): NOOP mixes HRV measurement methods on the shared `avgHrv` field. Strap/WHOOP-CSV
+    /// HRV is RMSSD (~20-100 ms) while Apple-Health-imported HRV is SDNN (~100-200 ms), so an SDNN
+    /// reading compared against an RMSSD baseline yields a physiologically impossible delta. A real
+    /// night-to-night HRV move never doubles or halves the value, so a reading outside [0.5x, 2x] of the
+    /// baseline drops the comparison instead of rendering an alarming "X% over/under baseline" headline.
+    /// Gated on the RATIO, not abs(pct): the percentage is bounded at -100% on the low side but unbounded
+    /// high, so a symmetric threshold could not catch a near-zero reading.
+    static func hrvBaselineDeltaPct(today: Double, baseline state: BaselineState?) -> Int? {
+        guard today > 0, let state, state.usable else { return nil }
+        let baseline = state.baseline
+        guard baseline > 0 else { return nil }
+        guard today <= 2.0 * baseline, today >= 0.5 * baseline else { return nil }
+        return Int(((today - baseline) / baseline * 100).rounded())
     }
 
     /// The recovery-state word (#1405: a different axis from the ReadinessEngine training verdict, so

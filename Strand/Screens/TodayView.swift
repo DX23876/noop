@@ -2543,6 +2543,7 @@ struct TodayView: View {
         c.displayDay = d
         c.lastScoredDay = lastScoredRecoveryDay
         c.allDays = repo.days
+        c.hrvBaseline = repo.chargeBaselines?.hrv
         c.dayKey = selectedDayKey
         c.isToday = selectedDayOffset == 0
         c.carriedCaption = lastScoredRecoveryDay.map { carriedCaption($0) }
@@ -3408,37 +3409,6 @@ struct TodayView: View {
     }
 
     // MARK: Synthesis card, today's read, or the carried last-scored read (#543)
-
-    /// Pure core of the HRV-vs-baseline delta: today's HRV against the mean of the prior nights' HRV,
-    /// rounded to a whole percent. nil until there are enough banked HRV nights to form a stable
-    /// baseline (mirrors the recovery seed gate), the insight then falls back to the state word.
-    ///
-    /// STOPGAP (#696): NOOP mixes HRV measurement methods on the shared `avgHrv` field,     /// strap/WHOOP-CSV HRV is RMSSD (~20-100 ms) while Apple-Health-imported HRV is SDNN
-    /// (~100-200 ms). With no method awareness, an SDNN reading (e.g. an Oura ring's 176 ms)
-    /// compared against an RMSSD baseline (~57 ms) yields a physiologically-impossible delta
-    /// (+209%) and renders the alarming "210% over baseline" headline. Genuine night-to-night
-    /// HRV variation essentially never exceeds ~±80-100%, so a magnitude beyond that is almost
-    /// always a units/method artifact rather than a real swing. We suppress the misleading
-    /// percentage comparison (return nil → callers fall back to the qualitative recovery-state
-    /// word) when the delta is implausibly large. The raw HRV tile value stays honest; only the
-    /// "X% over baseline" comparison is hidden. Proper fix = tag HRV provenance/method per row
-    /// and isolate baselines (separate follow-up).
-    static func hrvBaselineDeltaPct(today: Double, priorHrvs prior: [Double]) -> Int? {
-        guard today > 0 else { return nil }
-        guard prior.count >= Baselines.minNightsSeed else { return nil }
-        let baseline = prior.reduce(0, +) / Double(prior.count)
-        guard baseline > 0 else { return nil }
-        let pct = ((today - baseline) / baseline * 100).rounded()
-        // Stopgap method-mismatch guard (#696): a real night-to-night HRV move never doubles or halves
-        // the value, so a reading outside [0.5x, 2x] of the baseline is almost always a units/method
-        // artifact (SDNN reads ~2-3x RMSSD) rather than a genuine swing. Drop the comparison in that case
-        // so the alarming "X% over/under baseline" headline never renders (the insight falls back to the
-        // qualitative recovery word). Gated on the RATIO, not abs(pct): the percentage is bounded at -100%
-        // on the low side but unbounded high, so a symmetric abs() threshold can't catch a near-zero
-        // reading. Proper fix tags HRV provenance/method per row and isolates baselines (follow-up).
-        guard today <= 2.0 * baseline, today >= 0.5 * baseline else { return nil }
-        return Int(pct)
-    }
 
     /// The three score rings over a scenic hero background, WHOOP-style, with the Charge (recovery)
     /// ring centred and enlarged as the hero and smaller Rest / Effort rings flanking it. Each ring

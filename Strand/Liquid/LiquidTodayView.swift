@@ -2051,6 +2051,7 @@ struct LiquidTodayView: View {
         c.displayDay = d
         c.lastScoredDay = cachedPriorScored
         c.allDays = repo.days
+        c.hrvBaseline = repo.chargeBaselines?.hrv
         c.dayKey = selectedDayKey
         c.isToday = selectedDayOffset == 0
         // The carried provenance the Charge hero already resolved, so both read the same date.

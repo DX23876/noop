@@ -467,6 +467,7 @@ struct TrendsDashboardView: View {
         lastLoadedAt = Date()
         DashboardMomentum.publish(
             context: DashboardMomentum.context(displayDay: next.displayDay, allDays: allDays,
+                                               hrvBaseline: repo.chargeBaselines?.hrv,
                                                dayKey: selectedDayKey, isToday: selectedDayOffset == 0,
                                                steps: steps, stepGoal: momentumStepGoal, live: liveInput),
             allDays: allDays,

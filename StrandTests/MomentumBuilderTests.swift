@@ -165,6 +165,7 @@ final class MomentumBuilderTests: XCTestCase {
     func testHrvRunNeedsEnoughHistoryBeforeItClaimsATrend() {
         var i = MomentumBuilder.Inputs()
         i.recentDays = (0..<5).map { day("d\($0)", hrv: 60) }
+        i.hrvBaseline = Self.fold(i.recentDays)
         XCTAssertNil(MomentumBuilder.hrvRun(i), "five nights is not a trend")
     }
 
@@ -172,6 +173,8 @@ final class MomentumBuilderTests: XCTestCase {
         var i = MomentumBuilder.Inputs()
         // Seven low nights then four clearly high ones: the run is the four, above the mean.
         i.recentDays = (0..<7).map { day("lo\($0)", hrv: 50) } + (0..<4).map { day("hi\($0)", hrv: 90) }
+        // A baseline between the two levels, as Charge would hold after nights on both sides.
+        i.hrvBaseline = Self.fold((0..<7).map { day("b\($0)", hrv: 65) })
         let run = MomentumBuilder.hrvRun(i)
         XCTAssertEqual(run?.days, 4)
         XCTAssertEqual(run?.above, true)
@@ -321,8 +324,7 @@ final class MomentumBuilderTests: XCTestCase {
         let subject = MomentumCopy.subjectRow(displayed: nil, lastScored: carried)
         XCTAssertEqual(subject?.day, carried.day)
 
-        let delta = MomentumCopy.baselineDeltaPct(row: subject, allDays: history + [carried],
-                                                  fallbackDayKey: "2026-08-30")
+        let delta = MomentumCopy.baselineDeltaPct(row: subject, hrvBaseline: Self.fold(history))
         XCTAssertNotNil(delta, "the delta must resolve from the same row the headline used")
 
         var i = MomentumBuilder.Inputs()
@@ -336,7 +338,7 @@ final class MomentumBuilderTests: XCTestCase {
     /// the detail appended another.
     func testCarriedDetailEndsInExactlyOnePeriod() {
         let row = day("2026-08-15", recovery: 62, sleepMin: 400)
-        let detail = MomentumCopy.detail(row: row, allDays: [row], fallbackDayKey: "2026-08-30",
+        let detail = MomentumCopy.detail(row: row, hrvBaseline: nil,
                                          carriedCaption: "Latest sleep · 15 Aug.")
         XCTAssertTrue(detail.hasSuffix("Aug."), "got: \(detail)")
         XCTAssertFalse(detail.hasSuffix(".."), "the caption's own period must not be doubled")
@@ -344,7 +346,7 @@ final class MomentumBuilderTests: XCTestCase {
 
     func testDetailWithoutACarriedCaptionIsUnchanged() {
         let row = day("2026-08-30", recovery: 62, sleepMin: 400)
-        let plain = MomentumCopy.detail(row: row, allDays: [row], fallbackDayKey: "2026-08-30",
+        let plain = MomentumCopy.detail(row: row, hrvBaseline: nil,
                                         carriedCaption: nil)
         XCTAssertFalse(plain.isEmpty)
         XCTAssertFalse(plain.contains("·"))
@@ -353,7 +355,7 @@ final class MomentumBuilderTests: XCTestCase {
     /// A caption that does NOT already end in a period still gets one.
     func testCaptionWithoutAPeriodStillGetsOne() {
         let row = day("2026-08-15", recovery: 62)
-        let detail = MomentumCopy.detail(row: row, allDays: [row], fallbackDayKey: "2026-08-30",
+        let detail = MomentumCopy.detail(row: row, hrvBaseline: nil,
                                          carriedCaption: "Last night · 15 August")
         XCTAssertTrue(detail.hasSuffix("August."), "got: \(detail)")
     }
@@ -393,5 +395,46 @@ final class MomentumBuilderTests: XCTestCase {
         let restored = TodayLayoutPrefs.decodeOrder("hero,synthesis,keyMetrics")
         XCTAssertTrue(restored.contains(.synthesis),
                       "a saved order written before the rename must still resolve")
+    }
+
+    // MARK: - One HRV baseline for the card and the Charge breakdown
+
+    /// The rows' HRV folded the way Charge folds it, with no recalibration epoch.
+    private static func fold(_ rows: [DailyMetric]) -> BaselineState {
+        Baselines.foldHistory(rows.map(\.avgHrv), dayKeys: rows.map(\.day), cfg: Baselines.hrvCfg,
+                              baselineEpoch: 0)
+    }
+
+    /// The reported bug: a wearer reset their baseline, then the card kept saying "HRV 9% under
+    /// baseline" because it averaged every loaded night, including the high nights before the reset,
+    /// while the Charge breakdown read HRV as above its (reset) baseline. The card must compare against
+    /// the baseline it is handed, never against the loaded history.
+    func testHeadlineUsesTheResolvedBaselineNotTheLoadedHistory() {
+        let today = day("2026-10-19", recovery: 77, hrv: 60)
+        let afterReset = (0..<10).map { day(String(format: "2026-10-%02d", 9 + $0), hrv: 55) }
+        let resolved = Self.fold(afterReset)
+        XCTAssertTrue(resolved.usable)
+
+        let pct = MomentumCopy.baselineDeltaPct(row: today, hrvBaseline: resolved)
+        XCTAssertNotNil(pct)
+        XCTAssertGreaterThan(pct ?? -1, 0, "60 ms against a ~55 ms baseline is above it, whatever came before")
+        XCTAssertTrue(MomentumCopy.headline(row: today, hrvBaseline: resolved).contains("over baseline"))
+
+        // The same night against the same baseline drives the trend read the same way.
+        var i = MomentumBuilder.Inputs()
+        i.recentDays = afterReset + [today]
+        i.hrvBaseline = resolved
+        XCTAssertEqual(MomentumBuilder.hrvRun(i)?.above, true)
+    }
+
+    /// While the resolved baseline is still calibrating (a fresh reset), the card falls back to the
+    /// state word instead of quoting a percentage against a baseline Charge does not trust yet.
+    func testCalibratingBaselineFallsBackToTheStateWord() {
+        let today = day("2026-10-19", recovery: 77, hrv: 60)
+        let fresh = Self.fold([day("2026-10-17", hrv: 55), day("2026-10-18", hrv: 56)])
+        XCTAssertFalse(fresh.usable)
+        XCTAssertNil(MomentumCopy.baselineDeltaPct(row: today, hrvBaseline: fresh))
+        XCTAssertNil(MomentumCopy.baselineDeltaPct(row: today, hrvBaseline: nil))
+        XCTAssertEqual(MomentumCopy.headline(row: today, hrvBaseline: fresh), MomentumCopy.stateWord(77))
     }
 }

@@ -55,6 +55,7 @@ enum DashboardMomentum {
     /// resolved for its own rendering, so nothing here re-reads the store or re-derives a day.
     static func context(displayDay: DailyMetric?,
                         allDays: [DailyMetric],
+                        hrvBaseline: BaselineState?,
                         dayKey: String,
                         isToday: Bool,
                         steps: DailyStepsReading?,
@@ -63,6 +64,7 @@ enum DashboardMomentum {
         var c = MomentumBuilder.Context()
         c.displayDay = displayDay
         c.allDays = allDays
+        c.hrvBaseline = hrvBaseline
         c.dayKey = dayKey
         c.isToday = isToday
 

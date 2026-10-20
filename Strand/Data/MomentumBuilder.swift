@@ -39,6 +39,8 @@ enum MomentumBuilder {
         /// The existing recovery read (headline + detail), already localized by the caller. Passing the
         /// SAME copy the card showed before keeps this a re-presentation rather than a rewrite.
         var recoveryRead: (headline: String, detail: String)?
+        /// The HRV baseline Charge scored against; the trend read compares recent nights to it.
+        var hrvBaseline: BaselineState?
         /// Today's HRV against the learned baseline, in whole percent.
         var hrvDeltaPct: Int?
 
@@ -400,12 +402,16 @@ enum MomentumBuilder {
     }
 
     /// Consecutive most-recent days on the same side of the HRV baseline, and which side.
-    /// nil when there is not enough history to say.
+    /// nil when there is not enough history to say or the baseline is not yet usable.
+    ///
+    /// The baseline is the one Charge scored against (`hrvBaseline`), not a mean of `recentDays`: that
+    /// mean kept the nights before a manual recalibration, so the trend read could contradict the
+    /// headline and the Charge breakdown beside it.
     static func hrvRun(_ i: Inputs) -> (days: Int, above: Bool)? {
+        guard let state = i.hrvBaseline, state.usable, state.baseline > 0 else { return nil }
         let values = i.recentDays.compactMap(\.avgHrv).filter { $0 > 0 }
         guard values.count >= 7 else { return nil }
-        let baseline = values.reduce(0, +) / Double(values.count)
-        guard baseline > 0 else { return nil }
+        let baseline = state.baseline
         let recent = Array(values.suffix(14).reversed())
         guard let first = recent.first else { return nil }
         let above = first >= baseline
@@ -442,6 +448,9 @@ extension MomentumBuilder {
         /// The carried last-scored day, when today has no score yet.
         var lastScoredDay: DailyMetric?
         var allDays: [DailyMetric] = []
+        /// The HRV baseline Charge scored against (`Repository.chargeBaselines?.hrv`), so the card's
+        /// "over/under baseline" read and the Charge breakdown cannot describe two different baselines.
+        var hrvBaseline: BaselineState?
         var dayKey: String = ""
         var isToday: Bool = true
         /// The "Last night · 15 Aug" provenance for a carried read, or nil when the read is today's.
@@ -484,12 +493,12 @@ extension MomentumBuilder {
         i.statusOverride = c.statusOverride
         i.calibration = c.calibration
         i.recoveryRead = (
-            headline: MomentumCopy.headline(row: subject, allDays: c.allDays, fallbackDayKey: c.dayKey),
-            detail: MomentumCopy.detail(row: subject, allDays: c.allDays, fallbackDayKey: c.dayKey,
+            headline: MomentumCopy.headline(row: subject, hrvBaseline: c.hrvBaseline),
+            detail: MomentumCopy.detail(row: subject, hrvBaseline: c.hrvBaseline,
                                         carriedCaption: c.carriedCaption)
         )
-        i.hrvDeltaPct = MomentumCopy.baselineDeltaPct(row: subject, allDays: c.allDays,
-                                                      fallbackDayKey: c.dayKey)
+        i.hrvBaseline = c.hrvBaseline
+        i.hrvDeltaPct = MomentumCopy.baselineDeltaPct(row: subject, hrvBaseline: c.hrvBaseline)
 
         // Steps: prefer a MEASURED figure. The estimate is passed only flagged, so the builder falls
         // back to the qualitative read instead of quoting a remaining count off a guess.
