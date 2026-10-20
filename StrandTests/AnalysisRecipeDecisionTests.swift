@@ -30,13 +30,24 @@ final class AnalysisRecipeDecisionTests: XCTestCase {
     /// It is deliberately a LITERAL pin. A future bump is supposed to make this line fail, because that
     /// failure is the prompt to answer CLAUDE.md's "Analysis migration required: yes/no" for whatever
     /// the bump carries — the question this file exists to stop anyone skipping.
-    func testRecipeVersionIsTwentySevenAndOlderInstallsMigrateToIt() {
-        XCTAssertEqual(IntelligenceEngine.currentAnalysisRecipeVersion, 27,
+    func testRecipeVersionIsTwentyEightAndOlderInstallsMigrateToIt() {
+        XCTAssertEqual(IntelligenceEngine.currentAnalysisRecipeVersion, 28,
                        "recipe version changed — answer 'Analysis migration required' for what moved")
-        for stored in [8, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26] {
+        for stored in [8, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27] {
             XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: stored),
-                           .migrate(from: stored, to: 27))
+                           .migrate(from: stored, to: 28))
         }
+    }
+
+    /// AI-28 repairs the stress proxy after a recalibration and nothing else.
+    func testAI28RepairsOnlyTheStressProxy() {
+        XCTAssertTrue(IntelligenceEngine.migrationRepairsStressProxy(from: 27, to: 28))
+        XCTAssertFalse(IntelligenceEngine.migrationRepairsStressProxy(from: 28, to: 28))
+        XCTAssertFalse(IntelligenceEngine.migrationRebuildsHealthspan(from: 27, to: 28))
+        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 27), 0)
+        XCTAssertFalse(IntelligenceEngine.migrationRefillsCardioLedger(from: 27, to: 28))
+        XCTAssertFalse(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 27, to: 28))
+        XCTAssertFalse(IntelligenceEngine.migrationFillsWorkoutHeartRate(from: 27, to: 28))
     }
 
     /// AI-27 rebuilds the AgeLess weeks without the body-fat credit and nothing else.
@@ -289,10 +300,10 @@ final class AnalysisRecipeDecisionTests: XCTestCase {
     /// build number here would cause. Pinned because the mistake is invisible until someone's phone
     /// spends twenty minutes re-scoring after a cosmetic update.
     func testAnInstallAlreadyAtTheCurrentRecipeNeverRescoresOnRelaunch() {
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 27), .upToDate)
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 28), .upToDate)
         // And a database written by a NEWER build that was rolled back stays put rather than
         // "migrating" backwards into a rescore that would overwrite better values with worse ones.
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 28), .upToDate)
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 29), .upToDate)
     }
 
     // MARK: - The fork's own recipe lineage

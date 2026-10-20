@@ -23,16 +23,16 @@ final class StressModelCarryTests: XCTestCase {
 
     func testVitalsLessTodayCarriesInsteadOfCalibrating() {
         // Control: today HAS vitals → builds (unchanged).
-        XCTAssertNotNil(StressModel(days: baseline + [day("2026-07-02", rhr: 58, hrv: 45)], stored: []))
+        XCTAssertNotNil(StressModel(days: baseline + [day("2026-07-02", rhr: 58, hrv: 45)], stored: [], cut: .none))
         // The fix: today has NO RHR/HRV yet (the post-update window) but a prior day does → carries, not nil.
-        XCTAssertNotNil(StressModel(days: baseline + [day("2026-07-02", rhr: nil, hrv: nil)], stored: []),
+        XCTAssertNotNil(StressModel(days: baseline + [day("2026-07-02", rhr: nil, hrv: nil)], stored: [], cut: .none),
                         "a vitals-less today must carry the last day with RHR/HRV, not calibrate")
     }
 
     func testNoVitalsAnywhereStillCalibrates() {
         // Genuine cold start: no day has RHR/HRV and nothing stored → honestly calibrating (nil).
         let days = (1...5).map { day("2026-07-0\($0)", rhr: nil, hrv: nil) }
-        XCTAssertNil(StressModel(days: days, stored: []))
+        XCTAssertNil(StressModel(days: days, stored: [], cut: .none))
     }
 
     func testStoredStressOnLatestVitalsLessDayIsUsedNotSkipped() {
@@ -40,7 +40,7 @@ final class StressModelCarryTests: XCTestCase {
         // WHOOP export). The original gate honoured it; the carry must NOT skip it back to an older vitals
         // day. The stored 2.5 must win over any derived carry.
         let days = baseline + [day("2026-07-02", rhr: nil, hrv: nil)]
-        let model = StressModel(days: days, stored: [(day: "2026-07-02", value: 2.5)])
+        let model = StressModel(days: days, stored: [(day: "2026-07-02", value: 2.5)], cut: .none)
         XCTAssertNotNil(model)
         XCTAssertEqual(model?.score ?? -1, 2.5, accuracy: 0.001,
                        "the latest day's stored stress must win over a carry")

@@ -2556,10 +2556,14 @@ struct LiquidTodayView: View {
             // personal, and for resting HR a longer bar was worse. Scores and steps keep theirs; vitals
             // say how they stand against the wearer's own normal instead (`PersonalNormal`).
             ktile("HRV", icon: metric.customizationIcon, intText(hrv), "ms", StrandPalette.metricCyan, nil, key: "hrv",
-                  comparison: normalComparison("hrv", today: hrv, polarity: .higherIsBetter))
+                  comparison: vitalComparison("hrv", today: hrv, polarity: .higherIsBetter,
+                                              baseline: repo.chargeBaselines?.hrv,
+                                              epoch: Baselines.hrvBaselineEpoch()))
         case .restingHr:
             ktile(String(localized: "Rest HR"), icon: metric.customizationIcon, intText(rhr), "bpm", StrandPalette.metricRose, nil, key: "rhr",
-                  comparison: normalComparison("rhr", today: rhr, polarity: .lowerIsBetter))
+                  comparison: vitalComparison("rhr", today: rhr, polarity: .lowerIsBetter,
+                                              baseline: repo.chargeBaselines?.restingHR,
+                                              epoch: Baselines.recoveryBaselineEpoch()))
         case .bloodOxygen:
             // Same order as the card above — see `Spo2Display`.
             let resolved = Spo2Display.resolve(
@@ -2579,7 +2583,10 @@ struct LiquidTodayView: View {
             ktile(String(localized: "Respiratory"), icon: metric.customizationIcon,
                   resp.map { String(format: "%.1f", locale: AppLanguage.activeLocale, $0) } ?? "—",
                   "rpm", StrandPalette.accent, nil, key: "resp_rate",
-                  comparison: normalComparison("resp_rate", today: resp, polarity: .neutral), comparisonDecimals: 1)
+                  comparison: vitalComparison("resp_rate", today: resp, polarity: .neutral,
+                                              baseline: repo.chargeBaselines?.resp,
+                                              epoch: Baselines.recoveryBaselineEpoch()),
+                  comparisonDecimals: 1)
         case .steps:
             ktile(String(localized: "Steps"), icon: metric.customizationIcon, stepsText, "", StrandPalette.chargeColor,
                   fracOver(stepCount, 10000), key: stepsDetailKey, detailMetric: stepsDetailMetric,
@@ -2672,6 +2679,24 @@ struct LiquidTodayView: View {
                                   polarity: PersonalNormal.Polarity) -> PersonalNormal.Comparison? {
         guard let today else { return nil }
         let prior = (kSparks[key] ?? []).filter { $0.0 < selectedDayKey }.map(\.1)
+        return PersonalNormal.compare(today: today, prior: prior, polarity: polarity)
+    }
+
+    /// HRV, resting HR and respiration against the baseline Charge scored against, so the tile, Momentum
+    /// and the "What shaped it" rows name one baseline. A 30-night mean kept the nights before a manual
+    /// "Recalibrate baseline", so after a reset to 78 ms a night of 82 ms read "-6". A past day has no
+    /// Charge baseline of its own and keeps the mean of its prior nights, minus the ones the reset dropped.
+    private func vitalComparison(_ key: String, today: Double?, polarity: PersonalNormal.Polarity,
+                                 baseline: BaselineState?, epoch: Double) -> PersonalNormal.Comparison? {
+        guard let today else { return nil }
+        if selectedDayOffset == 0 {
+            return PersonalNormal.compare(today: today, baseline: baseline, polarity: polarity)
+        }
+        // A day before the reset keeps its own past; from the first counted night on, older nights drop.
+        let firstNight = Baselines.firstNightAfterRecalibration(epoch: epoch).flatMap { selectedDayKey >= $0 ? $0 : nil }
+        let prior = (kSparks[key] ?? [])
+            .filter { point in point.0 < selectedDayKey && (firstNight.map { point.0 >= $0 } ?? true) }
+            .map(\.1)
         return PersonalNormal.compare(today: today, prior: prior, polarity: polarity)
     }
 
@@ -3020,6 +3045,7 @@ struct LiquidTodayView: View {
         // history doesn't stutter the UI. Snapshot the inputs (value types) into the detached task.
         let storedStress = await stressA
         let daysSnapshot = allDays
+        let stressCut = StressMath.Cut.current()
 
         // #430 parity: the day-keyed series the DETAILED Key-Metrics tiles graph — a trailing CALENDAR
         // window ending on the selected day (not the last-N stored rows, which on an old import showed
@@ -3068,7 +3094,7 @@ struct LiquidTodayView: View {
             "weight": weightSeries.map { ($0.day, $0.value) },
         ]
         next.stress = await runUnescalated {
-            StressModel(days: daysSnapshot, stored: storedStress)?.score
+            StressModel(days: daysSnapshot, stored: storedStress, cut: stressCut)?.score
         }
         next.fitnessAge = (await fitA).last?.value   // history-wide latest banked (not day-scoped)
         next.vo2max = (await vo2A).last?.value        // #1391: latest banked VO₂max estimate

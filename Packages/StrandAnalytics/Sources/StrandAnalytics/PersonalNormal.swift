@@ -40,13 +40,27 @@ public enum PersonalNormal {
         let spread = variance.squareRoot()
         let delta = today - mean
         let notable = spread > 0 && abs(delta) > spread
-        let tone: Tone
+        return Comparison(delta: delta, normal: mean, tone: tone(delta: delta, notable: notable, polarity: polarity))
+    }
+
+    /// Today against a fitted baseline, normally the one Charge scored against
+    /// (`ChargeBaselines.Resolved`), so the tile and the Charge breakdown name the same baseline. A change
+    /// is notable beyond one robust σ (`Baselines.sigma`). Nil until the baseline is usable, the gate Charge
+    /// scores on, so a freshly recalibrated baseline shows no comparison rather than one against old nights.
+    public static func compare(today: Double, baseline state: BaselineState?, polarity: Polarity) -> Comparison? {
+        guard today.isFinite, let state, state.usable, state.baseline > 0 else { return nil }
+        let delta = today - state.baseline
+        let notable = abs(delta) > Baselines.sigma(state)
+        return Comparison(delta: delta, normal: state.baseline,
+                          tone: tone(delta: delta, notable: notable, polarity: polarity))
+    }
+
+    private static func tone(delta: Double, notable: Bool, polarity: Polarity) -> Tone {
         switch (notable, polarity) {
-        case (false, _), (_, .neutral): tone = .ordinary
-        case (true, .higherIsBetter): tone = delta > 0 ? .favourable : .unfavourable
-        case (true, .lowerIsBetter): tone = delta < 0 ? .favourable : .unfavourable
+        case (false, _), (_, .neutral): return .ordinary
+        case (true, .higherIsBetter): return delta > 0 ? .favourable : .unfavourable
+        case (true, .lowerIsBetter): return delta < 0 ? .favourable : .unfavourable
         }
-        return Comparison(delta: delta, normal: mean, tone: tone)
     }
 
     /// "+4", "-1", "±0" (or "+0.6" with one decimal). Locale-independent digits like the tile values.

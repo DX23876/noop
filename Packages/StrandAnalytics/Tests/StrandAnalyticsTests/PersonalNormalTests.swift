@@ -2,6 +2,24 @@ import XCTest
 @testable import StrandAnalytics
 
 final class PersonalNormalTests: XCTestCase {
+    /// The reported case: a recalibrated HRV baseline of 78 ms and a night of 82 ms reads as above the
+    /// baseline, not as the "-6" a mean over the nights before the reset gave.
+    func testABaselineComparisonReadsAgainstTheFittedBaseline() throws {
+        let state = BaselineState(baseline: 78, spread: 4, nValid: 6, nightsSinceUpdate: 0, status: .provisional)
+        let c = try XCTUnwrap(PersonalNormal.compare(today: 82, baseline: state, polarity: .higherIsBetter))
+        XCTAssertEqual(c.normal, 78, accuracy: 1e-9)
+        XCTAssertEqual(c.delta, 4, accuracy: 1e-9)
+        XCTAssertEqual(c.tone, .ordinary, "4 ms is inside one robust sigma (1.253 x 4)")
+        XCTAssertEqual(try XCTUnwrap(PersonalNormal.compare(today: 90, baseline: state,
+                                                            polarity: .higherIsBetter)).tone, .favourable)
+    }
+
+    func testACalibratingBaselineGivesNoComparison() {
+        let state = BaselineState(baseline: 78, spread: 4, nValid: 2, nightsSinceUpdate: 0, status: .calibrating)
+        XCTAssertNil(PersonalNormal.compare(today: 82, baseline: state, polarity: .higherIsBetter))
+        XCTAssertNil(PersonalNormal.compare(today: 82, baseline: nil, polarity: .higherIsBetter))
+    }
+
     func testNoComparisonBeforeEnoughPriorValues() {
         XCTAssertNil(PersonalNormal.compare(today: 60, prior: [55, 56, 57], polarity: .higherIsBetter))
     }

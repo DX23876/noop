@@ -47,4 +47,25 @@ final class BaselineEpochDiagnosticTests: XCTestCase {
         XCTAssertEqual(state.nValid, 3)
         XCTAssertFalse(state.usable, "3 < minNightsSeed(4) → Charge stays nil, exactly as reported")
     }
+
+    /// `firstNightAfterRecalibration` is the fold's own cut written as a day key: every night the fold
+    /// drops sorts below it, every night it keeps sorts at or above it.
+    func testFirstNightAfterRecalibrationMatchesTheFoldsCut() {
+        XCTAssertNil(Baselines.firstNightAfterRecalibration(epoch: 0))
+        let keys = (1...9).map { String(format: "2026-10-%02d", $0) }
+        let fmt = DateFormatter()
+        fmt.locale = Locale(identifier: "en_US_POSIX")
+        fmt.timeZone = TimeZone(secondsFromGMT: 0)
+        fmt.dateFormat = "yyyy-MM-dd HH:mm"
+        for stamp in ["2026-10-04 10:30", "2026-10-04 00:00", "2026-10-04 23:59"] {
+            let epoch = fmt.date(from: stamp)!.timeIntervalSince1970
+            let first = Baselines.firstNightAfterRecalibration(epoch: epoch)!
+            let dropped = Baselines.epochDropDiagnostic(dayKeys: keys, baselineEpoch: epoch).dropped
+            XCTAssertEqual(keys.filter { $0 < first }.count, dropped, stamp)
+        }
+        XCTAssertEqual(Baselines.firstNightAfterRecalibration(
+            epoch: fmt.date(from: "2026-10-04 10:30")!.timeIntervalSince1970), "2026-10-05")
+        XCTAssertEqual(Baselines.firstNightAfterRecalibration(
+            epoch: fmt.date(from: "2026-10-04 00:00")!.timeIntervalSince1970), "2026-10-04")
+    }
 }

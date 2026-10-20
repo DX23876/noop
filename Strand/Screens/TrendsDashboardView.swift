@@ -404,7 +404,7 @@ struct TrendsDashboardView: View {
         next.vo2maxToday = latestBanked(await vo2maxSeriesA, asOf: selectedDayKey)
         next.vitalityToday = latestBanked(await vitalitySeriesA, asOf: selectedDayKey)
         let storedStress = await stressStoredA
-        next.stressToday = await runUnescalated { StressModel(days: scopedDays, stored: storedStress)?.score }
+        next.stressToday = await runUnescalated { [stressCut = StressMath.Cut.current()] in StressModel(days: scopedDays, stored: storedStress, cut: stressCut)?.score }
         next.hydrationTotalML = await hydrationA
         // Measurement, not trend — see `WeightSeries.currentWeight`.
         next.resolvedWeightKg = WeightSeries.currentWeight(summary: await weightSummaryA,

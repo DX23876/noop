@@ -5000,7 +5000,7 @@ struct TodayView: View {
         // page on a day with no banked stress row. nil (no usable signal) keeps the honest "Calibrating"
         // placeholder, matching StressView's empty state. Fitness age / Vitality keep their merged reads.
         let stressRows = await stressStoredA
-        stressToday = await runUnescalated { StressModel(days: days, stored: stressRows)?.score }
+        stressToday = await runUnescalated { [stressCut = StressMath.Cut.current()] in StressModel(days: days, stored: stressRows, cut: stressCut)?.score }
         fitnessAgeToday = (await fitnessAgeSeriesA).last?.value
         vo2maxToday = (await vo2maxSeriesA).last?.value   // #1391: latest banked VO₂max estimate
         vitalityToday = (await vitalitySeriesA).last?.value

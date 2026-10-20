@@ -448,6 +448,25 @@ public enum Baselines {
         defaults.double(forKey: recoveryBaselineEpochKey)
     }
 
+    /// The first `yyyy-MM-dd` night a recalibration at `epoch` (epoch SECONDS) still counts, or nil when no
+    /// recalibration is set (`epoch <= 0`) and every night counts.
+    ///
+    /// For callers that average nights themselves instead of folding a `BaselineState` (the Stress score,
+    /// the Key Metrics "vs. your usual"): a night counts iff `night >= firstNight`. It is the same cut the
+    /// epoch-aware `foldHistory` makes (a night whose UTC day STARTS before the epoch is dropped), as a
+    /// plain key so a filter over day rows needs no date parsing.
+    public static func firstNightAfterRecalibration(epoch: Double) -> String? {
+        guard epoch > 0 else { return nil }
+        let dayStart = (epoch / 86_400).rounded(.down) * 86_400
+        let first = dayStart == epoch ? dayStart : dayStart + 86_400
+        let fmt = DateFormatter()
+        fmt.calendar = Calendar(identifier: .gregorian)
+        fmt.locale = Locale(identifier: "en_US_POSIX")
+        fmt.timeZone = TimeZone(secondsFromGMT: 0)
+        fmt.dateFormat = "yyyy-MM-dd"
+        return fmt.string(from: Date(timeIntervalSince1970: first))
+    }
+
     /// Recalibrate every baseline that feeds Charge: drop the anchor so the ~4-night build-up restarts
     /// from `now`. This is the single source of truth behind the Settings "Recalibrate Charge baseline"
     /// button on all platforms — it writes `now` (epoch SECONDS) to BOTH the HRV epoch and the recovery

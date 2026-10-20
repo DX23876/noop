@@ -387,7 +387,7 @@ struct OverviewDashboardView: View {
         next.vo2maxToday = latestBanked(await vo2maxSeriesA, asOf: selectedDayKey)
         next.vitalityToday = latestBanked(await vitalitySeriesA, asOf: selectedDayKey)
         let storedStress = await stressStoredA
-        next.stressToday = await runUnescalated { StressModel(days: scopedDays, stored: storedStress)?.score }
+        next.stressToday = await runUnescalated { [stressCut = StressMath.Cut.current()] in StressModel(days: scopedDays, stored: storedStress, cut: stressCut)?.score }
         next.stepsEstToday = (await stepsEstSeriesA).last(where: { $0.day == selectedDayKey })
             .map { Int($0.value.rounded()) }
         next.hydrationTotalML = await hydrationA

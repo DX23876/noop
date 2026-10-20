@@ -246,7 +246,7 @@ struct StressView: View {
         let signature = StressInputs(days: repo.days, stored: storedSeries)
         guard signature != modelSignature else { return }
         modelSignature = signature
-        model = StressModel(days: repo.days, stored: storedSeries)
+        model = StressModel(days: repo.days, stored: storedSeries, cut: .current())
     }
 
     // MARK: Loaded content
@@ -896,7 +896,7 @@ struct StressModel {
 
     /// Build from oldest→newest daily metrics plus any stored "stress" series.
     /// Returns nil only when there is no usable signal at all.
-    init?(days: [DailyMetric], stored: [(day: String, value: Double)]) {
+    init?(days: [DailyMetric], stored: [(day: String, value: Double)], cut: StressMath.Cut) {
         // Stored values keyed by day, clamped to 0–3.
         let storedByDay: [String: Double] = Dictionary(
             stored.map { ($0.day, min(max($0.value, 0), 3)) },
@@ -916,16 +916,12 @@ struct StressModel {
         let today = days[idx]
 
         // Baseline window: up to 30 days ending the day BEFORE the scored day, so it's measured
-        // against its own recent past rather than itself.
-        let baseline = idx > 0 ? Array(days[0..<idx].suffix(30)) : []
-
-        let rhrBase = baseline.compactMap { $0.restingHr }.map(Double.init)
-        let hrvBase = baseline.compactMap { $0.avgHrv }
-
-        let meanRHR = StressMath.mean(rhrBase)
-        let sdRHR   = StressMath.std(rhrBase, mean: meanRHR)
-        let meanHRV = StressMath.mean(hrvBase)
-        let sdHRV   = StressMath.std(hrvBase, mean: meanHRV)
+        // against its own recent past rather than itself, minus the nights a recalibration dropped.
+        let reference = StressMath.reference(before: idx, in: days, cut: cut)
+        let meanRHR = reference.meanRHR
+        let sdRHR   = reference.sdRHR
+        let meanHRV = reference.meanHRV
+        let sdHRV   = reference.sdHRV
 
         let rhrT = today.restingHr.map(Double.init)
         let hrvT = today.avgHrv
@@ -994,6 +990,50 @@ struct StressModel {
 // MARK: - Stress math (pure, testable helpers)
 
 enum StressMath {
+    /// The first night each baseline still counts after a manual "Recalibrate baseline": HRV on its own
+    /// epoch, resting HR on the recovery epoch, as Charge folds them. nil = every night counts.
+    struct Cut: Equatable, Sendable {
+        var hrvFirstNight: String?
+        var rhrFirstNight: String?
+
+        static let none = Cut()
+
+        static func current(_ defaults: UserDefaults = .standard) -> Cut {
+            Cut(hrvFirstNight: Baselines.firstNightAfterRecalibration(epoch: Baselines.hrvBaselineEpoch(defaults)),
+                rhrFirstNight: Baselines.firstNightAfterRecalibration(
+                    epoch: Baselines.recoveryBaselineEpoch(defaults)))
+        }
+    }
+
+    struct Reference: Equatable {
+        let meanRHR: Double?
+        let sdRHR: Double
+        let meanHRV: Double?
+        let sdHRV: Double
+    }
+
+    /// What `days[index]` is read against: up to the 30 rows before it, keeping only the nights after a
+    /// recalibration. Shared by the live Stress screen and the stored series, so a chart and the screen
+    /// cannot disagree. Before the cut, the window kept the nights before a reset, so a recalibrated
+    /// HRV baseline of 78 ms still read a night of 82 ms as "HRV is down". A day before the reset keeps
+    /// its own past: the cut applies only from the first night it counts.
+    static func reference(before index: Int, in days: [DailyMetric], cut: Cut) -> Reference {
+        let window = index > 0 ? days[0..<index].suffix(30) : []
+        let scored = index < days.count ? days[index].day : nil
+        func counts(_ day: DailyMetric, from first: String?) -> Bool {
+            guard let first, let scored, scored >= first else { return true }
+            return day.day >= first
+        }
+        let rhrBase = window.filter { counts($0, from: cut.rhrFirstNight) }
+            .compactMap { $0.restingHr }.map(Double.init)
+        let hrvBase = window.filter { counts($0, from: cut.hrvFirstNight) }
+            .compactMap { $0.avgHrv }
+        let meanRHR = mean(rhrBase)
+        let meanHRV = mean(hrvBase)
+        return Reference(meanRHR: meanRHR, sdRHR: std(rhrBase, mean: meanRHR),
+                         meanHRV: meanHRV, sdHRV: std(hrvBase, mean: meanHRV))
+    }
+
     static func mean(_ xs: [Double]) -> Double? {
         guard !xs.isEmpty else { return nil }
         return xs.reduce(0, +) / Double(xs.count)

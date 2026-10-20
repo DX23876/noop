@@ -570,3 +570,21 @@ runs it over its window after every sync; only rows still missing heart rate are
 
 Analysis migration required: no. New fills for rows that had no heart rate; no stored value changes meaning
 and nothing already scored is re-scored. Workouts older than the pass window are not filled.
+
+### 2026-10-20 — Key Metrics and Stress stop comparing against nights before a recalibration (AI-28)
+
+After the Momentum card moved onto the Charge baseline, a tester whose recalibrated HRV baseline was 78 ms still
+saw the Key Metrics HRV tile read a night of 82 ms as "-6", and the Stress screen called HRV down. Both averaged
+the last 30 nights themselves, so the nights before the manual "Recalibrate baseline" kept pulling the reference
+up. The HRV, resting HR and respiration tiles now compare today against the baseline Charge scored against
+(`PersonalNormal.compare(today:baseline:)`, no comparison while it is still calibrating); a past day keeps the
+mean of its prior nights, minus the nights the reset dropped. The Stress score keeps its 30-day window but drops
+the nights before the cut (`StressMath.reference`, `Baselines.firstNightAfterRecalibration`, the fold's own cut
+as a day key); a day before the reset keeps its own past. The live screen and the stored series share that one
+rule.
+
+Analysis migration required: yes (AI-28). Stored stress rows are gap-filled and never overwritten, so the days
+whose window reaches back across the cut are recomputed, from the first counted night to 30 rows past it. Only
+NOOP's own rows change: an imported WHOOP export writes its stress value together with a daily row under the
+same source, and those days are left alone. A day the new rule cannot score yet loses its stale row. The daily
+pass applies the same repair after every later recalibration. Without a recalibration nothing changes.
