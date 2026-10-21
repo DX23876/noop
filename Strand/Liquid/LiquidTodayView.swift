@@ -358,10 +358,11 @@ struct LiquidTodayView: View {
     /// Manual activity status (sick/injured/onBreak/active), owned here and threaded to the Synthesis
     /// card's header chip.
     @State private var status = ActivityStatusStore.load()
-    /// The rotating one-word "this is tappable / swipeable" hint under the headline; nil shows the date.
-    /// Same two words and cadence the classic Today uses, so the affordance is learned once.
-    @State private var dayNavHint: String? = nil
-    private static let dayNavHints = ["Swipe", "Tap"]
+    /// Fixed-size rounded faces that still follow Dynamic Type: the headline (20 pt at the default size),
+    /// a row's rounded text (vital values, workout names, 15 pt) and a workout's Effort number (17 pt).
+    @ScaledMetric(relativeTo: .title3) private var headlineSize: CGFloat = 20
+    @ScaledMetric(relativeTo: .subheadline) private var rowTextSize: CGFloat = 15
+    @ScaledMetric(relativeTo: .body) private var rowNumberSize: CGFloat = 17
 
     // PERF: the body was rescanning repo.days (599 days) ~23× per pass for displayDay and ~3× for
     // readiness on EVERY re-render (every HR notify, every canvas frame that invalidates, every scroll).
@@ -450,7 +451,9 @@ struct LiquidTodayView: View {
 
     // Custom liquid pull-to-refresh: a vessel that FILLS as you drag, releases into a refresh (replaces
     // the system spinner). Driven by the scroll's top overscroll offset.
-    @State private var pullY: CGFloat = 0
+    /// The live pull distance. It changes on every frame of a pull and only the indicator draws it, so it
+    /// lives in a model this view holds without observing: a pull redraws the indicator, not all of Today.
+    @State private var pull = LiquidPullModel()
     @State private var refreshArmed = false
     @State private var refreshing = false
     @State private var pullHaptic = 0
@@ -1074,7 +1077,7 @@ struct LiquidTodayView: View {
     /// LiveState itself, so it's cheap to re-evaluate as part of the main body. It hands the actual
     /// visibility decision to `LiquidRefreshIndicator` below, which DOES own LiveState.
     private var liquidRefreshIndicator: some View {
-        LiquidRefreshIndicator(pullY: pullY, pullThreshold: pullThreshold, refreshing: refreshing,
+        LiquidRefreshIndicator(pull: pull, pullThreshold: pullThreshold, refreshing: refreshing,
                                liquidHeart: liquidHeart)
     }
 
@@ -1082,9 +1085,10 @@ struct LiquidTodayView: View {
     /// springs back toward zero). Guarded so it can't double-fire or re-trigger mid-refresh.
     private func handlePull(_ y: CGFloat) {
         let nextPullY = max(0, y)
-        // Normal upward scrolling keeps reporting negative offsets. Avoid invalidating the whole
-        // dashboard for every such frame when the visible pull indicator is already at zero.
-        if nextPullY != pullY { pullY = nextPullY }
+        // Normal upward scrolling keeps reporting negative offsets. Avoid republishing for every such
+        // frame when the visible pull indicator is already at zero.
+        if nextPullY != pull.pullY { pull.pullY = nextPullY }
+        let pullY = pull.pullY
         guard !refreshing else { return }
         // #1748 twin: gate the ARM, not the release. `syncNow()`'s own gate checks connected + bonded, and
         // `bonded` is set by the live-HR path for a 5/MG that has never completed a handshake — so the pull
@@ -1208,44 +1212,20 @@ struct LiquidTodayView: View {
                     Text(headlineLine).fixedSize(horizontal: true, vertical: false)
                     Text(dayTitle).fixedSize(horizontal: true, vertical: false)
                     // Last resort when even the day name does not fit beside the controls (a
-                    // narrow phone, a long weekday, the sync capsule expanding): shrink, never clip.
+                    // narrow phone, a long weekday, the sync capsule expanding): wrap, never clip.
                     Text(dayTitle).lineLimit(2).fixedSize(horizontal: false, vertical: true)
                 }
-                .font(StrandFont.rounded(20))
+                .font(StrandFont.rounded(headlineSize))
                 .foregroundStyle(StrandPalette.textPrimary)
                 .lineLimit(1)
                 .shadow(color: .black.opacity(colorScheme == .dark ? 0.4 : 0.12), radius: 10, y: 1)
-                // The date is the day-picker's trigger, so it needs to READ as tappable without a
-                // second control. Same affordance the classic Today uses (TodayView.dayNavHint): every
-                // ~10s it swaps for ~1.5s to a one-word accent hint, then returns to the date.
-                // Small and light under the title, which shares its line with the logo.
-                Text(dayNavHint ?? headerDateLine)
-                    .font(StrandFont.caption.weight(.light))
-                    // Two lines beside the controls ("Freitag, 2." / "Oktober"); wraps, never shrinks.
-                    .lineLimit(2)
-                    .foregroundStyle(dayNavHint != nil ? StrandPalette.accent : StrandPalette.textSecondary)
-                    .contentTransition(.opacity)
-                    .shadow(color: .black.opacity(colorScheme == .dark ? 0.35 : 0.10), radius: 8, y: 1)
+                LiquidDayDateLine(dateLine: headerDateLine)
             }
             .contentShape(Rectangle())
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(dayTitle). Tap to pick a day, swipe to change day.")
-        // One async loop, cancelled with the view — no leaked timer. Mirrors the classic Today's.
-        .task {
-            var i = 0
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 10_000_000_000)
-                if Task.isCancelled { break }
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    dayNavHint = Self.dayNavHints[i % Self.dayNavHints.count]
-                }
-                i += 1
-                try? await Task.sleep(nanoseconds: 1_500_000_000)
-                withAnimation(.easeInOut(duration: 0.3)) { dayNavHint = nil }
-            }
-        }
         .popover(isPresented: $showDayPicker) {
             DatePicker("", selection: dayPickerBinding, in: ...Repository.logicalDay(Date()),
                        displayedComponents: [.date])
@@ -1306,7 +1286,7 @@ struct LiquidTodayView: View {
                     .font(StrandFont.subhead)
                     .foregroundStyle(StrandPalette.textPrimary)
                 Text("BETA")
-                    .font(StrandFont.overlineScaled(11)).tracking(StrandFont.overlineTracking)
+                    .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
                     .foregroundStyle(StrandPalette.onDarkSecondary)
                     .padding(.horizontal, NoopMetrics.space2).padding(.vertical, NoopMetrics.space1)
                     .background(Capsule().fill(StrandPalette.surfaceInset.opacity(0.72))
@@ -1531,8 +1511,14 @@ struct LiquidTodayView: View {
                                 .foregroundStyle(StrandPalette.accent)
                         }
                         // The row spans the card width, so the whole footer strip is the hit target
-                        // even though only the label and chevron are drawn.
+                        // even though only the label and chevron are drawn. The target reaches 44 pt
+                        // into the stack gap above and the card padding below, never into the scrubbable
+                        // thread, and without making the card taller.
+                        .padding(.top, NoopMetrics.space3)
+                        .padding(.bottom, NoopMetrics.space4)
                         .contentShape(Rectangle())
+                        .padding(.top, -NoopMetrics.space3)
+                        .padding(.bottom, -NoopMetrics.space4)
                     }
                     .buttonStyle(.plain)
                     .accessibilityHint("Opens the full-day heart rate timeline")
@@ -1553,9 +1539,13 @@ struct LiquidTodayView: View {
                     // #492 item 4 parity: unify the Your Cards / Key Metrics edit affordance to "EDIT" across
                     // platforms (Android #563). Reuse the localized "Edit" key, uppercased at display, so this
                     // stays translated (BEARBEITEN / MODIFIER / …) without a new literal.
-                    Text(String(localized: "Edit").uppercased()).font(StrandFont.overlineScaled(11))
+                    Text(String(localized: "Edit").uppercased()).font(StrandFont.overline)
                         .tracking(StrandFont.overlineTracking)
                         .foregroundStyle(StrandPalette.accent)
+                        // Same 44 pt hit area as the Key Metrics Edit, without growing the header row.
+                        .padding(NoopMetrics.space4)
+                        .contentShape(Rectangle())
+                        .padding(-NoopMetrics.space4)
                 }
                 .buttonStyle(.plain)
             }
@@ -1949,7 +1939,10 @@ struct LiquidTodayView: View {
                 .overlay(Capsule(style: .continuous).stroke(
                     readinessColor(readiness.level).opacity(colorSchemeContrast == .increased ? 0.6 : 0),
                     lineWidth: 1))
-                .contentShape(Capsule())
+                // A 44 pt tall target around the ~21 pt pill, without growing the header it sits in.
+                .padding(.vertical, NoopMetrics.space3)
+                .contentShape(Rectangle())
+                .padding(.vertical, -NoopMetrics.space3)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Readiness: \(word)")
@@ -2377,7 +2370,7 @@ struct LiquidTodayView: View {
                 .frame(width: 26, height: 26)
             Text(label).font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
             Spacer()
-            Text(value).font(StrandFont.number(15)).foregroundStyle(StrandPalette.textPrimary)
+            Text(value).font(StrandFont.number(rowTextSize)).foregroundStyle(StrandPalette.textPrimary)
             if linked {
                 Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(StrandPalette.textTertiary)
@@ -2446,7 +2439,7 @@ struct LiquidTodayView: View {
                 // #430 parity: the SAME editor the classic grid uses — selection + order + Detailed tiles.
                 Button { customizationDestination = .keyMetrics } label: {
                     Text(String(localized: "Edit").uppercased())
-                        .font(StrandFont.overlineScaled(11))
+                        .font(StrandFont.overline)
                         .tracking(StrandFont.overlineTracking)
                         .foregroundStyle(StrandPalette.accent)
                         // A 44 pt hit area around an 11 pt word, without growing the header row.
@@ -2808,7 +2801,7 @@ struct LiquidTodayView: View {
             .frame(width: 38, height: 38)
             .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text(WorkoutSource.localizedDisplaySport(w.sport)).font(StrandFont.number(15))
+                Text(WorkoutSource.localizedDisplaySport(w.sport)).font(StrandFont.number(rowTextSize))
                     .foregroundStyle(StrandPalette.textPrimary)
                     .lineLimit(1)
                 Text(workoutSub(w)).font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
@@ -2816,11 +2809,11 @@ struct LiquidTodayView: View {
             }
             Spacer(minLength: NoopMetrics.space2)
             VStack(alignment: .trailing, spacing: 1) {
-                Text(effortText(w.strain)).font(StrandFont.number(17))
+                Text(effortText(w.strain)).font(StrandFont.number(rowNumberSize))
                     .foregroundStyle(w.strain == nil ? StrandPalette.textTertiary : StrandPalette.textPrimary)
                 Text(LiquidTodayDefaults.effortBandWord(stored: w.strain)
                         ?? DomainTheme.effort.productName.uppercased())
-                    .font(StrandFont.overlineScaled(11))
+                    .font(StrandFont.overline)
                     .tracking(StrandFont.overlineTracking)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .lineLimit(1)
@@ -3456,6 +3449,49 @@ private struct PullOffsetKey: PreferenceKey {
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
 
+/// The top overscroll distance for the liquid pull-to-refresh. `LiquidTodayView` writes it and holds it
+/// in `@State` without observing it; only `LiquidRefreshIndicator` observes it, so the per-frame changes
+/// of a pull never re-run the dashboard's body.
+@MainActor
+private final class LiquidPullModel: ObservableObject {
+    @Published var pullY: CGFloat = 0
+}
+
+/// The date under the Today headline. It is the day picker's trigger, so it has to READ as tappable
+/// without a second control: every ~10 s it swaps for ~1.5 s to a one-word accent hint, then returns to
+/// the date. Same words and cadence as classic Today (`TodayView.dayNavHint`), so the affordance is
+/// learned once. Its own view so the hint's state changes redraw this line, not the whole dashboard.
+private struct LiquidDayDateLine: View {
+    let dateLine: String
+    @Environment(\.colorScheme) private var colorScheme
+    /// nil shows the date.
+    @State private var hint: String?
+
+    private static var hints: [String] { [String(localized: "Swipe"), String(localized: "Tap")] }
+
+    var body: some View {
+        Text(hint ?? dateLine)
+            .font(StrandFont.caption.weight(.light))
+            // Two lines beside the controls ("Freitag, 2." / "Oktober"); wraps, never shrinks.
+            .lineLimit(2)
+            .foregroundStyle(hint != nil ? StrandPalette.accent : StrandPalette.textSecondary)
+            .contentTransition(.opacity)
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0.35 : 0.10), radius: 8, y: 1)
+            // One async loop, cancelled with the view — no leaked timer.
+            .task {
+                var i = 0
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(10))
+                    if Task.isCancelled { break }
+                    withAnimation(.easeInOut(duration: 0.3)) { hint = Self.hints[i % Self.hints.count] }
+                    i += 1
+                    try? await Task.sleep(for: .seconds(1.5))
+                    withAnimation(.easeInOut(duration: 0.3)) { hint = nil }
+                }
+            }
+    }
+}
+
 // MARK: - NOOP Forge wordmark (centred, with a tap easter egg)
 
 /// The subtle NOOP Forge wordmark: NOOP followed by the icon's "F". Built as a row of letters (not `Text(...).tracking()`, which adds a
@@ -3545,9 +3581,12 @@ private struct LiquidWordmark: View {
 
     /// The easter egg: one of several one-shot animations at random. The oscillating ones (wiggle/shake/
     /// squash) kick the value to an extreme then let an under-damped spring settle it back through zero,
-    /// which reads as a natural wobble without hand-authored keyframes.
+    /// which reads as a natural wobble without hand-authored keyframes. Reduce Motion (system or the in-app
+    /// switch) keeps only the haptic: this mark is the Updates entry, so it is tapped often, and a spin or
+    /// 3D flip on every tap is exactly the motion that setting asks to remove.
     private func playRandomEgg() {
         token &+= 1
+        guard !reduceMotion, !NoopMotionState.shared.quietMotion else { return }
         switch Int.random(in: 0..<6) {
         case 0: // wiggle
             rot = -14
@@ -3669,7 +3708,11 @@ private struct HeroScoreCell: View {
                 // Dark sits in the optical chamber (fixed on-dark ink); Light is an ordinary light card.
                 .foregroundStyle(colorScheme == .light ? StrandPalette.textSecondary : StrandPalette.onDarkSecondary)
                 .frame(minHeight: 28)
+                // 44 pt to tap: the target reaches into the stack gap above (never the ring's own
+                // target) and the card padding below, without making the hero taller.
+                .padding(.vertical, NoopMetrics.space2)
                 .contentShape(Rectangle())
+                .padding(.vertical, -NoopMetrics.space2)
             }
             .buttonStyle(.plain)
             // The ring already speaks the value; the label is only the way into the scoring guide, so it
@@ -3680,7 +3723,7 @@ private struct HeroScoreCell: View {
             // Color on, the band word is written out (VoiceOver already hears it from the ring).
             if differentiateWithoutColor, let band = model.chargeBand {
                 Text(band.word)
-                    .font(StrandFont.overlineScaled(11))
+                    .font(StrandFont.overline)
                     .tracking(StrandFont.overlineTracking)
                     .foregroundStyle(colorScheme == .light ? StrandPalette.textSecondary : StrandPalette.onDarkSecondary)
                     .lineLimit(1).minimumScaleFactor(0.7)
@@ -3709,11 +3752,12 @@ private struct HeroScoreCell: View {
 /// No longer reads LiveState at all, so it is no longer an isolated leaf — there is nothing left to
 /// isolate it from.
 private struct LiquidRefreshIndicator: View {
-    let pullY: CGFloat
+    @ObservedObject var pull: LiquidPullModel
     let pullThreshold: CGFloat
     let refreshing: Bool
     let liquidHeart: Color
 
+    private var pullY: CGFloat { pull.pullY }
     private var progress: CGFloat { min(1, max(0, pullY / pullThreshold)) }
 
     var body: some View {
