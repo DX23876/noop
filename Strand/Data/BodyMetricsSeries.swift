@@ -17,6 +17,10 @@ import WhoopStore
 //   • Every other measurement is a `LabMarkerRow` in the `bodyMeasurement` category, which already
 //     carries day, instant, value, unit, source and note, and already has CSV import, backup, Explore
 //     and a detail screen behind it.
+//   • Apple Health's body fat and lean mass are the exception: the HealthKit sync and the export
+//     importer write them as daily metric points under `apple-health` (`AppleHealthAggregator`), beside
+//     its heart rate and steps, not as markers. They are read from there, under their own source, so a
+//     scale's reading and a DEXA scan stay separate series.
 //
 // The energy path keeps `CausalWeightResolver`: it smooths over ten days and bounds staleness at 90,
 // and changing what it computes is not part of moving where data lives.
@@ -60,6 +64,17 @@ extension Repository {
                     BodyReading(day: row.day, takenAt: row.takenAt, value: value,
                                 source: row.source, id: row.id))
             }
+            let from = Self.dayString(Date().addingTimeInterval(-Double(days) * 86_400))
+            let to = Self.dayString(Date().addingTimeInterval(86_400))
+            for key in Self.appleHealthBodyKeys {
+                for point in (try? await store.metricSeries(deviceId: Self.appleHealthSource, key: key,
+                                                            from: from, to: to)) ?? [] {
+                    let instant = WeightSeries.date(forDay: point.day).map { Int($0.timeIntervalSince1970) } ?? 0
+                    readings[key, default: []].append(
+                        BodyReading(day: point.day, takenAt: instant, value: point.value,
+                                    source: Self.appleHealthSource))
+                }
+            }
         }
 
         return BodyMetrics(readings: readings)
@@ -95,6 +110,11 @@ extension Repository {
         }
         return rows.count
     }
+
+    /// Body measurements Apple Health delivers as daily metric points rather than markers: body fat (%) and lean
+    /// mass (kg), the keys `AppleHealthAggregator.metricPoints` writes. Apple's weight comes through
+    /// `weightSeries`, its waist as a marker.
+    static let appleHealthBodyKeys = ["body_fat", "lean_mass"]
 
     /// The body readings the energy model prices with: body mass, height (both basal formulas) and
     /// body fat (Katch–McArdle). A change to any of them leaves the stored energy days stale.

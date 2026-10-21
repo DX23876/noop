@@ -30,13 +30,28 @@ final class AnalysisRecipeDecisionTests: XCTestCase {
     /// It is deliberately a LITERAL pin. A future bump is supposed to make this line fail, because that
     /// failure is the prompt to answer CLAUDE.md's "Analysis migration required: yes/no" for whatever
     /// the bump carries — the question this file exists to stop anyone skipping.
-    func testRecipeVersionIsTwentyNineAndOlderInstallsMigrateToIt() {
-        XCTAssertEqual(IntelligenceEngine.currentAnalysisRecipeVersion, 29,
+    func testRecipeVersionIsThirtyAndOlderInstallsMigrateToIt() {
+        XCTAssertEqual(IntelligenceEngine.currentAnalysisRecipeVersion, 30,
                        "recipe version changed — answer 'Analysis migration required' for what moved")
-        for stored in [8, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28] {
+        for stored in [8, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29] {
             XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: stored),
-                           .migrate(from: stored, to: 29))
+                           .migrate(from: stored, to: 30))
         }
+    }
+
+    /// AI-30 reads Apple Health's body fat and lean mass: it rebuilds the AgeLess weeks and prices the energy
+    /// window again (for Katch–McArdle only, decided at run time), and touches nothing else.
+    func testAI30RebuildsAgeLessAndRepricesBodyFatEnergy() {
+        XCTAssertTrue(IntelligenceEngine.migrationReadsAppleBody(from: 29, to: 30))
+        XCTAssertFalse(IntelligenceEngine.migrationReadsAppleBody(from: 30, to: 30))
+        XCTAssertTrue(IntelligenceEngine.migrationReadsAppleBody(from: 27, to: 30))
+        XCTAssertTrue(IntelligenceEngine.migrationRebuildsHealthspan(from: 29, to: 30))
+        XCTAssertFalse(IntelligenceEngine.migrationRebuildsHealthspan(from: 30, to: 30))
+        XCTAssertFalse(IntelligenceEngine.migrationRepairsStressProxy(from: 29, to: 30))
+        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 29), 0)
+        XCTAssertFalse(IntelligenceEngine.migrationRefillsCardioLedger(from: 29, to: 30))
+        XCTAssertFalse(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 29, to: 30))
+        XCTAssertFalse(IntelligenceEngine.migrationFillsWorkoutHeartRate(from: 29, to: 30))
     }
 
     /// AI-29 rebuilds the AgeLess weeks on the app's step resolver and nothing else; an install still owing
@@ -317,10 +332,10 @@ final class AnalysisRecipeDecisionTests: XCTestCase {
     /// build number here would cause. Pinned because the mistake is invisible until someone's phone
     /// spends twenty minutes re-scoring after a cosmetic update.
     func testAnInstallAlreadyAtTheCurrentRecipeNeverRescoresOnRelaunch() {
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 29), .upToDate)
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 30), .upToDate)
         // And a database written by a NEWER build that was rolled back stays put rather than
         // "migrating" backwards into a rescore that would overwrite better values with worse ones.
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 30), .upToDate)
+        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 31), .upToDate)
     }
 
     // MARK: - The fork's own recipe lineage

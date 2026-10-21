@@ -54,6 +54,8 @@ against regressions rather than validating the age.
 
 ## Where each value comes from
 
+- **Body fat** (lean mass is 100 % minus it): the newest reading of the past year from the body resolver
+  (`Repository.bodyMetrics`), typed into NOOP or, since AI-30, from Apple Health.
 - **Steps** (since AI-29): the app's one step resolver (`Repository.resolvedSteps`), the strap's count, then
   Apple Health, then the WHOOP 4.0 motion estimate, on the days the band covered. A WHOOP 4.0 sends no step count,
   so without Apple Health or a step estimate it has no steps and no age.
@@ -125,8 +127,8 @@ Weekly rows under the computed source, keyed to the Saturday on or before: `heal
 VO₂max and body-fat reading behind the week, as yyyymmdd), and per measure `hs_in_*` (six months),
 `hs_in30_*` (30 days) and `hs_n_*` (days, sessions or readings behind the six-month value). The current
 week without an age stores `hs_gap_nights` and `hs_gap_missing` instead. Each pass rewrites its weeks as one
-window and writes nothing when a read fails. Recipes **AI-21** to **AI-27** and **AI-29** rebuild every week
-(see `docs/fork/decisions.md`).
+window and writes nothing when a read fails. Recipes **AI-21** to **AI-27**, **AI-29** and **AI-30** rebuild
+every week (see `docs/fork/decisions.md`).
 
 ## Limits
 

@@ -609,3 +609,24 @@ pass, after sleep sessions and step estimates are stored, so the newest night an
 Analysis migration required: yes (AI-29). Stored weeks can average other steps (a 5.0 or MG day without a strap
 count now takes the phone's), so the AgeLess weeks are deleted once more and rebuilt; zone minutes are kept, no
 daily row is re-scored and no goal start is re-read.
+
+### 2026-10-21 — The body resolver reads Apple Health's body fat and lean mass (AI-30)
+
+A wearer whose scale writes body fat to Apple Health, with NOOP allowed to read it, saw no lean mass in AgeLess.
+The HealthKit sync and the export importer store Apple's body fat and lean mass as daily metric points under
+`apple-health` (`AppleHealthAggregator.metricPoints`), beside its heart rate and steps. `Repository.bodyMetrics`,
+the one body resolver, read weight through `weightSeries` and every other measurement from body markers, where
+only Apple's waist lands. So Apple's body fat and lean mass reached the Trends and the Explorer but none of the
+resolver's readers: AgeLess, the Katch–McArdle basal rate, the Energy plan, the Body page, the body-fat and
+lean-mass goals and the coach. The demo seeds body fat as markers, which is why it never showed there. A lean-mass
+goal could never have data at all, since NOOP has no lean-mass marker to type one into.
+
+The resolver now reads those two keys from Apple's metric points under their own source, so a scale's reading and
+a DEXA scan stay separate series and Health's copy stays read-only. BMI is stored the same way and left out: no
+reader asks for it.
+
+Analysis migration required: yes (AI-30). AgeLess weeks can now carry a lean mass they lacked, so they are deleted
+once more and rebuilt (zone minutes kept). A wearer on Katch–McArdle had energy days priced without a body fat that
+existed, so the energy window (`Repository.energyRefreshMaxDays`, 120 days) is priced again; days before it keep
+their price, as after any other body change. Every other formula reads no body fat and is left alone. No daily row
+is re-scored.

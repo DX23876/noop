@@ -246,7 +246,14 @@ final class IntelligenceEngine: ObservableObject {
     // The current week without an age also stores why (`HealthspanWindow.Gap`). Stored weeks can average other
     // steps, so the AgeLess weeks are deleted once more and the next pass rebuilds them; zone minutes are kept. No
     // daily row is re-scored and no goal start is re-read.
-    static let currentAnalysisRecipeVersion = 29
+    // AI-30 (2026-10-21, fork) reads Apple Health's body fat and lean mass in the one body resolver
+    // (`Repository.bodyMetrics`). Both arrive as daily metric points under `apple-health`, which the resolver
+    // never read: AgeLess, the Katch–McArdle basal rate, the Body page, body goals and the coach saw only body
+    // fat typed into NOOP. AgeLess weeks can now carry a lean mass they lacked, so they are deleted once more and
+    // rebuilt (zone minutes kept). A wearer on Katch–McArdle has energy days priced without a body fat that
+    // existed, so the energy window (`Repository.energyRefreshMaxDays`) is priced again; every other formula
+    // reads no body fat and is left alone. No daily row is re-scored.
+    static let currentAnalysisRecipeVersion = 30
 
     /// The recipe whose migration refills the cardio load ledger.
     static let cardioLedgerRecipe = 9
@@ -318,11 +325,19 @@ final class IntelligenceEngine: ObservableObject {
     /// The recipe whose migration rebuilds the AgeLess weeks on the app's step resolver.
     static let healthspanStepsRecipe = 29
 
-    /// Whether a migration crosses a recipe that rebuilds the AgeLess weeks (AI-21 to AI-27 and AI-29; one
-    /// rebuild serves them all). AI-28 is not one of them.
+    /// The recipe whose migration reads Apple Health's body fat and lean mass in the body resolver.
+    static let appleBodyRecipe = 30
+
+    /// Whether a migration crosses the recipe that reads Apple Health's body fat and lean mass.
+    static func migrationReadsAppleBody(from: Int, to: Int) -> Bool {
+        from < appleBodyRecipe && to >= appleBodyRecipe
+    }
+
+    /// Whether a migration crosses a recipe that rebuilds the AgeLess weeks (AI-21 to AI-27, AI-29 and AI-30;
+    /// one rebuild serves them all). AI-28 is not one of them.
     static func migrationRebuildsHealthspan(from: Int, to: Int) -> Bool {
         (from < healthspanBodyFatRecipe && to >= healthspanSourcesRecipe)
-            || (from < healthspanStepsRecipe && to >= healthspanStepsRecipe)
+            || [healthspanStepsRecipe, appleBodyRecipe].contains { from < $0 && to >= $0 }
     }
 
     /// Whether a migration crosses the recipe that fills Apple Health workouts' heart rate.
@@ -1268,6 +1283,16 @@ final class IntelligenceEngine: ObservableObject {
                     try await Self.repairStressProxyAfterRecalibration(store: store, repo: self.repo)
                 } catch {
                     self.analysisMaintenancePhase = .failed(error.localizedDescription)
+                    return false
+                }
+                guard !Task.isCancelled else { return false }
+            }
+            if case .migrating(let from, let to) = phase, Self.migrationReadsAppleBody(from: from, to: to) {
+                // Only Katch–McArdle reads body fat; every other formula priced these days the same way.
+                let analytics = Repository.analyticsProfile(self.profile)
+                if analytics.basalFormula.needsBodyFat,
+                   await !self.repo.refreshWhoopEnergyModel(days: Repository.energyRefreshMaxDays, profile: analytics) {
+                    self.analysisMaintenancePhase = .failed(String(localized: "The reanalysis did not finish."))
                     return false
                 }
                 guard !Task.isCancelled else { return false }
