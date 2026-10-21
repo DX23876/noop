@@ -3400,5 +3400,9 @@
   "**The next set on your Lock Screen.** It names the set that comes next, counts down your rest and logs the set with one tap.": "**鎖定畫面上的下一組。** 顯示接下來的一組，倒數你的休息時間，輕點一下即可記錄這一組。",
   "**Bring your routines along.** Import routines from Hevy or an OpenGym plan file under Training › Add.": "**帶上你的例程。** 在「訓練」›「新增」中從 Hevy 或 OpenGym 計畫檔案匯入例程。",
   "**Add or remove sets mid-workout.** Every exercise has an Add set button, and a swipe to the left removes a set.": "**訓練中新增或刪除組。** 每個動作都有「新增一組」按鈕，向左輕掃即可刪除一組。",
-  "Delete and download again": "刪除並重新下載"
+  "Delete and download again": "刪除並重新下載",
+  "Baselines that follow a reset": "基線跟隨重新校準",
+  "**A new baseline counts everywhere.** After Recalibrate Charge baseline, Momentum, the Key Metrics tiles and Stress compare against the new baseline instead of the old nights.": "**新基線處處生效。** 重新校準能量基線後，Momentum、關鍵指標卡片和壓力都會與新基線比較，而不是與舊的夜晚比較。",
+  "**Exercise media arrives.** A media pack that finishes downloading while NOOP is closed now installs. Settings can also delete it and download it again.": "**運動媒體順利送達。** 在 NOOP 關閉時下載完成的媒體套件現在會被安裝。你也可以在設定中刪除它並重新下載。",
+  "**Today is easier to use.** Small links are easier to tap, text grows with your text size and Reduce Motion keeps the NOOP mark still.": "**今天頁面更易用。** 小連結更容易點按，文字會隨你的字體大小放大，減少動態效果會讓 NOOP 標誌保持靜止。"
 }

@@ -3244,5 +3244,9 @@
   "**The next set on your Lock Screen.** It names the set that comes next, counts down your rest and logs the set with one tap.": "**A próxima série no ecrã bloqueado.** Mostra a série seguinte, faz a contagem decrescente do descanso e regista a série com um toque.",
   "**Bring your routines along.** Import routines from Hevy or an OpenGym plan file under Training › Add.": "**Traz as tuas rotinas.** Importa rotinas do Hevy ou de um ficheiro de plano do OpenGym em Treino › Adicionar.",
   "**Add or remove sets mid-workout.** Every exercise has an Add set button, and a swipe to the left removes a set.": "**Adiciona ou remove séries a meio do treino.** Cada exercício tem um botão Adicionar série e deslizar para a esquerda remove uma série.",
-  "Delete and download again": "Eliminar e transferir novamente"
+  "Delete and download again": "Eliminar e transferir novamente",
+  "Baselines that follow a reset": "Linhas de base que acompanham uma recalibração",
+  "**A new baseline counts everywhere.** After Recalibrate Charge baseline, Momentum, the Key Metrics tiles and Stress compare against the new baseline instead of the old nights.": "**Uma nova linha de base conta em todo o lado.** Depois de Recalibrar linha de base de carga, o Momentum, os mosaicos de Métricas-chave e o Stress comparam com a nova linha de base em vez das noites antigas.",
+  "**Exercise media arrives.** A media pack that finishes downloading while NOOP is closed now installs. Settings can also delete it and download it again.": "**Os média de exercícios chegam.** Um pacote de média cuja transferência termina com o NOOP fechado é agora instalado. Nas Definições também o podes apagar e transferir novamente.",
+  "**Today is easier to use.** Small links are easier to tap, text grows with your text size and Reduce Motion keeps the NOOP mark still.": "**Hoje é mais fácil de usar.** As ligações pequenas são mais fáceis de tocar, o texto cresce com o teu tamanho de texto e Reduzir movimento mantém a marca NOOP parada."
 }

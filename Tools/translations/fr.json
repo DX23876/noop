@@ -3246,5 +3246,9 @@
   "**The next set on your Lock Screen.** It names the set that comes next, counts down your rest and logs the set with one tap.": "**La série suivante sur l'écran verrouillé.** Elle indique la série à venir, décompte votre repos et enregistre la série d'un toucher.",
   "**Bring your routines along.** Import routines from Hevy or an OpenGym plan file under Training › Add.": "**Apportez vos routines.** Importez des routines depuis Hevy ou un fichier de plan OpenGym dans Entraînement › Ajouter.",
   "**Add or remove sets mid-workout.** Every exercise has an Add set button, and a swipe to the left removes a set.": "**Ajoutez ou retirez des séries en pleine séance.** Chaque exercice a un bouton Ajouter une série, et un balayage vers la gauche retire une série.",
-  "Delete and download again": "Supprimer et retélécharger"
+  "Delete and download again": "Supprimer et retélécharger",
+  "Baselines that follow a reset": "Des lignes de base qui suivent une recalibration",
+  "**A new baseline counts everywhere.** After Recalibrate Charge baseline, Momentum, the Key Metrics tiles and Stress compare against the new baseline instead of the old nights.": "**Une nouvelle ligne de base compte partout.** Après Recalibrer la ligne de base de la Charge, Momentum, les tuiles Métriques clés et le Stress se comparent à la nouvelle ligne de base plutôt qu'aux anciennes nuits.",
+  "**Exercise media arrives.** A media pack that finishes downloading while NOOP is closed now installs. Settings can also delete it and download it again.": "**Les médias d'exercices arrivent.** Un pack de médias dont le téléchargement se termine pendant que NOOP est fermé s'installe désormais. Les Paramètres permettent aussi de le supprimer et de le télécharger à nouveau.",
+  "**Today is easier to use.** Small links are easier to tap, text grows with your text size and Reduce Motion keeps the NOOP mark still.": "**Aujourd'hui est plus simple à utiliser.** Les petits liens sont plus faciles à toucher, le texte suit votre taille de texte et Réduire les animations garde la marque NOOP immobile."
 }

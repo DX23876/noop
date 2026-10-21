@@ -564693,6 +564693,238 @@
           }
         }
       }
+    },
+    "Baselines that follow a reset" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Basislinie folgt der Neukalibrierung"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Líneas base que siguen a una recalibración"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Des lignes de base qui suivent une recalibration"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linee di base che seguono una ricalibrazione"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linie bazowe, które idą za ponowną kalibracją"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Linhas de base que acompanham uma recalibração"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нормы, которые следуют за перекалибровкой"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基线跟随重新校准"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基線跟隨重新校準"
+          }
+        }
+      }
+    },
+    "**A new baseline counts everywhere.** After Recalibrate Charge baseline, Momentum, the Key Metrics tiles and Stress compare against the new baseline instead of the old nights." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Eine neue Basislinie gilt überall.** Nach „Energie-Basislinie neu kalibrieren“ vergleichen Momentum, die Kennzahlen-Kacheln und Stress mit der neuen Basislinie statt mit den alten Nächten."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Una nueva línea base cuenta en todas partes.** Tras Recalibrar la línea base de Carga, Momentum, los mosaicos de Métricas clave y Estrés comparan con la nueva línea base en lugar de con las noches antiguas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Une nouvelle ligne de base compte partout.** Après Recalibrer la ligne de base de la Charge, Momentum, les tuiles Métriques clés et le Stress se comparent à la nouvelle ligne de base plutôt qu'aux anciennes nuits."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Una nuova linea di base vale ovunque.** Dopo Ricalibra la linea di base della carica, Momentum, i riquadri Metriche chiave e lo Stress si confrontano con la nuova linea di base invece che con le notti precedenti."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Nowa linia bazowa obowiązuje wszędzie.** Po Ponownie skalibruj linię bazową Energia Momentum, kafelki Kluczowe wskaźniki i Stres porównują z nową linią bazową zamiast ze starymi nocami."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Uma nova linha de base conta em todo o lado.** Depois de Recalibrar linha de base de carga, o Momentum, os mosaicos de Métricas-chave e o Stress comparam com a nova linha de base em vez das noites antigas."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Новая норма действует везде.** После «Перекалибровать норму Заряда» Momentum, плитки «Ключевые показатели» и Стресс сравнивают с новой нормой, а не со старыми ночами."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**新基线处处生效。** 重新校准能量基线后，Momentum、关键指标卡片和压力都会与新基线比较，而不是与旧的夜晚比较。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**新基線處處生效。** 重新校準能量基線後，Momentum、關鍵指標卡片和壓力都會與新基線比較，而不是與舊的夜晚比較。"
+          }
+        }
+      }
+    },
+    "**Exercise media arrives.** A media pack that finishes downloading while NOOP is closed now installs. Settings can also delete it and download it again." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Übungsmedien kommen an.** Ein Medienpaket, das fertig lädt, während NOOP geschlossen ist, wird jetzt installiert. In den Einstellungen lässt es sich außerdem löschen und neu laden."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Llegan los medios de ejercicios.** Un paquete de medios que termina de descargarse con NOOP cerrado ahora se instala. En Ajustes también puedes eliminarlo y volver a descargarlo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Les médias d'exercices arrivent.** Un pack de médias dont le téléchargement se termine pendant que NOOP est fermé s'installe désormais. Les Paramètres permettent aussi de le supprimer et de le télécharger à nouveau."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**I media degli esercizi arrivano.** Un pacchetto media che finisce di scaricarsi mentre NOOP è chiuso ora viene installato. Nelle Impostazioni puoi anche eliminarlo e scaricarlo di nuovo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Multimedia ćwiczeń docierają.** Pakiet multimediów, którego pobieranie kończy się przy zamkniętym NOOP, jest teraz instalowany. W Ustawieniach można go też usunąć i pobrać ponownie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Os média de exercícios chegam.** Um pacote de média cuja transferência termina com o NOOP fechado é agora instalado. Nas Definições também o podes apagar e transferir novamente."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Медиа упражнений доходят.** Пакет медиа, загрузка которого завершилась при закрытом NOOP, теперь устанавливается. В Настройках его также можно удалить и загрузить заново."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**锻炼媒体顺利到达。** 在 NOOP 关闭时下载完成的媒体包现在会被安装。你也可以在设置中删除它并重新下载。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**運動媒體順利送達。** 在 NOOP 關閉時下載完成的媒體套件現在會被安裝。你也可以在設定中刪除它並重新下載。"
+          }
+        }
+      }
+    },
+    "**Today is easier to use.** Small links are easier to tap, text grows with your text size and Reduce Motion keeps the NOOP mark still." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Der Heute-Bildschirm ist leichter zu bedienen.** Kleine Links sind leichter zu treffen, Text wächst mit deiner Schriftgröße und „Bewegung reduzieren“ hält das NOOP-Zeichen still."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Hoy es más fácil de usar.** Los enlaces pequeños son más fáciles de tocar, el texto crece con tu tamaño de texto y Reducir movimiento mantiene quieta la marca NOOP."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Aujourd'hui est plus simple à utiliser.** Les petits liens sont plus faciles à toucher, le texte suit votre taille de texte et Réduire les animations garde la marque NOOP immobile."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Oggi è più facile da usare.** I link piccoli sono più facili da toccare, il testo cresce con la dimensione del testo e Riduci movimento tiene ferma la marca NOOP."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Ekran Dzisiaj jest łatwiejszy w użyciu.** Małe linki łatwiej trafić, tekst rośnie razem z rozmiarem tekstu, a Ogranicz ruch zatrzymuje znak NOOP."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Hoje é mais fácil de usar.** As ligações pequenas são mais fáceis de tocar, o texto cresce com o teu tamanho de texto e Reduzir movimento mantém a marca NOOP parada."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Экран «Сегодня» стал удобнее.** По маленьким ссылкам легче попасть, текст растёт вместе с размером шрифта, а «Уменьшение движения» оставляет знак NOOP неподвижным."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**今天页面更易用。** 小链接更容易点按，文字会随你的字体大小放大，减弱动态效果会让 NOOP 标志保持静止。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**今天頁面更易用。** 小連結更容易點按，文字會隨你的字體大小放大，減少動態效果會讓 NOOP 標誌保持靜止。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

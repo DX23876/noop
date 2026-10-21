@@ -3339,5 +3339,9 @@
   "**The next set on your Lock Screen.** It names the set that comes next, counts down your rest and logs the set with one tap.": "**La prossima serie sulla schermata di blocco.** Indica la serie successiva, fa il conto alla rovescia del recupero e registra la serie con un tocco.",
   "**Bring your routines along.** Import routines from Hevy or an OpenGym plan file under Training › Add.": "**Porta con te le tue routine.** Importa routine da Hevy o da un file di piano OpenGym in Allenamento › Aggiungi.",
   "**Add or remove sets mid-workout.** Every exercise has an Add set button, and a swipe to the left removes a set.": "**Aggiungi o togli serie durante l'allenamento.** Ogni esercizio ha un pulsante Aggiungi serie e uno scorrimento a sinistra toglie una serie.",
-  "Delete and download again": "Elimina e scarica di nuovo"
+  "Delete and download again": "Elimina e scarica di nuovo",
+  "Baselines that follow a reset": "Linee di base che seguono una ricalibrazione",
+  "**A new baseline counts everywhere.** After Recalibrate Charge baseline, Momentum, the Key Metrics tiles and Stress compare against the new baseline instead of the old nights.": "**Una nuova linea di base vale ovunque.** Dopo Ricalibra la linea di base della carica, Momentum, i riquadri Metriche chiave e lo Stress si confrontano con la nuova linea di base invece che con le notti precedenti.",
+  "**Exercise media arrives.** A media pack that finishes downloading while NOOP is closed now installs. Settings can also delete it and download it again.": "**I media degli esercizi arrivano.** Un pacchetto media che finisce di scaricarsi mentre NOOP è chiuso ora viene installato. Nelle Impostazioni puoi anche eliminarlo e scaricarlo di nuovo.",
+  "**Today is easier to use.** Small links are easier to tap, text grows with your text size and Reduce Motion keeps the NOOP mark still.": "**Oggi è più facile da usare.** I link piccoli sono più facili da toccare, il testo cresce con la dimensione del testo e Riduci movimento tiene ferma la marca NOOP."
 }
