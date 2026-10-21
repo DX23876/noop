@@ -14,13 +14,14 @@ final class HealthspanPassTests: XCTestCase {
 
     private func midnight(_ day: String) -> Int { IntelligenceEngine.midnightForDayKey(day, offsetSec: 0)! }
 
-    private func seededStore() async throws -> WhoopStore {
+    /// `steps` is the strap's daily count; nil seeds a strap without a step counter, as a WHOOP 4.0 is.
+    private func seededStore(steps: Int? = 8000) async throws -> WhoopStore {
         let store = try await WhoopStore.inMemory()
         let days = (0..<40).map { HealthspanWindow.dayKey(newestDay, plus: -$0) }
         _ = try await store.upsertDailyMetrics(days.map {
             DailyMetric(day: $0, totalSleepMin: 420, efficiency: nil, deepMin: nil, remMin: nil, lightMin: nil,
                         disturbances: nil, restingHr: 52, avgHrv: nil, recovery: nil, strain: nil,
-                        exerciseCount: nil, steps: 8000)
+                        exerciseCount: nil, steps: steps)
         }, deviceId: computed)
         _ = try await store.upsertMetricSeries(days.map { MetricPoint(day: $0, key: "rhr_primary_session", value: 60) }
                                                + [MetricPoint(day: "2026-09-20", key: "vo2max_est", value: 44)],
@@ -212,6 +213,64 @@ final class HealthspanPassTests: XCTestCase {
         let rebuilt = try await store.metricSeries(deviceId: computed, key: IntelligenceEngine.healthspanAgeKey,
                                                    from: "2026-01-01", to: newestDay)
         XCTAssertEqual(rebuilt.map(\.day), ["2026-09-26", "2026-10-03", "2026-10-10"])
+    }
+
+    /// A strap without a step counter (AI-29): with no steps the current week has no age and says so, and the
+    /// gap names steps, not nights. With the step resolver's counts the weeks come back and average them; a
+    /// resolver day the band never covered adds no day to the window.
+    func testStrapWithoutStepsTakesTheResolvedSteps() async throws {
+        let store = try await seededStore(steps: nil)
+        let window = HealthspanWindow.dayKey(newestDay, plus: -20)
+        await IntelligenceEngine.runHealthspanPass(store: store, strapId: strap, computedId: computed, age: 30,
+                                                   sex: "male", hrMaxOverride: 190, oldestDay: window,
+                                                   newestDay: newestDay, tzOffset: 0)
+        let none = try await store.metricSeries(deviceId: computed, key: IntelligenceEngine.healthspanAgeKey,
+                                                from: "2026-01-01", to: newestDay)
+        XCTAssertTrue(none.isEmpty)
+        let nights = try await value(store, IntelligenceEngine.healthspanGapNightsKey, newestDay)
+        XCTAssertEqual(nights, 40)
+        let mask = try await value(store, IntelligenceEngine.healthspanGapMissingKey, newestDay)
+        XCTAssertEqual(HealthspanWindow.Gap(nights: 40, missingMask: try XCTUnwrap(mask)).missing, [.dailySteps])
+
+        var steps = Dictionary(uniqueKeysWithValues: (0..<40).map { (HealthspanWindow.dayKey(newestDay, plus: -$0), 6000.0) })
+        steps[HealthspanWindow.dayKey(newestDay, plus: -60)] = 20_000
+        await IntelligenceEngine.runHealthspanPass(store: store, strapId: strap, computedId: computed, age: 30,
+                                                   sex: "male", hrMaxOverride: 190, oldestDay: window,
+                                                   newestDay: newestDay, tzOffset: 0, steps: steps)
+        let ages = try await store.metricSeries(deviceId: computed, key: IntelligenceEngine.healthspanAgeKey,
+                                                from: "2026-01-01", to: newestDay)
+        XCTAssertEqual(ages.map(\.day), ["2026-09-26", "2026-10-03", "2026-10-10"])
+        let input = try await value(store, IntelligenceEngine.healthspanInputKey(.dailySteps), newestDay)
+        XCTAssertEqual(input, 6000)
+        let covered = try await value(store, IntelligenceEngine.healthspanCoveredDaysKey, newestDay)
+        XCTAssertEqual(covered, 40)
+        let gapAfter = try await value(store, IntelligenceEngine.healthspanGapNightsKey, newestDay)
+        XCTAssertNil(gapAfter, "a week with an age keeps no gap")
+    }
+
+    /// The resolver's count stands for its day (its own order already puts the strap's count first); a day the
+    /// resolver lacks keeps the strap's daily row.
+    func testResolvedStepsFillOnlyTheirDays() async throws {
+        let store = try await seededStore()
+        await IntelligenceEngine.runHealthspanPass(store: store, strapId: strap, computedId: computed, age: 30,
+                                                   sex: "male", hrMaxOverride: 190,
+                                                   oldestDay: HealthspanWindow.dayKey(newestDay, plus: -20),
+                                                   newestDay: newestDay, tzOffset: 0,
+                                                   steps: [newestDay: 48_000])
+        // 39 days at the strap's 8000 and one at the resolver's 48000.
+        let input = try await value(store, IntelligenceEngine.healthspanInputKey(.dailySteps), newestDay)
+        XCTAssertEqual(try XCTUnwrap(input), (39 * 8000.0 + 48_000) / 40, accuracy: 1e-9)
+    }
+
+    /// The card names steps first (the one gap the wearer can close at once), then any other missing measure,
+    /// then the nights still to come; it claims nothing without a stored gap or with one that explains nothing.
+    func testEmptyReasonOrder() {
+        typealias Gap = HealthspanWindow.Gap
+        XCTAssertEqual(HealthspanEmptyReason(Gap(nights: 3, missing: [.dailySteps, .restingHR])), .steps)
+        XCTAssertEqual(HealthspanEmptyReason(Gap(nights: 3, missing: [.restingHR])), .measures([.restingHR]))
+        XCTAssertEqual(HealthspanEmptyReason(Gap(nights: 12, missing: [])), .nights(12))
+        XCTAssertEqual(HealthspanEmptyReason(Gap(nights: 45, missing: [])), .unknown)
+        XCTAssertEqual(HealthspanEmptyReason(nil), .unknown)
     }
 
     func testNoTargetsForAnUnsetSexWritesNothing() async throws {

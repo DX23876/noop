@@ -87,6 +87,24 @@ final class HealthspanWindowTests: XCTestCase {
         XCTAssertEqual(noVO2.result.componentsUsed, 7)
     }
 
+    /// The gap names what kept a week from an age: a strap that sends no steps is missing steps however many
+    /// nights it has, and a short history is short of nights. It survives the store's number encoding.
+    func testGapNamesWhatIsMissing() {
+        let noSteps = days(40, end: "2026-10-10", steps: nil)
+        XCTAssertNil(W.weekly(days: noSteps, endingOn: "2026-10-10", age: 30, sex: .male, vo2max: nil,
+                              leanMassPct: nil))
+        XCTAssertEqual(W.gap(days: noSteps, endingOn: "2026-10-10"), W.Gap(nights: 40, missing: [.dailySteps]))
+        XCTAssertEqual(W.gap(days: days(12, end: "2026-10-10", hr: nil), endingOn: "2026-10-10"),
+                       W.Gap(nights: 12, missing: [.restingHR]))
+        // Days after the week's end do not count toward its gap.
+        XCTAssertEqual(W.gap(days: days(40, end: "2026-10-20"), endingOn: "2026-10-10").nights, 30)
+
+        let gap = W.Gap(nights: 7, missing: [.restingHR, .dailySteps, .sleepConsistency])
+        XCTAssertEqual(gap.missing, [.sleepConsistency, .dailySteps, .restingHR])
+        XCTAssertEqual(W.Gap(nights: 7, missingMask: gap.missingMask), gap)
+        XCTAssertEqual(W.Gap(nights: 0, missing: []).missingMask, 0)
+    }
+
     /// The pace uses its own VO₂max when one is given, so fitness moves the pace.
     func testRecentVO2maxDrivesThePace() {
         let same = W.weekly(days: days(40, end: "2026-10-10"), endingOn: "2026-10-10", age: 30, sex: .male,

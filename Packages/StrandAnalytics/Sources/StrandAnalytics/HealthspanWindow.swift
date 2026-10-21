@@ -85,6 +85,39 @@ public enum HealthspanWindow {
                       coveredDays: span(ageDays, endingOn: end), counts: HealthspanBasis.counts(ageDays))
     }
 
+    /// What keeps a week from an age, so the screens can name it instead of a fixed guess.
+    public struct Gap: Equatable, Sendable {
+        /// Nights of sleep data in the 182-day window.
+        public let nights: Int
+        /// Core measures without a single day in the window, in `coreComponents` order.
+        public let missing: [HealthspanEngine.Component]
+
+        public init(nights: Int, missing: [HealthspanEngine.Component]) {
+            self.nights = nights
+            self.missing = coreComponents.filter(missing.contains)
+        }
+
+        /// `missing` as a number for the metric store: bit i set when `coreComponents[i]` is missing.
+        public var missingMask: Double {
+            Double(coreComponents.enumerated().reduce(0) { missing.contains($1.element) ? $0 | 1 << $1.offset : $0 })
+        }
+
+        public init(nights: Int, missingMask: Double) {
+            let mask = Int(missingMask)
+            self.init(nights: nights,
+                      missing: coreComponents.enumerated().filter { mask & 1 << $0.offset != 0 }.map(\.element))
+        }
+    }
+
+    /// Why the week ending on `end` has no age, read from the same window days `weekly` reads. Call it where
+    /// `weekly` returned nil; a gap with enough nights and nothing missing means the engine itself declined.
+    public static func gap(days: [HealthspanDay], endingOn end: String) -> Gap {
+        let ageDays = slice(days, endingOn: end, windowDays: ageWindowDays)
+        let counts = HealthspanBasis.counts(ageDays)
+        return Gap(nights: ageDays.filter { $0.sleepHours != nil }.count,
+                   missing: coreComponents.filter { (counts[$0] ?? 0) == 0 })
+    }
+
     /// Window inputs: per-day means for sleep, steps, sleep HR and consistency; weekly rates for zone and
     /// strength minutes. nil when the window holds no day at all.
     public static func inputs(days: [HealthspanDay], endingOn end: String, windowDays: Int, age: Double,

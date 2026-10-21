@@ -123,12 +123,50 @@ struct HealthspanSnapshot {
         }
         return weeks.isEmpty ? nil : HealthspanSnapshot(weeks: weeks)
     }
+
+    /// Why there is no week to show: what the last pass stored for its current week (AI-29). Nil when no pass
+    /// stored one in the last two weeks, so a stale gap never speaks for today.
+    @MainActor
+    static func gap(repo: Repository) async -> HealthspanWindow.Gap? {
+        let source = Repository.whoopSource
+        guard let nights = await repo.exploreSeries(key: IntelligenceEngine.healthspanGapNightsKey, source: source,
+                                                    days: 14).max(by: { $0.day < $1.day }) else { return nil }
+        let mask = await repo.exploreSeries(key: IntelligenceEngine.healthspanGapMissingKey, source: source, days: 14)
+            .first { $0.day == nights.day }?.value ?? 0
+        return HealthspanWindow.Gap(nights: Int(nights.value), missingMask: mask)
+    }
+}
+
+/// What the AgeLess card says without an age, decided from the stored gap alone.
+enum HealthspanEmptyReason: Equatable {
+    /// No daily steps at all: a strap without a step counter and nothing from the phone.
+    case steps
+    /// Another core measure the band supplies is missing.
+    case measures([HealthspanEngine.Component])
+    /// Every measure is there, the nights are not yet; the count so far.
+    case nights(Int)
+    /// Nothing stored that says why.
+    case unknown
+
+    init(_ gap: HealthspanWindow.Gap?) {
+        guard let gap else { self = .unknown; return }
+        if gap.missing.contains(.dailySteps) {
+            self = .steps
+        } else if !gap.missing.isEmpty {
+            self = .measures(gap.missing)
+        } else if gap.nights < HealthspanWindow.minimumNights {
+            self = .nights(gap.nights)
+        } else {
+            self = .unknown
+        }
+    }
 }
 
 struct HealthspanSection: View {
     @EnvironmentObject var repo: Repository
     @EnvironmentObject var profile: ProfileStore
     @State private var snapshot: HealthspanSnapshot?
+    @State private var emptyReason = HealthspanEmptyReason.unknown
     @State private var loaded = false
     @State private var showsDetail = false
 
@@ -145,7 +183,7 @@ struct HealthspanSection: View {
                     .buttonStyle(.plain)
                     .accessibilityHint(Text("See details"))
             } else if loaded {
-                ComingSoon(what: "Your AgeLess age appears after 30 nights of sleep data.", symbol: "hourglass")
+                emptyState
             } else {
                 ComingSoon.loading("Reading your AgeLess age…", title: "AgeLess", symbol: "hourglass")
             }
@@ -162,8 +200,27 @@ struct HealthspanSection: View {
         }
     }
 
+    @ViewBuilder private var emptyState: some View {
+        switch emptyReason {
+        case .steps:
+            ComingSoon(what: "AgeLess needs your daily steps. Bring them in from Apple Health, or set up the step estimate in Settings.",
+                       symbol: "figure.walk")
+        case .measures(let missing):
+            let names = missing.map(HealthspanSection.componentName).formatted(.list(type: .and))
+            ComingSoon(what: "AgeLess still needs: \(names)", symbol: "hourglass")
+        case .nights(let nights):
+            ComingSoon(what: "Your AgeLess age appears after 30 nights of sleep data. \(nights) so far.",
+                       symbol: "hourglass")
+        case .unknown:
+            ComingSoon(what: "Your AgeLess age appears after 30 nights of sleep data.", symbol: "hourglass")
+        }
+    }
+
     private func load() async {
-        if let sex { snapshot = await HealthspanSnapshot.load(repo: repo, age: profile.age, sex: sex) }
+        if let sex {
+            snapshot = await HealthspanSnapshot.load(repo: repo, age: profile.age, sex: sex)
+            emptyReason = snapshot == nil ? HealthspanEmptyReason(await HealthspanSnapshot.gap(repo: repo)) : .unknown
+        }
         loaded = true
     }
 

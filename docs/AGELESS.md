@@ -49,8 +49,14 @@ against regressions rather than validating the age.
   sleep duration, sleep consistency, steps and average sleeping heart rate. Any other gap stays visible
   ("Based on 8 of 9 measures"); a missing measure never counts as a met recommendation.
 - Aging speed needs 14 nights in its window; activity rates need 7 days of banked raw heart rate.
+- Without an age the card says why, from what the pass stored for the current week (since AI-29): missing
+  steps first, then any other missing measure, then the nights so far.
 
 ## Where each value comes from
+
+- **Steps** (since AI-29): the app's one step resolver (`Repository.resolvedSteps`), the strap's count, then
+  Apple Health, then the WHOOP 4.0 motion estimate, on the days the band covered. A WHOOP 4.0 sends no step count,
+  so without Apple Health or a step estimate it has no steps and no age.
 
 - **VO₂max**, measurements only (AI-26): (1) a value entered in Settings, ideally from a lab test
   (cardiopulmonary exercise test), for a year from its day; (2) Apple Watch's Cardio Fitness from Apple
@@ -117,9 +123,10 @@ against regressions rather than validating the age.
 Weekly rows under the computed source, keyed to the Saturday on or before: `healthspan_age`,
 `healthspan_pace`, `healthspan_covered_days`, `hs_vo2_source`, `hs_vo2_day` and `hs_fat_day` (newest
 VO₂max and body-fat reading behind the week, as yyyymmdd), and per measure `hs_in_*` (six months),
-`hs_in30_*` (30 days) and `hs_n_*` (days, sessions or readings behind the six-month value). Each pass
-rewrites its weeks as one window and writes nothing when a read fails. Recipes **AI-21** to **AI-24**
-rebuild every week, as does AI-26 (see `docs/fork/decisions.md`).
+`hs_in30_*` (30 days) and `hs_n_*` (days, sessions or readings behind the six-month value). The current
+week without an age stores `hs_gap_nights` and `hs_gap_missing` instead. Each pass rewrites its weeks as one
+window and writes nothing when a read fails. Recipes **AI-21** to **AI-27** and **AI-29** rebuild every week
+(see `docs/fork/decisions.md`).
 
 ## Limits
 

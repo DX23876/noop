@@ -13,7 +13,6 @@ public enum HealthspanBasis {
     public static let minimumDayShare = 0.6
     /// Banked days of zone minutes before a weekly rate is more than a glimpse: four weeks.
     public static let minimumZoneDays = 28
-    /// Walks and runs behind a training-based VO₂max before it is more than a glimpse.
     /// A body-fat reading older than this no longer describes the body the week measured.
     public static let bodyFatFreshDays = 90
 

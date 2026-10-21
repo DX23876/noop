@@ -564925,6 +564925,180 @@
           }
         }
       }
+    },
+    "AgeLess needs your daily steps. Bring them in from Apple Health, or set up the step estimate in Settings." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess braucht deine täglichen Schritte. Hol sie aus Apple Health oder richte in den Einstellungen die Schrittschätzung ein."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess necesita tus pasos diarios. Tráelos desde Apple Health o configura la estimación de pasos en Ajustes."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess a besoin de vos pas quotidiens. Importez-les depuis Apple Santé ou configurez l’estimation des pas dans Paramètres."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess ha bisogno dei tuoi passi giornalieri. Importali da Apple Health o configura la stima dei passi in Impostazioni."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess potrzebuje Twoich dziennych kroków. Pobierz je z Apple Health lub skonfiguruj szacowanie kroków w Ustawieniach."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O AgeLess precisa dos teus passos diários. Importa-os do Apple Health ou configura a estimativa de passos nas Definições."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess нужны ваши ежедневные шаги. Импортируйте их из Apple Здоровье или настройте оценку шагов в Настройках."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess 需要你的每日步数。请从 Apple 健康导入，或在设置中设置步数估算。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess 需要你的每日步數。請從 Apple 健康匯入，或在設定中設定步數估算。"
+          }
+        }
+      }
+    },
+    "AgeLess still needs: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Für AgeLess fehlt noch: %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess aún necesita: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il manque encore à AgeLess : %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess ha ancora bisogno di: %@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess nadal potrzebuje: %@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O AgeLess ainda precisa de: %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Для AgeLess ещё нужно: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess 还需要：%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AgeLess 還需要：%@"
+          }
+        }
+      }
+    },
+    "Your AgeLess age appears after 30 nights of sleep data. %lld so far." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein AgeLess-Alter erscheint nach 30 Nächten mit Schlafdaten. Bisher sind es %lld."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu edad AgeLess aparece tras 30 noches de datos de sueño. Llevas %lld."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre âge AgeLess apparaît après 30 nuits de données de sommeil. Vous en avez %lld."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La tua età AgeLess appare dopo 30 notti di dati sul sonno. Finora: %lld."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wiek AgeLess pojawi się po 30 nocach danych o śnie. Na razie: %lld."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A tua idade AgeLess aparece após 30 noites de dados de sono. Até agora: %lld."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Возраст AgeLess появится после 30 ночей данных о сне. Пока: %lld."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "积累 30 晚睡眠数据后即可显示 AgeLess 年龄。目前已有 %lld 晚。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "累積 30 晚睡眠資料後即可顯示 AgeLess 年齡。目前已有 %lld 晚。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

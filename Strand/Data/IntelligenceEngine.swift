@@ -239,7 +239,14 @@ final class IntelligenceEngine: ObservableObject {
     // overwritten, so the days whose 30-row window reaches back across the cut kept a reading against the reset
     // baseline. The migration recomputes NOOP's own rows on those days (`repairStressProxyAfterRecalibration`)
     // and leaves imported WHOOP rows alone; nothing happens without a recalibration. No daily row is re-scored.
-    static let currentAnalysisRecipeVersion = 28
+    // AI-29 (2026-10-21, fork AgeLess) changes where a week's daily steps come from: the app's one step resolver
+    // (`Repository.resolvedSteps`: the strap's count, then Apple Health, then the motion estimate) instead of the
+    // strap's computed daily row alone. A WHOOP 4.0 sends no step count, so its rows carry none and AgeLess never
+    // gave such a wearer an age, however many nights; a 5.0 or MG day without a strap count now takes the phone's.
+    // The current week without an age also stores why (`HealthspanWindow.Gap`). Stored weeks can average other
+    // steps, so the AgeLess weeks are deleted once more and the next pass rebuilds them; zone minutes are kept. No
+    // daily row is re-scored and no goal start is re-read.
+    static let currentAnalysisRecipeVersion = 29
 
     /// The recipe whose migration refills the cardio load ledger.
     static let cardioLedgerRecipe = 9
@@ -308,10 +315,14 @@ final class IntelligenceEngine: ObservableObject {
         from < stressRecalibrationRecipe && to >= stressRecalibrationRecipe
     }
 
-    /// Whether a migration crosses a recipe that rebuilds the AgeLess weeks (AI-21 to AI-27; one rebuild
-    /// serves them all).
+    /// The recipe whose migration rebuilds the AgeLess weeks on the app's step resolver.
+    static let healthspanStepsRecipe = 29
+
+    /// Whether a migration crosses a recipe that rebuilds the AgeLess weeks (AI-21 to AI-27 and AI-29; one
+    /// rebuild serves them all). AI-28 is not one of them.
     static func migrationRebuildsHealthspan(from: Int, to: Int) -> Bool {
-        from < healthspanBodyFatRecipe && to >= healthspanSourcesRecipe
+        (from < healthspanBodyFatRecipe && to >= healthspanSourcesRecipe)
+            || (from < healthspanStepsRecipe && to >= healthspanStepsRecipe)
     }
 
     /// Whether a migration crosses the recipe that fills Apple Health workouts' heart rate.
@@ -3716,21 +3727,6 @@ final class IntelligenceEngine: ObservableObject {
         // Fork: each day's held workout peak, for the measured-maximum suggestion in Settings (MaxHRPeakSeries.swift).
         await Self.bankHeldPeaks(store: store, strapId: deviceId, computedId: computedId,
                                  oldestDay: oldestDay, newestDay: newestDay, tzOffset: tzOffset)
-        // Fork: healthspan age, experimental and off by default (IntelligenceEngine+Healthspan.swift).
-        if HealthspanFeature.isEnabled {
-            let manualVO2 = Repository.enteredVO2max()
-            let bodyFat = await repo.bodyMetrics().series("body_fat").map { (day: $0.day, value: $0.value) }
-            // A first run writes weeks back a year, each reading six months of VO₂max; later runs only the
-            // pass window's weeks.
-            let firstRun = (try? await Self.healthspanHasHistory(store: store, computedId: computedId,
-                                                                 newestDay: newestDay)) == false
-            let longSessions = await repo.agelessLongSessions(
-                days: (firstRun ? 365 : maxDays + 7) + HealthspanWindow.ageWindowDays)
-            await Self.runHealthspanPass(store: store, strapId: deviceId, computedId: computedId,
-                                         age: profile.age, sex: profile.sex, hrMaxOverride: profile.hrMaxOverride,
-                                         oldestDay: oldestDay, newestDay: newestDay, tzOffset: tzOffset,
-                                         manualVO2max: manualVO2, longSessions: longSessions, bodyFat: bodyFat)
-        }
         // Fork: daily-rhythm readout (CosinorAge beta), once per local day (IntelligenceEngine+RhythmAge.swift).
         if RhythmAgeFeature.isEnabled {
             await Self.runRhythmAgePass(store: store, strapId: deviceId, computedId: computedId, age: profile.age,
@@ -4160,6 +4156,30 @@ final class IntelligenceEngine: ObservableObject {
         // as the live save and the day model price it.
         await rescoreManualWorkouts(store: store, profile: Repository.analyticsProfile(profile),
                                     restingHR: measuredResting, effortMethod: effortMethodGlobal)
+
+        // Fork: healthspan age, experimental and off by default (IntelligenceEngine+Healthspan.swift). Here, after
+        // this pass stored its sleep sessions and step estimates, so the newest night's consistency and a WHOOP
+        // 4.0's newest estimated day count in this pass rather than the next; before the refresh below, so the
+        // AgeLess screen reloads with them.
+        if HealthspanFeature.isEnabled {
+            let manualVO2 = Repository.enteredVO2max()
+            let bodyFat = await repo.bodyMetrics().series("body_fat").map { (day: $0.day, value: $0.value) }
+            // A first run writes weeks back a year, each reading six months of VO₂max; later runs only the
+            // pass window's weeks. Steps reach one more week back, to the first window's oldest day.
+            let firstRun = (try? await Self.healthspanHasHistory(store: store, computedId: computedId,
+                                                                 newestDay: newestDay)) == false
+            let lookback = (firstRun ? 365 : maxDays + 7) + HealthspanWindow.ageWindowDays
+            let longSessions = await repo.agelessLongSessions(days: lookback)
+            let stepsFrom = HealthspanWindow.dayKey(newestDay, plus: -(lookback + 7))
+            let steps = Dictionary(await repo.resolvedSteps(from: stepsFrom, to: newestDay).values
+                .map { ($0.day, $0.value) }, uniquingKeysWith: { first, _ in first })
+            await Self.runHealthspanPass(store: store, strapId: deviceId, computedId: computedId,
+                                         age: profile.age, sex: profile.sex, hrMaxOverride: profile.hrMaxOverride,
+                                         oldestDay: oldestDay, newestDay: newestDay, tzOffset: tzOffset,
+                                         manualVO2max: manualVO2, longSessions: longSessions, bodyFat: bodyFat,
+                                         steps: steps)
+        }
+        markPostLoopPhase("ageless")
 
         results = out
         note = out.isEmpty

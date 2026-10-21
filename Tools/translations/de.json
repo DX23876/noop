@@ -3249,5 +3249,8 @@
   "Baselines that follow a reset": "Die Basislinie folgt der Neukalibrierung",
   "**A new baseline counts everywhere.** After Recalibrate Charge baseline, Momentum, the Key Metrics tiles and Stress compare against the new baseline instead of the old nights.": "**Eine neue Basislinie gilt überall.** Nach „Energie-Basislinie neu kalibrieren“ vergleichen Momentum, die Kennzahlen-Kacheln und Stress mit der neuen Basislinie statt mit den alten Nächten.",
   "**Exercise media arrives.** A media pack that finishes downloading while NOOP is closed now installs. Settings can also delete it and download it again.": "**Übungsmedien kommen an.** Ein Medienpaket, das fertig lädt, während NOOP geschlossen ist, wird jetzt installiert. In den Einstellungen lässt es sich außerdem löschen und neu laden.",
-  "**Today is easier to use.** Small links are easier to tap, text grows with your text size and Reduce Motion keeps the NOOP mark still.": "**Der Heute-Bildschirm ist leichter zu bedienen.** Kleine Links sind leichter zu treffen, Text wächst mit deiner Schriftgröße und „Bewegung reduzieren“ hält das NOOP-Zeichen still."
+  "**Today is easier to use.** Small links are easier to tap, text grows with your text size and Reduce Motion keeps the NOOP mark still.": "**Der Heute-Bildschirm ist leichter zu bedienen.** Kleine Links sind leichter zu treffen, Text wächst mit deiner Schriftgröße und „Bewegung reduzieren“ hält das NOOP-Zeichen still.",
+  "AgeLess needs your daily steps. Bring them in from Apple Health, or set up the step estimate in Settings.": "AgeLess braucht deine täglichen Schritte. Hol sie aus Apple Health oder richte in den Einstellungen die Schrittschätzung ein.",
+  "AgeLess still needs: %@": "Für AgeLess fehlt noch: %@",
+  "Your AgeLess age appears after 30 nights of sleep data. %lld so far.": "Dein AgeLess-Alter erscheint nach 30 Nächten mit Schlafdaten. Bisher sind es %lld."
 }

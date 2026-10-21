@@ -588,3 +588,24 @@ whose window reaches back across the cut are recomputed, from the first counted 
 NOOP's own rows change: an imported WHOOP export writes its stress value together with a daily row under the
 same source, and those days are left alone. A day the new rule cannot score yet loses its stale row. The daily
 pass applies the same repair after every later recalibration. Without a recalibration nothing changes.
+
+### 2026-10-21 — AgeLess takes its steps from the app's step resolver (AI-29)
+
+A wearer with a WHOOP 4.0 and more than 30 nights saw only "Your AgeLess age appears after 30 nights of sleep
+data". AgeLess read steps from the strap's computed daily row alone, and a WHOOP 4.0 sends no step count, so that row
+never carries one; steps are one of the four measures without which a week has no age. Apple Health steps and the
+4.0 motion estimate (`steps_est`) sat under their own sources, which the Today tile reads and AgeLess did not.
+AgeLess now takes each day's steps from `Repository.resolvedSteps`, the one resolver the steps tile and detail
+use (the strap's count, then Apple Health, then the motion estimate), on the days the band covered; a day the
+resolver lacks keeps the strap's row. Steps from Garmin, Fitbit, Oura or Xiaomi imports are not in that resolver
+and so not in AgeLess either; adding them is an app-wide change, not an AgeLess one.
+
+The card also said "after 30 nights" whatever kept the week from an age. The pass now stores, for the current
+week only and only when it has no age, its nights and the core measures it lacks (`HealthspanWindow.Gap`,
+`hs_gap_nights`, `hs_gap_missing`), and the card names that: missing steps first, since the wearer can close
+that at once, then any other missing measure, then the nights so far. The pass moved to the end of the analysis
+pass, after sleep sessions and step estimates are stored, so the newest night and estimate count at once.
+
+Analysis migration required: yes (AI-29). Stored weeks can average other steps (a 5.0 or MG day without a strap
+count now takes the phone's), so the AgeLess weeks are deleted once more and rebuilt; zone minutes are kept, no
+daily row is re-scored and no goal start is re-read.

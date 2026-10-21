@@ -3404,5 +3404,8 @@
   "Baselines that follow a reset": "基線跟隨重新校準",
   "**A new baseline counts everywhere.** After Recalibrate Charge baseline, Momentum, the Key Metrics tiles and Stress compare against the new baseline instead of the old nights.": "**新基線處處生效。** 重新校準能量基線後，Momentum、關鍵指標卡片和壓力都會與新基線比較，而不是與舊的夜晚比較。",
   "**Exercise media arrives.** A media pack that finishes downloading while NOOP is closed now installs. Settings can also delete it and download it again.": "**運動媒體順利送達。** 在 NOOP 關閉時下載完成的媒體套件現在會被安裝。你也可以在設定中刪除它並重新下載。",
-  "**Today is easier to use.** Small links are easier to tap, text grows with your text size and Reduce Motion keeps the NOOP mark still.": "**今天頁面更易用。** 小連結更容易點按，文字會隨你的字體大小放大，減少動態效果會讓 NOOP 標誌保持靜止。"
+  "**Today is easier to use.** Small links are easier to tap, text grows with your text size and Reduce Motion keeps the NOOP mark still.": "**今天頁面更易用。** 小連結更容易點按，文字會隨你的字體大小放大，減少動態效果會讓 NOOP 標誌保持靜止。",
+  "AgeLess needs your daily steps. Bring them in from Apple Health, or set up the step estimate in Settings.": "AgeLess 需要你的每日步數。請從 Apple 健康匯入，或在設定中設定步數估算。",
+  "AgeLess still needs: %@": "AgeLess 還需要：%@",
+  "Your AgeLess age appears after 30 nights of sleep data. %lld so far.": "累積 30 晚睡眠資料後即可顯示 AgeLess 年齡。目前已有 %lld 晚。"
 }
