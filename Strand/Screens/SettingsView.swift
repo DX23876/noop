@@ -3152,6 +3152,7 @@ struct SettingsView: View {
                             Text("Optional: buy a coffee on Ko-fi. NOOP stays free either way.")
                                 .font(StrandFont.footnote)
                                 .foregroundStyle(StrandPalette.textTertiary)
+                                .multilineTextAlignment(.leading)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         Spacer()
