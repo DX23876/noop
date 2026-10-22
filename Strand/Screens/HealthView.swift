@@ -386,6 +386,13 @@ private struct HeartRateSection: View {
             hrHistory.append(LiveHRSample(date: now, bpm: Double(v)))
             if hrHistory.count > 180 { hrHistory.removeFirst(hrHistory.count - 180) }
         }
+        // This hero shows live HR, so it must ask for it: a WHOOP 5/MG sends no heart rate (not even on
+        // 0x2A37) until TOGGLE_REALTIME_HR arms it, and only Live, workouts and breathing took the
+        // ref-count, so Health Monitor sat on "Awaiting strap" with a connected strap. Not gated on the
+        // connection: BLEManager remembers the want and arms it once a strap bonds while this is open.
+        // Balanced: one start on appear, one stop on disappear (#681 ref-count).
+        .onAppear { model.startRealtimeHR() }
+        .onDisappear { model.stopRealtimeHR() }
     }
 
     /// The hero chart body: a tall, time-aware HR line tinted to the current zone, with a
