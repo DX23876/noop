@@ -9,6 +9,8 @@ enum ProjectLinks {
     static let issues = URL(string: "https://github.com/DX23876/noop/issues")!
     static let discussions = URL(string: "https://github.com/DX23876/noop/discussions")!
     static let altStoreSource = URL(string: "https://raw.githubusercontent.com/DX23876/noop/main/altstore-source.json")!
+    /// The fork's optional donation page. Opened in the browser from About; the app never contacts it.
+    static let support = URL(string: "https://ko-fi.com/dx23876")!
 }
 
 /// "Check for updates": one call to the project's PUBLIC releases API (GitHub), reading the latest

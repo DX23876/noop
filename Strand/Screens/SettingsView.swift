@@ -3139,6 +3139,31 @@ struct SettingsView: View {
                 }
                 .accessibilityLabel("Project home and source code on GitHub")
 
+                // Optional donation link (Ko-fi). A plain browser link: no card, no prompt, no request.
+                Link(destination: ProjectLinks.support) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "cup.and.saucer.fill")
+                            .appleInspiredMenuIcon("settings.about")
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("Support the project")
+                                .font(StrandFont.body)
+                                .foregroundStyle(StrandPalette.textPrimary)
+                            Text("Optional: buy a coffee on Ko-fi. NOOP stays free either way.")
+                                .font(StrandFont.footnote)
+                                .foregroundStyle(StrandPalette.textTertiary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer()
+                        Image(systemName: "arrow.up.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(StrandPalette.textTertiary)
+                            .accessibilityHidden(true)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .accessibilityLabel("Support the project on Ko-fi")
+
                 Text("A standalone companion for your WHOOP. Everything stays on this device: your history, your live stream, your numbers. Nothing is uploaded. NOOP is an independent, experimental project, not the WHOOP app.")
                     .font(StrandFont.subhead)
                     .foregroundStyle(StrandPalette.textSecondary)

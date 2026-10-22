@@ -386,7 +386,7 @@ enum SettingsSearchCatalog {
             id: .about,
             title: "About",
             keywords: ["version", "what's new", "update check", "source code", "GitHub", "licence",
-                       "acknowledgements", "medical"]
+                       "acknowledgements", "medical", "support", "donate", "Ko-fi"]
         ),
     ]
 

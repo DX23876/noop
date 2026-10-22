@@ -817,6 +817,16 @@ The Bluetooth work builds on community research, with thanks to
 > NOOP Forge is not a medical device. Its scores, ECG readings and health values are estimates for
 > personal use, not medical advice or a diagnosis. If you have health concerns, talk to a doctor.
 
+## Support NOOP Forge
+
+NOOP Forge is free. If it saves you a subscription or simply makes your strap more useful, you can buy
+me a coffee on [Ko-fi](https://ko-fi.com/dx23876). It goes into the time and tools behind new features,
+the next iOS releases and a future Android version.
+
+Donating is optional. The app works exactly the same either way and never nags you about it.
+
+<a href="https://ko-fi.com/dx23876"><img alt="Support NOOP Forge on Ko-fi" src="https://img.shields.io/badge/Ko--fi-support%20NOOP%20Forge-C8902F?style=for-the-badge&logo=kofi&logoColor=white"></a>
+
 ## License
 
 Source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE): free for personal,

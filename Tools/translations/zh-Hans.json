@@ -3353,5 +3353,8 @@
   "**Today is easier to use.** Small links are easier to tap, text grows with your text size and Reduce Motion keeps the NOOP mark still.": "**今天页面更易用。** 小链接更容易点按，文字会随你的字体大小放大，减弱动态效果会让 NOOP 标志保持静止。",
   "AgeLess needs your daily steps. Bring them in from Apple Health, or set up the step estimate in Settings.": "AgeLess 需要你的每日步数。请从 Apple 健康导入，或在设置中设置步数估算。",
   "AgeLess still needs: %@": "AgeLess 还需要：%@",
-  "Your AgeLess age appears after 30 nights of sleep data. %lld so far.": "积累 30 晚睡眠数据后即可显示 AgeLess 年龄。目前已有 %lld 晚。"
+  "Your AgeLess age appears after 30 nights of sleep data. %lld so far.": "积累 30 晚睡眠数据后即可显示 AgeLess 年龄。目前已有 %lld 晚。",
+  "Support the project": "支持本项目",
+  "Optional: buy a coffee on Ko-fi. NOOP stays free either way.": "可选：在 Ko-fi 上请开发者喝杯咖啡。无论如何 NOOP 都免费。",
+  "Support the project on Ko-fi": "在 Ko-fi 上支持本项目"
 }
