@@ -2,6 +2,7 @@ import SwiftUI
 import Charts
 import StrandAnalytics
 import StrandDesign
+import StrandCore
 
 // EnergyDetailView.swift — the figures behind the card, and where they came from.
 //

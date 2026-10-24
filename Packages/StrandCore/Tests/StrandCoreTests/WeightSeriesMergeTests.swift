@@ -1,6 +1,6 @@
 import XCTest
 import WhoopStore
-@testable import Strand
+import StrandCore
 
 /// `WeightSeries` — the union of NOOP's own weigh-ins over Apple Health.
 ///

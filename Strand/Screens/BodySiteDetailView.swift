@@ -3,6 +3,7 @@ import StrandAnalytics
 import StrandDesign
 import StrandImport
 import WhoopStore
+import StrandCore
 
 // MARK: - One measurement site, over time
 //

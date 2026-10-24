@@ -141,6 +141,22 @@ public struct StoreReader: Sendable {
         return byDay.values.sorted { $0.day < $1.day }
     }
 
+    /// Daily series for any metric key from a given source. When `source` is the canonical WHOOP id, the active
+    /// strap is unioned in so a series stored under a re-added strap's id still surfaces beside the canonical
+    /// history (deduped per day, active strap wins); other sources read verbatim. A wake-day in
+    /// `suppressedSleepWakeDays` (an explicit sleep deletion) hides its sleep values.
+    public func series(key: String, source: String, from: String, to: String,
+                       suppressedSleepWakeDays: Set<String>) async -> [(day: String, value: Double)] {
+        let pts: [MetricPoint]
+        if source == MetricResolver.whoopSource {
+            pts = await unionMetricSeries(key: key, from: from, to: to)
+        } else {
+            pts = (try? await store.metricSeries(deviceId: source, key: key, from: from, to: to)) ?? []
+        }
+        let suppressed = MetricResolver.isSleepDayMetricKey(key) ? suppressedSleepWakeDays : Set<String>()
+        return pts.filter { !suppressed.contains($0.day) }.map { ($0.day, $0.value) }
+    }
+
     /// Sleep sessions across every registered WHOOP source for a ts range, keeping ALL sessions per day (a nap + a main
     /// night both survive) and collapsing near-identical nights recorded under different union ids.
     /// The downstream `mergeSleep`/`userEditedDays` do the per-day collapse, exactly as before.

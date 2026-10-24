@@ -2,6 +2,7 @@ import Foundation
 import StrandAnalytics
 import StrandImport
 import WhoopStore
+import StrandCore
 
 // BodyMetricsSeries.swift — assembling the one body-measurement resolver from the stores that hold
 // the readings.
@@ -33,51 +34,10 @@ extension Repository {
     /// value, not the resolver, and a stale cache here would resurrect exactly the "two places
     /// disagree about the same body" problem this replaces.
     func bodyMetrics(days: Int = 4_000) async -> BodyMetrics {
-        var readings: [String: [BodyReading]] = [:]
-
-        for point in await weightSeries(days: days) {
-            let instant = WeightSeries.date(forDay: point.day)
-                .map { Int($0.timeIntervalSince1970) } ?? 0
-            readings[WhoopStore.bodyWeightMetricKey, default: []].append(
-                BodyReading(day: point.day, takenAt: instant, value: point.value,
-                            source: point.source == .manual ? "manual" : Self.appleHealthSource))
+        guard let store = await storeHandle() else {
+            return BodyMetrics(readings: [:])
         }
-
-        if let store = await storeHandle() {
-            // BOTH device scopes. Lab markers are stored per device, and body readings legitimately
-            // arrive under two: what the wearer types lands under the active strap's id, while the
-            // waist HealthKit imports lands under `apple-health`. Reading only one silently hid a whole
-            // source — and it hid the Apple one, which is exactly the sync the Body page promises.
-            var rows: [LabMarkerRow] = []
-            for scope in Set([deviceId, Self.appleHealthSource]) {
-                rows += (try? await store.labMarkers(
-                    deviceId: scope,
-                    category: LabMarkerCategory.bodyMeasurement.rawValue)) ?? []
-            }
-            for row in rows {
-                // A qualitative entry has no number and cannot answer a body question.
-                guard let value = row.value else { continue }
-                // Weight is resolved above from its own canonical path. A `weight` marker row would
-                // otherwise arrive as a second, unreconciled opinion on a day.
-                guard row.markerKey != WhoopStore.bodyWeightMetricKey else { continue }
-                readings[row.markerKey, default: []].append(
-                    BodyReading(day: row.day, takenAt: row.takenAt, value: value,
-                                source: row.source, id: row.id))
-            }
-            let from = Self.dayString(Date().addingTimeInterval(-Double(days) * 86_400))
-            let to = Self.dayString(Date().addingTimeInterval(86_400))
-            for key in Self.appleHealthBodyKeys {
-                for point in (try? await store.metricSeries(deviceId: Self.appleHealthSource, key: key,
-                                                            from: from, to: to)) ?? [] {
-                    let instant = WeightSeries.date(forDay: point.day).map { Int($0.timeIntervalSince1970) } ?? 0
-                    readings[key, default: []].append(
-                        BodyReading(day: point.day, takenAt: instant, value: point.value,
-                                    source: Self.appleHealthSource))
-                }
-            }
-        }
-
-        return BodyMetrics(readings: readings)
+        return await BodyMetricsReader.read(reader: storeReader(store), activeDeviceId: deviceId, days: days)
     }
 
     /// Writes one measurement session: one instant, n values, one optional note.
@@ -114,7 +74,7 @@ extension Repository {
     /// Body measurements Apple Health delivers as daily metric points rather than markers: body fat (%) and lean
     /// mass (kg), the keys `AppleHealthAggregator.metricPoints` writes. Apple's weight comes through
     /// `weightSeries`, its waist as a marker.
-    static let appleHealthBodyKeys = ["body_fat", "lean_mass"]
+    static let appleHealthBodyKeys = BodyMetricsReader.appleHealthBodyKeys
 
     /// The body readings the energy model prices with: body mass, height (both basal formulas) and
     /// body fat (Katch–McArdle). A change to any of them leaves the stored energy days stale.

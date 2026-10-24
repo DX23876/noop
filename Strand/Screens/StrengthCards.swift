@@ -2,6 +2,7 @@ import SwiftUI
 import WhoopStore
 import StrandDesign
 import StrandAnalytics
+import StrandCore
 
 // MARK: - The cards the Strength screen gained
 //

@@ -1,5 +1,6 @@
 import XCTest
 import StrandAnalytics
+import StrandCore
 @testable import Strand
 
 /// Pins the per-day body mass the analysis pass scores each day with.

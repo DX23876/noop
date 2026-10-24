@@ -1,6 +1,6 @@
 import XCTest
 import StrandAnalytics
-@testable import Strand
+import StrandCore
 
 /// `WeightSeries.displayWeight` — which of the three weights a Today tile shows, and what it calls it.
 ///

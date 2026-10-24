@@ -2375,14 +2375,8 @@ final class Repository: ObservableObject {
         let now = Date()
         let from = fullHistory ? "0000-01-01" : Self.dayString(now.addingTimeInterval(-Double(days) * 86_400))
         let to = fullHistory ? "9999-12-31" : Self.dayString(now.addingTimeInterval(86_400))
-        let pts: [MetricPoint]
-        if source == canonicalDeviceId {
-            pts = await unionMetricSeries(store: store, key: key, from: from, to: to)
-        } else {
-            pts = (try? await store.metricSeries(deviceId: source, key: key, from: from, to: to)) ?? []
-        }
-        let suppressed = Self.isSleepDayMetricKey(key) ? suppressedSleepWakeDays : Set<String>()
-        return pts.filter { !suppressed.contains($0.day) }.map { ($0.day, $0.value) }
+        return await reader(store).series(key: key, source: source, from: from, to: to,
+                                          suppressedSleepWakeDays: suppressedSleepWakeDays)
     }
 
     // MARK: - Deep Timeline (full-day full-resolution viewer , #575/#574/#582)

@@ -2,6 +2,7 @@ import SwiftUI
 import StrandAnalytics
 import StrandDesign
 import WhoopStore
+import StrandCore
 
 // EnergyCalculationView.swift — "how do you know?", one level below "how much?".
 //

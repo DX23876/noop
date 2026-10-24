@@ -2,6 +2,7 @@ import SwiftUI
 import Charts
 import StrandDesign
 import StrandAnalytics
+import StrandCore
 
 // MARK: - Shared building blocks for Training Load, Cardio and Strength
 //

@@ -1,6 +1,7 @@
 import SwiftUI
 import StrandAnalytics
 import StrandDesign
+import StrandCore
 
 // MARK: - Weight (v43) — the history behind the Today tile
 //
