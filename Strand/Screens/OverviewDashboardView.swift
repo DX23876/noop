@@ -2,6 +2,7 @@ import SwiftUI
 import StrandDesign
 import StrandAnalytics
 import WhoopStore
+import StrandCore
 
 /// A reference-matched alternative to Today: "Heute im Überblick" (Erholung/Belastung/Schlaf rings with
 /// a state word and a sentence), an overall-status chip, a "Heute wichtig" row of three small cards, and

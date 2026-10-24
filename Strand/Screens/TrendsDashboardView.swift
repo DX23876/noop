@@ -3,6 +3,7 @@ import Charts
 import StrandDesign
 import StrandAnalytics
 import WhoopStore
+import StrandCore
 
 /// A reference-matched alternative to Today: a Coach card, the CHARGE/EFFORT/REST hero rings, a 14-day
 /// three-line trend chart, four configurable metric slots, and the most recent workout. Built to sit

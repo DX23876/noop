@@ -14,6 +14,7 @@
 import SwiftUI
 import StrandDesign
 import WhoopStore
+import StrandCore
 import StrandAnalytics
 
 /// Size for the Today header's round controls, in one place because the buttons live in several separate

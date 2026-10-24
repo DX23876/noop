@@ -3,6 +3,7 @@ import Combine
 import WhoopProtocol
 import WhoopStore
 import StrandAnalytics
+import StrandCore
 
 // MARK: - Running work at a priority the caller cannot raise
 //
@@ -1002,71 +1003,7 @@ final class IntelligenceEngine: ObservableObject {
         return rows
     }
 
-    /// Daily 0–3 stress-proxy points (#R-stress-chart) — the SAME z-score formula `StressView` derives
-    /// live when nothing is stored for a day (`StressMath.rawScore`/`.squash` over a rolling RHR/HRV
-    /// baseline), computed here so it can be PERSISTED and therefore charted (`plot_metric`'s generic
-    /// day-series lookup only finds keys that are actually in the store — "stress" never was). `days` must
-    /// be oldest→newest; the baseline for each day is up to the 30 days ending the day BEFORE it, the exact
-    /// window `StressModel.init` uses, so a plotted chart and the live Stress screen never disagree. A day
-    /// with neither a resting HR nor an HRV reading (and no baseline to fall back on either) is skipped —
-    /// no fabricated value.
-    nonisolated static func stressProxyRows(days: [DailyMetric], cut: StressMath.Cut) -> [MetricPoint] {
-        var rows: [MetricPoint] = []
-        for (idx, today) in days.enumerated() {
-            let reference = StressMath.reference(before: idx, in: days, cut: cut)
-            let meanRHR = reference.meanRHR
-            let sdRHR = reference.sdRHR
-            let meanHRV = reference.meanHRV
-            let sdHRV = reference.sdHRV
-            let rhrToday = today.restingHr.map(Double.init)
-            let hrvToday = today.avgHrv
-            guard (rhrToday != nil && meanRHR != nil) || (hrvToday != nil && meanHRV != nil) else { continue }
-            let raw = StressMath.rawScore(rhrToday: rhrToday, meanRHR: meanRHR, sdRHR: sdRHR,
-                                          hrvToday: hrvToday, meanHRV: meanHRV, sdHRV: sdHRV)
-            rows.append(MetricPoint(day: today.day, key: "stress", value: StressMath.squash(raw)))
-        }
-        return rows
-    }
-
-    /// The stored stress rows a recalibration made stale, and what replaces them.
-    ///
-    /// `stressProxyRows` reads each day against the nights after a manual "Recalibrate baseline", but a
-    /// row is gap-filled and never overwritten, so a day written before the cut (or before this rule)
-    /// kept its old reading. The days whose 30-row window reaches back across the first counted night
-    /// are recomputed: from that night up to 30 rows past the later of the two cuts. Rows outside that
-    /// interval read the same either way and stay untouched.
-    ///
-    /// Only NOOP's own proxy rows change. An imported WHOOP export writes a stress value together with
-    /// its daily row under the same source, so every day in `importedDays` is left as it is. A day the
-    /// new rule cannot score (no counted night before it yet) loses its stale row instead of keeping it.
-    /// `days` must start on or before the first counted night, or the window would miss counted nights;
-    /// otherwise nothing is repaired.
-    nonisolated static func stressProxyRepairs(days: [DailyMetric], cut: StressMath.Cut,
-                                               existing: [String: Double], importedDays: Set<String>)
-        -> (upserts: [MetricPoint], deletions: [String]) {
-        let cuts = [cut.hrvFirstNight, cut.rhrFirstNight].compactMap { $0 }
-        guard let earliest = cuts.min(), let latest = cuts.max(),
-              let firstDay = days.first?.day, firstDay <= earliest,
-              let start = days.firstIndex(where: { $0.day >= earliest }) else { return ([], []) }
-        let lastCut = days.firstIndex(where: { $0.day >= latest }) ?? days.count
-        let end = min(days.count, lastCut + 30)
-        guard start < end else { return ([], []) }
-        let fresh = Dictionary(stressProxyRows(days: days, cut: cut).map { ($0.day, $0) },
-                               uniquingKeysWith: { _, b in b })
-        var upserts: [MetricPoint] = []
-        var deletions: [String] = []
-        for day in days[start..<end].map(\.day) where !importedDays.contains(day) {
-            let stored = existing[day]
-            if let row = fresh[day] {
-                if stored.map({ abs($0 - row.value) > 1e-9 }) ?? true { upserts.append(row) }
-            } else if stored != nil {
-                deletions.append(day)
-            }
-        }
-        return (upserts, deletions)
-    }
-
-    /// Applies `stressProxyRepairs` over the stored history around the current recalibration (AI-28).
+    /// Applies `StressMath.proxyRepairs` over the stored history around the current recalibration (AI-28).
     /// Reads the merged daily rows the Stress screen reads and writes under the same source; idempotent,
     /// so an interrupted migration simply repeats it.
     static func repairStressProxyAfterRecalibration(store: WhoopStore, repo: Repository) async throws {
@@ -1087,7 +1024,7 @@ final class IntelligenceEngine: ObservableObject {
                 .map { ($0.day, $0.value) }, uniquingKeysWith: { _, b in b })
         let imported = Set(try await store.dailyMetrics(deviceId: Repository.whoopSource, from: from, to: today)
             .map(\.day))
-        let repair = stressProxyRepairs(days: days, cut: cut, existing: existing, importedDays: imported)
+        let repair = StressMath.proxyRepairs(days: days, cut: cut, existing: existing, importedDays: imported)
         if !repair.upserts.isEmpty {
             _ = try await store.upsertMetricSeries(repair.upserts, deviceId: Repository.whoopSource)
         }
@@ -3768,7 +3705,7 @@ final class IntelligenceEngine: ObservableObject {
         // windowed recomputation.
         //
         // The one exception is a manual "Recalibrate baseline": the days whose window reaches back across
-        // it are re-read against the nights after it (`stressProxyRepairs`), NOOP's own rows only, so the
+        // it are re-read against the nights after it (`StressMath.proxyRepairs`), NOOP's own rows only, so the
         // Stress score stops comparing against the baseline the wearer just reset.
         let daysForStress = Array((faGateByDay.values.sorted { $0.day < $1.day }))
         if !daysForStress.isEmpty {
@@ -3777,14 +3714,14 @@ final class IntelligenceEngine: ObservableObject {
                 ((try? await store.metricSeries(deviceId: Repository.whoopSource, key: "stress",
                                                  from: oldestDay, to: newestDay)) ?? [])
                     .map { ($0.day, $0.value) }, uniquingKeysWith: { _, b in b })
-            var stressRows = Self.stressProxyRows(days: daysForStress, cut: stressCut)
+            var stressRows = StressMath.proxyRows(days: daysForStress, cut: stressCut)
                 .filter { existingStress[$0.day] == nil }
             var staleStressDays: [String] = []
             if stressCut != .none {
                 let imported = Set(((try? await store.dailyMetrics(deviceId: Repository.whoopSource,
                                                                    from: oldestDay, to: newestDay)) ?? [])
                     .map(\.day))
-                let repair = Self.stressProxyRepairs(days: daysForStress, cut: stressCut,
+                let repair = StressMath.proxyRepairs(days: daysForStress, cut: stressCut,
                                                      existing: existingStress, importedDays: imported)
                 let filled = Set(stressRows.map(\.day))
                 stressRows += repair.upserts.filter { !filled.contains($0.day) }

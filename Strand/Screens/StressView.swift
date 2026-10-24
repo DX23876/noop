@@ -3,6 +3,7 @@ import Foundation
 import StrandDesign
 import StrandAnalytics
 import WhoopStore
+import StrandCore
 
 /// The shared explanation for an activity-masked gap on the Stress screen and hosted Today cards.
 /// Whole-phrase singular/plural variants keep the sentence natural in every catalog locale.
@@ -987,86 +988,9 @@ struct StressModel {
     }
 }
 
-// MARK: - Stress math (pure, testable helpers)
+// MARK: - Stress explanation (localised copy over the core `StressMath`)
 
-enum StressMath {
-    /// The first night each baseline still counts after a manual "Recalibrate baseline": HRV on its own
-    /// epoch, resting HR on the recovery epoch, as Charge folds them. nil = every night counts.
-    struct Cut: Equatable, Sendable {
-        var hrvFirstNight: String?
-        var rhrFirstNight: String?
-
-        static let none = Cut()
-
-        static func current(_ defaults: UserDefaults = .standard) -> Cut {
-            Cut(hrvFirstNight: Baselines.firstNightAfterRecalibration(epoch: Baselines.hrvBaselineEpoch(defaults)),
-                rhrFirstNight: Baselines.firstNightAfterRecalibration(
-                    epoch: Baselines.recoveryBaselineEpoch(defaults)))
-        }
-    }
-
-    struct Reference: Equatable {
-        let meanRHR: Double?
-        let sdRHR: Double
-        let meanHRV: Double?
-        let sdHRV: Double
-    }
-
-    /// What `days[index]` is read against: up to the 30 rows before it, keeping only the nights after a
-    /// recalibration. Shared by the live Stress screen and the stored series, so a chart and the screen
-    /// cannot disagree. Before the cut, the window kept the nights before a reset, so a recalibrated
-    /// HRV baseline of 78 ms still read a night of 82 ms as "HRV is down". A day before the reset keeps
-    /// its own past: the cut applies only from the first night it counts.
-    static func reference(before index: Int, in days: [DailyMetric], cut: Cut) -> Reference {
-        let window = index > 0 ? days[0..<index].suffix(30) : []
-        let scored = index < days.count ? days[index].day : nil
-        func counts(_ day: DailyMetric, from first: String?) -> Bool {
-            guard let first, let scored, scored >= first else { return true }
-            return day.day >= first
-        }
-        let rhrBase = window.filter { counts($0, from: cut.rhrFirstNight) }
-            .compactMap { $0.restingHr }.map(Double.init)
-        let hrvBase = window.filter { counts($0, from: cut.hrvFirstNight) }
-            .compactMap { $0.avgHrv }
-        let meanRHR = mean(rhrBase)
-        let meanHRV = mean(hrvBase)
-        return Reference(meanRHR: meanRHR, sdRHR: std(rhrBase, mean: meanRHR),
-                         meanHRV: meanHRV, sdHRV: std(hrvBase, mean: meanHRV))
-    }
-
-    static func mean(_ xs: [Double]) -> Double? {
-        guard !xs.isEmpty else { return nil }
-        return xs.reduce(0, +) / Double(xs.count)
-    }
-
-    /// Population standard deviation; 0 when there's no spread.
-    static func std(_ xs: [Double], mean m: Double?) -> Double {
-        guard let m, xs.count > 1 else { return 0 }
-        let v = xs.map { ($0 - m) * ($0 - m) }.reduce(0, +) / Double(xs.count)
-        return v.squareRoot()
-    }
-
-    /// Combined autonomic z-score. RHR-up and HRV-down both push it positive.
-    static func rawScore(
-        rhrToday: Double?, meanRHR: Double?, sdRHR: Double,
-        hrvToday: Double?, meanHRV: Double?, sdHRV: Double
-    ) -> Double {
-        var sum = 0.0
-        if let r = rhrToday, let m = meanRHR, sdRHR > 0.0001 {
-            sum += (r - m) / sdRHR            // up = stress
-        }
-        if let h = hrvToday, let m = meanHRV, sdHRV > 0.0001 {
-            sum += (m - h) / sdHRV            // down = stress
-        }
-        return sum
-    }
-
-    /// Logistic squash of the raw z-sum onto 0–3 (baseline 0 → 1.5).
-    static func squash(_ raw: Double) -> Double {
-        let s = 3.0 / (1.0 + exp(-raw))
-        return min(max(s, 0), 3)
-    }
-
+extension StressMath {
     static func explanation(band: StressBand, rhrDelta: Double?, hrvDelta: Double?, usingStored: Bool) -> String {
         let rhrUp = (rhrDelta ?? 0) > 1.0
         let rhrDn = (rhrDelta ?? 0) < -1.0
