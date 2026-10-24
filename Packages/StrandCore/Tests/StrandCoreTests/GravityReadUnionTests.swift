@@ -1,6 +1,6 @@
 import XCTest
+import StrandCore
 import WhoopProtocol
-@testable import Strand
 
 /// The gravity read behind the Steps calibration screen (#1643).
 ///
@@ -20,7 +20,7 @@ final class GravityReadUnionTests: XCTestCase {
         let active = [sample(101, 9.0), sample(103, 9.2)]
         let canonical = [sample(100, 5.0), sample(101, 5.1), sample(102, 5.2)]
 
-        let merged = Repository.mergeGravityByTs([active, canonical])
+        let merged = StoreReader.mergeGravityByTs([active, canonical])
 
         XCTAssertEqual(merged.map(\.ts), [100, 101, 102, 103])
         XCTAssertEqual(merged.first { $0.ts == 101 }?.x, 9.0)   // active, not canonical
@@ -30,24 +30,24 @@ final class GravityReadUnionTests: XCTestCase {
     /// the Android side, and the union has to cover it here too.
     func testActiveOnlyMotionSurfacesWhenCanonicalIsEmpty() {
         let active = [sample(100, 0.1), sample(101, 0.2)]
-        XCTAssertEqual(Repository.mergeGravityByTs([active, []]).map(\.ts), [100, 101])
+        XCTAssertEqual(StoreReader.mergeGravityByTs([active, []]).map(\.ts), [100, 101])
     }
 
     /// The mirror case, which is the half THIS platform had: canonical history and no active-id rows.
     func testCanonicalHistorySurfacesWhenTheActiveIdIsEmpty() {
         let canonical = [sample(100, 0.1), sample(101, 0.2)]
-        XCTAssertEqual(Repository.mergeGravityByTs([[], canonical]).map(\.ts), [100, 101])
+        XCTAssertEqual(StoreReader.mergeGravityByTs([[], canonical]).map(\.ts), [100, 101])
     }
 
     /// A single-device install collapses to one id, and that read is returned UNCHANGED — so this change
     /// cannot alter what the overwhelmingly common install already saw.
     func testASingleIdReadIsReturnedUntouched() {
         let rows = [sample(100, 0.1), sample(101, 0.2)]
-        XCTAssertEqual(Repository.mergeGravityByTs([rows]), rows)
+        XCTAssertEqual(StoreReader.mergeGravityByTs([rows]), rows)
     }
 
     func testNoMotionUnderEitherIdStaysEmpty() {
-        XCTAssertTrue(Repository.mergeGravityByTs([[], []]).isEmpty)
+        XCTAssertTrue(StoreReader.mergeGravityByTs([[], []]).isEmpty)
     }
 
     /// Unsorted input still comes back time-ordered: the store returns rows per id, and concatenating two
@@ -55,6 +55,6 @@ final class GravityReadUnionTests: XCTestCase {
     func testOutOfOrderInputIsSorted() {
         let a = [sample(300, 1), sample(100, 2)]
         let b = [sample(200, 3)]
-        XCTAssertEqual(Repository.mergeGravityByTs([a, b]).map(\.ts), [100, 200, 300])
+        XCTAssertEqual(StoreReader.mergeGravityByTs([a, b]).map(\.ts), [100, 200, 300])
     }
 }

@@ -1,5 +1,6 @@
 import XCTest
 import WhoopStore
+import StrandCore
 @testable import Strand
 
 /// The nightly absolute (#1636) must survive every path that REBUILDS a `DailyMetric`.
@@ -39,7 +40,7 @@ final class DailySkinTempAbsoluteCarryTests: XCTestCase {
     func testCoalesceTakesTheStrapAbsoluteWhenTheWinnerHasNone() throws {
         let winner = row(skinTempDevC: 0.2, avgHrv: 44.0)      // an import: deviation only
         let filler = row(skinTempC: 34.6, skinTempDevC: 0.2)   // the strap's own scored night
-        XCTAssertEqual(try XCTUnwrap(Repository.coalesceDay(winner, filler).skinTempC),
+        XCTAssertEqual(try XCTUnwrap(StoreReader.coalesceDay(winner, filler).skinTempC),
                        34.6, accuracy: 0.001)
     }
 
@@ -47,12 +48,12 @@ final class DailySkinTempAbsoluteCarryTests: XCTestCase {
     func testCoalesceKeepsTheWinnersOwnAbsolute() throws {
         let winner = row(skinTempC: 34.6)
         let filler = row(skinTempC: 30.1)
-        XCTAssertEqual(try XCTUnwrap(Repository.coalesceDay(winner, filler).skinTempC),
+        XCTAssertEqual(try XCTUnwrap(StoreReader.coalesceDay(winner, filler).skinTempC),
                        34.6, accuracy: 0.001)
     }
 
     func testCoalesceLeavesItNilWhenNeitherSideMeasuredOne() {
-        XCTAssertNil(Repository.coalesceDay(row(), row()).skinTempC)
+        XCTAssertNil(StoreReader.coalesceDay(row(), row()).skinTempC)
     }
 
     /// The sleep-edit rebuild replaces only sleep-derived fields; a thermal column must ride through.
@@ -69,7 +70,7 @@ final class DailySkinTempAbsoluteCarryTests: XCTestCase {
     func testMergeFillsTheAbsoluteFromTheComputedRow() throws {
         let imported = [row(skinTempDevC: 0.2)]
         let computed = [row(skinTempC: 34.6, skinTempDevC: 0.2)]
-        let merged = Repository.mergeDaily(imported: imported, computed: computed)
+        let merged = StoreReader.mergeDaily(imported: imported, computed: computed)
         XCTAssertEqual(merged.count, 1)
         XCTAssertEqual(try XCTUnwrap(merged.first?.skinTempC), 34.6, accuracy: 0.001)
         // And the deviation every downstream gate reads is untouched by carrying the absolute.
@@ -126,12 +127,12 @@ final class DailySkinTempAbsoluteCarryTests: XCTestCase {
         let winner = row(day: "2026-09-03", restingHr: 55)
         let filler = row(day: "2026-09-03", totalSleepMin: 400, deepMin: 39,
                                  remMin: 54, lightMin: 57, sleepHrOnly: true)
-        XCTAssertEqual(Repository.coalesceDay(winner, filler).sleepHrOnly, true)
+        XCTAssertEqual(StoreReader.coalesceDay(winner, filler).sleepHrOnly, true)
     }
 
     func testAWinnerThatOwnsTheSleepBlockKeepsItsOwnStagingFlag() {
         let winner = row(day: "2026-09-03", totalSleepMin: 420, deepMin: 90, sleepHrOnly: false)
         let filler = row(day: "2026-09-03", totalSleepMin: 300, sleepHrOnly: true)
-        XCTAssertEqual(Repository.coalesceDay(winner, filler).sleepHrOnly, false)
+        XCTAssertEqual(StoreReader.coalesceDay(winner, filler).sleepHrOnly, false)
     }
 }
