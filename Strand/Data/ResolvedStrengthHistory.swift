@@ -2,6 +2,7 @@ import Foundation
 import StrandAnalytics
 import StrandTraining
 import WhoopStore
+import StrandCore
 
 /// One detailed set log selected for one real workout. The canonical id belongs to session fusion;
 /// `workout` keeps the source's original exercises and measurements unchanged.

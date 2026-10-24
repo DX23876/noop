@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 import WhoopStore
 import StrandAnalytics
+import StrandCore
 
 // MARK: - What the Cardio screen knows
 //

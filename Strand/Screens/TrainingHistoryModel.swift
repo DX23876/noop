@@ -1,6 +1,7 @@
 import Foundation
 import StrandAnalytics
 import WhoopStore
+import StrandCore
 
 /// Which lanes the history view shows — every entry point opens it on its own lane.
 enum TrainingHistoryFocus: String, CaseIterable, Identifiable, Sendable {

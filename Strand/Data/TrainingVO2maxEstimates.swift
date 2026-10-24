@@ -1,6 +1,7 @@
 import Foundation
 import StrandAnalytics
 import WhoopStore
+import StrandCore
 
 // TrainingVO2maxEstimates.swift — the one place NOOP estimates VO₂max from walks and runs. Training Load's
 // experimental reading reads it (AgeLess did until AI-26), so the same session can never give two figures: fused

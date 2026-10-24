@@ -1,6 +1,7 @@
 import XCTest
 import WhoopStore
 import StrandAnalytics
+import StrandCore
 @testable import Strand
 
 /// Pins when a stored cardio load answers instead of the heart rate, and that storing a load changes

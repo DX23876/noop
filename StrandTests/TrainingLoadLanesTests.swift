@@ -1,6 +1,7 @@
 import XCTest
 import StrandAnalytics
 import WhoopStore
+import StrandCore
 @testable import Strand
 
 /// Pins the lane readings Training Load shows, so the screens that share them can be checked against the

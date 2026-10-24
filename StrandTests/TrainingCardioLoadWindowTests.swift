@@ -1,5 +1,6 @@
 import XCTest
 import WhoopStore
+import StrandCore
 @testable import Strand
 
 /// One physical bout is priced once. Two components the wearer has not ruled on yet stay separate on

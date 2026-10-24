@@ -1,6 +1,7 @@
 import XCTest
 import WhoopStore
 import StrandAnalytics
+import StrandCore
 @testable import Strand
 
 /// Pins which sessions the experimental training-based VO₂max reads on Training Load: on foot, with a

@@ -1,6 +1,7 @@
 import Foundation
 import StrandAnalytics
 import WhoopStore
+import StrandCore
 
 /// The Strength and Cardio lane readings, computed as of any day.
 ///

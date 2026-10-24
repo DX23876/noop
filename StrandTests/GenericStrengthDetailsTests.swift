@@ -1,5 +1,6 @@
 import XCTest
 import WhoopStore
+import StrandCore
 @testable import Strand
 
 /// The editor that completes a HealthKit strength envelope. It must add exercises to the session that

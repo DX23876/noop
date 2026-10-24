@@ -23,6 +23,6 @@ let package = Package(
             // Optimised even in Debug, like StrandAnalytics and WhoopStore: Xcode compiles package
             // targets from the configuration name, so project.yml's Debug `-O` never reaches them.
             swiftSettings: [.unsafeFlags(["-O"])]),
-        .testTarget(name: "StrandCoreTests", dependencies: ["StrandCore", "WhoopStore", "StrandAnalytics"]),
+        .testTarget(name: "StrandCoreTests", dependencies: ["StrandCore", "WhoopStore", "StrandAnalytics", "StrandTraining"]),
     ]
 )

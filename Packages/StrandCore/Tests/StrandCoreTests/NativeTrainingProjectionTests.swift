@@ -1,7 +1,7 @@
 import XCTest
 import StrandTraining
 import WhoopStore
-@testable import Strand
+import StrandCore
 
 final class NativeTrainingProjectionTests: XCTestCase {
     func testNativeWorkoutProjectsSetsEffortMusclesAndTrackerWithoutPersistenceTwin() {

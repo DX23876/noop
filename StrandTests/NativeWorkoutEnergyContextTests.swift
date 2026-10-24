@@ -3,6 +3,7 @@ import StrandAnalytics
 import StrandTraining
 import WhoopProtocol
 import WhoopStore
+import StrandCore
 @testable import Strand
 
 /// The reported case end to end: a 90-minute strength session logged in the native logger while the

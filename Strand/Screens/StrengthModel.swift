@@ -3,6 +3,7 @@ import SwiftUI
 import WhoopStore
 import StrandAnalytics
 import StrandTraining
+import StrandCore
 
 // MARK: - Everything the Strength screen knows, and where it is worked out
 //

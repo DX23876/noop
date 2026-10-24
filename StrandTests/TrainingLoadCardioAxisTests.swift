@@ -1,6 +1,7 @@
 import XCTest
 import StrandAnalytics
 import WhoopStore
+import StrandCore
 @testable import Strand
 
 /// The cardio lane's daily series. Two rules meet here: the lane is priced from measured heart rate

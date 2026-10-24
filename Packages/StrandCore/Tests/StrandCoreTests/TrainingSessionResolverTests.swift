@@ -1,6 +1,7 @@
 import XCTest
 import WhoopStore
-@testable import Strand
+import StrandAnalytics
+import StrandCore
 
 final class TrainingSessionResolverTests: XCTestCase {
     private func row(_ start: Int, _ end: Int, sport: String, source: String,
