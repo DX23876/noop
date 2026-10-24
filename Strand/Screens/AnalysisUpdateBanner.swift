@@ -1,5 +1,6 @@
 import SwiftUI
 import StrandDesign
+import StrandCore
 
 /// A small card at the bottom of Today while the analysis migration an update brings recalculates stored
 /// scores. It used to be visible only on the Settings card, so after an update the dashboard's numbers

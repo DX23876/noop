@@ -1,4 +1,5 @@
 import XCTest
+import StrandCore
 @testable import Strand
 
 /// Pins the analysis-progress read-out: what it may claim, and — more importantly — what it must refuse

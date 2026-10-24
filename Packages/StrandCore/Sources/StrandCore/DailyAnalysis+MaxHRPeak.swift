@@ -8,13 +8,13 @@ import StrandAnalytics
 // months although raw heart rate is kept for about five. Only adds a value per day; reads nothing back into
 // any score.
 
-extension IntelligenceEngine {
+extension DailyAnalysis {
 
-    static let heldPeakKey = "hr_peak_held_30s"
+    public static let heldPeakKey = "hr_peak_held_30s"
 
     /// Banks the held peak of every day in `[oldestDay, newestDay]` that has a workout with a band trace; on
     /// the first run (no banked day yet) back over the whole raw retention. A failed read banks nothing.
-    nonisolated static func bankHeldPeaks(store: WhoopStore, strapId: String, computedId: String,
+    public nonisolated static func bankHeldPeaks(store: WhoopStore, strapId: String, computedId: String,
                                           oldestDay: String, newestDay: String, tzOffset: Int) async {
         do {
             let banked = try await store.metricSeries(deviceId: computedId, key: heldPeakKey,
@@ -26,7 +26,7 @@ extension IntelligenceEngine {
             guard let fromTs = midnightForDayKey(from, offsetSec: tzOffset),
                   let toTs = midnightForDayKey(newestDay, offsetSec: tzOffset).map({ $0 + 86_400 }) else { return }
             var byDay: [String: Int] = [:]
-            for source in Set([strapId, computedId, Repository.appleHealthSource]) {
+            for source in Set([strapId, computedId, MetricResolver.appleHealthSource]) {
                 for row in try await store.workouts(deviceId: source, from: fromTs, to: toTs, limit: 100_000) {
                     let trace = try await store.hrSamples(deviceId: strapId, from: row.startTs, to: row.endTs - 1,
                                                           limit: Int.max)

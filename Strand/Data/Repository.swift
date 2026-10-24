@@ -740,7 +740,7 @@ final class Repository: ObservableObject {
     /// stream, so the source-only fold in IntelligenceEngine scores them from the daily aggregate vs the
     /// person's own baseline. Matches `WearableBrand.sourceId` plus Health Connect (Android imports HC's
     /// daily metrics under the strap source, but a sideloaded/standalone HC source id is covered too).
-    static let wearableImportSources = ["oura-import", "fitbit-import", "garmin-import", "oura-api", healthConnectSource]
+    static let wearableImportSources = MetricResolver.wearableImportSources
 
     /// `yyyy-MM-dd` in the device's local zone, matching how `DailyMetric.day` is stored.
     // `nonisolated` so pure callers off the main actor (e.g. the extracted `SleepModel.build`) can key a

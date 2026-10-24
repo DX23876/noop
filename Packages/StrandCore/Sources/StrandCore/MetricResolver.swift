@@ -58,6 +58,8 @@ public enum MetricResolver {
     public static let whoopSource = "my-whoop"
     public static let appleHealthSource = "apple-health"
     public static let healthConnectSource = "health-connect"
+    /// Third-party wearable imports whose daily metrics sit under their own source id.
+    public static let wearableImportSources = ["oura-import", "fitbit-import", "garmin-import", "oura-api", healthConnectSource]
 
     /// Resolves `key` over `sourceCandidates`: the first candidate wins per day, later ones only fill days
     /// no earlier one covered, and the sleep values of a wake-day in `suppressedSleepWakeDays` (an explicit

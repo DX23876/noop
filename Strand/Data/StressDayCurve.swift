@@ -1,5 +1,6 @@
 import Foundation
 import StrandAnalytics
+import StrandCore
 
 /// Scores today's stress for the surfaces that draw it, and does it as rarely as it can get away with.
 ///

@@ -1,6 +1,7 @@
 import SwiftUI
 import WhoopStore
 import StrandAnalytics
+import StrandCore
 
 /// A completed value and its in-flight task are shared by all consumers of one revision.
 /// Cancelling a consumer must not cancel another visible card's identical request.

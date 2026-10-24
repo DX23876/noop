@@ -3,6 +3,7 @@ import StrandDesign
 import StrandAnalytics
 import WhoopStore
 import Foundation
+import StrandCore
 
 // MARK: - Trends
 //

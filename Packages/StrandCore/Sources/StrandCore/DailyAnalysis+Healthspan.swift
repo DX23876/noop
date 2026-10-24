@@ -3,7 +3,7 @@ import WhoopProtocol
 import WhoopStore
 import StrandAnalytics
 
-// IntelligenceEngine+Healthspan.swift — fork feature (backlog plan HEALTHSPAN_AGE_PLAN, spec S5): the weekly
+// DailyAnalysis+Healthspan.swift — fork feature (backlog plan HEALTHSPAN_AGE_PLAN, spec S5): the weekly
 // healthspan age and Pace of Aging, kept in its own file so the shared analysis pass gains one call only.
 //
 // Two steps per pass. (1) Zone minutes need raw HR, which the store keeps for about five weeks, so they are
@@ -11,45 +11,40 @@ import StrandAnalytics
 // values (daily rows, sleep sessions, workouts, series), so a row can never go stale. Weeks follow the
 // Fitness Age convention: keyed to the Saturday on or before, refining until the week ends.
 
-/// Experimental and off by default until the Healthspan card ships (spec S6).
-enum HealthspanFeature {
-    static let defaultsKey = "noopHealthspanAge"
-    static var isEnabled: Bool { UserDefaults.standard.bool(forKey: defaultsKey) }
-}
 
-extension IntelligenceEngine {
+extension DailyAnalysis {
 
-    static let healthspanAgeKey = "healthspan_age"
-    static let healthspanPaceKey = "healthspan_pace"
-    static let healthspanCoveredDaysKey = "healthspan_covered_days"
-    static let healthspanZone13Key = "hs_zone13_min"
-    static let healthspanZone45Key = "hs_zone45_min"
+    public static let healthspanAgeKey = "healthspan_age"
+    public static let healthspanPaceKey = "healthspan_pace"
+    public static let healthspanCoveredDaysKey = "healthspan_covered_days"
+    public static let healthspanZone13Key = "hs_zone13_min"
+    public static let healthspanZone45Key = "hs_zone45_min"
     /// Training VO₂max days AI-21 banked before the estimator moved to Training Load's; AI-22 deletes them.
-    static let healthspanLegacyTrainingVO2Key = "hs_vo2_training"
+    public static let healthspanLegacyTrainingVO2Key = "hs_vo2_training"
     /// Which `HealthspanVO2.Source` a week's VO₂max came from.
-    static let healthspanVO2SourceKey = "hs_vo2_source"
+    public static let healthspanVO2SourceKey = "hs_vo2_source"
     /// The window input behind a week's age, so the card's breakdown is computed from the same numbers.
-    nonisolated static func healthspanInputKey(_ c: HealthspanEngine.Component) -> String { "hs_in_" + c.rawValue }
+    public nonisolated static func healthspanInputKey(_ c: HealthspanEngine.Component) -> String { "hs_in_" + c.rawValue }
     /// The last-30-days input behind a week's pace, for the detail screen's second marker.
-    nonisolated static func healthspanRecentInputKey(_ c: HealthspanEngine.Component) -> String {
+    public nonisolated static func healthspanRecentInputKey(_ c: HealthspanEngine.Component) -> String {
         "hs_in30_" + c.rawValue
     }
     /// What a week's input stands on (`HealthspanBasis.counts`; for VO₂max, its readings), since AI-23.
-    nonisolated static func healthspanCountKey(_ c: HealthspanEngine.Component) -> String { "hs_n_" + c.rawValue }
+    public nonisolated static func healthspanCountKey(_ c: HealthspanEngine.Component) -> String { "hs_n_" + c.rawValue }
     /// The day of the newest VO₂max reading behind a week, as `HealthspanBasis.dayNumber`.
-    static let healthspanVO2DayKey = "hs_vo2_day"
+    public static let healthspanVO2DayKey = "hs_vo2_day"
     /// The least VO₂max the week's long walks and runs allow (`HealthspanVO2.enduranceFloor`), since AI-26. A
     /// plausibility bound shown beside the measure, never its value.
-    static let healthspanVO2FloorKey = "hs_vo2_floor"
+    public static let healthspanVO2FloorKey = "hs_vo2_floor"
     /// The day of the body-fat reading behind a week's lean mass, as `HealthspanBasis.dayNumber`.
-    static let healthspanBodyFatDayKey = "hs_fat_day"
+    public static let healthspanBodyFatDayKey = "hs_fat_day"
     /// For the current week only, when it has no age: its nights of sleep data and the core measures it lacks
     /// (`HealthspanWindow.Gap`), since AI-29, so the screen says what is missing.
-    static let healthspanGapNightsKey = "hs_gap_nights"
-    static let healthspanGapMissingKey = "hs_gap_missing"
+    public static let healthspanGapNightsKey = "hs_gap_nights"
+    public static let healthspanGapMissingKey = "hs_gap_missing"
 
     /// Every key a weekly row writes, so a rewrite can clear what a week no longer has.
-    nonisolated static var healthspanWeeklyKeys: [String] {
+    public nonisolated static var healthspanWeeklyKeys: [String] {
         [healthspanAgeKey, healthspanPaceKey, healthspanCoveredDaysKey, healthspanVO2SourceKey, healthspanVO2DayKey,
          healthspanBodyFatDayKey, healthspanVO2FloorKey, healthspanGapNightsKey, healthspanGapMissingKey]
             + HealthspanEngine.Component.allCases.flatMap {
@@ -69,7 +64,7 @@ extension IntelligenceEngine {
     /// `steps` is the day's count from the app's one step resolver (`Repository.resolvedSteps`: the strap's count,
     /// then the phone's, then the estimate from motion), since AI-29; a day missing from it falls back to the
     /// strap's own daily row.
-    nonisolated static func runHealthspanPass(store: WhoopStore, strapId: String, computedId: String, age: Int,
+    public nonisolated static func runHealthspanPass(store: WhoopStore, strapId: String, computedId: String, age: Int,
                                               sex: String, hrMaxOverride: Int, oldestDay: String,
                                               newestDay: String, tzOffset: Int,
                                               manualVO2max: (day: String, value: Double)? = nil,
@@ -90,8 +85,8 @@ extension IntelligenceEngine {
     /// The AI-21/AI-22 rebuild: deletes every AgeLess week and the training VO₂max days AI-21 banked, under both
     /// computed owners, so the next pass finds no history and rebuilds. Banked zone minutes are kept: their raw
     /// heart rate may be gone.
-    nonisolated static func deleteHealthspanWeeks(store: WhoopStore, deviceId: String) async throws {
-        for owner in Set([deviceId + "-noop", Repository.whoopSource + "-noop"]) {
+    public nonisolated static func deleteHealthspanWeeks(store: WhoopStore, deviceId: String) async throws {
+        for owner in Set([deviceId + "-noop", MetricResolver.whoopSource + "-noop"]) {
             for key in healthspanWeeklyKeys + [healthspanLegacyTrainingVO2Key] {
                 try await store.deleteMetricSeries(deviceId: owner, key: key)
             }
@@ -99,7 +94,7 @@ extension IntelligenceEngine {
     }
 
     /// Whether any AgeLess week is stored in the last 400 days; none means the next pass is a first run.
-    nonisolated static func healthspanHasHistory(store: WhoopStore, computedId: String, newestDay: String) async throws -> Bool {
+    public nonisolated static func healthspanHasHistory(store: WhoopStore, computedId: String, newestDay: String) async throws -> Bool {
         !(try await store.metricSeries(deviceId: computedId, key: healthspanAgeKey,
                                        from: HealthspanWindow.dayKey(newestDay, plus: -400), to: newestDay)).isEmpty
     }
@@ -161,7 +156,7 @@ extension IntelligenceEngine {
         if !banked.isEmpty { _ = try await store.upsertMetricSeries(banked, deviceId: computedId) }
         let days = try await healthspanDays(store: store, strapId: strapId, computedId: computedId,
                                             from: readFrom, to: newestDay, tzOffset: tzOffset, steps: steps)
-        let appleVO2 = try await store.metricSeries(deviceId: Repository.appleHealthSource, key: "vo2max",
+        let appleVO2 = try await store.metricSeries(deviceId: MetricResolver.appleHealthSource, key: "vo2max",
                                                     from: readFrom, to: newestDay).map { (day: $0.day, value: $0.value) }
         var weekly: [MetricPoint] = []
         var saturday = firstSaturday
@@ -219,7 +214,7 @@ extension IntelligenceEngine {
     /// banked zone minutes, timing consistency from sleep sessions, and strength minutes from workouts. A day is
     /// one the band covered (it has a computed daily row); its steps come from `steps` (the app's step resolver)
     /// where that has the day, so a strap without a step counter still has them.
-    nonisolated static func healthspanDays(store: WhoopStore, strapId: String, computedId: String,
+    public nonisolated static func healthspanDays(store: WhoopStore, strapId: String, computedId: String,
                                            from: String, to: String, tzOffset: Int,
                                            steps: [String: Double] = [:]) async throws -> [HealthspanDay] {
         guard let fromTs = midnightForDayKey(from, offsetSec: tzOffset),
@@ -271,7 +266,7 @@ extension IntelligenceEngine {
     /// renders under the demo exactly as it would on a wearer's data. Each week's pace compares its window
     /// with a slightly better last 30 days, as an improving wearer's would. `--demo-ageless-older` seeds the
     /// other story instead: habits slipping, an age above the actual one and a pace above the calendar.
-    nonisolated static func healthspanDemoRows(saturdays: [String],
+    public nonisolated static func healthspanDemoRows(saturdays: [String],
                                                older: Bool = CommandLine.arguments.contains("--demo-ageless-older"))
         -> [MetricPoint] {
         func inputs(_ t: Double) -> HealthspanEngine.Inputs {
@@ -324,7 +319,7 @@ extension IntelligenceEngine {
 
     /// Workouts from every source the analysis reads (strap imports and manual rows, detected bouts, Apple
     /// Health, Hevy), merged into non-overlapping intervals so a session logged twice counts once.
-    nonisolated static func healthspanWorkouts(store: WhoopStore, strapId: String, computedId: String,
+    public nonisolated static func healthspanWorkouts(store: WhoopStore, strapId: String, computedId: String,
                                                from: Int, to: Int,
                                                strengthOnly: Bool = false) async throws -> [(start: Int, end: Int)] {
         var rows: [WorkoutRow] = []

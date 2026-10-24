@@ -12,27 +12,27 @@ import StrandAnalytics
 // the wearer moves.
 //
 // Analysis migration required: no. New series only; no stored value changes meaning.
-extension IntelligenceEngine {
+extension DailyAnalysis {
 
-    nonisolated static let rhythmAdvanceKey = "rhythm_age_advance"
-    nonisolated static let rhythmMesorKey = "rhythm_mesor"
-    nonisolated static let rhythmAmplitudeKey = "rhythm_amplitude"
-    nonisolated static let rhythmPeakKey = "rhythm_peak_hour"
-    nonisolated static let rhythmSDKey = "rhythm_sd_years"
+    public nonisolated static let rhythmAdvanceKey = "rhythm_age_advance"
+    public nonisolated static let rhythmMesorKey = "rhythm_mesor"
+    public nonisolated static let rhythmAmplitudeKey = "rhythm_amplitude"
+    public nonisolated static let rhythmPeakKey = "rhythm_peak_hour"
+    public nonisolated static let rhythmSDKey = "rhythm_sd_years"
     /// Observed hours in the window. Written for every scored day, so its presence marks the day as done.
-    nonisolated static let rhythmHoursKey = "rhythm_hours"
+    public nonisolated static let rhythmHoursKey = "rhythm_hours"
 
     /// The window's average movement in one local clock hour, `rhythm_hour_00` to `rhythm_hour_23`.
-    nonisolated static func rhythmHourKey(_ hour: Int) -> String { String(format: "rhythm_hour_%02d", hour) }
+    public nonisolated static func rhythmHourKey(_ hour: Int) -> String { String(format: "rhythm_hour_%02d", hour) }
 
-    nonisolated static var rhythmKeys: [String] {
+    public nonisolated static var rhythmKeys: [String] {
         [rhythmAdvanceKey, rhythmMesorKey, rhythmAmplitudeKey, rhythmPeakKey, rhythmSDKey, rhythmHoursKey]
             + (0..<24).map(rhythmHourKey)
     }
 
     /// The stored rows of one outcome. A collecting window keeps only its hours, so no readout survives from a
     /// fuller window it replaced.
-    nonisolated static func rhythmRows(_ outcome: RhythmAge.Outcome, day: String) -> [MetricPoint] {
+    public nonisolated static func rhythmRows(_ outcome: RhythmAge.Outcome, day: String) -> [MetricPoint] {
         switch outcome {
         case .noData:
             return []
@@ -56,7 +56,7 @@ extension IntelligenceEngine {
 
     /// Score `day` from the seven local days before it, unless it was already scored (`force` re-scores, e.g.
     /// when the switch is turned on). A failed read writes nothing: it is not an empty week.
-    nonisolated static func runRhythmAgePass(store: WhoopStore, strapId: String, computedId: String, age: Int,
+    public nonisolated static func runRhythmAgePass(store: WhoopStore, strapId: String, computedId: String, age: Int,
                                              sex: String, day: String, tzOffset: Int, force: Bool = false) async {
         guard age > 0, let dayStart = midnightForDayKey(day, offsetSec: tzOffset) else { return }
         do {
