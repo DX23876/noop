@@ -7,7 +7,9 @@ verbatim. Where the two disagree, this file wins. Everything else that is true h
 
 ## Scope
 
-- Apple-only: iOS, macOS and watchOS. There is no Android tree (removed 2026-08-14).
+- Apple today: iOS, macOS and watchOS. Android returns on a shared Swift core (decided 2026-10-24, see
+  [`android/PLAN.md`](android/PLAN.md)); until phase D of that plan restores the tree there is no `android/`
+  directory, and iOS restructuring for the core must not drop any feature without the owner's agreement.
 - The cross-platform parity contract `AGENTS.md` calls the #1 rule is retired here (2026-07-23): no Kotlin
   twin, no byte-identical Room/GRDB or `.noopbak` gate. Offline, no server, no account and anonymity still
   bind.

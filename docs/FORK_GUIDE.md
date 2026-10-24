@@ -65,6 +65,10 @@ prereleases, and the in-app update check reads exactly that endpoint).
 
 ### The cross-platform parity contract is RETIRED (2026-07-23), and the Android tree is GONE (2026-08-14)
 
+**Superseded in direction on 2026-10-24:** Android returns on a shared Swift core
+([`fork/android/PLAN.md`](fork/android/PLAN.md)). Until phase D of that plan restores `android/`, this
+section and its sync rule still describe the tree as it is.
+
 Upstream's `AGENTS.md` calls it the #1 rule. **It does not bind here.** The project is iOS/macOS-only;
 the Android target is dropped and no longer kept in sync. Byte-identical analytics, platform-neutral
 FNV-1a hashing, the `.noopbak` byte-identical whitelist and Room/GRDB schema agreement are **no longer

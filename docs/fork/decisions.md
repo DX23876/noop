@@ -631,3 +631,31 @@ once more and rebuilt (zone minutes kept). A wearer on Katch–McArdle had energ
 existed, so the energy window (`Repository.energyRefreshMaxDays`, 120 days) is priced again; days before it keep
 their price, as after any other body change. Every other formula reads no body fat and is left alone. No daily row
 is re-scored.
+
+### 2026-10-24 — Android returns on a shared Swift core
+
+Android comes back for the owner and for people who reach the fork through its website, beside iPhone, Mac and
+Watch. This reverses the 2026-07-23 "iOS/macOS-only" row and the 2026-08-14 removal, but not by restoring the
+Kotlin twin: the same raw data must give the same numbers on both platforms and a `.noopbak` must read on both,
+and keeping ~220,000 fork-only lines of Swift in step with a Kotlin reimplementation by oracle tests would double
+every change forever. So the core becomes shared code. Swift runs on Android through the official Swift SDK
+(Swift 6.3 and later); Kotlin keeps Bluetooth transport, Android services and the UI, taken from ryanbr's
+device-tested Android app where it does not depend on his Room database.
+
+How deep the core goes depends on a spike: if SQLite through GRDB runs on Android, Swift also owns storage,
+migrations, the daily analysis and backup (deep core); otherwise Swift only computes and Room is aligned to the
+fork schema (flat core). If Swift on Android fails outright, the archived Kotlin-twin plan (`ddab82a9c`, branch
+`android-restore`) is the fallback. To make the core shareable, the daily analysis moves out of `Strand/Data`
+into a package; that restructuring must leave every stored value unchanged, checked by the test suite and by
+re-analysing a copy of the owner's real database. Afterwards, as a separate step, analysis migrations get one
+rule: at most one recipe per release, and a bump re-scores every day with raw strap data instead of a
+per-recipe window.
+
+Android ships as an APK in the same GitHub release as the iOS build, without a Google developer account, since
+anonymity is a hard constraint. Application id `io.github.dx23876.noop`, name "NOOP Forge", version name from
+`MARKETING_VERSION`. Builds stay labelled "Testing" until three testers on different devices confirm pairing,
+live heart rate, overnight sync and reconnect with strap logs. Big new iOS features pause until Android has the
+core. Upstream keeps being merged normally, `android/` included. All 21 decisions, the findings behind them and
+the phases are in [`android/PLAN.md`](android/PLAN.md); progress is in [`android/STATUS.md`](android/STATUS.md).
+
+Analysis migration required: no. Documentation only.
