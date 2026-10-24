@@ -27,10 +27,12 @@ Plan: [`PLAN.md`](PLAN.md) · last updated 2026-10-24
 | B3 step 3: `AnalysisSettings` and `AnalysisHost` | 2026-10-24 | The pass reads one settings snapshot and reports through the host; `AppAnalysisHost` keeps every key and type; 35 package tests on macOS and the emulator; `local-tests.sh` passed |
 | Real-data check 1 (B4) | 2026-10-24 | Owner's iPhone store (4.2 GB, newest day 2026-10-24) re-analysed over 21 days by `d21690770` and by `ff34ef571`: 0 of 78 tables differ (77 identical by hash, `scoreInputProvenance` identical in another row order) |
 | B3 step 4, part 1: metric and steps resolvers | 2026-10-24 | `MetricResolver` in `StrandCore` with three store-backed tests; 38 package tests pass on macOS and the emulator; `local-tests.sh` passed |
+| B3 step 4, part 2: `WorkoutSource` and `WorkoutCatalog` | 2026-10-24 | In `StrandCore`, translated names left in the app; 37 of 48 workout tests moved; 75 package tests pass on macOS and the emulator; `local-tests.sh` passed |
 
 ## Next step
 
-B3 step 4, next part: `WorkoutSource` into `StrandCore` (order in `INVENTORY.md` section 8). ZIPFoundation must
+B3 step 4, next part: training session fusion and the native training projection (order in `INVENTORY.md`
+section 8). ZIPFoundation must
 build for Android before body metrics (StrandImport) and backup move.
 
 ## How to run a real-data check (B4)
