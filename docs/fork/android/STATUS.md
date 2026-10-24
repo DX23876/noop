@@ -23,10 +23,13 @@ Plan: [`PLAN.md`](PLAN.md) · last updated 2026-10-24
 | Owner decisions after A | 2026-10-24 | D22 to D24 in `PLAN.md`: patched GRDB 6.29.3, display-rounding equality, 31 MB accepted |
 | B1 inventory | 2026-10-24 | [`INVENTORY.md`](INVENTORY.md): dependencies of the pass, cut, package name `StrandCore`, seven-step order |
 | B3 step 1: empty `StrandCore` | 2026-10-24 | Package in `project.yml` (macOS and iOS app) and the package CI matrix; its link test passes on macOS and on the arm64 emulator |
+| B3 step 2: pure helpers | 2026-10-24 | `StressMath`, `AnalysisRecipe` and `DayCycleIntelligenceIntegration` in `StrandCore`; 33 package tests pass on macOS and on the emulator; `local-tests.sh` passed |
 
 ## Next step
 
-B3 step 2 of `INVENTORY.md` section 8: the pure helpers move into `StrandCore` with their tests.
+B3 step 3 of `INVENTORY.md` section 8: `AnalysisSettings` and `AnalysisHost` inside the app, routing every
+`UserDefaults`, flag, Test Centre, scheduler and sink access of the pass through them. Then the first real-data
+check (B4), which needs the owner's iPhone on the cable once.
 
 ## Waiting on the owner
 

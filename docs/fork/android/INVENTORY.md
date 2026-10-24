@@ -46,7 +46,7 @@ and through 18 `Repository` members.
 | `WorkoutSource.sourceLabel` | `Data/WorkoutSource.swift` | One diagnostic label | Moves with its pure part |
 | `DayCycleIntelligenceIntegration` | `Data/` (Foundation, packages only) | Day-cycle worker | Moves whole |
 | `AnalysisProgress` | `Data/` (Foundation only; uses `AppLanguage` for text) | Progress steps | Data part moves; the localised text stays |
-| `RescoreBackgroundPolicy` | `Data/` (Foundation only) | Pure decision | Moves whole |
+| `RescoreBackgroundPolicy` | `Data/` (Foundation only) | Pure decision for iOS background pacing | Stays in the app behind `AnalysisHost` (decided in step 2) |
 
 ## 3. Repository members the pass calls
 
@@ -115,9 +115,12 @@ Steps, one concern per commit, each with `Tools/local-tests.sh`, the macOS and i
 (B3), and `Analysis migration required: no`:
 
 1. Empty `StrandCore` package wired into `project.yml`, building on macOS, iOS and Android.
-2. Pure helpers move with their tests: recipe decision and migration window functions, diagnostic line
-   builders, `StressMath` with `stressProxyRows`, `DayCycleIntelligenceIntegration`, `peakMET`,
-   `RescoreBackgroundPolicy`, the data part of `AnalysisProgress`, the pure `WeightSeries` statics.
+2. Pure helpers move with their tests: recipe decision and migration window functions
+   (`AnalysisRecipe`), `StressMath` with the stored stress proxy, `DayCycleIntelligenceIntegration`.
+   Done 2026-10-24. Re-sorted while doing it: the diagnostic line builders and the data part of
+   `AnalysisProgress` move with the pass in step 5, `peakMET` and the pure `WeightSeries` statics with
+   their data functions in step 4, so no file is split twice. `RescoreBackgroundPolicy` stays in the app:
+   it paces iOS background tasks and belongs behind `AnalysisHost`, Android brings its own.
 3. Inside the app, without moving the pass: introduce `AnalysisSettings` and `AnalysisHost` and route every
    `UserDefaults`, flag, Test Centre, scheduler and sink access of the pass through them.
    **Real-data check 1 (B4).**
