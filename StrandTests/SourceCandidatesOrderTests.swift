@@ -1,4 +1,5 @@
 import XCTest
+import StrandCore
 @testable import Strand
 
 /// Resolver precedence must match the documented order: imported WHOOP > NOOP-computed > Apple.

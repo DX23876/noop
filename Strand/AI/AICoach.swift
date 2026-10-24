@@ -2,6 +2,7 @@ import Foundation
 import Combine
 import Security
 import WhoopStore
+import StrandCore
 import StrandAnalytics
 import StrandImport
 import StrandDesign

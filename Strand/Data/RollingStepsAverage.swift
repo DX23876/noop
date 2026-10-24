@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 import StrandDesign
 import WhoopStore
+import StrandCore
 
 /// Calendar-day window, never 30 observed rows. Missing observations are not zero.
 struct RollingStepsAverage: Equatable {
@@ -33,19 +34,10 @@ struct RollingStepsAverage: Equatable {
 }
 
 extension Repository {
-    /// Shared by the detail and rolling tile: measured strap, phone import, then strap estimate.
+    /// Shared by the detail and rolling tile: measured strap, phone import, then strap estimate
+    /// (`MetricResolver.resolvedSteps`).
     func resolvedSteps(from: String, to: String) async -> MetricSeriesResolution {
-        async let strap = resolvedSeries(key: "steps", source: Self.whoopSource, from: from, to: to)
-        async let phone = resolvedSeries(key: "steps", source: "apple-health", from: from, to: to)
-        async let estimate = resolvedSeries(key: "steps_est", source: Self.whoopSource, from: from, to: to)
-        let resolutions = await [strap, phone, estimate]
-        var byDay: [String: ResolvedMetricPoint] = [:]
-        for resolution in resolutions {
-            for point in resolution.points where byDay[point.day] == nil { byDay[point.day] = point }
-        }
-        return MetricSeriesResolution(requestedSource: Self.whoopSource,
-                                      candidates: resolutions.flatMap(\.candidates),
-                                      points: byDay.values.sorted { $0.day < $1.day })
+        await MetricResolver.resolvedSteps(store: await storeHandle(), actualWhoopSource: deviceId, from: from, to: to)
     }
 }
 

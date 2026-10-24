@@ -3,6 +3,7 @@ import Foundation
 import StrandDesign
 import StrandAnalytics
 import WhoopStore
+import StrandCore
 
 // MARK: - Explore (Metric Explorer + Detail)
 //

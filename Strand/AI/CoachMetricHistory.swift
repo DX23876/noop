@@ -1,4 +1,5 @@
 import Foundation
+import StrandCore
 
 /// A compact, local-only view of a metric over a long period. It deliberately emits aggregates and
 /// bounded time buckets rather than a raw daily series, so a remote coach provider can reason about a
