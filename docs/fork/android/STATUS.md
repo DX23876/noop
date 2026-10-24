@@ -20,21 +20,22 @@ Plan: [`PLAN.md`](PLAN.md) · last updated 2026-10-24
 | A5 call from Kotlin | 2026-10-24 | Kotlin app calls Charge 20,000 times through JNI and opens a store with all 78 migrations |
 | A6 measure | 2026-10-24 | APK and build-time figures in milestone A below |
 | A7 report | 2026-10-24 | Milestone A below |
+| Owner decisions after A | 2026-10-24 | D22 to D24 in `PLAN.md`: patched GRDB 6.29.3, display-rounding equality, 31 MB accepted |
 
 ## Next step
 
-Owner decisions in milestone A item 4, then phase B (B1 inventory of what moves out of the iOS app).
+B1: inventory of `Strand/Data` and `IntelligenceEngine.swift` (what the daily pass, migrations and backup
+need versus UI glue).
 
 ## Waiting on the owner
 
-- The three decisions in milestone A item 4 (GRDB route, what "same numbers" means, APK size).
 - Release signing key and its GitHub secrets (needed in D-4, not before).
 - A used Pixel 8a or newer once Ko-fi money allows (needed for own Bluetooth checks, not for phases A to D).
 
 ## Known deviations
 
-- Spike only: GRDB 6.29.3 was patched in the build checkout (8 files, see A3). Nothing in the repo uses the
-  patch; phase B must pick one of the routes in milestone A item 4.
+- GRDB 6.29.3 needs the 8-file Android patch (A3). So far it exists only in the spike's build checkout; per
+  D22 it becomes a carried patch when the Android build lands (phase D).
 
 ## Untested (needs a device or a tester's strap log)
 
@@ -42,7 +43,7 @@ Everything on Bluetooth, background sync and real hardware. Phase A ran on an em
 
 ## Milestones
 
-### A: spike · done, waiting on the owner
+### A: spike · done, decided 2026-10-24 (D22 to D24)
 
 Setup, reproducible on macOS (arm64), all of it outside the repo in `~/NoopAndroidSpike`:
 

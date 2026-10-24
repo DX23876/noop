@@ -659,3 +659,17 @@ core. Upstream keeps being merged normally, `android/` included. All 21 decision
 the phases are in [`android/PLAN.md`](android/PLAN.md); progress is in [`android/STATUS.md`](android/STATUS.md).
 
 Analysis migration required: no. Documentation only.
+
+### 2026-10-24 — Android spike results: GRDB patch, rounding equality, APK size
+
+The Android spike (milestone A in [`android/STATUS.md`](android/STATUS.md)) showed the deep core works: the
+`WhoopStore` suite passes on an arm64 emulator and a Kotlin app runs Charge and all 78 migrations through Swift.
+Three follow-up choices, recorded as D22 to D24 in [`android/PLAN.md`](android/PLAN.md). GRDB stays at 6.29.3
+with an 8-file Android patch rather than moving the Apple app to GRDB 7 inside the core restructuring; that move
+is its own step later. "Same numbers" means identical after display rounding: Android's maths library differs
+from Apple's by one or two units in the last bit for `exp`, `sin` and similar, which moved one Charge value in
+20,000 by one last bit. A portable maths library shared by both platforms would make the bits match but would
+shift every iOS value once for no visible gain, so a tolerance test pins the bound instead. An APK of about
+31 MB, half of it ICU data from Foundation, is fine for testing builds; a size step comes before the public call.
+
+Analysis migration required: no. Documentation only.

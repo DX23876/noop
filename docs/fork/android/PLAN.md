@@ -56,6 +56,9 @@ Rules that hold for every step:
 | D19 | After the core move, as its own step: at most one analysis recipe per release, and a recipe bump re-scores every day that has raw strap data and rebuilds derived tables, instead of per-recipe windows | One formula for every day with raw data; the per-recipe special cases go away |
 | D20 | Which extras come to Android, and in what order, is decided after the first testing build, by tester demand and by what the core already provides | Phase A shows how much the core brings for free |
 | D21 | Existing testers get the first installable build; the public call (website note, pinned issue, Ko-fi for a Pixel) waits until a build installs | A call without an app sets expectations nobody controls |
+| D22 | The core keeps GRDB 6.29.3 with the Android conditionals carried as a small patch (the 8 files from spike A3); the move to GRDB 7.10 or later, which ships them upstream, is its own later step | Phase B should not also carry a major-version migration of the Apple app |
+| D23 | "Same numbers" (D2) means identical after display rounding; stored doubles may differ in the last bit between platforms, and a cross-platform tolerance test pins that bound | Spike A5: Bionic and Darwin libm differ by 1 to 2 ulp; a shared portable maths library would make bits identical but changes every iOS value once (a recipe bump) for no visible gain |
+| D24 | An APK of about 31 MB is accepted for testing builds; a size step (ICU subset, Foundation trimming) comes before the public call (D21) | Half the size is ICU data from Foundation; testers sideload anyway |
 
 ## 2. Findings (2026-10-24)
 
@@ -211,7 +214,8 @@ In `STATUS.md`, one section per milestone answering exactly:
 
 - **Swift on Android is young** (official since March 2026). Toolchain and SDK versions must match
   exactly; debugging crosses JNI. Phase A exists to find out early.
-- **GRDB on Android** may need GRDB 7, an iOS dependency upgrade with its own verification.
+- **GRDB on Android** runs on 6.29.3 with an 8-file patch (spike A3, D22); every GRDB bump has to redo it
+  until the GRDB 7 move.
 - **Upstream syncs grow again**: every sync brings `android/` changes, and fork-deleted paths conflict
   until the D-6 resolver handles them.
 - **No device**: Bluetooth and background behaviour depend on testers' strap logs until a Pixel exists.
