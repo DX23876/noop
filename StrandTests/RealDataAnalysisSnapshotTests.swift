@@ -10,7 +10,8 @@ import WhoopStore
 /// copy goes) are set; pass them to xcodebuild as `TEST_RUNNER_NOOP_ANALYSIS_DB=…` and
 /// `TEST_RUNNER_NOOP_ANALYSIS_OUT=…`. `NOOP_ANALYSIS_DAYS` widens the window from the standard 21 days.
 /// The source is copied first and never opened, and no personal data lives in the repository. The engine
-/// reads the wall clock, so both runs belong on the same day.
+/// reads the wall clock, so both runs belong on the same day; compare with
+/// `--ignore-column '*.computedAtTs' --ignore-column '*.updatedAtTs'`, the times rows were written.
 @MainActor
 final class RealDataAnalysisSnapshotTests: XCTestCase {
     func testReanalyseAStoreCopy() async throws {
@@ -33,5 +34,9 @@ final class RealDataAnalysisSnapshotTests: XCTestCase {
         repo.setStoreForTesting(store)
         let engine = IntelligenceEngine(repo: repo, profile: ProfileStore(), deviceId: "my-whoop")
         await engine.analyzeRecent(maxDays: days, force: true, allowDayReuse: false)
+        // The pass ends with a dashboard refresh that schedules the readiness lanes in the background, and
+        // those price cardio loads into the ledger. Run them to completion here, so both builds' copies hold
+        // that work rather than whatever the background task finished before the process exited.
+        await repo.refreshReadinessLoadContext()
     }
 }

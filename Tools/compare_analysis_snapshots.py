@@ -10,7 +10,10 @@ table whose hashes differ is then compared as a multiset of rows (every column, 
 deleted and re-inserted in another order still counts as equal. Values are compared exactly: the two
 builds run on the same machine, so the same inputs must give the same bits.
 
-Usage: compare_analysis_snapshots.py BEFORE.sqlite AFTER.sqlite [--show N]
+Usage: compare_analysis_snapshots.py BEFORE.sqlite AFTER.sqlite [--show N] [--ignore-column TABLE.COLUMN ...]
+
+`--ignore-column` leaves out a column that only records WHEN a row was written (`computedAtTs`,
+`updatedAtTs`); `*.updatedAtTs` names it in every table. Every other column is still compared exactly.
 Exit status 0 when every table matches, 1 when any differs, 2 on a usage or file error.
 """
 
@@ -47,13 +50,14 @@ def shell_hash(path, table):
     return None
 
 
-def rows_multiset(conn, table):
-    columns = [r[1] for r in conn.execute(f'PRAGMA table_info("{table}")')]
+def rows_multiset(conn, table, ignored=()):
+    columns = [r[1] for r in conn.execute(f'PRAGMA table_info("{table}")')
+               if f"{table}.{r[1]}" not in ignored and f"*.{r[1]}" not in ignored]
     quoted = ", ".join(f'"{c}"' for c in columns)
     return columns, collections.Counter(conn.execute(f'SELECT {quoted} FROM "{table}"'))
 
 
-def compare(before, after, show=5, out=sys.stdout):
+def compare(before, after, show=5, out=sys.stdout, ignored=()):
     a, b = open_readonly(before), open_readonly(after)
     names_a, names_b = set(table_names(a)), set(table_names(b))
     differing = 0
@@ -67,8 +71,8 @@ def compare(before, after, show=5, out=sys.stdout):
         if hash_a is not None and hash_a == hash_b:
             print(f"same  {name}", file=out)
             continue
-        cols_a, rows_a = rows_multiset(a, name)
-        cols_b, rows_b = rows_multiset(b, name)
+        cols_a, rows_a = rows_multiset(a, name, ignored)
+        cols_b, rows_b = rows_multiset(b, name, ignored)
         if cols_a != cols_b:
             print(f"DIFF  {name}: columns differ {cols_a} vs {cols_b}", file=out)
             differing += 1
@@ -93,9 +97,11 @@ def main(argv=None):
     parser.add_argument("before")
     parser.add_argument("after")
     parser.add_argument("--show", type=int, default=5, help="differing rows printed per side and table")
+    parser.add_argument("--ignore-column", action="append", default=[], metavar="TABLE.COLUMN",
+                        help="a write-time column to leave out (TABLE may be *)")
     args = parser.parse_args(argv)
     try:
-        return 1 if compare(args.before, args.after, args.show) else 0
+        return 1 if compare(args.before, args.after, args.show, ignored=set(args.ignore_column)) else 0
     except sqlite3.Error as error:
         print(f"compare_analysis_snapshots: {error}", file=sys.stderr)
         return 2
