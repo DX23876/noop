@@ -59,7 +59,7 @@ enum TrainingLoadLanes {
         var minutes: [String: Double] = [:]
         for session in sessions where session.kind != .strength && !duplicates.contains(session.id) {
             let window = session.row.endTs - session.row.startTs
-            guard window >= Repository.cardioLoadMinimumSeconds else { continue }
+            guard window >= CardioLoadPricing.cardioLoadMinimumSeconds else { continue }
             let day = AnalyticsEngine.dayString(session.row.startTs, offsetSec: tzOffsetSeconds)
             count[day, default: 0] += 1
             minutes[day, default: 0] += (session.row.durationS ?? Double(window)) / 60
@@ -94,7 +94,7 @@ enum TrainingLoadLanes {
         // missing heart rate, so it must not widen the coverage denominator.
         let recent = inLastSeven(sessions, through: day, tzOffsetSeconds: tzOffsetSeconds) { $0.row.startTs }
             .filter {
-                ($0.row.endTs - $0.row.startTs) >= Repository.cardioLoadMinimumSeconds
+                ($0.row.endTs - $0.row.startTs) >= CardioLoadPricing.cardioLoadMinimumSeconds
                     && !resolution.duplicateSessionIds.contains($0.id)
             }
         let reading = LaneEngine.reading(dailyByDay: series.byDay, unknownDays: series.unknownDays,

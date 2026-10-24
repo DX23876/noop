@@ -336,14 +336,10 @@ final class Repository: ObservableObject {
     private var pendingEnergyRefreshFrom: Int?
     private var energyRefreshScheduled = false
 
-    /// Memo for `cardioLoads(for:)`, keyed by canonical session id and window. Pricing one session is an
-    /// indexed heart-rate range read, and Training Load, Cardio and the workout detail all ask about
-    /// overlapping windows; without this, every visit repeats the same reads.
-    var cardioLoadMemo: [String: TrainingCardioLoad] = [:]
-    /// The same memo for sessions that could not be priced at all. Without it a session too recent to be
-    /// final and without any heart rate was computed again on every pass, so the ledger backfill, which
-    /// runs until a pass computes nothing, never ended.
-    var cardioLoadUnpriceable: Set<String> = []
+    /// Memo for `cardioLoads(for:)` (`CardioLoadCache`). Pricing one session is an indexed heart-rate range
+    /// read, and Training Load, Cardio and the workout detail all ask about overlapping windows; without
+    /// this, every visit repeats the same reads.
+    let cardioLoadCache = CardioLoadCache()
     /// The in-flight ledger backfill (`scheduleCardioLoadBackfill`), so screens can ask for it freely.
     var cardioLoadBackfillTask: Task<Void, Never>?
     /// The Strength and Cardio lanes as Readiness reads them (`scheduleReadinessLoadContextRefresh`). Nil

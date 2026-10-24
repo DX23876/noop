@@ -1,4 +1,5 @@
 import XCTest
+import StrandCore
 @testable import Strand
 import StrandAnalytics
 import WhoopProtocol
@@ -108,15 +109,15 @@ final class AppleWorkoutHeartRateFillTests: XCTestCase {
         let start = Int(Date().timeIntervalSince1970) - 40 * 86_400
         try await seed(store, row: walk(start), key: "apple-health|old", bundle: "com.apple.Fitness")
         try await store.upsertTrainingSessionLoads([
-            TrainingSessionLoadRow(sessionId: "s", method: Repository.cardioLoadMethod,
-                                   methodVersion: Repository.cardiovascularLoadRecipeVersion,
+            TrainingSessionLoadRow(sessionId: "s", method: CardioLoadPricing.cardioLoadMethod,
+                                   methodVersion: CardioLoadPricing.cardiovascularLoadRecipeVersion,
                                    startTs: start, endTs: start + 2_400, trimp: nil, effort: nil,
                                    hrSource: "none", coveredMinutes: 0, possibleMinutes: 40, hrmaxUsed: 190,
                                    restingHrUsed: 60, inputFingerprint: "f", computedAtTs: start + 30 * 86_400),
         ])
         _ = try await repo.fillAppleWorkoutHeartRate(from: 0, to: start + 86_400)
-        let left = try await store.trainingSessionLoads(from: 0, to: Int.max, method: Repository.cardioLoadMethod,
-                                                        methodVersion: Repository.cardiovascularLoadRecipeVersion)
+        let left = try await store.trainingSessionLoads(from: 0, to: Int.max, method: CardioLoadPricing.cardioLoadMethod,
+                                                        methodVersion: CardioLoadPricing.cardiovascularLoadRecipeVersion)
         XCTAssertTrue(left.isEmpty)
     }
 }

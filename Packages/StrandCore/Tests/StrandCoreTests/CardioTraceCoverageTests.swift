@@ -2,7 +2,7 @@ import XCTest
 import StrandAnalytics
 import WhoopProtocol
 import WhoopStore
-@testable import Strand
+import StrandCore
 
 /// The coverage rule that decides whether a heart-rate trace may stand for a session.
 ///
@@ -19,34 +19,34 @@ final class CardioTraceCoverageTests: XCTestCase {
     }
 
     func testAFullTraceCoversItsWindow() {
-        XCTAssertTrue(Repository.hasUsableCoverage(trace(minutes: 60), start: Self.start, end: Self.end))
+        XCTAssertTrue(CardioLoadPricing.hasUsableCoverage(trace(minutes: 60), start: Self.start, end: Self.end))
     }
 
     /// Seventy per cent is the bar, and a trace that stops two thirds of the way through does not clear
     /// it: the missing third is training whose intensity nobody recorded.
     func testAPartialTraceIsRejected() {
-        XCTAssertTrue(Repository.hasUsableCoverage(trace(minutes: 43), start: Self.start, end: Self.end))
-        XCTAssertFalse(Repository.hasUsableCoverage(trace(minutes: 41), start: Self.start, end: Self.end))
+        XCTAssertTrue(CardioLoadPricing.hasUsableCoverage(trace(minutes: 43), start: Self.start, end: Self.end))
+        XCTAssertFalse(CardioLoadPricing.hasUsableCoverage(trace(minutes: 41), start: Self.start, end: Self.end))
     }
 
     /// A handful of stray readings is not a trace, however short the session.
     func testAFewStraySamplesAreNotATrace() {
-        XCTAssertFalse(Repository.hasUsableCoverage(trace(minutes: 9),
-                                                    start: Self.start, end: Self.start + 540))
+        XCTAssertFalse(CardioLoadPricing.hasUsableCoverage(trace(minutes: 9),
+                                                           start: Self.start, end: Self.start + 540))
     }
 
     /// Samples outside the window are not evidence about the window.
     func testSamplesOutsideTheWindowDoNotCount() {
         let outside = (0..<60).map { HRSample(ts: Self.end + 600 + $0 * 60, bpm: 140) }
-        XCTAssertFalse(Repository.hasUsableCoverage(outside, start: Self.start, end: Self.end))
+        XCTAssertFalse(CardioLoadPricing.hasUsableCoverage(outside, start: Self.start, end: Self.end))
     }
 
     /// Coverage counts MINUTES, not samples: a dense burst over ten minutes does not describe an hour.
     func testCoverageCountsMinutesNotSamples() {
         let burst = (0..<600).map { HRSample(ts: Self.start + $0, bpm: 140) }
-        let coverage = Repository.traceCoverage(burst, start: Self.start, end: Self.end)
+        let coverage = CardioLoadPricing.traceCoverage(burst, start: Self.start, end: Self.end)
         XCTAssertEqual(coverage.covered, 10)
         XCTAssertEqual(coverage.possible, 60)
-        XCTAssertFalse(Repository.hasUsableCoverage(burst, start: Self.start, end: Self.end))
+        XCTAssertFalse(CardioLoadPricing.hasUsableCoverage(burst, start: Self.start, end: Self.end))
     }
 }

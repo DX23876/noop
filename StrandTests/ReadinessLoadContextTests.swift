@@ -1,6 +1,7 @@
 import XCTest
 import StrandAnalytics
 import WhoopStore
+import StrandCore
 @testable import Strand
 
 /// P2: Readiness and the Coach read the Training Load lanes. These pin that they read the SAME reading

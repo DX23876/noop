@@ -534,7 +534,7 @@ final class TrainingLoadModel: ObservableObject {
             // has already spoken for them. It is not a gap in the data.
             if duplicates.contains(session.id) { continue }
             let day = AnalyticsEngine.dayString(session.row.startTs, offsetSec: tzOffsetSeconds)
-            guard session.row.endTs - session.row.startTs >= Repository.cardioLoadMinimumSeconds else {
+            guard session.row.endTs - session.row.startTs >= CardioLoadPricing.cardioLoadMinimumSeconds else {
                 continue
             }
             possibleByDay[day, default: 0] += 1
