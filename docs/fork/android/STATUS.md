@@ -21,11 +21,12 @@ Plan: [`PLAN.md`](PLAN.md) · last updated 2026-10-24
 | A6 measure | 2026-10-24 | APK and build-time figures in milestone A below |
 | A7 report | 2026-10-24 | Milestone A below |
 | Owner decisions after A | 2026-10-24 | D22 to D24 in `PLAN.md`: patched GRDB 6.29.3, display-rounding equality, 31 MB accepted |
+| B1 inventory | 2026-10-24 | [`INVENTORY.md`](INVENTORY.md): dependencies of the pass, cut, package name `StrandCore`, seven-step order |
 
 ## Next step
 
-B1: inventory of `Strand/Data` and `IntelligenceEngine.swift` (what the daily pass, migrations and backup
-need versus UI glue).
+B3 step 1 of `INVENTORY.md` section 8: an empty `StrandCore` package wired into `project.yml`, building on macOS,
+iOS and Android. Then step 2 (pure helpers with their tests).
 
 ## Waiting on the owner
 
