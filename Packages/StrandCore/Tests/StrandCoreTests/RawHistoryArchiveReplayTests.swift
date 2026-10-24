@@ -1,5 +1,5 @@
 import XCTest
-@testable import Strand
+import StrandCore
 import WhoopProtocol
 import WhoopStore
 
@@ -19,7 +19,9 @@ final class RawHistoryArchiveReplayTests: XCTestCase {
             insertedGravity += streams.gravity.count
             return (0, 0, 0, 0, 0, 0, 0, streams.gravity.count)
         }
+        #if canImport(Compression)
         func enqueueRawBatch(_ meta: RawBatchMeta, frames: [[UInt8]]) async throws {}
+        #endif
         func setCursor(_ name: String, _ value: Int) async throws {}
         func cursor(_ name: String) async throws -> Int? { nil }
     }
@@ -30,7 +32,9 @@ final class RawHistoryArchiveReplayTests: XCTestCase {
         func insert(_ streams: Streams, deviceId: String) async throws
             -> (hr: Int, rr: Int, events: Int, battery: Int,
                 spo2: Int, skinTemp: Int, resp: Int, gravity: Int) { throw Boom() }
+        #if canImport(Compression)
         func enqueueRawBatch(_ meta: RawBatchMeta, frames: [[UInt8]]) async throws {}
+        #endif
         func setCursor(_ name: String, _ value: Int) async throws {}
         func cursor(_ name: String) async throws -> Int? { nil }
     }

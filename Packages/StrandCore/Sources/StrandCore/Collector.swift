@@ -7,30 +7,33 @@ import StrandAnalytics
 /// (WhoopStore is `final`). WhoopStore conforms via the extension below.
 /// Not @MainActor — the WhoopStore actor's async methods satisfy the async requirements;
 /// a @MainActor SpyStore in tests also conforms (async witnesses hop actors).
-protocol StoreWriting: AnyObject {
+public protocol StoreWriting: AnyObject {
     @discardableResult
     func insert(_ streams: Streams, deviceId: String) async throws
         -> (hr: Int, rr: Int, events: Int, battery: Int,
             spo2: Int, skinTemp: Int, resp: Int, gravity: Int)
+    #if canImport(Compression)
+    // The raw outbox exists only where Compression does (see `RawOutbox.swift`); elsewhere raw capture is off.
     func enqueueRawBatch(_ meta: RawBatchMeta, frames: [[UInt8]]) async throws
+    #endif
 }
 extension WhoopStore: StoreWriting {}
 
 /// Cadence: flush after this many buffered frames OR this many seconds since the last
 /// flush — whichever first. Also flushed explicitly on disconnect/foreground.
-struct CollectorPolicy {
-    var maxFrames: Int
-    var maxInterval: TimeInterval
+public struct CollectorPolicy {
+    public var maxFrames: Int
+    public var maxInterval: TimeInterval
     /// Defensive cap on the PRE-CLOCK buffer only (see `ingest`). Generous default —
     /// ~4096 frames at ~60 bytes/frame is ~240KB, far beyond the handful seen pre-clock
     /// normally. Custom init keeps `.init(maxFrames:maxInterval:)` call sites compiling.
-    var maxPreClockFrames: Int
-    init(maxFrames: Int, maxInterval: TimeInterval, maxPreClockFrames: Int = 4096) {
+    public var maxPreClockFrames: Int
+    public init(maxFrames: Int, maxInterval: TimeInterval, maxPreClockFrames: Int = 4096) {
         self.maxFrames = maxFrames
         self.maxInterval = maxInterval
         self.maxPreClockFrames = maxPreClockFrames
     }
-    static let `default` = CollectorPolicy(maxFrames: 64, maxInterval: 30, maxPreClockFrames: 4096)
+    public static let `default` = CollectorPolicy(maxFrames: 64, maxInterval: 30, maxPreClockFrames: 4096)
 }
 
 /// Buffers complete (reassembled) frames and periodically persists them:
@@ -38,7 +41,7 @@ struct CollectorPolicy {
 /// store.enqueueRawBatch (raw, transient outbox) → clear buffer.
 /// Because decoded is committed before raw is queued, pruning raw never loses a metric.
 @MainActor
-final class Collector {
+public final class Collector {
     private let store: StoreWriting
     /// Concrete store for prune + stats (the StoreWriting seam covers the hot insert/enqueue path;
     /// prune/stats are infrequent so a direct reference is clearer than widening the protocol).
@@ -46,7 +49,7 @@ final class Collector {
     /// Device id new samples persist under. MUTABLE so a WHOOP↔WHOOP switch (BLEManager.setActiveDeviceId)
     /// re-attributes the next flush/standard-HR persist immediately, rather than freezing the id captured
     /// at construction. Single-WHOOP never switches, so this stays "my-whoop" exactly as a `let` would have.
-    var deviceId: String
+    public var deviceId: String
     private let policy: CollectorPolicy
     /// Research toggle. When false (DEFAULT) no raw frames are persisted at all — the app is
     /// decoded-only. Injected for tests; backed by UserDefaults in the production init site.
@@ -56,15 +59,18 @@ final class Collector {
     private var hostReceived = LivePersistTrace.StandardHRHostReceivedTrace()
     /// Whether the per-sample readout is wanted: the app wires this to the Test Centre's HRV and Connection
     /// modes, and tests set it directly. Read once per sample, a Bool through a closure.
-    var hostReceivedDetail: () -> Bool = { false }
+    public var hostReceivedDetail: () -> Bool = { false }
+    /// Sees every frame as it arrives, before buffering. The app taps it for its raw IMU session files; nil
+    /// leaves ingest untouched.
+    public var frameTap: (([UInt8]) -> Void)?
     private let monotonic: () -> TimeInterval
 
     /// Set once the GET_CLOCK correlation lands (E1). Until then, frames buffer un-persisted.
-    var clockRef: ClockRef?
+    public var clockRef: ClockRef?
     /// Strap family for the LIVE decode path. WHOOP 4.0 (default) parses the 4.0 envelope; 5/MG
     /// parses the puffin envelope (records sit at +4 offsets). Set by BLEManager.configureCollector‐
     /// Family alongside an identity clockRef — 5/MG live timestamps are already real-unix seconds.
-    var family: DeviceFamily = .whoop4
+    public var family: DeviceFamily = .whoop4
     /// On-demand bounded raw-capture window. ORs into the raw-persist gate so a "capture
     /// activity sample" action can persist raw even when `enableRawCapture` is off. The window's
     /// monotonic deadline auto-expires so a missed stop callback can't leak raw forever.
@@ -118,10 +124,10 @@ final class Collector {
 
     /// The per-stream accepted-row counts `StreamStore.insert` returns, named so the closure that carries
     /// them is readable at both ends.
-    typealias BankedCounts = (hr: Int, rr: Int, events: Int, battery: Int,
+    public typealias BankedCounts = (hr: Int, rr: Int, events: Int, battery: Int,
                               spo2: Int, skinTemp: Int, resp: Int, gravity: Int)
 
-    init(store: StoreWriting, deviceId: String,
+    public init(store: StoreWriting, deviceId: String,
          policy: CollectorPolicy = .default,
          enableRawCapture: Bool = false,
          log: ((String) -> Void)? = nil,
@@ -138,13 +144,13 @@ final class Collector {
     }
 
     /// Light storage summary for the UI. nil if there's no concrete store or the read throws.
-    func storageStats() async -> (decodedRows: Int, rawBatches: Int, rawBytes: Int)? {
+    public func storageStats() async -> (decodedRows: Int, rawBatches: Int, rawBytes: Int)? {
         guard let s = concreteStore else { return nil }
         return try? await s.storageStats()
     }
 
     /// Decoded history rows in a stable long-form CSV for arbitrary user-selected export windows.
-    func historySensorsCSV(from: Int, to: Int) async -> Data {
+    public func historySensorsCSV(from: Int, to: Int) async -> Data {
         guard let store = concreteStore, from <= to else { return Data("stream,unix_s,v1,v2,v3,v4\n".utf8) }
         let limit = min(max(to - from + 1, 1) * 4, 1_000_000)
         async let hr = try? store.hrSamples(deviceId: deviceId, from: from, to: to, limit: limit)
@@ -167,7 +173,7 @@ final class Collector {
 
     /// Max persisted HR sample ts (the biometric "data frontier" for the stuck-strap watchdog).
     /// nil if there's no concrete store or nothing persisted yet. Mirrors storageStats().
-    func latestHRSampleTs() async -> Int? {
+    public func latestHRSampleTs() async -> Int? {
         guard let s = concreteStore else { return nil }
         return try? await s.latestHRSampleTs(deviceId: deviceId)
     }
@@ -176,34 +182,38 @@ final class Collector {
     /// the input to the shipped `SedentaryDetector`. Empty if there's no concrete store or the read
     /// throws. Mirrors latestHRSampleTs() — the BLE offload hook reads gravity through the Collector
     /// because the Collector owns the concrete store.
-    func recentGravity(from: Int, to: Int, limit: Int = 100_000) async -> [GravitySample] {
+    public func recentGravity(from: Int, to: Int, limit: Int = 100_000) async -> [GravitySample] {
         guard let s = concreteStore else { return [] }
         return (try? await s.gravitySamples(deviceId: deviceId, from: from, to: to, limit: limit)) ?? []
     }
 
     /// Apply the raw-retention policy. Returns rows pruned (0 if no concrete store).
     @discardableResult
-    func prune() async -> Int {
+    public func prune() async -> Int {
+        #if canImport(Compression)
         guard let s = concreteStore else { return 0 }
         return (try? await s.pruneRaw(now: now(),
                                 keepWindowSeconds: PrunePolicy.keepWindowSeconds,
                                 maxUnsyncedBytes: PrunePolicy.maxUnsyncedBytes)) ?? 0
+        #else
+        return 0   // no raw outbox without Compression, so nothing to prune
+        #endif
     }
 
     /// Parse-then-buffer shim (#47). Kept for callers/tests that pass raw bytes; the live seam calls
     /// `ingest(frame:parsed:)` with the parse it already did.
-    func ingest(_ frame: [UInt8]) {
+    public func ingest(_ frame: [UInt8]) {
         ingest(frame: frame, parsed: parseFrame(frame, family: family))
     }
 
     /// Buffer one complete frame + its pre-parsed decode (synchronous: preserves delegate arrival order).
     /// Auto-flushes via a detached Task when the cadence threshold is hit (flush is async). (#47)
-    func ingest(frame: [UInt8], parsed: ParsedFrame) {
+    public func ingest(frame: [UInt8], parsed: ParsedFrame) {
         #if DEBUG
         assert(parsed == parseFrame(frame, family: family),
                "Collector.ingest: threaded ParsedFrame != fresh parse (#47 parse-once invariant)")
         #endif
-        recordGroundTruthImu(frame)
+        frameTap?(frame)
         buffer.append((frame, parsed))
         // Pre-clock only: bound memory if GET_CLOCK never lands while data keeps flowing.
         // Drop OLDEST beyond the cap (keep most recent). Post-clock this branch is skipped —
@@ -221,7 +231,7 @@ final class Collector {
     /// Persist + queue everything buffered. No-op when empty or before a clock ref exists.
     /// Buffer is snapshotted and cleared SYNCHRONOUSLY before the first await so that any
     /// concurrent ingest() calls during persistence accumulate into the NEXT batch cleanly.
-    func flush() async {
+    public func flush() async {
         guard let ref = clockRef, !buffer.isEmpty else { return }
         // SNAPSHOT + CLEAR before any await: decoded-before-raw ordering AND the
         // buffer-snapshot-before-await invariant are both satisfied here.
@@ -271,6 +281,7 @@ final class Collector {
         batchStartedAt = monotonic()
         // RAW SECOND (transient outbox), only when the research toggle is ON. Default OFF →
         // decoded-only, no raw is stored. Failure is non-fatal — decoded is already durable.
+        #if canImport(Compression)
         guard enableRawCapture || rawCapture.isActive(at: monotonic()) else { return }
         let wall = now()
         let tsValues = streams.hr.map(\.ts) + streams.rr.map(\.ts)
@@ -280,13 +291,14 @@ final class Collector {
             startTs: tsValues.min() ?? wall, endTs: tsValues.max() ?? wall,
             frameCount: frames.count, byteSize: frames.reduce(0) { $0 + $1.count })
         try? await store.enqueueRawBatch(meta, frames: frames)
+        #endif
     }
 
     // MARK: - Standard 0x2A37 HR/RR (continuous recording)
 
     /// Buffer one standard Heart-Rate-Measurement reading. No clock correlation needed —
     /// these carry a wall-clock `ts` directly. Auto-flushes ~every 30 readings (~30s).
-    func ingestStandardHR(hr: Int, rr: [Int], contact: StandardHRContact? = nil,
+    public func ingestStandardHR(hr: Int, rr: [Int], contact: StandardHRContact? = nil,
                           family: DeviceFamily? = nil, at ts: Int) {
         let acceptedHR = (30...220).contains(hr) ? 1 : 0
         let acceptedRR = rr.filter { (250...3000).contains($0) }
@@ -320,7 +332,7 @@ final class Collector {
     }
 
     /// Persist the buffered standard HR/RR/contact. Re-buffers on failure so nothing is lost.
-    func flushStandardHR(reason: LivePersistTrace.StandardHRFlushReason = .explicit) async {
+    public func flushStandardHR(reason: LivePersistTrace.StandardHRFlushReason = .explicit) async {
         // The stream is ending, not just filling: write the window so far, or the last minute of a session
         // leaves with the process. A cadence flush is mid-stream and keeps counting.
         if reason != .cadence, reason != .explicit {
@@ -380,18 +392,13 @@ final class Collector {
 
     /// Open a bounded raw-capture window so the next flushes persist raw even with the global
     /// research toggle off. Auto-expires at the (clamped) monotonic deadline.
-    func beginRawCapture(seconds: TimeInterval) {
+    public func beginRawCapture(seconds: TimeInterval) {
         rawCapture.open(at: monotonic(), duration: seconds)
-    }
-
-    func recordGroundTruthImu(_ frame: [UInt8]) {
-        _ = ImuSessionFileStore.shared.append(deviceId: deviceId, frame: frame,
-            receivedAtMs: Int64(Date().timeIntervalSince1970 * 1_000))
     }
 
     /// Flush WHILE the window is still active so the just-captured frames get persisted as raw,
     /// THEN close the window.
-    func endRawCapture() async {
+    public func endRawCapture() async {
         await flush()
         rawCapture.close()
     }

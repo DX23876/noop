@@ -1,5 +1,5 @@
 import XCTest
-@testable import Strand
+import StrandCore
 import WhoopProtocol
 import WhoopStore
 
@@ -13,7 +13,9 @@ final class BackfillerRejectedArchiveOrderingTests: XCTestCase {
                 spo2: Int, skinTemp: Int, resp: Int, gravity: Int) {
             (0, 0, 0, 0, 0, 0, 0, 0)
         }
+        #if canImport(Compression)
         func enqueueRawBatch(_ meta: RawBatchMeta, frames: [[UInt8]]) async throws {}
+        #endif
         func setCursor(_ name: String, _ value: Int) async throws { cursors.append(value) }
         func cursor(_ name: String) async throws -> Int? { cursors.last }
     }

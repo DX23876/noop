@@ -2,6 +2,7 @@ import XCTest
 import StrandAnalytics
 import WhoopProtocol
 import WhoopStore
+import StrandCore
 @testable import Strand
 
 /// End-to-end, parser → consumer, for the state-driving gates this app owns (frame-integrity, E3):

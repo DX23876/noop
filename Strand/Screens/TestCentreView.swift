@@ -6,6 +6,7 @@ import OuraProtocol
 import PolarProtocol
 import WhoopStore
 import WhoopProtocol
+import StrandCore
 
 /// Settings -> Test Centre. The single home for every diagnostic, log and test control (spec section 7).
 ///

@@ -1,6 +1,7 @@
 import SwiftUI
 import StrandDesign
 import WhoopStore
+import StrandCore
 
 /// iOS/macOS parity twin of Android's 5/MG Raw Data Collector screen.
 struct RawDataCollectorView: View {

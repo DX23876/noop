@@ -2,6 +2,7 @@ import XCTest
 import Foundation
 import WhoopStore
 import WhoopProtocol
+import StrandCore
 @testable import Strand
 
 /// #814 READ SPINE + UNION MODEL: after a remove+re-add the strap gets a FRESH registry id ("whoop-<uuid>"),

@@ -4,7 +4,7 @@ import Foundation
 /// decoded is persisted before the raw batch is enqueued (E2 invariant), so the oldest raw is
 /// always the safest to drop. The byte cap bounds local storage (#27): an experimental capture
 /// toggle would otherwise grow without limit (a 5/MG user saw 19 GB).
-enum PrunePolicy {
-    static let keepWindowSeconds = 24 * 3600        // keep synced raw browsable ~24h
-    static let maxUnsyncedBytes = 50 * 1024 * 1024  // total raw footprint cap; evict oldest beyond ~50MB
+public enum PrunePolicy {
+    public static let keepWindowSeconds = 24 * 3600        // keep synced raw browsable ~24h
+    public static let maxUnsyncedBytes = 50 * 1024 * 1024  // total raw footprint cap; evict oldest beyond ~50MB
 }

@@ -64,9 +64,9 @@ checks that both continue to exist.
 | [Offload start](PROTOCOL_TRANSPORT.md#history-sequencing-and-storage-ownership) | [beginBackfill](../Strand/BLE/BLEManager.swift) | [beginBackfill](../android/app/src/main/java/com/noop/ble/WhoopBleClient.kt) | Start is connection- and state-gated |
 | [Offload abort](PROTOCOL_TRANSPORT.md#interruption-and-recovery) | [abortBackfill](../Strand/BLE/BLEManager.swift) | [abortBackfill](../android/app/src/main/java/com/noop/ble/WhoopBleClient.kt) | Abort does not advance trim |
 | [HISTORY_END decoder](PROTOCOL_WHOOP4.md#history_end-payload-layout) | [classifyHistoricalMeta(_:)](../Packages/WhoopProtocol/Sources/WhoopProtocol/HistoricalMeta.swift) | [classifyHistoricalMeta](../android/app/src/main/java/com/noop/protocol/HistoricalStreams.kt) | END and COMPLETE remain distinct states |
-| [ACK with end block](PROTOCOL_TRANSPORT.md#whoop-4-history-lifecycle) | [finishChunk(unix:trim:endFrame:)](../Strand/Collect/Backfiller.swift) | [finishChunk](../android/app/src/main/java/com/noop/ble/Backfiller.kt) | The exact eight-byte end block is retained |
-| [Safe-trim invariant](PROTOCOL_TRANSPORT.md#history-sequencing-and-storage-ownership) | [finishChunk(unix:trim:endFrame:)](../Strand/Collect/Backfiller.swift) | [finishChunk](../android/app/src/main/java/com/noop/ble/Backfiller.kt) | A failed durable write withholds the ACK |
-| [Persist before ACK](PROTOCOL_TRANSPORT.md#history-sequencing-and-storage-ownership) | [Backfiller](../Strand/Collect/Backfiller.swift) | [Backfiller](../android/app/src/main/java/com/noop/ble/Backfiller.kt) | Each platform owns its transaction ordering |
+| [ACK with end block](PROTOCOL_TRANSPORT.md#whoop-4-history-lifecycle) | [finishChunk(unix:trim:endFrame:)](../Packages/StrandCore/Sources/StrandCore/Backfiller.swift) | [finishChunk](../android/app/src/main/java/com/noop/ble/Backfiller.kt) | The exact eight-byte end block is retained |
+| [Safe-trim invariant](PROTOCOL_TRANSPORT.md#history-sequencing-and-storage-ownership) | [finishChunk(unix:trim:endFrame:)](../Packages/StrandCore/Sources/StrandCore/Backfiller.swift) | [finishChunk](../android/app/src/main/java/com/noop/ble/Backfiller.kt) | A failed durable write withholds the ACK |
+| [Persist before ACK](PROTOCOL_TRANSPORT.md#history-sequencing-and-storage-ownership) | [Backfiller](../Packages/StrandCore/Sources/StrandCore/Backfiller.swift) | [Backfiller](../android/app/src/main/java/com/noop/ble/Backfiller.kt) | Each platform owns its transaction ordering |
 | [Data range 34](PROTOCOL_TRANSPORT.md#data-range--command-34) | [DataRange.newestUnix(from:wallNowUnix:futureSkewSeconds:)](../Packages/WhoopProtocol/Sources/WhoopProtocol/DataRange.swift), [DataRange.oldestUnix(from:)](../Packages/WhoopProtocol/Sources/WhoopProtocol/DataRange.swift) | [DataRange.newestUnix](../android/app/src/main/java/com/noop/protocol/DataRange.kt), [DataRange.oldestUnix](../android/app/src/main/java/com/noop/protocol/DataRange.kt) | Bounds are decoded independently |
 | [Ring backlog](#get_data_range-ring-backlog-689-diagnostic-only) | [DataRange.pagesBehind(from:cmdOff:)](../Packages/WhoopProtocol/Sources/WhoopProtocol/DataRange.swift) | [DataRange.pagesBehind](../android/app/src/main/java/com/noop/protocol/DataRange.kt) | Both decode validated u32 ring pointers |
 
@@ -838,7 +838,7 @@ vendor's aggregation or calibration algorithm. See the
 | `../Strand/BLE/Commands.swift` | safe `WhoopCommand` set + outbound frame construction |
 | `../Strand/BLE/FrameRouter.swift` | decode → `LiveState` (UI) |
 | `../Strand/BLE/StandardHeartRate.swift` | `0x2A37` HR/R-R parser |
-| `../Strand/Collect/Backfiller.swift` | historical-offload state machine + safe-trim invariant |
+| `../Packages/StrandCore/Sources/StrandCore/Backfiller.swift` | historical-offload state machine + safe-trim invariant |
 | `../android/app/src/main/java/com/noop/protocol/Enums.kt` | Android command and event identifiers |
 | `../android/app/src/main/java/com/noop/protocol/Framing.kt` | Android family-aware framing and response decoding |
 | `../android/app/src/main/java/com/noop/ble/WhoopBleClient.kt` | Android BLE lifecycle, command sending and offload routing |

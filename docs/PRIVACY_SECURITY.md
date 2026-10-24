@@ -412,7 +412,7 @@ let parsed = parseFrame(frame)
 guard parsed.ok else { return }
 ```
 
-The same gate guards clock correlation (`Strand/Collect/ClockCorrelation.swift`),
+The same gate guards clock correlation (`Packages/StrandCore/Sources/StrandCore/ClockCorrelation.swift`),
 historical-metadata classification, live and historical stream extraction, and the
 data-range reply — so a corrupt frame can neither update the displayed metrics, nor
 poison the device-clock model, nor advance the strap's trim cursor. `parsed.rejectReason`

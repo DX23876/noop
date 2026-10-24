@@ -1,7 +1,7 @@
 import XCTest
 import WhoopProtocol
 import WhoopStore
-@testable import Strand
+import StrandCore
 
 @MainActor
 final class CollectorStandardHRContactTests: XCTestCase {
@@ -24,7 +24,11 @@ final class CollectorStandardHRContactTests: XCTestCase {
                     streams.resp.count, streams.gravity.count)
         }
 
+        #if canImport(Compression)
+
         func enqueueRawBatch(_ meta: RawBatchMeta, frames: [[UInt8]]) async throws {}
+
+        #endif
     }
 
     /// Repinned for change-only contact recording: only TRANSITIONS record, so thirty identical

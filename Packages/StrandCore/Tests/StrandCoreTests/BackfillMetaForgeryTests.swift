@@ -1,5 +1,5 @@
 import XCTest
-@testable import Strand
+import StrandCore
 import WhoopProtocol
 import WhoopStore
 
@@ -26,7 +26,9 @@ final class BackfillMetaForgeryTests: XCTestCase {
             (streams.hr.count, streams.rr.count, 0, 0,
              streams.spo2.count, streams.skinTemp.count, streams.resp.count, streams.gravity.count)
         }
+        #if canImport(Compression)
         func enqueueRawBatch(_ meta: RawBatchMeta, frames: [[UInt8]]) async throws {}
+        #endif
         func setCursor(_ name: String, _ value: Int) async throws {}
         func cursor(_ name: String) async throws -> Int? { nil }
     }

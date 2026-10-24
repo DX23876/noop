@@ -4,6 +4,7 @@ import CoreBluetooth
 import WhoopProtocol
 import WhoopStore
 import StrandAnalytics
+import StrandCore
 // #78/#747 hole-4: the one-shot bond-loop salvage probe listens for the app-foreground notification,
 // which lives in UIKit on iOS and AppKit on macOS (see installForegroundSalvageProbe).
 #if os(iOS)
@@ -1554,6 +1555,8 @@ public final class BLEManager: NSObject, ObservableObject {
         // The per-sample host-received readout belongs to the modes that exist for it; without one, the log
         // carries the summary instead (`LivePersistTrace.StandardHRHostReceivedTrace`).
         collector?.hostReceivedDetail = { TestCentre.active(.hrv) || TestCentre.active(.connection) }
+        // Ground-truth IMU sessions (Raw data collector) bank every frame while a session is recording.
+        collector?.frameTap = { [weak self] frame in self?.collector?.recordGroundTruthImu(frame) }
         // The store can finish bootstrapping AFTER connect(model:) already ran (both wait on
         // poweredOn), so apply the family/clock configuration here too — whichever runs last wins.
         configureCollectorFamily()
@@ -1584,7 +1587,8 @@ public final class BLEManager: NSObject, ObservableObject {
                                 connectionLog: { [weak self] s in self?.state.append(log: s, domain: .connection) },
                                 // UNIVERSAL clock-drift: bank the strap's historical layout so the export's
                                 // universal clock-drift line is firmware-aware on every export. Unconditional.
-                                firmwareLayout: { [weak self] v in self?.state.setStrapFirmwareLayout(v) })
+                                firmwareLayout: { [weak self] v in self?.state.setStrapFirmwareLayout(v) },
+                                subLagInterp: { PuffinExperiment.ppgHrSubLagInterpEnabled })
         // Strand: no server uploader/sync — all data stays on-device.
 
         // Retro-decode: when the decoder gains a historical layout (e.g. WHOOP 4.0 v25), re-run every
@@ -3182,7 +3186,7 @@ public final class BLEManager: NSObject, ObservableObject {
     }
 
     /// On-device archive for HISTORICAL_DATA record frames that failed decode (#77 / #91).
-    private let rejectedHistoryArchive = RawHistoryArchive()
+    private let rejectedHistoryArchive = RawHistoryArchive(subLagInterp: { PuffinExperiment.ppgHrSubLagInterpEnabled })
 
     /// Durably archive undecodable record frames (append-only JSONL, fsynced) BEFORE the Backfiller
     /// acks the trim — the user's only remaining copy of an unmapped firmware's records once the

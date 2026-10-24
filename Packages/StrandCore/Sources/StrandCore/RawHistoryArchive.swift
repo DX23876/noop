@@ -15,9 +15,9 @@ import WhoopProtocol
 ///   {"capturedAtMs":Double,"trim":Int,"family":"whoop4"|"whoop5","frameHex":String}
 /// Frames carry sensor payloads, not identifiers — no serials/MACs land here. The companion Android
 /// archive uses the same record shape so one mapping toolchain reads both.
-struct RawHistoryArchive {
+public struct RawHistoryArchive {
     /// File name under `<AppSupport>/com.noopapp.noop/`.
-    static let fileName = "rejected_history.jsonl"
+    public static let fileName = "rejected_history.jsonl"
     /// Soft cap (~5 MB). When appending would push the file past this, the archive EVICTS surplus lines
     /// to make room rather than refusing the write — weakest-value first, and never below a per-version
     /// retention floor, so a brand-new layout version is never binned merely because common versions
@@ -28,14 +28,14 @@ struct RawHistoryArchive {
     /// 1584-byte records fills any cap in hours, so a bigger number buys a linear factor of time and
     /// costs every user disk — while `zeroPayloadFloor` removes the pressure outright by evicting the
     /// informationless records first. Value, not volume, is what was missing.
-    static let maxBytes = 5 * 1024 * 1024
+    public static let maxBytes = 5 * 1024 * 1024
 
     /// Per distinct layout VERSION, keep at least this many of the newest archived lines, immune to
     /// cap eviction. A never-seen version (WHOOP 4 v19, WHOOP 5 v20/v21 — `frame[5]` / `frame[9]`,
     /// the hist_version byte) emits only a handful of frames, so this floor guarantees those rare
     /// samples survive while the most-populous versions shed their oldest surplus. Bounded: the floor
     /// can hold at most `floor × distinctVersions` lines, a tiny set. (#344)
-    static let perVersionFloor = 64
+    public static let perVersionFloor = 64
 
     /// Per-version retention floor for lines whose PAYLOAD REGION IS ENTIRELY ZERO — far smaller than
     /// `perVersionFloor`, because such a record carries no information beyond "the strap banked a record
@@ -48,22 +48,22 @@ struct RawHistoryArchive {
     /// 1,500 of them, i.e. ~21 minutes of retention: under a purely age-ordered policy every
     /// informative record older than that is gone, evicted by frames that carry nothing. Keeping a
     /// handful still proves the artefact exists (and dates it); keeping thousands costs the evidence.
-    static let zeroPayloadFloor = 8
+    public static let zeroPayloadFloor = 8
 
     /// First byte of a record's PAYLOAD region — everything past the record header, ending at the 4-byte
     /// CRC32 trailer. 21 on WHOOP 5/MG (magic @0, seq @11, unix ts @15–18, a constant @19–20), and 17 on
     /// WHOOP 4: the same +4 that shifts the type byte 4→8 and the version byte 5→9, because the puffin
     /// envelope is 4 bytes longer. Starting AFTER the header is load-bearing — a region that included the
     /// non-zero seq/timestamp bytes would never test as all-zero and the rule below would never fire.
-    static func payloadStart(_ family: DeviceFamily) -> Int { family == .whoop5 ? 21 : 17 }
+    public static func payloadStart(_ family: DeviceFamily) -> Int { family == .whoop5 ? 21 : 17 }
 
     /// Bytes of the CRC32 trailer excluded from the payload region.
-    static let crcTrailerBytes = 4
+    public static let crcTrailerBytes = 4
 
     /// A payload region shorter than this is not judged at all (`hasZeroPayload` returns false): a
     /// truncated or tiny frame is not evidence of an empty record, and must not lose retention priority
     /// on the strength of a few zero bytes.
-    static let minPayloadBytesToJudge = 32
+    public static let minPayloadBytesToJudge = 32
 
     /// True when EVERY byte of the frame's payload region is zero — an informationless record.
     ///
@@ -71,7 +71,7 @@ struct RawHistoryArchive {
     /// informative and gives it full retention priority. "Mostly zero" is NOT the test — a novel record
     /// that carries one small populated block inside an otherwise-empty buffer is precisely the thing
     /// this archive exists to catch.
-    static func hasZeroPayload(_ frame: [UInt8], family: DeviceFamily) -> Bool {
+    public static func hasZeroPayload(_ frame: [UInt8], family: DeviceFamily) -> Bool {
         let start = payloadStart(family)
         let end = frame.count - crcTrailerBytes
         guard end - start >= minPayloadBytesToJudge else { return false }
@@ -80,7 +80,7 @@ struct RawHistoryArchive {
     }
 
     /// Outcome of an archive attempt.
-    enum Result {
+    public enum Result {
         /// Frames were durably written (fsynced). `count` is how many lines were appended.
         case written(count: Int)
         /// The archive is full; nothing was written but the caller may still ack. `count` frames
@@ -97,12 +97,16 @@ struct RawHistoryArchive {
     private let maxBytes: Int
     private let perVersionFloor: Int
     private let zeroPayloadFloor: Int
+    /// The opt-in HR-from-PPG sub-lag interpolation switch the app passes; off by default.
+    private let subLagInterp: () -> Bool
 
     /// Default location: `<AppSupport>/com.noopapp.noop/`, created on demand. Overridable for tests.
-    init(directory: URL? = nil,
+    public init(directory: URL? = nil,
          maxBytes: Int = RawHistoryArchive.maxBytes,
          perVersionFloor: Int = RawHistoryArchive.perVersionFloor,
-         zeroPayloadFloor: Int = RawHistoryArchive.zeroPayloadFloor) {
+         zeroPayloadFloor: Int = RawHistoryArchive.zeroPayloadFloor,
+         subLagInterp: @escaping () -> Bool = { false }) {
+        self.subLagInterp = subLagInterp
         if let directory {
             self.directory = directory
         } else {
@@ -123,12 +127,12 @@ struct RawHistoryArchive {
     }
 
     /// The archive file URL (does not create anything).
-    var fileURL: URL { directory.appendingPathComponent(RawHistoryArchive.fileName) }
+    public var fileURL: URL { directory.appendingPathComponent(RawHistoryArchive.fileName) }
 
     /// The hist_version byte distinguishing one historical layout from another: `frame[5]` on WHOOP 4,
     /// `frame[9]` on WHOOP 5/MG (the puffin envelope is 4 bytes longer). Same indices the reject filter
     /// uses. Frames too short to carry it fall back to a sentinel so they still form their own bucket.
-    static func versionByte(_ frame: [UInt8], family: DeviceFamily) -> Int {
+    public static func versionByte(_ frame: [UInt8], family: DeviceFamily) -> Int {
         let idx = family == .whoop5 ? 9 : 5
         return frame.count > idx ? Int(frame[idx]) : -1
     }
@@ -145,7 +149,7 @@ struct RawHistoryArchive {
     /// lines of any distinct version, so a rare never-seen layout is never binned just because common
     /// versions filled the archive. The file is rewritten atomically in that case. Only when the
     /// incoming frames alone can't fit even an empty archive are they skipped (`.capReached`).
-    func archive(_ frames: [[UInt8]], trim: UInt32, family: DeviceFamily) -> Result {
+    public func archive(_ frames: [[UInt8]], trim: UInt32, family: DeviceFamily) -> Result {
         guard !frames.isEmpty else { return .written(count: 0) }
         let url = fileURL
         // Ensure the directory exists AND (on iOS) carries after-first-unlock protection before the reads
@@ -274,7 +278,7 @@ struct RawHistoryArchive {
     /// [0-9a-f] `frameHex`. Shared by `readAll` and retention so both agree on exactly which lines are
     /// readable — retention must never protect a line the read-back would then skip. Twin of the Android
     /// `RawHistoryArchive.parseArchiveLine`.
-    static func parseArchiveLine<S: StringProtocol>(_ line: S) -> (frame: [UInt8], family: DeviceFamily)? {
+    public static func parseArchiveLine<S: StringProtocol>(_ line: S) -> (frame: [UInt8], family: DeviceFamily)? {
         guard let fr = line.range(of: "\"family\":\""),
               let hr = line.range(of: "\"frameHex\":\"") else { return nil }
         let fam = String(line[fr.upperBound...].prefix { $0 != "\"" })
@@ -297,7 +301,7 @@ struct RawHistoryArchive {
     /// actor, at up to one record per strap-second. Leaving an eighth of the cap free amortises that to
     /// one rewrite per ~600 KB of new frames. The bytes given up are the ones eviction would have taken
     /// next anyway, in the same priority order.
-    static let lowWaterDivisor = 8
+    public static let lowWaterDivisor = 8
 
     /// Floor-aware cap eviction (#344), PURE so it is unit-testable. `lines` is the full
     /// newline-terminated JSONL set, oldest-first (existing + incoming).
@@ -319,7 +323,7 @@ struct RawHistoryArchive {
     /// Bounded: if everything left is floor-protected it stops even if still over cap (the floor wins —
     /// `(floor + zeroFloor) × distinctVersions` is tiny). Mirrors the Android
     /// `RawHistoryArchive.evictLines`.
-    static func evictLines(_ lines: [String], maxBytes: Int, floor: Int,
+    public static func evictLines(_ lines: [String], maxBytes: Int, floor: Int,
                            zeroFloor: Int = RawHistoryArchive.zeroPayloadFloor) -> [String] {
         // Mark the newest `floor` informative and newest `zeroFloor` zero-payload indices of each version
         // as protected (scan newest→oldest). Malformed lines (nil class) are never protected — they are
@@ -360,7 +364,7 @@ struct RawHistoryArchive {
     /// Every archived frame with its strap family, oldest first — the read-back of the JSONL that
     /// `archive` writes. Malformed lines are skipped; an absent/empty file yields []. Parsed through the
     /// same `parseArchiveLine` retention uses, so the two can never disagree on what is readable.
-    func readAll() -> [(frame: [UInt8], family: DeviceFamily)] {
+    public func readAll() -> [(frame: [UInt8], family: DeviceFamily)] {
         guard let text = try? String(contentsOf: fileURL, encoding: .utf8) else { return [] }
         return text.split(separator: "\n").compactMap { RawHistoryArchive.parseArchiveLine($0) }
     }
@@ -372,7 +376,7 @@ struct RawHistoryArchive {
     /// Throws if a store insert fails — the caller MUST NOT advance the replay gate in that case, or
     /// these records (whose only surviving copy is this archive) would never be retried. (#152)
     @discardableResult
-    func replay(into store: BackfillStoreWriting, deviceId: String) async throws -> Int {
+    public func replay(into store: BackfillStoreWriting, deviceId: String) async throws -> Int {
         let archived = readAll()
         var rows = 0
         for family in Set(archived.map(\.family)) {
@@ -383,7 +387,7 @@ struct RawHistoryArchive {
             // archive replay re-derives v26 HR with the same variant the live offload uses. Default OFF.
             let streams = extractHistoricalStreams(parsed, deviceClockRef: 0, wallClockRef: 0,
                                                    family: family,
-                                                   subLagInterp: PuffinExperiment.ppgHrSubLagInterpEnabled)
+                                                   subLagInterp: subLagInterp())
             // Count rows ACTUALLY inserted, not decoded: under the per-app-version gate the archive
             // replays every release, and dedupe makes those re-runs insert 0 — counting decoded rows
             // would log a false "retro-decoded N" success on every update. (#152)

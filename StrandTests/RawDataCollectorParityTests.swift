@@ -1,4 +1,5 @@
 import XCTest
+import StrandCore
 @testable import Strand
 
 /// Feature-level parity guard for the Android and Apple raw-data collectors. The shared oracle lists
@@ -25,7 +26,7 @@ final class RawDataCollectorParityTests: XCTestCase {
         let oracle = try JSONDecoder().decode(Oracle.self, from: oracleData())
         XCTAssertEqual(oracle.schemaVersion, 1)
         let paths = [
-            "Strand/Collect/RawDataSessionStore.swift", "Strand/Collect/Collector.swift",
+            "Strand/Collect/RawDataSessionStore.swift", "Packages/StrandCore/Sources/StrandCore/Collector.swift",
             "Strand/BLE/BLEManager.swift", "Strand/Screens/RawDataCollectorView.swift",
             "Strand/Collect/ImuSessionFileStore.swift",
             "Packages/WhoopStore/Sources/WhoopStore/Database.swift",
