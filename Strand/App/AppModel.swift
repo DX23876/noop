@@ -2,6 +2,7 @@ import SwiftUI
 import Combine
 import WhoopProtocol
 import WhoopStore
+import StrandCore
 import StrandAnalytics
 import StrandImport
 import StrandDesign
@@ -381,12 +382,13 @@ final class AppModel: ObservableObject {
         self.ble = BLEManager(state: live, deviceId: deviceId)
         self.repo = Repository(deviceId: deviceId)
         self.coach = AICoachEngine(repo: repo)
-        self.intelligence = IntelligenceEngine(repo: repo, profile: profile, deviceId: deviceId)
         // Route the engine's per-day scoring diagnostic into the SAME shareable strap log every other
         // subsystem writes to (PII-scrubbed by `live.append(log:)`), so a bug report ships proof of what
         // was computed per day. `live` is captured strongly (created just above) , the engine outlives the
         // app session, so there's no retain-cycle risk worth a weak dance here. (Sleep overhaul §2.5.)
-        self.intelligence.diagnosticSink = { [live] line, domain in live.append(log: line, domain: domain) }
+        let analysisHost = AppAnalysisHost()
+        analysisHost.diagnosticSink = { [live] line, domain in live.append(log: line, domain: domain) }
+        self.intelligence = IntelligenceEngine(repo: repo, profile: profile, deviceId: deviceId, host: analysisHost)
         // Workouts & GPS test mode (Test Centre): wire the Repository (auto-detect inputs/why + cross-source
         // dedup decisions) and the GPS recorder (fix-progress) tagged sinks to the SAME shareable strap log.
         // Each emitter re-checks `TestCentre.active(.workouts)` before building a line, so these wirings are

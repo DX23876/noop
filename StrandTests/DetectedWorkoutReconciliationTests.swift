@@ -233,9 +233,10 @@ final class DetectedWorkoutReconciliationTests: XCTestCase {
 
             let repo = Repository(deviceId: deviceId)
             repo.setStoreForTesting(store)
-            let engine = IntelligenceEngine(repo: repo, profile: ProfileStore(), deviceId: deviceId)
+            let host = AppAnalysisHost()
+            let engine = IntelligenceEngine(repo: repo, profile: ProfileStore(), deviceId: deviceId, host: host)
             var diagnostics: [String] = []
-            engine.diagnosticSink = { line, _ in diagnostics.append(line) }
+            host.diagnosticSink = { line, _ in diagnostics.append(line) }
 
             await engine.analyzeRecent(maxDays: 2, force: true)
 

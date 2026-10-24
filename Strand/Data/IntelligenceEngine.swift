@@ -270,7 +270,7 @@ final class IntelligenceEngine: ObservableObject {
     /// One day's off-actor scan output (FIX 1). Carries the pure `AnalyticsEngine.DayResult` produced by
     /// the off-main scan loop plus the pre-computed RHR floor-vs-mean diagnostic line (#691) , computed
     /// inside the detached task from pure inputs so the main actor can replay it through the
-    /// MainActor-bound `diagnosticSink` in the SAME per-day order. Deliberately NOT marked `Sendable`:
+    /// MainActor-bound `host.diagnostic` in the SAME per-day order. Deliberately NOT marked `Sendable`:
     /// its `AnalyticsEngine.DayResult` member isn't formally `Sendable` either, and the per-day loop ALREADY
     /// returned a `DayResult` across the `Task.detached` boundary under this project's `minimal` strict-
     /// concurrency setting (SWIFT_STRICT_CONCURRENCY: minimal, Swift 5 mode) , this wraps the same value
@@ -293,7 +293,7 @@ final class IntelligenceEngine: ObservableObject {
         let readOwner: String
         let hrRows: Int
         /// Sleep & Rest test-mode gate-trace + Rest sub-score lines for this day, collected off the main
-        /// actor and replayed through `diagnosticSink` tagged `.sleep` in per-day order. Empty unless the
+        /// actor and replayed through `host.diagnostic` tagged `.sleep` in per-day order. Empty unless the
         /// Sleep mode is active (the gate is read once before the loop), so the default path is unchanged.
         let sleepTrace: [String]
         /// Steps test-mode raw-counter trace lines (5/MG cumulative @57 series + wrap-aware deltas + dropped
@@ -306,7 +306,7 @@ final class IntelligenceEngine: ObservableObject {
         /// `.hrv` in per-day order. Empty unless the HRV mode is active. (#141)
         let hrvTrace: [String]
         /// #195: the ALWAYS-ON whole-night HRV cleaning summary (`hrv diag …`), built off the main actor
-        /// where `rr` is in scope and replayed through `diagnosticSink` in pass 2 (which is main-actor
+        /// where `rr` is in scope and replayed through `host.diagnostic` in pass 2 (which is main-actor
         /// isolated). nil when the night has no in-sleep R-R.
         let hrvDiag: String?
         /// #103/queue-11a: the nightly SpO₂ candidate mean for this day, computed off the main actor when
@@ -361,20 +361,19 @@ final class IntelligenceEngine: ObservableObject {
         var id: String { day }
     }
 
-    /// Optional sink for the per-day scoring diagnostic, fed line-by-line into the SAME shareable strap
-    /// log the user already exports (PII-scrubbed by `LiveState.append(log:)`). Defaults to nil so the
-    /// engine stays testable with no UI. Each line is a concise, counts-only summary ("sleep day=…
-    /// totalSleepMin=… matched=… source=…") so the next bug report ships proof of what was computed per
-    /// day, addressing the project's log-failures-not-successes blind spot and the data needed to settle
-    /// "Rest repeats across days". (Sleep overhaul §2.5.)
-    /// `AppModel` wires it to `live.append(log:domain:)`. Each line is a concise, counts-only summary,
-    /// optionally tagged with the TestDomain so the Sleep/Battery emitters land under their profile tag.
-    var diagnosticSink: ((String, TestDomain?) -> Void)?
+    /// The platform the pass runs on: its settings snapshot, the strap log, the values that survive a
+    /// relaunch and the background budget (`AnalysisHost`). Every per-day diagnostic goes to its
+    /// `diagnostic(_:domain:)`, which on iOS and macOS feeds the SAME shareable strap log the user already
+    /// exports (PII-scrubbed by `LiveState.append(log:)`). Each line is a concise, counts-only summary
+    /// ("sleep day=… totalSleepMin=… matched=… source=…") so the next bug report ships proof of what was
+    /// computed per day (Sleep overhaul §2.5), optionally tagged with the TestDomain so the Sleep/Battery
+    /// emitters land under their profile tag.
+    let host: AnalysisHost
     /// Sessions already reported by the "sleep motion: none persisted" line this launch.
     private var loggedMissingMotionStarts: Set<Int> = []
 
-    init(repo: Repository, profile: ProfileStore, deviceId: String) {
-        self.repo = repo; self.profile = profile; self.deviceId = deviceId
+    init(repo: Repository, profile: ProfileStore, deviceId: String, host: AnalysisHost = AppAnalysisHost()) {
+        self.repo = repo; self.profile = profile; self.deviceId = deviceId; self.host = host
     }
 
     // NOTE (#814 union-model follow-up): the engine intentionally has NO `adoptActiveDeviceId`. Its write
@@ -650,8 +649,8 @@ final class IntelligenceEngine: ObservableObject {
     /// Applies `StressMath.proxyRepairs` over the stored history around the current recalibration (AI-28).
     /// Reads the merged daily rows the Stress screen reads and writes under the same source; idempotent,
     /// so an interrupted migration simply repeats it.
-    static func repairStressProxyAfterRecalibration(store: WhoopStore, repo: Repository) async throws {
-        let cut = StressMath.Cut.current()
+    static func repairStressProxyAfterRecalibration(store: WhoopStore, repo: Repository,
+                                                    cut: StressMath.Cut) async throws {
         guard let earliest = [cut.hrvFirstNight, cut.rhrFirstNight].compactMap({ $0 }).min() else { return }
         let today = Repository.localDayKey(Date())
         // 45 days before the first counted night: comfortably more than the 30-row window, so the
@@ -799,7 +798,7 @@ final class IntelligenceEngine: ObservableObject {
         let ok = await refreshCurrentDayActivity()
         let finished = Date()
         if ok {
-            UserDefaults.standard.set(finished.timeIntervalSince1970, forKey: Self.analysisLastRunKey)
+            host.store(finished.timeIntervalSince1970, forKey: Self.analysisLastRunKey)
             analysisMaintenancePhase = .completed(finished)
         } else {
             analysisMaintenancePhase = .failed(String(localized: "No current-day activity data was available."))
@@ -861,7 +860,8 @@ final class IntelligenceEngine: ObservableObject {
             }
             if case .migrating(let from, let to) = phase, AnalysisRecipe.migrationRepairsStressProxy(from: from, to: to) {
                 do {
-                    try await Self.repairStressProxyAfterRecalibration(store: store, repo: self.repo)
+                    try await Self.repairStressProxyAfterRecalibration(store: store, repo: self.repo,
+                                                                       cut: self.host.analysisSettings().stressCut)
                 } catch {
                     self.analysisMaintenancePhase = .failed(error.localizedDescription)
                     return false
@@ -904,8 +904,7 @@ final class IntelligenceEngine: ObservableObject {
                 }
             }
             let finished = Date()
-            UserDefaults.standard.set(finished.timeIntervalSince1970,
-                                      forKey: Self.analysisLastRunKey)
+            self.host.store(finished.timeIntervalSince1970, forKey: Self.analysisLastRunKey)
             self.analysisMaintenancePhase = .completed(finished)
             return true
         }
@@ -972,7 +971,7 @@ final class IntelligenceEngine: ObservableObject {
             ? Double(profile.hrMaxOverride)
             : (profile.age > 0 ? StrainScorer.tanakaHRmax(age: Double(profile.age)) : nil)
         let restingHR = existing?.restingHr.map(Double.init) ?? StrainScorer.defaultRestingHR
-        let effortMethod = PuffinExperiment.effortMethod
+        let effortMethod = host.analysisSettings().effortMethod
         let sex = profile.sex
         let ticksPerStep = profile.stepTicksPerStep
 
@@ -993,13 +992,12 @@ final class IntelligenceEngine: ObservableObject {
             await repo.refresh()
             let strainLog = activity.strain.map { String(format: "%.1f", $0) } ?? "nil"
             let stepsLog = activity.steps.map(String.init) ?? "nil"
-            diagnosticSink?(
+            host.diagnostic(
                 "activity refresh day=\(day) owner=\(owner) hr=\(hr.count) stepsRaw=\(stepSamples.count) "
-                    + "effort=\(strainLog) steps=\(stepsLog)",
-                nil)
+                    + "effort=\(strainLog) steps=\(stepsLog)", domain: nil)
             return activity.strain != nil || activity.steps != nil
         } catch {
-            diagnosticSink?("activity refresh failed day=\(day): \(error.localizedDescription)", nil)
+            host.diagnostic("activity refresh failed day=\(day): \(error.localizedDescription)", domain: nil)
             return false
         }
     }
@@ -1017,18 +1015,17 @@ final class IntelligenceEngine: ObservableObject {
     /// Returns true once no computed rows remain.
     @discardableResult
     func runEffortRescoreIfNeeded(batchSize: Int = 7) async -> Bool {
-        let defaults = UserDefaults.standard
-        if defaults.bool(forKey: Self.effortRescoreFlagKey) { return true }
+        if host.storedBool(Self.effortRescoreFlagKey) { return true }
         guard let store = await repo.storeHandle() else { return false }
 
         let computedId = deviceId + "-noop"
-        let cursor = defaults.string(forKey: Self.effortRescoreCursorKey) ?? "9999-12-31"
+        let cursor = host.storedString(Self.effortRescoreCursorKey) ?? "9999-12-31"
         let batch = (try? await store.dailyMetrics(deviceId: computedId,
                                                     before: cursor,
                                                     limit: max(1, batchSize))) ?? []
         guard !batch.isEmpty else {
-            defaults.set(true, forKey: Self.effortRescoreFlagKey)
-            defaults.removeObject(forKey: Self.effortRescoreCursorKey)
+            host.store(true, forKey: Self.effortRescoreFlagKey)
+            host.store(nil, forKey: Self.effortRescoreCursorKey)
             return true
         }
 
@@ -1067,10 +1064,10 @@ final class IntelligenceEngine: ObservableObject {
 
         do {
             _ = try await store.updateDailyStrains(updates, deviceId: computedId)
-            defaults.set(batch.last!.day, forKey: Self.effortRescoreCursorKey)
+            host.store(batch.last!.day, forKey: Self.effortRescoreCursorKey)
             if batch.count < max(1, batchSize) {
-                defaults.set(true, forKey: Self.effortRescoreFlagKey)
-                defaults.removeObject(forKey: Self.effortRescoreCursorKey)
+                host.store(true, forKey: Self.effortRescoreFlagKey)
+                host.store(nil, forKey: Self.effortRescoreCursorKey)
                 return true
             }
             return false
@@ -1110,8 +1107,8 @@ final class IntelligenceEngine: ObservableObject {
         // Run when the one-shot heal hasn't run yet OR a sync just flagged a re-heal (#547 re-pollution): a
         // wandering-clock strap re-sends bad-dated records across syncs, so a single on-upgrade pass can't
         // be the only line of defence. The pending flag is cleared below once the re-heal completes.
-        let pending = UserDefaults.standard.bool(forKey: Self.timestampHealPendingKey)
-        guard pending || !UserDefaults.standard.bool(forKey: Self.timestampHealFlagKey) else { return }
+        let pending = host.storedBool(Self.timestampHealPendingKey)
+        guard pending || !host.storedBool(Self.timestampHealFlagKey) else { return }
         guard let store = await repo.storeHandle() else { return }   // no store yet → retry next launch
         let result: WhoopStore.TimestampHealResult
         do {
@@ -1121,15 +1118,15 @@ final class IntelligenceEngine: ObservableObject {
             return   // leave the flag unset so a transient failure retries
         }
         if result.didChange {
-            diagnosticSink?("Heal(#547): purged \(result.rawRowsDeleted) raw + \(result.computedRowsDeleted) computed row(s) with implausible (bad-clock) timestamps; rescoring the real days.", nil)
+            host.diagnostic("Heal(#547): purged \(result.rawRowsDeleted) raw + \(result.computedRowsDeleted) computed row(s) with implausible (bad-clock) timestamps; rescoring the real days.", domain: nil)
             // Recompute the affected real days from the surviving raw rows so the polluted (e.g. 721)
             // blocks regenerate cleanly. The dashboard refresh happens inside analyzeRecent on persist.
             await analyzeRecent(maxDays: historyDays, reason: .timestampHeal,
                                 affectedUTCInterval: result.affectedUTCInterval)
         }
-        UserDefaults.standard.set(true, forKey: Self.timestampHealFlagKey)
+        host.store(true, forKey: Self.timestampHealFlagKey)
         // Clear the re-pollution request now that this re-heal has run , a future bad-clock sync re-arms it.
-        UserDefaults.standard.set(false, forKey: Self.timestampHealPendingKey)
+        host.store(false, forKey: Self.timestampHealPendingKey)
     }
 
     /// Compute on-device scores for each of the last `maxDays` that actually has raw HR data.
@@ -1367,6 +1364,9 @@ final class IntelligenceEngine: ObservableObject {
         analysisProgress = AnalysisProgress(stage: .preparing, completedDays: 0, totalDays: maxDays,
                                             startedAt: progressStartedAt, lastStepAt: progressStartedAt)
         defer { analysisProgress = nil }
+        // One snapshot of the wearer's settings for the whole pass, and the platform it reports to.
+        let host = self.host
+        let settings = host.analysisSettings()
         // #899-A: a concurrent pass already holds the lock. A NON-forced idle tick is safe to drop (the
         // in-flight pass already covers the same window). But a FORCED call is a real update path (a
         // post-backfill rescore after a sync) , dropping it would leave a freshly-synced night unscored
@@ -1405,7 +1405,7 @@ final class IntelligenceEngine: ObservableObject {
         // MONOTONE, so unlike a row count it cannot return to an earlier value after a delete-then-
         // resync and go blind the way (1) did. See `WhoopStore.bumpSensorWriteSeq`.
         let wmKey: String = (try? await store.sensorWriteSeq()).map(String.init) ?? ""
-        let storedWatermark = UserDefaults.standard.string(forKey: Self.analyzeWatermarkKey)
+        let storedWatermark = host.storedString(Self.analyzeWatermarkKey)
         // (The hrSample partition census lives in `AppModel`'s launch sequence, not here: this function is
         // reached only after the launch waits, so a census here never appeared on a slow launch.)
         if !force, !wmKey.isEmpty,
@@ -1425,7 +1425,7 @@ final class IntelligenceEngine: ObservableObject {
             // path was the only one opting in; the resume opts in now, and a skip reported under someone
             // else's name is the same wrong-caller trail #1538 lost three nights to.
             let skipped = triggerLabel ?? "post-offload"
-            diagnosticSink?("re-score: trigger=\(skipped) newData=no — skipped (nothing changed since last run)", nil)
+            host.diagnostic("re-score: trigger=\(skipped) newData=no — skipped (nothing changed since last run)", domain: nil)
             return
         }
         // Attribute the re-score that is ABOUT TO RUN. `trigger=post-offload` was previously logged only on
@@ -1448,8 +1448,8 @@ final class IntelligenceEngine: ObservableObject {
         // "post-offload" while that was the only caller opting in; the #1538 resume opts in too now.
         let trigger = triggerLabel ?? (!force ? "idle" : (skipIfUnchanged ? "post-offload" : "forced"))
         let hadNew = wmKey.isEmpty || storedWatermark != wmKey
-        diagnosticSink?("re-score: trigger=\(trigger) "
-                        + "newData=\(hadNew ? "yes" : "no (nothing changed since last run)")", nil)
+        host.diagnostic("re-score: trigger=\(trigger) "
+                        + "newData=\(hadNew ? "yes" : "no (nothing changed since last run)")", domain: nil)
 
         // #1005: time the whole pass — the trigger line above records WHY; this records how many nights
         // and how long (the CPU cost per run), so a re-score STORM is visible in the strap log.
@@ -1457,8 +1457,6 @@ final class IntelligenceEngine: ObservableObject {
         // also counts every minute the process spent suspended mid-pass. One overnight pass suspended by a
         // sleeping phone banked 19 003 s, which then deferred every background re-score after it.
         let reScoreStart = DispatchTime.now().uptimeNanoseconds
-        let reScoreCPUStart = RescoreBackgroundScheduler.processCPUSeconds()
-        let reScoreExpiriesAtStart = RescoreBackgroundScheduler.assertionExpiries
         // #1538: the pass is now past every gate and will do real work. Mark it started durably, so that a
         // process killed mid-pass leaves evidence a LATER process can read — the killed process itself gets
         // no chance to record anything. Cleared beside the watermark at the end; persistence failures
@@ -1476,7 +1474,7 @@ final class IntelligenceEngine: ObservableObject {
         // state that skipped the capture and just cleared, which is exactly where #1681 lived. The
         // Kotlin post-offload gate makes the same point in its own words: "captured before the run,
         // written only on success".
-        let owedToken = RescoreBackgroundScheduler.markRescoreOwed(passStarting: true)
+        let passTicket = host.passWillStart()
 
         let up = UserProfile(weightKg: profile.weightKg, heightCm: profile.heightCm,
                              age: Double(profile.age), sex: profile.sex,
@@ -1510,7 +1508,7 @@ final class IntelligenceEngine: ObservableObject {
         // unchanged until the user taps Recalibrate.
         let hrvBase1 = Baselines.foldHistory(hist.map { $0.avgHrv }, dayKeys: hist.map { $0.day }, cfg: hrvCfg)
         let rhrBase1 = Baselines.foldHistory(hist.map { $0.restingHr.map(Double.init) }, dayKeys: hist.map { $0.day },
-                                             cfg: rhrCfg, baselineEpoch: Baselines.recoveryBaselineEpoch())
+                                             cfg: rhrCfg, baselineEpoch: settings.recoveryBaselineEpoch)
         let baselines1 = AnalyticsEngine.ProfileBaselines(hrv: hrvBase1, restingHR: rhrBase1)
 
         // Keep each night's small result (daily metrics + sessions), NOT the raw streams , every field
@@ -1550,7 +1548,7 @@ final class IntelligenceEngine: ObservableObject {
             regDevices = try registry.all()
         } catch {
             regDevices = []
-            diagnosticSink?(AnalyticsEngine.registryUnavailableLine(importedDeviceId: deviceId), nil)
+            host.diagnostic(AnalyticsEngine.registryUnavailableLine(importedDeviceId: deviceId), domain: nil)
         }
         let regActiveId = (try? registry.activeDeviceId()) ?? deviceId
         // Rows under the canonical alias belong to whichever strap the alias inherited from. When the active
@@ -1598,7 +1596,7 @@ final class IntelligenceEngine: ObservableObject {
         // here only to fold the results into `@Published`-feeding state and `refresh()` once at the end.
         // The per-day SCORING ORDER, the `hr.count >= 200` skip, and the maxDays semantics are unchanged;
         // only the executor the reads resume on changes. Diagnostic (#691) lines are computed inside (pure
-        // inputs) and returned so they can be replayed through `diagnosticSink` here, in the SAME order.
+        // inputs) and returned so they can be replayed through `host.diagnostic` here, in the SAME order.
         let computedId = deviceId + "-noop"
         // Bind `deviceId` (a MainActor instance `let`) to a local Sendable `String` so the @Sendable
         // detached closure captures the VALUE, never `self` (which would be an isolation violation).
@@ -1606,30 +1604,30 @@ final class IntelligenceEngine: ObservableObject {
         // Sleep & Rest test mode (E5): read the zero-cost gate ONCE here (a single Bool) and capture it
         // into the detached loop. When false (the default), no per-day trace sink is built and analyzeDay
         // runs its byte-identical default path. When true, each day collects its gate-trace + Rest line,
-        // replayed below through `diagnosticSink` tagged `.sleep` in per-day order.
-        let sleepTraceActive = TestCentre.active(.sleep)
+        // replayed below through `host.diagnostic` tagged `.sleep` in per-day order.
+        let sleepTraceActive = settings.traces(.sleep)
         // HRV & Autonomic test mode (#141): read the zero-cost gate ONCE. When true, each day collects the
         // nightly per-window RMSSD (by stage) + the whole-night/deep-only/last-SWS summary, replayed below
         // tagged `.hrv`. When false (the default), no HRV trace is built and analyzeDay's path is unchanged.
-        let hrvTraceActive = TestCentre.active(.hrv)
+        let hrvTraceActive = settings.traces(.hrv)
         // HRV window (#141): read ONCE. When the user picked WHOOP-style, the nightly HRV is RMSSD over deep
         // sleep only; default whole-night otherwise. Captured into the detached loop, threaded to analyzeDay.
-        let deepHrvWindow = UserDefaults.standard.string(forKey: UnitPrefs.hrvWindowKey) == HrvWindow.deep.rawValue
+        let deepHrvWindow = settings.deepHrvWindow
         // Steps test mode: read the zero-cost gate ONCE here (a single Bool) and capture it into the detached
         // loop. When false (the default), no raw-counter trace is built per day. When true, each day collects
         // the 5/MG cumulative @57 series + wrap-aware deltas + dropped deltas, replayed below tagged `.steps`.
         // The trace recomputes the SAME wrap-aware sum analyzeDay already did, so the steps total is unchanged.
-        let stepsTraceActive = TestCentre.active(.steps)
+        let stepsTraceActive = settings.traces(.steps)
         // #103/queue-11a: read the SpO₂ candidate display toggle ONCE here (off the detached executor,
         // matching the other toggle reads above). When ON, each night's candidate mean (WHOOP:
         // `spo2_candidate_82`; Oura: ceiling@100 `0x6F`, see the per-day block below) is written to
         // metricSeries as "spo2_candidate" under the "-noop" device ID, so the Blood Oxygen tile can
         // surface it as a "strap estimate (unverified)" fallback. Default OFF per the derived-biosignal
         // rule (CLAUDE.md) — neither candidate is a validated calibration.
-        let spo2CandidateDisplayOn = PuffinExperiment.spo2CandidateDisplayEnabled
+        let spo2CandidateDisplayOn = settings.spo2CandidateDisplay
         // Read once per pass and include in the persisted semantic signature: changing the recipe must
         // invalidate every reused day whose Effort was computed with the previous method.
-        let effortMethodGlobal = PuffinExperiment.effortMethod
+        let effortMethodGlobal = settings.effortMethod
         // Deliberate semantic invalidation seam. Bump only when unchanged inputs intentionally produce a
         // different score. Profile/toggle values are stored separately in a stable textual signature.
         let scoringVersion = 1
@@ -1711,8 +1709,8 @@ final class IntelligenceEngine: ObservableObject {
             "deepHrv=\(deepHrvWindow ? 1 : 0)",
             "spo2Candidate=\(spo2CandidateDisplayOn ? 1 : 0)",
             "effortMethod=\(String(describing: effortMethodGlobal))",
-            "hrvEpoch=\(Baselines.hrvBaselineEpoch())",
-            "recoveryEpoch=\(Baselines.recoveryBaselineEpoch())",
+            "hrvEpoch=\(settings.hrvBaselineEpoch)",
+            "recoveryEpoch=\(settings.recoveryBaselineEpoch)",
         ].joined(separator: "|")
         // The signature a day is COMPARED against and the one it is WRITTEN with have to come from here,
         // both of them. They already had to agree; now that two fields vary by day, a second copy of this
@@ -1778,7 +1776,7 @@ final class IntelligenceEngine: ObservableObject {
             // and a reused day supplies nothing for them to re-insert.
             var reusedDays: [String] = []
             // Days skipped below (too few HR samples) never get a DayScan, so this diagnostic can't ride
-            // along on one; carried out alongside `out` and replayed through `diagnosticSink` on the main
+            // along on one; carried out alongside `out` and replayed through `host.diagnostic` on the main
             // actor below, same as `rhrLine`/the trace arrays. Mirrors the Kotlin `diag` sink.
             var skippedDayLines: [String] = []
             // D1: per-day reuse-miss reasons, carried out and replayed on the main actor (the sink is
@@ -1817,7 +1815,7 @@ final class IntelligenceEngine: ObservableObject {
                 // on the full path would look stalled through a run of reused days — exactly the case where
                 // the pass is moving fastest.
                 publishScanStep(offset, reusedDays.count)
-                if offset > 0 { await RescoreBackgroundScheduler.paceIfBackgrounded(since: &paceMark) }
+                if offset > 0 { await host.paceIfBackgrounded(since: &paceMark) }
                 let dayStart = nowLocalMidnight - offset * 86_400
                 let day = AnalyticsEngine.dayString(dayStart, offsetSec: tzOffset)
                 // Read a generous window around the night that ends on `day`; the stager finds the span.
@@ -1872,7 +1870,7 @@ final class IntelligenceEngine: ObservableObject {
                 // every rejected day can name the condition that rejected it. The verdict is unchanged —
                 // `inputsMatch` is now literally `reuseMisses(_:).isEmpty`, so the explanation cannot
                 // drift from the decision. `reuseMissesByDay` is carried out of this detached loop and
-                // replayed through `diagnosticSink` on the main actor, exactly like `skippedDayLines`.
+                // replayed through `host.diagnostic` on the main actor, exactly like `skippedDayLines`.
                 if reuseAllowed {
                     if let probe, let stored = storedFingerprints[day], persistedRowsByDay[day] != nil {
                         let current = DayScanFingerprint(day: day, ownerId: owner,
@@ -1903,7 +1901,7 @@ final class IntelligenceEngine: ObservableObject {
                 let hr = (try? await store.hrSamples(deviceId: owner, from: from, to: to, limit: Int.max)) ?? []
                 guard hr.count >= Self.minHrSamples else {
                     // Need real raw data, not a stray sample. The skipped day gets no DayScan, so its
-                    // diagnostic is carried in `skippedDayLines` and replayed through `diagnosticSink`
+                    // diagnostic is carried in `skippedDayLines` and replayed through `host.diagnostic`
                     // on the main actor below (upstream #714 fix — a bare `diag()` doesn't exist in Swift).
                     skippedDayLines.append("sleep day=\(day) SKIPPED hrSamples=\(hr.count) (need ≥\(Self.minHrSamples))")
                     continue
@@ -2049,12 +2047,12 @@ final class IntelligenceEngine: ObservableObject {
                 // (#319) and V1 can badly UNDER-stage deep/REM (kavemang, #347), so neither is proven; the
                 // toggle is the honest escape until real 4.0 ground truth settles it (#271/#319). Matches the
                 // self-heal restage below, which reads the same toggle.
-                let useSleepStagerV2 = PuffinExperiment.experimentalSleepV2Enabled
+                let useSleepStagerV2 = settings.sleepStagerV2
                 // #364 follow-up: read the motion-aware wake refinement toggle the same way (once, off the
                 // detached executor). Default OFF — see `PuffinExperiment.motionAwareWakeEnabled`. It only
                 // ever runs AFTER whichever stager above just ran, and self-gates on the night's observed
                 // gravity + step density, so flipping it on is a no-op for any night too sparse to trust.
-                let useMotionAwareWake = PuffinExperiment.motionAwareWakeEnabled
+                let useMotionAwareWake = settings.motionAwareWake
 
                 // Already OFF the main actor , score directly (the prior nested `Task.detached` here only
                 // existed to hop off the main actor; the whole loop now runs off it, so the score is computed
@@ -2191,7 +2189,7 @@ final class IntelligenceEngine: ObservableObject {
                 // calibration side — `nInput` is set before the min-beats gate, so a sparse night still shows
                 // its count with rmssd=nil). A SEPARATE analyzer pass over the in-sleep R-R — does NOT touch the
                 // shipped windowed avgHrv. Built here (loop 1) where `rr` is in scope, but EMITTED in the
-                // main-actor replay loop below (diagnosticSink is main-actor isolated), carried on `hrvDiag`.
+                // main-actor replay loop below (`host.diagnostic` is main-actor isolated), carried on `hrvDiag`.
                 // Byte-identical to the Kotlin line.
                 // #2425: the MAIN night the #1118 gate judged, not every session of the day pooled over the
                 // gaps between them; see `AnalyticsEngine.hrvDiagnosticRows`. `hrvOverCounted` and the RSA
@@ -2409,7 +2407,7 @@ final class IntelligenceEngine: ObservableObject {
                 // with no banked floor (no matched sleep) logs nil and the line is skipped. Logging only ,
                 // no scoring change. Counts/bpm only; no timestamps or PII (LiveState.append also scrubs).
                 // Computed here (pure inputs) and carried out so the main actor can replay it through
-                // `diagnosticSink` in the SAME per-day order , the sink is a MainActor-bound closure.
+                // `host.diagnostic` in the SAME per-day order , the sink is a MainActor-bound closure.
                 var rhrLine: String?
                 var rhrBinLine: String?
                 if let floor = res.daily.restingHr {
@@ -2490,9 +2488,9 @@ final class IntelligenceEngine: ObservableObject {
             postLoopMark = now
         }
 
-        // #714: replay each skipped day's diagnostic now that we're back on the main actor (diagnosticSink
+        // #714: replay each skipped day's diagnostic now that we're back on the main actor (`host.diagnostic`
         // is MainActor-bound). Always-on , not gated behind a test mode, mirroring the Kotlin `diag` sink.
-        for line in skippedDayLines { diagnosticSink?(line, nil) }
+        for line in skippedDayLines { host.diagnostic(line, domain: nil) }
 
         // CAPTURE-B (#814/#799): per-day resolved READ owner + that owner's HR-row count, keyed by day, so
         // the second pass (which has the provenance sets) can emit the universal `dayOwner …` line. The
@@ -2538,18 +2536,18 @@ final class IntelligenceEngine: ObservableObject {
             if let cov = scan.primarySessionRHRCoverage {
                 primarySessionRHRCoverageByDay[res.daily.day] = cov
             }
-            if let line = scan.rhrLine { diagnosticSink?(line, nil) }
-            if let line = scan.rhrBinLine { diagnosticSink?(line, nil) }
-            if let line = scan.respLine { diagnosticSink?(line, nil) }
+            if let line = scan.rhrLine { host.diagnostic(line, domain: nil) }
+            if let line = scan.rhrBinLine { host.diagnostic(line, domain: nil) }
+            if let line = scan.respLine { host.diagnostic(line, domain: nil) }
             // Sleep & Rest test mode (E5): replay this day's gate-trace + Rest lines tagged `.sleep` so they
             // land under the profile tag in the export. Empty unless the mode is active.
-            for line in scan.sleepTrace { diagnosticSink?(line, .sleep) }
+            for line in scan.sleepTrace { host.diagnostic(line, domain: .sleep) }
             // HRV test mode (#141): replay this day's nightly per-window RMSSD + summary tagged `.hrv`.
             // Empty unless the HRV mode is active, so the default path emits zero `.hrv` lines here.
-            for line in scan.hrvTrace { diagnosticSink?(line, .hrv) }
+            for line in scan.hrvTrace { host.diagnostic(line, domain: .hrv) }
             // Steps test mode: replay this day's 5/MG raw-counter trace tagged `.steps`. Empty unless the
             // mode is active, so the default path emits zero `.steps` lines here.
-            for line in scan.stepsTrace { diagnosticSink?(line, .steps) }
+            for line in scan.stepsTrace { host.diagnostic(line, domain: .steps) }
             scoredNights.append((daily: res.daily, strain: res.strain, cachedSleep: res.cachedSleep,
                                  workouts: res.workouts, nightlySkin: res.nightlySkinTempC,
                                  sessionMotion: res.sessionMotionByStart,
@@ -2597,8 +2595,8 @@ final class IntelligenceEngine: ObservableObject {
         // because each of them deletes-then-reinserts and a reused day has nothing to re-insert.
         let scannedDays = Set(scanned.map { $0.result.daily.day })
         let reusedDaySet = Set(reusedDays)
-        diagnosticSink?("re-score: scanned \(scannedDays.count) day(s), reused \(reusedDays.count) "
-            + "unchanged day(s) from their stored scores", nil)
+        host.diagnostic("re-score: scanned \(scannedDays.count) day(s), reused \(reusedDays.count) "
+            + "unchanged day(s) from their stored scores", domain: nil)
         // The energy model prices buckets by this pass's sleep sessions and workouts, which are written to
         // the computed namespace without stamping input revisions. Tell it the oldest day re-derived, so its
         // next post-offload refresh re-prices from there (and the evening before) rather than only where raw
@@ -2613,8 +2611,7 @@ final class IntelligenceEngine: ObservableObject {
         // fail for every day — so the summary's shape names the cause outright: 20 misses on a
         // pass-global condition is a global invalidation, 1–2 on `inputRevision` is ordinary new data.
         for entry in reuseMissesByDay {
-            diagnosticSink?("reuse day=\(entry.day) reuse=false miss=\(entry.misses.joined(separator: ","))",
-                            nil)
+            host.diagnostic("reuse day=\(entry.day) reuse=false miss=\(entry.misses.joined(separator: ","))", domain: nil)
         }
         if !reuseMissesByDay.isEmpty {
             var missCounts: [String: Int] = [:]
@@ -2630,7 +2627,7 @@ final class IntelligenceEngine: ObservableObject {
             // same number, which read as if two different things happened to agree.
             let line = "reuse summary: walked=\(maxDays) reused=\(reusedDays.count) "
                 + "recomputed=\(scannedDays.count) | miss: \(breakdown)"
-            diagnosticSink?(line, nil)
+            host.diagnostic(line, domain: nil)
             // The same first-miss diff as the early NSLog above, repeated into the shareable strap log —
             // which the detached loop cannot reach, the sink being main-actor bound. Named with its day,
             // since `weight` makes the signature partly per-day.
@@ -2640,7 +2637,7 @@ final class IntelligenceEngine: ObservableObject {
                     current: semanticSignature(firstSemanticMismatch.day))
                 let detail = diff.isEmpty ? "(no field differs — parse failure?)" : diff.joined(separator: ", ")
                 let semanticLine = "reuse semantic diff (first miss, day=\(firstSemanticMismatch.day)): \(detail)"
-                diagnosticSink?(semanticLine, nil)
+                host.diagnostic(semanticLine, domain: nil)
             }
         }
         markPostLoopPhase("dayReplay")
@@ -2690,14 +2687,14 @@ final class IntelligenceEngine: ObservableObject {
         // vendor rate from NOOP's own RSA estimate on WHOOP nights; since #2525 the two meet only while the
         // import seeds. #459's primitive is likewise still unwired for the HRV and resting-HR baselines it
         // was written for; that is #459's own scope, not this change's.
-        let recoveryEpoch = Baselines.recoveryBaselineEpoch()
+        let recoveryEpoch = settings.recoveryBaselineEpoch
         let respEraEpoch = Baselines.deviceEraEpoch(respCandidateDays.map { (day: $0, sourceId: respSourceByDay[$0] ?? deviceId) })
         let respEpoch = max(recoveryEpoch, respEraEpoch)
         // The HRV epoch is read ONCE, here, and handed to the history, the scored fold and the #1614 trace.
         // Baselines+Trace is deliberately pure so it cannot read the pref itself, and letting the scored
         // fold take its UserDefaults default while the trace read its own copy would leave a window -
         // however small - where a diagnostic describes a fold the score did not perform.
-        let hrvEpoch = Baselines.hrvBaselineEpoch()
+        let hrvEpoch = settings.hrvBaselineEpoch
         let hrvHistory = ChargeBaselines.history(imported: importedNights { $0.avgHrv }, own: ownNights(nightlyHrvByDay),
                                                  anchorDay: newestDay, cfg: hrvCfg, baselineEpoch: hrvEpoch)
         let rhrHistory = ChargeBaselines.history(imported: importedNights { $0.restingHr.map(Double.init) },
@@ -2727,14 +2724,14 @@ final class IntelligenceEngine: ObservableObject {
         // and the trace cannot describe a baseline the scorer is not using. #2525 adds one line naming
         // what each of the four baselines was folded from (own nights, or own nights still seeded by the
         // import), read off the same histories the folds below consume.
-        if TestCentre.active(.recovery) {
-            diagnosticSink?(ChargeBaselines.logLine(anchorDay: newestDay, hrv: hrvHistory, restingHR: rhrHistory,
-                                                    resp: respHistory, skin: skinHistory), .recovery)
+        if settings.traces(.recovery) {
+            host.diagnostic(ChargeBaselines.logLine(anchorDay: newestDay, hrv: hrvHistory, restingHR: rhrHistory,
+                                                    resp: respHistory, skin: skinHistory), domain: .recovery)
             let traced = Baselines.foldHistoryTrace(hrvHistory.values, dayKeys: hrvHistory.dayKeys, cfg: hrvCfg,
                                                     metric: "hrv",
                                                     baselineEpoch: hrvEpoch,
                                                     tail: 14)
-            for line in traced.lines { diagnosticSink?(line, .recovery) }
+            for line in traced.lines { host.diagnostic(line, domain: .recovery) }
         }
         let baselines2 = AnalyticsEngine.ProfileBaselines(
             // HRV honours noop.hrvBaselineEpoch; rhr/resp/skin honour noop.recoveryBaselineEpoch via their
@@ -2814,7 +2811,7 @@ final class IntelligenceEngine: ObservableObject {
         // at 17 s of a cold pass, and returns rows with the same bounds either way.
         let cycleWorkouts = await repo.workoutRows(days: maxDays + 2, reconcileHrCap: 0)
         markPostLoopPhase("cycleRows")
-        let dayCycleMode = DayCycleMode.persisted(UserDefaults.standard.string(forKey: DayCycleMode.storageKey))
+        let dayCycleMode = settings.dayCycleMode
         let cycleTrace = DayCycleTraceBuffer()
         let cycleTraceSink: (@Sendable (String) -> Void)?
         if stepsTraceActive { cycleTraceSink = { cycleTrace.append($0) } } else { cycleTraceSink = nil }
@@ -2849,7 +2846,7 @@ final class IntelligenceEngine: ObservableObject {
             effortMethod: effortMethodGlobal,
             trace: cycleTraceSink) else { return }
         guard !Task.isCancelled else { return }
-        for line in cycleTrace.lines { diagnosticSink?(line, .steps) }
+        for line in cycleTrace.lines { host.diagnostic(line, domain: .steps) }
         markPostLoopPhase("dayCycle")
         // #299: `editsByStart` is now built PER DAY inside the scoring loop (scoped to the day each edit
         // belongs to), NOT window-wide here. sleepEditedDaily folds any edited row that isn't a twin of THIS
@@ -2879,18 +2876,18 @@ final class IntelligenceEngine: ObservableObject {
         // path is byte-identical. When true, each scored night emits its Charge breakdown tagged `.recovery`
         // via `recoveryTrace`, which returns the SAME score `recomputeRecovery` computes (it reuses
         // RecoveryScorer.recovery verbatim), so the headline Charge number is unaffected.
-        let recoveryTraceActive = TestCentre.active(.recovery)
+        let recoveryTraceActive = settings.traces(.recovery)
         // CAPTURE-B (#814/#799): the universal dayOwner line rides every export, so its gate is "ANY mode
         // active" (TestCentre.active(.universal) == anyActive). Read once here, like the other gates.
-        let universalTraceActive = TestCentre.active(.universal)
+        let universalTraceActive = settings.traces(.universal)
         // Workouts & GPS test mode (#975): read the zero-cost gate ONCE before the scoring loop so the
         // detected-bout persist/drop decision can emit ONE `.workouts` line per derived bout. Without this
         // the auto path produced NO trace at all (the "mode was on but produced NO trace" report), so an
         // "auto workout appeared then vanished" could not be explained from an export. Diagnostic only.
-        let workoutsTraceActive = TestCentre.active(.workouts)
+        let workoutsTraceActive = settings.traces(.workouts)
         var paceMark = DispatchTime.now().uptimeNanoseconds
         for night in scoredNights {
-            await RescoreBackgroundScheduler.paceIfBackgrounded(since: &paceMark)
+            await host.paceIfBackgrounded(since: &paceMark)
             // #299: scope the edits to THIS day before folding. A userEdited row / hand-logged nap belongs
             // to exactly ONE day — the day its night ENDS on, matching the daily's end-day bucket. `endTs`
             // is stable under a bedtime edit (only the onset/`startTsAdjusted` moves), so end-day is the
@@ -2935,7 +2932,7 @@ final class IntelligenceEngine: ObservableObject {
             // term moved Charge and which was nil and forced the renorm, tagged `.recovery`. The trace's
             // score is RecoveryScorer.recovery verbatim, so the `recovery` written above is unchanged.
             if recoveryTraceActive {
-                for line in recoveryTraceLines(daily, baselines2) { diagnosticSink?(line, .recovery) }
+                for line in recoveryTraceLines(daily, baselines2) { host.diagnostic(line, domain: .recovery) }
             }
             let skinDev = daily.skinTempDevC
             let source = DaySource.classify(day: daily.day, importedWhoopDays: importedWhoopDays,
@@ -2967,10 +2964,10 @@ final class IntelligenceEngine: ObservableObject {
             // day, without screenshots. Rounded minutes only (same privacy class as the rest of the line);
             // stages=nil when the day has no banked stage split (an unstaged or imported-total-only day).
             let effLog = daily.efficiency.map { String(format: "%.2f", $0) } ?? "nil"
-            diagnosticSink?("sleep day=\(daily.day) totalSleepMin=\(tsmLog) "
+            host.diagnostic("sleep day=\(daily.day) totalSleepMin=\(tsmLog) "
                             + "stages=\(Self.sleepStagesLogToken(deep: daily.deepMin, rem: daily.remMin, light: daily.lightMin)) "
                             + "eff=\(effLog) "
-                            + "matched=\(night.cachedSleep.count) source=\(source.logToken)", nil)
+                            + "matched=\(night.cachedSleep.count) source=\(source.logToken)", domain: nil)
             // #674/#1244: flag a COMPUTED day carrying a sleep total with NO matched session — the folded
             // edited/hand-logged block on a day the detector staged nothing (see sleepDivergenceLogLine).
             // Scoped to computed days: an imported-total-only day legitimately has a total without our
@@ -2980,9 +2977,9 @@ final class IntelligenceEngine: ObservableObject {
             // exist. The line is about a day this pass staged nothing FOR — not about a day it never looked at.
             let dayImported = importedWhoopDays.contains(daily.day) || appleHealthDays.contains(daily.day)
             if !isReusedDay, !dayImported, let tsm = daily.totalSleepMin, night.cachedSleep.isEmpty {
-                diagnosticSink?(Self.sleepDivergenceLogLine(day: daily.day,
+                host.diagnostic(Self.sleepDivergenceLogLine(day: daily.day,
                                                             totalSleepMin: Int(tsm.rounded()),
-                                                            editFold: dayEditedRows.count), nil)
+                                                            editFold: dayEditedRows.count), domain: nil)
             }
             // #195: one always-on line per scored night with the computed HRV value + the window it used,
             // so an "HRV reads high / deep-sleep window not changing" report is self-diagnosing straight
@@ -2990,13 +2987,13 @@ final class IntelligenceEngine: ObservableObject {
             // deep-window night has no detected deep sleep — without needing the HRV & Autonomic test mode.
             // Counts-only (a rounded ms + the window), PII-free; byte-identical to the Kotlin line.
             let hrvLog = daily.avgHrv.map { String(format: "%.1f", $0) } ?? "nil"
-            diagnosticSink?("hrv day=\(daily.day) window=\(deepHrvWindow ? "deep" : "whole") avgHrv=\(hrvLog)", nil)
+            host.diagnostic("hrv day=\(daily.day) window=\(deepHrvWindow ? "deep" : "whole") avgHrv=\(hrvLog)", domain: nil)
             // #195: the whole-night HRV cleaning summary built in loop 1 (rmssd vs sdnn / cleaning counts).
             // #1008: on an over-count night this carries a second `hrv rrsample …` line, \n-joined at the
-            // build site; split it back into one diagnosticSink call per line so each is its own log line.
+            // build site; split it back into one `host.diagnostic` call per line so each is its own log line.
             if let hrvDiagLine = night.hrvDiag {
                 for line in hrvDiagLine.split(separator: "\n", omittingEmptySubsequences: true) {
-                    diagnosticSink?(String(line), nil)
+                    host.diagnostic(String(line), domain: nil)
                 }
             }
             // ── CAPTURE-B: universal dayOwner self-diagnostic (#814/#799) ────────────────────────────────
@@ -3013,10 +3010,10 @@ final class IntelligenceEngine: ObservableObject {
             // gate is one UserDefaults bool; the line is only built when it passes.
             if universalTraceActive {
                 let owned = readOwnerByDay[daily.day]
-                diagnosticSink?(Self.dayOwnerLine(
+                host.diagnostic(Self.dayOwnerLine(
                     day: daily.day, readId: owned?.owner ?? regActiveId, writeActiveId: regActiveId,
                     hrRows: owned?.hrRows ?? 0, importedWhoop: importedWhoopDays.contains(daily.day),
-                    importedApple: appleHealthDays.contains(daily.day)), .universal)
+                    importedApple: appleHealthDays.contains(daily.day)), domain: .universal)
             }
             dailies.append(daily)
             if let rest = AnalyticsEngine.Rest.composite(daily: daily) {
@@ -3061,7 +3058,7 @@ final class IntelligenceEngine: ObservableObject {
             // report it exists for. The `effort bout` line below explains a bout that exists; a strap log
             // showing 37 days and no workouts at all previously carried nothing to explain the absence.
             if let f = night.detectionFunnel {
-                diagnosticSink?(WorkoutDetector.detectionFunnelLine(day: daily.day, funnel: f), nil)
+                host.diagnostic(WorkoutDetector.detectionFunnelLine(day: daily.day, funnel: f), domain: nil)
             }
             for s in night.workouts {
                 let durMin = max(0, (s.end - s.start) / 60)
@@ -3073,9 +3070,9 @@ final class IntelligenceEngine: ObservableObject {
                 // "your HRmax is wrong", "the sensor dropped out"). Reversing the arithmetic out of the
                 // displayed score is what diagnosing #1545 actually took. Same privacy class as the sibling
                 // `sleep day=` line: a day key, a duration, bpm and percentages.
-                diagnosticSink?(WorkoutDetector.boutCalibrationLine(
+                host.diagnostic(WorkoutDetector.boutCalibrationLine(
                     day: daily.day, durMin: durMin, hrmax: s.hrmax, hrmaxSource: s.hrmaxSource,
-                    avgHRRPct: s.avgHRRPct, hrCoveragePct: s.hrCoveragePct, strain: s.strain), nil)
+                    avgHRRPct: s.avgHRRPct, hrCoveragePct: s.hrCoveragePct, strain: s.strain), domain: nil)
                 // The overlap test is bare time overlap (any source), so a detected bout collapses against a
                 // manual session even though their SPORTS differ ("detected" vs the user's sport) , the
                 // #975 "two workouts, one vanished" seam. Find the collider so the trace can name its source.
@@ -3104,16 +3101,16 @@ final class IntelligenceEngine: ObservableObject {
                         backfilledByDevice[hitDeviceId, default: []].append(backfilled)
                     }
                     if workoutsTraceActive {
-                        diagnosticSink?(WorkoutsTrace.detectedBoutLine(
+                        host.diagnostic(WorkoutsTrace.detectedBoutLine(
                             verdict: didBackfill ? "droppedOverlapBackfilled" : "droppedOverlap",
                             durMin: durMin, avgBpm: avgBpm,
-                            overlapSource: WorkoutSource.sourceLabel(hit)), .workouts)
+                            overlapSource: WorkoutSource.sourceLabel(hit)), domain: .workouts)
                     }
                     continue
                 }
                 if workoutsTraceActive {
-                    diagnosticSink?(WorkoutsTrace.detectedBoutLine(
-                        verdict: "analyticsOnly", durMin: durMin, avgBpm: avgBpm), .workouts)
+                    host.diagnostic(WorkoutsTrace.detectedBoutLine(
+                        verdict: "analyticsOnly", durMin: durMin, avgBpm: avgBpm), domain: .workouts)
                 }
             }
         }
@@ -3334,7 +3331,7 @@ final class IntelligenceEngine: ObservableObject {
         await Self.bankHeldPeaks(store: store, strapId: deviceId, computedId: computedId,
                                  oldestDay: oldestDay, newestDay: newestDay, tzOffset: tzOffset)
         // Fork: daily-rhythm readout (CosinorAge beta), once per local day (IntelligenceEngine+RhythmAge.swift).
-        if RhythmAgeFeature.isEnabled {
+        if settings.rhythmAge {
             await Self.runRhythmAgePass(store: store, strapId: deviceId, computedId: computedId, age: profile.age,
                                         sex: profile.sex, day: newestDay, tzOffset: tzOffset)
         }
@@ -3353,7 +3350,7 @@ final class IntelligenceEngine: ObservableObject {
         // Stress score stops comparing against the baseline the wearer just reset.
         let daysForStress = Array((faGateByDay.values.sorted { $0.day < $1.day }))
         if !daysForStress.isEmpty {
-            let stressCut = StressMath.Cut.current()
+            let stressCut = settings.stressCut
             let existingStress = Dictionary(
                 ((try? await store.metricSeries(deviceId: Repository.whoopSource, key: "stress",
                                                  from: oldestDay, to: newestDay)) ?? [])
@@ -3567,14 +3564,14 @@ final class IntelligenceEngine: ObservableObject {
         if stepsTraceActive {
             for line in StepsEstimateEngine.calibrationTrace(points: calPoints,
                                                              manualOverride: profile.stepsManualOverride) {
-                diagnosticSink?(line, .steps)
+                host.diagnostic(line, domain: .steps)
             }
             if let cal = StepsEstimateEngine.calibrate(calPoints, manualOverride: profile.stepsManualOverride) {
                 for dm in dailies where refStepsByDay[dm.day] == nil {
                     guard let motion = motionByDay[dm.day],
                           let est = StepsEstimateEngine.estimate(motion: motion, calibration: cal) else { continue }
-                    diagnosticSink?("stepsEst day=\(dm.day) steps=\(est) "
-                        + "motion=\((motion * 100).rounded() / 100) (motion-volume estimate)", .steps)
+                    host.diagnostic("stepsEst day=\(dm.day) steps=\(est) "
+                        + "motion=\((motion * 100).rounded() / 100) (motion-volume estimate)", domain: .steps)
                 }
             }
         }
@@ -3601,7 +3598,7 @@ final class IntelligenceEngine: ObservableObject {
                 _ = try await store.upsertSleepSessions(cachedSleepKept, deviceId: computedId)
             }
         } catch {
-            diagnosticSink?("re-score: sleep persistence failed; history repair remains pending", nil)
+            host.diagnostic("re-score: sleep persistence failed; history repair remains pending", domain: nil)
             return
         }
         // ── Persist per-epoch motion (H8) beside each kept session's stagesJSON ──────────────────────────
@@ -3624,13 +3621,13 @@ final class IntelligenceEngine: ObservableObject {
         // pass observed (the engine's motion grid came back empty for that window) plus the two settings a
         // reporter might suspect, and attributes no cause. Silent when every kept session has motion, and once
         // per session per launch, so a re-score every few minutes does not repeat it.
-        let motionAwareWakeOn = PuffinExperiment.motionAwareWakeEnabled
+        let motionAwareWakeOn = settings.motionAwareWake
         for session in cachedSleepKept where motionByStart[session.startTs] == nil
             && loggedMissingMotionStarts.insert(session.startTs).inserted {
             let sparse = session.stagingSparse.map { $0 ? "yes" : "no" } ?? "unknown"
-            diagnosticSink?("sleep motion: none persisted for session start=\(session.startTs) "
+            host.diagnostic("sleep motion: none persisted for session start=\(session.startTs) "
                 + "dur=\((session.endTs - session.startTs) / 60)m (motion grid empty for its window) "
-                + "sparse=\(sparse) motionAwareWake=\(motionAwareWakeOn ? "on" : "off")", nil)
+                + "sparse=\(sparse) motionAwareWake=\(motionAwareWakeOn ? "on" : "off")", domain: nil)
         }
         // ── Persist per-epoch BAND sleep_state (#175) beside each kept session's stagesJSON ──────────────
         // This is the source `sessionSleepStateJSON` lacked (v7.7.0 finding: the write path had no producer
@@ -3703,7 +3700,7 @@ final class IntelligenceEngine: ObservableObject {
                 // #1284: log which copy was dropped and which survived, so the corpus can confirm the heal
                 // keeps the fuller / end-correct row (the survivor the collapse resolved this stale into).
                 if let survivor = sweep.kept.first(where: { SleepSessionDedup.isDuplicate($0, stale) }) {
-                    diagnosticSink?("Dedup(#1284): dropped \(sleepShape(stale)) kept \(sleepShape(survivor)) - heal", nil)
+                    host.diagnostic("Dedup(#1284): dropped \(sleepShape(stale)) kept \(sleepShape(survivor)) - heal", domain: nil)
                 }
             }
             healDropped.append(contentsOf: sweep.dropped)
@@ -3711,11 +3708,11 @@ final class IntelligenceEngine: ObservableObject {
         // #1284: log the sweep ALWAYS, even at zero removals — a heal that collapsed rows was previously
         // silent (the line below only fired on a non-empty drop), so from the strap log alone it was
         // indistinguishable from never having run. Counts only, no PII.
-        diagnosticSink?("Dedup(#899): swept \(healDeviceIds.count) device id(s), removed "
-            + "\(healDropped.count) overlapping duplicate session(s).", nil)
+        host.diagnostic("Dedup(#899): swept \(healDeviceIds.count) device id(s), removed "
+            + "\(healDropped.count) overlapping duplicate session(s).", domain: nil)
         if !healDropped.isEmpty {
-            diagnosticSink?("Dedup(#899): removed \(healDropped.count) overlapping duplicate sleep "
-                + "session(s) re-banked under a shifted strap timebase; re-scoring the affected days.", nil)
+            host.diagnostic("Dedup(#899): removed \(healDropped.count) overlapping duplicate sleep "
+                + "session(s) re-banked under a shifted strap timebase; re-scoring the affected days.", domain: nil)
             // Re-score against the cleaned store via the existing #899-A re-arm: the days scored THIS
             // pass consumed the read-side deduped view, but that view had no bank-recency witness (the
             // fresh detections weren't banked yet), so its survivor can differ from the heal's. One
@@ -3767,7 +3764,7 @@ final class IntelligenceEngine: ObservableObject {
         // this pass stored its sleep sessions and step estimates, so the newest night's consistency and a WHOOP
         // 4.0's newest estimated day count in this pass rather than the next; before the refresh below, so the
         // AgeLess screen reloads with them.
-        if HealthspanFeature.isEnabled {
+        if settings.healthspan {
             let manualVO2 = Repository.enteredVO2max()
             let bodyFat = await repo.bodyMetrics().series("body_fat").map { (day: $0.day, value: $0.value) }
             // A first run writes weeks back a year, each reading six months of VO₂max; later runs only the
@@ -3831,25 +3828,20 @@ final class IntelligenceEngine: ObservableObject {
         // #836/#sleep-sync: record the complete raw-analysis fingerprint this run scored against, so a later
         // NON-forced tick can short-circuit while it's unchanged. Written ONLY at the end of a completed run (never on an
         // early guard-return), so an interrupted/failed run can't advance the watermark past unscored data.
-        if !wmKey.isEmpty { UserDefaults.standard.set(wmKey, forKey: Self.analyzeWatermarkKey) }
+        if !wmKey.isEmpty { host.store(wmKey, forKey: Self.analyzeWatermarkKey) }
         markPostLoopPhase("tail")
-        diagnosticSink?(AnalysisPhaseTally.logLine(scope: "postLoop", postLoopPhases), nil)
+        host.diagnostic(AnalysisPhaseTally.logLine(scope: "postLoop", postLoopPhases), domain: nil)
         // #1538: clear the started-mark and bank how long a COMPLETED pass costs on this install. The
         // measurement is what lets `RescoreBackgroundPolicy` tell an install that finishes comfortably in a
         // background wake from one that never could, instead of guessing from a constant — the cost varies
         // by more than an order of magnitude with history size.
         let elapsed = Double(DispatchTime.now().uptimeNanoseconds &- reScoreStart) / 1_000_000_000
-        let settled = RescoreBackgroundScheduler.markRescoreCompleted(seconds: elapsed,
-                                                                       owedToken: owedToken)
-        diagnosticSink?(RescoreBackgroundScheduler.passCostLogLine(
-            cpuSeconds: RescoreBackgroundScheduler.processCPUSeconds().flatMap { end in reScoreCPUStart.map { end - $0 } },
-            elapsedSeconds: elapsed,
-            assertionExpiries: RescoreBackgroundScheduler.assertionExpiries - reScoreExpiriesAtStart,
-            backgroundedAtEnd: RescoreBackgroundScheduler.isBackgrounded), nil)
-        if !settled {
-            diagnosticSink?("re-score: completed, but a newer rescore request remains owed (#1681)", nil)
+        let passReport = host.passDidFinish(passTicket, elapsedSeconds: elapsed)
+        host.diagnostic(passReport.costLine, domain: nil)
+        if !passReport.settled {
+            host.diagnostic("re-score: completed, but a newer rescore request remains owed (#1681)", domain: nil)
         }
-        diagnosticSink?("re-score: done — scored \(scoredNights.count) night(s) in \(Int(elapsed * 1000)) ms (#1005)", nil)
+        host.diagnostic("re-score: done — scored \(scoredNights.count) night(s) in \(Int(elapsed * 1000)) ms (#1005)", domain: nil)
     }
 
     /// UserDefaults key for the #836 idle-tick gate: the `(count:maxTs)` HR fingerprint the last completed

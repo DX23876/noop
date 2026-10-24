@@ -34,9 +34,10 @@ final class PostOffloadCostBenchmarkTests: XCTestCase {
         let repo = Repository(deviceId: Self.deviceId)
         repo.setStoreForTesting(store)
         let profile = ProfileStore()
-        let engine = IntelligenceEngine(repo: repo, profile: profile, deviceId: Self.deviceId)
+        let host = AppAnalysisHost()
+        let engine = IntelligenceEngine(repo: repo, profile: profile, deviceId: Self.deviceId, host: host)
         var passLines: [String] = []
-        engine.diagnosticSink = { line, _ in
+        host.diagnosticSink = { line, _ in
             if line.hasPrefix("re-score:") || line.contains("postLoop") { passLines.append(line) }
         }
 

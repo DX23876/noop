@@ -19,10 +19,15 @@ public enum StressMath {
 
         public static let none = Cut()
 
+        /// The cut for the two recalibration epochs (epoch seconds, 0 when never recalibrated).
+        public init(hrvBaselineEpoch: Double, recoveryBaselineEpoch: Double) {
+            self.init(hrvFirstNight: Baselines.firstNightAfterRecalibration(epoch: hrvBaselineEpoch),
+                      rhrFirstNight: Baselines.firstNightAfterRecalibration(epoch: recoveryBaselineEpoch))
+        }
+
         public static func current(_ defaults: UserDefaults = .standard) -> Cut {
-            Cut(hrvFirstNight: Baselines.firstNightAfterRecalibration(epoch: Baselines.hrvBaselineEpoch(defaults)),
-                rhrFirstNight: Baselines.firstNightAfterRecalibration(
-                    epoch: Baselines.recoveryBaselineEpoch(defaults)))
+            Cut(hrvBaselineEpoch: Baselines.hrvBaselineEpoch(defaults),
+                recoveryBaselineEpoch: Baselines.recoveryBaselineEpoch(defaults))
         }
     }
 
