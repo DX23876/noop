@@ -100,12 +100,16 @@ final class DeviceRawSourceParityTests: XCTestCase {
                       "Default Full Day timelines must resolve every registered raw source")
         XCTAssertFalse(timeline.contains("source.map { [$0] } ?? importedReadIds"),
                        "Timeline must not fall back to active-plus-canonical only")
-        XCTAssertTrue(repository.contains("hrBuckets(deviceIds: rawPhysiologyReadIds(store: store)"),
+        // The union reads live in StrandCore's StoreReader, which Repository builds per read.
+        let reader = try production("Packages/StrandCore/Sources/StrandCore/StoreReader.swift")
+        XCTAssertTrue(reader.contains("hrBuckets(deviceIds: rawPhysiologyReadIds,"),
                       "Coarse HR reads must include every registered WHOOP strap")
-        XCTAssertTrue(repository.contains("ids: rawPhysiologyReadIds(store: store)"),
+        XCTAssertTrue(reader.contains("ids: rawPhysiologyReadIds,"),
                       "Primary sleep reads must include every registered WHOOP strap")
-        XCTAssertTrue(repository.contains("ids: rawComputedReadIds(store: store)"),
+        XCTAssertTrue(reader.contains("ids: rawComputedReadIds,"),
                       "Computed sleep reads must include every registered WHOOP strap")
+        XCTAssertTrue(repository.contains("registeredWhoopIds: registeredWhoopIds)"),
+                      "Repository must hand the reader its registered WHOOP snapshot")
 
         let pillars = try production("Strand/Screens/V5PillarHosts.swift")
         XCTAssertTrue(pillars.contains("repo.rrIntervals(from:"),
