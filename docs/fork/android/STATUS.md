@@ -28,12 +28,14 @@ Plan: [`PLAN.md`](PLAN.md) · last updated 2026-10-24
 | Real-data check 1 (B4) | 2026-10-24 | Owner's iPhone store (4.2 GB, newest day 2026-10-24) re-analysed over 21 days by `d21690770` and by `ff34ef571`: 0 of 78 tables differ (77 identical by hash, `scoreInputProvenance` identical in another row order) |
 | B3 step 4, part 1: metric and steps resolvers | 2026-10-24 | `MetricResolver` in `StrandCore` with three store-backed tests; 38 package tests pass on macOS and the emulator; `local-tests.sh` passed |
 | B3 step 4, part 2: `WorkoutSource` and `WorkoutCatalog` | 2026-10-24 | In `StrandCore`, translated names left in the app; 37 of 48 workout tests moved; 75 package tests pass on macOS and the emulator; `local-tests.sh` passed |
+| B3 step 4, part 3: union reads and data computations | 2026-10-24 | `StoreReader` (the active-strap, registered-strap and canonical union), training session fusion and read, native projection, workout heart rate fills, cardio load pricing, VO2max session parts, weight and body metric reads, the energy model refresh; 131 package tests pass on macOS and the emulator; `local-tests.sh` passed |
 
 ## Next step
 
-B3 step 4, next part: training session fusion and the native training projection (order in `INVENTORY.md`
-section 8). ZIPFoundation must
-build for Android before body metrics (StrandImport) and backup move.
+B3 step 5: the daily pass moves into `StrandCore`. What is left of step 4 in the app is orchestration, not
+arithmetic: which window, which cache, when the screens reload, serialized energy refreshes, sleep self-heal.
+The pass reaches those through a data-services protocol the app implements with `Repository` and Android with
+`StoreReader` and the core functions. Then real-data check 2.
 
 ## How to run a real-data check (B4)
 
@@ -61,15 +63,13 @@ Compares the build before a restructuring with the build after it on a copy of t
   (called from the BLE layer), the Repository data functions that move in step 4 (`PuffinExperiment` flags,
   `ProfileStore`), and `StrandAnalytics` helpers that default to `UserDefaults.standard` when a caller passes no
   value. The pass itself passes its snapshot everywhere it calls them. Each is resolved when its code moves.
-- `StrandCore` does not depend on `StrandImport` yet, because ZIPFoundation 0.9.20 does not build for Android
-  from a macOS host. Its manifest decides on the host whether to declare the zlib module (`canImport(Compression)`
-  is true on macOS), while the sources compiled for Android take the zlib branch. Passing the module map by hand
-  (`-Xcc -fmodule-map-file=…/CZLib/module.modulemap`) gets past that; then the sources need `import Android`
-  for `stat` and friends, the Linux-only code page 437 branch widened to Android, and Bionic's non-null C
-  signatures (`fwrite`, the `funopen` stubs of the in-memory archive). The `.noopbak` backup is a ZIP, so this
-  must be solved before steps 4 (body metrics) and 6 (backup): patch ZIPFoundation like GRDB, build the
-  Android side on a Linux host where the manifest declares zlib, or write the single-entry deflate ZIP the
-  backup uses directly on zlib.
+- ZIPFoundation 0.9.20 needs a carried Android patch, like GRDB (D22), now that `StrandCore` depends on
+  `StrandImport`: `import Android` for libc, the code page 437 branch widened to Android, Bionic's non-null C
+  signatures (`fwrite`, the `funopen` callbacks of the in-memory archive, adapted through closures), and
+  `lchmod` skipped below Android 36 (symlink permissions never occur in NOOP's archives). On a macOS host the
+  build also passes the zlib module map by hand, because the package manifest decides on the host that Apple's
+  Compression exists. `StrandImport`'s xlsx reader now imports FoundationXML where corelibs keeps the XML
+  parser, as the GPX and TCX parsers already did.
 
 ## Untested (needs a device or a tester's strap log)
 

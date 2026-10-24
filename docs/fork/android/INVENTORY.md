@@ -124,12 +124,12 @@ Steps, one concern per commit, each with `Tools/local-tests.sh`, the macOS and i
 3. Inside the app, without moving the pass: introduce `AnalysisSettings` and `AnalysisHost` and route every
    `UserDefaults`, flag, Test Centre, scheduler and sink access of the pass through them.
    **Real-data check 1 (B4).**
-4. Repository data members move one file per commit, `Repository` keeping wrappers. Re-sorted by what
-   depends on what (2026-10-24): the metric source resolver with the steps resolver (done), then
-   `WorkoutSource` (the workout precedence nearly every other helper reads), training session fusion and
-   the native training projection, workout heart rate fill, the cardio ledger with its lanes, VO2 sessions,
-   the pure `WeightSeries` parts with body metrics (needs StrandImport, so ZIPFoundation on Android first),
-   energy last (it needs the profile as a value), then the remaining union reads and sleep edits.
+4. Repository data members move one file per commit, `Repository` keeping wrappers. Done 2026-10-24 for the
+   arithmetic and the reads: `MetricResolver`, `StoreReader` (the union reads, found to be the base everything
+   else stands on), `WorkoutSource`, training fusion and read, cardio pricing (`CardioLoadCache` for the memo),
+   heart rate fills, VO2max session parts, weight and body reads, `EnergyModelRefresh`. The orchestration
+   around them (windows, caches, serialization, screen refreshes) stays in `Repository` and reaches the pass
+   through a data-services protocol in step 5 rather than moving.
 5. Split the engine: the pass becomes a non-`MainActor` `DailyAnalysis` in `StrandCore`; `IntelligenceEngine`
    stays in the app as the `ObservableObject` shell that publishes its results and progress.
    **Real-data check 2 (B4).**
