@@ -3,6 +3,7 @@ import Foundation
 import WidgetKit
 import StrandDesign
 import WhoopStore
+import StrandCore
 
 /// Publishes the fitness widgets' payload from what the app already holds: the daily metrics, the
 /// scale's weigh-ins, the workout log and the step goal. Called with the main glance publish (app

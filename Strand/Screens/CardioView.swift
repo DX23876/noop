@@ -2,6 +2,7 @@ import SwiftUI
 import WhoopStore
 import StrandDesign
 import StrandAnalytics
+import StrandCore
 
 // MARK: - Cardio — the screen a run, a ride and a swim were missing
 //

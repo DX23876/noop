@@ -1,6 +1,7 @@
 import SwiftUI
 import StrandDesign
 import WhoopStore
+import StrandCore
 
 /// Carries the measured natural height of the Sport picker's floating suggestion panel up to the
 /// view, so the overlay can size itself to its content (capped) rather than to the text field.

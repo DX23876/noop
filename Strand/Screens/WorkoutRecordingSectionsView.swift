@@ -1,6 +1,7 @@
 import SwiftUI
 import StrandAnalytics
 import StrandDesign
+import StrandCore
 
 /// Recorded sections only. Older workouts are not given interpolated, synthetic splits.
 struct WorkoutRecordingSectionsView: View {

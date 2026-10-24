@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import WhoopStore
+import StrandCore
 
 /// A repeatable, concrete action which can support several long-term goals without being duplicated.
 /// Result progress (weight, distance, sleep) stays separate; this records execution only.

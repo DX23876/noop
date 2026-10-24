@@ -10,6 +10,7 @@ import StrandAnalytics
 import StrandImport
 import StrandTraining
 import StrandDesign
+import StrandCore
 
 /// Two-way Apple Health bridge for the iOS app.
 ///

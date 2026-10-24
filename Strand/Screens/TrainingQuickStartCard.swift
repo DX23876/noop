@@ -1,6 +1,7 @@
 import SwiftUI
 import StrandDesign
 import StrandTraining
+import StrandCore
 
 /// The top of the Training tab: start what is planned or what was done recently with one tap, or open
 /// the full start screen for anything else. Each activity states the route and zone-coach choice it

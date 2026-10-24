@@ -1,6 +1,7 @@
 import SwiftUI
 import StrandDesign
 import StrandAnalytics
+import StrandCore
 
 /// One weekly or monthly goal in full (design §7): where it stands, how to get there, how it went,
 /// what counted, what it serves, and its settings.

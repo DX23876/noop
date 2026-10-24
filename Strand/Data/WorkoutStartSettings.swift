@@ -1,4 +1,5 @@
 import Foundation
+import StrandCore
 
 /// The route and zone-coach choice an activity was last started with, so a quick start from the
 /// Training tab repeats it and can say beforehand what it will do. Kept per activity: a walk with GPS

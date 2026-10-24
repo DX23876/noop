@@ -1,5 +1,6 @@
 import XCTest
 import WhoopStore
+import StrandCore
 @testable import Strand
 
 /// Pins how a Hevy session behaves inside the EXISTING workout machinery — the part of this feature

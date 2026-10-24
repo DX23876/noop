@@ -3,6 +3,7 @@ import Charts
 import StrandDesign
 import StrandAnalytics
 import WhoopStore
+import StrandCore
 
 // MARK: - Workout span picker (HR curve on the workout sheet)
 //

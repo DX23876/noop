@@ -1,6 +1,7 @@
 import SwiftUI
 import StrandDesign
 import WhoopStore
+import StrandCore
 
 /// Adds the details HealthKit cannot contain to an already imported strength-workout envelope.
 ///

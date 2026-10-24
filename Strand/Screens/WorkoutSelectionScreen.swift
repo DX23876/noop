@@ -2,6 +2,7 @@ import SwiftUI
 import StrandDesign
 import StrandAnalytics
 import StrandTraining
+import StrandCore
 
 // MARK: - Workout selection browser
 //

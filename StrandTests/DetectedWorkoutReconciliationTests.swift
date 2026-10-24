@@ -3,6 +3,7 @@ import Foundation
 import WhoopProtocol
 import WhoopStore
 import StrandAnalytics
+import StrandCore
 @testable import Strand
 
 /// #1735/#2187: the analytics detector may enrich workouts the user already logged, but the opt-in

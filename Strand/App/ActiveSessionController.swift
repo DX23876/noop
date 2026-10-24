@@ -4,6 +4,7 @@ import StrandAnalytics
 import StrandDesign
 import StrandTraining
 import WhoopProtocol
+import StrandCore
 
 /// The one active training session in the app.
 ///

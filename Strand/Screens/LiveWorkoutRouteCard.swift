@@ -1,5 +1,6 @@
 import SwiftUI
 import StrandDesign
+import StrandCore
 
 /// Route rows for the active workout: distance and pace as live metric rows, plus one status line for the
 /// GPS state. The status stays visible while paused and when permission or signal is missing, so a

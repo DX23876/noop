@@ -2,6 +2,7 @@ import Foundation
 import StrandAnalytics
 import WhoopProtocol
 import WhoopStore
+import StrandCore
 
 /// The measured cardiovascular work attached to one canonical training session. TRIMP is additive;
 /// Effort is its familiar 0–100 presentation and must never be summed across sessions.

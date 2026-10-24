@@ -1,0 +1,490 @@
+import XCTest
+import StrandCore
+import WhoopStore
+
+
+/// Pins the pure workout-editing logic: source classification (the macOS read model has no
+/// deviceId, so origin is recovered from `source`), the durable dismissed-span filter that keeps a
+/// re-detected bout hidden (#107), manual-row validation, and field preservation on edit.
+/// Mirrors the Android WorkoutEditingTest case-for-case.
+final class WorkoutSourceTests: XCTestCase {
+
+    private func row(start: Int, end: Int, sport: String, source: String,
+                     avgHr: Int? = nil, maxHr: Int? = nil, strain: Double? = nil) -> WorkoutRow {
+        WorkoutRow(startTs: start, endTs: end, sport: sport, source: source,
+                   durationS: Double(end - start), energyKcal: nil, avgHr: avgHr, maxHr: maxHr,
+                   strain: strain, distanceM: nil, zonesJSON: nil, notes: nil, steps: nil)
+    }
+
+    // MARK: - cross-source dedup (#687)
+
+    private func richRow(start: Int, end: Int, sport: String, source: String) -> WorkoutRow {
+        // A live strap session: HR trace, peak, strain, zones, distance, energy all captured.
+        WorkoutRow(startTs: start, endTs: end, sport: sport, source: source,
+                   durationS: Double(end - start), energyKcal: 600, avgHr: 150, maxHr: 178,
+                   strain: 14.0, distanceM: 10_000, zonesJSON: #"{"z1":10}"#, notes: nil, steps: nil)
+    }
+    private func thinImport(start: Int, end: Int, sport: String, source: String) -> WorkoutRow {
+        // A thin Health Connect / Apple import: only duration + calories.
+        WorkoutRow(startTs: start, endTs: end, sport: sport, source: source,
+                   durationS: Double(end - start), energyKcal: 590, avgHr: nil, maxHr: nil,
+                   strain: nil, distanceM: nil, zonesJSON: nil, notes: nil, steps: nil)
+    }
+
+    // MARK: - Filter predicate (#64)
+
+    private func fullRow(start: Int, end: Int, sport: String, source: String,
+                         avgHr: Int? = nil, kcal: Double? = nil, dist: Double? = nil,
+                         strain: Double? = nil, maxHr: Int? = nil, notes: String? = nil,
+                         steps: Int? = nil) -> WorkoutRow {
+        WorkoutRow(startTs: start, endTs: end, sport: sport, source: source,
+                   durationS: Double(end - start), energyKcal: kcal, avgHr: avgHr, maxHr: maxHr,
+                   strain: strain, distanceM: dist, zonesJSON: nil, notes: notes, steps: steps)
+    }
+
+    // MARK: - classify
+
+    func testClassifyOrdersNoopBeforeWhoop() {
+        // "my-whoop-noop" contains "whoop" — the -noop suffix MUST win, else a detected bout
+        // would be classified as an imported WHOOP row and become un-dismissable.
+        XCTAssertEqual(WorkoutSource.classify("my-whoop-noop"), .detected)
+        XCTAssertEqual(WorkoutSource.classify("whoop"), .whoop)
+        XCTAssertEqual(WorkoutSource.classify("manual"), .manual)
+        XCTAssertEqual(WorkoutSource.classify("native-training:whoop-bedroom"), .manual)
+        XCTAssertEqual(WorkoutSource.classify("lifting"), .lifting)
+        XCTAssertEqual(WorkoutSource.classify("activity-file"), .activityFile)
+        XCTAssertEqual(WorkoutSource.classify("apple_health"), .apple)
+        XCTAssertEqual(WorkoutSource.classify("apple-health"), .apple)
+    }
+
+    func testAppleHealthSourceAcceptsCanonicalAndLegacySpellings() {
+        XCTAssertTrue(WorkoutSource.isAppleHealth("apple-health"))
+        XCTAssertTrue(WorkoutSource.isAppleHealth("apple_health"))
+        XCTAssertTrue(WorkoutSource.isAppleHealth("APPLE_HEALTH"))
+        XCTAssertFalse(WorkoutSource.isAppleHealth("whoop"))
+    }
+
+    // MARK: - dismissed spans (durable #107 filter)
+
+    func testParseDismissedSpansDropsMalformed() {
+        let spans = WorkoutSource.parseDismissedSpans(["100:200", "bad", "5:5", "9:3", "300:400"])
+        // "5:5" (zero width) and "9:3" (end<start) and "bad" are dropped.
+        XCTAssertEqual(spans.count, 2)
+        XCTAssertEqual(spans[0].start, 100); XCTAssertEqual(spans[0].end, 200)
+        XCTAssertEqual(spans[1].start, 300); XCTAssertEqual(spans[1].end, 400)
+    }
+
+    func testIsDismissedOnlyHidesOverlappingDetectedRows() {
+        let spans = WorkoutSource.parseDismissedSpans(["1000:2000"])
+        let detectedOverlap = row(start: 1500, end: 2500, sport: "detected", source: "my-whoop-noop")
+        let detectedClear = row(start: 3000, end: 4000, sport: "detected", source: "my-whoop-noop")
+        let manualOverlap = row(start: 1500, end: 2500, sport: "Running", source: "manual")
+        XCTAssertTrue(WorkoutSource.isDismissed(detectedOverlap, spans: spans))
+        XCTAssertFalse(WorkoutSource.isDismissed(detectedClear, spans: spans))
+        // A manual (or imported) row is NEVER auto-hidden by a dismissed span — only detected bouts.
+        XCTAssertFalse(WorkoutSource.isDismissed(manualOverlap, spans: spans))
+    }
+
+    func testIsDismissedSurvivesStartTsDrift() {
+        // A re-detected bout whose boundary drifted a little still overlaps the dismissed span.
+        let spans = WorkoutSource.parseDismissedSpans(["1000:2000"])
+        let drifted = row(start: 1040, end: 2030, sport: "detected", source: "my-whoop-noop")
+        XCTAssertTrue(WorkoutSource.isDismissed(drifted, spans: spans))
+    }
+
+    func testDismissedTokenRoundTrips() {
+        let r = row(start: 1700000000, end: 1700003600, sport: "detected", source: "my-whoop-noop")
+        let token = WorkoutSource.dismissedToken(for: r)
+        XCTAssertEqual(token, "1700000000:1700003600")
+        let spans = WorkoutSource.parseDismissedSpans([token])
+        XCTAssertTrue(WorkoutSource.isDismissed(r, spans: spans))
+    }
+
+    func testSportKeyFoldsCamelCaseAndSpacing() {
+        XCTAssertEqual(WorkoutSource.sportKey("TraditionalStrengthTraining"),
+                       WorkoutSource.sportKey("Traditional Strength Training"))
+        XCTAssertEqual(WorkoutSource.sportKey("Running"), WorkoutSource.sportKey("running"))
+        XCTAssertNotEqual(WorkoutSource.sportKey("Running"), WorkoutSource.sportKey("Cycling"))
+    }
+
+    func testSameActivityRequiresSportAndMajorityOverlap() {
+        let live = richRow(start: 1000, end: 4600, sport: "Running", source: "whoop")        // 60 min
+        let importDrift = thinImport(start: 1040, end: 4570, sport: "Running", source: "health-connect")
+        XCTAssertTrue(WorkoutSource.sameActivity(live, importDrift))      // same sport, near-full overlap
+        // Different sport in the same window is NOT the same activity.
+        let otherSport = thinImport(start: 1040, end: 4570, sport: "Cycling", source: "health-connect")
+        XCTAssertFalse(WorkoutSource.sameActivity(live, otherSport))
+        // Back-to-back same-sport sessions that only touch at the edge stay distinct (<50% overlap).
+        let nextRun = richRow(start: 4500, end: 8100, sport: "Running", source: "whoop")
+        XCTAssertFalse(WorkoutSource.sameActivity(live, nextRun))
+    }
+
+    func testDedupCollapsesLiveAndImportKeepingRicher() {
+        let live = richRow(start: 1000, end: 4600, sport: "Running", source: "whoop")
+        let hc = thinImport(start: 1030, end: 4580, sport: "Running", source: "health-connect")
+        // Order shouldn't matter — the richer (live) row always survives.
+        let a = WorkoutSource.dedupCrossSource([live, hc])
+        let b = WorkoutSource.dedupCrossSource([hc, live])
+        XCTAssertEqual(a.count, 1)
+        XCTAssertEqual(b.count, 1)
+        XCTAssertEqual(a.first?.source, "whoop")
+        XCTAssertEqual(b.first?.source, "whoop")
+        XCTAssertEqual(a.first?.strain, 14.0)   // kept the row with the captured trace
+    }
+
+    func testDedupTraceKeptIsByteIdenticalAndNamesThePair() {
+        // The Workouts test-mode dedup twin must return the SAME kept list dedupCrossSource does, plus a
+        // decision line naming the kept vs dropped source. (Trace cannot diverge from the screen's list.)
+        let live = richRow(start: 1000, end: 4600, sport: "Running", source: "whoop")
+        let hc = thinImport(start: 1030, end: 4580, sport: "Running", source: "health-connect")
+        let plain = WorkoutSource.dedupCrossSource([live, hc])
+        let (kept, trace) = WorkoutSource.dedupCrossSourceTrace([live, hc])
+        XCTAssertEqual(kept.map { $0.source }, plain.map { $0.source })
+        XCTAssertEqual(kept.count, 1)
+        XCTAssertEqual(kept.first?.source, "whoop")
+        // One dedup line, naming the strap row as kept and the apple/HC import as dropped.
+        XCTAssertEqual(trace.count, 1)
+        XCTAssertTrue(trace[0].contains("dedup sport=running"))
+        XCTAssertTrue(trace[0].contains("kept=strap"))
+        XCTAssertTrue(trace[0].contains("dropped=apple"))
+        XCTAssertFalse(trace.contains { $0.contains("\u{2014}") })
+    }
+
+    func testDedupTraceEmitsNothingForDistinctSessions() {
+        // No cross-source pair → no dedup line, and the kept list equals the input order.
+        let run = richRow(start: 1000, end: 4600, sport: "Running", source: "whoop")
+        let lift = richRow(start: 5000, end: 8600, sport: "Strength Training", source: "whoop")
+        let (kept, trace) = WorkoutSource.dedupCrossSourceTrace([run, lift])
+        XCTAssertEqual(kept.count, 2)
+        XCTAssertTrue(trace.isEmpty, "no collapsed pair must emit zero dedup lines, got \(trace)")
+    }
+
+    func testDedupKeepsNonImportOnRichnessTie() {
+        // Two equally-thin rows: a strap "manual" live row and a Health Connect import. Keep the strap one.
+        let manual = thinImport(start: 1000, end: 4600, sport: "Walking", source: "manual")
+        let hc = thinImport(start: 1010, end: 4590, sport: "Walking", source: "health-connect")
+        let out = WorkoutSource.dedupCrossSource([hc, manual])
+        XCTAssertEqual(out.count, 1)
+        XCTAssertEqual(out.first?.source, "manual")
+    }
+
+    func testDedupLeavesDistinctSessionsAndIsStable() {
+        let run = richRow(start: 1000, end: 4600, sport: "Running", source: "whoop")
+        let lift = richRow(start: 5000, end: 8600, sport: "Strength Training", source: "whoop")
+        let hcRun = thinImport(start: 1020, end: 4580, sport: "Running", source: "health-connect")
+        let out = WorkoutSource.dedupCrossSource([run, lift, hcRun])
+        // The run pair collapses to one; the lift is untouched. Two sessions, original order preserved.
+        XCTAssertEqual(out.count, 2)
+        XCTAssertEqual(out[0].sport, "Running")
+        XCTAssertEqual(out[1].sport, "Strength Training")
+    }
+
+    func testDedupTimeSweepHandlesLargeSameSportHistoryAndLateTwin() {
+        let walks = (0..<2_001).map { index in
+            richRow(start: index * 7_200, end: index * 7_200 + 3_600,
+                    sport: "Walking", source: "whoop")
+        }
+        let last = walks.last!
+        let importedTwin = thinImport(start: last.startTs + 20, end: last.endTs - 20,
+                                      sport: "Walking", source: "apple-health")
+
+        let out = WorkoutSource.dedupCrossSource(walks + [importedTwin])
+
+        XCTAssertEqual(out.count, walks.count)
+        XCTAssertEqual(out.last?.source, "whoop")
+        XCTAssertEqual(out.map(\.startTs), walks.map(\.startTs), "the sweep preserves stable time order")
+    }
+
+    // MARK: - detected-vs-real overlap collapse (#975)
+
+    func testDetectedShadowIsDroppedWhenItOverlapsAManualSession() {
+        // A live/manual "Strength" session and its detected twin (different sport, wider window) overlap
+        // heavily. Before the next engine pass both show; the read-time guard drops the detected shadow.
+        let manual = richRow(start: 1000, end: 4600, sport: "Strength Training", source: "manual")
+        let detected = row(start: 900, end: 4800, sport: "detected", source: "my-whoop-noop",
+                           avgHr: 175, maxHr: 190, strain: 19.0)   // wider window, implausibly hot
+        let out = WorkoutSource.dedupCrossSource([detected, manual])
+        XCTAssertEqual(out.count, 1)
+        XCTAssertEqual(out.first?.source, "manual", "the real session survives, the detected shadow is dropped")
+    }
+
+    func testDetectedBoutKeptWhenItDoesNotOverlapAnyReal() {
+        // A detected bout on its own (no real session in its window) is untouched.
+        let detected = row(start: 1000, end: 4600, sport: "detected", source: "my-whoop-noop",
+                           avgHr: 150, maxHr: 170, strain: 12.0)
+        let manualLater = richRow(start: 20_000, end: 23_600, sport: "Running", source: "manual")
+        let out = WorkoutSource.dedupCrossSource([detected, manualLater])
+        XCTAssertEqual(out.count, 2)
+        XCTAssertTrue(out.contains { WorkoutSource.classify($0.source) == .detected })
+    }
+
+    func testDetectedShadowNotDroppedForBriefTouchingOverlap() {
+        // Back-to-back: a detected bout and a manual session that only touch at the edge (<50% of shorter)
+        // are genuinely separate and both survive.
+        let manual = richRow(start: 1000, end: 4600, sport: "Running", source: "manual")   // 60 min
+        let detected = row(start: 4500, end: 8100, sport: "detected", source: "my-whoop-noop",
+                           avgHr: 150, strain: 12.0)                                        // 60 min, 100 s overlap
+        let out = WorkoutSource.dedupCrossSource([manual, detected])
+        XCTAssertEqual(out.count, 2)
+    }
+
+    func testDedupTraceEmitsDroppedShadowLineAndStaysByteIdentical() {
+        // The trace twin must drop the same detected shadow the plain path does AND name it, without diverging.
+        let manual = richRow(start: 1000, end: 4600, sport: "Strength Training", source: "manual")
+        let detected = row(start: 900, end: 4800, sport: "detected", source: "my-whoop-noop",
+                           avgHr: 175, strain: 19.0)
+        let plain = WorkoutSource.dedupCrossSource([detected, manual])
+        let (kept, trace) = WorkoutSource.dedupCrossSourceTrace([detected, manual])
+        XCTAssertEqual(kept.map { $0.source }, plain.map { $0.source })
+        XCTAssertEqual(kept.count, 1)
+        XCTAssertEqual(kept.first?.source, "manual")
+        XCTAssertTrue(trace.contains { $0.contains("detectedBout verdict=droppedShadow") }, "got \(trace)")
+        XCTAssertTrue(trace.contains { $0.contains("overlapSource=manual") }, "got \(trace)")
+        XCTAssertFalse(trace.contains { $0.contains("\u{2014}") })
+    }
+
+    // MARK: - trace privacy (L5) + dedup label (L8)
+
+    func testTraceSportKeyWhitelistsCatalogAndFoldsFreeTextToCustom() {
+        // L5 PRIVACY: a catalogue sport passes through as its key; a user-named free-text sport never
+        // reaches the export and folds to "custom"; the detector's "Activity" token stays "activity".
+        XCTAssertEqual(WorkoutSource.traceSportKey("Running"), "running")
+        XCTAssertEqual(WorkoutSource.traceSportKey("Open-water swim"), WorkoutSource.sportKey("Open-water swim"))
+        XCTAssertEqual(WorkoutSource.traceSportKey("detected"), "activity")
+        // A free-typed name (#519 free text) MUST NOT surface verbatim.
+        XCTAssertEqual(WorkoutSource.traceSportKey("Johns Birthday 5k"), "custom")
+        XCTAssertNotEqual(WorkoutSource.traceSportKey("Johns Birthday 5k"), WorkoutSource.sportKey("Johns Birthday 5k"))
+        // An off-catalogue WHOOP token also folds to custom (privacy-conservative).
+        XCTAssertEqual(WorkoutSource.traceSportKey("TraditionalStrengthTraining"), "custom")
+    }
+
+    func testDedupTraceLabelsKeptDroppedOnSameStartSameSourcePair() {
+        // L8: two rows sharing startTs AND source but differing in richness. The OLD (startTs, source)
+        // tuple check could not tell which won; the label must follow the REAL keep rule (richer kept).
+        let rich = richRow(start: 1000, end: 4600, sport: "Running", source: "whoop")        // richness high
+        let thin = thinImport(start: 1000, end: 4600, sport: "Running", source: "whoop")      // same start+source, poorer
+        // The richer row wins; the thinner same-start same-source row is the dropped one.
+        let (_, trace) = WorkoutSource.dedupCrossSourceTrace([thin, rich])
+        XCTAssertEqual(trace.count, 1)
+        let keptRich = WorkoutSource.richness(rich), droppedRich = WorkoutSource.richness(thin)
+        XCTAssertGreaterThan(keptRich, droppedRich)
+        XCTAssertTrue(trace[0].contains("kept=strap(richness=\(keptRich))"), "got \(trace[0])")
+        XCTAssertTrue(trace[0].contains("dropped=strap(richness=\(droppedRich))"), "got \(trace[0])")
+    }
+
+    // MARK: - buildManualRow validation
+
+    func testBuildManualRowHappyPath() {
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let now = start.addingTimeInterval(3600)
+        let r = WorkoutSource.buildManualRow(start: start, durationMin: 45, sport: "  Running ",
+                                             avgHr: 150, energyKcal: 540, now: now)
+        XCTAssertNotNil(r)
+        XCTAssertEqual(r?.sport, "Running")          // trimmed
+        XCTAssertEqual(r?.source, "manual")
+        XCTAssertEqual(r?.durationS, 45 * 60)
+        XCTAssertEqual(r?.endTs, r!.startTs + 45 * 60)
+        XCTAssertEqual(r?.avgHr, 150)
+        XCTAssertNil(r?.strain)                       // never fabricated without a captured HR window
+    }
+
+    func testBuildManualRowRejectsBadInput() {
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let now = start.addingTimeInterval(3600)
+        XCTAssertNil(WorkoutSource.buildManualRow(start: start, durationMin: 0, sport: "Run", avgHr: nil, energyKcal: nil, now: now))
+        XCTAssertNil(WorkoutSource.buildManualRow(start: start, durationMin: 25 * 60, sport: "Run", avgHr: nil, energyKcal: nil, now: now))
+        XCTAssertNil(WorkoutSource.buildManualRow(start: start, durationMin: 30, sport: "   ", avgHr: nil, energyKcal: nil, now: now))
+        // Future start.
+        XCTAssertNil(WorkoutSource.buildManualRow(start: now.addingTimeInterval(60), durationMin: 30, sport: "Run", avgHr: nil, energyKcal: nil, now: now))
+        // Out-of-range HR / kcal.
+        XCTAssertNil(WorkoutSource.buildManualRow(start: start, durationMin: 30, sport: "Run", avgHr: 10, energyKcal: nil, now: now))
+        XCTAssertNil(WorkoutSource.buildManualRow(start: start, durationMin: 30, sport: "Run", avgHr: nil, energyKcal: 99_999, now: now))
+    }
+
+    /// #1067 twin: a start at/before `now` still lets `start + duration` overshoot into the future. End
+    /// exactly at `now` is valid; one second beyond is rejected.
+    func testBuildManualRowRejectsAFutureEndButAllowsEndExactlyAtNow() {
+        let start = Date(timeIntervalSince1970: 1_700_000_000)   // 45 min = 2700 s
+        // End exactly at now → valid.
+        XCTAssertNotNil(WorkoutSource.buildManualRow(start: start, durationMin: 45, sport: "Run",
+                                                     avgHr: nil, energyKcal: nil,
+                                                     now: start.addingTimeInterval(2700)))
+        // start ≤ now, but start + duration overshoots now by one second → rejected.
+        XCTAssertNil(WorkoutSource.buildManualRow(start: start, durationMin: 45, sport: "Run",
+                                                  avgHr: nil, energyKcal: nil,
+                                                  now: start.addingTimeInterval(2699)))
+    }
+
+    func testBuildManualRowAcceptsAndBoundsDistance() {
+        // #1195: distance is now a manual field. A valid entry is stored verbatim (metres); 0 and the
+        // 1,000 km ceiling are allowed; negative and beyond are rejected; nil means "no distance".
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let now = start.addingTimeInterval(3600)
+        func build(_ d: Double?) -> WorkoutRow? {
+            WorkoutSource.buildManualRow(start: start, durationMin: 30, sport: "Run",
+                                         avgHr: nil, energyKcal: nil, distanceM: d, now: now)
+        }
+        XCTAssertEqual(build(5_234)?.distanceM, 5_234)
+        XCTAssertNil(build(nil)?.distanceM)
+        XCTAssertNotNil(build(0))
+        XCTAssertNotNil(build(1_000_000))     // exactly 1,000 km
+        XCTAssertNil(build(-1))
+        XCTAssertNil(build(1_000_001))
+    }
+
+    // MARK: - preservingCaptured
+
+    func testPreservingCapturedTakesDistanceFromTheRebuiltRowNotOld() {
+        // #1195: distance is a sheet field now, so an edit's value wins over the old row's captured
+        // distance (the sheet pre-fills from old, so an untouched field still round-trips it), while
+        // maxHr/strain stay carried. A cleared field clears, not resurrects.
+        let old = fullRow(start: 100, end: 3700, sport: "Running", source: "manual", dist: 10_000, maxHr: 175)
+        let edited = fullRow(start: 100, end: 3700, sport: "Running", source: "manual", dist: 12_500)
+        let merged = WorkoutSource.preservingCaptured(edited, from: old)
+        XCTAssertEqual(merged.distanceM, 12_500)   // edited distance wins
+        XCTAssertEqual(merged.maxHr, 175)          // maxHr still carried from old
+        let cleared = fullRow(start: 100, end: 3700, sport: "Running", source: "manual", dist: nil)
+        XCTAssertNil(WorkoutSource.preservingCaptured(cleared, from: old).distanceM)
+    }
+
+    /// #1444: per-session steps (#1058) has NO sheet field, so an edit rebuilds the row without it and
+    /// the merged row used to come back with `steps` nil — silently wiping a value the user never saw
+    /// and never touched, just by renaming the sport. Kotlin twin:
+    /// `preservingCaptured_carriesStepsFromOld`.
+    func testPreservingCapturedCarriesStepsFromOld() {
+        let old = fullRow(start: 100, end: 3700, sport: "Running", source: "manual", steps: 4_200)
+        let edited = fullRow(start: 100, end: 3700, sport: "Trail Running", source: "manual")
+        XCTAssertNil(edited.steps, "the sheet cannot supply steps, so the rebuilt row starts without it")
+        XCTAssertEqual(WorkoutSource.preservingCaptured(edited, from: old).steps, 4_200)
+    }
+
+    func testPreservingCapturedCarriesUnexposedFieldsOnEdit() {
+        // The sheet rebuilds a row from its 5 inputs; an edit must keep the original's captured
+        // maxHr/strain (a live-tracked session has real values the sheet never shows).
+        let old = row(start: 100, end: 3700, sport: "Workout", source: "manual",
+                      avgHr: 130, maxHr: 175, strain: 13.5)
+        let rebuilt = row(start: 100, end: 3700, sport: "Running", source: "manual", avgHr: 140)
+        let merged = WorkoutSource.preservingCaptured(rebuilt, from: old)
+        XCTAssertEqual(merged.sport, "Running")  // edited field kept
+        XCTAssertEqual(merged.avgHr, 140)        // edited field kept
+        XCTAssertEqual(merged.maxHr, 175)        // carried over from old
+        XCTAssertEqual(merged.strain, 13.5)      // carried over from old
+    }
+
+    func testPreservingCapturedIsNoOpForFreshAdd() {
+        let rebuilt = row(start: 100, end: 3700, sport: "Running", source: "manual", avgHr: 140)
+        XCTAssertEqual(WorkoutSource.preservingCaptured(rebuilt, from: nil), rebuilt)
+    }
+    // MARK: - buildManualRowFromSpan (#2034)
+
+    /// #2034: entering a manual workout by its start and END, not only by a duration.
+    ///
+    /// The row has always been stored as `startTs`/`endTs`, so the span is the shape the storage already
+    /// speaks and the duration was the lossy intermediate. Mirrors Android `ManualWorkoutSpanTest` except
+    /// for its overflow case, which has no safe twin here: Kotlin guards a Long addition, while the
+    /// equivalent Swift input has to be built as a Date, and `Int(Double)` TRAPS on a value that large
+    /// rather than returning nil. The whole-minute bounds either side of it are already pinned by
+    /// `testBuildManualRowRejectsBadInput`.
+    func testSpanBuilderKeepsTheExactEndItIsGiven() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let start = now.addingTimeInterval(-7_200)
+        // 45m17s. The duration path cannot express this: it would store 45m00s and silently shorten the
+        // session by 17 seconds. This is the whole point of the span form.
+        let end = start.addingTimeInterval(45 * 60 + 17)
+        let r = WorkoutSource.buildManualRowFromSpan(start: start, end: end, sport: "Run",
+                                                     avgHr: nil, energyKcal: nil, now: now)
+        XCTAssertNotNil(r)
+        XCTAssertEqual(r?.startTs, Int(start.timeIntervalSince1970))
+        XCTAssertEqual(r?.endTs, Int(end.timeIntervalSince1970))
+        XCTAssertEqual(r?.durationS, Double(45 * 60 + 17))
+    }
+
+    func testDurationFrontDoorStillProducesTheIdenticalRow() {
+        // The delegation invariant. If these ever diverge, the auto-detected nudge and the sheet would
+        // write different rows for the same session.
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let start = now.addingTimeInterval(-7_200)
+        let viaDuration = WorkoutSource.buildManualRow(start: start, durationMin: 45, sport: "Run",
+                                                       avgHr: 140, energyKcal: 400, distanceM: 8_000,
+                                                       now: now)
+        let viaSpan = WorkoutSource.buildManualRowFromSpan(start: start,
+                                                           end: start.addingTimeInterval(45 * 60),
+                                                           sport: "Run", avgHr: 140, energyKcal: 400,
+                                                           distanceM: 8_000, now: now)
+        XCTAssertNotNil(viaDuration)
+        XCTAssertEqual(viaDuration, viaSpan)
+    }
+
+    func testSpanBuilderRejectsAnEndAtOrBeforeTheStart() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let start = now.addingTimeInterval(-7_200)
+        XCTAssertNil(WorkoutSource.buildManualRowFromSpan(start: start, end: start, sport: "Run",
+                                                          avgHr: nil, energyKcal: nil, now: now))
+        XCTAssertNil(WorkoutSource.buildManualRowFromSpan(start: start,
+                                                          end: start.addingTimeInterval(-1), sport: "Run",
+                                                          avgHr: nil, energyKcal: nil, now: now))
+    }
+
+    func testSpanBuilderRejectsASpanOverTwentyFourHours() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let cap = TimeInterval(WorkoutSource.maxManualSpanSeconds)
+        let start = now.addingTimeInterval(-cap - 60)
+        XCTAssertNotNil(WorkoutSource.buildManualRowFromSpan(start: start,
+                                                             end: start.addingTimeInterval(cap),
+                                                             sport: "Run", avgHr: nil, energyKcal: nil,
+                                                             now: now))
+        XCTAssertNil(WorkoutSource.buildManualRowFromSpan(start: start,
+                                                          end: start.addingTimeInterval(cap + 1),
+                                                          sport: "Run", avgHr: nil, energyKcal: nil,
+                                                          now: now))
+    }
+
+    func testSpanBuilderAllowsAnEndExactlyAtNowButNotOneSecondPast() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let start = now.addingTimeInterval(-7_200)
+        XCTAssertNotNil(WorkoutSource.buildManualRowFromSpan(start: start, end: now, sport: "Run",
+                                                             avgHr: nil, energyKcal: nil, now: now))
+        XCTAssertNil(WorkoutSource.buildManualRowFromSpan(start: start,
+                                                          end: now.addingTimeInterval(1), sport: "Run",
+                                                          avgHr: nil, energyKcal: nil, now: now))
+    }
+
+    func testSpanDurationMinRoundsForDisplayOnly() {
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        XCTAssertEqual(WorkoutSource.spanDurationMin(start: start,
+                                                     end: start.addingTimeInterval(45 * 60)), 45)
+        // 45m17s reads as 45, 45m45s reads as 46. The stored end is untouched either way.
+        XCTAssertEqual(WorkoutSource.spanDurationMin(start: start,
+                                                     end: start.addingTimeInterval(45 * 60 + 17)), 45)
+        XCTAssertEqual(WorkoutSource.spanDurationMin(start: start,
+                                                     end: start.addingTimeInterval(45 * 60 + 45)), 46)
+    }
+
+    func testEndForDurationIsTheInverseOfWholeMinutes() {
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let end = WorkoutSource.endForDuration(start: start, durationMin: 45)
+        XCTAssertEqual(end, start.addingTimeInterval(45 * 60))
+        XCTAssertEqual(WorkoutSource.spanDurationMin(start: start, end: end), 45)
+    }
+
+    func testMovingTheStartCarriesTheEndAndKeepsTheLength() {
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let end = start.addingTimeInterval(45 * 60 + 17)
+        let newStart = start.addingTimeInterval(-3_600)
+        let newEnd = WorkoutSource.endAfterStartMove(oldStart: start, oldEnd: end, newStart: newStart)
+        XCTAssertEqual(newEnd, newStart.addingTimeInterval(45 * 60 + 17))
+        // The length is what survives, including the seconds a duration field cannot show.
+        XCTAssertEqual(newEnd.timeIntervalSince(newStart), end.timeIntervalSince(start))
+    }
+
+    /// The same lifting session logged in the app and recorded by the ring is one session.
+    func testAnOuraSessionAndItsNativeTwinCollapseToOne() {
+        let native = row(start: 1_000, end: 6_400, sport: "Strength Training", source: "native-training",
+                         avgHr: 108, maxHr: 148)
+        let oura = WorkoutSource.normalizedOuraRow(
+            row(start: 1_060, end: 6_300, sport: "strength_training", source: "autodetected"))
+        let kept = WorkoutSource.dedupCrossSource([native, oura])
+        XCTAssertEqual(kept.count, 1)
+        XCTAssertEqual(kept.first?.source, "native-training")
+    }
+}

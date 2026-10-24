@@ -2,6 +2,7 @@ import XCTest
 import StrandTraining
 import WhoopProtocol
 import WhoopStore
+import StrandCore
 @testable import Strand
 
 /// The pure decisions behind the single active session: when a forgotten session is asked about, which

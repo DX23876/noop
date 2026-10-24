@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import WhoopStore
+import StrandCore
 
 /// Drives the Data Sources "Hevy" card: paste a key → verify it → sync → an honest summary → disconnect.
 ///

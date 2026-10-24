@@ -2,6 +2,7 @@ import Foundation
 import WhoopStore
 import StrandImport
 import StrandAnalytics
+import StrandCore
 
 /// How far along a running sync is, for the Data Sources card.
 struct HevySyncProgress: Equatable {
@@ -327,7 +328,7 @@ actor HevySyncCoordinator {
 /// them apart is what lets `WorkoutSource.dedupCrossSource` collapse that pair instead of the app
 /// silently overwriting one lane's history with the other's.
 enum HevySource {
-    static let id = "hevy"
+    static let id = WorkoutSource.hevySource
     /// The same sport label the CSV lane uses, so the two fold to one `sportKey` and the cross-source
     /// dedup recognises them as the same activity.
     static let sport = "Strength Training"

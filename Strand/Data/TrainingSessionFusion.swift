@@ -1,6 +1,7 @@
 import Foundation
 import WhoopStore
 import StrandAnalytics
+import StrandCore
 
 struct TrainingSessionComponent: Identifiable, Equatable, Sendable {
     let id: String

@@ -2,6 +2,7 @@ import SwiftUI
 import WhoopStore
 import StrandDesign
 import StrandAnalytics
+import StrandCore
 
 // MARK: - One session, exercise by exercise and set by set
 //

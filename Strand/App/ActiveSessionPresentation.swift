@@ -4,6 +4,7 @@ import UIKit
 #endif
 import StrandDesign
 import StrandTraining
+import StrandCore
 
 /// Presents the one active session wherever it was started from: the full-screen logger or live
 /// workout, the start choice, the collision and forgotten-session questions, and the summary.

@@ -1,5 +1,6 @@
 import SwiftUI
 import StrandDesign
+import StrandCore
 
 /// The finished recording remains visible until its durable save has succeeded.
 struct WorkoutCompletionView: View {

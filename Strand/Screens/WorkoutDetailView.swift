@@ -4,6 +4,7 @@ import StrandAnalytics
 import StrandImport
 import WhoopStore
 import Foundation
+import StrandCore
 #if canImport(MapKit)
 import MapKit
 #endif

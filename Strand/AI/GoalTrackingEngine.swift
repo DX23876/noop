@@ -2,6 +2,7 @@ import Foundation
 import Combine
 import WhoopStore
 import StrandAnalytics
+import StrandCore
 
 struct GoalMeasurement: Equatable {
     let value: Double

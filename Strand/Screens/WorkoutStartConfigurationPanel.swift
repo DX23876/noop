@@ -1,5 +1,6 @@
 import SwiftUI
 import StrandDesign
+import StrandCore
 
 /// Final, glanceable confirmation for a selected live workout. The route choice lives here instead of
 /// being inferred invisibly from the sport name, so the wearer knows what the phone will record before

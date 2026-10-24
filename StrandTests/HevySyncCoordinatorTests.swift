@@ -1,5 +1,6 @@
 import XCTest
 import WhoopStore
+import StrandCore
 @testable import Strand
 
 /// Pins the Hevy sync's behaviour against a scripted API, with no network.

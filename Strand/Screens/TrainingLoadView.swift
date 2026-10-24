@@ -2,6 +2,7 @@ import SwiftUI
 import StrandDesign
 import StrandAnalytics
 import WhoopStore
+import StrandCore
 
 // MARK: - Three loads, three units — and whether the training is doing anything
 //

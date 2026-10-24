@@ -1,6 +1,7 @@
 import Foundation
 import WhoopStore
 import StrandAnalytics
+import StrandCore
 
 // MARK: - `show_card`: the coach names a card, the app fills it in
 //

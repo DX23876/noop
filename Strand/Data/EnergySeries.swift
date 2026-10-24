@@ -2,6 +2,7 @@ import Foundation
 import StrandAnalytics
 import WhoopProtocol   // StepSample — the @57 counter + @63 activity class behind bucket movement
 import WhoopStore
+import StrandCore
 
 /// One five-minute bucket's step movement, as `Repository.bucketStepMovement` derives it.
 typealias EnergyStepMovement = (steps: Int?, activityClass: Int?, covered: Bool, movementSeconds: Int)

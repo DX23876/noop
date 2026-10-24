@@ -4,6 +4,7 @@ import StrandDesign
 import StrandAnalytics
 import WhoopStore
 import Foundation
+import StrandCore
 
 private struct WorkoutRecoveryTrendPoint: Identifiable, Equatable {
     let startTs: Int

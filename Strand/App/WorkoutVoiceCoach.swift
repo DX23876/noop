@@ -1,6 +1,7 @@
 import Foundation
 import StrandAnalytics
 import WhoopProtocol
+import StrandCore
 
 /// Session-owned offline speech and opt-in, fresh-data range warnings, including while minimized.
 /// Off by default; changing settings primes the schedule rather than speaking a backlog.

@@ -1,6 +1,7 @@
 import SwiftUI
 import StrandDesign
 import StrandAnalytics
+import StrandCore
 
 /// One table for how a goal's state reads, used by every surface (Today, the overview, the detail,
 /// widgets). A state is always a word AND a symbol; the colour only adds to them.

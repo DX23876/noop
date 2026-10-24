@@ -1,5 +1,6 @@
 import SwiftUI
 import StrandDesign
+import StrandCore
 
 /// The sport above one large, centered elapsed clock. It is the only place elapsed time is shown, so it can
 /// be the biggest thing on the screen; it dims while the workout is paused.

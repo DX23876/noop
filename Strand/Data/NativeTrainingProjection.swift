@@ -2,6 +2,7 @@ import Foundation
 import StrandAnalytics
 import StrandTraining
 import WhoopStore
+import StrandCore
 
 /// Read-only compatibility projection from NOOP's source-neutral native log into the established
 /// strength analytics vocabulary. Native tables remain authoritative; no second workout is stored.

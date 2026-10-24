@@ -1,6 +1,7 @@
 import XCTest
 @testable import Strand
 import StrandDesign
+import StrandCore
 
 /// Pins the suggestion catalogue (#714): the two new indoor presets exist, are spelled byte-for-byte
 /// the way Android persists them (the stored sport label round-trips cross-platform via CSV / export),

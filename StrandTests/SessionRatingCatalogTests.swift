@@ -1,5 +1,6 @@
 import XCTest
 import StrandAnalytics
+import StrandCore
 @testable import Strand
 
 /// Guards the catalog against the rating policy drifting out of step with it: a sport added to

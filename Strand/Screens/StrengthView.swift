@@ -3,6 +3,7 @@ import WhoopStore
 import StrandAnalytics
 import StrandDesign
 import StrandTraining
+import StrandCore
 
 // MARK: - Strength — what the Hevy log says, and nothing it doesn't
 //

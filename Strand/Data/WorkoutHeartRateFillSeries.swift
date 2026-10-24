@@ -2,6 +2,7 @@ import Foundation
 import StrandAnalytics
 import WhoopProtocol
 import WhoopStore
+import StrandCore
 
 // WorkoutHeartRateFillSeries.swift — average, peak and Effort for Apple Health workouts.
 //

@@ -1,5 +1,6 @@
 import Foundation
 import WhoopStore
+import StrandCore
 
 /// PR #581 — HealthKit-free Apple Health **import** for sideloaded iOS installs. The mirror of the
 /// #155 export (`ShortcutHealthExport`): a free (7-day) signing identity can't carry the HealthKit

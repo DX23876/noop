@@ -1,4 +1,5 @@
 import XCTest
+import StrandCore
 @testable import Strand
 
 /// Pins the Training tab's one-tap start: which activities it offers and that each one repeats, and

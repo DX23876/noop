@@ -1,5 +1,6 @@
 import XCTest
 import WhoopStore
+import StrandCore
 @testable import Strand
 
 /// PR #581 — the HealthKit-free Shortcuts IMPORT (`noop://import-health`). Pins the URL/base64 decode,
