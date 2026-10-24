@@ -31,18 +31,23 @@ Plan: [`PLAN.md`](PLAN.md) · last updated 2026-10-24
 | B3 step 4, part 3: union reads and data computations | 2026-10-24 | `StoreReader` (the active-strap, registered-strap and canonical union), training session fusion and read, native projection, workout heart rate fills, cardio load pricing, VO2max session parts, weight and body metric reads, the energy model refresh; 131 package tests pass on macOS and the emulator; `local-tests.sh` passed |
 | B3 step 5: the daily analysis in `StrandCore` | 2026-10-24 | `DailyAnalysis` (the former engine, 4,800 lines) with `AnalysisDataServices` and `AnalysisProfileSource`; the app keeps `IntelligenceEngine` as a typealias with SwiftUI observation, translated text and the two conformances; a whole pass runs in the package tests on macOS and on the emulator (132 tests); `local-tests.sh` passed |
 | Real-data check 2 (B4) | 2026-10-24 | The same iPhone store re-analysed over 21 days by `d21690770` and by `d9da3d411` (engine in `StrandCore`): 0 of 78 tables differ with write-time columns left out (`--ignore-column '*.computedAtTs' --ignore-column '*.updatedAtTs'`). A first attempt differed in 4 cardio ledger rows, traced to the readiness pass that a dashboard refresh starts in the background finishing in one run and not the other; the snapshot test now runs it to completion |
+| B3 step 6: the backup format in `StrandCore` | 2026-10-24 | `BackupArchive` writes, verifies and restores a `.noopbak` (zip layout, manifest, origin check, restore with the previous store kept beside it); the app keeps the pickers, translated failures and the journal and goals settings; three new package tests write, verify and restore a store on macOS and the emulator; `local-tests.sh` passed |
+| B3 step 7: raw collection in `StrandCore` | 2026-10-24 | `Collector`, `Backfiller`, `RawHistoryArchive`, clock correlation and policies; the IMU session files and the raw data session store stay in the app behind a frame tap, the sub-lag switch arrives as a closure; the raw outbox compiles out without Compression; seven collection test files moved, 211 package tests pass on macOS and on the emulator (1 iOS-only skip); `local-tests.sh` passed |
+| Real-data check 3 (B4) | 2026-10-25 | A fresh copy of the iPhone store (pulled 2026-10-24, now kept as the standing copy) re-analysed over 21 days by `d21690770` and by `b728fda01` (backup and raw collection in `StrandCore`): 0 of 78 tables differ with write-time columns left out. On the external disk a run takes about 10 minutes instead of 3, and the first run waits for macOS's removable-volume permission |
+| Phase B complete | 2026-10-25 | Steps B1 to B4 above |
 
 ## Next step
 
-B3 step 6: the backup format work (`DataBackup.writeBackup`, `verifyWrittenBackup`, `restore`) moves into
-`StrandCore`; the file pickers stay in the app. Then step 7 (raw collection) and real-data check 3.
+Phase C, the one-rule analysis migration (see [`PLAN.md`](PLAN.md)). It is a recipe bump that re-scores
+the whole history, so it starts only after the owner agrees, and C3 needs a measurement on the iPhone.
 
 ## How to run a real-data check (B4)
 
 Compares the build before a restructuring with the build after it on a copy of the owner's iPhone store:
 
-1. Pull `whoop.sqlite` with its `-wal` and `-shm` from the iPhone (app closed, Bluetooth off; the known
-   `devicectl` procedure) to a folder outside the repo. About 4 GB; the two analysed copies are APFS clones
+1. Use the standing copy of the owner's iPhone store (`whoop.sqlite` with its `-wal` and `-shm`, kept
+   outside the repo with a `SHA256SUMS` file); pull a new one with the known `devicectl` procedure at most
+   once a day and only when newer data is needed. About 4 GB; the two analysed copies are APFS clones
    (`FileManager.copyItem`), so they cost only the pages the pass rewrites.
 2. In a detached worktree at the earlier commit, add `StrandTests/RealDataAnalysisSnapshotTests.swift` from
    `main` unchanged and run only that test with `TEST_RUNNER_NOOP_ANALYSIS_DB=<pulled store>` and

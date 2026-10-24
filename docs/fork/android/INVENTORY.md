@@ -135,7 +135,15 @@ Steps, one concern per commit, each with `Tools/local-tests.sh`, the macOS and i
    published state signalled through `AnalysisObservation` instead of Combine. The app keeps the old name as a
    typealias, so screens and tests are unchanged. Done 2026-10-24. **Real-data check 2 (B4).**
 6. Backup format work moves (section 5). A `.noopbak` written before and after must restore identically.
-7. Collect layer moves (section 4), when phase D needs it. **Real-data check 3 (B4)** after step 6 or 7.
+   Done 2026-10-24: `BackupArchive` (zip layout, manifest, verify after write, restore with the previous store
+   kept beside it, origin detection) in `StrandCore`; `DataBackup` keeps the file pickers, translated failure
+   text and the journal and goals settings it applies after a restore. The zip code needed the ZIPFoundation
+   Android patch.
+7. Collect layer moves (section 4). Done 2026-10-24: `Collector`, `Backfiller`, `RawHistoryArchive`, the clock
+   correlation and the small policy types. `ImuSessionFileStore`, `RawDataSessionStore` and `StorePaths` stay
+   in the app: the first two are research captures with their own screen (the collector reaches them through
+   a frame tap), the third holds the app's paths. The experimental sub-lag switch reaches the decoders as a
+   closure, off by default as before. **Real-data check 3 (B4).**
 
 31 of the 496 `StrandTests` files reference `IntelligenceEngine`, mostly its static decisions and line
 builders; they move with the code they test into `StrandCore` tests, which also makes them run on Android.
