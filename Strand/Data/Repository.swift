@@ -431,6 +431,9 @@ final class Repository: ObservableObject {
         reader(store).rawPhysiologyReadIds
     }
 
+    /// `reader(_:)` for the Repository extensions in other files.
+    func storeReader(_ store: WhoopStore) -> StoreReader { reader(store) }
+
     /// The union reader (StrandCore) over `store` for the active strap and every registered WHOOP.
     private func reader(_ store: WhoopStore) -> StoreReader {
         ensureRegisteredWhoopIds(store: store)
@@ -746,10 +749,7 @@ final class Repository: ObservableObject {
     /// `yyyy-MM-dd` in the device's local zone, matching how `DailyMetric.day` is stored.
     // `nonisolated` so pure callers off the main actor (e.g. the extracted `SleepModel.build`) can key a
     // day the SAME way `DailyMetric.day` is stored. Pure date→string; no actor state is touched.
-    private nonisolated static let dayKeyFormatter: DateFormatter = {
-        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; f.locale = Locale(identifier: "en_US_POSIX"); return f
-    }()
-    nonisolated static func localDayKey(_ date: Date) -> String { dayKeyFormatter.string(from: date) }
+    nonisolated static func localDayKey(_ date: Date) -> String { StoreReader.localDayKey(date) }
 
     /// The hour the LOGICAL day rolls (04:00 local). Between midnight and this hour, "Today" stays put.
     nonisolated static let logicalDayRolloverHour = 4

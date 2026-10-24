@@ -36,6 +36,12 @@ public struct StoreReader: Sendable {
         let computed = activeDeviceId + "-noop", canonical = MetricResolver.whoopSource + "-noop"
         return computed == canonical ? [computed] : [computed, canonical]
     }
+    /// `yyyy-MM-dd` in the device's local zone, matching how `DailyMetric.day` is stored.
+    public static func localDayKey(_ date: Date) -> String { dayKeyFormatter.string(from: date) }
+    private static let dayKeyFormatter: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; f.locale = Locale(identifier: "en_US_POSIX"); return f
+    }()
+
     public var importedReadIds: [String] { Self.importedReadIds(activeDeviceId: activeDeviceId) }
     public var computedReadIds: [String] { Self.computedReadIds(activeDeviceId: activeDeviceId) }
     /// Raw physiological streams are a worn timeline, not a property of whichever strap is active now:
