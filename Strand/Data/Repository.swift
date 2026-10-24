@@ -253,7 +253,7 @@ final class Repository: ObservableObject {
         }
     }
 
-    static let energyRefreshMaxDays = 120
+    static let energyRefreshMaxDays = EnergyModelRefresh.refreshMaxDays
 
     private func runScheduledEnergyRefresh() async {
         energyRefreshScheduled = false
@@ -322,7 +322,7 @@ final class Repository: ObservableObject {
     /// the window. Reading a day's raw step counter is most of an energy refresh (one row a second, an
     /// index seek plus a table read each); a finished day's counter does not move, so a repeat refresh in
     /// the same process reads its revisions instead. Process-lifetime only.
-    var energyStepMovementCache: [Int: (key: String, buckets: [Int: EnergyStepMovement])] = [:]
+    let energyStepMovementCache = EnergyStepMovementCache()
 
     /// The last queued energy refresh; the next one waits for it (see `refreshWhoopEnergyModel`).
     var energyRefreshTail: Task<Bool, Never>?
@@ -1606,28 +1606,13 @@ final class Repository: ObservableObject {
     /// #856: the same union, over an EXPLICIT id list. Lets a workout read its own recording strap
     /// instead of the day-level active ∪ canonical. Order is precedence: earlier ids win per bucket.
     func hrBuckets(deviceIds: [String], from: Int, to: Int, bucketSeconds: Int = 300) async -> [HRBucket] {
-        guard let store = await ensureStore(), !deviceIds.isEmpty else { return [] }
-        guard deviceIds.count > 1 else {
-            return (try? await store.hrBuckets(deviceId: deviceIds[0], from: from, to: to,
-                                               bucketSeconds: bucketSeconds)) ?? []
-        }
-        var byStart: [Int: HRBucket] = [:]
-        for id in deviceIds {
-            for b in (try? await store.hrBuckets(deviceId: id, from: from, to: to,
-                                                 bucketSeconds: bucketSeconds)) ?? [] where byStart[b.ts] == nil {
-                byStart[b.ts] = b
-            }
-        }
-        return byStart.values.sorted { $0.ts < $1.ts }
+        guard let store = await ensureStore() else { return [] }
+        return await reader(store).hrBuckets(deviceIds: deviceIds, from: from, to: to, bucketSeconds: bucketSeconds)
     }
 
     func hrBuckets(from: Int, to: Int, bucketSeconds: Int = 300) async -> [HRBucket] {
         guard let store = await ensureStore() else { return [] }
-        // UNION all registered WHOOP straps + canonical for the trend chart. Per bucket-start the active strap wins; a
-        // raw HR window almost never overlaps between the two namespaces (different time periods), so the
-        // per-bucket mean stays faithful. Single-device install reads one id (byte-identical).
-        return await hrBuckets(deviceIds: rawPhysiologyReadIds(store: store), from: from, to: to,
-                               bucketSeconds: bucketSeconds)
+        return await reader(store).hrBuckets(from: from, to: to, bucketSeconds: bucketSeconds)
     }
 
     /// The latest (greatest-ts) non-nil @63 activity class over `[from, to]`, read across the active strap +

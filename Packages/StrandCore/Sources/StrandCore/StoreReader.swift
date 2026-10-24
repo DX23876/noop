@@ -248,6 +248,30 @@ public struct StoreReader: Sendable {
         return byTs.values.sorted { $0.ts < $1.ts }
     }
 
+    public func hrBuckets(deviceIds: [String], from: Int, to: Int, bucketSeconds: Int = 300) async -> [HRBucket] {
+        guard !deviceIds.isEmpty else { return [] }
+        guard deviceIds.count > 1 else {
+            return (try? await store.hrBuckets(deviceId: deviceIds[0], from: from, to: to,
+                                               bucketSeconds: bucketSeconds)) ?? []
+        }
+        var byStart: [Int: HRBucket] = [:]
+        for id in deviceIds {
+            for b in (try? await store.hrBuckets(deviceId: id, from: from, to: to,
+                                                 bucketSeconds: bucketSeconds)) ?? [] where byStart[b.ts] == nil {
+                byStart[b.ts] = b
+            }
+        }
+        return byStart.values.sorted { $0.ts < $1.ts }
+    }
+
+    public func hrBuckets(from: Int, to: Int, bucketSeconds: Int = 300) async -> [HRBucket] {
+        // UNION all registered WHOOP straps + canonical for the trend chart. Per bucket-start the active strap wins; a
+        // raw HR window almost never overlaps between the two namespaces (different time periods), so the
+        // per-bucket mean stays faithful. Single-device install reads one id (byte-identical).
+        return await hrBuckets(deviceIds: rawPhysiologyReadIds, from: from, to: to,
+                               bucketSeconds: bucketSeconds)
+    }
+
     /// The same source-preserving read over an EXPLICIT window. A screen that needs the canonical
     /// session for ONE workout fuses the hours around it instead of the whole library: the fusion is
     /// quadratic in the rows it is handed, so "which session is this?" must not cost a full-history pass.
