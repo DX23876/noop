@@ -24,12 +24,22 @@ Plan: [`PLAN.md`](PLAN.md) · last updated 2026-10-24
 | B1 inventory | 2026-10-24 | [`INVENTORY.md`](INVENTORY.md): dependencies of the pass, cut, package name `StrandCore`, seven-step order |
 | B3 step 1: empty `StrandCore` | 2026-10-24 | Package in `project.yml` (macOS and iOS app) and the package CI matrix; its link test passes on macOS and on the arm64 emulator |
 | B3 step 2: pure helpers | 2026-10-24 | `StressMath`, `AnalysisRecipe` and `DayCycleIntelligenceIntegration` in `StrandCore`; 33 package tests pass on macOS and on the emulator; `local-tests.sh` passed |
+| B3 step 3: `AnalysisSettings` and `AnalysisHost` | 2026-10-24 | The pass reads one settings snapshot and reports through the host; `AppAnalysisHost` keeps every key and type; 35 package tests on macOS and the emulator; `local-tests.sh` passed |
 
 ## Next step
 
-B3 step 3 of `INVENTORY.md` section 8: `AnalysisSettings` and `AnalysisHost` inside the app, routing every
-`UserDefaults`, flag, Test Centre, scheduler and sink access of the pass through them. Then the first real-data
-check (B4), which needs the owner's iPhone on the cable once.
+Real-data check 1 (B4), then B3 step 4. The check compares the build before the core work (`d21690770`) with
+the current one on a copy of the owner's iPhone store:
+
+1. Pull `whoop.sqlite` with its `-wal` and `-shm` from the iPhone (app closed, Bluetooth off; the known
+   `devicectl` procedure). About 3 GB, and the check needs three copies, so it runs on a disk with about
+   10 GB free.
+2. In a detached worktree at `d21690770`, add `StrandTests/RealDataAnalysisSnapshotTests.swift` from `main`
+   unchanged and run only that test with `TEST_RUNNER_NOOP_ANALYSIS_DB=<pulled store>` and
+   `TEST_RUNNER_NOOP_ANALYSIS_OUT=<before.sqlite>`.
+3. On `main`, run the same test with `TEST_RUNNER_NOOP_ANALYSIS_OUT=<after.sqlite>`, on the same day.
+4. `Tools/compare_analysis_snapshots.py <before.sqlite> <after.sqlite>` must report 0 differing tables.
+   Record the output here.
 
 ## Waiting on the owner
 
@@ -40,6 +50,10 @@ check (B4), which needs the owner's iPhone on the cable once.
 
 - GRDB 6.29.3 needs the 8-file Android patch (A3). So far it exists only in the spike's build checkout; per
   D22 it becomes a carried patch when the Android build lands (phase D).
+- Values outside the pass still read `UserDefaults` directly: `IntelligenceEngine.requestTimestampReheal`
+  (called from the BLE layer), the Repository data functions that move in step 4 (`PuffinExperiment` flags,
+  `ProfileStore`), and `StrandAnalytics` helpers that default to `UserDefaults.standard` when a caller passes no
+  value. The pass itself passes its snapshot everywhere it calls them. Each is resolved when its code moves.
 - `StrandCore` does not depend on `StrandImport` yet, because ZIPFoundation 0.9.20 does not build for Android
   from a macOS host. Its manifest decides on the host whether to declare the zlib module (`canImport(Compression)`
   is true on macOS), while the sources compiled for Android take the zlib branch. Passing the module map by hand
