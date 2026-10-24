@@ -11,31 +11,15 @@ import StrandCore
 
 extension Repository {
 
-    /// Every session estimate in `sessions`, and how many sessions were on foot.
+    /// Every session estimate in `sessions`, and how many sessions were on foot (`TrainingVO2max`).
     nonisolated static func trainingVO2maxEstimates(sessions: [UnifiedTrainingSession],
                                                     resolution: TrainingCardioLoadResolution,
                                                     restingByDay: [String: Double], maxHR: Double,
                                                     offset: Int,
                                                     elevations: [WorkoutKey: WorkoutElevationRow] = [:])
         -> (estimates: [ExerciseVO2max.SessionEstimate], onFoot: Int) {
-        var estimates: [ExerciseVO2max.SessionEstimate] = []
-        var onFoot = 0
-        for session in sessions where !resolution.duplicateSessionIds.contains(session.id) {
-            let metrics = CardioSession.metrics(for: session.row, tzOffsetSeconds: offset)
-            guard metrics.modality == .foot else { continue }
-            onFoot += 1
-            let input = ExerciseVO2max.SessionInput(
-                day: metrics.day, startTs: metrics.startTs, modality: metrics.modality,
-                distanceM: metrics.distanceM, durationS: metrics.durationS,
-                averageHR: metrics.avgHr.map(Double.init),
-                heartRateMeasured: resolution.loads[session.id] != nil,
-                restingHR: cardioLoadRestingHR(day: metrics.day, restingByDay: restingByDay),
-                maxHR: maxHR,
-                ascentM: WorkoutElevationRow.resolve(startTs: session.row.startTs, sport: session.row.sport,
-                                                     rowSource: session.row.source, in: elevations)?.ascentM)
-            if case let .estimate(estimate) = ExerciseVO2max.estimate(input) { estimates.append(estimate) }
-        }
-        return (estimates, onFoot)
+        TrainingVO2max.estimates(sessions: sessions, resolution: resolution, restingByDay: restingByDay,
+                                 maxHR: maxHR, offset: offset, elevations: elevations)
     }
 
     /// The session estimates of the last `days` days, read the way Training Load reads them.
@@ -71,17 +55,7 @@ extension Repository {
         let nowTs = Int(now.timeIntervalSince1970)
         let elevations = await workoutElevations(from: nowTs - (days + 1) * 86_400, to: nowTs)
         let offset = TimeZone.current.secondsFromGMT()
-        return unified.compactMap { session in
-            guard !resolution.duplicateSessionIds.contains(session.id) else { return nil }
-            let metrics = CardioSession.metrics(for: session.row, tzOffsetSeconds: offset)
-            guard metrics.modality == .foot, let distance = metrics.distanceM, let duration = metrics.durationS,
-                  let cost = HealthspanVO2.longSessionCost(
-                      distanceM: distance, durationS: duration,
-                      ascentM: WorkoutElevationRow.resolve(startTs: session.row.startTs, sport: session.row.sport,
-                                                           rowSource: session.row.source, in: elevations)?.ascentM)
-            else { return nil }
-            return HealthspanVO2.LongSession(day: metrics.day, oxygenCost: cost)
-        }
+        return TrainingVO2max.longSessions(unified, resolution: resolution, elevations: elevations, offset: offset)
     }
 
     /// The VO₂max the wearer entered in Settings and the day it was measured; nil without one. Read raw, as

@@ -3631,6 +3631,9 @@ final class Repository: ObservableObject {
 
     /// The persisted legacy detected spans ("startTs:endTs"). Read straight off UserDefaults so the read
     /// filter, mutators and confirmation-candidate selector share one source of truth.
+    /// `dismissedDetectedSpans` for the Repository extensions in other files.
+    var dismissedDetectedWorkoutSpans: [String] { dismissedDetectedSpans }
+
     private var dismissedDetectedSpans: [String] {
         get { UserDefaults.standard.stringArray(forKey: WorkoutSource.dismissedDefaultsKey) ?? [] }
         set { UserDefaults.standard.set(newValue, forKey: WorkoutSource.dismissedDefaultsKey) }

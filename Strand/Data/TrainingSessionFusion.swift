@@ -22,20 +22,11 @@ extension Repository {
     }
 
     func trainingSessions(from lo: Int, to hi: Int) async -> TrainingSessionFusionResult {
-        let rows = await rawWorkoutRows(from: lo, to: hi)
         guard let store = await storeHandle() else {
-            return TrainingSessionResolver.resolve(rows: rows, metadata: [], links: [], preferences: [])
+            return TrainingSessionResolver.resolve(rows: [], metadata: [], links: [], preferences: [])
         }
-        let now = Int(Date().timeIntervalSince1970)
-        let metadata = (try? await store.workoutSourceMetadata(from: lo, to: hi)) ?? []
-        let links = (try? await store.trainingSessionLinks()) ?? []
-        let decisions = (try? await store.trainingSessionPairDecisions()) ?? []
-        let preferences = (try? await store.trainingSessionPreferences()) ?? []
-        let result = TrainingSessionResolver.resolve(rows: rows, metadata: metadata,
-                                                     links: links, decisions: decisions,
-                                                     preferences: preferences, nowTs: now)
-        if !result.generatedLinks.isEmpty { try? await store.upsertTrainingSessionLinks(result.generatedLinks) }
-        return result
+        return await TrainingSessionResolver.read(reader: storeReader(store), from: lo, to: hi,
+                                                  dismissedDetectedSpans: dismissedDetectedWorkoutSpans)
     }
 
     func decideTrainingSessionPair(_ components: [TrainingSessionComponent], merge: Bool) async {

@@ -190,3 +190,23 @@ public enum TrainingSessionResolver {
                           notes: first(\.notes), steps: first(\.steps))
     }
 }
+
+extension TrainingSessionResolver {
+    /// The canonical sessions of `[lo, hi]`: every source's workout rows through the union reader, fused with
+    /// the stored metadata, links, pair decisions and preferences. Links the fusion generates are written
+    /// back, so the next read finds them.
+    public static func read(reader: StoreReader, from lo: Int, to hi: Int,
+                            dismissedDetectedSpans: [String]) async -> TrainingSessionFusionResult {
+        let rows = await reader.rawWorkoutRows(from: lo, to: hi, dismissedDetectedSpans: dismissedDetectedSpans)
+        let store = reader.store
+        let now = Int(Date().timeIntervalSince1970)
+        let metadata = (try? await store.workoutSourceMetadata(from: lo, to: hi)) ?? []
+        let links = (try? await store.trainingSessionLinks()) ?? []
+        let decisions = (try? await store.trainingSessionPairDecisions()) ?? []
+        let preferences = (try? await store.trainingSessionPreferences()) ?? []
+        let result = resolve(rows: rows, metadata: metadata, links: links, decisions: decisions,
+                             preferences: preferences, nowTs: now)
+        if !result.generatedLinks.isEmpty { try? await store.upsertTrainingSessionLinks(result.generatedLinks) }
+        return result
+    }
+}
