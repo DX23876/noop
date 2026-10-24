@@ -1,5 +1,6 @@
 import XCTest
 import StrandAnalytics
+import StrandCore
 import WhoopStore
 @testable import Strand
 

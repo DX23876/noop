@@ -4,42 +4,66 @@ import WhoopProtocol
 import WhoopStore
 
 /// Serial owner of the day-cycle cache. Large raw-sample folds never execute on the UI actor.
-actor DayCycleIntelligenceIntegration {
-    static let onsetKey = "day_cycle_onset_ts"
-    static let pageSize = 10_000
+public actor DayCycleIntelligenceIntegration {
+    public static let onsetKey = "day_cycle_onset_ts"
+    public static let pageSize = 10_000
 
-    struct Night: Sendable {
-        let daily: DailyMetric
-        let sleeps: [CachedSleepSession]
-        let workouts: [ExerciseSession]
-        let owner: String
+    public init() {}
+
+    public struct Night: Sendable {
+        public let daily: DailyMetric
+        public let sleeps: [CachedSleepSession]
+        public let workouts: [ExerciseSession]
+        public let owner: String
         /// The analysis fingerprint proved this day unchanged, so its already-persisted activity values
         /// can be reused when neither of the window's two sleep-onset boundaries moved.
-        var reused = false
+        public var reused = false
+
+        public init(daily: DailyMetric, sleeps: [CachedSleepSession], workouts: [ExerciseSession], owner: String,
+                    reused: Bool = false) {
+            self.daily = daily; self.sleeps = sleeps; self.workouts = workouts; self.owner = owner
+            self.reused = reused
+        }
     }
-    struct SourcedMarker: Sendable { let deviceId: String; let point: MetricPoint }
-    struct BoundaryRecoveryReader: Sendable {
-        let sleepSessions: @Sendable (String, Int, Int) async throws -> [CachedSleepSession]
-        let markers: @Sendable (String, String, String) async throws -> [MetricPoint]
+    public struct SourcedMarker: Sendable {
+        public let deviceId: String; public let point: MetricPoint
+        public init(deviceId: String, point: MetricPoint) { self.deviceId = deviceId; self.point = point }
     }
-    enum MarkerUpdate: Sendable {
+    public struct BoundaryRecoveryReader: Sendable {
+        public let sleepSessions: @Sendable (String, Int, Int) async throws -> [CachedSleepSession]
+        public let markers: @Sendable (String, String, String) async throws -> [MetricPoint]
+
+        public init(sleepSessions: @escaping @Sendable (String, Int, Int) async throws -> [CachedSleepSession],
+                    markers: @escaping @Sendable (String, String, String) async throws -> [MetricPoint]) {
+            self.sleepSessions = sleepSessions; self.markers = markers
+        }
+    }
+    public enum MarkerUpdate: Sendable {
         case preserve
         case replace(points: [SourcedMarker], sourceIds: [String])
     }
-    struct Result: Sendable {
-        let stepsByWakeDay: [String: Int]
-        let strainByWakeDay: [String: Double]
-        let caloriesByWakeDay: [String: Double]
-        let workoutCountByWakeDay: [String: Int]
-        let onsetByWakeDay: [String: Int]
-        let firstWakeDay: String?
-        let markerUpdate: MarkerUpdate
+    public struct Result: Sendable {
+        public let stepsByWakeDay: [String: Int]
+        public let strainByWakeDay: [String: Double]
+        public let caloriesByWakeDay: [String: Double]
+        public let workoutCountByWakeDay: [String: Int]
+        public let onsetByWakeDay: [String: Int]
+        public let firstWakeDay: String?
+        public let markerUpdate: MarkerUpdate
+
+        public init(stepsByWakeDay: [String: Int], strainByWakeDay: [String: Double],
+                    caloriesByWakeDay: [String: Double], workoutCountByWakeDay: [String: Int],
+                    onsetByWakeDay: [String: Int], firstWakeDay: String?, markerUpdate: MarkerUpdate) {
+            self.stepsByWakeDay = stepsByWakeDay; self.strainByWakeDay = strainByWakeDay
+            self.caloriesByWakeDay = caloriesByWakeDay; self.workoutCountByWakeDay = workoutCountByWakeDay
+            self.onsetByWakeDay = onsetByWakeDay; self.firstWakeDay = firstWakeDay; self.markerUpdate = markerUpdate
+        }
     }
-    struct PersistedBoundary: Sendable {
-        let boundary: PhysiologicalSteps.CycleBoundary
-        let wakeDay: String
-        let owner: String
-        let sleepContext: SleepSession
+    public struct PersistedBoundary: Sendable {
+        public let boundary: PhysiologicalSteps.CycleBoundary
+        public let wakeDay: String
+        public let owner: String
+        public let sleepContext: SleepSession
     }
     fileprivate struct CachedCycle {
         let key: String; let count: SleepAwareStepCounter.Count
@@ -71,7 +95,7 @@ actor DayCycleIntelligenceIntegration {
 
     private static func computedId(_ owner: String) -> String { owner + "-noop" }
 
-    static func recover(candidates: [(owner: String, priority: Int)], reader: BoundaryRecoveryReader,
+    public static func recover(candidates: [(owner: String, priority: Int)], reader: BoundaryRecoveryReader,
                                 claimedDays: Set<String>, windowStart: Int, now: Int,
                                 offsetSec: Int, habitualMidsleepSec: Int?) async throws -> [PersistedBoundary] {
         var claimed = claimedDays, output: [PersistedBoundary] = []
@@ -116,7 +140,7 @@ actor DayCycleIntelligenceIntegration {
         return output
     }
 
-    func compute(nights: [Night], editedRows: [CachedSleepSession], store: WhoopStore,
+    public func compute(nights: [Night], editedRows: [CachedSleepSession], store: WhoopStore,
                         candidates: [(owner: String, priority: Int)], physiologyOwners: [String],
                         workouts: [WorkoutRow], windowStart: Int,
                         now: Int, offsetSec: Int, habitualMidsleepSec: Int?, ticksPerStep: Double,
@@ -397,7 +421,7 @@ actor DayCycleIntelligenceIntegration {
                 sourceIds: Array(Set(candidates.map { Self.computedId($0.owner) })).sorted()))
     }
 
-    static func applying(_ result: Result, to daily: DailyMetric) -> DailyMetric {
+    public static func applying(_ result: Result, to daily: DailyMetric) -> DailyMetric {
         let established = result.firstWakeDay.map { daily.day >= $0 } ?? false
         let steps = established ? result.stepsByWakeDay[daily.day] : daily.steps
         let strain = established ? result.strainByWakeDay[daily.day] : daily.strain
@@ -419,9 +443,10 @@ actor DayCycleIntelligenceIntegration {
 
 /// The worker writes trace lines; the engine drains them after the awaited computation.
 /// A lock also makes the Sendable callback safe if tracing gains another producer.
-final class DayCycleTraceBuffer: @unchecked Sendable {
+public final class DayCycleTraceBuffer: @unchecked Sendable {
     private let lock = NSLock()
     private var storage: [String] = []
-    func append(_ line: String) { lock.lock(); defer { lock.unlock() }; storage.append(line) }
-    var lines: [String] { lock.lock(); defer { lock.unlock() }; return storage }
+    public init() {}
+    public func append(_ line: String) { lock.lock(); defer { lock.unlock() }; storage.append(line) }
+    public var lines: [String] { lock.lock(); defer { lock.unlock() }; return storage }
 }

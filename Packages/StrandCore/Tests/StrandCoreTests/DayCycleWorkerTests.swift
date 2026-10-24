@@ -2,7 +2,7 @@ import XCTest
 import WhoopStore
 import WhoopProtocol
 import StrandAnalytics
-@testable import Strand
+import StrandCore
 
 @MainActor
 final class DayCycleWorkerTests: XCTestCase {
