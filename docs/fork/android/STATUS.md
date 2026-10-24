@@ -29,13 +29,13 @@ Plan: [`PLAN.md`](PLAN.md) · last updated 2026-10-24
 | B3 step 4, part 1: metric and steps resolvers | 2026-10-24 | `MetricResolver` in `StrandCore` with three store-backed tests; 38 package tests pass on macOS and the emulator; `local-tests.sh` passed |
 | B3 step 4, part 2: `WorkoutSource` and `WorkoutCatalog` | 2026-10-24 | In `StrandCore`, translated names left in the app; 37 of 48 workout tests moved; 75 package tests pass on macOS and the emulator; `local-tests.sh` passed |
 | B3 step 4, part 3: union reads and data computations | 2026-10-24 | `StoreReader` (the active-strap, registered-strap and canonical union), training session fusion and read, native projection, workout heart rate fills, cardio load pricing, VO2max session parts, weight and body metric reads, the energy model refresh; 131 package tests pass on macOS and the emulator; `local-tests.sh` passed |
+| B3 step 5: the daily analysis in `StrandCore` | 2026-10-24 | `DailyAnalysis` (the former engine, 4,800 lines) with `AnalysisDataServices` and `AnalysisProfileSource`; the app keeps `IntelligenceEngine` as a typealias with SwiftUI observation, translated text and the two conformances; a whole pass runs in the package tests on macOS and on the emulator (132 tests); `local-tests.sh` passed |
+| Real-data check 2 (B4) | 2026-10-24 | The same iPhone store re-analysed over 21 days by `d21690770` and by `d9da3d411` (engine in `StrandCore`): 0 of 78 tables differ with write-time columns left out (`--ignore-column '*.computedAtTs' --ignore-column '*.updatedAtTs'`). A first attempt differed in 4 cardio ledger rows, traced to the readiness pass that a dashboard refresh starts in the background finishing in one run and not the other; the snapshot test now runs it to completion |
 
 ## Next step
 
-B3 step 5: the daily pass moves into `StrandCore`. What is left of step 4 in the app is orchestration, not
-arithmetic: which window, which cache, when the screens reload, serialized energy refreshes, sleep self-heal.
-The pass reaches those through a data-services protocol the app implements with `Repository` and Android with
-`StoreReader` and the core functions. Then real-data check 2.
+B3 step 6: the backup format work (`DataBackup.writeBackup`, `verifyWrittenBackup`, `restore`) moves into
+`StrandCore`; the file pickers stay in the app. Then step 7 (raw collection) and real-data check 3.
 
 ## How to run a real-data check (B4)
 
@@ -48,7 +48,8 @@ Compares the build before a restructuring with the build after it on a copy of t
    `main` unchanged and run only that test with `TEST_RUNNER_NOOP_ANALYSIS_DB=<pulled store>` and
    `TEST_RUNNER_NOOP_ANALYSIS_OUT=<before.sqlite>`.
 3. At the later commit, run the same test with `TEST_RUNNER_NOOP_ANALYSIS_OUT=<after.sqlite>`, on the same day.
-4. `Tools/compare_analysis_snapshots.py <before.sqlite> <after.sqlite>` must report 0 differing tables.
+4. `Tools/compare_analysis_snapshots.py <before.sqlite> <after.sqlite> --ignore-column '*.computedAtTs'
+   --ignore-column '*.updatedAtTs'` must report 0 differing tables.
 
 ## Waiting on the owner
 
@@ -70,6 +71,11 @@ Compares the build before a restructuring with the build after it on a copy of t
   build also passes the zlib module map by hand, because the package manifest decides on the host that Apple's
   Compression exists. `StrandImport`'s xlsx reader now imports FoundationXML where corelibs keeps the XML
   parser, as the GPX and TCX parsers already did.
+
+- `DailyAnalysis` and both service protocols are `@MainActor`, as the engine always was, so the iPhone keeps its
+  scheduling. Swift's main actor runs on the main dispatch queue; the package tests show it works on Android
+  under XCTest, but an Android app must keep that queue drained from its main looper. Phase D has to prove that
+  (or move the analysis off the main actor) before the engine runs inside the APK.
 
 ## Untested (needs a device or a tester's strap log)
 

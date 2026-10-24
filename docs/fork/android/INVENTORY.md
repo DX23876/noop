@@ -130,9 +130,10 @@ Steps, one concern per commit, each with `Tools/local-tests.sh`, the macOS and i
    heart rate fills, VO2max session parts, weight and body reads, `EnergyModelRefresh`. The orchestration
    around them (windows, caches, serialization, screen refreshes) stays in `Repository` and reaches the pass
    through a data-services protocol in step 5 rather than moving.
-5. Split the engine: the pass becomes a non-`MainActor` `DailyAnalysis` in `StrandCore`; `IntelligenceEngine`
-   stays in the app as the `ObservableObject` shell that publishes its results and progress.
-   **Real-data check 2 (B4).**
+5. The engine moves whole rather than split: `IntelligenceEngine` becomes `DailyAnalysis` in `StrandCore`,
+   reaching `Repository` through `AnalysisDataServices` and `ProfileStore` through `AnalysisProfileSource`, with
+   published state signalled through `AnalysisObservation` instead of Combine. The app keeps the old name as a
+   typealias, so screens and tests are unchanged. Done 2026-10-24. **Real-data check 2 (B4).**
 6. Backup format work moves (section 5). A `.noopbak` written before and after must restore identically.
 7. Collect layer moves (section 4), when phase D needs it. **Real-data check 3 (B4)** after step 6 or 7.
 
