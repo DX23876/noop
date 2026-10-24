@@ -75,6 +75,9 @@ packages:
     path: Packages/WhoopStore
   StrandAnalytics:
     path: Packages/StrandAnalytics
+  # Platform-neutral core shared with Android (docs/fork/android/PLAN.md, phase B).
+  StrandCore:
+    path: Packages/StrandCore
   StrandTraining:
     path: Packages/StrandTraining
   MuscleMap:
@@ -189,6 +192,7 @@ targets:
       - package: WhoopProtocol
       - package: WhoopStore
       - package: StrandAnalytics
+      - package: StrandCore
       - package: StrandTraining
       - package: MuscleMap
       - package: StrandImport
@@ -422,6 +426,7 @@ targets:
       - package: WhoopProtocol
       - package: WhoopStore
       - package: StrandAnalytics
+      - package: StrandCore
       - package: StrandTraining
       - package: MuscleMap
       - package: StrandImport

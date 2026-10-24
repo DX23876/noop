@@ -22,11 +22,11 @@ Plan: [`PLAN.md`](PLAN.md) · last updated 2026-10-24
 | A7 report | 2026-10-24 | Milestone A below |
 | Owner decisions after A | 2026-10-24 | D22 to D24 in `PLAN.md`: patched GRDB 6.29.3, display-rounding equality, 31 MB accepted |
 | B1 inventory | 2026-10-24 | [`INVENTORY.md`](INVENTORY.md): dependencies of the pass, cut, package name `StrandCore`, seven-step order |
+| B3 step 1: empty `StrandCore` | 2026-10-24 | Package in `project.yml` (macOS and iOS app) and the package CI matrix; its link test passes on macOS and on the arm64 emulator |
 
 ## Next step
 
-B3 step 1 of `INVENTORY.md` section 8: an empty `StrandCore` package wired into `project.yml`, building on macOS,
-iOS and Android. Then step 2 (pure helpers with their tests).
+B3 step 2 of `INVENTORY.md` section 8: the pure helpers move into `StrandCore` with their tests.
 
 ## Waiting on the owner
 
@@ -37,6 +37,15 @@ iOS and Android. Then step 2 (pure helpers with their tests).
 
 - GRDB 6.29.3 needs the 8-file Android patch (A3). So far it exists only in the spike's build checkout; per
   D22 it becomes a carried patch when the Android build lands (phase D).
+- `StrandCore` does not depend on `StrandImport` yet, because ZIPFoundation 0.9.20 does not build for Android
+  from a macOS host. Its manifest decides on the host whether to declare the zlib module (`canImport(Compression)`
+  is true on macOS), while the sources compiled for Android take the zlib branch. Passing the module map by hand
+  (`-Xcc -fmodule-map-file=…/CZLib/module.modulemap`) gets past that; then the sources need `import Android`
+  for `stat` and friends, the Linux-only code page 437 branch widened to Android, and Bionic's non-null C
+  signatures (`fwrite`, the `funopen` stubs of the in-memory archive). The `.noopbak` backup is a ZIP, so this
+  must be solved before steps 4 (body metrics) and 6 (backup): patch ZIPFoundation like GRDB, build the
+  Android side on a Linux host where the manifest declares zlib, or write the single-entry deflate ZIP the
+  backup uses directly on zlib.
 
 ## Untested (needs a device or a tester's strap log)
 
