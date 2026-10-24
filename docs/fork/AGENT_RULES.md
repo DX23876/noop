@@ -22,8 +22,8 @@ Every RyanBR upstream commit/PR and every local feature must explicitly record:
 
 Choose **yes** if existing derived values can become stale because scoring math, an analytics or input
 window, the meaning of a stored derived value, source precedence or provenance, baseline semantics or
-cache invalidation changed. Then bump `IntelligenceEngine.currentAnalysisRecipeVersion` (the fork's own
-lineage, numbered AI-n), add a resumable versioned migration with regression tests, and describe the
+cache invalidation changed. Then bump `AnalysisRecipe.currentVersion` in `Packages/StrandCore` (the fork's
+own lineage, numbered AI-n), add a resumable versioned migration with regression tests, and describe the
 rescore in the release notes. A migration writes its recipe cursor only after success, never erases raw
 samples or user sleep/workout corrections, and uses the narrowest affected-day interval it can prove.
 

@@ -4,6 +4,7 @@ import SQLite3
 import WhoopProtocol
 import WhoopStore
 import StrandAnalytics
+import StrandCore
 @testable import Strand
 
 @MainActor
@@ -122,7 +123,7 @@ final class IntelligenceRRSourceTests: XCTestCase {
             _ = try await store.upsertDailyMetrics([DailyMetric(day: input.day, totalSleepMin: 480,
                 efficiency: 0.9, deepMin: 90, remMin: 90, lightMin: 300, disturbances: 0, restingHr: 60,
                 avgHrv: nil, recovery: nil, strain: nil, exerciseCount: nil)], deviceId: canonical + "-noop")
-            let noCursor = try await store.cursor(IntelligenceEngine.analysisRecipeCursor)
+            let noCursor = try await store.cursor(AnalysisRecipe.cursor)
             XCTAssertNil(noCursor)
 
             let repo = Repository(deviceId: canonical)
@@ -135,8 +136,8 @@ final class IntelligenceRRSourceTests: XCTestCase {
             let repaired = try XCTUnwrap(rows.first)
             XCTAssertNotNil(repaired.avgHrv, "the blanked night must be re-scored from its unlabelled beats")
             XCTAssertNotNil(repaired.recovery, "Charge follows the restored HRV")
-            let cursor = try await store.cursor(IntelligenceEngine.analysisRecipeCursor)
-            XCTAssertEqual(cursor, IntelligenceEngine.currentAnalysisRecipeVersion)
+            let cursor = try await store.cursor(AnalysisRecipe.cursor)
+            XCTAssertEqual(cursor, AnalysisRecipe.currentVersion)
         }
     }
 

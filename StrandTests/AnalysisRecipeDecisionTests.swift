@@ -1,132 +1,50 @@
 import XCTest
 import StrandAnalytics
 import WhoopProtocol
+import StrandCore
 import WhoopStore
 @testable import Strand
 
 @MainActor
 final class AnalysisRecipeDecisionTests: XCTestCase {
-    func testExistingInstallWithoutCursorAnchorsWithoutReanalysis() {
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: nil), .anchorCurrent)
-    }
-
-    func testCurrentAndFutureRecipesDoNotReanalyze() {
-        let current = IntelligenceEngine.currentAnalysisRecipeVersion
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: current), .upToDate)
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: current + 1), .upToDate)
-    }
-
-    func testOlderRecipeRequestsExplicitMigration() {
-        let current = IntelligenceEngine.currentAnalysisRecipeVersion
-        XCTAssertEqual(
-            IntelligenceEngine.analysisRecipeDecision(storedVersion: current - 1),
-            .migrate(from: current - 1, to: current))
-    }
-
-    /// The tests above are written against `current`, so they stay green through a bump without ever
-    /// witnessing one. This one names AI-19, the Apple Health projection/provenance repair, and
-    /// requires every older stored recipe to request that migration.
-    ///
-    /// It is deliberately a LITERAL pin. A future bump is supposed to make this line fail, because that
-    /// failure is the prompt to answer CLAUDE.md's "Analysis migration required: yes/no" for whatever
-    /// the bump carries — the question this file exists to stop anyone skipping.
-    func testRecipeVersionIsThirtyAndOlderInstallsMigrateToIt() {
-        XCTAssertEqual(IntelligenceEngine.currentAnalysisRecipeVersion, 30,
-                       "recipe version changed — answer 'Analysis migration required' for what moved")
-        for stored in [8, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29] {
-            XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: stored),
-                           .migrate(from: stored, to: 30))
-        }
-    }
-
-    /// AI-30 reads Apple Health's body fat and lean mass: it rebuilds the AgeLess weeks and prices the energy
-    /// window again (for Katch–McArdle only, decided at run time), and touches nothing else.
-    func testAI30RebuildsAgeLessAndRepricesBodyFatEnergy() {
-        XCTAssertTrue(IntelligenceEngine.migrationReadsAppleBody(from: 29, to: 30))
-        XCTAssertFalse(IntelligenceEngine.migrationReadsAppleBody(from: 30, to: 30))
-        XCTAssertTrue(IntelligenceEngine.migrationReadsAppleBody(from: 27, to: 30))
-        XCTAssertTrue(IntelligenceEngine.migrationRebuildsHealthspan(from: 29, to: 30))
-        XCTAssertFalse(IntelligenceEngine.migrationRebuildsHealthspan(from: 30, to: 30))
-        XCTAssertFalse(IntelligenceEngine.migrationRepairsStressProxy(from: 29, to: 30))
-        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 29), 0)
-        XCTAssertFalse(IntelligenceEngine.migrationRefillsCardioLedger(from: 29, to: 30))
-        XCTAssertFalse(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 29, to: 30))
-        XCTAssertFalse(IntelligenceEngine.migrationFillsWorkoutHeartRate(from: 29, to: 30))
-    }
-
-    /// AI-29 rebuilds the AgeLess weeks on the app's step resolver and nothing else; an install still owing
-    /// AI-28 gets both, and the gap keys are cleared with the weeks.
     func testAI29RebuildsOnlyTheAgeLessWeeks() {
-        XCTAssertTrue(IntelligenceEngine.migrationRebuildsHealthspan(from: 28, to: 29))
-        XCTAssertFalse(IntelligenceEngine.migrationRebuildsHealthspan(from: 29, to: 29))
-        XCTAssertTrue(IntelligenceEngine.migrationRebuildsHealthspan(from: 27, to: 29))
-        XCTAssertTrue(IntelligenceEngine.migrationRepairsStressProxy(from: 27, to: 29))
-        XCTAssertFalse(IntelligenceEngine.migrationRepairsStressProxy(from: 28, to: 29))
-        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 28), 0)
-        XCTAssertFalse(IntelligenceEngine.migrationRefillsCardioLedger(from: 28, to: 29))
-        XCTAssertFalse(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 28, to: 29))
-        XCTAssertFalse(IntelligenceEngine.migrationFillsWorkoutHeartRate(from: 28, to: 29))
+        XCTAssertTrue(AnalysisRecipe.migrationRebuildsHealthspan(from: 28, to: 29))
+        XCTAssertFalse(AnalysisRecipe.migrationRebuildsHealthspan(from: 29, to: 29))
+        XCTAssertTrue(AnalysisRecipe.migrationRebuildsHealthspan(from: 27, to: 29))
+        XCTAssertTrue(AnalysisRecipe.migrationRepairsStressProxy(from: 27, to: 29))
+        XCTAssertFalse(AnalysisRecipe.migrationRepairsStressProxy(from: 28, to: 29))
+        XCTAssertEqual(AnalysisRecipe.migrationDailyDays(from: 28), 0)
+        XCTAssertFalse(AnalysisRecipe.migrationRefillsCardioLedger(from: 28, to: 29))
+        XCTAssertFalse(AnalysisRecipe.migrationCorrectsWorkoutEnergy(from: 28, to: 29))
+        XCTAssertFalse(AnalysisRecipe.migrationFillsWorkoutHeartRate(from: 28, to: 29))
         let keys = Set(IntelligenceEngine.healthspanWeeklyKeys)
         XCTAssertTrue(keys.contains(IntelligenceEngine.healthspanGapNightsKey))
         XCTAssertTrue(keys.contains(IntelligenceEngine.healthspanGapMissingKey))
     }
 
-    /// AI-28 repairs the stress proxy after a recalibration and nothing else.
-    func testAI28RepairsOnlyTheStressProxy() {
-        XCTAssertTrue(IntelligenceEngine.migrationRepairsStressProxy(from: 27, to: 28))
-        XCTAssertFalse(IntelligenceEngine.migrationRepairsStressProxy(from: 28, to: 28))
-        XCTAssertFalse(IntelligenceEngine.migrationRebuildsHealthspan(from: 27, to: 28))
-        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 27), 0)
-        XCTAssertFalse(IntelligenceEngine.migrationRefillsCardioLedger(from: 27, to: 28))
-        XCTAssertFalse(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 27, to: 28))
-        XCTAssertFalse(IntelligenceEngine.migrationFillsWorkoutHeartRate(from: 27, to: 28))
-    }
-
-    /// AI-27 rebuilds the AgeLess weeks without the body-fat credit and nothing else.
-    func testAI27RebuildsOnlyTheAgeLessWeeks() {
-        XCTAssertTrue(IntelligenceEngine.migrationRebuildsHealthspan(from: 26, to: 27))
-        XCTAssertFalse(IntelligenceEngine.migrationRebuildsHealthspan(from: 27, to: 27))
-        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 26), 0)
-        XCTAssertFalse(IntelligenceEngine.migrationRefillsCardioLedger(from: 26, to: 27))
-        XCTAssertFalse(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 26, to: 27))
-        XCTAssertFalse(IntelligenceEngine.migrationFillsWorkoutHeartRate(from: 26, to: 27))
-    }
-
-    /// AI-26 rebuilds the AgeLess weeks on measured VO₂max only and nothing else.
     func testAI26RebuildsOnlyTheAgeLessWeeks() {
-        XCTAssertTrue(IntelligenceEngine.migrationRebuildsHealthspan(from: 25, to: 26))
-        XCTAssertFalse(IntelligenceEngine.migrationRebuildsHealthspan(from: 27, to: 27))
-        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 25), 0)
-        XCTAssertFalse(IntelligenceEngine.migrationRefillsCardioLedger(from: 25, to: 26))
-        XCTAssertFalse(IntelligenceEngine.migrationFillsWorkoutHeartRate(from: 25, to: 26))
+        XCTAssertTrue(AnalysisRecipe.migrationRebuildsHealthspan(from: 25, to: 26))
+        XCTAssertFalse(AnalysisRecipe.migrationRebuildsHealthspan(from: 27, to: 27))
+        XCTAssertEqual(AnalysisRecipe.migrationDailyDays(from: 25), 0)
+        XCTAssertFalse(AnalysisRecipe.migrationRefillsCardioLedger(from: 25, to: 26))
+        XCTAssertFalse(AnalysisRecipe.migrationFillsWorkoutHeartRate(from: 25, to: 26))
         XCTAssertTrue(IntelligenceEngine.healthspanWeeklyKeys.contains(IntelligenceEngine.healthspanVO2FloorKey))
     }
 
-    /// AI-25 rebuilds the AgeLess weeks on the climb-aware VO₂max and nothing else.
-    func testAI25RebuildsOnlyTheAgeLessWeeks() {
-        XCTAssertTrue(IntelligenceEngine.migrationRebuildsHealthspan(from: 24, to: 25))
-        XCTAssertFalse(IntelligenceEngine.migrationRebuildsHealthspan(from: 27, to: 27))
-        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 24), 0)
-        XCTAssertFalse(IntelligenceEngine.migrationRefillsCardioLedger(from: 24, to: 25))
-        XCTAssertFalse(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 24, to: 25))
-        XCTAssertFalse(IntelligenceEngine.migrationFillsWorkoutHeartRate(from: 24, to: 25))
-    }
-
-    /// AI-21 to AI-24 rebuild every AgeLess week and nothing else: no daily row, no ledger, no workout row.
     func testAI21ToAI24RebuildOnlyTheAgeLessWeeks() {
-        XCTAssertTrue(IntelligenceEngine.migrationRebuildsHealthspan(from: 20, to: 24))
-        XCTAssertTrue(IntelligenceEngine.migrationRebuildsHealthspan(from: 21, to: 24))
-        XCTAssertTrue(IntelligenceEngine.migrationRebuildsHealthspan(from: 22, to: 24))
-        XCTAssertTrue(IntelligenceEngine.migrationRebuildsHealthspan(from: 23, to: 24))
-        XCTAssertTrue(IntelligenceEngine.migrationRebuildsHealthspan(from: 8, to: 24))
-        XCTAssertFalse(IntelligenceEngine.migrationRebuildsHealthspan(from: 27, to: 27))
-        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 23), 0)
-        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 22), 0)
-        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 21), 0)
-        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 20), 0)
-        XCTAssertFalse(IntelligenceEngine.migrationRefillsCardioLedger(from: 20, to: 21))
-        XCTAssertFalse(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 20, to: 21))
-        XCTAssertFalse(IntelligenceEngine.migrationFillsWorkoutHeartRate(from: 20, to: 21))
+        XCTAssertTrue(AnalysisRecipe.migrationRebuildsHealthspan(from: 20, to: 24))
+        XCTAssertTrue(AnalysisRecipe.migrationRebuildsHealthspan(from: 21, to: 24))
+        XCTAssertTrue(AnalysisRecipe.migrationRebuildsHealthspan(from: 22, to: 24))
+        XCTAssertTrue(AnalysisRecipe.migrationRebuildsHealthspan(from: 23, to: 24))
+        XCTAssertTrue(AnalysisRecipe.migrationRebuildsHealthspan(from: 8, to: 24))
+        XCTAssertFalse(AnalysisRecipe.migrationRebuildsHealthspan(from: 27, to: 27))
+        XCTAssertEqual(AnalysisRecipe.migrationDailyDays(from: 23), 0)
+        XCTAssertEqual(AnalysisRecipe.migrationDailyDays(from: 22), 0)
+        XCTAssertEqual(AnalysisRecipe.migrationDailyDays(from: 21), 0)
+        XCTAssertEqual(AnalysisRecipe.migrationDailyDays(from: 20), 0)
+        XCTAssertFalse(AnalysisRecipe.migrationRefillsCardioLedger(from: 20, to: 21))
+        XCTAssertFalse(AnalysisRecipe.migrationCorrectsWorkoutEnergy(from: 20, to: 21))
+        XCTAssertFalse(AnalysisRecipe.migrationFillsWorkoutHeartRate(from: 20, to: 21))
         // The rebuild clears the weeks but keeps what cannot be recomputed: banked zone and VO₂max days.
         let keys = Set(IntelligenceEngine.healthspanWeeklyKeys)
         XCTAssertTrue(keys.contains(IntelligenceEngine.healthspanAgeKey))
@@ -136,58 +54,6 @@ final class AnalysisRecipeDecisionTests: XCTestCase {
         XCTAssertTrue(keys.contains(IntelligenceEngine.healthspanCountKey(.dailySteps)))
         XCTAssertTrue(keys.contains(IntelligenceEngine.healthspanVO2DayKey))
         XCTAssertTrue(keys.contains(IntelligenceEngine.healthspanBodyFatDayKey))
-    }
-
-    /// AI-20 moves the stored Charge (an optional baseline that is not yet usable is left out), so every
-    /// install below it re-scores the standard window, an AI-19 one included, and an AI-20 one none. It
-    /// touches no workout row and no ledger.
-    func testAI20RescoresTheStandardWindow() {
-        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 19), 21)
-        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 20), 0)
-        XCTAssertFalse(IntelligenceEngine.migrationRefillsCardioLedger(from: 19, to: 20))
-        XCTAssertFalse(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 19, to: 20))
-        XCTAssertFalse(IntelligenceEngine.migrationFillsWorkoutHeartRate(from: 19, to: 20))
-    }
-
-    /// AI-18 moves the stored Charge (windowed baselines, the import only seeding, #2525), so every install
-    /// below it re-scores the standard window, an AI-17 one included. (An AI-18 install still owes AI-20's
-    /// re-score, pinned above.) It touches no workout row and no ledger.
-    func testAI18RescoresTheStandardWindow() {
-        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 17), 21)
-        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 18), 21)
-        XCTAssertFalse(IntelligenceEngine.migrationRefillsCardioLedger(from: 17, to: 18))
-        XCTAssertFalse(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 17, to: 18))
-        XCTAssertFalse(IntelligenceEngine.migrationFillsWorkoutHeartRate(from: 17, to: 18))
-    }
-
-    /// AI-17 moves stored daily rows (deep prior, 500 ms fill, off-wrist tails, resting HR), so every
-    /// install below it re-scores the standard window, an AI-16 one included, and an AI-17 one none.
-    func testAI17RescoresTheStandardWindow() {
-        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 16), 21)
-        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 13), 21)
-        XCTAssertFalse(IntelligenceEngine.migrationRefillsCardioLedger(from: 16, to: 17))
-        XCTAssertFalse(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 16, to: 17))
-        XCTAssertFalse(IntelligenceEngine.migrationFillsWorkoutHeartRate(from: 16, to: 17))
-    }
-
-    /// AI-15 corrects stored session energy and no daily row: an AI-13 or AI-14 install runs the
-    /// correction again, and so does every older install crossing it. (Their daily re-score now comes
-    /// from AI-17, pinned above.)
-    func testAI15CorrectsSessionEnergy() {
-        XCTAssertTrue(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 12, to: 15))
-        XCTAssertTrue(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 8, to: 15))
-        XCTAssertTrue(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 13, to: 15))
-        XCTAssertTrue(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 14, to: 15))
-        XCTAssertFalse(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 15, to: 15))
-    }
-
-    /// AI-16 fills Apple Health workouts' heart rate; an AI-15 install runs the fill and not the energy
-    /// correction again.
-    func testAI16FillsWorkoutHeartRateWithoutRecorrectingEnergy() {
-        XCTAssertTrue(IntelligenceEngine.migrationFillsWorkoutHeartRate(from: 15, to: 16))
-        XCTAssertTrue(IntelligenceEngine.migrationFillsWorkoutHeartRate(from: 8, to: 16))
-        XCTAssertFalse(IntelligenceEngine.migrationFillsWorkoutHeartRate(from: 16, to: 16))
-        XCTAssertFalse(IntelligenceEngine.migrationCorrectsWorkoutEnergy(from: 15, to: 16))
     }
 
     /// AI-13 and AI-14 read the resting rate from imported daily rows, which end at the last WHOOP
@@ -295,68 +161,7 @@ final class AnalysisRecipeDecisionTests: XCTestCase {
                      "the provenance marker makes the migration resumable")
     }
 
-    /// AI-10, AI-11 and AI-12 change daily rows, so every install below AI-12 re-scores at least the
-    /// standard window, an AI-9, AI-10 or AI-11 one included. Only crossing AI-9 refills the cardio ledger.
-    func testAI10ToAI12RescoreTheStandardWindowWithoutRefillingTheLedger() {
-        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 9), 21)
-        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 10), 21)
-        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 11), 21)
-        XCTAssertFalse(IntelligenceEngine.migrationRefillsCardioLedger(from: 9, to: 12))
-        XCTAssertFalse(IntelligenceEngine.migrationRefillsCardioLedger(from: 11, to: 12))
-    }
-
-    /// AI-11 must reach every day a build could have scored with #2358's mean: back to 2026-09-02, never
-    /// fewer than the standard 21 days and never more than 45. Nothing once AI-11 is applied.
-    func testAI11ReachesBackToTheFirstPossibleMeanDay() {
-        XCTAssertEqual(IntelligenceEngine.restingHRRepairDays(from: 10, today: "2026-09-28"), 27)
-        XCTAssertEqual(IntelligenceEngine.restingHRRepairDays(from: 9, today: "2026-09-28"), 27)
-        XCTAssertEqual(IntelligenceEngine.restingHRRepairDays(from: 10, today: "2026-09-10"), 21)
-        XCTAssertEqual(IntelligenceEngine.restingHRRepairDays(from: 10, today: "2026-12-31"), 45)
-        XCTAssertEqual(IntelligenceEngine.restingHRRepairDays(from: 11, today: "2026-09-28"), 0)
-    }
-
-    /// AI-9 changes the stored cardio loads and no daily row. An install owing it still re-scores the
-    /// standard window now, because AI-10 is owed too; every migration that crosses AI-9 refills the ledger.
-    func testAI9RefillsTheLedger() {
-        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 8), 21)
-        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 7), 21)
-        XCTAssertEqual(IntelligenceEngine.migrationDailyDays(from: 0), 21)
-        XCTAssertTrue(IntelligenceEngine.migrationRefillsCardioLedger(from: 8, to: 9))
-        XCTAssertTrue(IntelligenceEngine.migrationRefillsCardioLedger(from: 0, to: 9))
-        XCTAssertFalse(IntelligenceEngine.migrationRefillsCardioLedger(from: 9, to: 10))
-        XCTAssertFalse(IntelligenceEngine.migrationRefillsCardioLedger(from: 6, to: 8))
-    }
-
-    /// The recipe is about the MEANING of stored scores, not about the app's identity. An Xcode install
-    /// or a UI-only release must never launch a historical rescore, which is what reading a marketing or
-    /// build number here would cause. Pinned because the mistake is invisible until someone's phone
-    /// spends twenty minutes re-scoring after a cosmetic update.
-    func testAnInstallAlreadyAtTheCurrentRecipeNeverRescoresOnRelaunch() {
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 30), .upToDate)
-        // And a database written by a NEWER build that was rolled back stays put rather than
-        // "migrating" backwards into a rescore that would overwrite better values with worse ones.
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: 31), .upToDate)
-    }
-
     // MARK: - The fork's own recipe lineage
-
-    /// ryanbr/noop has no analysis recipe. The fork's lineage is stored under its own namespace and
-    /// named "AI-n", so an upstream counter added later under a plain name cannot pass for one of ours.
-    func testTheRecipeLivesUnderTheForkNamespace() {
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeCursor, "noopai:analysisRecipeVersion")
-        XCTAssertNotEqual(IntelligenceEngine.analysisRecipeCursor, IntelligenceEngine.legacyAnalysisRecipeCursor)
-        XCTAssertEqual(IntelligenceEngine.recipeLabel(8), "AI-8")
-    }
-
-    /// Only values this fork could have written under the legacy name are adopted.
-    func testOnlyTheForksLegacyValuesAreAdopted() {
-        XCTAssertNil(IntelligenceEngine.adoptableLegacyRecipe(nil))
-        XCTAssertNil(IntelligenceEngine.adoptableLegacyRecipe(0))
-        XCTAssertEqual(IntelligenceEngine.adoptableLegacyRecipe(1), 1)
-        XCTAssertEqual(IntelligenceEngine.adoptableLegacyRecipe(8), 8)
-        XCTAssertNil(IntelligenceEngine.adoptableLegacyRecipe(9),
-                     "the fork never wrote 9 under the legacy name; such a value is someone else's")
-    }
 
     /// An install from before the rename keeps its place: its legacy AI-8 is adopted, so it owes only
     /// AI-9 — the ledger refill — and no daily re-score from 0.
@@ -367,38 +172,15 @@ final class AnalysisRecipeDecisionTests: XCTestCase {
             for suffix in ["", "-wal", "-shm"] { try? FileManager.default.removeItem(atPath: path + suffix) }
         }
         let store = try await WhoopStore(path: path)
-        try await store.setCursor(IntelligenceEngine.legacyAnalysisRecipeCursor, 8)
+        try await store.setCursor(AnalysisRecipe.legacyCursor, 8)
         let repo = Repository(deviceId: "my-whoop")
         repo.setStoreForTesting(store)
         let engine = IntelligenceEngine(repo: repo, profile: ProfileStore(), deviceId: "my-whoop")
         let ok = await engine.prepareAnalysisRecipe()
         XCTAssertTrue(ok)
-        let migrated = try await store.cursor(IntelligenceEngine.analysisRecipeCursor)
-        XCTAssertEqual(migrated, IntelligenceEngine.currentAnalysisRecipeVersion)
-        let legacy = try await store.cursor(IntelligenceEngine.legacyAnalysisRecipeCursor)
+        let migrated = try await store.cursor(AnalysisRecipe.cursor)
+        XCTAssertEqual(migrated, AnalysisRecipe.currentVersion)
+        let legacy = try await store.cursor(AnalysisRecipe.legacyCursor)
         XCTAssertEqual(legacy, 8, "the legacy cursor is read, never written")
-    }
-
-    // MARK: - A store switched over from upstream NOOP
-
-    /// Upstream 11.6/11.7 persisted nights with sleep but no HRV or Charge. Such a store has no cursor,
-    /// and anchoring it like a pre-coordinator install would freeze those blanks.
-    func testAStoreFromUpstreamMigratesInsteadOfAnchoring() {
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: nil, openedFromUpstream: true),
-                       .migrate(from: 0, to: IntelligenceEngine.currentAnalysisRecipeVersion))
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(storedVersion: nil, openedFromUpstream: false),
-                       .anchorCurrent)
-        // Once the fork has written its cursor, upstream origin no longer matters.
-        XCTAssertEqual(IntelligenceEngine.analysisRecipeDecision(
-            storedVersion: IntelligenceEngine.currentAnalysisRecipeVersion, openedFromUpstream: true), .upToDate)
-    }
-
-    func testTheUpstreamRepairWindowReachesTheEarliestBlankedNightWithinBounds() {
-        XCTAssertEqual(IntelligenceEngine.upstreamRepairWindowDays(earliestMissingDay: nil, today: "2026-09-17"), 21)
-        XCTAssertEqual(IntelligenceEngine.upstreamRepairWindowDays(earliestMissingDay: "2026-09-10", today: "2026-09-17"), 21)
-        XCTAssertEqual(IntelligenceEngine.upstreamRepairWindowDays(earliestMissingDay: "2026-08-21", today: "2026-09-17"), 28)
-        XCTAssertEqual(IntelligenceEngine.upstreamRepairWindowDays(earliestMissingDay: "2026-08-21", today: "2026-12-01"), 45)
-        // Across a DST change (Europe, 2026-10-25) the span counts calendar days.
-        XCTAssertEqual(IntelligenceEngine.upstreamRepairWindowDays(earliestMissingDay: "2026-10-01", today: "2026-10-31"), 31)
     }
 }
