@@ -4,9 +4,9 @@ import AppKit
 #elseif canImport(UIKit)
 import UIKit
 #endif
-import SQLite3
 import UniformTypeIdentifiers
 import WhoopStore
+import StrandCore
 import ZIPFoundation
 
 /// Full-database EXPORT / IMPORT for device migration.
@@ -32,8 +32,7 @@ enum DataBackup {
     /// definition small compressed and enormous expanded, so a cap on the archive's own size would be
     /// trivially defeated. Compressing harder cannot help a user past it — the backup is already
     /// `.deflate`d and the count is of bytes landing on disk. (#1807)
-    static let maxBackupSQLiteBytes: Int64 = 2_147_483_648
-    private static let maxBackupSettingsBytes: Int64 = 1_048_576
+    static let maxBackupSQLiteBytes = BackupArchive.maxSQLiteBytes
 
     // MARK: - Result
 
@@ -178,43 +177,15 @@ enum DataBackup {
         return .exportedOversize(dest, bytes: bytes, limit: maxBackupSQLiteBytes)
     }
 
-    /// The smallest a real database entry can be: SQLite's own file header is exactly this long, so
-    /// anything shorter cannot be a database whatever else it looks like.
-    static let minimumBackupEntryBytes: UInt32 = 100
+    /// The smallest a real database entry can be (`BackupArchive`).
+    static let minimumBackupEntryBytes = BackupArchive.minimumEntryBytes
 
-    /// Whether the `.noopbak` at `url` is a COMPLETE archive carrying a plausible database entry.
-    ///
-    /// #1014 (write-side): the SOURCE is verified before archiving, but the PRODUCED file can still be
-    /// torn by a full disk, a dying filesystem, or a cloud client that drops the tail mid-write, and such
-    /// a truncated `.noopbak` otherwise "restores" into an empty store, caught only by the import-side
-    /// quick_check much later, when the original may be long gone.
-    ///
-    /// Opening an `Archive` for reading parses the CENTRAL DIRECTORY, which lives at the end of a ZIP, so
-    /// a file cut short does not open at all. That is cheap (an index read, no extraction) and is what
-    /// makes this catch truncation rather than merely mis-content.
-    ///
-    /// Extracted from `writeVerifiedBackupZip` so it can be driven against hand-built archives: this
-    /// guard has protected every export since #1014 and, until now, had no test of its own. The Android
-    /// twin is `DataBackup.hasEndOfCentralDirectory` plus `backupStreamIsIntact`, which has to find the
-    /// end record itself because `ZipInputStream` never looks for one.
-    /// What a post-write check concluded about the file just produced.
-    ///
-    /// `unverifiable` exists so that failing to READ a backup is never mistaken for evidence against it.
-    /// The caller DELETES a `torn` file, and deleting on "we could not look" would let a transient read
-    /// failure destroy a backup that was perfectly good. Twin of the Android `BackupWriteVerdict`.
-    enum BackupWriteVerdict: Equatable { case intact, torn, unverifiable }
+    /// What a post-write check concluded about the file just produced (`BackupArchive.WriteVerdict`).
+    typealias BackupWriteVerdict = BackupArchive.WriteVerdict
 
-    /// Re-read the `.noopbak` just written to `url` and say what it looks like.
-    ///
-    /// Unreadable is its own answer rather than a bad one: it says nothing about the CONTENT, and the
-    /// caller's response to `torn` is destructive. Past that gate a file that will not open as an
-    /// archive really is torn, because opening one only reads the central directory a complete ZIP has.
+    /// Re-read the `.noopbak` just written to `url` and say what it looks like (`BackupArchive`).
     static func verifyWrittenBackup(at url: URL) -> BackupWriteVerdict {
-        guard FileManager.default.isReadableFile(atPath: url.path) else { return .unverifiable }
-        guard let written = try? Archive(url: url, accessMode: .read),
-              let dbEntry = written.first(where: { ($0.path as NSString).lastPathComponent == backupEntryName }),
-              dbEntry.uncompressedSize >= minimumBackupEntryBytes else { return .torn }
-        return .intact
+        BackupArchive.verifyWritten(at: url)
     }
 
     /// Convenience over `verifyWrittenBackup(at:)` for callers that only care whether it passed.
@@ -223,21 +194,15 @@ enum DataBackup {
     }
 
     private static func writeVerifiedBackupZip(dbURL: URL, to dest: URL, settingsJSON: Data?) throws {
-        if let complaint = DatabaseIntegrity.quickCheckFailure(atPath: dbURL.path) {
-            throw ExportIntegrityFailure(complaint: complaint)
-        }
-        try writeBackupZip(dbURL: dbURL, to: dest, settingsJSON: settingsJSON, manifestJSON: currentManifestJSON())
-        switch verifyWrittenBackup(at: dest) {
-        case .intact:
-            break
-        case .torn:
-            // Never leave a corrupt file behind masquerading as a good snapshot.
-            try? FileManager.default.removeItem(at: dest)
-            throw BackupWriteIncomplete()
-        case .unverifiable:
-            // Failing to READ it back is not evidence against it, so it is LEFT IN PLACE. Deleting here
-            // would let a transient read failure destroy a backup that was perfectly good.
-            throw BackupWriteUnverified()
+        do {
+            try BackupArchive.writeVerified(dbURL: dbURL, to: dest, settingsJSON: settingsJSON,
+                                            manifestJSON: currentManifestJSON(), scratchRoot: NoopScratch.directory())
+        } catch let error as BackupArchive.WriteError {
+            switch error {
+            case .integrity(let complaint): throw ExportIntegrityFailure(complaint: complaint)
+            case .incomplete: throw BackupWriteIncomplete()
+            case .unverified: throw BackupWriteUnverified()
+            }
         }
     }
 
@@ -253,30 +218,12 @@ enum DataBackup {
         let info = Bundle.main.infoDictionary
         let version = info?["CFBundleShortVersionString"] as? String ?? "?"
         let build = info?["CFBundleVersion"] as? String ?? "?"
-        let json = BackupManifest.json(appVersion: version, appBuild: build, platform: "apple",
-                                       schemaVersion: WhoopStoreInfo.schemaVersion,
-                                       exportedAtMs: Int64(Date().timeIntervalSince1970 * 1000))
-        return Data(json.utf8)
+        return BackupArchive.manifestJSON(appVersion: version, appBuild: build, platform: "apple")
     }
 
     private static func writeBackupZip(dbURL: URL, to dest: URL, settingsJSON: Data?, manifestJSON: Data) throws {
-        let archive = try Archive(url: dest, accessMode: .create)
-        try archive.addEntry(with: backupEntryName, fileURL: dbURL, compressionMethod: .deflate)
-        let fm = FileManager.default
-        // Stage each JSON through a temp file so it uses the exact same file-URL addEntry idiom as the DB
-        // entry (one container code path, no provider-API variant to drift).
-        if let settingsJSON {
-            let tmpJSON = NoopScratch.file("settings-\(UUID().uuidString).json")
-            try settingsJSON.write(to: tmpJSON)
-            defer { try? fm.removeItem(at: tmpJSON) }
-            try archive.addEntry(with: BackupSettings.entryName, fileURL: tmpJSON, compressionMethod: .deflate)
-        }
-        // #1410: manifest LAST (after the DB + optional settings) and ALWAYS written — even a legacy
-        // nil-settings backup states which build produced it.
-        let tmpManifest = NoopScratch.file("manifest-\(UUID().uuidString).json")
-        try manifestJSON.write(to: tmpManifest)
-        defer { try? fm.removeItem(at: tmpManifest) }
-        try archive.addEntry(with: BackupManifest.entryName, fileURL: tmpManifest, compressionMethod: .deflate)
+        try BackupArchive.writeZip(dbURL: dbURL, to: dest, settingsJSON: settingsJSON, manifestJSON: manifestJSON,
+                                   scratchRoot: NoopScratch.directory())
     }
 
     /// This device's whitelisted profile/display settings (see `BackupSettings.whitelist`) as the
@@ -403,204 +350,79 @@ enum DataBackup {
         return restore(from: pickedSource, toDatabaseAt: dbPath)
     }
 
-    /// The hardened restore core, with the destination database path injected so it is unit-testable
-    /// against a throwaway DB (real file I/O, never the user's live store). Behaviour is identical to
-    /// the previous `runImport` body; only the picker and path-resolution moved out to the callers.
-    /// `settingsDefaults` is where a `settings.json` entry (#1000) is re-applied — injected for the
-    /// same reason as `dbPath` (tests use a suite-scoped UserDefaults, never the runner's real domain).
+    /// The hardened restore core (`BackupArchive.restore`), with the destination database path injected so it is
+    /// unit-testable against a throwaway DB. `settingsDefaults` is where a `settings.json` entry (#1000) is
+    /// re-applied — injected for the same reason as `dbPath` (tests use a suite-scoped UserDefaults, never the
+    /// runner's real domain).
     static func restore(from pickedSource: URL, toDatabaseAt dbPath: String,
                         settingsDefaults: UserDefaults = .standard,
                         allowOversize: Bool = false) -> BackupResult {
-        // If the picked file is a .noopbak ZIP, extract the SQLite entry to a temp dir first.
-        // Legacy plain-SQLite files fall straight through. The extracted dir is cleaned up below.
-        let fm = FileManager.default
-        let source: URL
-        let extractedDir: URL?
-
-        if isZipFile(at: pickedSource) {
-            let tmpExtract = NoopScratch.subdirectory("import-\(UUID().uuidString)")
-            do {
-                if fm.fileExists(atPath: tmpExtract.path) { try fm.removeItem(at: tmpExtract) }
-                try fm.createDirectory(at: tmpExtract, withIntermediateDirectories: true)
-                try extractBackupZip(at: pickedSource, into: tmpExtract, allowOversize: allowOversize)
-            } catch let err as BackupArchiveError {
-                try? fm.removeItem(at: tmpExtract)
-                // Reported as its own case, not a generic failure: this one is RECOVERABLE, and the caller
-                // is the only layer that can ask the user whether to go ahead. (#1807)
-                switch err {
-                case .entryTooLarge(let name):
-                    return .restoreTooLarge(name: name, limit: maxBackupSQLiteBytes)
-                }
-            } catch {
-                try? fm.removeItem(at: tmpExtract)
-                return .failure(String(localized: "Couldn't open the backup archive: \(error.localizedDescription)"))
-            }
-            guard let sqliteEntry = (try? fm.contentsOfDirectory(
-                at: tmpExtract, includingPropertiesForKeys: nil))?
-                .first(where: { $0.pathExtension == "sqlite" }) else {
-                try? fm.removeItem(at: tmpExtract)
-                return .failure(String(localized: "The backup archive doesn't contain a database file."))
-            }
-            source = sqliteEntry
-            extractedDir = tmpExtract
-        } else {
-            source = pickedSource
-            extractedDir = nil
-        }
-        defer { if let d = extractedDir { try? fm.removeItem(at: d) } }
-
-        // Validate: must be a real SQLite database (magic header "SQLite format 3\0").
-        guard isSQLiteFile(at: source) else {
-            return .failure(String(localized: "That file isn't a NOOP backup. It doesn't look like a SQLite database."))
-        }
-
-        // Reject any backup that isn't a clean GRDB (this-app) backup. The magic check passes for ANY
-        // SQLite file, so an Android (Room) backup — or any other SQLite file that happens to carry our
-        // table names without our `grdb_migrations` bookkeeping — would otherwise replace the live DB
-        // and leave the migrator re-running v1 forever (`table "device" already exists`, #222). A valid
-        // NOOP-Mac/iOS backup always carries `grdb_migrations`; reject everything else that holds data.
-        let backupTables = sqliteTableNames(at: source)
-        let origin = backupOrigin(of: backupTables)
-        let holdsData = backupTables.contains("device") || backupTables.contains("hrSample")
-        if origin == .android || (origin == .unknown && holdsData) {
-            return .failure(String(localized: "This isn't a NOOP backup from this app. It's missing the migration bookkeeping a NOOP backup carries (it looks like an Android backup or another app's database), and restoring it would strand your store. To move your history across platforms, export the WHOOP-format CSV on the other device (Settings → Export data) and import that here, or import your original WHOOP / Apple Health export."))
-        }
-
-        // #1014 defence-in-depth: both gates above read only the FIRST pages of the file — the
-        // 16-byte magic and sqlite_master both survive a backup that was truncated mid-upload or
-        // torn by a flaky drive/cloud sync, and such a file then "restores" into a store that
-        // silently shows no data (the #1014 report; the #1000 settings code was exonerated, the
-        // family needed armour). Run SQLite's own `PRAGMA quick_check` over the STAGED file,
-        // read-only, BEFORE anything touches the live database, and refuse the swap honestly.
-        // One carve-out: a legacy plain-SQLite file still travelling with its -wal/-shm siblings
-        // (an uncheckpointed manual copy) skips THIS gate — a read-only probe can't recover someone
-        // else's WAL (shm rebuild needs write access) and would refuse spuriously. Those rare files
-        // are still verified by the post-swap check below, which runs on the landed main file
-        // BEFORE the sidecars are laid down and rolls back automatically on failure.
-        let legacySidecarsPresent = extractedDir == nil
-            && (fm.fileExists(atPath: source.path + "-wal") || fm.fileExists(atPath: source.path + "-shm"))
-        if !legacySidecarsPresent,
-           let complaint = DatabaseIntegrity.quickCheckFailure(atPath: source.path) {
-            return .failure(String(localized: "This backup file is damaged and can't be restored (SQLite reports: \(DatabaseIntegrity.readableComplaint(complaint))). Your current data was left untouched. Try an earlier backup file."))
-        }
-
-        let dbURL = URL(fileURLWithPath: dbPath)
-
-        do {
-            // Snapshot the current DB (+ sidecars) to a timestamped side file so the user can roll back.
-            var sidecar = dbURL.deletingLastPathComponent()
-                .appendingPathComponent("whoop-replaced-\(timestamp()).sqlite")
-            if fm.fileExists(atPath: dbURL.path) {
-                if fm.fileExists(atPath: sidecar.path) { try fm.removeItem(at: sidecar) }
-                try fm.copyItem(at: dbURL, to: sidecar)
-            } else {
-                // Nothing to preserve (fresh install); report a placeholder so the message reads sensibly.
-                sidecar = dbURL
-            }
-
-            // Remove the live DB and its WAL/SHM siblings, then drop the backup in.
-            removeIfPresent(dbURL)
-            removeIfPresent(URL(fileURLWithPath: dbPath + "-wal"))
-            removeIfPresent(URL(fileURLWithPath: dbPath + "-shm"))
-
-            do {
-                try fm.copyItem(at: source, to: dbURL)
-            } catch {
-                // The live DB was just removed and the replacement didn't land. Roll back to the
-                // snapshot so a failed import leaves the user's data exactly as it was, instead of a
-                // fresh-empty DB on relaunch (mirrors the Android rollback). Clear any partial-copy
-                // leftover first — copyItem fails if the destination exists, which would otherwise
-                // block the restore.
-                if sidecar != dbURL, fm.fileExists(atPath: sidecar.path) {
-                    removeIfPresent(dbURL)
-                    try? fm.copyItem(at: sidecar, to: dbURL)
-                }
-                return .failure(String(localized: "Import failed. Your existing data was kept. \(error.localizedDescription)"))
-            }
-
-            // #1014 defence-in-depth, post-swap: re-verify the file that actually LANDED at the
-            // live path with a second read-only quick_check. The staged file was verified above,
-            // but the copy itself can tear — disk-full mid-copy, a dying filesystem, the device
-            // sleeping — and the next launch would meet a corrupt store. Runs BEFORE any legacy
-            // sidecars are laid down: a bare main file is always read-only verifiable, and WAL
-            // frames carry their own checksums (SQLite validates them on the first real open), so
-            // the sidecars don't need this gate. On failure, roll back to the snapshot
-            // AUTOMATICALLY and say so; the snapshot file is kept either way (same policy as a
-            // successful import: the user can always reach the pre-import bytes).
-            if let complaint = DatabaseIntegrity.quickCheckFailure(atPath: dbURL.path) {
-                removeIfPresent(dbURL)
-                if sidecar != dbURL, fm.fileExists(atPath: sidecar.path) {
-                    try? fm.copyItem(at: sidecar, to: dbURL)
-                    return .failure(String(localized: "Import failed its post-restore integrity check (SQLite reports: \(DatabaseIntegrity.readableComplaint(complaint))). Your previous data was rolled back automatically and is unchanged."))
-                }
-                // Fresh install: there was no previous store to preserve, so removing the damaged
-                // file (done above) restores the exact pre-import state — an empty slate.
-                return .failure(String(localized: "Import failed its post-restore integrity check (SQLite reports: \(DatabaseIntegrity.readableComplaint(complaint))). The damaged file was removed; there was no previous data to roll back."))
-            }
-
-            // Restore sidecars only for legacy plain-SQLite backups whose WAL wasn't
-            // checkpointed at export. ZIP imports are always checkpointed; no sidecars expected.
-            // Deliberately AFTER the post-swap integrity check (see above) — this is best-effort
-            // (`try?` inside) and can't throw, so the rollback semantics are unchanged.
-            if extractedDir == nil {
-                restoreSidecar(from: source, toMainPath: dbPath, suffix: "-wal")
-                restoreSidecar(from: source, toMainPath: dbPath, suffix: "-shm")
-            }
-
-            // #1000: re-apply the backup's whitelisted profile/display settings (weight, height, age,
-            // sex, HR-max override, unit prefs) — but only NOW, after the DB swap landed. A failed or
-            // rolled-back restore returns above and never touches settings. Legacy single-entry ZIPs
-            // and plain-SQLite backups have no `settings.json` (extractedDir nil / entry absent) and
-            // restore exactly as before — no settings, no error. A malformed settings entry degrades
-            // to "fewer keys applied" inside BackupSettings.decode; it can never fail the restore.
-            if let extractedDir {
-                let settingsURL = extractedDir.appendingPathComponent(BackupSettings.entryName)
-                if let data = try? Data(contentsOf: settingsURL) {
-                    let decoded = BackupSettings.decode(data)
-                    BackupSettings.apply(decoded, to: settingsDefaults)
-                    // #1361: restore custom journal behaviours. `JournalCatalogStore` is @MainActor and
-                    // this runs off it, so write the restored names to the legacy `journal.customQuestions`
-                    // array, clear any stale hidden list, and drop the v2 items blob — on the relaunch a
-                    // restore forces, the store's init migrates those names into fresh v2 items (the same
-                    // path a pre-v2 install takes). Only when the backup carried them.
-                    if let joined = decoded["journal.customBehaviors"] as? String {
-                        let names = joined.split(separator: "\n").map(String.init).filter { !$0.isEmpty }
-                        settingsDefaults.set(names, forKey: JournalCatalogBackupKeys.legacyCustom)
-                        settingsDefaults.set([String](), forKey: JournalCatalogBackupKeys.legacyHidden)
-                        settingsDefaults.removeObject(forKey: JournalCatalogBackupKeys.items)
-                    }
-                    // The goals system. The stores read their keys at launch, and a restore forces a
-                    // relaunch, so writing the values back is enough.
-                    if let goals = decoded[GoalBackupBundle.settingsKey] as? String {
-                        GoalBackupBundle.apply(goals, to: settingsDefaults)
-                    }
-                }
-            }
+        let outcome = BackupArchive.restore(
+            from: pickedSource, toDatabaseAt: dbPath, scratchRoot: NoopScratch.directory(),
+            allowOversize: allowOversize,
+            applySettings: { applyRestoredSettings($0, to: settingsDefaults) })
+        switch outcome {
+        case .imported(let sidecar):
             // #57 debug: record when a restore swapped the DB, so the export can correlate a restore with a
             // later write stall (a restore not followed by a relaunch is the #57 failure).
             UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "backup.lastRestoreAt")
             return .imported(sidecar: sidecar)
-        } catch {
-            return .failure(String(localized: "Import failed: \(error.localizedDescription)"))
+        case .tooLarge(let name):
+            return .restoreTooLarge(name: name, limit: maxBackupSQLiteBytes)
+        case .failure(let failure):
+            return .failure(restoreFailureText(failure))
+        }
+    }
+
+    /// The wearer-facing text of a restore failure (`BackupArchive.RestoreFailure`).
+    static func restoreFailureText(_ failure: BackupArchive.RestoreFailure) -> String {
+        switch failure {
+        case .archiveUnreadable(let detail):
+            return String(localized: "Couldn't open the backup archive: \(detail)")
+        case .noDatabaseEntry:
+            return String(localized: "The backup archive doesn't contain a database file.")
+        case .notSQLite:
+            return String(localized: "That file isn't a NOOP backup. It doesn't look like a SQLite database.")
+        case .foreignBackup:
+            return String(localized: "This isn't a NOOP backup from this app. It's missing the migration bookkeeping a NOOP backup carries (it looks like an Android backup or another app's database), and restoring it would strand your store. To move your history across platforms, export the WHOOP-format CSV on the other device (Settings → Export data) and import that here, or import your original WHOOP / Apple Health export.")
+        case .damaged(let complaint):
+            return String(localized: "This backup file is damaged and can't be restored (SQLite reports: \(DatabaseIntegrity.readableComplaint(complaint))). Your current data was left untouched. Try an earlier backup file.")
+        case .copyFailedKept(let detail):
+            return String(localized: "Import failed. Your existing data was kept. \(detail)")
+        case .postRestoreRolledBack(let complaint):
+            return String(localized: "Import failed its post-restore integrity check (SQLite reports: \(DatabaseIntegrity.readableComplaint(complaint))). Your previous data was rolled back automatically and is unchanged.")
+        case .postRestoreRemoved(let complaint):
+            return String(localized: "Import failed its post-restore integrity check (SQLite reports: \(DatabaseIntegrity.readableComplaint(complaint))). The damaged file was removed; there was no previous data to roll back.")
+        case .importFailed(let detail):
+            return String(localized: "Import failed: \(detail)")
+        }
+    }
+
+    /// #1000: re-apply a backup's whitelisted profile/display settings (weight, height, age, sex, HR-max
+    /// override, unit prefs) once the swap landed. A malformed entry degrades to "fewer keys applied" inside
+    /// `BackupSettings.decode`; it can never fail the restore.
+    private static func applyRestoredSettings(_ data: Data, to settingsDefaults: UserDefaults) {
+        let decoded = BackupSettings.decode(data)
+        BackupSettings.apply(decoded, to: settingsDefaults)
+        // #1361: restore custom journal behaviours. `JournalCatalogStore` is @MainActor and
+        // this runs off it, so write the restored names to the legacy `journal.customQuestions`
+        // array, clear any stale hidden list, and drop the v2 items blob — on the relaunch a
+        // restore forces, the store's init migrates those names into fresh v2 items (the same
+        // path a pre-v2 install takes). Only when the backup carried them.
+        if let joined = decoded["journal.customBehaviors"] as? String {
+            let names = joined.split(separator: "\n").map(String.init).filter { !$0.isEmpty }
+            settingsDefaults.set(names, forKey: JournalCatalogBackupKeys.legacyCustom)
+            settingsDefaults.set([String](), forKey: JournalCatalogBackupKeys.legacyHidden)
+            settingsDefaults.removeObject(forKey: JournalCatalogBackupKeys.items)
+        }
+        // The goals system. The stores read their keys at launch, and a restore forces a
+        // relaunch, so writing the values back is enough.
+        if let goals = decoded[GoalBackupBundle.settingsKey] as? String {
+            GoalBackupBundle.apply(goals, to: settingsDefaults)
         }
     }
 
     // MARK: - Helpers
-
-    /// Canonical entry name for the SQLite inside a `.noopbak` ZIP. Matches the Android exporter so
-    /// a backup produced on either platform restores on the other.
-    private static let backupEntryName = "noop-backup.sqlite"
-
-    private enum BackupArchiveError: LocalizedError {
-        case entryTooLarge(String)
-
-        var errorDescription: String? {
-            switch self {
-            case .entryTooLarge(let name):
-                return "\(name) is too large to restore safely."
-            }
-        }
-    }
 
     /// "NOOP-backup-2026-06-07.noopbak"
     private static func defaultBackupName() -> String {
@@ -608,13 +430,6 @@ enum DataBackup {
         f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "yyyy-MM-dd"
         return "NOOP-backup-\(f.string(from: Date())).noopbak"
-    }
-
-    private static func timestamp() -> String {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.dateFormat = "yyyy-MM-dd-HHmmss"
-        return f.string(from: Date())
     }
 
     /// Content types accepted by the export/import panels. Includes the new `.noopbak` (ZIP),
@@ -629,117 +444,12 @@ enum DataBackup {
         return types
     }
 
-    /// Which platform produced a NOOP backup, judged by its migrator's bookkeeping table.
-    enum BackupOrigin: Equatable { case mac, android, unknown }
+    /// Which platform produced a NOOP backup (`BackupArchive.BackupOrigin`).
+    typealias BackupOrigin = BackupArchive.BackupOrigin
 
-    /// Pure classification over a backup's `sqlite_master` table names: GRDB (this app) writes
-    /// `grdb_migrations`, Room (the Android app) writes `room_master_table`. `.unknown` (neither —
-    /// an empty or pre-migration file) falls through to the normal import path, where the
-    /// open-time migrator decides. Mirrors the Android `DataBackup.backupOriginOf`.
+    /// Classification over a backup's table names (`BackupArchive.backupOrigin`).
     static func backupOrigin(of tableNames: Set<String>) -> BackupOrigin {
-        // This platform's marker wins on the (degenerate) both-present case: restoring here is the
-        // less destructive read.
-        if tableNames.contains("grdb_migrations") { return .mac }
-        if tableNames.contains("room_master_table") { return .android }
-        // Older Room layouts didn't carry `room_master_table`; treat the Room/AndroidX duo of
-        // `android_metadata` + an internal `sqlite_sequence` as an Android backup too.
-        if tableNames.contains("android_metadata") && tableNames.contains("sqlite_sequence") {
-            return .android
-        }
-        return .unknown
+        BackupArchive.backupOrigin(of: tableNames)
     }
 
-    /// Every table name in a SQLite file, opened READ-ONLY through the system SQLite so the probed
-    /// file is never mutated. Returns an empty set on any failure — the caller treats that as
-    /// `.unknown` and falls through to the existing behaviour.
-    private static func sqliteTableNames(at url: URL) -> Set<String> {
-        var db: OpaquePointer?
-        guard sqlite3_open_v2(url.path, &db, SQLITE_OPEN_READONLY, nil) == SQLITE_OK else {
-            sqlite3_close(db)
-            return []
-        }
-        defer { sqlite3_close(db) }
-        var stmt: OpaquePointer?
-        let sql = "SELECT name FROM sqlite_master WHERE type = 'table'"
-        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
-        defer { sqlite3_finalize(stmt) }
-        var names: Set<String> = []
-        while sqlite3_step(stmt) == SQLITE_ROW {
-            if let c = sqlite3_column_text(stmt, 0) {
-                names.insert(String(cString: c))
-            }
-        }
-        return names
-    }
-
-    /// Read the first 4 bytes and check for the ZIP PK magic (`PK\x03\x04`).
-    private static func isZipFile(at url: URL) -> Bool {
-        guard let handle = try? FileHandle(forReadingFrom: url) else { return false }
-        defer { try? handle.close() }
-        guard let head = try? handle.read(upToCount: 4), head.count >= 4 else { return false }
-        return head[0] == 0x50 && head[1] == 0x4B && head[2] == 0x03 && head[3] == 0x04
-    }
-
-    /// Extract only the canonical entries from a `.noopbak` ZIP at `zipURL` into `destDir`.
-    /// Unknown files are ignored, and each accepted entry is streamed through an uncompressed-size cap
-    /// before it lands on disk.
-    private static func extractBackupZip(at zipURL: URL, into destDir: URL,
-                                         allowOversize: Bool = false) throws {
-        let archive = try Archive(url: zipURL, accessMode: .read)
-        for entry in archive where entry.type == .file {
-            let name = (entry.path as NSString).lastPathComponent
-            let limit: Int64
-            switch name {
-            case backupEntryName:
-                limit = allowOversize ? Int64.max : maxBackupSQLiteBytes
-            case BackupSettings.entryName:
-                limit = maxBackupSettingsBytes
-            default:
-                continue
-            }
-            let out = destDir.appendingPathComponent(name)
-            if FileManager.default.fileExists(atPath: out.path) { try FileManager.default.removeItem(at: out) }
-            FileManager.default.createFile(atPath: out.path, contents: nil)
-            let handle = try FileHandle(forWritingTo: out)
-            defer { try? handle.close() }
-            var written: Int64 = 0
-            _ = try archive.extract(entry) { data in
-                let next = written + Int64(data.count)
-                guard next <= limit else {
-                    try? handle.close()
-                    try? FileManager.default.removeItem(at: out)
-                    throw BackupArchiveError.entryTooLarge(name)
-                }
-                try handle.write(contentsOf: data)
-                written = next
-            }
-        }
-    }
-
-    /// Read the first 16 bytes and check for the SQLite magic header.
-    private static func isSQLiteFile(at url: URL) -> Bool {
-        guard let handle = try? FileHandle(forReadingFrom: url) else { return false }
-        defer { try? handle.close() }
-        guard let head = try? handle.read(upToCount: 16), head.count >= 16 else { return false }
-        // "SQLite format 3" + NUL terminator.
-        let magic: [UInt8] = Array("SQLite format 3".utf8) + [0x00]
-        return Array(head) == magic
-    }
-
-    private static func removeIfPresent(_ url: URL) {
-        let fm = FileManager.default
-        if fm.fileExists(atPath: url.path) { try? fm.removeItem(at: url) }
-    }
-
-    /// Copy a legacy backup's `<source><suffix>` sidecar next to the live DB if it exists, so an
-    /// old plain-SQLite backup whose WAL wasn't checkpointed at export restores its committed pages
-    /// (SQLite folds them in on open). Not called for ZIP imports (those are always checkpointed).
-    private static func restoreSidecar(from source: URL, toMainPath dbPath: String, suffix: String) {
-        let fm = FileManager.default
-        let src = URL(fileURLWithPath: source.path + suffix)
-        guard fm.fileExists(atPath: src.path) else { return }
-        let dst = URL(fileURLWithPath: dbPath + suffix)
-        if fm.fileExists(atPath: dst.path) { try? fm.removeItem(at: dst) }
-        try? fm.copyItem(at: src, to: dst)
-    }
 }
