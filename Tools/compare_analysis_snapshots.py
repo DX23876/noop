@@ -38,10 +38,11 @@ def shell_hash(path, table):
                              capture_output=True, text=True, check=True).stdout
     except (OSError, subprocess.CalledProcessError):
         return None
-    # A LIKE pattern can match more tables than the one asked for; keep the line naming it exactly.
+    # A LIKE pattern can match more tables than the one asked for; keep the line naming it. The shell
+    # prints the name lower-cased, and SQLite table names are case-insensitive anyway.
     for line in out.splitlines():
         digest, _, name = line.partition("|")
-        if name == table or (not name and digest):
+        if name.lower() == table.lower() or (not name and digest):
             return digest
     return None
 
@@ -74,7 +75,8 @@ def compare(before, after, show=5, out=sys.stdout):
             continue
         only_a, only_b = rows_a - rows_b, rows_b - rows_a
         if not only_a and not only_b:
-            print(f"same  {name} (rows in another order)", file=out)
+            how = "rows in another order" if hash_a and hash_b else "compared row by row"
+            print(f"same  {name} ({how})", file=out)
             continue
         differing += 1
         print(f"DIFF  {name}: {sum(only_a.values())} row(s) only before, "

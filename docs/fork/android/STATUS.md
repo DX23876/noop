@@ -25,21 +25,26 @@ Plan: [`PLAN.md`](PLAN.md) · last updated 2026-10-24
 | B3 step 1: empty `StrandCore` | 2026-10-24 | Package in `project.yml` (macOS and iOS app) and the package CI matrix; its link test passes on macOS and on the arm64 emulator |
 | B3 step 2: pure helpers | 2026-10-24 | `StressMath`, `AnalysisRecipe` and `DayCycleIntelligenceIntegration` in `StrandCore`; 33 package tests pass on macOS and on the emulator; `local-tests.sh` passed |
 | B3 step 3: `AnalysisSettings` and `AnalysisHost` | 2026-10-24 | The pass reads one settings snapshot and reports through the host; `AppAnalysisHost` keeps every key and type; 35 package tests on macOS and the emulator; `local-tests.sh` passed |
+| Real-data check 1 (B4) | 2026-10-24 | Owner's iPhone store (4.2 GB, newest day 2026-10-24) re-analysed over 21 days by `d21690770` and by `ff34ef571`: 0 of 78 tables differ (77 identical by hash, `scoreInputProvenance` identical in another row order) |
 
 ## Next step
 
-Real-data check 1 (B4), then B3 step 4. The check compares the build before the core work (`d21690770`) with
-the current one on a copy of the owner's iPhone store:
+B3 step 4 of `INVENTORY.md` section 8: the Repository data functions the pass calls move into `StrandCore`, one
+file per commit, starting with the steps resolver. ZIPFoundation must build for Android before body metrics
+(StrandImport) and backup move.
+
+## How to run a real-data check (B4)
+
+Compares the build before a restructuring with the build after it on a copy of the owner's iPhone store:
 
 1. Pull `whoop.sqlite` with its `-wal` and `-shm` from the iPhone (app closed, Bluetooth off; the known
-   `devicectl` procedure). About 3 GB, and the check needs three copies, so it runs on a disk with about
-   10 GB free.
-2. In a detached worktree at `d21690770`, add `StrandTests/RealDataAnalysisSnapshotTests.swift` from `main`
-   unchanged and run only that test with `TEST_RUNNER_NOOP_ANALYSIS_DB=<pulled store>` and
+   `devicectl` procedure) to a folder outside the repo. About 4 GB; the two analysed copies are APFS clones
+   (`FileManager.copyItem`), so they cost only the pages the pass rewrites.
+2. In a detached worktree at the earlier commit, add `StrandTests/RealDataAnalysisSnapshotTests.swift` from
+   `main` unchanged and run only that test with `TEST_RUNNER_NOOP_ANALYSIS_DB=<pulled store>` and
    `TEST_RUNNER_NOOP_ANALYSIS_OUT=<before.sqlite>`.
-3. On `main`, run the same test with `TEST_RUNNER_NOOP_ANALYSIS_OUT=<after.sqlite>`, on the same day.
+3. At the later commit, run the same test with `TEST_RUNNER_NOOP_ANALYSIS_OUT=<after.sqlite>`, on the same day.
 4. `Tools/compare_analysis_snapshots.py <before.sqlite> <after.sqlite>` must report 0 differing tables.
-   Record the output here.
 
 ## Waiting on the owner
 

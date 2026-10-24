@@ -25,11 +25,13 @@ class CompareAnalysisSnapshotsTest(unittest.TestCase):
         out = io.StringIO()
         return tool.compare(a, b, out=out), out.getvalue()
 
-    def test_identical_stores_match(self):
-        rows = ["CREATE TABLE daily(day TEXT, charge REAL)", "INSERT INTO daily VALUES('2026-10-01', 75.5)"]
+    def test_identical_stores_match_by_hash(self):
+        # Mixed case on purpose: the sqlite3 shell prints table names lower-cased.
+        rows = ["CREATE TABLE dailyMetric(day TEXT, charge REAL)",
+                "INSERT INTO dailyMetric VALUES('2026-10-01', 75.5)"]
         differing, text = self.run_compare(self.db("a.sqlite", rows), self.db("b.sqlite", rows))
         self.assertEqual(differing, 0)
-        self.assertIn("same  daily", text)
+        self.assertIn("same  dailyMetric\n", text)
 
     def test_rows_written_in_another_order_still_match(self):
         a = self.db("a.sqlite", ["CREATE TABLE daily(day TEXT, charge REAL)",
