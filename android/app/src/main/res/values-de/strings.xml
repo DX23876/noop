@@ -2955,4 +2955,6 @@
     <string name="forge_strap_connect">Verbinden</string>
     <string name="forge_strap_disconnect">Trennen</string>
     <string name="forge_strap_add">Strap koppeln</string>
+    <string name="forge_new_screens">Neue Ansicht</string>
+    <string name="forge_new_screens_detail">Heute, Schlaf, Trends und Mehr im neuen Design.</string>
 </resources>

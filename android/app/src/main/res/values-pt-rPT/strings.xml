@@ -2934,4 +2934,6 @@
     <string name="forge_strap_connect">Ligar</string>
     <string name="forge_strap_disconnect">Desligar</string>
     <string name="forge_strap_add">Emparelhar strap</string>
+    <string name="forge_new_screens">Ecrãs novos</string>
+    <string name="forge_new_screens_detail">Hoje, Sono, Tendências e Mais com o novo design.</string>
 </resources>

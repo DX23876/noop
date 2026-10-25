@@ -2910,4 +2910,6 @@
     <string name="forge_strap_connect">Connetti</string>
     <string name="forge_strap_disconnect">Disconnetti</string>
     <string name="forge_strap_add">Abbina strap</string>
+    <string name="forge_new_screens">Nuove schermate</string>
+    <string name="forge_new_screens_detail">Oggi, Sonno, Tendenze e Altro nel nuovo design.</string>
 </resources>

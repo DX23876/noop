@@ -2942,4 +2942,6 @@
     <string name="forge_strap_connect">Conectar</string>
     <string name="forge_strap_disconnect">Desconectar</string>
     <string name="forge_strap_add">Emparejar strap</string>
+    <string name="forge_new_screens">Pantallas nuevas</string>
+    <string name="forge_new_screens_detail">Hoy, Sueño, Tendencias y Más con el nuevo diseño.</string>
 </resources>

@@ -2837,4 +2837,6 @@
     <string name="forge_strap_connect">Подключить</string>
     <string name="forge_strap_disconnect">Отключить</string>
     <string name="forge_strap_add">Сопрячь strap</string>
+    <string name="forge_new_screens">Новые экраны</string>
+    <string name="forge_new_screens_detail">Сегодня, Сон, Тренды и Ещё в новом оформлении.</string>
 </resources>

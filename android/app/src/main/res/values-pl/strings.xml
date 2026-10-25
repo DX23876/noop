@@ -2958,4 +2958,6 @@
     <string name="forge_strap_connect">Połącz</string>
     <string name="forge_strap_disconnect">Rozłącz</string>
     <string name="forge_strap_add">Sparuj strapa</string>
+    <string name="forge_new_screens">Nowe ekrany</string>
+    <string name="forge_new_screens_detail">Dzisiaj, Sen, Trendy i Więcej w nowym wyglądzie.</string>
 </resources>

@@ -1,7 +1,5 @@
 package com.noop.ui.forge
 
-import android.content.Context
-import android.content.Intent
 import android.text.format.DateUtils
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -164,7 +162,7 @@ fun ForgeMoreScreen(padding: PaddingValues, viewModel: AppViewModel) {
             MoreRow(Icons.Rounded.History, colors.textSecondary, stringResource(R.string.forge_classic_screens),
                     stringResource(R.string.forge_classic_screens_detail)) {
                 ForgeUi.setEnabled(context, false)
-                restartApp(context)
+                ForgeUi.restart(context)
             }
         }
         Text(stringResource(R.string.forge_version, BuildConfig.VERSION_NAME), style = Forge.type.caption,
@@ -185,7 +183,7 @@ fun ForgeMoreScreen(padding: PaddingValues, viewModel: AppViewModel) {
 
     notice?.let { current ->
         NoticeDialog(current, onDismiss = { notice = null },
-                     onRestart = { restartApp(context) },
+                     onRestart = { ForgeUi.restart(context) },
                      onImportAnyway = {
                          notice = Notice.Working
                          scope.launch { finish(withContext(Dispatchers.IO) { CoreBackup.importStagedAnyway(context) }) }
@@ -297,11 +295,4 @@ private fun failureText(why: String): String = when {
     why == "foreignBackup" -> stringResource(R.string.forge_backup_foreign)
     why == "damaged" || why.startsWith("postRestore") -> stringResource(R.string.forge_backup_damaged)
     else -> stringResource(R.string.forge_backup_failed, why)
-}
-
-/** Starts the app afresh, so a restored store or the other screen set is what it opens with. */
-private fun restartApp(context: Context) {
-    val launch = context.packageManager.getLaunchIntentForPackage(context.packageName) ?: return
-    context.startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
-    Runtime.getRuntime().exit(0)
 }

@@ -3804,6 +3804,28 @@ fun SettingsScreen(
                     }
                 }
 
+                // Fork (DX23876), Android plan E-3f: the way back to the Forge screens from the classic ones.
+                val forgeInteraction = remember { MutableInteractionSource() }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .liquidPress(forgeInteraction)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Palette.accent.copy(alpha = 0.10f))
+                        .border(1.dp, Palette.accent.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
+                        .clickable(interactionSource = forgeInteraction, indication = null) {
+                            com.noop.ui.forge.ForgeUi.setEnabled(context, true)
+                            com.noop.ui.forge.ForgeUi.restart(context)
+                        }
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(uiString(R.string.forge_new_screens), style = NoopType.body, color = Palette.textPrimary)
+                        Text(uiString(R.string.forge_new_screens_detail), style = NoopType.caption,
+                             color = Palette.textTertiary)
+                    }
+                }
+
                 // Check for updates — a single, user-initiated call to the project's public releases API (GitHub)
                 // when the button is tapped. No background polling, no auto-update; nothing about you
                 // is sent. Android already holds INTERNET (for the opt-in Coach), so this adds nothing.

@@ -2971,4 +2971,6 @@
     <string name="forge_strap_connect">Connect</string>
     <string name="forge_strap_disconnect">Disconnect</string>
     <string name="forge_strap_add">Pair a strap</string>
+    <string name="forge_new_screens">New screens</string>
+    <string name="forge_new_screens_detail">Today, Sleep, Trends and More in the new design.</string>
 </resources>
