@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.noop.ui.rememberPoseStill
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -109,10 +110,16 @@ fun OrganicRing(score: Double?, tint: Color, diameter: Dp, modifier: Modifier = 
     val colors = Forge.colors
     val color = if (score == null) colors.missing else tint
     val alpha = if (score == null) 0.45f else 1f
-    val phase by rememberInfiniteTransition(label = "ring").animateFloat(
-        initialValue = 0f, targetValue = (2 * PI).toFloat(),
-        animationSpec = infiniteRepeatable(tween(16_000, easing = LinearEasing), RepeatMode.Restart), label = "phase",
-    )
+    // Battery saver and reduced motion pose the ring still, as they still the iOS rings (the frame loop is the
+    // cost, not the picture).
+    val phase = if (rememberPoseStill()) 0f else {
+        val moving by rememberInfiniteTransition(label = "ring").animateFloat(
+            initialValue = 0f, targetValue = (2 * PI).toFloat(),
+            animationSpec = infiniteRepeatable(tween(16_000, easing = LinearEasing), RepeatMode.Restart),
+            label = "phase",
+        )
+        moving
+    }
     fun ring(c: Offset, r: Float, shift: Float, depth: Float): Path = Path().apply {
         val steps = 160
         for (i in 0..steps) {
