@@ -2946,4 +2946,7 @@
     <string name="forge_heart_rate">Fréquence cardiaque</string>
     <string name="forge_live">En direct</string>
     <string name="forge_live_hr_spoken">Fréquence cardiaque en direct %1$d battements par minute</string>
+    <string name="forge_experimental_section">Expérimental</string>
+    <string name="forge_core_ack">Le cœur partagé confirme l’historique</string>
+    <string name="forge_core_ack_detail">Pour les testeurs. Le strap n’efface son historique qu’une fois enregistré par le cœur partagé ; ce qui n’est pas encore confirmé reste sur le strap et est renvoyé.</string>
 </resources>

@@ -35,6 +35,10 @@ public enum ShadowSession {
 
     private final class State: @unchecked Sendable {
         let lock = NSLock()
+        /// Signalled whenever the core banks a history chunk; `awaitBanked` waits on it.
+        let banked = NSCondition()
+        /// The HISTORY_END data of the chunks the core banked most recently (persisted, cursor set), newest last.
+        var bankedChunks: [[UInt8]] = []
         var continuation: AsyncStream<Event>.Continuation?
         var tally = Tally()
         var processed = 0
@@ -113,6 +117,30 @@ public enum ShadowSession {
         return state.processed
     }
 
+    /// How many banked chunks are remembered; more than an offload acks between two Kotlin acks.
+    static let bankedMemory = 256
+
+    private static func noteBanked(_ endData: [UInt8]) {
+        state.banked.lock()
+        state.bankedChunks.append(endData)
+        if state.bankedChunks.count > bankedMemory { state.bankedChunks.removeFirst(state.bankedChunks.count - bankedMemory) }
+        state.banked.broadcast()
+        state.banked.unlock()
+    }
+
+    /// Waits up to `timeout` seconds for the core to have banked the history chunk whose HISTORY_END carries
+    /// `endData`; true once it has. Blocks the calling thread, which on Android is the Kotlin offload drain, never
+    /// the main thread the core's Backfiller runs on.
+    public static func awaitBanked(endData: [UInt8], timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        state.banked.lock()
+        defer { state.banked.unlock() }
+        while !state.bankedChunks.contains(endData) {
+            if !state.banked.wait(until: deadline) { return state.bankedChunks.contains(endData) }
+        }
+        return true
+    }
+
     /// Ends the session after the events already queued.
     public static func stop() {
         state.lock.lock()
@@ -127,7 +155,10 @@ public enum ShadowSession {
         let collector = Collector(store: store, deviceId: deviceId)
         let backfiller = Backfiller(
             store: store, deviceId: deviceId,
-            ackTrim: { _, _ in },   // the Kotlin client owns the link and acks history itself
+            // The Kotlin client owns the link and sends the ack. The Backfiller calls this only after the chunk is
+            // persisted and its cursor set, so it marks the chunk banked; `awaitBanked` lets Kotlin hold its ack
+            // until then (Android plan E-4, the safe-trim rule).
+            ackTrim: { _, endData in noteBanked(endData) },
             onBankedOffload: { counts in
                 state.lock.withLock {
                     state.tally.hr += counts.hr; state.tally.rr += counts.rr

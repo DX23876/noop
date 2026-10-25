@@ -58,13 +58,14 @@ Plan: [`PLAN.md`](PLAN.md) · last updated 2026-10-25
 | E-3f, first part | 2026-10-25 | The Forge screens are the default, shown after the terms and onboarding gates with the app's view model (strap link, foreground sync, background service); More has a strap card (state, battery, last sync, connect, pairing through the classic wizard) and switches to the classic screens, whose Settings switch back. A fresh demo install went through terms and onboarding into the Forge screens on the emulator without a crash |
 | E-3f, live heart rate | 2026-10-25 | Today shows the live heart rate with a two-minute trace while the strap streams, read from the view model's rate; not yet seen with a streaming strap (the demo build does not stream) |
 | E-5 languages and backups | 2026-10-25 | Every Forge string in EN, DE, FR, ES, PT, PL, IT, RU and ZH (the i18n gate checks the focus set). `Packages/NoopCoreJNI/Tests/NoopCoreTests/Fixtures`: `android-v1.noopbak`, exported by the Android demo build through More, and `apple-v1.noopbak`, written by the shared `BackupArchive` with the Apple manifest; both restore through `CoreBackup` with their 42 days and pinned values. A backup from a real iOS install still has to be restored on Android once by hand |
+| E-4, first part: the ack follows the core | 2026-10-25 | Behind a switch in More (Experimental), off by default: the Kotlin client sends a history chunk's ack only after the core's Backfiller has persisted that chunk and set its cursor (`ShadowSession.awaitBanked`, up to 10 s), and holds it otherwise so the strap keeps the chunk for the next sync. A macOS replay test shows a replayed chunk reported banked and an unknown one never; three JVM tests pin the gate. Not yet run against a real strap; Kotlin still writes Room beside the core |
 
 ## Next step
 
-E-4, the core owning the data: Kotlin Bluetooth hands frames only to the core, and the history ack follows the
-core's durable write (the safe-trim rule), proven by a replay test and then by a tester's strap log. The rest of
-E-3f (a Forge pairing flow, removing classic screens nothing reaches) can follow alongside. Skip was tried for
-shared screens and not adopted for now ([`SKIP-SPIKE.md`](SKIP-SPIKE.md)).
+E-4 on a real strap: a tester turns on "Shared core confirms history" and sends a strap log with a full overnight
+offload, which should show every chunk acked after the core banked it and no held ack. Then the Forge screens
+stop needing Room (Kotlin stops writing it), and phase F (release workflow, issue template, first testers). Skip
+was tried for shared screens and not adopted for now ([`SKIP-SPIKE.md`](SKIP-SPIKE.md)).
 
 ## How to run a real-data check (B4)
 

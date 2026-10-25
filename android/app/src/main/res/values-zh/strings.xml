@@ -2917,4 +2917,7 @@
     <string name="forge_heart_rate">心率</string>
     <string name="forge_live">实时</string>
     <string name="forge_live_hr_spoken">实时心率 每分钟 %1$d 次</string>
+    <string name="forge_experimental_section">实验性</string>
+    <string name="forge_core_ack">共享核心确认历史</string>
+    <string name="forge_core_ack_detail">供测试者使用。只有在共享核心保存后，Strap 才会删除其历史；尚未确认的数据会保留在 Strap 上并再次发送。</string>
 </resources>

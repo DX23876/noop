@@ -2976,4 +2976,7 @@
     <string name="forge_heart_rate">Heart rate</string>
     <string name="forge_live">Live</string>
     <string name="forge_live_hr_spoken">Live heart rate %1$d beats per minute</string>
+    <string name="forge_experimental_section">Experimental</string>
+    <string name="forge_core_ack">Shared core confirms history</string>
+    <string name="forge_core_ack_detail">For testers. The strap only deletes its history once the shared core has saved it; anything not yet confirmed stays on the strap and is sent again.</string>
 </resources>

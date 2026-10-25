@@ -2842,4 +2842,7 @@
     <string name="forge_heart_rate">Пульс</string>
     <string name="forge_live">Сейчас</string>
     <string name="forge_live_hr_spoken">Пульс сейчас %1$d ударов в минуту</string>
+    <string name="forge_experimental_section">Экспериментально</string>
+    <string name="forge_core_ack">Общее ядро подтверждает историю</string>
+    <string name="forge_core_ack_detail">Для тестировщиков. Strap удаляет историю только после того, как общее ядро её сохранило; неподтверждённое остаётся на strap и отправляется снова.</string>
 </resources>

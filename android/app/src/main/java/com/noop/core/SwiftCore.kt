@@ -58,6 +58,8 @@ object SwiftCore {
     external fun shadowTally(): String?
     external fun shadowAnalyze(age: Int, sex: String, weightKg: Double, heightCm: Double, hrMaxOverride: Int)
     external fun shadowToday(): String?
+    /** Waits up to [timeoutMs] for the core to have banked the history chunk ending in [endData]. */
+    external fun shadowAwaitBanked(endData: ByteArray, timeoutMs: Long): Boolean
 
     // Reads for the screens (CoreRead): JSON, or null; they block until the store answers.
     external fun readDay(day: String): String?

@@ -165,4 +165,11 @@ public func jniImportBackup(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass
     guard let env, let source, let scratch, let src = string(env, source), let s = string(env, scratch) else { return nil }
     return json(env, Bridge.importBackup(from: src, scratch: s, allowOversize: allowOversize != 0))
 }
+
+@_cdecl("Java_com_noop_core_SwiftCore_shadowAwaitBanked")
+public func jniShadowAwaitBanked(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?, _ endData: jbyteArray?,
+                                 _ timeoutMs: jlong) -> jboolean {
+    guard let env, let endData else { return 0 }
+    return ShadowSession.awaitBanked(endData: bytes(env, endData), timeout: Double(timeoutMs) / 1000) ? 1 : 0
+}
 #endif

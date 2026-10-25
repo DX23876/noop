@@ -11634,6 +11634,16 @@ class WhoopBleClient(
      * metadata.data[10:18]. Port of `BLEManager.ackHistoricalChunk`.
      */
     private fun ackHistoricalChunk(trim: Long, endData: ByteArray) {
+        // Fork (DX23876), Android plan E-4: with the switch on, the ack waits until the shared core has persisted
+        // this chunk too; otherwise it is held and the strap sends the chunk again on the next sync.
+        val confirms = com.noop.core.CoreShadow.confirmsHistoryAck(context)
+        if (!com.noop.core.CoreShadow.mayAck(confirms, com.noop.core.CoreShadow.running) {
+                com.noop.core.CoreShadow.awaitBanked(endData, CORE_ACK_WAIT_MS)
+            }) {
+            log("Backfill: holding ack trim=$trim, the shared core has not banked this chunk " +
+                "(core running=${com.noop.core.CoreShadow.running}); the strap keeps it for the next sync")
+            return
+        }
         val payload = ByteArray(1 + endData.size)
         payload[0] = 0x01
         System.arraycopy(endData, 0, payload, 1, endData.size)
@@ -11647,6 +11657,9 @@ class WhoopBleClient(
         }
         log("Backfill: acked chunk trim=$trim")
     }
+
+    /** How long a history ack waits for the shared core to bank its chunk (E-4 switch on). */
+    private val CORE_ACK_WAIT_MS = 10_000L
 
     // ====================================================================================
     // MARK: GATT crash-safety  (#314 — dead-binder guards)

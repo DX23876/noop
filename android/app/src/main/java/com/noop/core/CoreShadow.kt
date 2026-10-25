@@ -15,6 +15,8 @@ import java.io.File
  */
 object CoreShadow {
     private const val TAG = "CoreShadow"
+    private const val PREFS = "forge"
+    private const val KEY_CONFIRMS_ACK = "coreConfirmsHistoryAck"
     @Volatile private var started = false
 
     /** Opens the core's store and starts the session once per process. */
@@ -51,6 +53,33 @@ object CoreShadow {
 
     /** Today's scores from the core's last pass, as one line; null before one finished. */
     fun today(): String? = if (started) SwiftCore.shadowToday() else null
+
+    /**
+     * Android plan E-4, behind a switch that is off by default: whether the history ack waits for the core. On, the
+     * client sends a chunk's ack only once the core has persisted that chunk (the safe-trim rule, now for the
+     * core's store); a chunk the core has not banked in time keeps its ack, so the strap keeps it and sends it
+     * again on the next sync.
+     */
+    fun confirmsHistoryAck(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_CONFIRMS_ACK, false)
+
+    fun setConfirmsHistoryAck(context: Context, on: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_CONFIRMS_ACK, on).apply()
+    }
+
+    /** True once the core has banked the chunk ending in [endData]; false when it has not within [timeoutMs]. */
+    fun awaitBanked(endData: ByteArray, timeoutMs: Long): Boolean =
+        started && SwiftCore.shadowAwaitBanked(endData, timeoutMs)
+
+    /**
+     * Whether to send a history chunk's ack now. With the switch off the client acks as before. With it on the ack
+     * waits for the core and is held when the core is not running or has not banked the chunk, so a chunk is only
+     * ever trimmed on the strap once both stores have it.
+     */
+    fun mayAck(confirms: Boolean, coreRunning: Boolean, banked: () -> Boolean): Boolean =
+        !confirms || (coreRunning && banked())
+
+    val running: Boolean get() = started
 
     /** What the core banked from history this process, per stream; null when no session runs. */
     fun tally(): String? = if (started) SwiftCore.shadowTally() else null

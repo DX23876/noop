@@ -1,10 +1,11 @@
 import XCTest
 import NoopCore
+import StrandCore
 import WhoopProtocol
 import WhoopStore
 
 /// The shadow session as the Android client drives it: a history offload's records and END, in order, banked in
-/// the core's own store, with nothing sent back to the strap.
+/// the core's own store, with nothing sent back to the strap, and reported banked so the Kotlin ack can follow.
 final class ShadowSessionTests: XCTestCase {
     /// Three real WHOOP 4.0 v25 history records (84 B, 1 Hz), the same ones the Backfiller tests replay.
     private let v25Records = [
@@ -40,6 +41,13 @@ final class ShadowSessionTests: XCTestCase {
         let store = try await WhoopStore(path: dir.appendingPathComponent("core.sqlite").path)
         let cursor = try await store.cursor("strap_trim")
         XCTAssertEqual(cursor, 70_476, "the core recorded the trim it would have acked; the ack itself is a no-op")
+
+        // E-4: the chunk counts as banked for the Kotlin ack once persisted; an unknown chunk never does.
+        let endFrame = historyEnd(trim: 70_476)
+        let endData = await MainActor.run { Backfiller.endData(from: endFrame, family: .whoop4) }
+        let end = try XCTUnwrap(endData)
+        XCTAssertTrue(ShadowSession.awaitBanked(endData: end, timeout: 1))
+        XCTAssertFalse(ShadowSession.awaitBanked(endData: [0, 1, 2, 3, 4, 5, 6, 7], timeout: 0.05))
 
         // The daily pass runs on the same store, in order after the offload, and leaves an answer.
         ShadowSession.send(.analyze(.init(age: 40, sex: "male", weightKg: 80, heightCm: 180, hrMaxOverride: 0)))

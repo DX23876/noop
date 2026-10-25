@@ -2960,4 +2960,7 @@
     <string name="forge_heart_rate">Herzfrequenz</string>
     <string name="forge_live">Live</string>
     <string name="forge_live_hr_spoken">Live-Herzfrequenz %1$d Schläge pro Minute</string>
+    <string name="forge_experimental_section">Experimentell</string>
+    <string name="forge_core_ack">Gemeinsamer Kern bestätigt Verlauf</string>
+    <string name="forge_core_ack_detail">Für Tester. Der Strap löscht seinen Verlauf erst, wenn der gemeinsame Kern ihn gespeichert hat; was noch nicht bestätigt ist, bleibt auf dem Strap und kommt erneut.</string>
 </resources>

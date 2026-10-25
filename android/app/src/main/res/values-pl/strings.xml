@@ -2963,4 +2963,7 @@
     <string name="forge_heart_rate">Tętno</string>
     <string name="forge_live">Na żywo</string>
     <string name="forge_live_hr_spoken">Tętno na żywo %1$d uderzeń na minutę</string>
+    <string name="forge_experimental_section">Eksperymentalne</string>
+    <string name="forge_core_ack">Wspólny rdzeń potwierdza historię</string>
+    <string name="forge_core_ack_detail">Dla testerów. Strap usuwa historię dopiero, gdy wspólny rdzeń ją zapisze; to, co niepotwierdzone, zostaje na strapie i jest wysyłane ponownie.</string>
 </resources>

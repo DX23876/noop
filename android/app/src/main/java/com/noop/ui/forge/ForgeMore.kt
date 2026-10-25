@@ -31,6 +31,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -154,6 +155,23 @@ fun ForgeMoreScreen(padding: PaddingValues, viewModel: AppViewModel) {
             MoreRow(Icons.Rounded.IosShare, colors.effort, stringResource(R.string.forge_strap_log_share),
                     stringResource(R.string.forge_strap_log_detail)) {
                 scope.launch { LogExport.shareStrapLog(context, StrapLogBuffer.snapshot()) }
+            }
+        }
+
+        SectionHeader(stringResource(R.string.forge_experimental_section))
+        ForgeCard(Modifier.fillMaxWidth()) {
+            var confirms by remember { mutableStateOf(com.noop.core.CoreShadow.confirmsHistoryAck(context)) }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.forge_core_ack), style = Forge.type.headline, color = colors.text)
+                    Text(stringResource(R.string.forge_core_ack_detail), style = Forge.type.subhead,
+                         color = colors.textSecondary)
+                }
+                Spacer(Modifier.width(ForgeMetrics.space2))
+                Switch(checked = confirms, onCheckedChange = {
+                    confirms = it
+                    com.noop.core.CoreShadow.setConfirmsHistoryAck(context, it)
+                })
             }
         }
 
