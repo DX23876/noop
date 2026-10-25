@@ -51,7 +51,14 @@ if [ "$(uname -s)" = Darwin ]; then
   Z="$SCRATCH/checkouts/ZIPFoundation/Sources/CZLib"
   EXTRA=(-Xcc "-fmodule-map-file=$Z/module.modulemap" -Xcc "-I$Z")
 fi
+# ZIPFoundation links zlib through pkg-config. On a Linux host the system's zlib.pc answers with the host's
+# x86_64 library directory, and lld refuses it; this one names the NDK's aarch64 zlib and is found first.
+PKGCONFIG="$BUILD/pkgconfig"
+mkdir -p "$PKGCONFIG"
+printf 'Name: zlib\nDescription: zlib from the NDK sysroot\nVersion: 1.3\nLibs: -lz\nCflags:\n' > "$PKGCONFIG/zlib.pc"
+export PKG_CONFIG_PATH="$PKGCONFIG"
 FLAGS=(--package-path "$PKG" --scratch-path "$SCRATCH" -c release --swift-sdk "$SDK_ID" --triple "$TRIPLE"
+       --pkg-config-path "$PKGCONFIG"
        -Xcc "-I$SQLITE" -Xlinker "-L$SQLITE" -Xlinker -z -Xlinker max-page-size=16384 "${EXTRA[@]}")
 "$SWIFT" build "${FLAGS[@]}" --product NoopCore
 BIN="$("$SWIFT" build "${FLAGS[@]}" --show-bin-path)"
