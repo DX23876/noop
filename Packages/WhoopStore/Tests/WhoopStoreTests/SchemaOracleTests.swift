@@ -273,7 +273,12 @@ final class SchemaOracleTests: XCTestCase {
 
     /// The Swift and Android copies of the oracle MUST be byte-identical, so neither platform can edit
     /// its fixture without the other. Skips gracefully if the Android tree isn't present.
+    ///
+    /// Fork (DX23876): skipped. The Kotlin twin this guarded is retired here (docs/fork/AGENT_RULES.md,
+    /// 2026-07-23); android/ holds ryanbr's Room schema until the deep core replaces it (Android plan D-5), so the
+    /// two copies differ on purpose. Its Kotlin side is excluded in android/app/build.gradle.kts for the same reason.
     func testOracleCopiesAreIdentical() throws {
+        throw XCTSkip("the cross-platform schema parity is retired in this fork; see the doc comment")
         let swiftURL = try XCTUnwrap(Bundle.module.url(forResource: "schema_oracle", withExtension: "json"))
         let swiftData = try Data(contentsOf: swiftURL)
 
