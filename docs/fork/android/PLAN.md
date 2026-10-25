@@ -196,9 +196,10 @@ Added 2026-10-25 after the D-8 smoke test (owner's request: the fork's design, e
 Steps (added 2026-10-25), each with its own commit, test and smoke run:
 
 - **E-1 Design tokens.** One token file under `Packages/StrandDesign` (colours light and dark, spacing,
-  radii, type scale) with a generator that writes the Swift constants `StrandPalette`/`StrandFont` read and a
-  Kotlin `ForgeTheme`; a test fails when either generated file is out of date. Generating the Swift side must
-  not change any value the iOS app shows today.
+  radii, type scale) and Kotlin constants for the Android screens, both generated; a test fails when either is
+  out of date. *Done 2026-10-25, direction turned round:* the Swift design system stays the one source and
+  `Tools/design_tokens.py` reads its fixed values into `tokens.json` and `ForgeTokens.kt`, because generating
+  the Swift side from a new file would have touched every value the iOS app shows.
 - **E-2 Core read API.** JNI calls that return what a screen needs from the core's store (today's scores, a
   night's sleep, a metric series over a window) as small JSON documents, tested on macOS through `Bridge`.
 - **E-3 Screens.** Today, sleep detail, HRV and resting-HR trends, settings, `.noopbak` export and import and
