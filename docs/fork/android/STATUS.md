@@ -47,6 +47,7 @@ Plan: [`PLAN.md`](PLAN.md) · last updated 2026-10-24
 | D-8 emulator smoke test | 2026-10-25 | `Tools/android-smoke.sh` ran the demo build through terms, onboarding, Today, Trends and Sleep on a small phone (720x1280), a Pixel 8, a Pixel 8 at font 1.3 in dark mode, an unfolded Pixel 9 Pro Fold and a Pixel Tablet: no crash on any. Density scaling works; the layout does not adapt: on the fold and the tablet everything stretches to full width with a bottom bar instead of a rail, the floating bar lets the text behind it show through, the greeting and a metric title truncate on the small phone and at font 1.3, and in dark mode the background stays light blue. These are ryanbr's screens, which phase E replaces; the requirements are in `PLAN.md` phase E. Screenshots in `artifacts/android/` (not versioned) |
 | D-5, first step: the core in the APK | 2026-10-25 | `Packages/NoopCoreJNI` (libNoopCore.so: JNI entry points over plain Swift functions, three macOS tests), `android/swift-core/build-swift-core.sh` (pinned SQLite, the GRDB and ZIPFoundation patches in portable Python, a release arm64 build, 20 stripped libraries), Gradle `buildSwiftCore` behind `-Pnoop.swiftCore=true`, `com.noop.core.SwiftCore`. On the arm64 emulator the app logs "recipe AI-31, store migrations 78". `android-swift-core.yml` builds both flavours with the core on Linux (NDK variables and a zlib.pc so the host's x86_64 zlib is not linked); 65 MB debug APKs. Nothing in the app reads the core yet |
 | D-5, second step: the core by default | 2026-10-25 | Gradle builds the core in every build (`-Pnoop.swiftCore=false` opts out); `android.yml` installs the toolchain, the Swift SDK for Android and NDK r30 and runs on `Packages/**` too; `Tools/local-tests.sh` runs the Android leg for package changes. NDK r30 now sits in the Android SDK's standard place on the owner's Mac. Checked on the `ci/android-swift-core` branch and locally before main |
+| D-5, third step: the main actor on Android | 2026-10-25 | `noop_install_main_queue_drain` (CJNI) puts libdispatch's main queue on the main looper; `SwiftCore.start` loads the core on the main thread and installs it. On the emulator: "main actor installed=0, probe jobs run=1, on main thread=true"; loaded on a background thread first, the probe had run off the main thread. A macOS test covers the probe |
 
 ## Next step
 
@@ -93,9 +94,10 @@ Compares the build before a restructuring with the build after it on a copy of t
   parser, as the GPX and TCX parsers already did.
 
 - `DailyAnalysis` and both service protocols are `@MainActor`, as the engine always was, so the iPhone keeps its
-  scheduling. Swift's main actor runs on the main dispatch queue; the package tests show it works on Android
-  under XCTest, but an Android app must keep that queue drained from its main looper. Phase D has to prove that
-  (or move the analysis off the main actor) before the engine runs inside the APK.
+  scheduling. Swift's main actor runs on the main dispatch queue. Solved for the APK on 2026-10-25 (D-5): a C
+  bridge hooks the queue's wake-up eventfd into the main ALooper, and the core is loaded on the main thread,
+  because libdispatch takes the loading thread as its main thread. Loading the libraries there costs about
+  0.35 s of cold start on the emulator (2.2 s against 1.9 s); moving that later is open.
 
 ## Untested (needs a device or a tester's strap log)
 
