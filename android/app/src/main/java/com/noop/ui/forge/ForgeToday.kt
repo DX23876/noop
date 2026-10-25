@@ -40,6 +40,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -149,17 +151,20 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
 private fun Header(date: LocalDate, isToday: Boolean) {
     val colors = Forge.colors
     val locale = Locale.getDefault()
-    // The iOS header row: the title and its date on the left, the wordmark centred on the same line.
+    // The iOS header row: the title and its date on the left, the wordmark centred on the same line. Over a dark
+    // scene a soft shadow keeps the light ink readable where it crosses the moon or a bright cloud.
+    val sceneShadow = if (Forge.sceneInk.dark) Shadow(Color.Black.copy(alpha = 0.55f), Offset(0f, 1f), 8f) else null
     Box(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space8)) {
         Column(Modifier.fillMaxWidth(0.34f)) {
             Text(
                 if (isToday) stringResource(R.string.nav_today)
                 else date.format(DateTimeFormatter.ofPattern(WEEKDAY_PATTERN, locale)).replaceFirstChar { it.titlecase(locale) },
-                style = Forge.type.title2.copy(fontWeight = FontWeight.Bold), color = Forge.sceneInk.text, maxLines = 1,
+                style = Forge.type.title2.copy(fontWeight = FontWeight.Bold, shadow = sceneShadow), color = Forge.sceneInk.text,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(date.format(DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, DAY_MONTH_SKELETON), locale)),
-                 style = Forge.type.subhead, color = Forge.sceneInk.secondary, maxLines = 1)
+                 style = Forge.type.subhead.copy(shadow = sceneShadow), color = Forge.sceneInk.secondary, maxLines = 1)
         }
         ForgeWordmark(Modifier.align(Alignment.TopCenter).padding(top = ForgeMetrics.space2))
     }

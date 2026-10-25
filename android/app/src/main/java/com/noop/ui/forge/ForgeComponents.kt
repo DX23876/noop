@@ -24,6 +24,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.BlurEffect
@@ -111,15 +115,24 @@ fun MetricTile(icon: ImageVector, tint: Color, label: String, value: String?, un
             Text(noData, style = Forge.type.subhead, color = colors.textTertiary, maxLines = 1)
         } else {
             Row(verticalAlignment = Alignment.Bottom) {
-                // The value and unit give way first; the change chip always shows whole.
-                Row(Modifier.weight(1f), verticalAlignment = Alignment.Bottom,
-                    horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text(value, style = Forge.type.title1, color = colors.text, maxLines = 1, softWrap = false)
-                    if (unit != null) {
-                        Text(unit, style = Forge.type.subhead, color = colors.textSecondary, maxLines = 1,
-                             overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(bottom = 4.dp))
-                    }
-                }
+                // The value and unit give way first, shrinking together until they fit (a narrow phone, a large
+                // font); the change chip always shows whole.
+                val title = Forge.type.title1
+                val small = Forge.type.subhead
+                var scale by remember(value, unit) { mutableFloatStateOf(1f) }
+                Text(
+                    buildAnnotatedString {
+                        withStyle(title.toSpanStyle().copy(fontSize = title.fontSize * scale, color = colors.text)) {
+                            append(value)
+                        }
+                        if (unit != null) {
+                            withStyle(small.toSpanStyle().copy(fontSize = small.fontSize * scale,
+                                                               color = colors.textSecondary)) { append("\u2009" + unit) }
+                        }
+                    },
+                    style = title, maxLines = 1, softWrap = false, modifier = Modifier.weight(1f),
+                    onTextLayout = { if (it.hasVisualOverflow && scale > MIN_TILE_SCALE) scale *= 0.92f },
+                )
                 if (delta != null) {
                     Text(delta, style = Forge.type.captionNumber, color = colors.textSecondary, maxLines = 1,
                          softWrap = false,
@@ -131,6 +144,9 @@ fun MetricTile(icon: ImageVector, tint: Color, label: String, value: String?, un
         }
     }
 }
+
+/** The smallest a tile value shrinks to before it is cut. */
+private const val MIN_TILE_SCALE = 0.6f
 
 /** Small caps section header, as the iOS screens title their sections. */
 @Composable

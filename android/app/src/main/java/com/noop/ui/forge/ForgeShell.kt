@@ -112,8 +112,10 @@ private fun Content(tab: ForgeTab, width: ForgeWidth, extra: PaddingValues,
 
 @Composable
 private fun ForgeTabBar(current: ForgeTab, onSelect: (ForgeTab) -> Unit, modifier: Modifier = Modifier) {
-    ForgeCard(modifier.widthIn(max = 480.dp).fillMaxWidth(), radius = 32.dp, fill = Forge.colors.heroFill,
-              contentPadding = 6.dp) {
+    // Nearly opaque: Android cannot blur the scrolling content behind the bar as iOS glass does, and at the hero
+    // fill's translucency the text under it read through.
+    ForgeCard(modifier.widthIn(max = 480.dp).fillMaxWidth(), radius = 32.dp,
+              fill = Forge.colors.surface.copy(alpha = 0.95f), contentPadding = 6.dp) {
         Row(Modifier.fillMaxWidth().height(58.dp), horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically) {
             ForgeTab.entries.forEach { t -> TabItem(t, t == current, Modifier.weight(1f)) { onSelect(t) } }
