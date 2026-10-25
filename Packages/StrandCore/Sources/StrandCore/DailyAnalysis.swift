@@ -902,6 +902,12 @@ public final class DailyAnalysis {
             try await Self.deleteHealthspanWeeks(store: store, deviceId: deviceId)
         case .dailyHistory:
             await analyzeRecent(maxDays: days, force: true, allowDayReuse: false, reason: .semanticChange)
+            // A pass that heals duplicate sleep sessions queues one forced re-pass over the same window. The
+            // later steps read its result, so it runs here, before them, instead of after the recipe moved:
+            // a request that joins the queued pass waits for it and adds none when nothing is queued.
+            if pendingAnalysis != nil {
+                await analyzeRecent(maxDays: days, force: true, allowDayReuse: false, reason: .semanticChange)
+            }
         case .weeklyScores:
             try await rebuildWeeklyScores(store: store, firstDay: firstDay, today: today)
         case .stressProxy:
