@@ -23,7 +23,8 @@ case "$(uname -s)" in
   *)      HOST_TAG="linux-x86_64"; SWIFT="${NOOP_SWIFT:-swift}" ;;
 esac
 NDK="${ANDROID_NDK_HOME:-${ANDROID_HOME:-$HOME/Library/Android/sdk}/ndk/30.0.16248370}"
-export ANDROID_NDK_HOME="$NDK"
+# SwiftPM also reads ANDROID_NDK_ROOT, which CI images preset to another NDK; both must name the same one.
+export ANDROID_NDK_HOME="$NDK" ANDROID_NDK_ROOT="$NDK"
 LLVM="$NDK/toolchains/llvm/prebuilt/$HOST_TAG/bin"
 [ -x "$LLVM/clang" ] || { echo "build-swift-core: NDK r30 not found at $NDK" >&2; exit 1; }
 "$SWIFT" sdk list 2>/dev/null | grep -qx "$SDK_ID" || { echo "build-swift-core: Swift SDK $SDK_ID is not installed for $SWIFT" >&2; exit 1; }
