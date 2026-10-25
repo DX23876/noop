@@ -134,24 +134,18 @@ internal enum class Destination(
     val icon: ImageVector,
 ) {
     // Group: Today
-    Today("today", R.string.nav_today, Icons.Filled.Home),
     Intelligence("intelligence", R.string.nav_intelligence, Icons.Filled.Psychology),
-    // Optional, default-OFF (task #43): the Coupled view (WHOOP-style day read). Reached ONLY via the
-    // Today dashboard "Coupled view" card tap-through, so it is deliberately NOT in any [DrawerGroup].
-    CoupledView("coupled_view", R.string.nav_coupled_view, Icons.Filled.Hexagon),
 
     // Group: Live
     Live("live", R.string.nav_live, Icons.Filled.FavoriteBorder),
     Intervals("intervals", R.string.nav_intervals, Icons.Filled.Timeline),
 
     // Group: Recovery
-    Sleep("sleep", R.string.nav_sleep, Icons.Filled.Bedtime),
     Breathe("breathe", R.string.nav_breathe, Icons.Filled.Air),
     Stress("stress", R.string.nav_stress, Icons.Filled.Spa),
 
     // Group: Activity
     Workouts("workouts", R.string.nav_workouts, Icons.Filled.FitnessCenter),
-    Trends("trends", R.string.nav_trends, Icons.AutoMirrored.Filled.TrendingUp),
 
     // Group: Insight
     Coach("coach", R.string.nav_coach, Icons.Filled.AutoAwesome),
@@ -206,13 +200,13 @@ internal enum class Destination(
     More("more", R.string.nav_more, Icons.Filled.MoreHoriz);
 
     companion object {
-        /** Resolve the destination owning the current back-stack route (defaults to Today). */
+        /** Resolve the destination owning the current back-stack route (defaults to More, the classic start). */
         fun forRoute(route: String?): Destination =
             entries.firstOrNull {
                 // Match parameterised routes (e.g. "vital_detail/rhr" vs "vital_detail/{key}") by
                 // base path so the top-bar title resolves correctly on a detail screen, not "Today".
                 it.route == route || it.route.substringBefore('/') == route?.substringBefore('/')
-            } ?: Today
+            } ?: More
     }
 }
 
@@ -229,8 +223,8 @@ internal data class DrawerGroup(
     val defaultExpanded: Boolean,
 )
 
-// Mirrors the iOS RootTabView `moreTab` grouping + order one-for-one. Today / Trends / Sleep / Coach
-// are NOT listed (they're bottom-bar tabs, exactly as on iOS). Android-only screens (Vital Signs, Wake
+// Mirrors the iOS RootTabView `moreTab` grouping + order one-for-one. Coach is NOT listed (it is a bottom-bar
+// tab, exactly as on iOS); Today, Trends and Sleep are Forge screens since Android plan E-3f. Android-only screens (Vital Signs, Wake
 // Window, Notifications, Devices) are slotted into the matching iOS group.
 internal val drawerGroups: List<DrawerGroup> = listOf(
     DrawerGroup("Insights", R.string.more_group_insights, listOf(
@@ -593,7 +587,7 @@ fun AppRoot(viewModel: AppViewModel = viewModel()) {
         ) { inner ->
             NavHost(
                 navController = nav,
-                startDestination = Destination.Today.route,
+                startDestination = Destination.More.route,
                 // The empty slot reserves nothing, so the bar's height is added here — the one place the
                 // inset used to come from. A scrollable that later wants content to pass UNDER the glass
                 // adds this measured height to its own contentPadding instead; no shared modifier can.
@@ -626,70 +620,10 @@ fun AppRoot(viewModel: AppViewModel = viewModel()) {
                 popExitTransition = { fadeOut(navFadeSpec) },
             ) {
                 // --- Live, working screens (existing waves) ---
-                composable(Destination.Today.route) {
-                    TodayScreen(
-                        viewModel = viewModel,
-                        // The quick-action "+" lives in the Today header's top-right now (off the
-                        // bottom bar) — it opens the same quick-action sheet the bar used to.
-                        onQuickActions = { showQuickActions = true },
-                        // The Updates "ringer" — the bell sits before the +, and opens the inbox
-                        // sheet AppRoot presents (it owns the nav for deep-links).
-                        updateStore = updateStore,
-                        onOpenUpdates = { showUpdatesInbox = true },
-                        // The leading profile avatar opens Settings (where the photo is set/changed),
-                        // mirroring iOS's avatar-leading Today header. The drawer hamburger is unchanged.
-                        onOpenSettings = { nav.navigateTopLevel(Destination.Settings.route) },
-                        // The opt-in Hydration card (only shown when Hydration tracking is on) pushes its
-                        // detail. A normal push so the back-stack returns to Today.
-                        onOpenHydration = { nav.navigate(Destination.Hydration.route) },
-                        // #706/#684: the dashboard cards draw a tappable chevron; wire each to its detail,
-                        // matching iOS. Stress + the vitals are pushes; Sleep is a top-level tab switch.
-                        onOpenStress = { nav.navigate(Destination.Stress.route) },
-                        onOpenHealth = { nav.navigate(Destination.Health.route) },
-                        // Every metric/vital card opens its OWN focused detail trend (vital_detail/<key>),
-                        // not the shared Health hub (2026-07-03). Mirrors the iOS liquidCard metricDetail.
-                        onOpenMetric = { key -> nav.navigate("vital_detail/$key") },
-                        // A blank, uncalibrated WHOOP 4.0 Steps tile opens the same calibration screen as
-                        // Settings. A normal push returns Back to Today (#1515).
-                        onOpenStepsCalibration = { nav.navigate(Destination.StepsCalibration.route) },
-                        onOpenSleep = { nav.navigateTopLevel(Destination.Sleep.route) },
-                        // Optional Coupled view card (task #43): a normal push so back returns to Today.
-                        onOpenCoupled = { nav.navigate(Destination.CoupledView.route) },
-                        // #1862: the Coach launcher hands off here. Without this the sheet's buttons
-                        // would fall back to the parameter's no-op default and silently do nothing.
-                        onOpenCoach = { nav.navigateTopLevel(Destination.Coach.route) },
-                        // The "workout in progress" indicator: raise the one-shot the Live screen consumes to
-                        // re-open the in-exercise overlay, then route to Live. One tap from Today (iOS parity).
-                        onOpenActiveWorkout = {
-                            viewModel.openActiveWorkout()
-                            nav.navigate(Destination.Live.route)
-                        },
-                        // The liquid header's strap battery ring taps through to Devices (iOS parity: the
-                        // battery ring → router.openDevices()).
-                        onOpenDevices = { nav.navigateTopLevel(Destination.Devices.route) },
-                        // #627: the journal-reminder card opens the journal (hosted in Insights), same
-                        // destination the Sleep screen's morning sheet uses.
-                        onOpenJournal = { nav.navigateTopLevel(Destination.Insights.route) },
-                    )
-                }
                 composable(Destination.Live.route) {
                     LiveScreen(
                         viewModel = viewModel,
                         onManageDevices = { nav.navigateTopLevel(Destination.Devices.route) },
-                    )
-                }
-                composable(Destination.Sleep.route) {
-                    SleepScreen(
-                        vm = viewModel,
-                        onOpenJournal = { nav.navigateTopLevel(Destination.Insights.route) },
-                        onOpenAlarms = { nav.navigate(Destination.SmartAlarm.route) },
-                    )
-                }
-                composable(Destination.CoupledView.route) {
-                    CoupledScreen(
-                        vm = viewModel,
-                        // Tapping Sleep in the coupled read opens the full Sleep screen (iOS parity).
-                        onOpenSleep = { nav.navigateTopLevel(Destination.Sleep.route) },
                     )
                 }
                 composable(Destination.Intervals.route) { IntervalsScreen(viewModel) }
@@ -724,7 +658,6 @@ fun AppRoot(viewModel: AppViewModel = viewModel()) {
                         onBreathe = { nav.navigateTopLevel(Destination.Breathe.route) },
                     )
                 }
-                composable(Destination.Trends.route) { TrendsScreen(viewModel) }
                 composable(Destination.Insights.route) { InsightsScreen(viewModel, onOpenInsightsHub = { nav.navigateTopLevel(Destination.InsightsHub.route) }) }
                 composable(Destination.Compare.route) { CompareScreen(viewModel) }
                 composable(Destination.Health.route) {
@@ -900,13 +833,9 @@ fun AppRoot(viewModel: AppViewModel = viewModel()) {
                         // route table. Before this it fell to `else` and the tap did nothing at all.
                         if (key == UpdateStore.WHATS_NEW_DEEP_LINK) {
                             showWhatsNewFromInbox = true
-                        } else {
-                            val route = when (key) {
-                                "trends" -> Destination.Trends.route
-                                else -> null
-                            }
-                            if (route != null && route != currentRoute) nav.navigateTopLevel(route)
                         }
+                        // Any other key (the "trends" link) names a Forge screen since Android plan E-3f; the
+                        // classic shell has no route for it, so the sheet just closes.
                     },
                     onRestore = { cardId ->
                         // Flip the shared dismissed flag back off so the card reappears, and signal a
@@ -1105,19 +1034,14 @@ private fun MoreRow(dest: Destination, onClick: () -> Unit) {
 /** A single bottom-bar nav slot: the destination it switches to, plus the bar-specific icon/label. */
 internal data class BarTab(val dest: Destination, val icon: ImageVector, @StringRes val labelRes: Int)
 
-/** The nav slots in iOS order: Today · Trends · Sleep · Coach · More.
+/** The classic bar since Android plan E-3f (Today, Trends and Sleep are Forge screens): Coach · More.
  *  More is special-cased (it opens the sheet rather than a route), so it is appended at the call site. */
-internal val barLeadingTabs = listOf(
-    BarTab(Destination.Today, Icons.Outlined.GridView, R.string.nav_today),
-    // chart.line.uptrend.xyaxis on iOS — the rising-trend glyph, not a flat bar chart.
-    BarTab(Destination.Trends, Icons.AutoMirrored.Filled.TrendingUp, R.string.nav_trends),
-)
+internal val barLeadingTabs = emptyList<BarTab>()
 /**
  * The trailing tabs, as shipped. [barTrailingTabsFor] is what the bar actually draws: Coach is
  * conditional, so this list is the full set rather than the visible one.
  */
 internal val barTrailingTabs = listOf(
-    BarTab(Destination.Sleep, Icons.Filled.Bedtime, R.string.nav_sleep),
     // #2218: Coach was promoted to a top-level tab on iOS and this side did not follow, so it sat in
     // the More list while the comment above claimed the two bars matched. AutoAwesome is the sparkles
     // glyph iOS uses, and the same one the More row already shows, so the entry a wearer has learned

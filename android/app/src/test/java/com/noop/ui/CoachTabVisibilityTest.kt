@@ -37,10 +37,10 @@ class CoachTabVisibilityTest {
     }
 
     @Test
-    fun `sleep survives the filter`() {
-        // A filter written against the wrong predicate (index, label, icon) could empty the list and still
-        // satisfy "coach is absent". Pin a survivor so removal has to be specific.
-        assertTrue(barTrailingTabsFor(coachEnabled = false).any { it.dest == Destination.Sleep })
+    fun `coach on keeps the coach tab`() {
+        // Since Android plan E-3f Coach is the classic bar's only tab, so the filter is pinned from the other
+        // side: switched on, the tab is drawn.
+        assertTrue(barTrailingTabsFor(coachEnabled = true).any { it.dest == Destination.Coach })
     }
 
 }

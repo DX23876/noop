@@ -13,5 +13,4 @@ android/app/src/main/java/com/noop/ui/AppViewModel.kt 1
 android/app/src/main/java/com/noop/ui/BackupSyncScreen.kt 1
 android/app/src/main/java/com/noop/ui/Components.kt 1
 android/app/src/main/java/com/noop/ui/HealthVitalDetailLogic.kt 1
-android/app/src/main/java/com/noop/ui/TodayScreen.kt 1
 android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt 2

@@ -96,8 +96,9 @@ class ResolvedSeriesCallSiteAuditTest {
 
         // Scanner sanity: #175 fixed eight call sites; the scan finding fewer means the audit
         // went blind (moved sources, renamed API), not that the problem shrank. If callers were
-        // legitimately consolidated behind a helper that threads the id, update this floor.
-        assertTrue("expected >= 8 resolvedSeries call sites, scanned $callCount", callCount >= 8)
+        // legitimately consolidated behind a helper that threads the id, update this floor. Six since the classic
+        // Today and Sleep screens went (Android plan E-3f); the Forge screens read the shared core instead.
+        assertTrue("expected >= 6 resolvedSeries call sites, scanned $callCount", callCount >= 6)
 
         assertTrue(
             "resolvedSeries callers must pass `strapDeviceId = vm.activeStrapId` (#172/#175); " +

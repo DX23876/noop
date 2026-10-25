@@ -32,41 +32,6 @@ class GaugeNumeralStyleTest {
     }
 
     /**
-     * The gauge numeral must read the preference, and only the weight may depend on it.
-     *
-     * Source-asserted because the call site is a Composable over an animated vessel with no unit seam.
-     * The second half matters as much as the first: a size that followed a preference would break the
-     * cross-platform ratio the comment above it records.
-     */
-    @Test fun theGaugeNumeralFollowsThePreferenceButItsSizeDoesNot() {
-        val src = todaySource()
-        val start = src.indexOf("val numberSp = ")
-        if (start < 0) throw AssertionError("the gauge numeral sizing was not found")
-        val body = src.substring(start, src.indexOf("\n        }", start))
-        assertTrue(
-            "the numeral weight must follow AppearancePrefs:\n$body",
-            body.contains("AppearancePrefs.gaugeNumerals == GaugeNumeralStyle.SOFT"),
-        )
-        assertTrue(
-            "SOFT must fall back to the NoopType.number default weight",
-            body.contains("FontWeight.SemiBold"),
-        )
-        assertTrue(
-            "the size stays the iOS-matched ratio, not a preference",
-            body.contains("(diameter.value * 0.27f).coerceIn(20f, 30f)"),
-        )
-        // CODE only. This passed by luck: the comment above the call site happens not to spell
-        // "GaugeNumeralStyle", and would have failed the assertion if it did. The same shape bit
-        // `BodyClockDialLayoutTests` an hour earlier, where prose describing a rule tripped the rule.
-        val sizingCode = body.substringBefore("style = NoopType.number(")
-            .lines().filterNot { it.trimStart().startsWith("//") }
-        assertFalse(
-            "the SIZE must not depend on the preference; only the weight may",
-            sizingCode.any { it.contains("GaugeNumeralStyle") },
-        )
-    }
-
-    /**
      * The preference stays OUT of the backup whitelist, like the theme mode it sits beside.
      *
      * `.noopbak` is a byte-identical cross-platform contract carrying profile, units and anything that
@@ -85,7 +50,6 @@ class GaugeNumeralStyleTest {
         )
     }
 
-    private fun todaySource(): String = read("android/app/src/main/java/com/noop/ui/TodayScreen.kt")
     private fun backupSource(): String = read("android/app/src/main/java/com/noop/data/BackupSettings.kt")
 
     private fun read(relative: String): String {

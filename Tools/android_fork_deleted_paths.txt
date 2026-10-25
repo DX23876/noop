@@ -5,3 +5,52 @@
 
 # ryanbr's debug keystore, password in his build file; *.keystore is ignored here (D-1).
 android/fork-debug.keystore
+
+# Android plan E-3f (2026-10-26): ryanbr's Today, Sleep and Trends screens, which the Forge screens replace, the
+# Coupled view only his Today opened, and the helpers and tests only they used.
+android/app/src/main/java/com/noop/ui/AutoWorkoutNudge.kt
+android/app/src/main/java/com/noop/ui/AutoWorkoutPrefs.kt
+android/app/src/main/java/com/noop/ui/BodyClockDialCard.kt
+android/app/src/main/java/com/noop/ui/CoachLauncherSheet.kt
+android/app/src/main/java/com/noop/ui/CoupledScreen.kt
+android/app/src/main/java/com/noop/ui/HeaderBatteryDisplay.kt
+android/app/src/main/java/com/noop/ui/JournalReminder.kt
+android/app/src/main/java/com/noop/ui/LiveSessionScreen.kt
+android/app/src/main/java/com/noop/ui/RecapShare.kt
+android/app/src/main/java/com/noop/ui/RollingStepsAverage.kt
+android/app/src/main/java/com/noop/ui/SleepArrangeSheet.kt
+android/app/src/main/java/com/noop/ui/SleepMetricCardsUi.kt
+android/app/src/main/java/com/noop/ui/SleepMetricDetailLogic.kt
+android/app/src/main/java/com/noop/ui/SleepMetricDetailSheet.kt
+android/app/src/main/java/com/noop/ui/SleepNightNavUi.kt
+android/app/src/main/java/com/noop/ui/SleepResultChange.kt
+android/app/src/main/java/com/noop/ui/SleepScreen.kt
+android/app/src/main/java/com/noop/ui/SleepStageBreakdownUi.kt
+android/app/src/main/java/com/noop/ui/SleepTimeEditDraft.kt
+android/app/src/main/java/com/noop/ui/TodayDayNav.kt
+android/app/src/main/java/com/noop/ui/TodayScreen.kt
+android/app/src/main/java/com/noop/ui/TrendsScreen.kt
+android/app/src/test/java/com/noop/ui/AutoWorkoutNudgeSourceTest.kt
+android/app/src/test/java/com/noop/ui/AutoWorkoutPrefsTest.kt
+android/app/src/test/java/com/noop/ui/BodyClockDialLayoutTest.kt
+android/app/src/test/java/com/noop/ui/BrandSleepRampTest.kt
+android/app/src/test/java/com/noop/ui/DayNavTest.kt
+android/app/src/test/java/com/noop/ui/HeaderBatteryDisplayOracleTest.kt
+android/app/src/test/java/com/noop/ui/HeroRingMetricKeyTest.kt
+android/app/src/test/java/com/noop/ui/HrEmptyMessageTest.kt
+android/app/src/test/java/com/noop/ui/HrOnlyNoteTest.kt
+android/app/src/test/java/com/noop/ui/HypnogramAxisTicksTest.kt
+android/app/src/test/java/com/noop/ui/MainSleepReasonCopyTest.kt
+android/app/src/test/java/com/noop/ui/SleepFreshnessStatusTest.kt
+android/app/src/test/java/com/noop/ui/SleepMetricDetailDebtTest.kt
+android/app/src/test/java/com/noop/ui/SleepResultChangeTest.kt
+android/app/src/test/java/com/noop/ui/SleepSparseBlocksTest.kt
+android/app/src/test/java/com/noop/ui/SleepSparseNoteGateTest.kt
+android/app/src/test/java/com/noop/ui/SleepStageRowOrderTest.kt
+android/app/src/test/java/com/noop/ui/SleepStagingConfidenceTest.kt
+android/app/src/test/java/com/noop/ui/SleepTimeEditDraftTest.kt
+android/app/src/test/java/com/noop/ui/StepsTileNavigationTest.kt
+android/app/src/test/java/com/noop/ui/TodayLaunchLandTest.kt
+android/app/src/test/java/com/noop/ui/TodayWorkoutTapTest.kt
+android/app/src/test/java/com/noop/ui/TrendsAxisLabelsTest.kt
+android/app/src/test/java/com/noop/ui/VitalRowKeyTest.kt

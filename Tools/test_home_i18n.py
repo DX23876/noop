@@ -20,18 +20,15 @@ import i18n_audit as audit
 
 ROOT = Path(__file__).resolve().parents[1]
 
-# The complete Android Today implementation plus the small Today-only helpers it calls.
+# The Android Today helpers that outlived the classic Today screen (removed in Android plan E-3f; Today is the
+# Forge screen now, whose strings are checked by the i18n gate).
 # AppRoot is deliberately handled separately below: most of that file is the unrelated
 # More/navigation UI, while only its Today tab and quick-action resources belong here.
 ANDROID_HOME_FILES = {
-    "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
-    "android/app/src/main/java/com/noop/ui/TodayDayNav.kt",
     "android/app/src/main/java/com/noop/ui/TodayLayoutPrefs.kt",
     "android/app/src/main/java/com/noop/ui/TodayMetricsLogic.kt",
     "android/app/src/main/java/com/noop/ui/TodayProvenance.kt",
     "android/app/src/main/java/com/noop/ui/TodayScoring.kt",
-    "android/app/src/main/java/com/noop/ui/AutoWorkoutNudge.kt",
-    "android/app/src/main/java/com/noop/ui/JournalReminder.kt",
     "android/app/src/main/java/com/noop/ui/CycleTrackerDialog.kt",
     "android/app/src/main/java/com/noop/ui/KeyMetricPrefs.kt",
     "android/app/src/main/java/com/noop/ui/DashboardCards.kt",
@@ -80,7 +77,6 @@ ANDROID_DISPLAY_HELPERS = {
 ANDROID_INDIRECT_COPY_FILES = {
     "android/app/src/main/java/com/noop/analytics/ReadinessEngine.kt",
     "android/app/src/main/java/com/noop/analytics/StepsEstimateEngine.kt",
-    "android/app/src/main/java/com/noop/ui/AutoWorkoutNudge.kt",
     "android/app/src/main/java/com/noop/ui/KeyMetricPrefs.kt",
     "android/app/src/main/java/com/noop/ui/DashboardCards.kt",
     "android/app/src/main/java/com/noop/analytics/RecoveryDrivers.kt",
@@ -222,25 +218,12 @@ class HomeLocalizationTest(unittest.TestCase):
                     findings.append((relative, line, literal))
         self.assertEqual([], findings, "Raw indirect Android Home copy:\n" + _format_findings(findings))
 
-    def test_android_today_runtime_producer_copy_is_resource_backed(self) -> None:
-        relative = "android/app/src/main/java/com/noop/ui/TodayScreen.kt"
-        findings = [
-            (relative, line, literal)
-            for line, literal in _all_kotlin_literals(ROOT / relative)
-            if literal in ANDROID_TODAY_RUNTIME_COPY
-        ]
-        self.assertEqual([], findings, "Raw Today runtime producer copy:\n" + _format_findings(findings))
-
     def test_android_score_section_label_is_resolved_at_ui_boundary(self) -> None:
         relative = "android/app/src/main/java/com/noop/ui/ScoringGuideScreen.kt"
         source = audit._mask_comments((ROOT / relative).read_text(encoding="utf-8"))
         self.assertNotRegex(source, r"val\s+label\s*:\s*String", "ScoreSection must expose a resource contract")
 
     def test_android_home_score_labels_and_explain_copy_are_resource_backed(self) -> None:
-        today_relative = "android/app/src/main/java/com/noop/ui/TodayScreen.kt"
-        today = audit._mask_comments((ROOT / today_relative).read_text(encoding="utf-8"))
-        self.assertNotIn("domain.label", today, "Home score names must be resolved from Android resources")
-
         guide_relative = "android/app/src/main/java/com/noop/ui/ScoringGuideScreen.kt"
         findings = [
             (guide_relative, line, literal)
@@ -254,30 +237,12 @@ class HomeLocalizationTest(unittest.TestCase):
         ]
         self.assertEqual([], findings, "Raw Android score-explainer copy:\n" + _format_findings(findings))
 
-    def test_android_home_score_labels_and_empty_states_fit_localized_copy(self) -> None:
-        source = (ROOT / "android/app/src/main/java/com/noop/ui/TodayScreen.kt").read_text(encoding="utf-8")
-        self.assertIn("text = domainLabel.uppercase()", source)
-        self.assertIn(".padding(horizontal = Metrics.space16)", source)
-        self.assertIn("minScale = 0.7f", source)
-        self.assertIn("private fun RingNoData(diameter: Dp)", source)
-        self.assertIn("maxLines = 2", source)
-        self.assertIn("overflow = TextOverflow.Clip", source)
-        self.assertNotIn("Text(domainLabel.uppercase()", source)
-        self.assertNotIn("private fun RingNoData()", source)
-
     def test_android_section_header_trailing_copy_does_not_squeeze_title(self) -> None:
         source = (ROOT / "android/app/src/main/java/com/noop/ui/Components.kt").read_text(encoding="utf-8")
         section_header = source.split("fun SectionHeader(", 1)[1].split("// MARK: - StrandTone", 1)[0]
         self.assertIn("if (overline != null || trailing != null)", section_header)
         self.assertIn("Text(title, style = NoopType.title2", section_header)
         self.assertLess(section_header.index("if (trailing != null)"), section_header.index("Text(title"))
-
-    def test_android_today_source_counts_use_two_plural_resources(self) -> None:
-        relative = "android/app/src/main/java/com/noop/ui/TodayScreen.kt"
-        source = audit._mask_comments((ROOT / relative).read_text(encoding="utf-8"))
-        self.assertIn("R.plurals.today_source_days", source)
-        self.assertIn("R.plurals.today_source_workouts", source)
-        self.assertNotIn("R.string.today_source_counts", source)
 
     def test_android_analytics_stays_free_of_ui_resources(self) -> None:
         source = (ROOT / "android/app/src/main/java/com/noop/analytics/ReadinessEngine.kt").read_text(encoding="utf-8")
@@ -328,25 +293,8 @@ class HomeLocalizationTest(unittest.TestCase):
         }
         self.assertEqual({}, {key: (strings.get(key), value) for key, value in expected.items() if strings.get(key) != value})
 
-    def test_android_today_chrome_and_click_labels_are_resource_backed(self) -> None:
-        relative = "android/app/src/main/java/com/noop/ui/TodayScreen.kt"
-        source = audit._mask_comments((ROOT / relative).read_text(encoding="utf-8"))
-        patterns = {
-            "raw SectionHeader/Overline": re.compile(r"\b(?:SectionHeader|Overline)\s*\(\s*\""),
-            "raw onClickLabel": re.compile(r"\bonClickLabel\s*=\s*\""),
-        }
-        findings = []
-        for kind, pattern in patterns.items():
-            findings.extend(
-                (relative, source.count("\n", 0, match.start()) + 1, kind)
-                for match in pattern.finditer(source)
-            )
-        self.assertEqual([], findings, "Raw Today chrome/a11y copy:\n" + _format_findings(findings))
-
     def test_android_home_display_formatting_is_not_pinned_to_us_locale(self) -> None:
-        display_files = ANDROID_INDIRECT_COPY_FILES | ANDROID_DISPLAY_HELPERS | {
-            "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
-        }
+        display_files = ANDROID_INDIRECT_COPY_FILES | ANDROID_DISPLAY_HELPERS
         findings = []
         for relative in sorted(display_files):
             source = audit._mask_comments((ROOT / relative).read_text(encoding="utf-8"))

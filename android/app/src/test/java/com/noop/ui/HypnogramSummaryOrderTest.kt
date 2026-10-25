@@ -1,5 +1,6 @@
 package com.noop.ui
 
+import com.noop.analytics.StagePercentages
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -47,7 +48,7 @@ class HypnogramSummaryOrderTest {
             val key = if (label == "REM") "REM" else label
             assertEquals(
                 "$label: the read-out and the row must print one apportionment",
-                stageSharePercent(label, s), spoken.getValue(key),
+                rowPercent(label, s), spoken.getValue(key),
             )
         }
     }
@@ -65,5 +66,11 @@ class HypnogramSummaryOrderTest {
     fun `an empty night says so rather than reading zeroes`() {
         assertEquals("Sleep stages, no data", hypnogramSummary(emptyList()))
         assertEquals("Sleep stages, no data", hypnogramSummary(stages(0f, 0f, 0f, 0f)))
+    }
+
+    /** The rows' apportionment (largest remainder over awake, light, deep, REM), as the stage rows print it. */
+    private fun rowPercent(label: String, s: Stages): Int {
+        val p = StagePercentages.wholePercentages(listOf(s.awake, s.light, s.deep, s.rem)) ?: return 0
+        return when (label) { "Awake" -> p[0]; "Light" -> p[1]; "Deep" -> p[2]; "REM" -> p[3]; else -> 0 }
     }
 }

@@ -27,13 +27,10 @@ class BottomBarTabsTest {
         assertTrue("a bar tab must not also appear in the More sheet, found $both", both.isEmpty())
     }
 
-    /** Matching iOS: Today, Trends, Sleep, Coach, then More, which the bar appends itself. */
+    /** Today, Trends and Sleep are Forge screens since Android plan E-3f; the classic bar keeps Coach, then More. */
     @Test
-    fun theBarCarriesTheSameFourNamedTabsAsIOS() {
-        assertEquals(
-            listOf(Destination.Today, Destination.Trends, Destination.Sleep, Destination.Coach),
-            barTabs.map { it.dest },
-        )
+    fun theClassicBarCarriesCoachOnly() {
+        assertEquals(listOf(Destination.Coach), barTabs.map { it.dest })
     }
 
     /** A destination cannot occupy two slots; the More slot's selected state derives from this list. */
