@@ -239,6 +239,26 @@ tasks.withType<Test>().configureEach {
     inputs.dir(roomSchemaSnapshotDir).withPropertyName("roomSchemas").optional()
 }
 
+// Fork (DX23876): unit tests run in English wherever they run. Several assert formatted text ("8.6",
+// "13 Jan") and passed only on runners whose locale happened to be English.
+tasks.withType<Test>().configureEach {
+    systemProperty("user.language", "en")
+    systemProperty("user.country", "US")
+    jvmArgs("-Duser.language=en", "-Duser.country=US")
+}
+
+// Fork (DX23876): the cross-platform parity contract is retired here (docs/fork/AGENT_RULES.md, 2026-07-23).
+// These upstream tests compare Android with the fork's iOS sources, which differ on purpose; the deep core
+// (Android plan phase D-5) replaces the Kotlin code they guard.
+tasks.withType<Test>().configureEach {
+    filter {
+        excludeTestsMatching("com.noop.data.SchemaOracleTest.oracleCopiesAreIdentical")
+        excludeTestsMatching("com.noop.testcentre.RawDataCollectorParityTest.androidAndAppleOracleCopiesAreByteIdentical")
+        excludeTestsMatching("com.noop.ui.CoachStaleTranscriptSurfaceTest.ios retires*")
+        excludeTestsMatching("com.noop.ui.TodayWorkoutTapTest.iosTodayOpensTheSameDetailComponent")
+    }
+}
+
 // Resolve every external module to the exact version recorded in app/gradle.lockfile. Direct
 // dependencies are already pinned below; this also freezes the transitive graph selected through
 // AndroidX POMs and the Compose BOM. Update intentionally with `./gradlew :app:dependencies
