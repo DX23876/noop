@@ -34,4 +34,73 @@ public func jniMainActorProbeRuns(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: 
 public func jniMainActorProbeOnMainThread(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?) -> jboolean {
     jboolean(Bridge.mainActorProbeOnMainThread ? JNI_TRUE : JNI_FALSE)
 }
+// MARK: - Shadow session (ShadowSession.swift)
+
+private func bytes(_ env: UnsafeMutablePointer<JNIEnv?>, _ array: jbyteArray) -> [UInt8] {
+    guard let fns = env.pointee?.pointee else { return [] }
+    let count = Int(fns.GetArrayLength(env, array))
+    var out = [UInt8](repeating: 0, count: count)
+    out.withUnsafeMutableBufferPointer { buffer in
+        buffer.baseAddress!.withMemoryRebound(to: jbyte.self, capacity: count) {
+            fns.GetByteArrayRegion(env, array, 0, jsize(count), $0)
+        }
+    }
+    return out
+}
+
+private func string(_ env: UnsafeMutablePointer<JNIEnv?>, _ value: jstring) -> String? {
+    guard let fns = env.pointee?.pointee, let chars = fns.GetStringUTFChars(env, value, nil) else { return nil }
+    defer { fns.ReleaseStringUTFChars(env, value, chars) }
+    return String(cString: chars)
+}
+
+@_cdecl("Java_com_noop_core_SwiftCore_shadowStart")
+public func jniShadowStart(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?,
+                           _ path: jstring?, _ deviceId: jstring?) -> jint {
+    guard let env, let path, let deviceId, let p = string(env, path), let d = string(env, deviceId) else { return -3 }
+    return ShadowSession.start(path: p, deviceId: d)
+}
+
+@_cdecl("Java_com_noop_core_SwiftCore_shadowFamily")
+public func jniShadowFamily(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?, _ whoop5: jboolean) {
+    ShadowSession.send(.family(whoop5: whoop5 != 0))
+}
+
+@_cdecl("Java_com_noop_core_SwiftCore_shadowClock")
+public func jniShadowClock(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?, _ device: jlong, _ wall: jlong) {
+    ShadowSession.send(.clock(device: Int(device), wall: Int(wall)))
+}
+
+@_cdecl("Java_com_noop_core_SwiftCore_shadowLiveFrame")
+public func jniShadowLiveFrame(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?, _ frame: jbyteArray?) {
+    guard let env, let frame else { return }
+    ShadowSession.send(.live(bytes(env, frame)))
+}
+
+@_cdecl("Java_com_noop_core_SwiftCore_shadowOffloadBegin")
+public func jniShadowOffloadBegin(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?, _ continued: jboolean) {
+    ShadowSession.send(.offloadBegin(continuedAfterRows: continued != 0))
+}
+
+@_cdecl("Java_com_noop_core_SwiftCore_shadowOffloadFrame")
+public func jniShadowOffloadFrame(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?, _ frame: jbyteArray?) {
+    guard let env, let frame else { return }
+    ShadowSession.send(.offload(bytes(env, frame)))
+}
+
+@_cdecl("Java_com_noop_core_SwiftCore_shadowFlush")
+public func jniShadowFlush(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?) {
+    ShadowSession.send(.flush)
+}
+
+@_cdecl("Java_com_noop_core_SwiftCore_shadowResetTally")
+public func jniShadowResetTally(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?) {
+    ShadowSession.send(.resetTally)
+}
+
+@_cdecl("Java_com_noop_core_SwiftCore_shadowTally")
+public func jniShadowTally(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?) -> jstring? {
+    guard let env, let fns = env.pointee?.pointee else { return nil }
+    return ShadowSession.tally.line.withCString { fns.NewStringUTF(env, $0) }
+}
 #endif

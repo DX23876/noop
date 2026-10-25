@@ -46,6 +46,17 @@ object SwiftCore {
 
     external fun mainActorProbeRuns(): Int
 
+    // The shadow session (CoreShadow): frames in, nothing out to the strap.
+    external fun shadowStart(path: String, deviceId: String): Int
+    external fun shadowFamily(whoop5: Boolean)
+    external fun shadowClock(device: Long, wall: Long)
+    external fun shadowLiveFrame(frame: ByteArray)
+    external fun shadowOffloadBegin(continuedAfterRows: Boolean)
+    external fun shadowOffloadFrame(frame: ByteArray)
+    external fun shadowFlush()
+    external fun shadowResetTally()
+    external fun shadowTally(): String?
+
     /** Whether the last probe job ran on Android's main thread. */
     external fun mainActorProbeOnMainThread(): Boolean
 

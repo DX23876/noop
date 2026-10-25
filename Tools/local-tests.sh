@@ -96,7 +96,9 @@ if [ "$ANDROID" = 1 ]; then
   echo "local-tests: Android full and demo debug builds + unit tests"
   export JAVA_HOME="${JAVA_HOME:-$(/usr/libexec/java_home -v 17)}"
   export ANDROID_HOME="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
-  (cd android && ./gradlew --quiet assembleFullDebug assembleDemoDebug testFullDebugUnitTest)
+  # Two invocations, as in android.yml: in one, the unit-test task can be configured before the Room schema
+  # snapshot it reads exists on a fresh build directory.
+  (cd android && ./gradlew --quiet assembleFullDebug assembleDemoDebug && ./gradlew --quiet testFullDebugUnitTest)
   RAN+=("android")
 fi
 

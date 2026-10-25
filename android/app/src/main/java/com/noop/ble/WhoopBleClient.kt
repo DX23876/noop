@@ -7381,6 +7381,9 @@ class WhoopBleClient(
                     // every link ended in one; a link that begins without a preceding clean teardown would
                     // otherwise open holding the previous link's rows and report them as banked on this one.
                     liveHr.set(0); liveRr.set(0); offloadHr.set(0); offloadRr.set(0)
+                    // Fork (DX23876), Android plan D-5: the shared core banks this link's frames beside us.
+                    com.noop.core.CoreShadow.ensureStarted(context, deviceId)
+                    com.noop.core.CoreShadow.resetTally()
                     offloadGravity.set(0); offloadResp.set(0); offloadSkinTemp.set(0)
                     offloadSpo2.set(0); offloadSteps.set(0); offloadChunks.set(0)
                     realtimeArmedThisLink = false
@@ -7568,6 +7571,7 @@ class WhoopBleClient(
                 // is deferred to startSession(), which runs once every notification is on.
                 connectedFamily = DeviceFamily.WHOOP4
                 familyEstablished = true
+                com.noop.core.CoreShadow.family(whoop5 = false)
                 // Record the family on connect, not only in the scan path (persistSelectedModel is
                 // otherwise called only from onScanResult). A strap reached via the co-resident
                 // easy-connect route (getConnectedDevices / bondedDevices adopt, no scan) would never
@@ -7582,6 +7586,7 @@ class WhoopBleClient(
                 // standard HR/battery notifications are enabled), not the WHOOP4 confirmed-write bond.
                 connectedFamily = DeviceFamily.WHOOP5
                 familyEstablished = true
+                com.noop.core.CoreShadow.family(whoop5 = true)
                 // Persist on connect too (see the WHOOP4 branch): otherwise an easy-connect 5/MG never
                 // records WHOOP5_MG, so the 5/MG-only controls (raw capture, broadcast HR, deep data)
                 // gated on noop.selectedWhoopModel stay hidden until the strap is live-detected that
@@ -8151,6 +8156,9 @@ class WhoopBleClient(
                     // handleFrame's replayedOffload gate, so evaluating it twice bounds-checked + indexed
                     // every offloaded frame for nothing. (The Swift 5/MG inbound loop already hoists this.)
                     val offloadFrame = backfilling && isOffloadFrame(frame, connectedFamily)
+                    // Fork (DX23876), Android plan D-5: the same frame, in the same order, to the shared core.
+                    if (offloadFrame) com.noop.core.CoreShadow.offloadFrame(frame)
+                    else com.noop.core.CoreShadow.liveFrame(frame)
                     stopUnexpectedRealtimeImu(frame, offloadFrame)
                     noteWhoop5R22Telemetry(frame, offloadFrame)  // #174
                     // #47: decode this frame ONCE and thread it to both consumers (the router below and the
@@ -10906,12 +10914,14 @@ class WhoopBleClient(
                 // stale [strapNewestTs] is. Fallback to now only if we somehow have the ts without its wall.
                 val wall = (strapNewestTsWall ?: (System.currentTimeMillis() / 1000L)).toInt()
                 backfiller.clockRef = ClockRef(device = newest.toInt(), wall = wall)
+                com.noop.core.CoreShadow.clock(newest, wall.toLong())
                 log("Clock: seeded backfiller correlation from Data Range (device=$newest wall=$wall, offset ${wall - newest}s)")
             }
         }
         // #42/#364: consecutiveAutoContinues > 0 means this offload is re-kicked after an EARLIER session
         // in the same burst banked rows — tell the backfiller so its no-cursor END reads as "caught up",
         // not "no banked history / charge to 100%". A fresh offload (count 0) keeps the honest guidance.
+        com.noop.core.CoreShadow.offloadBegin(continuedAfterRows = consecutiveAutoContinues > 0)
         backfiller.begin(connectedFamily, continuedAfterRows = consecutiveAutoContinues > 0)   // family drives the +4 puffin offset for 5/MG (#78)
         backfilling = true
         lastBackfillAtMs = System.currentTimeMillis()   // the BackfillPolicy floor is measured from the last KICK
@@ -11180,6 +11190,16 @@ class WhoopBleClient(
         val offloadElapsedMs =
             if (backfillStartedAtMs > 0L) System.currentTimeMillis() - backfillStartedAtMs else -1L
         log("Backfill: ${offloadThroughputLine(offloadFramesThisSession, offloadElapsedMs)} ($reason)")
+        // Fork (DX23876), Android plan D-5: what the shared core banked from this link beside the Kotlin
+        // pipeline, a moment later because the core works through its queue on its own. Same scope (this link).
+        com.noop.core.CoreShadow.flush()
+        handler.postDelayed({
+            com.noop.core.CoreShadow.tally()?.let { core ->
+                log("Core shadow: core banked $core | Kotlin banked hr=${offloadHr.get()} rr=${offloadRr.get()} " +
+                    "gravity=${offloadGravity.get()} spo2=${offloadSpo2.get()} skinTemp=${offloadSkinTemp.get()} " +
+                    "resp=${offloadResp.get()} (this link)")
+            }
+        }, 3_000)
         // #174: a backfill just ended. Start (or extend) the deep-packet cooldown from this instant so
         // any type-0x2F records the strap flushes in the seconds after the session aren't miscounted as
         // the live R22 stream — they're the offload's tail.
