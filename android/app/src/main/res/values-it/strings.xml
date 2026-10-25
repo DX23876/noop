@@ -2912,4 +2912,7 @@
     <string name="forge_strap_add">Abbina strap</string>
     <string name="forge_new_screens">Nuove schermate</string>
     <string name="forge_new_screens_detail">Oggi, Sonno, Tendenze e Altro nel nuovo design.</string>
+    <string name="forge_heart_rate">Frequenza cardiaca</string>
+    <string name="forge_live">Dal vivo</string>
+    <string name="forge_live_hr_spoken">Frequenza cardiaca dal vivo %1$d battiti al minuto</string>
 </resources>

@@ -39,7 +39,7 @@ object ForgeUi {
 fun ForgeRoot(viewModel: AppViewModel) {
     ForgeShell { tab, padding, width ->
         when (tab) {
-            ForgeTab.Today -> ForgeTodayScreen(padding, width)
+            ForgeTab.Today -> ForgeTodayScreen(padding, width, viewModel)
             ForgeTab.Trends -> ForgeTrendsScreen(padding, width)
             ForgeTab.Sleep -> ForgeSleepScreen(padding, width)
             ForgeTab.More -> ForgeMoreScreen(padding, viewModel)

@@ -2839,4 +2839,7 @@
     <string name="forge_strap_add">Сопрячь strap</string>
     <string name="forge_new_screens">Новые экраны</string>
     <string name="forge_new_screens_detail">Сегодня, Сон, Тренды и Ещё в новом оформлении.</string>
+    <string name="forge_heart_rate">Пульс</string>
+    <string name="forge_live">Сейчас</string>
+    <string name="forge_live_hr_spoken">Пульс сейчас %1$d ударов в минуту</string>
 </resources>

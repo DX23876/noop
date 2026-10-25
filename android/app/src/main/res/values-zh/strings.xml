@@ -2914,4 +2914,7 @@
     <string name="forge_strap_add">配对 Strap</string>
     <string name="forge_new_screens">新界面</string>
     <string name="forge_new_screens_detail">以新设计显示今日、睡眠、趋势和更多。</string>
+    <string name="forge_heart_rate">心率</string>
+    <string name="forge_live">实时</string>
+    <string name="forge_live_hr_spoken">实时心率 每分钟 %1$d 次</string>
 </resources>

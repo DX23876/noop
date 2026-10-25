@@ -2973,4 +2973,7 @@
     <string name="forge_strap_add">Pair a strap</string>
     <string name="forge_new_screens">New screens</string>
     <string name="forge_new_screens_detail">Today, Sleep, Trends and More in the new design.</string>
+    <string name="forge_heart_rate">Heart rate</string>
+    <string name="forge_live">Live</string>
+    <string name="forge_live_hr_spoken">Live heart rate %1$d beats per minute</string>
 </resources>

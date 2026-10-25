@@ -56,13 +56,15 @@ Plan: [`PLAN.md`](PLAN.md) · last updated 2026-10-25
 | E-3 ring and type | 2026-10-25 | The score rings are a line-for-line port of the Swift organic ring model (`OrganicScoreModel.kt`, pinned to values the Swift model prints) drawn in the iOS layers; Nunito where iOS uses SF Pro Rounded and Inter where it uses SF Pro, both under the OFL with their licences in `assets/licenses` |
 | E-3e More | 2026-10-25 | `.noopbak` export and import of the core's store through `BackupArchive` (`CoreBackup` in Swift and Kotlin, two macOS tests), strap log sharing, the way back to the classic screens. On the emulator: an export saved through the system picker, imported again with the previous store kept beside it, the app restarted onto the restored data; the Apple restore read the same Android backup with all 42 days |
 | E-3f, first part | 2026-10-25 | The Forge screens are the default, shown after the terms and onboarding gates with the app's view model (strap link, foreground sync, background service); More has a strap card (state, battery, last sync, connect, pairing through the classic wizard) and switches to the classic screens, whose Settings switch back. A fresh demo install went through terms and onboarding into the Forge screens on the emulator without a crash |
+| E-3f, live heart rate | 2026-10-25 | Today shows the live heart rate with a two-minute trace while the strap streams, read from the view model's rate; not yet seen with a streaming strap (the demo build does not stream) |
+| E-5 languages and backups | 2026-10-25 | Every Forge string in EN, DE, FR, ES, PT, PL, IT, RU and ZH (the i18n gate checks the focus set). `Packages/NoopCoreJNI/Tests/NoopCoreTests/Fixtures`: `android-v1.noopbak`, exported by the Android demo build through More, and `apple-v1.noopbak`, written by the shared `BackupArchive` with the Apple manifest; both restore through `CoreBackup` with their 42 days and pinned values. A backup from a real iOS install still has to be restored on Android once by hand |
 
 ## Next step
 
-Phase E, the rest of E-3f: Forge versions of pairing (the classic wizard runs inside the Forge screens for now),
-live heart rate on Today, and the classic screens and Kotlin code that nothing reaches any more; then E-4, the
-core owning the data (`PLAN.md`, phase E steps). Skip was tried for shared screens and not adopted for now
-([`SKIP-SPIKE.md`](SKIP-SPIKE.md)).
+E-4, the core owning the data: Kotlin Bluetooth hands frames only to the core, and the history ack follows the
+core's durable write (the safe-trim rule), proven by a replay test and then by a tester's strap log. The rest of
+E-3f (a Forge pairing flow, removing classic screens nothing reaches) can follow alongside. Skip was tried for
+shared screens and not adopted for now ([`SKIP-SPIKE.md`](SKIP-SPIKE.md)).
 
 ## How to run a real-data check (B4)
 

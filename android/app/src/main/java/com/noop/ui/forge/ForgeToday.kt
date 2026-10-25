@@ -1,6 +1,7 @@
 package com.noop.ui.forge
 
 import android.text.format.DateFormat
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -27,6 +29,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,6 +39,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -49,6 +56,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.noop.R
 import com.noop.core.CoreRead
+import com.noop.ui.AppViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
@@ -83,7 +91,7 @@ fun deltaText(value: Double?, baseline: Double?, decimals: Int): String? {
  * glowing rings, then the key metrics. Values come from [CoreRead]; a value the store does not have says so.
  */
 @Composable
-fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth) {
+fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppViewModel) {
     val context = LocalContext.current
     var date by rememberSaveable { mutableStateOf(LocalDate.now().toEpochDay()) }
     var model by remember { mutableStateOf<TodayModel?>(null) }
@@ -130,6 +138,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth) {
     ) {
         Header(shown, isToday = shown == today)
         Hero(model?.day, width)
+        if (shown == today) LiveHeartCard(viewModel)
         KeyMetrics(model, columns = if (width == ForgeWidth.Compact) 2 else 3)
         Spacer(Modifier.height(ForgeMetrics.space2))
     }
@@ -183,6 +192,56 @@ private fun ScoreSlot(labelRes: Int, score: Double?, tint: Color, diameter: andr
         OrganicRing(score, tint, diameter, metric)
         Text(label.uppercase() + CHEVRON, style = Forge.type.overline, color = Forge.colors.textSecondary, maxLines = 1,
              overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center, modifier = Modifier.size(width = diameter, height = 18.dp))
+    }
+}
+
+/**
+ * Live heart rate while the strap streams, with the last two minutes as a trace, as the iOS Today shows it. It
+ * collects the rate itself, so the once-a-second updates redraw this card and not the whole screen. Hidden when
+ * nothing streams.
+ */
+@Composable
+private fun LiveHeartCard(viewModel: AppViewModel) {
+    val colors = Forge.colors
+    val bpm by viewModel.bpm.collectAsState()
+    val trace = remember { mutableStateListOf<Int>() }
+    LaunchedEffect(viewModel) {
+        viewModel.bpm.collect { value ->
+            if (value == null) trace.clear() else { trace.add(value); if (trace.size > 120) trace.removeAt(0) }
+        }
+    }
+    val current = bpm ?: return
+    val spoken = stringResource(R.string.forge_live_hr_spoken, current)
+    ForgeCard(Modifier.fillMaxWidth().semantics(mergeDescendants = true) { contentDescription = spoken }) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Rounded.Favorite, contentDescription = null, tint = colors.heart, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(ForgeMetrics.space2))
+            Text(stringResource(R.string.forge_heart_rate).uppercase(), style = Forge.type.overline,
+                 color = colors.textSecondary, modifier = Modifier.weight(1f))
+            Text(stringResource(R.string.forge_live).uppercase(), style = Forge.type.overline, color = colors.heart)
+        }
+        Spacer(Modifier.height(ForgeMetrics.space2))
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(current.toString(), style = Forge.type.title1.copy(fontSize = Forge.type.heroNumber.fontSize),
+                 color = colors.text)
+            Spacer(Modifier.width(ForgeMetrics.space1))
+            Text(stringResource(R.string.forge_unit_bpm), style = Forge.type.subhead, color = colors.textSecondary,
+                 modifier = Modifier.padding(bottom = 6.dp))
+            Spacer(Modifier.width(ForgeMetrics.space4))
+            Canvas(Modifier.weight(1f).height(44.dp)) {
+                if (trace.size < 2) return@Canvas
+                val lo = trace.min() - 3f; val hi = trace.max() + 3f
+                val step = size.width / (120 - 1)
+                val start = size.width - step * (trace.size - 1)
+                val path = Path()
+                trace.forEachIndexed { i, v ->
+                    val x = start + i * step
+                    val y = size.height - (v - lo) / (hi - lo) * size.height
+                    if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                }
+                drawPath(path, colors.heart, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round))
+            }
+        }
     }
 }
 

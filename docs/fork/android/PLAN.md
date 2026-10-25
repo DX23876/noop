@@ -219,7 +219,8 @@ Steps (added 2026-10-25), each with its own commit, test and smoke run:
   history ack is sent only after the core's Backfiller reports the chunk durably written (the safe-trim rule
   of the BLE safety contract), proven by a replay test and then by a tester's strap log.
 - **E-5 Languages and backups.** EN, DE, FR and ES complete for the new screens; versioned `.noopbak`
-  fixtures prove an iOS backup restores on Android with identical rows, and the reverse.
+  fixtures prove an iOS backup restores on Android with identical rows, and the reverse. *Done 2026-10-25:* nine languages; the
+  `android-v1` and `apple-v1` fixtures in `Packages/NoopCoreJNI` restore through `CoreBackup`.
 
 ### Phase F: testing and release
 

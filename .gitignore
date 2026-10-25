@@ -101,6 +101,12 @@ Fixtures/
 # under it stays out.
 !Tools/MemoryBench/Fixtures/
 !Tools/MemoryBench/Fixtures/tokeniser-golden.json
+# A second narrow exception (Android plan E-5): two .noopbak files holding only the synthetic demo history
+# (`CoreDemo`), no export of anyone's data, checked against the private patterns before they were added. They
+# prove a backup from one platform restores on the other; every other file in that folder stays out. The two
+# files are re-included after the `*.noopbak` rule below, since the last matching rule wins.
+!Packages/NoopCoreJNI/Tests/NoopCoreTests/Fixtures/
+Packages/NoopCoreJNI/Tests/NoopCoreTests/Fixtures/*
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
@@ -152,6 +158,9 @@ tools/linux-capture/captures/
 # points the picker, which is sometimes the repo root. Hundreds of megabytes of it would be
 # unremovable from history after one `git add -A`.
 *.noopbak
+# The E-5 demo fixtures (see the Fixtures exception above).
+!Packages/NoopCoreJNI/Tests/NoopCoreTests/Fixtures/android-v1.noopbak
+!Packages/NoopCoreJNI/Tests/NoopCoreTests/Fixtures/apple-v1.noopbak
 
 # Android emulator smoke screenshots (Tools/android-smoke.sh)
 artifacts/android/

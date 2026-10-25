@@ -2960,4 +2960,7 @@
     <string name="forge_strap_add">Sparuj strapa</string>
     <string name="forge_new_screens">Nowe ekrany</string>
     <string name="forge_new_screens_detail">Dzisiaj, Sen, Trendy i Więcej w nowym wyglądzie.</string>
+    <string name="forge_heart_rate">Tętno</string>
+    <string name="forge_live">Na żywo</string>
+    <string name="forge_live_hr_spoken">Tętno na żywo %1$d uderzeń na minutę</string>
 </resources>

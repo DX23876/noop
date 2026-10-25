@@ -27,6 +27,7 @@ let package = Package(
                            .target(name: "CJNI", condition: .when(platforms: [.android]))]),
         .testTarget(name: "NoopCoreTests", dependencies: [
             "NoopCore", .product(name: "WhoopStore", package: "WhoopStore"),
-            .product(name: "WhoopProtocol", package: "WhoopProtocol")]),
+            .product(name: "WhoopProtocol", package: "WhoopProtocol")],
+            resources: [.copy("Fixtures")]),
     ]
 )

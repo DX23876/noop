@@ -2936,4 +2936,7 @@
     <string name="forge_strap_add">Emparelhar strap</string>
     <string name="forge_new_screens">Ecrãs novos</string>
     <string name="forge_new_screens_detail">Hoje, Sono, Tendências e Mais com o novo design.</string>
+    <string name="forge_heart_rate">Frequência cardíaca</string>
+    <string name="forge_live">Ao vivo</string>
+    <string name="forge_live_hr_spoken">Frequência cardíaca ao vivo %1$d batimentos por minuto</string>
 </resources>
