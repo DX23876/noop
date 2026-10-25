@@ -44,6 +44,14 @@ object CoreShadow {
     /** Starts a new tally in order with the frames, as the Kotlin client resets its own counters per link. */
     fun resetTally() { if (started) SwiftCore.shadowResetTally() }
 
+    /** Runs the core's daily pass on its own store after the frames queued so far. */
+    fun analyze(age: Int, sex: String, weightKg: Double, heightCm: Double, hrMaxOverride: Int) {
+        if (started) SwiftCore.shadowAnalyze(age, sex, weightKg, heightCm, hrMaxOverride)
+    }
+
+    /** Today's scores from the core's last pass, as one line; null before one finished. */
+    fun today(): String? = if (started) SwiftCore.shadowToday() else null
+
     /** What the core banked from history this process, per stream; null when no session runs. */
     fun tally(): String? = if (started) SwiftCore.shadowTally() else null
 }

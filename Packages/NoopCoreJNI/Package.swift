@@ -13,6 +13,7 @@ let package = Package(
         .package(path: "../StrandCore"),
         .package(path: "../WhoopStore"),
         .package(path: "../WhoopProtocol"),
+        .package(path: "../StrandAnalytics"),
     ],
     targets: [
         // jni.h and the looper come from the NDK sysroot on Android; elsewhere the header is empty and unused.
@@ -21,6 +22,8 @@ let package = Package(
             name: "NoopCore",
             dependencies: [.product(name: "StrandCore", package: "StrandCore"),
                            .product(name: "WhoopStore", package: "WhoopStore"),
+                           .product(name: "WhoopProtocol", package: "WhoopProtocol"),
+                           .product(name: "StrandAnalytics", package: "StrandAnalytics"),
                            .target(name: "CJNI", condition: .when(platforms: [.android]))]),
         .testTarget(name: "NoopCoreTests", dependencies: [
             "NoopCore", .product(name: "WhoopStore", package: "WhoopStore"),

@@ -21,6 +21,8 @@ public enum ShadowSession {
         case flush
         /// Starts a new tally, in order with the frames: the Kotlin client resets its own counters per link.
         case resetTally
+        /// Runs the daily analysis on the core's store with the wearer's profile; `today` holds the result.
+        case analyze(CoreAnalysis.Profile)
     }
 
     /// What the core banked from history since the session started, per stream.
@@ -36,6 +38,7 @@ public enum ShadowSession {
         var continuation: AsyncStream<Event>.Continuation?
         var tally = Tally()
         var processed = 0
+        var today: String?
     }
     private static let state = State()
 
@@ -81,6 +84,12 @@ public enum ShadowSession {
         return state.tally
     }
 
+    /// Today's scores from the last `analyze` event, as one line; nil before one ran or when today has no row.
+    public static var today: String? {
+        state.lock.lock(); defer { state.lock.unlock() }
+        return state.today
+    }
+
     public static var processedEvents: Int {
         state.lock.lock(); defer { state.lock.unlock() }
         return state.processed
@@ -102,12 +111,12 @@ public enum ShadowSession {
             store: store, deviceId: deviceId,
             ackTrim: { _, _ in },   // the Kotlin client owns the link and acks history itself
             onBankedOffload: { counts in
-                state.lock.lock()
-                state.tally.hr += counts.hr; state.tally.rr += counts.rr
-                state.tally.gravity += counts.gravity; state.tally.spo2 += counts.spo2
-                state.tally.skinTemp += counts.skinTemp; state.tally.resp += counts.resp
-                state.tally.events += counts.events; state.tally.battery += counts.battery
-                state.lock.unlock()
+                state.lock.withLock {
+                    state.tally.hr += counts.hr; state.tally.rr += counts.rr
+                    state.tally.gravity += counts.gravity; state.tally.spo2 += counts.spo2
+                    state.tally.skinTemp += counts.skinTemp; state.tally.resp += counts.resp
+                    state.tally.events += counts.events; state.tally.battery += counts.battery
+                }
             })
         var family = DeviceFamily.whoop4
         for await event in stream {
@@ -132,9 +141,13 @@ public enum ShadowSession {
             case .flush:
                 await collector.flush()
             case .resetTally:
-                state.lock.lock(); state.tally = Tally(); state.lock.unlock()
+                state.lock.withLock { state.tally = Tally() }
+            case .analyze(let profile):
+                await collector.flush()
+                let result = await CoreAnalysis.run(store: store, deviceId: deviceId, profile: profile)
+                state.lock.withLock { state.today = result?.line ?? "no computed row for today" }
             }
-            state.lock.lock(); state.processed += 1; state.lock.unlock()
+            state.lock.withLock { state.processed += 1 }
         }
         await collector.flush()
     }

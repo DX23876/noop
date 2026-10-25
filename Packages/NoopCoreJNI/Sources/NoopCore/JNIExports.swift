@@ -98,6 +98,20 @@ public func jniShadowResetTally(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jc
     ShadowSession.send(.resetTally)
 }
 
+@_cdecl("Java_com_noop_core_SwiftCore_shadowAnalyze")
+public func jniShadowAnalyze(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?, _ age: jint, _ sex: jstring?,
+                             _ weightKg: jdouble, _ heightCm: jdouble, _ hrMaxOverride: jint) {
+    guard let env, let sex, let s = string(env, sex) else { return }
+    ShadowSession.send(.analyze(.init(age: Int(age), sex: s, weightKg: weightKg, heightCm: heightCm,
+                                      hrMaxOverride: Int(hrMaxOverride))))
+}
+
+@_cdecl("Java_com_noop_core_SwiftCore_shadowToday")
+public func jniShadowToday(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?) -> jstring? {
+    guard let env, let fns = env.pointee?.pointee, let line = ShadowSession.today else { return nil }
+    return line.withCString { fns.NewStringUTF(env, $0) }
+}
+
 @_cdecl("Java_com_noop_core_SwiftCore_shadowTally")
 public func jniShadowTally(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?) -> jstring? {
     guard let env, let fns = env.pointee?.pointee else { return nil }

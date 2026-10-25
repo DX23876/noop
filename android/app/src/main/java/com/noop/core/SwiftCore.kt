@@ -56,6 +56,8 @@ object SwiftCore {
     external fun shadowFlush()
     external fun shadowResetTally()
     external fun shadowTally(): String?
+    external fun shadowAnalyze(age: Int, sex: String, weightKg: Double, heightCm: Double, hrMaxOverride: Int)
+    external fun shadowToday(): String?
 
     /** Whether the last probe job ran on Android's main thread. */
     external fun mainActorProbeOnMainThread(): Boolean

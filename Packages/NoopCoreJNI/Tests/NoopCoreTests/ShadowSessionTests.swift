@@ -40,5 +40,12 @@ final class ShadowSessionTests: XCTestCase {
         let store = try await WhoopStore(path: dir.appendingPathComponent("core.sqlite").path)
         let cursor = try await store.cursor("strap_trim")
         XCTAssertEqual(cursor, 70_476, "the core recorded the trim it would have acked; the ack itself is a no-op")
+
+        // The daily pass runs on the same store, in order after the offload, and leaves an answer.
+        ShadowSession.send(.analyze(.init(age: 40, sex: "male", weightKg: 80, heightCm: 180, hrMaxOverride: 0)))
+        for _ in 0..<500 where ShadowSession.today == nil {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        XCTAssertNotNil(ShadowSession.today)
     }
 }

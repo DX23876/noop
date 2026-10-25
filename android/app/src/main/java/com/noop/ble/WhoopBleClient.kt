@@ -3196,6 +3196,15 @@ class WhoopBleClient(
                 log("re-score: trigger=post-offload newData=" +
                     if (newData) "yes"
                     else "no (empty/duplicate offload — nothing changed since last run) — skipping (#1146)")
+                // Fork (DX23876), Android plan D-5: the shared core scores the same nights on its own store. Its
+                // answer is logged two minutes later beside this pass's own per-day lines, for comparison.
+                if (newData) {
+                    com.noop.core.CoreShadow.analyze(profile.age.toInt(), profile.sex, profile.weightKg,
+                        profile.heightCm, profileStore.hrMaxOverride)
+                    handler.postDelayed({
+                        com.noop.core.CoreShadow.today()?.let { log("Core shadow analysis: $it") }
+                    }, 120_000)
+                }
                 if (newData) runCatching {
                     // #1816: set the motion sink so a fresh strap's first backfill flips the Today caption
                     // from "No motion synced yet" to the phone-step-days countdown as soon as it lands.
