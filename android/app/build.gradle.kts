@@ -18,16 +18,23 @@ val requestedReleaseBuild = gradle.startParameter.taskNames.any {
     it.contains("Release", ignoreCase = true)
 }
 
+// Fork (DX23876): the version name is the Apple app's MARKETING_VERSION, read from project.yml so the two
+// cannot disagree; versionCode is Android's own counter (Android plan D11).
+val forkMarketingVersion: String = rootProject.file("../project.yml").readLines()
+    .firstNotNullOfOrNull { Regex("""^\s*MARKETING_VERSION:\s*"([^"]+)"""").find(it)?.groupValues?.get(1) }
+    ?: error("MARKETING_VERSION not found in project.yml")
+
 android {
     namespace = "com.noop"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.noop.whoop"
+        // Fork (DX23876): its own id, so NOOP Forge installs beside ryanbr's com.noop.whoop (plan D11).
+        applicationId = "io.github.dx23876.noop"
         minSdk = 26
         targetSdk = 34
-        versionCode = 556
-        versionName = "12.1.0"
+        versionCode = 1
+        versionName = forkMarketingVersion
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -88,7 +95,7 @@ android {
             }
             // Fork staging release: built with -PstagingRelease (the fork testing-build CI only), the
             // release APK gets its own id/name so it installs BESIDE both the official app and the
-            // .debug staging build. A real release (no property) keeps the true com.noop.whoop id.
+            // .debug staging build. A real release (no property) keeps the plain io.github.dx23876.noop id.
             if (isStagingRelease) {
                 applicationIdSuffix = ".staging"
                 versionNameSuffix = "-staging"
@@ -97,8 +104,8 @@ android {
     }
 
     // Two clearly-distinct apps that install side-by-side:
-    //   • full → "NOOP"      (com.noop.whoop)     — the real app, starts empty, pair a strap / import.
-    //   • demo → "NOOP Demo"  (com.noop.whoop.demo) — preloaded with 120 days of synthetic data and
+    //   • full → "NOOP Forge"      (io.github.dx23876.noop)      — the real app, starts empty, pair a strap.
+    //   • demo → "NOOP Forge Demo"  (io.github.dx23876.noop.demo) — preloaded with 120 days of synthetic data and
     //                          a visible DEMO badge, so anyone can explore every screen with no strap.
     // Build e.g. ./gradlew assembleFullRelease assembleDemoRelease.
     flavorDimensions += "tier"

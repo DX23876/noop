@@ -1579,7 +1579,7 @@
     <string name="today_load_ratio">carga %1$s</string>
 
     <!-- #453 base-catalog locale completion -->
-    <string name="app_name">NOOP</string>
+    <string name="app_name">NOOP Forge</string>
     <string name="widget_description">Hoy \'s Descanso, carga y esfuerzo, con frecuencia cardíaca viva y batería de correa a un vistazo.</string>
     <string name="widget_compact_name">NOOP Compacto</string>
     <string name="widget_compact_description">Resto compacto, carga y effort widget, con frecuencia cardíaca viva y batería de correa.</string>

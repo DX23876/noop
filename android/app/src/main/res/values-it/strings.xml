@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">NOOP</string>
+    <string name="app_name">NOOP Forge</string>
     <string name="widget_description">Riposo, Carica e Sforzo di oggi, con frequenza cardiaca in diretta e batteria della fascia a colpo d\'occhio.</string>
     <string name="widget_hr_name">NOOP Frequenza cardiaca</string>
     <string name="widget_hr_description">Frequenza cardiaca in diretta con il tracciato delle ultime tre ore.</string>

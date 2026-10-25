@@ -2,7 +2,7 @@
 <resources>
 
     <!-- Portuguese (Portugal) localization. -->
-    <string name="app_name">NOOP</string>
+    <string name="app_name">NOOP Forge</string>
     <string name="widget_description">Descanso, Carga e Esforço de hoje, com frequência cardíaca em direto e bateria da bracelete num relance.</string>
     <string name="widget_compact_name">NOOP Compacto</string>
     <string name="widget_compact_description">Widget compacto de Descanso, Carga e Esforço, com frequência cardíaca em direto e bateria da bracelete.</string>

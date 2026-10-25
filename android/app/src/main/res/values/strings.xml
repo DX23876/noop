@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">NOOP</string>
+    <string name="app_name">NOOP Forge</string>
     <string name="widget_description">Today\'s Rest, Charge and Effort, with live heart rate and strap battery at a glance.</string>
     <string name="widget_hr_name">NOOP Heart Rate</string>
     <string name="widget_hr_description">Live heart rate with the last three hours as a trace.</string>

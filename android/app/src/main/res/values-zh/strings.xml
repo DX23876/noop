@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">NOOP</string>
+    <string name="app_name">NOOP Forge</string>
     <string name="widget_description">今日的恢复、充能与负荷情况，以及实时心率和手环电量，一目了然。</string>
     <string name="widget_compact_name">NOOP 迷你组件</string>
     <string name="widget_compact_description">精简版的恢复、充能与负荷小组件，带实时心率与手环电量显示。</string>

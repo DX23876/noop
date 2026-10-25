@@ -1597,7 +1597,7 @@
     <string name="today_load_ratio">charge %1$s</string>
 
     <!-- #453 base-catalog locale completion -->
-    <string name="app_name">NOOP</string>
+    <string name="app_name">NOOP Forge</string>
     <string name="widget_description">Le repos, la charge et l\'effort d\'aujourd\'hui, avec la fréquence cardiaque et le bracelet en un coup d\'oeil.</string>
     <string name="widget_compact_name">Compact NOOP</string>
     <string name="widget_compact_description">Widget Compact Repos, Charge et Effort, avec fréquence cardiaque et batterie du bracelet.</string>
