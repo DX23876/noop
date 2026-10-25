@@ -1,0 +1,71 @@
+# Fork (DX23876), Android plan D-5: the Android build with the shared Swift core inside, on a Linux runner. It
+# installs what android/swift-core/build-swift-core.sh needs (the swift.org toolchain, the Swift SDK for Android
+# pinned by checksum, NDK r30), then builds both debug flavours with -Pnoop.swiftCore=true. Dispatch only while the
+# toolchain setup proves itself; once it is stable it moves into android.yml and the core becomes the default.
+name: Android with Swift core
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-swift-core-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SWIFT_TOOLCHAIN_URL: https://download.swift.org/swift-6.4.1-release/ubuntu2404/swift-6.4.1-RELEASE/swift-6.4.1-RELEASE-ubuntu24.04.tar.gz
+  SWIFT_SDK_URL: https://download.swift.org/swift-6.4.1-release/android-sdk/swift-6.4.1-RELEASE/swift-6.4.1-RELEASE_android.artifactbundle.tar.gz
+  SWIFT_SDK_SHA256: a356b79f8f1daa6ae3a66f4c556966ca20c0208b3659805cf30a83a0a31d6772
+  NDK_VERSION: 30.0.16248370
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install the Swift toolchain
+        run: |
+          curl -fsSLo "$RUNNER_TEMP/swift.tar.gz" "$SWIFT_TOOLCHAIN_URL"
+          sudo mkdir -p /opt/swift
+          sudo tar -xzf "$RUNNER_TEMP/swift.tar.gz" -C /opt/swift --strip-components=1
+          echo /opt/swift/usr/bin >> "$GITHUB_PATH"
+          /opt/swift/usr/bin/swift --version
+
+      - name: Install NDK r30
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;$NDK_VERSION" > /dev/null
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
+
+      - name: Install the Swift SDK for Android
+        run: |
+          curl -fsSLo "$RUNNER_TEMP/android-sdk.tar.gz" "$SWIFT_SDK_URL"
+          echo "$SWIFT_SDK_SHA256  $RUNNER_TEMP/android-sdk.tar.gz" | sha256sum --check
+          swift sdk install "$RUNNER_TEMP/android-sdk.tar.gz"
+          for dir in "$HOME/.swiftpm/swift-sdks" "$HOME/.config/swiftpm/swift-sdks"; do
+            script="$dir/swift-6.4.1-RELEASE_android.artifactbundle/swift-android/scripts/setup-android-sdk.sh"
+            if [ -f "$script" ]; then bash "$script"; exit 0; fi
+          done
+          echo "::error::setup-android-sdk.sh not found in the installed Swift SDK"; exit 1
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Build both debug flavours with the core
+        working-directory: android
+        run: ./gradlew -Pnoop.swiftCore=true assembleFullDebug assembleDemoDebug
+
+      - name: Report the APK sizes and native libraries
+        working-directory: android
+        run: |
+          ls -l app/build/outputs/apk/*/debug/*.apk
+          unzip -l app/build/outputs/apk/full/debug/app-full-debug.apk | grep 'lib/arm64-v8a/' | awk '{print $1, $4}'
