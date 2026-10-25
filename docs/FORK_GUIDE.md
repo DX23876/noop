@@ -63,14 +63,14 @@ prereleases, and the in-app update check reads exactly that endpoint).
 
 ## Where this fork diverges from upstream
 
-### The cross-platform parity contract is RETIRED (2026-07-23), and the Android tree is GONE (2026-08-14)
+### The cross-platform parity contract is RETIRED (2026-07-23); Android is back on a shared core (2026-10-25)
 
-**Superseded in direction on 2026-10-24:** Android returns on a shared Swift core
-([`fork/android/PLAN.md`](fork/android/PLAN.md)). Until phase D of that plan restores `android/`, this
-section and its sync rule still describe the tree as it is.
+Android returns on a shared Swift core ([`fork/android/PLAN.md`](fork/android/PLAN.md)). Phase D restored
+`android/` from the upstream merge base on 2026-10-25; until the deep-core wiring (D-5) lands it is
+ryanbr's Kotlin app under the fork's identity, built and tested by `android.yml`.
 
-Upstream's `AGENTS.md` calls it the #1 rule. **It does not bind here.** The project is iOS/macOS-only;
-the Android target is dropped and no longer kept in sync. Byte-identical analytics, platform-neutral
+Upstream's `AGENTS.md` calls parity the #1 rule. **It does not bind here**: there is no Kotlin twin to keep
+byte-identical, because the shared core is one Swift codebase. Byte-identical analytics, platform-neutral
 FNV-1a hashing, the `.noopbak` byte-identical whitelist and Room/GRDB schema agreement are **no longer
 gates** on a change.
 
@@ -81,7 +81,7 @@ Going back from a current Forge backup (v77) to current upstream (v47) is not te
 upstream migrations were renumbered when merged. What was retired is the promise that every future
 fork change must remain byte-identical to the removed Android/Room implementation.
 
-The tree itself was removed on 2026-08-14: `android/` (899 files), `.github/workflows/android.yml`,
+History: the tree was removed on 2026-08-14: `android/` (899 files), `.github/workflows/android.yml`,
 and the Android jobs in both release workflows. Nobody here develops it, and a tree nobody builds
 only rots — it was still absorbing upstream churn on every sync while never being compiled.
 
@@ -94,18 +94,20 @@ entry, so a missing `android/` would have silently stopped the in-app "What's Ne
 the Android arms are gone. `Tools/i18n_audit_baseline.json`'s 238 Android entries were dropped
 (the iOS section is untouched).
 
-#### Syncing upstream after the removal
+#### Syncing upstream with android/ back (Android plan D-6)
 
-ryanbr's tree still carries `android/`, and every sync merge touches 50–120 files under it (121 in
-the 2026-08-12 merge, 125 on 08-09). Those arrive as delete/modify conflicts. Resolve them wholesale
-rather than file by file:
+`android/` merges like any other directory. The paths the fork deleted on purpose are listed in
+`Tools/android_fork_deleted_paths.txt`; a merge can bring them back as a delete/modify conflict or as a new
+upstream file beneath a deleted directory, and the resolver takes the fork's deletion for both:
 
 ```bash
-git merge upstream/main            # conflicts, including all of android/
-git rm -r --cached android         # take OUR deletion for the whole tree
-rm -rf android
-# resolve any REAL conflicts (Swift, docs, workflows) normally, then commit
+git merge upstream/main                     # conflicts as usual
+Tools/resolve-android-merge.py              # dry run: what it would remove, which android/ conflicts remain
+Tools/resolve-android-merge.py --apply
+# resolve the remaining conflicts (Swift, Kotlin the fork edited, docs, workflows) normally, then commit
 ```
+
+A commit that deletes a path under `android/` adds it to the list in the same commit.
 
 An upstream change to a Swift analytics file whose Kotlin twin also changed is still worth reading
 for intent — their Kotlin diff often explains what the Swift one is doing.
@@ -133,6 +135,8 @@ which changes what validates a change:
 | `tools-python.yml` | The `Tools/linux-capture` Python suite (≥200 tests) | PR + push touching `Tools/**` |
 | `source-hygiene.yml` | Detached doc comments + **commit attribution** (above) | every PR and push to `main` |
 | `i18n-coverage.yml` | EN source + DE/ES/FR/PT-PT complete (zero-tolerance); IT/RU/ZH-Hans/ZH-Hant ratcheted (see "Localization" below) | every PR and push to `main` |
+| `android.yml` | Gradle debug builds of the full and demo flavours + the JVM unit tests | PR + push touching `android/**`, `project.yml` (the version name), the shared protocol and schema fixtures or `Tools/parity_cases/**` (Android plan D-7) |
+| `android-signing-check.yml` | Opens the Android release keystore with its password secret, prints the public fingerprint | dispatch only |
 | `publish-ios-release.yml` | Cuts a release: unsigned IPA + universal macOS zip, updates the AltStore source, marks it latest | `workflow_dispatch` |
 | `sync-upstream.yml` | Opens a sync PR from `ryanbr/noop` | weekly cron + dispatch |
 
@@ -142,7 +146,8 @@ red `main` is not a background condition to work around.
 
 **`Tools/local-tests.sh` is that local run, and `.githooks/pre-push` enforces it** (since 2026-10-10). It
 diffs against `origin/main` (or a base given as its argument) and runs `swift test` in every changed package
-plus, for any app or package change, the macOS `StrandTests` and the iOS build. On a clean tree that passes,
+plus, for any app or package change, the macOS `StrandTests` and the iOS build, and for a change to
+`android/` or what its build reads, the Gradle builds and unit tests. On a clean tree that passes,
 it records the tree hash in the git dir. A push to `main` that changes app code, a package or `project.yml`
 is refused without a record for exactly that tree; `NOOP_SKIP_LOCAL_TESTS=1` skips the check on purpose.
 
