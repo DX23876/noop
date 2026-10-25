@@ -2907,6 +2907,11 @@
     <string name="forge_unit_breaths">/min</string>
     <string name="forge_hours_minutes">%1$d h %2$02d min</string>
     <string name="forge_last_night">Last night</string>
+    <string name="forge_sleep_performance">Sleep performance</string>
+    <string name="forge_rest_poor">Poor</string>
+    <string name="forge_rest_fair">Fair</string>
+    <string name="forge_rest_good">Good</string>
+    <string name="forge_rest_optimal">Optimal</string>
     <string name="forge_asleep">Asleep</string>
     <string name="forge_woke">Woke</string>
     <string name="forge_stage_breakdown">Stage breakdown</string>

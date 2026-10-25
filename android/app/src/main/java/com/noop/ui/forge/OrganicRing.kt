@@ -98,12 +98,9 @@ private class RingCache(val preparation: OrganicPreparation) {
  * and reduced motion pose the ring still, as on iOS.
  */
 @Composable
-fun OrganicRing(score: Double?, tint: Color, diameter: Dp, metric: OrganicMetric, modifier: Modifier = Modifier,
-                onScene: Boolean = false) {
+fun OrganicRing(score: Double?, tint: Color, diameter: Dp, metric: OrganicMetric, modifier: Modifier = Modifier) {
     val colors = Forge.colors
-    // On a card the card's appearance decides; straight on the scene (the Sleep ring) the scene's does.
-    val sceneInk = Forge.sceneInk
-    val onLight = if (onScene) !sceneInk.dark else !colors.dark
+    val onLight = !colors.dark
     val model = remember(metric, score == null, score) { OrganicScoreModel.resolve(metric, score) }
     val cache = remember(model) { RingCache(OrganicPreparation(model)) }
     val color = if (model.missing && !model.awaitsEffort) colors.missing else tint

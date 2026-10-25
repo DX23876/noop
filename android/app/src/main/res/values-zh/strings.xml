@@ -2848,6 +2848,11 @@
     <string name="forge_unit_breaths">次/分</string>
     <string name="forge_hours_minutes">%1$d 小时 %2$02d 分</string>
     <string name="forge_last_night">昨晚</string>
+    <string name="forge_sleep_performance">睡眠表现</string>
+    <string name="forge_rest_poor">较差</string>
+    <string name="forge_rest_fair">一般</string>
+    <string name="forge_rest_good">良好</string>
+    <string name="forge_rest_optimal">最佳</string>
     <string name="forge_asleep">入睡</string>
     <string name="forge_woke">醒来</string>
     <string name="forge_stage_breakdown">睡眠阶段</string>

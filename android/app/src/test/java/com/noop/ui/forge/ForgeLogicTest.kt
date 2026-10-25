@@ -4,6 +4,9 @@ import com.noop.core.CoreRead
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.unit.dp
 import java.time.LocalDate
 
 class ForgeLogicTest {
@@ -56,5 +59,32 @@ class ForgeLogicTest {
     @Test fun aTrendWithoutAnEarlierWindowHasNoChange() {
         val today = LocalDate.parse("2026-10-14")
         assertNull(TrendStats.of(listOf(CoreRead.Point("2026-10-14", 5.0)), 7, today).change)
+    }
+
+    @Test fun theSleepWordBandsSplitWhereTheSwiftOnesDo() {
+        // sleepScoreWord in SleepView.swift: below 50, 70 and 85.
+        assertEquals(com.noop.R.string.forge_rest_poor, RestWord.of(49.9))
+        assertEquals(com.noop.R.string.forge_rest_fair, RestWord.of(50.0))
+        assertEquals(com.noop.R.string.forge_rest_good, RestWord.of(70.0))
+        assertEquals(com.noop.R.string.forge_rest_optimal, RestWord.of(85.0))
+    }
+
+    @Test fun stageLanesRunAwakeRemLightDeep() {
+        assertEquals(listOf("wake", "rem", "light", "deep"), SleepSummary.laneOrder)
+        assertEquals(SleepSummary.stages.toSet(), SleepSummary.laneOrder.toSet())
+    }
+
+    @Test fun heroRingsFollowTheSwiftLayout() {
+        // LiquidHeroRingLayout.diameter: a third of the row times 1.08, clamped to 100...150.
+        assertEquals(100f, HeroRingLayout.diameter(240.dp).value, 0.01f)
+        assertEquals(129.6f, HeroRingLayout.diameter(360.dp).value, 0.01f)
+        assertEquals(150f, HeroRingLayout.diameter(700.dp).value, 0.01f)
+    }
+
+    @Test fun theSkyInterpolatesTheSwiftKeyframes() {
+        // liquidSkyAt(0, light: true) is the first light keyframe; halfway to 5 h lies between the first two.
+        assertEquals(Color(0xFFDCE3ED), LiquidSky.at(0.0, light = true).top)
+        assertEquals(Color(0xFF191A1F), LiquidSky.at(23.9, light = false).top)
+        assertEquals(lerp(Color(0xFFDCE3ED), Color(0xFFDDE5EE), 0.5f), LiquidSky.at(2.5, light = true).top)
     }
 }

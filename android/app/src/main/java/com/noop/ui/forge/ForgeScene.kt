@@ -5,6 +5,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import android.app.Activity
 import android.os.Build
 import androidx.compose.runtime.Composable
@@ -71,27 +77,27 @@ object DayCycleScene {
 }
 
 /**
- * The scene as cards see it: the same image and wash the backdrop draws, so a card can paint the part of the scene
- * that lies behind it, blurred, which is what iOS glass shows. [origin] and [size] are the backdrop's window
- * position and size, kept current by the backdrop.
+ * The scene as cards see it: the same image and wash the backdrop draws over its top [sceneHeight], so a card can
+ * paint the part of the scene that lies behind it, blurred, which is what iOS glass shows. [origin] and [size] are
+ * the backdrop's window position and size, kept current by the backdrop.
  */
 @Stable
-class SceneGlass(val painter: Painter, val wash: List<Color>) {
+class SceneGlass(val painter: Painter, val wash: Array<Pair<Float, Color>>, val sceneHeight: Float) {
     var origin by mutableStateOf(Offset.Zero)
     var size by mutableStateOf(IntSize.Zero)
 
     /** Draws the scene into a box at window position [at], cropped and top-aligned as the backdrop draws it. */
     fun DrawScope.drawScene(at: Offset) {
-        val w = size.width.toFloat(); val h = size.height.toFloat()
+        val w = size.width.toFloat(); val h = sceneHeight
         if (w <= 0f || h <= 0f) return
         val img = painter.intrinsicSize
         val scale = maxOf(w / img.width, h / img.height)
         val dw = img.width * scale; val dh = img.height * scale
-        translate(origin.x - at.x + (w - dw) / 2, origin.y - at.y) {
-            with(painter) { draw(Size(dw, dh)) }
-        }
         translate(origin.x - at.x, origin.y - at.y) {
-            drawRect(Brush.verticalGradient(wash, startY = 0f, endY = h), size = Size(w, h))
+            clipRect(0f, 0f, w, h) {
+                translate((w - dw) / 2, 0f) { with(painter) { draw(Size(dw, dh)) } }
+            }
+            drawRect(Brush.verticalGradient(*wash, startY = 0f, endY = h), size = Size(w, h))
         }
     }
 }
@@ -108,26 +114,49 @@ val LocalSceneInk = staticCompositionLocalOf<SceneInk?> { null }
 val blurSupported: Boolean get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
 /**
- * The scene full-bleed behind [content], top-aligned so the sky shows, with a wash of the canvas colour that
- * deepens downwards so cards and text further down stay legible; in dark mode the whole scene is dimmed.
+ * What a screen draws behind its content, as the iOS screens do: [Scene] is Today's day-cycle scene at the top,
+ * fading into the canvas over [SCENE_HEIGHT] (`SceneScreenBackground`); [Night] is the Sleep tab's night band with a
+ * dark wash for its heading (`sleepNightTopBackground`); [Sky] is the quiet time-of-day gradient the other tabs show
+ * at the top (`LiquidSkyStatic` under `liquidScaffoldSky`).
+ */
+enum class ForgeBackdrop { Scene, Night, Sky }
+
+/** How far down the screen Today's scene reaches before it has faded into the canvas. */
+val SCENE_HEIGHT = 600.dp
+private val NIGHT_HEIGHT = 440.dp
+private val SKY_HEIGHT = 240.dp
+
+/**
+ * How much of the canvas lies over the scene at a point down [SCENE_HEIGHT]: the iOS mask (opaque, 0.9 at 0.34,
+ * 0.4 at 0.62, gone at 0.92) at 95 % opacity, written as a canvas wash so a glass card can draw the same picture.
+ * The top 22 % carries the iOS whisper of canvas for the header as well.
+ */
+internal val SCENE_WASH_STOPS: List<Pair<Float, Float>> = listOf(
+    0.00f to 0.05f + 0.12f, 0.22f to 0.05f, 0.34f to 0.145f, 0.62f to 0.62f, 0.92f to 1f, 1f to 1f,
+)
+
+/**
+ * The backdrop behind [content] for [kind], with the ink for text drawn straight on it and the status bar icons that
+ * read over it. On Today the scene sits behind the hero only; Sleep's heading always sits on the night band.
  */
 @Composable
-fun ForgeSceneBackdrop(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
+fun ForgeSceneBackdrop(kind: ForgeBackdrop, modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
     val colors = Forge.colors
     val hour = remember { Calendar.getInstance().get(Calendar.HOUR_OF_DAY) }
-    val painter = painterResource(DayCycleScene.drawable(hour))
-    // Dusk, night and first light are dark scenes: text drawn straight on them takes the on-dark ink even in the
-    // light appearance (`DayCycleScene.isDark`, as on iOS), and so do the status bar icons. The wash darkens such a
-    // scene in the light appearance too, so the on-dark ink stays legible further down the screen.
-    val sceneDark = colors.dark || DayCycleScene.isDark(hour)
-    val wash = when {
-        colors.dark -> listOf(colors.canvas.copy(alpha = 0.35f), colors.canvas.copy(alpha = 0.6f), colors.canvas.copy(alpha = 0.9f))
-        sceneDark -> forgeColors(dark = true).canvas.let {
-            listOf(it.copy(alpha = 0.15f), it.copy(alpha = 0.4f), it.copy(alpha = 0.7f))
-        }
-        else -> listOf(colors.canvas.copy(alpha = 0f), colors.canvas.copy(alpha = 0.25f), colors.canvas.copy(alpha = 0.75f))
+    val density = LocalDensity.current
+    val painter = painterResource(if (kind == ForgeBackdrop.Night) R.drawable.forge_alps1 else DayCycleScene.drawable(hour))
+    val sceneHeightPx = with(density) { SCENE_HEIGHT.toPx() }
+    val washStops = remember(colors.canvas) {
+        SCENE_WASH_STOPS.map { (at, alpha) -> at to colors.canvas.copy(alpha = alpha) }.toTypedArray()
     }
-    val glass = remember(painter, wash) { SceneGlass(painter, wash) }
+    val glass = remember(painter, washStops, sceneHeightPx) { SceneGlass(painter, washStops, sceneHeightPx) }
+    // Dusk, night and first light are dark scenes: the header on Today takes the on-dark ink even in the light
+    // appearance (`DayCycleScene.isDark`, as `ScreenScaffold` does on iOS); the night band is dark at every hour.
+    val sceneDark = when (kind) {
+        ForgeBackdrop.Scene -> colors.dark || DayCycleScene.isDark(hour)
+        ForgeBackdrop.Night -> true
+        ForgeBackdrop.Sky -> colors.dark
+    }
     val ink = if (sceneDark && !colors.dark) SceneInk(colors.onDark, colors.onDarkSecondary, colors.onDarkTertiary, true)
               else SceneInk(colors.text, colors.textSecondary, colors.textTertiary, sceneDark)
     val view = LocalView.current
@@ -139,14 +168,67 @@ fun ForgeSceneBackdrop(modifier: Modifier = Modifier, content: @Composable BoxSc
     Box(modifier.fillMaxSize().background(colors.canvas).onGloballyPositioned {
         glass.origin = it.positionInWindow(); glass.size = it.size
     }) {
-        Image(
-            painter = painter,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            alignment = Alignment.TopCenter,
-            modifier = Modifier.matchParentSize(),
-        )
-        Box(Modifier.matchParentSize().background(Brush.verticalGradient(wash)))
-        CompositionLocalProvider(LocalSceneGlass provides glass, LocalSceneInk provides ink) { content() }
+        when (kind) {
+            ForgeBackdrop.Scene -> Box(Modifier.fillMaxWidth().height(SCENE_HEIGHT)) {
+                Image(painter, contentDescription = null, contentScale = ContentScale.Crop,
+                      alignment = Alignment.TopCenter, modifier = Modifier.matchParentSize())
+                Box(Modifier.matchParentSize().background(Brush.verticalGradient(*washStops)))
+            }
+            ForgeBackdrop.Night -> Box(Modifier.fillMaxWidth().height(NIGHT_HEIGHT)) {
+                Image(painter, contentDescription = null, contentScale = ContentScale.Crop,
+                      alignment = Alignment.TopCenter, modifier = Modifier.matchParentSize())
+                // A fixed protection wash keeps the on-dark heading readable over every frame of the artwork.
+                Box(Modifier.fillMaxWidth().height(250.dp).background(Brush.verticalGradient(
+                    listOf(Color.Black.copy(alpha = 0.5f), Color.Black.copy(alpha = 0.18f), Color.Transparent))))
+            }
+            ForgeBackdrop.Sky -> {
+                val sky = LiquidSky.at(hour + Calendar.getInstance().get(Calendar.MINUTE) / 60.0, light = !colors.dark)
+                Box(Modifier.fillMaxWidth().height(SKY_HEIGHT).background(Brush.verticalGradient(
+                    0f to sky.top, 0.45f to sky.mid, 0.9f to sky.horizon, 1f to sky.horizon)))
+                Box(Modifier.fillMaxWidth().height(SKY_HEIGHT).background(Brush.verticalGradient(
+                    0f to Color.Transparent, 0.45f to Color.Transparent, 1f to LiquidSky.settle(!colors.dark))))
+            }
+        }
+        CompositionLocalProvider(LocalSceneGlass provides glass.takeIf { kind == ForgeBackdrop.Scene },
+                                 LocalSceneInk provides ink) { content() }
     }
+}
+
+/**
+ * The time-of-day sky of the iOS scaffold (`liquidSkyAt` in `LiquidSky.swift`): ten keyframes per appearance,
+ * interpolated by the hour, and the colour it settles into at the bottom.
+ */
+object LiquidSky {
+    data class Stop(val h: Double, val top: Long, val mid: Long, val hor: Long)
+    data class Sky(val top: Color, val mid: Color, val horizon: Color)
+
+    private val dark = listOf(
+        Stop(0.0, 0x191A1F, 0x1D1E23, 0x22242B), Stop(5.0, 0x1A1B20, 0x1D1F24, 0x23252C),
+        Stop(6.5, 0x1B1C21, 0x1F2026, 0x25272E), Stop(8.5, 0x1C1D22, 0x202229, 0x272A31),
+        Stop(11.0, 0x1D1E23, 0x21232A, 0x292C33), Stop(14.0, 0x1D1E23, 0x22242B, 0x292C34),
+        Stop(17.5, 0x1C1D22, 0x202229, 0x272930), Stop(19.5, 0x1B1C21, 0x1F2026, 0x24262D),
+        Stop(22.0, 0x191A1F, 0x1D1E23, 0x22242B), Stop(24.0, 0x191A1F, 0x1D1E23, 0x22242B),
+    )
+    private val light = listOf(
+        Stop(0.0, 0xDCE3ED, 0xE5EAF1, 0xEEF1F5), Stop(5.0, 0xDDE5EE, 0xE7EBF1, 0xEFF2F5),
+        Stop(6.5, 0xE1E8EF, 0xE9EDF2, 0xF0F2F5), Stop(8.5, 0xE3EBF1, 0xEAF0F3, 0xF1F3F5),
+        Stop(11.0, 0xE1EAF0, 0xE9EEF2, 0xF1F3F5), Stop(14.0, 0xDFE8EF, 0xE8EDF2, 0xF0F2F5),
+        Stop(17.5, 0xE1E7ED, 0xE8ECF1, 0xEFF1F4), Stop(19.5, 0xDDE4EC, 0xE6EAF0, 0xEEF1F4),
+        Stop(22.0, 0xDAE2EC, 0xE4E9F0, 0xEDF0F4), Stop(24.0, 0xDCE3ED, 0xE5EAF1, 0xEEF1F5),
+    )
+
+    fun at(hour: Double, light: Boolean): Sky {
+        val keys = if (light) this.light else dark
+        var i = 0
+        while (i < keys.size - 2 && keys[i + 1].h <= hour) i++
+        val a = keys[i]; val b = keys[i + 1]
+        val t = ((hour - a.h) / (b.h - a.h)).coerceIn(0.0, 1.0).toFloat()
+        return Sky(mix(a.top, b.top, t), mix(a.mid, b.mid, t), mix(a.hor, b.hor, t))
+    }
+
+    /** The colour the sky settles into at its foot (`LiquidSkyStatic.settle`). */
+    fun settle(light: Boolean): Color = if (light) Color(0xFFF2F2F7) else Color(0xFF1D1E23)
+
+    private fun mix(a: Long, b: Long, t: Float): Color =
+        lerp(Color(0xFF000000 or a), Color(0xFF000000 or b), t)
 }

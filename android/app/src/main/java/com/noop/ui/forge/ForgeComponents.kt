@@ -39,29 +39,36 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * A glass card: on Android 12 and later the scene behind it, blurred, under a translucent surface tint, as iOS
- * glass looks; earlier versions get a nearly opaque surface instead, since they cannot blur. A hairline rim and
- * the card radius either way.
+ * A card as the iOS screens draw it. By default an opaque raised surface with a hairline rim (`TodayCardSurface`).
+ * A [glass] card (Today's hero, the tab bar) shows the scene behind it instead: on Android 12 and later blurred
+ * under the translucent [fill], as iOS glass looks; earlier versions, or a card with no scene behind it, get the
+ * fill nearly opaque, since they cannot blur.
  */
 @Composable
 fun ForgeCard(modifier: Modifier = Modifier, radius: Dp = ForgeMetrics.cardRadius,
-              fill: Color = Forge.colors.surface.copy(alpha = if (Forge.colors.dark) 0.55f else 0.6f),
+              fill: Color? = null, glass: Boolean = false,
               contentPadding: Dp = ForgeMetrics.cardPadding,
               content: @Composable ColumnScope.() -> Unit) {
+    val colors = Forge.colors
     val shape = RoundedCornerShape(radius)
-    val glass = LocalSceneGlass.current
-    val blur = glass != null && blurSupported
+    val scene = if (glass) LocalSceneGlass.current else null
+    val blur = scene != null && blurSupported
     val position = remember { mutableStateOf(Offset.Zero) }
+    val surface = when {
+        !glass -> fill ?: colors.surface
+        blur -> fill ?: colors.heroFill
+        else -> (fill ?: colors.heroFill).let { it.copy(alpha = maxOf(it.alpha, 0.92f)) }
+    }
     Box(modifier.clip(shape).onGloballyPositioned { position.value = it.positionInWindow() }) {
-        if (blur && glass != null) {
+        if (blur && scene != null) {
             Box(Modifier.matchParentSize().graphicsLayer {
                 renderEffect = BlurEffect(60f, 60f, TileMode.Clamp)
                 clip = true
-            }.drawBehind { with(glass) { drawScene(position.value) } })
+            }.drawBehind { with(scene) { drawScene(position.value) } })
         }
         Column(
-            Modifier.fillMaxWidth().background(if (blur) fill else fill.copy(alpha = maxOf(fill.alpha, 0.92f)))
-                .border(BorderStroke(ForgeMetrics.hairline, Forge.colors.heroBorder), shape)
+            Modifier.fillMaxWidth().background(surface)
+                .border(BorderStroke(ForgeMetrics.hairline, if (glass) colors.heroBorder else colors.border), shape)
                 .padding(contentPadding),
             content = content,
         )
@@ -128,6 +135,6 @@ fun MetricTile(icon: ImageVector, tint: Color, label: String, value: String?, un
 /** Small caps section header, as the iOS screens title their sections. */
 @Composable
 fun SectionHeader(text: String, modifier: Modifier = Modifier) {
-    Text(text.uppercase(), style = Forge.type.overline, color = Forge.sceneInk.secondary,
+    Text(text.uppercase(), style = Forge.type.overline, color = Forge.colors.textSecondary,
          modifier = modifier.fillMaxWidth().padding(horizontal = ForgeMetrics.space1))
 }

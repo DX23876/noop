@@ -88,7 +88,7 @@ fun ForgePairing(viewModel: AppViewModel, onClose: () -> Unit, onOtherDevice: ()
     val startScan = rememberRequestScan { model?.let { viewModel.presentWhoopScan(it) } }
     DisposableEffect(Unit) { onDispose { viewModel.stopWhoopScan() } }
 
-    ForgeSceneBackdrop {
+    ForgeSceneBackdrop(ForgeBackdrop.Sky) {
         Column(
             Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState())
                 .padding(horizontal = ForgeMetrics.screenPadding).widthIn(max = ForgeMetrics.maxContentWidth),

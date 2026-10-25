@@ -41,6 +41,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.noop.R
@@ -59,8 +60,11 @@ data class SleepSummary(val inBedMin: Int, val asleepMin: Int, val minutesByStag
     val restorativeMin: Int get() = (minutesByStage["deep"] ?: 0) + (minutesByStage["rem"] ?: 0)
 
     companion object {
-        /** The stages the screen draws, in lane order, as the core names them. */
+        /** The stages a night is summed over, as the core names them. */
         val stages = listOf("wake", "light", "deep", "rem")
+
+        /** The order the lanes are drawn in, as on iOS (`stageTimelineRow`): awake, REM, light, deep. */
+        val laneOrder = listOf("wake", "rem", "light", "deep")
 
         fun of(night: CoreRead.Night): SleepSummary {
             val byStage = stages.associateWith { stage ->
@@ -103,14 +107,19 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth) {
     val i = if (index < 0 || index >= nights.size) nights.lastIndex else index
     val night = nights.getOrNull(i)
     val wakeDay = night?.let { Instant.ofEpochSecond(it.endTs).atZone(zone).toLocalDate() }
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(padding)
-            .padding(horizontal = ForgeMetrics.screenPadding),
-        verticalArrangement = Arrangement.spacedBy(ForgeMetrics.sectionGap),
-    ) {
+    // The heading sits on the night band; everything below it on one canvas sheet with a rounded top, as on iOS
+    // (`restHero` over `sleepNightTopBackground`, then `canvasSheet`).
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(padding)) {
         Header(night, isLatest = i == nights.lastIndex, zone,
                canBack = i > 0, canForward = i in 0 until nights.lastIndex,
                onBack = { index = i - 1 }, onForward = { index = i + 1 })
+        Spacer(Modifier.height(ForgeMetrics.space4))
+        Column(
+            Modifier.fillMaxWidth()
+                .background(Forge.colors.canvas, RoundedCornerShape(topStart = SHEET_RADIUS, topEnd = SHEET_RADIUS))
+                .padding(horizontal = ForgeMetrics.screenPadding).padding(top = ForgeMetrics.space5),
+            verticalArrangement = Arrangement.spacedBy(ForgeMetrics.sectionGap),
+        ) {
         if (model != null && night == null) {
             ForgeCard(Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.forge_no_nights), style = Forge.type.body, color = Forge.colors.textSecondary)
@@ -118,14 +127,31 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth) {
         }
         if (night != null) {
             val rest = wakeDay?.let { model?.restByDay?.get(it.toString()) }
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                OrganicRing(rest, Forge.colors.rest, if (width == ForgeWidth.Compact) 220.dp else 240.dp, OrganicMetric.Rest,
-                            onScene = true)
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                OrganicRing(rest, Forge.colors.rest, if (width == ForgeWidth.Compact) 260.dp else 280.dp, OrganicMetric.Rest)
+                if (rest != null) {
+                    Spacer(Modifier.height(ForgeMetrics.space3))
+                    Text(stringResource(RestWord.of(rest)), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
+                         color = Forge.colors.rest)
+                }
             }
             Times(night, zone)
             Breakdown(night, zone)
         }
         Spacer(Modifier.height(ForgeMetrics.space2))
+        }
+    }
+}
+
+private val SHEET_RADIUS = ForgeMetrics.cardRadius * 1.5f
+
+/** The word under the sleep ring, banded as iOS bands it (`sleepScoreWord`): below 50, 70 and 85. */
+object RestWord {
+    fun of(score: Double): Int = when {
+        score < 50 -> R.string.forge_rest_poor
+        score < 70 -> R.string.forge_rest_fair
+        score < 85 -> R.string.forge_rest_good
+        else -> R.string.forge_rest_optimal
     }
 }
 
@@ -143,10 +169,14 @@ private fun Header(night: CoreRead.Night?, isLatest: Boolean, zone: ZoneId, canB
                            Instant.ofEpochSecond(night.endTs).atZone(zone).format(f))
         }
     }
-    Row(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space4), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space6).padding(start = ForgeMetrics.screenPadding,
+                                                                            end = ForgeMetrics.space1),
+        verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text(stringResource(R.string.forge_sleep).uppercase(), style = Forge.type.overline, color = Forge.sceneInk.secondary)
-            Text(title, style = Forge.type.title1, color = Forge.sceneInk.text, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(title.uppercase(), style = Forge.type.overline, color = Forge.sceneInk.secondary, maxLines = 1,
+                 overflow = TextOverflow.Ellipsis)
+            Text(stringResource(R.string.forge_sleep_performance), style = Forge.type.title2, color = Forge.sceneInk.text,
+                 maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
         IconButton(onClick = onBack, enabled = canBack) {
             Icon(Icons.Rounded.ChevronLeft, stringResource(R.string.forge_previous_night),
@@ -221,7 +251,7 @@ private fun Breakdown(night: CoreRead.Night, zone: ZoneId) {
         if (night.stages.isNotEmpty()) {
             Spacer(Modifier.height(ForgeMetrics.space4))
             Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.rowSpacing)) {
-                SleepSummary.stages.forEach { stage ->
+                SleepSummary.laneOrder.forEach { stage ->
                     StageLane(night, stage, summary.minutesByStage[stage] ?: 0, summary.inBedMin)
                 }
                 Row(Modifier.fillMaxWidth()) {
@@ -259,12 +289,20 @@ private fun StageLane(night: CoreRead.Night, stage: String, minutes: Int, inBed:
         Spacer(Modifier.height(6.dp))
         Canvas(Modifier.fillMaxWidth().height(18.dp)) {
             val span = (night.endTs - night.startTs).coerceAtLeast(1).toFloat()
-            drawRoundRect(colors.divider.copy(alpha = 0.25f), cornerRadius = CornerRadius(6f, 6f))
+            // The hatched night-long track of the iOS row (`StageHatchedTrack`), solid where the stage occurred.
+            drawRect(colors.inset.copy(alpha = 0.9f))
+            val step = 5.dp.toPx()
+            var x = -size.height
+            while (x < size.width) {
+                drawLine(colors.textTertiary.copy(alpha = 0.16f), Offset(x, size.height), Offset(x + size.height, 0f),
+                         strokeWidth = 1.dp.toPx())
+                x += step
+            }
             night.stages.filter { it.stage == stage }.forEach { s ->
                 val x0 = (s.start - night.startTs) / span * size.width
                 val x1 = (s.end - night.startTs) / span * size.width
                 drawRoundRect(color, topLeft = Offset(x0, 0f), size = Size((x1 - x0).coerceAtLeast(2f), size.height),
-                              cornerRadius = CornerRadius(6f, 6f))
+                              cornerRadius = CornerRadius(1.5.dp.toPx(), 1.5.dp.toPx()))
             }
         }
     }

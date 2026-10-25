@@ -2870,6 +2870,11 @@
     <string name="forge_unit_breaths">/min</string>
     <string name="forge_hours_minutes">%1$d h %2$02d min</string>
     <string name="forge_last_night">Última noite</string>
+    <string name="forge_sleep_performance">Desempenho do sono</string>
+    <string name="forge_rest_poor">Fraco</string>
+    <string name="forge_rest_fair">Razoável</string>
+    <string name="forge_rest_good">Bom</string>
+    <string name="forge_rest_optimal">Ideal</string>
     <string name="forge_asleep">Adormeceu</string>
     <string name="forge_woke">Acordou</string>
     <string name="forge_stage_breakdown">Fases do sono</string>

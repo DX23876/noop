@@ -112,7 +112,11 @@ object ForgeMetrics {
     val rowSpacing = ForgeTokens.NoopMetrics.rowSpacing.dp
     val space1 = ForgeTokens.NoopMetrics.space1.dp
     val space2 = ForgeTokens.NoopMetrics.space2.dp
+    val space3 = ForgeTokens.NoopMetrics.space3.dp
     val space4 = ForgeTokens.NoopMetrics.space4.dp
+    val space5 = ForgeTokens.NoopMetrics.space5.dp
+    val space6 = ForgeTokens.NoopMetrics.space6.dp
+    val space8 = ForgeTokens.NoopMetrics.space8.dp
     val hairline = ForgeTokens.NoopMetrics.hairlineWidth.dp
     val minHitTarget = ForgeTokens.NoopButtonMetrics.minHitTarget.dp
     val tabBarClearance = ForgeTokens.NoopMetrics.tabBarClearance.dp

@@ -2773,6 +2773,11 @@
     <string name="forge_unit_breaths">/min</string>
     <string name="forge_hours_minutes">%1$d ч %2$02d мин</string>
     <string name="forge_last_night">Прошлая ночь</string>
+    <string name="forge_sleep_performance">Результат сна</string>
+    <string name="forge_rest_poor">Плохо</string>
+    <string name="forge_rest_fair">Удовлетворительно</string>
+    <string name="forge_rest_good">Хорошо</string>
+    <string name="forge_rest_optimal">Оптимально</string>
     <string name="forge_asleep">Уснул</string>
     <string name="forge_woke">Проснулся</string>
     <string name="forge_stage_breakdown">Фазы сна</string>

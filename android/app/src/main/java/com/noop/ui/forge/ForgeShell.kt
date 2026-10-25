@@ -47,12 +47,15 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.noop.R
 
-/** The Forge app's top-level destinations, in bar order (the iOS tab bar without Training, which is not in E). */
-enum class ForgeTab(val labelRes: Int, val icon: ImageVector) {
-    Today(R.string.nav_today, Icons.Rounded.GridView),
-    Trends(R.string.nav_trends, Icons.Rounded.ShowChart),
-    Sleep(R.string.nav_sleep, Icons.Rounded.Bedtime),
-    More(R.string.nav_more, Icons.Rounded.MoreHoriz),
+/**
+ * The Forge app's top-level destinations, in bar order (the iOS tab bar without Training, which is not in E), with
+ * the backdrop each one draws on iOS.
+ */
+enum class ForgeTab(val labelRes: Int, val icon: ImageVector, val backdrop: ForgeBackdrop) {
+    Today(R.string.nav_today, Icons.Rounded.GridView, ForgeBackdrop.Scene),
+    Trends(R.string.nav_trends, Icons.Rounded.ShowChart, ForgeBackdrop.Sky),
+    Sleep(R.string.nav_sleep, Icons.Rounded.Bedtime, ForgeBackdrop.Night),
+    More(R.string.nav_more, Icons.Rounded.MoreHoriz, ForgeBackdrop.Sky),
 }
 
 /** How wide the window is, by the Compose window size class breakpoints (600 and 840 dp). */
@@ -68,14 +71,14 @@ enum class ForgeWidth { Compact, Medium, Expanded;
 
 /**
  * Fork (DX23876), Android plan E-3: the Forge app shell. A floating glass bar at the bottom on a compact window
- * (a phone), a navigation rail at the side from medium width on (an unfolded foldable, a tablet), the day-cycle
- * scene behind everything and the content centred at [ForgeMetrics.maxContentWidth]. A screen gets the padding
+ * (a phone), a navigation rail at the side from medium width on (an unfolded foldable, a tablet), each tab's
+ * backdrop behind it and the content centred at [ForgeMetrics.maxContentWidth]. A screen gets the padding
  * that keeps its scrolling content clear of the bar and the system bars, and the window's width class.
  */
 @Composable
 fun ForgeShell(screen: @Composable (tab: ForgeTab, padding: PaddingValues, width: ForgeWidth) -> Unit) {
     var tab by rememberSaveable { mutableStateOf(ForgeTab.Today) }
-    ForgeSceneBackdrop {
+    ForgeSceneBackdrop(tab.backdrop) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val width = ForgeWidth.of(maxWidth)
             if (width == ForgeWidth.Compact) {
@@ -109,7 +112,8 @@ private fun Content(tab: ForgeTab, width: ForgeWidth, extra: PaddingValues,
 
 @Composable
 private fun ForgeTabBar(current: ForgeTab, onSelect: (ForgeTab) -> Unit, modifier: Modifier = Modifier) {
-    ForgeCard(modifier.widthIn(max = 480.dp).fillMaxWidth(), radius = 32.dp, contentPadding = 6.dp) {
+    ForgeCard(modifier.widthIn(max = 480.dp).fillMaxWidth(), radius = 32.dp, fill = Forge.colors.heroFill,
+              contentPadding = 6.dp) {
         Row(Modifier.fillMaxWidth().height(58.dp), horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically) {
             ForgeTab.entries.forEach { t -> TabItem(t, t == current, Modifier.weight(1f)) { onSelect(t) } }

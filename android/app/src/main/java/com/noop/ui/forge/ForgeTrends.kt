@@ -109,7 +109,7 @@ fun ForgeTrendsScreen(padding: PaddingValues, width: ForgeWidth) {
             Text(stringResource(R.string.forge_trends_subtitle), style = Forge.type.subhead, color = Forge.sceneInk.secondary)
         }
         WindowPicker(days) { days = it }
-        ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.heroRadius, fill = colors.heroFill) {
+        ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.heroRadius) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 val charge = stats(CoreRead.Metric.Charge)
                 AverageRing(R.string.forge_charge, charge, charge.average?.let { colors.chargeRing(it) } ?: colors.charge,

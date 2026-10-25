@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -149,7 +150,7 @@ private fun Header(date: LocalDate, isToday: Boolean) {
     val colors = Forge.colors
     val locale = Locale.getDefault()
     // The iOS header row: the title and its date on the left, the wordmark centred on the same line.
-    Box(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space4)) {
+    Box(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space8)) {
         Column(Modifier.fillMaxWidth(0.34f)) {
             Text(
                 if (isToday) stringResource(R.string.nav_today)
@@ -167,15 +168,15 @@ private fun Header(date: LocalDate, isToday: Boolean) {
 @Composable
 private fun Hero(day: CoreRead.Day?, width: ForgeWidth) {
     val colors = Forge.colors
-    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.heroRadius, fill = colors.heroFill) {
-        BoxWithConstraints(Modifier.fillMaxWidth()) {
-            val slot = maxWidth / 3
-            val diameter = if (width == ForgeWidth.Compact) slot else minOf(slot, 150.dp)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.heroRadius, glass = true, contentPadding = 0.dp) {
+        BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = HeroRingLayout.horizontalPadding,
+                                                           vertical = HeroRingLayout.verticalPadding)) {
+            val diameter = HeroRingLayout.diameter(maxWidth)
+            Row(Modifier.fillMaxWidth()) {
                 ScoreSlot(R.string.forge_charge, day?.charge, day?.charge?.let { colors.chargeRing(it) } ?: colors.charge,
-                          diameter, OrganicMetric.Charge)
-                ScoreSlot(R.string.forge_effort, day?.effort, colors.effort, diameter, OrganicMetric.Effort)
-                ScoreSlot(R.string.forge_rest, day?.rest, colors.rest, diameter, OrganicMetric.Rest)
+                          diameter, OrganicMetric.Charge, Modifier.weight(1f))
+                ScoreSlot(R.string.forge_effort, day?.effort, colors.effort, diameter, OrganicMetric.Effort, Modifier.weight(1f))
+                ScoreSlot(R.string.forge_rest, day?.rest, colors.rest, diameter, OrganicMetric.Rest, Modifier.weight(1f))
             }
         }
     }
@@ -183,15 +184,19 @@ private fun Hero(day: CoreRead.Day?, width: ForgeWidth) {
 
 @Composable
 private fun ScoreSlot(labelRes: Int, score: Double?, tint: Color, diameter: androidx.compose.ui.unit.Dp,
-                      metric: OrganicMetric) {
+                      metric: OrganicMetric, modifier: Modifier = Modifier) {
     val label = stringResource(labelRes)
     val spoken = if (score == null) stringResource(R.string.forge_score_missing, label, stringResource(R.string.forge_no_data))
                  else stringResource(R.string.forge_score_spoken, label, score.roundToInt())
     Column(horizontalAlignment = Alignment.CenterHorizontally,
-           modifier = Modifier.semantics(mergeDescendants = true) { contentDescription = spoken }) {
-        OrganicRing(score, tint, diameter, metric)
+           modifier = modifier.semantics(mergeDescendants = true) { contentDescription = spoken }) {
+        // The drawn ring may be a little wider than its slot; its glow overlaps the neighbour's, as on iOS.
+        Box(Modifier.fillMaxWidth().height(diameter), contentAlignment = Alignment.Center) {
+            OrganicRing(score, tint, diameter, metric, Modifier.requiredSize(diameter))
+        }
+        Spacer(Modifier.height(ForgeMetrics.space2))
         Text(label.uppercase() + CHEVRON, style = Forge.type.overline, color = Forge.colors.textSecondary, maxLines = 1,
-             overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center, modifier = Modifier.size(width = diameter, height = 18.dp))
+             overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
     }
 }
 
@@ -303,4 +308,19 @@ private fun KeyMetrics(model: TodayModel?, columns: Int) {
             }
         }
     }
+}
+
+/**
+ * The hero's ring sizing, as `LiquidHeroRingLayout` on iOS: each ring owns a third of the row and is drawn 8 %
+ * larger than its slot, between 100 and 150 dp, inside 8 dp of side padding and 24 dp above and below.
+ */
+object HeroRingLayout {
+    val horizontalPadding = 8.dp
+    val verticalPadding = 24.dp
+    private const val OVERDRAW = 1.08f
+    private val minDiameter = 100.dp
+    private val maxDiameter = 150.dp
+
+    fun diameter(rowWidth: androidx.compose.ui.unit.Dp): androidx.compose.ui.unit.Dp =
+        (rowWidth / 3 * OVERDRAW).coerceIn(minDiameter, maxDiameter)
 }
