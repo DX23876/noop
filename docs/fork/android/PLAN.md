@@ -174,6 +174,20 @@ Material 3 navigation and the fork's `Palette`/`Metrics` tokens; texts in EN, DE
 Backups are proven in both directions by tests with versioned fixtures: an iOS-written `.noopbak` imports
 on Android with identical rows, and the reverse.
 
+Added 2026-10-25 after the D-8 smoke test (owner's request: the fork's design, every screen size):
+
+- **One design source.** Colours, spacing, corner radii and the type scale live in one versioned token file
+  from which both `StrandPalette`/`StrandFont` (Apple) and the Compose theme are generated, so the Android
+  screens look like the iOS app (glowing rings, the Today scene, the fork's palette) and cannot drift from
+  it unnoticed. iOS 26 glass becomes a blur on Android 12 and later and a plain translucent fill below.
+- **Every screen size.** Layouts follow Compose window size classes: a bottom bar on compact width, a
+  navigation rail and two columns from medium width (unfolded foldables, tablets), a maximum content width
+  so cards do not stretch edge to edge. Text must not truncate at a font scale of 1.3, and dark mode must
+  darken the whole screen, not only the cards.
+- **Check.** `Tools/android-smoke.sh` on all five profiles (small phone, Pixel 8, Pixel 8 at font 1.3 in
+  dark mode, unfolded Pixel 9 Pro Fold, Pixel Tablet): no crash, and the screenshots reviewed against the
+  iOS screens.
+
 ### Phase F: testing and release
 
 - **F1** The release workflow attaches `NOOP-Forge-android-<version>.apk` to the same GitHub release as

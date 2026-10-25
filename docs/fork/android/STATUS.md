@@ -44,12 +44,12 @@ Plan: [`PLAN.md`](PLAN.md) · last updated 2026-10-24
 | D-4 signing key | 2026-10-25 | The owner created the release key (PKCS12, RSA 4096, alias `forge`, valid to 2126, owner `CN=NOOP Forge, O=DX23876`) and stored it as `ANDROID_KEYSTORE_BASE64` and `ANDROID_KEYSTORE_PASSWORD`; the dispatch-only `android-signing-check.yml` opened it on GitHub. Certificate SHA-256 `DA:EF:49:62:50:E9:C1:05:AC:A0:0F:4B:F1:C3:36:0E:D7:B2:DC:64:04:7B:F9:A3:E3:E3:86:36:DC:DA:0F:F4`. Release signing in a workflow comes with F1 |
 | D-6 sync rule | 2026-10-25 | `Tools/android_fork_deleted_paths.txt` lists the android/ paths the fork deleted; `Tools/resolve-android-merge.py` takes those deletions after an upstream merge (conflicts and new files beneath a deleted directory) and names the android/ conflicts left by hand; five tests; `docs/FORK_GUIDE.md` and `AGENT_RULES.md` describe it |
 | D-7 CI and tools | 2026-10-25 | `android.yml` builds both debug flavours on every change to what the Android build or tests read (android/, `project.yml`, the shared fixtures, `Tools/parity_cases`); 14 tests that read Swift sources or the iOS catalogue are excluded by name, so an iOS change cannot turn it red later; `Tools/local-tests.sh` runs Gradle for the same inputs and the pre-push hook wants its stamp; `appchangelog-gen.py` writes the Kotlin What's New entry again (14 ported tests). `i18n_audit.py` already had its Android arm, now with Polish |
+| D-8 emulator smoke test | 2026-10-25 | `Tools/android-smoke.sh` ran the demo build through terms, onboarding, Today, Trends and Sleep on a small phone (720x1280), a Pixel 8, a Pixel 8 at font 1.3 in dark mode, an unfolded Pixel 9 Pro Fold and a Pixel Tablet: no crash on any. Density scaling works; the layout does not adapt: on the fold and the tablet everything stretches to full width with a bottom bar instead of a rail, the floating bar lets the text behind it show through, the greeting and a metric title truncate on the small phone and at font 1.3, and in dark mode the background stays light blue. These are ryanbr's screens, which phase E replaces; the requirements are in `PLAN.md` phase E. Screenshots in `artifacts/android/` (not versioned) |
 
 ## Next step
 
 D-5, the deep-core wiring: Gradle builds the Swift core through the Swift SDK, Kotlin Bluetooth hands frames to
-it, and the Kotlin packages it replaces go (section 3 of [`PLAN.md`](PLAN.md)). D-8, the emulator smoke test,
-can run before or after it.
+it, and the Kotlin packages it replaces go (section 3 of [`PLAN.md`](PLAN.md)). It is the last step of phase D.
 
 ## How to run a real-data check (B4)
 
