@@ -706,6 +706,13 @@ extension WhoopStore {
         }
     }
 
+    /// How many migrations the store records as applied (`grdb_migrations`, upstream identifiers included).
+    public func appliedMigrationCount() async throws -> Int {
+        try syncRead { db in
+            try Int.fetchOne(db, sql: "SELECT count(*) FROM grdb_migrations") ?? 0
+        }
+    }
+
     /// The oldest heart-rate sample of any device, nil on an empty table: where the raw history an analysis
     /// rebuild can score from begins. Walks the distinct device ids through the primary key, one seek each,
     /// instead of scanning the table.

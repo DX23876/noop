@@ -246,6 +246,29 @@ tasks.withType<Test>().configureEach {
     inputs.dir(roomSchemaSnapshotDir).withPropertyName("roomSchemas").optional()
 }
 
+// Fork (DX23876), Android plan D-5: the shared Swift core. `-Pnoop.swiftCore=true` builds Packages/NoopCoreJNI for
+// arm64 with the Swift SDK for Android (android/swift-core/build-swift-core.sh) and packs libNoopCore.so with the
+// Swift runtime into the APK. Off by default until every builder and CI runner has the toolchain; without it the
+// app runs as before and `SwiftCore.available` is false.
+val forkSwiftCore = (findProperty("noop.swiftCore") as String?)?.toBoolean() ?: false
+val forkSwiftCoreLibs = layout.buildDirectory.dir("swift-core/jniLibs")
+val buildSwiftCore by tasks.registering(Exec::class) {
+    description = "Builds the shared Swift core for Android into build/swift-core/jniLibs."
+    onlyIf { forkSwiftCore }
+    inputs.dir(rootProject.file("../Packages")).withPropertyName("packages")
+    inputs.dir(rootProject.file("swift-core")).withPropertyName("buildScripts")
+    outputs.dir(forkSwiftCoreLibs)
+    commandLine("bash", rootProject.file("swift-core/build-swift-core.sh").path,
+                forkSwiftCoreLibs.get().asFile.path)
+}
+if (forkSwiftCore) {
+    android.sourceSets.getByName("main").jniLibs.srcDir(forkSwiftCoreLibs)
+    // Compressed in the APK and extracted at install: the download is about a third of the size (D24 measured
+    // 31 MB), which matters for an app that is only ever sideloaded.
+    android.packaging.jniLibs.useLegacyPackaging = true
+    tasks.named("preBuild") { dependsOn(buildSwiftCore) }
+}
+
 // Fork (DX23876): unit tests run in English wherever they run. Several assert formatted text ("8.6",
 // "13 Jan") and passed only on runners whose locale happened to be English.
 tasks.withType<Test>().configureEach {
