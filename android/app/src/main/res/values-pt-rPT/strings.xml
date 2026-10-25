@@ -2942,4 +2942,7 @@
     <string name="forge_experimental_section">Experimental</string>
     <string name="forge_core_ack">O núcleo partilhado confirma o histórico</string>
     <string name="forge_core_ack_detail">Para testers. O strap só apaga o histórico depois de o núcleo partilhado o guardar; o que ainda não foi confirmado fica no strap e volta a ser enviado.</string>
+    <string name="forge_testing">Versão de teste</string>
+    <string name="forge_hr_at">às %1$s</string>
+    <string name="forge_hr_spoken_at">Frequência cardíaca %1$d batimentos por minuto às %2$s</string>
 </resources>

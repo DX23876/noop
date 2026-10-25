@@ -2979,4 +2979,7 @@
     <string name="forge_experimental_section">Experimental</string>
     <string name="forge_core_ack">Shared core confirms history</string>
     <string name="forge_core_ack_detail">For testers. The strap only deletes its history once the shared core has saved it; anything not yet confirmed stays on the strap and is sent again.</string>
+    <string name="forge_testing">Testing</string>
+    <string name="forge_hr_at">at %1$s</string>
+    <string name="forge_hr_spoken_at">Heart rate %1$d beats per minute at %2$s</string>
 </resources>

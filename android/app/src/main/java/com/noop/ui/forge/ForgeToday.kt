@@ -138,7 +138,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
     ) {
         Header(shown, isToday = shown == today)
         Hero(model?.day, width)
-        if (shown == today) LiveHeartCard(viewModel)
+        HeartCard(viewModel, shown, live = shown == today)
         KeyMetrics(model, columns = if (width == ForgeWidth.Compact) 2 else 3)
         Spacer(Modifier.height(ForgeMetrics.space2))
     }
@@ -196,45 +196,70 @@ private fun ScoreSlot(labelRes: Int, score: Double?, tint: Color, diameter: andr
 }
 
 /**
- * Live heart rate while the strap streams, with the last two minutes as a trace, as the iOS Today shows it. It
- * collects the rate itself, so the once-a-second updates redraw this card and not the whole screen. Hidden when
- * nothing streams.
+ * The heart rate card, as the iOS Today shows it: live with the last two minutes as a trace while the strap
+ * streams (today only), otherwise the day's banked five-minute trace from the core with its latest value. The live
+ * rate is collected here, so the once-a-second updates redraw this card and not the whole screen. Hidden when the
+ * day has neither.
  */
 @Composable
-private fun LiveHeartCard(viewModel: AppViewModel) {
+private fun HeartCard(viewModel: AppViewModel, date: LocalDate, live: Boolean) {
     val colors = Forge.colors
+    val context = LocalContext.current
     val bpm by viewModel.bpm.collectAsState()
-    val trace = remember { mutableStateListOf<Int>() }
+    val liveTrace = remember { mutableStateListOf<Int>() }
     LaunchedEffect(viewModel) {
         viewModel.bpm.collect { value ->
-            if (value == null) trace.clear() else { trace.add(value); if (trace.size > 120) trace.removeAt(0) }
+            if (value == null) liveTrace.clear() else { liveTrace.add(value); if (liveTrace.size > 120) liveTrace.removeAt(0) }
         }
     }
-    val current = bpm ?: return
-    val spoken = stringResource(R.string.forge_live_hr_spoken, current)
+    var day by remember(date) { mutableStateOf<List<CoreRead.HeartPoint>>(emptyList()) }
+    LaunchedEffect(date) {
+        val zone = java.time.ZoneId.systemDefault()
+        val from = date.atStartOfDay(zone).toEpochSecond()
+        day = withContext(Dispatchers.IO) {
+            CoreRead.open(context)
+            CoreRead.heartRate(from, from + 86_400 - 1)
+        }
+    }
+    val streaming = live && bpm != null
+    val latest = day.lastOrNull()
+    if (!streaming && latest == null) return
+    val locale = Locale.getDefault()
+    val at = latest?.let {
+        java.time.Instant.ofEpochSecond(it.ts).atZone(java.time.ZoneId.systemDefault())
+            .format(DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, CLOCK_SKELETON), locale))
+    }
+    val value = if (streaming) bpm!! else latest!!.bpm.roundToInt()
+    val spoken = if (streaming) stringResource(R.string.forge_live_hr_spoken, value)
+                 else stringResource(R.string.forge_hr_spoken_at, value, at ?: "")
+    val points: List<Float> = if (streaming) liveTrace.map { it.toFloat() } else day.map { it.bpm.toFloat() }
     ForgeCard(Modifier.fillMaxWidth().semantics(mergeDescendants = true) { contentDescription = spoken }) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Rounded.Favorite, contentDescription = null, tint = colors.heart, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(ForgeMetrics.space2))
             Text(stringResource(R.string.forge_heart_rate).uppercase(), style = Forge.type.overline,
                  color = colors.textSecondary, modifier = Modifier.weight(1f))
-            Text(stringResource(R.string.forge_live).uppercase(), style = Forge.type.overline, color = colors.heart)
+            Text(if (streaming) stringResource(R.string.forge_live).uppercase()
+                 else stringResource(R.string.forge_hr_at, at ?: ""),
+                 style = Forge.type.overline, color = if (streaming) colors.heart else colors.textTertiary)
         }
         Spacer(Modifier.height(ForgeMetrics.space2))
         Row(verticalAlignment = Alignment.Bottom) {
-            Text(current.toString(), style = Forge.type.title1.copy(fontSize = Forge.type.heroNumber.fontSize),
+            Text(value.toString(), style = Forge.type.title1.copy(fontSize = Forge.type.heroNumber.fontSize),
                  color = colors.text)
             Spacer(Modifier.width(ForgeMetrics.space1))
             Text(stringResource(R.string.forge_unit_bpm), style = Forge.type.subhead, color = colors.textSecondary,
                  modifier = Modifier.padding(bottom = 6.dp))
             Spacer(Modifier.width(ForgeMetrics.space4))
             Canvas(Modifier.weight(1f).height(44.dp)) {
-                if (trace.size < 2) return@Canvas
-                val lo = trace.min() - 3f; val hi = trace.max() + 3f
-                val step = size.width / (120 - 1)
-                val start = size.width - step * (trace.size - 1)
+                if (points.size < 2) return@Canvas
+                val lo = points.min() - 3f; val hi = points.max() + 3f
+                // Live: two minutes fill the width from the right. A day: its own span fills it.
+                val slots = if (streaming) 120 else points.size
+                val step = size.width / (slots - 1)
+                val start = size.width - step * (points.size - 1)
                 val path = Path()
-                trace.forEachIndexed { i, v ->
+                points.forEachIndexed { i, v ->
                     val x = start + i * step
                     val y = size.height - (v - lo) / (hi - lo) * size.height
                     if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)

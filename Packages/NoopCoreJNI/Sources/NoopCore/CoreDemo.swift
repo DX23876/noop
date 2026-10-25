@@ -1,5 +1,6 @@
 import Foundation
 import StrandAnalytics
+import WhoopProtocol
 import StrandCore
 import WhoopStore
 
@@ -45,9 +46,25 @@ public enum CoreDemo {
                                              stagesJSON: stagesJSON(start: start, end: end, deep: deep, rem: rem)))
         }
         _ = try await store.upsertDailyMetrics(rows, deviceId: computed)
+        _ = try await store.insert(Streams(hr: heartRate(endingAt: now)), deviceId: deviceId)
         _ = try await store.upsertMetricSeries(rest, deviceId: computed)
         _ = try await store.upsertSleepSessions(nights, deviceId: computed)
         return rows.count
+    }
+
+    /// The last three days at one sample a minute: low and steady at night, higher and busier by day, with a
+    /// workout late in the afternoon, so the Today trace has a day's shape.
+    private static func heartRate(endingAt now: Date) -> [HRSample] {
+        let end = Int(now.timeIntervalSince1970) / 60 * 60
+        let calendar = Calendar.current
+        return stride(from: end - 3 * 86_400, through: end, by: 60).map { ts in
+            let hour = Double(calendar.component(.hour, from: Date(timeIntervalSince1970: TimeInterval(ts))))
+            let t = Double(ts) / 60
+            let awake = hour >= 7 && hour < 23
+            var bpm = awake ? 72 + 8 * sin(t / 47) + 4 * sin(t / 7.3) : 50 + 2 * sin(t / 31)
+            if hour >= 17 && hour < 18 { bpm += 55 + 10 * sin(t / 5) }
+            return HRSample(ts: ts, bpm: Int(bpm.rounded()))
+        }
     }
 
     /// Four ninety-minute cycles: light into deep early, REM growing towards morning, short wakes between.

@@ -2845,4 +2845,7 @@
     <string name="forge_experimental_section">Экспериментально</string>
     <string name="forge_core_ack">Общее ядро подтверждает историю</string>
     <string name="forge_core_ack_detail">Для тестировщиков. Strap удаляет историю только после того, как общее ядро её сохранило; неподтверждённое остаётся на strap и отправляется снова.</string>
+    <string name="forge_testing">Тестовая версия</string>
+    <string name="forge_hr_at">в %1$s</string>
+    <string name="forge_hr_spoken_at">Пульс %1$d ударов в минуту в %2$s</string>
 </resources>

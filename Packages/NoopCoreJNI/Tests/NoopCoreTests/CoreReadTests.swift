@@ -59,6 +59,10 @@ final class CoreReadTests: XCTestCase {
         let nights = await CoreRead.nights(from: nowTs - 7 * 86_400, to: nowTs, reader: r)
         XCTAssertEqual(nights.count, 7, "one night per day, today's included")
         XCTAssertTrue(nights.allSatisfy { $0.stages.contains { $0.stage == "deep" } })
+        let trace = await CoreRead.heartRate(from: nowTs - 86_400, to: nowTs, reader: r)
+        XCTAssertGreaterThan(trace.count, 280, "a day of five-minute means")
+        XCTAssertEqual(trace.map(\.ts), trace.map(\.ts).sorted())
+        XCTAssertTrue(trace.allSatisfy { $0.ts % 300 == 0 && $0.bpm > 40 && $0.bpm < 160 })
     }
 
     func testJSONHasSortedKeysAndNullsForGaps() {

@@ -2920,4 +2920,7 @@
     <string name="forge_experimental_section">实验性</string>
     <string name="forge_core_ack">共享核心确认历史</string>
     <string name="forge_core_ack_detail">供测试者使用。只有在共享核心保存后，Strap 才会删除其历史；尚未确认的数据会保留在 Strap 上并再次发送。</string>
+    <string name="forge_testing">测试版</string>
+    <string name="forge_hr_at">%1$s 时</string>
+    <string name="forge_hr_spoken_at">%2$s 心率 每分钟 %1$d 次</string>
 </resources>

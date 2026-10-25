@@ -35,4 +35,9 @@ class CoreReadTest {
         assertEquals(listOf(CoreRead.Point("2026-10-01", 61.0), CoreRead.Point("2026-10-02", 62.5)),
             CoreRead.parseSeries("""[{"day":"2026-10-01","value":61},{"day":"2026-10-02","value":62.5}]"""))
     }
+
+    @Test fun aHeartRateTraceKeepsItsTimesAndMeans() {
+        assertEquals(listOf(CoreRead.HeartPoint(1_800_000_000, 52.5), CoreRead.HeartPoint(1_800_000_300, 61.0)),
+            CoreRead.parseHeartRate("""[{"bpm":52.5,"ts":1800000000},{"bpm":61,"ts":1800000300}]"""))
+    }
 }

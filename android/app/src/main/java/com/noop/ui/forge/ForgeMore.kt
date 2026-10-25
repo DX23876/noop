@@ -131,8 +131,15 @@ fun ForgeMoreScreen(padding: PaddingValues, viewModel: AppViewModel) {
             .padding(horizontal = ForgeMetrics.screenPadding),
         verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap),
     ) {
-        Text(stringResource(R.string.nav_more), style = Forge.type.title1, color = colors.text,
-             modifier = Modifier.padding(top = ForgeMetrics.space4, bottom = ForgeMetrics.space2))
+        Row(Modifier.padding(top = ForgeMetrics.space4, bottom = ForgeMetrics.space2),
+            verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.nav_more), style = Forge.type.title1, color = colors.text,
+                 modifier = Modifier.weight(1f))
+            // D9: the Android build says it is in testing until three testers have confirmed it.
+            Text(stringResource(R.string.forge_testing).uppercase(), style = Forge.type.overline, color = colors.effort,
+                 modifier = Modifier.background(colors.effort.copy(alpha = 0.16f), CircleShape)
+                     .padding(horizontal = 10.dp, vertical = 4.dp))
+        }
 
         SectionHeader(stringResource(R.string.forge_strap_section))
         StrapCard(viewModel, onPair = { pairing = true })

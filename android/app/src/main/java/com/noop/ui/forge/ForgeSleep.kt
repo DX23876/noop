@@ -75,7 +75,7 @@ data class SleepSummary(val inBedMin: Int, val asleepMin: Int, val minutesByStag
     }
 }
 
-private const val CLOCK_SKELETON = "jmm"
+internal const val CLOCK_SKELETON = "jmm"
 
 private data class SleepModel(val nights: List<CoreRead.Night>, val restByDay: Map<String, Double>)
 

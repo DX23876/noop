@@ -2949,4 +2949,7 @@
     <string name="forge_experimental_section">Expérimental</string>
     <string name="forge_core_ack">Le cœur partagé confirme l’historique</string>
     <string name="forge_core_ack_detail">Pour les testeurs. Le strap n’efface son historique qu’une fois enregistré par le cœur partagé ; ce qui n’est pas encore confirmé reste sur le strap et est renvoyé.</string>
+    <string name="forge_testing">Version de test</string>
+    <string name="forge_hr_at">à %1$s</string>
+    <string name="forge_hr_spoken_at">Fréquence cardiaque %1$d battements par minute à %2$s</string>
 </resources>

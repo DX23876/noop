@@ -31,6 +31,12 @@ public enum CoreRead {
         public init(day: String, value: Double) { self.day = day; self.value = value }
     }
 
+    /// The mean heart rate of one five-minute stretch; `ts` is its start in unix seconds.
+    public struct HeartPoint: Codable, Equatable, Sendable {
+        public var ts: Int, bpm: Double
+        public init(ts: Int, bpm: Double) { self.ts = ts; self.bpm = bpm }
+    }
+
     /// The metrics a trend screen can chart.
     public enum Metric: String, CaseIterable, Sendable {
         case charge, effort, rest, hrv, restingHr, sleepMinutes, respRate
@@ -73,6 +79,12 @@ public enum CoreRead {
             }
             return value.map { Point(day: row.day, value: $0) }
         }.sorted { $0.day < $1.day }
+    }
+
+    /// The heart rate between `from` and `to` (unix seconds) in five-minute means, across every strap the wearer
+    /// has, as the Apple Today screen's banked trace reads it (`StoreReader.hrBuckets`).
+    public static func heartRate(from: Int, to: Int, reader: StoreReader) async -> [HeartPoint] {
+        await reader.hrBuckets(from: from, to: to, bucketSeconds: 300).map { HeartPoint(ts: $0.ts, bpm: $0.bpm) }
     }
 
     /// Imported days with the computed rows filling their gaps, one row per day (`Repository`'s daily cache).

@@ -172,4 +172,10 @@ public func jniShadowAwaitBanked(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: j
     guard let env, let endData else { return 0 }
     return ShadowSession.awaitBanked(endData: bytes(env, endData), timeout: Double(timeoutMs) / 1000) ? 1 : 0
 }
+
+@_cdecl("Java_com_noop_core_SwiftCore_readHeartRate")
+public func jniReadHeartRate(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?, _ from: jlong, _ to: jlong) -> jstring? {
+    guard let env else { return nil }
+    return json(env, Bridge.readHeartRate(from: Int(from), to: Int(to)))
+}
 #endif

@@ -33,6 +33,9 @@ object CoreRead {
         data class Stage(val stage: String, val start: Long, val end: Long)
     }
 
+    /** The mean heart rate of one five-minute stretch starting at [ts] (unix seconds). */
+    data class HeartPoint(val ts: Long, val bpm: Double)
+
     /** One value of a metric on one day. */
     data class Point(val day: String, val value: Double)
 
@@ -47,12 +50,15 @@ object CoreRead {
      * active strap's id when no strap has connected yet in this process. A demo build then fills an empty store
      * with the demo history. Blocks; call off the main thread before the first read.
      */
+    @Synchronized
     fun open(context: Context) {
+        // Synchronized, so a screen that reads while another is still opening waits for the session instead of
+        // reading before it exists and getting nothing.
         if (opened || !SwiftCore.available) return
-        opened = true
         val app = context.applicationContext as NoopApplication
         CoreShadow.ensureStarted(app, app.activeDeviceId)
         if (BuildConfig.ENABLE_DEMO) Log.i("CoreRead", "demo days written=${SwiftCore.seedDemo()}")
+        opened = true
     }
 
     fun day(day: String): Day? = read { SwiftCore.readDay(day) }?.let(::parseDay)
@@ -61,6 +67,9 @@ object CoreRead {
 
     fun series(metric: Metric, from: String, to: String): List<Point> =
         read { SwiftCore.readSeries(metric.key, from, to) }?.let(::parseSeries).orEmpty()
+
+    fun heartRate(from: Long, to: Long): List<HeartPoint> =
+        read { SwiftCore.readHeartRate(from, to) }?.let(::parseHeartRate).orEmpty()
 
     private inline fun read(call: () -> String?): String? = if (SwiftCore.available) call() else null
 
@@ -100,5 +109,10 @@ object CoreRead {
     internal fun parseSeries(json: String): List<Point> {
         val a = JSONArray(json)
         return (0 until a.length()).map { i -> a.getJSONObject(i).let { Point(it.getString("day"), it.getDouble("value")) } }
+    }
+
+    internal fun parseHeartRate(json: String): List<HeartPoint> {
+        val a = JSONArray(json)
+        return (0 until a.length()).map { i -> a.getJSONObject(i).let { HeartPoint(it.getLong("ts"), it.getDouble("bpm")) } }
     }
 }
