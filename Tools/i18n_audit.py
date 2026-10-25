@@ -37,6 +37,7 @@ ANDROID_LOCALE_DIRS = {
     "es": "values-es",
     "fr": "values-fr",
     "pt-PT": "values-pt-rPT",
+    "pl": "values-pl",
 }
 
 # Strings that are legitimately identical across all languages (symbols,
