@@ -2966,4 +2966,13 @@
     <string name="forge_testing">Testversion</string>
     <string name="forge_hr_at">um %1$s</string>
     <string name="forge_hr_spoken_at">Herzfrequenz %1$d Schläge pro Minute um %2$s</string>
+    <string name="forge_pair_title">Strap koppeln</string>
+    <string name="forge_pair_whoop5">WHOOP 5.0 oder MG</string>
+    <string name="forge_pair_whoop4">WHOOP 4.0</string>
+    <string name="forge_pair_other">Anderes Gerät</string>
+    <string name="forge_pair_other_detail">Pulsgurte, Fitnessgeräte und Ringe</string>
+    <string name="forge_pair_prep5">WHOOP 5.0 und MG koppeln immer nur mit einem Telefon: Entkopple den Strap zuerst in der offiziellen WHOOP-App und versetze ihn dann in den Kopplungsmodus, am Handgelenk und wach.</string>
+    <string name="forge_pair_prep4">Leg deinen WHOOP 4.0 ans Handgelenk und sorge dafür, dass er wach ist und gerade nicht mit der offiziellen WHOOP-App verbunden ist.</string>
+    <string name="forge_pair_searching">Suche nach Straps in der Nähe…</string>
+    <string name="forge_pair_rescan">Erneut suchen</string>
 </resources>

@@ -2953,4 +2953,13 @@
     <string name="forge_testing">Versión de prueba</string>
     <string name="forge_hr_at">a las %1$s</string>
     <string name="forge_hr_spoken_at">Frecuencia cardíaca %1$d latidos por minuto a las %2$s</string>
+    <string name="forge_pair_title">Emparejar strap</string>
+    <string name="forge_pair_whoop5">WHOOP 5.0 o MG</string>
+    <string name="forge_pair_whoop4">WHOOP 4.0</string>
+    <string name="forge_pair_other">Otro dispositivo</string>
+    <string name="forge_pair_other_detail">Bandas de pulso, máquinas de gimnasio y anillos</string>
+    <string name="forge_pair_prep5">WHOOP 5.0 y MG se emparejan con un solo teléfono a la vez: desemparéjalo primero en la app oficial de WHOOP y ponlo en modo emparejamiento, en la muñeca y despierto.</string>
+    <string name="forge_pair_prep4">Ponte el WHOOP 4.0 en la muñeca y asegúrate de que está despierto y no conectado ahora a la app oficial de WHOOP.</string>
+    <string name="forge_pair_searching">Buscando straps cercanos…</string>
+    <string name="forge_pair_rescan">Buscar de nuevo</string>
 </resources>

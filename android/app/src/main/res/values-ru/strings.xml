@@ -2848,4 +2848,13 @@
     <string name="forge_testing">Тестовая версия</string>
     <string name="forge_hr_at">в %1$s</string>
     <string name="forge_hr_spoken_at">Пульс %1$d ударов в минуту в %2$s</string>
+    <string name="forge_pair_title">Сопрячь strap</string>
+    <string name="forge_pair_whoop5">WHOOP 5.0 или MG</string>
+    <string name="forge_pair_whoop4">WHOOP 4.0</string>
+    <string name="forge_pair_other">Другое устройство</string>
+    <string name="forge_pair_other_detail">Нагрудные пульсометры, тренажёры и кольца</string>
+    <string name="forge_pair_prep5">WHOOP 5.0 и MG сопрягаются только с одним телефоном: сначала отвяжите strap в официальном приложении WHOOP, затем включите режим сопряжения, на запястье и активным.</string>
+    <string name="forge_pair_prep4">Наденьте WHOOP 4.0 на запястье и убедитесь, что он активен и сейчас не подключён к официальному приложению WHOOP.</string>
+    <string name="forge_pair_searching">Поиск strap поблизости…</string>
+    <string name="forge_pair_rescan">Искать снова</string>
 </resources>

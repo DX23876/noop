@@ -2923,4 +2923,13 @@
     <string name="forge_testing">测试版</string>
     <string name="forge_hr_at">%1$s 时</string>
     <string name="forge_hr_spoken_at">%2$s 心率 每分钟 %1$d 次</string>
+    <string name="forge_pair_title">配对 Strap</string>
+    <string name="forge_pair_whoop5">WHOOP 5.0 或 MG</string>
+    <string name="forge_pair_whoop4">WHOOP 4.0</string>
+    <string name="forge_pair_other">其他设备</string>
+    <string name="forge_pair_other_detail">心率带、健身器材和戒指</string>
+    <string name="forge_pair_prep5">WHOOP 5.0 和 MG 一次只能与一部手机配对：先在官方 WHOOP 应用中取消配对，然后让它进入配对模式，戴在手腕上并保持唤醒。</string>
+    <string name="forge_pair_prep4">将 WHOOP 4.0 戴在手腕上，确保它处于唤醒状态，且此刻未连接官方 WHOOP 应用。</string>
+    <string name="forge_pair_searching">正在搜索附近的 Strap…</string>
+    <string name="forge_pair_rescan">重新搜索</string>
 </resources>

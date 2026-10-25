@@ -2969,4 +2969,13 @@
     <string name="forge_testing">Wersja testowa</string>
     <string name="forge_hr_at">o %1$s</string>
     <string name="forge_hr_spoken_at">Tętno %1$d uderzeń na minutę o %2$s</string>
+    <string name="forge_pair_title">Sparuj strapa</string>
+    <string name="forge_pair_whoop5">WHOOP 5.0 lub MG</string>
+    <string name="forge_pair_whoop4">WHOOP 4.0</string>
+    <string name="forge_pair_other">Inne urządzenie</string>
+    <string name="forge_pair_other_detail">Pasy tętna, sprzęt na siłownię i pierścienie</string>
+    <string name="forge_pair_prep5">WHOOP 5.0 i MG łączą się tylko z jednym telefonem: najpierw rozparuj strapa w oficjalnej aplikacji WHOOP, potem włącz tryb parowania, na nadgarstku i wybudzony.</string>
+    <string name="forge_pair_prep4">Załóż WHOOP 4.0 na nadgarstek i upewnij się, że jest wybudzony i nie jest teraz połączony z oficjalną aplikacją WHOOP.</string>
+    <string name="forge_pair_searching">Szukanie strapów w pobliżu…</string>
+    <string name="forge_pair_rescan">Szukaj ponownie</string>
 </resources>

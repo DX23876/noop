@@ -63,6 +63,7 @@ import com.noop.ui.AppViewModel
 import com.noop.ui.LogExport
 import com.noop.ui.Palette
 import com.noop.ui.StrapLogBuffer
+import com.noop.ui.rememberRequestScan
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -92,6 +93,7 @@ private const val BACKUP_EXTENSION = ".noopbak"
 fun ForgeMoreScreen(padding: PaddingValues, viewModel: AppViewModel) {
     val context = LocalContext.current
     var pairing by remember { mutableStateOf(false) }
+    var classicWizard by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     var notice by remember { mutableStateOf<Notice?>(null) }
 
@@ -198,10 +200,16 @@ fun ForgeMoreScreen(padding: PaddingValues, viewModel: AppViewModel) {
     }
 
     if (pairing) {
-        // Pairing keeps the classic wizard until its Forge version exists; it runs on the same view model.
         Dialog(onDismissRequest = { pairing = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+            ForgePairing(viewModel, onClose = { pairing = false },
+                         onOtherDevice = { pairing = false; classicWizard = true })
+        }
+    }
+    if (classicWizard) {
+        // Heart-rate straps, gym equipment and rings keep the classic wizard; it runs on the same view model.
+        Dialog(onDismissRequest = { classicWizard = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
             Surface(Modifier.fillMaxSize(), color = Palette.surfaceBase) {
-                AddDeviceWizard(viewModel = viewModel, onClose = { pairing = false })
+                AddDeviceWizard(viewModel = viewModel, onClose = { classicWizard = false })
             }
         }
     }
@@ -223,6 +231,9 @@ private fun StrapCard(viewModel: AppViewModel, onPair: () -> Unit) {
     val live by viewModel.live.collectAsState()
     val name by viewModel.activeDeviceName.collectAsState()
     val linked = live.connected || live.bonded || live.streamingLiveHR
+    // Connecting goes through the permission gate first, as every Connect in the app does (issue #1): without it a
+    // revoked Bluetooth permission makes the tap do nothing at all.
+    val requestConnect = rememberRequestScan { viewModel.connect() }
     val (status, tint) = when {
         live.backfilling -> stringResource(R.string.forge_strap_syncing) to colors.rest
         linked -> stringResource(R.string.forge_strap_connected) to colors.charge
@@ -252,7 +263,7 @@ private fun StrapCard(viewModel: AppViewModel, onPair: () -> Unit) {
         Spacer(Modifier.height(ForgeMetrics.space4))
         Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
             if (name != null) {
-                OutlinedButton(onClick = { if (linked || live.scanning) viewModel.disconnect() else viewModel.connect() },
+                OutlinedButton(onClick = { if (linked || live.scanning) viewModel.disconnect() else requestConnect() },
                                modifier = Modifier.weight(1f)) {
                     Text(stringResource(if (linked || live.scanning) R.string.forge_strap_disconnect
                                         else R.string.forge_strap_connect), maxLines = 1)

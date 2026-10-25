@@ -2952,4 +2952,13 @@
     <string name="forge_testing">Version de test</string>
     <string name="forge_hr_at">à %1$s</string>
     <string name="forge_hr_spoken_at">Fréquence cardiaque %1$d battements par minute à %2$s</string>
+    <string name="forge_pair_title">Appairer un strap</string>
+    <string name="forge_pair_whoop5">WHOOP 5.0 ou MG</string>
+    <string name="forge_pair_whoop4">WHOOP 4.0</string>
+    <string name="forge_pair_other">Autre appareil</string>
+    <string name="forge_pair_other_detail">Ceintures cardio, appareils de sport et bagues</string>
+    <string name="forge_pair_prep5">WHOOP 5.0 et MG ne s’appairent qu’à un téléphone à la fois : désappairez d’abord le strap dans l’app WHOOP officielle, puis mettez-le en mode appairage, au poignet et réveillé.</string>
+    <string name="forge_pair_prep4">Mettez votre WHOOP 4.0 au poignet et vérifiez qu’il est réveillé et pas connecté à l’app WHOOP officielle en ce moment.</string>
+    <string name="forge_pair_searching">Recherche de straps à proximité…</string>
+    <string name="forge_pair_rescan">Rechercher à nouveau</string>
 </resources>

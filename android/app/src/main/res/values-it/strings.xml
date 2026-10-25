@@ -2921,4 +2921,13 @@
     <string name="forge_testing">Versione di prova</string>
     <string name="forge_hr_at">alle %1$s</string>
     <string name="forge_hr_spoken_at">Frequenza cardiaca %1$d battiti al minuto alle %2$s</string>
+    <string name="forge_pair_title">Abbina strap</string>
+    <string name="forge_pair_whoop5">WHOOP 5.0 o MG</string>
+    <string name="forge_pair_whoop4">WHOOP 4.0</string>
+    <string name="forge_pair_other">Altro dispositivo</string>
+    <string name="forge_pair_other_detail">Fasce cardio, attrezzi da palestra e anelli</string>
+    <string name="forge_pair_prep5">WHOOP 5.0 e MG si abbinano a un telefono alla volta: prima disabbinalo dall’app WHOOP ufficiale, poi mettilo in modalità abbinamento, al polso e acceso.</string>
+    <string name="forge_pair_prep4">Metti il WHOOP 4.0 al polso e assicurati che sia acceso e non collegato in questo momento all’app WHOOP ufficiale.</string>
+    <string name="forge_pair_searching">Ricerca di strap nelle vicinanze…</string>
+    <string name="forge_pair_rescan">Cerca di nuovo</string>
 </resources>

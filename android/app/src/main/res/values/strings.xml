@@ -2982,4 +2982,13 @@
     <string name="forge_testing">Testing</string>
     <string name="forge_hr_at">at %1$s</string>
     <string name="forge_hr_spoken_at">Heart rate %1$d beats per minute at %2$s</string>
+    <string name="forge_pair_title">Pair a strap</string>
+    <string name="forge_pair_whoop5">WHOOP 5.0 or MG</string>
+    <string name="forge_pair_whoop4">WHOOP 4.0</string>
+    <string name="forge_pair_other">Another device</string>
+    <string name="forge_pair_other_detail">Heart-rate straps, gym equipment and rings</string>
+    <string name="forge_pair_prep5">WHOOP 5.0 and MG pair with one phone at a time: unpair it from the official WHOOP app first, then put it in pairing mode, on your wrist and awake.</string>
+    <string name="forge_pair_prep4">Put your WHOOP 4.0 on your wrist and make sure it is awake and not connected to the official WHOOP app right now.</string>
+    <string name="forge_pair_searching">Looking for straps nearby…</string>
+    <string name="forge_pair_rescan">Search again</string>
 </resources>
