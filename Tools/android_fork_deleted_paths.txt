@@ -1,0 +1,7 @@
+# Paths under android/ this fork deleted on purpose (Android plan D-6). After `git merge upstream/main`,
+# `Tools/resolve-android-merge.py --apply` takes the fork's deletion for every path listed here, whether
+# upstream modified it (a delete/modify conflict) or added a file beneath it. One path per line; a line
+# ending in / covers everything under that directory. Add a line in the same commit that deletes the path.
+
+# ryanbr's debug keystore, password in his build file; *.keystore is ignored here (D-1).
+android/fork-debug.keystore
