@@ -70,6 +70,23 @@ public enum Bridge {
         return blocking { reader in CoreRead.json(await CoreRead.series(m, from: from, to: to, reader: reader)) }
     }
 
+    /// Demo builds only: writes the demo history into the session's store when it has no scored day; the days
+    /// written, 0 when it already had some, negative when no session runs or the write failed.
+    public static func seedDemo() -> Int32 {
+        guard let reader = ShadowSession.reader else { return -1 }
+        final class Box: @unchecked Sendable { var value: Int32 = -2 }
+        let box = Box()
+        let done = DispatchSemaphore(value: 0)
+        Task.detached {
+            if let n = try? await CoreDemo.seedIfEmpty(store: reader.store, deviceId: reader.activeDeviceId) {
+                box.value = Int32(n)
+            }
+            done.signal()
+        }
+        done.wait()
+        return box.value
+    }
+
     /// Runs one read against the shadow session's store and waits for it; for JNI callers on a background thread.
     private static func blocking(_ read: @escaping @Sendable (StoreReader) async -> String?) -> String? {
         guard let reader = ShadowSession.reader else { return nil }

@@ -52,12 +52,12 @@ Plan: [`PLAN.md`](PLAN.md) · last updated 2026-10-25
 | D-5, fifth step: the core's daily pass | 2026-10-25 | `CoreAnalysis` runs `DailyAnalysis` on the shadow store with store-only services and the app's profile; the client asks for it with each post-offload pass and logs "Core shadow analysis: day=… charge=… effort=…" two minutes later. Phase D is complete; the Kotlin data and analytics packages go screen by screen in phase E (PLAN.md, D-5 note) |
 | E-1 design tokens | 2026-10-25 | `Tools/design_tokens.py` reads the Swift design system (125 colours light and dark, 76 dimensions, the iPhone type scale) into `Packages/StrandDesign/tokens.json` and generates `ForgeTokens.kt`; a test in the unfiltered tools suite fails when either is stale (`6ac11439f`) |
 | E-2 core read API | 2026-10-25 | `CoreRead` in `NoopCoreJNI` answers a day, the nights in a window and a metric series as JSON, resolved as the Apple `Repository` does (imported values win field by field, the core's computed rows fill the gaps, the active strap wins); `SwiftCore.readDay/readNights/readSeries` and the Kotlin `com.noop.core.CoreRead` parser. Four macOS tests through the store; the Swift test and the Kotlin parser test pin the same day document |
+| E-3a to E-3d Forge screens | 2026-10-25 | `com.noop.ui.forge`: theme, scene and glass from `ForgeTokens` (the token script now also reads the chart-style colours in the default Signature style and the chrome pairs), the adaptive shell, Today (hero rings, key metrics with the change against the week before, day swipe), Sleep (Rest ring, times, stage lanes) and Trends (7, 30 and 90 day averages with change, HRV and resting HR charts with labelled axes), all on `CoreRead`; `CoreDemo` fills the demo build's core store with six weeks. Strings in nine languages. Checked on a Pixel-size emulator in dark mode; behind the `forge_ui` switch until E-3f |
 
 ## Next step
 
-Phase E, step E-3: the new Compose screens on `CoreRead` and `ForgeTokens`, adaptive per window size class,
-starting with Today; each replaced ryanbr screen and the Kotlin code only it used go in the same step
-(`PLAN.md`, phase E steps).
+Phase E, step E-3e: the More tab (settings, `.noopbak` export and import, strap log export) on the Forge
+screens, then E-3f, which makes them the app (`PLAN.md`, phase E steps).
 
 ## How to run a real-data check (B4)
 

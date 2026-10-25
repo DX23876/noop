@@ -207,7 +207,14 @@ Steps (added 2026-10-25), each with its own commit, test and smoke run:
 - **E-3 Screens.** Today, sleep detail, HRV and resting-HR trends, settings, `.noopbak` export and import and
   strap log export as new Compose screens on the core read API and the tokens, adaptive per window size class.
   ryanbr's screens they replace, and the Kotlin data and analytics code only those screens used, go in the
-  same step.
+  same step. In parts (added 2026-10-25): **E-3a** theme from the tokens, the Alps day-cycle scene, glass cards
+  (the scene behind a card blurred on Android 12 and later), the adaptive shell (glass bar on a phone, rail from
+  600 dp, content at most 720 dp wide) and the demo history in the core's store; **E-3b** Today; **E-3c** Sleep;
+  **E-3d** Trends; **E-3e** More with settings, `.noopbak` export and import and strap log export; **E-3f** the
+  Forge screens become the app and ryanbr's screens and the Kotlin code only they used go. Until E-3f the Forge
+  screens open only when switched on (`--ez forge_ui true` on the launch intent). *E-3a to E-3d done
+  2026-10-25.* Open against the iOS look: the rounded type (SF Pro Rounded is Apple's and cannot ship on
+  Android), the profile and quick-action buttons in the Today header, and the hero's source label.
 - **E-4 The core owns the data.** Kotlin Bluetooth stops writing Room and hands frames only to the core; the
   history ack is sent only after the core's Backfiller reports the chunk durably written (the safe-trim rule
   of the BLE safety contract), proven by a replay test and then by a tester's strap log.

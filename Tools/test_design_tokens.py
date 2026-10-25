@@ -29,6 +29,20 @@ class DesignTokensTests(unittest.TestCase):
         hex_only = self.tokens["colors"]["StrandPalette.onDarkPrimary"]
         self.assertEqual(hex_only["light"], hex_only["dark"], "a Color(hex:) token is the same in both appearances")
 
+    def test_a_chart_style_colour_is_read_in_the_default_style(self):
+        """Signature is what `ChartStyle.resolve` falls back to; its Charge green, not Classic's or Health's."""
+        self.assertEqual({"light": "0C8F62FF", "dark": "31E39CFF"}, self.tokens["colors"]["StrandPalette.chargeColor"])
+        self.assertEqual({"light": "5546C4FF", "dark": "8C7BFFFF"}, self.tokens["colors"]["StrandPalette.restColor"])
+        # `case .titanium, .signature:` names the default style too.
+        self.assertEqual({"light": "C13EC1FF", "dark": "FD96FDFF"}, self.tokens["colors"]["StrandPalette.sleepDeep"])
+
+    def test_the_chrome_pairs_are_tokens_under_their_public_name(self):
+        """`NoopVisualStyle.ChromeHex` holds the canvas and text colours `StrandPalette.surfaceBase` and
+        `textPrimary` forward to."""
+        self.assertEqual({"light": "E7EBF3FF", "dark": "03050AFF"}, self.tokens["colors"]["NoopVisualStyle.canvas"])
+        self.assertEqual({"light": "28313FCC", "dark": "E6EDFAC4"},
+                         self.tokens["colors"]["NoopVisualStyle.secondaryText"])
+
     def test_dimensions_and_the_iphone_type_scale(self):
         self.assertEqual(22.0, self.tokens["dimensions"]["NoopMetrics.cardRadius"])
         self.assertEqual({"size": 28.0, "weight": 700, "rounded": True}, self.tokens["fonts"]["StrandFont.title1"])

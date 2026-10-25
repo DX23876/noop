@@ -145,4 +145,9 @@ public func jniReadSeries(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?,
           let t = string(env, to) else { return nil }
     return json(env, Bridge.readSeries(m, from: f, to: t))
 }
+
+@_cdecl("Java_com_noop_core_SwiftCore_seedDemo")
+public func jniSeedDemo(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?) -> jint {
+    jint(Bridge.seedDemo())
+}
 #endif

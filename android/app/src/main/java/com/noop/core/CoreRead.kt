@@ -1,5 +1,9 @@
 package com.noop.core
 
+import android.content.Context
+import android.util.Log
+import com.noop.BuildConfig
+import com.noop.NoopApplication
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -10,6 +14,8 @@ import org.json.JSONObject
  * A read returns null or an empty list when the core is not in this build, no session runs, or nothing is stored.
  */
 object CoreRead {
+    @Volatile private var opened = false
+
     /** One day as the Today screen shows it. */
     data class Day(
         val day: String,
@@ -34,6 +40,19 @@ object CoreRead {
     enum class Metric(val key: String) {
         Charge("charge"), Effort("effort"), Rest("rest"), Hrv("hrv"), RestingHr("restingHr"),
         SleepMinutes("sleepMinutes"), RespRate("respRate"),
+    }
+
+    /**
+     * Opens the core's store for the screens: the same session the Bluetooth client feeds, started here under the
+     * active strap's id when no strap has connected yet in this process. A demo build then fills an empty store
+     * with the demo history. Blocks; call off the main thread before the first read.
+     */
+    fun open(context: Context) {
+        if (opened || !SwiftCore.available) return
+        opened = true
+        val app = context.applicationContext as NoopApplication
+        CoreShadow.ensureStarted(app, app.activeDeviceId)
+        if (BuildConfig.ENABLE_DEMO) Log.i("CoreRead", "demo days written=${SwiftCore.seedDemo()}")
     }
 
     fun day(day: String): Day? = read { SwiftCore.readDay(day) }?.let(::parseDay)

@@ -63,6 +63,8 @@ object SwiftCore {
     external fun readDay(day: String): String?
     external fun readNights(from: Long, to: Long): String?
     external fun readSeries(metric: String, from: String, to: String): String?
+    /** Demo builds only: writes the demo history into an empty store; the days written. */
+    external fun seedDemo(): Int
 
     /** Whether the last probe job ran on Android's main thread. */
     external fun mainActorProbeOnMainThread(): Boolean

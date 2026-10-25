@@ -44,6 +44,23 @@ final class CoreReadTests: XCTestCase {
         XCTAssertEqual(json, #"{"charge":72,"day":"2026-10-02","deepMinutes":80,"efficiency":0.9,"effort":42,"hrv":62,"lightMinutes":230,"remMinutes":90,"rest":88,"restingHr":52,"sleepMinutes":402}"#)
     }
 
+    func testTheDemoHistoryReadsBackAsDaysNightsAndRestOnce() async throws {
+        let store = try await WhoopStore.inMemory()
+        let now = Date()
+        let written = try await CoreDemo.seedIfEmpty(store: store, deviceId: "my-whoop", now: now)
+        XCTAssertEqual(written, CoreDemo.days)
+        let again = try await CoreDemo.seedIfEmpty(store: store, deviceId: "my-whoop", now: now)
+        XCTAssertEqual(again, 0, "a store with scored days is left alone")
+        let r = StoreReader(store: store, activeDeviceId: "my-whoop", registeredWhoopIds: [])
+        let today = await CoreRead.day(StoreReader.localDayKey(now), reader: r)
+        XCTAssertNotNil(today?.charge)
+        XCTAssertNotNil(today?.rest)
+        let nowTs = Int(now.timeIntervalSince1970)
+        let nights = await CoreRead.nights(from: nowTs - 7 * 86_400, to: nowTs, reader: r)
+        XCTAssertEqual(nights.count, 7, "one night per day, today's included")
+        XCTAssertTrue(nights.allSatisfy { $0.stages.contains { $0.stage == "deep" } })
+    }
+
     func testJSONHasSortedKeysAndNullsForGaps() {
         let json = CoreRead.json(CoreRead.Point(day: "2026-10-02", value: 1.5))
         XCTAssertEqual(json, #"{"day":"2026-10-02","value":1.5}"#)

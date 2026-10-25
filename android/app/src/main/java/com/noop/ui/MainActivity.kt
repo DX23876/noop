@@ -89,6 +89,11 @@ class MainActivity : ComponentActivity() {
             }
             return
         }
+        // Fork (DX23876), Android plan E-3: the Forge screens on the shared core, while they are built.
+        if (com.noop.ui.forge.ForgeUi.enabled(this, intent)) {
+            setContent { com.noop.ui.forge.ForgeTheme { com.noop.ui.forge.ForgeRoot() } }
+            return
+        }
         // Load the saved "Card transparency" so every frosted card renders at the chosen opacity from launch.
         CardAppearance.init(this)
 

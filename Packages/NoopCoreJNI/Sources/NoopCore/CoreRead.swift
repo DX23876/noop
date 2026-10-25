@@ -49,7 +49,8 @@ public enum CoreRead {
     }
 
     public static func nights(from: Int, to: Int, reader: StoreReader) async -> [Night] {
-        await reader.unionSleepSessions(from: from, to: to).map { session in
+        StoreReader.mergeSleep(imported: await reader.unionSleepSessions(from: from, to: to),
+                               computed: await reader.unionComputedSleepSessions(from: from, to: to)).map { session in
             let stages = session.stagesJSON.flatMap { $0.data(using: .utf8) }
                 .flatMap { try? JSONDecoder().decode([Night.Stage].self, from: $0) } ?? []
             return Night(startTs: session.startTsAdjusted ?? session.startTs, endTs: session.endTs,
