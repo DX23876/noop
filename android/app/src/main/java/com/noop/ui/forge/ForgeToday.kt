@@ -164,22 +164,23 @@ private fun Hero(day: CoreRead.Day?, width: ForgeWidth) {
             val diameter = if (width == ForgeWidth.Compact) slot else minOf(slot, 150.dp)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 ScoreSlot(R.string.forge_charge, day?.charge, day?.charge?.let { colors.chargeRing(it) } ?: colors.charge,
-                          diameter)
-                ScoreSlot(R.string.forge_effort, day?.effort, colors.effort, diameter)
-                ScoreSlot(R.string.forge_rest, day?.rest, colors.rest, diameter)
+                          diameter, OrganicMetric.Charge)
+                ScoreSlot(R.string.forge_effort, day?.effort, colors.effort, diameter, OrganicMetric.Effort)
+                ScoreSlot(R.string.forge_rest, day?.rest, colors.rest, diameter, OrganicMetric.Rest)
             }
         }
     }
 }
 
 @Composable
-private fun ScoreSlot(labelRes: Int, score: Double?, tint: Color, diameter: androidx.compose.ui.unit.Dp) {
+private fun ScoreSlot(labelRes: Int, score: Double?, tint: Color, diameter: androidx.compose.ui.unit.Dp,
+                      metric: OrganicMetric) {
     val label = stringResource(labelRes)
     val spoken = if (score == null) stringResource(R.string.forge_score_missing, label, stringResource(R.string.forge_no_data))
                  else stringResource(R.string.forge_score_spoken, label, score.roundToInt())
     Column(horizontalAlignment = Alignment.CenterHorizontally,
            modifier = Modifier.semantics(mergeDescendants = true) { contentDescription = spoken }) {
-        OrganicRing(score, tint, diameter)
+        OrganicRing(score, tint, diameter, metric)
         Text(label.uppercase() + CHEVRON, style = Forge.type.overline, color = Forge.colors.textSecondary, maxLines = 1,
              overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center, modifier = Modifier.size(width = diameter, height = 18.dp))
     }

@@ -113,9 +113,11 @@ fun ForgeTrendsScreen(padding: PaddingValues, width: ForgeWidth) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 val charge = stats(CoreRead.Metric.Charge)
                 AverageRing(R.string.forge_charge, charge, charge.average?.let { colors.chargeRing(it) } ?: colors.charge,
-                            higherIsBetter = true)
-                AverageRing(R.string.forge_effort, stats(CoreRead.Metric.Effort), colors.effort, higherIsBetter = null)
-                AverageRing(R.string.forge_rest, stats(CoreRead.Metric.Rest), colors.rest, higherIsBetter = true)
+                            higherIsBetter = true, OrganicMetric.Charge)
+                AverageRing(R.string.forge_effort, stats(CoreRead.Metric.Effort), colors.effort, higherIsBetter = null,
+                            OrganicMetric.Effort)
+                AverageRing(R.string.forge_rest, stats(CoreRead.Metric.Rest), colors.rest, higherIsBetter = true,
+                            OrganicMetric.Rest)
             }
         }
         TrendCard(R.string.forge_hrv_long, stringResource(R.string.forge_unit_ms), stats(CoreRead.Metric.Hrv), days,
@@ -156,10 +158,10 @@ private fun changeColor(change: Int, higherIsBetter: Boolean?): Color = when {
 private fun signed(change: Int) = if (change > 0) "+$change%" else "$change%"
 
 @Composable
-private fun AverageRing(labelRes: Int, stats: TrendStats, tint: Color, higherIsBetter: Boolean?) {
+private fun AverageRing(labelRes: Int, stats: TrendStats, tint: Color, higherIsBetter: Boolean?, metric: OrganicMetric) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(stringResource(labelRes).uppercase(), style = Forge.type.overline, color = tint, maxLines = 1)
-        OrganicRing(stats.average, tint, 96.dp)
+        OrganicRing(stats.average, tint, 96.dp, metric)
         val change = stats.change
         Text(change?.let(::signed) ?: " ", style = Forge.type.captionNumber,
              color = change?.let { changeColor(it, higherIsBetter) } ?: Forge.colors.textTertiary, maxLines = 1)

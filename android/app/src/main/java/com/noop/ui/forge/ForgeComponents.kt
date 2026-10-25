@@ -1,13 +1,6 @@
 package com.noop.ui.forge
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -40,19 +33,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.StrokeJoin
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.noop.ui.rememberPoseStill
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
 
 /**
  * A glass card: on Android 12 and later the scene behind it, blurred, under a translucent surface tint, as iOS
@@ -99,82 +83,6 @@ enum class ChargeBand { Depleted, Low, Moderate, Primed, Peak;
 
 /** The ring colour of a Charge score: its band's stop on the recovery ramp (`chargeRingColor`). */
 fun ForgeColors.chargeRing(score: Double): Color = recoveryStops[ChargeBand.of(score).ordinal].second
-
-/**
- * The organic score ring of the Today hero: a softly wobbling band of light in [tint] with sparks drifting in it,
- * the score in the middle. On Android 12 and later the band is blurred into a real glow, as the iOS ring is;
- * earlier versions approximate it with widening, fading strokes. With no score the ring is dim and shows a dash.
- */
-@Composable
-fun OrganicRing(score: Double?, tint: Color, diameter: Dp, modifier: Modifier = Modifier) {
-    val colors = Forge.colors
-    val color = if (score == null) colors.missing else tint
-    val alpha = if (score == null) 0.45f else 1f
-    // Battery saver and reduced motion pose the ring still, as they still the iOS rings (the frame loop is the
-    // cost, not the picture).
-    val phase = if (rememberPoseStill()) 0f else {
-        val moving by rememberInfiniteTransition(label = "ring").animateFloat(
-            initialValue = 0f, targetValue = (2 * PI).toFloat(),
-            animationSpec = infiniteRepeatable(tween(16_000, easing = LinearEasing), RepeatMode.Restart),
-            label = "phase",
-        )
-        moving
-    }
-    fun ring(c: Offset, r: Float, shift: Float, depth: Float): Path = Path().apply {
-        val steps = 160
-        for (i in 0..steps) {
-            val a = (i.toFloat() / steps) * 2 * PI.toFloat()
-            val wobble = 1f + depth * (0.035f * sin(5 * a + phase + shift) +
-                0.022f * sin(8 * a - 1.3f * phase + shift) + 0.012f * sin(13 * a + 0.7f * phase))
-            val p = Offset(c.x + r * wobble * cos(a), c.y + r * wobble * sin(a))
-            if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y)
-        }
-        close()
-    }
-    Box(modifier.size(diameter), contentAlignment = Alignment.Center) {
-        // The glow: a wide band and its halo, blurred where the platform can.
-        Canvas(Modifier.fillMaxSize().graphicsLayer {
-            if (blurSupported) renderEffect = BlurEffect(size.minDimension * 0.06f, size.minDimension * 0.06f,
-                                                         TileMode.Decal)
-        }) {
-            val c = Offset(size.width / 2, size.height / 2)
-            val r = size.minDimension * 0.36f
-            drawCircle(Brush.radialGradient(listOf(color.copy(alpha = 0.10f * alpha), color.copy(alpha = 0.22f * alpha),
-                                                   Color.Transparent), c, r * 1.3f), radius = r * 1.3f, center = c)
-            val band = if (blurSupported) listOf(0.16f to 0.55f, 0.08f to 0.7f) else
-                listOf(0.24f to 0.04f, 0.16f to 0.07f, 0.10f to 0.12f, 0.06f to 0.22f)
-            val main = ring(c, r, 0f, 1f)
-            band.forEach { (w, a) ->
-                drawPath(main, color.copy(alpha = a * alpha),
-                         style = Stroke(width = size.minDimension * w, cap = StrokeCap.Round, join = StrokeJoin.Round))
-            }
-        }
-        // The crisp strands and sparks over the glow.
-        Canvas(Modifier.fillMaxSize()) {
-            val c = Offset(size.width / 2, size.height / 2)
-            val r = size.minDimension * 0.36f
-            listOf(2.1f to 1.7f, 4.2f to 2.3f, 1.0f to 2.9f, 5.3f to 1.2f).forEach { (shift, depth) ->
-                drawPath(ring(c, r, shift, depth), lerp(color, Color.White, 0.25f).copy(alpha = 0.45f * alpha),
-                         style = Stroke(width = size.minDimension * 0.008f))
-            }
-            drawPath(ring(c, r, 0f, 1f), lerp(color, Color.White, 0.45f).copy(alpha = 0.9f * alpha),
-                     style = Stroke(width = size.minDimension * 0.014f, join = StrokeJoin.Round))
-            if (score != null) {
-                for (k in 0 until 18) {
-                    val a = k * 0.349f + phase * (if (k % 2 == 0) 0.25f else -0.18f)
-                    val rr = r * (0.84f + 0.14f * sin(k * 2.3f + phase * 1.4f))
-                    val dot = size.minDimension * (0.006f + 0.006f * ((k * 7) % 3))
-                    drawCircle(lerp(color, Color.White, 0.6f).copy(alpha = 0.35f + 0.45f * ((k % 4) / 3f)),
-                               radius = dot, center = Offset(c.x + rr * cos(a), c.y + rr * sin(a)))
-                }
-            }
-        }
-        val fontScale = (diameter.value / 110f).coerceIn(0.85f, 2.2f)
-        Text(score?.let { "%.0f".format(it) } ?: "–",
-             style = Forge.type.heroNumber.copy(fontSize = Forge.type.heroNumber.fontSize * fontScale),
-             color = colors.text, maxLines = 1)
-    }
-}
 
 /** A key metric tile: icon plate, small caps label, the value with its unit. */
 @Composable

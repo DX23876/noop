@@ -119,7 +119,7 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth) {
         if (night != null) {
             val rest = wakeDay?.let { model?.restByDay?.get(it.toString()) }
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                OrganicRing(rest, Forge.colors.rest, if (width == ForgeWidth.Compact) 220.dp else 240.dp)
+                OrganicRing(rest, Forge.colors.rest, if (width == ForgeWidth.Compact) 220.dp else 240.dp, OrganicMetric.Rest)
             }
             Times(night, zone)
             Breakdown(night, zone)
