@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Monochrome (themed-icon) layer: the NOOP ring + core as a single-colour silhouette. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108"
+    android:tint="#FFFFFF">
+    <path android:strokeWidth="9" android:strokeLineCap="round" android:strokeColor="#FFFFFF" android:fillColor="#00000000"
+        android:pathData="M76.1,69.5 A27,27 0 1 1 76.1,38.5"/>
+    <path android:fillColor="#FFFFFF" android:pathData="M54,46.5 a7.5,7.5 0 1 0 0,15 a7.5,7.5 0 1 0 0,-15 z"/>
+</vector>

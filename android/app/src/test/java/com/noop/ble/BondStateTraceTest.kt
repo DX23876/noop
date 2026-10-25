@@ -1,0 +1,250 @@
+package com.noop.ble
+
+import android.bluetooth.BluetoothDevice
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/**
+ * Pins the OS bond-state trace (#1635).
+ *
+ * NOOP has never observed ACTION_BOND_STATE_CHANGED, so whether a CLIENT_HELLO triggers pairing at all —
+ * and whether that pairing fails — has been invisible. Both readings decide the open question, so the
+ * line has to be equally clear about a transition happening and about one not happening.
+ */
+class BondStateTraceTest {
+
+    @Test
+    fun `a failed pairing is called out, not left to be inferred`() {
+        assertEquals(
+            "bond state: BOND_BONDING -> BOND_NONE device=FD:D4:F7:24:53:4A 3158ms after CLIENT_HELLO" +
+                " — pairing did NOT complete",
+            bondStateTraceLine(BluetoothDevice.BOND_BONDING, BluetoothDevice.BOND_NONE,
+                "FD:D4:F7:24:53:4A", 3158),
+        )
+    }
+
+    @Test
+    fun `entering bonding is reported with its offset from the write that may have caused it`() {
+        assertEquals(
+            "bond state: BOND_NONE -> BOND_BONDING device=FD:D4:F7:24:53:4A 120ms after CLIENT_HELLO",
+            bondStateTraceLine(BluetoothDevice.BOND_NONE, BluetoothDevice.BOND_BONDING,
+                "FD:D4:F7:24:53:4A", 120),
+        )
+    }
+
+    @Test
+    fun `a success says so`() {
+        assertTrue(
+            bondStateTraceLine(BluetoothDevice.BOND_BONDING, BluetoothDevice.BOND_BONDED, "AA:BB", 900)
+                .endsWith("— paired"),
+        )
+    }
+
+    @Test
+    fun `no outstanding hello means no elapsed time rather than a misleading one`() {
+        // A transition from an unrelated pairing (another app, another device) must not be timed against
+        // a CLIENT_HELLO it has nothing to do with.
+        assertEquals(
+            "bond state: BOND_NONE -> BOND_BONDING device=AA:BB",
+            bondStateTraceLine(BluetoothDevice.BOND_NONE, BluetoothDevice.BOND_BONDING, "AA:BB", null),
+        )
+    }
+
+    @Test
+    fun `an unknown state prints its number rather than a guess`() {
+        assertTrue(bondStateTraceLine(99, BluetoothDevice.BOND_NONE, "AA:BB", null).contains("BOND_99"))
+        assertEquals("BOND_NONE", bondStateName(BluetoothDevice.BOND_NONE))
+        assertEquals("BOND_BONDED", bondStateName(BluetoothDevice.BOND_BONDED))
+    }
+
+    @Test
+    fun `a missing address degrades to unknown`() {
+        assertTrue(bondStateTraceLine(10, 11, null, null).contains("device=unknown"))
+        assertTrue(bondStateTraceLine(10, 11, "  ", null).contains("device=unknown"))
+    }
+
+    @Test
+    fun `an unrelated device's pairing is never traced`() {
+        // The receiver hears every pairing on the phone. The strap log is attached to public issues, so
+        // a colleague's headphones must not appear in it.
+        assertFalse(shouldTraceBondState("AA:BB:CC:DD:EE:FF", "FD:D4:F7:24:53:4A", helloOutstanding = true))
+        assertFalse(shouldTraceBondState("AA:BB:CC:DD:EE:FF", "FD:D4:F7:24:53:4A", helloOutstanding = false))
+    }
+
+    @Test
+    fun `our strap matches case-insensitively`() {
+        // A case-sensitive compare would trace NOTHING — which looks exactly like "the pairing never
+        // happened", one of the two answers this trace exists to tell apart.
+        assertTrue(shouldTraceBondState("fd:d4:f7:24:53:4a", "FD:D4:F7:24:53:4A", helloOutstanding = false))
+        assertTrue(shouldTraceBondState("FD:D4:F7:24:53:4A", "fd:d4:f7:24:53:4a", helloOutstanding = true))
+    }
+
+    @Test
+    fun `an anonymous event is traced only inside the handshake window`() {
+        assertTrue(shouldTraceBondState(null, "FD:D4", helloOutstanding = true))
+        assertFalse(shouldTraceBondState(null, "FD:D4", helloOutstanding = false))
+        assertFalse(shouldTraceBondState("  ", "FD:D4", helloOutstanding = false))
+    }
+
+    @Test
+    fun `with no strap address, an addressed event is not ours to trace`() {
+        assertFalse(shouldTraceBondState("AA:BB", null, helloOutstanding = true))
+    }
+
+    @Test
+    fun `a pairing-request transition is timed against the pairing, not a hello that never went out`() {
+        // The #1635 explicit-pairing experiment deliberately sends no CLIENT_HELLO. Timing only against
+        // the hello left every transition it causes untimed, so a 200ms pairing and an 8s one read the
+        // same - and how long a pairing took is most of what makes it diagnosable.
+        val line = bondStateTraceLine(
+            previous = android.bluetooth.BluetoothDevice.BOND_BONDING,
+            current = android.bluetooth.BluetoothDevice.BOND_BONDED,
+            address = "FD:D4",
+            sinceMs = 4200L,
+            sinceLabel = "the pairing request",
+        )
+        assertTrue(line.contains("4200ms after the pairing request"))
+        assertFalse(line.contains("CLIENT_HELLO"))
+        assertTrue(line.contains("paired"))
+    }
+
+    @Test
+    fun `the connect line names the bond state the link STARTED with`() {
+        // Without it, a hello failing on an unencrypted link and one failing on an ENCRYPTED link print
+        // identically - and they are completely different findings.
+        val l = bondStateAtConnectLine(android.bluetooth.BluetoothDevice.BOND_BONDED, "FD:D4")
+        assertTrue(l.contains("BOND_BONDED"))
+        assertTrue(l.contains("FD:D4"))
+        assertTrue(bondStateAtConnectLine(android.bluetooth.BluetoothDevice.BOND_NONE, null).contains("unknown"))
+    }
+
+    @Test
+    fun `BONDING with no transition line convicts our receiver, not the strap`() {
+        // The whole point: a capture showed createBond accepted and then silence, and that has two very
+        // different causes. Polling the device removes our own broadcast receiver from the chain, so the
+        // answer no longer depends on the component under suspicion.
+        val line = bondStatePollLine(android.bluetooth.BluetoothDevice.BOND_BONDING, sawTransitionLine = false)
+        assertTrue(line.contains("receiver missed it"))
+        assertTrue(line.contains("a NOOP bug, not the strap"))
+    }
+
+    /**
+     * The verdict this line used to give was "Android did not begin pairing at all". An HCI capture of
+     * exactly this case disproved it: the phone DOES transmit an SMP Pairing Request and a WHOOP 5/MG
+     * answers "Pairing Failed — Pairing Not Supported" (0x05). A refused pairing ends at BOND_NONE with
+     * no BONDED transition, which is indistinguishable from never starting if the bond state is all you
+     * can see. The line must now name both causes and the capture that separates them.
+     */
+    @Test
+    fun `NONE with no transition line names BOTH causes rather than convicting Android`() {
+        val line = bondStatePollLine(android.bluetooth.BluetoothDevice.BOND_NONE, sawTransitionLine = false)
+        assertFalse("the disproved verdict must not come back", line.contains("did not begin pairing at all"))
+        assertFalse("nor its softer form", line.contains("nothing was heard"))
+        assertTrue("a refusal must be named as the other cause", line.contains("REFUSED pairing ends here too"))
+        assertTrue("the known 5/MG answer belongs in the line", line.contains("Pairing Not Supported"))
+        assertTrue(line.contains("SMP 0x05"))
+        assertTrue("name the discriminator", line.contains("HCI capture"))
+        assertFalse(line.contains("NOOP bug"))
+    }
+
+    @Test
+    fun `a heard transition is not reported as a missed one`() {
+        val line = bondStatePollLine(android.bluetooth.BluetoothDevice.BOND_BONDING, sawTransitionLine = true)
+        assertFalse(line.contains("missed it"))
+        assertTrue(bondStatePollLine(android.bluetooth.BluetoothDevice.BOND_BONDED, true).contains("paired"))
+    }
+
+    // --- #1635: WHY a bond ended, not just that it did ---
+
+    /**
+     * The reason rides the failure line. "Refused authentication" and "nobody answered" and "the link
+     * went away" are three different findings, and the transition alone renders all three identically.
+     */
+    @Test
+    fun `a failed pairing names the OS reason when there is one`() {
+        assertEquals(
+            "bond state: BOND_BONDING -> BOND_NONE device=FD:D4:F7:24:53:4A 3158ms after CLIENT_HELLO" +
+                " — pairing did NOT complete, reason=AUTH_FAILED(1)",
+            bondStateTraceLine(BluetoothDevice.BOND_BONDING, BluetoothDevice.BOND_NONE,
+                "FD:D4:F7:24:53:4A", 3158, reason = 1),
+        )
+    }
+
+    /**
+     * The OTHER way a bond ends: one that EXISTED and then went away. Scoping the reason to the failed
+     * pairing would have left this as a bare state change with no explanation, and it is exactly where
+     * REMOVED and REMOTE_DEVICE_DOWN show up.
+     */
+    @Test
+    fun `a bond that existed and then ended is explained too`() {
+        assertEquals(
+            "bond state: BOND_BONDED -> BOND_NONE device=AA:BB — the bond ended, reason=REMOTE_DEVICE_DOWN(4)",
+            bondStateTraceLine(BluetoothDevice.BOND_BONDED, BluetoothDevice.BOND_NONE,
+                "AA:BB", null, reason = 4),
+        )
+    }
+
+    /** It says the bond ended, not that it was "removed": the code supplies the cause, the line does not. */
+    @Test
+    fun `a bond ending without a reason still says the bond ended`() {
+        val line = bondStateTraceLine(BluetoothDevice.BOND_BONDED, BluetoothDevice.BOND_NONE,
+            "AA:BB", null, reason = NO_BOND_REASON)
+        assertTrue(line, line.endsWith("— the bond ended"))
+        assertFalse(line, line.contains("reason="))
+    }
+
+    /**
+     * A stack that supplies nothing gets the wording it had before. `getIntExtra` returns -1 when the
+     * extra is absent, and "reason=n/a" would say less than silence while changing every failure line
+     * anyone has ever pattern-matched on.
+     */
+    @Test
+    fun `an absent reason leaves the failure line exactly as it was`() {
+        val was = "bond state: BOND_BONDING -> BOND_NONE device=AA:BB 10ms after CLIENT_HELLO" +
+            " — pairing did NOT complete"
+        assertEquals(was, bondStateTraceLine(BluetoothDevice.BOND_BONDING, BluetoothDevice.BOND_NONE,
+            "AA:BB", 10, reason = null))
+        assertEquals(was, bondStateTraceLine(BluetoothDevice.BOND_BONDING, BluetoothDevice.BOND_NONE,
+            "AA:BB", 10, reason = NO_BOND_REASON))
+    }
+
+    /** A successful pairing has no reason to give, so one is never appended even if the OS sent a value. */
+    @Test
+    fun `a successful pairing never carries a reason`() {
+        val line = bondStateTraceLine(BluetoothDevice.BOND_BONDING, BluetoothDevice.BOND_BONDED,
+            "AA:BB", 900, reason = 1)
+        assertTrue(line, line.endsWith("— paired"))
+        assertFalse(line, line.contains("reason="))
+    }
+
+    /**
+     * Every code AOSP defines is named. Pinned as a set so adding one cannot silently leave a hole, and
+     * so the two that matter most for #1635 - refused vs timed out - are provably distinguishable.
+     */
+    @Test
+    fun `the defined unbond reasons are all named`() {
+        assertEquals("reason=AUTH_FAILED(1)", bondFailureReasonLabel(1))
+        assertEquals("reason=AUTH_REJECTED(2)", bondFailureReasonLabel(2))
+        assertEquals("reason=AUTH_CANCELED(3)", bondFailureReasonLabel(3))
+        assertEquals("reason=REMOTE_DEVICE_DOWN(4)", bondFailureReasonLabel(4))
+        assertEquals("reason=DISCOVERY_IN_PROGRESS(5)", bondFailureReasonLabel(5))
+        assertEquals("reason=AUTH_TIMEOUT(6)", bondFailureReasonLabel(6))
+        assertEquals("reason=REPEATED_ATTEMPTS(7)", bondFailureReasonLabel(7))
+        assertEquals("reason=REMOTE_AUTH_CANCELED(8)", bondFailureReasonLabel(8))
+        assertEquals("reason=REMOVED(9)", bondFailureReasonLabel(9))
+        assertNotEquals(bondFailureReasonLabel(1), bondFailureReasonLabel(6))
+    }
+
+    /**
+     * An undefined value prints as itself rather than as a guess - the same discipline
+     * `gattStatusLabel` applies to GATT codes, and vendor stacks do emit values AOSP does not define.
+     */
+    @Test
+    fun `an unknown reason is not given an invented name`() {
+        assertEquals("reason=42", bondFailureReasonLabel(42))
+        assertEquals("reason=0", bondFailureReasonLabel(0))
+    }
+}

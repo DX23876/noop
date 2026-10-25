@@ -1,0 +1,23 @@
+# Built application files / Gradle
+*.apk
+*.aar
+*.ap_
+*.aab
+.gradle/
+build/
+captures/
+
+# Local config — points at your machine's Android SDK; never commit.
+local.properties
+
+# Android Studio / IntelliJ
+*.iml
+.idea/
+.DS_Store
+
+# Keystores / signing
+*.jks
+*.keystore
+
+# NDK
+.cxx/

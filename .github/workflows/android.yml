@@ -1,0 +1,68 @@
+# Compile-and-test verification for the Android app.
+#
+# Debug build only, with unit tests. There is intentionally no signing config,
+# no keystore, no secrets, and no artifact publishing here: release APKs are
+# built and signed by hand. A debug build falls back to the Android debug key
+# automatically, so this job needs nothing from the repository owner to pass.
+name: Android CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - '.github/workflows/android.yml'
+      # The twin-drift guards read the SWIFT side's fixtures on purpose — DecoderOracleTest compares
+      # against Packages/.../decoder_oracle.json to catch a one-sided edit, and the schema/protocol
+      # oracles work the same way. Without these, editing the Swift copy alone leaves the very test
+      # written to catch that from ever running. Keep this list in step with what the tests read.
+      - 'Packages/WhoopProtocol/Sources/WhoopProtocol/Resources/**'
+      - 'Packages/WhoopProtocol/Tests/WhoopProtocolTests/Resources/**'
+      - 'Packages/WhoopStore/Tests/WhoopStoreTests/Resources/**'
+      - 'Strand/Resources/Localizable.xcstrings'
+  push:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - '.github/workflows/android.yml'
+      # The twin-drift guards read the SWIFT side's fixtures on purpose — DecoderOracleTest compares
+      # against Packages/.../decoder_oracle.json to catch a one-sided edit, and the schema/protocol
+      # oracles work the same way. Without these, editing the Swift copy alone leaves the very test
+      # written to catch that from ever running. Keep this list in step with what the tests read.
+      - 'Packages/WhoopProtocol/Sources/WhoopProtocol/Resources/**'
+      - 'Packages/WhoopProtocol/Tests/WhoopProtocolTests/Resources/**'
+      - 'Packages/WhoopStore/Tests/WhoopStoreTests/Resources/**'
+      - 'Strand/Resources/Localizable.xcstrings'
+  workflow_dispatch:
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v5
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Build debug APK
+        run: ./gradlew assembleFullDebug
+
+      - name: Run unit tests
+        run: ./gradlew testFullDebugUnitTest

@@ -1,0 +1,1115 @@
+package com.noop.ble
+
+import android.content.Context
+import android.content.SharedPreferences
+import com.noop.data.DynAccelDiag
+import com.noop.data.InsertCounts
+import com.noop.data.StreamBatch
+import com.noop.data.WhoopRepository
+import com.noop.protocol.BadClockDiagnostics
+import com.noop.protocol.ChunkClockDiag
+import com.noop.protocol.DeviceFamily
+import com.noop.protocol.Framing
+import com.noop.protocol.HistoricalMeta
+import com.noop.protocol.classifyHistoricalMeta
+import com.noop.protocol.decodeHistorical
+import com.noop.protocol.extractHistoricalStreams
+import com.noop.protocol.isEmptyRecordFrame
+import com.noop.protocol.rejectedHistoricalRecords
+import java.io.IOException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+
+/**
+ * Historical-offload state machine (idle / backfilling).
+ *
+ * Direct port of the macOS Swift `Backfiller` (Strand/Collect/Backfiller.swift). It consumes the
+ * METADATA frames of an offload — HISTORY_START / repeated HISTORY_END / HISTORY_COMPLETE —
+ * accumulating the type-47 records between them into chunks and committing each chunk durably.
+ *
+ * Per-chunk local safe-trim invariant (unchanged from Swift):
+ *   decode known -> persist decoded (durable) -> persist the strap_trim cursor -> ack the trim to
+ *   the strap (link-layer confirmed write).
+ * A chunk is forgotten by the strap only after its decoded rows are locally durable AND the trim
+ * cursor is persisted AND the ack write is confirmed. The phone NEVER waits on a server (there is
+ * none — Strand is fully on-device).
+ *
+ * CRITICAL behaviour preserved from Swift: a high-freq-sync offload sends ONE HISTORY_START then
+ * REPEATED HISTORY_ENDs (a chunk-close every ~50 records). So we ack EVERY end and keep
+ * accumulating afterwards — we snapshot+clear the accumulated frames on each END but leave the
+ * chunk OPEN so subsequent records become the next chunk. An END with no accumulated records is
+ * still acked (it advances the strap's trim) — that is how the offload progresses.
+ *
+ * CONCURRENCY: [ingest] is `suspend` and serialised by [mutex] so START/data/END chunk assembly is
+ * never reordered, matching the Swift serial-drain task. The owning [WhoopBleClient] feeds frames
+ * in arrival order from a single drain coroutine.
+ *
+ * RAW CAPTURE: the Swift Backfiller optionally persists ALL raw frames (research toggle, default OFF);
+ * the Android data layer has no raw-frame outbox table, so that bulk capture is intentionally omitted
+ * here — decoded rows are the product of record and are still durably committed before the trim is
+ * advanced, exactly as in the Swift default (raw-off) configuration. The ONE exception is the
+ * undecodable-record archive (#77 / #91): record frames that fail decode are persisted via
+ * [rejectedSink] BEFORE the trim is acked, because the strap frees acked history and those bytes would
+ * otherwise be the user's permanently-lost only copy. See the FLAG in the port notes.
+ */
+class Backfiller(
+    private val repository: WhoopRepository,
+    /** The device id every offloaded row is stamped with (read at finishChunk). MUTABLE so a
+     *  WHOOP→WHOOP active-device switch re-points it via [WhoopBleClient.setActiveDeviceId] and the
+     *  next chunk attributes to the new id; the single-WHOOP path never reassigns it ("my-whoop"). */
+    var deviceId: String,
+    private val cursorStore: TrimCursorStore,
+    /**
+     * Confirms one HISTORY_END chunk to the strap. Carries both the trim cursor (first u32 of
+     * end_data, persisted as the `strap_trim` cursor) and the verbatim 8-byte `end_data` (the raw
+     * HISTORY_END metadata.data[10:18]) the high-freq-sync ack form requires.
+     */
+    private val ackTrim: (trim: Long, endData: ByteArray) -> Unit,
+    /**
+     * #1635: what one offload chunk actually stored, handed up so the client can tally it per LINK and
+     * name it beside the link epitaph. The offload is the ONLY path that banks gravity, respiratory,
+     * skin temperature, SpO2 and steps — the realtime decoder yields hr/rr/events/battery and nothing
+     * else — so a link summary that omitted this could not distinguish an unbonded strap, which defers
+     * backfill entirely, from a healthy one. Defaulted so existing constructions are unchanged.
+     */
+    private val onBankedOffload: (counts: InsertCounts) -> Unit = {},
+    /**
+     * Fires after a chunk's decoded rows are durably committed AND acked — i.e. real new data just
+     * landed. Lets the client schedule on-device scoring right away instead of leaving fresh history
+     * invisible until the next 15-min analysis tick. Empty chunks (metadata-only ENDs) don't fire.
+     * (#78 fork)
+     */
+    private val onChunkCommitted: (StreamBatch) -> Unit = {},
+    /**
+     * Per-console-only chunk hook (#77 family): a chunk arrived with frames but decoded no rows and
+     * held no genuine rejects — pure diagnostic/console output. Lets the client tally a completed-but-
+     * empty offload (the strap isn't banking) without false-positiving a normal caught-up sync.
+     */
+    private val onConsoleChunk: () -> Unit = {},
+    /**
+     * Diagnostic sink into the strap log. Lets [finishChunk] surface a chunk that arrived with frames
+     * but decoded to ZERO rows — the otherwise-invisible silent-data-loss case (frames failing CRC /
+     * an unmapped layout are dropped, the chunk looks empty, the trim acks past them). Without this a
+     * "zero data" strap log shows healthy "acked chunk" lines while data is being discarded (#77). */
+    private val log: (String) -> Unit = {},
+    /**
+     * Durable archive for HISTORICAL_DATA record frames that FAILED decode, called BEFORE the chunk
+     * is acked. The strap frees acked history, so these raw bytes are the user's ONLY remaining copy
+     * of an unmapped firmware's records — archiving them preserves the data for a later release that
+     * maps the layout AND provides the corpus that mapping needs (#77 / #91). Return false ONLY when
+     * the archive could not be made durable (a write failure — NOT the archive-full case): finishChunk
+     * then does NOT advance the cursor or ack, so the strap keeps the records and re-sends them (same
+     * invariant as a failed repository insert). The default keeps old behaviour for tests/callers that
+     * do not wire an archive (no archive → nothing to preserve → proceed).
+     */
+    private val rejectedSink: (frames: List<ByteArray>, trim: Long) -> Boolean = { _, _ -> true },
+    /**
+     * The (device, wall) clock reference. type-47 records carry their OWN real unix timestamp so
+     * the offset is a no-op for them; this is supplied only for the REALTIME_RAW_DATA fallback and
+     * to mirror the Swift signature. Defaults to an identity ref (device == wall == now): the Swift
+     * Backfiller falls back to exactly this when GET_CLOCK is silent, and type-47 still decodes to
+     * correct wall time. Settable by [WhoopBleClient] if a real correlation lands.
+     */
+    var clockRef: ClockRef = ClockRef.identityNow(),
+    /**
+     * Connection & Sync test mode (Test Centre): the cheap gate + tagged sink for the .connection
+     * diagnostic lines (offload progress / firmware layout / trim sentinel). [connectionActive] is one
+     * SharedPreferences bool read; it is ALWAYS checked BEFORE building any connection line, so the
+     * Backfiller pays nothing when the mode is off. [connectionLog] appends the already-built line tagged
+     * .connection. Both default inert (always-off / no-op) so tests get the byte-identical untraced path.
+     * Mirrors the Swift Backfiller's connectionActive / connectionLog.
+     */
+    private val connectionActive: () -> Boolean = { false },
+    private val connectionLog: (String) -> Unit = {},
+    /**
+     * Opt-in "HR-from-PPG sub-lag interpolation" (Test Centre → Experimental algorithms, default OFF).
+     * Read as a live provider so a toggle flip mid-session takes effect on the next decoded chunk. Passed
+     * straight into [extractHistoricalStreams] so the pure decoder never reaches for prefs. Default inert
+     * (always-off) keeps the untraced/test path byte-identical. Mirrors the Swift Backfiller extract seam.
+     */
+    private val ppgHrSubLagInterp: () -> Boolean = { false },
+    /** Live UI/export observation of the historical record layout (`hist_version`). */
+    private val firmwareLayout: (Int) -> Unit = {},
+) {
+
+    /**
+     * Emit one Connection & Sync test-mode line iff the mode is on. The cheap [connectionActive] gate is
+     * checked BEFORE [build] runs, so the line string is never constructed when the mode is off. Diagnostic
+     * only - it never changes the offload path. Mirrors the Swift Backfiller.emitConnection.
+     */
+    private inline fun emitConnection(build: () -> String) {
+        if (!connectionActive()) return
+        connectionLog(build())
+    }
+
+    /**
+     * #547 SESSION-RELATIVE gate: the strap's own GET_DATA_RANGE oldest/newest banked-record markers for
+     * the CURRENT offload, set by [WhoopBleClient] when the range reply lands. A record dated months outside
+     * this window is wandering-clock pollution even if it clears the absolute 2023-11 floor, so the ingest
+     * gate rejects it. null (both) until the range is known — the gate then falls back to the absolute floor
+     * only, so behaviour is unchanged on the no-range / replay paths. Cleared in [begin]. Volatile because
+     * it's written from the BLE callback thread and read in [finishChunk]. Mirrors Swift Backfiller fields.
+     */
+    @Volatile
+    var sessionOldestUnix: Long? = null
+
+    @Volatile
+    var sessionNewestUnix: Long? = null
+
+    /**
+     * Strap family for the CURRENT offload, set at [begin] — drives the family-aware frame parse
+     * (5/MG inner record is +4) and the +4 end_data slice. The Backfiller is constructed once at
+     * client init (before the family is known), so this is settable per-offload rather than a
+     * constructor arg. Mirrors Swift `Backfiller.family` set in `begin(family:)`. (#78)
+     */
+    private var family: DeviceFamily = DeviceFamily.WHOOP4
+
+    /** True while a historical offload session is active. */
+    @Volatile
+    var isBackfilling = false
+        private set
+
+    /** Serialises the suspend [ingest] calls so chunk boundaries are never crossed concurrently. */
+    private val mutex = Mutex()
+
+    /** Guards the [chunk]/[chunkOpen] mutations (the only cross-thread state: ingest vs begin/timeout). */
+    private val chunkLock = Any()
+
+    /** Buffered data frames for the current open chunk (between START and the next END). */
+    private val chunk = ArrayList<ByteArray>()
+
+    /** Whether a START has been received and we're accumulating a chunk. */
+    private var chunkOpen = false
+
+    /**
+     * Per-session persistence tally — the success-side observability flagged as the forensics blind spot
+     * (#150): NOOP logged FAILURES (decoded-to-0) but never SUCCESSES, so a strap log couldn't tell a
+     * banking strap from a broken one. Reset in [begin]; read by [WhoopBleClient] at session end to emit
+     * "persisted N rows (M with motion) across K night(s)". Nights are day-keys (ts / 86400). Mirrors the
+     * Swift Backfiller.
+     */
+    var sessionRowsPersisted = 0
+        private set
+
+    /** #1008/#1118 PRE-STORAGE R-R census, accumulated across the session. Twin of the Swift fields.
+     *  `offered` is what the decoder handed over; `inserted` is what survived the store's conflict key.
+     *  The per-second histogram sums per chunk (a second split across chunks counts in both — an edge
+     *  artifact only); `ratio`, built from exact sums over the exact span, is the decisive number. */
+    var sessionRrOffered = 0
+    var sessionRrInserted = 0
+    var sessionRrSumMs = 0
+    var sessionRrMinTs: Int? = null
+    var sessionRrMaxTs: Int? = null
+    val sessionRrHist = mutableListOf(0, 0, 0, 0)
+    val sessionRrGapHist = mutableListOf(0, 0, 0, 0, 0, 0, 0, 0)
+    val sessionRrFill = mutableListOf(0, 0, 0, 0)
+
+    /** #42: set by [begin] when this session continues an auto-continue burst (#364) that already banked
+     *  rows in an earlier session, so a trim=0xFFFFFFFF END here reads as "caught up", not "no history".
+     *  Without it, the fresh session's `sessionRowsPersisted` is 0 and the scary "charge to 100%" line
+     *  false-fires on the empty tail of a sync that just offloaded real records. */
+    var continuedAfterRows = false
+        private set
+    /** #57: set true the moment ANY chunk's persist (decoded rows / reject archive / trim cursor) fails
+     *  this session. While set, [finishChunk] must NOT ack — not even a subsequent EMPTY/metadata END, which
+     *  skips the insert and would otherwise advance the strap's trim PAST the held records-carrying chunks,
+     *  freeing history we never stored (the closed-DB-after-restore data-loss in #57). The offload stalls
+     *  safely (strap keeps everything past the last GOOD ack); a fresh session ([begin]) clears it.
+     *  Exposed read-only so the client can surface a "history isn't persisting" signal in the debug export
+     *  (#57 was invisible to a report — the UI just showed "0 synced"). */
+    var persistStalled = false
+        private set
+    var sessionMotionRows = 0
+        private set
+    /**
+     * #727: skin-temp samples banked this session. WHOOP 4.0 carries skin temp (and the raw SpO2 channel)
+     * ONLY in its full DSP sleep records; a strap banking HR/RR-only records reports 0 here even on a
+     * healthy-looking sync, so surfacing it makes "skin temp never appears" reports self-diagnosing. Mirrors
+     * the Swift Backfiller.
+     */
+    var sessionSkinTempRows = 0
+        private set
+
+    /** #2019: this session's v26 optical windows, and what they carried. See [ppgWaveformCensusLine]. */
+    var sessionPpgWindows = 0
+        private set
+    var sessionPpgWithBase = 0
+        private set
+    var sessionPpgSaturated = 0
+        private set
+    var sessionPpgBaseMin: Long? = null
+        private set
+    var sessionPpgBaseMax: Long? = null
+        private set
+    private val sessionNightKeys = HashSet<Long>()
+    val sessionNights: Int get() = sessionNightKeys.size
+
+    /**
+     * Logged once per session when the strap reports trim=0xFFFFFFFF — the "no valid flash cursor"
+     * sentinel: it has no banked history to offload (a clock/charge state, not a decode bug).
+     */
+    private var loggedNoCursor = false
+
+    /** #1754: whether THIS session saw the trim=0xFFFFFFFF "no valid flash cursor" sentinel. Exposed so
+     *  the empty-offload banner can distinguish the clock/charge state (no cursor — the existing copy is
+     *  correct) from a strap that has a valid, advancing flash cursor but banks no sensor records (NOT a
+     *  clock problem — points at the sensor front-end or power). Read-only from outside. */
+    val sawNoFlashCursor: Boolean get() = loggedNoCursor
+
+    /**
+     * #773: logged once per session the first time a HISTORY_END's own timestamp is dated implausibly far
+     * in the FUTURE (a corrupt strap RTC). Distinct from #547's per-record drop tally: this fires on the
+     * chunk metadata's own clock, the earliest visible tell that the strap's RTC is bogus. Reset in [begin].
+     */
+    private var loggedFutureRtc = false
+
+    /**
+     * The trim cursor of the LAST chunk this Backfiller acked (durably persisted + confirmed to the
+     * strap). Survives across sessions on the same connection so the auto-continue gate (#364) can ask
+     * "did the offload actually advance the strap's trim this session?" — the spin-detector signal that
+     * stops it re-kicking forever when the cursor is frozen. null until the first ack. NOT reset in
+     * [begin] (it's a cross-session high-water mark, not a per-session tally). Mirrors Swift
+     * `Backfiller.lastAckedTrim`.
+     */
+    @Volatile
+    var lastAckedTrim: Long? = null
+        private set
+
+    /**
+     * #1992: reject frames still allowed to hex-dump (see [hexDumpAllowance]).
+     *
+     * Deliberately NOT reset in [begin], for the same reason as [lastAckedTrim]: the thing being
+     * protected is the ROLLING LOG, which belongs to the process, not to one offload session. The
+     * auto-continue re-kicks up to 24 sessions per connection, so a per-session budget would allow
+     * 24 x 24 frames and flood the buffer exactly as before, which is the shape the reporter hit.
+     */
+    private var rejectHexBudget: Int = REJECT_HEX_DUMP_BUDGET
+    /** Reject frames seen this session, so the suppression line can say what it stopped showing. */
+    private var rejectFramesSeen: Int = 0
+    private var rejectHexSuppressedNoted: Boolean = false
+
+    /**
+     * Distinct historical record-layout versions logged this session. Before this, only the unmapped/
+     * reject path surfaced a version, so a HEALTHY log never revealed which layout the strap emits
+     * (v24/v25 on 4.0, v18/v26 on 5/MG) — exactly the firmware→layout signal triage needs. Reset in
+     * [begin]; each distinct layout is logged once per session. (PR #241, ryanbr.)
+     */
+    private val loggedLayoutVersions = HashSet<Int>()
+    /** #1008: 1-based chunk counter for the per-chunk `hist clock` diag line, so a strap log can be read
+     *  as a trajectory across one offload. Reset per session. Twin of the Swift `chunkIndex`. */
+    private var chunkIndex = 0
+
+    /** SpO2 RE dump (PR #945, reimplemented): how many full-record dumps this session emitted, bounded by
+     *  [com.noop.analytics.Spo2ReTrace.MAX_SAMPLES]. Session-scoped so the cap spans chunks; reset in begin. */
+    private var spo2Dumped = 0
+
+    /** SpO2 RE dump: how many records this session dumped for each layout version, so one layout cannot
+     *  spend the whole session budget. Key -1 buckets a record whose `hist_version` did not decode.
+     *  Session-scoped alongside [spo2Dumped]; reset in begin. Twin of the Swift `spo2DumpedByVersion`. */
+    private val spo2DumpedByVersion = HashMap<Int, Int>()
+
+    /** SpO2 RE dump: records EXAMINED this session, bounded by [com.noop.analytics.Spo2ReTrace.MAX_EXAMINED].
+     *  Counts the decode attempts the search costs, which the dump counter stopped bounding once the
+     *  per-version cap could hold dumps back indefinitely. Reset in begin. Twin of Swift `spo2Examined`. */
+    private var spo2Examined = 0
+
+    /**
+     * #547: logged once per session the first time the #547 ingest gate drops an implausible-timestamp
+     * record (a bad strap clock/flash emitting far-past / year-2027-spike / future-dated `unix` values).
+     * Surfaces a bad-clock strap in the shared log without spamming a line per chunk. Reset in [begin].
+     */
+    private var loggedImplausibleClock = false
+
+    /**
+     * #547 RE-POLLUTION signal: running count of records this session the ingest gate dropped for an
+     * implausible timestamp (a bad/wandering strap clock). Read by [WhoopBleClient.exitBackfilling] to arm a
+     * heal re-run — if the strap is bad-clock THIS session it may have banked similar garbage on an OLDER
+     * build whose gate was weaker. Reset in [begin]. Mirrors Swift `Backfiller.sessionDroppedImplausible`.
+     */
+    var sessionDroppedImplausible = 0
+
+    /**
+     * #891 diagnostic: packet types this session's offload carried that the decoder has no rows for, folded
+     * across batches. Each type is logged the FIRST time it appears — a 30k-record offload must not emit 30k
+     * lines. Reset in [begin]. Twin of Swift `Backfiller.sessionUnhandledPacketTypes`.
+     */
+    val sessionUnhandledPacketTypes = mutableMapOf<String, Int>()
+
+    /**
+     * #520 diagnostic: `dynamic_acceleration` folded across every batch of this session, logged once at the
+     * session boundary. Session-scoped rather than per-batch because a batch is an arbitrary slice of an
+     * offload — a still-fraction only means something over a whole night's worth of records. Twin of Swift
+     * `Backfiller.sessionDynAccel`.
+     */
+    var sessionDynAccel = DynAccelDiag()
+        private set
+
+    /**
+     * Called by [WhoopBleClient] when the strap signals a historical offload is beginning.
+     * chunkOpen starts TRUE: the biometric replay streams records immediately and sends one
+     * HISTORY_START then repeated HISTORY_ENDs, so we must accumulate from the outset.
+     * Port of Swift `begin()`.
+     */
+    fun begin(family: DeviceFamily = DeviceFamily.WHOOP4, continuedAfterRows: Boolean = false) {
+        this.family = family
+        this.continuedAfterRows = continuedAfterRows
+        isBackfilling = true
+        sessionRowsPersisted = 0
+        sessionPpgWindows = 0
+        sessionPpgWithBase = 0
+        sessionPpgSaturated = 0
+        sessionPpgBaseMin = null
+        sessionPpgBaseMax = null
+        sessionRrOffered = 0
+        sessionRrInserted = 0
+        sessionRrSumMs = 0
+        sessionRrMinTs = null
+        sessionRrMaxTs = null
+        for (i in 0 until 4) sessionRrHist[i] = 0
+        for (i in 0 until 8) sessionRrGapHist[i] = 0
+        for (i in 0 until 4) sessionRrFill[i] = 0
+        sessionMotionRows = 0
+        sessionSkinTempRows = 0
+        sessionNightKeys.clear()
+        persistStalled = false   // #57: fresh session starts un-stalled
+        loggedNoCursor = false
+        loggedFutureRtc = false
+        loggedLayoutVersions.clear()
+        chunkIndex = 0
+        spo2Dumped = 0
+        spo2DumpedByVersion.clear()
+        spo2Examined = 0
+        loggedImplausibleClock = false
+        sessionDroppedImplausible = 0
+        sessionUnhandledPacketTypes.clear()   // #891: a second offload must re-log its first sighting
+        sessionDynAccel = DynAccelDiag()
+        // #547: the range markers belong to a connection's GET_DATA_RANGE, which the client re-sets per
+        // connect; clear them so a fresh session never reuses a previous strap's window (the client
+        // re-publishes them as soon as the range reply arrives).
+        sessionOldestUnix = null
+        sessionNewestUnix = null
+        synchronized(chunkLock) {
+            chunk.clear()
+            chunkOpen = true
+        }
+    }
+
+    /**
+     * Feed one complete (reassembled) BLE frame into the state machine. Suspends while a chunk is
+     * persisted so chunk boundaries are never crossed concurrently. Port of Swift `ingest(_:)`.
+     */
+    suspend fun ingest(frame: ByteArray) {
+        mutex.withLock {
+            when (val meta = classifyHistoricalMeta(Framing.parseFrame(frame, family))) {
+                is HistoricalMeta.Start -> {
+                    isBackfilling = true
+                    synchronized(chunkLock) {
+                        chunk.clear()
+                        chunkOpen = true
+                    }
+                }
+                is HistoricalMeta.End -> finishChunk(meta.unix, meta.trim, frame)
+                is HistoricalMeta.Complete -> {
+                    isBackfilling = false
+                    synchronized(chunkLock) {
+                        chunk.clear()
+                        chunkOpen = false
+                    }
+                }
+                is HistoricalMeta.Other -> synchronized(chunkLock) { if (chunkOpen) chunk.add(frame) }
+            }
+        }
+    }
+
+    /**
+     * Commit one HISTORY_END chunk: persist decoded -> persist strap_trim cursor -> ack the trim.
+     * Early-returns on any failure to preserve the safe-trim invariant (never ack data we failed to
+     * store). Port of Swift `finishChunk(unix:trim:endFrame:)`.
+     *
+     * We snapshot+clear the accumulated frames but leave [chunkOpen] TRUE so the records following
+     * this END become the next chunk. An END with no records is still acked (advances the trim).
+     */
+    private suspend fun finishChunk(unix: Long, trim: Long, endFrame: ByteArray) {
+        val endData = endData(endFrame, family) ?: return
+
+        // #773: corrupt future-RTC detection. A HISTORY_END carries the strap's own clock; a genuine offload
+        // is always PAST-dated (it's banked history), so an end dated days into the future can only be a
+        // corrupt strap RTC. Surface it ONCE per session with a recovery hint so the cause (the strap clock,
+        // not a NOOP bug) is named and the fix (charge + reconnect re-syncs the RTC) is given. Observability
+        // only - the ack still proceeds and the #547 ingest gate already keeps the bad-dated rows out of the
+        // DB. The 0xFFFFFFFF sentinel above is a different state (it isn't a real date), so skip it here.
+        if (trim != 0xFFFFFFFFL && !loggedFutureRtc) {
+            val wallNow = System.currentTimeMillis() / 1000L
+            if (isCorruptFutureRtc(unix, wallNow)) {
+                loggedFutureRtc = true
+                log(futureRtcLine(unix, wallNow))
+            }
+        }
+
+        val frames = synchronized(chunkLock) {
+            val snapshot = ArrayList(chunk)
+            chunk.clear() // next records accumulate into the next chunk
+            snapshot
+        }
+
+        var committed: StreamBatch? = null
+        if (frames.isNotEmpty()) {
+            val ref = clockRef
+            val decoded = extractHistoricalStreams(
+                frames, ref.device, ref.wall, family,
+                sessionOldestUnix = sessionOldestUnix, sessionNewestUnix = sessionNewestUnix,
+                ppgHrSubLagInterp = ppgHrSubLagInterp(),
+            )
+            // #1008: per-chunk clock basis + R-R packing. The session summary logs only the FIRST chunk's
+            // correlation, which cannot show the offset moving across a long offload nor separate "the same
+            // beats arrived twice" from "one record stamped 8 intervals on one second". Log-only. Twin of
+            // the Swift Backfiller emit.
+            chunkIndex += 1
+            ChunkClockDiag.line(chunkIndex, ref.device, ref.wall, decoded.rr.map { it.ts })
+                ?.let { log(it) }
+            // Observability (PR #241): which historical layout does this strap emit? Only the unmapped/
+            // reject path logged a version before, so a healthy sync never revealed v24/v25 (4.0) or
+            // v18/v26 (5/MG). Sample the chunk's first genuine record (null ⇒ console/CRC-fail); log
+            // each distinct layout once per session.
+            // EVERY distinct layout in the chunk, not just the first record's. The comment above says
+            // "log each distinct layout once per session" and the old form did not do that: it sampled the
+            // first decodable record and stopped, so a strap emitting v18 AND an unscoreable layout logged
+            // only the v18 and never mentioned the other one. That is precisely the mixed-layout strap the
+            // guidance below exists for. Swift reads its already-parsed frames for this and pays nothing;
+            // here it costs one decode pass over the chunk, beside the one `extractHistoricalStreams` just
+            // did, which is immaterial next to the transfer that delivered the chunk.
+            val layoutsInChunk = LinkedHashMap<Int, Boolean>()   // version -> any record carried a signal
+            for (f in frames) {
+                val d = decodeHistorical(f, family) ?: continue
+                val v = d["hist_version"] as? Int ?: continue
+                val carries = d.containsKey("heart_rate") || d.containsKey("gravity_x") ||
+                    d.containsKey("ppg_waveform")
+                layoutsInChunk[v] = (layoutsInChunk[v] ?: false) || carries
+            }
+            // `firmwareLayout` sets ONE state value and the connection trace names ONE layout, so both stay
+            // bound to the chunk's first version exactly as before; only the logging widened.
+            val firstLayout = layoutsInChunk.keys.firstOrNull()
+            for ((v, carriesSignal) in layoutsInChunk) {
+                if (!loggedLayoutVersions.add(v)) continue
+                log("Backfill: historical records use layout v$v")
+                // #1992: and say what that MEANS when it is not a layout NOOP can score from. Android used
+                // to print the bare version and stop, so a user whose nights were not staging had the fact
+                // in their log and none of the explanation, while the same strap on iOS was told why.
+                // Asked of the LAYOUT: it counts as carrying a signal when ANY of the chunk's records of
+                // that version did, so one thin record cannot condemn it. Twin of the Swift emit.
+                when (com.noop.protocol.historicalLayoutSupport(
+                    version = v, family = family, hasHeartRate = carriesSignal,
+                    hasGravity = false, hasPpgWaveform = false,
+                )) {
+                    com.noop.protocol.HistoricalLayoutSupport.UNMAPPED ->
+                        log(
+                            "Historical records use firmware layout v$v, which NOOP doesn't decode yet: " +
+                                "those records carry no heart rate or motion, so any night made only of them " +
+                                "can't be staged from the strap. A strap emitting a mix of layouts still " +
+                                "stages the nights it can. Please report this (issue #1992).",
+                        )
+                    com.noop.protocol.HistoricalLayoutSupport.DECODES_WITHOUT_NAMED_SIGNAL ->
+                        log(
+                            "Historical records use firmware layout v$v. NOOP decodes it, but these records " +
+                                "carry no per-second heart rate and no motion (they hold raw sensor channels " +
+                                "nothing scores yet), so any night made only of them can't be staged from the " +
+                                "strap. A strap emitting a mix of layouts still stages the nights it can. " +
+                                "Please report this (issue #1992).",
+                        )
+                    com.noop.protocol.HistoricalLayoutSupport.SUPPORTED -> Unit
+                }
+                if (v == firstLayout) {
+                    firmwareLayout(v)
+                    // Connection test mode: the firmware layout as a compact tagged line. Gated zero-cost.
+                    // Twin of the Swift Backfiller emit.
+                    emitConnection { com.noop.analytics.ConnectionTrace.firmwareLine(v, carriesSignal) }
+                }
+            }
+            // SpO2 RE dump (PR #945, reimplemented): while the Connection test mode is on, dump a few FULL
+            // historical records + their mapped raw SpO2 channels so an offline pass can tell whether the
+            // strap banks a COMPUTED SpO2 (a byte tracking the WHOOP app's nightly %) vs only the raw
+            // red/IR ADC we already decode. Log-only and bounded per session across chunks ([spo2Dumped],
+            // reset in begin); zero-cost when the mode is off (one Bool short-circuit). Only genuine
+            // historical records (decodeHistorical returns a map with `unix`) spend the sample budget -
+            // the strap's type-50 console frames carry no record bytes to correlate. Records dump whether
+            // or not they carry SpO2 channels, so "nothing banked" is provable too. Never a user-facing
+            // number (never-fabricate; the #194 lesson). Twin of the Swift Backfiller emit.
+            if (spo2Dumped < com.noop.analytics.Spo2ReTrace.MAX_SAMPLES &&
+                spo2Examined < com.noop.analytics.Spo2ReTrace.MAX_EXAMINED &&
+                connectionActive()
+            ) {
+                for (f in frames) {
+                    if (spo2Dumped >= com.noop.analytics.Spo2ReTrace.MAX_SAMPLES) break
+                    // The decode below is a SECOND decode of a frame the extractor already decoded, so the
+                    // search has to be bounded by what it examines and not only by what it dumps.
+                    if (spo2Examined >= com.noop.analytics.Spo2ReTrace.MAX_EXAMINED) break
+                    spo2Examined++
+                    val d = decodeHistorical(f, family) ?: continue
+                    // `as? Long`, not `as? Int`: the decoder carries unix in the unsigned domain, so an
+                    // Int cast would miss on EVERY record and silently stop the dump. See `histU32`.
+                    val recUnix = d["unix"] as? Long ?: continue
+                    // Stratify by layout: without this the first chunk's dominant layout eats the whole
+                    // budget and the rare, still-unmapped one never gets a single frame. See MAX_PER_VERSION.
+                    val ver = d["hist_version"] as? Int ?: -1
+                    val dumpedForVer = spo2DumpedByVersion[ver] ?: 0
+                    if (dumpedForVer >= com.noop.analytics.Spo2ReTrace.MAX_PER_VERSION) continue
+                    connectionLog(
+                        com.noop.analytics.Spo2ReTrace.recordLine(
+                            frame = f,
+                            version = d["hist_version"] as? Int,
+                            unix = recUnix,
+                            red = d["spo2_red"] as? Int,
+                            ir = d["spo2_ir"] as? Int,
+                            skinRaw = d["skin_temp_raw"] as? Int,
+                        ),
+                    )
+                    spo2DumpedByVersion[ver] = dumpedForVer + 1
+                    spo2Dumped++
+                }
+            }
+            // #520: accumulate the motion-magnitude diagnostic across the session; logged once at the
+            // session boundary, never per batch.
+            sessionDynAccel.merge(decoded.dynAccel)
+            // #547: the strap is emitting records with implausible timestamps (a bad clock/flash —
+            // far-past, a year-2027 spike, or future-dated `unix`). The ingest gate dropped them so they
+            // can't pollute the day-windowed analytics; surface it ONCE per session so a bad-clock strap
+            // is visible in a shared log (the strap clock is genuinely bad — this is NOOP being robust).
+            sessionDroppedImplausible += decoded.droppedImplausibleTs
+            if (decoded.droppedImplausibleTs > 0 && !loggedImplausibleClock) {
+                loggedImplausibleClock = true
+                // #324: append the epoch SPAN of the dropped block + how far off it sits, so the strap log
+                // shows WHETHER the whole banked range is future-dated (safe to fast-forward-discard) or a slice.
+                val span = BadClockDiagnostics.droppedSpanClause(
+                    decoded.droppedImplausibleOldestTs,
+                    decoded.droppedImplausibleNewestTs,
+                    System.currentTimeMillis() / 1000L,
+                )
+                log(
+                    "Backfill: WARNING dropped ${decoded.droppedImplausibleTs} record(s) with an " +
+                        "implausible timestamp$span (bad strap clock — far-past or future-dated); they are " +
+                        "excluded so they can't misdate history.",
+                )
+            }
+            // #891: packet types this batch carried that the decoder has no branch for. Logged the first
+            // time each type appears so a long offload stays readable. This is the only place such a record
+            // becomes visible: the `else` branch drops it and rejectedHistoricalRecords archives only
+            // type-47, so without this line an offload full of an unmapped type reports a clean sync.
+            // Mirrors the Swift Backfiller.
+            for ((typeName, n) in decoded.unhandledPacketTypes.toSortedMap()) {
+                val firstSighting = typeName !in sessionUnhandledPacketTypes
+                sessionUnhandledPacketTypes[typeName] =
+                    (sessionUnhandledPacketTypes[typeName] ?: 0) + n
+                if (firstSighting) {
+                    log(
+                        "Backfill: the strap sent $n record(s) of packet type $typeName, which this " +
+                            "decoder has no rows for — they are being dropped. If $typeName is not a name " +
+                            "you recognise, this is a firmware record type NOOP has never mapped: please " +
+                            "report it on #891 with the strap model and firmware build.",
+                    )
+                    // #891: and the bytes, so the report is actionable. Without this the line above asks a
+                    // reporter to raise an issue about a record that exists nowhere else: the else branch
+                    // drops the frame and the reject archive only ever holds type-47. First sighting only,
+                    // so a long offload of one unmapped type still costs exactly one dump.
+                    decoded.unhandledPacketSamples[typeName]?.let { hex ->
+                        log(unmappedTypeDumpLine(typeName, hex))
+                    }
+                }
+            }
+            // #324: the strap RTC-state events (RTC_LOST / BOOT / SET_RTC) the #547 gate dropped for a bad
+            // own-timestamp — the GROUND TRUTH that the clock reset. Sparse (not per-record), so log each as
+            // it appears; the bad rawTs is the future/past base the RTC jumped to.
+            if (decoded.droppedRtcEvents.isNotEmpty()) {
+                val nowForRtc = System.currentTimeMillis() / 1000L
+                for (ev in decoded.droppedRtcEvents) {
+                    log(
+                        "Backfill: strap reported ${ev.kind} with an implausible own-timestamp " +
+                            "${BadClockDiagnostics.isoDay(ev.rawTs)} (${BadClockDiagnostics.hoursOffset(ev.rawTs, nowForRtc)} " +
+                            "vs now) — the strap's RTC reset to a wrong base (#324/#928); this is the ground-truth " +
+                            "cause of the future-dated banking, not a NOOP decode bug.",
+                    )
+                }
+            }
+            // #77 / #91: HISTORICAL_DATA record frames that fail decode (CRC failure, or an unmapped
+            // layout the v24 fallback's plausibility gate also rejects) used to be acked anyway — the
+            // strap trims acked history, so the user's ONLY copy of those records was permanently
+            // destroyed while the UI reported "History synced". Classify PER FRAME (a type-50 console
+            // frame decodes to 0 rows BY DESIGN and must not raise the alarm — the old chunk-level
+            // isEmpty check counted it and could waste the hex sample on it; it also missed mixed chunks
+            // where one good row hid the losses). The rejects are archived durably AFTER the decoded
+            // insert below but ALWAYS before the ack (#1006, Swift-order parity — see the archive block
+            // for why insert goes first). The WHOOP4 happy path (zero rejects) is unchanged.
+            val rejected = rejectedHistoricalRecords(frames, family)
+            // #77 family: decoded no rows AND no genuine rejects ⇒ pure console output. Tally it so a
+            // completed-but-empty offload (strap not banking) is distinguishable from a caught-up sync.
+            if (decoded.isEmpty && rejected.isEmpty()) onConsoleChunk()
+            if (rejected.isNotEmpty()) {
+                log(
+                    "Backfill: WARNING ${rejected.size} record frame(s) decoded to 0 rows " +
+                        "(trim=$trim) — archiving raw bytes before ack (CRC/unmapped layout)",
+                )
+                // #91 / #30: a hex sample in the strap log so an unmapped firmware's record layout can
+                // be mapped from a shared log. Dump the FULL frame (not a 64-byte prefix — v25/v26
+                // records run ~84 B and the truncated tail is exactly where the unmapped motion/HR
+                // fields sit), and sample a few more so one log carries enough records to triangulate
+                // offsets. These only ever fire for unmapped firmware.
+                rejectFramesSeen += rejected.size
+                // #1992: spend from a SESSION budget, not a fresh 8 per chunk. See [hexDumpAllowance].
+                val allowance = hexDumpAllowance(rejected.size, rejectHexBudget)
+                val sample = rejected.take(allowance)
+                var emptySkipped = 0
+                sample.forEachIndexed { i, f ->
+                    // #1007: an all-zero frame has no record layout to map, so its hex dump is pure log
+                    // bloat (a strap emitting these produced ~4 MB of all-00). Keep the WARNING count above.
+                    if (isEmptyRecordFrame(f)) { emptySkipped++; return@forEachIndexed }
+                    val hex = f.joinToString("") { "%02x".format(it) }
+                    log("Backfill: rejected frame[$i] ${f.size}B: $hex")
+                    rejectHexBudget--
+                }
+                if (emptySkipped > 0) {
+                    log("Backfill: #1007 $emptySkipped/${sample.size} sampled frame(s) all-zero (empty payload) - hex dump skipped")
+                }
+                // Say ONCE that the sample is capped, so a reader knows the dump is a sample rather than
+                // everything the strap sent, and where the rest lives.
+                if (rejectHexBudget <= 0 && !rejectHexSuppressedNoted) {
+                    rejectHexSuppressedNoted = true
+                    log(
+                        "Backfill: hex dumps capped at $REJECT_HEX_DUMP_BUDGET frame(s) while this connection lasts " +
+                            "($rejectFramesSeen reject frame(s) seen so far); the complete records are in the " +
+                            "reject archive. Sample is enough to map a layout (#1992)",
+                    )
+                }
+            }
+            // Commit the decoded rows FIRST (durable) — BEFORE the reject archive (#1006, matching the
+            // Swift twin). Insert-first means a rare insert failure — which returns below and re-sends
+            // the whole chunk next session — can't have already appended this chunk's reject frames to
+            // the append-only #91/#30 archive, so the retry can't leave duplicate lines in the corpus
+            // later firmware-layout mapping triangulates against. (The old archive-first order was a
+            // port slip: no data loss either way, but the insert-failure retry archived twice.)
+            try {
+                // #1008/#1118: census the batch BEFORE it is stored — the only place the decoder's own
+                // emission can be measured, since every existing R-R number is taken after the conflict
+                // key has already absorbed part of it.
+                val rrCensus = com.noop.analytics.RrEmissionStats.compute(decoded.rr.map { it.ts.toInt() to it.rrMs })
+                val counts = repository.insert(decoded, deviceId)
+                onBankedOffload(counts)
+                committed = decoded
+                // Success-side observability (#150): tally what actually persisted so the session can emit
+                // "persisted N rows (M with motion) across K night(s)" — the win-rate signal we never logged.
+                val (rows, motion, nights) = chunkTally(counts, decoded.gravity.map { it.ts } + decoded.hr.map { it.ts })
+                sessionRowsPersisted += rows
+                // #2019: the v26 optical census, folded per chunk. Counted on what the DECODER produced
+                // rather than on what the store kept, because an un-reconstructable window is a decode
+                // fact: the base is either on the wire or it is not.
+                for (w in decoded.ppgWaveform) {
+                    sessionPpgWindows += 1
+                    w.baseCode?.let { b ->
+                        sessionPpgWithBase += 1
+                        sessionPpgBaseMin = minOf(sessionPpgBaseMin ?: b, b)
+                        sessionPpgBaseMax = maxOf(sessionPpgBaseMax ?: b, b)
+                    }
+                    if (w.samples.any { com.noop.protocol.isSaturatedPpgDelta(it) }) sessionPpgSaturated += 1
+                }
+                // #1008/#1118 census accumulation (pre-storage offered vs post-key inserted).
+                sessionRrOffered += rrCensus.intervals
+                sessionRrInserted += counts.rr
+                sessionRrSumMs += rrCensus.sumRrMs
+                if (rrCensus.intervals > 0) {
+                    val lo = decoded.rr.minOf { it.ts.toInt() }
+                    val hi = decoded.rr.maxOf { it.ts.toInt() }
+                    sessionRrMinTs = minOf(sessionRrMinTs ?: lo, lo)
+                    sessionRrMaxTs = maxOf(sessionRrMaxTs ?: hi, hi)
+                    for (i in 0 until 4) sessionRrHist[i] = sessionRrHist[i] + rrCensus.perSecond[i]
+                    for (i in 0 until 8) sessionRrGapHist[i] = sessionRrGapHist[i] + rrCensus.gapHist[i]
+                    for (i in 0 until 4) sessionRrFill[i] = sessionRrFill[i] + rrCensus.fill[i]
+                }
+                sessionMotionRows += motion
+                sessionSkinTempRows += counts.skinTemp
+                sessionNightKeys.addAll(nights)
+                // Connection test mode: per-chunk offload PROGRESS (running session totals). Gated zero-cost.
+                // Twin of the Swift Backfiller emit.
+                emitConnection {
+                    "offload progress trim=$trim chunkRows=$rows " +
+                        "sessionRows=$sessionRowsPersisted sessionMotion=$sessionMotionRows nights=$sessionNights"
+                }
+            } catch (t: Throwable) {
+                // Diag (#601 / #13): the decoded rows couldn't be written, the "history stalls but live HR
+                // works" class. We return WITHOUT acking so the strap keeps this chunk and re-sends it next
+                // session (no data loss), but a silent return left a strap log with no trace of the stall.
+                // Mirrors the Swift twin's log so a write-stall is falsifiable here too.
+                log("Backfill: failed to persist decoded rows (trim=$trim): $t, holding ack so the strap re-sends this chunk; history won't advance until the write succeeds.")
+                persistStalled = true   // #57: stall ALL further acks so an empty END can't advance past this
+                return // do NOT advance/ack, chunk was never durably committed
+            }
+            // #77 / #91: any genuinely-undecodable record in this chunk must be ARCHIVED durably before
+            // we ack — the ack frees the strap's copy, so the archive is the only remaining copy of an
+            // unmapped firmware's records. Runs AFTER the decoded insert (#1006, Swift-order parity; see
+            // the insert comment above). A false return means a genuine write failure (NOT the
+            // archive-full case, which returns true) — hold the cursor/ack so the strap re-sends the
+            // chunk next offload. The decoded rows are already durable, so that re-send's insert is an
+            // idempotent no-op while the archive retries. No data loss either way.
+            if (rejected.isNotEmpty() && !rejectedSink(rejected, trim)) {
+                log("Backfill: rejected-frame archive failed (trim=$trim) — holding ack so the strap re-sends.")
+                persistStalled = true   // #57
+                return
+            }
+        }
+
+        // #150 / #783 / #1: trim=0xFFFFFFFF is the strap's "no valid flash cursor" sentinel. Its MEANING
+        // depends on whether this run already banked anything. On the FIRST end of a fresh offload it means
+        // "no banked history" (a clock/charge state). But the auto-continuation (#364) re-kicks
+        // SEND_HISTORICAL after a run that DID persist rows, and the very next end then carries 0xFFFFFFFF
+        // to mean "you are caught up, nothing left past the last trim", NOT "no history". Emitting the scary
+        // "fully charge it" line there was wrong and alarmed users whose strap had just synced fine (#783).
+        // We gate this AFTER the persist block (#1): a bad-clock/flash strap can emit records on the SAME
+        // 0xFFFFFFFF END, so sessionRowsPersisted must already include THIS end's own rows before the pick,
+        // otherwise a records-bearing no-cursor END false-alarms "no banked history". So gate on
+        // sessionRowsPersisted == 0 HERE: if rows landed (this run or this END) log the neutral caught-up
+        // line; a genuinely empty session (0 rows) still gets the real no-history guidance. Logs once per
+        // session (loggedNoCursor) and the ack still proceeds below.
+        if (trim == 0xFFFFFFFFL && !loggedNoCursor) {
+            loggedNoCursor = true
+            log(noCursorLine(sessionRowsPersisted, continuedAfterRows))
+            // Connection test mode: the no-cursor sentinel as a compact tagged line (gated zero-cost).
+            emitConnection { com.noop.analytics.ConnectionTrace.noCursorLine() }
+        }
+
+        // #57: if an EARLIER chunk this session failed to persist, do NOT advance the cursor or ack — not
+        // even for this (possibly empty/metadata) END. `insert` short-circuits empty batches without
+        // touching the store, so an empty END never throws; acking it would trim the strap PAST the held
+        // records-carrying chunks, freeing history we never stored (the closed-DB-after-restore loss). Stall
+        // the whole offload until a fresh session with a working store re-offers everything past the last
+        // GOOD ack.
+        if (persistStalled) {
+            log("Backfill: persist stalled earlier this session — NOT acking trim=$trim so the strap can't trim past un-stored history. Reconnect once the store is healthy (a backup restore needs an app restart, #57).")
+            return
+        }
+
+        // Persist the trim cursor BEFORE acking (so a crash between persist and ack still resumes
+        // from the right place). Stored via [TrimCursorStore] because the Room schema has no cursor
+        // table — see the port FLAG. trim is a u32 carried as Long (unsigned-safe).
+        try {
+            cursorStore.set(STRAP_TRIM_CURSOR, trim)
+        } catch (t: Throwable) {
+            // Diag (#601 / #13): decoded rows are durable but the strap_trim cursor write failed. We return
+            // WITHOUT acking, acking now would let the strap trim past records the cursor hasn't recorded, so
+            // on reconnect the offload could replay or skip. Holding the ack keeps it safe; the strap re-offers
+            // this chunk next session. A silent return here was a prime "history won't advance" suspect with
+            // nothing in the log to confirm it. Mirrors the Swift twin's log.
+            log("Backfill: failed to write strap_trim cursor (trim=$trim): $t, holding ack so the strap re-sends this chunk; history won't advance until the cursor write succeeds.")
+            persistStalled = true   // #57
+            return
+        }
+
+        ackTrim(trim, endData)
+        lastAckedTrim = trim   // #364: record the advanced cursor for the auto-continue spin-detector
+        committed?.takeIf { !it.isEmpty }?.let(onChunkCommitted)
+    }
+
+    /**
+     * Called when a backfill watchdog timer fires (strap went silent mid-offload). Clears state
+     * WITHOUT acking — the open chunk was never durably committed. Port of Swift `timeoutFired()`.
+     */
+    fun timeoutFired() {
+        isBackfilling = false
+        synchronized(chunkLock) {
+            chunk.clear()
+            chunkOpen = false
+        }
+    }
+
+
+    /**
+     * #1008/#1118: the session's PRE-STORAGE R-R census. `ratio` is beat-time per second of wall time
+     * over the whole session — above 1.0 is physically impossible, and because it is measured on what the
+     * DECODER produced it separates an emission/decode defect (ratio already high here) from an ingest one
+     * (ratio ~1 here while the stored night still reads high). Null when the session banked no R-R.
+     * Twin of Swift `sessionRrEmissionLine`.
+     */
+    fun sessionRrEmissionLine(): String? {
+        val lo = sessionRrMinTs ?: return null
+        val hi = sessionRrMaxTs ?: return null
+        if (sessionRrOffered <= 0) return null
+        val span = maxOf(hi - lo + 1, 1)
+        val ratio = sessionRrSumMs / 1000.0 / span
+        val r = com.noop.analytics.RrEmissionStats.Result(
+            secondsWithRr = sessionRrHist.sum(),
+            intervals = sessionRrOffered,
+            sumRrMs = sessionRrSumMs,
+            spanSec = span,
+            ratio = ratio,
+            perSecond = sessionRrHist.toList(),
+            gapHist = sessionRrGapHist.toList(),
+            fill = sessionRrFill.toList(),
+        )
+        return com.noop.analytics.RrEmissionStats.logLine("historical", sessionRrOffered, sessionRrInserted, r)
+    }
+
+    companion object {
+        /**
+         * Reject frames one connection may hex-dump (#1992). Three chunks worth at the per-chunk
+         * cap: enough distinct records to triangulate field offsets (v25 was mapped from 45, spread
+         * across many logs), while leaving room in a 2000-line rolling buffer for the lines that
+         * give the dump its context. The complete records are always in the reject archive.
+         */
+        internal const val REJECT_HEX_DUMP_BUDGET = 24
+
+        /**
+         * #891: the dump line for the first frame of an unmapped packet type. Byte-identical to the Swift
+         * `Backfiller.unmappedTypeDumpLine`; [hex] is the FULL frame, so the length is derived from it
+         * rather than passed separately and able to disagree with the bytes beside it.
+         */
+        internal fun unmappedTypeDumpLine(typeName: String, hex: String): String =
+            "Backfill: unmapped type $typeName first frame ${hex.length / 2}B: $hex"
+
+        /**
+         * How many reject frames this chunk may hex-dump, given what the session has already spent (#1992).
+         *
+         * The dump is the only channel carrying an unmapped layout's raw bytes to someone who can map it,
+         * and it was bounded PER CHUNK with no session budget. On the straps it exists for that defeats
+         * itself: a strap rejecting ~25 records per chunk, across many chunks and many sessions per
+         * connection, emits 8 long hex lines each time, floods the 2000-line rolling log, and evicts its own
+         * earlier dumps along with the context needed to read them. A session budget keeps a usable sample
+         * rather than a flood that rolls itself away.
+         *
+         * Pure, so the arithmetic is testable without constructing a Backfiller (which needs a repository
+         * over a 152-method DAO). Swift twin: `hexDumpAllowance`.
+         */
+        internal fun hexDumpAllowance(rejectedCount: Int, budgetRemaining: Int, perChunkCap: Int = 8): Int =
+            maxOf(0, minOf(rejectedCount, perChunkCap, budgetRemaining))
+
+        /** Cursor name for the strap's safe-trim watermark. Matches the Swift `setCursor("strap_trim", ...)`. */
+        const val STRAP_TRIM_CURSOR = "strap_trim"
+
+        /**
+         * The 8-byte `end_data` the high-freq-sync ack requires: metadata.data[10:18]. The inner
+         * record begins at frame[7] on WHOOP4 (end_data = frame[17:25]) and at frame[11] on WHOOP5/MG
+         * (the +4 puffin envelope → end_data = frame[21:29]). The trim cursor is the first u32 of
+         * end_data. Returns null if the frame is too short. Verified against a real WHOOP5 HISTORY_END
+         * (trim=112193 at frame[21:25]); port of Swift `Backfiller.endData(from:family:)`. (#78)
+         */
+        fun endData(frame: ByteArray, family: DeviceFamily): ByteArray? {
+            val start = if (family == DeviceFamily.WHOOP5) 21 else 17
+            if (frame.size < start + 8) return null
+            return frame.copyOfRange(start, start + 8)
+        }
+
+        /**
+         * Pure per-chunk persistence tally (#150). [rows] = biometric rows inserted (HR, R-R, SpO2,
+         * skin-temp, resp, gravity — battery/events/steps are housekeeping, NOT biometric history, so
+         * they must not inflate the count; matches the Swift tuple, which has no steps). [motion] =
+         * gravity rows (the sleep-critical signal). nights = distinct day-keys (ts / 86400). Summed
+         * across a session by [finishChunk] to drive the success summary line.
+         */
+        fun chunkTally(counts: InsertCounts, timestamps: List<Long>): Triple<Int, Int, Set<Long>> {
+            val rows = counts.hr + counts.rr + counts.spo2 + counts.skinTemp + counts.resp + counts.gravity
+            return Triple(rows, counts.gravity, timestamps.map { it / 86400L }.toSet())
+        }
+
+        /**
+         * The one-line session success summary (#150) — the success-side log that never existed. Null
+         * when nothing persisted, so a console-only / caught-up session stays quiet and the existing
+         * empty-banking diagnostics speak instead.
+         */
+        fun sessionSummaryLine(rows: Int, motion: Int, skinTemp: Int, nights: Int): String? =
+            if (rows <= 0) null
+            else "Backfill: session persisted $rows rows ($motion with motion, $skinTemp skin-temp) across $nights night(s)."
+
+        /**
+         * The trim=0xFFFFFFFF sentinel line (#783). 0xFFFFFFFF means two different things depending on
+         * whether THIS run already banked rows. On the first end of a fresh offload it's the "no valid flash
+         * cursor" state (no banked history, a clock/charge problem). But the #364 auto-continuation re-kicks
+         * SEND_HISTORICAL after a run that DID persist rows, and the next end then carries 0xFFFFFFFF to mean
+         * "caught up, nothing left past the last trim", NOT "no history". Emitting the alarming "fully charge
+         * it" line there falsely scared users whose strap had just synced fine. So pick by [rowsPersisted]:
+         * > 0 gives a neutral caught-up line; 0 gives the genuine no-history guidance. Pure so a fixture pins both.
+         * Twin of the Swift `Backfiller.noCursorLine(rowsPersisted:)`.
+         */
+        fun noCursorLine(rowsPersisted: Int, continuedAfterRows: Boolean = false): String =
+            when {
+                rowsPersisted > 0 ->
+                    "Backfill: reached the end of available history (trim=0xFFFFFFFF) - caught up after " +
+                        "persisting $rowsPersisted row(s) this run. Nothing more to offload."
+                // #42: the empty tail of an auto-continue burst (#364) that banked rows in an EARLIER
+                // session. The strap synced fine — this pass just confirms we're caught up — so DON'T
+                // false-alarm "no banked history / charge to 100%".
+                continuedAfterRows ->
+                    "Backfill: reached the end of available history (trim=0xFFFFFFFF) - caught up; the " +
+                        "strap handed over its banked history earlier this sync. Nothing more to offload."
+                else ->
+                    "Backfill: strap reported no flash cursor (trim=0xFFFFFFFF) - it has no banked history " +
+                        "to offload. This is a clock/charge state on the strap, not a decode problem; fully " +
+                        "charge it and reconnect so it starts banking."
+            }
+
+        /**
+         * #773: how far ahead of the wall clock a HISTORY_END's own timestamp may sit before we call the
+         * strap RTC corrupt. The strap RTC and the phone normally agree within seconds; a genuine offload is
+         * always dated in the PAST (it's banked history). A timestamp dated days into the FUTURE can only be
+         * a corrupt strap clock. Generous (1 day) so ordinary skew or a timezone confusion never trips it.
+         * Twin of the Swift `Backfiller.futureRtcToleranceSeconds`.
+         */
+        const val FUTURE_RTC_TOLERANCE_SECONDS = 86_400L
+
+        /**
+         * #773: is this HISTORY_END timestamp an implausible FUTURE date (a corrupt strap RTC)? [endUnix] and
+         * [wallNowUnix] are unix seconds in the same wall domain. Pure so a fixture pins the boundary. Twin of
+         * the Swift `Backfiller.isCorruptFutureRtc`.
+         */
+        fun isCorruptFutureRtc(endUnix: Long, wallNowUnix: Long): Boolean =
+            endUnix > wallNowUnix + FUTURE_RTC_TOLERANCE_SECONDS
+
+        /**
+         * #773: the recovery-hint line for a corrupt future-dated strap RTC. Names the cause plainly (the
+         * strap's clock, not a NOOP bug) and gives the fix (charge + reconnect re-syncs the RTC). Byte-
+         * identical to the Swift `Backfiller.futureRtcLine`. No em-dash (project rule).
+         */
+        fun futureRtcLine(endUnix: Long, wallNowUnix: Long): String {
+            val aheadDays = maxOf(0L, endUnix - wallNowUnix) / 86_400L
+            return "Backfill: the strap reported a record dated about $aheadDays day(s) in the FUTURE - " +
+                "its clock (RTC) is corrupt, not a NOOP problem. Those records can't be filed onto the " +
+                "right day. Fully charge the strap to 100% and reconnect so it re-syncs its clock; if it " +
+                "persists, forget and re-pair the strap."
+        }
+
+        /**
+         * #1683: how far BEHIND the wall clock the strap's newest stored record may sit before a sync that
+         * banked nothing is worth explaining. Two days, not one: a strap left off-wrist overnight is
+         * ordinary, and this line only ever accompanies a completed offload that banked nothing anyway.
+         */
+        const val STALE_RECORD_TOLERANCE_SECONDS = 2 * 86_400L
+
+        /** Is the strap's newest stored record far enough in the past to be worth naming? A null or
+         *  non-positive value is not a date and never qualifies. */
+        fun isStaleNewestRecord(newestUnix: Long?, wallNowUnix: Long): Boolean =
+            newestUnix != null && newestUnix > 0L &&
+                newestUnix <= wallNowUnix - STALE_RECORD_TOLERANCE_SECONDS
+
+        /**
+         * #1683: the counterpart [futureRtcLine] never had. A strap that stopped banking weeks ago and a
+         * strap that is simply caught up produce the SAME "banked no sensor history" line today, so
+         * neither the user nor anyone reading their log can tell them apart. #1541 stayed open and vague
+         * for exactly that reason.
+         *
+         * Deliberately states the FACT and lets the condition carry the interpretation. A newest record
+         * two weeks old means the strap stopped recording IF it was being worn; if it sat in a drawer, the
+         * same number is unremarkable. Asserting a corrupt RTC here would be claiming more than the data
+         * supports, which is how this area has misled people before.
+         *
+         * It also says the part the existing advice omits: NOOP re-sends SET_CLOCK on every connect, so
+         * "charge it" alone has already been retried every session. The escalation and the
+         * compare-with-the-official-app test are what actually move a stuck case forward.
+         *
+         * Byte-identical to the Swift twin. No em-dash (project rule).
+         */
+        fun staleRecordLine(newestUnix: Long, wallNowUnix: Long): String {
+            val ageDays = maxOf(0L, wallNowUnix - newestUnix) / 86_400L
+            return "Backfill: this sync banked nothing and the strap's newest stored record is about " +
+                "$ageDays day(s) old. If you have worn it since then, it has stopped saving history to " +
+                "its flash. NOOP already re-sends the clock on every connect, so charging alone may not " +
+                "be enough: charge to 100% and reconnect, then use Restart strap in Devices, and if that " +
+                "does not help forget and re-pair. If the official WHOOP app is also missing these days, " +
+                "the strap is the cause and not NOOP."
+        }
+
+        /**
+         * #1683: the same honesty as [staleRecordLine], for the message the user actually READS.
+         *
+         * The standing banner says "fully charge it to 100%, then reconnect, and it should start banking
+         * again". It omits the one fact that makes the situation legible - how long the strap has been
+         * silent - and it PROMISES a recovery that has already failed every session for weeks, because
+         * NOOP re-sends SET_CLOCK on every connect and the charge advice has therefore been retried all
+         * along. A banner that keeps promising something that keeps not happening teaches people to
+         * distrust the app rather than their strap.
+         *
+         * Shorter than the log line: a banner is glanced at, not read. Same discipline though - state the
+         * age, condition the diagnosis on having worn it, and name the check that says whether NOOP is
+         * even involved.
+         *
+         * Byte-identical to the Swift twin. Not localized, matching the sibling `lastSyncError` copy on
+         * both platforms; localizing that surface is its own change. No em-dash (project rule).
+         */
+        fun staleRecordBanner(newestUnix: Long, wallNowUnix: Long): String {
+            val ageDays = maxOf(0L, wallNowUnix - newestUnix) / 86_400L
+            return "Synced, but your strap handed over no stored history, and its newest saved record is " +
+                "about $ageDays day(s) old. If you have been wearing it since then, it has stopped saving " +
+                "to flash. Charge it to 100% and reconnect; NOOP already re-sets its clock every connect, " +
+                "so if that does not help, try Restart strap in Devices, then forget and re-pair. If the " +
+                "official WHOOP app is missing these days too, the strap is the cause and not NOOP."
+        }
+
+        /** #1754: the banner for an empty offload whose flash cursor is VALID and ADVANCING — the strap
+         *  is writing pages but banking no sensor records, so the clock/charge advice does not apply. The
+         *  cause points at the sensor front-end or power state, not the RTC. Byte-identical to the Swift
+         *  twin (`Backfiller.noSensorRecordsBanner`). No em-dash (project rule). */
+        val noSensorRecordsBanner =
+            "Synced, but your strap handed over no sensor records - only its diagnostic output. The " +
+                "strap's flash cursor is valid and advancing, so this is not a clock problem; it points " +
+                "at the sensor front-end or power state. If this persists across reconnects, please " +
+                "share a strap log so the cause can be identified."
+
+        /** #1754: the banner for an empty offload whose flash cursor is the 0xFFFFFFFF sentinel — the
+         *  strap has no banked history at all, the clock/charge advice IS correct. Byte-identical to the
+         *  Swift twin (`Backfiller.noFlashCursorBanner`). */
+        val noFlashCursorBanner =
+            "Synced, but your strap had no stored history to hand over - only its diagnostic output. " +
+                "This usually means its clock has lost sync, so it isn't saving data to flash. Fully " +
+                "charge it to 100%, then reconnect, and it should start banking again."
+    }
+}
+
+/**
+ * A (device-epoch, wall-clock) correlation in unix seconds. Android analog of the Swift `ClockRef`.
+ * type-47 historical records carry real unix timestamps, so the identity ref (device == wall) makes
+ * the offset math a no-op while still decoding correct wall time — the same fallback the Swift
+ * Backfiller uses when GET_CLOCK is silent.
+ */
+data class ClockRef(val device: Int, val wall: Int) {
+    companion object {
+        fun identityNow(): ClockRef {
+            val now = (System.currentTimeMillis() / 1000L).toInt()
+            return ClockRef(device = now, wall = now)
+        }
+    }
+}
+
+/**
+ * Durable key/value cursor store. The macOS Backfiller persists `strap_trim` via the GRDB store's
+ * cursor table; the Android Room schema has no cursor table (see Entities.kt — no cursor entity),
+ * so this small SharedPreferences-backed store provides the equivalent durability WITHOUT touching
+ * the Room schema or the build/manifest.
+ *
+ * FLAG (uncertain / divergence from macOS): on the Swift side the cursor lives in the same SQLite
+ * file as the decoded rows, so cursor and rows commit/back-up atomically together. Here the cursor
+ * lives in SharedPreferences, separate from the Room DB. The safe-trim ORDERING is preserved
+ * (decoded rows are inserted and durable before the cursor is written, and the cursor is written
+ * before the ack), so the worst case is a redundant re-offload of an already-stored chunk after a
+ * crash — never data loss — because the decoded inserts are idempotent by natural key. If a Room
+ * `cursor` table is later added, swap this implementation for a DAO-backed one.
+ */
+interface TrimCursorStore {
+    suspend fun set(name: String, value: Long)
+    suspend fun get(name: String): Long?
+}
+
+/** Default [TrimCursorStore] backed by a private SharedPreferences file. */
+class PrefsTrimCursorStore(private val prefs: SharedPreferences) : TrimCursorStore {
+
+    /** Production entry point: the app's private cursor prefs file. */
+    constructor(context: Context) : this(
+        context.applicationContext.getSharedPreferences("noop_backfill_cursors", Context.MODE_PRIVATE),
+    )
+
+    override suspend fun set(name: String, value: Long) {
+        // commit() (synchronous) so durability is established before we ack the strap.
+        // #8: commit() reports a FAILED write (full storage, unwritable prefs file) by RETURNING
+        // false — it does not throw. Discarding that result made a failed persist look identical to
+        // a successful one, so the caller's try/catch never fired and the strap got acked without a
+        // durable cursor. Surface it as the throw that guard already handles by HOLDING the ack.
+        if (!prefs.edit().putLong(name, value).commit()) {
+            throw IOException("SharedPreferences.commit() returned false for cursor '$name'=$value")
+        }
+    }
+
+    override suspend fun get(name: String): Long? =
+        if (prefs.contains(name)) prefs.getLong(name, 0L) else null
+}

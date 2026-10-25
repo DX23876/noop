@@ -1,0 +1,1434 @@
+package com.noop.ai
+
+import android.content.Context
+import com.noop.analytics.CoachSuggestions
+import com.noop.analytics.EffectRanker
+import com.noop.analytics.LabMarkerCategory
+import com.noop.analytics.MarkerCatalog
+import com.noop.analytics.SseDeltas
+import com.noop.analytics.SseProvider
+import com.noop.analytics.StressIndex
+import com.noop.data.DailyMetric
+import com.noop.data.JournalEntry
+import com.noop.data.LabMarkerRow
+import com.noop.data.WhoopRepository
+import com.noop.ingest.ActivityFileImporter
+import com.noop.ingest.LiftingImporter
+import com.noop.ui.NoopPrefs
+import com.noop.data.WorkoutRow
+import com.noop.ui.UnitFormatter
+import com.noop.ui.UnitSystem
+import com.noop.ui.UnitPrefs
+import com.noop.ui.WorkoutEditing
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
+import org.json.JSONObject
+import java.util.concurrent.TimeUnit
+import kotlin.math.roundToInt
+
+/**
+ * The AI Coach.
+ *
+ * Privacy posture: this is an opt-in networked feature, independent of the default-off Experimental
+ * self-hosted push. Nothing leaves through the Coach until the user has saved their own API key (see
+ * [AiKeyStore]) and asked a question. Only a compact plain-text summary of their metrics plus their
+ * question is sent to the provider the user picked. No raw samples, no identifiers.
+ *
+ * Anonymous: the only branding is the provider name the user selected. The system prompt does
+ * not name any app author or model vendor.
+ */
+class AiCoach(
+    private val repo: WhoopRepository,
+    /** #1304/#512: resolves the ACTIVE strap id. A lambda (not a plain `String`) so it is read at
+     *  call time rather than frozen when `AiCoach` is constructed — the app's active id resolves lazily
+     *  at startup, and the coach may be built first. The strap-telemetry reads below
+     *  ([WhoopRepository.daysMerged] / [WhoopRepository.rrIntervals] / Lab markers) union the active strap
+     *  with the canonical "my-whoop"; a live-BLE strap banks under "whoop-<uuid>", so a raw "my-whoop"
+     *  read would leave the coach reasoning off the wrong strap. Defaults to canonical so an import-only
+     *  install (and any test) is byte-identical to the old behaviour. */
+    private val activeStrapId: () -> String = { WhoopRepository.WHOOP_SOURCE },
+) {
+
+    /** The canonical bucket the imported journal answers ([WhoopRepository.journal]) live under — the app
+     *  keys journal to "my-whoop" everywhere (it is user-global, not strap telemetry), matching Swift
+     *  `AICoach.journalEntries()`. Daily metrics, R-R and Lab Book markers read the active strap via
+     *  [activeStrapId]. */
+    private val deviceId = "my-whoop"
+
+    // K13: cached summary of the dropped middle turns, regenerated when the dropped set changes.
+    @Volatile private var droppedSummary: String? = null
+    @Volatile private var droppedSummaryKey: List<String> = emptyList()
+
+    /** The source id native (in-app) journal answers are stored under (matches the UI's
+     *  JOURNAL_DEVICE_ID); used for the opt-in on-device-signals context only. */
+    private val journalDeviceId = "noop-journal"
+
+    private val http: OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
+        .build()
+
+    /**
+     * Send the conversation to [provider] using [model] and return the assistant reply text.
+     *
+     * Builds the data context from the user's cached daily metrics and prepends it to the
+     * FIRST user turn so the model is grounded in real numbers. The system prompt is passed
+     * out-of-band (top-level field for Anthropic, a system message for OpenAI).
+     *
+     * Runs on [Dispatchers.IO]. Throws a clear [Exception] on any failure (missing key, bad
+     * key, network, rate limit, malformed response); the ViewModel maps that to a visible
+     * error message and the app never crashes.
+     */
+    suspend fun chat(
+        ctx: Context,
+        history: List<ChatMsg>,
+        provider: AiProvider,
+        model: String,
+        consent: Boolean = false,
+        customBaseUrl: String = "",
+        customAuthHeader: CustomAiAuthHeader = CustomAiAuthHeader.BEARER,
+        includeSignals: Boolean = false,
+    ): String = withContext(Dispatchers.IO) {
+        // Local (Custom) servers usually need no key; the cloud providers always do. The guarded read
+        // returns the stored key ONLY if it belongs to THIS provider (or is a legacy cloud key), so a
+        // key saved for one provider is never Bearer-sent to another provider's (or a Custom) endpoint.
+        val key = AiKeyStore.read(ctx, provider)
+        if (key == null && provider != AiProvider.CUSTOM) {
+            throw Exception("No API key set. Add your ${provider.displayName} key to use the coach.")
+        }
+        if (provider == AiProvider.CUSTOM) {
+            require(customBaseUrl.isNotBlank()) { "Set your server URL first." }
+            require(model.isNotBlank()) { "Pick a model your server serves." }
+        }
+
+        require(history.isNotEmpty()) { "Ask a question first." }
+        require(history.last().role == "user") { "The last message must be your question." }
+
+        // Include the user's data ONLY with explicit consent; otherwise a note, never their numbers.
+        val groundedFull = if (consent) {
+            // Merged read, NOT raw days(): a live-strap user's scores live under "my-whoop-noop"
+            // and a raw read misses them, the coach then claimed it had no data. (#124)
+            val days = runCatching { repo.daysMerged(activeStrapId()) }.getOrDefault(emptyList())
+            // Derived stress: a single Baevsky Stress Index summary line over TODAY's R-R, read the
+            // same way StressScreen does (repo.rrIntervals over the local day) and gated UNDER this same
+            // `consent` block as the HRV/RHR summary, a derived number, never raw R-R egress. Absent
+            // when there aren't enough clean beats yet. Best-effort; never blocks the send.
+            val stress = runCatching { stressLineToday() }.getOrNull()
+            // v5: a SECOND opt-in (on top of `consent`) may append a SUMMARY-ONLY line of the user's
+            // strongest on-device patterns + Lab Book markers. Summary text only, no raw rows, no
+            // per-day series, so the anonymity / no-raw-egress posture holds. Best-effort; never blocks.
+            val signals = if (includeSignals) runCatching { buildSignalsContext() }.getOrNull() else null
+            // #2033: per-session workout detail, so the coach can tell a run from a lift. Best-effort
+            // like the blocks around it; a read that throws leaves the day table standing rather than
+            // failing the send. Matches where Swift appends it in `buildFullContext`.
+            val workouts = runCatching { recentWorkoutsBlock(ctx) }.getOrNull()
+            val full = buildString {
+                append(buildContext(days))
+                if (!workouts.isNullOrBlank()) append("\n\n").append(workouts)
+                if (!stress.isNullOrBlank()) append("\n\n").append(stress)
+                if (!signals.isNullOrBlank()) append("\n\n").append(signals)
+            }
+            injectContext(history, full)
+        } else {
+            injectContext(history, NO_CONSENT_NOTE)
+        }
+
+        // Resolve the system prompt fresh (user override or the built-in default) so an edit in the
+        // Coach settings takes effect on this very send.
+        val systemPrompt = resolveSystemPrompt(ctx)
+
+        // Slide a window over a long conversation so the history can't crowd out the reply on a
+        // small local context window (e.g. Ollama's 2048-token default). The first user turn carries
+        // the data context, so it is always kept; the middle is dropped, the recent tail retained.
+        // K13: summarize the dropped middle so the model retains context continuity (best-effort).
+        val grounded = trimmedHistory(groundedFull, MAX_HISTORY_TURNS)
+        val groundedWithSummary = injectDroppedSummary(grounded, groundedFull)
+
+        when (provider) {
+            AiProvider.OPENAI ->
+                callOpenAiCompatible(provider, provider.endpoint, model, key, groundedWithSummary, systemPrompt)
+            AiProvider.ANTHROPIC ->
+                callAnthropic(provider, model, key!!, groundedWithSummary, systemPrompt)
+            AiProvider.GEMINI ->
+                callGemini(provider, model, key!!, groundedWithSummary, systemPrompt)
+            AiProvider.CUSTOM ->
+                callOpenAiCompatible(
+                    provider,
+                    customChatUrl(customBaseUrl),
+                    model,
+                    key,
+                    groundedWithSummary,
+                    systemPrompt,
+                    customAuthHeader,
+                )
+        }
+    }
+
+    /**
+     * K1: Stream the conversation to [provider] using [model], calling [onDelta] for each text
+     * chunk as it arrives. Same context injection, consent gating, and error mapping as [chat];
+     * streaming changes transport, not payload. The concatenated deltas are byte-identical to
+     * what [chat] would return (parity pin in `SseDeltasTest`). Runs on [Dispatchers.IO].
+     *
+     * On error mid-stream, throws — the caller keeps the partial text and appends an interrupted
+     * marker. Never crashes; the ViewModel maps exceptions to a visible error.
+     */
+    suspend fun chatStream(
+        ctx: Context,
+        history: List<ChatMsg>,
+        provider: AiProvider,
+        model: String,
+        consent: Boolean = false,
+        customBaseUrl: String = "",
+        customAuthHeader: CustomAiAuthHeader = CustomAiAuthHeader.BEARER,
+        includeSignals: Boolean = false,
+        onDelta: (String) -> Unit,
+    ): Unit = withContext(Dispatchers.IO) {
+        val key = AiKeyStore.read(ctx, provider)
+        if (key == null && provider != AiProvider.CUSTOM) {
+            throw Exception("No API key set. Add your ${provider.displayName} key to use the coach.")
+        }
+        if (provider == AiProvider.CUSTOM) {
+            require(customBaseUrl.isNotBlank()) { "Set your server URL first." }
+            require(model.isNotBlank()) { "Pick a model your server serves." }
+        }
+
+        require(history.isNotEmpty()) { "Ask a question first." }
+        require(history.last().role == "user") { "The last message must be your question." }
+
+        val groundedFull = if (consent) {
+            val days = runCatching { repo.daysMerged(activeStrapId()) }.getOrDefault(emptyList())
+            val stress = runCatching { stressLineToday() }.getOrNull()
+            val signals = if (includeSignals) runCatching { buildSignalsContext() }.getOrNull() else null
+            // #2033: per-session workout detail, so the coach can tell a run from a lift. Best-effort
+            // like the blocks around it; a read that throws leaves the day table standing rather than
+            // failing the send. Matches where Swift appends it in `buildFullContext`.
+            val workouts = runCatching { recentWorkoutsBlock(ctx) }.getOrNull()
+            val full = buildString {
+                append(buildContext(days))
+                if (!workouts.isNullOrBlank()) append("\n\n").append(workouts)
+                if (!stress.isNullOrBlank()) append("\n\n").append(stress)
+                if (!signals.isNullOrBlank()) append("\n\n").append(signals)
+            }
+            injectContext(history, full)
+        } else {
+            injectContext(history, NO_CONSENT_NOTE)
+        }
+
+        val systemPrompt = resolveSystemPrompt(ctx)
+        val grounded = trimmedHistory(groundedFull, MAX_HISTORY_TURNS)
+        val groundedWithSummary = injectDroppedSummary(grounded, groundedFull)
+
+        when (provider) {
+            AiProvider.OPENAI ->
+                callOpenAiCompatibleStream(provider, provider.endpoint, model, key, groundedWithSummary, systemPrompt, onDelta)
+            AiProvider.ANTHROPIC ->
+                callAnthropicStream(provider, model, key!!, groundedWithSummary, systemPrompt, onDelta)
+            AiProvider.GEMINI ->
+                callGeminiStream(provider, model, key!!, groundedWithSummary, systemPrompt, onDelta)
+            AiProvider.CUSTOM ->
+                callOpenAiCompatibleStream(
+                    provider, customChatUrl(customBaseUrl), model, key, groundedWithSummary, systemPrompt, onDelta, customAuthHeader,
+                )
+        }
+    }
+
+    /**
+     * Today's derived stress line for the consent-gated coach context. Reads R-R for the local day
+     * via [WhoopRepository.rrIntervalsUnion] (the SAME path StressScreen uses) and summarises it with the
+     * pure [stressIndexLine]. Returns null when there aren't enough clean beats. Summary number only;
+     * the raw R-R never leaves the device.
+     */
+    private suspend fun stressLineToday(): String? {
+        val nowSeconds = System.currentTimeMillis() / 1000L
+        val tzOffset = java.util.TimeZone.getDefault().getOffset(nowSeconds * 1_000L) / 1_000L
+        val localNow = nowSeconds + tzOffset
+        val from = (localNow - Math.floorMod(localNow, 86_400L)) - tzOffset
+        val rr = repo.rrIntervalsUnion(activeStrapId(), from, nowSeconds, limit = 200_000)
+        return stressIndexLine(rr)
+    }
+
+    /**
+     * Fetch the provider's live list of model ids, using the saved API key.
+     *
+     * Best-effort: GETs the provider's models endpoint and returns the ids it advertises.
+     * On any failure (no key, network, bad key, malformed body) this returns an EMPTY list
+     * rather than throwing, the caller simply keeps its curated/static list. The result is
+     * filtered to the ids that make sense for chat (OpenAI: ids starting with "gpt" or "o";
+     * Anthropic: all returned ids) and de-duplicated.
+     *
+     * Runs on [Dispatchers.IO].
+     */
+    suspend fun fetchModels(
+        ctx: Context,
+        provider: AiProvider,
+        customBaseUrl: String = "",
+        customAuthHeader: CustomAiAuthHeader = CustomAiAuthHeader.BEARER,
+    ): List<String> = withContext(Dispatchers.IO) {
+        // Guarded read: only a key saved for THIS provider (or a legacy cloud key) is used, never one
+        // provider's key against another's models endpoint.
+        val key = AiKeyStore.read(ctx, provider)
+        // Cloud providers need a key to list models; a local Custom server usually doesn't.
+        if (key == null && provider != AiProvider.CUSTOM) return@withContext emptyList()
+
+        val url = when (provider) {
+            AiProvider.CUSTOM -> {
+                if (customBaseUrl.isBlank()) return@withContext emptyList()
+                // Best-effort: a bad/public-cleartext URL just yields no model list here (the chat
+                // path surfaces the precise guard error). Never throw out of fetchModels.
+                runCatching { customModelsUrl(customBaseUrl) }.getOrNull() ?: return@withContext emptyList()
+            }
+            else -> provider.modelsEndpoint
+        }
+
+        val builder = Request.Builder().url(url).get()
+        when (provider) {
+            // key is non-null here: the early return above only spares the Custom provider.
+            AiProvider.OPENAI -> builder.addHeader("Authorization", "Bearer ${key!!}")
+            AiProvider.ANTHROPIC -> {
+                builder.addHeader("x-api-key", key!!)
+                builder.addHeader("anthropic-version", "2023-06-01")
+            }
+            AiProvider.GEMINI -> builder.addHeader("x-goog-api-key", key!!)
+            AiProvider.CUSTOM -> applyCustomAuthHeader(builder, key, customAuthHeader)
+        }
+
+        runCatching {
+            val (code, text) = execute(builder.build())
+            if (code !in 200..299) return@runCatching emptyList<String>()
+
+            // Gemini is shaped differently ({"models":[{"name":"models/…"}]}), so it has its own pure
+            // parse; every other provider is OpenAI-shaped ({"data":[{"id":"…"}]}).
+            if (provider == AiProvider.GEMINI) return@runCatching parseGeminiModels(text)
+
+            parseOpenAiCompatibleModels(provider, text)
+        }.getOrDefault(emptyList())
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // K5: scheduled morning-brief generation (headless, no chat UI involved)
+    // ---------------------------------------------------------------------------------------
+
+    /**
+     * K5: generate today's coaching brief with NO chat transcript involved — used by the scheduled
+     * morning-brief notification ([com.noop.notif.CoachBriefWorker]), which runs headless (no
+     * Activity/ViewModel) and must not touch [CoachViewModel]'s in-memory messages. Non-streaming (a
+     * WorkManager worker has no UI to stream into). Triple-gated: a saved key (or a committed Custom
+     * server), [consent], and the brief instruction shared with the Swift twin. Returns null on any
+     * failure (no key, no consent, network, rate limit, empty reply) — the caller treats null as
+     * "brief unavailable"; never throws.
+     */
+    suspend fun generateBrief(
+        ctx: Context,
+        provider: AiProvider,
+        model: String,
+        consent: Boolean,
+        customBaseUrl: String = "",
+        customAuthHeader: CustomAiAuthHeader = CustomAiAuthHeader.BEARER,
+        includeSignals: Boolean = false,
+    ): String? {
+        if (!consent) return null
+        val key = AiKeyStore.read(ctx, provider)
+        if (key == null && provider != AiProvider.CUSTOM) return null
+        if (provider == AiProvider.CUSTOM && (customBaseUrl.isBlank() || model.isBlank())) return null
+        return runCatching {
+            val history = listOf(ChatMsg(role = "user", text = BRIEF_INSTRUCTION))
+            chat(ctx, history, provider, model, consent, customBaseUrl, customAuthHeader, includeSignals)
+                .trim()
+                .ifBlank { null }
+        }.getOrNull()
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Contextual suggestion chips
+    // ---------------------------------------------------------------------------------------
+
+    /**
+     * Contextual suggestion chips for the composer, derived from today's bands via
+     * [CoachSuggestions]. Reads only on-device `daysMerged` (the same merged read the context
+     * builder uses, so a live strap's scores under "my-whoop-noop" are not missed); pure,
+     * byte-identical to the Swift twin `AICoachEngine.suggestions`. Returns the stable generic
+     * fallback when there is no usable data. Best-effort: a repo failure yields the fallback,
+     * never throws.
+     */
+    suspend fun suggestions(): List<String> = withContext(Dispatchers.IO) {
+        val days = runCatching { repo.daysMerged(activeStrapId()) }.getOrDefault(emptyList())
+        CoachSuggestions.suggestions(days.lastOrNull(), days)
+    }
+
+    // K7: Follow-up suggestion chips shown after each assistant reply. These are generic
+    // conversational follow-ups (not data-derived) so the user can dig deeper without typing.
+    // Byte-identical to the Swift twin's `AICoachEngine.followUpSuggestions`.
+    val followUpSuggestions: List<String> = listOf(
+        "Tell me more about that",
+        "What should I do next?",
+        "How does today compare to this week?",
+        "Give me a specific action plan",
+    )
+
+    // K13: Inject the cached summary of the dropped middle into the first user turn of the
+    // windowed history, so the model sees continuity instead of a gap. Best-effort: when no
+    // summary is cached, returns the windowed list unchanged (the old gap behaviour).
+    private fun injectDroppedSummary(
+        windowed: List<ChatMsg>,
+        full: List<ChatMsg>,
+    ): List<ChatMsg> {
+        val summary = droppedSummary ?: return windowed
+        if (windowed.isEmpty()) return windowed
+        // Only inject when the window actually dropped messages (the full list is longer).
+        if (full.size <= MAX_HISTORY_TURNS + 1) return windowed
+        val firstUserIdx = windowed.indexOfFirst { it.role == "user" }
+        if (firstUserIdx < 0) return windowed
+        val first = windowed[firstUserIdx]
+        val annotated = first.copy(text = "$summary\n\n---\n\n${first.text}")
+        return windowed.toMutableList().also { it[firstUserIdx] = annotated }
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Context builder
+    // ---------------------------------------------------------------------------------------
+
+    /**
+     * Compact plain-text summary of the user's recent data: the last ~14 days of
+     * charge / effort / rest-hours / HRV / resting-HR (where present), 30-day averages,
+     * and a recent-workouts line derived from logged exercise counts and effort.
+     *
+     * Kept well under ~1500 tokens. If there is no data at all, says so explicitly so the
+     * model doesn't invent numbers.
+     */
+    fun buildContext(days: List<DailyMetric>): String {
+        if (days.isEmpty()) {
+            return "USER DATA: No wearable data is available yet (no synced days). " +
+                "Do not invent specific numbers; give general guidance and encourage the user " +
+                "to sync their strap so future advice can reference their real metrics."
+        }
+
+        // daysMerged() returns oldest-first; take the most recent up to 30 for averages, 14 for the table.
+        val last30 = days.takeLast(30)
+        val last14 = days.takeLast(14)
+
+        val sb = StringBuilder()
+        sb.append("USER DATA (most recent first; figures rounded; a dash means not recorded that day).\n\n")
+
+        // --- Recent daily table (newest first for readability) ---
+        sb.append("Last ${last14.size} days:\n")
+        for (d in last14.reversed()) {
+            val recovery = d.recovery?.let { "${it.roundToInt()}%" } ?: "-"
+            val strain = d.strain?.let { fmt1(it) } ?: "-"
+            val sleepH = d.totalSleepMin?.let { fmt1(it / 60.0) + "h" } ?: "-"
+            val hrv = d.avgHrv?.let { "${it.roundToInt()}ms" } ?: "-"
+            val rhr = d.restingHr?.let { "${it}bpm" } ?: "-"
+            // The stage breakdown and efficiency, which the coach could not see at all: a user asked why
+            // it said it had no access to sleep stages, and it was answering honestly — `rest 7.8h` was
+            // every word it got about a night. These sit on the SAME DailyMetric this line already reads.
+            // Always emitted, "-" when absent, like every other field: a night with no staging then says
+            // so, rather than the schema changing shape between days and inviting the model to read a
+            // missing field as a zero. Twin of the Swift `AICoach.dayLine`.
+            val deep = d.deepMin?.let { fmt1(it / 60.0) + "h" } ?: "-"
+            val rem = d.remMin?.let { fmt1(it / 60.0) + "h" } ?: "-"
+            val light = d.lightMin?.let { fmt1(it / 60.0) + "h" } ?: "-"
+            val eff = effPctOrDash(d.efficiency)
+            sb.append(
+                "  ${d.day}: charge $recovery, effort $strain, rest $sleepH, " +
+                    "deep $deep, REM $rem, light $light, eff $eff, HRV $hrv, RHR $rhr\n"
+            )
+        }
+
+        // --- 30-day averages ---
+        sb.append("\n30-day averages (over ${last30.size} days):\n")
+        sb.append("  charge ${avgInt(last30) { it.recovery }}%, ")
+        sb.append("effort ${avg1(last30) { it.strain }}, ")
+        sb.append("rest ${avg1(last30) { d -> d.totalSleepMin?.div(60.0) }}h, ")
+        sb.append("HRV ${avgInt(last30) { it.avgHrv }}ms, ")
+        sb.append("RHR ${avgInt(last30) { d -> d.restingHr?.toDouble() }}bpm\n")
+        // Additional vitals when present (#124, the coach used to see only recovery/strain/sleep/HRV/RHR).
+        sb.append("  SpO₂ ${avgInt(last30) { it.spo2Pct }}%, ")
+        sb.append("respiration ${avg1(last30) { it.respRateBpm }}/min, ")
+        sb.append("skin-temp deviation ${avg1(last30) { it.skinTempDevC }}°C, ")
+        sb.append("steps ${avgInt(last30) { d -> d.steps?.toDouble() }}/day, ")
+        sb.append("active energy ${avgInt(last30) { it.activeKcalEst }}kcal/day\n")
+
+        // --- Recent workouts (derived from logged exercise counts + day strain) ---
+        val workoutDays = last14.filter { (it.exerciseCount ?: 0) > 0 }
+        sb.append("\nRecent workouts (last ${last14.size} days):\n")
+        if (workoutDays.isEmpty()) {
+            sb.append("  None logged.\n")
+        } else {
+            for (d in workoutDays.reversed()) {
+                val n = d.exerciseCount ?: 0
+                val label = if (n == 1) "1 workout" else "$n workouts"
+                val strain = d.strain?.let { ", effort ${fmt1(it)}" } ?: ""
+                sb.append("  ${d.day}: $label$strain\n")
+            }
+        }
+
+        // Latest snapshot line, handy single reference for the model.
+        days.lastOrNull()?.let { latest ->
+            val r = latest.recovery?.let { "${it.roundToInt()}%" } ?: "n/a"
+            val s = latest.strain?.let { fmt1(it) } ?: "n/a"
+            sb.append("\nMost recent day (${latest.day}): charge $r, effort $s.\n")
+        }
+
+        return sb.toString().trim()
+    }
+
+    /**
+     * Recent workouts, one line PER SESSION rather than a per-day count.
+     *
+     * The day table above says a wearer did two workouts on a day and what the day's effort was. It
+     * cannot say what they did, for how long, how far, or how hard their heart worked, so the coach
+     * could not tell a run from a lift and could not help plan training around either (#2033). This is
+     * the Kotlin twin of Swift `AICoachEngine.recentWorkoutsBlock`, which has emitted exactly these
+     * fields in exactly this order since it was written; Android simply never had it.
+     *
+     * SCOPE, deliberately the wearer's own words on the issue, "all information of your workouts, that
+     * are visible to yourself". So this mirrors what the Workouts screen actually lists, which
+     * `AppViewModel` assembles: the strap union, Apple Health, Health Connect, auto-detected sessions,
+     * imported activity files and imported lifting, with dismissed sessions filtered OUT and the rest
+     * deduped cross-source so a live recording and its thin import collapse to the richer row.
+     *
+     * The dismissal filter is the part that matters and the part a first pass here got wrong. Detected
+     * sessions were dropped wholesale on the reasoning that a wearer can dismiss them, which confused
+     * the category with the act: the screen shows detected sessions and hides DISMISSED ones, of any
+     * source. Dropping the category hid a strap-only wearer's auto-detected training from the coach
+     * entirely, while still sending a dismissed import. Both halves are now the screen's behaviour.
+     *
+     * One thing the screen does that this does not: `fillWorkoutHrFromStrap`, which borrows the strap's
+     * samples to fill an imported session's missing average HR. Skipped deliberately. It needs the
+     * profile and the effort method, and its absence costs a field that is simply omitted rather than a
+     * field that is wrong, which is the rule this block already follows everywhere else.
+     *
+     * Six sessions, thirty days. This rides inside a prompt payload, so it is a summary and not an
+     * export; the day table above still carries the fourteen-day shape.
+     *
+     * PRIVACY: only reached under the same `consent` gate as every other figure here, and it widens
+     * what that consent covers. Aggregate counts become where and how someone exercises. That is the
+     * disclosure the Apple build has always made, and the consent copy should say so plainly.
+     */
+    internal suspend fun recentWorkoutsBlock(ctx: Context, limit: Int = 6): String {
+        val now = System.currentTimeMillis() / 1000L
+        val from = now - 30L * 86_400L
+        val rows = runCatching { visibleWorkoutRows(from, now) }.getOrDefault(emptyList())
+        return formatWorkoutsBlock(rows, UnitPrefs.distanceSystem(ctx), limit)
+    }
+
+    /**
+     * The sessions a wearer can see, newest first. Split out from the formatter and from the unit
+     * lookup so it has a test: the only other way in reads SharedPreferences, and this half is where the
+     * decisions live. It is also where the bug was, twice over, which is the argument for the seam.
+     *
+     * Mirrors the assembly `AppViewModel` runs for the Workouts screen. If that list gains a source,
+     * this one has to as well, or the coach quietly reasons about less than the wearer is looking at.
+     */
+    internal suspend fun visibleWorkoutRows(from: Long, to: Long): List<WorkoutRow> {
+        val id = activeStrapId()
+        val all = repo.workoutsUnion(id, from, to) +
+            repo.workouts("apple-health", from, to) +
+            repo.workouts("health-connect", from, to) +
+            repo.detectedWorkoutsUnion(id, from, to) +
+            repo.workouts(ActivityFileImporter.SOURCE_ID, from, to) +
+            repo.workouts(LiftingImporter.SOURCE_ID, from, to)
+        // Dismissed first, then dedup: the same order the screen uses, so a dismissed row cannot be the
+        // one a cross-source collapse decides to keep.
+        return WorkoutEditing.dedupCrossSource(
+            WorkoutEditing.filterDismissed(all, repo.dismissedDetected(id)),
+        ).sortedByDescending { it.startTs }
+    }
+
+    /**
+     * The emitted text, given rows and a resolved unit system. Pure, and `internal` for the same reason
+     * Swift's `dayLine` is: without a seam the formatter has no test, because the only way in reads
+     * SharedPreferences and these run on the JVM with no Context. The reading half above is a union and
+     * a sort; every decision a reviewer would want pinned is in here.
+     *
+     * Field order and separators mirror Swift's `recentWorkoutsBlock` exactly, since both feed the same
+     * model and a wearer comparing platforms would otherwise get differently-shaped advice from
+     * identical data. A field the row does not carry is OMITTED rather than emitted as a dash: this is
+     * a prompt, and a dash invites the model to reason about a gap that is only a missing sensor.
+     */
+    internal fun formatWorkoutsBlock(
+        rows: List<WorkoutRow>,
+        distanceSystem: UnitSystem,
+        limit: Int = 6,
+    ): String {
+        if (rows.isEmpty()) return "Recent workouts: none recorded in the last 30 days."
+        val sb = StringBuilder("Recent workouts (newest first):")
+        for (w in rows.take(limit)) {
+            val parts = mutableListOf("  ${workoutDay(w.startTs)} ${w.sport}")
+            w.durationS?.let { parts.add("${(it / 60.0).roundToInt()} min") }
+            w.strain?.let { parts.add("effort ${fmt1(it)}") }
+            w.avgHr?.let { parts.add("avg HR $it") }
+            w.energyKcal?.let { parts.add("${it.roundToInt()} kcal") }
+            w.distanceM?.let { parts.add(UnitFormatter.distanceFromMeters(it, distanceSystem)) }
+            sb.append("\n").append(parts.joinToString(", "))
+        }
+        return sb.toString()
+    }
+
+    /** `yyyy-MM-dd` in the wearer's own zone, matching Swift's `dateString` for the same line. */
+    private fun workoutDay(startTs: Long): String =
+        java.time.LocalDate.ofInstant(
+            java.time.Instant.ofEpochSecond(startTs), java.time.ZoneId.systemDefault(),
+        ).toString()
+
+    /**
+     * SUMMARY-ONLY on-device signals context (v5): the user's strongest associations (from the same
+     * [EffectRanker] the Insights hub surfaces) and a one-line-per-marker Lab Book snapshot. Sent only
+     * behind the second opt-in. Deliberately compact + textual, no raw per-day series, no identifiers,      * so nothing beyond a plain English summary leaves the device. Returns null/blank when there's
+     * nothing to say (the coach then just uses the standard metrics context).
+     */
+    private suspend fun buildSignalsContext(): String? {
+        val sb = StringBuilder()
+
+        // --- Strongest associations on the user's own logged days (recovery as the outcome) ---
+        val (behaviours, controls) = runCatching { journalBehaviours() }
+            .getOrDefault(emptyMap<String, Set<String>>() to emptyMap())
+        val days = runCatching { repo.daysMerged(activeStrapId()) }.getOrDefault(emptyList())
+        if (behaviours.isNotEmpty() && days.isNotEmpty()) {
+            val recoveryByDay = days.mapNotNull { d -> d.recovery?.let { d.day to it } }.toMap()
+            val ranked = runCatching { EffectRanker.rank(behaviours, controls, recoveryByDay, "Charge") }
+                .getOrDefault(emptyList())
+                .take(3)
+            if (ranked.isNotEmpty()) {
+                sb.append("ON-DEVICE PATTERNS (associations in the user's own logged days — not causes, ")
+                sb.append("not diagnoses; weaker confidence means fewer days so far):\n")
+                for (r in ranked) {
+                    sb.append("  • ${r.behavior}: ${r.sentence()} [${r.confidence.name.lowercase()}]\n")
+                }
+            }
+        }
+
+        // --- Lab Book snapshot: the latest reading per marker the user has entered ---
+        val latestByMarker = runCatching { latestLabMarkers() }.getOrDefault(emptyList())
+        if (latestByMarker.isNotEmpty()) {
+            if (sb.isNotEmpty()) sb.append("\n")
+            sb.append("LAB BOOK (numbers the user entered themselves from their own reports; NOOP does not ")
+            sb.append("test or interpret them — never assert whether a value is normal/high/low):\n")
+            for (row in latestByMarker) {
+                val name = MarkerCatalog.definition(row.markerKey)?.displayName
+                    ?: row.markerKey.replace("_", " ").replaceFirstChar { it.uppercase() }
+                val value = row.value?.let { fmt1(it) + " " + row.unit } ?: (row.valueText ?: "—")
+                sb.append("  • $name: $value\n")
+            }
+        }
+
+        return sb.toString().trim().takeIf { it.isNotEmpty() }
+    }
+
+    /** Behaviour → the days it was logged YES and the days it was logged NO (imported ∪ native), for
+     *  EffectRanker. Kept apart: a day with no journal row for a question belongs to neither, so an
+     *  unanswered day is never counted as a No — see [EffectRanker.effect]. */
+    private suspend fun journalBehaviours(): Pair<Map<String, Set<String>>, Map<String, Set<String>>> {
+        val imported = repo.journal(deviceId, "0000-01-01", "9999-12-31")
+        val native = repo.journal(journalDeviceId, "0000-01-01", "9999-12-31")
+        val byKey = LinkedHashMap<Pair<String, String>, JournalEntry>()
+        for (e in imported) byKey[e.day to e.question] = e
+        for (e in native) byKey[e.day to e.question] = e   // native wins on a collision
+        val yes = HashMap<String, MutableSet<String>>()
+        val no = HashMap<String, MutableSet<String>>()
+        for (e in byKey.values) {
+            val bucket = if (e.answeredYes) yes else no
+            bucket.getOrPut(e.question) { mutableSetOf() }.add(e.day)
+        }
+        return yes.mapValues { it.value.toSet() } to no.mapValues { it.value.toSet() }
+    }
+
+    /** The latest reading per Lab Book marker key (stored under the ACTIVE strap deviceId). #1304/#512:
+     *  read under the active strap id — matching Swift `AICoach` (`labMarkers(deviceId: repo.deviceId)`) —
+     *  so a 2nd strap's markers under "whoop-<uuid>" aren't missed. */
+    private suspend fun latestLabMarkers(): List<LabMarkerRow> {
+        val all = ArrayList<LabMarkerRow>()
+        for (category in LabMarkerCategory.entries) {
+            all += runCatching { repo.labMarkersByCategory(activeStrapId(), category.raw) }.getOrDefault(emptyList())
+        }
+        return all.groupBy { it.markerKey }.values.map { rows -> rows.maxByOrNull { it.takenAt }!! }
+            .sortedBy { it.markerKey }
+    }
+
+    /**
+     * Prepend [context] to the first user message so the model is grounded in real numbers.
+     * Returns a copy of [history]; the original list is not mutated.
+     */
+    private fun injectContext(history: List<ChatMsg>, context: String): List<ChatMsg> {
+        val firstUserIdx = history.indexOfFirst { it.role == "user" }
+        if (firstUserIdx < 0) return history
+        return history.mapIndexed { i, m ->
+            if (i == firstUserIdx) {
+                m.copy(text = "$context\n\n---\n\nMy question: ${m.text}")
+            } else m
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // OpenAI-compatible, POST {base}/chat/completions
+    //   Used for OpenAI itself and the Custom (local LLM) provider. [key] may be null/blank for a
+    //   local server that needs no auth, the Authorization header is then omitted.
+    // ---------------------------------------------------------------------------------------
+
+    private fun callOpenAiCompatible(
+        provider: AiProvider,
+        url: String,
+        model: String,
+        key: String?,
+        history: List<ChatMsg>,
+        systemPrompt: String,
+        customAuthHeader: CustomAiAuthHeader = CustomAiAuthHeader.BEARER,
+    ): String {
+        val messages = JSONArray()
+        messages.put(JSONObject().put("role", "system").put("content", systemPrompt))
+        for (m in history) {
+            // OpenAI roles map 1:1 to "user"/"assistant".
+            messages.put(JSONObject().put("role", m.role).put("content", m.text))
+        }
+
+        val (code, text) = executeOpenAiCompatible(
+            provider = provider,
+            url = url,
+            model = model,
+            messages = messages,
+            key = key,
+            customAuthHeader = customAuthHeader,
+            modernParams = false,
+        )
+        val responseText = if (code in 200..299) {
+            text
+        } else if (code == 400 && shouldRetryOpenAiModernParams(text)) {
+            val (retryCode, retryText) = executeOpenAiCompatible(
+                provider = provider,
+                url = url,
+                model = model,
+                messages = messages,
+                key = key,
+                customAuthHeader = customAuthHeader,
+                modernParams = true,
+            )
+            if (retryCode !in 200..299) throw httpError(provider, retryCode, retryText)
+            retryText
+        } else {
+            throw httpError(provider, code, text)
+        }
+
+        val json = parse(responseText)
+        val firstChoice = json.optJSONArray("choices")?.optJSONObject(0)
+        val content = firstChoice
+            ?.optJSONObject("message")
+            ?.optString("content")
+            ?.trim()
+
+        // Empty assistant content on a 200: some OpenAI-compatible servers (notably a model set by hand
+        // that the provider doesn't offer) return the real error INSIDE a 200 body rather than a 4xx, so
+        // surface it instead of a blanket "empty reply" that hides the cause (#1074).
+        if (content.isNullOrEmpty()) throw Exception(emptyReplyMessage(responseText))
+
+        // Local servers (notably Ollama) stop with finish_reason "length" at the context-window edge
+        // and give NO error, keep the partial text and append the actionable notice so it isn't silent.
+        val truncated = firstChoice.optString("finish_reason").lowercase() == "length"
+        return if (truncated) content + TRUNCATION_NOTE else content
+    }
+
+    private fun executeOpenAiCompatible(
+        provider: AiProvider,
+        url: String,
+        model: String,
+        messages: JSONArray,
+        key: String?,
+        customAuthHeader: CustomAiAuthHeader,
+        modernParams: Boolean,
+    ): Pair<Int, String> {
+        val body = JSONObject()
+            .put("model", model)
+            .put("messages", messages)
+        if (modernParams) {
+            // #1074: same 4096 cap as the standard path below. This modern-params leg fronts REASONING
+            // models, which count hidden thinking tokens against max_completion_tokens — so 900 starved
+            // them into truncated/empty replies even more readily. A cap, not a target.
+            body.put("max_completion_tokens", 4096)
+        } else {
+            body.put("temperature", 0.6)
+            // #1074: 900 truncated detailed coaching replies mid-sentence on cloud providers (the reporter
+            // hit it on a DeepSeek "pro" model). 4096 lets a full multi-section reply complete; it is a cap,
+            // not a target, so short answers are unaffected. Matches the Gemini leg's maxOutputTokens.
+            body.put("max_tokens", 4096)
+        }
+
+        val builder = Request.Builder()
+            .url(url)
+            .addHeader("Content-Type", "application/json")
+            .post(body.toString().toRequestBody(JSON))
+        when (provider) {
+            AiProvider.CUSTOM -> applyCustomAuthHeader(builder, key, customAuthHeader)
+            else -> if (!key.isNullOrBlank()) builder.addHeader("Authorization", "Bearer $key")
+        }
+        return execute(builder.build())
+    }
+
+    private fun applyCustomAuthHeader(
+        builder: Request.Builder,
+        key: String?,
+        customAuthHeader: CustomAiAuthHeader,
+    ) {
+        if (key.isNullOrBlank()) return
+        when (customAuthHeader) {
+            CustomAiAuthHeader.BEARER -> builder.addHeader("Authorization", "Bearer $key")
+            CustomAiAuthHeader.X_API_KEY -> builder.addHeader("x-api-key", key)
+        }
+    }
+
+    private fun shouldRetryOpenAiModernParams(text: String): Boolean {
+        val detail = runCatching { parse(text).toString() }.getOrDefault(text).lowercase()
+        return detail.contains("max_completion_tokens") ||
+            detail.contains("max_tokens") ||
+            detail.contains("temperature") ||
+            detail.contains("unsupported")
+    }
+
+    /** Base for the Custom provider, the user's URL with any trailing slashes trimmed. */
+    private fun customBase(url: String): String = normalizeCustomBaseUrl(url)
+
+    private fun customChatUrl(url: String): String {
+        val base = customBase(url)
+        guardCustomUrl(base)
+        return base + "/chat/completions"
+    }
+
+    private fun customModelsUrl(url: String): String {
+        val base = customBase(url)
+        guardCustomUrl(base)
+        return base + "/models"
+    }
+
+    /**
+     * Gatekeeper for the Custom (local LLM) provider. https:// is always fine. Plain http:// is
+     * allowed only for local user-owned endpoints: loopback, RFC1918 private LAN addresses,
+     * IPv4 link-local addresses, and *.local mDNS names. Android XML cannot express those CIDR
+     * ranges, so network-security-config permits platform cleartext and this guard is the public
+     * HTTP boundary.
+     */
+    private fun guardCustomUrl(base: String) {
+        val uri = runCatching { java.net.URI(base) }.getOrNull()
+        val host = uri?.host
+        val scheme = uri?.scheme?.lowercase()
+        require(host != null && !scheme.isNullOrBlank()) {
+            "That server URL isn't valid. Use http://<host>:<port> for a local server, or https://… for a remote one."
+        }
+        if (scheme == "https") return
+        require(scheme == "http") {
+            "Unsupported URL scheme \"$scheme\". Use http:// for a local server or https:// for a remote one."
+        }
+        require(isPrivateLanOrLoopback(host)) {
+            "Plain http:// is only allowed for localhost, private LAN IPs, link-local IPs, or " +
+                ".local hostnames. Use https:// to reach \"$host\"."
+        }
+    }
+
+
+    // ---------------------------------------------------------------------------------------
+    // Anthropic, POST /v1/messages
+    // ---------------------------------------------------------------------------------------
+
+    private fun callAnthropic(
+        provider: AiProvider,
+        model: String,
+        key: String,
+        history: List<ChatMsg>,
+        systemPrompt: String,
+    ): String {
+        // Anthropic has no system role inside messages: the system prompt is a top-level field
+        // and messages alternate user/assistant.
+        val messages = JSONArray()
+        for (m in history) {
+            messages.put(JSONObject().put("role", m.role).put("content", m.text))
+        }
+
+        val body = JSONObject()
+            .put("model", model)
+            .put("max_tokens", 4096)   // #1074: 900 truncated detailed replies; a cap, not a target
+            .put("system", systemPrompt)
+            .put("messages", messages)
+            .toString()
+
+        val request = Request.Builder()
+            .url(provider.endpoint)
+            .addHeader("x-api-key", key)
+            .addHeader("anthropic-version", "2023-06-01")
+            .addHeader("content-type", "application/json")
+            .post(body.toRequestBody(JSON))
+            .build()
+
+        val (code, text) = execute(request)
+        if (code !in 200..299) throw httpError(provider, code, text)
+
+        val json = parse(text)
+        val content = json.optJSONArray("content")
+            ?.optJSONObject(0)
+            ?.optString("text")
+            ?.trim()
+
+        if (content.isNullOrEmpty()) throw Exception(emptyReplyMessage(text))
+        return content
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Google Gemini, POST /v1beta/models/<model>:generateContent
+    // ---------------------------------------------------------------------------------------
+
+    /**
+     * Native Google Gemini call — byte-for-byte twin of Swift `GeminiClient.send`. Gemini has no
+     * "system" role inside the turn list: the system prompt is a top-level `system_instruction`, and
+     * each turn carries `role` ("user"/"model") + one text `part`. Auth is the `x-goog-api-key` header.
+     */
+    private fun callGemini(
+        provider: AiProvider,
+        model: String,
+        key: String,
+        history: List<ChatMsg>,
+        systemPrompt: String,
+    ): String {
+        val contents = JSONArray()
+        for (m in history) {
+            contents.put(
+                JSONObject()
+                    // Gemini names the assistant turn "model"; everything else is "user".
+                    .put("role", if (m.role == "assistant") "model" else "user")
+                    .put("parts", JSONArray().put(JSONObject().put("text", m.text))),
+            )
+        }
+
+        val body = JSONObject()
+            .put("system_instruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", systemPrompt))))
+            .put("contents", contents)
+            // Gemini 2.5 counts THINKING tokens against maxOutputTokens; the 900 cap the other providers
+            // use starves a thinking model into an empty reply (finishReason MAX_TOKENS, no text parts).
+            // 4096 leaves room for both — the system prompt keeps the visible reply short. (Same as Swift.)
+            .put("generationConfig", JSONObject().put("temperature", 0.6).put("maxOutputTokens", 4096))
+            .toString()
+
+        // Built from a literal string (NOT a path-appending API) so the ":" in ":generateContent" stays
+        // literal — a percent-encoded %3A is rejected by the API. Mirrors the Swift URL(string:) note.
+        val request = Request.Builder()
+            .url("${provider.endpoint}/$model:generateContent")
+            .addHeader("x-goog-api-key", key)
+            .addHeader("content-type", "application/json")
+            .post(body.toRequestBody(JSON))
+            .build()
+
+        val (code, text) = execute(request)
+        if (code !in 200..299) throw httpError(provider, code, text)
+
+        // A reply can span several parts (thinking models emit more than one); join them.
+        val parts = parse(text)
+            .optJSONArray("candidates")?.optJSONObject(0)
+            ?.optJSONObject("content")?.optJSONArray("parts")
+        val reply = buildString {
+            if (parts != null) for (i in 0 until parts.length()) append(parts.optJSONObject(i)?.optString("text").orEmpty())
+        }.trim()
+
+        if (reply.isEmpty()) throw Exception(emptyReplyMessage(text))
+        return reply
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // K1: Streaming provider calls (SSE via OkHttp BufferedSource)
+    // ---------------------------------------------------------------------------------------
+
+    /** Stream an OpenAI-compatible chat (OpenAI + Custom). Same body as [callOpenAiCompatible]'s
+     *  standard-params path, with `stream: true`. SSE parsed via [SseDeltas.openAiDelta]. */
+    private fun callOpenAiCompatibleStream(
+        provider: AiProvider,
+        url: String,
+        model: String,
+        key: String?,
+        history: List<ChatMsg>,
+        systemPrompt: String,
+        onDelta: (String) -> Unit,
+        customAuthHeader: CustomAiAuthHeader = CustomAiAuthHeader.BEARER,
+    ) {
+        val messages = JSONArray()
+        messages.put(JSONObject().put("role", "system").put("content", systemPrompt))
+        for (m in history) messages.put(JSONObject().put("role", m.role).put("content", m.text))
+
+        val body = JSONObject()
+            .put("model", model)
+            .put("messages", messages)
+            .put("temperature", 0.6)
+            .put("max_tokens", 4096)
+            .put("stream", true)
+            .toString()
+
+        val builder = Request.Builder().url(url).addHeader("Content-Type", "application/json")
+            .post(body.toRequestBody(JSON))
+        when (provider) {
+            AiProvider.CUSTOM -> applyCustomAuthHeader(builder, key, customAuthHeader)
+            else -> if (!key.isNullOrBlank()) builder.addHeader("Authorization", "Bearer $key")
+        }
+        executeStreaming(builder.build(), provider, onDelta) { payload -> SseDeltas.openAiDelta(payload) }
+    }
+
+    /** Stream an Anthropic chat. Same body as [callAnthropic], with `stream: true`. SSE parsed
+     *  via [SseDeltas.anthropicDelta]. */
+    private fun callAnthropicStream(
+        provider: AiProvider,
+        model: String,
+        key: String,
+        history: List<ChatMsg>,
+        systemPrompt: String,
+        onDelta: (String) -> Unit,
+    ) {
+        val messages = JSONArray()
+        for (m in history) messages.put(JSONObject().put("role", m.role).put("content", m.text))
+
+        val body = JSONObject()
+            .put("model", model)
+            .put("max_tokens", 4096)
+            .put("system", systemPrompt)
+            .put("messages", messages)
+            .put("stream", true)
+            .toString()
+
+        val request = Request.Builder().url(provider.endpoint)
+            .addHeader("x-api-key", key)
+            .addHeader("anthropic-version", "2023-06-01")
+            .addHeader("content-type", "application/json")
+            .post(body.toRequestBody(JSON))
+            .build()
+
+        executeStreaming(request, provider, onDelta) { payload -> SseDeltas.anthropicDelta(payload) }
+    }
+
+    /** Stream a Gemini chat via `:streamGenerateContent?alt=sse`. Same body as [callGemini].
+     *  SSE parsed via [SseDeltas.geminiDelta]. */
+    private fun callGeminiStream(
+        provider: AiProvider,
+        model: String,
+        key: String,
+        history: List<ChatMsg>,
+        systemPrompt: String,
+        onDelta: (String) -> Unit,
+    ) {
+        val contents = JSONArray()
+        for (m in history) {
+            contents.put(
+                JSONObject()
+                    .put("role", if (m.role == "assistant") "model" else "user")
+                    .put("parts", JSONArray().put(JSONObject().put("text", m.text))),
+            )
+        }
+
+        val body = JSONObject()
+            .put("system_instruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", systemPrompt))))
+            .put("contents", contents)
+            .put("generationConfig", JSONObject().put("temperature", 0.6).put("maxOutputTokens", 4096))
+            .toString()
+
+        val request = Request.Builder()
+            .url("${provider.endpoint}/$model:streamGenerateContent?alt=sse")
+            .addHeader("x-goog-api-key", key)
+            .addHeader("content-type", "application/json")
+            .post(body.toRequestBody(JSON))
+            .build()
+
+        executeStreaming(request, provider, onDelta) { payload -> SseDeltas.geminiDelta(payload) }
+    }
+
+    /** Execute a streaming SSE request, reading the body line-by-line. For each `data:` payload
+     *  line, calls [extractDelta] to get the text chunk and passes it to [onDelta]. Same HTTP
+     *  error mapping as [execute]. K1. */
+    private fun executeStreaming(
+        request: Request,
+        provider: AiProvider,
+        onDelta: (String) -> Unit,
+        extractDelta: (String) -> String?,
+    ) {
+        try {
+            http.newCall(request).execute().use { resp ->
+                if (resp.code !in 200..299) {
+                    val body = resp.body?.string().orEmpty()
+                    throw httpError(provider, resp.code, body)
+                }
+                val source = resp.body?.source()
+                    ?: throw Exception("The provider returned an empty streaming response.")
+                while (!source.exhausted()) {
+                    val line = source.readUtf8Line() ?: break
+                    val payload = SseDeltas.dataPayload(fromLine = line) ?: continue
+                    val delta = extractDelta(payload) ?: continue
+                    onDelta(delta)
+                }
+            }
+        } catch (e: java.net.UnknownHostException) {
+            throw Exception("No internet connection. The coach needs a connection to reach the provider.")
+        } catch (e: java.net.SocketTimeoutException) {
+            throw Exception("The request timed out. Please check your connection and try again.")
+        } catch (e: javax.net.ssl.SSLException) {
+            throw Exception("A secure connection to the provider could not be established.")
+        } catch (e: java.io.IOException) {
+            val msg = e.message.orEmpty()
+            if (msg.contains("Cleartext", ignoreCase = true) && msg.contains("not permitted", ignoreCase = true)) {
+                throw Exception(
+                    "Plain http:// is blocked for that host. Use localhost, 127.0.0.1, 10.0.2.2, " +
+                        "a .local hostname, or switch the server to https://."
+                )
+            }
+            throw Exception(msg.ifBlank { "A network error occurred while streaming the reply." })
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // HTTP / error plumbing
+    // ---------------------------------------------------------------------------------------
+
+    /** Execute a request, mapping low-level network failures to a friendly [Exception]. */
+    private fun execute(request: Request): Pair<Int, String> {
+        try {
+            http.newCall(request).execute().use { resp ->
+                val text = resp.body?.string().orEmpty()
+                return resp.code to text
+            }
+        } catch (e: java.net.UnknownHostException) {
+            throw Exception("No internet connection. The coach needs a connection to reach the provider.")
+        } catch (e: java.net.SocketTimeoutException) {
+            throw Exception("The request timed out. Please check your connection and try again.")
+        } catch (e: javax.net.ssl.SSLException) {
+            throw Exception("A secure connection to the provider could not be established.")
+        } catch (e: java.io.IOException) {
+            // The platform reports a blocked plain-HTTP request as a generic IOException whose
+            // message is "Cleartext HTTP traffic to <host> not permitted" (no dedicated exception
+            // class exists). Detect it and explain, instead of the opaque generic line.
+            val msg = e.message.orEmpty()
+            if (msg.contains("Cleartext", ignoreCase = true) && msg.contains("not permitted", ignoreCase = true)) {
+                throw Exception(
+                    "Plain http:// is blocked for that host. Use localhost, 127.0.0.1, 10.0.2.2, " +
+                        "a .local hostname, or switch the server to https://."
+                )
+            }
+            throw Exception("Network error reaching the provider: ${e.message ?: "unknown"}.")
+        }
+    }
+
+    /** Map a non-2xx response to a clear, user-facing message (key, rate-limit, server).
+     *
+     *  A key rejection returns [AiKeyRejectedException] rather than a bare one, so the UI can offer the
+     *  wearer the field the message tells them to check. The message alone cannot carry that: matching
+     *  on its text would break the moment the copy is localized, which is every locale but English.
+     *  The status-to-type decision itself lives in [isKeyRejection], where a test can pin it. */
+    private fun httpError(provider: AiProvider, code: Int, body: String): Exception {
+        val detail = extractApiErrorMessage(body)
+        val base = when (code) {
+            401, 403 -> "Your ${provider.displayName} API key was rejected. Check the key and try again."
+            429 -> "${provider.displayName} rate limit reached (or quota exhausted). Wait a moment and retry."
+            in 500..599 -> "${provider.displayName} had a server error (HTTP $code). Please try again shortly."
+            400 -> "The request was rejected by ${provider.displayName} (HTTP 400)."
+            else -> "${provider.displayName} returned an error (HTTP $code)."
+        }
+        val message = if (detail != null) "$base ($detail)" else base
+        return if (isKeyRejection(code)) AiKeyRejectedException(message) else Exception(message)
+    }
+
+    /** Pull the provider's error message out of an error JSON body, if present. */
+    private fun extractApiErrorMessage(body: String): String? {
+        if (body.isBlank()) return null
+        return runCatching {
+            val obj = JSONObject(body)
+            // Both providers wrap errors as {"error": {"message": "..."}} (OpenAI) or
+            // {"type":"error","error":{"message":"..."}} (Anthropic).
+            obj.optJSONObject("error")?.optString("message")?.takeIf { it.isNotBlank() }
+        }.getOrNull()
+    }
+
+    /** Parse a successful response body, turning malformed JSON into a clear error. */
+    private fun parse(text: String): JSONObject =
+        runCatching { JSONObject(text) }.getOrElse {
+            throw Exception("Could not understand the provider's response.")
+        }
+
+    // ---------------------------------------------------------------------------------------
+    // Small numeric formatting helpers
+    // ---------------------------------------------------------------------------------------
+
+    /**
+     * Efficiency as a percentage, NORMALISING the stored value first.
+     *
+     * `DailyMetric.efficiency` is not reliably a 0-1 fraction - it arrives as a percentage on some
+     * import paths, which SleepMetricDetailLogic and SleepModelLogic each guard against inline. A bare
+     * `* 100` would hand the coach "eff 9400%" for an imported night, and a model given a nonsense
+     * number reasons about it confidently rather than ignoring it.
+     *
+     * 1.5 rather than 1.0 because a genuine fraction can exceed 1.0 only by floating-point noise, while
+     * a genuine percentage is 30-100. The two existing Kotlin copies split at 1.0; matching the Swift
+     * twin here keeps the COACH line consistent across platforms, and the wider divergence between
+     * those thresholds is pre-existing and not this change's to settle.
+     */
+    private fun effPctOrDash(raw: Double?): String {
+        var e = raw ?: return "-"
+        if (e <= 0.0) return "-"
+        if (e > 1.5) e /= 100.0
+        if (e <= 0.0 || e > 1.0) return "-"
+        return "${(e * 100).roundToInt()}%"
+    }
+
+    /** `Locale.US` is load-bearing, not tidiness. This text is a PROMPT, read by a model, not a label
+     *  read by a person: on a German or French device the default locale emits `12,4`, which Swift never
+     *  does, so the two platforms would hand the same effort figure to the same model in two notations
+     *  and one of them invites parsing as two numbers. `oneDecimal` beside it in `Units` already pins
+     *  the locale for exactly this reason. */
+    private fun fmt1(v: Double): String =
+        if (v == v.roundToInt().toDouble()) v.roundToInt().toString()
+        else String.format(java.util.Locale.US, "%.1f", v)
+
+    private inline fun avgInt(days: List<DailyMetric>, sel: (DailyMetric) -> Double?): String {
+        val vals = days.mapNotNull(sel)
+        return if (vals.isEmpty()) "-" else vals.average().roundToInt().toString()
+    }
+
+    private inline fun avg1(days: List<DailyMetric>, sel: (DailyMetric) -> Double?): String {
+        val vals = days.mapNotNull(sel)
+        return if (vals.isEmpty()) "-" else fmt1(vals.average())
+    }
+
+    companion object {
+        private val JSON = "application/json; charset=utf-8".toMediaType()
+
+        /**
+         * Whether an HTTP status means the stored key itself was turned away, as opposed to the
+         * provider being busy, broken, or asked for something it does not have.
+         *
+         * Named rather than left as two literals because it is the hinge the key-repair affordance
+         * hangs on, and it decides what the wearer is told to go and do. Widen it and a rate limit
+         * starts demanding a new key; narrow it and the trap this exists to remove comes straight
+         * back. Byte-identical twin of Swift `AICoachError.isKeyRejection`, which the two response
+         * switches in `AIProvider.swift` read.
+         */
+        internal fun isKeyRejection(code: Int): Boolean = code == 401 || code == 403
+
+        /**
+         * Normalise a user-entered Custom base URL: trim, drop a trailing slash, and tolerate a pasted
+         * FULL chat URL by stripping a trailing OpenAI-style chat path. So the derived `/chat/completions`
+         * and `/models` endpoints resolve whether the user pasted the API root (`https://api.deepseek.com`
+         * or `.../v1`) OR the whole chat URL (`.../v1/chat/completions`) — the latter otherwise made the
+         * model scan hit `.../chat/completions/models` and silently return nothing (#1074). Pure → tested.
+         */
+        internal fun normalizeCustomBaseUrl(url: String): String {
+            var base = url.trim().trimEnd('/')
+            for (suffix in listOf("/chat/completions", "/completions")) {
+                if (base.endsWith(suffix, ignoreCase = true)) {
+                    base = base.dropLast(suffix.length).trimEnd('/')
+                    break
+                }
+            }
+            return base
+        }
+
+        /**
+         * The user-facing message for a 200 response whose assistant content is empty (#1074). Some
+         * OpenAI-compatible servers (e.g. a hand-set model the provider doesn't offer) return the real
+         * error INSIDE a 200 body rather than as a 4xx; surface that here instead of a blanket "empty
+         * reply" so the cause is visible. Falls back to a hint about the hand-set model otherwise.
+         * Pure + `internal` so it is unit-testable without a network. Same `{"error":{"message":…}}`
+         * shape [extractApiErrorMessage] reads.
+         */
+        internal fun emptyReplyMessage(body: String): String {
+            val providerError = runCatching {
+                JSONObject(body).optJSONObject("error")?.optString("message")?.takeIf { it.isNotBlank() }
+            }.getOrNull()
+            return if (providerError != null) {
+                "The provider returned an error: $providerError"
+            } else {
+                "The provider returned an empty reply. If you set a custom model by hand, check that " +
+                    "the model name is one the provider actually offers."
+            }
+        }
+
+        /**
+         * Pure: unwrap Gemini's `{"models":[{"name":"models/…"}]}` into chat-capable ids. Strips the
+         * `models/` prefix, keeps `gemini*` only (drops embedding / AQA models). Byte-for-byte twin of
+         * the Swift `GeminiClient.parseModels`, so both platforms surface the same fetched catalogue.
+         * Pure + `internal` so it is unit-testable without a network or a Context. No network.
+         */
+        internal fun parseGeminiModels(text: String): List<String> {
+            val list = runCatching { JSONObject(text).optJSONArray("models") }.getOrNull() ?: return emptyList()
+            val ids = ArrayList<String>(list.length())
+            for (i in 0 until list.length()) {
+                val name = list.optJSONObject(i)?.optString("name")?.trim().orEmpty()
+                if (name.isEmpty()) continue
+                val id = if (name.startsWith("models/")) name.removePrefix("models/") else name
+                if (id.startsWith("gemini") && !id.contains("embedding") && !id.contains("aqa")) ids.add(id)
+            }
+            return ids.distinct()
+        }
+
+        /**
+         * Pure: unwrap OpenAI-compatible `/models` ids. Custom gateways may return either the normal
+         * `data[].id` envelope or a gateway catalog with `catalog[].models`; keep all Custom ids.
+         */
+        internal fun parseOpenAiCompatibleModels(provider: AiProvider, text: String): List<String> {
+            val json = runCatching { JSONObject(text) }.getOrNull() ?: return emptyList()
+            val data = json.optJSONArray("data")
+            if (data != null) {
+                val ids = ArrayList<String>(data.length())
+                for (i in 0 until data.length()) {
+                    val id = data.optJSONObject(i)?.optString("id")?.trim().orEmpty()
+                    if (id.isEmpty()) continue
+                    val keep = when (provider) {
+                        AiProvider.OPENAI -> id.startsWith("gpt") || id.startsWith("o")
+                        AiProvider.ANTHROPIC, AiProvider.CUSTOM -> true
+                        AiProvider.GEMINI -> true
+                    }
+                    if (keep) ids.add(id)
+                }
+                return ids.distinct()
+            }
+
+            val catalog = json.optJSONArray("catalog") ?: return emptyList()
+            val ids = ArrayList<String>()
+            for (i in 0 until catalog.length()) {
+                val models = catalog.optJSONObject(i)?.optJSONArray("models") ?: continue
+                for (j in 0 until models.length()) {
+                    val id = models.optString(j).trim()
+                    if (id.isNotEmpty()) ids.add(id)
+                }
+            }
+            return ids.distinct()
+        }
+
+        /**
+         * True when [host] is local/private enough for Custom-provider plain HTTP: localhost,
+         * loopback, RFC1918 private LAN, IPv4 link-local, or any *.local mDNS name. Anything else
+         * is treated as requiring HTTPS. Pure; `internal` so it's unit-testable (#321/#187).
+         * Called unqualified by `guardCustomUrl`.
+         */
+        internal fun isPrivateLanOrLoopback(host: String): Boolean {
+            val raw = host.trim()
+            val h = raw.trim('[', ']').lowercase()  // strip IPv6 brackets if present
+            if (h.isEmpty()) return false
+
+            val isIpv6Literal = raw.startsWith("[") || h.contains(':')
+            if (isIpv6Literal) {
+                return h == "::1" ||
+                    h.startsWith("fe80:") || h.startsWith("fe80::") ||
+                    h.startsWith("fc") || h.startsWith("fd")
+            }
+
+            if (h == "localhost" || h.endsWith(".localhost")) return true
+            // mDNS / Bonjour LAN names: require a real label before ".local" (so the bare ".local" /
+            // "local" can't slip through), and only for an actual hostname (handled above for literals).
+            if (h.endsWith(".local") && h.length > ".local".length) return true
+
+            val parts = h.split(".")
+            if (parts.size != 4) return false
+            val octets = parts.map { it.toIntOrNull() ?: -1 }
+            if (octets.any { it < 0 || it > 255 }) return false
+            val a = octets[0]
+            val b = octets[1]
+            return a == 127 ||                  // loopback
+                a == 10 ||                      // RFC1918 10/8
+                (a == 172 && b in 16..31) ||    // RFC1918 172.16/12
+                (a == 192 && b == 168) ||       // RFC1918 192.168/16
+                (a == 169 && b == 254)          // IPv4 link-local
+        }
+
+        /**
+         * Max chat turns sent on a single request, beyond the context-bearing first user turn. Caps
+         * how much history we ship so a long conversation can't crowd out the reply on a small local
+         * context window (e.g. Ollama's 2048-token default). High enough that normal chats go in full.
+         */
+        const val MAX_HISTORY_TURNS = 10
+
+        /**
+         * Appended to a reply that stopped early with `finish_reason == "length"` — it reached the
+         * response-length cap (`max_tokens`, now 4096) or, on a local server (e.g. Ollama's default
+         * 2048-token window), the model's own limit. Either way the text just stops mid-sentence with no
+         * error, so make the cutoff visible. Kept provider-agnostic: the old note gave Ollama-specific
+         * `num_ctx` instructions that were wrong for cloud providers like the #1074 DeepSeek report.
+         */
+        const val TRUNCATION_NOTE =
+            "\n\n---\n*Reply cut off at the response-length limit. Ask a more specific question for a " +
+                "shorter, complete answer — or, on a local server (e.g. Ollama), raise its context window.*"
+
+        /**
+         * Pure: sliding-window the chat. Returns everything when short; otherwise the first user turn
+         * (so the data context still has a turn to ride) followed by the last [maxRecent] messages,
+         * with no duplication. No state, unit-tested.
+         */
+        fun trimmedHistory(msgs: List<ChatMsg>, maxRecent: Int): List<ChatMsg> {
+            if (msgs.size <= maxRecent + 1) return msgs
+            val tailStart = msgs.size - maxRecent
+            val tail = msgs.subList(tailStart, msgs.size)
+            val firstUserIdx = msgs.indexOfFirst { it.role == "user" }
+            // No user turn (shouldn't happen for a real chat), or the first user turn is already
+            // inside the retained tail → just return the tail, no duplication.
+            if (firstUserIdx < 0 || firstUserIdx >= tailStart) return tail.toList()
+            return listOf(msgs[firstUserIdx]) + tail
+        }
+
+        /**
+         * The built-in coach persona. Anonymous (names no app author or model vendor) and includes the
+         * not-a-doctor guardrail. The user can OVERRIDE this from the Coach settings; the override is
+         * stored in NoopPrefs and read fresh per request via [resolveSystemPrompt].
+         */
+        const val DEFAULT_SYSTEM_PROMPT =
+            "You are an elite, supportive recovery and performance coach with a real training " +
+                "methodology. You may be given a summary of the user's own wearable data (charge " +
+                "0-100, effort 0-100, rest/sleep and its deep/REM/light breakdown, sleep " +
+                "efficiency, HRV, resting heart rate) and recent workouts. " +
+                "Charge is the daily recovery/readiness score; effort is the day's cardiovascular " +
+                "load. Coach using autoregulation: charge 67-100 = green light to build/push, " +
+                "higher effort is fine; 34-66 = maintain, quality over volume, keep it controlled; " +
+                "0-33 = active recovery only (Zone 2, mobility, extra sleep) and protect against " +
+                "accumulating effort debt. Optimise workouts with progressive overload, polarised ~80/20 " +
+                "intensity, spacing hard sessions, deloads/periodisation, and treat sleep as the " +
+                "biggest recovery lever. Always cite the user's ACTUAL numbers, give a concrete plan " +
+                "(today and the week), and be specific, punchy and motivating. If no data is " +
+                "provided, coach generally and invite them to enable data access. You are NOT a " +
+                "doctor - never diagnose; suggest a professional for genuine health concerns. " +
+                "Format replies in simple Markdown, chat-sized: short paragraphs, **bold** for key " +
+                "numbers, bullet or numbered lists for plans, and ### headings only when structure " +
+                "genuinely helps. No tables or code blocks."
+
+        /** Used in place of the metrics context when the user has not granted data access. */
+        const val NO_CONSENT_NOTE =
+            "NOTE: The user has not granted access to their biometric data. Coach generally and " +
+                "encourage them to enable \"Let the coach use my data\" for tailored guidance."
+
+        /**
+         * K5: the brief instruction shared by [generateBrief] (headless, scheduled) — byte-identical to
+         * the Swift twin's `AICoachEngine.briefInstruction` so a brief reads the same on both platforms.
+         */
+        const val BRIEF_INSTRUCTION =
+            "Based on the data above, give me TODAY'S coaching brief in three short parts: " +
+                "(1) my readiness in one line, citing charge, HRV and rest; " +
+                "(2) exactly what training to do today and what to avoid; " +
+                "(3) one specific thing to improve my charge. Be punchy and motivating."
+
+        /**
+         * The system prompt actually sent: the user's edited override from [NoopPrefs] when it is
+         * non-blank, otherwise [DEFAULT_SYSTEM_PROMPT]. Read fresh per request so an edit in the Coach
+         * settings takes effect on the very next message, with no engine rebuild. Mirrors macOS/iOS
+         * `AICoachEngine.systemPrompt`.
+         */
+        fun resolveSystemPrompt(ctx: Context): String {
+            val custom = NoopPrefs.coachSystemPrompt(ctx).trim()
+            return if (custom.isNotEmpty()) custom else DEFAULT_SYSTEM_PROMPT
+        }
+
+        /**
+         * One derived stress line for the coach context: the Baevsky Stress Index over a series of R-R
+         * intervals, summarised to a single number. Pure (no IO) so it is unit-testable; returns null
+         * when there are too few clean beats (the histogram needs >= [StressIndex.MIN_BEATS]), so the
+         * line is simply absent, never a fabricated value. Summary-only: no raw R-R leaves the device.
+         */
+        fun stressIndexLine(rr: List<com.noop.data.RrInterval>): String? {
+            val si = StressIndex.stressIndex(rr) ?: return null
+            return stressIndexSummary(si)
+        }
+
+        /** Pure formatter for the derived stress line, one labelled summary number. */
+        fun stressIndexSummary(si: Double): String =
+            "Stress (SI): ${si.roundToInt()} (Baevsky Stress Index over today's R-R; higher means more " +
+                "sympathetic / under load; an autonomic-balance proxy, not a clinical figure)."
+    }
+}

@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "capabilities": {
+    "start_stop": {
+      "swift": ["startGroundTruthRawCapture", "stopGroundTruthRawCapture"],
+      "kotlin": ["startGroundTruthImuCapture", "stopGroundTruthImuCapture"]
+    },
+    "persisted_sessions": {
+      "swift": ["RawDataSessionStore", "persist(session)"],
+      "kotlin": ["GroundTruthCollector", "sessionStartKey"]
+    },
+    "session_comments": {
+      "swift": ["setComment(", "Session comment"],
+      "kotlin": ["setComment(", "ground_truth_comment"]
+    },
+    "session_markers": {
+      "swift": ["addMarker(sessionId:", "updateMarker(sessionId:", "deleteMarker(sessionId:", "Add marker"],
+      "kotlin": ["fun addMarker(", "fun updateMarker(", "fun deleteMarker(", "ground_truth_add_marker"]
+    },
+    "from_to_time": {
+      "swift": ["func range(", "endedAtMs"],
+      "kotlin": ["sessionTimeRange(", "endedAtMs"]
+    },
+    "session_export": {
+      "swift": ["exportEntries(for:", "Export session"],
+      "kotlin": ["suspend fun export(", "ground_truth_export"]
+    },
+    "historical_time_windows": {
+      "swift": ["createHistorical(deviceId:", "Historical export window"],
+      "kotlin": ["createHistoricalSession(", "ground_truth_add_historical"]
+    },
+    "editable_analysis_range": {
+      "swift": ["func setRange(sessionId:", "DatePicker(\"From\""],
+      "kotlin": ["fun setSessionRange(", "ground_truth_edit_start"]
+    },
+    "file_only_imu_storage": {
+      "swift": ["v41-drop-raw-imu-sample"],
+      "kotlin": ["MIGRATION_34_35", "DROP TABLE IF EXISTS `rawImuSample`"]
+    },
+    "session_bound_imu_file": {
+      "swift": ["ImuSessionFileStore", "segmentSeconds: Int64 = 30 * 60", "NOOPIMU2"],
+      "kotlin": ["ImuSessionFileStore", "SEGMENT_SECONDS = 30 * 60L", "NOOPIMU2"]
+    },
+    "decoded_segment_export": {
+      "swift": ["exportSegments", "imu/\\(segment.name)"],
+      "kotlin": ["exportSegments", "imu/${segment.name}"]
+    },
+    "explicit_imu_coverage": {
+      "swift": ["imu-coverage.json", "private static func covers"],
+      "kotlin": ["imu_100hz_complete", "private fun covers"]
+    },
+    "delete_one_and_all_with_confirmation": {
+      "swift": ["Delete this session?", "Delete all sessions?", "removeMetadata(session.id)"],
+      "kotlin": ["ground_truth_delete_session_title", "ground_truth_delete_all_title", "deleteAllSessions"]
+    },
+    "active_session_delete_guard": {
+      "swift": ["guard session.endedAtMs != nil else { return }", ".disabled(store.active != nil)"],
+      "kotlin": ["current.active && current.sessionId == sessionId", "sessions.none { it.active }"]
+    },
+    "bluetooth_reconnect_rearm": {
+      "swift": ["onChangeCompat(of: live.bonded)", "rawCaptureInFlight = false"],
+      "kotlin": ["LaunchedEffect(state.active, state.sessionId, live.connected)", "startGroundTruthImuCapture"]
+    },
+    "session_files_removed_with_session": {
+      "swift": ["deleteFiles(sessionId", "removeItem(metadata)"],
+      "kotlin": ["deleteFiles(sessionId)", "eventFile(sessionId).delete()"]
+    }
+  }
+}

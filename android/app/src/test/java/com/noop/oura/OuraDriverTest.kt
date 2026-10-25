@@ -1,0 +1,956 @@
+package com.noop.oura
+
+import org.junit.Assert.assertArrayEquals
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/**
+ * OuraDriver flow tests: the transport-agnostic state machine drives scan -> auth -> enable -> stream
+ * purely from transitions (no BLE), and ingest(record:) decodes records (with Tier-B gating). Kotlin
+ * twin of the Swift OuraDriverTests.swift.
+ *
+ * PARITY NOTE: the deterministic 16-byte app key (0..15), the rt anchor (0x00010002), and every
+ * fixture hex string match the Swift OuraDriverTests fixtures byte-for-byte, so the same transitions
+ * and the same record bytes drive the same commands/events across both ports.
+ */
+class OuraDriverTest {
+    private val key: IntArray = IntArray(16) { it }   // deterministic 16-byte app key (0..15)
+    private val rt: Long = 0x0001_0002
+
+    private fun bytes(s: String) = OuraTestHex.bytes(s)
+
+    @Test
+    fun testIsPlausibleAnchorEpochBounds() {
+        // The anchor plausibility window is [2020-01-01, 2035-01-01] UTC. OuraLiveSource reads this same
+        // predicate to log WHY an anchor was rejected (#91), so the boundaries are pinned here. Twin of the
+        // Swift OuraDriverTests.testIsPlausibleAnchorEpochBounds.
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key)
+        assertTrue(d.isPlausibleAnchorEpoch(1_577_836_800L))    // 2020-01-01, inclusive min
+        assertTrue(d.isPlausibleAnchorEpoch(2_051_222_400L))    // 2035-01-01, inclusive max
+        assertTrue(d.isPlausibleAnchorEpoch(1_700_000_000L))    // ~2023, mid-window
+        assertFalse(d.isPlausibleAnchorEpoch(1_577_836_799L))   // one second before min
+        assertFalse(d.isPlausibleAnchorEpoch(2_051_222_401L))   // one second past max
+        assertFalse(d.isPlausibleAnchorEpoch(0L))               // epoch 0 — the ~1970 anchor #91 must avoid
+    }
+
+    // MARK: - Full happy-path step sequence (auth -> enable triplet -> streaming)
+
+    @Test
+    fun testFullEnableSequence() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key)
+        assertEquals(OuraDriverPhase.Idle, d.phase)
+
+        // ready -> enable notifications + request nonce.
+        val onReady = d.nextStep(OuraTransition.Ready)
+        assertEquals(OuraDriverPhase.Authenticating, d.phase)
+        assertEquals(listOf("notify_all", "get_nonce"), onReady.map { it.label })
+        assertArrayEquals(intArrayOf(0x1C, 0x01, 0x3F), onReady[0].bytes)   // the default mask, unchanged
+        assertArrayEquals(intArrayOf(0x2F, 0x01, 0x2B), onReady[1].bytes)
+
+        // nonce -> submit proof.
+        val nonce = bytes("0102030405060708090a0b0c0d0e0f")
+        val onNonce = d.nextStep(OuraTransition.NonceReceived(nonce))
+        assertEquals(1, onNonce.size)
+        assertArrayEquals(intArrayOf(0x2F, 0x11, 0x2D), onNonce[0].bytes.copyOfRange(0, 3))
+        // The proof body matches the known vector.
+        assertArrayEquals(bytes("c49fb9e83c46087a555183a9dc511ee9"), onNonce[0].bytes.copyOfRange(3, onNonce[0].bytes.size))
+
+        // auth success -> first live-HR enable step (read DHR status).
+        val onAuth = d.nextStep(OuraTransition.AuthCompleted(OuraAuthStatus.SUCCESS))
+        assertEquals(OuraDriverPhase.EnablingLiveHR, d.phase)
+        assertEquals(listOf("dhr_read"), onAuth.map { it.label })
+        assertArrayEquals(intArrayOf(0x2F, 0x02, 0x20, 0x02), onAuth[0].bytes)
+
+        // ack 1 -> enable ; ack 2 -> subscribe ; ack 3 -> streaming (no more commands).
+        val step2 = d.nextStep(OuraTransition.EnableAckReceived)
+        assertEquals(listOf("dhr_enable"), step2.map { it.label })
+        assertArrayEquals(intArrayOf(0x2F, 0x03, 0x22, 0x02, 0x03), step2[0].bytes)
+
+        val step3 = d.nextStep(OuraTransition.EnableAckReceived)
+        assertEquals(listOf("dhr_subscribe"), step3.map { it.label })
+        assertArrayEquals(intArrayOf(0x2F, 0x03, 0x26, 0x02, 0x02), step3[0].bytes)
+
+        val done = d.nextStep(OuraTransition.EnableAckReceived)
+        assertTrue(done.isEmpty())
+        assertEquals(OuraDriverPhase.Streaming, d.phase)
+    }
+
+    // MARK: - Honest pairing path when no key
+
+    // MARK: - Suspended connect: auth success without the live-HR triplet
+
+    /**
+     * With `liveHRWanted` cleared (the app's screen-off suspend is in force), auth success goes straight
+     * to `Streaming` and writes NOTHING to the daytime-HR feature: no `dhr_read`, no `dhr_enable`, no
+     * `dhr_subscribe`. The history path still works from that phase, and a stray enable ACK cannot
+     * restart the triplet. Twin of the Swift `testAuthSuccessSkipsLiveHRTripletWhenNotWanted`.
+     */
+    @Test
+    fun testAuthSuccessSkipsLiveHRTripletWhenNotWanted() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key)
+        d.liveHRWanted = false
+        d.nextStep(OuraTransition.Ready)
+        d.nextStep(OuraTransition.NonceReceived(bytes("0102030405060708090a0b0c0d0e0f")))
+
+        val onAuth = d.nextStep(OuraTransition.AuthCompleted(OuraAuthStatus.SUCCESS))
+        assertTrue("a suspended connect must not arm daytime HR", onAuth.isEmpty())
+        assertEquals(OuraDriverPhase.Streaming, d.phase)
+
+        // A stray enable ACK outside EnablingLiveHR is inert — the triplet does not start late.
+        assertTrue(d.nextStep(OuraTransition.EnableAckReceived).isEmpty())
+        assertEquals(OuraDriverPhase.Streaming, d.phase)
+
+        // The drain runs from Streaming exactly as after a full triplet.
+        val fetch = d.nextStep(OuraTransition.StartHistoryFetch(cursor = 0L))
+        assertEquals(listOf("flush_buffer", "get_events"), fetch.map { it.label })
+        assertEquals(OuraDriverPhase.FetchingHistory, d.phase)
+        d.nextStep(OuraTransition.HistoryCursorAdvanced(cursor = 0L, moreData = false))
+        assertEquals(OuraDriverPhase.Streaming, d.phase)
+    }
+
+    /** The default is the historical behaviour: auth success starts the triplet with `dhr_read`. */
+    @Test
+    fun testLiveHRWantedDefaultsToArmingTheTriplet() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key)
+        assertTrue(d.liveHRWanted)
+        d.nextStep(OuraTransition.Ready)
+        d.nextStep(OuraTransition.NonceReceived(bytes("0102030405060708090a0b0c0d0e0f")))
+        val onAuth = d.nextStep(OuraTransition.AuthCompleted(OuraAuthStatus.SUCCESS))
+        assertEquals(listOf("dhr_read"), onAuth.map { it.label })
+        assertEquals(OuraDriverPhase.EnablingLiveHR, d.phase)
+    }
+
+    @Test
+    fun testNoKeyDrivesNeedsKeyInstall() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = null)
+        val cmds = d.nextStep(OuraTransition.Ready)
+        assertTrue("without an app key we cannot authenticate; emit no commands", cmds.isEmpty())
+        assertEquals(OuraDriverPhase.NeedsKeyInstall, d.phase)
+    }
+
+    @Test
+    fun testFactoryResetStatusDrivesNeedsKeyInstall() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key)
+        d.nextStep(OuraTransition.Ready)
+        val cmds = d.nextStep(OuraTransition.AuthCompleted(OuraAuthStatus.IN_FACTORY_RESET))
+        assertTrue(cmds.isEmpty())
+        assertEquals(OuraDriverPhase.NeedsKeyInstall, d.phase)
+    }
+
+    @Test
+    fun testAuthErrorIsSurfacedNotRetriedBlindly() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key)
+        d.nextStep(OuraTransition.Ready)
+        d.nextStep(OuraTransition.AuthCompleted(OuraAuthStatus.AUTH_ERROR))
+        assertEquals(OuraDriverPhase.AuthFailed(OuraAuthStatus.AUTH_ERROR), d.phase)
+    }
+
+    // MARK: - Post-factory-reset key install sequencing (s3.2), gated on allowKeyInstall
+
+    /**
+     * With allowKeyInstall == true the adopt flow sequences NeedsKeyInstall -> InstallingKey ->
+     * (on the 0x25 ack) re-auth, and the post-install re-auth uses the freshly-provisioned key. Kotlin
+     * twin of the Swift testKeyInstallSequencesReauthWhenAllowed (same key, nonce, proof vector).
+     */
+    @Test
+    fun testKeyInstallSequencesReauthWhenAllowed() {
+        // No injected key -> the honest needs-pairing path; the transport will provision one.
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = null, allowKeyInstall = true)
+        val onReady = d.nextStep(OuraTransition.Ready)
+        assertTrue(onReady.isEmpty())
+        assertEquals(OuraDriverPhase.NeedsKeyInstall, d.phase)
+
+        // The transport generates + persists a fresh 16-byte key and asks the driver for the install
+        // command. It must be the DANGEROUS `24 10 <key>` write (s3.2) and advance to InstallingKey.
+        val install = d.beginKeyInstall(key)
+        assertTrue(install != null)
+        assertEquals("DANGEROUS_install_key", install!!.label)
+        assertArrayEquals(intArrayOf(0x24, 0x10) + key, install.bytes)
+        assertEquals(OuraDriverPhase.InstallingKey, d.phase)
+
+        // The ring acks with `25 01 00`; the transport calls back and the driver drives re-auth.
+        val onAck = d.keyInstallAcknowledged()
+        assertEquals(listOf("notify_all", "get_nonce"), onAck.map { it.label })
+        assertArrayEquals(intArrayOf(0x2F, 0x01, 0x2B), onAck[1].bytes)
+        assertEquals(OuraDriverPhase.Authenticating, d.phase)
+
+        // Re-auth uses the freshly-installed key: the proof matches the known vector for that key.
+        val nonce = bytes("0102030405060708090a0b0c0d0e0f")
+        val onNonce = d.nextStep(OuraTransition.NonceReceived(nonce))
+        assertEquals(1, onNonce.size)
+        assertArrayEquals(intArrayOf(0x2F, 0x11, 0x2D), onNonce[0].bytes.copyOfRange(0, 3))
+        assertArrayEquals(
+            bytes("c49fb9e83c46087a555183a9dc511ee9"),
+            onNonce[0].bytes.copyOfRange(3, onNonce[0].bytes.size),
+        )
+    }
+
+    /**
+     * With allowKeyInstall == false (the default) the driver MUST NOT sequence an install: it stays at
+     * NeedsKeyInstall, emits no command, and a stray 0x25 ack cannot advance the flow.
+     */
+    @Test
+    fun testNoKeyInstallSequencedWhenNotAllowed() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = null)   // allowKeyInstall defaults to false
+        d.nextStep(OuraTransition.Ready)
+        assertEquals(OuraDriverPhase.NeedsKeyInstall, d.phase)
+
+        val install = d.beginKeyInstall(key)
+        assertTrue("no dangerous 0x24 write may be produced without an opt-in adopt flow", install == null)
+        assertEquals(OuraDriverPhase.NeedsKeyInstall, d.phase)
+
+        // A stray ack must be ignored too (no install was sequenced, so there is nothing to acknowledge).
+        val onAck = d.keyInstallAcknowledged()
+        assertTrue(onAck.isEmpty())
+        assertEquals(OuraDriverPhase.NeedsKeyInstall, d.phase)
+    }
+
+    /**
+     * Even with allowKeyInstall == true, beginKeyInstall only fires from NeedsKeyInstall; a call from
+     * another phase is a no-op (the gate is BOTH the flag and the phase).
+     */
+    @Test
+    fun testKeyInstallIgnoredOutsideNeedsKeyInstallPhase() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key, allowKeyInstall = true)
+        d.nextStep(OuraTransition.Ready)        // -> Authenticating (a real key is present)
+        assertEquals(OuraDriverPhase.Authenticating, d.phase)
+        assertTrue("install must not fire outside NeedsKeyInstall", d.beginKeyInstall(key) == null)
+        assertEquals(OuraDriverPhase.Authenticating, d.phase)
+    }
+
+    // MARK: - History fetch loop
+
+    @Test
+    fun testHistoryFetchFlushesThenFetchesThenContinues() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key)
+        val start = d.nextStep(OuraTransition.StartHistoryFetch(cursor = 0L))
+        assertEquals(OuraDriverPhase.FetchingHistory, d.phase)
+        assertEquals(listOf("flush_buffer", "get_events"), start.map { it.label })
+        // get_events cursor 0, max 255, flags FFFFFFFF.
+        assertArrayEquals(
+            intArrayOf(0x10, 0x09, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF),
+            start[1].bytes,
+        )
+
+        // More data -> continuation fetch at the ADVANCED cursor, SAME shape as the initial request
+        // (max 255, open_oura drain_events). The old max=0 "ack" made the ring restart its serve.
+        val cont = d.nextStep(OuraTransition.HistoryCursorAdvanced(cursor = 0x12345678L, moreData = true))
+        assertEquals(1, cont.size)
+        assertArrayEquals(
+            intArrayOf(0x10, 0x09, 0x78, 0x56, 0x34, 0x12, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF),
+            cont[0].bytes,
+        )
+
+        // No more -> back to streaming.
+        val stop = d.nextStep(OuraTransition.HistoryCursorAdvanced(cursor = 0x12345678L, moreData = false))
+        assertTrue(stop.isEmpty())
+        assertEquals(OuraDriverPhase.Streaming, d.phase)
+    }
+
+    @Test
+    fun testSyncTimeCommandIsU64SecondsPlusTz() {
+        // 12 09 <unix_seconds:8 LE> <tz:1> (s5.4, ringverse/open_oura layout — on-device proven; the
+        // old open_ring token/counter/0xF6 guess never anchored on real hardware).
+        val cmd = OuraCommands.syncTime(0x1061BCL, tzHalfHours = 4)
+        assertEquals("sync_time", cmd.label)
+        assertArrayEquals(
+            intArrayOf(0x12, 0x09, 0xBC, 0x61, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04),
+            cmd.bytes,
+        )
+    }
+
+    @Test
+    fun testLiveHRDisableWritesModeOffNotAutomatic() {
+        // 0x00 = "off" per OURA_PROTOCOL.md s7.2's APK-sourced feature-mode table; 0x01 is "automatic"
+        // and was falsified on two hardware nights (green 0x28 kept arriving after the old 0x01 write).
+        assertArrayEquals(intArrayOf(0x2F, 0x03, 0x22, 0x02, 0x00), OuraCommands.liveHRDisable().bytes)
+    }
+
+    @Test
+    fun testLiveHRUnsubscribeWritesSubscriptionOff() {
+        // Matching teardown for the enable triplet's step 3 (subscribe "latest" = 0x02).
+        assertArrayEquals(intArrayOf(0x2F, 0x03, 0x26, 0x02, 0x00), OuraCommands.liveHRUnsubscribe().bytes)
+    }
+
+    // MARK: - Ring-time -> UTC anchor (s5.5)
+
+    /**
+     * Little-endian bytes of the RAW 0x42 wire value the decoder reads into [OuraTimeSync.epochMs]. The
+     * wire value is unix SECONDS (s6.11), despite the field's "epochMs" name (which reflects what
+     * OURA_PROTOCOL.md s6.11 claims, not what the driver now does with it), so tests build this from a
+     * seconds value. Byte-for-byte identical to the Swift OuraDriverTests `le8` helper.
+     */
+    private fun le8(v: Long): IntArray = IntArray(8) { ((v ushr (8 * it)) and 0xFFL).toInt() }
+
+    @Test
+    fun testNoAnchorBeforeAnyTimeSyncOrBeacon() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key)
+        assertNull(d.unixSeconds(forRingTimestamp = rt))
+    }
+
+    @Test
+    fun testTimeSyncSetsAnchorAndConvertsPastAndFutureRingTimes() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key)
+        val anchorEpochSeconds = 1_700_000_000L   // the wire's raw value (seconds, not ms)
+        val anchorRt = 10_000L
+        val payload = le8(anchorEpochSeconds) + intArrayOf(0x00)   // raw wire epoch (8B) + tz offset (0 half-hours)
+        val rec = OuraRecord(type = OuraEventTag.TIME_SYNC.raw, ringTimestamp = anchorRt, payload = payload)
+        val events = d.ingest(rec)
+        assertEquals(
+            listOf(
+                OuraEvent.TimeSyncEvent(
+                    OuraTimeSync(ringTimestamp = anchorRt, epochMs = anchorEpochSeconds, tzOffsetSeconds = 0),
+                ),
+            ),
+            events,
+        )
+
+        // Exactly at the anchor: the driver applies the x1000 seconds->ms correction internally, so
+        // unixSeconds recovers the ORIGINAL seconds value.
+        assertEquals(anchorEpochSeconds, d.unixSeconds(forRingTimestamp = anchorRt))
+        // 100 ticks (10s at the default 100ms/tick) BEFORE the anchor -> 10s earlier (a past/historical
+        // record, e.g. from a GetEvents history fetch).
+        assertEquals(anchorEpochSeconds - 10, d.unixSeconds(forRingTimestamp = anchorRt - 100))
+        // 100 ticks AFTER the anchor -> 10s later.
+        assertEquals(anchorEpochSeconds + 10, d.unixSeconds(forRingTimestamp = anchorRt + 100))
+    }
+
+    @Test
+    fun testRtcBeaconOnlyAnchorsWhenNoTimeSyncSeenYet() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key)
+        val beaconRt = 5_000L
+        val beaconUnixSeconds = 1_700_000_500L
+        // 0x85 rtc_beacon_ind: unix_s u32 LE + trailer (payload just needs >= 4 bytes).
+        val beaconPayload = intArrayOf(
+            (beaconUnixSeconds and 0xFF).toInt(), ((beaconUnixSeconds shr 8) and 0xFF).toInt(),
+            ((beaconUnixSeconds shr 16) and 0xFF).toInt(), ((beaconUnixSeconds shr 24) and 0xFF).toInt(),
+        )
+        val beaconRec = OuraRecord(type = OuraEventTag.RTC_BEACON.raw, ringTimestamp = beaconRt, payload = beaconPayload)
+        d.ingest(beaconRec)
+        assertEquals(beaconUnixSeconds, d.unixSeconds(forRingTimestamp = beaconRt))
+
+        // A later, more precise 0x42 time-sync must override the coarser beacon anchor.
+        val syncEpochSeconds = 1_700_001_000L
+        val syncRt = 6_000L
+        val syncPayload = le8(syncEpochSeconds) + intArrayOf(0x00)
+        val syncRec = OuraRecord(type = OuraEventTag.TIME_SYNC.raw, ringTimestamp = syncRt, payload = syncPayload)
+        d.ingest(syncRec)
+        assertEquals(syncEpochSeconds, d.unixSeconds(forRingTimestamp = syncRt))
+
+        // A SECOND beacon after a time-sync anchor is already set must NOT override it (secondary only
+        // fills a gap, never displaces the primary source).
+        val laterBeaconRec = OuraRecord(
+            type = OuraEventTag.RTC_BEACON.raw, ringTimestamp = syncRt + 100, payload = beaconPayload,
+        )
+        d.ingest(laterBeaconRec)
+        assertEquals(
+            "a later RTC beacon must not displace an already-set time-sync anchor",
+            syncEpochSeconds, d.unixSeconds(forRingTimestamp = syncRt),
+        )
+    }
+
+    @Test
+    fun testStopClearsTheAnchor() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key)
+        val payload = le8(1_700_000_000L) + intArrayOf(0x00)
+        val rec = OuraRecord(type = OuraEventTag.TIME_SYNC.raw, ringTimestamp = 1_000L, payload = payload)
+        d.ingest(rec)
+        assertNotNull(d.unixSeconds(forRingTimestamp = 1_000L))
+        d.stop()
+        assertNull("a stale anchor must not survive stop()/a new session", d.unixSeconds(forRingTimestamp = 1_000L))
+    }
+
+    /**
+     * Regression test for the crash-safety rule (s6.11): a full cursor=0 history dump can hit a 0x42
+     * record deep in the backlog with an implausible raw value that would overflow Long on the naive
+     * seconds->ms `* 1000` conversion. The plausibility gate must reject it WITHOUT crashing and WITHOUT
+     * setting a garbage anchor. Kotlin twin of Swift's testImplausibleTimeSyncNeverCrashesOrAnchors.
+     */
+    @Test
+    fun testImplausibleTimeSyncNeverCrashesOrAnchors() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key)
+        val hugePayload = le8(Long.MAX_VALUE) + intArrayOf(0x00)   // the exact class of value that overflows the multiply
+        val hugeRec = OuraRecord(type = OuraEventTag.TIME_SYNC.raw, ringTimestamp = 1_000L, payload = hugePayload)
+        d.ingest(hugeRec)   // must not throw
+        assertNull("an implausible epoch must never become the anchor", d.unixSeconds(forRingTimestamp = 1_000L))
+
+        // A negative epoch (int64 sign bit set on a misaligned record) must be equally rejected.
+        val negativePayload = le8(-1L) + intArrayOf(0x00)
+        val negativeRec = OuraRecord(type = OuraEventTag.TIME_SYNC.raw, ringTimestamp = 2_000L, payload = negativePayload)
+        d.ingest(negativeRec)   // must not throw
+        assertNull(d.unixSeconds(forRingTimestamp = 2_000L))
+
+        // A GOOD time-sync arriving afterward must still anchor normally (the gate doesn't wedge the driver).
+        val goodPayload = le8(1_700_000_000L) + intArrayOf(0x00)
+        val goodRec = OuraRecord(type = OuraEventTag.TIME_SYNC.raw, ringTimestamp = 3_000L, payload = goodPayload)
+        d.ingest(goodRec)
+        assertEquals(1_700_000_000L, d.unixSeconds(forRingTimestamp = 3_000L))
+    }
+
+    // MARK: - ingest(record:) decoding
+
+    @Test
+    fun testIngestDecodesTierARecord() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key)
+        // 0x7B SpO2 stable record -> one spo2 event (970, BE).
+        val rec = OuraFraming.parseRecord(bytes("7b060200010003ca"))!!
+        val events = d.ingest(rec)
+        assertEquals(listOf(OuraEvent.Spo2(OuraSpO2(ringTimestamp = rt, value = 970))), events)
+    }
+
+    @Test
+    fun testIngestUnknownTagYieldsNothing() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key)
+        // 0x99 is not in the dictionary -> [] (never a guessed value).
+        val rec = OuraRecord(type = 0x99, ringTimestamp = rt, payload = intArrayOf(0x01, 0x02))
+        assertEquals(emptyList<OuraEvent>(), d.ingest(rec))
+    }
+
+    // MARK: - Tier-B gating
+
+    @Test
+    fun testTierBDroppedByDefault() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key)   // allowTierB defaults to false
+        // 0x49 sleep_summary_1 is Tier B (UNVERIFIED).
+        val rec = OuraFraming.parseRecord(bytes("49080200010001020304"))!!
+        assertEquals(
+            "Tier-B must not feed values when not explicitly allowed",
+            emptyList<OuraEvent>(),
+            d.ingest(rec),
+        )
+    }
+
+    @Test
+    fun testTierBEmittedOnlyWhenAllowed() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key, allowTierB = true)
+        val rec = OuraFraming.parseRecord(bytes("49080200010001020304"))!!
+        val events = d.ingest(rec)
+        assertEquals(1, events.size)
+        assertTrue(events[0].isTierB)
+        val ev = events[0]
+        assertTrue("expected a tierB event", ev is OuraEvent.TierB)
+        ev as OuraEvent.TierB
+        assertEquals(0x49, ev.value.tag)
+        assertEquals("sleep_summary", ev.value.kind)
+        assertArrayEquals(bytes("01020304"), ev.value.rawPayload)
+    }
+
+    // MARK: - #287: 0x71 green_ibi_and_amp demoted to Tier B (twin of the Swift OuraDriverTests)
+
+    @Test
+    fun testGreenIBIAmp0x71TierIsB() {
+        // TIER_A == corpus-verified; no captured 0x71 fixture + §6.2 documents a different layout than the
+        // 0x60 decoder it was wired to, so it must NOT be Tier A.
+        assertEquals(TrustTier.TIER_B, OuraEventTag.GREEN_IBI_AMP.tier)
+    }
+
+    @Test
+    fun testGreenIBIAmp0x71GatedOutOfLiveEmission() {
+        // The SAME body the 0x60 decoder turns into IBIs, but tagged 0x71. Under the old Tier-A routing it
+        // fed fabricated R-R into HRV; now Tier B → by default it yields NOTHING.
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key)   // allowTierB defaults to false
+        val rec = OuraFraming.parseRecord(bytes("7112020001007d10000000000000000000000007"))!!
+        assertEquals(
+            "0x71 must not emit IBIs - it is not corpus-verified (#287)",
+            emptyList<OuraEvent>(), d.ingest(rec),
+        )
+        // Control: the same bytes ARE otherwise decodable, so the [] above is the tier gate, not a short body.
+        assertNotNull("0x60 decoder still yields IBIs for these bytes", OuraDecoders.decodeIBIAmplitude(rec))
+    }
+
+    @Test
+    fun testGreenIBIAmp0x71EmitsRawSummaryNotIBIUnderAllowTierB() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key, allowTierB = true)
+        val rec = OuraFraming.parseRecord(bytes("7112020001007d10000000000000000000000007"))!!
+        val events = d.ingest(rec)
+        assertEquals(1, events.size)
+        assertTrue(events[0].isTierB)
+        val ev = events[0]
+        assertTrue("expected a tierB raw-bytes summary, not a fabricated IBI", ev is OuraEvent.TierB)
+        ev as OuraEvent.TierB
+        assertEquals(0x71, ev.value.tag)
+        assertEquals("green_ibi_amp", ev.value.kind)
+        for (e in events) assertFalse("0x71 must never emit Ibi (#287)", e is OuraEvent.Ibi)
+    }
+
+    // MARK: - Activity info (0x50, Tier B, third-party formula) - real Gen 3 captures (PR #960)
+    //
+    // PARITY: the six payloads below are byte-for-byte the real Gen 3 captures pinned in the Swift
+    // OuraDriverTests (PR #960 investigation, 2026-07-02): three short static captures, then a full day
+    // from steady resting (~0.9 MET) through a vigorous-activity burst (7.4 MET). The ringTimestamp was
+    // not part of the captures, so the fixture `rt` stamps them - the pinned evidence is the decoded
+    // state/MET values, each RECOMPUTED from the s6.13 formula (met = byte*0.1 below 0x80), not copied
+    // blind (the v8.0.1 Oura SpO2 bug was a wrong-decode that asserted constants would have hidden).
+
+    @Test
+    fun testActivityInfoDecodesRealCapture1() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key, allowTierB = true)
+        // Raw payload 41 12 13 13 20: state 0x41=65; MET 18*0.1, 19*0.1, 19*0.1, 32*0.1.
+        val rec = OuraRecord(type = OuraEventTag.ACTIVITY_INFO.raw, ringTimestamp = rt,
+                             payload = bytes("4112131320"))
+        val events = d.ingest(rec)
+        assertEquals(
+            listOf<OuraEvent>(
+                OuraEvent.ActivityInfo(
+                    OuraActivityInfo(ringTimestamp = rt, state = 0x41, met = listOf(1.8, 1.9, 1.9, 3.2)),
+                ),
+            ),
+            events,
+        )
+        assertTrue("activityInfo must still report isTierB - the formula is UNVERIFIED", events[0].isTierB)
+    }
+
+    @Test
+    fun testActivityInfoDecodesRealCapture2() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key, allowTierB = true)
+        // Raw payload 37 21 17 0e 0e 0d 0f 11: state 0x37=55; MET 3.3, 2.3, 1.4, 1.4, 1.3, 1.5, 1.7.
+        val rec = OuraRecord(type = OuraEventTag.ACTIVITY_INFO.raw, ringTimestamp = rt,
+                             payload = bytes("3721170e0e0d0f11"))
+        assertEquals(
+            listOf<OuraEvent>(
+                OuraEvent.ActivityInfo(
+                    OuraActivityInfo(ringTimestamp = rt, state = 0x37,
+                                     met = listOf(3.3, 2.3, 1.4, 1.4, 1.3, 1.5, 1.7)),
+                ),
+            ),
+            d.ingest(rec),
+        )
+    }
+
+    @Test
+    fun testActivityInfoDecodesRealCapture3() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key, allowTierB = true)
+        // Raw payload 4a 19 20 0e 18: state 0x4a=74; MET 2.5, 3.2, 1.4, 2.4.
+        val rec = OuraRecord(type = OuraEventTag.ACTIVITY_INFO.raw, ringTimestamp = rt,
+                             payload = bytes("4a19200e18"))
+        assertEquals(
+            listOf<OuraEvent>(
+                OuraEvent.ActivityInfo(
+                    OuraActivityInfo(ringTimestamp = rt, state = 0x4a, met = listOf(2.5, 3.2, 1.4, 2.4)),
+                ),
+            ),
+            d.ingest(rec),
+        )
+    }
+
+    @Test
+    fun testActivityInfoDecodesRealCapture4Resting() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key, allowTierB = true)
+        // Full-day session, steady resting: state 0, MET 1.1 then 12 x 0.9 (bytes 0x0B, 0x09 x 12).
+        val rec = OuraRecord(type = OuraEventTag.ACTIVITY_INFO.raw, ringTimestamp = rt,
+                             payload = bytes("000b090909090909090909090909"))
+        assertEquals(
+            listOf<OuraEvent>(
+                OuraEvent.ActivityInfo(
+                    OuraActivityInfo(ringTimestamp = rt, state = 0,
+                                     met = listOf(1.1, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9)),
+                ),
+            ),
+            d.ingest(rec),
+        )
+    }
+
+    @Test
+    fun testActivityInfoDecodesRealCapture5ModerateActivity() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key, allowTierB = true)
+        // Light/moderate period: state 0x2E=46, 13 MET samples 1.2-2.3.
+        val rec = OuraRecord(type = OuraEventTag.ACTIVITY_INFO.raw, ringTimestamp = rt,
+                             payload = bytes("2e1711110e0d110d0d0d0e0e0c13"))
+        assertEquals(
+            listOf<OuraEvent>(
+                OuraEvent.ActivityInfo(
+                    OuraActivityInfo(ringTimestamp = rt, state = 46,
+                                     met = listOf(2.3, 1.7, 1.7, 1.4, 1.3, 1.7, 1.3, 1.3, 1.3, 1.4, 1.4, 1.2, 1.9)),
+                ),
+            ),
+            d.ingest(rec),
+        )
+    }
+
+    @Test
+    fun testActivityInfoDecodesRealCapture6ExerciseBurst() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key, allowTierB = true)
+        // Vigorous burst: state 0x8B=139 (high bit set on the STATE byte, which is NOT MET-encoded),
+        // MET 1.8 and 7.4 (0x4A=74 -> 7.4, the highest real value seen). Also the shortest real payload
+        // (2 samples), consistent with more frequent flushes during a high-variability period.
+        val rec = OuraRecord(type = OuraEventTag.ACTIVITY_INFO.raw, ringTimestamp = rt,
+                             payload = bytes("8b124a"))
+        assertEquals(
+            listOf<OuraEvent>(
+                OuraEvent.ActivityInfo(
+                    OuraActivityInfo(ringTimestamp = rt, state = 139, met = listOf(1.8, 7.4)),
+                ),
+            ),
+            d.ingest(rec),
+        )
+    }
+
+    @Test
+    fun testActivityInfoHighByteBranchUsesCoarseSlope() {
+        // No real capture has hit the >= 0x80 MET branch yet (nothing above 7.4 MET seen), so pin it
+        // with SYNTHETIC vectors recomputed from the s6.13 formula: met = 12.8 + (byte - 128) * 0.2.
+        //   0x80 = 128 -> 12.8  |  0x90 = 144 -> 12.8 + 16*0.2 = 16.0  |  0xFF = 255 -> 12.8 + 127*0.2 = 38.2
+        val rec = OuraRecord(type = OuraEventTag.ACTIVITY_INFO.raw, ringTimestamp = rt,
+                             payload = bytes("018090ff"))
+        assertEquals(
+            OuraActivityInfo(ringTimestamp = rt, state = 1, met = listOf(12.8, 16.0, 38.2)),
+            OuraDecoders.decodeActivityInfo(rec),
+        )
+    }
+
+    @Test
+    fun testActivityInfoDroppedByDefaultLikeOtherTierB() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key)   // allowTierB defaults to false
+        val rec = OuraRecord(type = OuraEventTag.ACTIVITY_INFO.raw, ringTimestamp = rt,
+                             payload = bytes("4112131320"))
+        assertEquals(
+            "the Tier-B gate must cover ActivityInfo too",
+            emptyList<OuraEvent>(),
+            d.ingest(rec),
+        )
+    }
+
+    @Test
+    fun testActivityInfoEmptyPayloadDecodesToNull() {
+        // No state byte at all -> honest null, never a guessed state.
+        assertNull(
+            OuraDecoders.decodeActivityInfo(
+                OuraRecord(type = OuraEventTag.ACTIVITY_INFO.raw, ringTimestamp = rt, payload = intArrayOf()),
+            ),
+        )
+    }
+
+    // MARK: - Real steps features (0x7E/0x7F, Tier B, third-party formula) - real Gen 3 capture
+    //
+    // PARITY/PROVENANCE: the two pairs below are byte-for-byte the same two CONSECUTIVE real_steps pairs
+    // pinned in the Swift OuraDriverTests (real capture, ring times 3499176-3499474 and their +1 0x7F
+    // partners). Expected fields are RECOMPUTED from the [oura-rs] unpack formula, not copied blind.
+
+    @Test
+    fun testRealStepsFieldsDecodesRealCapture0x7E() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key, allowTierB = true)
+        val rec = OuraRecord(type = OuraEventTag.REAL_STEPS_1.raw, ringTimestamp = 3_499_176,
+                             payload = bytes("6feb5e0a633e106865da4c136571"))
+        val events = d.ingest(rec)
+        assertEquals(
+            listOf<OuraEvent>(
+                OuraEvent.RealStepsFields(
+                    OuraRealStepsFields(
+                        tag = OuraEventTag.REAL_STEPS_1.raw, ringTimestamp = 3_499_176,
+                        fields = listOf(222, 470, 188, 10, 99, 62, 16, 104, 202, 436, 152, 19, 101, 113),
+                    ),
+                ),
+            ),
+            events,
+        )
+        assertTrue("realStepsFields must still report isTierB - the formula is UNVERIFIED", events[0].isTierB)
+    }
+
+    @Test
+    fun testRealStepsFieldsDecodesRealCapture0x7F() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key, allowTierB = true)
+        // The 0x7F partner of the same pair (ring time = the 0x7E record's rt + 1). Its packed block
+        // starts at byte 2, NOT byte 0 (see OuraDecoders.realStepsFieldOffset), so it yields 12 fields:
+        // 12/13 would need record bytes 14/15, which do not exist in a 14-byte body.
+        val rec = OuraRecord(type = OuraEventTag.REAL_STEPS_2.raw, ringTimestamp = 3_499_177,
+                             payload = bytes("24d467b25c127e3721a0a34dbde3"))
+        assertEquals(
+            listOf<OuraEvent>(
+                OuraEvent.RealStepsFields(
+                    OuraRealStepsFields(
+                        tag = OuraEventTag.REAL_STEPS_2.raw, ringTimestamp = 3_499_177,
+                        fields = listOf(206, 356, 184, 18, 126, 55, 33, 160, 327, 154, 378, 99),
+                    ),
+                ),
+            ),
+            d.ingest(rec),
+        )
+    }
+
+    // MARK: - 0x7F's +2 block offset (NOOP finding, 2026-08-01)
+
+    @Test
+    fun testRealStepsBlockOffsetIsTagDependent() {
+        assertEquals(0, OuraDecoders.realStepsFieldOffset(OuraEventTag.REAL_STEPS_1.raw))
+        assertEquals(
+            "0x7F's packed block starts 2 bytes later than 0x7E's - see OURA_PROTOCOL.md s6.13",
+            2, OuraDecoders.realStepsFieldOffset(OuraEventTag.REAL_STEPS_2.raw),
+        )
+    }
+
+    @Test
+    fun testRealStepsFields0x7FYields12Fields0x7EYields14() {
+        // 0x7F drops fields 12/13 rather than zero-filling them: they would read past the 14-byte body,
+        // and a fabricated zero is indistinguishable from a real one (honest-data invariant).
+        val e = OuraRecord(type = OuraEventTag.REAL_STEPS_1.raw, ringTimestamp = 3_499_176,
+                           payload = bytes("6feb5e0a633e106865da4c136571"))
+        val f = OuraRecord(type = OuraEventTag.REAL_STEPS_2.raw, ringTimestamp = 3_499_177,
+                           payload = bytes("24d467b25c127e3721a0a34dbde3"))
+        assertEquals(14, OuraDecoders.decodeRealStepsFields(e)?.fields?.size)
+        assertEquals(12, OuraDecoders.decodeRealStepsFields(f)?.fields?.size)
+    }
+
+    @Test
+    fun testRealSteps0x7FOffsetReadsTheCarryBitFromTheRightByte() {
+        // The regression this offset fixes: fields 0/8 take their 9th bit from the block's byte 3 / byte 11
+        // MSB. For 0x7F those are RECORD bytes 5 and 13. Craft a body where the OLD (unshifted) read would
+        // see a clear carry and the CORRECT (shifted) read sees a set one - the two decodes cannot agree.
+        val payload = IntArray(14)
+        payload[2] = 0xFF     // block byte 0 for 0x7F -> field0's high bits
+        payload[5] = 0x80     // block byte 3 for 0x7F -> field0's carry bit SET; old read would use byte 3 (=0)
+        val rec = OuraRecord(type = OuraEventTag.REAL_STEPS_2.raw, ringTimestamp = rt, payload = payload)
+        val fields = OuraDecoders.decodeRealStepsFields(rec)?.fields
+        assertEquals("0xFF<<1 | carry(1) - the carry must come from record byte 5, not byte 3", 511, fields?.get(0))
+        assertEquals("block byte 3 (record byte 5) = 0x80, & 0x7f = 0", 0, fields?.get(3))
+    }
+
+    @Test
+    fun testRealStepsFieldsDecodesSecondRealPair() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key, allowTierB = true)
+        val recE = OuraRecord(type = OuraEventTag.REAL_STEPS_1.raw, ringTimestamp = 3_499_474,
+                              payload = bytes("6b556d05356b1d6faa2c85aa2368"))
+        assertEquals(
+            listOf<OuraEvent>(
+                OuraEvent.RealStepsFields(
+                    OuraRealStepsFields(
+                        tag = OuraEventTag.REAL_STEPS_1.raw, ringTimestamp = 3_499_474,
+                        fields = listOf(214, 170, 218, 5, 53, 107, 29, 111, 341, 88, 266, 42, 35, 104),
+                    ),
+                ),
+            ),
+            d.ingest(recE),
+        )
+
+        val recF = OuraRecord(type = OuraEventTag.REAL_STEPS_2.raw, ringTimestamp = 3_499_475,
+                              payload = bytes("213590eb62a4515c22b4c381512c"))
+        assertEquals(
+            listOf<OuraEvent>(
+                OuraEvent.RealStepsFields(
+                    OuraRealStepsFields(
+                        tag = OuraEventTag.REAL_STEPS_2.raw, ringTimestamp = 3_499_475,
+                        fields = listOf(289, 470, 196, 36, 81, 92, 34, 180, 390, 258, 162, 44),
+                    ),
+                ),
+            ),
+            d.ingest(recF),
+        )
+    }
+
+    @Test
+    fun testRealStepsFieldsCarryBitCombinesWithNeighborByte() {
+        // Synthetic, isolating the carry-bit mechanic the [oura-rs] source documents: byte0=0xFF (all
+        // ones) with byte3's MSB SET must read field0 = 0xFF*2 + 1 = 511 (the 9-bit max), and byte3's
+        // own value (field3) must read only its low 7 bits (the MSB was consumed by field0's carry).
+        val rec = OuraRecord(
+            type = OuraEventTag.REAL_STEPS_1.raw, ringTimestamp = rt,
+            payload = intArrayOf(0xFF, 0x00, 0x00, 0x80, 0, 0, 0, 0, 0x00, 0x00, 0x00, 0x00, 0, 0),
+        )
+        val fields = OuraDecoders.decodeRealStepsFields(rec)?.fields
+        assertEquals(511, fields?.get(0))   // 0xFF<<1 | 1
+        assertEquals(0, fields?.get(3))     // byte3 = 0x80, & 0x7f = 0
+        assertEquals(0, fields?.get(8))     // byte11's MSB is clear -> no carry
+    }
+
+    @Test
+    fun testRealStepsFieldsDroppedByDefaultLikeOtherTierB() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key)   // allowTierB defaults to false
+        val rec = OuraRecord(type = OuraEventTag.REAL_STEPS_1.raw, ringTimestamp = rt,
+                             payload = bytes("6feb5e0a633e106865da4c136571"))
+        assertEquals(
+            "the Tier-B gate must cover RealStepsFields too",
+            emptyList<OuraEvent>(),
+            d.ingest(rec),
+        )
+    }
+
+    @Test
+    fun testRealStepsFieldsWrongLengthDecodesToNull() {
+        // The source's own length gate: anything other than exactly 14 bytes -> honest null, never a guess.
+        assertNull(
+            OuraDecoders.decodeRealStepsFields(
+                OuraRecord(type = OuraEventTag.REAL_STEPS_1.raw, ringTimestamp = rt, payload = bytes("00")),
+            ),
+        )
+        assertNull(
+            OuraDecoders.decodeRealStepsFields(
+                OuraRecord(type = OuraEventTag.REAL_STEPS_1.raw, ringTimestamp = rt, payload = intArrayOf()),
+            ),
+        )
+    }
+
+    // MARK: - Live-HR push routing + decode
+
+    @Test
+    fun testHandleSecureFrameRoutesNonceStatusAndPush() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key)
+        val nonceFrame = OuraSecureFrame(subop = 0x2C, subBody = bytes("0102030405060708090a0b0c0d0e0f"))
+        assertEquals(
+            OuraDriver.SecureRouting.Nonce(bytes("0102030405060708090a0b0c0d0e0f")),
+            d.handleSecureFrame(nonceFrame),
+        )
+
+        val statusFrame = OuraSecureFrame(subop = 0x2E, subBody = intArrayOf(0x00))
+        assertEquals(OuraDriver.SecureRouting.AuthStatus(OuraAuthStatus.SUCCESS), d.handleSecureFrame(statusFrame))
+
+        val ackFrame = OuraSecureFrame(subop = 0x23, subBody = intArrayOf(0x02, 0x00))
+        assertEquals(OuraDriver.SecureRouting.EnableAck, d.handleSecureFrame(ackFrame))
+
+        // s5.6 step 1: the dhr_read feature-read ACK (`2f 06 21 02 01 11 02 00`) is subop 0x21 with body
+        // `02 01 11 02 00`. It must route to EnableAck or the enable triplet stalls at step 0 (#900).
+        val dhrReadAck = OuraSecureFrame(subop = 0x21, subBody = bytes("0201110200"))
+        assertEquals(OuraDriver.SecureRouting.EnableAck, d.handleSecureFrame(dhrReadAck))
+
+        // The push subBody is the 14 bytes AFTER `2f 0f 28` from the s5.6 wire frame (IBI at [5..6]).
+        val pushBody = bytes("020002000001040000000000007f")
+        assertEquals(14, pushBody.size)
+        assertEquals(
+            OuraDriver.SecureRouting.LiveHRPush(pushBody),
+            d.handleSecureFrame(OuraSecureFrame(subop = 0x28, subBody = pushBody)),
+        )
+    }
+
+    @Test
+    fun testLiveHRPushIngestStampsLastRingTime() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key)
+        // Ingest a TLV record first so the driver learns a ring time to stamp the push with.
+        val rec = OuraFraming.parseRecord(bytes("420d0200010000d2dd639001000002"))!!
+        d.ingest(rec)
+        // The push body is the 14-byte s5.6 subBody (after `2f 0f 28`); IBI at [5..6] = 01 04 -> 1025 ms.
+        val push = bytes("020002000001040000000000007f")
+        val events = d.ingestLiveHRPush(push)
+        assertEquals(
+            listOf(
+                OuraEvent.Hr(OuraHR(ringTimestamp = rt, bpm = 59, ibiMs = 1025)),
+                OuraEvent.Ibi(OuraIBI(ringTimestamp = rt, ibiMs = 1025)),
+            ),
+            events,
+        )
+    }
+
+    // MARK: - Notification-level ingest (one-packet-per-notification, twin of Swift dae3d7a4)
+
+    @Test
+    fun testIngestNotificationDecodesEveryPacketWhenTheValueTilesExactly() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key)
+        val reassembler = OuraReassembler()
+        // A value that tiles exactly into two complete packets decodes BOTH (the ring packs like this
+        // when serving the official app, 2026-09-15): the SpO2 record plus the temp record's two samples.
+        val value = bytes("7b060200010003ca" + "460802000100420e470e")
+        val events = d.ingest(notification = value, reassembler = reassembler)
+        assertEquals(3, events.size)
+        assertEquals(OuraEvent.Spo2(OuraSpO2(ringTimestamp = rt, value = 970)), events[0])
+        assertEquals(36.50, (events[1] as OuraEvent.Temp).value.celsius, 1e-9)
+        assertEquals(36.55, (events[2] as OuraEvent.Temp).value.celsius, 1e-9)
+        // The phantom-storm guarantee kept: a tail that does NOT tile (the 0x46's declared length
+        // overshoots the value) is ignored, never walked into records.
+        val cut = d.ingest(notification = bytes("7b060200010003ca" + "460802000100420e47"), reassembler = reassembler)
+        assertEquals(listOf<OuraEvent>(OuraEvent.Spo2(OuraSpO2(ringTimestamp = rt, value = 970))), cut)
+        // Each notification decodes on its own: the temp record in its OWN value decodes fully.
+        val tempEvents = d.ingest(notification = bytes("460802000100420e470e"), reassembler = reassembler)
+        assertEquals(2, tempEvents.size)
+        assertEquals(36.50, (tempEvents[0] as OuraEvent.Temp).value.celsius, 1e-9)
+        assertEquals(36.55, (tempEvents[1] as OuraEvent.Temp).value.celsius, 1e-9)
+    }
+
+    // MARK: - Generation-driven command set / MTU
+
+    @Test
+    fun testRingGenMtuAndCaps() {
+        assertEquals(203, OuraRingGen.GEN3.mtu)
+        assertEquals(247, OuraRingGen.GEN5.mtu)
+        assertTrue(OuraRingGen.GEN5.hasExtraNotifyChars)
+        assertTrue(!OuraRingGen.GEN3.hasExtraNotifyChars)
+        assertEquals(OuraRingGen.GEN5, OuraRingGen.from("Oura Ring 5"))
+        assertEquals(OuraRingGen.GEN3, OuraRingGen.from("Oura Ring 3"))
+        assertTrue(OuraRingGen.GEN3.capabilities.contains(OuraMetric.HRV))
+    }
+
+    // MARK: - Dangerous commands are isolated and labelled
+
+    @Test
+    fun testDangerousCommandsAreClearlyNamed() {
+        assertArrayEquals(intArrayOf(0x0E, 0x01, 0xFF), OuraDangerousCommands.softReset().bytes)
+        assertTrue(OuraDangerousCommands.softReset().label.startsWith("DANGEROUS_"))
+        assertTrue(OuraDangerousCommands.factoryReset().label.startsWith("DANGEROUS_"))
+        // The normal command builders never produce a reboot/reset opcode.
+        assertTrue(OuraCommands.getBattery().bytes[0] != 0x0E)
+        assertTrue(OuraCommands.getBattery().bytes[0] != 0x1A)
+    }
+
+    /**
+     * #1073: a banked sample that converts to the future is rejected (the caller falls back to arrival
+     * time), while a historical sample still converts. "now" is injected so the test does not touch the
+     * wall clock. Byte-parity with Swift `testSampleConvertingToFutureIsRejected`.
+     */
+    @Test
+    fun sampleConvertingToFutureIsRejected() {
+        val anchorSeconds = 1_700_000_000L               // 2023-11-14, mid anchor window
+        val anchorRt = 1_000_000L
+        // Freeze "now" AT the anchor instant, so any sample after the anchor is "in the future".
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key, nowMsProvider = { anchorSeconds * 1000 })
+        assertTrue(d.adoptSyncTimeAnchor(ringTimestamp = anchorRt, unixSeconds = anchorSeconds))
+
+        // Historical (10s before now) and exactly-now still convert.
+        assertEquals(anchorSeconds - 10, d.unixSeconds(forRingTimestamp = anchorRt - 100))
+        assertEquals(anchorSeconds, d.unixSeconds(forRingTimestamp = anchorRt))
+        // Inside the 300s skew tolerance (+200s) still converts.
+        assertEquals(anchorSeconds + 200, d.unixSeconds(forRingTimestamp = anchorRt + 2_000))
+        // Just past the tolerance (+301s) is rejected as future/corrupt.
+        assertNull(d.unixSeconds(forRingTimestamp = anchorRt + 3_010))
+        // The regression #1073 is about: a sample ~1 year ahead (inside the OLD 2020-2035 window, so the
+        // old gate banked it) is now rejected because it is after `now`.
+        assertNull(d.unixSeconds(forRingTimestamp = anchorRt + 315_360_000))
+    }
+
+    /**
+     * The two gates are decoupled (#1073): anchor ADOPTION still uses the full 2020-2035 window even when
+     * "now" is frozen years earlier — only per-sample conversion is bounded by now. Byte-parity with Swift
+     * `testAnchorAdoptionStillUsesFullWindowIndependentOfNow`.
+     */
+    @Test
+    fun anchorAdoptionStillUsesFullWindowIndependentOfNow() {
+        val futureAnchorSeconds = 2_020_000_000L         // 2034, inside the 2020-2035 anchor window
+        val anchorRt = 500L
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key, nowMsProvider = { 1_700_000_000L * 1000 })
+        assertTrue("a 2034 anchor is still adopted — adoption uses the window, not now",
+            d.adoptSyncTimeAnchor(ringTimestamp = anchorRt, unixSeconds = futureAnchorSeconds))
+        assertNull("but converting a 2034 sample is rejected because it is after now (2023)",
+            d.unixSeconds(forRingTimestamp = anchorRt))
+    }
+
+    // MARK: - SetNotification mask (the packed-notification A/B, OURA_PROTOCOL.md s2.3)
+
+    /** Twin of Swift's testNotificationMaskFullReachesBothHandshakePaths: the official app's `ff` mask
+     *  reaches BOTH handshake paths (Ready and the post-install re-auth), carries its value in the label,
+     *  and changes nothing else. The default stays `3f`. */
+    @Test
+    fun testNotificationMaskFullReachesBothHandshakePaths() {
+        assertArrayEquals(intArrayOf(0x1C, 0x01, 0x3F), OuraCommands.enableAllNotifications().bytes)
+        assertEquals("notify_all", OuraCommands.enableAllNotifications().label)
+        assertArrayEquals(intArrayOf(0x1C, 0x01, 0xFF),
+            OuraCommands.enableAllNotifications(mask = OuraCommands.NOTIFICATION_MASK_FULL).bytes)
+        assertEquals("notify_all(ff)",
+            OuraCommands.enableAllNotifications(mask = OuraCommands.NOTIFICATION_MASK_FULL).label)
+
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key,
+                           notificationMask = OuraCommands.NOTIFICATION_MASK_FULL)
+        val onReady = d.nextStep(OuraTransition.Ready)
+        assertEquals(OuraDriverPhase.Authenticating, d.phase)
+        assertEquals(listOf("notify_all(ff)", "get_nonce"), onReady.map { it.label })
+        assertArrayEquals(intArrayOf(0x1C, 0x01, 0xFF), onReady[0].bytes)
+        assertArrayEquals(intArrayOf(0x2F, 0x01, 0x2B), onReady[1].bytes)
+
+        // The post-install re-auth path sends the same mask.
+        val installing = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = null, allowKeyInstall = true,
+                                    notificationMask = OuraCommands.NOTIFICATION_MASK_FULL)
+        assertEquals(emptyList<OuraCommand>(), installing.nextStep(OuraTransition.Ready))
+        assertNotNull(installing.beginKeyInstall(key))
+        val onAck = installing.keyInstallAcknowledged()
+        assertEquals(listOf("notify_all(ff)", "get_nonce"), onAck.map { it.label })
+        assertArrayEquals(intArrayOf(0x1C, 0x01, 0xFF), onAck[0].bytes)
+    }
+}

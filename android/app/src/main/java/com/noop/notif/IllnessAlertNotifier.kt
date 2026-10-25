@@ -1,0 +1,112 @@
+package com.noop.notif
+
+import android.annotation.SuppressLint
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
+import android.os.Build
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import com.noop.R
+import com.noop.data.DailyMetric
+import com.noop.ui.NoopPrefs
+import com.noop.ui.appLaunchIntent
+
+/** Small pure policy so the once-per-day gate is JVM-testable (CallAlertPolicy idiom). */
+internal object IllnessAlertPolicy {
+    /**
+     * Notify only on a genuine clear-to-raised transition, at most once a day.
+     *
+     * [previouslyRaised] is the fix for #2586. Both call sites already checked for a transition, but
+     * each remembered the previous state in memory, so a cold start made "previously clear" true again
+     * and the day gate, meant only to dedupe the two call sites against each other, became permission
+     * to re-notify. A two-day scoring window keeps one bad night raised into the next day, so the
+     * second notification arrived about a night the wearer had already been told about.
+     */
+    fun shouldNotify(
+        alert: String?,
+        previouslyRaised: Boolean?,
+        lastNotifiedDay: String?,
+        today: String,
+    ): Boolean = alert != null && previouslyRaised == false && lastNotifiedDay != today
+}
+
+/**
+ * Posts the illness early-warning as a real system notification — previously it was silent
+ * unless the app was open. Called from BOTH the AppViewModel collector (app open) and
+ * WhoopConnectionService (background); the persisted day gate makes the dual call sites safe.
+ * The message is the on-device APPROXIMATE summary — informational, not a diagnosis.
+ */
+object IllnessAlertNotifier {
+    private const val CHANNEL_ID = "noop_illness_watch"
+    private const val NOTIF_ID = 4202   // 4201 is the ongoing connection notification
+
+    /** The watch averages the last two stored wake-days, so name both while either can keep it raised. */
+    fun withWindow(context: Context, alert: String, days: List<DailyMetric>): String {
+        val recent = days.takeLast(2)
+        if (recent.size < 2) return alert
+        return "$alert\n${context.getString(R.string.illness_alert_window, recent[0].day, recent[1].day)}"
+    }
+
+    @SuppressLint("MissingPermission") // guarded by areNotificationsEnabled() + runCatching
+    fun onEvaluated(context: Context, alert: String?) {
+        val today = java.time.LocalDate.now().toString()
+        val wasRaised = NoopPrefs.illnessWasRaised(context)
+        val notify = IllnessAlertPolicy.shouldNotify(
+            alert, wasRaised, NoopPrefs.illnessLastNotifiedDay(context), today,
+        )
+        // Recorded before the early return, because this is what makes the edge an edge: a cleared
+        // alert has to be written down or the next genuine transition cannot be recognised.
+        //
+        // Written only when it CHANGES. Both call sites now report every evaluation, and the service's
+        // is a conflated collect over live BLE state, so it fires on connection, battery and HR moves.
+        // An unconditional write there would put a SharedPreferences commit on that path several times
+        // a minute to store a boolean that almost never moves, which is the same waste the battery
+        // gate below this call site already avoids by keying on actual movement.
+        if (wasRaised == null || wasRaised != (alert != null))
+            NoopPrefs.setIllnessWasRaised(context, alert != null)
+        if (!notify) return
+        // Defensive: never let a notify() throw (revoked POST_NOTIFICATIONS, OEM quirk) crash a collector.
+        runCatching {
+            if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return
+            ensureChannel(context)
+            val openApp = PendingIntent.getActivity(
+                context, 2,
+                appLaunchIntent(context),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            )
+            val n = NotificationCompat.Builder(context, CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_stat_heart)
+                .setContentTitle(context.getString(R.string.illness_alert_title))
+                .setContentText(alert)
+                .setStyle(
+                    NotificationCompat.BigTextStyle()
+                        .bigText("$alert\nOn-device estimate (approximate), not a diagnosis."),
+                )
+                .setContentIntent(openApp)
+                .setAutoCancel(true)
+                .setCategory(NotificationCompat.CATEGORY_RECOMMENDATION)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .build()
+            NotificationManagerCompat.from(context).notify(NOTIF_ID, n)
+            NoopPrefs.setIllnessLastNotifiedDay(context, today)
+        }
+    }
+
+    private fun ensureChannel(context: Context) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        runCatching {
+            val mgr = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            if (mgr.getNotificationChannel(CHANNEL_ID) != null) return
+            mgr.createNotificationChannel(
+                NotificationChannel(
+                    CHANNEL_ID, "Illness early-warning",
+                    NotificationManager.IMPORTANCE_DEFAULT,
+                ).apply {
+                    description = "A heads-up when resting HR, HRV, skin temp or respiration drift together vs your baseline."
+                },
+            )
+        }
+    }
+}

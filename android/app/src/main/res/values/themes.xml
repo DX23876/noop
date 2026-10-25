@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      App theme. Compose owns all in-app styling via com.noop.ui.NoopTheme; this base
+      theme only sets the window/system-bar chrome so there is no white flash before
+      the first Compose frame. Dark, instrument-grade, matching surfaceBase #060A08.
+
+      The parent is the framework dark Material theme (no extra library needed — Compose
+      Material3 comes from the androidx.compose.material3 artifact, not a platform theme),
+      letting Compose drive everything inside setContent { }.
+
+      The status/nav bars are TRANSPARENT so the per-theme Compose Scaffold background paints
+      edge-to-edge under the notch + gesture pill (fixes the black band on themed surfaces —
+      #578). The light/dark system-bar ICON tint stays runtime-driven by NoopTheme via
+      isAppearanceLightStatusBars in Theme.kt — do not re-add windowLight*Bar here.
+    -->
+    <style name="Theme.NOOP" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/surface_base</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>

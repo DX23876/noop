@@ -1,0 +1,555 @@
+package com.noop.ui
+
+import androidx.compose.ui.graphics.Color
+import com.noop.R
+import com.noop.analytics.Baselines
+import com.noop.analytics.SkinTempDisplay
+import com.noop.analytics.VitalBands
+import com.noop.data.DailyMetric
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+import kotlin.math.roundToInt
+
+internal data class Vital(
+    val key: String,
+    val label: String,
+    val unit: String,
+    val value: Double?,
+    val format: (Double) -> String,
+    val deltaText: String? = null,
+    val readingDay: String? = null,
+    val asOfLabel: String? = null,
+    val rangeCaption: String? = null,
+    /** Metric-specific "no value" line, shown in place of a bare "No data" when nothing resolved, so an
+     *  empty tile still says WHY. Required (no default) so a new vital must state its own reason.
+     *  Kotlin twin of `BodyVitalReading.missingCaption` (VitalSignsSummary.swift) — same wording. */
+    val missingCaption: String,
+    /** Personal-baseline banding (population fallback until 14 trusted nights). */
+    val banding: VitalBands.Result,
+    /** The metric's category colour (used only when in range). */
+    val metricColor: Color,
+    /** Trailing values (oldest → newest) for the tile's metric-tinted sparkline trail, matching
+     *  Today's Key-Metrics tiles. Presentation-only; defaulted so existing call sites compile. */
+    val sparkline: List<Double> = emptyList(),
+    /** #103: true when [value] is the spo2_candidate_82 strap estimate (not a calibrated spo2Pct).
+     *  Drives the "Estimate (unverified)" caption so the user knows this is an unverified value.
+     *  Defaulted false so every other vital is unaffected. */
+    val isEstimate: Boolean = false,
+    /** #1118: an "unverified" caveat appended to the caption when the value is present but the strap's own
+     *  capture is known-unreliable for it (a WHOOP 4.0 R-R over-count contaminating HRV). null = none.
+     *  Kotlin twin of `BodyVitalReading.caveat` (VitalSignsSummary.swift). Defaulted so other vitals are
+     *  unaffected. */
+    val caveat: String? = null,
+    /** #1636: a second reading shown with the caption, under the headline value.
+     *
+     *  Distinct from [caveat], which says the value is unreliable; this says what it MEANS. Skin
+     *  temperature is the case: the absolute leads, and the deviation it was derived from is what makes
+     *  it legible — "+0.2" says nothing without an anchor, and 34.6 °C says little without knowing it
+     *  runs high for you. Pure formatted data, never a sentence, so it carries no translatable string.
+     *  Kotlin twin of `BodyVitalReading.secondary`. Defaulted so other vitals are unaffected. */
+    val secondary: String? = null,
+) {
+    /** Value with its unit appended, or null when no data. */
+    val formattedValue: String? = value?.let { "${format(it)} $unit" }
+
+    /** Colour communicates state: in-range = the metric's category colour,
+     *  out-of-range = warning amber, no data = tertiary. */
+    val accent: Color = when (banding.band) {
+        VitalBands.Band.NO_DATA -> Palette.textTertiary
+        VitalBands.Band.IN_RANGE -> metricColor
+        VitalBands.Band.OUT_OF_RANGE -> Palette.statusWarning
+    }
+
+    /** The in-range caption that stands in for a StatePill inside the fixed-height tile.
+     *  The wording says which yardstick judged it: your baseline vs typical ranges. */
+    private val baseCaption: String = when {
+        // #103: when the Blood O₂ tile is showing the spo2_candidate_82 strap estimate (not a
+        // calibrated spo2Pct), label it "estimate" so the user knows this is an unverified value.
+        isEstimate && banding.band != VitalBands.Band.NO_DATA -> "Estimate (unverified)"
+        // Raw SpO₂ is a device-dependent ADC, not a clinical value — never claim an in/out-of-range
+        // judgment. Show a plain "uncalibrated" note when a value decoded. (#93)
+        key == "spo2raw" && banding.band != VitalBands.Band.NO_DATA -> "Uncalibrated"
+        // Nothing resolved: say WHY this tile is empty rather than a bare "No data", which reads as a
+        // bug for metrics NOOP cannot derive from a strap at all (the calibrated SpO₂ % is import-only:
+        // AnalyticsEngine writes spo2Pct = null on purpose, see Spo2ReTrace). Ports the Apple behaviour
+        // (`guard let day else { return missingCaption }`) — Android showed "No data" for every case.
+        banding.band == VitalBands.Band.NO_DATA -> missingCaption
+        banding.basis == VitalBands.Basis.PERSONAL ->
+            if (banding.band == VitalBands.Band.IN_RANGE) "In your range" else "Off your baseline"
+        else ->
+            if (banding.band == VitalBands.Band.IN_RANGE) "In typical range" else "Outside typical range"
+    }
+
+    /** #1118: the base caption plus any "unverified" caveat (an over-counted HRV night), so the caveat
+     *  rides the same line the user already reads. Never on an empty tile. Twin of Swift's stateCaption
+     *  append in VitalSignsSummary.swift. */
+    val stateCaption: String = run {
+        val withCaveat =
+            if (caveat != null && banding.band != VitalBands.Band.NO_DATA) "$baseCaption · $caveat" else baseCaption
+        // #1636: the secondary reading LEADS, so it sits directly under the headline value. Never on an
+        // empty tile, where the caption is the "why it's empty" line and a number would contradict it.
+        if (secondary != null && banding.band != VitalBands.Band.NO_DATA) "$secondary · $withCaveat" else withCaveat
+    }
+
+    val accessibilityText: String =
+        formattedValue?.let {
+            listOfNotNull("$label: $it", asOfLabel, stateCaption).joinToString(", ")
+        } ?: "$label: no data"
+}
+
+/**
+ * Whether the skin-temp screen must explain a SHORTENED series (#1847).
+ *
+ * Leading with the absolute means the chart and table must read the absolute column, because an absolute
+ * plotted against a history of deviations is arithmetic on two scales. Nights that only ever recorded a
+ * deviation therefore drop out — and after a sync refills the 21-night `analyzeRecent` window on an install
+ * with older history, the reading count visibly falls with nothing on screen saying why.
+ *
+ * ONLY when leading with the absolute. The deviation-led branch also drops rows — calibrating nights that
+ * have only an absolute, and the #622 bimodal partition — but they are the OPPOSITE kind, so this note's
+ * sentence would be precisely backwards there. Gated inside the rule rather than at the call site, because
+ * the function name promises the whole rule.
+ *
+ * True only when rows were actually dropped, so a complete series stays silent.
+ */
+internal fun shouldExplainShortenedSkinTempSeries(
+    leadsAbsolute: Boolean,
+    shownReadings: Int,
+    rowsWithEitherNumber: Int,
+): Boolean = leadsAbsolute && shownReadings < rowsWithEitherNumber
+
+/**
+ * Whether the skin-temp screen must EXPLAIN itself (#1847).
+ *
+ * `leadReading` deliberately falls back: asking for a temperature on a night that only ever recorded a
+ * deviation shows the deviation rather than blanking. That is right, but silent — the setting then looks
+ * broken, because both choices render the same Δ°C.
+ *
+ * Requires that NO night in the window carries a temperature. #1850 removed the other case entirely:
+ * the preference now applies across the window, so a single stored temperature anywhere means the screen
+ * leads with temperatures rather than falling back and needing to explain itself.
+ *
+ * Pure so the decision is testable without Compose.
+ */
+internal fun shouldExplainSkinTempFallback(
+    prefer: SkinTempDisplay.Kind,
+    leadsAbsolute: Boolean,
+    anyAbsoluteInWindow: Boolean,
+): Boolean = prefer == SkinTempDisplay.Kind.ABSOLUTE && !leadsAbsolute && !anyAbsoluteInWindow
+
+/**
+ * Whether the skin-temp tile leads with the night's ABSOLUTE (#1636).
+ *
+ * True whenever the displayed night measured one. A deviation with no anchor cannot be read — "+0.9" is
+ * a fever or a warm bedroom and nothing on the tile says which — so the absolute leads and the deviation
+ * becomes the context beneath it.
+ *
+ * Two cases make this more than a preference:
+ *  - a night scored before `skinTempC` shipped has only a deviation, so the tile keeps exactly the
+ *    display that shipped before until a scoring pass refills it;
+ *  - a CALIBRATING night has the reverse — `recomputeSkinTempDev` returns null until the baseline is
+ *    usable (~4 nights), while the absolute is already measured. Those wearers currently read "needs ~4
+ *    worn nights" with a real temperature sitting unshown behind it.
+ *
+ * Twin of the Swift tile's `skinAbsRow != nil` branch.
+ */
+internal fun skinTempLeadsWithAbsolute(
+    absC: Double?,
+    devC: Double? = null,
+    prefer: SkinTempDisplay.Kind = SkinTempDisplay.Kind.ABSOLUTE,
+): Boolean = SkinTempDisplay.leadReading(absC, devC, prefer)?.kind == SkinTempDisplay.Kind.ABSOLUTE
+
+/**
+ * The deviation note shown beneath an absolute skin temperature — "+0.2 Δ°F" (#1636).
+ *
+ * Null when the night has no deviation (a calibrating night), so the line is omitted rather than printed
+ * empty. Pure formatted data, never a sentence, so it carries no translatable string.
+ */
+internal fun skinTempSecondaryNote(devC: Double?, fahrenheit: Boolean): String? =
+    devC?.let {
+        val n = SkinTempDisplay.numberString(it, SkinTempDisplay.Kind.DEVIATION, fahrenheit, decimals = 1)
+        "$n ${SkinTempDisplay.unitSymbol(SkinTempDisplay.Kind.DEVIATION, fahrenheit)}"
+    }
+
+/**
+ * #2335: was the most recent night that could have produced an HRV refused for over-counting?
+ *
+ * The #1118 caveat beside the HRV value can only decorate a value that IS shown, and the over-count
+ * verdict is precisely what makes `SleepStager.sessionAvgHRV` return null. The two are therefore near
+ * mutually exclusive: on the night the caveat was written for, the tile is blank and the caveat has
+ * nothing to attach to, so the wearer was told nothing about the one failure NOOP can name exactly.
+ * This answers the blank case instead.
+ *
+ * Keyed off the MAP, not off a resolved row, because a refused night leaves no row to key on.
+ * [hrvOverCountByDay] carries an entry only for nights that had in-sleep R-R (the engine writes none
+ * when there were none), so its newest key is the most recent night that could have produced an HRV at
+ * all. Day keys are `yyyy-MM-dd`, where lexicographic order IS chronological order.
+ *
+ * Bounded to the SAME carry window the tile is ([Baselines.vitalCarryDays], via [Baselines.cutoffKey]).
+ * Past that the tile is blank because the reading went stale, not because it was refused, and blaming an
+ * over-count there points at the wrong thing. The bound also has to live here rather than fall out of the
+ * loaded range: Apple loads 14 days of this series and Android loads RECENT_DAYS_CAP, so a helper keyed
+ * on "whatever was loaded" would answer differently on the two platforms for the same wearer.
+ *
+ * `>= 0.5` rather than `== 1.0`: the flag round-trips through metricSeries as a Double.
+ *
+ * Returns false on an empty map, which is the "no night yet" case (a fresh install, or a wearer who has
+ * not slept in the strap). That blank is not an over-count and must not claim to be one.
+ *
+ * Pure for the same reason [spo2MissingCaptionRes] below is: `vitalsFor` resolves strings through
+ * `NoopApplication`, so the branch is the part a JVM test can pin. Twin of the Swift
+ * `BodyVitalSigns.hrvBlankedByOverCount`.
+ */
+internal fun hrvBlankedByOverCount(
+    hrvOverCountByDay: Map<String, Double>,
+    todayKey: String = logicalDayKeyNow(),
+): Boolean {
+    val newest = hrvOverCountByDay.keys.maxOrNull() ?: return false
+    if (newest < Baselines.cutoffKey(todayKey)) return false
+    return (hrvOverCountByDay[newest] ?: 0.0) >= 0.5
+}
+
+/**
+ * Which "no value" line the Blood O₂ tile shows, given whether that night decoded raw red/IR counts.
+ *
+ * Two different empty states, and conflating them is what sends people to the forums. When the night HAS
+ * raw counts the strap's Blood-O₂ sensor plainly worked — only the CALIBRATED % is missing, because WHOOP
+ * derives that in their cloud from the raw ADCs and NOOP will not fabricate one (`spo2Pct` is import-only;
+ * see `Spo2ReTrace`, and the #194 PPG→HR withdrawal for why). Showing "No SpO₂ import or Health value"
+ * there reads as "your sensor recorded nothing" — directly beside a Raw SpO₂ tile displaying a live
+ * number, which is exactly the contradiction that gets reported as a broken strap.
+ *
+ * Split out as a pure function purely so it is TESTABLE: `vitalsFor` resolves strings through
+ * `NoopApplication`, so nothing in this file can run in a JVM unit test. The branch is the part worth
+ * pinning; the resource lookup is not.
+ */
+internal fun spo2MissingCaptionRes(hasRawSpo2: Boolean): Int =
+    if (hasRawSpo2) R.string.l10n_health_screen_raw_counts_only_needs_an_import_d0e33552
+    else R.string.l10n_health_screen_no_spo_import_or_health_value_408f8c55
+
+internal enum class VitalCaptionMode {
+    AS_OF,
+    RANGE,
+}
+
+/** Build the vitals, banded against the user's OWN trailing baseline once 14 trusted
+ *  nights exist (population ranges before that — VitalBands does the deciding).
+ *
+ * #103/queue-11a: [spo2CandidateByDay] carries the nightly SpO₂ candidate mean per day — WHOOP's
+ * `spo2_candidate_82` (70–100), or an Oura owner's ceiling@100 `0x6F` mean (device-conditional, see
+ * IntelligenceEngine) — loaded from the "spo2_candidate" metricSeries key when the experimental
+ * display toggle is ON. When the selected day has no calibrated `spo2Pct` but DOES have a candidate,
+ * the Blood O₂ tile falls back to the candidate with an "estimate" caption. [spo2ToggleOn]
+ * distinguishes "toggle ON, no estimate yet" from "toggle OFF" so the missingCaption can tell the
+ * user which — a silent blank reads as broken.
+ * Empty map = toggle off or no candidate data → the tile behaves exactly as before. Mirrors the iOS
+ * `BodyVitalSigns.readings` candidate fallback. */
+internal fun vitalsFor(
+    d: DailyMetric?,
+    days: List<DailyMetric>,
+    tempUnit: TemperatureUnit = TemperatureUnit.CELSIUS,
+    spo2CandidateByDay: Map<String, Double> = emptyMap(),
+    spo2ToggleOn: Boolean = false,
+    hrvOverCountByDay: Map<String, Double> = emptyMap(),   // #1118
+    // #1846: the Settings lead-with choice. Travels like tempUnit so the Health tile agrees with Today
+    // and the detail screen — a setting that reaches two of three surfaces is worse than none.
+    skinTempPreferred: SkinTempDisplay.Kind = SkinTempDisplay.Kind.ABSOLUTE,
+): List<Vital> {
+    val todayKey = d?.day
+    // History strictly before the displayed day, oldest→newest (recentDays is already
+    // oldest→newest); calendar-padded so wear gaps count as missing nights (a stale
+    // baseline then falls back to the population range).
+    val history = days.filter { row -> todayKey == null || row.day < todayKey }
+    fun series(selector: (DailyMetric) -> Double?): List<Double?> =
+        VitalBands.calendarSeries(history.map { it.day to selector(it) })
+    fun previous(selector: (DailyMetric) -> Double?): Double? =
+        history.asReversed().asSequence().mapNotNull(selector).firstOrNull()
+    fun deltaText(current: Double?, previous: Double?, decimals: Int = 1): String? {
+        if (current == null || previous == null) return null
+        val diff = current - previous
+        val sign = if (diff >= 0.0) "+" else "-"
+        val mag = kotlin.math.abs(diff)
+        val num = if (decimals == 0) mag.roundToInt().toString()
+        else String.format(Locale.US, "%.${decimals}f", mag)
+        return "($sign$num)"
+    }
+    fun rangeCaption(allValues: List<Double>, unit: String, format: (Double) -> String): String? {
+        val min = allValues.minOrNull() ?: return null
+        val max = allValues.maxOrNull() ?: return null
+        return "within ${format(min)} -- ${format(max)} $unit"
+    }
+    // Trailing values (oldest → newest) feeding each tile's sparkline trail. Built from the same
+    // history already gathered for banding, including the displayed day's value. Presentation-only.
+    fun trail(current: Double?, window: Int = 14, selector: (DailyMetric) -> Double?): List<Double> =
+        (history.mapNotNull(selector) + listOfNotNull(current)).takeLast(window)
+
+    // Skin temp is bimodal: CSV imports store ABSOLUTE °C, the on-device pipeline a ±°C
+    // DEVIATION — partition the history to the displayed value's kind and pick the matching
+    // config + population fallback (±0.6 °C mirrors the illness watch's flag threshold).
+    // This also fixes the live bug where a strap-computed +0.2 °C deviation read
+    // "Out of range" against the 33–36 absolute band.
+    // #1636: lead with the night's measured ABSOLUTE when it has one; otherwise the deviation-led
+    // display that shipped before, unchanged. `leadsAbsolute` also decides which SERIES backs the
+    // banding and the trail below — an absolute scored against a history of deviations would be
+    // nonsense, so the two must move together.
+    val leadsAbsolute = skinTempLeadsWithAbsolute(d?.skinTempC, d?.skinTempDevC, skinTempPreferred)
+    val skin = if (leadsAbsolute) d?.skinTempC else d?.skinTempDevC
+    // Track which kind the value is so the temperature converter picks the right rule: an ABSOLUTE
+    // reading uses the full C→F formula (×9/5 + 32); a ±DEVIATION must omit the offset.
+    val skinIsAbsolute = if (leadsAbsolute) true else skin?.let { VitalBands.isAbsoluteSkinTemp(it) } ?: true
+    val skinSelector: (DailyMetric) -> Double? =
+        if (leadsAbsolute) { row -> row.skinTempC } else { row -> row.skinTempDevC }
+    val skinResult: VitalBands.Result = if (skin == null) {
+        VitalBands.Result(VitalBands.Band.NO_DATA, VitalBands.Basis.POPULATION, 0)
+    } else {
+        VitalBands.band(
+            value = skin,
+            history = VitalBands.skinTempHistory(skin, series(skinSelector)),
+            populationRange = if (skinIsAbsolute) 33.0..36.0 else -0.6..0.6,
+            cfg = if (skinIsAbsolute) Baselines.metricCfg.getValue("skin_temp") else VitalBands.skinTempDeviationCfg,
+        )
+    }
+    // Resolve the skin-temp label + unit once (#622). Absolute → "Skin Temp" / "°C";
+    // deviation → "Skin Temp Δ" / "Δ°C" so −0.1 is never read as a broken thermometer.
+    val skinKind = if (skinIsAbsolute) SkinTempDisplay.Kind.ABSOLUTE else SkinTempDisplay.Kind.DEVIATION
+    val fahrenheit = tempUnit == TemperatureUnit.FAHRENHEIT
+    val skinUnitLabel = SkinTempDisplay.unitSymbol(skinKind, fahrenheit)
+    val skinTitle = if (skinIsAbsolute) {
+        uiString(R.string.l10n_health_screen_skin_temp_a4affc5a)
+    } else {
+        uiString(R.string.skin_temp_delta_title)
+    }
+    val skinFormat: (Double) -> String = { c ->
+        SkinTempDisplay.numberString(c, skinKind, fahrenheit, decimals = 1)
+    }
+    val previousSkin = history.asReversed().asSequence()
+        .mapNotNull { row -> skinSelector(row)?.takeIf { VitalBands.isAbsoluteSkinTemp(it) == skinIsAbsolute } }
+        .firstOrNull()
+    val respRangeCaption = rangeCaption(days.mapNotNull { it.respRateBpm }, "rpm") { String.format(Locale.US, "%.1f", it) }
+    val spo2RangeCaption = rangeCaption(days.mapNotNull { it.spo2Pct }, "%") { String.format(Locale.US, "%.0f", it) }
+    val rhrRangeCaption = rangeCaption(days.mapNotNull { it.restingHr?.toDouble() }, "bpm") { it.roundToInt().toString() }
+    val hrvRangeCaption = rangeCaption(days.mapNotNull { it.avgHrv }, "ms") { it.roundToInt().toString() }
+    val skinRangeCaption = rangeCaption(
+        days.mapNotNull { row ->
+            skinSelector(row)?.takeIf { VitalBands.isAbsoluteSkinTemp(it) == skinIsAbsolute }
+        },
+        skinUnitLabel,
+        skinFormat,
+    )
+    // WHOOP 4.0 raw SpO₂: the (red + IR) / 2 ADC mean per night, present only when both channels
+    // decoded for the day. Averaged for a single "signal decoded" tile; both channels stay in the DB. (#93)
+    val spo2RawMean: (DailyMetric) -> Double? = { row ->
+        if (row.spo2Red != null && row.spo2Ir != null) (row.spo2Red + row.spo2Ir) / 2.0 else null
+    }
+    val spo2rawRangeCaption =
+        rangeCaption(days.mapNotNull(spo2RawMean), "ADC") { String.format(Locale.US, "%.0f", it) }
+    return listOf(
+        Vital(
+            key = "resp", label = uiString(R.string.l10n_health_screen_resp_rate_1c48dbd8), unit = "rpm",
+            missingCaption = "No respiratory-rate value",
+            value = d?.respRateBpm, format = { String.format("%.1f", it) },
+            deltaText = deltaText(d?.respRateBpm, previous { it.respRateBpm }),
+            readingDay = todayKey,
+            asOfLabel = asOfLabel(todayKey),
+            rangeCaption = respRangeCaption,
+            banding = VitalBands.band(d?.respRateBpm, series { it.respRateBpm }, 12.0..20.0, Baselines.respCfg),
+            metricColor = Palette.metricCyan,
+            sparkline = trail(d?.respRateBpm) { it.respRateBpm },
+        ),
+        Vital(
+            key = "spo2", label = uiString(R.string.l10n_health_screen_blood_o_9bf5ed9b), unit = "%",
+            // #103: fall back to the spo2_candidate_82 strap estimate when no calibrated spo2Pct exists
+            // and the experimental display toggle is ON (candidate map is non-empty). The candidate is
+            // an unverified strap-computed value (split cross-device evidence), so it ships behind a
+            // default-off toggle and is labelled "estimate" — never fed into a downstream gate.
+            // The condition is EXACTLY the Raw SpO₂ tile's own value expression (`d?.let(spo2RawMean)`,
+            // below) and must stay that way: the caption's claim is "the tile beside this one is
+            // showing a number", so if the two expressions drift, this says the sensor recorded on a
+            // night where the neighbouring tile is blank. The platforms pick that row differently —
+            // Android per selected day, Apple `logicalDay ?? most recent` — so the ROW is not the
+            // parity contract here; the relationship between the two tiles is.
+            missingCaption = if (d?.spo2Pct == null && d?.day?.let { spo2CandidateByDay[it] } != null)
+                uiString(R.string.spo2_strap_estimate_caption)
+            else if (d?.spo2Pct == null && spo2ToggleOn && spo2CandidateByDay.isEmpty())
+                uiString(R.string.spo2_toggle_on_no_data)
+            else uiString(spo2MissingCaptionRes(d?.let(spo2RawMean) != null)),
+            value = d?.spo2Pct ?: d?.day?.let { spo2CandidateByDay[it] },
+            format = { String.format("%.0f", it) },
+            deltaText = deltaText(d?.spo2Pct, previous { it.spo2Pct }, decimals = 0),
+            readingDay = todayKey,
+            asOfLabel = asOfLabel(todayKey),
+            rangeCaption = spo2RangeCaption,
+            // Population-only on purpose: an absolute <95% floor is meaningful regardless
+            // of personal baseline (no "spo2" MetricCfg exists).
+            banding = VitalBands.band(d?.spo2Pct ?: d?.day?.let { spo2CandidateByDay[it] }, emptyList(), 95.0..100.0, null),
+            metricColor = Palette.metricCyan,
+            sparkline = trail(d?.spo2Pct) { it.spo2Pct },
+            // #103: mark as estimate when the value came from the candidate, not a calibrated spo2Pct.
+            isEstimate = d?.spo2Pct == null && d?.day?.let { spo2CandidateByDay[it] } != null,
+        ),
+        Vital(
+            // Issue #93: WHOOP 4.0 raw SpO₂ PPG ADC mean (red+IR)/2 per night. NOT a calibrated
+            // blood-oxygen % — that needs WHOOP's proprietary curve. Shown as RAW ADC so users can SEE
+            // the sensor data decoded, without fabricating a clinical-looking number. Banding over the
+            // full u16 span just keeps the tile cyan (never "off range"); `stateCaption` labels it
+            // uncalibrated, so we never assert an in/out-of-range clinical judgment on raw sensor data.
+            key = "spo2raw", label = uiString(R.string.l10n_health_screen_raw_spo_ccfe80c1), unit = "ADC",
+            missingCaption = "No raw SpO₂ decode for the night",
+            value = d?.let(spo2RawMean), format = { String.format("%.0f", it) },
+            deltaText = deltaText(d?.let(spo2RawMean), previous(spo2RawMean), decimals = 0),
+            readingDay = todayKey,
+            asOfLabel = asOfLabel(todayKey),
+            rangeCaption = spo2rawRangeCaption,
+            banding = VitalBands.band(d?.let(spo2RawMean), emptyList(), 0.0..65535.0, null),
+            metricColor = Palette.metricCyan,
+            sparkline = trail(d?.let(spo2RawMean)) { spo2RawMean(it) },
+        ),
+        Vital(
+            key = "rhr", label = uiString(R.string.l10n_health_screen_resting_hr_26677094), unit = "bpm",
+            missingCaption = "No resting HR value",
+            value = d?.restingHr?.toDouble(), format = { it.roundToInt().toString() },
+            deltaText = deltaText(d?.restingHr?.toDouble(), previous { it.restingHr?.toDouble() }, decimals = 0),
+            readingDay = todayKey,
+            asOfLabel = asOfLabel(todayKey),
+            rangeCaption = rhrRangeCaption,
+            banding = VitalBands.band(
+                d?.restingHr?.toDouble(), series { it.restingHr?.toDouble() }, 40.0..60.0,
+                Baselines.restingHRCfg,
+            ),
+            metricColor = Palette.metricRose,
+            sparkline = trail(d?.restingHr?.toDouble()) { it.restingHr?.toDouble() },
+        ),
+        Vital(
+            key = "hrv", label = "HRV", unit = "ms",
+            // #2335: say WHY the tile is blank when NOOP knows. The #1118 caveat below cannot answer
+            // this: it decorates a value that IS shown, and the over-count verdict is the very thing
+            // that blanks the value, so on the reported night there is no row for it to attach to.
+            missingCaption = if (hrvBlankedByOverCount(hrvOverCountByDay))
+                uiString(R.string.l10n_health_screen_over_reports_r_r_so_no_9d050d53)
+            else "No HRV value",
+            value = d?.avgHrv, format = { it.roundToInt().toString() },
+            deltaText = deltaText(d?.avgHrv, previous { it.avgHrv }, decimals = 0),
+            readingDay = todayKey,
+            asOfLabel = asOfLabel(todayKey),
+            rangeCaption = hrvRangeCaption,
+            banding = VitalBands.band(d?.avgHrv, series { it.avgHrv }, 40.0..120.0, Baselines.hrvCfg),
+            metricColor = Palette.metricPurple,
+            sparkline = trail(d?.avgHrv) { it.avgHrv },
+            // #1118: mark HRV "unverified" on an over-counted night — the WHOOP 4.0 two-optical-channel
+            // artifact inflates R-R and contaminates RMSSD, so NOOP's HRV won't match WHOOP until the
+            // de-dup fix lands. The flag is written only for NOOP's own measured capture, so an imported
+            // night never sets it. Gated on the flag alone (no source check) — twin of the Swift caveat.
+            caveat = if ((d?.day?.let { hrvOverCountByDay[it] } ?: 0.0) >= 0.5) "unverified · over-reports R-R" else null,
+        ),
+        Vital(
+            key = "skin", label = skinTitle, unit = skinUnitLabel,
+            // #548/#622: empty is often calibrating (~4 nights for ±deviation) or import-less — not a
+            // silent broken sensor. Absolute °C still arrives via WHOOP CSV / Health Connect import.
+            missingCaption = uiString(R.string.skin_temp_missing_caption),
+            value = skin, format = skinFormat,
+            deltaText = deltaText(skin, previousSkin),
+            readingDay = todayKey,
+            asOfLabel = asOfLabel(todayKey),
+            // Live deviation: name the scale so "−0.1 Δ°C" is not read as absolute wrist temp (#622).
+            rangeCaption = if (!skinIsAbsolute && skin != null) {
+                listOfNotNull(uiString(R.string.skin_temp_vs_baseline), skinRangeCaption).joinToString(" · ")
+            } else {
+                skinRangeCaption
+            },
+            banding = skinResult, metricColor = Palette.metricAmber,
+            // Keep the trail on the displayed value's kind — absolute °C and ±deviation must not mix.
+            sparkline = trail(skin) { row ->
+                skinSelector(row)?.takeIf { VitalBands.isAbsoluteSkinTemp(it) == skinIsAbsolute }
+            },
+            // #1636: the deviation this absolute was derived from, beneath it. Only on an absolute-led
+            // tile — on a deviation-led one it would simply repeat the headline.
+            secondary = if (leadsAbsolute) skinTempSecondaryNote(d?.skinTempDevC, fahrenheit) else null,
+        ),
+    )
+}
+
+internal fun latestVitals(
+    days: List<DailyMetric>,
+    tempUnit: TemperatureUnit,
+    spo2CandidateByDay: Map<String, Double> = emptyMap(),
+    spo2ToggleOn: Boolean = false,
+    hrvOverCountByDay: Map<String, Double> = emptyMap(),   // #1118
+    // #1846: the Settings lead-with choice. Travels like tempUnit so the Health tile agrees with Today
+    // and the detail screen — a setting that reaches two of three surfaces is worse than none.
+    skinTempPreferred: SkinTempDisplay.Kind = SkinTempDisplay.Kind.ABSOLUTE,
+): List<Vital> {
+    val emptyByKey = vitalsFor(null, days, tempUnit, spo2CandidateByDay, spo2ToggleOn, hrvOverCountByDay,
+                               skinTempPreferred).associateBy { it.key }
+    return listOf(
+        latestVital("resp", days, tempUnit, emptyByKey, spo2CandidateByDay, spo2ToggleOn) { it.respRateBpm != null },
+        latestVital("spo2", days, tempUnit, emptyByKey, spo2CandidateByDay, spo2ToggleOn) {
+            it.spo2Pct != null || spo2CandidateByDay[it.day] != null
+        },
+        latestVital("spo2raw", days, tempUnit, emptyByKey, spo2CandidateByDay, spo2ToggleOn) { it.spo2Red != null && it.spo2Ir != null },
+        latestVital("rhr", days, tempUnit, emptyByKey, spo2CandidateByDay, spo2ToggleOn) { it.restingHr != null },
+        latestVital("hrv", days, tempUnit, emptyByKey, hrvOverCountByDay = hrvOverCountByDay) { it.avgHrv != null },
+        // #1846: pass the preference (the other keys' rows don't read it). The predicate takes EITHER
+        // number for the same reason `lastSkinTempReadingRow` does — a calibrating night has a measured
+        // absolute and no deviation yet, and a deviation-only test walks straight past it.
+        latestVital("skin", days, tempUnit, emptyByKey, skinTempPreferred = skinTempPreferred) {
+            it.skinTempC != null || it.skinTempDevC != null
+        },
+    )
+}
+
+/**
+ * The newest row carrying this vital, STALENESS-BOUNDED by [Baselines.vitalCarryDays]: the carry
+ * exists so a missed night doesn't blank a tile, not so a months-old reading sits under a section
+ * headed "Latest". Unbounded, this reached back arbitrarily far — a WHOOP CSV import that ended
+ * 30 Jul kept the Resp Rate tile reading "15.6 rpm" a fortnight later. The `asOfLabel` ("as of
+ * 30 Jul") was not enough on its own: the eye takes the headline number for today's. Byte-twin of
+ * the Swift `BodyVitalSigns.latest`.
+ */
+private fun latestVital(
+    key: String,
+    days: List<DailyMetric>,
+    tempUnit: TemperatureUnit,
+    emptyByKey: Map<String, Vital>,
+    spo2CandidateByDay: Map<String, Double> = emptyMap(),
+    spo2ToggleOn: Boolean = false,
+    hrvOverCountByDay: Map<String, Double> = emptyMap(),   // #1118
+    todayKey: String = logicalDayKeyNow(),
+    skinTempPreferred: SkinTempDisplay.Kind = SkinTempDisplay.Kind.ABSOLUTE,   // #1846
+    hasValue: (DailyMetric) -> Boolean,
+): Vital {
+    val row = Baselines.freshestCarried(
+        days.filter(hasValue).map { it.day to it },
+        todayKey,
+    )?.second
+    return row
+        ?.let { latestRow ->
+            vitalsFor(latestRow, days, tempUnit, spo2CandidateByDay, spo2ToggleOn, hrvOverCountByDay,
+                      skinTempPreferred).firstOrNull { it.key == key }
+        }
+        ?.copy(asOfLabel = asOfLabel(row.day))
+        ?: emptyByKey.getValue(key)
+}
+
+internal fun selectedDayLabel(offset: Int): String = when (offset) {
+    0 -> "Today"
+    1 -> "Yesterday"
+    else -> "2 days ago"
+}
+
+internal fun missingVitalsTitle(offset: Int): String = when (offset) {
+    0 -> "We didn't get today's data"
+    1 -> "We didn't get yesterday's data"
+    else -> "We didn't get data from 2 days ago"
+}
+
+internal fun asOfLabel(day: String?): String? {
+    if (day.isNullOrBlank()) return null
+    val date = runCatching { LocalDate.parse(day) }.getOrNull() ?: return "as of $day"
+    val today = LocalDate.now()
+    return when (date) {
+        today -> "as of today"
+        today.minusDays(1) -> "as of yesterday"
+        else -> "as of ${date.format(DateTimeFormatter.ofPattern("d MMM", Locale.US))}"
+    }
+}

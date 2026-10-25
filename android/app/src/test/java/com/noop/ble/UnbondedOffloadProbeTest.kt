@@ -1,0 +1,826 @@
+package com.noop.ble
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/**
+ * The probe's whole value is that it stops. Every gate below is one of the ways this area has previously
+ * produced a loop that retries something which cannot work, so they are pinned individually rather than
+ * through one happy-path case.
+ */
+class UnbondedOffloadProbeTest {
+
+    private fun probe(
+        isWhoop5: Boolean = true,
+        optedIn: Boolean = true,
+        bonded: Boolean = false,
+        helloWrittenThisLink: Boolean = false,
+        alreadyProbedThisLink: Boolean = false,
+        previouslyRefused: Boolean = false,
+        silentLinksSoFar: Int = 0,
+    ) = shouldProbeUnbondedOffload(
+        isWhoop5 = isWhoop5,
+        optedIn = optedIn,
+        bonded = bonded,
+        helloWrittenThisLink = helloWrittenThisLink,
+        alreadyProbedThisLink = alreadyProbedThisLink,
+        previouslyRefused = previouslyRefused,
+        silentLinksSoFar = silentLinksSoFar,
+    )
+
+    @Test
+    fun `an opted-in 5MG on a stable unbonded link is exactly the case this exists for`() {
+        assertTrue(probe())
+    }
+
+    @Test
+    fun `a WHOOP4 is never probed`() {
+        // 4.0 bonds normally and reaches the offload through the proven path; there is nothing to ask it.
+        assertFalse(probe(isWhoop5 = false))
+    }
+
+    @Test
+    fun `it is off unless the user opted in`() {
+        assertFalse(probe(optedIn = false))
+    }
+
+    @Test
+    fun `a bonded strap uses the proven handshake instead`() {
+        assertFalse(probe(bonded = true))
+    }
+
+    /**
+     * The gate that keeps the ANSWER attributable. On a link carrying a hello the bond watchdog has about
+     * five seconds before it bounces us, so a subscribe failure there could be the strap's policy or could
+     * be our own teardown landing mid-write — indistinguishable, which is precisely the ambiguity that made
+     * the CLIENT_HELLO unreadable for eleven weeks. The one attempt on record (28 Aug 13:25:00) failed this
+     * way and proved nothing.
+     */
+    @Test
+    fun `a link that carries a hello cannot answer this question`() {
+        assertFalse(probe(helloWrittenThisLink = true))
+    }
+
+    @Test
+    fun `it runs once per link, not once per keep-alive tick`() {
+        // enableLiveNotifications drains the same CCCD queue every 30s, so without this the probe would
+        // re-enter its own completion branch on every keep-alive for the life of the connection.
+        assertFalse(probe(alreadyProbedThisLink = true))
+    }
+
+    @Test
+    fun `a refusal is remembered, so the strap says no once`() {
+        assertFalse(probe(previouslyRefused = true))
+    }
+
+    /**
+     * Silence does not latch the way a refusal does, so once-per-link cannot bound it — the probe re-runs
+     * on every reconnect, and a strap that reconnects often would re-ask a question already answered the
+     * same way. Silence therefore spends a budget.
+     *
+     * That budget is PERSISTED, which is the whole of the 31 Aug loop: 18 probe starts across 24 connects.
+     * It bounded the retry within a process; nothing bounded the processes, the foreground service
+     * restarts, and every restart re-armed three more links — each torn down ~4.8s after the subscriptions
+     * reach the air, which the user sees as an endless "Reconnecting to your WHOOP".
+     */
+    @Test
+    fun `repeated silence retires the probe`() {
+        assertTrue(probe(silentLinksSoFar = UNBONDED_PROBE_MAX_SILENT_LINKS - 1))
+        assertFalse(probe(silentLinksSoFar = UNBONDED_PROBE_MAX_SILENT_LINKS))
+        assertFalse(probe(silentLinksSoFar = UNBONDED_PROBE_MAX_SILENT_LINKS + 5))
+    }
+
+    /**
+     * The exit that had no verdict, and it cost the probe its bound. Field capture: 16 probe starts, 0
+     * verdicts of any kind, 0 confirmed subscribes, 0 refusals, every link dying 10.8s in — about three
+     * seconds after the CCCD writes. With nothing concluded the silence budget never advanced, so it
+     * re-ran on every reconnect forever: the unbounded retry this file's own doc claims to prevent.
+     */
+    @Test
+    fun `a link lost mid-subscribe is a verdict, not an absence`() {
+        val line = unbondedProbeLinkLostLine(uptimeMs = 10_800L, confirmedSubscribes = 0, total = 4)
+        assertTrue(line.contains("10800ms"))
+        assertTrue(line.contains("0 of 4"))
+        // It must name the signature rather than just the failure: no callback AND no error, then a drop,
+        // is what the CLIENT_HELLO does on the same service — that is the finding, not the silence.
+        assertTrue(line.contains("no ATT error"))
+        assertTrue(line.contains("CLIENT_HELLO"))
+        assertTrue(line.contains("not\n        reachable") || line.contains("not reachable"))
+        assertTrue(line.contains("#1635"))
+    }
+
+    /**
+     * The same hole, one stage later. The verdict timer is cancelled on teardown, so a link lost during
+     * the GET_CLOCK wait would also report nothing and also fail to spend a budget attempt — reopening the
+     * unbounded retry immediately below where it was closed.
+     *
+     * It must NOT reuse stage 1's line. Stage 1's loss carries a finding (no callback, no ATT error, then
+     * a drop — the CLIENT_HELLO's signature). Stage 2's carries none: the subscribes landed, so the
+     * transport was open and the strap was still inside its window. Conflating them would manufacture
+     * evidence out of an inconclusive link.
+     */
+    @Test
+    fun `a link lost while asking settles nothing, and says so`() {
+        val line = unbondedProbeLinkLostAskingLine(uptimeMs = 9_000L, waitedMs = 2_500L)
+        assertTrue(line.contains("9000ms"))
+        assertTrue(line.contains("2500ms"))
+        assertTrue(line.contains("settles nothing"))
+        assertTrue(line.contains("#1635"))
+        // The stage-1 finding must not leak into it.
+        assertFalse(line.contains("CLIENT_HELLO"))
+        assertFalse(line.contains("no ATT error"))
+    }
+
+    /**
+     * A partial subscribe must report honestly rather than rounding to zero — it is a different fact about
+     * the strap than "none of them landed".
+     */
+    @Test
+    fun `a partial subscribe is reported as partial`() {
+        assertTrue(unbondedProbeLinkLostLine(9_000L, confirmedSubscribes = 2, total = 4).contains("2 of 4"))
+    }
+
+    /**
+     * The supersede line must not warn about a pairing the SAME branch prevents. It said "a pairing in
+     * flight makes a refusal unattributable" while returning before the pairing request — so the one
+     * capture this exists to produce carried a caveat that could not apply, and it briefly cast doubt on
+     * a clean result.
+     */
+    @Test
+    fun `the supersede line does not warn about a pairing it prevents`() {
+        val clash = unbondedProbeSupersedesLine(explicitBondOptedIn = true)
+        assertTrue(clash.contains("ALSO skipped"))
+        assertTrue(clash.contains("attributable to the strap"))
+        assertFalse(clash.contains("in flight makes a refusal unattributable"))
+    }
+
+    @Test
+    fun `the give-up line says why it stopped, not merely that it did`() {
+        // The CLIENT_HELLO's suppression stopped silently and cost eleven weeks of unreadable captures.
+        val line = unbondedProbeGaveUpLine(3)
+        // Both ways the budget can be spent are named...
+        assertTrue(line.contains("does not act on puffin commands"))
+        assertTrue(line.contains("does not hold the link up"))
+        // ...and neither is asserted as established. This line USED to claim the strap "serves those
+        // characteristics unbonded", which only ever held for links that subscribed and then stayed
+        // quiet. Since a link lost mid-probe charges the same budget, a budget spent entirely by lost
+        // links — every charge in the 31 Aug capture — confirms no subscribes at all, and the retirement
+        // line would have recorded the opposite of what that strap demonstrated.
+        assertFalse(line.contains("serves those characteristics"))
+        // And it no longer promises only a session: the retirement is persisted, and the line has to say
+        // the one thing that undoes it, or the switch looks broken to whoever turns it back on.
+        assertFalse(line.contains("this session"))
+        assertTrue(line.contains("off and on"))
+    }
+
+    /**
+     * The budget outlives the process, so the sweep that hands it back has to find it.
+     *
+     * [PuffinExperiment.unbondedOffload]'s setter clears the budgets by PREFIX, having no device in hand.
+     * If the key the probe writes and the prefix that setter sweeps ever drift apart, the sweep matches
+     * nothing, re-enabling the switch does nothing, and it does it silently — the give-up line having
+     * already latched. That is the same shape as every other dead gate in this file's history, so it is
+     * pinned rather than left to inspection.
+     */
+    @Test
+    fun `the key the probe writes is the key opting back in sweeps`() {
+        val key = unbondedProbeSilentLinksPrefKey("AA:BB:CC:DD:EE:FF")
+        assertNotNull(key)
+        assertTrue(key!!.startsWith(UNBONDED_PROBE_SILENT_LINKS_KEY_PREFIX))
+    }
+
+    @Test
+    fun `only the off-to-on edge hands the budget back`() {
+        assertTrue(unbondedProbeBudgetRearms(optedInNow = true, optedInBefore = false))
+        // Rewriting "on" while already on is not the user asking for anything. If this cleared, any
+        // caller that re-set the current value would re-arm three more link-killing attempts — the loop
+        // the budget exists to end, restored by the mechanism meant to bound it.
+        assertFalse(unbondedProbeBudgetRearms(optedInNow = true, optedInBefore = true))
+        assertFalse(unbondedProbeBudgetRearms(optedInNow = false, optedInBefore = true))
+        assertFalse(unbondedProbeBudgetRearms(optedInNow = false, optedInBefore = false))
+    }
+
+    @Test
+    fun `the silence budget is not the refusal latch`() {
+        // Both stop the probe; only one is the strap's answer. One key for the two would have the log
+        // report a refusal that never happened.
+        assertNotEquals(
+            unbondedProbeSilentLinksPrefKey("AA:BB:CC:DD:EE:FF"),
+            unbondedOffloadRefusedPrefKey("AA:BB:CC:DD:EE:FF"),
+        )
+    }
+
+    @Test
+    fun `the budget key is per device and case-insensitive, like the refusal key`() {
+        assertEquals(
+            unbondedProbeSilentLinksPrefKey("AA:BB:CC:DD:EE:FF"),
+            unbondedProbeSilentLinksPrefKey(" aa:bb:cc:dd:ee:ff "),
+        )
+        assertNotEquals(
+            unbondedProbeSilentLinksPrefKey("AA:BB:CC:DD:EE:FF"),
+            unbondedProbeSilentLinksPrefKey("11:22:33:44:55:66"),
+        )
+        assertNull(unbondedProbeSilentLinksPrefKey(null))
+        assertNull(unbondedProbeSilentLinksPrefKey("   "))
+    }
+
+    @Test
+    fun `the refusal key is per device and case-insensitive`() {
+        // The same strap presents its address in different cases across sessions; a case-sensitive key
+        // would latch a second time under a second name and re-ask a strap that already refused.
+        assertEquals(
+            unbondedOffloadRefusedPrefKey("AA:BB:CC:DD:EE:FF"),
+            unbondedOffloadRefusedPrefKey("aa:bb:cc:dd:ee:ff"),
+        )
+        assertNull(unbondedOffloadRefusedPrefKey(null))
+        assertNull(unbondedOffloadRefusedPrefKey("   "))
+    }
+
+    /**
+     * The distinction the whole probe turns on. A frame proves the strap SERVES the puffin characteristics
+     * unbonded; only a reply proves it ACTS on what we write. Collapsing the two is how the false bond of
+     * 28 Aug read an unrelated DISABLE_ALARM completion as an answer to the hello.
+     */
+    @Test
+    fun `only a command response proves the command channel`() {
+        assertEquals(
+            UnbondedProbeEvidence.ANSWERS_COMMANDS,
+            unbondedProbeEvidenceOf(ok = true, crcOk = true, typeName = "COMMAND_RESPONSE"),
+        )
+        assertEquals(
+            UnbondedProbeEvidence.SERVES_NOTIFICATIONS,
+            unbondedProbeEvidenceOf(ok = true, crcOk = true, typeName = "REALTIME_DATA"),
+        )
+    }
+
+    /**
+     * Noise must never be read as proof. The probe runs on a link whose right to carry this traffic is the
+     * open question, so a frame that fails its CRC could as easily be the stack handing us a fragment as
+     * the strap answering — and counting it would let the probe conclude the opposite of the truth.
+     */
+    @Test
+    fun `an unverified frame is not evidence of anything`() {
+        assertEquals(
+            UnbondedProbeEvidence.NONE,
+            unbondedProbeEvidenceOf(ok = true, crcOk = false, typeName = "COMMAND_RESPONSE"),
+        )
+        // No CRC to check is not a pass either: `ok` alone is only an envelope check.
+        assertEquals(
+            UnbondedProbeEvidence.NONE,
+            unbondedProbeEvidenceOf(ok = true, crcOk = null, typeName = "COMMAND_RESPONSE"),
+        )
+        assertEquals(
+            UnbondedProbeEvidence.NONE,
+            unbondedProbeEvidenceOf(ok = false, crcOk = true, typeName = "COMMAND_RESPONSE"),
+        )
+        assertEquals(
+            UnbondedProbeEvidence.NONE,
+            unbondedProbeEvidenceOf(ok = true, crcOk = true, typeName = "   "),
+        )
+    }
+
+    /**
+     * The verdict must not depend on arrival order. Once realtime HR is streaming, REALTIME_DATA frames
+     * follow the COMMAND_RESPONSE continuously, and a last-one-wins reading would walk the conclusion back
+     * down to the weaker finding and report "not answering" on a strap that had just answered.
+     */
+    @Test
+    fun `the strongest evidence on the link is what stands`() {
+        val answered = strongerProbeEvidence(
+            UnbondedProbeEvidence.ANSWERS_COMMANDS,
+            UnbondedProbeEvidence.SERVES_NOTIFICATIONS,
+        )
+        assertEquals(UnbondedProbeEvidence.ANSWERS_COMMANDS, answered)
+        assertEquals(
+            UnbondedProbeEvidence.ANSWERS_COMMANDS,
+            strongerProbeEvidence(UnbondedProbeEvidence.NONE, UnbondedProbeEvidence.ANSWERS_COMMANDS),
+        )
+        assertEquals(
+            UnbondedProbeEvidence.SERVES_NOTIFICATIONS,
+            strongerProbeEvidence(UnbondedProbeEvidence.SERVES_NOTIFICATIONS, UnbondedProbeEvidence.NONE),
+        )
+    }
+
+    /**
+     * The silence line has to say which of the two silences this was. "Subscribed but nothing arrived" and
+     * "subscribed and frames arrived, but no reply" are different facts about the strap, and a capture that
+     * blurred them would send the next reader after the wrong thing.
+     */
+    @Test
+    fun `the silent verdict distinguishes an idle transport from an unanswering strap`() {
+        assertTrue(unbondedProbeSilentLine(5_000L, sawNotifications = true).contains("frames did arrive"))
+        assertTrue(unbondedProbeSilentLine(5_000L, sawNotifications = false).contains("nothing arrived"))
+        // Both must carry the wait, or the line cannot be judged against the capture's timestamps.
+        assertTrue(unbondedProbeSilentLine(5_000L, sawNotifications = true).contains("5000ms"))
+    }
+
+    /**
+     * The asking line must report what was CONFIRMED, not what was attempted. A CCCD write abandoned after
+     * its busy retries reaches the same completion path as four clean subscribes, so a flat "subscribed"
+     * would put a partial result in the capture as a whole one.
+     */
+    @Test
+    fun `the asking line reports the confirmed count, not the attempted one`() {
+        assertTrue(unbondedProbeAskingLine(3, 4, 8_000L).contains("3 of 4"))
+        assertTrue(unbondedProbeAskingLine(4, 4, 8_000L).contains("4 of 4"))
+    }
+
+    /**
+     * The third stage-1 outcome, and the one easiest to mis-file. Nothing confirmed AND nothing refused is
+     * the absence of an answer, not an answer — reporting it as either would put a fact in the capture that
+     * the link never established.
+     */
+    @Test
+    fun `nothing confirmed and nothing refused is neither a yes nor a no`() {
+        val line = unbondedProbeNoSubscriptionsLine(4)
+        assertTrue(line.contains("none was refused"))
+        assertTrue(line.contains("proves nothing"))
+    }
+
+    /**
+     * The gap that would have made the whole probe dead code. It needs a link with no hello on it, but the
+     * two branches that schedule it are barely reached on the strap this is for: across 41 field captures
+     * the suppression latch fired in three, all on one day, and the explicit-bond deferral yields after
+     * its first connect by design — so every later link writes a hello. Opting in has to supersede the
+     * handshake, or the probe waits for a state the app almost never enters.
+     */
+    @Test
+    fun `opting in replaces the handshake for that connect`() {
+        assertTrue(unbondedProbeSupersedesHandshake(
+            optedIn = true, isWhoop5 = true, appLevelBonded = false, userInitiated = false, probeRetired = false))
+        assertFalse(unbondedProbeSupersedesHandshake(
+            optedIn = false, isWhoop5 = true, appLevelBonded = false, userInitiated = false, probeRetired = false))
+        assertFalse(unbondedProbeSupersedesHandshake(
+            optedIn = true, isWhoop5 = false, appLevelBonded = false, userInitiated = false, probeRetired = false))
+    }
+
+    /**
+     * Pressing Connect is an explicit request for the HANDSHAKE, and must never be answered with a
+     * different experiment — the same rule the suppression latch already follows.
+     */
+    @Test
+    fun `pressing Connect still gets the handshake`() {
+        assertFalse(unbondedProbeSupersedesHandshake(
+            optedIn = true, isWhoop5 = true, appLevelBonded = false, userInitiated = true, probeRetired = false))
+    }
+
+    @Test
+    fun `a strap that already bonded has nothing to prove`() {
+        assertFalse(unbondedProbeSupersedesHandshake(
+            optedIn = true, isWhoop5 = true, appLevelBonded = true, userInitiated = false, probeRetired = false))
+    }
+
+    /**
+     * The supersede line must say the hello is absent BY CHOICE. An absent hello looks identical to one
+     * that failed silently, which is the ambiguity that made #1635 unreadable for eleven weeks — and it
+     * must name the explicit-bond clash, because a pairing in flight costs the probe its ability to
+     * attribute a refusal to the strap.
+     */
+    @Test
+    fun `the supersede line explains the absence and names the other switch`() {
+        val clean = unbondedProbeSupersedesLine(explicitBondOptedIn = false)
+        assertTrue(clean.contains("handshake skipped"))
+        assertTrue(clean.contains("press Connect"))
+        assertFalse(clean.contains("Ask Android to pair"))
+        assertTrue(clean.contains("#1635"))
+
+        // Mentioned so a reader knows it is on, but as SKIPPED rather than as interference — the
+        // attributability claim it used to make is asserted in its own case below.
+        assertTrue(unbondedProbeSupersedesLine(explicitBondOptedIn = true).contains("Ask Android to pair"))
+    }
+
+    /**
+     * The expectation has to be set BEFORE the transfer, not after an empty one comes back. A strap that
+     * has never been clocked has never been told to persist to flash, so "nothing banked" is a plausible
+     * SUCCESS of the probe, and a reader who has not been told that will read it as a failure.
+     */
+    @Test
+    fun `the backlog caveat names the un-clocked strap, not a broken probe`() {
+        val line = unbondedProbeBacklogCaveatLine()
+        assertTrue(line.contains("never been clocked"))
+        assertTrue(line.contains("from now on"))
+    }
+
+    @Test
+    fun `every probe line names the issue it belongs to`() {
+        // A capture line without its issue number costs the next reader the search that this whole thread
+        // has already paid for repeatedly.
+        val lines = listOf(
+            unbondedProbeStartLine(),
+            puffinSubscribeRefusedLine("fd4b0003", "GATT_INSUFFICIENT_AUTHENTICATION(5)"),
+            unbondedProbeAskingLine(subscribed = 4, total = 4, waitMs = 5_000L),
+            unbondedProbeNoSubscriptionsLine(4),
+            unbondedProbeGaveUpLine(3),
+            unbondedProbeSilentLine(5_000L, sawNotifications = false),
+            unbondedProbeAnsweredLine(),
+            unbondedProbeBacklogCaveatLine(),
+        )
+        for (line in lines) assertTrue(line, line.contains("#1635"))
+    }
+
+    /**
+     * #1635, from the field. The probe used to start on a fixed 6-second delay, chosen on the reasoning
+     * that the DIS chain (scheduled at 3s) would be done by then. A capture caught the chain still
+     * running at 7s: every CCCD write returned busy, all four were abandoned after the shared 8-retry
+     * budget, and the link produced no answer at all. Reasoning about a delay lost to measuring one.
+     */
+    @Test
+    fun `the waiting line says why the probe is late, and names the shared queue`() {
+        val line = unbondedProbeWaitingForDisLine()
+        assertTrue(line.contains("DIS read chain"))
+        assertTrue(line.contains("one GATT queue"))
+        assertTrue(line.contains("busy"))
+        assertTrue(line.contains("#1635"))
+    }
+
+    /**
+     * The wait must end. The DIS chain has exits that never reach its terminal — a refused read, or a
+     * strap that stops answering part-way — so a probe that waited on the flag would never run at all.
+     * The line has to distinguish "started cleanly" from "gave up waiting", because a busy queue after
+     * the full budget is a different capture from a busy queue at second one.
+     */
+    @Test
+    fun `giving up waiting is reported as a choice, not a failure`() {
+        val line = unbondedProbeStoppedWaitingLine(8)
+        assertTrue(line.contains("after 8 checks"))
+        assertTrue(line.contains("starting anyway"))
+        assertTrue(line.contains("not the strap"))
+        assertTrue(line.contains("#1635"))
+    }
+
+    /**
+     * The decision itself, not just the line that describes it. It was briefly inline in the client,
+     * argued for in a comment and asserted nowhere — which is exactly how #1755 shipped a bound that
+     * every unit test agreed with and the real pipeline rejected.
+     */
+    @Test
+    fun `the probe waits only while the DIS chain is actually running, and only so long`() {
+        assertTrue(unbondedProbeShouldWaitForDis(disChainInFlight = true, deferralsSoFar = 0))
+        assertTrue(unbondedProbeShouldWaitForDis(true, UNBONDED_PROBE_MAX_DEFERRALS - 1))
+        // The cap must end the wait: the chain has exits that never reach its terminal, so a probe
+        // waiting on a flag nobody clears would never run at all.
+        assertFalse(unbondedProbeShouldWaitForDis(true, UNBONDED_PROBE_MAX_DEFERRALS))
+        assertFalse(unbondedProbeShouldWaitForDis(true, UNBONDED_PROBE_MAX_DEFERRALS + 5))
+        // And no chain means no waiting — the whole point of readDisIdentity reporting whether it
+        // actually issued a read rather than being assumed to have.
+        assertFalse(unbondedProbeShouldWaitForDis(disChainInFlight = false, deferralsSoFar = 0))
+    }
+
+    // MARK: #1867 — the skip must retire when the probe does
+
+    /**
+     * Found in a field log: the hello skipped on every connect, NO probe lines at all, `didBond=false` and
+     * `Backfill: deferred` nine times across sixteen hours.
+     *
+     * The probe retires itself correctly — on a latched refusal, or once the silent-link budget is spent —
+     * but the handshake skip that exists to serve it kept applying regardless. With no hello, `didBond` can
+     * never become true, so the ordinary offload gate can never open either. The strap could neither bond
+     * nor sync, in service of a question that had already stopped being asked.
+     */
+    @Test
+    fun `a retired probe stops superseding the handshake`() {
+        assertFalse(unbondedProbeSupersedesHandshake(
+            optedIn = true, isWhoop5 = true, appLevelBonded = false, userInitiated = false,
+            probeRetired = true))
+    }
+
+    /** A latched refusal is the strap's verdict — it retires the probe, so the handshake must resume. */
+    @Test
+    fun `a latched refusal retires the probe`() {
+        assertTrue(unbondedProbeRetired(previouslyRefused = true, silentLinksSoFar = 0,
+            inconclusiveLinksSoFar = 0))
+    }
+
+    /** Silence spends a budget rather than latching, so the probe stays live while it has one. */
+    @Test
+    fun `silence retires the probe only once its budget is spent`() {
+        assertFalse(unbondedProbeRetired(previouslyRefused = false, silentLinksSoFar = 0,
+            inconclusiveLinksSoFar = 0))
+        assertFalse(unbondedProbeRetired(
+            previouslyRefused = false, silentLinksSoFar = UNBONDED_PROBE_MAX_SILENT_LINKS - 1,
+            inconclusiveLinksSoFar = 0))
+        assertTrue(unbondedProbeRetired(
+            previouslyRefused = false, silentLinksSoFar = UNBONDED_PROBE_MAX_SILENT_LINKS,
+            inconclusiveLinksSoFar = 0))
+    }
+
+    /**
+     * The two gates must agree by construction, not by both being edited together. Whenever the probe
+     * declines for a RETIREMENT reason, the skip must decline too — otherwise the strap is stranded with a
+     * suppressed handshake and nothing using the link it creates.
+     *
+     * All THREE retirement grounds are swept. The inconclusive axis was held at 0 here while the ground
+     * itself was live, so this pinned the agreement on two thirds of the rule, and stranding is precisely
+     * what the omission of that axis caused in `WhoopBleClient`. To be accurate about what this test can
+     * and cannot do: a pure-function sweep cannot see a CALL SITE that forgets an argument, which is why
+     * `unbondedProbeRetired` no longer offers a default for it. This pins that the two rules agree once
+     * they are both given it.
+     */
+    @Test
+    fun `the skip and the probe retire on exactly the same conditions`() {
+        for (refused in listOf(false, true)) {
+            for (silent in 0..UNBONDED_PROBE_MAX_SILENT_LINKS + 1) {
+                for (inconclusive in 0..UNBONDED_PROBE_MAX_INCONCLUSIVE_LINKS + 1) {
+                    val retired = unbondedProbeRetired(refused, silent, inconclusive)
+                    val probeWouldRun = shouldProbeUnbondedOffload(
+                        isWhoop5 = true, optedIn = true, bonded = false, helloWrittenThisLink = false,
+                        alreadyProbedThisLink = false, previouslyRefused = refused,
+                        silentLinksSoFar = silent, inconclusiveLinksSoFar = inconclusive)
+                    val skips = unbondedProbeSupersedesHandshake(
+                        optedIn = true, isWhoop5 = true, appLevelBonded = false, userInitiated = false,
+                        probeRetired = retired)
+                    assertEquals(
+                        "refused=$refused silent=$silent inconclusive=$inconclusive",
+                        probeWouldRun, skips)
+                }
+            }
+        }
+    }
+
+    // --- #1949: the probe's skip reason ---------------------------------------------------------------
+
+    /**
+     * The explanation and the gate must agree on EVERY input, or a log line will claim a probe ran that
+     * did not, or stay silent about one that was skipped. Exhaustive rather than sampled because the two
+     * are separate `when` chains over the same seven inputs, and the failure mode is a condition added to
+     * one and forgotten in the other, which no hand-picked case is likely to sit on.
+     */
+    @Test
+    fun `a skip reason is produced exactly when the gate refuses`() {
+        val bools = listOf(false, true)
+        var refusals = 0
+        for (isWhoop5 in bools) for (optedIn in bools) for (bonded in bools)
+            for (hello in bools) for (already in bools) for (refused in bools)
+                for (silent in listOf(0, UNBONDED_PROBE_MAX_SILENT_LINKS)) {
+                    val runs = shouldProbeUnbondedOffload(
+                        isWhoop5 = isWhoop5, optedIn = optedIn, bonded = bonded,
+                        helloWrittenThisLink = hello, alreadyProbedThisLink = already,
+                        previouslyRefused = refused, silentLinksSoFar = silent,
+                    )
+                    val line = unbondedProbeSkippedLine(
+                        isWhoop5 = isWhoop5, optedIn = optedIn, bonded = bonded,
+                        helloWrittenThisLink = hello, alreadyProbedThisLink = already,
+                        previouslyRefused = refused, silentLinksSoFar = silent,
+                    )
+                    assertEquals(
+                        "gate=$runs but line=${line ?: "null"} for isWhoop5=$isWhoop5 optedIn=$optedIn " +
+                            "bonded=$bonded hello=$hello already=$already refused=$refused silent=$silent",
+                        runs, line == null,
+                    )
+                    if (!runs) refusals++
+                }
+        assertTrue("the sweep must actually exercise refusals", refusals > 0)
+    }
+
+    /** The reason printed is the one that DECIDED, so it must follow the gate's own order, not the first
+     *  condition that happens to be true. Every input below is refusing at once. */
+    @Test
+    fun `the reason follows the gate's order when several conditions refuse`() {
+        val line = unbondedProbeSkippedLine(
+            isWhoop5 = false, optedIn = false, bonded = true, helloWrittenThisLink = true,
+            alreadyProbedThisLink = true, previouslyRefused = true, silentLinksSoFar = 99,
+        )
+        assertTrue("family is tested first: $line", line!!.contains("not a WHOOP 5/MG"))
+    }
+
+    @Test
+    fun `the common case names the experiment, and says what it costs`() {
+        val line = unbondedProbeSkippedLine(
+            isWhoop5 = true, optedIn = false, bonded = false, helloWrittenThisLink = false,
+            alreadyProbedThisLink = false, previouslyRefused = false, silentLinksSoFar = 0,
+        )!!
+        assertTrue(line, line.contains("the unbonded-offload experiment is off"))
+        assertTrue("an unbonded 5/MG must be told what stays unsubscribed: $line",
+                   line.contains("puffin notify chars stay unsubscribed"))
+        assertTrue("and that it reaches the IMU producer too: $line", line.contains("realtime IMU"))
+    }
+
+    /** A bonded strap reaches those chars through the ordinary handshake, so the consequence clause would
+     *  be false there. The retirement reasons must also distinguish a latched refusal from a spent budget:
+     *  one is the strap's verdict, the other is ours. */
+    @Test
+    fun `the consequence is omitted when it would not be true, and retirement says which kind`() {
+        val bonded = unbondedProbeSkippedLine(
+            isWhoop5 = true, optedIn = true, bonded = true, helloWrittenThisLink = false,
+            alreadyProbedThisLink = false, previouslyRefused = false, silentLinksSoFar = 0,
+        )!!
+        assertTrue(bonded, !bonded.contains("stay unsubscribed"))
+
+        val refused = unbondedProbeSkippedLine(
+            isWhoop5 = true, optedIn = true, bonded = false, helloWrittenThisLink = false,
+            alreadyProbedThisLink = false, previouslyRefused = true, silentLinksSoFar = 0,
+        )!!
+        assertTrue(refused, refused.contains("a refusal is latched"))
+
+        val spent = unbondedProbeSkippedLine(
+            isWhoop5 = true, optedIn = true, bonded = false, helloWrittenThisLink = false,
+            alreadyProbedThisLink = false, previouslyRefused = false,
+            silentLinksSoFar = UNBONDED_PROBE_MAX_SILENT_LINKS,
+        )!!
+        assertTrue(spent, spent.contains("silent-link budget is spent"))
+    }
+
+    // MARK: - #1804: a local teardown is inconclusive, because it names neither side
+
+    /** The field capture: status=22 (GATT_CONN_TERMINATE_LOCAL_HOST). This is the exact case that
+     *  latched the probe permanently on the reporting install — a local teardown counted as a strap
+     *  refusal. The origin is NOT a parameter: it does not affect the verdict, and a parameter that
+     *  cannot change the answer invites the next reader to believe it can. */
+    @Test
+    fun `a local teardown is inconclusive regardless of origin`() {
+        assertTrue(unbondedProbeLinkLostIsLocalTeardown(status = 22))
+    }
+
+    /** A supervision timeout (status=8, GATT_CONN_TIMEOUT) is the STRAP dropping the link — that IS
+     *  evidence about the strap and should charge the silence budget. */
+    @Test
+    fun `a strap-side timeout is not a local teardown`() {
+        assertFalse(unbondedProbeLinkLostIsLocalTeardown(status = 8))
+    }
+
+    /** Any other status (e.g. 19, 133) is also not a local teardown. */
+    @Test
+    fun `other statuses are not local teardowns`() {
+        assertFalse(unbondedProbeLinkLostIsLocalTeardown(status = 19))
+        assertFalse(unbondedProbeLinkLostIsLocalTeardown(status = 133))
+    }
+
+    /** The inconclusive line names the stage and the origin, and says it does not consume a SILENCE
+     *  budget attempt — so a reader of the log knows the silence budget is not spent. It DOES charge
+     *  the inconclusive budget, but that has its own larger cap (#1804). */
+    @Test
+    fun `the inconclusive line names stage and origin and says it does not charge silence`() {
+        val line = unbondedProbeLinkLostLocalTeardownLine(
+            uptimeMs = 10776, stage = 1, localTeardownOrigin = null,
+        )
+        assertTrue(line, line.contains("terminated locally"))
+        assertTrue(line, line.contains("10776ms"))
+        assertTrue(line, line.contains("while subscribing"))
+        assertTrue(line, line.contains("via=unknown"))
+        assertTrue(line, line.contains("inconclusive"))
+        assertTrue(line, line.contains("does not consume"))
+    }
+
+    @Test
+    fun `the inconclusive line for stage 2 names GET_CLOCK`() {
+        val line = unbondedProbeLinkLostLocalTeardownLine(
+            uptimeMs = 10761, stage = 2, localTeardownOrigin = "bondWatchdog",
+        )
+        assertTrue(line, line.contains("after GET_CLOCK went out"))
+        assertTrue(line, line.contains("via=bondWatchdog"))
+    }
+
+    // MARK: - #1804: inconclusive budget bounds the retry
+
+    /** A local teardown is weaker evidence than silence, so it gets its own LARGER cap. The probe
+     *  retires when the inconclusive budget is spent, so a strap whose every link is torn down
+     *  locally does not retry forever. */
+    @Test
+    fun `inconclusive budget is larger than the silence budget`() {
+        assertTrue(UNBONDED_PROBE_MAX_INCONCLUSIVE_LINKS > UNBONDED_PROBE_MAX_SILENT_LINKS)
+    }
+
+    @Test
+    fun `probe retires when inconclusive budget is spent`() {
+        assertTrue(unbondedProbeRetired(
+            previouslyRefused = false,
+            silentLinksSoFar = 0,
+            inconclusiveLinksSoFar = UNBONDED_PROBE_MAX_INCONCLUSIVE_LINKS,
+        ))
+    }
+
+    @Test
+    fun `probe does not retire when inconclusive budget is not yet spent`() {
+        assertFalse(unbondedProbeRetired(
+            previouslyRefused = false,
+            silentLinksSoFar = 0,
+            inconclusiveLinksSoFar = UNBONDED_PROBE_MAX_INCONCLUSIVE_LINKS - 1,
+        ))
+    }
+
+    /**
+     * The skipped line names the inconclusive budget when that is what retired the probe.
+     *
+     * It used to assert `our own stack` as the cause too. That half is gone rather than re-spelled: this
+     * function is given counts and no origins, and both a path of ours and the strap ending a challenged
+     * write arrive as status 22, so naming either was a claim it could not make. The budget it names is
+     * still its own, which is what this test is for.
+     */
+    @Test
+    fun `skipped line names inconclusive budget when it is the reason`() {
+        val line = unbondedProbeSkippedLine(
+            isWhoop5 = true,
+            optedIn = true,
+            bonded = false,
+            helloWrittenThisLink = false,
+            alreadyProbedThisLink = false,
+            previouslyRefused = false,
+            silentLinksSoFar = 0,
+            inconclusiveLinksSoFar = UNBONDED_PROBE_MAX_INCONCLUSIVE_LINKS,
+        )
+        assertNotNull(line, line)
+        assertTrue(line!!, line.contains("inconclusive-link budget is spent"))
+        assertTrue(line, line.contains("LOCAL teardown"))
+    }
+
+    /**
+     * #2135: the key a refusal is WRITTEN under must be reachable by the prefix a re-arm sweeps.
+     *
+     * The two drifting apart is the whole bug: the sweep cleared the two budgets, the latch kept its own
+     * spelling in another file, and the probe stayed retired through every re-arm while the diagnostic
+     * kept suggesting one. Building the key from the prefix makes that unrepresentable; this pins it.
+     */
+    @Test
+    fun aRefusalKeyIsReachableByTheRearmSweep() {
+        val key = unbondedOffloadRefusedPrefKey("AA:BB:CC:DD:EE:FF")
+        assertNotNull(key)
+        assertTrue(
+            "a refusal latch the re-arm cannot sweep is a retirement with no way out",
+            key!!.startsWith(UNBONDED_OFFLOAD_REFUSED_KEY_PREFIX),
+        )
+    }
+
+    /**
+     * #1804's budget must reach every consumer, not only the gate.
+     *
+     * `unbondedProbeRetired` used to default `inconclusiveLinksSoFar` to 0, and BOTH consumers in
+     * WhoopBleClient silently took that default while the gate passed the real count. So a strap retired
+     * only by the inconclusive budget, which is exactly the strap #1804 was written for since every one
+     * of its links is a local teardown, reported NOT retired: the handshake stayed suppressed for a probe
+     * that would never run, the harm `unbondedProbeSupersedesHandshake.probeRetired` exists to prevent.
+     *
+     * The parameter is required now, so a consumer cannot omit it in silence. This pins the behaviour the
+     * omission hid.
+     */
+    @Test
+    fun `a spent inconclusive budget retires the probe on its own`() {
+        assertTrue(
+            "every link torn down locally is a retirement, whatever silence and refusal say",
+            unbondedProbeRetired(
+                previouslyRefused = false,
+                silentLinksSoFar = 0,
+                inconclusiveLinksSoFar = UNBONDED_PROBE_MAX_INCONCLUSIVE_LINKS,
+            ),
+        )
+        assertFalse(
+            "one short of the cap is still worth asking",
+            unbondedProbeRetired(
+                previouslyRefused = false,
+                silentLinksSoFar = 0,
+                inconclusiveLinksSoFar = UNBONDED_PROBE_MAX_INCONCLUSIVE_LINKS - 1,
+            ),
+        )
+    }
+
+    /**
+     * The retirement line may not name a cause it was never given.
+     *
+     * It used to read "our own stack tore down every probe link, so the question was never asked of the
+     * strap". Nothing establishes that. [unbondedProbeSkippedLine] receives counts and no origins, and a
+     * status-22 teardown is produced both by paths of ours and by the strap ending the link when a write
+     * is challenged. On a field run of six links, none of which any path of ours claimed, that sentence
+     * told the reader the strap had never been asked when it may well have answered every time.
+     */
+    @Test
+    fun theInconclusiveRetirementLineDoesNotNameACauseItWasNotGiven() {
+        val line = unbondedProbeSkippedLine(
+            isWhoop5 = true,
+            optedIn = true,
+            bonded = false,
+            helloWrittenThisLink = false,
+            alreadyProbedThisLink = false,
+            previouslyRefused = false,
+            silentLinksSoFar = 0,
+            inconclusiveLinksSoFar = UNBONDED_PROBE_MAX_INCONCLUSIVE_LINKS,
+        )
+        assertNotNull(line)
+        line!!
+        assertFalse("must not blame our stack", line.contains("our own stack tore down"))
+        assertFalse("must not claim the strap went unasked", line.contains("never asked of the strap"))
+        // What it MAY say: the observation, and that the cause is open.
+        assertTrue(line.contains("LOCAL teardown"))
+        assertTrue(line.contains("not established"))
+    }
+
+    /** The other two retirement reasons are unchanged, so this did not blur them together. */
+    @Test
+    fun theOtherRetirementReasonsStillReadAsThemselves() {
+        fun skipped(refused: Boolean, silent: Int, inconclusive: Int) = unbondedProbeSkippedLine(
+            isWhoop5 = true,
+            optedIn = true,
+            bonded = false,
+            helloWrittenThisLink = false,
+            alreadyProbedThisLink = false,
+            previouslyRefused = refused,
+            silentLinksSoFar = silent,
+            inconclusiveLinksSoFar = inconclusive,
+        )
+        assertTrue(skipped(true, 0, 0)!!.contains("a refusal is latched"))
+        assertTrue(skipped(false, UNBONDED_PROBE_MAX_SILENT_LINKS, 0)!!.contains("silent-link budget is spent"))
+    }
+}

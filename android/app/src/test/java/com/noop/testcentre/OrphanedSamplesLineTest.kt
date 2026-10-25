@@ -1,0 +1,129 @@
+package com.noop.testcentre
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/**
+ * #1617 follow-up: the funnel's zero-sample line must distinguish "the samples are not there" from
+ * "the samples are under a different device id" (#1193/#740). The old line asserted the first
+ * unconditionally, which is the wrong answer to give an investigation exactly when it matters.
+ *
+ * Swift twin: `orphanedSamplesLine` in `Strand/System/DebugDataDiagnostics.swift` — the two must emit
+ * the same strings, so these expectations are written out in full rather than pattern-matched.
+ */
+class OrphanedSamplesLineTest {
+
+    @Test
+    fun `no samples anywhere keeps the fresh-re-add wording`() {
+        assertEquals(
+            "(no raw biometric samples under 'my-whoop' for this night — expected on a freshly " +
+                "re-added strap; reconnect + let a history sync run, then re-export)",
+            AndroidDiagnostics.orphanedSamplesLine("my-whoop", emptyList()),
+        )
+    }
+
+    @Test
+    fun `samples under another id report the split instead`() {
+        val line = AndroidDiagnostics.orphanedSamplesLine("my-whoop", listOf("whoop-F1:D4:F7:24:53:DE" to 4213))
+        assertEquals(
+            "(no raw biometric samples under the ACTIVE id 'my-whoop' for this night — they are under " +
+                "'whoop-F1:D4:F7:24:53:DE' (4213 rows) instead. The history spine and the raw stream are " +
+                "on different device ids (#1193); this is NOT a fresh re-add, the samples exist and are " +
+                "not being read.)",
+            line,
+        )
+        // The benign explanation must not survive anywhere in the split wording — a reader scanning the
+        // log for "freshly re-added" would otherwise still stop here.
+        assertTrue(!line.contains("freshly re-added"))
+    }
+
+    @Test
+    fun `several holders are listed heaviest first`() {
+        val line = AndroidDiagnostics.orphanedSamplesLine(
+            "my-whoop",
+            listOf("whoop-aa" to 12, "whoop-bb" to 900, "whoop-cc" to 300),
+        )
+        assertTrue(line.contains("'whoop-bb' (900 rows), 'whoop-cc' (300 rows), 'whoop-aa' (12 rows)"))
+    }
+
+    @Test
+    fun `equal counts break the tie on id so both platforms agree`() {
+        // Swift's `sorted` is not a stable sort; without an explicit tie-break the twin lines could list
+        // the same two ids in different orders.
+        val line = AndroidDiagnostics.orphanedSamplesLine(
+            "my-whoop",
+            listOf("whoop-zz" to 50, "whoop-aa" to 50),
+        )
+        assertTrue(line.contains("'whoop-aa' (50 rows), 'whoop-zz' (50 rows)"))
+    }
+
+    // #1193 wording is for a genuine split — NOT for a second strap's night
+
+    /**
+     * Both over-assertions this branch has carried. It must not call a second strap's night a read
+     * failure — DayOwnerResolver hands each day to whichever device holds its data, so samples under that
+     * id can be perfectly normal. And it must not call the silence expected either: with a 4.0 and a 5.0
+     * worn together the active strap can bank nothing because its handshake never completed (#1635),
+     * which looks identical from here. The line states both halves; this pins that it keeps stating both.
+     */
+    @Test
+    fun `a second registered strap's night states the fork, never a bare verdict`() {
+        val line = AndroidDiagnostics.orphanedSamplesLine(
+            activeId = "whoop-FD:4A",
+            othersWithSamples = listOf("my-whoop" to 59_304),
+            otherLiveStrapIds = setOf("my-whoop"),
+        )
+        assertTrue(line.contains("another registered strap"))
+        assertTrue(line.contains("'my-whoop' (59304 rows)"))
+        assertTrue("must point at the line that settles it", line.contains("dayOwner"))
+        assertFalse("must not claim a bug", line.contains("are not being read"))
+        assertFalse(line.contains("#1193"))
+        // #1635 dual-wear: it may NOT declare the silence normal outright. Wearing a 4.0 and a 5.0
+        // together, the other strap's rows are present while the ACTIVE one banked nothing because its
+        // handshake never completed — and this function cannot tell that from a single-strap night.
+        assertTrue("must state the both-straps half", line.contains("If you wore BOTH"))
+        assertTrue("and name the sync as what to check", line.contains("sync is what to check"))
+        assertFalse("must not assert one-strap ownership", line.contains("OWNED by that strap"))
+    }
+
+    /** An id that is NOT a live registered strap is still the #1193 split — that wording must survive. */
+    @Test
+    fun `an unregistered id holding the samples is still reported as a split`() {
+        val line = AndroidDiagnostics.orphanedSamplesLine(
+            activeId = "whoop-FD:4A",
+            othersWithSamples = listOf("my-whoop" to 59_304),
+            otherLiveStrapIds = setOf("whoop-OTHER"),   // my-whoop is not a live device row
+        )
+        assertTrue(line.contains("#1193"))
+        assertTrue(line.contains("are not being read"))
+    }
+
+    /** No registry supplied (the default) keeps every existing caller byte-identical. */
+    @Test
+    fun `without a registry the wording is unchanged`() {
+        val withDefault = AndroidDiagnostics.orphanedSamplesLine(
+            "whoop-FD:4A", listOf("my-whoop" to 59_304),
+        )
+        val explicitEmpty = AndroidDiagnostics.orphanedSamplesLine(
+            "whoop-FD:4A", listOf("my-whoop" to 59_304), emptySet(),
+        )
+        assertEquals(withDefault, explicitEmpty)
+        assertTrue(withDefault.contains("#1193"))
+    }
+
+    /** Mixed: one id is a live strap, one is not — the live strap explains it, so no bug is claimed. */
+    @Test
+    fun `a live strap among the ids wins over the split wording`() {
+        val line = AndroidDiagnostics.orphanedSamplesLine(
+            activeId = "whoop-FD:4A",
+            othersWithSamples = listOf("orphan-id" to 10, "my-whoop" to 59_304),
+            otherLiveStrapIds = setOf("my-whoop"),
+        )
+        assertTrue(line.contains("another registered strap"))
+        assertTrue(line.contains("'my-whoop' (59304 rows)"))
+        assertFalse("the orphan id is not the story when a real strap owns the night",
+                    line.contains("'orphan-id'"))
+    }
+}
