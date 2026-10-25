@@ -1,0 +1,31 @@
+# Fork (DX23876), Android plan D-4: proves that the two signing secrets belong together before any release
+# needs them. It opens the release keystore with its password and prints only the certificate's public
+# SHA-256 fingerprint; nothing is built, signed or uploaded. Run by hand after creating or rotating the
+# secrets; a wrong password fails the job here instead of at the first release.
+name: Android signing check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open the release keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ]; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 or ANDROID_KEYSTORE_PASSWORD is not set"
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.p12"
+          keytool -list -v -storetype PKCS12 -keystore "$RUNNER_TEMP/release.p12" \
+            -storepass "$KEYSTORE_PASSWORD" -alias forge \
+            | grep -E "^(Alias name|Owner|Valid from|\s+SHA256):"
+          rm -f "$RUNNER_TEMP/release.p12"
