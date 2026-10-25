@@ -23,9 +23,21 @@ Every RyanBR upstream commit/PR and every local feature must explicitly record:
 Choose **yes** if existing derived values can become stale because scoring math, an analytics or input
 window, the meaning of a stored derived value, source precedence or provenance, baseline semantics or
 cache invalidation changed. Then bump `AnalysisRecipe.currentVersion` in `Packages/StrandCore` (the fork's
-own lineage, numbered AI-n), add a resumable versioned migration with regression tests, and describe the
-rescore in the release notes. A migration writes its recipe cursor only after success, never erases raw
-samples or user sleep/workout corrections, and uses the narrowest affected-day interval it can prove.
+own lineage, numbered AI-n) and describe the rebuild in the release notes. One rule applies to every bump
+(decided 2026-10-25, AI-31 onward):
+
+- **At most one bump per release.** While the current recipe has not shipped, a further analysis change
+  rides on it instead of bumping again.
+- **Every bump runs the same rebuild** (`AnalysisRecipe.RebuildStep`): every day with raw strap data is
+  scored again and every derived table is rebuilt from the stored inputs. There are no per-recipe windows.
+  A change that adds a derived table or series adds its rebuild as a step, with a test, instead of a
+  migration of its own.
+- **Repairs of stored inputs** (not derivations, for example re-pricing rows the wearer did not enter) are
+  the only exception: an idempotent repair listed in `AnalysisRecipe.legacyRepairs` or guarded by its own
+  cursor, with a regression test.
+- The rebuild resumes at the step it was in, writes the recipe cursor only after its last step, never
+  erases raw samples and never replaces a value an import or the wearer supplied (a corrected night keeps
+  its bed and wake times; only its derived stages are recomputed).
 
 Choose **no** for UI, navigation, logging, documentation or output-identical performance work; those must
 not bump the recipe. Never tie historical analysis to `MARKETING_VERSION`, `CURRENT_PROJECT_VERSION`, an

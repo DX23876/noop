@@ -673,3 +673,32 @@ shift every iOS value once for no visible gain, so a tolerance test pins the bou
 31 MB, half of it ICU data from Foundation, is fine for testing builds; a size step comes before the public call.
 
 Analysis migration required: no. Documentation only.
+
+### 2026-10-25 — One rule for analysis migrations (AI-31)
+
+Thirty recipes each carried their own migration: a 21-day window here, 45 days there, a ledger refill, an
+AgeLess rebuild, a stress repair, an energy window. Each was the narrowest interval its change could prove,
+and each was right on its own, but together they left a history scored by many recipes at once. A day outside
+every window kept whatever recipe scored it last, and the weekly scores and the stress proxy were only ever
+written forward, so a bump never reached them. With the core shared by iOS and Android (phase C of
+[`android/PLAN.md`](android/PLAN.md), D19), two platforms would inherit that patchwork.
+
+From AI-31 every bump runs one rebuild: every day with raw strap data is scored again, then the weekly scores,
+NOOP's own stress rows, the daily rhythm rows, workout heart-rate fills, the cardio load ledger, the energy
+history and the AgeLess weeks are rebuilt from the stored inputs (`AnalysisRecipe.RebuildStep`). A release
+carries at most one bump. The rebuild records each finished step and resumes there after an interruption; the
+recipe cursor moves only after the last step. Raw samples are never rewritten and no value an import or the
+wearer supplied is replaced; what the daily pass already did for recent days now reaches the whole history (a
+workout imported without heart rate gets it from the strap trace, a corrected night keeps its bed and wake
+times while its stages are derived again). Repairs that fix stored inputs rather than derive anything (the Keytel
+session energy of AI-13 to AI-15 and the Apple projections of AI-19) stay as their own idempotent steps for
+stores that predate them.
+
+The price is time: the owner's store had 104 days of raw history when this landed, and a rebuild scores all of
+them where a window scored 21. On a Mac a copy of that store took about 13 minutes, two runs gave identical
+tables and no raw table changed. Phase C3 measures it on the iPhone before a release ships it. The rules are in
+[`AGENT_RULES.md`](AGENT_RULES.md).
+
+Analysis migration required: yes. AI-31 changes no formula; it is the first rebuild, which re-scores every
+day an older recipe or a narrower window left behind.
+

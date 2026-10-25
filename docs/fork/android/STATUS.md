@@ -35,11 +35,13 @@ Plan: [`PLAN.md`](PLAN.md) · last updated 2026-10-24
 | B3 step 7: raw collection in `StrandCore` | 2026-10-24 | `Collector`, `Backfiller`, `RawHistoryArchive`, clock correlation and policies; the IMU session files and the raw data session store stay in the app behind a frame tap, the sub-lag switch arrives as a closure; the raw outbox compiles out without Compression; seven collection test files moved, 211 package tests pass on macOS and on the emulator (1 iOS-only skip); `local-tests.sh` passed |
 | Real-data check 3 (B4) | 2026-10-25 | A fresh copy of the iPhone store (pulled 2026-10-24, now kept as the standing copy) re-analysed over 21 days by `d21690770` and by `b728fda01` (backup and raw collection in `StrandCore`): 0 of 78 tables differ with write-time columns left out. On the external disk a run takes about 10 minutes instead of 3, and the first run waits for macOS's removable-volume permission |
 | Phase B complete | 2026-10-25 | Steps B1 to B4 above |
+| C1 one rule for analysis migrations | 2026-10-25 | Recipe AI-31: every bump runs `AnalysisRecipe.RebuildStep` (all days with raw strap data, weekly scores, stress proxy, rhythm days, workout heart rate, cardio ledger, energy history, AgeLess weeks), resumable per step, recipe cursor last; package tests for the order, the resume and the stress rebuild pass on macOS and the emulator. On a copy of the owner's store (104 raw days) the rebuild took about 13 minutes on a Mac, two runs left identical tables (0 of 78 differ) and no raw table changed; edited nights kept bed and wake times, workouts only gained missing heart rate |
+| C2 rules and decision | 2026-10-25 | `AGENT_RULES.md` analysis section, `decisions.md` entry of 2026-10-25, release notes section after 12.2.1 |
 
 ## Next step
 
-Phase C, the one-rule analysis migration (see [`PLAN.md`](PLAN.md)). It is a recipe bump that re-scores
-the whole history, so it starts only after the owner agrees, and C3 needs a measurement on the iPhone.
+C3: measure the rebuild on the owner's iPhone (duration, CPU, battery) before a release ships AI-31. Needs a
+build with AI-31 installed on the phone; the owner decides when. Then phase D (Android scaffolding).
 
 ## How to run a real-data check (B4)
 
