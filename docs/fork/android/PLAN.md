@@ -212,7 +212,7 @@ Steps (added 2026-10-25), each with its own commit, test and smoke run:
   600 dp, content at most 720 dp wide) and the demo history in the core's store; **E-3b** Today; **E-3c** Sleep;
   **E-3d** Trends; **E-3e** More with settings, `.noopbak` export and import and strap log export; **E-3f** the
   Forge screens become the app and ryanbr's screens and the Kotlin code only they used go. Until E-3f the Forge
-  screens open only when switched on (`--ez forge_ui true` on the launch intent). *E-3a to E-3d done
+  screens open only when switched on (`--ez forge_ui true` on the launch intent). *E-3a to E-3e done
   2026-10-25.* Open against the iOS look: the rounded type (SF Pro Rounded is Apple's and cannot ship on
   Android), the profile and quick-action buttons in the Today header, and the hero's source label.
 - **E-4 The core owns the data.** Kotlin Bluetooth stops writing Room and hands frames only to the core; the

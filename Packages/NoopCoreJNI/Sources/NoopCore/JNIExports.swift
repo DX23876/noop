@@ -150,4 +150,19 @@ public func jniReadSeries(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?,
 public func jniSeedDemo(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?) -> jint {
     jint(Bridge.seedDemo())
 }
+
+@_cdecl("Java_com_noop_core_SwiftCore_exportBackup")
+public func jniExportBackup(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?, _ dest: jstring?, _ scratch: jstring?,
+                            _ version: jstring?, _ build: jstring?) -> jstring? {
+    guard let env, let dest, let scratch, let version, let build, let d = string(env, dest),
+          let s = string(env, scratch), let v = string(env, version), let b = string(env, build) else { return nil }
+    return json(env, Bridge.exportBackup(to: d, scratch: s, appVersion: v, appBuild: b))
+}
+
+@_cdecl("Java_com_noop_core_SwiftCore_importBackup")
+public func jniImportBackup(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?, _ source: jstring?,
+                            _ scratch: jstring?, _ allowOversize: jboolean) -> jstring? {
+    guard let env, let source, let scratch, let src = string(env, source), let s = string(env, scratch) else { return nil }
+    return json(env, Bridge.importBackup(from: src, scratch: s, allowOversize: allowOversize != 0))
+}
 #endif

@@ -2,14 +2,7 @@ package com.noop.ui.forge
 
 import android.content.Context
 import android.content.Intent
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 
 /**
  * Fork (DX23876), Android plan E-3: the Forge app. Until the last E-3 step makes it the app, it opens only when
@@ -26,6 +19,10 @@ object ForgeUi {
         if (intent?.hasExtra(EXTRA) == true) prefs.edit().putBoolean(KEY, intent.getBooleanExtra(EXTRA, false)).apply()
         return prefs.getBoolean(KEY, false)
     }
+
+    fun setEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY, enabled).commit()
+    }
 }
 
 @Composable
@@ -35,9 +32,7 @@ fun ForgeRoot() {
             ForgeTab.Today -> ForgeTodayScreen(padding, width)
             ForgeTab.Trends -> ForgeTrendsScreen(padding, width)
             ForgeTab.Sleep -> ForgeSleepScreen(padding, width)
-            else -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text(stringResource(tab.labelRes), style = Forge.type.title2, color = Forge.colors.text)
-            }
+            ForgeTab.More -> ForgeMoreScreen(padding)
         }
     }
 }

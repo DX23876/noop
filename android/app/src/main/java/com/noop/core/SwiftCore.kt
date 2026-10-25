@@ -63,6 +63,10 @@ object SwiftCore {
     external fun readDay(day: String): String?
     external fun readNights(from: Long, to: Long): String?
     external fun readSeries(metric: String, from: String, to: String): String?
+    // Backups (CoreBackup): one result line, "done", "imported", "tooLarge:<entry>" or "failed:<why>".
+    external fun exportBackup(dest: String, scratch: String, version: String, build: String): String?
+    external fun importBackup(source: String, scratch: String, allowOversize: Boolean): String?
+
     /** Demo builds only: writes the demo history into an empty store; the days written. */
     external fun seedDemo(): Int
 

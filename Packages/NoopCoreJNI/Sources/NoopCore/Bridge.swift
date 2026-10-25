@@ -70,6 +70,28 @@ public enum Bridge {
         return blocking { reader in CoreRead.json(await CoreRead.series(m, from: from, to: to, reader: reader)) }
     }
 
+    // MARK: - Backups (CoreBackup), as one result line: "done", "imported", "tooLarge:<entry>" or "failed:<why>".
+
+    public static func exportBackup(to dest: String, scratch: String, appVersion: String, appBuild: String) -> String {
+        guard let (store, path) = ShadowSession.storeAndPath else { return CoreBackup.Result.failed("noSession").line }
+        final class Box: @unchecked Sendable { var value = CoreBackup.Result.failed("timeout") }
+        let box = Box()
+        let done = DispatchSemaphore(value: 0)
+        Task.detached {
+            box.value = await CoreBackup.export(store: store, dbPath: path, to: dest, scratch: scratch,
+                                                appVersion: appVersion, appBuild: appBuild)
+            done.signal()
+        }
+        done.wait()
+        return box.value.line
+    }
+
+    /// Restores over the session's store file; the app must restart before it reads the restored data.
+    public static func importBackup(from source: String, scratch: String, allowOversize: Bool) -> String {
+        guard let (_, path) = ShadowSession.storeAndPath else { return CoreBackup.Result.failed("noSession").line }
+        return CoreBackup.restore(from: source, toDatabaseAt: path, scratch: scratch, allowOversize: allowOversize).line
+    }
+
     /// Demo builds only: writes the demo history into the session's store when it has no scored day; the days
     /// written, 0 when it already had some, negative when no session runs or the write failed.
     public static func seedDemo() -> Int32 {

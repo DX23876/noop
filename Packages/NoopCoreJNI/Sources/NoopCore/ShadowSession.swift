@@ -40,6 +40,7 @@ public enum ShadowSession {
         var processed = 0
         var today: String?
         var store: WhoopStore?
+        var path = ""
         var deviceId = ""
     }
     private static let state = State()
@@ -64,6 +65,7 @@ public enum ShadowSession {
         state.lock.lock()
         state.continuation = continuation
         state.store = store
+        state.path = path
         state.deviceId = deviceId
         state.tally = Tally()
         state.processed = 0
@@ -92,6 +94,12 @@ public enum ShadowSession {
     public static var reader: StoreReader? {
         state.lock.lock(); defer { state.lock.unlock() }
         return state.store.map { StoreReader(store: $0, activeDeviceId: state.deviceId, registeredWhoopIds: []) }
+    }
+
+    /// The open store and the file it lives in, for the backup export and import; nil before a session started.
+    public static var storeAndPath: (store: WhoopStore, path: String)? {
+        state.lock.lock(); defer { state.lock.unlock() }
+        return state.store.map { ($0, state.path) }
     }
 
     /// Today's scores from the last `analyze` event, as one line; nil before one ran or when today has no row.
