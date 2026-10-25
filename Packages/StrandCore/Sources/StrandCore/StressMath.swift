@@ -119,6 +119,30 @@ public enum StressMath {
         return rows
     }
 
+    /// Every one of NOOP's own stress rows over `days`, read again: the analysis rebuild (AI-31 and later).
+    ///
+    /// `days` is the whole merged daily history, oldest first, so each day reads its full 30-row reference.
+    /// Days in `importedDays` carry a stress value from a WHOOP export and are left as they are. Every other
+    /// day takes the current reading when it differs from `existing`, or loses its row when the current rule
+    /// cannot score it.
+    public static func proxyRebuild(days: [DailyMetric], cut: Cut,
+                                    existing: [String: Double], importedDays: Set<String>)
+        -> (upserts: [MetricPoint], deletions: [String]) {
+        let fresh = Dictionary(proxyRows(days: days, cut: cut).map { ($0.day, $0) },
+                               uniquingKeysWith: { _, b in b })
+        var upserts: [MetricPoint] = []
+        var deletions: [String] = []
+        for day in days.map(\.day) where !importedDays.contains(day) {
+            let stored = existing[day]
+            if let row = fresh[day] {
+                if stored.map({ abs($0 - row.value) > 1e-9 }) ?? true { upserts.append(row) }
+            } else if stored != nil {
+                deletions.append(day)
+            }
+        }
+        return (upserts, deletions)
+    }
+
     /// The stored stress rows a recalibration made stale, and what replaces them.
     ///
     /// `proxyRows` reads each day against the nights after a manual "Recalibrate baseline", but a

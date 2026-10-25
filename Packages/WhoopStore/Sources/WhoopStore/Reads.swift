@@ -706,6 +706,23 @@ extension WhoopStore {
         }
     }
 
+    /// The oldest heart-rate sample of any device, nil on an empty table: where the raw history an analysis
+    /// rebuild can score from begins. Walks the distinct device ids through the primary key, one seek each,
+    /// instead of scanning the table.
+    public func earliestHeartRateSampleTs() async throws -> Int? {
+        try syncRead { db in
+            try Int.fetchOne(db, sql: """
+                WITH RECURSIVE ids(id) AS (
+                    SELECT MIN(deviceId) FROM hrSample
+                    UNION ALL
+                    SELECT (SELECT MIN(deviceId) FROM hrSample WHERE deviceId > ids.id) FROM ids
+                    WHERE ids.id IS NOT NULL)
+                SELECT MIN((SELECT MIN(ts) FROM hrSample WHERE deviceId = ids.id)) FROM ids
+                WHERE ids.id IS NOT NULL
+                """)
+        }
+    }
+
     /// Kotlin twin: `WhoopRepository.stepTimestampCoverage`.
     public func stepTimestampCoverage(deviceId: String, from: Int, to: Int) async throws
         -> (first: Int?, last: Int?) {

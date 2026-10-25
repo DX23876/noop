@@ -641,34 +641,24 @@ public final class DailyAnalysis {
         return rows
     }
 
-    /// Applies `StressMath.proxyRepairs` over the stored history around the current recalibration (AI-28).
-    /// Reads the merged daily rows the Stress screen reads and writes under the same source; idempotent,
-    /// so an interrupted migration simply repeats it.
-    public static func repairStressProxyAfterRecalibration(store: WhoopStore, repo: any AnalysisDataServices,
-                                                    cut: StressMath.Cut) async throws {
-        guard let earliest = [cut.hrvFirstNight, cut.rhrFirstNight].compactMap({ $0 }).min() else { return }
-        let today = StoreReader.localDayKey(Date())
-        // 45 days before the first counted night: comfortably more than the 30-row window, so the
-        // repair sees every night that window can reach.
-        let parser = DateFormatter()
-        parser.locale = Locale(identifier: "en_US_POSIX")
-        parser.dateFormat = "yyyy-MM-dd"
-        guard let firstNight = parser.date(from: earliest),
-              let fromDate = Calendar.current.date(byAdding: .day, value: -45, to: firstNight) else { return }
-        let from = StoreReader.localDayKey(fromDate)
-        let days = await repo.dailyMetrics(fromDay: from, toDay: today)
-        let existing = Dictionary(
-            try await store.metricSeries(deviceId: MetricResolver.whoopSource, key: "stress", from: from, to: today)
-                .map { ($0.day, $0.value) }, uniquingKeysWith: { _, b in b })
-        let imported = Set(try await store.dailyMetrics(deviceId: MetricResolver.whoopSource, from: from, to: today)
-            .map(\.day))
-        let repair = StressMath.proxyRepairs(days: days, cut: cut, existing: existing, importedDays: imported)
-        if !repair.upserts.isEmpty {
-            _ = try await store.upsertMetricSeries(repair.upserts, deviceId: MetricResolver.whoopSource)
-        }
-        for day in repair.deletions {
-            _ = try await store.deleteMetricSeriesPoint(deviceId: MetricResolver.whoopSource, day: day, key: "stress")
-        }
+    /// The weekly Vitality and Body Age points for `satKey` from the last seven computed days, empty when
+    /// fewer than three inputs are present (`VitalityEngine`). Shared by the daily pass and the rebuild.
+    public static func vitalityRows(last7: [DailyMetric], age: Int, satKey: String) -> [MetricPoint] {
+        let rhrs = last7.compactMap { $0.restingHr }.map(Double.init)
+        let nights = last7.compactMap { $0.totalSleepMin }.map { Double($0) / 60.0 }.filter { $0 > 0 }
+        let hrvs = last7.compactMap { $0.avgHrv }
+        let steps = last7.compactMap { $0.steps }.map(Double.init)
+        let inputs = VitalityEngine.Inputs(
+            chronoAge: Double(age),
+            restingHR: rhrs.isEmpty ? nil : medianOf(rhrs),
+            sleepHours: nights.isEmpty ? nil : nights.reduce(0, +) / Double(nights.count),
+            sleepConsistency: VitalityEngine.sleepConsistency(nightlyHours: nights),
+            rmssd: hrvs.isEmpty ? nil : medianOf(hrvs),
+            rmssdNorm: VitalityEngine.rmssdNorm(forAge: Double(age)),
+            steps: steps.isEmpty ? nil : steps.reduce(0, +) / Double(steps.count))
+        guard let result = VitalityEngine.compute(inputs) else { return [] }
+        return [MetricPoint(day: satKey, key: "vitality", value: result.vitality),
+                MetricPoint(day: satKey, key: "body_age", value: result.bodyAge)]
     }
 
     /// Estimator provenance captured with a newly computed VO₂max point.
@@ -753,17 +743,7 @@ public final class DailyAnalysis {
                 return true
             case .migrate(let from, let to):
                 analysisRecipeVersion = from
-                let today = StoreReader.localDayKey(Date())
-                var days = AnalysisRecipe.migrationDailyDays(from: from)
-                if fromUpstream {
-                    let missing = try? await store.earliestSleptDayMissingHRV(
-                        deviceId: deviceId + "-noop", since: AnalysisRecipe.upstreamStrictRRWindowStart)
-                    days = AnalysisRecipe.upstreamRepairWindowDays(earliestMissingDay: missing ?? nil, today: today)
-                }
-                days = max(days, AnalysisRecipe.restingHRRepairDays(from: from, today: today))
-                return await runAnalysisMaintenance(
-                    phase: .migrating(from: from, to: to),
-                    markRecipeOnSuccess: true, maxDays: days)
+                return await runAnalysisMaintenance(phase: .migrating(from: from, to: to))
             }
         } catch {
             analysisMaintenancePhase = .failed(error.localizedDescription)
@@ -779,11 +759,10 @@ public final class DailyAnalysis {
         guard let store = await repo.storeHandle() else { return false }
         let stored = ((try? await AnalysisRecipe.storedVersion(store)) ?? nil)
             ?? AnalysisRecipe.currentVersion
-        let owesMigration = stored < AnalysisRecipe.currentVersion
-        let phase: AnalysisMaintenancePhase = owesMigration
+        let phase: AnalysisMaintenancePhase = stored < AnalysisRecipe.currentVersion
             ? .migrating(from: stored, to: AnalysisRecipe.currentVersion)
             : .manualRecent
-        return await runAnalysisMaintenance(phase: phase, markRecipeOnSuccess: owesMigration)
+        return await runAnalysisMaintenance(phase: phase)
     }
 
     @discardableResult
@@ -801,102 +780,31 @@ public final class DailyAnalysis {
         return ok
     }
 
-    private func runAnalysisMaintenance(phase: AnalysisMaintenancePhase,
-                                        markRecipeOnSuccess: Bool, maxDays: Int = 21) async -> Bool {
+    /// A migration (`.migrating`) runs the rebuild for its target recipe; the manual recompute re-scores the
+    /// standard window. Either way the screens' snapshot is refreshed before the run reports success.
+    private func runAnalysisMaintenance(phase: AnalysisMaintenancePhase) async -> Bool {
         if let analysisMaintenanceTask { return await analysisMaintenanceTask.value }
         analysisMaintenancePhase = phase
         let task = Task { @MainActor [weak self] in
             guard let self, let store = await self.repo.storeHandle() else { return false }
-            if case .migrating(let from, let to) = phase, AnalysisRecipe.migrationRebuildsHealthspan(from: from, to: to) {
-                // Every AgeLess week goes; the next pass finds no history and rebuilds them all.
-                do {
-                    try await Self.deleteHealthspanWeeks(store: store, deviceId: self.deviceId)
-                } catch {
-                    self.analysisMaintenancePhase = .failed(error.localizedDescription)
-                    return false
+            do {
+                if case .migrating(let from, let to) = phase {
+                    try await self.runRebuild(store: store, from: from, to: to)
+                } else {
+                    await self.analyzeRecent(maxDays: 21, force: true, allowDayReuse: false,
+                                             reason: .semanticChange)
+                    try Task.checkCancellation()
+                    await self.repo.refresh(days: 120)
+                    try Task.checkCancellation()
                 }
-                guard !Task.isCancelled else { return false }
-            }
-            if maxDays > 0 {
-                await self.analyzeRecent(maxDays: maxDays, force: true, allowDayReuse: false,
-                                         reason: .semanticChange)
-            }
-            guard !Task.isCancelled else { return false }
-            if case .migrating(let from, let to) = phase, AnalysisRecipe.migrationRefillsCardioLedger(from: from, to: to) {
-                await self.repo.fillCardioLoadLedger()
-                guard !Task.isCancelled else { return false }
-            }
-            if case .migrating(let from, let to) = phase, AnalysisRecipe.migrationCorrectsWorkoutEnergy(from: from, to: to) {
-                let analytics = self.profile.analyticsProfile()
-                // The correction prices sessions against each day's stored aerobic ceiling, which only
-                // exists on rows of the current energy model; bring the history onto it first.
-                await self.repo.ensureEnergyHistoryCurrent(profile: analytics, waitIfRunning: true)
-                guard !Task.isCancelled else { return false }
-                do {
-                    _ = try await self.repo.correctLegacyWorkoutEnergy(profile: analytics)
-                } catch {
-                    self.analysisMaintenancePhase = .failed(error.localizedDescription)
-                    return false
-                }
-                guard !Task.isCancelled else { return false }
-            }
-            if case .migrating(let from, let to) = phase, AnalysisRecipe.migrationFillsWorkoutHeartRate(from: from, to: to) {
-                do {
-                    _ = try await self.repo.fillAppleWorkoutHeartRate(
-                        from: 0, to: Int(Date().timeIntervalSince1970) + 86_400)
-                } catch {
-                    self.analysisMaintenancePhase = .failed(error.localizedDescription)
-                    return false
-                }
-                guard !Task.isCancelled else { return false }
-                // Sessions freed by the fill are priced again with their trace, newest first.
-                await self.repo.fillCardioLoadLedger()
-                guard !Task.isCancelled else { return false }
-            }
-            if case .migrating(let from, let to) = phase, AnalysisRecipe.migrationRepairsStressProxy(from: from, to: to) {
-                do {
-                    try await Self.repairStressProxyAfterRecalibration(store: store, repo: self.repo,
-                                                                       cut: self.host.analysisSettings().stressCut)
-                } catch {
-                    self.analysisMaintenancePhase = .failed(error.localizedDescription)
-                    return false
-                }
-                guard !Task.isCancelled else { return false }
-            }
-            if case .migrating(let from, let to) = phase, AnalysisRecipe.migrationReadsAppleBody(from: from, to: to) {
-                // Only Katch–McArdle reads body fat; every other formula priced these days the same way.
-                let analytics = self.profile.analyticsProfile()
-                if analytics.basalFormula.needsBodyFat,
-                   await !self.repo.refreshWhoopEnergyModel(days: EnergyModelRefresh.refreshMaxDays, profile: analytics) {
-                    self.analysisMaintenancePhase = .failed(self.messages(.reanalysisUnfinished))
-                    return false
-                }
-                guard !Task.isCancelled else { return false }
-            }
-            if case .migrating(let from, let to) = phase, from < 19, to >= 19 {
-                do {
-                    while try await store.repairHealthProjectionsV1() == false { try Task.checkCancellation() }
-                } catch {
-                    self.analysisMaintenancePhase = .failed(error.localizedDescription)
-                    return false
-                }
-                guard !Task.isCancelled else { return false }
-            }
-            // Publish the repaired daily snapshot before committing the migration cursor. If the
-            // process is interrupted between analysis and refresh, the recipe remains pending and
-            // retries on the next launch instead of leaving dashboards on their stale pre-migration
-            // values indefinitely.
-            await self.repo.refresh(days: 120)
-            guard !Task.isCancelled else { return false }
-            if markRecipeOnSuccess {
-                do {
-                    try await store.setCursor(AnalysisRecipe.cursor,
-                                              AnalysisRecipe.currentVersion)
-                    self.analysisRecipeVersion = AnalysisRecipe.currentVersion
-                } catch {
-                    self.analysisMaintenancePhase = .failed(error.localizedDescription)
-                    return false
-                }
+            } catch is CancellationError {
+                return false
+            } catch is RebuildUnfinished {
+                self.analysisMaintenancePhase = .failed(self.messages(.reanalysisUnfinished))
+                return false
+            } catch {
+                self.analysisMaintenancePhase = .failed(error.localizedDescription)
+                return false
             }
             let finished = Date()
             self.host.store(finished.timeIntervalSince1970, forKey: Self.analysisLastRunKey)
@@ -909,6 +817,139 @@ public final class DailyAnalysis {
         if !ok, case .failed = analysisMaintenancePhase { return false }
         if !ok { analysisMaintenancePhase = .failed(messages(.reanalysisUnfinished)) }
         return ok
+    }
+
+    /// A rebuild step that ended without finishing its work; the step stays owed.
+    private struct RebuildUnfinished: Error {}
+
+    /// The one migration (`AnalysisRecipe.RebuildStep`): resumes at the first step the rebuild cursor still
+    /// owes for `to`, records each finished step, and moves the recipe cursor only after the last one.
+    private func runRebuild(store: WhoopStore, from: Int, to: Int) async throws {
+        let first = AnalysisRecipe.firstOwedStep(target: to,
+                                                 storedPosition: try await store.cursor(AnalysisRecipe.rebuildCursor))
+        for step in AnalysisRecipe.RebuildStep.allCases where step.rawValue >= first.rawValue {
+            try Task.checkCancellation()
+            try await runRebuildStep(step, store: store, from: from)
+            // A step cut short by cancellation may have returned early; it stays owed.
+            try Task.checkCancellation()
+            try await store.setCursor(AnalysisRecipe.rebuildCursor,
+                                      AnalysisRecipe.rebuildPosition(target: to, after: step))
+        }
+        try await store.setCursor(AnalysisRecipe.cursor, to)
+        analysisRecipeVersion = to
+    }
+
+    private func runRebuildStep(_ step: AnalysisRecipe.RebuildStep, store: WhoopStore, from: Int) async throws {
+        let now = Date()
+        let today = StoreReader.localDayKey(now)
+        let earliestRawDay = try await store.earliestHeartRateSampleTs()
+            .map { StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval($0))) }
+        let days = AnalysisRecipe.rebuildDays(earliestRawDay: earliestRawDay, today: today)
+        let firstDay = earliestRawDay ?? today
+        let endTs = Int(now.timeIntervalSince1970) + 86_400
+        switch step {
+        case .legacyRepairs:
+            for repair in AnalysisRecipe.legacyRepairs(from: from) {
+                switch repair {
+                case .workoutEnergy:
+                    let analytics = profile.analyticsProfile()
+                    // The correction prices sessions against each day's stored aerobic ceiling, which only
+                    // exists on rows of the current energy model; bring the history onto it first.
+                    await repo.ensureEnergyHistoryCurrent(profile: analytics, waitIfRunning: true)
+                    try Task.checkCancellation()
+                    _ = try await repo.correctLegacyWorkoutEnergy(profile: analytics)
+                case .healthProjections:
+                    while try await store.repairHealthProjectionsV1() == false { try Task.checkCancellation() }
+                }
+            }
+        case .healthspanReset:
+            try await Self.deleteHealthspanWeeks(store: store, deviceId: deviceId)
+        case .dailyHistory:
+            await analyzeRecent(maxDays: days, force: true, allowDayReuse: false, reason: .semanticChange)
+        case .weeklyScores:
+            try await rebuildWeeklyScores(store: store, firstDay: firstDay, today: today)
+        case .stressProxy:
+            try await rebuildStressProxy(store: store, today: today)
+        case .rhythmDays:
+            let computedId = deviceId + "-noop"
+            let tzOffset = TimeZone.current.secondsFromGMT()
+            for point in try await store.metricSeries(deviceId: computedId, key: Self.rhythmHoursKey,
+                                                      from: "0000-01-01", to: today) {
+                try Task.checkCancellation()
+                await Self.runRhythmAgePass(store: store, strapId: deviceId, computedId: computedId,
+                                            age: profile.age, sex: profile.sex, day: point.day,
+                                            tzOffset: tzOffset, force: true)
+            }
+        case .workoutHeartRate:
+            _ = try await repo.fillAppleWorkoutHeartRate(from: 0, to: endTs)
+            _ = try await repo.fillRecordedWorkoutHeartRate(from: 0, to: endTs)
+        case .cardioLoad:
+            await repo.recomputeCardioLoadHistory()
+        case .energyHistory:
+            guard await repo.refreshWhoopEnergyModel(days: days, profile: profile.analyticsProfile()) else {
+                throw RebuildUnfinished()
+            }
+        case .publish:
+            await repo.refresh(days: 120)
+        }
+    }
+
+    /// Writes the Saturday-keyed weekly scores for every week from the one holding `firstDay` through the
+    /// current one, from the stored daily rows. A past week is keyed by its Saturday and reads the days
+    /// through the Friday after it, which is what the last pass of that week saw; the current week reads
+    /// through today, as the daily pass does.
+    private func rebuildWeeklyScores(store: WhoopStore, firstDay: String, today: String) async throws {
+        let computedId = deviceId + "-noop"
+        let readFrom = WeeklyDigestEngine.addDays(firstDay, -7)
+        let computed = try await store.dailyMetrics(deviceId: computedId, from: readFrom, to: today)
+            .sorted { $0.day < $1.day }
+        var gateByDay: [String: DailyMetric] = [:]
+        for row in await repo.dailyMetrics(fromDay: readFrom, toDay: today) { gateByDay[row.day] = row }
+        for row in computed { gateByDay[row.day] = row }
+        let gate = gateByDay.values.sorted { $0.day < $1.day }
+        var saturday = Self.saturdayKey(onOrBefore: firstDay)
+        let lastSaturday = Self.saturdayKey(onOrBefore: today)
+        while saturday <= lastSaturday {
+            try Task.checkCancellation()
+            let through = min(WeeklyDigestEngine.addDays(saturday, 6), today)
+            let gate7 = Array(gate.filter { $0.day <= through }.suffix(7))
+            let faPts = Self.fitnessAgeRows(
+                gateDays: gate7, age: profile.age, sex: profile.sex, waistCm: profile.waistCm,
+                heightCm: profile.heightCm, weightKg: profile.weightKg, computedId: computedId, satKey: saturday)
+            if !faPts.isEmpty {
+                try await store.persistMetricSeriesWithProvenance(
+                    points: faPts, provenance: Self.vo2MaxProvenance(points: faPts, waistCm: profile.waistCm),
+                    deviceId: computedId)
+            }
+            let vitality = Self.vitalityRows(last7: Array(computed.filter { $0.day <= through }.suffix(7)),
+                                             age: profile.age, satKey: saturday)
+            if !vitality.isEmpty { _ = try await store.upsertMetricSeries(vitality, deviceId: computedId) }
+            saturday = WeeklyDigestEngine.addDays(saturday, 7)
+        }
+    }
+
+    /// Recomputes NOOP's own stress proxy rows over the whole daily history (`StressMath.proxyRebuild`):
+    /// imported days keep their value, every other day takes the current reading or loses a stale one.
+    private func rebuildStressProxy(store: WhoopStore, today: String) async throws {
+        let computed = try await store.dailyMetrics(deviceId: deviceId + "-noop", from: "0000-01-01", to: today)
+        var byDay: [String: DailyMetric] = [:]
+        for row in await repo.dailyMetrics(fromDay: "0000-01-01", toDay: today) { byDay[row.day] = row }
+        for row in computed { byDay[row.day] = row }
+        let days = byDay.values.sorted { $0.day < $1.day }
+        guard let first = days.first?.day else { return }
+        let existing = Dictionary(
+            try await store.metricSeries(deviceId: MetricResolver.whoopSource, key: "stress", from: first, to: today)
+                .map { ($0.day, $0.value) }, uniquingKeysWith: { _, b in b })
+        let imported = Set(try await store.dailyMetrics(deviceId: MetricResolver.whoopSource, from: first, to: today)
+            .map(\.day))
+        let rebuild = StressMath.proxyRebuild(days: days, cut: host.analysisSettings().stressCut,
+                                              existing: existing, importedDays: imported)
+        if !rebuild.upserts.isEmpty {
+            _ = try await store.upsertMetricSeries(rebuild.upserts, deviceId: MetricResolver.whoopSource)
+        }
+        for day in rebuild.deletions {
+            _ = try await store.deleteMetricSeriesPoint(deviceId: MetricResolver.whoopSource, day: day, key: "stress")
+        }
     }
 
     /// Refresh only today's Effort and strap-step estimate from today's raw streams.
@@ -3266,7 +3307,6 @@ public final class DailyAnalysis {
         // key, so the number refines through the week and finalises on Saturday. Engine = FitnessAgeEngine
         // (StrandAnalytics), fully unit-tested; the body term cancels so the headline needs no body metric.
         let fa7 = dailies.sorted { $0.day < $1.day }.suffix(7)
-        let faRHRs = fa7.compactMap { $0.restingHr }.map(Double.init)
         // The Fitness Age gate + compute read the PERSISTED/MERGED last-7 days , the SAME history the
         // readiness card + dashboard show , NOT this pass's freshly scored `dailies`. A recompute only
         // re-scores nights whose raw HR still lives in the store, so a nightly wearer whose card reads
@@ -3298,23 +3338,10 @@ public final class DailyAnalysis {
         // Vitality (0–100) + Body Age. VitalityEngine gates on ≥3 inputs, so a sparse week writes nothing.
         // (VO₂max is omitted here , fitness is already its own Fitness Age headline; Vitality leans on
         // resting HR, sleep duration + regularity, HRV-vs-age-norm, and steps.)
-        let vNights = fa7.compactMap { $0.totalSleepMin }.map { Double($0) / 60.0 }.filter { $0 > 0 }
-        let vHRVs = fa7.compactMap { $0.avgHrv }
-        let vSteps = fa7.compactMap { $0.steps }.map(Double.init)
-        let vInputs = VitalityEngine.Inputs(
-            chronoAge: Double(profile.age),
-            restingHR: faRHRs.isEmpty ? nil : DailyAnalysis.medianOf(faRHRs),
-            sleepHours: vNights.isEmpty ? nil : vNights.reduce(0, +) / Double(vNights.count),
-            sleepConsistency: VitalityEngine.sleepConsistency(nightlyHours: vNights),
-            rmssd: vHRVs.isEmpty ? nil : DailyAnalysis.medianOf(vHRVs),
-            rmssdNorm: VitalityEngine.rmssdNorm(forAge: Double(profile.age)),
-            steps: vSteps.isEmpty ? nil : vSteps.reduce(0, +) / Double(vSteps.count))
-        if let vRes = VitalityEngine.compute(vInputs) {
-            let satKey = DailyAnalysis.saturdayKey(onOrBefore: newestDay)
-            _ = try? await store.upsertMetricSeries([
-                MetricPoint(day: satKey, key: "vitality", value: vRes.vitality),
-                MetricPoint(day: satKey, key: "body_age", value: vRes.bodyAge),
-            ], deviceId: computedId)
+        let vitalityPts = Self.vitalityRows(last7: Array(fa7), age: profile.age,
+                                            satKey: DailyAnalysis.saturdayKey(onOrBefore: newestDay))
+        if !vitalityPts.isEmpty {
+            _ = try? await store.upsertMetricSeries(vitalityPts, deviceId: computedId)
         }
         // Fork: each day's held workout peak, for the measured-maximum suggestion in Settings (MaxHRPeakSeries.swift).
         await Self.bankHeldPeaks(store: store, strapId: deviceId, computedId: computedId,

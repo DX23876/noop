@@ -7,47 +7,13 @@ import WhoopStore
 
 @MainActor
 final class AnalysisRecipeDecisionTests: XCTestCase {
-    func testAI29RebuildsOnlyTheAgeLessWeeks() {
-        XCTAssertTrue(AnalysisRecipe.migrationRebuildsHealthspan(from: 28, to: 29))
-        XCTAssertFalse(AnalysisRecipe.migrationRebuildsHealthspan(from: 29, to: 29))
-        XCTAssertTrue(AnalysisRecipe.migrationRebuildsHealthspan(from: 27, to: 29))
-        XCTAssertTrue(AnalysisRecipe.migrationRepairsStressProxy(from: 27, to: 29))
-        XCTAssertFalse(AnalysisRecipe.migrationRepairsStressProxy(from: 28, to: 29))
-        XCTAssertEqual(AnalysisRecipe.migrationDailyDays(from: 28), 0)
-        XCTAssertFalse(AnalysisRecipe.migrationRefillsCardioLedger(from: 28, to: 29))
-        XCTAssertFalse(AnalysisRecipe.migrationCorrectsWorkoutEnergy(from: 28, to: 29))
-        XCTAssertFalse(AnalysisRecipe.migrationFillsWorkoutHeartRate(from: 28, to: 29))
-        let keys = Set(IntelligenceEngine.healthspanWeeklyKeys)
-        XCTAssertTrue(keys.contains(IntelligenceEngine.healthspanGapNightsKey))
-        XCTAssertTrue(keys.contains(IntelligenceEngine.healthspanGapMissingKey))
-    }
-
-    func testAI26RebuildsOnlyTheAgeLessWeeks() {
-        XCTAssertTrue(AnalysisRecipe.migrationRebuildsHealthspan(from: 25, to: 26))
-        XCTAssertFalse(AnalysisRecipe.migrationRebuildsHealthspan(from: 27, to: 27))
-        XCTAssertEqual(AnalysisRecipe.migrationDailyDays(from: 25), 0)
-        XCTAssertFalse(AnalysisRecipe.migrationRefillsCardioLedger(from: 25, to: 26))
-        XCTAssertFalse(AnalysisRecipe.migrationFillsWorkoutHeartRate(from: 25, to: 26))
-        XCTAssertTrue(IntelligenceEngine.healthspanWeeklyKeys.contains(IntelligenceEngine.healthspanVO2FloorKey))
-    }
-
-    func testAI21ToAI24RebuildOnlyTheAgeLessWeeks() {
-        XCTAssertTrue(AnalysisRecipe.migrationRebuildsHealthspan(from: 20, to: 24))
-        XCTAssertTrue(AnalysisRecipe.migrationRebuildsHealthspan(from: 21, to: 24))
-        XCTAssertTrue(AnalysisRecipe.migrationRebuildsHealthspan(from: 22, to: 24))
-        XCTAssertTrue(AnalysisRecipe.migrationRebuildsHealthspan(from: 23, to: 24))
-        XCTAssertTrue(AnalysisRecipe.migrationRebuildsHealthspan(from: 8, to: 24))
-        XCTAssertFalse(AnalysisRecipe.migrationRebuildsHealthspan(from: 27, to: 27))
-        XCTAssertEqual(AnalysisRecipe.migrationDailyDays(from: 23), 0)
-        XCTAssertEqual(AnalysisRecipe.migrationDailyDays(from: 22), 0)
-        XCTAssertEqual(AnalysisRecipe.migrationDailyDays(from: 21), 0)
-        XCTAssertEqual(AnalysisRecipe.migrationDailyDays(from: 20), 0)
-        XCTAssertFalse(AnalysisRecipe.migrationRefillsCardioLedger(from: 20, to: 21))
-        XCTAssertFalse(AnalysisRecipe.migrationCorrectsWorkoutEnergy(from: 20, to: 21))
-        XCTAssertFalse(AnalysisRecipe.migrationFillsWorkoutHeartRate(from: 20, to: 21))
-        // The rebuild clears the weeks but keeps what cannot be recomputed: banked zone and VO₂max days.
+    /// The rebuild clears the AgeLess weeks but keeps what cannot be recomputed: banked zone and VO₂max days.
+    func testTheAgeLessResetKeepsWhatCannotBeRecomputed() {
         let keys = Set(IntelligenceEngine.healthspanWeeklyKeys)
         XCTAssertTrue(keys.contains(IntelligenceEngine.healthspanAgeKey))
+        XCTAssertTrue(keys.contains(IntelligenceEngine.healthspanGapNightsKey))
+        XCTAssertTrue(keys.contains(IntelligenceEngine.healthspanGapMissingKey))
+        XCTAssertTrue(keys.contains(IntelligenceEngine.healthspanVO2FloorKey))
         XCTAssertFalse(keys.contains(IntelligenceEngine.healthspanZone13Key))
         XCTAssertFalse(keys.contains(IntelligenceEngine.healthspanLegacyTrainingVO2Key))
         // AI-23's basis keys go with the weeks, so a rebuild cannot leave a stale count behind.

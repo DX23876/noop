@@ -133,4 +133,32 @@ final class StressMathTests: XCTestCase {
         XCTAssertTrue(StressMath.proxyRepairs(days: recalibratedDays, cut: .none,
                                               existing: [:], importedDays: []).upserts.isEmpty)
     }
+
+    /// The rebuild reads every one of NOOP's own days again against its full history: a row written from a
+    /// shorter window is replaced, a row the rule cannot score goes, an imported value stays.
+    func testTheRebuildRereadsEveryOwnDayAndKeepsImportedOnes() {
+        let days = recalibratedDays
+        let fresh = Dictionary(StressMath.proxyRows(days: days, cut: cut).map { ($0.day, $0.value) },
+                               uniquingKeysWith: { _, b in b })
+        var existing = Dictionary(
+            StressMath.proxyRows(days: Array(days.suffix(10)), cut: cut).map { ($0.day, $0.value) },
+            uniquingKeysWith: { _, b in b })   // written by passes that saw only the last ten days
+        existing["2026-10-03"] = 0.4          // an imported WHOOP value
+        existing[days[0].day] = 1.0           // the first day has no history, so no reading
+        let rebuild = StressMath.proxyRebuild(days: days, cut: cut, existing: existing,
+                                              importedDays: ["2026-10-03"])
+        var applied = existing
+        for row in rebuild.upserts { applied[row.day] = row.value }
+        for gone in rebuild.deletions { applied[gone] = nil }
+        for (day, value) in fresh where day != "2026-10-03" {
+            XCTAssertEqual(applied[day] ?? -1, value, accuracy: 1e-9, day)
+        }
+        XCTAssertEqual(applied["2026-10-03"], 0.4, "an imported row is never replaced")
+        XCTAssertNil(applied[days[0].day])
+        XCTAssertTrue(rebuild.deletions.contains(days[0].day))
+        // A second rebuild over the result has nothing left to do.
+        let again = StressMath.proxyRebuild(days: days, cut: cut, existing: applied, importedDays: ["2026-10-03"])
+        XCTAssertTrue(again.upserts.isEmpty)
+        XCTAssertTrue(again.deletions.isEmpty)
+    }
 }

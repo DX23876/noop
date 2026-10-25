@@ -12,6 +12,8 @@ public protocol AnalysisDataServices: AnyObject {
     func refresh(days nDays: Int) async
     func dailyMetrics(fromDay: String, toDay: String) async -> [DailyMetric]
     func fillCardioLoadLedger() async
+    /// Prices every stored cardio load again wherever its raw heart rate remains.
+    func recomputeCardioLoadHistory() async
     func energyPeakMETByDay(fromDay: String, toDay: String) async -> [String: Double]
     /// The merged daily rows the screens show (imported over computed).
     var days: [DailyMetric] { get }

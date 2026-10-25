@@ -181,137 +181,98 @@ public enum AnalysisRecipe {
     // rebuilt (zone minutes kept). A wearer on Katch–McArdle has energy days priced without a body fat that
     // existed, so the energy window (`Repository.energyRefreshMaxDays`) is priced again; every other formula
     // reads no body fat and is left alone. No daily row is re-scored.
-    public static let currentVersion = 30
+    // AI-31 (2026-10-25, fork, Android plan C1) is the first recipe under the one rule (D19): a bump rebuilds every
+    // derived value from the stored inputs instead of re-scoring a window chosen per recipe. Every day with raw
+    // strap data is scored again, the weekly scores, the stress proxy, the daily rhythm rows, workout heart-rate
+    // fills, the cardio load ledger, the energy history and the AgeLess weeks are rebuilt (`RebuildStep`). Raw
+    // samples are never rewritten, and no value an import or the wearer supplied is replaced. What the daily
+    // pass already did for recent days now reaches the whole history: a workout without heart rate gets it from
+    // the strap trace, and a corrected night keeps its bed and wake times while its stages are derived again.
+    // AI-31 changes no formula: what moves is every day scored under an older recipe or outside the windows
+    // the earlier migrations re-scored, which now reads what the current code produces.
+    public static let currentVersion = 31
 
-    /// The recipe whose migration refills the cardio load ledger.
-    public static let cardioLedgerRecipe = 9
+    /// The first recipe whose migration is the full rebuild. A store below it may still owe the legacy
+    /// repairs of older recipes, which fix stored inputs rather than derive anything (`LegacyRepair`).
+    public static let oneRuleRecipe = 31
 
-    /// Whether a migration crosses the recipe that refills the cardio ledger.
-    public static func migrationRefillsCardioLedger(from: Int, to: Int) -> Bool {
-        from < cardioLedgerRecipe && to >= cardioLedgerRecipe
+    /// The work every recipe bump does, in order. A step is done for one target recipe once its cursor
+    /// position says so, so an interrupted rebuild resumes at the step it was in; the recipe cursor itself
+    /// moves only after the last step.
+    public enum RebuildStep: Int, CaseIterable, Sendable {
+        /// Legacy input repairs a store below `oneRuleRecipe` still owes (`legacyRepairs(from:)`).
+        case legacyRepairs
+        /// Every AgeLess week is deleted, so the daily pass rebuilds them all from the banked inputs.
+        case healthspanReset
+        /// Every day that has raw strap data, scored again in one pass.
+        case dailyHistory
+        /// The Saturday-keyed weekly scores (Fitness Age, VO2max estimate, Vitality, Body Age) for every
+        /// week the raw history covers.
+        case weeklyScores
+        /// NOOP's own stress proxy rows over the whole history; imported days are left alone.
+        case stressProxy
+        /// Every day that carries a daily rhythm row, scored again.
+        case rhythmDays
+        /// Heart rate of Apple Health and recorded workouts, computed again across the history.
+        case workoutHeartRate
+        /// Every cardio load priced again wherever its raw heart rate remains.
+        case cardioLoad
+        /// The energy history over every day with raw strap data, at least the standard refresh window.
+        case energyHistory
+        /// The screens' snapshot, refreshed before the recipe cursor moves.
+        case publish
     }
 
-    /// The recipe whose migration re-scores the standard daily window after the 2026-09-26 upstream sync.
-    public static let upstreamSept26Recipe = 10
+    /// Where the rebuild for a target recipe stands: `target * 100 + next step`. Kept in its own cursor so
+    /// the recipe cursor keeps meaning "fully applied".
+    public static let rebuildCursor = "noopai:analysisRebuildPosition"
 
-    /// The recipe that takes the daily resting HR back to the primary session's lowest 5-min bin.
-    public static let restingHRNadirRecipe = 11
-
-    /// The recipe that chooses a WHOOP's R-R delivery path per five-minute segment.
-    public static let rrSegmentRecipe = 12
-
-    /// The recipe whose migration corrects stored Keytel session energy.
-    public static let workoutEnergyRecipe = 15
-
-    /// Whether a migration crosses the recipe that corrects stored session energy.
-    public static func migrationCorrectsWorkoutEnergy(from: Int, to: Int) -> Bool {
-        from < workoutEnergyRecipe && to >= workoutEnergyRecipe
+    /// The cursor value once `step` is done for `target`.
+    public static func rebuildPosition(target: Int, after step: RebuildStep) -> Int {
+        target * 100 + step.rawValue + 1
     }
 
-    /// The recipe whose migration fills heart rate into Apple Health workouts.
-    public static let workoutHeartRateFillRecipe = 16
-
-    /// The recipe whose migration re-scores the standard daily window after the 2026-10-01 upstream sync.
-    public static let upstreamOct1Recipe = 17
-
-    /// The recipe whose migration re-scores the standard daily window with the windowed Charge baselines.
-    public static let chargeBaselineRecipe = 18
-
-    /// The recipe whose migration re-scores the standard daily window once Charge leaves out optional
-    /// baselines that are not yet usable.
-    public static let chargeOptionalBaselineRecipe = 20
-
-    /// The recipe whose migration rebuilds every AgeLess week on the new VO₂max and lean-mass sources.
-    public static let healthspanSourcesRecipe = 21
-
-    /// The recipe whose migration rebuilds the AgeLess weeks on Training Load's VO₂max estimator.
-    public static let healthspanEstimatorRecipe = 22
-
-    /// The recipe whose migration rebuilds the AgeLess weeks with what each measure stands on.
-    public static let healthspanBasisRecipe = 23
-
-    /// The recipe whose migration rebuilds the AgeLess weeks on the newer-beats-older VO₂max rule.
-    public static let healthspanVO2RuleRecipe = 24
-
-    /// The recipe whose migration rebuilds the AgeLess weeks on a VO₂max that includes measured climbs.
-    public static let healthspanGradeRecipe = 25
-
-    /// The recipe whose migration rebuilds the AgeLess weeks on measured VO₂max only.
-    public static let healthspanMeasuredVO2Recipe = 26
-
-    /// The recipe whose migration rebuilds the AgeLess weeks without a credit for body fat below target.
-    public static let healthspanBodyFatRecipe = 27
-
-    /// The recipe whose migration re-reads the stress proxy after a baseline recalibration.
-    public static let stressRecalibrationRecipe = 28
-
-    /// Whether a migration crosses the recipe that repairs the stress proxy after a recalibration.
-    public static func migrationRepairsStressProxy(from: Int, to: Int) -> Bool {
-        from < stressRecalibrationRecipe && to >= stressRecalibrationRecipe
+    /// The first step still owed for `target`, given the stored rebuild cursor. A position written for
+    /// another target (an older bump that never finished, or none) starts the rebuild from the beginning.
+    public static func firstOwedStep(target: Int, storedPosition: Int?) -> RebuildStep {
+        guard let storedPosition, storedPosition / 100 == target,
+              let step = RebuildStep(rawValue: storedPosition % 100) else { return .legacyRepairs }
+        return step
     }
 
-    /// The recipe whose migration rebuilds the AgeLess weeks on the app's step resolver.
-    public static let healthspanStepsRecipe = 29
-
-    /// The recipe whose migration reads Apple Health's body fat and lean mass in the body resolver.
-    public static let appleBodyRecipe = 30
-
-    /// Whether a migration crosses the recipe that reads Apple Health's body fat and lean mass.
-    public static func migrationReadsAppleBody(from: Int, to: Int) -> Bool {
-        from < appleBodyRecipe && to >= appleBodyRecipe
+    /// Repairs of stored INPUTS that older recipes shipped. They fix rows the rebuild reads, so a store that
+    /// predates them still runs them first; the rebuild covers everything the other old recipes derived.
+    public enum LegacyRepair: Equatable, Sendable {
+        /// AI-13 to AI-15: session energy NOOP stored with Keytel, priced again by the current model.
+        case workoutEnergy
+        /// AI-19: Apple daily projections retained from before their repair.
+        case healthProjections
     }
 
-    /// Whether a migration crosses a recipe that rebuilds the AgeLess weeks (AI-21 to AI-27, AI-29 and AI-30;
-    /// one rebuild serves them all). AI-28 is not one of them.
-    public static func migrationRebuildsHealthspan(from: Int, to: Int) -> Bool {
-        (from < healthspanBodyFatRecipe && to >= healthspanSourcesRecipe)
-            || [healthspanStepsRecipe, appleBodyRecipe].contains { from < $0 && to >= $0 }
+    /// The legacy repairs a migration from `from` still owes, in order.
+    public static func legacyRepairs(from: Int) -> [LegacyRepair] {
+        var repairs: [LegacyRepair] = []
+        if from < 15 { repairs.append(.workoutEnergy) }
+        if from < 19 { repairs.append(.healthProjections) }
+        return repairs
     }
 
-    /// Whether a migration crosses the recipe that fills Apple Health workouts' heart rate.
-    public static func migrationFillsWorkoutHeartRate(from: Int, to: Int) -> Bool {
-        from < workoutHeartRateFillRecipe && to >= workoutHeartRateFillRecipe
-    }
-
-    /// Days of daily rows a migration from `from` must re-score: the standard window while a recipe that
-    /// changes daily rows (up to AI-8, AI-10, AI-11, AI-12, AI-17, AI-18 or AI-20) is still owed, none when
-    /// only recipes that leave daily rows alone are — the narrowest interval each change can prove.
-    public static func migrationDailyDays(from: Int, standard: Int = 21) -> Int {
-        from < cardioLedgerRecipe - 1 || from < chargeOptionalBaselineRecipe ? standard : 0
-    }
-
-    /// The earliest day a build could have scored with #2358's whole-session mean: the upstream commit is
-    /// dated 2026-09-23 and a pass reaches 21 days back. No stored resting HR before this day can be a mean.
-    public static let restingHRMeanWindowStart = "2026-09-02"
-
-    /// Days an AI-11 migration must re-score so no mean-defined resting HR is left behind: back to
-    /// `restingHRMeanWindowStart`, never fewer than 21 and never more than 45 (the same bounds as the
-    /// upstream repair window). 0 once AI-11 is applied.
-    public static func restingHRRepairDays(from: Int, today: String) -> Int {
-        guard from < restingHRNadirRecipe else { return 0 }
-        return upstreamRepairWindowDays(earliestMissingDay: restingHRMeanWindowStart, today: today)
-    }
-
-    /// Upstream 11.6 (2026-09-11) shipped the strict WHOOP 5 R-R read; its first bounded pass reached 21
-    /// days back. No row before this day can have been blanked by it.
-    public static let upstreamStrictRRWindowStart = "2026-08-21"
-
-    /// Days the repair pass for a store switched over from upstream must cover: back to the earliest
-    /// blanked night, never fewer than the standard 21 and never more than 45. Raw strap history is kept
-    /// for roughly 35 days, so a night older than that has nothing left to re-score from.
-    public static func upstreamRepairWindowDays(earliestMissingDay: String?, today: String) -> Int {
+    /// Days the daily step must walk so it reaches the oldest day with raw strap data: from that local day
+    /// through `today`, never fewer than the standard 21. No raw data at all keeps the standard window.
+    public static func rebuildDays(earliestRawDay: String?, today: String, standard: Int = 21) -> Int {
         // Day keys are calendar dates; counting them in UTC keeps a DST change from shifting the span.
         let parser = DateFormatter()
         parser.locale = Locale(identifier: "en_US_POSIX")
         parser.timeZone = TimeZone(identifier: "UTC")
         parser.dateFormat = "yyyy-MM-dd"
-        guard let earliestMissingDay, let from = parser.date(from: earliestMissingDay),
-              let to = parser.date(from: today) else { return 21 }
+        guard let earliestRawDay, let from = parser.date(from: earliestRawDay),
+              let to = parser.date(from: today) else { return standard }
         var utc = Calendar(identifier: .gregorian)
         utc.timeZone = TimeZone(identifier: "UTC")!
         let span = (utc.dateComponents([.day], from: from, to: to).day ?? 0) + 1
-        return min(45, max(21, span))
+        return max(standard, span)
     }
+
     /// The recipe lineage is this fork's own: ryanbr/noop has no analysis recipe at all. Its cursor
     /// therefore lives under a fork namespace, and is shown as "AI-n", so that an upstream counter
     /// introduced later under a plain name can never be read as one of these numbers — a store carried
