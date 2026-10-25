@@ -201,7 +201,9 @@ Steps (added 2026-10-25), each with its own commit, test and smoke run:
   `Tools/design_tokens.py` reads its fixed values into `tokens.json` and `ForgeTokens.kt`, because generating
   the Swift side from a new file would have touched every value the iOS app shows.
 - **E-2 Core read API.** JNI calls that return what a screen needs from the core's store (today's scores, a
-  night's sleep, a metric series over a window) as small JSON documents, tested on macOS through `Bridge`.
+  night's sleep, a metric series over a window) as small JSON documents, tested on macOS through `Bridge`. *Done
+  2026-10-25:* `CoreRead` in `NoopCoreJNI`, the JNI calls `readDay`, `readNights`, `readSeries` and the Kotlin
+  parser `com.noop.core.CoreRead`.
 - **E-3 Screens.** Today, sleep detail, HRV and resting-HR trends, settings, `.noopbak` export and import and
   strap log export as new Compose screens on the core read API and the tokens, adaptive per window size class.
   ryanbr's screens they replace, and the Kotlin data and analytics code only those screens used, go in the

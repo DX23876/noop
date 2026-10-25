@@ -54,4 +54,33 @@ public enum Bridge {
         done.wait()
         return box.value
     }
+
+    // MARK: - Reads for the screens (CoreRead), as JSON; nil when no session runs or nothing is stored.
+
+    public static func readDay(_ day: String) -> String? {
+        blocking { reader in await CoreRead.day(day, reader: reader).map(CoreRead.json) }
+    }
+
+    public static func readNights(from: Int, to: Int) -> String? {
+        blocking { reader in CoreRead.json(await CoreRead.nights(from: from, to: to, reader: reader)) }
+    }
+
+    public static func readSeries(_ metric: String, from: String, to: String) -> String? {
+        guard let m = CoreRead.Metric(rawValue: metric) else { return nil }
+        return blocking { reader in CoreRead.json(await CoreRead.series(m, from: from, to: to, reader: reader)) }
+    }
+
+    /// Runs one read against the shadow session's store and waits for it; for JNI callers on a background thread.
+    private static func blocking(_ read: @escaping @Sendable (StoreReader) async -> String?) -> String? {
+        guard let reader = ShadowSession.reader else { return nil }
+        final class Box: @unchecked Sendable { var value: String? }
+        let box = Box()
+        let done = DispatchSemaphore(value: 0)
+        Task.detached {
+            box.value = await read(reader)
+            done.signal()
+        }
+        done.wait()
+        return box.value
+    }
 }

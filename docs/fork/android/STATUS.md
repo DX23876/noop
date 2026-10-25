@@ -1,6 +1,6 @@
 # Android on a shared Swift core: status
 
-Plan: [`PLAN.md`](PLAN.md) · last updated 2026-10-24
+Plan: [`PLAN.md`](PLAN.md) · last updated 2026-10-25
 
 ## In progress
 
@@ -50,11 +50,14 @@ Plan: [`PLAN.md`](PLAN.md) · last updated 2026-10-24
 | D-5, third step: the main actor on Android | 2026-10-25 | `noop_install_main_queue_drain` (CJNI) puts libdispatch's main queue on the main looper; `SwiftCore.start` loads the core on the main thread and installs it. On the emulator: "main actor installed=0, probe jobs run=1, on main thread=true"; loaded on a background thread first, the probe had run off the main thread. A macOS test covers the probe |
 | D-5, fourth step: the shadow session | 2026-10-25 | `ShadowSession` runs the core's Collector and Backfiller on its own store; the Kotlin client hands it every frame in arrival order (offload frames to the Backfiller, the rest to the Collector, plus family, clock seed and offload begin) and nothing goes back to the strap (the ack is a no-op). After each offload the strap log carries "Core shadow: core banked … | Kotlin banked …". A macOS test replays three real 4.0 history records and an END. Not yet run against a real strap |
 | D-5, fifth step: the core's daily pass | 2026-10-25 | `CoreAnalysis` runs `DailyAnalysis` on the shadow store with store-only services and the app's profile; the client asks for it with each post-offload pass and logs "Core shadow analysis: day=… charge=… effort=…" two minutes later. Phase D is complete; the Kotlin data and analytics packages go screen by screen in phase E (PLAN.md, D-5 note) |
+| E-1 design tokens | 2026-10-25 | `Tools/design_tokens.py` reads the Swift design system (125 colours light and dark, 76 dimensions, the iPhone type scale) into `Packages/StrandDesign/tokens.json` and generates `ForgeTokens.kt`; a test in the unfiltered tools suite fails when either is stale (`6ac11439f`) |
+| E-2 core read API | 2026-10-25 | `CoreRead` in `NoopCoreJNI` answers a day, the nights in a window and a metric series as JSON, resolved as the Apple `Repository` does (imported values win field by field, the core's computed rows fill the gaps, the active strap wins); `SwiftCore.readDay/readNights/readSeries` and the Kotlin `com.noop.core.CoreRead` parser. Four macOS tests through the store; the Swift test and the Kotlin parser test pin the same day document |
 
 ## Next step
 
-Phase E, step E-1: one design token file shared by the Apple apps and Android, with generated Swift and Kotlin
-constants and a test that catches either going stale (`PLAN.md`, phase E steps).
+Phase E, step E-3: the new Compose screens on `CoreRead` and `ForgeTokens`, adaptive per window size class,
+starting with Today; each replaced ryanbr screen and the Kotlin code only it used go in the same step
+(`PLAN.md`, phase E steps).
 
 ## How to run a real-data check (B4)
 

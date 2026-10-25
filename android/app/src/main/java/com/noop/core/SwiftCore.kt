@@ -59,6 +59,11 @@ object SwiftCore {
     external fun shadowAnalyze(age: Int, sex: String, weightKg: Double, heightCm: Double, hrMaxOverride: Int)
     external fun shadowToday(): String?
 
+    // Reads for the screens (CoreRead): JSON, or null; they block until the store answers.
+    external fun readDay(day: String): String?
+    external fun readNights(from: Long, to: Long): String?
+    external fun readSeries(metric: String, from: String, to: String): String?
+
     /** Whether the last probe job ran on Android's main thread. */
     external fun mainActorProbeOnMainThread(): Boolean
 

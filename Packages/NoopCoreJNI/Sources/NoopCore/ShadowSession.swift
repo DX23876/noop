@@ -39,6 +39,8 @@ public enum ShadowSession {
         var tally = Tally()
         var processed = 0
         var today: String?
+        var store: WhoopStore?
+        var deviceId = ""
     }
     private static let state = State()
 
@@ -61,6 +63,8 @@ public enum ShadowSession {
         let (stream, continuation) = AsyncStream<Event>.makeStream(bufferingPolicy: .unbounded)
         state.lock.lock()
         state.continuation = continuation
+        state.store = store
+        state.deviceId = deviceId
         state.tally = Tally()
         state.processed = 0
         state.lock.unlock()
@@ -82,6 +86,12 @@ public enum ShadowSession {
     public static var tally: Tally {
         state.lock.lock(); defer { state.lock.unlock() }
         return state.tally
+    }
+
+    /// A reader over the session's store for the screens (`CoreRead`); nil before a session started.
+    public static var reader: StoreReader? {
+        state.lock.lock(); defer { state.lock.unlock() }
+        return state.store.map { StoreReader(store: $0, activeDeviceId: state.deviceId, registeredWhoopIds: []) }
     }
 
     /// Today's scores from the last `analyze` event, as one line; nil before one ran or when today has no row.

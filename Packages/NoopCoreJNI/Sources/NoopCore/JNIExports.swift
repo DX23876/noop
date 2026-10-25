@@ -117,4 +117,32 @@ public func jniShadowTally(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?
     guard let env, let fns = env.pointee?.pointee else { return nil }
     return ShadowSession.tally.line.withCString { fns.NewStringUTF(env, $0) }
 }
+// MARK: - Reads for the screens (Android plan E-2): JSON, or null when no session runs or nothing is stored.
+// They block the calling thread until the store answers, so Kotlin calls them off the main thread.
+
+private func json(_ env: UnsafeMutablePointer<JNIEnv?>, _ value: String?) -> jstring? {
+    guard let fns = env.pointee?.pointee, let value else { return nil }
+    return value.withCString { fns.NewStringUTF(env, $0) }
+}
+
+@_cdecl("Java_com_noop_core_SwiftCore_readDay")
+public func jniReadDay(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?, _ day: jstring?) -> jstring? {
+    guard let env, let day, let d = string(env, day) else { return nil }
+    return json(env, Bridge.readDay(d))
+}
+
+@_cdecl("Java_com_noop_core_SwiftCore_readNights")
+public func jniReadNights(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?, _ from: jlong,
+                          _ to: jlong) -> jstring? {
+    guard let env else { return nil }
+    return json(env, Bridge.readNights(from: Int(from), to: Int(to)))
+}
+
+@_cdecl("Java_com_noop_core_SwiftCore_readSeries")
+public func jniReadSeries(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?, _ metric: jstring?,
+                          _ from: jstring?, _ to: jstring?) -> jstring? {
+    guard let env, let metric, let from, let to, let m = string(env, metric), let f = string(env, from),
+          let t = string(env, to) else { return nil }
+    return json(env, Bridge.readSeries(m, from: f, to: t))
+}
 #endif
