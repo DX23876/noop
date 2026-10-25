@@ -68,10 +68,32 @@ Plan: [`PLAN.md`](PLAN.md) · last updated 2026-10-25
 
 ## Next step
 
-E-4 on a real strap: a tester turns on "Shared core confirms history" and sends a strap log with a full overnight
-offload, which should show every chunk acked after the core banked it and no held ack. Then the Forge screens
-stop needing Room (Kotlin stops writing it), and phase F (release workflow, issue template, first testers). Skip
-was tried for shared screens and not adopted for now ([`SKIP-SPIKE.md`](SKIP-SPIKE.md)).
+What is left of the plan needs the owner, a real strap or testers; everything that could be done on the emulator
+is done (2026-10-25).
+
+- **Owner decision: E-3f removal and E-4's second half.** The plan has ryanbr's screens go once the Forge screens
+  are the app, and Kotlin stop writing Room after that. The classic screens are about 91,000 lines and some forty
+  screens (live heart rate, breathing, intervals, workouts, smart alarm, devices, notifications, Test Centre, his
+  coach and more), still reachable through More, Classic screens. On 2026-10-25 the owner named the missing
+  features as the problem with the Android app, so removing them before the Forge screens cover them was not done
+  without asking. Room keeps being written beside the core until then, since the classic screens read it.
+- **Tester: E-4 on a real strap.** A tester turns on "Shared core confirms history" and sends a strap log with a
+  full overnight offload: every chunk acked after the core banked it, no held ack. Pairing through the Forge
+  screens and the live heart rate card are also unseen with a real strap.
+- **Owner: a real iOS backup on Android.** One `.noopbak` exported by the iPhone app, imported through More on the
+  emulator (E-5); the fixtures only stand in for it.
+- **F3 and F4.** The first build to the existing testers, then the website note, the pinned issue and the Ko-fi
+  mention; "Testing" goes after the D9 confirmations.
+- **Size step before the public call (D24).** The release APK (`-PstagingRelease assembleFullRelease`) is 57 MB:
+  31 MB of Swift libraries (15.7 MB of it the ICU data in `lib_FoundationICU.so`), 18 MB of unminified dex,
+  3.6 MB of resources. The two levers are an ICU data subset (a rebuild of swift-foundation-icu with a filtered
+  data file) and R8, which `build.gradle.kts` records as crashing after the terms gate on a real device; both need
+  a device to verify.
+- **Open against the iOS look.** The hero's source label (needs the score provenance `Repository.scoreInputProvider`
+  reads, moved into the core), the profile and quick-action buttons in the Today header (no Android destinations
+  yet), SF Pro Rounded (Nunito stands in).
+
+Skip was tried for shared screens and not adopted for now ([`SKIP-SPIKE.md`](SKIP-SPIKE.md)).
 
 ## How to run a real-data check (B4)
 
