@@ -215,6 +215,18 @@ jobs:
           git diff --cached --quiet || git commit -m "Release ${VERSION}: publish sideload source"
           git push origin HEAD:main
 
+  # Android plan F1: the signed Android APK joins the same release once `publish` has created it. A failure
+  # here leaves the iOS and macOS assets in place; the APK can be attached later by running
+  # android-release.yml by hand with the tag.
+  android:
+    name: Build and attach the Android APK
+    needs: publish
+    uses: ./.github/workflows/android-release.yml
+    with:
+      tag: ${{ needs.publish.outputs.tag }}
+      version: ${{ needs.publish.outputs.version }}
+    secrets: inherit
+
   # 9.3.0 onwards the release carries a macOS build too — 9.2.1/9.2.2 were iOS-only, which left
   # Mac users with no artifact at all for a fork whose reference platform IS macOS. Runs AFTER `publish`
   # so the release already exists and this job only has to upload into it. Steps mirror

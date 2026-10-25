@@ -227,7 +227,9 @@ Steps (added 2026-10-25), each with its own commit, test and smoke run:
 - **F1** The release workflow attaches `NOOP-Forge-android-<version>.apk` to the same GitHub release as
   the iOS build, signed from the secret; Android builds carry the "Testing" label (D9).
 - **F2** An Android issue template asks for device, Android version, strap model and firmware, and the
-  strap log.
+  strap log. *F1 and F2 written 2026-10-25:* `android-release.yml` (called by `publish-ios-release.yml`, or by hand
+  as a dry run) builds, signs and checks the APK against the release certificate before attaching it;
+  `.github/ISSUE_TEMPLATE/android_bug.yml`. Neither has run yet.
 - **F3** Existing testers get the first build. Once it installs: website note, pinned issue, Ko-fi
   mention for a Pixel (D21).
 - **F4** "Testing" is removed only after the D9 confirmations are recorded in `STATUS.md`.

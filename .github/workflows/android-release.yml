@@ -1,0 +1,146 @@
+# Fork (DX23876), Android plan F1: the signed Android APK for a release.
+#
+# Builds the full flavour's release APK with the shared Swift core, signs it with the release key from the
+# ANDROID_KEYSTORE_BASE64 and ANDROID_KEYSTORE_PASSWORD secrets (see android-signing-check.yml), checks that it
+# carries the release certificate, and attaches it to the release `tag` as NOOP-Forge-android-<version>-testing.apk
+# (the Android build is in testing, D9). publish-ios-release.yml calls this after its own job has created the
+# release. Run by hand with `dry_run` to prove the build and the signature without uploading anything.
+name: Android release APK
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to name the APK (for example 12.2.1)"
+        required: true
+      dry_run:
+        description: "Build and check the signature only; upload nothing"
+        type: boolean
+        default: true
+      tag:
+        description: "Release tag to attach to when not a dry run (for example v12.2.1-dx)"
+        required: false
+
+permissions:
+  contents: write
+
+env:
+  SWIFT_TOOLCHAIN_URL: https://download.swift.org/swift-6.4.1-release/ubuntu2404/swift-6.4.1-RELEASE/swift-6.4.1-RELEASE-ubuntu24.04.tar.gz
+  SWIFT_SDK_URL: https://download.swift.org/swift-6.4.1-release/android-sdk/swift-6.4.1-RELEASE/swift-6.4.1-RELEASE_android.artifactbundle.tar.gz
+  SWIFT_SDK_SHA256: a356b79f8f1daa6ae3a66f4c556966ca20c0208b3659805cf30a83a0a31d6772
+  NDK_VERSION: 30.0.16248370
+  # The release certificate's public SHA-256 fingerprint (Android plan D-4); an APK signed with anything else
+  # fails the job before it can reach a release.
+  RELEASE_CERT_SHA256: daef496250e9c105aca00f4bf1c3360ed7b2dc64047bf9a3e3e38636dcda0ff4
+
+jobs:
+  apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v5
+
+      - name: Install the Swift toolchain
+        run: |
+          curl -fsSLo "$RUNNER_TEMP/swift.tar.gz" "$SWIFT_TOOLCHAIN_URL"
+          sudo mkdir -p /opt/swift
+          sudo tar -xzf "$RUNNER_TEMP/swift.tar.gz" -C /opt/swift --strip-components=1
+          echo /opt/swift/usr/bin >> "$GITHUB_PATH"
+
+      - name: Install NDK r30
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;$NDK_VERSION" > /dev/null
+          for var in ANDROID_NDK_HOME ANDROID_NDK_ROOT ANDROID_NDK; do
+            echo "$var=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
+          done
+
+      - name: Install the Swift SDK for Android
+        run: |
+          curl -fsSLo "$RUNNER_TEMP/android-sdk.tar.gz" "$SWIFT_SDK_URL"
+          echo "$SWIFT_SDK_SHA256  $RUNNER_TEMP/android-sdk.tar.gz" | sha256sum --check
+          swift sdk install "$RUNNER_TEMP/android-sdk.tar.gz"
+          for dir in "$HOME/.swiftpm/swift-sdks" "$HOME/.config/swiftpm/swift-sdks"; do
+            script="$dir/swift-6.4.1-RELEASE_android.artifactbundle/swift-android/scripts/setup-android-sdk.sh"
+            if [ -f "$script" ]; then bash "$script"; exit 0; fi
+          done
+          echo "::error::setup-android-sdk.sh not found in the installed Swift SDK"; exit 1
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Write the signing config
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ]; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 or ANDROID_KEYSTORE_PASSWORD is not set"; exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.p12"
+          # keystore.properties is read by app/build.gradle.kts; it and the key stay in this runner only.
+          {
+            echo "storeFile=$RUNNER_TEMP/release.p12"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=forge"
+            echo "keyPassword=$KEYSTORE_PASSWORD"
+          } > keystore.properties
+
+      - name: Build the release APK
+        run: ./gradlew assembleFullRelease
+
+      - name: Check the signature
+        id: apk
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::version must be X.Y.Z"; exit 1; }
+          APK=$(ls app/build/outputs/apk/full/release/*.apk | head -1)
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --print-certs "$APK" | tee "$RUNNER_TEMP/certs.txt"
+          grep -qi "certificate SHA-256 digest: $RELEASE_CERT_SHA256" "$RUNNER_TEMP/certs.txt" || {
+            echo "::error::the APK is not signed with the release certificate"; exit 1;
+          }
+          OUT="NOOP-Forge-android-${VERSION}-testing.apk"
+          cp "$APK" "$RUNNER_TEMP/$OUT"
+          echo "file=$RUNNER_TEMP/$OUT" >> "$GITHUB_OUTPUT"
+          ls -l "$RUNNER_TEMP/$OUT"
+
+      - name: Remove the key
+        if: always()
+        run: rm -f keystore.properties "$RUNNER_TEMP/release.p12"
+
+      - name: Attach to the release
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+          FILE: ${{ steps.apk.outputs.file }}
+        run: |
+          set -euo pipefail
+          [ -n "$TAG" ] || { echo "::error::no release tag given"; exit 1; }
+          gh release upload "$TAG" "$FILE" --repo "$GITHUB_REPOSITORY" --clobber

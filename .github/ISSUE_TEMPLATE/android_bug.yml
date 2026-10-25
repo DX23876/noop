@@ -1,0 +1,93 @@
+name: 🤖 Android bug report (testing)
+description: Report something in the Android build of NOOP Forge that doesn't work the way it should
+labels: [bug, android]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The Android build is in **testing**. Thank you for trying it.
+
+        NOOP runs **entirely on your device**, so a bug is diagnosed from your **strap log**. In the app: **More → Share strap log**, then attach the file below. A report without a log usually can't be investigated.
+
+        Questions and "is this normal?" go to **[Discussions](https://github.com/DX23876/noop/discussions)**; this form is for bugs.
+  - type: input
+    id: version
+    attributes:
+      label: NOOP version
+      description: More shows it at the bottom (e.g. 12.2.1).
+      placeholder: "12.2.1"
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Phone or tablet
+      description: Maker and model, e.g. Pixel 8, Galaxy S23, Pixel Tablet.
+    validations:
+      required: true
+  - type: input
+    id: android_version
+    attributes:
+      label: Android version
+      description: Settings → About phone, e.g. Android 15.
+    validations:
+      required: true
+  - type: dropdown
+    id: strap
+    attributes:
+      label: Strap model
+      options:
+        - WHOOP 4.0
+        - WHOOP 5.0
+        - WHOOP MG
+        - No strap — imported data only
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: firmware
+    attributes:
+      label: Strap firmware
+      description: Shown in the classic screens under Devices, or in the strap log. Leave empty if you can't find it.
+  - type: dropdown
+    id: screens
+    attributes:
+      label: Which screens
+      description: The new screens (Today, Trends, Sleep, More with the mountain backdrop) or the classic ones.
+      options:
+        - New screens
+        - Classic screens
+        - Both
+    validations:
+      required: true
+  - type: dropdown
+    id: core_ack
+    attributes:
+      label: "\"Shared core confirms history\" (More → Experimental)"
+      options:
+        - "Off"
+        - "On"
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: What happened, and what you expected
+      description: One or two sentences each is enough.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. …
+        2. …
+  - type: textarea
+    id: strap_log
+    attributes:
+      label: Strap log
+      description: More → Share strap log, then drag the file here. It holds no account data; check it for anything you'd rather not share before attaching.
+    validations:
+      required: true
