@@ -696,7 +696,8 @@ stores that predate them.
 
 The price is time: the owner's store had 104 days of raw history when this landed, and a rebuild scores all of
 them where a window scored 21. On a Mac a copy of that store took about 13 minutes, two runs gave identical
-tables and no raw table changed. Phase C3 measures it on the iPhone before a release ships it. The rules are in
+tables and no raw table changed. On the owner's iPhone 13 Pro Max (105 days) it took 7.5 minutes, 515 s of CPU and 5 % of the battery, plus a
+7-minute re-pass the first time because it reached four old duplicate sleep sessions and healed them. The rules are in
 [`AGENT_RULES.md`](AGENT_RULES.md).
 
 Analysis migration required: yes. AI-31 changes no formula; it is the first rebuild, which re-scores every

@@ -37,11 +37,12 @@ Plan: [`PLAN.md`](PLAN.md) · last updated 2026-10-24
 | Phase B complete | 2026-10-25 | Steps B1 to B4 above |
 | C1 one rule for analysis migrations | 2026-10-25 | Recipe AI-31: every bump runs `AnalysisRecipe.RebuildStep` (all days with raw strap data, weekly scores, stress proxy, rhythm days, workout heart rate, cardio ledger, energy history, AgeLess weeks), resumable per step, recipe cursor last; package tests for the order, the resume and the stress rebuild pass on macOS and the emulator. On a copy of the owner's store (104 raw days) the rebuild took about 13 minutes on a Mac, two runs left identical tables (0 of 78 differ) and no raw table changed; edited nights kept bed and wake times, workouts only gained missing heart rate |
 | C2 rules and decision | 2026-10-25 | `AGENT_RULES.md` analysis section, `decisions.md` entry of 2026-10-25, release notes section after 12.2.1 |
+| C3 measured on the owner's iPhone | 2026-10-25 | iPhone 13 Pro Max, Release build of `c93bba06d`, 105 days of raw history, app in the foreground off the charger: the rebuild took 451 s with 515 s of CPU, battery 55 % to 50 %; the daily step was 400 s of that, energy 32 s, rhythm days 16 s, everything else under 3 s. The daily step reached four old duplicate sleep sessions; the dedup heal's re-pass over the same window added 428 s (493 s CPU) and ran after the rebuild had finished, which `2c07ba1a5` fixed by waiting for it inside the daily step. A 21-day pass right after re-scored every day once (102 s) because the sleep traits had moved. After that a routine post-sync pass (one day re-scored, twenty reused) cost 9 to 15 s of CPU against 68 to 140 s on the build before (day cycle 41 s to 3.7 s, edited-night heal 4 s to 0.3 s), most likely because every stored day now matches the current code; two passes so far, a full day's log still to compare. Logs and the store from before the install are on the owner's backup disk |
 
 ## Next step
 
-C3: measure the rebuild on the owner's iPhone (duration, CPU, battery) before a release ships AI-31. Needs a
-build with AI-31 installed on the phone; the owner decides when. Then phase D (Android scaffolding).
+Phase C is complete. Phase D (Android scaffolding, see [`PLAN.md`](PLAN.md)) starts with D-1, restoring
+`android/` from the merge base.
 
 ## How to run a real-data check (B4)
 
