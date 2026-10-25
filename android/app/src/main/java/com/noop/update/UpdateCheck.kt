@@ -2,6 +2,7 @@ package com.noop.update
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
@@ -24,7 +25,9 @@ import java.net.URL
  */
 object UpdateCheck {
 
-    private const val ENDPOINT = "https://api.github.com/repos/ryanbr/noop/releases/latest"
+    // Fork (DX23876): NOOP Forge's own releases. Most of them carry only the iOS build, so the newest
+    // release is not necessarily one this app can install; [latestWithApk] picks the newest that has an APK.
+    private const val ENDPOINT = "https://api.github.com/repos/DX23876/noop/releases?per_page=30"
 
     sealed interface Result {
         data class UpToDate(val version: String) : Result
@@ -44,7 +47,8 @@ object UpdateCheck {
             }
             try {
                 if (conn.responseCode != 200) return@runCatching Result.Failed
-                val json = JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
+                val json = latestWithApk(conn.inputStream.bufferedReader().use { it.readText() })
+                    ?: return@runCatching Result.Failed
                 val latest = json.getString("tag_name").removePrefix("v")
                 val url = json.getString("html_url")
                 val notes = cleanNotes(json.optString("body", ""))
@@ -54,6 +58,25 @@ object UpdateCheck {
                 conn.disconnect()
             }
         }.getOrDefault(Result.Failed)
+    }
+
+    /**
+     * The newest published release in a GitHub releases list ([body], newest first as the API returns it)
+     * that carries an `.apk` asset; drafts and pre-releases are skipped. Null when none qualifies or the
+     * body is not a list. Pure + unit-tested.
+     */
+    fun latestWithApk(body: String): JSONObject? {
+        val releases = runCatching { JSONArray(body) }.getOrNull() ?: return null
+        for (i in 0 until releases.length()) {
+            val release = releases.optJSONObject(i) ?: continue
+            if (release.optBoolean("draft") || release.optBoolean("prerelease")) continue
+            val assets = release.optJSONArray("assets") ?: continue
+            val hasApk = (0 until assets.length()).any {
+                assets.optJSONObject(it)?.optString("name").orEmpty().endsWith(".apk", ignoreCase = true)
+            }
+            if (hasApk) return release
+        }
+        return null
     }
 
     /**
