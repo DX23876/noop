@@ -1,6 +1,9 @@
 import Foundation
 import StrandAnalytics
 import StrandCore
+#if os(iOS)
+import UIKit
+#endif
 
 /// The Apple apps' `AnalysisHost`: the settings the daily analysis reads come from the same switches the
 /// Settings screens write, the strap log is `LiveState`'s (wired by `AppModel`), relaunch-surviving values
@@ -67,5 +70,15 @@ final class AppAnalysisHost: AnalysisHost {
 
     nonisolated func paceIfBackgrounded(since mark: inout UInt64) async {
         await RescoreBackgroundScheduler.paceIfBackgrounded(since: &mark)
+    }
+
+    func costReading() -> (cpuSeconds: Double?, batteryPercent: Int?) {
+        var battery: Int?
+        #if os(iOS)
+        UIDevice.current.isBatteryMonitoringEnabled = true
+        let level = UIDevice.current.batteryLevel
+        if level >= 0 { battery = Int((level * 100).rounded()) }
+        #endif
+        return (RescoreBackgroundScheduler.processCPUSeconds(), battery)
     }
 }

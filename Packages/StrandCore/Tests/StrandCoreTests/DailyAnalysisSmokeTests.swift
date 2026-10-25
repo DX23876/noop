@@ -99,6 +99,7 @@ final class DailyAnalysisSmokeTests: XCTestCase {
             AnalysisPassReport(settled: true, costLine: "re-score: cost test")
         }
         nonisolated func paceIfBackgrounded(since mark: inout UInt64) async {}
+        func costReading() -> (cpuSeconds: Double?, batteryPercent: Int?) { (nil, nil) }
     }
 
     func testAPassOverAStoreWithNoHeartRateFinishesWithNothingScored() async throws {
@@ -140,12 +141,20 @@ final class DailyAnalysisSmokeTests: XCTestCase {
         _ = try await store.upsertDailyMetrics(rows, deviceId: "my-whoop-noop")
         let services = StoreServices(reader: StoreReader(store: store, activeDeviceId: "my-whoop",
                                                          registeredWhoopIds: []))
-        let engine = DailyAnalysis(services: services, profile: Profile(), deviceId: "my-whoop", host: Host(),
+        let host = Host()
+        let engine = DailyAnalysis(services: services, profile: Profile(), deviceId: "my-whoop", host: host,
                                    messages: { "\($0)" })
 
         let ok = await engine.prepareAnalysisRecipe()
 
         XCTAssertTrue(ok)
+        // The cost of a rebuild is logged: where it started, every step, the whole run.
+        let label = AnalysisRecipe.label(AnalysisRecipe.currentVersion)
+        let rebuildLines = host.lines.filter { $0.hasPrefix("rebuild \(label): ") }
+        XCTAssertTrue(rebuildLines.first?.contains("start from") ?? false, rebuildLines.first ?? "no lines")
+        XCTAssertEqual(rebuildLines.filter { $0.contains(" done, ") }.count,
+                       AnalysisRecipe.RebuildStep.allCases.count)
+        XCTAssertTrue(rebuildLines.last?.contains("finished, ") ?? false)
         let recipe = try await store.cursor(AnalysisRecipe.cursor)
         let position = try await store.cursor(AnalysisRecipe.rebuildCursor)
         XCTAssertEqual(recipe, AnalysisRecipe.currentVersion)

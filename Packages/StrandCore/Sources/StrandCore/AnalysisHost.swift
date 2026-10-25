@@ -109,4 +109,7 @@ public protocol AnalysisHost: AnyObject, Sendable {
     @MainActor func passDidFinish(_ ticket: AnalysisPassTicket, elapsedSeconds: Double) -> AnalysisPassReport
     /// Yields CPU while the app is in the background; `mark` is the uptime the current work stretch began.
     func paceIfBackgrounded(since mark: inout UInt64) async
+    /// The process's CPU seconds so far and the device's battery percent, for the rebuild's cost lines; nil
+    /// where the platform cannot say.
+    @MainActor func costReading() -> (cpuSeconds: Double?, batteryPercent: Int?)
 }

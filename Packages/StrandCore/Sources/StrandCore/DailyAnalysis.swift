@@ -824,19 +824,55 @@ public final class DailyAnalysis {
 
     /// The one migration (`AnalysisRecipe.RebuildStep`): resumes at the first step the rebuild cursor still
     /// owes for `to`, records each finished step, and moves the recipe cursor only after the last one.
+    ///
+    /// Each step and the whole run leave a cost line in the log (wall time, process CPU, battery), always on: a
+    /// rebuild runs once per recipe, and its cost on a phone is what decides whether a release can carry it.
     private func runRebuild(store: WhoopStore, from: Int, to: Int) async throws {
         let first = AnalysisRecipe.firstOwedStep(target: to,
                                                  storedPosition: try await store.cursor(AnalysisRecipe.rebuildCursor))
+        let label = AnalysisRecipe.label(to)
+        let earliestRawDay = try await store.earliestHeartRateSampleTs()
+            .map { StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval($0))) }
+        let days = AnalysisRecipe.rebuildDays(earliestRawDay: earliestRawDay, today: StoreReader.localDayKey(Date()))
+        let startReading = host.costReading()
+        let startUptime = ProcessInfo.processInfo.systemUptime
+        host.diagnostic("rebuild \(label): \(first == .legacyRepairs ? "start" : "resume at \(first)") from "
+            + "\(AnalysisRecipe.label(from)), \(days) days, raw from \(earliestRawDay ?? "none")"
+            + Self.batteryText(startReading.batteryPercent), domain: nil)
         for step in AnalysisRecipe.RebuildStep.allCases where step.rawValue >= first.rawValue {
             try Task.checkCancellation()
+            let stepReading = host.costReading()
+            let stepUptime = ProcessInfo.processInfo.systemUptime
             try await runRebuildStep(step, store: store, from: from)
             // A step cut short by cancellation may have returned early; it stays owed.
             try Task.checkCancellation()
             try await store.setCursor(AnalysisRecipe.rebuildCursor,
                                       AnalysisRecipe.rebuildPosition(target: to, after: step))
+            host.diagnostic("rebuild \(label): \(step) done, "
+                + Self.costText(since: stepReading, uptime: stepUptime, now: host.costReading()), domain: nil)
         }
         try await store.setCursor(AnalysisRecipe.cursor, to)
         analysisRecipeVersion = to
+        let endReading = host.costReading()
+        host.diagnostic("rebuild \(label): finished, " + Self.costText(since: startReading, uptime: startUptime,
+                                                                      now: endReading)
+            + Self.batteryText(startReading.batteryPercent, endReading.batteryPercent), domain: nil)
+    }
+
+    /// "412 s, cpu 380 s": wall time since `uptime` and process CPU between two readings (CPU left out when
+    /// either reading has none).
+    nonisolated static func costText(since start: (cpuSeconds: Double?, batteryPercent: Int?), uptime: TimeInterval,
+                                     now: (cpuSeconds: Double?, batteryPercent: Int?)) -> String {
+        let wall = Int((ProcessInfo.processInfo.systemUptime - uptime).rounded())
+        guard let a = start.cpuSeconds, let b = now.cpuSeconds else { return "\(wall) s" }
+        return "\(wall) s, cpu \(Int((b - a).rounded())) s"
+    }
+
+    /// ", battery 80 %" or ", battery 80 % to 71 %"; empty without a reading.
+    nonisolated static func batteryText(_ start: Int?, _ end: Int? = nil) -> String {
+        guard let start else { return "" }
+        guard let end else { return ", battery \(start) %" }
+        return ", battery \(start) % to \(end) %"
     }
 
     private func runRebuildStep(_ step: AnalysisRecipe.RebuildStep, store: WhoopStore, from: Int) async throws {
