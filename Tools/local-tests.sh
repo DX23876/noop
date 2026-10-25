@@ -15,8 +15,8 @@
 #   Packages/<Name>/                                 `swift test` in that package
 #   android/ and what its build reads                Gradle debug builds of both flavours + unit tests
 # Packages are compiled into the app too, so a package change also runs the app leg. The Android inputs
-# outside android/ are the ones `.github/workflows/android.yml` lists: project.yml, the shared protocol
-# and schema fixtures and Tools/parity_cases.
+# outside android/ are the ones `.github/workflows/android.yml` lists: project.yml, the packages the
+# Swift core is built from (with the fixtures the protocol and schema tests read) and Tools/parity_cases.
 #
 # The stamp is the tree hash of HEAD, so the working tree must be clean: a passing run over uncommitted
 # edits says nothing about the commit being pushed. Stamps live in the shared git dir, one per line.
@@ -40,9 +40,7 @@ PACKAGES=()
 while IFS= read -r path; do
   [ -n "$path" ] || continue
   case "$path" in
-    android/*|.github/workflows/android.yml|project.yml|Tools/parity_cases/*|\
-    Packages/WhoopProtocol/Sources/WhoopProtocol/Resources/*|Packages/WhoopProtocol/Tests/WhoopProtocolTests/Resources/*|\
-    Packages/WhoopStore/Tests/WhoopStoreTests/Resources/*)
+    android/*|.github/workflows/android.yml|project.yml|Tools/parity_cases/*|Packages/*)
       ANDROID=1 ;;
   esac
   case "$path" in

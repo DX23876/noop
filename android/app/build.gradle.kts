@@ -246,16 +246,19 @@ tasks.withType<Test>().configureEach {
     inputs.dir(roomSchemaSnapshotDir).withPropertyName("roomSchemas").optional()
 }
 
-// Fork (DX23876), Android plan D-5: the shared Swift core. `-Pnoop.swiftCore=true` builds Packages/NoopCoreJNI for
-// arm64 with the Swift SDK for Android (android/swift-core/build-swift-core.sh) and packs libNoopCore.so with the
-// Swift runtime into the APK. Off by default until every builder and CI runner has the toolchain; without it the
-// app runs as before and `SwiftCore.available` is false.
-val forkSwiftCore = (findProperty("noop.swiftCore") as String?)?.toBoolean() ?: false
+// Fork (DX23876), Android plan D-5: the shared Swift core. Every build compiles Packages/NoopCoreJNI for arm64 with
+// the Swift SDK for Android (android/swift-core/build-swift-core.sh, which names what it needs) and packs
+// libNoopCore.so with the Swift runtime into the APK. `-Pnoop.swiftCore=false` leaves it out for a machine without
+// the toolchain; the app then runs as before and `SwiftCore.available` is false.
+val forkSwiftCore = (findProperty("noop.swiftCore") as String?)?.toBoolean() ?: true
 val forkSwiftCoreLibs = layout.buildDirectory.dir("swift-core/jniLibs")
 val buildSwiftCore by tasks.registering(Exec::class) {
     description = "Builds the shared Swift core for Android into build/swift-core/jniLibs."
     onlyIf { forkSwiftCore }
-    inputs.dir(rootProject.file("../Packages")).withPropertyName("packages")
+    // The package sources and manifests, not their .build directories.
+    inputs.files(fileTree(rootProject.file("../Packages")) {
+        include("*/Package.swift", "*/Package.resolved", "*/Sources/**")
+    }).withPropertyName("packages")
     inputs.dir(rootProject.file("swift-core")).withPropertyName("buildScripts")
     outputs.dir(forkSwiftCoreLibs)
     commandLine("bash", rootProject.file("swift-core/build-swift-core.sh").path,

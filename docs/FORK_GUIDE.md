@@ -135,7 +135,7 @@ which changes what validates a change:
 | `tools-python.yml` | The `Tools/linux-capture` Python suite (≥200 tests) | PR + push touching `Tools/**` |
 | `source-hygiene.yml` | Detached doc comments + **commit attribution** (above) | every PR and push to `main` |
 | `i18n-coverage.yml` | EN source + DE/ES/FR/PT-PT complete (zero-tolerance); IT/RU/ZH-Hans/ZH-Hant ratcheted (see "Localization" below) | every PR and push to `main` |
-| `android.yml` | Gradle debug builds of the full and demo flavours + the JVM unit tests | PR + push touching `android/**`, `project.yml` (the version name), the shared protocol and schema fixtures or `Tools/parity_cases/**` (Android plan D-7) |
+| `android.yml` | Gradle debug builds of the full and demo flavours with the shared Swift core (toolchain, Swift SDK for Android and NDK r30 installed first) + the JVM unit tests | PR + push touching `android/**`, `project.yml` (the version name), `Packages/**` (the core) or `Tools/parity_cases/**` (Android plan D-5, D-7) |
 | `android-signing-check.yml` | Opens the Android release keystore with its password secret, prints the public fingerprint | dispatch only |
 | `publish-ios-release.yml` | Cuts a release: unsigned IPA + universal macOS zip, updates the AltStore source, marks it latest | `workflow_dispatch` |
 | `sync-upstream.yml` | Opens a sync PR from `ryanbr/noop` | weekly cron + dispatch |
