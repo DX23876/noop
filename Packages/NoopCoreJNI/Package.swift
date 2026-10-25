@@ -14,8 +14,8 @@ let package = Package(
         .package(path: "../WhoopStore"),
     ],
     targets: [
-        // jni.h comes from the NDK sysroot on Android; elsewhere the header is empty and nothing uses it.
-        .target(name: "CJNI"),
+        // jni.h and the looper come from the NDK sysroot on Android; elsewhere the header is empty and unused.
+        .target(name: "CJNI", linkerSettings: [.linkedLibrary("android", .when(platforms: [.android]))]),
         .target(
             name: "NoopCore",
             dependencies: [.product(name: "StrandCore", package: "StrandCore"),

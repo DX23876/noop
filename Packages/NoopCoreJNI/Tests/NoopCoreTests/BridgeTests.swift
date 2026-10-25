@@ -20,4 +20,13 @@ final class BridgeTests: XCTestCase {
     func testAnUnopenablePathIsANegativeAnswerNotACrash() {
         XCTAssertLessThan(Bridge.openStore(path: "/nonexistent-dir/x/y/noop.sqlite"), 0)
     }
+
+    func testAMainActorJobRuns() async {
+        let before = Bridge.mainActorProbeRuns
+        Bridge.scheduleMainActorProbe()
+        for _ in 0..<100 where Bridge.mainActorProbeRuns == before {
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+        XCTAssertEqual(Bridge.mainActorProbeRuns, before + 1)
+    }
 }

@@ -59,8 +59,9 @@ class NoopApplication : Application() {
         // case it exists for is a strap that stopped talking. Scheduled here rather than beside a widget
         // so it does not inherit that widget's lifecycle. KEEP, so this is a no-op once scheduled.
         com.noop.notif.StaleBatteryWorker.ensureScheduled(this)
-        // Fork (DX23876), Android plan D-5: load the shared Swift core and log its recipe; nothing reads it yet.
-        Thread({ com.noop.core.SwiftCore.probe(this) }, "swift-core-probe").start()
+        // Fork (DX23876), Android plan D-5: load the shared Swift core on the main thread (its main actor binds
+        // there) and log its recipe; nothing reads it yet.
+        com.noop.core.SwiftCore.start(this)
     }
 
     /** Process-wide Room-backed store. One instance shared by the UI and the background service. */

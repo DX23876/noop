@@ -16,4 +16,22 @@ public func jniOpenStore(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?, 
     defer { fns.ReleaseStringUTFChars(env, path, chars) }
     return Bridge.openStore(path: String(cString: chars))
 }
+@_cdecl("Java_com_noop_core_SwiftCore_installMainActor")
+public func jniInstallMainActor(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?) -> jint {
+    noop_install_main_queue_drain()
+}
+
+@_cdecl("Java_com_noop_core_SwiftCore_scheduleMainActorProbe")
+public func jniScheduleMainActorProbe(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?) {
+    Bridge.scheduleMainActorProbe()
+}
+
+@_cdecl("Java_com_noop_core_SwiftCore_mainActorProbeRuns")
+public func jniMainActorProbeRuns(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?) -> jint {
+    Bridge.mainActorProbeRuns
+}
+@_cdecl("Java_com_noop_core_SwiftCore_mainActorProbeOnMainThread")
+public func jniMainActorProbeOnMainThread(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?) -> jboolean {
+    jboolean(Bridge.mainActorProbeOnMainThread ? JNI_TRUE : JNI_FALSE)
+}
 #endif
