@@ -38,11 +38,14 @@ Plan: [`PLAN.md`](PLAN.md) · last updated 2026-10-24
 | C1 one rule for analysis migrations | 2026-10-25 | Recipe AI-31: every bump runs `AnalysisRecipe.RebuildStep` (all days with raw strap data, weekly scores, stress proxy, rhythm days, workout heart rate, cardio ledger, energy history, AgeLess weeks), resumable per step, recipe cursor last; package tests for the order, the resume and the stress rebuild pass on macOS and the emulator. On a copy of the owner's store (104 raw days) the rebuild took about 13 minutes on a Mac, two runs left identical tables (0 of 78 differ) and no raw table changed; edited nights kept bed and wake times, workouts only gained missing heart rate |
 | C2 rules and decision | 2026-10-25 | `AGENT_RULES.md` analysis section, `decisions.md` entry of 2026-10-25, release notes section after 12.2.1 |
 | C3 measured on the owner's iPhone | 2026-10-25 | iPhone 13 Pro Max, Release build of `c93bba06d`, 105 days of raw history, app in the foreground off the charger: the rebuild took 451 s with 515 s of CPU, battery 55 % to 50 %; the daily step was 400 s of that, energy 32 s, rhythm days 16 s, everything else under 3 s. The daily step reached four old duplicate sleep sessions; the dedup heal's re-pass over the same window added 428 s (493 s CPU) and ran after the rebuild had finished, which `2c07ba1a5` fixed by waiting for it inside the daily step. A 21-day pass right after re-scored every day once (102 s) because the sleep traits had moved. After that a routine post-sync pass (one day re-scored, twenty reused) cost 9 to 15 s of CPU against 68 to 140 s on the build before (day cycle 41 s to 3.7 s, edited-night heal 4 s to 0.3 s), most likely because every stored day now matches the current code; two passes so far, a full day's log still to compare. Logs and the store from before the install are on the owner's backup disk |
+| D-1 restore | 2026-10-25 | `android/` and `android.yml` from merge base `7a00c26be` without `fork-debug.keystore` (`748f03f1b`); the Android entries of the lint baselines restored, the Android locale map names Polish (`70ce2a966`); unit tests run in en-US and four iOS-parity tests are excluded by name (`0cd926777`). Android CI green on Linux (6,684 tests); locally the two `RecoveryDriversTest` half-tie cases fail on Apple silicon only (last-bit `exp`/`log`, D23) |
+| D-2 identity | 2026-10-25 | `io.github.dx23876.noop` (+ `.debug`, `.demo`, `.staging`), "NOOP Forge" in every locale, version name read from `project.yml`'s `MARKETING_VERSION`, versionCode 1; `apkanalyzer` shows `io.github.dx23876.noop.debug 12.2.1-debug (1)` |
+| D-3 update check | 2026-10-25 | Reads `DX23876/noop` releases and offers the newest published one with an APK; Settings links to the fork; four JVM tests |
 
 ## Next step
 
-Phase C is complete. Phase D (Android scaffolding, see [`PLAN.md`](PLAN.md)) starts with D-1, restoring
-`android/` from the merge base.
+D-4 (release signing) waits on the owner's key and secrets. Meanwhile D-6 (the sync rule for `android/`) and
+D-7 (CI and tools), then D-5, the deep-core wiring, the large step of phase D.
 
 ## How to run a real-data check (B4)
 
@@ -65,6 +68,10 @@ Compares the build before a restructuring with the build after it on a copy of t
 - A used Pixel 8a or newer once Ko-fi money allows (needed for own Bluetooth checks, not for phases A to D).
 
 ## Known deviations
+
+- **Android privacy notes**: `docs/PRIVACY_SECURITY.md` describes the Apple apps only. The restored Android
+  app has its own network paths (update check, ryanbr's coach, push); they need documenting before a testing
+  build (phase E).
 
 - GRDB 6.29.3 needs the 8-file Android patch (A3). So far it exists only in the spike's build checkout; per
   D22 it becomes a carried patch when the Android build lands (phase D).
