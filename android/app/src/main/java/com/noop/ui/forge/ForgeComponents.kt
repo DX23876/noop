@@ -181,7 +181,7 @@ fun OrganicRing(score: Double?, tint: Color, diameter: Dp, modifier: Modifier = 
 fun MetricTile(icon: ImageVector, tint: Color, label: String, value: String?, unit: String?, noData: String,
                modifier: Modifier = Modifier, delta: String? = null) {
     val colors = Forge.colors
-    ForgeCard(modifier) {
+    ForgeCard(modifier, contentPadding = 14.dp) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(32.dp).background(tint.copy(alpha = 0.16f), RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center) {
@@ -198,7 +198,7 @@ fun MetricTile(icon: ImageVector, tint: Color, label: String, value: String?, un
             Row(verticalAlignment = Alignment.Bottom) {
                 // The value and unit give way first; the change chip always shows whole.
                 Row(Modifier.weight(1f), verticalAlignment = Alignment.Bottom,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text(value, style = Forge.type.title1, color = colors.text, maxLines = 1, softWrap = false)
                     if (unit != null) {
                         Text(unit, style = Forge.type.subhead, color = colors.textSecondary, maxLines = 1,
@@ -210,7 +210,7 @@ fun MetricTile(icon: ImageVector, tint: Color, label: String, value: String?, un
                          softWrap = false,
                          modifier = Modifier.padding(bottom = 4.dp)
                              .background(colors.inset.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
-                             .padding(horizontal = 6.dp, vertical = 2.dp))
+                             .padding(horizontal = 5.dp, vertical = 2.dp))
                 }
             }
         }

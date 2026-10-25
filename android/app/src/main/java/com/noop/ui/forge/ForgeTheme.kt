@@ -2,6 +2,7 @@ package com.noop.ui.forge
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -72,19 +73,21 @@ fun forgeColors(dark: Boolean): ForgeColors = ForgeColors(
 )
 
 /**
- * The rounded face where the Apple side uses SF Pro Rounded (titles, the hero numbers, tile values). SF Pro may
- * not ship outside Apple's platforms, so Android uses Nunito, a rounded face under the SIL Open Font License
- * (`assets/licenses/Nunito-OFL.txt`), one variable file set to each weight. Everything else uses the system face,
- * as iOS uses SF Pro.
+ * The faces standing in for Apple's, which may not ship outside Apple's platforms: Nunito where iOS uses SF Pro
+ * Rounded (titles, the hero numbers, tile values) and Inter where it uses SF Pro (everything else). Both are under
+ * the SIL Open Font License (`assets/licenses/`), each one variable file set to every weight.
  */
 @OptIn(ExperimentalTextApi::class)
-private val roundedFamily = FontFamily((400..900 step 100).map { w ->
-    Font(R.font.nunito, FontWeight(w), variationSettings = FontVariation.Settings(FontVariation.weight(w)))
+private fun variable(res: Int) = FontFamily((100..900 step 100).map { w ->
+    Font(res, FontWeight(w), variationSettings = FontVariation.Settings(FontVariation.weight(w)))
 })
+
+private val roundedFamily = variable(R.font.nunito)
+private val textFamily = variable(R.font.inter)
 
 private fun ForgeFont.style(color: Color = Color.Unspecified) = TextStyle(
     fontSize = size.sp, fontWeight = FontWeight(weight), color = color,
-    fontFamily = if (rounded) roundedFamily else null,
+    fontFamily = if (rounded) roundedFamily else textFamily,
 )
 
 val forgeType = ForgeType(
@@ -116,6 +119,20 @@ object ForgeMetrics {
     val maxContentWidth = 720.dp
 }
 
+/** Material's own text styles on Inter, for the Material components the Forge screens use. */
+private val forgeTypography = Typography().let { t ->
+    t.copy(
+        displayLarge = t.displayLarge.copy(fontFamily = roundedFamily), displayMedium = t.displayMedium.copy(fontFamily = roundedFamily),
+        displaySmall = t.displaySmall.copy(fontFamily = roundedFamily), headlineLarge = t.headlineLarge.copy(fontFamily = roundedFamily),
+        headlineMedium = t.headlineMedium.copy(fontFamily = roundedFamily), headlineSmall = t.headlineSmall.copy(fontFamily = roundedFamily),
+        titleLarge = t.titleLarge.copy(fontFamily = textFamily), titleMedium = t.titleMedium.copy(fontFamily = textFamily),
+        titleSmall = t.titleSmall.copy(fontFamily = textFamily), bodyLarge = t.bodyLarge.copy(fontFamily = textFamily),
+        bodyMedium = t.bodyMedium.copy(fontFamily = textFamily), bodySmall = t.bodySmall.copy(fontFamily = textFamily),
+        labelLarge = t.labelLarge.copy(fontFamily = textFamily), labelMedium = t.labelMedium.copy(fontFamily = textFamily),
+        labelSmall = t.labelSmall.copy(fontFamily = textFamily),
+    )
+}
+
 private val LocalForgeColors = staticCompositionLocalOf { forgeColors(dark = false) }
 
 object Forge {
@@ -135,6 +152,6 @@ fun ForgeTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () ->
                          onBackground = colors.text, onSurface = colors.text, outline = colors.border)
     }
     CompositionLocalProvider(LocalForgeColors provides colors) {
-        MaterialTheme(colorScheme = material, content = content)
+        MaterialTheme(colorScheme = material, typography = forgeTypography, content = content)
     }
 }
