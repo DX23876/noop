@@ -42,11 +42,12 @@ final class RawDataCollectorParityTests: XCTestCase {
         }
     }
 
+    /// Fork (DX23876): skipped. android/ is back (Android plan D-1) but holds ryanbr's Kotlin collector until the
+    /// deep core replaces it (D-5); the cross-platform parity this guarded is retired (docs/fork/AGENT_RULES.md).
+    /// The Kotlin side of the same comparison is excluded in android/app/build.gradle.kts.
     func testAndroidAndAppleOracleCopiesAreByteIdentical() throws {
+        throw XCTSkip("the cross-platform collector parity is retired in this fork; see the doc comment")
         let android = repoRoot.appendingPathComponent("android/app/src/test/resources/raw_data_collector_parity.json")
-        guard FileManager.default.fileExists(atPath: android.path) else {
-            throw XCTSkip("Android tree is not present in this Apple-only fork")
-        }
         XCTAssertEqual(try oracleData(), try Data(contentsOf: android),
                        "Raw-data collector parity oracle copies must change together")
     }
