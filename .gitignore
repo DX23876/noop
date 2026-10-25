@@ -152,3 +152,6 @@ tools/linux-capture/captures/
 # points the picker, which is sometimes the repo root. Hundreds of megabytes of it would be
 # unremovable from history after one `git add -A`.
 *.noopbak
+
+# Android emulator smoke screenshots (Tools/android-smoke.sh)
+artifacts/android/
