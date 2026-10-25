@@ -13,7 +13,10 @@
 # What runs, by changed path since <base>:
 #   app code (Strand*/, NOOPWatch*/, project.yml)   macOS `Strand` StrandTests + iOS `NOOPiOS` build
 #   Packages/<Name>/                                 `swift test` in that package
-# Packages are compiled into the app too, so a package change also runs the app leg.
+#   android/ and what its build reads                Gradle debug builds of both flavours + unit tests
+# Packages are compiled into the app too, so a package change also runs the app leg. The Android inputs
+# outside android/ are the ones `.github/workflows/android.yml` lists: project.yml, the shared protocol
+# and schema fixtures and Tools/parity_cases.
 #
 # The stamp is the tree hash of HEAD, so the working tree must be clean: a passing run over uncommitted
 # edits says nothing about the commit being pushed. Stamps live in the shared git dir, one per line.
@@ -32,9 +35,16 @@ TREE="$(git rev-parse 'HEAD^{tree}')"
 CHANGED="$(git diff --name-only "$BASE" HEAD)"
 
 APP=0
+ANDROID=0
 PACKAGES=()
 while IFS= read -r path; do
   [ -n "$path" ] || continue
+  case "$path" in
+    android/*|.github/workflows/android.yml|project.yml|Tools/parity_cases/*|\
+    Packages/WhoopProtocol/Sources/WhoopProtocol/Resources/*|Packages/WhoopProtocol/Tests/WhoopProtocolTests/Resources/*|\
+    Packages/WhoopStore/Tests/WhoopStoreTests/Resources/*)
+      ANDROID=1 ;;
+  esac
   case "$path" in
     Strand/*|StrandTests/*|StrandiOS/*|StrandiOSShared/*|StrandiOSWidgets/*|StrandiOSTests/*|NOOPWatch*/*|project.yml)
       APP=1 ;;
@@ -45,8 +55,8 @@ while IFS= read -r path; do
   esac
 done <<< "$CHANGED"
 
-if [ "$APP" = 0 ] && [ "${#PACKAGES[@]}" = 0 ]; then
-  echo "local-tests: nothing app- or package-side changed since $BASE; no stamp needed."
+if [ "$APP" = 0 ] && [ "$ANDROID" = 0 ] && [ "${#PACKAGES[@]}" = 0 ]; then
+  echo "local-tests: nothing app-, package- or Android-side changed since $BASE; no stamp needed."
   exit 0
 fi
 
@@ -82,6 +92,14 @@ if [ "$APP" = 1 ]; then
     exit 1
   fi
   RAN+=("app")
+fi
+
+if [ "$ANDROID" = 1 ]; then
+  echo "local-tests: Android full and demo debug builds + unit tests"
+  export JAVA_HOME="${JAVA_HOME:-$(/usr/libexec/java_home -v 17)}"
+  export ANDROID_HOME="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
+  (cd android && ./gradlew --quiet assembleFullDebug assembleDemoDebug testFullDebugUnitTest)
+  RAN+=("android")
 fi
 
 # Builds rewrite the String Catalogs; a stamp over a tree the build itself changed would be a lie.

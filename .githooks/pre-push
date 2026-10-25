@@ -18,9 +18,11 @@
 # check is skipped with a note rather than blocking every push; source-hygiene and the CI itself remain
 # the backstop.
 #
-# Second check, run first: a push to main that changes app code (Strand*/, NOOPWatch*/, project.yml) or a
-# package needs a stamp from `Tools/local-tests.sh` for exactly the tree being pushed, because no CI runs
-# StrandTests or the package tests on a push (decisions 2026-09-30 and 2026-10-10). Deliberately skipped:
+# Second check, run first: a push to main that changes app code (Strand*/, NOOPWatch*/, project.yml), a
+# package or the Android tree (android/, its workflow, Tools/parity_cases) needs a stamp from
+# `Tools/local-tests.sh` for exactly the tree being pushed, because no CI runs StrandTests or the package
+# tests on a push (decisions 2026-09-30 and 2026-10-10), and a red Android CI on main lands on whoever
+# pushes next (Android plan D-7). Deliberately skipped:
 #
 #   NOOP_SKIP_LOCAL_TESTS=1 git push origin HEAD:main
 #
@@ -50,7 +52,7 @@ case "$TARGET_SHA" in 0000000000000000000000000000000000000000) exit 0 ;; esac
 # --- local test stamp ---------------------------------------------------------------------------------
 needs_local_tests() {
   git diff --name-only "$TARGET_SHA" "$LOCAL_SHA" 2>/dev/null | grep -qE \
-    '^(Strand|StrandTests|StrandiOS|StrandiOSShared|StrandiOSWidgets|StrandiOSTests|NOOPWatch[^/]*|Packages/[^/]+)/|^project\.yml$'
+    '^(Strand|StrandTests|StrandiOS|StrandiOSShared|StrandiOSWidgets|StrandiOSTests|NOOPWatch[^/]*|Packages/[^/]+|android|Tools/parity_cases)/|^project\.yml$|^\.github/workflows/android\.yml$'
 }
 case "$LOCAL_SHA" in ""|0000000000000000000000000000000000000000) ;; *)
   if [ "${NOOP_SKIP_LOCAL_TESTS:-}" = "1" ]; then
