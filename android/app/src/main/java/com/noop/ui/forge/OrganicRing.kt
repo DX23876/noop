@@ -98,9 +98,12 @@ private class RingCache(val preparation: OrganicPreparation) {
  * and reduced motion pose the ring still, as on iOS.
  */
 @Composable
-fun OrganicRing(score: Double?, tint: Color, diameter: Dp, metric: OrganicMetric, modifier: Modifier = Modifier) {
+fun OrganicRing(score: Double?, tint: Color, diameter: Dp, metric: OrganicMetric, modifier: Modifier = Modifier,
+                onScene: Boolean = false) {
     val colors = Forge.colors
-    val onLight = !colors.dark
+    // On a card the card's appearance decides; straight on the scene (the Sleep ring) the scene's does.
+    val sceneInk = Forge.sceneInk
+    val onLight = if (onScene) !sceneInk.dark else !colors.dark
     val model = remember(metric, score == null, score) { OrganicScoreModel.resolve(metric, score) }
     val cache = remember(model) { RingCache(OrganicPreparation(model)) }
     val color = if (model.missing && !model.awaitsEffort) colors.missing else tint
@@ -191,7 +194,7 @@ fun OrganicRing(score: Double?, tint: Color, diameter: Dp, metric: OrganicMetric
                 }
             }
         }
-        ScoreNumber(score, diameter, still)
+        ScoreNumber(score, diameter, still, onLight)
     }
 }
 
@@ -214,18 +217,18 @@ private fun DrawScope.drawParticles(f: RingFrame, tint: Color, onLight: Boolean,
 
 /** The score in the middle: counts up to a new value, dark ink with a paper halo on light, a shadow on dark. */
 @Composable
-private fun ScoreNumber(score: Double?, diameter: Dp, still: Boolean) {
+private fun ScoreNumber(score: Double?, diameter: Dp, still: Boolean, onLight: Boolean) {
     val colors = Forge.colors
     val shown by animateFloatAsState(
         targetValue = (score ?: 0.0).toFloat(),
         animationSpec = if (still) snap() else tween(950, easing = FastOutSlowInEasing), label = "score",
     )
     val size = with(LocalDensity.current) { (diameter * 0.27f).toSp() }
-    val shadow = if (colors.dark) Shadow(Color.Black.copy(alpha = 0.72f), Offset(0f, 2f), 8f)
+    val shadow = if (!onLight) Shadow(Color.Black.copy(alpha = 0.72f), Offset(0f, 2f), 8f)
                  else Shadow(Color.White.copy(alpha = 0.85f), Offset.Zero, 6f)
     Text(if (score == null) DASH else "%.0f".format(shown),
          style = Forge.type.heroNumber.copy(fontSize = size, shadow = shadow), textAlign = TextAlign.Center,
-         color = if (colors.dark) colors.onDark else colors.text, maxLines = 1,
+         color = if (!onLight) colors.onDark else colors.text, maxLines = 1,
          modifier = Modifier.requiredWidth(diameter * 0.62f))
 }
 

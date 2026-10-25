@@ -154,11 +154,11 @@ private fun Header(date: LocalDate, isToday: Boolean) {
             Text(
                 if (isToday) stringResource(R.string.nav_today)
                 else date.format(DateTimeFormatter.ofPattern(WEEKDAY_PATTERN, locale)).replaceFirstChar { it.titlecase(locale) },
-                style = Forge.type.title2.copy(fontWeight = FontWeight.Bold), color = colors.text, maxLines = 1,
+                style = Forge.type.title2.copy(fontWeight = FontWeight.Bold), color = Forge.sceneInk.text, maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(date.format(DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, DAY_MONTH_SKELETON), locale)),
-                 style = Forge.type.subhead, color = colors.textSecondary, maxLines = 1)
+                 style = Forge.type.subhead, color = Forge.sceneInk.secondary, maxLines = 1)
         }
         ForgeWordmark(Modifier.align(Alignment.TopCenter).padding(top = ForgeMetrics.space2))
     }

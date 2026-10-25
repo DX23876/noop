@@ -128,6 +128,6 @@ fun MetricTile(icon: ImageVector, tint: Color, label: String, value: String?, un
 /** Small caps section header, as the iOS screens title their sections. */
 @Composable
 fun SectionHeader(text: String, modifier: Modifier = Modifier) {
-    Text(text.uppercase(), style = Forge.type.overline, color = Forge.colors.textSecondary,
+    Text(text.uppercase(), style = Forge.type.overline, color = Forge.sceneInk.secondary,
          modifier = modifier.fillMaxWidth().padding(horizontal = ForgeMetrics.space1))
 }

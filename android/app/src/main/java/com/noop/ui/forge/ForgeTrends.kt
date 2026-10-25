@@ -105,8 +105,8 @@ fun ForgeTrendsScreen(padding: PaddingValues, width: ForgeWidth) {
         verticalArrangement = Arrangement.spacedBy(ForgeMetrics.sectionGap),
     ) {
         Column(Modifier.padding(top = ForgeMetrics.space4)) {
-            Text(stringResource(R.string.nav_trends), style = Forge.type.title1, color = colors.text)
-            Text(stringResource(R.string.forge_trends_subtitle), style = Forge.type.subhead, color = colors.textSecondary)
+            Text(stringResource(R.string.nav_trends), style = Forge.type.title1, color = Forge.sceneInk.text)
+            Text(stringResource(R.string.forge_trends_subtitle), style = Forge.type.subhead, color = Forge.sceneInk.secondary)
         }
         WindowPicker(days) { days = it }
         ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.heroRadius, fill = colors.heroFill) {

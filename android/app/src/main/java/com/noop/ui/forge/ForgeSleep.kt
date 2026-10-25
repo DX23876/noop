@@ -119,7 +119,8 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth) {
         if (night != null) {
             val rest = wakeDay?.let { model?.restByDay?.get(it.toString()) }
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                OrganicRing(rest, Forge.colors.rest, if (width == ForgeWidth.Compact) 220.dp else 240.dp, OrganicMetric.Rest)
+                OrganicRing(rest, Forge.colors.rest, if (width == ForgeWidth.Compact) 220.dp else 240.dp, OrganicMetric.Rest,
+                            onScene = true)
             }
             Times(night, zone)
             Breakdown(night, zone)
@@ -144,16 +145,16 @@ private fun Header(night: CoreRead.Night?, isLatest: Boolean, zone: ZoneId, canB
     }
     Row(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space4), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text(stringResource(R.string.forge_sleep).uppercase(), style = Forge.type.overline, color = colors.textSecondary)
-            Text(title, style = Forge.type.title1, color = colors.text, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(stringResource(R.string.forge_sleep).uppercase(), style = Forge.type.overline, color = Forge.sceneInk.secondary)
+            Text(title, style = Forge.type.title1, color = Forge.sceneInk.text, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
         IconButton(onClick = onBack, enabled = canBack) {
             Icon(Icons.Rounded.ChevronLeft, stringResource(R.string.forge_previous_night),
-                 tint = if (canBack) colors.text else colors.textTertiary)
+                 tint = if (canBack) Forge.sceneInk.text else Forge.sceneInk.tertiary)
         }
         IconButton(onClick = onForward, enabled = canForward) {
             Icon(Icons.Rounded.ChevronRight, stringResource(R.string.forge_next_night),
-                 tint = if (canForward) colors.text else colors.textTertiary)
+                 tint = if (canForward) Forge.sceneInk.text else Forge.sceneInk.tertiary)
         }
     }
 }

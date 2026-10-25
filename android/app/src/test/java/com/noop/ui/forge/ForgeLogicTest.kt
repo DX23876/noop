@@ -15,6 +15,11 @@ class ForgeLogicTest {
         assertEquals(4, DayCycleScene.slot(-1))
     }
 
+    @Test fun dawnDuskAndNightAreTheDarkScenes() {
+        // DayCycleScene.isDark(hour:) in StrandDesign: up to 05 and from 19.
+        assertEquals((0..23).filter { it <= 5 || it >= 19 }, (0..23).filter(DayCycleScene::isDark))
+    }
+
     @Test fun chargeBandsSplitWhereTheSwiftBandsDo() {
         assertEquals(ChargeBand.Depleted, ChargeBand.of(24.9))
         assertEquals(ChargeBand.Low, ChargeBand.of(25.0))

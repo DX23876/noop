@@ -33,7 +33,7 @@ data class ForgeColors(
     val canvas: Color, val surface: Color, val surfaceTop: Color, val inset: Color,
     val border: Color, val divider: Color,
     val text: Color, val textSecondary: Color, val textTertiary: Color,
-    val onDark: Color, val onDarkSecondary: Color,
+    val onDark: Color, val onDarkSecondary: Color, val onDarkTertiary: Color,
     val heroFill: Color, val heroBorder: Color,
     val accent: Color,
     val charge: Color, val effort: Color, val rest: Color, val missing: Color,
@@ -58,6 +58,7 @@ fun forgeColors(dark: Boolean): ForgeColors = ForgeColors(
     text = Chrome.primaryText.pick(dark), textSecondary = Chrome.secondaryText.pick(dark),
     textTertiary = Chrome.tertiaryText.pick(dark),
     onDark = P.onDarkPrimary.pick(dark), onDarkSecondary = P.onDarkSecondary.pick(dark),
+    onDarkTertiary = P.onDarkTertiary.pick(dark),
     heroFill = P.heroFill.pick(dark), heroBorder = P.heroBorder.pick(dark),
     accent = ForgeTokens.Color.systemBlue.pick(dark),
     charge = P.chargeColor.pick(dark), effort = P.organicEffort.pick(dark), rest = P.organicRest.pick(dark),
@@ -138,6 +139,9 @@ private val LocalForgeColors = staticCompositionLocalOf { forgeColors(dark = fal
 object Forge {
     val colors: ForgeColors @Composable get() = LocalForgeColors.current
     val type: ForgeType get() = forgeType
+    /** Ink for text straight on the scene (headers, section titles); the normal text colours off a scene. */
+    val sceneInk: SceneInk @Composable get() = LocalSceneInk.current
+        ?: colors.let { SceneInk(it.text, it.textSecondary, it.textTertiary, it.dark) }
 }
 
 /** Light or dark follows the system, as on iOS; the whole screen darkens, not only the cards. */

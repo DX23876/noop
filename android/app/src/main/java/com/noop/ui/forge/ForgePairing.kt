@@ -95,10 +95,10 @@ fun ForgePairing(viewModel: AppViewModel, onClose: () -> Unit, onOtherDevice: ()
             verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap),
         ) {
             Row(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space2), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.forge_pair_title), style = Forge.type.title1, color = colors.text,
+                Text(stringResource(R.string.forge_pair_title), style = Forge.type.title1, color = Forge.sceneInk.text,
                      modifier = Modifier.weight(1f))
                 IconButton(onClick = onClose) {
-                    Icon(Icons.Rounded.Close, stringResource(R.string.forge_cancel), tint = colors.text)
+                    Icon(Icons.Rounded.Close, stringResource(R.string.forge_cancel), tint = Forge.sceneInk.text)
                 }
             }
             val chosen = model

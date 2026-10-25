@@ -135,7 +135,7 @@ fun ForgeMoreScreen(padding: PaddingValues, viewModel: AppViewModel) {
     ) {
         Row(Modifier.padding(top = ForgeMetrics.space4, bottom = ForgeMetrics.space2),
             verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.nav_more), style = Forge.type.title1, color = colors.text,
+            Text(stringResource(R.string.nav_more), style = Forge.type.title1, color = Forge.sceneInk.text,
                  modifier = Modifier.weight(1f))
             // D9: the Android build says it is in testing until three testers have confirmed it.
             Text(stringResource(R.string.forge_testing).uppercase(), style = Forge.type.overline, color = colors.effort,
@@ -193,8 +193,8 @@ fun ForgeMoreScreen(padding: PaddingValues, viewModel: AppViewModel) {
             }
         }
         Text(stringResource(R.string.forge_version, BuildConfig.VERSION_NAME), style = Forge.type.caption,
-             color = colors.textTertiary, modifier = Modifier.padding(horizontal = ForgeMetrics.space1))
-        Text(stringResource(R.string.forge_privacy), style = Forge.type.caption, color = colors.textTertiary,
+             color = Forge.sceneInk.tertiary, modifier = Modifier.padding(horizontal = ForgeMetrics.space1))
+        Text(stringResource(R.string.forge_privacy), style = Forge.type.caption, color = Forge.sceneInk.tertiary,
              modifier = Modifier.padding(horizontal = ForgeMetrics.space1))
         Spacer(Modifier.height(ForgeMetrics.space2))
     }

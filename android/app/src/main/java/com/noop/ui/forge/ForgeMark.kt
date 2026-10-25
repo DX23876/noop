@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 fun ForgeMark(height: Dp, modifier: Modifier = Modifier) {
     val colors = Forge.colors
     val ember = Color(if (colors.dark) ForgeTokens.StrandPalette.forgeEmber.dark else ForgeTokens.StrandPalette.forgeEmber.light)
+    val ink = Forge.sceneInk.text
     Canvas(modifier.size(width = height * (400f / 410f), height = height)) {
         val sx = size.width / 400f
         val sy = size.height / 410f
@@ -30,8 +31,8 @@ fun ForgeMark(height: Dp, modifier: Modifier = Modifier) {
             points.forEachIndexed { i, (x, y) -> if (i == 0) moveTo(x * sx, y * sy) else lineTo(x * sx, y * sy) }
             close()
         }
-        drawPath(poly(UPPER), colors.text, style = Fill)
-        drawPath(poly(LOWER), colors.text, style = Fill)
+        drawPath(poly(UPPER), ink, style = Fill)
+        drawPath(poly(LOWER), ink, style = Fill)
         drawPath(poly(ARM), ember, style = Fill)
     }
 }
@@ -48,7 +49,7 @@ fun ForgeWordmark(modifier: Modifier = Modifier) {
         horizontalArrangement = Arrangement.spacedBy(13.dp), verticalAlignment = Alignment.CenterVertically) {
         BRAND_LETTERS.forEach { ch ->
             Text(ch.toString(), style = Forge.type.title2.copy(fontSize = 17.sp, fontWeight = FontWeight.Bold),
-                 color = colors.text.copy(alpha = 0.9f))
+                 color = Forge.sceneInk.text.copy(alpha = 0.9f))
         }
         ForgeMark(14.dp)
     }
