@@ -41,10 +41,11 @@ Plan: [`PLAN.md`](PLAN.md) · last updated 2026-10-24
 | D-1 restore | 2026-10-25 | `android/` and `android.yml` from merge base `7a00c26be` without `fork-debug.keystore` (`748f03f1b`); the Android entries of the lint baselines restored, the Android locale map names Polish (`70ce2a966`); unit tests run in en-US and four iOS-parity tests are excluded by name (`0cd926777`). Android CI green on Linux (6,684 tests); locally the two `RecoveryDriversTest` half-tie cases fail on Apple silicon only (last-bit `exp`/`log`, D23) |
 | D-2 identity | 2026-10-25 | `io.github.dx23876.noop` (+ `.debug`, `.demo`, `.staging`), "NOOP Forge" in every locale, version name read from `project.yml`'s `MARKETING_VERSION`, versionCode 1; `apkanalyzer` shows `io.github.dx23876.noop.debug 12.2.1-debug (1)` |
 | D-3 update check | 2026-10-25 | Reads `DX23876/noop` releases and offers the newest published one with an APK; Settings links to the fork; four JVM tests |
+| D-4 signing key | 2026-10-25 | The owner created the release key (PKCS12, RSA 4096, alias `forge`, valid to 2126, owner `CN=NOOP Forge, O=DX23876`) and stored it as `ANDROID_KEYSTORE_BASE64` and `ANDROID_KEYSTORE_PASSWORD`; the dispatch-only `android-signing-check.yml` opened it on GitHub. Certificate SHA-256 `DA:EF:49:62:50:E9:C1:05:AC:A0:0F:4B:F1:C3:36:0E:D7:B2:DC:64:04:7B:F9:A3:E3:E3:86:36:DC:DA:0F:F4`. Release signing in a workflow comes with F1 |
 
 ## Next step
 
-D-4 (release signing) waits on the owner's key and secrets. Meanwhile D-6 (the sync rule for `android/`) and
+D-6 (the sync rule for `android/`) and
 D-7 (CI and tools), then D-5, the deep-core wiring, the large step of phase D.
 
 ## How to run a real-data check (B4)
@@ -64,7 +65,6 @@ Compares the build before a restructuring with the build after it on a copy of t
 
 ## Waiting on the owner
 
-- Release signing key and its GitHub secrets (needed in D-4, not before).
 - A used Pixel 8a or newer once Ko-fi money allows (needed for own Bluetooth checks, not for phases A to D).
 
 ## Known deviations
