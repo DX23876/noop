@@ -2,9 +2,13 @@ package com.noop.ui.forge
 
 import android.content.Context
 import android.content.Intent
+import android.text.format.DateUtils
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -26,12 +30,16 @@ import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.IosShare
 import androidx.compose.material.icons.rounded.Upload
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,16 +52,23 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.noop.BuildConfig
 import com.noop.R
 import com.noop.core.CoreBackup
+import com.noop.ui.AddDeviceWizard
+import com.noop.ui.AppViewModel
 import com.noop.ui.LogExport
+import com.noop.ui.Palette
 import com.noop.ui.StrapLogBuffer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import kotlin.math.roundToInt
 
 /** What the More screen is telling the wearer after an export or import. */
 private sealed interface Notice {
@@ -69,13 +84,15 @@ private const val BACKUP_NAME_PREFIX = "NOOP-Forge-"
 private const val BACKUP_EXTENSION = ".noopbak"
 
 /**
- * Fork (DX23876), Android plan E-3e: the More tab. `.noopbak` export and import of the core's store (the same format
+ * Fork (DX23876), Android plan E-3e/E-3f: the More tab. The strap (link state, battery, last sync, connect and
+ * pairing through the app's view model), `.noopbak` export and import of the core's store (the same format
  * and checks as the Apple apps), sharing the strap log for a bug report, the version and the way back to the
  * classic screens for what the Forge screens do not cover yet.
  */
 @Composable
-fun ForgeMoreScreen(padding: PaddingValues) {
+fun ForgeMoreScreen(padding: PaddingValues, viewModel: AppViewModel) {
     val context = LocalContext.current
+    var pairing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     var notice by remember { mutableStateOf<Notice?>(null) }
 
@@ -118,6 +135,9 @@ fun ForgeMoreScreen(padding: PaddingValues) {
         Text(stringResource(R.string.nav_more), style = Forge.type.title1, color = colors.text,
              modifier = Modifier.padding(top = ForgeMetrics.space4, bottom = ForgeMetrics.space2))
 
+        SectionHeader(stringResource(R.string.forge_strap_section))
+        StrapCard(viewModel, onPair = { pairing = true })
+
         SectionHeader(stringResource(R.string.forge_backup_section))
         ForgeCard(Modifier.fillMaxWidth(), contentPadding = 0.dp) {
             MoreRow(Icons.Rounded.Upload, colors.accent, stringResource(R.string.forge_backup_export),
@@ -154,6 +174,15 @@ fun ForgeMoreScreen(padding: PaddingValues) {
         Spacer(Modifier.height(ForgeMetrics.space2))
     }
 
+    if (pairing) {
+        // Pairing keeps the classic wizard until its Forge version exists; it runs on the same view model.
+        Dialog(onDismissRequest = { pairing = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+            Surface(Modifier.fillMaxSize(), color = Palette.surfaceBase) {
+                AddDeviceWizard(viewModel = viewModel, onClose = { pairing = false })
+            }
+        }
+    }
+
     notice?.let { current ->
         NoticeDialog(current, onDismiss = { notice = null },
                      onRestart = { restartApp(context) },
@@ -161,6 +190,55 @@ fun ForgeMoreScreen(padding: PaddingValues) {
                          notice = Notice.Working
                          scope.launch { finish(withContext(Dispatchers.IO) { CoreBackup.importStagedAnyway(context) }) }
                      })
+    }
+}
+
+/** The strap as the app sees it now: name, link state, battery and last sync, with connect and pairing. */
+@Composable
+private fun StrapCard(viewModel: AppViewModel, onPair: () -> Unit) {
+    val colors = Forge.colors
+    val live by viewModel.live.collectAsState()
+    val name by viewModel.activeDeviceName.collectAsState()
+    val linked = live.connected || live.bonded || live.streamingLiveHR
+    val (status, tint) = when {
+        live.backfilling -> stringResource(R.string.forge_strap_syncing) to colors.rest
+        linked -> stringResource(R.string.forge_strap_connected) to colors.charge
+        live.scanning -> stringResource(R.string.forge_strap_searching) to colors.effort
+        else -> stringResource(R.string.forge_strap_disconnected) to colors.textTertiary
+    }
+    ForgeCard(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(12.dp).background(tint, CircleShape))
+            Spacer(Modifier.width(ForgeMetrics.space2 + ForgeMetrics.space1))
+            Column(Modifier.weight(1f)) {
+                Text(name ?: stringResource(R.string.forge_strap_none), style = Forge.type.headline, color = colors.text)
+                Text(status, style = Forge.type.subhead, color = colors.textSecondary)
+            }
+            live.batteryPct?.let { pct ->
+                Text(stringResource(R.string.forge_strap_battery, pct.roundToInt()), style = Forge.type.captionNumber,
+                     color = colors.textSecondary)
+            }
+        }
+        live.lastSyncAt?.let { at ->
+            Spacer(Modifier.height(ForgeMetrics.space2))
+            Text(stringResource(R.string.forge_strap_last_sync,
+                                DateUtils.getRelativeTimeSpanString(at * 1000, System.currentTimeMillis(),
+                                                                    DateUtils.MINUTE_IN_MILLIS).toString()),
+                 style = Forge.type.caption, color = colors.textTertiary)
+        }
+        Spacer(Modifier.height(ForgeMetrics.space4))
+        Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
+            if (name != null) {
+                OutlinedButton(onClick = { if (linked || live.scanning) viewModel.disconnect() else viewModel.connect() },
+                               modifier = Modifier.weight(1f)) {
+                    Text(stringResource(if (linked || live.scanning) R.string.forge_strap_disconnect
+                                        else R.string.forge_strap_connect), maxLines = 1)
+                }
+            }
+            Button(onClick = onPair, modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.forge_strap_add), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
     }
 }
 

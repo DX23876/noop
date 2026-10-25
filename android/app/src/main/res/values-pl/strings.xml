@@ -2946,5 +2946,16 @@
     <string name="forge_version">Wersja %1$s</string>
     <string name="forge_privacy">Wszystko zostaje na tym urządzeniu. Bez konta, bez serwera.</string>
     <string name="forge_classic_screens">Klasyczne ekrany</string>
-    <string name="forge_classic_screens_detail">Wraca do poprzednich ekranów w sprawach, których nowe jeszcze nie obsługują, np. parowania.</string>
+    <string name="forge_classic_screens_detail">Wraca do poprzednich ekranów w sprawach, których nowe jeszcze nie obsługują.</string>
+    <string name="forge_strap_section">Strap</string>
+    <string name="forge_strap_connected">Połączono</string>
+    <string name="forge_strap_searching">Wyszukiwanie…</string>
+    <string name="forge_strap_syncing">Synchronizacja historii…</string>
+    <string name="forge_strap_disconnected">Nie połączono</string>
+    <string name="forge_strap_none">Brak sparowanego strapa</string>
+    <string name="forge_strap_battery">Bateria %1$d%%</string>
+    <string name="forge_strap_last_sync">Ostatnia synchronizacja %1$s</string>
+    <string name="forge_strap_connect">Połącz</string>
+    <string name="forge_strap_disconnect">Rozłącz</string>
+    <string name="forge_strap_add">Sparuj strapa</string>
 </resources>

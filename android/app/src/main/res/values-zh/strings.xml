@@ -2900,5 +2900,16 @@
     <string name="forge_version">版本 %1$s</string>
     <string name="forge_privacy">所有数据都留在此设备上。无需账户，没有服务器。</string>
     <string name="forge_classic_screens">经典界面</string>
-    <string name="forge_classic_screens_detail">切换回之前的界面，用于新界面尚未支持的功能，例如配对。</string>
+    <string name="forge_classic_screens_detail">切换回之前的界面，用于新界面尚未支持的功能。</string>
+    <string name="forge_strap_section">Strap</string>
+    <string name="forge_strap_connected">已连接</string>
+    <string name="forge_strap_searching">正在搜索…</string>
+    <string name="forge_strap_syncing">正在同步历史…</string>
+    <string name="forge_strap_disconnected">未连接</string>
+    <string name="forge_strap_none">尚未配对 Strap</string>
+    <string name="forge_strap_battery">电量 %1$d%%</string>
+    <string name="forge_strap_last_sync">上次同步 %1$s</string>
+    <string name="forge_strap_connect">连接</string>
+    <string name="forge_strap_disconnect">断开</string>
+    <string name="forge_strap_add">配对 Strap</string>
 </resources>

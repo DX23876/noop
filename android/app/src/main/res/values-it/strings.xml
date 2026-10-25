@@ -2898,5 +2898,16 @@
     <string name="forge_version">Versione %1$s</string>
     <string name="forge_privacy">Tutto resta su questo dispositivo. Nessun account, nessun server.</string>
     <string name="forge_classic_screens">Schermate classiche</string>
-    <string name="forge_classic_screens_detail">Torna alle schermate precedenti per ciò che le nuove non coprono ancora, come l’abbinamento.</string>
+    <string name="forge_classic_screens_detail">Torna alle schermate precedenti per ciò che le nuove non coprono ancora.</string>
+    <string name="forge_strap_section">Strap</string>
+    <string name="forge_strap_connected">Connesso</string>
+    <string name="forge_strap_searching">Ricerca…</string>
+    <string name="forge_strap_syncing">Sincronizzazione dello storico…</string>
+    <string name="forge_strap_disconnected">Non connesso</string>
+    <string name="forge_strap_none">Nessuno strap abbinato</string>
+    <string name="forge_strap_battery">Batteria %1$d%%</string>
+    <string name="forge_strap_last_sync">Ultima sincronizzazione %1$s</string>
+    <string name="forge_strap_connect">Connetti</string>
+    <string name="forge_strap_disconnect">Disconnetti</string>
+    <string name="forge_strap_add">Abbina strap</string>
 </resources>

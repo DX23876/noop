@@ -3,11 +3,13 @@ package com.noop.ui.forge
 import android.content.Context
 import android.content.Intent
 import androidx.compose.runtime.Composable
+import com.noop.ui.AppViewModel
 
 /**
- * Fork (DX23876), Android plan E-3: the Forge app. Until the last E-3 step makes it the app, it opens only when
- * switched on: `adb shell am start -n <package>/com.noop.ui.MainActivity --ez forge_ui true` turns it on and
- * `--ez forge_ui false` off again; the choice is kept.
+ * Fork (DX23876), Android plan E-3: the Forge app, shown by `NoopRoot` after the terms and onboarding gates with
+ * the app's view model. Until the last E-3 step makes it the default it opens only when switched on:
+ * `adb shell am start -n <package>/com.noop.ui.MainActivity --ez forge_ui true` turns it on and
+ * `--ez forge_ui false` off again; the choice is kept, and More switches back to the classic screens.
  */
 object ForgeUi {
     private const val PREFS = "forge"
@@ -26,13 +28,13 @@ object ForgeUi {
 }
 
 @Composable
-fun ForgeRoot() {
+fun ForgeRoot(viewModel: AppViewModel) {
     ForgeShell { tab, padding, width ->
         when (tab) {
             ForgeTab.Today -> ForgeTodayScreen(padding, width)
             ForgeTab.Trends -> ForgeTrendsScreen(padding, width)
             ForgeTab.Sleep -> ForgeSleepScreen(padding, width)
-            ForgeTab.More -> ForgeMoreScreen(padding)
+            ForgeTab.More -> ForgeMoreScreen(padding, viewModel)
         }
     }
 }

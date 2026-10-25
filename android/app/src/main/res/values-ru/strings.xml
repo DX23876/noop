@@ -2825,5 +2825,16 @@
     <string name="forge_version">Версия %1$s</string>
     <string name="forge_privacy">Всё остаётся на этом устройстве. Без аккаунта и сервера.</string>
     <string name="forge_classic_screens">Классические экраны</string>
-    <string name="forge_classic_screens_detail">Возвращает прежние экраны для того, что новые ещё не умеют, например сопряжения.</string>
+    <string name="forge_classic_screens_detail">Возвращает прежние экраны для того, что новые ещё не умеют.</string>
+    <string name="forge_strap_section">Strap</string>
+    <string name="forge_strap_connected">Подключено</string>
+    <string name="forge_strap_searching">Поиск…</string>
+    <string name="forge_strap_syncing">Синхронизация истории…</string>
+    <string name="forge_strap_disconnected">Не подключено</string>
+    <string name="forge_strap_none">Strap ещё не сопряжён</string>
+    <string name="forge_strap_battery">Заряд %1$d%%</string>
+    <string name="forge_strap_last_sync">Последняя синхронизация %1$s</string>
+    <string name="forge_strap_connect">Подключить</string>
+    <string name="forge_strap_disconnect">Отключить</string>
+    <string name="forge_strap_add">Сопрячь strap</string>
 </resources>

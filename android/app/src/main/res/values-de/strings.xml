@@ -2943,5 +2943,16 @@
     <string name="forge_version">Version %1$s</string>
     <string name="forge_privacy">Alles bleibt auf diesem Gerät. Kein Konto, kein Server.</string>
     <string name="forge_classic_screens">Klassische Ansicht</string>
-    <string name="forge_classic_screens_detail">Wechselt zurück zu den bisherigen Bildschirmen für das, was die neuen noch nicht abdecken, etwa das Koppeln.</string>
+    <string name="forge_classic_screens_detail">Wechselt zurück zu den bisherigen Bildschirmen für das, was die neuen noch nicht abdecken.</string>
+    <string name="forge_strap_section">Strap</string>
+    <string name="forge_strap_connected">Verbunden</string>
+    <string name="forge_strap_searching">Suche läuft…</string>
+    <string name="forge_strap_syncing">Verlauf wird übertragen…</string>
+    <string name="forge_strap_disconnected">Nicht verbunden</string>
+    <string name="forge_strap_none">Noch kein Strap gekoppelt</string>
+    <string name="forge_strap_battery">Akku %1$d %%</string>
+    <string name="forge_strap_last_sync">Zuletzt übertragen %1$s</string>
+    <string name="forge_strap_connect">Verbinden</string>
+    <string name="forge_strap_disconnect">Trennen</string>
+    <string name="forge_strap_add">Strap koppeln</string>
 </resources>

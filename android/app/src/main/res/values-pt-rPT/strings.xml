@@ -2922,5 +2922,16 @@
     <string name="forge_version">Versão %1$s</string>
     <string name="forge_privacy">Tudo fica neste dispositivo. Sem conta, sem servidor.</string>
     <string name="forge_classic_screens">Ecrãs clássicos</string>
-    <string name="forge_classic_screens_detail">Volta aos ecrãs anteriores para o que os novos ainda não cobrem, como o emparelhamento.</string>
+    <string name="forge_classic_screens_detail">Volta aos ecrãs anteriores para o que os novos ainda não cobrem.</string>
+    <string name="forge_strap_section">Strap</string>
+    <string name="forge_strap_connected">Ligado</string>
+    <string name="forge_strap_searching">A procurar…</string>
+    <string name="forge_strap_syncing">A sincronizar o histórico…</string>
+    <string name="forge_strap_disconnected">Não ligado</string>
+    <string name="forge_strap_none">Ainda nenhum strap emparelhado</string>
+    <string name="forge_strap_battery">Bateria %1$d %%</string>
+    <string name="forge_strap_last_sync">Última sincronização %1$s</string>
+    <string name="forge_strap_connect">Ligar</string>
+    <string name="forge_strap_disconnect">Desligar</string>
+    <string name="forge_strap_add">Emparelhar strap</string>
 </resources>

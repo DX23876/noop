@@ -89,11 +89,9 @@ class MainActivity : ComponentActivity() {
             }
             return
         }
-        // Fork (DX23876), Android plan E-3: the Forge screens on the shared core, while they are built.
-        if (com.noop.ui.forge.ForgeUi.enabled(this, intent)) {
-            setContent { com.noop.ui.forge.ForgeTheme { com.noop.ui.forge.ForgeRoot() } }
-            return
-        }
+        // Fork (DX23876), Android plan E-3: a `forge_ui` launch extra switches the Forge screens on or off; NoopRoot
+        // shows them after the terms and onboarding gates, with the same view model (and so the strap link).
+        com.noop.ui.forge.ForgeUi.enabled(this, intent)
         // Load the saved "Card transparency" so every frosted card renders at the chosen opacity from launch.
         CardAppearance.init(this)
 
@@ -1670,7 +1668,11 @@ fun NoopRoot() {
 
     // Existing, onboarded user: render the app, and if they've updated since last launch
     // (stored version behind current), show "What's New" once over the top.
-    AppRoot(viewModel = appViewModel)
+    if (com.noop.ui.forge.ForgeUi.enabled(context, null)) {
+        com.noop.ui.forge.ForgeTheme { com.noop.ui.forge.ForgeRoot(appViewModel) }
+    } else {
+        AppRoot(viewModel = appViewModel)
+    }
 
     if (lastSeenChangelog != AppChangelog.CURRENT_VERSION) {
         Dialog(
