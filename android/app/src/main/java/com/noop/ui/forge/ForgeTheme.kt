@@ -9,10 +9,15 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.noop.R
 import com.noop.ui.forge.ForgeTokens.NoopVisualStyle as Chrome
 import com.noop.ui.forge.ForgeTokens.StrandPalette as P
 
@@ -66,8 +71,20 @@ fun forgeColors(dark: Boolean): ForgeColors = ForgeColors(
     heart = P.liquidHeart.pick(dark),
 )
 
+/**
+ * The rounded face where the Apple side uses SF Pro Rounded (titles, the hero numbers, tile values). SF Pro may
+ * not ship outside Apple's platforms, so Android uses Nunito, a rounded face under the SIL Open Font License
+ * (`assets/licenses/Nunito-OFL.txt`), one variable file set to each weight. Everything else uses the system face,
+ * as iOS uses SF Pro.
+ */
+@OptIn(ExperimentalTextApi::class)
+private val roundedFamily = FontFamily((400..900 step 100).map { w ->
+    Font(R.font.nunito, FontWeight(w), variationSettings = FontVariation.Settings(FontVariation.weight(w)))
+})
+
 private fun ForgeFont.style(color: Color = Color.Unspecified) = TextStyle(
     fontSize = size.sp, fontWeight = FontWeight(weight), color = color,
+    fontFamily = if (rounded) roundedFamily else null,
 )
 
 val forgeType = ForgeType(

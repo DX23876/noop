@@ -47,7 +47,7 @@ fun ForgeWordmark(modifier: Modifier = Modifier) {
     Row(modifier.semantics(mergeDescendants = true) { contentDescription = BRAND },
         horizontalArrangement = Arrangement.spacedBy(13.dp), verticalAlignment = Alignment.CenterVertically) {
         BRAND_LETTERS.forEach { ch ->
-            Text(ch.toString(), style = Forge.type.headline.copy(fontSize = 17.sp, fontWeight = FontWeight.Bold),
+            Text(ch.toString(), style = Forge.type.title2.copy(fontSize = 17.sp, fontWeight = FontWeight.Bold),
                  color = colors.text.copy(alpha = 0.9f))
         }
         ForgeMark(14.dp)
