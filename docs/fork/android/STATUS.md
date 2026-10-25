@@ -48,11 +48,13 @@ Plan: [`PLAN.md`](PLAN.md) · last updated 2026-10-24
 | D-5, first step: the core in the APK | 2026-10-25 | `Packages/NoopCoreJNI` (libNoopCore.so: JNI entry points over plain Swift functions, three macOS tests), `android/swift-core/build-swift-core.sh` (pinned SQLite, the GRDB and ZIPFoundation patches in portable Python, a release arm64 build, 20 stripped libraries), Gradle `buildSwiftCore` behind `-Pnoop.swiftCore=true`, `com.noop.core.SwiftCore`. On the arm64 emulator the app logs "recipe AI-31, store migrations 78". `android-swift-core.yml` builds both flavours with the core on Linux (NDK variables and a zlib.pc so the host's x86_64 zlib is not linked); 65 MB debug APKs. Nothing in the app reads the core yet |
 | D-5, second step: the core by default | 2026-10-25 | Gradle builds the core in every build (`-Pnoop.swiftCore=false` opts out); `android.yml` installs the toolchain, the Swift SDK for Android and NDK r30 and runs on `Packages/**` too; `Tools/local-tests.sh` runs the Android leg for package changes. NDK r30 now sits in the Android SDK's standard place on the owner's Mac. Checked on the `ci/android-swift-core` branch and locally before main |
 | D-5, third step: the main actor on Android | 2026-10-25 | `noop_install_main_queue_drain` (CJNI) puts libdispatch's main queue on the main looper; `SwiftCore.start` loads the core on the main thread and installs it. On the emulator: "main actor installed=0, probe jobs run=1, on main thread=true"; loaded on a background thread first, the probe had run off the main thread. A macOS test covers the probe |
+| D-5, fourth step: the shadow session | 2026-10-25 | `ShadowSession` runs the core's Collector and Backfiller on its own store; the Kotlin client hands it every frame in arrival order (offload frames to the Backfiller, the rest to the Collector, plus family, clock seed and offload begin) and nothing goes back to the strap (the ack is a no-op). After each offload the strap log carries "Core shadow: core banked … | Kotlin banked …". A macOS test replays three real 4.0 history records and an END. Not yet run against a real strap |
+| D-5, fifth step: the core's daily pass | 2026-10-25 | `CoreAnalysis` runs `DailyAnalysis` on the shadow store with store-only services and the app's profile; the client asks for it with each post-offload pass and logs "Core shadow analysis: day=… charge=… effort=…" two minutes later. Phase D is complete; the Kotlin data and analytics packages go screen by screen in phase E (PLAN.md, D-5 note) |
 
 ## Next step
 
-D-5, continued: hand strap frames from Kotlin Bluetooth to the core's collector and read Today from the core, so the Kotlin data and analytics
-packages can go (section 3 of [`PLAN.md`](PLAN.md)). It is the last step of phase D.
+Phase E, step E-1: one design token file shared by the Apple apps and Android, with generated Swift and Kotlin
+constants and a test that catches either going stale (`PLAN.md`, phase E steps).
 
 ## How to run a real-data check (B4)
 

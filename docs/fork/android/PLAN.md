@@ -157,6 +157,11 @@ Spike code lives in a git-ignored scratch folder or a throwaway branch that is n
 - **D-5 Deep-core wiring.** Remove the Kotlin packages the Swift core replaces (section 3); the Swift
   libraries are built by Gradle through the Swift SDK. Kotlin Bluetooth hands frames to the Swift
   core.
+  *Sequenced on 2026-10-25:* D-5 ends with the core built into every APK, its main actor on Android's main
+  thread, and a shadow session: Kotlin Bluetooth hands every frame to the core, which banks and scores them on
+  its own store and logs its numbers beside Kotlin's, without sending anything to the strap. ryanbr's Kotlin
+  data and analytics packages go in phase E, screen by screen, as each new screen reads from the core (E-2);
+  removing them earlier would leave his screens with nothing to show.
 - **D-6 Sync rule.** A versioned list of fork-deleted `android/` paths plus a resolver script under
   `Tools/`; `docs/FORK_GUIDE.md` replaces the "remove all of `android/`" sync rule with it.
 - **D-7 CI and tools.** `android.yml` builds and tests on every push touching `android/**`, the core
@@ -187,6 +192,24 @@ Added 2026-10-25 after the D-8 smoke test (owner's request: the fork's design, e
 - **Check.** `Tools/android-smoke.sh` on all five profiles (small phone, Pixel 8, Pixel 8 at font 1.3 in
   dark mode, unfolded Pixel 9 Pro Fold, Pixel Tablet): no crash, and the screenshots reviewed against the
   iOS screens.
+
+Steps (added 2026-10-25), each with its own commit, test and smoke run:
+
+- **E-1 Design tokens.** One token file under `Packages/StrandDesign` (colours light and dark, spacing,
+  radii, type scale) with a generator that writes the Swift constants `StrandPalette`/`StrandFont` read and a
+  Kotlin `ForgeTheme`; a test fails when either generated file is out of date. Generating the Swift side must
+  not change any value the iOS app shows today.
+- **E-2 Core read API.** JNI calls that return what a screen needs from the core's store (today's scores, a
+  night's sleep, a metric series over a window) as small JSON documents, tested on macOS through `Bridge`.
+- **E-3 Screens.** Today, sleep detail, HRV and resting-HR trends, settings, `.noopbak` export and import and
+  strap log export as new Compose screens on the core read API and the tokens, adaptive per window size class.
+  ryanbr's screens they replace, and the Kotlin data and analytics code only those screens used, go in the
+  same step.
+- **E-4 The core owns the data.** Kotlin Bluetooth stops writing Room and hands frames only to the core; the
+  history ack is sent only after the core's Backfiller reports the chunk durably written (the safe-trim rule
+  of the BLE safety contract), proven by a replay test and then by a tester's strap log.
+- **E-5 Languages and backups.** EN, DE, FR and ES complete for the new screens; versioned `.noopbak`
+  fixtures prove an iOS backup restores on Android with identical rows, and the reverse.
 
 ### Phase F: testing and release
 
