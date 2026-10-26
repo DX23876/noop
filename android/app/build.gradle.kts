@@ -14,6 +14,7 @@ val keystoreProps = Properties().apply {
     if (keystorePropsFile.exists()) keystorePropsFile.inputStream().use { load(it) }
 }
 val isStagingRelease = project.hasProperty("stagingRelease")
+val forkMinify = (project.findProperty("noop.minify") as String?)?.toBoolean() == true
 val requestedReleaseBuild = gradle.startParameter.taskNames.any {
     it.contains("Release", ignoreCase = true)
 }
@@ -74,8 +75,13 @@ android {
             // Tink/Worker/ViewModel) a minified build STILL died right after the terms gate on a real
             // device — a library reflective path we couldn't pin without a device to trace. Offline app,
             // a ~18 MB APK is fine. Re-enabling minify needs the exact crash trace + device verification.
-            isMinifyEnabled = false
-            isShrinkResources = false
+            // Fork (DX23876), Android plan D24: `-Pnoop.minify=true` turns R8 on for a trial build, so the size
+            // step can be measured and run on an emulator without changing what the release ships. Measured
+            // 2026-10-26: 57 MB down to 41 MB. On an emulator it still dies right after the terms gate with
+            // "CompositionLocal LocalLifecycleOwner not present": lifecycle-runtime-compose 2.8.2 beside Compose
+            // UI 1.6 under R8, which Lifecycle 2.8.3 addresses. That bump needs the dependency lock rewritten.
+            isMinifyEnabled = forkMinify
+            isShrinkResources = forkMinify
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
