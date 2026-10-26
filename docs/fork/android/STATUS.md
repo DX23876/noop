@@ -7,13 +7,14 @@ Plan: [`PLAN.md`](PLAN.md) · parity continuation: [`PARITY-PLAN.md`](PARITY-PLA
 | Step | Since | Note |
 |---|---|---|
 | Parity 1.2 and 2.3: Training tab like iOS | 2026-10-26 | The Training tab follows `TrainingHubView` section by section: Start a workout (today's plan or freestyle, the recent activities with route choice, All workouts), the week with Edit, routine cards with the MuscleMap figures, Start and an options menu (edit, duplicate, delete), Recent, a year of Consistency and Muscle analytics (Balance, Fatigue, Strength, front and back, male and female figure, Explore page and per-muscle detail). Everything is computed in the core: `MuscleAnalyticsSnapshot` and `TrainingActivityDay` moved to `Strand/Data` and are shared by the Apple model and `CoreTraining.snapshot`; new core ops edit, duplicate and schedule routines and add the starter plans. The figure outlines come from the MuscleMap package through `Tools/musclemap_android_asset.py` (its test fails when the asset drifts). Texts reuse the iOS translations in all nine languages. Checked on the emulator (demo flavor): every section, Explore, a muscle detail, the schedule, a starter plan, duplicate, edit and a session detail. Still open: Strength and Cardio detail screens, training goals, exercise library and Hevy import. |
-| Parity 1.2 and 2.3: Training Load | 2026-10-26 | The Apple screen's pure `TrainingLoadPreparation` and session RPE read moved into files shared with the Android core. `CoreTrainingLoad` supplies the same lane, verdict, history and evidence readings to a Forge page with the Apple screen's sections and detail cards. The Training tab has its “Understand your training” entry; the active strap's dismissed workouts reach both the hub and Training Load. `NoopCoreJNI` tests (18, one real-data skip), `StrandTests`, Android full Kotlin compile, the Tools suite and the i18n gate passed. The demo emulator opened the entry, hero, lower cards and Session Load detail without a crash. The committed-tree gate passed on `e645fc77f`; Source Hygiene, i18n and Tools Python CI passed, with Android CI still running. |
-| Parity 1.2: Strength and Cardio read models | 2026-10-26 | `StrengthPreparation` and `CardioPreparation` now hold the pure orchestration formerly inside the Apple screen models; the Apple models delegate to these same files compiled into NoopCore. New `training.strength` and `training.cardio` operations return the week selection, measured load and coverage, muscle and balance readings, exercise records and trends, sport progression and measured zones. Training Load and the reports merge imported and computed daily physiology, with a regression test for a Bluetooth-only store. The core tests pass; Apple app and Android cross-build verification are pending. The two Android detail screens are the next step. Analysis migration required: no; this changes read models only. |
+| Parity 2.3: Strength and Cardio detail pages | 2026-10-26 | The shared preparations and JSON operations are ready (see Done). Next: Kotlin response models and Compose pages following `StrengthView` and `CardioView`, then their remaining write operations and session-detail routes. The pages are not wired into the Training tab yet. |
 
 ## Done
 
 | Step | Date | Evidence |
 |---|---|---|
+| Parity 1.2 and 2.3: Training Load | 2026-10-26 | `e645fc77f`: shared `TrainingLoadPreparation` and session RPE reads, Android core read and Forge page with the Apple sections and detail cards. Active-strap dismissed workouts reach the hub and Training Load. The committed-tree gate passed: NoopCoreJNI tests, macOS app and StrandTests, iOS simulator build, both Android debug variants and JVM tests. Tools, i18n and all four CI checks passed. Demo emulator: entry, hero, lower cards and Session Load detail opened without a crash. `5a0e22e2e` also fixes the read to merge computed daily physiology and scopes cardio memoization to one request. Analysis migration required: no; read models only. |
+| Parity 1.2: Strength and Cardio read models | 2026-10-26 | `5a0e22e2e`: `StrengthPreparation` and `CardioPreparation` hold the pure orchestration formerly inside the Apple screen models; Apple delegates to the same files compiled into NoopCore. New `training.strength` and `training.cardio` operations return week selection, measured load and coverage, muscle and balance readings, exercise records and trends, sport progression and measured zones. One supplied clock flows into strength history. Regression tests cover week clamping, computed recovery inputs, and the separation of measured pace from estimated heart-rate load and unmeasured zones. The committed-tree gate passed: 19 core tests (one optional real-data skip), macOS app and StrandTests, iOS simulator build, Android cross-build, full/demo APKs and JVM tests. Analysis migration required: no; stored derivations are unchanged. |
 | Decisions D1 to D21, plan written | 2026-10-24 | `PLAN.md` section 1, `decisions.md` entry of 2026-10-24 |
 | Parity 1.1: Android daily-analysis inputs | 2026-10-26 | Edited-sleep heal and energy corrections moved into `StrandCore` with the Apple repository delegating to them. The Android core pass now receives dismissed sleep and workout spans, workout heart-rate fills, training sessions and cardio loads, AgeLess long sessions, profile and step calibration, Lab switches and baseline anchors. On the owner's iPhone store, the freshly re-analysed Apple and core copies had **0 differing values among 4,278** in `RealDataLabPassTests` and **0 differing tables among 78** in `compare_analysis_snapshots.py` (write-time columns excluded). The `Strand` macOS and `NOOPiOS` simulator builds passed. Analysis migration required: no; the stored output is identical. |
 | A1 toolchain | 2026-10-24 | Swift 6.4.1 + SDK `swift-6.4.1-RELEASE_android` + NDK r30; hello world runs as arm64 ELF |
@@ -81,24 +82,31 @@ Plan: [`PLAN.md`](PLAN.md) · parity continuation: [`PARITY-PLAN.md`](PARITY-PLA
 ## Next step
 
 The parity plan supersedes the earlier D20 decision to wait for tester feedback. Continue the remaining core
-functions and Android screens before the single testing release; the Strength and Cardio read models are in progress.
+functions and Android screens before the single testing release.
 
-- **E-4's second half waits on the remaining classic screens.** Kotlin keeps writing Room beside the core because
-  the classic screens that stay (live heart rate, workouts, health, stress and the rest) read it. It stops once each
-  of them reads the core, one screen at a time as in phase E, or goes; which of them come to the Forge set is D20.
-- **Tester: E-4 on a real strap.** A tester turns on "Shared core confirms history" and sends a strap log with a
-  full overnight offload: every chunk acked after the core banked it, no held ack. Pairing through the Forge
-  screens and the live heart rate card are also unseen with a real strap.
-- **F3 and F4.** The first build to the existing testers, then the website note, the pinned issue and the Ko-fi
-  mention; "Testing" goes after the D9 confirmations.
-- **Open against the iOS look.** The profile and quick-action buttons in the Today header wait for the screens they
-  open (profile, live session, workout, journal, goals), which D20 decides after the first testing build; SF Pro
-  Rounded cannot ship outside Apple's platforms (Nunito stands in).
+- **Strength and Cardio pages (2.3).** Add Kotlin parsers for `training.strength` and `training.cardio`, then render
+  the existing Apple screen sections using `ForgeTrainingKit`. Requests carry `days` (120, 365 or the shared
+  all-history window), `weekOffset`, `exerciseId` or `sport`, the profile and dismissed-workout spans. Cardio also
+  receives the profile's six `zoneBpmEdges`; Strength receives `firstWeekday`. The core clamps the selected week
+  and returns the reading day. Still expose the Apple-only write paths required by the pages: manual details for
+  generic strength sessions, exercise mapping and muscle feedback. Session-detail routing must work for imported
+  and native workouts.
+- **Rest of Training.** Exercise library, training goals and Hevy import remain open. Then continue parity 1.2's
+  goals, Momentum, body and stress computations, ECG and Coach, followed by the remaining Android screens.
+- **E-4's second half (1.3).** Kotlin keeps writing Room while the hosted classic screens still read it. Move their
+  derived-data reads to the core before stopping those writes; the adopted destinations are listed in
+  `PARITY-PLAN.md`.
+- **Hardware evidence.** A tester still needs to enable "Shared core confirms history" and send a real strap log
+  with a full overnight offload: each chunk acknowledged after the core stored it, no held acknowledgement.
+  Forge pairing, live heart rate and BLE behavior remain unverified on hardware.
+- **Testing release (phase 3).** The emulator rounds, real-data comparison, all required checks and release notes
+  precede the single release. Publishing it still requires the owner's explicit approval; F3/F4 and the D9 tester
+  confirmations follow it.
 
 Skip was tried for shared screens and not adopted for now ([`SKIP-SPIKE.md`](SKIP-SPIKE.md)).
 
 **Fork features Android does not have yet** (file comparison 2026-10-26): training (exercise library,
-Hevy, strength and cardio detail views; the hub, lift log, plan and muscle map are done, while Training Load is in progress), long-term goals, AgeLess and daily rhythm screens (both
+Hevy, strength and cardio detail views; the hub, lift log, plan, muscle map and Training Load are done), long-term goals, AgeLess and daily rhythm screens (both
 already computed on Android by the core), the energy plan, body (photos, weight, body model), the coach's goals,
 plans, history and memory (llama.cpp on Android unverified), GPS elevation in live workouts, ECG, Momentum and the
 sleep debt ledger. Still app-side on iOS and due for the core before their Android screens, since they compute or
