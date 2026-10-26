@@ -73,6 +73,7 @@ Plan: [`PLAN.md`](PLAN.md) · last updated 2026-10-25
 | Android privacy notes | 2026-10-26 | `docs/PRIVACY_SECURITY.md` §1.5 lists the Android app's network paths (the update check, daily by default and switchable; ryanbr's bring-your-own-key coach; the Experimental self-hosted push) and where its data rests; the Forge screens and the shared core make no network calls. Was a known deviation to close before a testing build |
 | D24 size step | 2026-10-26 | Lifecycle 2.8.2 to 2.8.3 (lock and checksums rewritten through Gradle; only the 20 Lifecycle artifacts changed), which fixes the R8 crash after the terms gate. Releases are minified again: 57 MB down to 41 MB. The minified build went through terms, onboarding, every Forge tab, pairing, export, the strap log and 27 classic screens (every More entry and Coach) on an emulator without a crash; `android-release.yml` keeps the R8 mapping as an artifact for 90 days; its dry run 40262308992 built the minified APK on Linux (41.4 MB), verified the release certificate and kept the mapping, uploading nothing. Real devices are the testers' (D9); `-Pnoop.minify=false` builds without R8. The ICU subset stays a later lever (15.7 MB) |
 | E-3 Forge Settings | 2026-10-26 | D15 lists settings in the first testing build and the Forge screens had none. Settings is now the iOS hub (`SettingsHubView`): groups You, Display and Help with icon tiles, titles and subtitles, each row opening its page (Profile; Language & units; Appearance; About), Back returning to the hub, and More settings opening the classic screens for the rest. The pages write the classic stores (`ProfileStore`, `AppLanguagePrefs`, `ClockPrefs`, `NoopPrefs`, `UnitPrefs`, `AppearancePrefs`, `UpdateWatch`), and the Forge screens now follow them: the theme, the 12 or 24 hour clock and the 0 to 21 Effort scale (seen on the emulator: dark theme, "8.6" on the Effort ring, "07:05" in Sleep). Pages open over the tabs in the app's own window (`ForgeOverlayHost`) instead of a dialog. Also matched to iOS: opaque cards have no rim and rest on a soft shadow in light mode (`NoopCardChrome` with quiet rims); only glass keeps a hairline |
+| E-3 Settings in one look | 2026-10-26 | The hub in the iOS order (You, Strap & Devices, Training & Everyday, Display, Data, Help) with 13 pages. Every classic screen shown inside the Settings takes the Forge look: `HostedPalette` lays the Forge surfaces and text and the iOS palette (`ForgeTokens.StrandPalette`, Effort and Rest in their ring colours) over the classic palette, `LocalHostedChrome` makes `ScreenScaffold`, `LazyScreenScaffold` and the full-page sheets draw no canvas or bar of their own and put the Forge title in the scroll, cards lose their rim. Outside the Settings the classic screens draw as before. On the emulator the hub, its 13 pages and 14 sub pages (Charge and Steps estimate included) opened without a crash and without beige; not seen on a real device |
 
 ## Next step
 
@@ -92,6 +93,15 @@ is done (2026-10-25).
   Rounded cannot ship outside Apple's platforms (Nunito stands in).
 
 Skip was tried for shared screens and not adopted for now ([`SKIP-SPIKE.md`](SKIP-SPIKE.md)).
+
+**Fork features Android does not have yet** (file comparison 2026-10-26, for D20): training (lift log, plan,
+muscle map, exercise library, Hevy, training load view), long-term goals, AgeLess and daily rhythm screens (both
+already computed on Android by the core), the energy plan, body (photos, weight, body model), the coach's goals,
+plans, history and memory (llama.cpp on Android unverified), GPS elevation in live workouts, ECG, Momentum and the
+sleep debt ledger. Still app-side on iOS and due for the core before their Android screens, since they compute or
+store values both platforms must agree on: `LiftSessionEngine`, `ResolvedStrengthHistory`, `StrengthDraftBuilder`
+and `LiftSessionPersistence`; the rest of `EnergySeries` and `EnergyPlanStore`; the goal evaluation;
+`MomentumBuilder`; `StressDayCurve`; `SkinTempBackfillWalker`; the coach's context builder.
 
 ## How to run a real-data check (B4)
 
