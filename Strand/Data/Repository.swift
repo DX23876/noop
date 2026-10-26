@@ -1695,27 +1695,10 @@ final class Repository: ObservableObject {
     func allSleepSessions(days: Int = 4000) async -> [CachedSleepSession] {
         guard let store = await ensureStore() else { return [] }
         let now = Int(Date().timeIntervalSince1970)
-        let lo = now - days * 86_400, hi = now + 86_400
-        let rawIds = rawPhysiologyReadIds(store: store)
-        let rawComputedIds = rawComputedReadIds(store: store)
-        // UNION the active strap + canonical (imported) and their computed siblings, keeping ALL blocks (not
-        // one per day, this view expands split sleeps), but dropping any block that appears under BOTH union
-        // ids (same start+end key) so a day present in both namespaces isn't double-listed.
-        let suppressed = suppressedSleepWakeDays
-        let imported = Self.dedupBlocks(await unionRawSleepBlocks(
-            store: store, ids: rawIds, from: lo, to: hi))
-            .filter { !suppressed.contains(Self.sleepEndDayKey($0.endTs)) }
-        let computed = Self.dedupBlocks(await unionRawSleepBlocks(
-            store: store, ids: rawComputedIds, from: lo, to: hi))
-            .filter { !suppressed.contains(Self.sleepEndDayKey($0.endTs)) }
-        let cal = Calendar.current
-        func endDay(_ s: CachedSleepSession) -> Date {
-            cal.startOfDay(for: Date(timeIntervalSince1970: TimeInterval(s.endTs)))
-        }
-        var importedDays = Set<Date>()
-        for s in imported { importedDays.insert(endDay(s)) }
-        let computedKept = computed.filter { !importedDays.contains(endDay($0)) }
-        return (imported + computedKept).sorted { $0.effectiveStartTs < $1.effectiveStartTs }
+        // The union, de-duplication and imported-wins-per-day rule live in `StoreReader.allSleepSessions`, the
+        // one read the Android Sleep screen uses too (Android plan E-3).
+        return await reader(store).allSleepSessions(from: now - days * 86_400, to: now + 86_400,
+                                                    suppressedWakeDays: suppressedSleepWakeDays)
     }
 
     /// The persisted per-epoch MOTION series for each of `starts` (detected session start keys), keyed by
@@ -1844,21 +1827,7 @@ final class Repository: ObservableObject {
     private func sleepHistoryBlocks(days: Int, offsetSec: Int) async -> [SleepStageTotals.HistoryBlock]? {
         guard let store = await ensureStore() else { return nil }
         let now = Int(Date().timeIntervalSince1970)
-        let lo = now - days * 86_400, hi = now + 86_400
-        // Use the SAME all-registered-WHOOP source set as allSleepSessions. Otherwise a removed/replaced
-        // strap's visible retained nights would not teach the selector that chooses their main block.
-        let rawIds = rawPhysiologyReadIds(store: store)
-        let rawComputedIds = rawComputedReadIds(store: store)
-        let imported = Self.dedupBlocks(await unionRawSleepBlocks(store: store, ids: rawIds, from: lo, to: hi))
-        let computed = Self.dedupBlocks(await unionRawSleepBlocks(store: store, ids: rawComputedIds, from: lo, to: hi))
-        let blocks = (imported + computed).compactMap { s -> SleepStageTotals.HistoryBlock? in
-            let start = s.effectiveStartTs, end = s.endTs
-            guard end > start else { return nil }
-            let mid = start + (end - start) / 2
-            let dayKey = AnalyticsEngine.dayString(mid, offsetSec: offsetSec)
-            return SleepStageTotals.HistoryBlock(start: start, end: end, dayKey: dayKey)
-        }
-        return blocks
+        return await reader(store).sleepHistoryBlocks(from: now - days * 86_400, to: now + 86_400, offsetSec: offsetSec)
     }
 
     /// Hand-correct the whole bridged night shown by the Sleep hero. A split night is one product-level

@@ -2,6 +2,7 @@ import SwiftUI
 import Foundation
 import StrandDesign
 import StrandAnalytics
+import StrandCore
 import WhoopStore
 
 // MARK: - Shared sleep model
@@ -22,6 +23,19 @@ struct Stages: Sendable {
     var total: Double { awake + light + deep + rem }
     /// Asleep time = total minus awake.
     var asleep: Double { light + deep + rem }
+}
+
+extension Stages {
+    /// The core's stage minutes (`SleepNight.Minutes`) as the Sleep tab's value type.
+    init(_ m: SleepNight.Minutes) { self.init(awake: m.awake, light: m.light, deep: m.deep, rem: m.rem) }
+}
+
+extension SleepInterval {
+    /// One of the core's stage stretches; nil for a stage name the tab does not draw.
+    init?(_ iv: SleepNight.Interval) {
+        guard let stage = SleepStage(rawValue: iv.stage) else { return nil }
+        self.init(stage: stage, start: iv.start, end: iv.end)
+    }
 }
 
 struct Night: Sendable {
@@ -286,28 +300,14 @@ extension SleepModel {
     /// dashboard's per-night merge), newest day first, blocks within a day oldest→newest. Each day
     /// is ONE ◀/▶ stop. Mirrors the former `SleepView.navDays`. (#170)
     static func navDays(navSessions: [CachedSleepSession]) -> [[CachedSleepSession]] {
-        let cal = Calendar.current
-        func endDay(_ s: CachedSleepSession) -> Date {
-            cal.startOfDay(for: Date(timeIntervalSince1970: TimeInterval(s.endTs)))
-        }
-        let groups = Dictionary(grouping: navSessions, by: endDay)
-        return groups.keys.sorted(by: >).map { key in
-            (groups[key] ?? []).sorted { $0.effectiveStartTs < $1.effectiveStartTs }
-        }
+        SleepNight.days(navSessions)
     }
 
     /// The night's DISPLAYED onset (bedtime): the first fragment that is NOT a spurious leading
     /// pre-onset awake stub, falling back to the earliest onset when the whole group is stub-like.
     /// Mirrors the former `SleepView.nightOnsetTs`. (#736, #259)
     static func nightOnsetTs(_ group: [CachedSleepSession]) -> Int {
-        guard let first = group.first else { return 0 }
-        let refAsleepMin = group.map {
-            SleepView.decodedAsleepMinutes($0.stagesJSON, effectiveStartTs: $0.effectiveStartTs)
-        }.max() ?? 0
-        for frag in group {
-            if !isPreOnsetAwakeStub(frag, refAsleepMin: refAsleepMin) { return frag.effectiveStartTs }
-        }
-        return first.effectiveStartTs
+        SleepNight.onsetTs(group)
     }
 
     /// Fragment-level spurious-stub test, decoding the fragment's span + asleep minutes and delegating
@@ -341,43 +341,23 @@ extension SleepModel {
     static func mergeDay(_ sessions: [CachedSleepSession],
                          habitualMidsleepSec: Int?,
                          motionByStart: [Int: [Double]]) -> Night? {
-        let fullGroup = SleepView.mainNightGroup(sessions, habitualMidsleepSec: habitualMidsleepSec)
-        guard let last = fullGroup.last else { return nil }
-        let onset = nightOnsetTs(fullGroup), wake = last.endTs
-        let group = fullGroup.drop { $0.effectiveStartTs < onset }
-        var stages = Stages(awake: 0, light: 0, deep: 0, rem: 0)
-        var segs: [SleepInterval] = []
+        // Onset, wake, stage minutes and the timeline come from the core (`SleepNight.main`), so the Android
+        // Sleep screen merges the same night; only the motion trace is laid here.
+        guard let main = SleepNight.main(sessions, offsetSec: SleepView.tzOffsetSec,
+                                         habitualMidsleepSec: habitualMidsleepSec) else { return nil }
         var motion: [Double] = []
-        for frag in group {
-            if let seg = SleepView.decodeSegments(frag.stagesJSON, sessionStart: frag.effectiveStartTs), seg.stages.total > 0 {
-                stages.awake += seg.stages.awake; stages.light += seg.stages.light
-                stages.deep  += seg.stages.deep;  stages.rem   += seg.stages.rem
-                let shift = TimeInterval(frag.effectiveStartTs - onset)
-                for iv in seg.intervals {
-                    segs.append(SleepInterval(stage: iv.stage, start: iv.start + shift, end: iv.end + shift))
-                }
-            } else if let st = SleepView.decodeStages(frag.stagesJSON), st.total > 0 {
-                stages.awake += st.awake; stages.light += st.light
-                stages.deep  += st.deep;  stages.rem   += st.rem
-            }
+        for frag in main.shown {
             if let m = motionByStart[frag.startTs] {
                 motion.append(contentsOf: alignedMotion(m, detectedStartTs: frag.startTs,
                                                         effectiveStartTs: frag.effectiveStartTs, endTs: frag.endTs))
             }
         }
-        let orderedFrags = Array(group)
-        for (prev, next) in zip(orderedFrags, orderedFrags.dropFirst()) {
-            let gapStart = prev.endTs, gapEnd = next.effectiveStartTs
-            guard gapEnd > gapStart else { continue }
-            segs.append(SleepInterval(stage: .awake,
-                                      start: TimeInterval(gapStart - onset),
-                                      end: TimeInterval(gapEnd - onset)))
-        }
-        guard stages.asleep > 0 else { return nil }
+        let stages = Stages(main.minutes)
         let eff = stages.total > 0 ? stages.asleep / stages.total : nil
-        let synth = CachedSleepSession(startTs: onset, endTs: wake, efficiency: eff,
+        let synth = CachedSleepSession(startTs: main.onset, endTs: main.wake, efficiency: eff,
                                        restingHr: nil, avgHrv: nil, stagesJSON: nil)
-        let realSegs = segs.count >= 2 ? segs.sorted { $0.start < $1.start } : nil
+        let segs = main.intervals.compactMap(SleepInterval.init)
+        let realSegs = segs.count >= 2 ? segs : nil
         return Night(session: synth, stages: stages, realSegments: realSegs, sourceBlocks: sessions,
                      motionEpochs: motion, habitualMidsleepSec: habitualMidsleepSec)
     }

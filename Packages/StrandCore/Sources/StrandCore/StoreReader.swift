@@ -170,6 +170,50 @@ public struct StoreReader: Sendable {
         Self.dedupBlocks(await unionRawSleepBlocks(ids: rawComputedReadIds, from: from, to: to, limit: limit))
     }
 
+    /// Every sleep block the Sleep screens browse between `from` and `to` (unix seconds), oldest to newest by
+    /// onset: imported blocks of the whole union, then computed blocks for the days no import covers, each layer
+    /// with near-identical cross-source copies collapsed. All blocks of a day stay (a split night and a nap
+    /// both), and days the wearer deleted (`suppressedWakeDays`, local end-day keys) are left out.
+    public func allSleepSessions(from: Int, to: Int, suppressedWakeDays: Set<String> = []) async -> [CachedSleepSession] {
+        func endDayKey(_ s: CachedSleepSession) -> String {
+            let offsetSec = TimeZone.current.secondsFromGMT(for: Date(timeIntervalSince1970: TimeInterval(s.endTs)))
+            return AnalyticsEngine.dayString(s.endTs, offsetSec: offsetSec)
+        }
+        let imported = Self.dedupBlocks(await unionRawSleepBlocks(ids: rawPhysiologyReadIds, from: from, to: to))
+            .filter { !suppressedWakeDays.contains(endDayKey($0)) }
+        let computed = Self.dedupBlocks(await unionRawSleepBlocks(ids: rawComputedReadIds, from: from, to: to))
+            .filter { !suppressedWakeDays.contains(endDayKey($0)) }
+        let cal = Calendar.current
+        func endDay(_ s: CachedSleepSession) -> Date {
+            cal.startOfDay(for: Date(timeIntervalSince1970: TimeInterval(s.endTs)))
+        }
+        let importedDays = Set(imported.map(endDay))
+        let computedKept = computed.filter { !importedDays.contains(endDay($0)) }
+        return (imported + computedKept).sorted { $0.effectiveStartTs < $1.effectiveStartTs }
+    }
+
+    /// The wearer's learned habitual midsleep (local seconds of the day) from the sleep blocks between `from`
+    /// and `to`, the imported and computed unions each de-duplicated, keyed by the local day of each block's
+    /// midpoint (`SleepStageTotals.habitualMidsleepSec`). nil during the cold start. (#547)
+    public func habitualMidsleepSec(from: Int, to: Int, offsetSec: Int) async -> Int? {
+        SleepStageTotals.habitualMidsleepSec(await sleepHistoryBlocks(from: from, to: to, offsetSec: offsetSec),
+                                             offsetSec: offsetSec)
+    }
+
+    /// The sleep history the habitual learners read, as `HistoryBlock`s keyed by the local day of each block's
+    /// midpoint: the imported and the computed union, each de-duplicated.
+    public func sleepHistoryBlocks(from: Int, to: Int, offsetSec: Int) async -> [SleepStageTotals.HistoryBlock] {
+        let imported = Self.dedupBlocks(await unionRawSleepBlocks(ids: rawPhysiologyReadIds, from: from, to: to))
+        let computed = Self.dedupBlocks(await unionRawSleepBlocks(ids: rawComputedReadIds, from: from, to: to))
+        return (imported + computed).compactMap { s -> SleepStageTotals.HistoryBlock? in
+            let start = s.effectiveStartTs, end = s.endTs
+            guard end > start else { return nil }
+            let mid = start + (end - start) / 2
+            return SleepStageTotals.HistoryBlock(start: start, end: end,
+                                                 dayKey: AnalyticsEngine.dayString(mid, offsetSec: offsetSec))
+        }
+    }
+
     /// ALL sleep blocks across `ids` for a ts range, concatenated (NOT collapsed to one per day, used by
     /// `allSleepSessions`, which expands split sleeps). Active strap first.
     public func unionRawSleepBlocks(ids: [String], from: Int, to: Int, limit: Int = 4000) async -> [CachedSleepSession] {

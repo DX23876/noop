@@ -67,6 +67,15 @@ data class SleepSummary(val inBedMin: Int, val asleepMin: Int, val minutesByStag
         val laneOrder = listOf("wake", "rem", "light", "deep")
 
         fun of(night: CoreRead.Night): SleepSummary {
+            // The core's stage totals, as iOS states them: time in bed is the stages' sum, not the onset-to-wake
+            // span, so a gap between the blocks of a split night is not counted as in bed.
+            night.minutes?.let { m ->
+                val byStage = stages.associateWith { (m[it] ?: 0.0).roundToInt() }
+                val total = m.values.sum()
+                if (total > 0) {
+                    return SleepSummary(total.roundToInt(), (total - (m["wake"] ?: 0.0)).roundToInt(), byStage)
+                }
+            }
             val byStage = stages.associateWith { stage ->
                 (night.stages.filter { it.stage == stage }.sumOf { it.end - it.start } / 60).toInt()
             }

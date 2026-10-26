@@ -2,6 +2,7 @@ import SwiftUI
 import Foundation
 import StrandDesign
 import StrandAnalytics
+import StrandCore
 import WhoopStore
 #if canImport(UIKit)
 import UIKit
@@ -1840,10 +1841,7 @@ struct SleepView: View {
     /// identical. Returns ascending by effective onset. (#561 / #555)
     nonisolated static func mainNightGroup(_ sessions: [CachedSleepSession],
                                habitualMidsleepSec: Int? = nil) -> [CachedSleepSession] {
-        guard let idx = SleepStageTotals.mainNightGroupIndices(
-            sessions.map { SleepStageTotals.NightBlock(start: $0.effectiveStartTs, end: $0.endTs) },
-            offsetSec: tzOffsetSec, habitualMidsleepSec: habitualMidsleepSec) else { return [] }
-        return idx.map { sessions[$0] }.sorted { $0.effectiveStartTs < $1.effectiveStartTs }
+        SleepNight.mainGroup(sessions, offsetSec: tzOffsetSec, habitualMidsleepSec: habitualMidsleepSec)
     }
 
     /// Actual asleep minutes in blocks outside a day's canonical main-night group. The Repository's
@@ -1887,45 +1885,16 @@ struct SleepView: View {
     // tuning constants below stay here — they are the shared source of truth reused by tests and by
     // those moved helpers.
 
-    /// Longest a leading block can be and still be treated as a spurious pre-sleep awake stub (lying in bed
-    /// before sleep). Generous (a few hours) because the reporter's stub ran 21:41 → 00:27 — ~2h45m of
-    /// pre-sleep awake — so a tight cap missed it (#736). The real guard against swallowing a genuine first
-    /// sleep fragment is `preOnsetStubAsleepMaxMin`: a stub must be essentially SLEEPLESS, which a real sleep
-    /// block never is. The cap only stops a pathological all-day awake block from being silently dropped.
-    nonisolated static let preOnsetStubMaxMin: Double = 240
-    /// Most asleep minutes a fragment can carry and still count as a (sleepless) pre-onset awake stub. A real
-    /// first sleep fragment of a biphasic night carries far more, so it's never mistaken for a stub. (#736)
-    nonisolated static let preOnsetStubAsleepMaxMin: Double = 3
-    /// A leading pre-onset fragment carrying SOME sleep is still spurious when it is minor RELATIVE to the
-    /// night's main block: its asleep minutes are below this fraction of the largest fragment's. A genuine
-    /// biphasic first sleep is comparable to the main block (well above this) and is kept; only a small stray
-    /// lead is dropped. Extends the essentially-sleepless `preOnsetStubAsleepMaxMin` rule (#736), which missed
-    /// a lead carrying a few minutes more than 3. Mirrors Android PRE_ONSET_STUB_MINOR_FRAC. (#259)
-    nonisolated static let preOnsetStubMinorFrac: Double = 0.15
+    // The pre-onset stub rule lives in the core so the Apple and the Android Sleep screens drop the same lead
+    // (`SleepNight`, Android plan E-3); these names stay for the callers and tests that read them here.
+    nonisolated static var preOnsetStubMaxMin: Double { SleepNight.preOnsetStubMaxMin }
+    nonisolated static var preOnsetStubAsleepMaxMin: Double { SleepNight.preOnsetStubAsleepMaxMin }
+    nonisolated static var preOnsetStubMinorFrac: Double { SleepNight.preOnsetStubMinorFrac }
+    nonisolated static var preOnsetStubMinorAsleepFloorMin: Double { SleepNight.preOnsetStubMinorAsleepFloorMin }
 
-    /// Absolute floor (ASLEEP minutes) under the #259 relative "minor lead" test: a leading fragment that
-    /// carries at least this much real sleep is a genuine first sleep — a real sleep episode — and is NEVER
-    /// a spurious pre-onset lead, however large the main block is. Without it a long main sleep inflates the
-    /// 15% relative bar (a 6h night → ~54 min) so a genuine ~34-min first sleep was swallowed and the shown
-    /// bedtime jumped hours late, hiding the real onset the bridged night (and the Health write-back, #364)
-    /// already spans. 20 min ≈ the shortest standalone sleep episode; below it a handful of asleep minutes
-    /// beside a long night is a stray lead. Mirrors Android PRE_ONSET_STUB_MINOR_ASLEEP_FLOOR_MIN.
-    /// (bridged-night headline: a real 2026-07-14 12:16 first sleep hidden behind the 1:29 main block)
-    nonisolated static let preOnsetStubMinorAsleepFloorMin: Double = 20
-
-    /// Pure stub test on a fragment's span + asleep minutes, so the rule is unit-testable without decoding
-    /// JSON or building a view. Spurious when BRIEF and EITHER essentially sleepless OR minor relative to the
-    /// main block (`refAsleepMin`, the group's largest asleep span): asleep below `preOnsetStubMinorFrac` of
-    /// it AND below the absolute `preOnsetStubMinorAsleepFloorMin` real-sleep-episode floor. `refAsleepMin`
-    /// defaults to 0 (relative test off) so existing callers/tests are byte-identical. (#736 / #259)
+    /// Pure stub test on a fragment's span + asleep minutes (`SleepNight.isPreOnsetAwakeStub`). (#736 / #259)
     nonisolated static func isPreOnsetAwakeStub(spanMin: Double, asleepMin: Double, refAsleepMin: Double = 0) -> Bool {
-        guard spanMin <= preOnsetStubMaxMin else { return false }
-        if asleepMin <= preOnsetStubAsleepMaxMin { return true }
-        // #259 relative "minor lead" test, floored: a real sleep episode (>= the floor) is never a stray
-        // lead, so a long main block can't inflate the 15% bar past a genuine short first sleep.
-        return refAsleepMin > 0
-            && asleepMin < preOnsetStubMinorFrac * refAsleepMin
-            && asleepMin < preOnsetStubMinorAsleepFloorMin
+        SleepNight.isPreOnsetAwakeStub(spanMin: spanMin, asleepMin: asleepMin, refAsleepMin: refAsleepMin)
     }
 
     /// The index into an ascending-by-onset group whose fragment supplies the DISPLAYED bedtime: the first
@@ -2114,64 +2083,24 @@ struct SleepView: View {
     /// pre-computed minute count. Android twin: SleepScreen's onset stub-test caller needs the same
     /// both-format decode.
     nonisolated static func decodedAsleepMinutes(_ json: String?, effectiveStartTs: Int) -> Double {
-        decodeStages(json)?.asleep
-            ?? decodeSegments(json, sessionStart: effectiveStartTs)?.stages.asleep
-            ?? 0
+        SleepNight.asleepMinutes(json, effectiveStartTs: effectiveStartTs)
     }
 
-    /// Decode the imported stagesJSON dict of MINUTES {"light","deep","rem","awake"}.
+    /// Decode the imported stagesJSON dict of MINUTES {"light","deep","rem","awake"} (`SleepNight.minutes`).
     /// Internal (not private) so `SleepModel.mergeDay` (SleepModel.swift) can call it.
     nonisolated static func decodeStages(_ json: String?) -> Stages? {
-        guard let json, let data = json.data(using: .utf8) else { return nil }
-        guard let obj = try? JSONSerialization.jsonObject(with: data),
-              let dict = obj as? [String: Any] else { return nil }
-        func val(_ key: String) -> Double {
-            if let n = dict[key] as? NSNumber { return n.doubleValue }
-            if let d = dict[key] as? Double { return d }
-            if let i = dict[key] as? Int { return Double(i) }
-            return 0
-        }
-        let s = Stages(awake: val("awake"), light: val("light"),
-                       deep: val("deep"), rem: val("rem"))
-        return s.total > 0 ? s : nil
+        SleepNight.minutes(json).map(Stages.init)
     }
 
-    /// Decode the COMPUTED stagesJSON segment array [{"start":epoch,"end":epoch,"stage":"wake"|
-    /// "light"|"deep"|"rem"}] into stage totals plus the real timeline (seconds relative to the
-    /// session start, the Hypnogram's domain). The on-device SleepStager calls awake "wake". (#77)
+    /// Decode the COMPUTED stagesJSON segment array into stage totals plus the real timeline, in seconds from
+    /// the session start (`SleepNight.segments`, which trims each segment to that start, #259). (#77)
     /// Internal (not private) so `SleepModel.mergeDay` (SleepModel.swift) can call it.
     nonisolated static func decodeSegments(
         _ json: String?, sessionStart: Int
     ) -> (stages: Stages, intervals: [SleepInterval])? {
-        guard let json, let data = json.data(using: .utf8),
-              let arr = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]],
-              !arr.isEmpty else { return nil }
-        var stages = Stages(awake: 0, light: 0, deep: 0, rem: 0)
-        var intervals: [SleepInterval] = []
-        for seg in arr {
-            guard let rawStart = (seg["start"] as? NSNumber)?.intValue,
-                  let end = (seg["end"] as? NSNumber)?.intValue,
-                  let name = seg["stage"] as? String else { continue }
-            // #259: trim each segment to the effective onset (`sessionStart`) so a hand-edited bedtime the
-            // raw was too sparse to re-stage (WHOOP 4.0) can't sum pre-onset stages past time-in-bed — nor
-            // draw bars before the onset. No-op when segments already start at/after it (the common case).
-            let start = max(rawStart, sessionStart)
-            guard end > start else { continue }
-            let minutes = Double(end - start) / 60.0
-            let stage: SleepStage
-            switch name {
-            case "wake", "awake": stage = .awake; stages.awake += minutes
-            case "light": stage = .light; stages.light += minutes
-            case "deep": stage = .deep; stages.deep += minutes
-            case "rem": stage = .rem; stages.rem += minutes
-            default: continue
-            }
-            intervals.append(SleepInterval(
-                stage: stage,
-                start: TimeInterval(start - sessionStart),
-                end: TimeInterval(end - sessionStart)))
+        SleepNight.segments(json, sessionStart: sessionStart).map { decoded in
+            (Stages(decoded.minutes), decoded.intervals.compactMap(SleepInterval.init))
         }
-        return stages.total > 0 ? (stages, intervals) : nil
     }
 
 }

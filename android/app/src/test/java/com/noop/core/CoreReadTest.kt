@@ -31,6 +31,18 @@ class CoreReadTest {
         assertNull(nights[0].hrv)
     }
 
+    @Test fun aNightCarriesItsStageMinutes() {
+        val night = CoreRead.parseNights(
+            """[{"edited":false,"endTs":2000,"minutes":{"deep":80,"light":200,"rem":90,"wake":20},"stages":[],"startTs":1000}]""")
+            .single()
+        assertEquals(mapOf("wake" to 20.0, "light" to 200.0, "deep" to 80.0, "rem" to 90.0), night.minutes)
+        // An imported night has totals without a timeline; the Sleep screen states the totals.
+        val summary = com.noop.ui.forge.SleepSummary.of(night)
+        assertEquals(390, summary.inBedMin)
+        assertEquals(370, summary.asleepMin)
+        assertEquals(170, summary.restorativeMin)
+    }
+
     @Test fun aSeriesKeepsItsOrder() {
         assertEquals(listOf(CoreRead.Point("2026-10-01", 61.0), CoreRead.Point("2026-10-02", 62.5)),
             CoreRead.parseSeries("""[{"day":"2026-10-01","value":61},{"day":"2026-10-02","value":62.5}]"""))

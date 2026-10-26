@@ -16,13 +16,18 @@ public enum CoreRead {
         public var skinTempDev: Double?, steps: Int?
     }
 
-    /// One stretch of sleep with its stages.
+    /// One night with its stages: `stages` is the timeline (empty for an imported night that stores totals only),
+    /// `minutes` the stage totals the Sleep screen states, summed over the night's blocks as on iOS.
     public struct Night: Codable, Equatable, Sendable {
         public struct Stage: Codable, Equatable, Sendable {
             public var stage: String, start: Int, end: Int
         }
+        public struct Minutes: Codable, Equatable, Sendable {
+            public var wake: Double, light: Double, deep: Double, rem: Double
+        }
         public var startTs: Int, endTs: Int, efficiency: Double?, restingHr: Int?, hrv: Double?, edited: Bool
         public var stages: [Stage]
+        public var minutes: Minutes?
     }
 
     /// One value of a metric on one day.
@@ -54,14 +59,31 @@ public enum CoreRead {
                    steps: row.steps)
     }
 
-    public static func nights(from: Int, to: Int, reader: StoreReader) async -> [Night] {
-        StoreReader.mergeSleep(imported: await reader.unionSleepSessions(from: from, to: to),
-                               computed: await reader.unionComputedSleepSessions(from: from, to: to)).map { session in
-            let stages = session.stagesJSON.flatMap { $0.data(using: .utf8) }
-                .flatMap { try? JSONDecoder().decode([Night.Stage].self, from: $0) } ?? []
-            return Night(startTs: session.startTsAdjusted ?? session.startTs, endTs: session.endTs,
-                         efficiency: session.efficiency, restingHr: session.restingHr, hrv: session.avgHrv,
-                         edited: session.userEdited, stages: stages)
+    /// The main night of every day between `from` and `to` (unix seconds), oldest first, as the Apple Sleep tab
+    /// shows them (`SleepNight`): a night split into blocks reads as one, a nap is not a night, and a sleepless
+    /// lead stub does not move the bedtime. The stages are absolute, with the gaps between blocks as "wake".
+    public static func nights(from: Int, to: Int, reader: StoreReader,
+                              offsetSec: Int = TimeZone.current.secondsFromGMT()) async -> [Night] {
+        let sessions = await reader.allSleepSessions(from: from, to: to)
+        // The learner reads the whole history, as `Repository.habitualMidsleepSec()` does, not just the window.
+        let now = Int(Date().timeIntervalSince1970)
+        let habitual = await reader.habitualMidsleepSec(from: now - 4000 * 86_400, to: now + 86_400,
+                                                        offsetSec: offsetSec)
+        return SleepNight.days(sessions).compactMap { day -> Night? in
+            guard let main = SleepNight.main(day, offsetSec: offsetSec, habitualMidsleepSec: habitual) else {
+                return nil
+            }
+            let longest = main.group.max { ($0.endTs - $0.effectiveStartTs) < ($1.endTs - $1.effectiveStartTs) }
+            let stages = main.intervals.map {
+                Night.Stage(stage: $0.stage == "awake" ? "wake" : $0.stage,
+                            start: main.onset + Int($0.start), end: main.onset + Int($0.end))
+            }
+            return Night(startTs: main.onset, endTs: main.wake,
+                         efficiency: main.minutes.total > 0 ? main.minutes.asleep / main.minutes.total : nil,
+                         restingHr: longest?.restingHr, hrv: longest?.avgHrv,
+                         edited: main.group.contains { $0.userEdited }, stages: stages,
+                         minutes: Night.Minutes(wake: main.minutes.awake, light: main.minutes.light,
+                                                deep: main.minutes.deep, rem: main.minutes.rem))
         }.sorted { $0.startTs < $1.startTs }
     }
 

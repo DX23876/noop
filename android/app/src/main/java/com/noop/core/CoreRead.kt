@@ -25,10 +25,14 @@ object CoreRead {
         val skinTempDev: Double?, val steps: Int?,
     )
 
-    /** One stretch of sleep with its stages; times are epoch seconds. */
+    /**
+     * One night with its stages; times are epoch seconds. [stages] is the timeline (empty for an imported night
+     * that stores totals only), [minutes] the stage totals by core name ("wake", "light", "deep", "rem"), summed
+     * over the night's blocks as on iOS; null from a core that predates them.
+     */
     data class Night(
         val startTs: Long, val endTs: Long, val efficiency: Double?, val restingHr: Int?, val hrv: Double?,
-        val edited: Boolean, val stages: List<Stage>,
+        val edited: Boolean, val stages: List<Stage>, val minutes: Map<String, Double>? = null,
     ) {
         data class Stage(val stage: String, val start: Long, val end: Long)
     }
@@ -101,8 +105,11 @@ object CoreRead {
                     Night.Stage(st.getString("stage"), st.getLong("start"), st.getLong("end"))
                 }
             }
+            val minutes = o.optJSONObject("minutes")?.let { m ->
+                listOf("wake", "light", "deep", "rem").associateWith { m.optDouble(it, 0.0) }
+            }
             Night(o.getLong("startTs"), o.getLong("endTs"), o.double("efficiency"), o.int("restingHr"),
-                  o.double("hrv"), o.getBoolean("edited"), stages)
+                  o.double("hrv"), o.getBoolean("edited"), stages, minutes)
         }
     }
 
