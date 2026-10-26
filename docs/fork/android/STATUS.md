@@ -69,6 +69,7 @@ Plan: [`PLAN.md`](PLAN.md) · last updated 2026-10-25
 | E-5 a real iPhone store on Android | 2026-10-26 | The owner's iPhone store of 2026-10-25 (4.2 GB, 78 migrations) written as a `.noopbak` with the iOS manifest by the shared `BackupArchive` (906 MB), imported on an emulator through Forge More, Import backup, Import anyway: about 50 minutes (two quick_checks and a copy of 4.2 GB), no crash, the app restarted onto it and Today, Trends and Sleep showed the real history. A first try on a 10 GB emulator ran out of space while copying and kept the previous data (`copyFailedKept`), as designed. The emulator, the extracted copy and the backup file were deleted afterwards. Found and fixed: the import now says it can take long, a failed copy says why, and the Sleep screen (below) |
 | One main-night builder | 2026-10-26 | The real store showed the Forge Sleep screen calling an evening nap "last night". The Apple Sleep tab's night building (day grouping, bridged main group, lead-stub rule, both stage formats) moved into `StrandCore` as `SleepNight`, with its session and history reads in `StoreReader`; `SleepView` and `SleepModel` call it, `CoreRead.nights` returns one merged main night per day with its stage minutes. On the real store Android now shows the night of 23 to 24 October, 21:09 to 6:03 over two blocks, 8 h 27 min in bed, as iOS does. Four `SleepNightTests`, a Kotlin parser test |
 | D24 size, measured | 2026-10-26 | `-Pnoop.minify=true` builds the release with R8 for a trial: 57 MB down to 41 MB. On an emulator it dies after the terms gate with "CompositionLocal LocalLifecycleOwner not present" (lifecycle-runtime-compose 2.8.2 beside Compose UI 1.6 under R8). Lifecycle 2.8.3 addresses it, but the dependencies are locked in `app/gradle.lockfile`, so the bump was not made without the owner |
+| E-3 the hero's source | 2026-10-26 | The provider lookup and its naming rule moved into `StrandCore` as `ScoreProvenance` (the Apple screens call it); `CoreRead.day` carries the hero's labels and the Forge Today hero shows them in its top corner ("WHOOP" in the demo, which now seeds provenance as the analysis writes it). Three `ScoreProvenanceTests`. Also fixed: "Workout files" read Portuguese in the Polish, Italian, Russian and Chinese iOS catalogue |
 
 ## Next step
 
@@ -86,9 +87,9 @@ is done (2026-10-25).
 - **Owner: the size step before the public call (D24).** The release APK is 57 MB; R8 makes it 41 MB once
   Lifecycle goes to 2.8.3 or later, which rewrites the dependency lock (`./gradlew dependencies --write-locks`),
   and a device confirms it. The other lever is an ICU data subset (15.7 MB of `lib_FoundationICU.so`).
-- **Open against the iOS look.** The hero's source label (needs the score provenance `Repository.scoreInputProvider`
-  reads, moved into the core), the profile and quick-action buttons in the Today header (no Android destinations
-  yet), SF Pro Rounded (Nunito stands in).
+- **Open against the iOS look.** The profile and quick-action buttons in the Today header wait for the screens they
+  open (profile, live session, workout, journal, goals), which D20 decides after the first testing build; SF Pro
+  Rounded cannot ship outside Apple's platforms (Nunito stands in).
 
 Skip was tried for shared screens and not adopted for now ([`SKIP-SPIKE.md`](SKIP-SPIKE.md)).
 
