@@ -70,6 +70,7 @@ Plan: [`PLAN.md`](PLAN.md) · last updated 2026-10-25
 | One main-night builder | 2026-10-26 | The real store showed the Forge Sleep screen calling an evening nap "last night". The Apple Sleep tab's night building (day grouping, bridged main group, lead-stub rule, both stage formats) moved into `StrandCore` as `SleepNight`, with its session and history reads in `StoreReader`; `SleepView` and `SleepModel` call it, `CoreRead.nights` returns one merged main night per day with its stage minutes. On the real store Android now shows the night of 23 to 24 October, 21:09 to 6:03 over two blocks, 8 h 27 min in bed, as iOS does. Four `SleepNightTests`, a Kotlin parser test |
 | D24 size, measured | 2026-10-26 | `-Pnoop.minify=true` builds the release with R8 for a trial: 57 MB down to 41 MB. On an emulator it dies after the terms gate with "CompositionLocal LocalLifecycleOwner not present" (lifecycle-runtime-compose 2.8.2 beside Compose UI 1.6 under R8). Lifecycle 2.8.3 addresses it, but the dependencies are locked in `app/gradle.lockfile`, so the bump was not made without the owner |
 | E-3 the hero's source | 2026-10-26 | The provider lookup and its naming rule moved into `StrandCore` as `ScoreProvenance` (the Apple screens call it); `CoreRead.day` carries the hero's labels and the Forge Today hero shows them in its top corner ("WHOOP" in the demo, which now seeds provenance as the analysis writes it). Three `ScoreProvenanceTests`. Also fixed: "Workout files" read Portuguese in the Polish, Italian, Russian and Chinese iOS catalogue |
+| Android privacy notes | 2026-10-26 | `docs/PRIVACY_SECURITY.md` §1.5 lists the Android app's network paths (the update check, daily by default and switchable; ryanbr's bring-your-own-key coach; the Experimental self-hosted push) and where its data rests; the Forge screens and the shared core make no network calls. Was a known deviation to close before a testing build |
 
 ## Next step
 
@@ -113,10 +114,6 @@ Compares the build before a restructuring with the build after it on a copy of t
 - A used Pixel 8a or newer once Ko-fi money allows (needed for own Bluetooth checks, not for phases A to D).
 
 ## Known deviations
-
-- **Android privacy notes**: `docs/PRIVACY_SECURITY.md` describes the Apple apps only. The restored Android
-  app has its own network paths (update check, ryanbr's coach, push); they need documenting before a testing
-  build (phase E).
 
 - GRDB 6.29.3 needs the 8-file Android patch (A3). So far it exists only in the spike's build checkout; per
   D22 it becomes a carried patch when the Android build lands (phase D).

@@ -269,6 +269,22 @@ The returned summaries are personal health information. Once a local client rece
 client's storage, model, network, and retention behavior are outside NOOP's control. Only configure
 the CLI with a client you trust.
 
+### 1.5 The Android app (testing)
+
+NOOP Forge for Android holds the `INTERNET` permission for the paths below and opens no other connection. The
+Forge screens and the shared Swift core they read (`Packages/NoopCoreJNI`, `Packages/StrandCore`) make no network
+calls at all; they talk to the strap over Bluetooth and to the stores on the phone.
+
+| Path | When | What leaves the phone |
+|---|---|---|
+| Check for updates (`com.noop.update.UpdateCheck`) | Settings button, and at most once a day after onboarding while **Check automatically** is on (the default; switching it off stops the request) | An unauthenticated HTTPS GET to `https://api.github.com/repos/DX23876/noop/releases?per_page=30`; nothing about the wearer. It reads public release metadata and never downloads or installs anything |
+| AI Coach (`com.noop.ai.AiCoach`, classic screens) | Only after the wearer saved their own API key and asked a question | A compact text summary of their metrics plus the question, to the provider they picked (OpenAI, Anthropic, Gemini, DeepSeek, or an endpoint they enter); no raw samples, no identifiers |
+| Self-hosted push (`com.noop.push`, Experimental) | Off by default; only to an HTTPS endpoint the wearer owns and configures (#1314) | One-way export of the configured records; nothing is read back |
+
+Data at rest stays in the app's private storage: the classic screens' Room database, the shared core's store
+(`files/core/noop-core.sqlite`) and the strap log (`files/strap-log`). A `.noopbak` export goes only where the
+wearer saves it through the system picker. No analytics, crash reporting or telemetry is built in.
+
 ---
 
 ## 2. Data at rest
