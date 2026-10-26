@@ -22,8 +22,14 @@ public enum BundledExerciseCatalog {
     /// 4: a degree sign upstream stored garbled ("Sled 45в° Leg Press") reads as "45°" — display only.
     public static let contentVersion = 4
 
+    /// A directory holding `exercise-catalog.json`, read instead of the package's resource bundle. Android has no
+    /// SwiftPM resource bundle beside the app: the app ships the file as an asset and points here before the first
+    /// read. Nil on Apple, where `Bundle.module` finds it.
+    nonisolated(unsafe) public static var resourceDirectory: URL?
+
     public static let archive: ExerciseCatalogArchive = {
-        guard let url = Bundle.module.url(forResource: "exercise-catalog", withExtension: "json"),
+        let override = resourceDirectory?.appendingPathComponent("exercise-catalog.json")
+        guard let url = override ?? resourceURL(),
               let data = try? Data(contentsOf: url),
               let decoded = try? ExerciseCatalogArchive.decode(data)
         else {
@@ -37,6 +43,15 @@ public enum BundledExerciseCatalog {
         }
         return decoded
     }()
+
+    /// The packaged file; Android never asks, since the generated accessor ends in `fatalError` without a bundle.
+    private static func resourceURL() -> URL? {
+        #if os(Android)
+        return nil
+        #else
+        return Bundle.module.url(forResource: "exercise-catalog", withExtension: "json")
+        #endif
+    }
 
     public static var exercises: [TrainingExercise] { archive.exercises }
     public static var rights: ExerciseContentRights { archive.rights }

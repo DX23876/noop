@@ -27,6 +27,7 @@ final class CoreTrainingTests: XCTestCase {
         XCTAssertTrue(saved)
         let second = await CoreTraining.snapshot(reader: reader, days: 30, weekStartsOn: .monday, dismissedWorkoutSpans: [])
         XCTAssertEqual(second.plan.routines.map(\.title), ["Push day"])
+        XCTAssertEqual(second.routineMuscles[routine.id.uuidString], [:], "an empty routine involves no muscle")
         let deleted = await CoreTraining.deleteRoutine(store: store, id: routine.id.uuidString)
         XCTAssertTrue(deleted)
 
@@ -40,5 +41,41 @@ final class CoreTrainingTests: XCTestCase {
         let finished = await CoreTraining.snapshot(reader: reader, days: 30, weekStartsOn: .monday,
                                                    dismissedWorkoutSpans: [])
         XCTAssertEqual(finished.workouts.map(\.id), [workout.id])
+    }
+
+    func testASessionStartsLogsASetAndFinishes() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("session-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = try await WhoopStore(path: dir.appendingPathComponent("s.sqlite").path)
+        let reader = StoreReader(store: store, activeDeviceId: "my-whoop", registeredWhoopIds: [])
+
+        let started = await CoreTraining.startDraft(reader: reader, routineIds: [], dismissedWorkoutSpans: [])
+        let draft = try XCTUnwrap(started)
+        XCTAssertTrue(draft.exercises.isEmpty, "a freestyle session starts empty")
+        let library = try await store.trainingExercises()
+        let exerciseId = try XCTUnwrap(library.first?.id)
+        let withExercise = await CoreTraining.changeDraft(store: store, args: ["change": "addExercise", "exerciseId": exerciseId])
+        let exercise = try XCTUnwrap(withExercise?.exercises.first)
+        let set = try XCTUnwrap(exercise.sets.first)
+        let logged = await CoreTraining.changeDraft(store: store, args: [
+            "change": "set", "exercise": exercise.id.uuidString, "set": set.id.uuidString,
+            "weightKg": 80, "reps": 8, "done": true])
+        XCTAssertEqual(logged?.exercises.first?.sets.first?.reps, 8)
+
+        let finished = await CoreTraining.finishDraft(store: store, sessionRPE: 7)
+        let workout = try XCTUnwrap(finished)
+        XCTAssertEqual(workout.exercises.first?.sets.first?.weightKg, 80)
+        XCTAssertEqual(workout.sessionRPE, 7)
+        let draftAfter = try await store.workoutDraft()
+        XCTAssertNil(draftAfter, "finishing removes the draft")
+
+        // The hub reads what the session left: today in the year of activity, and its set in muscle balance when the
+        // exercise has anatomy.
+        let hub = await CoreTraining.snapshot(reader: reader, days: 400, weekStartsOn: .monday, dismissedWorkoutSpans: [])
+        XCTAssertGreaterThanOrEqual(hub.activity.count, 364)
+        XCTAssertEqual(hub.activity.last?.day, StoreReader.localDayKey(Date()))
+        XCTAssertEqual(hub.strength.first?.exerciseCount, 1)
+        XCTAssertEqual(hub.muscles.balanceCoverage.workingSets, 1)
     }
 }

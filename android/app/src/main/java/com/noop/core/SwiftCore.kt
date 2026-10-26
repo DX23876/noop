@@ -61,6 +61,8 @@ object SwiftCore {
                                deepHrvWindow: Boolean, dayCycleMode: String?, healthspan: Boolean,
                                rhythmAge: Boolean, extras: String?)
     external fun shadowToday(): String?
+    /** `CoreCall`: one shared-code operation by name with JSON arguments, a JSON answer (Android parity plan 1.2). */
+    external fun call(op: String, args: String): String?
     /** Waits up to [timeoutMs] for the core to have banked the history chunk ending in [endData]. */
     external fun shadowAwaitBanked(endData: ByteArray, timeoutMs: Long): Boolean
 

@@ -26,12 +26,32 @@ object CoreShadow {
         if (started || !SwiftCore.available) return
         synchronized(this) {
             if (started) return
+            installResources(context)
             val store = File(context.filesDir, "core/noop-core.sqlite").apply { parentFile?.mkdirs() }
             val result = SwiftCore.shadowStart(store.path, deviceId)
             started = result == 0
             Log.i(TAG, "shadow session start=$result for $deviceId")
         }
     }
+
+    /**
+     * The core's packaged resources (StrandTraining's exercise catalogue), shipped as APK assets because Android has
+     * no SwiftPM resource bundle, unpacked once per app version into the files directory and announced to the core
+     * before anything reads them.
+     */
+    private fun installResources(context: Context) {
+        val dir = File(context.filesDir, "core-resources").apply { mkdirs() }
+        for (name in RESOURCES) {
+            val target = File(dir, name)
+            val size = runCatching { context.assets.openFd(name).length }.getOrDefault(-1L)
+            if (target.length() == size && size > 0) continue
+            runCatching { context.assets.open(name).use { input -> target.outputStream().use { input.copyTo(it) } } }
+                .onFailure { Log.w(TAG, "resource $name not unpacked: ${it.message}") }
+        }
+        SwiftCore.call("core.setResources", org.json.JSONObject().put("dir", dir.path).toString())
+    }
+
+    private val RESOURCES = listOf("exercise-catalog.json")
 
     fun family(whoop5: Boolean) { if (started) SwiftCore.shadowFamily(whoop5) }
 

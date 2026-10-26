@@ -8,6 +8,12 @@ import WhoopStore
 /// function. Runs against the store the shadow session opened; `{"error": …}` when there is none.
 public enum CoreCall {
     public static func run(_ op: String, _ argsJSON: String) async -> String {
+        if op == "core.setResources" {
+            // Before any read of a packaged resource: where the app unpacked them (StrandTraining's catalogue).
+            let args = (try? JSONSerialization.jsonObject(with: Data(argsJSON.utf8)) as? [String: Any]) ?? [:]
+            if let dir = args["dir"] as? String { BundledExerciseCatalog.resourceDirectory = URL(fileURLWithPath: dir) }
+            return #"{"ok":true}"#
+        }
         guard let (store, _) = ShadowSession.storeAndPath, let reader = ShadowSession.reader else {
             return #"{"error":"noStore"}"#
         }
@@ -22,12 +28,32 @@ public enum CoreCall {
             return CoreRead.json(await CoreTraining.snapshot(reader: reader, days: int("days", 4_000),
                                                              weekStartsOn: start, dismissedWorkoutSpans: dismissed))
         case "training.saveRoutine": return ok(await CoreTraining.saveRoutine(store: store, json: string("routine")))
+        case "training.createRoutine":
+            return ok(await CoreTraining.createRoutine(store: store, id: args["id"] as? String, title: string("title"),
+                                                       exerciseIds: args["exerciseIds"] as? [String] ?? [],
+                                                       weekdays: args["weekdays"] as? [Int]))
+        case "training.duplicateRoutine":
+            return ok(await CoreTraining.duplicateRoutine(store: store, id: string("id"), title: string("title")))
+        case "training.starters": return CoreRead.json(await CoreTraining.starters(store: store))
+        case "training.addStarter": return ok(await CoreTraining.addStarter(store: store, index: int("index", -1)))
+        case "training.setSchedule":
+            return ok(await CoreTraining.setSchedule(store: store, days: args["days"] as? [String: [String]] ?? [:]))
         case "training.deleteRoutine": return ok(await CoreTraining.deleteRoutine(store: store, id: string("id")))
         case "training.saveSchedule": return ok(await CoreTraining.saveSchedule(store: store, json: string("schedule")))
         case "training.saveExercise": return ok(await CoreTraining.saveExercise(store: store, json: string("exercise")))
         case "training.saveDraft": return ok(await CoreTraining.saveDraft(store: store, json: string("draft")))
         case "training.discardDraft": return ok(await CoreTraining.discardDraft(store: store, id: string("id")))
         case "training.finishWorkout": return ok(await CoreTraining.finishWorkout(store: store, json: string("workout")))
+        case "training.startDraft":
+            let ids = args["routineIds"] as? [String] ?? []
+            let dismissed = args["dismissedWorkouts"] as? [String] ?? []
+            return CoreRead.json(await CoreTraining.startDraft(reader: reader, routineIds: ids,
+                                                               dismissedWorkoutSpans: dismissed))
+        case "training.changeDraft":
+            return CoreRead.json(await CoreTraining.changeDraft(store: store, args: args))
+        case "training.finishDraft":
+            let rpe = (args["sessionRPE"] as? NSNumber)?.doubleValue
+            return CoreRead.json(await CoreTraining.finishDraft(store: store, sessionRPE: rpe))
         default:
             return #"{"error":"unknownOp"}"#
         }

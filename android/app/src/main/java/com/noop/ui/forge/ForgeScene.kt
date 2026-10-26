@@ -122,9 +122,10 @@ val blurSupported: Boolean get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.
  * What a screen draws behind its content, as the iOS screens do: [Scene] is Today's day-cycle scene at the top,
  * fading into the canvas over [SCENE_HEIGHT] (`SceneScreenBackground`); [Night] is the Sleep tab's night band with a
  * dark wash for its heading (`sleepNightTopBackground`); [Sky] is the quiet time-of-day gradient the other tabs show
- * at the top (`LiquidSkyStatic` under `liquidScaffoldSky`).
+ * at the top (`LiquidSkyStatic` under `liquidScaffoldSky`); [Canvas] is the plain canvas of a screen that sets no top
+ * background of its own (the Training tab, a plain `ScrollView` on iOS), a custom background image still showing.
  */
-enum class ForgeBackdrop { Scene, Night, Sky }
+enum class ForgeBackdrop { Scene, Night, Sky, Canvas }
 
 /** How far down the screen Today's scene reaches before it has faded into the canvas. */
 val SCENE_HEIGHT = 600.dp
@@ -181,8 +182,8 @@ fun ForgeSceneBackdrop(kind: ForgeBackdrop, modifier: Modifier = Modifier, conte
     // The precedence of `LiquidScaffoldSky`: a custom image first, then the scene behind every card ("Sky behind
     // cards" with the time-of-day sky on), then each tab's own band; with the sky off only the plain canvas.
     val image = BackgroundImageStore.isActive
-    val fullScene = !image && ForgeBackground.dayCycle && ForgeBackground.behindCards
-    val plain = !image && !ForgeBackground.dayCycle
+    val fullScene = !image && kind != ForgeBackdrop.Canvas && ForgeBackground.dayCycle && ForgeBackground.behindCards
+    val plain = !image && (!ForgeBackground.dayCycle || kind == ForgeBackdrop.Canvas)
     val sceneHeight = if (fullScene) SCENE_BEHIND_CARDS_HEIGHT else SCENE_HEIGHT
     val sceneHeightPx = with(density) { sceneHeight.toPx() }
     val washStops = remember(colors.canvas) {

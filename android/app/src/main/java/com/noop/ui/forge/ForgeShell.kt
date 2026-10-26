@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bedtime
+import androidx.compose.material.icons.rounded.FitnessCenter
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.ShowChart
@@ -48,12 +49,13 @@ import androidx.compose.ui.unit.dp
 import com.noop.R
 
 /**
- * The Forge app's top-level destinations, in bar order (the iOS tab bar without Training, which is not in E), with
+ * The Forge app's top-level destinations, in the iOS tab bar's order, with
  * the backdrop each one draws on iOS.
  */
 enum class ForgeTab(val labelRes: Int, val icon: ImageVector, val backdrop: ForgeBackdrop) {
     Today(R.string.nav_today, Icons.Rounded.GridView, ForgeBackdrop.Scene),
     Trends(R.string.nav_trends, Icons.Rounded.ShowChart, ForgeBackdrop.Sky),
+    Training(R.string.forge_training, Icons.Rounded.FitnessCenter, ForgeBackdrop.Canvas),
     Sleep(R.string.nav_sleep, Icons.Rounded.Bedtime, ForgeBackdrop.Night),
     More(R.string.nav_more, Icons.Rounded.MoreHoriz, ForgeBackdrop.Sky),
 }

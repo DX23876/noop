@@ -268,6 +268,10 @@ val buildSwiftCore by tasks.registering(Exec::class) {
 }
 if (forkSwiftCore) {
     android.sourceSets.getByName("main").jniLibs.srcDir(forkSwiftCoreLibs)
+    // The core's packaged resources (the exercise catalogue) as assets, straight from the package that owns them;
+    // `CoreShadow.installResources` unpacks them for the core, which has no SwiftPM resource bundle on Android.
+    android.sourceSets.getByName("main").assets.srcDir(rootProject.file("../Packages/StrandTraining/Sources/StrandTraining/Resources"))
+    android.androidResources.noCompress += "json"
     // Compressed in the APK and extracted at install: the download is about a third of the size (D24 measured
     // 31 MB), which matters for an app that is only ever sideloaded.
     android.packaging.jniLibs.useLegacyPackaging = true
