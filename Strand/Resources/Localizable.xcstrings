@@ -512767,13 +512767,13 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ficheiros de treino"
+            "value" : "File di allenamento"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ficheiros de treino"
+            "value" : "Pliki treningowe"
           }
         },
         "pt-PT" : {
@@ -512785,13 +512785,13 @@
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ficheiros de treino"
+            "value" : "Файлы тренировок"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ficheiros de treino"
+            "value" : "训练文件"
           }
         },
         "zh-Hant" : {
