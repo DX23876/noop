@@ -182,7 +182,8 @@ private fun Hero(day: CoreRead.Day?, width: ForgeWidth) {
                 Row(Modifier.fillMaxWidth()) {
                     ScoreSlot(R.string.forge_charge, day?.charge, day?.charge?.let { colors.chargeRing(it) } ?: colors.charge,
                               diameter, OrganicMetric.Charge, Modifier.weight(1f))
-                    ScoreSlot(R.string.forge_effort, day?.effort, colors.effort, diameter, OrganicMetric.Effort, Modifier.weight(1f))
+                    ScoreSlot(R.string.forge_effort, day?.effort, colors.effort, diameter, OrganicMetric.Effort, Modifier.weight(1f),
+                          format = rememberEffortFormat())
                     ScoreSlot(R.string.forge_rest, day?.rest, colors.rest, diameter, OrganicMetric.Rest, Modifier.weight(1f))
                 }
             }
@@ -214,7 +215,7 @@ private fun heroSourceLabel(tokens: List<String>): String? {
 
 @Composable
 private fun ScoreSlot(labelRes: Int, score: Double?, tint: Color, diameter: androidx.compose.ui.unit.Dp,
-                      metric: OrganicMetric, modifier: Modifier = Modifier) {
+                      metric: OrganicMetric, modifier: Modifier = Modifier, format: (Double) -> String = WHOLE_NUMBER) {
     val label = stringResource(labelRes)
     val spoken = if (score == null) stringResource(R.string.forge_score_missing, label, stringResource(R.string.forge_no_data))
                  else stringResource(R.string.forge_score_spoken, label, score.roundToInt())
@@ -222,7 +223,7 @@ private fun ScoreSlot(labelRes: Int, score: Double?, tint: Color, diameter: andr
            modifier = modifier.semantics(mergeDescendants = true) { contentDescription = spoken }) {
         // The drawn ring may be a little wider than its slot; its glow overlaps the neighbour's, as on iOS.
         Box(Modifier.fillMaxWidth().height(diameter), contentAlignment = Alignment.Center) {
-            OrganicRing(score, tint, diameter, metric, Modifier.requiredSize(diameter))
+            OrganicRing(score, tint, diameter, metric, Modifier.requiredSize(diameter), format)
         }
         Spacer(Modifier.height(ForgeMetrics.space2))
         Text(label.uppercase() + CHEVRON, style = Forge.type.overline, color = Forge.colors.textSecondary, maxLines = 1,
@@ -259,10 +260,9 @@ private fun HeartCard(viewModel: AppViewModel, date: LocalDate, live: Boolean) {
     val streaming = live && bpm != null
     val latest = day.lastOrNull()
     if (!streaming && latest == null) return
-    val locale = Locale.getDefault()
+    val clockFormat = rememberClockFormatter()
     val at = latest?.let {
-        java.time.Instant.ofEpochSecond(it.ts).atZone(java.time.ZoneId.systemDefault())
-            .format(DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, CLOCK_SKELETON), locale))
+        java.time.Instant.ofEpochSecond(it.ts).atZone(java.time.ZoneId.systemDefault()).format(clockFormat)
     }
     val value = if (streaming) bpm!! else latest!!.bpm.roundToInt()
     val spoken = if (streaming) stringResource(R.string.forge_live_hr_spoken, value)

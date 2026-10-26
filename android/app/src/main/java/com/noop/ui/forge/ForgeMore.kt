@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.IosShare
 import androidx.compose.material.icons.rounded.Upload
 import androidx.compose.material3.AlertDialog
@@ -94,6 +95,7 @@ private const val BACKUP_EXTENSION = ".noopbak"
 fun ForgeMoreScreen(padding: PaddingValues, viewModel: AppViewModel) {
     val context = LocalContext.current
     var pairing by remember { mutableStateOf(false) }
+    var settings by remember { mutableStateOf(false) }
     var classicWizard by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     var notice by remember { mutableStateOf<Notice?>(null) }
@@ -146,6 +148,12 @@ fun ForgeMoreScreen(padding: PaddingValues, viewModel: AppViewModel) {
 
         SectionHeader(stringResource(R.string.forge_strap_section))
         StrapCard(viewModel, onPair = { pairing = true })
+
+        ForgeCard(Modifier.fillMaxWidth(), contentPadding = 0.dp) {
+            MoreRow(Icons.Rounded.Settings, colors.textSecondary,
+                    stringResource(R.string.l10n_settings_screen_settings_c7f73bb5),
+                    stringResource(R.string.forge_settings_detail)) { settings = true }
+        }
 
         SectionHeader(stringResource(R.string.forge_backup_section))
         ForgeCard(Modifier.fillMaxWidth(), contentPadding = 0.dp) {
@@ -200,8 +208,16 @@ fun ForgeMoreScreen(padding: PaddingValues, viewModel: AppViewModel) {
         Spacer(Modifier.height(ForgeMetrics.space2))
     }
 
+    if (settings) {
+        ForgeOverlayPage(onDismiss = { settings = false }) {
+            ForgeSettings(onClose = { settings = false }, onClassic = {
+                ForgeUi.setEnabled(context, false)
+                ForgeUi.restart(context)
+            })
+        }
+    }
     if (pairing) {
-        Dialog(onDismissRequest = { pairing = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        ForgeOverlayPage(onDismiss = { pairing = false }) {
             ForgePairing(viewModel, onClose = { pairing = false },
                          onOtherDevice = { pairing = false; classicWizard = true })
         }

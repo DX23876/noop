@@ -37,12 +37,15 @@ object ForgeUi {
 
 @Composable
 fun ForgeRoot(viewModel: AppViewModel) {
-    ForgeShell { tab, padding, width ->
-        when (tab) {
-            ForgeTab.Today -> ForgeTodayScreen(padding, width, viewModel)
-            ForgeTab.Trends -> ForgeTrendsScreen(padding, width)
-            ForgeTab.Sleep -> ForgeSleepScreen(padding, width)
-            ForgeTab.More -> ForgeMoreScreen(padding, viewModel)
+    // Settings and pairing open over the tabs in the same window (`ForgeOverlayHost`).
+    ForgeOverlayHost {
+        ForgeShell { tab, padding, width ->
+            when (tab) {
+                ForgeTab.Today -> ForgeTodayScreen(padding, width, viewModel)
+                ForgeTab.Trends -> ForgeTrendsScreen(padding, width)
+                ForgeTab.Sleep -> ForgeSleepScreen(padding, width)
+                ForgeTab.More -> ForgeMoreScreen(padding, viewModel)
+            }
         }
     }
 }

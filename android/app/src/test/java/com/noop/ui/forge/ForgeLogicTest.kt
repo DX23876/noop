@@ -87,4 +87,10 @@ class ForgeLogicTest {
         assertEquals(Color(0xFF191A1F), LiquidSky.at(23.9, light = false).top)
         assertEquals(lerp(Color(0xFFDCE3ED), Color(0xFFDDE5EE), 0.5f), LiquidSky.at(2.5, light = true).top)
     }
+
+    @Test fun everySettingsPageIsInTheHubOnce() {
+        // The iOS hub lists every page exactly once (`SettingsHubLayout.allPages`).
+        val listed = HUB_GROUPS.flatMap { it.second }
+        assertEquals(ForgeSettingsPage.entries.toList(), listed)
+    }
 }

@@ -1,5 +1,9 @@
 package com.noop.ui.forge
 
+import androidx.compose.ui.platform.LocalContext
+import com.noop.ui.UnitPrefs
+import com.noop.ui.UnitFormatter
+import com.noop.ui.EffortScale
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
@@ -98,7 +102,8 @@ private class RingCache(val preparation: OrganicPreparation) {
  * and reduced motion pose the ring still, as on iOS.
  */
 @Composable
-fun OrganicRing(score: Double?, tint: Color, diameter: Dp, metric: OrganicMetric, modifier: Modifier = Modifier) {
+fun OrganicRing(score: Double?, tint: Color, diameter: Dp, metric: OrganicMetric, modifier: Modifier = Modifier,
+                format: (Double) -> String = WHOLE_NUMBER) {
     val colors = Forge.colors
     val onLight = !colors.dark
     val model = remember(metric, score == null, score) { OrganicScoreModel.resolve(metric, score) }
@@ -191,7 +196,7 @@ fun OrganicRing(score: Double?, tint: Color, diameter: Dp, metric: OrganicMetric
                 }
             }
         }
-        ScoreNumber(score, diameter, still, onLight)
+        ScoreNumber(score, diameter, still, onLight, format)
     }
 }
 
@@ -214,7 +219,7 @@ private fun DrawScope.drawParticles(f: RingFrame, tint: Color, onLight: Boolean,
 
 /** The score in the middle: counts up to a new value, dark ink with a paper halo on light, a shadow on dark. */
 @Composable
-private fun ScoreNumber(score: Double?, diameter: Dp, still: Boolean, onLight: Boolean) {
+private fun ScoreNumber(score: Double?, diameter: Dp, still: Boolean, onLight: Boolean, format: (Double) -> String) {
     val colors = Forge.colors
     val shown by animateFloatAsState(
         targetValue = (score ?: 0.0).toFloat(),
@@ -223,7 +228,7 @@ private fun ScoreNumber(score: Double?, diameter: Dp, still: Boolean, onLight: B
     val size = with(LocalDensity.current) { (diameter * 0.27f).toSp() }
     val shadow = if (!onLight) Shadow(Color.Black.copy(alpha = 0.72f), Offset(0f, 2f), 8f)
                  else Shadow(Color.White.copy(alpha = 0.85f), Offset.Zero, 6f)
-    Text(if (score == null) DASH else "%.0f".format(shown),
+    Text(if (score == null) DASH else format(shown.toDouble()),
          style = Forge.type.heroNumber.copy(fontSize = size, shadow = shadow), textAlign = TextAlign.Center,
          color = if (!onLight) colors.onDark else colors.text, maxLines = 1,
          modifier = Modifier.requiredWidth(diameter * 0.62f))
@@ -231,3 +236,19 @@ private fun ScoreNumber(score: Double?, diameter: Dp, still: Boolean, onLight: B
 
 /** A missing score shows a dash, never a zero. */
 private const val DASH = "–"
+
+/** A score as a whole number, how the rings print Charge, Rest and Effort on its 0 to 100 scale. */
+val WHOLE_NUMBER: (Double) -> String = { "%.0f".format(it) }
+
+/**
+ * How an Effort score reads on the wearer's Effort scale (`UnitPrefs`, shared with the classic screens and set in
+ * Forge Settings): 0 to 100 as a whole number, or WHOOP's 0 to 21 to one decimal (`UnitFormatter.effortDisplay`).
+ * Only the number changes; the ring fills by the stored 0 to 100 score either way.
+ */
+@Composable
+fun rememberEffortFormat(): (Double) -> String {
+    val scale = UnitPrefs.effortScale(LocalContext.current)
+    return remember(scale) {
+        if (scale == EffortScale.WHOOP) { v: Double -> UnitFormatter.effortDisplay(v, scale) } else WHOLE_NUMBER
+    }
+}

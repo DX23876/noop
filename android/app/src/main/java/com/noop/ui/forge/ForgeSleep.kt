@@ -1,5 +1,7 @@
 package com.noop.ui.forge
 
+import com.noop.analytics.ClockFormat
+import com.noop.ui.ClockPrefs
 import android.text.format.DateFormat
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -88,7 +90,18 @@ data class SleepSummary(val inBedMin: Int, val asleepMin: Int, val minutesByStag
     }
 }
 
-internal const val CLOCK_SKELETON = "jmm"
+/**
+ * A time of day as the wearer's Clock setting asks (`ClockPrefs`: system, 12 or 24 hours, the iOS twin), with
+ * the locale still deciding the order and the AM/PM wording (`ClockFormat.hourMinuteTemplate`).
+ */
+@Composable
+internal fun rememberClockFormatter(): DateTimeFormatter {
+    val is24 = ClockPrefs.uses24Hour(LocalContext.current)
+    val locale = Locale.getDefault()
+    return remember(is24, locale) {
+        DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, ClockFormat.hourMinuteTemplate(is24)), locale)
+    }
+}
 
 private data class SleepModel(val nights: List<CoreRead.Night>, val restByDay: Map<String, Double>)
 
@@ -198,22 +211,22 @@ private fun Header(night: CoreRead.Night?, isLatest: Boolean, zone: ZoneId, canB
     }
 }
 
-private fun clock(ts: Long, zone: ZoneId, locale: Locale): String =
-    Instant.ofEpochSecond(ts).atZone(zone)
-        .format(DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, CLOCK_SKELETON), locale))
+private fun clock(ts: Long, zone: ZoneId, format: DateTimeFormatter): String =
+    Instant.ofEpochSecond(ts).atZone(zone).format(format)
 
 @Composable
 private fun Times(night: CoreRead.Night, zone: ZoneId) {
     val colors = Forge.colors
+    val clockFormat = rememberClockFormatter()
     val locale = Locale.getDefault()
     ForgeCard(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             TimeColumn(Icons.Rounded.Bedtime, colors.rest, stringResource(R.string.forge_asleep),
-                       clock(night.startTs, zone, locale), Modifier.weight(1f))
+                       clock(night.startTs, zone, clockFormat), Modifier.weight(1f))
             Box(Modifier.width(ForgeMetrics.hairline).height(44.dp).background(colors.divider))
             Spacer(Modifier.width(ForgeMetrics.space4))
             TimeColumn(Icons.Rounded.WbSunny, colors.effort, stringResource(R.string.forge_woke),
-                       clock(night.endTs, zone, locale), Modifier.weight(1f))
+                       clock(night.endTs, zone, clockFormat), Modifier.weight(1f))
         }
     }
 }
@@ -237,6 +250,7 @@ private fun hm(minutes: Int): String = stringResource(R.string.forge_duration_hm
 @Composable
 private fun Breakdown(night: CoreRead.Night, zone: ZoneId) {
     val colors = Forge.colors
+    val clockFormat = rememberClockFormatter()
     val summary = SleepSummary.of(night)
     val locale = Locale.getDefault()
     ForgeCard(Modifier.fillMaxWidth()) {
@@ -265,11 +279,11 @@ private fun Breakdown(night: CoreRead.Night, zone: ZoneId) {
                 }
                 Row(Modifier.fillMaxWidth()) {
                     val mid = (night.startTs + night.endTs) / 2
-                    Text(clock(night.startTs, zone, locale), style = Forge.type.caption, color = colors.textTertiary)
+                    Text(clock(night.startTs, zone, clockFormat), style = Forge.type.caption, color = colors.textTertiary)
                     Spacer(Modifier.weight(1f))
-                    Text(clock(mid, zone, locale), style = Forge.type.caption, color = colors.textTertiary)
+                    Text(clock(mid, zone, clockFormat), style = Forge.type.caption, color = colors.textTertiary)
                     Spacer(Modifier.weight(1f))
-                    Text(clock(night.endTs, zone, locale), style = Forge.type.caption, color = colors.textTertiary)
+                    Text(clock(night.endTs, zone, clockFormat), style = Forge.type.caption, color = colors.textTertiary)
                 }
             }
         }

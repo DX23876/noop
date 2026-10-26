@@ -1,5 +1,6 @@
 package com.noop.ui.forge
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -18,35 +19,42 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * A card as the iOS screens draw it. By default an opaque raised surface with a hairline rim (`TodayCardSurface`).
- * A [glass] card (Today's hero, the tab bar) shows the scene behind it instead: on Android 12 and later blurred
- * under the translucent [fill], as iOS glass looks; earlier versions, or a card with no scene behind it, get the
- * fill nearly opaque, since they cannot blur.
+ * A card as the iOS screens draw it (`NoopCardChrome` with iOS's quiet edges and quiet rims): an opaque raised
+ * surface with no rim, resting on a soft shadow in the light appearance and on its fill alone in the dark. A
+ * [glass] card (Today's hero, the tab bar) shows the scene behind it instead, blurred under the translucent [fill]
+ * on Android 12 and later and nearly opaque earlier or with no scene behind it, and keeps a hairline rim, as a
+ * transparent card does on iOS.
  */
 @Composable
 fun ForgeCard(modifier: Modifier = Modifier, radius: Dp = ForgeMetrics.cardRadius,
@@ -63,7 +71,12 @@ fun ForgeCard(modifier: Modifier = Modifier, radius: Dp = ForgeMetrics.cardRadiu
         blur -> fill ?: colors.heroFill
         else -> (fill ?: colors.heroFill).let { it.copy(alpha = maxOf(it.alpha, 0.92f)) }
     }
-    Box(modifier.clip(shape).onGloballyPositioned { position.value = it.positionInWindow() }) {
+    // iOS: opacity 0.06, radius 8, y 5 under an opaque card in the light appearance (`NoopCardChrome`).
+    val lifted = !glass && !colors.dark
+    Box(modifier
+            .then(if (lifted) Modifier.shadow(6.dp, shape, ambientColor = CARD_SHADOW, spotColor = CARD_SHADOW)
+                  else Modifier)
+            .clip(shape).onGloballyPositioned { position.value = it.positionInWindow() }) {
         if (blur && scene != null) {
             Box(Modifier.matchParentSize().graphicsLayer {
                 renderEffect = BlurEffect(60f, 60f, TileMode.Clamp)
@@ -72,12 +85,14 @@ fun ForgeCard(modifier: Modifier = Modifier, radius: Dp = ForgeMetrics.cardRadiu
         }
         Column(
             Modifier.fillMaxWidth().background(surface)
-                .border(BorderStroke(ForgeMetrics.hairline, if (glass) colors.heroBorder else colors.border), shape)
+                .then(if (glass) Modifier.border(BorderStroke(ForgeMetrics.hairline, colors.heroBorder), shape) else Modifier)
                 .padding(contentPadding),
             content = content,
         )
     }
 }
+
+private val CARD_SHADOW = Color.Black.copy(alpha = 0.06f)
 
 /** The Charge band a score falls in (`ChargeBand.of`): below 25, 50, 70 and 88. */
 enum class ChargeBand { Depleted, Low, Moderate, Primed, Peak;
@@ -153,4 +168,45 @@ private const val MIN_TILE_SCALE = 0.6f
 fun SectionHeader(text: String, modifier: Modifier = Modifier) {
     Text(text.uppercase(), style = Forge.type.overline, color = Forge.colors.textSecondary,
          modifier = modifier.fillMaxWidth().padding(horizontal = ForgeMetrics.space1))
+}
+
+/**
+ * Forge pages shown over the tabs (Settings, pairing), drawn in the app's own edge-to-edge window by
+ * [ForgeOverlayHost] rather than in a dialog window, which kept the screen behind showing under the navigation
+ * bar and drew its own status bar.
+ */
+@Stable
+class ForgeOverlay {
+    internal var page by mutableStateOf<(@Composable () -> Unit)?>(null)
+    internal var dismiss: () -> Unit = {}
+}
+
+val LocalForgeOverlay = staticCompositionLocalOf { ForgeOverlay() }
+
+/** Draws [content] and, over it, the page a [ForgeOverlayPage] has open; Back closes that page. */
+@Composable
+fun ForgeOverlayHost(content: @Composable () -> Unit) {
+    val overlay = remember { ForgeOverlay() }
+    CompositionLocalProvider(LocalForgeOverlay provides overlay) {
+        Box(Modifier.fillMaxSize()) {
+            content()
+            overlay.page?.let { page ->
+                BackHandler { overlay.dismiss() }
+                Box(Modifier.fillMaxSize()) { page() }
+            }
+        }
+    }
+}
+
+/** Opens [content] full screen over the tabs while this is in the composition; [onDismiss] runs on Back. */
+@Composable
+fun ForgeOverlayPage(onDismiss: () -> Unit, content: @Composable () -> Unit) {
+    val overlay = LocalForgeOverlay.current
+    val page by rememberUpdatedState(content)
+    val dismiss by rememberUpdatedState(onDismiss)
+    DisposableEffect(overlay) {
+        overlay.page = { page() }
+        overlay.dismiss = { dismiss() }
+        onDispose { overlay.page = null }
+    }
 }

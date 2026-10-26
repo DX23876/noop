@@ -1,5 +1,7 @@
 package com.noop.ui.forge
 
+import com.noop.ui.AppearancePrefs
+import com.noop.ui.AppearanceMode
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
@@ -106,6 +108,7 @@ object ForgeMetrics {
     val screenPadding = ForgeTokens.NoopMetrics.screenPadding.dp
     val cardPadding = ForgeTokens.NoopMetrics.cardPadding.dp
     val cardRadius = ForgeTokens.NoopMetrics.cardRadius.dp
+    val groupedRadius = ForgeTokens.NoopMetrics.groupedRadius.dp
     val heroRadius = ForgeTokens.NoopMetrics.heroRadius.dp
     val gap = ForgeTokens.NoopMetrics.gap.dp
     val sectionGap = ForgeTokens.NoopMetrics.sectionGap.dp
@@ -148,9 +151,20 @@ object Forge {
         ?: colors.let { SceneInk(it.text, it.textSecondary, it.textTertiary, it.dark) }
 }
 
-/** Light or dark follows the system, as on iOS; the whole screen darkens, not only the cards. */
+/**
+ * Light or dark: the app's Appearance choice (`AppearancePrefs`, shared with the classic screens and set in
+ * Forge Settings), the system's when that is System, as on iOS.
+ */
 @Composable
-fun ForgeTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
+fun forgeDark(): Boolean = when (AppearancePrefs.mode) {
+    AppearanceMode.LIGHT -> false
+    AppearanceMode.DARK -> true
+    AppearanceMode.SYSTEM -> isSystemInDarkTheme()
+}
+
+/** The Forge theme, light or dark by [forgeDark]; the whole screen darkens, not only the cards. */
+@Composable
+fun ForgeTheme(dark: Boolean = forgeDark(), content: @Composable () -> Unit) {
     val colors = forgeColors(dark)
     val material = if (dark) {
         darkColorScheme(primary = colors.accent, background = colors.canvas, surface = colors.surface,
