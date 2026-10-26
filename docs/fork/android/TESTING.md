@@ -38,5 +38,6 @@ nothing is lost).
 ## If something goes wrong
 
 - The classic screens are still there: **More → Classic screens**. Their Settings switch back.
-- **More → Export backup** saves everything as a `.noopbak` file before you try something risky.
+- **More → Export backup** saves everything as a `.noopbak` file before you try something risky. Importing a
+  large backup (a phone with months of history) can take many minutes; keep the app open until it finishes.
 - A crash or a strap that will not connect: open the bug form, describe what you did, attach the strap log.
