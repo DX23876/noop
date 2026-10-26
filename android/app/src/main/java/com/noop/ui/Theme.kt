@@ -14,6 +14,8 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import android.app.Activity
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,9 +47,13 @@ object Palette {
 
     // The active scheme's tokens — snapshot state, so a flip re-resolves every read below (in
     // composables AND Canvas DrawScopes) with no call-site changes. Set by NoopTheme.
-    internal var active by mutableStateOf(DarkTokens)
+    internal var scheme by mutableStateOf(DarkTokens)
+    /** Fork (DX23876): tokens a Forge host lays over the scheme while a classic screen is drawn inside it. */
+    internal var host: PaletteTokens? by mutableStateOf(null)
+    internal var hostDark by mutableStateOf(true)
+    internal val active: PaletteTokens get() = host ?: scheme
     /** True when the light scheme is active (surface code uses this for the per-scheme idiom). */
-    val isLight: Boolean get() = active === LightTokens
+    val isLight: Boolean get() = if (host != null) !hostDark else scheme === LightTokens
 
     // Chart style — when CLASSIC, the DATA accessors below return the throwback red→green ramps
     // (light/dark tuned). Reads ChartStylePrefs.style (snapshot state) so a flip re-colours live.
@@ -82,17 +88,17 @@ object Palette {
     // Accent — user-selectable chrome anchor (mint default / WHOOP blue / custom). Chrome ONLY; the
     // recovery/strain/sleep DATA worlds are never themed by this. Reads AccentPrefs snapshot state so a
     // change is live. Twin of macOS StrandPalette.accent* branching on AccentColor.
-    val accent get() = when (AccentPrefs.color) {
+    val accent get() = host?.accent ?: when (AccentPrefs.color) {
         AccentColor.MINT -> active.accent
         AccentColor.WHOOP_BLUE -> if (isLight) Color(0xFF234F9E) else Color(0xFF60A0E0)
         AccentColor.CUSTOM -> AccentColor.parseHex(AccentPrefs.customHex, active.accent)
     }
-    val accentHover get() = when (AccentPrefs.color) {
+    val accentHover get() = host?.accentHover ?: when (AccentPrefs.color) {
         AccentColor.MINT -> active.accentHover
         AccentColor.WHOOP_BLUE -> if (isLight) Color(0xFF3A6FC0) else Color(0xFF8FBEEC)
         AccentColor.CUSTOM -> AccentColor.lighten(AccentPrefs.customHex)
     }
-    val accentMuted get() = when (AccentPrefs.color) {
+    val accentMuted get() = host?.accentMuted ?: when (AccentPrefs.color) {
         AccentColor.MINT -> active.accentMuted
         AccentColor.WHOOP_BLUE -> (if (isLight) Color(0xFF234F9E) else Color(0xFF60A0E0)).copy(alpha = 0.18f)
         AccentColor.CUSTOM -> AccentColor.parseHex(AccentPrefs.customHex, active.accent).copy(alpha = 0.18f)
@@ -583,7 +589,7 @@ fun NoopTheme(content: @Composable () -> Unit) {
         AppearanceMode.SYSTEM -> isSystemInDarkTheme()
     }
     val tokens = if (dark) DarkTokens else LightTokens
-    if (Palette.active !== tokens) Palette.active = tokens
+    if (Palette.scheme !== tokens) Palette.scheme = tokens
 
     // Status-/nav-bar icon appearance: light icons on the dark theme, dark icons on the warm-paper
     // light theme (otherwise the icons are invisible). Edge-to-edge keeps the bars transparent.
@@ -598,6 +604,23 @@ fun NoopTheme(content: @Composable () -> Unit) {
         }
     }
 
+    MaterialTheme(
+        colorScheme = noopColorScheme(tokens, dark),
+        typography = NoopMaterialTypography,
+        shapes = NoopShapes,
+        content = content,
+    )
+}
+
+/**
+ * Fork (DX23876): draws [content] with [tokens] laid over the scheme, for a classic screen shown inside the Forge
+ * Settings, so it takes the Forge colours instead of its own. Palette is global, so the override lasts while the
+ * host is in the composition; a host that replaces another leaves the newer override in place.
+ */
+@Composable
+fun HostedPalette(tokens: PaletteTokens, dark: Boolean, content: @Composable () -> Unit) {
+    remember(tokens, dark) { Palette.host = tokens; Palette.hostDark = dark; tokens }
+    DisposableEffect(tokens) { onDispose { if (Palette.host === tokens) Palette.host = null } }
     MaterialTheme(
         colorScheme = noopColorScheme(tokens, dark),
         typography = NoopMaterialTypography,

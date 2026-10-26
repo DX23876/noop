@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -108,24 +109,30 @@ private val CAPABILITIES: List<CapabilityRow> = listOf(
 @Composable
 fun WhoopModelComparisonScreen(onClose: () -> Unit) {
     val scroll = rememberScrollState()
-    Surface(modifier = Modifier.fillMaxSize(), color = Palette.surfaceBase) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Header(onClose)
-            Hairline()
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .verticalScroll(scroll)
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(Metrics.sectionGap),
-            ) {
-                IntroCard()
-                CapabilityTableCard()
-                ReassuranceCard()
+    // Fork: inside the Forge Settings only the cards are drawn, in the host's chrome (one look, as on iOS).
+    val body: @Composable ColumnScope.() -> Unit = {
+        IntroCard()
+        CapabilityTableCard()
+        ReassuranceCard()
+    }
+    HostedSheet(scroll, body) {
+        Surface(modifier = Modifier.fillMaxSize(), color = Palette.surfaceBase) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Header(onClose)
+                Hairline()
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(scroll)
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(Metrics.sectionGap),
+                ) {
+                    body()
+                }
+                Hairline()
+                Footer(onClose)
             }
-            Hairline()
-            Footer(onClose)
         }
     }
 }

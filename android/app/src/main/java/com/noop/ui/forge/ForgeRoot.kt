@@ -3,6 +3,8 @@ package com.noop.ui.forge
 import android.content.Context
 import android.content.Intent
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import com.noop.ui.AppViewModel
 
 /**
@@ -37,6 +39,8 @@ object ForgeUi {
 
 @Composable
 fun ForgeRoot(viewModel: AppViewModel) {
+    val context = LocalContext.current
+    remember { ForgeBackground.load(context) }
     // Settings and pairing open over the tabs in the same window (`ForgeOverlayHost`).
     ForgeOverlayHost {
         ForgeShell { tab, padding, width ->

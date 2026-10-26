@@ -27,6 +27,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -62,6 +63,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -134,6 +136,8 @@ fun Modifier.frostedCardSurface(
     // opacity so cards fade toward the background. Reading the reactive value here makes the slider
     // live-preview. Content drawn above the surface is unaffected, so numbers/labels stay readable.
     val op = CardAppearance.opacity
+    // Hosted in the Forge Settings: cards without a rim, as the Forge cards are drawn.
+    val rim = if (LocalHostedChrome.current != null) 0f else 1f
     this
         // Elevation idiom: DARK is flat (the hairline + hue carry the edge). LIGHT raises the white card
         // off the warm-paper canvas with a soft drop shadow — the hairline alone is too faint on paper.
@@ -146,7 +150,7 @@ fun Modifier.frostedCardSurface(
             val radiusPx = cornerRadius.toPx()
             val corner = androidx.compose.ui.geometry.CornerRadius(radiusPx, radiusPx)
             val fill = Palette.surfaceRaised.copy(alpha = Palette.surfaceRaised.alpha * op)
-            val border = Palette.hairline.copy(alpha = Palette.hairline.alpha * op)
+            val border = Palette.hairline.copy(alpha = Palette.hairline.alpha * op * rim)
 
             if (tint == null) {
                 // NEUTRAL card (iOS FrostedCardSurface tint == nil): a FLAT raised surface — no vertical
@@ -178,6 +182,42 @@ fun Modifier.frostedCardSurface(
         }
 }
 
+// MARK: - Hosted chrome (fork)
+
+/**
+ * Fork (DX23876): a classic screen drawn inside the Forge Settings takes its chrome from there, so every Settings
+ * page has one look, as on iOS: no canvas of its own (the Forge backdrop runs through), the Forge page title
+ * scrolling with the content, the Forge padding and card corners, cards without a rim. Null everywhere else, where
+ * the classic screens draw as before.
+ */
+class HostedChrome(
+    val horizontalPadding: Dp,
+    val maxContentWidth: Dp,
+    val rowSpacing: Dp,
+    val cardRadius: Dp,
+    val header: @Composable (title: String?, subtitle: String?, trailing: (@Composable () -> Unit)?) -> Unit,
+)
+
+val LocalHostedChrome = staticCompositionLocalOf<HostedChrome?> { null }
+
+/**
+ * Fork: a full-page classic sheet (an explainer, step calibration). Inside the Forge Settings only its [body] is
+ * drawn, in the host's chrome on [scroll]; elsewhere [classic] draws the sheet with its own header as before.
+ */
+@Composable
+fun HostedSheet(scroll: ScrollState, body: @Composable ColumnScope.() -> Unit, classic: @Composable () -> Unit) {
+    val hosted = LocalHostedChrome.current ?: return classic()
+    Column(
+        Modifier.fillMaxSize().verticalScroll(scroll)
+            .padding(horizontal = hosted.horizontalPadding).widthIn(max = hosted.maxContentWidth)
+            .padding(bottom = 28.dp + BottomBarStyleStore.barHeightForContent()),
+        verticalArrangement = Arrangement.spacedBy(hosted.rowSpacing),
+    ) {
+        hosted.header(null, null, null)
+        body()
+    }
+}
+
 // MARK: - NoopCard — the one card surface (Titanium & Gold frosted card, 16dp radius)
 //
 // PUBLIC API is unchanged (modifier, padding, content); an optional [tint] was ADDED
@@ -191,12 +231,13 @@ fun NoopCard(
     tint: Color? = null,
     content: @Composable () -> Unit,
 ) {
-    val shape = RoundedCornerShape(Metrics.cardRadius)
+    val radius = LocalHostedChrome.current?.cardRadius ?: Metrics.cardRadius
+    val shape = RoundedCornerShape(radius)
     Box(
         modifier = modifier
             .fillMaxWidth()
             .clip(shape)
-            .frostedCardSurface(tint = tint, cornerRadius = Metrics.cardRadius)
+            .frostedCardSurface(tint = tint, cornerRadius = radius)
             .padding(padding),
     ) {
         content()
@@ -1288,6 +1329,19 @@ fun ScreenScaffold(
     fullBleedBackground: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    // Fork: inside the Forge Settings the host's chrome replaces the canvas, the backdrop and the header.
+    LocalHostedChrome.current?.let { hosted ->
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                .padding(horizontal = hosted.horizontalPadding).widthIn(max = hosted.maxContentWidth)
+                .padding(bottom = 28.dp + BottomBarStyleStore.barHeightForContent()),
+            verticalArrangement = Arrangement.spacedBy(hosted.rowSpacing),
+        ) {
+            hosted.header(title, subtitle, trailing)
+            content()
+        }
+        return
+    }
     // The scrolling content column. Its OUTER modifier differs by path: with no topBackground it is the
     // original root Column (the caller's `modifier` + an opaque-canvas background — byte-for-byte the old
     // layout); with a topBackground the canvas + scene paint in the wrapping Box's background (below) and
@@ -1431,6 +1485,19 @@ fun LazyScreenScaffold(
     listState: LazyListState = rememberLazyListState(),
     content: LazyListScope.() -> Unit,
 ) {
+    // Fork: inside the Forge Settings the host's chrome replaces the canvas, the backdrop and the header.
+    LocalHostedChrome.current?.let { hosted ->
+        LazyColumn(
+            Modifier.fillMaxSize().widthIn(max = hosted.maxContentWidth),
+            state = listState,
+            contentPadding = PaddingValues(start = hosted.horizontalPadding, end = hosted.horizontalPadding, bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(hosted.rowSpacing),
+        ) {
+            item { hosted.header(title, subtitle, trailing) }
+            content()
+        }
+        return
+    }
     // The header row: optional leading action, the title/subtitle, optional trailing action. Omitted
     // entirely when both title and subtitle are null (a screen supplying its own custom header). Matches
     // ScreenScaffold's header block so the eager + lazy scaffolds read identically.

@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -148,40 +149,46 @@ fun StepsCalibrationScreen(
         if (motions.isNotEmpty()) sampleMotion = motions.sorted()[motions.size / 2]
     }
 
-    Surface(modifier = Modifier.fillMaxSize(), color = Palette.surfaceBase) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Header(onClose)
-            Hairline()
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .verticalScroll(scroll)
-                    // #1836: this is a NavHost destination that scrolls WITHOUT ScreenScaffold, so it does
-                    // not inherit the scaffold's bar clearance. In the overlay layout the screen reaches the
-                    // bottom edge, so without this the last rows sit behind the bar. Zero when the overlay
-                    // is off. Any future destination that scrolls outside ScreenScaffold needs the same.
-                    .padding(20.dp)
-                    .padding(bottom = BottomBarStyleStore.barHeightForContent()),
-                verticalArrangement = Arrangement.spacedBy(Metrics.sectionGap),
-            ) {
-                ExplainerCard()
-                if (loaded && sampleMotion == null) NoMotionNote()
-                // #589: the matched-day count (phone-counted days we could pair with strap motion — the
-                // engine's "usable overlapping days") drives the "Need N more days…" countdown. In the
-                // not-calibrated state the comparison build early-returns on coeff <= 0, so this is 0 and
-                // the headline reads the full MIN_CALIBRATION_DAYS — exactly the Swift behaviour.
-                CurrentFitCard(profile, matchedDays = comparison.size)
-                ComparisonCard(comparison)
-                ManualAdjustCard(
-                    profile = profile,
-                    stepperMax = stepperMax,
-                    sampleMotion = sampleMotion,
-                    onProfileChanged = onProfileChanged,
-                )
+    // Fork: inside the Forge Settings only the cards are drawn, in the host's chrome (one look, as on iOS).
+    val body: @Composable ColumnScope.() -> Unit = {
+        ExplainerCard()
+        if (loaded && sampleMotion == null) NoMotionNote()
+        // #589: the matched-day count (phone-counted days we could pair with strap motion — the
+        // engine's "usable overlapping days") drives the "Need N more days…" countdown. In the
+        // not-calibrated state the comparison build early-returns on coeff <= 0, so this is 0 and
+        // the headline reads the full MIN_CALIBRATION_DAYS — exactly the Swift behaviour.
+        CurrentFitCard(profile, matchedDays = comparison.size)
+        ComparisonCard(comparison)
+        ManualAdjustCard(
+            profile = profile,
+            stepperMax = stepperMax,
+            sampleMotion = sampleMotion,
+            onProfileChanged = onProfileChanged,
+        )
+    }
+    HostedSheet(scroll, body) {
+        Surface(modifier = Modifier.fillMaxSize(), color = Palette.surfaceBase) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Header(onClose)
+                Hairline()
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(scroll)
+                        // #1836: this is a NavHost destination that scrolls WITHOUT ScreenScaffold, so it does
+                        // not inherit the scaffold's bar clearance. In the overlay layout the screen reaches the
+                        // bottom edge, so without this the last rows sit behind the bar. Zero when the overlay
+                        // is off. Any future destination that scrolls outside ScreenScaffold needs the same.
+                        .padding(20.dp)
+                        .padding(bottom = BottomBarStyleStore.barHeightForContent()),
+                    verticalArrangement = Arrangement.spacedBy(Metrics.sectionGap),
+                ) {
+                    body()
+                }
+                Hairline()
+                Footer(onClose)
             }
-            Hairline()
-            Footer(onClose)
         }
     }
 }

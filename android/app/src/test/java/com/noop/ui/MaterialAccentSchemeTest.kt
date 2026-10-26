@@ -18,7 +18,7 @@ class MaterialAccentSchemeTest {
         val context = RuntimeEnvironment.getApplication()
         AccentPrefs.setColor(context, originalAccent)
         AccentPrefs.setCustomHex(context, originalHex)
-        Palette.active = originalTokens
+        Palette.scheme = originalTokens
     }
 
     @Test
@@ -27,7 +27,7 @@ class MaterialAccentSchemeTest {
         AccentPrefs.setCustomHex(context, "#A844CC")
         for (dark in listOf(false, true)) {
             val tokens = if (dark) DarkTokens else LightTokens
-            Palette.active = tokens
+            Palette.scheme = tokens
             for (accent in AccentColor.entries) {
                 AccentPrefs.setColor(context, accent)
                 val scheme = noopColorScheme(tokens, dark)

@@ -71,20 +71,6 @@ import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import kotlin.math.roundToInt
 
-/** What the More screen is telling the wearer after an export or import. */
-private sealed interface Notice {
-    /** An export or an import in progress; an import of a large store can take many minutes. */
-    data class Working(val importing: Boolean = false) : Notice
-    data object Exported : Notice
-    data object Imported : Notice
-    data object TooLarge : Notice
-    data class Failed(val why: String) : Notice
-}
-
-private const val BACKUP_MIME = "application/octet-stream"
-private const val BACKUP_NAME_PREFIX = "NOOP-Forge-"
-private const val BACKUP_EXTENSION = ".noopbak"
-
 /**
  * Fork (DX23876), Android plan E-3e/E-3f: the More tab. The strap (link state, battery, last sync, connect and
  * pairing through the app's view model), `.noopbak` export and import of the core's store (the same format
@@ -98,37 +84,7 @@ fun ForgeMoreScreen(padding: PaddingValues, viewModel: AppViewModel) {
     var settings by remember { mutableStateOf(false) }
     var classicWizard by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    var notice by remember { mutableStateOf<Notice?>(null) }
-
-    fun finish(result: CoreBackup.Result) {
-        notice = when (result) {
-            CoreBackup.Result.Done -> Notice.Exported
-            CoreBackup.Result.Imported -> Notice.Imported
-            is CoreBackup.Result.TooLarge -> Notice.TooLarge
-            is CoreBackup.Result.Failed -> Notice.Failed(result.why)
-        }
-    }
-
-    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(BACKUP_MIME)) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        notice = Notice.Working()
-        scope.launch {
-            finish(withContext(Dispatchers.IO) {
-                context.contentResolver.openOutputStream(uri)?.use { CoreBackup.export(context, it) }
-                    ?: CoreBackup.Result.Failed("openOutput")
-            })
-        }
-    }
-    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        notice = Notice.Working(importing = true)
-        scope.launch {
-            finish(withContext(Dispatchers.IO) {
-                context.contentResolver.openInputStream(uri)?.use { CoreBackup.import(context, it) }
-                    ?: CoreBackup.Result.Failed("openInput")
-            })
-        }
-    }
+    val backup = rememberBackupActions()
 
     val colors = Forge.colors
     Column(
@@ -159,12 +115,12 @@ fun ForgeMoreScreen(padding: PaddingValues, viewModel: AppViewModel) {
         ForgeCard(Modifier.fillMaxWidth(), contentPadding = 0.dp) {
             MoreRow(Icons.Rounded.Upload, colors.accent, stringResource(R.string.forge_backup_export),
                     stringResource(R.string.forge_backup_export_detail)) {
-                exportLauncher.launch(BACKUP_NAME_PREFIX + LocalDate.now() + BACKUP_EXTENSION)
+                backup.export()
             }
             HorizontalDivider(color = colors.divider.copy(alpha = 0.4f), modifier = Modifier.padding(start = 56.dp))
             MoreRow(Icons.Rounded.Download, colors.rest, stringResource(R.string.forge_backup_import),
                     stringResource(R.string.forge_backup_import_detail)) {
-                importLauncher.launch(arrayOf("*/*"))
+                backup.import()
             }
         }
 
@@ -210,10 +166,7 @@ fun ForgeMoreScreen(padding: PaddingValues, viewModel: AppViewModel) {
 
     if (settings) {
         ForgeOverlayPage(onDismiss = { settings = false }) {
-            ForgeSettings(onClose = { settings = false }, onClassic = {
-                ForgeUi.setEnabled(context, false)
-                ForgeUi.restart(context)
-            })
+            ForgeSettings(viewModel, onClose = { settings = false })
         }
     }
     if (pairing) {
@@ -231,14 +184,6 @@ fun ForgeMoreScreen(padding: PaddingValues, viewModel: AppViewModel) {
         }
     }
 
-    notice?.let { current ->
-        NoticeDialog(current, onDismiss = { notice = null },
-                     onRestart = { ForgeUi.restart(context) },
-                     onImportAnyway = {
-                         notice = Notice.Working(importing = true)
-                         scope.launch { finish(withContext(Dispatchers.IO) { CoreBackup.importStagedAnyway(context) }) }
-                     })
-    }
 }
 
 /** The strap as the app sees it now: name, link state, battery and last sync, with connect and pairing. */
@@ -311,44 +256,3 @@ private fun MoreRow(icon: ImageVector, tint: Color, title: String, detail: Strin
     }
 }
 
-@Composable
-private fun NoticeDialog(notice: Notice, onDismiss: () -> Unit, onRestart: () -> Unit, onImportAnyway: () -> Unit) {
-    when (notice) {
-        is Notice.Working -> AlertDialog(
-            onDismissRequest = {}, confirmButton = {},
-            text = {
-                // A real iPhone store of 4 GB took about an hour to check and copy on an emulator (2026-10-26),
-                // so an import says that it can take long instead of a bare "Working…".
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(Modifier.size(24.dp))
-                    Spacer(Modifier.width(ForgeMetrics.space4))
-                    Text(stringResource(if (notice.importing) R.string.forge_backup_importing else R.string.forge_working))
-                }
-            })
-        Notice.Exported -> AlertDialog(
-            onDismissRequest = onDismiss, text = { Text(stringResource(R.string.forge_backup_exported)) },
-            confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.ok)) } })
-        Notice.Imported -> AlertDialog(
-            onDismissRequest = {}, title = { Text(stringResource(R.string.forge_backup_imported_title)) },
-            text = { Text(stringResource(R.string.forge_backup_imported_body)) },
-            confirmButton = { TextButton(onClick = onRestart) { Text(stringResource(R.string.forge_backup_restart)) } })
-        Notice.TooLarge -> AlertDialog(
-            onDismissRequest = onDismiss, text = { Text(stringResource(R.string.forge_backup_too_large)) },
-            confirmButton = { TextButton(onClick = onImportAnyway) { Text(stringResource(R.string.forge_backup_import_anyway)) } },
-            dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.forge_cancel)) } })
-        is Notice.Failed -> AlertDialog(
-            onDismissRequest = onDismiss, text = { Text(failureText(notice.why)) },
-            confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.ok)) } })
-    }
-}
-
-/** The wearer-facing reason for a failed export or import; the core's code only where no plain sentence fits. */
-@Composable
-private fun failureText(why: String): String = when {
-    why == "notSQLite" || why == "noDatabaseEntry" || why.startsWith("archiveUnreadable") ->
-        stringResource(R.string.forge_backup_not_backup)
-    why == "foreignBackup" -> stringResource(R.string.forge_backup_foreign)
-    why == "damaged" || why.startsWith("postRestore") -> stringResource(R.string.forge_backup_damaged)
-    why.startsWith("copyFailedKept") -> stringResource(R.string.forge_backup_not_written)
-    else -> stringResource(R.string.forge_backup_failed, why)
-}

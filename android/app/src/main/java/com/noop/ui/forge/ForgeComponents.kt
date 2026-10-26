@@ -48,6 +48,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.noop.ui.CardAppearance
 
 /**
  * A card as the iOS screens draw it (`NoopCardChrome` with iOS's quiet edges and quiet rims): an opaque raised
@@ -66,15 +67,25 @@ fun ForgeCard(modifier: Modifier = Modifier, radius: Dp = ForgeMetrics.cardRadiu
     val scene = if (glass) LocalSceneGlass.current else null
     val blur = scene != null && blurSupported
     val position = remember { mutableStateOf(Offset.Zero) }
+    // "Card transparency" (`StrandCard`): the whole surface fades by the wearer's opacity, fill, rim and shadow
+    // alike, while the content stays solid. A see-through card gets the hairline rim back (`NoopCardChrome`).
+    val opacity = if (glass) 1f else CardAppearance.opacity
+    val transparent = opacity < 1f
     val surface = when {
-        !glass -> fill ?: colors.surface
+        !glass -> (fill ?: colors.surface).let { it.copy(alpha = it.alpha * opacity) }
         blur -> fill ?: colors.heroFill
         else -> (fill ?: colors.heroFill).let { it.copy(alpha = maxOf(it.alpha, 0.92f)) }
     }
     // iOS: opacity 0.06, radius 8, y 5 under an opaque card in the light appearance (`NoopCardChrome`).
-    val lifted = !glass && !colors.dark
+    val lifted = !glass && !colors.dark && opacity > 0f
+    val shadow = CARD_SHADOW.copy(alpha = CARD_SHADOW.alpha * opacity)
+    val rim = when {
+        glass -> colors.heroBorder
+        transparent -> colors.divider.copy(alpha = colors.divider.alpha * opacity)
+        else -> null
+    }
     Box(modifier
-            .then(if (lifted) Modifier.shadow(6.dp, shape, ambientColor = CARD_SHADOW, spotColor = CARD_SHADOW)
+            .then(if (lifted) Modifier.shadow(6.dp, shape, ambientColor = shadow, spotColor = shadow)
                   else Modifier)
             .clip(shape).onGloballyPositioned { position.value = it.positionInWindow() }) {
         if (blur && scene != null) {
@@ -85,7 +96,7 @@ fun ForgeCard(modifier: Modifier = Modifier, radius: Dp = ForgeMetrics.cardRadiu
         }
         Column(
             Modifier.fillMaxWidth().background(surface)
-                .then(if (glass) Modifier.border(BorderStroke(ForgeMetrics.hairline, colors.heroBorder), shape) else Modifier)
+                .then(if (rim != null) Modifier.border(BorderStroke(ForgeMetrics.hairline, rim), shape) else Modifier)
                 .padding(contentPadding),
             content = content,
         )

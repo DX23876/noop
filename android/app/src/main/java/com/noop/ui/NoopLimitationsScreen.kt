@@ -129,7 +129,7 @@ private fun SupportCell(state: LimitState) {
         when (state) {
             LimitState.FULL -> SupportGlyph(Icons.Filled.Check, Palette.statusPositive, "yes")
             LimitState.PARTIAL -> SupportGlyph(Icons.Filled.Remove, Palette.statusWarning, "partly")
-            LimitState.NONE -> SupportGlyph(Icons.Filled.Close, Palette.textTertiary, "no")
+            LimitState.NONE -> SupportGlyph(Icons.Filled.Close, Palette.statusCritical, "no")
         }
     }
 }

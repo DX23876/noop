@@ -50,8 +50,10 @@ internal fun SettingsDisclosureGroup(
     subtitle: String,
     expanded: Boolean,
     onToggle: () -> Unit,
+    headerless: Boolean = false,
     content: @Composable () -> Unit,
 ) {
+    if (headerless) { content(); return }
     val chevronRotation by animateFloatAsState(
         targetValue = if (expanded) 0f else -90f,
         label = uiString(R.string.l10n_settings_screen_advancedchevron_f22dfa01),

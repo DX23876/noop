@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -126,37 +127,43 @@ private enum class PrimerSection(
 fun HowNoopWorksScreen(onClose: () -> Unit) {
     val scroll = rememberScrollState()
 
-    Surface(modifier = Modifier.fillMaxSize(), color = Palette.surfaceBase) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // A scenic Charge-tinted hero behind the title region, the same premium backdrop
-            // ScoringGuideScreen opens over, so the two explainers feel like one family.
-            Box {
-                ScenicHeroBackground(
-                    modifier = Modifier.matchParentSize(),
-                    domain = DomainTheme.Charge,
-                    starCount = 28,
-                )
-                Header(onClose = onClose)
-            }
-            Hairline()
-
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .verticalScroll(scroll)
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(Metrics.sectionGap),
-            ) {
-                IntroCard()
-                PrimerSection.values().forEach { section ->
-                    PrimerCard(section)
+    // Fork: inside the Forge Settings only the cards are drawn, in the host's chrome (one look, as on iOS).
+    val body: @Composable ColumnScope.() -> Unit = {
+        IntroCard()
+        PrimerSection.values().forEach { section ->
+            PrimerCard(section)
+        }
+        FooterNote()
+    }
+    HostedSheet(scroll, body) {
+        Surface(modifier = Modifier.fillMaxSize(), color = Palette.surfaceBase) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // A scenic Charge-tinted hero behind the title region, the same premium backdrop
+                // ScoringGuideScreen opens over, so the two explainers feel like one family.
+                Box {
+                    ScenicHeroBackground(
+                        modifier = Modifier.matchParentSize(),
+                        domain = DomainTheme.Charge,
+                        starCount = 28,
+                    )
+                    Header(onClose = onClose)
                 }
-                FooterNote()
-            }
+                Hairline()
 
-            Hairline()
-            Footer(onClose = onClose)
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(scroll)
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(Metrics.sectionGap),
+                ) {
+                    body()
+                }
+
+                Hairline()
+                Footer(onClose = onClose)
+            }
         }
     }
 }

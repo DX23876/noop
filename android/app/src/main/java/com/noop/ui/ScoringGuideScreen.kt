@@ -10,6 +10,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -167,57 +168,63 @@ fun ScoringGuideScreen(
         if (highlighted == section) highlighted = null
     }
 
-    Surface(modifier = Modifier.fillMaxSize(), color = Palette.surfaceBase) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Design Reset: a FLAT opaque WHOOP-grey title surface — no scenic hero, no bloom, no
-            // domain tint. The header reads as a clean raised card edge, matching the Today look.
-            Box(modifier = Modifier.background(Palette.surfaceRaised)) {
-                Header(onClose = onClose)
-            }
-            Hairline()
+    // Fork: inside the Forge Settings only the cards are drawn, in the host's chrome (one look, as on iOS).
+    val body: @Composable ColumnScope.() -> Unit = {
+        IntroCard()
+        ScoreCard(
+            section = ScoreSection.CHARGE,
+            headlineRes = R.string.scoring_guide_charge_headline,
+            bodyRes = R.string.scoring_guide_charge_body,
+            vsWhoopRes = R.string.scoring_guide_charge_vs_whoop,
+            highlighted = highlighted == ScoreSection.CHARGE,
+            onPositioned = { if (ScoreSection.CHARGE !in anchors) anchors[ScoreSection.CHARGE] = it },
+        )
+        ScoreCard(
+            section = ScoreSection.EFFORT,
+            headlineRes = R.string.scoring_guide_effort_headline,
+            bodyRes = R.string.scoring_guide_effort_body,
+            vsWhoopRes = R.string.scoring_guide_effort_vs_whoop,
+            highlighted = highlighted == ScoreSection.EFFORT,
+            onPositioned = { if (ScoreSection.EFFORT !in anchors) anchors[ScoreSection.EFFORT] = it },
+        )
+        ScoreCard(
+            section = ScoreSection.REST,
+            headlineRes = R.string.scoring_guide_rest_headline,
+            bodyRes = R.string.scoring_guide_rest_body,
+            vsWhoopRes = R.string.scoring_guide_rest_vs_whoop,
+            highlighted = highlighted == ScoreSection.REST,
+            onPositioned = { if (ScoreSection.REST !in anchors) anchors[ScoreSection.REST] = it },
+        )
+        ConfidenceCard()
+        FooterNote()
+    }
+    HostedSheet(scroll, body) {
+        Surface(modifier = Modifier.fillMaxSize(), color = Palette.surfaceBase) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Design Reset: a FLAT opaque WHOOP-grey title surface — no scenic hero, no bloom, no
+                // domain tint. The header reads as a clean raised card edge, matching the Today look.
+                Box(modifier = Modifier.background(Palette.surfaceRaised)) {
+                    Header(onClose = onClose)
+                }
+                Hairline()
 
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .onGloballyPositioned {
-                        if (viewportTop == null) viewportTop = it.positionInRoot().y.toInt()
-                    }
-                    .verticalScroll(scroll)
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(Metrics.sectionGap),
-            ) {
-                IntroCard()
-                ScoreCard(
-                    section = ScoreSection.CHARGE,
-                    headlineRes = R.string.scoring_guide_charge_headline,
-                    bodyRes = R.string.scoring_guide_charge_body,
-                    vsWhoopRes = R.string.scoring_guide_charge_vs_whoop,
-                    highlighted = highlighted == ScoreSection.CHARGE,
-                    onPositioned = { if (ScoreSection.CHARGE !in anchors) anchors[ScoreSection.CHARGE] = it },
-                )
-                ScoreCard(
-                    section = ScoreSection.EFFORT,
-                    headlineRes = R.string.scoring_guide_effort_headline,
-                    bodyRes = R.string.scoring_guide_effort_body,
-                    vsWhoopRes = R.string.scoring_guide_effort_vs_whoop,
-                    highlighted = highlighted == ScoreSection.EFFORT,
-                    onPositioned = { if (ScoreSection.EFFORT !in anchors) anchors[ScoreSection.EFFORT] = it },
-                )
-                ScoreCard(
-                    section = ScoreSection.REST,
-                    headlineRes = R.string.scoring_guide_rest_headline,
-                    bodyRes = R.string.scoring_guide_rest_body,
-                    vsWhoopRes = R.string.scoring_guide_rest_vs_whoop,
-                    highlighted = highlighted == ScoreSection.REST,
-                    onPositioned = { if (ScoreSection.REST !in anchors) anchors[ScoreSection.REST] = it },
-                )
-                ConfidenceCard()
-                FooterNote()
-            }
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .onGloballyPositioned {
+                            if (viewportTop == null) viewportTop = it.positionInRoot().y.toInt()
+                        }
+                        .verticalScroll(scroll)
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(Metrics.sectionGap),
+                ) {
+                    body()
+                }
 
-            Hairline()
-            Footer(onClose = onClose)
+                Hairline()
+                Footer(onClose = onClose)
+            }
         }
     }
 }

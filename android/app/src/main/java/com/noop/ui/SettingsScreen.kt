@@ -535,7 +535,10 @@ fun SettingsScreen(
     onOpenBackupSync: () -> Unit = {},
     onOpenSelfHostedPush: () -> Unit = {},
     onOpenStepsCalibration: () -> Unit = {},
+    // Fork (DX23876): the Forge Settings hub shows these cards on its own pages; null shows every card.
+    cards: Set<ClassicSettingsCard>? = null,
 ) {
+    fun shows(card: ClassicSettingsCard) = cards == null || card in cards
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val live by vm.live.collectAsStateWithLifecycle()
@@ -916,22 +919,24 @@ fun SettingsScreen(
     ) { uri -> if (uri != null) setBackgroundFromUri(uri) }
 
     ScreenScaffold(
-        title = uiString(R.string.l10n_settings_screen_settings_c7f73bb5),
-        subtitle = "Your numbers, your strap, and how NOOP works. All on this phone.",
+        title = if (cards == null) uiString(R.string.l10n_settings_screen_settings_c7f73bb5) else null,
+        subtitle = if (cards == null) "Your numbers, your strap, and how NOOP works. All on this phone." else null,
+        topPadding = if (cards == null) 28.dp else 8.dp,
         // LIQUID SKY BACKDROP (the pilot pattern — LiquidScreenSky.kt): the static time-of-day sky settles
         // into the theme canvas behind the top of the list, exactly like the liquid Today. This is a long,
         // scroll-heavy list with NO hero gauge, so the liquid finish here is just the sky + liquidPress on
         // the tappable rows. Gated on the same day-cycle background pref Today reads, so turning that off
         // returns Settings to the plain dark canvas too.
-        topBackground = screenBackdropSlot(showDayCycleBackground, skyBehindCards),
+        topBackground = if (cards == null) screenBackdropSlot(showDayCycleBackground, skyBehindCards) else null,
         // Sky-behind-cards fills the viewport so the transparent cards reveal the sky the whole way
         // down (Today / Trends / Sleep / metric-detail parity - same two prefs, same two behaviours).
-        fullBleedBackground = screenBackdropFullBleed(showDayCycleBackground, skyBehindCards),
+        fullBleedBackground = if (cards == null) screenBackdropFullBleed(showDayCycleBackground, skyBehindCards) else false,
     ) {
         // Read the revision counter so every profile write recomposes this subtree
         // (SharedPreferences is not observable; `mutate` bumps `rev` after each write).
         @Suppress("UNUSED_VARIABLE") val tick = rev
 
+        if (shows(ClassicSettingsCard.General)) {
         // --- Profile photo (optional, on-device) ---
         // Split into its own section ahead of the body-numbers Profile card, mirroring the iOS
         // SettingsView `profilePhotoCard` (person.crop.circle, the offline blurb). A large avatar + a
@@ -2094,6 +2099,8 @@ fun SettingsScreen(
             }
         }
 
+        }
+        if (shows(ClassicSettingsCard.Strap)) {
         // --- Strap ---
         SettingsCard(
             icon = Icons.Filled.Sensors,
@@ -2668,6 +2675,8 @@ fun SettingsScreen(
         }
 
 
+        }
+        if (shows(ClassicSettingsCard.Advanced)) {
         // Lower-frequency sections collapse behind a single default-closed disclosure (S3) so the
         // screen opens at the everyday handful instead of the full wall of cards. Nothing is removed;
         // the experimental probes, diagnostics, raw-capture export and Trends report all stay one tap
@@ -2677,6 +2686,8 @@ fun SettingsScreen(
             subtitle = "Experimental probes, diagnostics, raw-sensor export, and the Trends report. Tucked away to keep the everyday screen tidy.",
             expanded = advancedOpen,
             onToggle = { advancedOpen = !advancedOpen; SettingsDisclosurePrefs.write(NoopPrefs.of(context), advancedOpen) },
+            // Fork: on its own Forge Settings page the page is the disclosure, so the content shows directly.
+            headerless = cards != null,
         ) {
         Column(verticalArrangement = Arrangement.spacedBy(Metrics.screenRowSpacing)) {
         SettingsCard(
@@ -3309,7 +3320,9 @@ fun SettingsScreen(
         TrendsReportExportSection(vm)
         } // end Advanced disclosure content Column
         } // end SettingsDisclosureGroup("Advanced")
+        }
 
+        if (shows(ClassicSettingsCard.HealthWellness)) {
         // --- Health & wellness (v5 opt-in toggles) ---
         SettingsCard(
             icon = Icons.Filled.Science,
@@ -3465,6 +3478,8 @@ fun SettingsScreen(
             }
         }
 
+        }
+        if (shows(ClassicSettingsCard.TestCentre)) {
         // --- Test Centre (the diagnostic home, #507/#509) ---
         // A nav row into the Test Centre: the single home for the diagnostic, log and test controls (spec
         // section 7). The strap log, recalibrate, scheduled export and experimental toggles also live there
@@ -3483,6 +3498,8 @@ fun SettingsScreen(
             )
         }
 
+        }
+        if (shows(ClassicSettingsCard.Charge)) {
         // --- Charge (Recovery) advanced ---
         // A manual reset for the personal Charge baseline. If a bad first week poisons it — worn while
         // sick, or the first few nights read high (a common cold-start artefact) — the baseline anchors
@@ -3656,6 +3673,8 @@ fun SettingsScreen(
             )
         }
 
+        }
+        if (shows(ClassicSettingsCard.Backup)) {
         SettingsCard(
             icon = Icons.Filled.Storage,
             title = uiString(R.string.l10n_settings_screen_backup_restore_a1616284),
@@ -3756,6 +3775,8 @@ fun SettingsScreen(
             )
         }
 
+        }
+        if (shows(ClassicSettingsCard.About)) {
         // --- About ---
         SettingsCard(
             icon = Icons.Filled.Info,
@@ -4171,6 +4192,7 @@ fun SettingsScreen(
                 }
             }
         }
+        }
 
         // What's new sheet, opened from the About row above. Full-screen Dialog so it
         // covers the whole screen like the macOS .sheet; closing just hides it.
@@ -4234,6 +4256,9 @@ private const val SUPPORT_EMAIL = "thenoopapp@gmail.com"
 private const val ALIAS_DEFAULT = "com.noop.IconDefault" // machined titanium
 private const val ALIAS_NAVY = "com.noop.IconNavy"       // blued / dark-blue titanium
 
+/** Fork (DX23876): the groups of cards [SettingsScreen] can show on their own, in screen order. */
+enum class ClassicSettingsCard { General, Strap, Advanced, HealthWellness, TestCentre, Charge, Backup, About }
+
 /**
  * Persist the chosen launcher icon and flip the manifest aliases so exactly one is enabled:
  * [navy] true enables `.IconNavy` and disables `.IconDefault`, false does the inverse. We use
@@ -4241,7 +4266,7 @@ private const val ALIAS_NAVY = "com.noop.IconNavy"       // blued / dark-blue ti
  * and redraw the icon (or take a few seconds) while it re-reads the component state — that's expected
  * and is the only user-visible side effect.
  */
-private fun setAppIcon(context: Context, navy: Boolean) {
+internal fun setAppIcon(context: Context, navy: Boolean) {
     NoopPrefs.setAppIconNavy(context, navy)
     val pm = context.packageManager
     pm.setComponentEnabledSetting(

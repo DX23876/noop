@@ -473,7 +473,6 @@ fun DataSourcesScreen(vm: AppViewModel) {
                 label = uiString(R.string.l10n_data_sources_screen_import_apple_health_export_533fca27),
                 icon = Icons.Filled.FileUpload,
                 enabled = !busy,
-                tint = Palette.metricCyan,
                 modifier = Modifier.fillMaxWidth(),
             ) { appleImportLauncher.launch(arrayOf("*/*")) }
             // ah-delete (#616): a destructive "Remove imported data" action wired to
@@ -484,7 +483,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
                     label = uiString(R.string.l10n_data_sources_screen_remove_imported_data_813e4695),
                     icon = Icons.Filled.DeleteOutline,
                     enabled = !busy,
-                    tint = Palette.statusCritical,
+                    destructive = true,
                     modifier = Modifier.fillMaxWidth(),
                 ) { confirmDeleteApple = true }
             }
@@ -1062,27 +1061,15 @@ private fun BackupButton(
     icon: ImageVector,
     enabled: Boolean,
     modifier: Modifier = Modifier,
-    tint: Color = Palette.accent,
+    destructive: Boolean = false,
     onClick: () -> Unit,
 ) {
-    val shape = RoundedCornerShape(14.dp)
-    val ink = if (enabled) tint else tint.copy(alpha = Palette.disabledOpacity)
-    Row(
-        modifier = modifier
-            .height(48.dp)
-            .clip(shape)
-            .background(tint.copy(alpha = 0.14f))
-            .border(1.dp, ink.copy(alpha = 0.4f), shape)
-            .let { if (enabled) it.clickable(onClick = onClick) else it }
-            .padding(horizontal = 14.dp)
-            .semantics { contentDescription = label },
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(icon, contentDescription = null, tint = ink, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(8.dp))
-        Text(label, style = NoopType.headline, color = ink)
-    }
+    // The iOS card buttons (`NoopButtonStyle(.primary)` / `.destructive`): a filled button, no rim.
+    NoopButton(
+        text = label, leadingIcon = icon,
+        kind = if (destructive) NoopButtonKind.Destructive else NoopButtonKind.Primary,
+        fullWidth = true, enabled = enabled, modifier = modifier, onClick = onClick,
+    )
 }
 
 /**

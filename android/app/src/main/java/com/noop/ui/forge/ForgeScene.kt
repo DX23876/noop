@@ -39,7 +39,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import android.content.Context
 import com.noop.R
+import com.noop.ui.BackgroundImageBackdrop
+import com.noop.ui.BackgroundImageStore
+import com.noop.ui.CardAppearance
+import com.noop.ui.NoopPrefs
 import java.util.Calendar
 
 /**
@@ -123,6 +128,34 @@ enum class ForgeBackdrop { Scene, Night, Sky }
 
 /** How far down the screen Today's scene reaches before it has faded into the canvas. */
 val SCENE_HEIGHT = 600.dp
+
+/** How far the scene reaches with "Sky behind cards" on (`SceneScreenBackground(height: 1100)` in `LiquidScaffoldSky`). */
+val SCENE_BEHIND_CARDS_HEIGHT = 1100.dp
+
+/**
+ * The Appearance choices behind every Forge screen, the same keys the classic screens and iOS read: the time-of-day
+ * sky (`noop.showDayCycleBackground`) and "Sky behind cards" (`noop.skyBehindCards`). Held as state so a switch in
+ * Settings repaints the open screens at once; [load] re-reads them after the classic Settings may have changed them.
+ */
+object ForgeBackground {
+    var dayCycle by mutableStateOf(true)
+        private set
+    var behindCards by mutableStateOf(true)
+        private set
+
+    fun load(context: Context) {
+        dayCycle = NoopPrefs.showDayCycleBackground(context)
+        behindCards = NoopPrefs.skyBehindCards(context)
+        CardAppearance.init(context)
+    }
+
+    fun setDayCycle(context: Context, on: Boolean) { NoopPrefs.setShowDayCycleBackground(context, on); dayCycle = on }
+    fun setBehindCards(context: Context, on: Boolean) { NoopPrefs.setSkyBehindCards(context, on); behindCards = on }
+    fun setCardOpacity(context: Context, percent: Int) {
+        NoopPrefs.setCardOpacityPercent(context, percent)
+        CardAppearance.opacity = (percent.coerceIn(0, 100) / 100f)
+    }
+}
 private val NIGHT_HEIGHT = 440.dp
 private val SKY_HEIGHT = 240.dp
 
@@ -145,17 +178,24 @@ fun ForgeSceneBackdrop(kind: ForgeBackdrop, modifier: Modifier = Modifier, conte
     val hour = remember { Calendar.getInstance().get(Calendar.HOUR_OF_DAY) }
     val density = LocalDensity.current
     val painter = painterResource(if (kind == ForgeBackdrop.Night) R.drawable.forge_alps1 else DayCycleScene.drawable(hour))
-    val sceneHeightPx = with(density) { SCENE_HEIGHT.toPx() }
+    // The precedence of `LiquidScaffoldSky`: a custom image first, then the scene behind every card ("Sky behind
+    // cards" with the time-of-day sky on), then each tab's own band; with the sky off only the plain canvas.
+    val image = BackgroundImageStore.isActive
+    val fullScene = !image && ForgeBackground.dayCycle && ForgeBackground.behindCards
+    val plain = !image && !ForgeBackground.dayCycle
+    val sceneHeight = if (fullScene) SCENE_BEHIND_CARDS_HEIGHT else SCENE_HEIGHT
+    val sceneHeightPx = with(density) { sceneHeight.toPx() }
     val washStops = remember(colors.canvas) {
         SCENE_WASH_STOPS.map { (at, alpha) -> at to colors.canvas.copy(alpha = alpha) }.toTypedArray()
     }
     val glass = remember(painter, washStops, sceneHeightPx) { SceneGlass(painter, washStops, sceneHeightPx) }
     // Dusk, night and first light are dark scenes: the header on Today takes the on-dark ink even in the light
     // appearance (`DayCycleScene.isDark`, as `ScreenScaffold` does on iOS); the night band is dark at every hour.
-    val sceneDark = when (kind) {
-        ForgeBackdrop.Scene -> colors.dark || DayCycleScene.isDark(hour)
-        ForgeBackdrop.Night -> true
-        ForgeBackdrop.Sky -> colors.dark
+    val sceneDark = when {
+        image || plain -> colors.dark
+        kind == ForgeBackdrop.Night -> true
+        kind == ForgeBackdrop.Scene || fullScene -> colors.dark || DayCycleScene.isDark(hour)
+        else -> colors.dark
     }
     val ink = if (sceneDark && !colors.dark) SceneInk(colors.onDark, colors.onDarkSecondary, colors.onDarkTertiary, true)
               else SceneInk(colors.text, colors.textSecondary, colors.textTertiary, sceneDark)
@@ -168,20 +208,31 @@ fun ForgeSceneBackdrop(kind: ForgeBackdrop, modifier: Modifier = Modifier, conte
     Box(modifier.fillMaxSize().background(colors.canvas).onGloballyPositioned {
         glass.origin = it.positionInWindow(); glass.size = it.size
     }) {
-        when (kind) {
-            ForgeBackdrop.Scene -> Box(Modifier.fillMaxWidth().height(SCENE_HEIGHT)) {
+        when {
+            image -> BackgroundImageBackdrop(Modifier.matchParentSize())
+            plain -> Unit
+            fullScene -> Box(Modifier.fillMaxWidth().height(SCENE_BEHIND_CARDS_HEIGHT)) {
+                Image(painter, contentDescription = null, contentScale = ContentScale.Crop,
+                      alignment = Alignment.TopCenter, modifier = Modifier.matchParentSize())
+                Box(Modifier.matchParentSize().background(Brush.verticalGradient(*washStops)))
+                if (kind == ForgeBackdrop.Night) {
+                    Box(Modifier.fillMaxWidth().height(250.dp).background(Brush.verticalGradient(
+                        listOf(Color.Black.copy(alpha = 0.5f), Color.Black.copy(alpha = 0.18f), Color.Transparent))))
+                }
+            }
+            kind == ForgeBackdrop.Scene -> Box(Modifier.fillMaxWidth().height(SCENE_HEIGHT)) {
                 Image(painter, contentDescription = null, contentScale = ContentScale.Crop,
                       alignment = Alignment.TopCenter, modifier = Modifier.matchParentSize())
                 Box(Modifier.matchParentSize().background(Brush.verticalGradient(*washStops)))
             }
-            ForgeBackdrop.Night -> Box(Modifier.fillMaxWidth().height(NIGHT_HEIGHT)) {
+            kind == ForgeBackdrop.Night -> Box(Modifier.fillMaxWidth().height(NIGHT_HEIGHT)) {
                 Image(painter, contentDescription = null, contentScale = ContentScale.Crop,
                       alignment = Alignment.TopCenter, modifier = Modifier.matchParentSize())
                 // A fixed protection wash keeps the on-dark heading readable over every frame of the artwork.
                 Box(Modifier.fillMaxWidth().height(250.dp).background(Brush.verticalGradient(
                     listOf(Color.Black.copy(alpha = 0.5f), Color.Black.copy(alpha = 0.18f), Color.Transparent))))
             }
-            ForgeBackdrop.Sky -> {
+            else -> {
                 val sky = LiquidSky.at(hour + Calendar.getInstance().get(Calendar.MINUTE) / 60.0, light = !colors.dark)
                 Box(Modifier.fillMaxWidth().height(SKY_HEIGHT).background(Brush.verticalGradient(
                     0f to sky.top, 0.45f to sky.mid, 0.9f to sky.horizon, 1f to sky.horizon)))
@@ -189,7 +240,8 @@ fun ForgeSceneBackdrop(kind: ForgeBackdrop, modifier: Modifier = Modifier, conte
                     0f to Color.Transparent, 0.45f to Color.Transparent, 1f to LiquidSky.settle(!colors.dark))))
             }
         }
-        CompositionLocalProvider(LocalSceneGlass provides glass.takeIf { kind == ForgeBackdrop.Scene },
+        // Glass shows the scene behind it wherever the scene is drawn; over a photo or the plain canvas it stays frosted.
+        CompositionLocalProvider(LocalSceneGlass provides glass.takeIf { !image && !plain && (kind == ForgeBackdrop.Scene || fullScene) },
                                  LocalSceneInk provides ink) { content() }
     }
 }

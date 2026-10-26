@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -47,6 +48,19 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun WhatsNewSheet(onClose: () -> Unit) {
+    // Fork: inside the Forge Settings only the cards are drawn, in the host's chrome (one look, as on iOS).
+    LocalHostedChrome.current?.let { hosted ->
+        LazyColumn(
+            Modifier.fillMaxSize().widthIn(max = hosted.maxContentWidth),
+            contentPadding = PaddingValues(start = hosted.horizontalPadding, end = hosted.horizontalPadding, bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(hosted.rowSpacing),
+        ) {
+            item { hosted.header(null, null, null) }
+            item { ExpectationsCard() }
+            itemsIndexed(AppChangelog.releases) { index, release -> ReleaseCard(release, isLatest = index == 0) }
+        }
+        return
+    }
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = Palette.surfaceBase,
