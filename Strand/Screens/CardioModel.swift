@@ -103,28 +103,12 @@ final class CardioModel: ObservableObject {
     @Published private(set) var efficiencyTrend: StrengthTrendLine?
     @Published private(set) var paceTrend: StrengthTrendLine?
 
-    struct SportChoice: Identifiable, Equatable, Sendable {
-        let sport: String
-        let sessions: Int
-        let modality: CardioModality
-        var id: String { sport }
-    }
+    typealias SportChoice = CardioPreparation.SportChoice
 
     private var weekCache: [String: WeekBundle] = [:]
     private var tzOffset: Int { TimeZone.current.secondsFromGMT() }
 
-    private struct WeekBundle: Sendable {
-        let week: CardioWeekSummary
-        let typical: ClosedRange<Double>?
-        let lane: TrainingLoadModel.Lane?
-        let laneRatios: [TrainingLoadModel.RatioPoint]
-        let laneDay: String
-        let shares: [CardioSportLoadShare]
-        let topSportPace: Double?
-        let averageHr: Double?
-        let typicalAverageHr: Double?
-        let zones: CardioZoneSplit?
-    }
+    private typealias WeekBundle = CardioPreparation.WeekBundle
 
     // MARK: - Load
 
@@ -159,13 +143,7 @@ final class CardioModel: ObservableObject {
         self.laneSeries = laneSeries
 
         let prepared = await Task.detached(priority: .userInitiated) { () -> ([CardioSessionMetrics], [SportChoice]) in
-            let sessions = CardioSession.sessions(rows, tzOffsetSeconds: offset,
-                                                   cardioLoadByStart: loadByStart)
-            let choices = CardioSession.sportFrequency(sessions).map {
-                SportChoice(sport: $0.sport, sessions: $0.sessions,
-                            modality: CardioModality.of(sport: $0.sport))
-            }
-            return (sessions, choices)
+            CardioPreparation.sessions(rows: rows, loadByStart: loadByStart, offset: offset)
         }.value
 
         sessions = prepared.0
@@ -228,25 +206,9 @@ final class CardioModel: ObservableObject {
         // travels into the bundle as a finished value so the week's cache holds it too.
         let zones = await weekZoneSplit(repo: repo, monday: monday, sunday: sunday)
         let bundle = await Task.detached(priority: .userInitiated) { () -> WeekBundle in
-            let shares = CardioSession.loadShareBySport(inWeekContaining: anchor, sessions: all)
-            let lane = laneSeries.map {
-                TrainingLoadLanes.cardioLane(sessions: laneSessions, resolution: laneResolution, series: $0,
-                                             through: laneDay, tzOffsetSeconds: offset)
-            }
-            return WeekBundle(week: CardioSession.week(containing: anchor, sessions: all),
-                              typical: CardioSession.typicalWeeklyMinutes(all, endingBefore: anchor),
-                              lane: lane,
-                              laneRatios: TrainingLoadLanes.ratios(strengthByDay: nil, cardio: laneSeries,
-                                                                   through: laneDay),
-                              laneDay: laneDay,
-                              shares: shares,
-                              topSportPace: shares.first.flatMap {
-                                  CardioSession.weeklyPaceSecPerKm(sport: $0.sport, inWeekContaining: anchor,
-                                                                   sessions: all)
-                              },
-                              averageHr: CardioSession.weeklyAverageHr(inWeekContaining: anchor, sessions: all),
-                              typicalAverageHr: CardioSession.typicalWeeklyAverageHr(all, endingBefore: anchor),
-                              zones: zones)
+            CardioPreparation.week(anchor: anchor, all: all, laneSessions: laneSessions,
+                                   laneResolution: laneResolution, laneSeries: laneSeries,
+                                   laneDay: laneDay, offset: offset, zones: zones)
         }.value
 
         guard !Task.isCancelled else { return }
@@ -299,29 +261,7 @@ final class CardioModel: ObservableObject {
         let all = sessions
 
         let result = await Task.detached(priority: .userInitiated) { () -> (history: [CardioSessionMetrics], bests: CardioBests, series: [(startTs: Int, day: String, value: Double)], efficiency: StrengthTrendLine?, pace: StrengthTrendLine?) in
-            let history = CardioSession.history(sport: sport, sessions: all)
-            let series = CardioSession.beatsPerKmSeries(sport: sport, sessions: all)
-            // `StrengthProgress.trend` takes performance points, so the cardio series is expressed in
-            // that shape. Reusing the estimator rather than writing a second one is the point: one
-            // definition of "do these points agree on a direction", used by both lanes.
-            let efficiencyPoints = series.map {
-                ExercisePerformancePoint(day: $0.day, startTs: $0.startTs, workoutId: "",
-                                         bestE1RMKg: $0.value, heaviestSetKg: nil,
-                                         workingSetCount: 0, totalReps: 0, volumeLoadKg: 0,
-                                         meanRpe: nil, rpeSetCount: 0)
-            }
-            let pacePoints = history.compactMap { session -> ExercisePerformancePoint? in
-                guard let pace = session.paceSecPerKm else { return nil }
-                return ExercisePerformancePoint(day: session.day, startTs: session.startTs,
-                                                workoutId: "", bestE1RMKg: pace, heaviestSetKg: nil,
-                                                workingSetCount: 0, totalReps: 0, volumeLoadKg: 0,
-                                                meanRpe: nil, rpeSetCount: 0)
-            }
-            return (history,
-                    CardioSession.bests(sport: sport, sessions: all),
-                    series,
-                    StrengthProgress.e1rmTrend(efficiencyPoints),
-                    StrengthProgress.e1rmTrend(pacePoints))
+            CardioPreparation.sport(sport, all: all)
         }.value
 
         guard !Task.isCancelled else { return }

@@ -104,26 +104,25 @@ public enum CoreTrainingLoad {
         public var day: String, strength: String?, cardio: String?
     }
 
-    private static let cache = CardioLoadCache()
-
     /// Reads what `TrainingLoadModel.snapshot` reads and runs the shared computation. `maxHR` and `sex` are the
     /// wearer's, as the cardio load is priced on the iPhone (`Repository.cardioLoadMaxHR`).
     public static func read(reader: StoreReader, maxHR: Double, sex: String, dismissedWorkoutSpans: [String],
                             now: Int = Int(Date().timeIntervalSince1970)) async -> Output {
         let store = reader.store
+        let cache = CardioLoadCache()
         let days = TrainingLoadPreparation.historyDays
         let from = now - days * 86_400
         let offset = TimeZone.current.secondsFromGMT()
         let fusion = await TrainingSessionResolver.read(reader: reader, from: from, to: now + 86_400,
                                                         dismissedDetectedSpans: dismissedWorkoutSpans)
-        let strengthHistory = await StrengthHistoryReader.read(store: store, days: days) { fusion }
+        let strengthHistory = await StrengthHistoryReader.read(store: store, days: days, now: now) { fusion }
         let resolution = await CardioLoadPricing.price(fusion.sessions, reader: reader, maxHR: maxHR, sex: sex,
                                                        dataRevision: 0, cache: cache,
                                                        budget: CardioLoadPricing.cardioLoadSessionBudget,
                                                        recompute: false).resolution
         let ratings = await SessionRPEEntry.read(store: store, from: from, to: now + 86_400)
         let today = StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(now)))
-        let dailyRows = await reader.unionDailyMetrics(
+        let dailyRows = await CoreTrainingReports.dailyMetrics(reader: reader,
             from: StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(from))), to: today)
         let vo2 = await vo2maxReadings(reader: reader, now: now)
         let prepared = TrainingLoadPreparation.prepare(

@@ -141,9 +141,8 @@ enum StrengthHistoryReader {
     /// One read model for Strength, Training, Training Load and the Coach. Detailed set providers are
     /// selected once; tracker and Apple Health components enrich the canonical envelope without
     /// duplicating the set list. `fusion` reads the fused training sessions of the same window.
-    static func read(store: WhoopStore, days: Int,
+    static func read(store: WhoopStore, days: Int, now: Int = Int(Date().timeIntervalSince1970),
                      fusion: @escaping @Sendable () async -> TrainingSessionFusionResult) async -> ResolvedStrengthHistory {
-        let now = Int(Date().timeIntervalSince1970)
         let from = now - days * 86_400
         async let importedRead = Self.pagedStrengthWorkouts(store: store, from: from, to: now + 86_400)
         async let templateRead = store.strengthExerciseTemplates()

@@ -33,6 +33,7 @@ let package = Package(
                            .target(name: "CJNI", condition: .when(platforms: [.android]))]),
         .testTarget(name: "NoopCoreTests", dependencies: [
             "NoopCore", .product(name: "WhoopStore", package: "WhoopStore"),
+            .product(name: "StrandAnalytics", package: "StrandAnalytics"),
             .product(name: "StrandTraining", package: "StrandTraining"),
             .product(name: "WhoopProtocol", package: "WhoopProtocol")],
             resources: [.copy("Fixtures")]),

@@ -135,11 +135,7 @@ final class StrengthModel: ObservableObject {
     /// for a movement no e1RM is defined for. The caption changes with it.
     @Published private(set) var trendIsVolume = false
 
-    struct ExerciseChoice: Identifiable, Equatable, Sendable {
-        let templateId: String
-        let sessions: Int
-        var id: String { templateId }
-    }
+    typealias ExerciseChoice = StrengthPreparation.ExerciseChoice
 
     // MARK: - Internals
 
@@ -155,21 +151,7 @@ final class StrengthModel: ObservableObject {
 
     private var tzOffset: Int { TimeZone.current.secondsFromGMT() }
 
-    private struct WeekBundle: Sendable {
-        let week: StrengthSession.WeekSummary
-        let bands: [HevyMuscleGroup: ClosedRange<Double>]
-        let lane: TrainingLoadModel.Lane
-        let laneRatios: [TrainingLoadModel.RatioPoint]
-        let laneDay: String
-        let stimulus: [HevyMuscleGroup: Double]
-        let typical: [HevyMuscleGroup: Double]
-        let balance: [StrengthBalance.Reading]
-        let ratios: [StrengthBalance.Axis: ClosedRange<Double>]
-        let bodyweightKg: Double
-        let bodyweightSets: Int
-        let unpricedBodyweightSets: Int
-        let groupBands: [HevyMuscleGroup: RelativeLoadBand]
-    }
+    private typealias WeekBundle = StrengthPreparation.WeekBundle
 
     // MARK: - Load
 
@@ -200,34 +182,9 @@ final class StrengthModel: ObservableObject {
             .map { (day: $0.day, kg: $0.value) }
 
         let prepared = await Task.detached(priority: .userInitiated) { () -> Prepared in
-            let index = MuscleStimulus.SessionStimulusIndex(workouts: sessions, templates: catalogue,
-                                                            tzOffsetSeconds: offset)
-            let typical = MuscleRecovery.typicalSessionStimulus(index: index)
-            var fitted: [HevyMuscleGroup: Double] = [:]
-            for group in HevyMuscleGroup.allCases {
-                fitted[group] = MuscleRecovery.fittedTauSeconds(for: group, observations: observations,
-                                                                index: index, typicalSession: typical)
-            }
-            return Prepared(
-                index: index,
-                overview: StrengthOverview.calculate(
-                    workouts: sessions, templates: catalogue,
-                    from: now - historyDays * 86_400, to: now,
-                    tzOffsetSeconds: offset, firstWeekday: firstWeekday),
-                summaries: sessions.map { StrengthSession.summarize($0, templates: catalogue) },
-                recentSets: StrengthSession.recentSetsByMuscle(sessions, templates: catalogue,
-                                                               days: 7, now: now),
-                lastWorked: StrengthSession.lastWorkedByMuscle(sessions, templates: catalogue,
-                                                                tzOffsetSeconds: offset),
-                typicalSession: typical,
-                tau: fitted,
-                fatigue: MuscleRecovery.fatigue(index: index, now: now,
-                                                tau: { fitted[$0] ?? MuscleRecovery.defaultTauSeconds(for: $0) }),
-                ratedShare: index.total().ratedShare,
-                choices: StrengthSession.exerciseFrequency(sessions)
-                    .map { ExerciseChoice(templateId: $0.templateId, sessions: $0.sessions) },
-                unmapped: history.unmappedExerciseTitles,
-                laneByDay: TrainingLoadLanes.strengthByDay(laneWorkouts, tzOffsetSeconds: offset))
+            StrengthPreparation.prepare(history: history, laneWorkouts: laneWorkouts,
+                                        observations: observations, now: now, historyDays: historyDays,
+                                        offset: offset, firstWeekday: firstWeekday)
         }.value
 
         index = prepared.index
@@ -286,7 +243,7 @@ final class StrengthModel: ObservableObject {
         // actually has a series, and fall back to the most-trained one when none does (a purely
         // bodyweight lifter), where the card then explains itself.
         if selectedTemplateId == nil || !prepared.choices.contains(where: { $0.templateId == selectedTemplateId }) {
-            selectedTemplateId = Self.firstPlottable(in: prepared.choices, workouts: sessions,
+            selectedTemplateId = StrengthPreparation.firstPlottable(in: prepared.choices, workouts: sessions,
                                                      templates: catalogue, tzOffsetSeconds: offset)
                 ?? prepared.choices.first?.templateId
         }
@@ -297,37 +254,7 @@ final class StrengthModel: ObservableObject {
 
     func refreshAfterManualDetails(repo: Repository) async { await load(repo: repo) }
 
-    /// The most-trained movement with something to draw, searched over the busiest candidates only —
-    /// the list is frequency-ordered, so the answer is almost always the first or second entry, and a
-    /// history with hundreds of movements should not cost a scan of all of them to pick a default.
-    private static func firstPlottable(in choices: [ExerciseChoice],
-                                       workouts: [HevyWorkout],
-                                       templates: [String: HevyExerciseTemplate],
-                                       tzOffsetSeconds: Int) -> String? {
-        for choice in choices.prefix(12) {
-            let points = StrengthSession.exerciseHistory(templateId: choice.templateId,
-                                                         workouts: workouts, templates: templates,
-                                                         tzOffsetSeconds: tzOffsetSeconds)
-            let plottable = points.filter { $0.bestE1RMKg != nil || $0.volumeLoadKg > 0 }
-            if plottable.count >= 2 { return choice.templateId }
-        }
-        return nil
-    }
-
-    private struct Prepared: Sendable {
-        let index: MuscleStimulus.SessionStimulusIndex
-        let overview: StrengthOverview
-        let summaries: [StrengthSessionSummary]
-        let recentSets: [HevyMuscleGroup: Int]
-        let lastWorked: [HevyMuscleGroup: (day: String, startTs: Int, exercise: String)]
-        let typicalSession: [HevyMuscleGroup: Double]
-        let tau: [HevyMuscleGroup: Double]
-        let fatigue: [HevyMuscleGroup: Double]
-        let ratedShare: Double
-        let choices: [ExerciseChoice]
-        let unmapped: [String]
-        let laneByDay: [String: Double]
-    }
+    private typealias Prepared = StrengthPreparation.Prepared
 
     // MARK: - The week
 
@@ -366,44 +293,9 @@ final class StrengthModel: ObservableObject {
         let bodyweight = self.bodyweight
 
         let bundle = await Task.detached(priority: .userInitiated) { () -> WeekBundle in
-            let week = StrengthSession.week(containing: anchor, workouts: sessions,
-                                            templates: catalogue, tzOffsetSeconds: offset)
-            let inWeekWorkouts = sessions.filter { workout in
-                let day = AnalyticsEngine.dayString(workout.startTs, offsetSec: offset)
-                return day >= week.mondayKey
-                    && day <= WeeklyDigestEngine.addDays(week.mondayKey, 6)
-            }
-            let bodyweightVolume = StrengthDetail.bodyweightVolume(
-                inWeekWorkouts, templates: catalogue,
-                bodyweightKgAt: { bodyweight.kg(at: $0, tzOffsetSeconds: offset) })
-            // Sets that carry the body but could not be priced — the coverage figure beside the volume.
-            var unpriced = 0
-            for workout in inWeekWorkouts where bodyweight.kg(at: workout.startTs, tzOffsetSeconds: offset) == nil {
-                for exercise in workout.exercises {
-                    let kind = StrengthMovementKind.of(exercise.templateId.flatMap { catalogue[$0] })
-                    guard kind.carriesBodyweight else { continue }
-                    unpriced += exercise.workingSets.filter { ($0.reps ?? 0) > 0 }.count
-                }
-            }
-            return WeekBundle(
-                week: week,
-                bands: StrengthSession.typicalWeeklySets(sessions, templates: catalogue,
-                                                          endingBefore: anchor, tzOffsetSeconds: offset),
-                lane: TrainingLoadLanes.strengthLane(workouts: laneWorkouts, byDay: laneByDay, through: laneDay,
-                                                     tzOffsetSeconds: offset),
-                laneRatios: TrainingLoadLanes.ratios(strengthByDay: laneByDay, strengthActivity: laneActivity,
-                                                     cardio: nil, through: laneDay),
-                laneDay: laneDay,
-                stimulus: index.week(containing: anchor).byMuscle,
-                typical: MuscleStimulus.typicalWeeklyStimulus(index: index, endingBefore: anchor),
-                balance: StrengthBalance.readings(setsByMuscle: week.setsByMuscle),
-                ratios: StrengthBalance.typicalRatios(sessions, templates: catalogue,
-                                                      endingBefore: anchor, tzOffsetSeconds: offset),
-                bodyweightKg: bodyweightVolume.kg,
-                bodyweightSets: bodyweightVolume.sets,
-                unpricedBodyweightSets: unpriced,
-                groupBands: MuscleGroupLoad.bands(laneWorkouts, templates: catalogue, through: laneDay,
-                                                  tzOffsetSeconds: offset))
+            StrengthPreparation.week(anchor: anchor, sessions: sessions, catalogue: catalogue,
+                                     laneWorkouts: laneWorkouts, laneByDay: laneByDay, laneDay: laneDay,
+                                     laneActivity: laneActivity, index: index, bodyweight: bodyweight, offset: offset)
         }.value
 
         guard !Task.isCancelled else { return }
@@ -443,16 +335,7 @@ final class StrengthModel: ObservableObject {
         let offset = tzOffset
 
         let result = await Task.detached(priority: .userInitiated) { () -> (points: [ExercisePerformancePoint], records: ExerciseRecords, line: StrengthTrendLine?, isVolume: Bool) in
-            let points = StrengthSession.exerciseHistory(templateId: id, workouts: sessions,
-                                                         templates: catalogue, tzOffsetSeconds: offset)
-            let records = StrengthProgress.records(templateId: id, workouts: sessions,
-                                                   templates: catalogue, tzOffsetSeconds: offset)
-            // The e1RM line where the movement defines one; otherwise volume, which is the only
-            // progression question a plank or a bodyweight row can answer.
-            if let line = StrengthProgress.e1rmTrend(points) {
-                return (points, records, line, false)
-            }
-            return (points, records, StrengthProgress.volumeTrend(points), true)
+            StrengthPreparation.exercise(id: id, sessions: sessions, catalogue: catalogue, offset: offset)
         }.value
 
         guard !Task.isCancelled else { return }

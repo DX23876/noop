@@ -39,6 +39,17 @@ public enum CoreCall {
             let maxHR = (args["maxHR"] as? NSNumber)?.doubleValue ?? Double(StrainScorer.defaultMaxHR())
             return CoreRead.json(await CoreTrainingLoad.read(reader: reader, maxHR: maxHR, sex: string("sex"),
                                                              dismissedWorkoutSpans: args["dismissedWorkouts"] as? [String] ?? []))
+        case "training.strength":
+            return CoreRead.json(await CoreTrainingReports.strength(reader: reader, days: int("days", 120),
+                weekOffset: int("weekOffset", 0), exerciseId: args["exerciseId"] as? String,
+                firstWeekday: int("firstWeekday", 2), dismissedWorkouts: args["dismissedWorkouts"] as? [String] ?? []))
+        case "training.cardio":
+            let maxHR = (args["maxHR"] as? NSNumber)?.doubleValue ?? Double(StrainScorer.defaultMaxHR())
+            let edges = (args["zoneBpmEdges"] as? [NSNumber])?.map(\.doubleValue)
+            let zones = edges.map { HRZones.zones(bpmEdges: $0, maxHR: maxHR) } ?? HRZones.zones(maxHR: maxHR)
+            return CoreRead.json(await CoreTrainingReports.cardio(reader: reader, maxHR: maxHR, sex: string("sex"),
+                days: int("days", 120), weekOffset: int("weekOffset", 0), sport: args["sport"] as? String,
+                zoneSet: zones, dismissedWorkouts: args["dismissedWorkouts"] as? [String] ?? []))
         case "training.starters": return CoreRead.json(await CoreTraining.starters(store: store))
         case "training.addStarter": return ok(await CoreTraining.addStarter(store: store, index: int("index", -1)))
         case "training.setSchedule":
