@@ -2894,6 +2894,8 @@
     <string name="forge_backup_foreign">该备份来自其他应用或旧版 Android NOOP。你的数据保持不变。</string>
     <string name="forge_backup_damaged">备份文件已损坏。你的数据保持不变。</string>
     <string name="forge_backup_failed">操作失败（%1$s）。你的数据保持不变。</string>
+    <string name="forge_backup_importing">正在导入。较大的备份可能需要很多分钟,请保持 NOOP 打开。</string>
+    <string name="forge_backup_not_written">无法写入恢复的数据,例如手机可用空间不足。你的数据保持不变。</string>
     <string name="forge_backup_too_large">此备份异常大。仍要导入吗？</string>
     <string name="forge_backup_import_anyway">仍然导入</string>
     <string name="forge_cancel">取消</string>

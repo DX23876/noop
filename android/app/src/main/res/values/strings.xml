@@ -2953,6 +2953,8 @@
     <string name="forge_backup_foreign">That backup comes from another app or an older Android version of NOOP. Your data was left as it was.</string>
     <string name="forge_backup_damaged">The backup file is damaged. Your data was left as it was.</string>
     <string name="forge_backup_failed">That did not work (%1$s). Your data was left as it was.</string>
+    <string name="forge_backup_importing">Importing. A large backup can take many minutes; keep NOOP open.</string>
+    <string name="forge_backup_not_written">The restored data could not be written, for example because the phone is short of free space. Your data was left as it was.</string>
     <string name="forge_backup_too_large">This backup is unusually large. Import it anyway?</string>
     <string name="forge_backup_import_anyway">Import anyway</string>
     <string name="forge_cancel">Cancel</string>

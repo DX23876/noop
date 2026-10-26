@@ -2916,6 +2916,8 @@
     <string name="forge_backup_foreign">Esta cópia vem de outra app ou de uma versão Android antiga do NOOP. Os teus dados ficaram como estavam.</string>
     <string name="forge_backup_damaged">O ficheiro da cópia está danificado. Os teus dados ficaram como estavam.</string>
     <string name="forge_backup_failed">Não funcionou (%1$s). Os teus dados ficaram como estavam.</string>
+    <string name="forge_backup_importing">A importar. Uma cópia de segurança grande pode demorar muitos minutos; mantenha o NOOP aberto.</string>
+    <string name="forge_backup_not_written">Não foi possível gravar os dados restaurados, por exemplo porque o telemóvel tem pouco espaço livre. Os seus dados ficaram como estavam.</string>
     <string name="forge_backup_too_large">Esta cópia é invulgarmente grande. Importar mesmo assim?</string>
     <string name="forge_backup_import_anyway">Importar mesmo assim</string>
     <string name="forge_cancel">Cancelar</string>

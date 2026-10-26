@@ -2923,6 +2923,8 @@
     <string name="forge_backup_foreign">Cette sauvegarde provient d’une autre app ou d’une ancienne version Android de NOOP. Vos données sont inchangées.</string>
     <string name="forge_backup_damaged">Le fichier de sauvegarde est endommagé. Vos données sont inchangées.</string>
     <string name="forge_backup_failed">Cela n’a pas fonctionné (%1$s). Vos données sont inchangées.</string>
+    <string name="forge_backup_importing">Importation en cours. Une grande sauvegarde peut prendre de nombreuses minutes ; laissez NOOP ouvert.</string>
+    <string name="forge_backup_not_written">Les données restaurées n\'ont pas pu être écrites, par exemple parce que le téléphone manque d\'espace libre. Vos données sont restées telles quelles.</string>
     <string name="forge_backup_too_large">Cette sauvegarde est inhabituellement volumineuse. L’importer quand même ?</string>
     <string name="forge_backup_import_anyway">Importer quand même</string>
     <string name="forge_cancel">Annuler</string>

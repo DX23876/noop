@@ -72,7 +72,8 @@ import kotlin.math.roundToInt
 
 /** What the More screen is telling the wearer after an export or import. */
 private sealed interface Notice {
-    data object Working : Notice
+    /** An export or an import in progress; an import of a large store can take many minutes. */
+    data class Working(val importing: Boolean = false) : Notice
     data object Exported : Notice
     data object Imported : Notice
     data object TooLarge : Notice
@@ -108,7 +109,7 @@ fun ForgeMoreScreen(padding: PaddingValues, viewModel: AppViewModel) {
 
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(BACKUP_MIME)) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
-        notice = Notice.Working
+        notice = Notice.Working()
         scope.launch {
             finish(withContext(Dispatchers.IO) {
                 context.contentResolver.openOutputStream(uri)?.use { CoreBackup.export(context, it) }
@@ -118,7 +119,7 @@ fun ForgeMoreScreen(padding: PaddingValues, viewModel: AppViewModel) {
     }
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
-        notice = Notice.Working
+        notice = Notice.Working(importing = true)
         scope.launch {
             finish(withContext(Dispatchers.IO) {
                 context.contentResolver.openInputStream(uri)?.use { CoreBackup.import(context, it) }
@@ -218,7 +219,7 @@ fun ForgeMoreScreen(padding: PaddingValues, viewModel: AppViewModel) {
         NoticeDialog(current, onDismiss = { notice = null },
                      onRestart = { ForgeUi.restart(context) },
                      onImportAnyway = {
-                         notice = Notice.Working
+                         notice = Notice.Working(importing = true)
                          scope.launch { finish(withContext(Dispatchers.IO) { CoreBackup.importStagedAnyway(context) }) }
                      })
     }
@@ -297,13 +298,15 @@ private fun MoreRow(icon: ImageVector, tint: Color, title: String, detail: Strin
 @Composable
 private fun NoticeDialog(notice: Notice, onDismiss: () -> Unit, onRestart: () -> Unit, onImportAnyway: () -> Unit) {
     when (notice) {
-        Notice.Working -> AlertDialog(
+        is Notice.Working -> AlertDialog(
             onDismissRequest = {}, confirmButton = {},
             text = {
+                // A real iPhone store of 4 GB took about an hour to check and copy on an emulator (2026-10-26),
+                // so an import says that it can take long instead of a bare "Working…".
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     CircularProgressIndicator(Modifier.size(24.dp))
                     Spacer(Modifier.width(ForgeMetrics.space4))
-                    Text(stringResource(R.string.forge_working))
+                    Text(stringResource(if (notice.importing) R.string.forge_backup_importing else R.string.forge_working))
                 }
             })
         Notice.Exported -> AlertDialog(
@@ -330,5 +333,6 @@ private fun failureText(why: String): String = when {
         stringResource(R.string.forge_backup_not_backup)
     why == "foreignBackup" -> stringResource(R.string.forge_backup_foreign)
     why == "damaged" || why.startsWith("postRestore") -> stringResource(R.string.forge_backup_damaged)
+    why.startsWith("copyFailedKept") -> stringResource(R.string.forge_backup_not_written)
     else -> stringResource(R.string.forge_backup_failed, why)
 }

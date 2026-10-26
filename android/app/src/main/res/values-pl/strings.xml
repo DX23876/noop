@@ -2940,6 +2940,8 @@
     <string name="forge_backup_foreign">Ta kopia pochodzi z innej aplikacji lub starszej wersji NOOP na Androida. Twoje dane pozostały bez zmian.</string>
     <string name="forge_backup_damaged">Plik kopii jest uszkodzony. Twoje dane pozostały bez zmian.</string>
     <string name="forge_backup_failed">Nie udało się (%1$s). Twoje dane pozostały bez zmian.</string>
+    <string name="forge_backup_importing">Importowanie. Duża kopia zapasowa może trwać wiele minut; nie zamykaj NOOP.</string>
+    <string name="forge_backup_not_written">Nie udało się zapisać przywróconych danych, na przykład z powodu braku wolnego miejsca w telefonie. Twoje dane pozostały bez zmian.</string>
     <string name="forge_backup_too_large">Ta kopia jest nietypowo duża. Zaimportować mimo to?</string>
     <string name="forge_backup_import_anyway">Importuj mimo to</string>
     <string name="forge_cancel">Anuluj</string>
