@@ -46,7 +46,8 @@ final class CoreReadTests: XCTestCase {
 
     func testTheDemoHistoryReadsBackAsDaysNightsAndRestOnce() async throws {
         let store = try await WhoopStore.inMemory()
-        let now = Date()
+        // Noon keeps the seven-night window clear of the demo night's bedtime boundary, on every test run.
+        let now = try XCTUnwrap(Calendar.current.date(from: DateComponents(year: 2026, month: 10, day: 20, hour: 12)))
         let written = try await CoreDemo.seedIfEmpty(store: store, deviceId: "my-whoop", now: now)
         XCTAssertEqual(written, CoreDemo.days)
         let again = try await CoreDemo.seedIfEmpty(store: store, deviceId: "my-whoop", now: now)

@@ -2,6 +2,7 @@ import Foundation
 import StrandAnalytics
 import StrandCore
 import StrandTraining
+import WhoopProtocol
 import WhoopStore
 
 /// One door for the Android screens into the shared code (Android parity plan 1.2): an operation name and its
@@ -10,10 +11,18 @@ import WhoopStore
 public enum CoreCall {
     public static func run(_ op: String, _ argsJSON: String) async -> String {
         if op == "core.setResources" {
-            // Before any read of a packaged resource: where the app unpacked them (StrandTraining's catalogue).
+            // Validate the protocol asset before any notification can reach the collector. Android has no
+            // SwiftPM bundle; asking Bundle.module on the first bonded event otherwise terminates the app.
             let args = (try? JSONSerialization.jsonObject(with: Data(argsJSON.utf8)) as? [String: Any]) ?? [:]
-            if let dir = args["dir"] as? String { BundledExerciseCatalog.resourceDirectory = URL(fileURLWithPath: dir) }
-            return #"{"ok":true}"#
+            guard let dir = args["dir"] as? String else { return #"{"error":"resourceDirectoryMissing"}"# }
+            let directory = URL(fileURLWithPath: dir)
+            do {
+                try installSchema(from: directory.appendingPathComponent("whoop_protocol.json"))
+                BundledExerciseCatalog.resourceDirectory = directory
+                return #"{"ok":true}"#
+            } catch {
+                return #"{"error":"protocolSchemaUnavailable"}"#
+            }
         }
         guard let (store, _) = ShadowSession.storeAndPath, let reader = ShadowSession.reader else {
             return #"{"error":"noStore"}"#

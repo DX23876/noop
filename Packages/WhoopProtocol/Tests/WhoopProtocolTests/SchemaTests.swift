@@ -65,4 +65,20 @@ final class SchemaTests: XCTestCase {
         XCTAssertEqual(a.enums.count, b.enums.count)
         XCTAssertFalse(a.enums.isEmpty)
     }
+
+    func testInstalledSchemaDecodesTheSameProtocolAndRejectsBrokenReplacements() throws {
+        // Exercise the explicit asset path Android uses rather than SwiftPM's generated bundle accessor.
+        let source = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().appendingPathComponent("Sources/WhoopProtocol/Resources/whoop_protocol.json")
+        try installSchema(from: source)
+        XCTAssertEqual(loadSchema().enumName("EventNumber", 23), "BLE_BONDED(23)")
+        XCTAssertEqual(loadSchema().packet(forType: 47)?.name, "HISTORICAL_DATA")
+
+        let invalid = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: invalid) }
+        try Data("not json".utf8).write(to: invalid)
+        XCTAssertThrowsError(try installSchema(from: invalid))
+        XCTAssertEqual(loadSchema().enumName("EventNumber", 23), "BLE_BONDED(23)",
+                       "a rejected replacement must not discard the schema already in use")
+    }
 }

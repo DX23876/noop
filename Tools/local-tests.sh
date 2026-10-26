@@ -98,7 +98,9 @@ if [ "$ANDROID" = 1 ]; then
   export ANDROID_HOME="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
   # Two invocations, as in android.yml: in one, the unit-test task can be configured before the Room schema
   # snapshot it reads exists on a fresh build directory.
-  (cd android && ./gradlew --quiet assembleFullDebug assembleDemoDebug && ./gradlew --quiet testFullDebugUnitTest)
+  (cd android && ./gradlew --quiet assembleFullDebug assembleDemoDebug assembleFullDebugAndroidTest &&
+    python3 swift-core/check-apk-resources.py app/build/outputs/apk/full/debug/*.apk app/build/outputs/apk/demo/debug/*.apk &&
+    ./gradlew --quiet testFullDebugUnitTest)
   RAN+=("android")
 fi
 

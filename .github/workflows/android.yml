@@ -98,7 +98,10 @@ jobs:
         uses: gradle/actions/setup-gradle@v5
 
       - name: Build debug APKs
-        run: ./gradlew assembleFullDebug assembleDemoDebug
+        run: ./gradlew assembleFullDebug assembleDemoDebug assembleFullDebugAndroidTest
+
+      - name: Verify packaged Swift core resources
+        run: python3 swift-core/check-apk-resources.py app/build/outputs/apk/full/debug/*.apk app/build/outputs/apk/demo/debug/*.apk
 
       - name: Run unit tests
         run: ./gradlew testFullDebugUnitTest

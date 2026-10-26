@@ -984,7 +984,10 @@ object AndroidDiagnostics {
     /** Grant state of the permissions a background strap app needs. */
     private fun permissionsText(context: Context): String {
         val checks = buildList {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) add("BLUETOOTH_CONNECT" to Manifest.permission.BLUETOOTH_CONNECT)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                add("BLUETOOTH_SCAN" to Manifest.permission.BLUETOOTH_SCAN)
+                add("BLUETOOTH_CONNECT" to Manifest.permission.BLUETOOTH_CONNECT)
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) add("POST_NOTIFICATIONS" to Manifest.permission.POST_NOTIFICATIONS)
             add("LOCATION" to Manifest.permission.ACCESS_FINE_LOCATION)
         }

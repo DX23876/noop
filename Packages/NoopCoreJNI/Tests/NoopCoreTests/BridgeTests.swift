@@ -30,6 +30,11 @@ final class BridgeTests: XCTestCase {
         XCTAssertEqual(Bridge.mainActorProbeRuns, before + 1)
     }
 
+    func testMissingProtocolAssetRejectsResourceSetupBeforeASessionStarts() async {
+        let answer = await CoreCall.run("core.setResources", #"{"dir":"/nonexistent-protocol-resources"}"#)
+        XCTAssertEqual(answer, #"{"error":"protocolSchemaUnavailable"}"#)
+    }
+
     /// An Android install that never touched its analysis choices scores like an untouched iPhone: Effort on
     /// heart-rate zones, the V2 sleep stager, no wake check, the whole-night HRV window, days from sleep onset
     /// (the Apple `AppAnalysisHost` defaults). The core used to hard-wire Banister and the V1 stager here.

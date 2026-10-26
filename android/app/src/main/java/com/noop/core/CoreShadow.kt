@@ -26,7 +26,7 @@ object CoreShadow {
         if (started || !SwiftCore.available) return
         synchronized(this) {
             if (started) return
-            installResources(context)
+            if (!installResources(context)) return
             val store = File(context.filesDir, "core/noop-core.sqlite").apply { parentFile?.mkdirs() }
             val result = SwiftCore.shadowStart(store.path, deviceId)
             started = result == 0
@@ -35,23 +35,28 @@ object CoreShadow {
     }
 
     /**
-     * The core's packaged resources (StrandTraining's exercise catalogue), shipped as APK assets because Android has
-     * no SwiftPM resource bundle, unpacked once per app version into the files directory and announced to the core
+     * The core's protocol schema and exercise catalogue, shipped as APK assets because Android has
+     * no SwiftPM resource bundle, copied into the files directory when their bytes change and announced to the core
      * before anything reads them.
      */
-    private fun installResources(context: Context) {
+    private fun installResources(context: Context): Boolean {
         val dir = File(context.filesDir, "core-resources").apply { mkdirs() }
         for (name in RESOURCES) {
             val target = File(dir, name)
-            val size = runCatching { context.assets.openFd(name).length }.getOrDefault(-1L)
-            if (target.length() == size && size > 0) continue
-            runCatching { context.assets.open(name).use { input -> target.outputStream().use { input.copyTo(it) } } }
-                .onFailure { Log.w(TAG, "resource $name not unpacked: ${it.message}") }
+            val installed = runCatching {
+                val bytes = context.assets.open(name).use { it.readBytes() }
+                // Length alone cannot detect an updated schema whose replacement happens to be the same size.
+                if (!target.isFile || !target.readBytes().contentEquals(bytes)) target.writeBytes(bytes)
+            }.onFailure { Log.e(TAG, "resource $name not unpacked; core session not started: ${it.message}") }
+            if (installed.isFailure) return false
         }
-        SwiftCore.call("core.setResources", org.json.JSONObject().put("dir", dir.path).toString())
+        val result = SwiftCore.call("core.setResources", org.json.JSONObject().put("dir", dir.path).toString())
+        val ready = runCatching { org.json.JSONObject(result.orEmpty()).optBoolean("ok") }.getOrDefault(false)
+        if (!ready) Log.e(TAG, "protocol schema not installed; core session not started: $result")
+        return ready
     }
 
-    private val RESOURCES = listOf("exercise-catalog.json")
+    private val RESOURCES = listOf("whoop_protocol.json", "exercise-catalog.json")
 
     fun family(whoop5: Boolean) { if (started) SwiftCore.shadowFamily(whoop5) }
 
