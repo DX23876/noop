@@ -76,13 +76,7 @@ final class LiftSessionController: ObservableObject {
 
     /// What a user typed into a set that has not happened yet. All optional: a row where only the
     /// weight was typed keeps carrying its reps.
-    struct PendingSetValues: Equatable {
-        var weightKg: Double?
-        var reps: Int?
-        var rpe: Double?
-
-        var isEmpty: Bool { weightKg == nil && reps == nil && rpe == nil }
-    }
+    typealias PendingSetValues = LiftPendingSetValues
 
     /// What the store holds for each exercise LAST session, keyed by exercise name then set number —
     /// the middle layer of `LiftSessionEngine.carry(for:lastSession:)`.

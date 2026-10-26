@@ -26,10 +26,6 @@ struct ResolvedStrengthSession: Identifiable, Sendable {
     }
 }
 
-/// One definition of "all history" for every training surface.
-enum TrainingHistoryWindow {
-    static let allDays = 20 * 365 + 5
-}
 
 struct ResolvedStrengthHistory: Sendable {
     let sessions: [ResolvedStrengthSession]
@@ -139,22 +135,22 @@ struct DetailedMuscleLoadSnapshot: Sendable {
     }
 }
 
-extension Repository {
+/// The strength read model behind `Repository.resolvedStrengthHistory`, shared with the Android core (NoopCore
+/// compiles this file too): one session per canonical strength envelope, its sets from the most detailed provider.
+enum StrengthHistoryReader {
     /// One read model for Strength, Training, Training Load and the Coach. Detailed set providers are
     /// selected once; tracker and Apple Health components enrich the canonical envelope without
-    /// duplicating the set list.
-    func resolvedStrengthHistory(days: Int = 4_000) async -> ResolvedStrengthHistory {
+    /// duplicating the set list. `fusion` reads the fused training sessions of the same window.
+    static func read(store: WhoopStore, days: Int,
+                     fusion: @escaping @Sendable () async -> TrainingSessionFusionResult) async -> ResolvedStrengthHistory {
         let now = Int(Date().timeIntervalSince1970)
         let from = now - days * 86_400
-        guard let store = await storeHandle() else {
-            return .init(sessions: [], workouts: [], templates: [:], historyAvailableFrom: from)
-        }
         async let importedRead = Self.pagedStrengthWorkouts(store: store, from: from, to: now + 86_400)
         async let templateRead = store.strengthExerciseTemplates()
         async let nativeWorkoutRead = Self.pagedNativeWorkouts(store: store, from: from, to: now + 86_400)
         async let nativeExerciseRead = store.trainingExercises()
         async let aliasRead = store.trainingExerciseAnatomyAliases()
-        async let fusionRead = trainingSessions(days: days)
+        async let fusionRead = fusion()
 
         let imported = (try? await importedRead) ?? []
         let importedTemplates = (try? await templateRead) ?? [:]

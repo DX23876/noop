@@ -84,7 +84,7 @@ fun ForgeMoreScreen(padding: PaddingValues, viewModel: AppViewModel) {
     var settings by remember { mutableStateOf(false) }
     var classicWizard by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    val backup = rememberBackupActions()
+    val more = rememberMoreNavigator()
 
     val colors = Forge.colors
     Column(
@@ -105,58 +105,7 @@ fun ForgeMoreScreen(padding: PaddingValues, viewModel: AppViewModel) {
         SectionHeader(stringResource(R.string.forge_strap_section))
         StrapCard(viewModel, onPair = { pairing = true })
 
-        ForgeCard(Modifier.fillMaxWidth(), contentPadding = 0.dp) {
-            MoreRow(Icons.Rounded.Settings, colors.textSecondary,
-                    stringResource(R.string.l10n_settings_screen_settings_c7f73bb5),
-                    stringResource(R.string.forge_settings_detail)) { settings = true }
-        }
-
-        SectionHeader(stringResource(R.string.forge_backup_section))
-        ForgeCard(Modifier.fillMaxWidth(), contentPadding = 0.dp) {
-            MoreRow(Icons.Rounded.Upload, colors.accent, stringResource(R.string.forge_backup_export),
-                    stringResource(R.string.forge_backup_export_detail)) {
-                backup.export()
-            }
-            HorizontalDivider(color = colors.divider.copy(alpha = 0.4f), modifier = Modifier.padding(start = 56.dp))
-            MoreRow(Icons.Rounded.Download, colors.rest, stringResource(R.string.forge_backup_import),
-                    stringResource(R.string.forge_backup_import_detail)) {
-                backup.import()
-            }
-        }
-
-        SectionHeader(stringResource(R.string.forge_strap_log_section))
-        ForgeCard(Modifier.fillMaxWidth(), contentPadding = 0.dp) {
-            MoreRow(Icons.Rounded.IosShare, colors.effort, stringResource(R.string.forge_strap_log_share),
-                    stringResource(R.string.forge_strap_log_detail)) {
-                scope.launch { LogExport.shareStrapLog(context, StrapLogBuffer.snapshot()) }
-            }
-        }
-
-        SectionHeader(stringResource(R.string.forge_experimental_section))
-        ForgeCard(Modifier.fillMaxWidth()) {
-            var confirms by remember { mutableStateOf(com.noop.core.CoreShadow.confirmsHistoryAck(context)) }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.forge_core_ack), style = Forge.type.headline, color = colors.text)
-                    Text(stringResource(R.string.forge_core_ack_detail), style = Forge.type.subhead,
-                         color = colors.textSecondary)
-                }
-                Spacer(Modifier.width(ForgeMetrics.space2))
-                Switch(checked = confirms, onCheckedChange = {
-                    confirms = it
-                    com.noop.core.CoreShadow.setConfirmsHistoryAck(context, it)
-                })
-            }
-        }
-
-        SectionHeader(stringResource(R.string.forge_about_section))
-        ForgeCard(Modifier.fillMaxWidth(), contentPadding = 0.dp) {
-            MoreRow(Icons.Rounded.History, colors.textSecondary, stringResource(R.string.forge_classic_screens),
-                    stringResource(R.string.forge_classic_screens_detail)) {
-                ForgeUi.setEnabled(context, false)
-                ForgeUi.restart(context)
-            }
-        }
+        MoreIndexSections(more, onOpenSettings = { settings = true })
         Text(stringResource(R.string.forge_version, BuildConfig.VERSION_NAME), style = Forge.type.caption,
              color = Forge.sceneInk.tertiary, modifier = Modifier.padding(horizontal = ForgeMetrics.space1))
         Text(stringResource(R.string.forge_privacy), style = Forge.type.caption, color = Forge.sceneInk.tertiary,
@@ -164,6 +113,7 @@ fun ForgeMoreScreen(padding: PaddingValues, viewModel: AppViewModel) {
         Spacer(Modifier.height(ForgeMetrics.space2))
     }
 
+    MoreOverlay(more, viewModel, onOpenSettings = { settings = true })
     if (settings) {
         ForgeOverlayPage(onDismiss = { settings = false }) {
             ForgeSettings(viewModel, onClose = { settings = false })

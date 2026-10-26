@@ -114,6 +114,19 @@ public enum Bridge {
     }
 
     /// Runs one read against the shadow session's store and waits for it; for JNI callers on a background thread.
+    /// `CoreCall`: one operation by name with JSON arguments; blocks the calling (Kotlin IO) thread.
+    public static func call(_ op: String, _ args: String) -> String {
+        final class Box: @unchecked Sendable { var value = #"{"error":"timeout"}"# }
+        let box = Box()
+        let done = DispatchSemaphore(value: 0)
+        Task.detached {
+            box.value = await CoreCall.run(op, args)
+            done.signal()
+        }
+        done.wait()
+        return box.value
+    }
+
     private static func blocking(_ read: @escaping @Sendable (StoreReader) async -> String?) -> String? {
         guard let reader = ShadowSession.reader else { return nil }
         final class Box: @unchecked Sendable { var value: String? }

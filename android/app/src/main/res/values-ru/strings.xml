@@ -2937,4 +2937,21 @@
     <string name="forge_settings_card_transparency">Прозрачность карточек</string>
     <string name="forge_settings_card_transparency_detail">Насколько прозрачны карточки (Пульс, Ключевые показатели, Показатели восстановления и др.). Слева = непрозрачно, справа = прозрачно.</string>
     <string name="forge_sp_on">Вкл.</string>
+    <string name="forge_lab_ageless">AgeLess</string>
+    <string name="forge_lab_ageless_detail">Бета. Возраст по девяти показателям сна, активности и формы за шесть месяцев, с шагами, которые помогут больше всего. Нужно 30 ночей. Инструмент мотивации, а не медицинский возраст.</string>
+    <string name="forge_lab_rhythm">Суточный ритм</string>
+    <string name="forge_lab_rhythm_detail">WHOOP 5.0 и MG. Как меняется ваш день в течение недели по сравнению с большим исследованием, в виде возраста ритма. Нужно три дня ношения днём и ночью. Бета, не медицинский возраст.</string>
+    <string name="forge_more_analysis">Анализ</string>
+    <string name="forge_more_analysis_sub">Закономерности, цели, дневник и ваш коуч</string>
+    <string name="forge_more_health_body">Здоровье и тело</string>
+    <string name="forge_more_health_body_sub">Тренировки, тело, энергия и сигналы здоровья</string>
+    <string name="forge_more_tools">Инструменты</string>
+    <string name="forge_more_tools_sub">Пульс в реальном времени, дыхание и интервалы</string>
+    <string name="forge_more_search">Поиск</string>
+    <string name="forge_more_no_results">Ничего не найдено</string>
+    <string name="forge_more_insights">Инсайты</string>
+    <string name="forge_more_scoring">Как считаются оценки</string>
+    <string name="forge_more_journal">Дневник</string>
+    <string name="forge_more_biomarkers">Биомаркеры</string>
+    <string name="forge_more_beat_rhythm">Ритм сердца</string>
 </resources>

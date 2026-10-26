@@ -433,126 +433,11 @@ extension Repository {
     /// Returns the earliest correction.
     func correctLegacyWorkoutEnergy(profile base: UserProfile) async throws -> Int? {
         guard let store = await storeHandle() else { return nil }
-        let now = Int(Date().timeIntervalSince1970)
-        // Live sessions were historically saved under "my-whoop" even when the current strap has a
-        // physical device id. AI-13 scanned only that physical id and then advanced its cursor.
-        // Unlike the ordinary chart read, a failed registry lookup cannot silently remove an
-        // archived workout owner from a versioned pass whose cursor will then be committed.
-        let registered = try DeviceRegistryStore(dbQueue: store.registryWriter).all()
-            .filter { $0.brand.caseInsensitiveCompare("WHOOP") == .orderedSame }
-            .map(\.id)
-        let readIds = Self.rawWhoopSourceIds(activeDeviceId: deviceId, registeredWhoopIds: registered)
-        var ownedRows: [(owner: String, row: WorkoutRow)] = []
-        for owner in readIds {
-            var offset = 0
-            while true {
-                let page = try await store.workouts(deviceId: owner, from: 0, to: now,
-                                                    limit: 500, offset: offset)
-                ownedRows += page.compactMap { row in
-                    guard row.source == "manual", row.endTs > row.startTs,
-                          (row.energyKcal ?? 0) > 0 else { return nil }
-                    return (owner, row)
-                }
-                if page.count < 500 { break }
-                offset += page.count
-            }
+        // The correction itself is shared with Android (`EnergyCorrections`); the follow-ups stay here.
+        return try await EnergyCorrections.correctLegacyWorkoutEnergy(reader: storeReader(store), profile: base) { earliest in
+            HealthWorkoutRewrite.request(from: earliest)
+            scheduleEnergyRefresh(coveringStart: earliest)
         }
-        guard let first = ownedRows.map({ $0.row.startTs }).min() else { return nil }
-        var known: [WorkoutKey: WorkoutEnergySource] = [:]
-        for owner in Set(ownedRows.map(\.owner)) {
-            known.merge(try await store.workoutEnergySources(deviceId: owner, from: first, to: now))
-                { current, _ in current }
-        }
-        let pending: [(owner: String, row: WorkoutRow, source: WorkoutEnergySource?)] =
-            ownedRows.compactMap { owned in
-                let source = known[WorkoutKey(deviceId: owned.owner, startTs: owned.row.startTs,
-                                              sport: owned.row.sport)]
-                return source == .entered ? nil : (owned.owner, owned.row, source)
-            }
-        guard !pending.isEmpty else { return nil }
-        let firstDay = Self.localDayKey(Date(timeIntervalSince1970: TimeInterval(first)))
-        let today = Self.localDayKey(Date())
-        // The day's resting rate as the dashboard shows it: each side unioned as `unionDailyMetrics`
-        // does (active id first, canonical filling), then imported first with computed filling the gaps.
-        // Read with error propagation, since a failed read would price every row without one and still
-        // commit the cursor.
-        let restFrom = WeeklyDigestEngine.addDays(firstDay, -14)
-        var imported: [String: DailyMetric] = [:], computed: [String: DailyMetric] = [:]
-        for id in importedReadIds {
-            for m in try await store.dailyMetrics(deviceId: id, from: restFrom, to: today) {
-                imported[m.day] = imported[m.day].map { Self.coalesceDay($0, m) } ?? m
-            }
-        }
-        for id in computedReadIds {
-            for m in try await store.dailyMetrics(deviceId: id, from: restFrom, to: today) {
-                computed[m.day] = computed[m.day].map { Self.coalesceDay($0, m) } ?? m
-            }
-        }
-        var resting: [String: Double] = [:]
-        for metric in Self.mergeDaily(imported: Array(imported.values), computed: Array(computed.values)) {
-            if let value = metric.restingHr, value > 0 { resting[metric.day] = Double(value) }
-        }
-        let peaks = await energyPeakMETByDay(fromDay: firstDay, toDay: today)
-        let observations = await weightSeries(days: 4_000).compactMap { point in
-            WeightSeries.date(forDay: point.day).map {
-                CausalWeightObservation(timestamp: Int($0.timeIntervalSince1970), weightKg: point.value,
-                                        source: point.source == .manual ? .manual : .health)
-            }
-        }
-        var earliest: Int?
-        defer {
-            if let earliest {
-                HealthWorkoutRewrite.request(from: earliest)
-                scheduleEnergyRefresh(coveringStart: earliest)
-            }
-        }
-        for (owner, row, source) in pending {
-            let day = Self.localDayKey(Date(timeIntervalSince1970: TimeInterval(row.startTs)))
-            // The normal chart facade deliberately treats a failed device read as an empty series.
-            // A migration cannot: it would skip this row and still commit the recipe cursor.
-            var byTimestamp: [Int: HRSample] = [:]
-            for id in readIds {
-                for sample in try await store.hrSamples(deviceId: id, from: row.startTs,
-                                                        to: row.endTs, limit: 40_000)
-                    where byTimestamp[sample.ts] == nil {
-                    byTimestamp[sample.ts] = sample
-                }
-            }
-            let samples = byTimestamp.values.sorted { $0.ts < $1.ts }
-            guard samples.count >= 2, let stored = row.energyKcal else { continue }
-            var profile = base
-            if let weight = CausalWeightResolver.weight(at: row.startTs, observations: observations) {
-                profile.weightKg = weight
-            }
-            // The day's own rate, else one at most two weeks old: never a rate from a different era.
-            let restingHR = WorkoutHeartRateFill.carriedRestingHR(on: day, in: resting)
-            let kcal = WorkoutEnergyEstimate.boutKcal(
-                samples, sport: row.sport, profile: profile, hrMax: profile.maxHR, restingHR: restingHR,
-                peakMET: WorkoutEnergyDisplay.peakMET(on: day, in: peaks), distanceM: row.distanceM)
-            guard kcal > 0 else { continue }
-            let key = WorkoutKey(deviceId: owner, startTs: row.startTs, sport: row.sport)
-            if source == .computed {
-                // Already NOOP's own figure: no need to recognise it, only to price it on the right inputs.
-                guard abs(kcal - stored) >= 0.5 else { continue }
-                if try await store.repriceComputedWorkoutEnergy(for: key, matching: stored, to: kcal) {
-                    earliest = min(earliest ?? row.startTs, row.startTs)
-                }
-                continue
-            }
-            let matchesOffloaded = LegacyWorkoutEnergy.looksComputed(
-                stored: stored, samples: samples, sport: row.sport, profile: profile,
-                hrMax: profile.maxHR, restingHR: restingHR)
-            // The live stream can differ materially from a later strap offload. For a GPS bout,
-            // replay the old formula from the saved live mean and moving duration as a second witness.
-            let matchesLiveSummary = (row.distanceM ?? 0) > 0 && LegacyWorkoutEnergy.looksComputed(
-                stored: stored, averageHR: row.avgHr, durationSeconds: row.durationS,
-                profile: profile, hrMax: profile.maxHR, restingHR: restingHR)
-            guard matchesOffloaded || matchesLiveSummary else { continue }
-            if try await store.correctLegacyWorkoutEnergy(for: key, matching: stored, to: kcal) {
-                earliest = min(earliest ?? row.startTs, row.startTs)
-            }
-        }
-        return earliest
     }
 
     /// Active energy per local day, from the energy model: the strap first, Apple only on a day the strap
@@ -595,14 +480,7 @@ extension Repository {
     /// same scale as the day it belongs to.
     func energyPeakMETByDay(fromDay: String, toDay: String) async -> [String: Double] {
         guard let store = await storeHandle() else { return [:] }
-        let rows = (try? await store.whoopDailyEnergy(
-            deviceId: deviceId, from: WeeklyDigestEngine.addDays(fromDay, -WorkoutEnergyDisplay.peakMETCarryDays),
-            to: toDay)) ?? []
-        var byDay: [String: Double] = [:]
-        for row in rows where row.modelVersion == WhoopDailyEnergyEstimate.modelVersion {
-            if let peak = row.peakMET, peak.isFinite, peak > 0 { byDay[row.day] = peak }
-        }
-        return byDay
+        return await EnergyCorrections.peakMETByDay(store: store, deviceId: deviceId, fromDay: fromDay, toDay: toDay)
     }
 
     func strapSessionEnergy(for rows: [WorkoutRow], maxDays: Int = 120) async -> [String: Double] {
@@ -726,7 +604,7 @@ extension Repository {
     /// backup or a copied store brings the cursor its own energy rows were priced under.
     static let energyInputCursorName = "energy:postOffloadInputSeq"
     /// `cursors` row holding the earliest day start a re-score re-derived since the last post-offload refresh.
-    static let energyRederivedFromName = "energy:rederivedFrom"
+    static let energyRederivedFromName = EnergyCorrections.rederivedFromCursor
 
     /// Record that a re-score re-derived the days from `dayStartTs` on. Its sleep sessions and workouts are
     /// energy inputs the write sequence does not see (computed-namespace writes are not stamped), so the
@@ -734,7 +612,7 @@ extension Repository {
     /// starts the evening before it. Persisted, so a process ended between the two keeps the debt.
     func noteEnergyInputsRederived(dayStartTs: Int) async {
         guard let store = await storeHandle() else { return }
-        try? await store.lowerCursor(Self.energyRederivedFromName, to: dayStartTs - 86_400)
+        await EnergyCorrections.noteInputsRederived(store: store, dayStartTs: dayStartTs)
     }
 
     /// The energy refresh after a completed strap offload: re-prices from the first day whose scoring

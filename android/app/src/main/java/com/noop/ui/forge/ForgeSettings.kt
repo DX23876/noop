@@ -251,7 +251,7 @@ private fun ForgeSettingsPage.tint(): Color {
 }
 
 @Composable
-private fun ForgeColor.resolve(): Color = Color(if (Forge.colors.dark) dark else light)
+internal fun ForgeColor.resolve(): Color = Color(if (Forge.colors.dark) dark else light)
 
 /**
  * Fork (DX23876), Android plan E-3 (D15 lists settings in the first testing build): Forge Settings as the iOS
@@ -320,7 +320,7 @@ private fun Hub(onClose: () -> Unit, onOpen: (ForgeSettingsPage) -> Unit, onAll:
 
 /** A page title with its back arrow, as the pages and the hosted screens open. */
 @Composable
-private fun PageTitle(title: String?, onBack: () -> Unit, trailing: (@Composable () -> Unit)? = null) {
+internal fun PageTitle(title: String?, onBack: () -> Unit, trailing: (@Composable () -> Unit)? = null) {
     Row(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space2), verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = onBack) {
             Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.forge_settings_back),
@@ -363,7 +363,7 @@ private fun Page(page: ForgeSettingsPage, viewModel: AppViewModel, onBack: () ->
 
 /** A classic screen under a Forge back bar. Screens that carry their own title get the bar without one. */
 @Composable
-private fun Hosted(title: String?, onBack: () -> Unit, content: @Composable () -> Unit) {
+internal fun Hosted(title: String?, onBack: () -> Unit, content: @Composable () -> Unit) {
     // Every Settings page has one look, as on iOS: the classic screen takes the Forge colours (no beige canvas),
     // draws nothing behind itself so the backdrop runs through, and puts the Forge title at the top of its own
     // scroll instead of under a fixed bar.
@@ -537,7 +537,7 @@ internal fun SettingsColumn(content: @Composable ColumnScope.() -> Unit) {
 
 /** One hub row as iOS draws it (`SettingsHubRow`): icon tile, title over subtitle, chevron. */
 @Composable
-private fun HubRow(icon: ImageVector, tint: Color, title: String, subtitle: String, onClick: () -> Unit) {
+internal fun HubRow(icon: ImageVector, tint: Color, title: String, subtitle: String, onClick: () -> Unit) {
     val colors = Forge.colors
     Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = ForgeMetrics.space4, vertical = ForgeMetrics.space3),
@@ -549,7 +549,7 @@ private fun HubRow(icon: ImageVector, tint: Color, title: String, subtitle: Stri
         Spacer(Modifier.width(ForgeMetrics.space3))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space1)) {
             Text(title, style = Forge.type.body, color = colors.text)
-            Text(subtitle, style = Forge.type.subhead, color = colors.textSecondary)
+            if (subtitle.isNotEmpty()) Text(subtitle, style = Forge.type.subhead, color = colors.textSecondary)
         }
         Spacer(Modifier.width(ForgeMetrics.space2))
         Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = colors.textTertiary, modifier = Modifier.size(18.dp))
@@ -557,7 +557,7 @@ private fun HubRow(icon: ImageVector, tint: Color, title: String, subtitle: Stri
 }
 
 @Composable
-private fun HubDivider() {
+internal fun HubDivider() {
     HorizontalDivider(color = Forge.colors.divider.copy(alpha = 0.5f), modifier = Modifier.padding(start = ForgeMetrics.space6))
 }
 
@@ -972,6 +972,19 @@ private fun LabSection(onOpen: (ForgeSettingsSub) -> Unit) {
             confirms = it
             CoreShadow.setConfirmsHistoryAck(context, it)
         }
+        RowDivider()
+        // The two Lab passes of the shared core, as on iOS: off by default, scored at the next analysis.
+        var ageless by remember { mutableStateOf(com.noop.core.CoreFeatures.healthspan(context)) }
+        ToggleRow(stringResource(R.string.forge_lab_ageless), stringResource(R.string.forge_lab_ageless_detail), ageless) {
+            ageless = it
+            com.noop.core.CoreFeatures.setHealthspan(context, it)
+        }
+        RowDivider()
+        var rhythm by remember { mutableStateOf(com.noop.core.CoreFeatures.rhythmAge(context)) }
+        ToggleRow(stringResource(R.string.forge_lab_rhythm), stringResource(R.string.forge_lab_rhythm_detail), rhythm) {
+            rhythm = it
+            com.noop.core.CoreFeatures.setRhythmAge(context, it)
+        }
     }
     SettingsCard(title = null, blurb = null) {
         LinkRow(stringResource(R.string.l10n_settings_screen_health_wellness_93475778),
@@ -1036,6 +1049,13 @@ private fun AboutSection(onOpen: (ForgeSettingsSub) -> Unit) {
         LinkRow(stringResource(R.string.l10n_settings_screen_what_s_new_4d8dc5fe),
                 stringResource(R.string.l10n_settings_screen_recent_changes_and_what_to_expect_3ceb660b)) {
             onOpen(ForgeSettingsSub.WhatsNew)
+        }
+    }
+    SettingsCard(title = null, blurb = null) {
+        // The classic screens stay one switch away for what the Forge screens do not cover; their Settings switch back.
+        LinkRow(stringResource(R.string.forge_classic_screens), stringResource(R.string.forge_classic_screens_detail)) {
+            ForgeUi.setEnabled(context, false)
+            ForgeUi.restart(context)
         }
     }
 }

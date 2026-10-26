@@ -3205,7 +3205,15 @@ class WhoopBleClient(
                         sleepStagerV2 = puffinExperiment.experimentalSleepV2,
                         motionAwareWake = puffinExperiment.motionAwareWake,
                         deepHrvWindow = com.noop.ui.UnitPrefs.hrvWindow(context) == com.noop.ui.HrvWindow.DEEP_SLEEP,
-                        dayCycleMode = NoopPrefs.dayCycleMode(context).persistedValue)
+                        dayCycleMode = NoopPrefs.dayCycleMode(context).persistedValue,
+                        healthspan = com.noop.core.CoreFeatures.healthspan(context),
+                        rhythmAge = com.noop.core.CoreFeatures.rhythmAge(context),
+                        extras = com.noop.core.CoreShadow.extras(
+                            context,
+                            profileStore,
+                            dismissedSleep = repository.dismissedSleeps(deviceId).map { it.startTs to it.endTs },
+                            dismissedWorkouts = repository.dismissedDetectedUnion(deviceId).map { it.startTs to it.endTs },
+                            spo2CandidateDisplay = NoopPrefs.spo2CandidateDisplay(context)))
                     handler.postDelayed({
                         com.noop.core.CoreShadow.today()?.let { log("Core shadow analysis: $it") }
                     }, 120_000)

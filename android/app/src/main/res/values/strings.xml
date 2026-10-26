@@ -3071,4 +3071,21 @@
     <string name="forge_settings_card_transparency">Card transparency</string>
     <string name="forge_settings_card_transparency_detail">How see-through the cards (Heart Rate, Key Metrics, Recovery Vitals, …) are. Left = solid, right = clear.</string>
     <string name="forge_sp_on">On</string>
+    <string name="forge_lab_ageless">AgeLess</string>
+    <string name="forge_lab_ageless_detail">Beta. An age from nine measures of sleep, activity and fitness over six months, with the steps that would help most. Needs 30 nights. A motivation tool, not a medical age.</string>
+    <string name="forge_lab_rhythm">Daily rhythm</string>
+    <string name="forge_lab_rhythm_detail">WHOOP 5.0 and MG. How your day moves over a week, compared with a large study, as a rhythm age. Needs three days worn day and night. Beta, not a medical age.</string>
+    <string name="forge_more_analysis">Analysis</string>
+    <string name="forge_more_analysis_sub">Patterns, goals, journaling and your coach</string>
+    <string name="forge_more_health_body">Health &amp; Body</string>
+    <string name="forge_more_health_body_sub">Training, body, energy and health signals</string>
+    <string name="forge_more_tools">Tools</string>
+    <string name="forge_more_tools_sub">Live heart rate, breathing and intervals</string>
+    <string name="forge_more_search">Search</string>
+    <string name="forge_more_no_results">No matches</string>
+    <string name="forge_more_insights">Insights</string>
+    <string name="forge_more_scoring">How Scoring Works</string>
+    <string name="forge_more_journal">Journal</string>
+    <string name="forge_more_biomarkers">Biomarkers</string>
+    <string name="forge_more_beat_rhythm">Beat Rhythm</string>
 </resources>

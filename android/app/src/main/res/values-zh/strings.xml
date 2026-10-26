@@ -3012,4 +3012,21 @@
     <string name="forge_settings_card_transparency">卡片透明度</string>
     <string name="forge_settings_card_transparency_detail">卡片（心率、关键指标、恢复数据、…）的透明程度。左 = 不透明，右 = 透明。</string>
     <string name="forge_sp_on">开</string>
+    <string name="forge_lab_ageless">AgeLess</string>
+    <string name="forge_lab_ageless_detail">测试版。根据六个月内睡眠、活动和体能的九项指标得出的年龄，并给出最有帮助的改进步骤。需要 30 晚数据。这是激励工具，不是医学年龄。</string>
+    <string name="forge_lab_rhythm">日节律</string>
+    <string name="forge_lab_rhythm_detail">WHOOP 5.0 和 MG。你一周内日常活动的变化，与大型研究对比，得出节律年龄。需要连续三天昼夜佩戴。测试版，不是医学年龄。</string>
+    <string name="forge_more_analysis">分析</string>
+    <string name="forge_more_analysis_sub">规律、目标、日记和你的教练</string>
+    <string name="forge_more_health_body">健康与身体</string>
+    <string name="forge_more_health_body_sub">训练、身体、能量和健康信号</string>
+    <string name="forge_more_tools">工具</string>
+    <string name="forge_more_tools_sub">实时心率、呼吸和间歇</string>
+    <string name="forge_more_search">搜索</string>
+    <string name="forge_more_no_results">没有匹配结果</string>
+    <string name="forge_more_insights">洞察</string>
+    <string name="forge_more_scoring">评分原理</string>
+    <string name="forge_more_journal">日记</string>
+    <string name="forge_more_biomarkers">生物标志物</string>
+    <string name="forge_more_beat_rhythm">心跳节律</string>
 </resources>

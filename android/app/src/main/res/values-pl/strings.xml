@@ -3058,4 +3058,21 @@
     <string name="forge_settings_card_transparency">Przejrzystość karty</string>
     <string name="forge_settings_card_transparency_detail">Jak przejrzyste są karty (tętno, kluczowe wskaźniki, parametry Regeneracja,…). Lewy = stały, prawy = czysty.</string>
     <string name="forge_sp_on">Włączone</string>
+    <string name="forge_lab_ageless">AgeLess</string>
+    <string name="forge_lab_ageless_detail">Beta. Wiek na podstawie dziewięciu miar snu, aktywności i kondycji z sześciu miesięcy, z krokami, które pomogłyby najbardziej. Wymaga 30 nocy. Narzędzie motywacyjne, nie wiek medyczny.</string>
+    <string name="forge_lab_rhythm">Rytm dobowy</string>
+    <string name="forge_lab_rhythm_detail">WHOOP 5.0 i MG. Jak porusza się Twój dzień w ciągu tygodnia, w porównaniu z dużym badaniem, jako wiek rytmu. Wymaga trzech dni noszenia w dzień i w nocy. Beta, nie wiek medyczny.</string>
+    <string name="forge_more_analysis">Analiza</string>
+    <string name="forge_more_analysis_sub">Wzorce, cele, dziennik i Twój coach</string>
+    <string name="forge_more_health_body">Zdrowie i ciało</string>
+    <string name="forge_more_health_body_sub">Trening, ciało, energia i sygnały zdrowia</string>
+    <string name="forge_more_tools">Narzędzia</string>
+    <string name="forge_more_tools_sub">Tętno na żywo, oddech i interwały</string>
+    <string name="forge_more_search">Szukaj</string>
+    <string name="forge_more_no_results">Brak wyników</string>
+    <string name="forge_more_insights">Insights</string>
+    <string name="forge_more_scoring">Jak działają wyniki</string>
+    <string name="forge_more_journal">Dziennik</string>
+    <string name="forge_more_biomarkers">Biomarkery</string>
+    <string name="forge_more_beat_rhythm">Rytm serca</string>
 </resources>

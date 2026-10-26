@@ -2,6 +2,8 @@ package com.noop.core
 
 import android.content.Context
 import android.util.Log
+import com.noop.analytics.Baselines
+import com.noop.ui.NoopPrefs
 import java.io.File
 
 /**
@@ -49,15 +51,40 @@ object CoreShadow {
     /**
      * Runs the core's daily pass on its own store after the frames queued so far, with the wearer's analysis choices
      * as the Apple app passes its own (`AppAnalysisHost`): the Effort model, the sleep stager, the wake check, the
-     * nightly HRV window and the day start. Until 2026-10-26 the core hard-wired Banister Effort and the V1 stager
-     * here, so an untouched install scored differently from an untouched iPhone.
+     * nightly HRV window, the day start and the two Lab passes ([CoreFeatures]). Until 2026-10-26 the core
+     * hard-wired Banister Effort and the V1 stager here, so an untouched install scored differently from an
+     * untouched iPhone.
      */
     fun analyze(age: Int, sex: String, weightKg: Double, heightCm: Double, hrMaxOverride: Int,
                 effortBanister: Boolean, sleepStagerV2: Boolean, motionAwareWake: Boolean, deepHrvWindow: Boolean,
-                dayCycleMode: String) {
+                dayCycleMode: String, healthspan: Boolean, rhythmAge: Boolean, extras: String) {
         if (started) SwiftCore.shadowAnalyze(age, sex, weightKg, heightCm, hrMaxOverride, effortBanister,
-                                             sleepStagerV2, motionAwareWake, deepHrvWindow, dayCycleMode)
+                                             sleepStagerV2, motionAwareWake, deepHrvWindow, dayCycleMode,
+                                             healthspan, rhythmAge, extras)
     }
+
+    /**
+     * The further choices the core's pass reads (`CoreAnalysis.applyExtras`): the deleted nights and detected
+     * workouts as "start:end" tokens, the waist, the step estimate's calibration, baseline anchors and the Lab's
+     * SpO₂ estimate. Android has no Energy Plan yet, so its fitness inputs keep the untouched Apple defaults.
+     */
+    fun extras(context: Context, profile: com.noop.ui.ProfileStore, dismissedSleep: List<Pair<Long, Long>>,
+               dismissedWorkouts: List<Pair<Long, Long>>, spo2CandidateDisplay: Boolean): String =
+        org.json.JSONObject().apply {
+            put("spo2CandidateDisplay", spo2CandidateDisplay)
+            put("hrvBaselineEpoch", NoopPrefs.of(context).getLong(Baselines.hrvBaselineEpochKey, 0L).toDouble())
+            put("recoveryBaselineEpoch", NoopPrefs.of(context).getLong(Baselines.recoveryBaselineEpochKey, 0L).toDouble())
+            put("dismissedSleep", org.json.JSONArray(dismissedSleep.map { "${it.first}:${it.second}" }))
+            put("dismissedWorkouts", org.json.JSONArray(dismissedWorkouts.map { "${it.first}:${it.second}" }))
+            put("waistCm", profile.waistCm)
+            put("stepTicksPerStep", profile.stepTicksPerStep)
+            put("stepsManualCoefficient", profile.stepsManualCoefficient)
+            put("stepsCalibrationCoefficient", profile.stepsCalibrationCoefficient)
+            put("stepsCalibrationSampleDays", profile.stepsCalibrationSampleDays)
+            put("stepsCalibrationConfidence", profile.stepsCalibrationConfidence)
+            put("stepsCalibrationManual", profile.stepsCalibrationManual)
+            put("stepsHasBankedMotion", profile.stepsHasBankedMotion)
+        }.toString()
 
     /** Today's scores from the core's last pass, as one line; null before one finished. */
     fun today(): String? = if (started) SwiftCore.shadowToday() else null

@@ -2203,41 +2203,13 @@ final class Repository: ObservableObject {
     /// multi-hour window is tens of thousands of samples, which would otherwise freeze the UI.
     private func restageFromRaw(start: Int, end: Int) async -> String? {
         guard let store = await ensureStore() else { return nil }
-        let lo = start - 3_600, hi = end + 3_600
-        let grav = (try? await store.gravitySamples(deviceId: deviceId, from: lo, to: hi, limit: Int.max)) ?? []
-        let inWindowGravity = grav.lazy.filter { $0.ts >= start && $0.ts <= end }.count
-        let windowSeconds = max(1, end - start)
-        guard inWindowGravity >= max(20, windowSeconds / 120) else { return nil }
-        let hr = (try? await store.hrSamples(deviceId: deviceId, from: lo, to: hi, limit: Int.max)) ?? []
-        let rr = (try? await store.rrIntervals(deviceId: deviceId, from: lo, to: hi, limit: Int.max)) ?? []
-        // Same provenance refusal as the nightly scan (`IntelligenceEngine`): an Oura ring's respiration
-        // rows are its own per-window RATE stored as instrumentation, not the ~1 Hz raw ADC waveform this
-        // stager reads, so they never reach a re-stage either. See `OuraRespScale.forScoring`.
-        let resp = OuraRespScale.forScoring(
-            (try? await store.respSamples(deviceId: deviceId, from: lo, to: hi, limit: Int.max)) ?? [],
-            deviceId: deviceId)
-        // Read only when the refinement below might actually use it (see `useMotionAwareWake`) — a plain
-        // read cost, but no point paying it on the (default) off path.
-        let useMotionAwareWake = PuffinExperiment.motionAwareWakeEnabled
-        let steps = useMotionAwareWake
-            ? ((try? await store.stepSamples(deviceId: deviceId, from: lo, to: hi, limit: Int.max)) ?? [])
-            : []
-        // Which staging engine re-stages this window (Settings → Experimental · Sleep staging). The flag is
-        // **default ON** (#277 promoted V2 over V1; #351 extended it to every strap family), so unless the
-        // user has explicitly turned it OFF this re-stages with the cardiorespiratory recipe `SleepStagerV2`;
-        // turning it off falls back to V1 `SleepStager`. Read once here off the actor; the switch is purely
-        // which engine runs over the already-detected window — detection is identical either way.
-        // (V7 Pillar 3b)
-        let useV2 = PuffinExperiment.experimentalSleepV2Enabled
-        let segs = await Task.detached(priority: .utility) {
-            let staged = useV2
-                ? SleepStagerV2.stageSession(start: start, end: end, grav: grav, hr: hr, rr: rr, resp: resp)
-                : SleepStager.stageSession(start: start, end: end, grav: grav, hr: hr, rr: rr, resp: resp)
-            // #364 follow-up: motion-aware wake refinement post-pass, same toggle-shaped no-op when off
-            // as every other Experimental switch here.
-            return WakeMotionRefinement.apply(staged, grav: grav, steps: steps, enabled: useMotionAwareWake)
-        }.value
-        return AnalyticsEngine.encodeStages(segs)
+        return await EditedSleepHeal.restage(store: store, deviceId: deviceId, start: start, end: end,
+                                             staging: Self.currentStaging)
+    }
+
+    /// The Lab staging switches as `EditedSleepHeal` takes them.
+    private static var currentStaging: EditedSleepHeal.Staging {
+        .init(sleepV2: PuffinExperiment.experimentalSleepV2Enabled, motionAwareWake: PuffinExperiment.motionAwareWakeEnabled)
     }
 
     /// Self-heal pass for the edit-races-sync bug. A night edited BEFORE the strap sync imported its raw
@@ -2259,41 +2231,18 @@ final class Repository: ObservableObject {
                               unchangedDays: Set<String> = [],
                               tzOffsetSeconds: Int = 0) async -> [CachedSleepSession] {
         guard let store = await ensureStore() else { return [] }
-        func editedRows() async -> [CachedSleepSession] {
-            ((try? await store.sleepSessions(deviceId: computedDeviceId, from: windowStart,
-                                             to: windowEnd, limit: 100_000)) ?? [])
-                .filter { $0.userEdited }
-        }
-        let edited = await editedRows()
-        guard !edited.isEmpty else { return [] }
-        // The staging toggles change what `restageFromRaw` produces without changing any day's
-        // fingerprint, so a change since the last heal re-stages every edited night once, as before.
-        let stagerSignature = Self.selfHealStagerSignature(
-            sleepV2: PuffinExperiment.experimentalSleepV2Enabled,
-            motionAwareWake: PuffinExperiment.motionAwareWakeEnabled)
-        let stagerChanged = UserDefaults.standard.string(forKey: Self.selfHealStagerSignatureKey)
-            != stagerSignature
-        var healed = false
-        for row in edited where Self.needsSelfHeal(effectiveStartTs: row.effectiveStartTs, endTs: row.endTs,
-                                                   unchangedDays: stagerChanged ? [] : unchangedDays,
-                                                   tzOffsetSeconds: tzOffsetSeconds) {
-            // Re-derive over the LOCKED corrected window (effective onset → wake). Skip when the raw
-            // isn't dense yet, or when the result already matches what's stored (steady state , no write).
-            guard let newJSON = await restageFromRaw(start: row.effectiveStartTs, end: row.endTs),
-                  newJSON != row.stagesJSON else { continue }
-            let n = (try? await store.updateSleepStages(deviceId: computedDeviceId,
-                                                        detectedStartTs: row.startTs,
-                                                        stagesJSON: newJSON)) ?? 0
-            if n > 0 { healed = true }
-        }
-        UserDefaults.standard.set(stagerSignature, forKey: Self.selfHealStagerSignatureKey)
-        return healed ? await editedRows() : edited
+        // Shared with Android (`EditedSleepHeal`); the staging signature stays in UserDefaults here.
+        return await EditedSleepHeal.heal(
+            store: store, strapId: deviceId, computedId: computedDeviceId, from: windowStart, to: windowEnd,
+            unchangedDays: unchangedDays, tzOffsetSeconds: tzOffsetSeconds, staging: Self.currentStaging,
+            lastSignature: UserDefaults.standard.string(forKey: Self.selfHealStagerSignatureKey),
+            saveSignature: { UserDefaults.standard.set($0, forKey: Self.selfHealStagerSignatureKey) })
     }
 
     static let selfHealStagerSignatureKey = "analysis.selfHeal.stagerSignature"
 
     nonisolated static func selfHealStagerSignature(sleepV2: Bool, motionAwareWake: Bool) -> String {
-        "sleepV2=\(sleepV2 ? 1 : 0)|motionAwareWake=\(motionAwareWake ? 1 : 0)"
+        EditedSleepHeal.Staging(sleepV2: sleepV2, motionAwareWake: motionAwareWake).signature
     }
 
     /// Whether an edited night must be re-staged this pass. A night belongs to the day it ENDS on, the
@@ -2302,10 +2251,8 @@ final class Repository: ObservableObject {
     /// midnight), since the fingerprint vouches for nothing older than that window.
     nonisolated static func needsSelfHeal(effectiveStartTs: Int, endTs: Int, unchangedDays: Set<String>,
                                           tzOffsetSeconds: Int) -> Bool {
-        let day = AnalyticsEngine.dayString(endTs, offsetSec: tzOffsetSeconds)
-        guard unchangedDays.contains(day) else { return true }
-        let dayStart = IntelligenceEngine.midnightLocal(endTs, offsetSec: tzOffsetSeconds)
-        return effectiveStartTs < dayStart - StreamReadCap.lookbackSeconds
+        EditedSleepHeal.needsHeal(effectiveStartTs: effectiveStartTs, endTs: endTs, unchangedDays: unchangedDays,
+                                  tzOffsetSeconds: tzOffsetSeconds)
     }
 
     // MARK: - Metric explorer reads (generic substrate)

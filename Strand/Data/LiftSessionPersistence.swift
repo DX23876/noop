@@ -13,6 +13,15 @@ import WhoopStore
 // survives suspension, timezone changes and a relaunch, and it is the only anchor that keeps a rest
 // countdown honest.
 
+/// Numbers entered for a set before it happens. Shared by the durable snapshot and the live Apple controller.
+struct LiftPendingSetValues: Equatable {
+    var weightKg: Double?
+    var reps: Int?
+    var rpe: Double?
+
+    var isEmpty: Bool { weightKg == nil && reps == nil && rpe == nil }
+}
+
 enum LiftSessionPersistence {
 
     /// The durable shape of an in-flight session — the minimum needed to rebuild the engine and still
@@ -137,7 +146,7 @@ enum LiftSessionPersistence {
     static func snapshot(engine: LiftSessionEngine,
                          programId: String?,
                          programName: String?,
-                         pendingValues: [LiftSlot: LiftSessionController.PendingSetValues],
+                         pendingValues: [LiftSlot: LiftPendingSetValues],
                          pendingWarmups: Set<LiftSlot>) -> Snapshot {
         Snapshot(
             startSec: engine.startTs,
@@ -180,11 +189,11 @@ enum LiftSessionPersistence {
     }
 
     /// The numbers typed in advance, back as the controller holds them.
-    static func pendingValues(from s: Snapshot) -> [LiftSlot: LiftSessionController.PendingSetValues] {
-        var out: [LiftSlot: LiftSessionController.PendingSetValues] = [:]
+    static func pendingValues(from s: Snapshot) -> [LiftSlot: LiftPendingSetValues] {
+        var out: [LiftSlot: LiftPendingSetValues] = [:]
         for p in s.pendingValues ?? [] {
             out[LiftSlot(exerciseIndex: p.exerciseIndex, setIndex: p.setIndex)] =
-                LiftSessionController.PendingSetValues(weightKg: p.weightKg, reps: p.reps, rpe: p.rpe)
+                LiftPendingSetValues(weightKg: p.weightKg, reps: p.reps, rpe: p.rpe)
         }
         return out
     }

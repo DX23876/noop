@@ -58,7 +58,8 @@ object SwiftCore {
     external fun shadowTally(): String?
     external fun shadowAnalyze(age: Int, sex: String, weightKg: Double, heightCm: Double, hrMaxOverride: Int,
                                effortBanister: Boolean, sleepStagerV2: Boolean, motionAwareWake: Boolean,
-                               deepHrvWindow: Boolean, dayCycleMode: String?)
+                               deepHrvWindow: Boolean, dayCycleMode: String?, healthspan: Boolean,
+                               rhythmAge: Boolean, extras: String?)
     external fun shadowToday(): String?
     /** Waits up to [timeoutMs] for the core to have banked the history chunk ending in [endData]. */
     external fun shadowAwaitBanked(endData: ByteArray, timeoutMs: Long): Boolean

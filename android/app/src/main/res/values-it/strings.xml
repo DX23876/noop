@@ -3010,4 +3010,21 @@
     <string name="forge_settings_card_transparency">Trasparenza delle schede</string>
     <string name="forge_settings_card_transparency_detail">Quanto sono trasparenti le schede (Frequenza cardiaca, Metriche chiave, Dati di recupero, …). Sinistra = opaco, destra = trasparente.</string>
     <string name="forge_sp_on">Attivo</string>
+    <string name="forge_lab_ageless">AgeLess</string>
+    <string name="forge_lab_ageless_detail">Beta. Un’età da nove misure di sonno, attività e forma fisica su sei mesi, con i passi che aiuterebbero di più. Servono 30 notti. Uno strumento motivazionale, non un’età medica.</string>
+    <string name="forge_lab_rhythm">Ritmo giornaliero</string>
+    <string name="forge_lab_rhythm_detail">WHOOP 5.0 e MG. Come si muove la tua giornata in una settimana, confrontata con un grande studio, come età del ritmo. Servono tre giorni indossato giorno e notte. Beta, non un’età medica.</string>
+    <string name="forge_more_analysis">Analisi</string>
+    <string name="forge_more_analysis_sub">Schemi, obiettivi, diario e il tuo coach</string>
+    <string name="forge_more_health_body">Salute e corpo</string>
+    <string name="forge_more_health_body_sub">Allenamento, corpo, energia e segnali di salute</string>
+    <string name="forge_more_tools">Strumenti</string>
+    <string name="forge_more_tools_sub">Frequenza cardiaca dal vivo, respirazione e intervalli</string>
+    <string name="forge_more_search">Cerca</string>
+    <string name="forge_more_no_results">Nessun risultato</string>
+    <string name="forge_more_insights">Insights</string>
+    <string name="forge_more_scoring">Come funzionano i punteggi</string>
+    <string name="forge_more_journal">Diario</string>
+    <string name="forge_more_biomarkers">Biomarcatori</string>
+    <string name="forge_more_beat_rhythm">Ritmo cardiaco</string>
 </resources>

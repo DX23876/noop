@@ -1,18 +1,19 @@
 # Android on a shared Swift core: status
 
-Plan: [`PLAN.md`](PLAN.md) · last updated 2026-10-25
+Plan: [`PLAN.md`](PLAN.md) · parity continuation: [`PARITY-PLAN.md`](PARITY-PLAN.md) · last updated 2026-10-26
 
 ## In progress
 
 | Step | Who | Since | Note |
 |---|---|---|---|
-| (free) | | | |
+| Parity 1.2: training core, first part | 2026-10-26 | Fifteen existing app source files compile in `NoopCoreJNI`; `CoreTraining` exposes the catalog, plan, workouts and strength history, with a JSON round-trip test for a routine and a finished workout. The Android Swift library and Kotlin app compile; 6,581 Android JVM tests ran (6 skipped, 0 failed). The Android Training tab and the rest of 1.2 remain open. |
 
 ## Done
 
 | Step | Date | Evidence |
 |---|---|---|
 | Decisions D1 to D21, plan written | 2026-10-24 | `PLAN.md` section 1, `decisions.md` entry of 2026-10-24 |
+| Parity 1.1: Android daily-analysis inputs | 2026-10-26 | Edited-sleep heal and energy corrections moved into `StrandCore` with the Apple repository delegating to them. The Android core pass now receives dismissed sleep and workout spans, workout heart-rate fills, training sessions and cardio loads, AgeLess long sessions, profile and step calibration, Lab switches and baseline anchors. On the owner's iPhone store, the freshly re-analysed Apple and core copies had **0 differing values among 4,278** in `RealDataLabPassTests` and **0 differing tables among 78** in `compare_analysis_snapshots.py` (write-time columns excluded). The `Strand` macOS and `NOOPiOS` simulator builds passed. Analysis migration required: no; the stored output is identical. |
 | A1 toolchain | 2026-10-24 | Swift 6.4.1 + SDK `swift-6.4.1-RELEASE_android` + NDK r30; hello world runs as arm64 ELF |
 | A2 pure packages | 2026-10-24 | `WhoopProtocol`, `StrandTraining`, `OuraProtocol`, `PolarProtocol` build for Android unchanged |
 | A3 storage | 2026-10-24 | `WhoopStore` suite on an arm64 emulator: 849 tests, 0 failures, 1 skip |

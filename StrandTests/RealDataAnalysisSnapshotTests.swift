@@ -10,6 +10,9 @@ import StrandCore
 /// Skipped unless both `NOOP_ANALYSIS_DB` (the store to copy) and `NOOP_ANALYSIS_OUT` (where the analysed
 /// copy goes) are set; pass them to xcodebuild as `TEST_RUNNER_NOOP_ANALYSIS_DB=…` and
 /// `TEST_RUNNER_NOOP_ANALYSIS_OUT=…`. `NOOP_ANALYSIS_DAYS` widens the window from the standard 21 days.
+/// `NOOP_ANALYSIS_PREFS` names a preferences plist (the iPhone's) whose values are laid over the test host's
+/// defaults for the run, so the pass prices with the wearer's profile and choices; the Android parity check
+/// (`RealDataLabPassTests` in NoopCoreJNI) takes the same values, and its output compares against this one.
 /// The source is copied first and never opened, and no personal data lives in the repository. The engine
 /// reads the wall clock, so both runs belong on the same day; compare with
 /// `--ignore-column '*.computedAtTs' --ignore-column '*.updatedAtTs'`, the times rows were written.
@@ -22,6 +25,19 @@ final class RealDataAnalysisSnapshotTests: XCTestCase {
             throw XCTSkip("Set TEST_RUNNER_NOOP_ANALYSIS_DB and TEST_RUNNER_NOOP_ANALYSIS_OUT to run this")
         }
         BenchDefaultsGuard.preserve(in: self)
+        if let prefs = env["NOOP_ANALYSIS_PREFS"], !prefs.isEmpty,
+           let values = NSDictionary(contentsOfFile: prefs) as? [String: Any] {
+            // Only the wearer's values: the test host's own leftovers (a day-cycle mode, a Lab switch) would
+            // otherwise price alongside them. BenchDefaultsGuard puts the host's domain back afterwards.
+            let defaults = UserDefaults.standard
+            if let bundle = Bundle.main.bundleIdentifier {
+                for key in (defaults.persistentDomain(forName: bundle) ?? [:]).keys { defaults.removeObject(forKey: key) }
+                defaults.removePersistentDomain(forName: bundle)
+            }
+            for (key, value) in values { defaults.set(value, forKey: key) }
+            defaults.synchronize()
+            print("NOOP_ANALYSIS_PREFS applied: \(values.count) values, profile.sex=\(defaults.string(forKey: "profile.sex") ?? "-")")
+        }
         let days = env["NOOP_ANALYSIS_DAYS"].flatMap(Int.init) ?? 21
         let files = FileManager.default
         for suffix in ["", "-wal", "-shm"] {
@@ -33,7 +49,10 @@ final class RealDataAnalysisSnapshotTests: XCTestCase {
         let store = try await WhoopStore(path: output)
         let repo = Repository(deviceId: "my-whoop")
         repo.setStoreForTesting(store)
-        let engine = IntelligenceEngine(repo: repo, profile: ProfileStore(), deviceId: "my-whoop")
+        // As `AppModel` does at launch: the workout and cardio pricing read the wearer's maximum and sex from here.
+        let profile = ProfileStore()
+        repo.strainProfile = Repository.StrainProfile(hrMax: Double(profile.hrMax), sex: profile.sex)
+        let engine = IntelligenceEngine(repo: repo, profile: profile, deviceId: "my-whoop")
         await engine.analyzeRecent(maxDays: days, force: true, allowDayReuse: false)
         // The pass ends with a dashboard refresh that schedules the readiness lanes in the background, and
         // those price cardio loads into the ledger. Run them to completion here, so both builds' copies hold

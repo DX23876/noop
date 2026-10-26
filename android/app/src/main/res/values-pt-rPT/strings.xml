@@ -3034,4 +3034,21 @@
     <string name="forge_settings_card_transparency">Transparência do cartão</string>
     <string name="forge_settings_card_transparency_detail">Quão transparentes são os cartões (frequência cardíaca, métricas principais, sinais vitais de recuperação,…). Esquerda = sólida, direita = clara.</string>
     <string name="forge_sp_on">Ativado</string>
+    <string name="forge_lab_ageless">AgeLess</string>
+    <string name="forge_lab_ageless_detail">Beta. Uma idade a partir de nove medidas de sono, atividade e forma física ao longo de seis meses, com os passos que mais ajudariam. Precisa de 30 noites. Uma ferramenta de motivação, não uma idade médica.</string>
+    <string name="forge_lab_rhythm">Ritmo diário</string>
+    <string name="forge_lab_rhythm_detail">WHOOP 5.0 e MG. Como o teu dia se move ao longo de uma semana, comparado com um grande estudo, como idade do ritmo. Precisa de três dias de uso dia e noite. Beta, não uma idade médica.</string>
+    <string name="forge_more_analysis">Análise</string>
+    <string name="forge_more_analysis_sub">Padrões, objetivos, diário e o teu coach</string>
+    <string name="forge_more_health_body">Saúde e corpo</string>
+    <string name="forge_more_health_body_sub">Treino, corpo, energia e sinais de saúde</string>
+    <string name="forge_more_tools">Ferramentas</string>
+    <string name="forge_more_tools_sub">Frequência cardíaca ao vivo, respiração e intervalos</string>
+    <string name="forge_more_search">Pesquisar</string>
+    <string name="forge_more_no_results">Sem resultados</string>
+    <string name="forge_more_insights">Insights</string>
+    <string name="forge_more_scoring">Como funcionam as pontuações</string>
+    <string name="forge_more_journal">Diário</string>
+    <string name="forge_more_biomarkers">Biomarcadores</string>
+    <string name="forge_more_beat_rhythm">Ritmo cardíaco</string>
 </resources>

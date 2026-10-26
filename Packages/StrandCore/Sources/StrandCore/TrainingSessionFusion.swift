@@ -210,3 +210,8 @@ extension TrainingSessionResolver {
         return result
     }
 }
+
+/// The span every whole-history training read covers: twenty years, so no session a wearer kept is left out.
+public enum TrainingHistoryWindow {
+    public static let allDays = 20 * 365 + 5
+}

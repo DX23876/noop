@@ -3055,4 +3055,21 @@
     <string name="forge_settings_card_transparency">Kartentransparenz</string>
     <string name="forge_settings_card_transparency_detail">Wie durchsichtig die Karten (Herzfrequenz, Kernmetriken, Erholungswerte, …) sind. Links = deckend, rechts = durchsichtig.</string>
     <string name="forge_sp_on">An</string>
+    <string name="forge_lab_ageless">AgeLess</string>
+    <string name="forge_lab_ageless_detail">Beta. Ein Alter aus neun Messgrößen zu Schlaf, Aktivität und Fitness über sechs Monate, mit den Schritten, die am meisten helfen. Braucht 30 Nächte. Ein Motivationswerkzeug, kein medizinisches Alter.</string>
+    <string name="forge_lab_rhythm">Tagesrhythmus</string>
+    <string name="forge_lab_rhythm_detail">WHOOP 5.0 und MG. Wie sich dein Tag über eine Woche bewegt, verglichen mit einer großen Studie, als Rhythmus-Alter. Braucht drei Tage Tragen bei Tag und Nacht. Beta, kein medizinisches Alter.</string>
+    <string name="forge_more_analysis">Analyse</string>
+    <string name="forge_more_analysis_sub">Muster, Ziele, Journal und dein Coach</string>
+    <string name="forge_more_health_body">Gesundheit &amp; Körper</string>
+    <string name="forge_more_health_body_sub">Training, Körper, Energie und Gesundheitssignale</string>
+    <string name="forge_more_tools">Werkzeuge</string>
+    <string name="forge_more_tools_sub">Live-Herzfrequenz, Atmen und Intervalle</string>
+    <string name="forge_more_search">Suchen</string>
+    <string name="forge_more_no_results">Keine Treffer</string>
+    <string name="forge_more_insights">Insights</string>
+    <string name="forge_more_scoring">So funktionieren die Werte</string>
+    <string name="forge_more_journal">Journal</string>
+    <string name="forge_more_biomarkers">Biomarker</string>
+    <string name="forge_more_beat_rhythm">Herzrhythmus</string>
 </resources>

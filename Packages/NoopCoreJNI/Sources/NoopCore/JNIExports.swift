@@ -102,13 +102,17 @@ public func jniShadowResetTally(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jc
 public func jniShadowAnalyze(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?, _ age: jint, _ sex: jstring?,
                              _ weightKg: jdouble, _ heightCm: jdouble, _ hrMaxOverride: jint,
                              _ effortBanister: jboolean, _ sleepStagerV2: jboolean, _ motionAwareWake: jboolean,
-                             _ deepHrvWindow: jboolean, _ dayCycleMode: jstring?) {
+                             _ deepHrvWindow: jboolean, _ dayCycleMode: jstring?, _ healthspan: jboolean,
+                             _ rhythmAge: jboolean, _ extras: jstring?) {
     guard let env, let sex, let s = string(env, sex) else { return }
-    let settings = CoreAnalysis.Settings(effortBanister: effortBanister != 0, sleepStagerV2: sleepStagerV2 != 0,
+    var settings = CoreAnalysis.Settings(effortBanister: effortBanister != 0, sleepStagerV2: sleepStagerV2 != 0,
                                          motionAwareWake: motionAwareWake != 0, deepHrvWindow: deepHrvWindow != 0,
-                                         dayCycleMode: dayCycleMode.flatMap { string(env, $0) })
-    ShadowSession.send(.analyze(.init(age: Int(age), sex: s, weightKg: weightKg, heightCm: heightCm,
-                                      hrMaxOverride: Int(hrMaxOverride)), settings))
+                                         dayCycleMode: dayCycleMode.flatMap { string(env, $0) },
+                                         healthspan: healthspan != 0, rhythmAge: rhythmAge != 0)
+    var profile = CoreAnalysis.Profile(age: Int(age), sex: s, weightKg: weightKg, heightCm: heightCm,
+                                       hrMaxOverride: Int(hrMaxOverride))
+    if let extras, let json = string(env, extras) { CoreAnalysis.applyExtras(json, to: &settings, profile: &profile) }
+    ShadowSession.send(.analyze(profile, settings))
 }
 
 @_cdecl("Java_com_noop_core_SwiftCore_shadowToday")
@@ -182,5 +186,11 @@ public func jniShadowAwaitBanked(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: j
 public func jniReadHeartRate(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?, _ from: jlong, _ to: jlong) -> jstring? {
     guard let env else { return nil }
     return json(env, Bridge.readHeartRate(from: Int(from), to: Int(to)))
+}
+
+@_cdecl("Java_com_noop_core_SwiftCore_call")
+public func jniCall(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?, _ op: jstring?, _ args: jstring?) -> jstring? {
+    guard let env, let op, let args, let o = string(env, op), let a = string(env, args) else { return nil }
+    return json(env, Bridge.call(o, a))
 }
 #endif
