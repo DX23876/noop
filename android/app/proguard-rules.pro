@@ -4,8 +4,8 @@
 # Compose ships consumer rules, so this file is mostly empty by design. Add keeps
 # here only if a release build strips something the BLE/protocol layer needs at runtime.
 #
-# NOTE: release currently ships UNMINIFIED (build.gradle.kts) because R8 crashed it at
-# runtime even with broad keeps — so these rules are dormant until minify is re-enabled.
+# Fork (DX23876), Android plan D24: release is minified again (build.gradle.kts). The crash
+# that kept it off was lifecycle-runtime-compose 2.8.2 under R8, fixed by Lifecycle 2.8.3.
 
 # Keep Room-generated database implementation classes (Room embeds its own rules too,
 # but this is an explicit safety net for the *_Impl classes it generates).

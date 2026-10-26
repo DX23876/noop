@@ -130,6 +130,15 @@ jobs:
           echo "file=$RUNNER_TEMP/$OUT" >> "$GITHUB_OUTPUT"
           ls -l "$RUNNER_TEMP/$OUT"
 
+      # The release is minified (R8, Android plan D24): keep the mapping, so a tester's stack trace can be read back.
+      - name: Keep the R8 mapping
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: r8-mapping-${{ inputs.version }}
+          path: android/app/build/outputs/mapping/fullRelease/mapping.txt
+          retention-days: 90
+          if-no-files-found: error
+
       - name: Remove the key
         if: always()
         run: rm -f keystore.properties "$RUNNER_TEMP/release.p12"

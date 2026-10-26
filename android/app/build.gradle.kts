@@ -14,7 +14,7 @@ val keystoreProps = Properties().apply {
     if (keystorePropsFile.exists()) keystorePropsFile.inputStream().use { load(it) }
 }
 val isStagingRelease = project.hasProperty("stagingRelease")
-val forkMinify = (project.findProperty("noop.minify") as String?)?.toBoolean() == true
+val forkMinify = (project.findProperty("noop.minify") as String?)?.toBoolean() ?: true
 val requestedReleaseBuild = gradle.startParameter.taskNames.any {
     it.contains("Release", ignoreCase = true)
 }
@@ -70,16 +70,12 @@ android {
             versionNameSuffix = "-debug"
         }
         release {
-            // Shipped UNMINIFIED for reliability. R8 minification crashes this app at runtime: full-mode
-            // over-strips reflective paths, and even with full-mode OFF + broad keeps (com.noop.** +
-            // Tink/Worker/ViewModel) a minified build STILL died right after the terms gate on a real
-            // device — a library reflective path we couldn't pin without a device to trace. Offline app,
-            // a ~18 MB APK is fine. Re-enabling minify needs the exact crash trace + device verification.
-            // Fork (DX23876), Android plan D24: `-Pnoop.minify=true` turns R8 on for a trial build, so the size
-            // step can be measured and run on an emulator without changing what the release ships. Measured
-            // 2026-10-26: 57 MB down to 41 MB. On an emulator it still dies right after the terms gate with
-            // "CompositionLocal LocalLifecycleOwner not present": lifecycle-runtime-compose 2.8.2 beside Compose
-            // UI 1.6 under R8, which Lifecycle 2.8.3 addresses. That bump needs the dependency lock rewritten.
+            // Fork (DX23876), Android plan D24: R8 and resource shrinking are on, 57 MB down to 41 MB. Upstream
+            // shipped unminified because a minified build died right after the terms gate on a real device; the
+            // cause was "CompositionLocal LocalLifecycleOwner not present", lifecycle-runtime-compose 2.8.2 beside
+            // Compose UI 1.6 under R8, fixed by Lifecycle 2.8.3 (2026-10-26). With it the minified build went through
+            // terms, onboarding, every Forge screen, pairing, backup, the strap log and every classic screen on an
+            // emulator without a crash; real devices are the testers' (D9). `-Pnoop.minify=false` builds without it.
             isMinifyEnabled = forkMinify
             isShrinkResources = forkMinify
             proguardFiles(
@@ -352,9 +348,9 @@ dependencies {
     // --- Activity / lifecycle / navigation ---
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.activity:activity-compose:1.9.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.2")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.2")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.2") // collectAsStateWithLifecycle
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.3")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.3")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.3") // collectAsStateWithLifecycle
     implementation("androidx.navigation:navigation-compose:2.7.7")
 
     // --- Coroutines ---

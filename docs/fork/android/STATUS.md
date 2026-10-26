@@ -71,6 +71,7 @@ Plan: [`PLAN.md`](PLAN.md) · last updated 2026-10-25
 | D24 size, measured | 2026-10-26 | `-Pnoop.minify=true` builds the release with R8 for a trial: 57 MB down to 41 MB. On an emulator it dies after the terms gate with "CompositionLocal LocalLifecycleOwner not present" (lifecycle-runtime-compose 2.8.2 beside Compose UI 1.6 under R8). Lifecycle 2.8.3 addresses it, but the dependencies are locked in `app/gradle.lockfile`, so the bump was not made without the owner |
 | E-3 the hero's source | 2026-10-26 | The provider lookup and its naming rule moved into `StrandCore` as `ScoreProvenance` (the Apple screens call it); `CoreRead.day` carries the hero's labels and the Forge Today hero shows them in its top corner ("WHOOP" in the demo, which now seeds provenance as the analysis writes it). Three `ScoreProvenanceTests`. Also fixed: "Workout files" read Portuguese in the Polish, Italian, Russian and Chinese iOS catalogue |
 | Android privacy notes | 2026-10-26 | `docs/PRIVACY_SECURITY.md` §1.5 lists the Android app's network paths (the update check, daily by default and switchable; ryanbr's bring-your-own-key coach; the Experimental self-hosted push) and where its data rests; the Forge screens and the shared core make no network calls. Was a known deviation to close before a testing build |
+| D24 size step | 2026-10-26 | Lifecycle 2.8.2 to 2.8.3 (lock and checksums rewritten through Gradle; only the 20 Lifecycle artifacts changed), which fixes the R8 crash after the terms gate. Releases are minified again: 57 MB down to 41 MB. The minified build went through terms, onboarding, every Forge tab, pairing, export, the strap log and 27 classic screens (every More entry and Coach) on an emulator without a crash; `android-release.yml` keeps the R8 mapping as an artifact for 90 days. Real devices are the testers' (D9); `-Pnoop.minify=false` builds without R8. The ICU subset stays a later lever (15.7 MB) |
 
 ## Next step
 
@@ -85,9 +86,6 @@ is done (2026-10-25).
   screens and the live heart rate card are also unseen with a real strap.
 - **F3 and F4.** The first build to the existing testers, then the website note, the pinned issue and the Ko-fi
   mention; "Testing" goes after the D9 confirmations.
-- **Owner: the size step before the public call (D24).** The release APK is 57 MB; R8 makes it 41 MB once
-  Lifecycle goes to 2.8.3 or later, which rewrites the dependency lock (`./gradlew dependencies --write-locks`),
-  and a device confirms it. The other lever is an ICU data subset (15.7 MB of `lib_FoundationICU.so`).
 - **Open against the iOS look.** The profile and quick-action buttons in the Today header wait for the screens they
   open (profile, live session, workout, journal, goals), which D20 decides after the first testing build; SF Pro
   Rounded cannot ship outside Apple's platforms (Nunito stands in).
