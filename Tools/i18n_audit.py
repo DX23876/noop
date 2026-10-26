@@ -482,6 +482,17 @@ def scan_android() -> list[tuple[str, int, str]]:
 ANDROID_EXEMPT_KEYS = {"app_name"}  # brand name
 
 
+def android_translatable_base_keys(path: Path) -> set[str]:
+    """String and plural keys Android actually offers to locale resources."""
+    root = ET.parse(path).getroot()
+    return {
+        item.attrib["name"]
+        for item in root
+        if item.tag in {"string", "plurals"} and "name" in item.attrib
+        and item.attrib.get("translatable") != "false"
+    }
+
+
 def android_strings_xml_gaps() -> dict[str, set[str]]:
     """Keys present in the base values/strings.xml but missing from an
     existing values-<locale>/strings.xml. (Doesn't invent missing locale dirs —
@@ -493,7 +504,7 @@ def android_strings_xml_gaps() -> dict[str, set[str]]:
     # <plurals> count too: converting a hand-rolled singular/plural PAIR into one <plurals> would
     # otherwise DROP those keys out of this gate's view entirely, so a locale could silently lose them —
     # fixing the plural model must not open a coverage hole (see #540 for the same class of blind spot).
-    base_keys = set(re.findall(r'<(?:string|plurals) name="([^"]+)"', base_path.read_text(encoding="utf-8")))
+    base_keys = android_translatable_base_keys(base_path)
     gaps: dict[str, set[str]] = {}
     for lang in LANGS:
         locale_dir = ANDROID_LOCALE_DIRS[lang]
@@ -1362,7 +1373,7 @@ def ci_check(base_ref: str) -> int:
     # Extra (non-focus) Android locales — skipped in this fork, which has no android/ tree.
     if (ROOT / "android/app/src/main/res/values/strings.xml").is_file():
         base_path = ROOT / "android/app/src/main/res/values/strings.xml"
-        base_keys = set(re.findall(r'<(?:string|plurals) name="([^"]+)"', base_path.read_text(encoding="utf-8")))
+        base_keys = android_translatable_base_keys(base_path)
     for locale_dir in shipped_android_locale_dirs():
         if locale_dir in ANDROID_LOCALE_DIRS.values():
             continue   # already hard-gated above

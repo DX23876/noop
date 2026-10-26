@@ -50,8 +50,9 @@ class GermanLocalizationTest {
             while (event != XmlPullParser.END_DOCUMENT) {
                 if (event == XmlPullParser.START_TAG && parser.name == "string") {
                     val name = parser.getAttributeValue(null, "name")
+                    val translatable = parser.getAttributeValue(null, "translatable") != "false"
                     val value = parser.nextText()
-                    if (name != null) out[name] = value
+                    if (name != null && translatable) out[name] = value
                 }
                 event = parser.next()
             }

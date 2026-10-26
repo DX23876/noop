@@ -29,7 +29,7 @@ final class TrainingLoadCardioAxisTests: XCTestCase {
     }
 
     func testAMeasuredWindowIsPricedInTrimp() {
-        let result = TrainingLoadModel.cardioDailyLoad(
+        let result = TrainingLoadPreparation.cardioDailyLoad(
             sessions: [session("a", strain: 12)], loads: ["a": measured("a", trimp: 130)],
             duplicates: [], tzOffsetSeconds: 0)
         XCTAssertTrue(result.measured)
@@ -37,7 +37,7 @@ final class TrainingLoadCardioAxisTests: XCTestCase {
     }
 
     func testALibraryWithNoMeasuredTraceStaysUnknown() {
-        let result = TrainingLoadModel.cardioDailyLoad(
+        let result = TrainingLoadPreparation.cardioDailyLoad(
             sessions: [session("a", strain: 12),
                        session("b", start: Self.noon + 7_200, strain: 8)],
             loads: [:], duplicates: [], tzOffsetSeconds: 0)
@@ -51,7 +51,7 @@ final class TrainingLoadCardioAxisTests: XCTestCase {
     /// Once anything is measured the lane is on the TRIMP axis, and an unmeasured session is missing
     /// data rather than an easy one. Adding its stored Effort would total two different units.
     func testStoredEffortIsNeverAddedToMeasuredTrimp() {
-        let result = TrainingLoadModel.cardioDailyLoad(
+        let result = TrainingLoadPreparation.cardioDailyLoad(
             sessions: [session("a", strain: 12),
                        session("b", start: Self.noon + 7_200, strain: 8)],
             loads: ["a": measured("a", trimp: 130)], duplicates: [], tzOffsetSeconds: 0)
@@ -62,7 +62,7 @@ final class TrainingLoadCardioAxisTests: XCTestCase {
     /// A suspected duplicate stays visible until the wearer rules on it, but it describes minutes the
     /// other record already described — on the fallback axis too.
     func testADuplicateAwaitingReviewIsCountedOnce() {
-        let result = TrainingLoadModel.cardioDailyLoad(
+        let result = TrainingLoadPreparation.cardioDailyLoad(
             sessions: [session("a", strain: 12),
                        session("twin", start: Self.noon + 300, strain: 11)],
             loads: ["a": measured("a", trimp: 130)], duplicates: ["twin"], tzOffsetSeconds: 0)
@@ -72,7 +72,7 @@ final class TrainingLoadCardioAxisTests: XCTestCase {
     /// An hour of training that carries no usable figure adds nothing to the day — and says so, rather
     /// than letting the day pass for a rest day. The comparison then leaves that day out entirely.
     func testASessionWithNeitherFigureLeavesItsDayUnknown() {
-        let result = TrainingLoadModel.cardioDailyLoad(
+        let result = TrainingLoadPreparation.cardioDailyLoad(
             sessions: [session("a", strain: nil)], loads: [:], duplicates: [], tzOffsetSeconds: 0)
         XCTAssertFalse(result.measured)
         XCTAssertNil(result.byDay[day])
@@ -82,7 +82,7 @@ final class TrainingLoadCardioAxisTests: XCTestCase {
     /// A session too short to have been priced was never going to be measured, so its day is ordinary.
     /// Treating it as a gap would drop a normal day out of the wearer's baseline.
     func testASessionBelowThePricingThresholdDoesNotMakeItsDayUnknown() {
-        let result = TrainingLoadModel.cardioDailyLoad(
+        let result = TrainingLoadPreparation.cardioDailyLoad(
             sessions: [session("a", strain: nil, length: 300)],
             loads: [:], duplicates: [], tzOffsetSeconds: 0)
         XCTAssertTrue(result.unknownDays.isEmpty)
@@ -91,7 +91,7 @@ final class TrainingLoadCardioAxisTests: XCTestCase {
     /// The measured part remains visible as a lower bound, but the day cannot enter a comparison while
     /// another eligible session is unpriced.
     func testAPartiallyMeasuredDayIsALowerBoundAndStaysUnknown() {
-        let result = TrainingLoadModel.cardioDailyLoad(
+        let result = TrainingLoadPreparation.cardioDailyLoad(
             sessions: [session("a", strain: 12),
                        session("b", start: Self.noon + 7_200, strain: nil)],
             loads: ["a": measured("a", trimp: 130)], duplicates: [], tzOffsetSeconds: 0)
@@ -104,7 +104,7 @@ final class TrainingLoadCardioAxisTests: XCTestCase {
     /// A duplicate awaiting review is skipped on purpose, not for want of data. Counting it as a gap
     /// would let an unresolved twin erase a day the other record described perfectly well.
     func testADuplicateAwaitingReviewIsNotAGapInTheData() {
-        let result = TrainingLoadModel.cardioDailyLoad(
+        let result = TrainingLoadPreparation.cardioDailyLoad(
             sessions: [session("a", strain: 12),
                        session("twin", start: Self.noon + 300, strain: nil)],
             loads: ["a": measured("a", trimp: 130)], duplicates: ["twin"], tzOffsetSeconds: 0)

@@ -116,7 +116,7 @@ final class TrainingLoadLanesTests: XCTestCase {
     }
 
     static func prepared(_ fixture: Fixture) -> TrainingLoadModel.Prepared {
-        TrainingLoadModel.prepare(strengthHistory: fixture.strength, unified: fixture.sessions,
+        TrainingLoadPreparation.prepare(strengthHistory: fixture.strength, unified: fixture.sessions,
                                   cardioResolution: fixture.cardio, rpeEntries: fixture.ratings,
                                   dailyRows: [], vo2Estimates: [], today: today, now: now, offset: 0)
     }

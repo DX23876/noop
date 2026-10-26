@@ -37,6 +37,7 @@ import androidx.compose.material.icons.rounded.FitnessCenter
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -78,6 +79,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.noop.R
+import com.noop.NoopApplication
 import com.noop.analytics.Sport
 import com.noop.analytics.WorkoutSport
 import com.noop.core.CoreRead
@@ -105,6 +107,12 @@ import java.util.Locale
 private suspend fun <T> core(context: android.content.Context, block: () -> T): T =
     withContext(Dispatchers.IO) { CoreRead.open(context); block() }
 
+/** The same active-strap dismissal spans supplied to the daily core pass. */
+internal suspend fun dismissedTrainingWorkouts(context: android.content.Context): List<String> {
+    val app = context.applicationContext as NoopApplication
+    return app.repository.dismissedDetectedUnion(app.activeDeviceId).map { "${it.startTs}:${it.endTs}" }
+}
+
 /** What the Training tab has open over itself; one page at a time, as the Forge overlay host holds one. */
 private sealed interface TrainingPage {
     data object Session : TrainingPage
@@ -113,6 +121,7 @@ private sealed interface TrainingPage {
     data object Starters : TrainingPage
     data class Detail(val session: CoreTraining.Session) : TrainingPage
     data object Muscles : TrainingPage
+    data object Load : TrainingPage
 }
 
 /** Activities offered before the wearer's own recents fill the list (`WorkoutQuickStart.starterNames`). */
@@ -140,7 +149,10 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
     var showAll by remember { mutableStateOf(false) }
     var configuring by remember { mutableStateOf<Sport?>(null) }
     val activeWorkout by viewModel.activeWorkout.collectAsStateWithLifecycle()
-    LaunchedEffect(revision) { snapshot = core(context) { CoreTraining.snapshot() } }
+    LaunchedEffect(revision) {
+        val dismissed = withContext(Dispatchers.IO) { dismissedTrainingWorkouts(context) }
+        snapshot = core(context) { CoreTraining.snapshot(dismissed) }
+    }
     fun reload() { revision++ }
     fun start(routineIds: List<String>) = scope.launch {
         core(context) { CoreTraining.startDraft(routineIds) }
@@ -260,6 +272,13 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
                 }
             }
         }
+
+        Section(stringResource(R.string.forge_th_understand), stringResource(R.string.forge_th_noop_analysis)) {
+            ForgeCard(Modifier.fillMaxWidth(), contentPadding = 0.dp) {
+                AnalysisRow(stringResource(R.string.forge_th_load_title), stringResource(R.string.forge_th_load_detail),
+                            Icons.Rounded.Speed) { page = TrainingPage.Load }
+            }
+        }
         Spacer(Modifier.height(ForgeMetrics.space4))
     }
 
@@ -274,6 +293,7 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
                     TrainingPage.Starters -> StarterPlans(onClose = close)
                     is TrainingPage.Detail -> SessionDetail(open.session, onClose = close)
                     TrainingPage.Muscles -> s?.let { MuscleAnalyticsPage(it.muscles, onClose = close) }
+                    TrainingPage.Load -> ForgeTrainingLoadPage(onClose = close)
                 }
             }
         }
@@ -360,6 +380,23 @@ private fun TintButton(label: String, icon: ImageVector? = null, onClick: () -> 
             Spacer(Modifier.width(ForgeMetrics.space1))
         }
         Text(label, style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = Forge.colors.charge)
+    }
+}
+
+/** One analysis destination (`analysisRow`): a cyan glyph, its title and what it covers, a chevron. */
+@Composable
+private fun AnalysisRow(title: String, subtitle: String, icon: ImageVector, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth().clickable(onClick = onClick)
+            .padding(horizontal = ForgeMetrics.cardPadding, vertical = ForgeMetrics.space3),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Icon(icon, contentDescription = null, tint = ForgeTokens.StrandPalette.metricCyan.resolve(),
+             modifier = Modifier.width(28.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = Forge.colors.text)
+            Text(subtitle, style = Forge.type.caption, color = Forge.colors.textTertiary)
+        }
+        Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = Forge.colors.textTertiary,
+             modifier = Modifier.size(16.dp))
     }
 }
 

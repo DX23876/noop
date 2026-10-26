@@ -77,5 +77,14 @@ final class CoreTrainingTests: XCTestCase {
         XCTAssertEqual(hub.activity.last?.day, StoreReader.localDayKey(Date()))
         XCTAssertEqual(hub.strength.first?.exerciseCount, 1)
         XCTAssertEqual(hub.muscles.balanceCoverage.workingSets, 1)
+
+        // Training Load reads the same session: one working set in the strength lane's seven days, eight weeks of
+        // history, and no comparison yet with a single day of training.
+        let load = await CoreTrainingLoad.read(reader: reader, maxHR: 190, sex: "male", dismissedWorkoutSpans: [])
+        XCTAssertEqual(load.strength.sevenDayWorkingSets, 1)
+        XCTAssertNil(load.strength.band)
+        XCTAssertEqual(load.statement.kind, "noHistory")
+        XCTAssertFalse(load.history.isEmpty)
+        XCTAssertNotNil(String(data: try JSONEncoder().encode(load), encoding: .utf8))
     }
 }

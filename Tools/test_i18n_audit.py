@@ -368,6 +368,18 @@ class ScanAndroidEndToEnd(unittest.TestCase):
         )
 
 
+class AndroidTranslationKeys(unittest.TestCase):
+    def test_untranslatable_base_resources_do_not_require_locale_copies(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "strings.xml"
+            path.write_text('''<resources>
+                <string name="heading">Training Load</string>
+                <string name="sources" translatable="false">Foster 2001</string>
+                <plurals name="sessions"><item quantity="one">%d session</item></plurals>
+            </resources>''', encoding="utf-8")
+            self.assertEqual(ia.android_translatable_base_keys(path), {"heading", "sessions"})
+
+
 class Baseline(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

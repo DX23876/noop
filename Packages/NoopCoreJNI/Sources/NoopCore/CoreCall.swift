@@ -1,4 +1,5 @@
 import Foundation
+import StrandAnalytics
 import StrandCore
 import StrandTraining
 import WhoopStore
@@ -34,6 +35,10 @@ public enum CoreCall {
                                                        weekdays: args["weekdays"] as? [Int]))
         case "training.duplicateRoutine":
             return ok(await CoreTraining.duplicateRoutine(store: store, id: string("id"), title: string("title")))
+        case "training.load":
+            let maxHR = (args["maxHR"] as? NSNumber)?.doubleValue ?? Double(StrainScorer.defaultMaxHR())
+            return CoreRead.json(await CoreTrainingLoad.read(reader: reader, maxHR: maxHR, sex: string("sex"),
+                                                             dismissedWorkoutSpans: args["dismissedWorkouts"] as? [String] ?? []))
         case "training.starters": return CoreRead.json(await CoreTraining.starters(store: store))
         case "training.addStarter": return ok(await CoreTraining.addStarter(store: store, index: int("index", -1)))
         case "training.setSchedule":

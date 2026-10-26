@@ -14,7 +14,7 @@ final class TrainingLoadRatingsTests: XCTestCase {
     func testTwoRatingsOfOneCanonicalSessionCollapseToTheLatest() {
         let fromHevy = entry("session-rpe-1000", sessionId: "session|abc", startTs: 1_000, rpe: 8)
         let fromHealth = entry("session-rpe-1030", sessionId: "session|abc", startTs: 1_030, rpe: 6)
-        let chosen = TrainingLoadModel.canonicalRatings(entries: [fromHevy, fromHealth],
+        let chosen = TrainingLoadPreparation.canonicalRatings(entries: [fromHevy, fromHealth],
                                                         canonicalIdByStart: [:])
         XCTAssertEqual(chosen.map(\.id), ["session-rpe-1030"])
         XCTAssertEqual(chosen.first?.rpe, 6)
@@ -25,7 +25,7 @@ final class TrainingLoadRatingsTests: XCTestCase {
     func testALegacyRatingIsGroupedByTheSessionItsStartBelongsTo() {
         let legacy = entry("session-rpe-1000", sessionId: nil, startTs: 1_000, rpe: 8)
         let tagged = entry("session-rpe-1030", sessionId: "session|abc", startTs: 1_030, rpe: 6)
-        let chosen = TrainingLoadModel.canonicalRatings(
+        let chosen = TrainingLoadPreparation.canonicalRatings(
             entries: [legacy, tagged],
             canonicalIdByStart: [1_000: "session|abc", 1_030: "session|abc"])
         XCTAssertEqual(chosen.count, 1)
@@ -36,7 +36,7 @@ final class TrainingLoadRatingsTests: XCTestCase {
     func testAnUnresolvedLegacyRatingKeepsCountingOnItsOwn() {
         let orphan = entry("session-rpe-500", sessionId: nil, startTs: 500, rpe: 7)
         let tagged = entry("session-rpe-1030", sessionId: "session|abc", startTs: 1_030, rpe: 6)
-        let chosen = TrainingLoadModel.canonicalRatings(entries: [orphan, tagged],
+        let chosen = TrainingLoadPreparation.canonicalRatings(entries: [orphan, tagged],
                                                         canonicalIdByStart: [1_030: "session|abc"])
         XCTAssertEqual(Set(chosen.map(\.id)), ["session-rpe-500", "session-rpe-1030"])
     }
@@ -44,15 +44,15 @@ final class TrainingLoadRatingsTests: XCTestCase {
     func testRatingsOfDifferentSessionsAllSurvive() {
         let a = entry("a", sessionId: "session|a", startTs: 1_000, rpe: 8)
         let b = entry("b", sessionId: "session|b", startTs: 90_000, rpe: 5)
-        XCTAssertEqual(TrainingLoadModel.canonicalRatings(entries: [a, b], canonicalIdByStart: [:]).count, 2)
+        XCTAssertEqual(TrainingLoadPreparation.canonicalRatings(entries: [a, b], canonicalIdByStart: [:]).count, 2)
     }
 
     /// Lab markers come back in whatever order the store returns them; the surviving rating must not.
     func testTheSurvivingRatingDoesNotDependOnReadOrder() {
         let first = entry("session-rpe-1000", sessionId: "session|abc", startTs: 1_000, rpe: 8)
         let second = entry("session-rpe-1030", sessionId: "session|abc", startTs: 1_030, rpe: 6)
-        let forwards = TrainingLoadModel.canonicalRatings(entries: [first, second], canonicalIdByStart: [:])
-        let backwards = TrainingLoadModel.canonicalRatings(entries: [second, first], canonicalIdByStart: [:])
+        let forwards = TrainingLoadPreparation.canonicalRatings(entries: [first, second], canonicalIdByStart: [:])
+        let backwards = TrainingLoadPreparation.canonicalRatings(entries: [second, first], canonicalIdByStart: [:])
         XCTAssertEqual(forwards.map(\.id), backwards.map(\.id))
     }
 
@@ -61,7 +61,7 @@ final class TrainingLoadRatingsTests: XCTestCase {
                                    ratedAtTs: 2_000)
         let latestAnswer = entry("hevy", sessionId: "session|abc", startTs: 1_000, rpe: 8,
                                  ratedAtTs: 3_000)
-        let chosen = TrainingLoadModel.canonicalRatings(entries: [laterComponent, latestAnswer],
+        let chosen = TrainingLoadPreparation.canonicalRatings(entries: [laterComponent, latestAnswer],
                                                         canonicalIdByStart: [:])
         XCTAssertEqual(chosen.map(\.id), ["hevy"])
     }

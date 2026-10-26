@@ -4,9 +4,10 @@ Plan: [`PLAN.md`](PLAN.md) · parity continuation: [`PARITY-PLAN.md`](PARITY-PLA
 
 ## In progress
 
-| Step | Who | Since | Note |
-|---|---|---|---|
-| Parity 1.2 and 2.3: Training tab like iOS | 2026-10-26 | The Training tab follows `TrainingHubView` section by section: Start a workout (today's plan or freestyle, the recent activities with route choice, All workouts), the week with Edit, routine cards with the MuscleMap figures, Start and an options menu (edit, duplicate, delete), Recent, a year of Consistency and Muscle analytics (Balance, Fatigue, Strength, front and back, male and female figure, Explore page and per-muscle detail). Everything is computed in the core: `MuscleAnalyticsSnapshot` and `TrainingActivityDay` moved to `Strand/Data` and are shared by the Apple model and `CoreTraining.snapshot`; new core ops edit, duplicate and schedule routines and add the starter plans. The figure outlines come from the MuscleMap package through `Tools/musclemap_android_asset.py` (its test fails when the asset drifts). Texts reuse the iOS translations in all nine languages. Checked on the emulator (demo flavor): every section, Explore, a muscle detail, the schedule, a starter plan, duplicate, edit and a session detail. Still open: the "Understand your training" card (Training Load, Strength and Cardio screens are not on Android yet), the training goals card, the exercise library and Hevy import. |
+| Step | Since | Note |
+|---|---|---|
+| Parity 1.2 and 2.3: Training tab like iOS | 2026-10-26 | The Training tab follows `TrainingHubView` section by section: Start a workout (today's plan or freestyle, the recent activities with route choice, All workouts), the week with Edit, routine cards with the MuscleMap figures, Start and an options menu (edit, duplicate, delete), Recent, a year of Consistency and Muscle analytics (Balance, Fatigue, Strength, front and back, male and female figure, Explore page and per-muscle detail). Everything is computed in the core: `MuscleAnalyticsSnapshot` and `TrainingActivityDay` moved to `Strand/Data` and are shared by the Apple model and `CoreTraining.snapshot`; new core ops edit, duplicate and schedule routines and add the starter plans. The figure outlines come from the MuscleMap package through `Tools/musclemap_android_asset.py` (its test fails when the asset drifts). Texts reuse the iOS translations in all nine languages. Checked on the emulator (demo flavor): every section, Explore, a muscle detail, the schedule, a starter plan, duplicate, edit and a session detail. Still open: Strength and Cardio detail screens, training goals, exercise library and Hevy import. |
+| Parity 1.2 and 2.3: Training Load | 2026-10-26 | The Apple screen's pure `TrainingLoadPreparation` and session RPE read moved into files shared with the Android core. `CoreTrainingLoad` supplies the same lane, verdict, history and evidence readings to a Forge page with the Apple screen's sections and detail cards. The Training tab has its “Understand your training” entry; the active strap's dismissed workouts reach both the hub and Training Load. `NoopCoreJNI` tests (18, one real-data skip), `StrandTests`, Android full Kotlin compile, the Tools suite and the i18n gate passed. The demo emulator opened the entry, hero, lower cards and Session Load detail without a crash. Pending: the committed-tree gate and CI. |
 
 ## Done
 
@@ -78,8 +79,8 @@ Plan: [`PLAN.md`](PLAN.md) · parity continuation: [`PARITY-PLAN.md`](PARITY-PLA
 
 ## Next step
 
-What is left of the plan needs the owner, a real strap or testers; everything that could be done on the emulator
-is done (2026-10-25).
+The parity plan supersedes the earlier D20 decision to wait for tester feedback. Continue the remaining core
+functions and Android screens before the single testing release; the Training Load package is in progress.
 
 - **E-4's second half waits on the remaining classic screens.** Kotlin keeps writing Room beside the core because
   the classic screens that stay (live heart rate, workouts, health, stress and the rest) read it. It stops once each
@@ -95,8 +96,8 @@ is done (2026-10-25).
 
 Skip was tried for shared screens and not adopted for now ([`SKIP-SPIKE.md`](SKIP-SPIKE.md)).
 
-**Fork features Android does not have yet** (file comparison 2026-10-26, for D20): training (exercise library,
-Hevy, the training load, strength and cardio views; the hub, lift log, plan and muscle map are done), long-term goals, AgeLess and daily rhythm screens (both
+**Fork features Android does not have yet** (file comparison 2026-10-26): training (exercise library,
+Hevy, strength and cardio detail views; the hub, lift log, plan and muscle map are done, while Training Load is in progress), long-term goals, AgeLess and daily rhythm screens (both
 already computed on Android by the core), the energy plan, body (photos, weight, body model), the coach's goals,
 plans, history and memory (llama.cpp on Android unverified), GPS elevation in live workouts, ECG, Momentum and the
 sleep debt ledger. Still app-side on iOS and due for the core before their Android screens, since they compute or

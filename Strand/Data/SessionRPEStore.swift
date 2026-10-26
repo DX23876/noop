@@ -13,42 +13,16 @@ import WhoopStore
 // durable local SQLite storage and `.noopbak` backup. These rows use their own category and device id,
 // so they do not appear among body or clinical markers and never overwrite an imported source.
 
-struct SessionRPEEntry: Equatable, Sendable {
-    let id: String
-    let sessionId: String?
-    let startTs: Int
-    let rpe: Double
-    let sport: String?
-    let ratedAtTs: Int?
-    let source: String
-
-    init(id: String, sessionId: String?, startTs: Int, rpe: Double, sport: String?,
-         ratedAtTs: Int? = nil, source: String = Repository.sessionRPESource) {
-        self.id = id
-        self.sessionId = sessionId
-        self.startTs = startTs
-        self.rpe = rpe
-        self.sport = sport
-        self.ratedAtTs = ratedAtTs
-        self.source = source
-    }
-}
-
 extension Repository {
     nonisolated static let sessionRPEDeviceId = "training-load"
     nonisolated static let sessionRPECategory = "trainingLoad"
     nonisolated static let sessionRPEMarkerKey = "session_rpe"
-    nonisolated static let sessionRPESource = "manual-session-rpe"
+    nonisolated static let sessionRPESource = SessionRPEEntry.manualSource
 
     /// Every whole-session rating in the requested time range, oldest first.
     func sessionRPEEntries(from: Int, to: Int) async -> [SessionRPEEntry] {
         guard let store = await storeHandle() else { return [] }
-        let rows = (try? await store.trainingSessionRatings(from: from, to: to)) ?? []
-        return rows.map { row in
-            SessionRPEEntry(id: row.id, sessionId: row.sessionId,
-                            startTs: row.workoutStartTs, rpe: row.rpe, sport: row.sport,
-                            ratedAtTs: row.ratedAtTs, source: row.source)
-        }
+        return await SessionRPEEntry.read(store: store, from: from, to: to)
     }
 
     /// The rating attached to one workout start, if the athlete supplied one.

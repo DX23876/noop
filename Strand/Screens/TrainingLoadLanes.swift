@@ -31,7 +31,7 @@ enum TrainingLoadLanes {
 
     static func cardioSeries(sessions: [UnifiedTrainingSession], resolution: TrainingCardioLoadResolution,
                              tzOffsetSeconds: Int) -> CardioSeries {
-        let series = TrainingLoadModel.cardioDailyLoad(sessions: sessions, loads: resolution.loads,
+        let series = TrainingLoadPreparation.cardioDailyLoad(sessions: sessions, loads: resolution.loads,
                                                        duplicates: resolution.duplicateSessionIds,
                                                        tzOffsetSeconds: tzOffsetSeconds)
         return CardioSeries(byDay: series.byDay, unknownDays: series.unknownDays, measured: series.measured,
@@ -68,13 +68,13 @@ enum TrainingLoadLanes {
     }
 
     static func strengthLane(workouts: [HevyWorkout], byDay: [String: Double], through day: String,
-                             tzOffsetSeconds: Int) -> TrainingLoadModel.Lane {
+                             tzOffsetSeconds: Int) -> TrainingLoadPreparation.Lane {
         let recent = inLastSeven(workouts, through: day, tzOffsetSeconds: tzOffsetSeconds) { $0.startTs }
         let pooled = StrengthSession.strengthLoad(recent)
         let reading = LaneEngine.reading(dailyByDay: byDay,
                                          activity: strengthActivity(workouts, tzOffsetSeconds: tzOffsetSeconds),
                                          lane: .strength, through: day)
-        return TrainingLoadModel.Lane(
+        return TrainingLoadPreparation.Lane(
             sevenDayTotal: lastSeven(byDay, through: day),
             sevenDayWorkingSets: recent.flatMap { $0.exercises.flatMap(\.workingSets) }.count,
             trend: reading.trend,
@@ -89,7 +89,7 @@ enum TrainingLoadLanes {
 
     static func cardioLane(sessions: [UnifiedTrainingSession], resolution: TrainingCardioLoadResolution,
                            series: CardioSeries, through day: String,
-                           tzOffsetSeconds: Int) -> TrainingLoadModel.Lane {
+                           tzOffsetSeconds: Int) -> TrainingLoadPreparation.Lane {
         // A session skipped because another one already priced the same minutes is NOT a session with
         // missing heart rate, so it must not widen the coverage denominator.
         let recent = inLastSeven(sessions, through: day, tzOffsetSeconds: tzOffsetSeconds) { $0.row.startTs }
@@ -99,7 +99,7 @@ enum TrainingLoadLanes {
             }
         let reading = LaneEngine.reading(dailyByDay: series.byDay, unknownDays: series.unknownDays,
                                          activity: series.activity, lane: .cardio, through: day)
-        return TrainingLoadModel.Lane(
+        return TrainingLoadPreparation.Lane(
             sevenDayTotal: lastSeven(series.byDay, through: day),
             sevenDayWorkingSets: 0,
             trend: reading.trend,
@@ -118,7 +118,7 @@ enum TrainingLoadLanes {
     /// so the chart's line and colours can never disagree with the label above them. A lane the caller
     /// did not read stays nil.
     static func ratios(strengthByDay: [String: Double]?, strengthActivity: LaneActivity? = nil,
-                       cardio: CardioSeries?, through day: String) -> [TrainingLoadModel.RatioPoint] {
+                       cardio: CardioSeries?, through day: String) -> [TrainingLoadPreparation.RatioPoint] {
         let days = (0..<56).reversed().map { WeeklyDigestEngine.addDays(day, -$0) }
         let strength = strengthByDay.map {
             LaneEngine.readings(dailyByDay: $0, activity: strengthActivity ?? .none, lane: .strength, days: days)
@@ -128,7 +128,7 @@ enum TrainingLoadLanes {
                                 lane: .cardio, days: days)
         }
         return days.indices.map { index in
-            TrainingLoadModel.RatioPoint(day: days[index],
+            TrainingLoadPreparation.RatioPoint(day: days[index],
                                          strength: strength?[index].trend?.ratio,
                                          cardio: cardio?[index].trend?.ratio,
                                          strengthBand: strength?[index].band,

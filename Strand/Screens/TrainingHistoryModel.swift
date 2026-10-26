@@ -135,11 +135,11 @@ final class TrainingHistoryModel: ObservableObject {
         let strengthActivity = TrainingLoadLanes.strengthActivity(workouts, tzOffsetSeconds: offset)
         let cardio = TrainingLoadLanes.cardioSeries(sessions: sessions, resolution: resolution,
                                                     tzOffsetSeconds: offset)
-        let session = TrainingLoadModel.sessionSeries(unified: sessions, strengthWorkouts: workouts,
+        let session = TrainingLoadPreparation.sessionSeries(unified: sessions, strengthWorkouts: workouts,
                                                       rpeEntries: ratings, offset: offset)
         // The same daily series with the estimates admitted: whatever it knows that the measured series
         // does not is an estimated day.
-        let withEstimates = TrainingLoadModel.cardioDailyLoad(
+        let withEstimates = TrainingLoadPreparation.cardioDailyLoad(
             sessions: sessions, loads: resolution.loads.merging(resolution.estimates) { measured, _ in measured },
             duplicates: resolution.duplicateSessionIds, tzOffsetSeconds: offset)
         var estimatedByDay: [String: Double] = [:]
