@@ -30,13 +30,9 @@ struct ImportedSleepFigures: Equatable, Sendable {
 // (`MetricResolver`); the exact-source reads (`series(key:source:)`) stay available for surfaces that must not
 // mix sources.
 
-/// The sensor/import provider whose inputs produced a resolved Today score. `sourceId` is durable and
-/// `brand` comes from the paired-device registry when available, so UI code can name every supported
-/// provider without guessing from opaque device ids.
-struct ScoreInputProvider: Equatable, Sendable {
-    let sourceId: String
-    let brand: String?
-}
+/// The sensor/import provider whose inputs produced a resolved Today score (`ScoreProvenance.Provider` in the
+/// core, so the Android hero names the same source).
+typealias ScoreInputProvider = ScoreProvenance.Provider
 
 /// Source provenance for daily rows before product surfaces merge them. The UI uses this to say
 /// where a vital came from without changing the stored data.
@@ -733,7 +729,7 @@ final class Repository: ObservableObject {
     nonisolated static let whoopSource = MetricResolver.whoopSource
     static let appleHealthSource = MetricResolver.appleHealthSource
     static let healthConnectSource = MetricResolver.healthConnectSource
-    static let activityFileSource = "activity-file"
+    static let activityFileSource = ScoreProvenance.activityFileSource
 
     /// Imported wearable-export sources whose DAILY aggregates (HRV / resting HR / sleep) can be scored
     /// for a NOOP Charge/Rest on an import-only day, exactly like a live day (#823). These carry no raw HR
@@ -2763,20 +2759,8 @@ final class Repository: ObservableObject {
         metricKey: String
     ) async -> ScoreInputProvider? {
         guard let store = await ensureStore() else { return nil }
-        let registry = DeviceRegistryStore(dbQueue: store.registryWriter)
-        let sourceId: String
-        if resolvedSource.hasSuffix("-noop") {
-            guard let cached = try? await store.scoreInputSource(
-                deviceId: resolvedSource,
-                day: day,
-                key: metricKey
-            ) else { return nil }
-            sourceId = cached
-        } else {
-            sourceId = resolvedSource
-        }
-        let brand = (try? registry.all())?.first(where: { $0.id == sourceId })?.brand
-        return ScoreInputProvider(sourceId: sourceId, brand: brand)
+        return await ScoreProvenance.provider(store: store, resolvedSource: resolvedSource, day: day,
+                                              metricKey: metricKey)
     }
 
     /// Raw specialized provenance tag for a computed metric point. Unlike `scoreInputProvider`, this does

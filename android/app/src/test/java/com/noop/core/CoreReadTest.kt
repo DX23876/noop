@@ -6,7 +6,7 @@ import org.junit.Test
 
 class CoreReadTest {
     /** The literal the Swift core writes for this day (NoopCore CoreReadTests pins the same text). */
-    private val dayJson = """{"charge":72,"day":"2026-10-02","deepMinutes":80,"efficiency":0.9,"effort":42,"hrv":62,"lightMinutes":230,"remMinutes":90,"rest":88,"restingHr":52,"sleepMinutes":402}"""
+    private val dayJson = """{"charge":72,"day":"2026-10-02","deepMinutes":80,"efficiency":0.9,"effort":42,"heroSource":[],"hrv":62,"lightMinutes":230,"remMinutes":90,"rest":88,"restingHr":52,"sleepMinutes":402}"""
 
     @Test fun aDayReadsEveryValueAndLeavesMissingOnesNull() {
         val day = CoreRead.parseDay(dayJson)!!

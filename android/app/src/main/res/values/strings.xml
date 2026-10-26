@@ -2890,6 +2890,9 @@
     <string name="today_customize_live_session_availability">Appears today when Live Sessions is enabled in Settings or a session is active.</string>
     <string name="l10n_app_changelog_today_your_way_heart_rate_any_5e1308b3">Today your way, heart rate any app can read, and Italian</string>
     <string name="forge_charge">Charge</string>
+    <string name="forge_source_workout_files">Workout files</string>
+    <string name="forge_source_nutrition">Nutrition</string>
+    <string name="forge_source_cached">Cached</string>
     <string name="forge_effort">Effort</string>
     <string name="forge_rest">Rest</string>
     <string name="forge_key_metrics">Key metrics</string>

@@ -14,6 +14,9 @@ public enum CoreRead {
         public var sleepMinutes: Double?, deepMinutes: Double?, remMinutes: Double?, lightMinutes: Double?
         public var efficiency: Double?, restingHr: Int?, hrv: Double?, respRate: Double?, spo2: Double?
         public var skinTempDev: Double?, steps: Int?
+        /// Who supplied the Charge, Effort and Rest inputs, as the hero names them (`ScoreProvenance.heroLabels`):
+        /// a name as is, or "#workoutFiles", "#nutrition" or "#cached" for the words each platform translates.
+        public var heroSource: [String] = []
     }
 
     /// One night with its stages: `stages` is the timeline (empty for an imported night that stores totals only),
@@ -56,7 +59,8 @@ public enum CoreRead {
                    sleepMinutes: row.totalSleepMin, deepMinutes: row.deepMin, remMinutes: row.remMin,
                    lightMinutes: row.lightMin, efficiency: row.efficiency, restingHr: row.restingHr,
                    hrv: row.avgHrv, respRate: row.respRateBpm, spo2: row.spo2Pct, skinTempDev: row.skinTempDevC,
-                   steps: row.steps)
+                   steps: row.steps,
+                   heroSource: await ScoreProvenance.heroLabels(day: day, reader: reader).map(token))
     }
 
     /// The main night of every day between `from` and `to` (unix seconds), oldest first, as the Apple Sleep tab
@@ -124,6 +128,16 @@ public enum CoreRead {
                                                            to: to)) ?? [] { byDay[p.day] = p.value }
         }
         return byDay.sorted { $0.key < $1.key }.map { Point(day: $0.key, value: $0.value) }
+    }
+
+    /// A provider label as the Android parser reads it.
+    static func token(_ label: ScoreProvenance.Label) -> String {
+        switch label {
+        case .name(let name): return name
+        case .workoutFiles: return "#workoutFiles"
+        case .nutrition: return "#nutrition"
+        case .cached: return "#cached"
+        }
     }
 
     /// Compact JSON with sorted keys, so the same answer is the same text.

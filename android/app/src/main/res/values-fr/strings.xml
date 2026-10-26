@@ -2860,6 +2860,9 @@
     <string name="today_customize_live_session_availability">Apparaît aujourd’hui si les sessions en direct sont activées dans Paramètres ou si une session est active.</string>
     <string name="l10n_app_changelog_today_your_way_heart_rate_any_5e1308b3">Aujourd\'hui à votre façon, fréquence cardiaque lisible par toute application, et l\'italien</string>
     <string name="forge_charge">Charge</string>
+    <string name="forge_source_workout_files">Fichiers d’entraînement</string>
+    <string name="forge_source_nutrition">Nutrition</string>
+    <string name="forge_source_cached">En cache</string>
     <string name="forge_effort">Effort</string>
     <string name="forge_rest">Repos</string>
     <string name="forge_key_metrics">Métriques clés</string>

@@ -2756,6 +2756,9 @@
     <string name="today_customize_live_session_availability">Появляется сегодня, если сессии в реальном времени включены в Настройках или сеанс уже активен.</string>
     <string name="l10n_app_changelog_today_your_way_heart_rate_any_5e1308b3">«Сегодня» на ваш вкус, пульс для любого приложения и итальянский язык</string>
     <string name="forge_charge">Заряд</string>
+    <string name="forge_source_workout_files">Файлы тренировок</string>
+    <string name="forge_source_nutrition">Питание</string>
+    <string name="forge_source_cached">Кэшированный</string>
     <string name="forge_effort">Нагрузка</string>
     <string name="forge_rest">Отдых</string>
     <string name="forge_key_metrics">Ключевые показатели</string>

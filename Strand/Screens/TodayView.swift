@@ -1067,27 +1067,13 @@ struct TodayView: View {
     /// Registered device brands cover every live source; stable import ids cover providers without a paired
     /// registry row. Unknown ids remain visible rather than being falsely labelled as Whoop.
     static func todayScoreProviderLabel(sourceId: String, brand: String?) -> String {
-        let source = sourceId.lowercased()
-        switch source {
-        case Repository.appleHealthSource: return "Apple Watch"
-        case Repository.healthConnectSource: return "Health Connect"
-        case "oura-import", "oura-api": return "Oura"
-        case "fitbit-import": return "Fitbit"
-        case "garmin-import": return "Garmin"
-        case "xiaomi-band": return "Mi Band"
-        case Repository.activityFileSource: return String(localized: "Workout files")
-        default: break
-        }
-
-        if let brand = brand?.trimmingCharacters(in: .whitespacesAndNewlines), !brand.isEmpty {
-            return brand.caseInsensitiveCompare("WHOOP") == .orderedSame ? Self.whoopBrandName : brand
-        }
-        if source == Repository.whoopSource { return Self.whoopBrandName }
-        switch FusionSource(rawValue: sourceId) {
-        case .nutritionCsv: return String(localized: "Nutrition")
-        case .localCache: return String(localized: "Cached")
-        case let known?: return known.displayName
-        case nil: return sourceId
+        // The naming rule lives in the core (`ScoreProvenance.label`) so the Android hero reads the same; only
+        // the words that are not names are translated here.
+        switch ScoreProvenance.label(sourceId: sourceId, brand: brand) {
+        case .name(let name): return name
+        case .workoutFiles: return String(localized: "Workout files")
+        case .nutrition: return String(localized: "Nutrition")
+        case .cached: return String(localized: "Cached")
         }
     }
 

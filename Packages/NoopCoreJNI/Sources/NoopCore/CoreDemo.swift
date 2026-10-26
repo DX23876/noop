@@ -45,9 +45,17 @@ public enum CoreDemo {
                                              restingHr: rhr, avgHrv: hrv,
                                              stagesJSON: stagesJSON(start: start, end: end, deep: deep, rem: rem)))
         }
-        _ = try await store.upsertDailyMetrics(rows, deviceId: computed)
+        // The scores with their input provenance, as the daily analysis writes them, so the hero names its source.
+        let provenance = rows.flatMap { row in
+            ["recovery", "strain", "sleep_performance"].map {
+                ScoreInputProvenanceRow(day: row.day, key: $0, sourceId: deviceId)
+            }
+        }
+        if let first = rows.first?.day, let last = rows.last?.day {
+            try await store.persistComputedScores(dailyMetrics: rows, metricPoints: rest, provenance: provenance,
+                                                  deviceId: computed, from: first, to: last)
+        }
         _ = try await store.insert(Streams(hr: heartRate(endingAt: now)), deviceId: deviceId)
-        _ = try await store.upsertMetricSeries(rest, deviceId: computed)
         _ = try await store.upsertSleepSessions(nights, deviceId: computed)
         return rows.count
     }

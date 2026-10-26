@@ -2829,6 +2829,9 @@
     <string name="today_customize_live_session_availability">Compare oggi se le sessioni in diretta sono attivate nelle Impostazioni o una sessione è attiva.</string>
     <string name="l10n_app_changelog_today_your_way_heart_rate_any_5e1308b3">Oggi a modo tuo, frequenza cardiaca leggibile da ogni app e l\'italiano</string>
     <string name="forge_charge">Carica</string>
+    <string name="forge_source_workout_files">File di allenamento</string>
+    <string name="forge_source_nutrition">Nutrizione</string>
+    <string name="forge_source_cached">Memorizzato nella cache</string>
     <string name="forge_effort">Sforzo</string>
     <string name="forge_rest">Riposo</string>
     <string name="forge_key_metrics">Metriche chiave</string>

@@ -41,7 +41,7 @@ final class CoreReadTests: XCTestCase {
     /// left out, not written as null.
     func testADayDocumentIsTheTextAndroidParses() async throws {
         let json = await CoreRead.day("2026-10-02", reader: try await reader()).map(CoreRead.json)
-        XCTAssertEqual(json, #"{"charge":72,"day":"2026-10-02","deepMinutes":80,"efficiency":0.9,"effort":42,"hrv":62,"lightMinutes":230,"remMinutes":90,"rest":88,"restingHr":52,"sleepMinutes":402}"#)
+        XCTAssertEqual(json, #"{"charge":72,"day":"2026-10-02","deepMinutes":80,"efficiency":0.9,"effort":42,"heroSource":[],"hrv":62,"lightMinutes":230,"remMinutes":90,"rest":88,"restingHr":52,"sleepMinutes":402}"#)
     }
 
     func testTheDemoHistoryReadsBackAsDaysNightsAndRestOnce() async throws {
@@ -55,6 +55,7 @@ final class CoreReadTests: XCTestCase {
         let today = await CoreRead.day(StoreReader.localDayKey(now), reader: r)
         XCTAssertNotNil(today?.charge)
         XCTAssertNotNil(today?.rest)
+        XCTAssertEqual(today?.heroSource, ["WHOOP"], "the demo names its source like the daily analysis would")
         let nowTs = Int(now.timeIntervalSince1970)
         let nights = await CoreRead.nights(from: nowTs - 7 * 86_400, to: nowTs, reader: r)
         XCTAssertEqual(nights.count, 7, "one night per day, today's included")

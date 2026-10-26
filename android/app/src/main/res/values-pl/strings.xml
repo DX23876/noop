@@ -2877,6 +2877,9 @@
     <string name="today_customize_live_session_availability">Pojawia się dzisiaj, gdy sesje na żywo są włączone w Ustawieniach lub trwa sesja.</string>
     <string name="l10n_app_changelog_today_your_way_heart_rate_any_5e1308b3">Dziś po swojemu, tętno dostępne dla każdej aplikacji i język włoski</string>
     <string name="forge_charge">Energia</string>
+    <string name="forge_source_workout_files">Pliki treningowe</string>
+    <string name="forge_source_nutrition">Odżywianie</string>
+    <string name="forge_source_cached">W pamięci podręcznej</string>
     <string name="forge_effort">Wysiłek</string>
     <string name="forge_rest">Odpoczynek</string>
     <string name="forge_key_metrics">Kluczowe metryki</string>

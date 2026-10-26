@@ -478,8 +478,10 @@ class HomeLocalizationTest(unittest.TestCase):
         self.assertNotIn("LocalizedStringKey(s.detail)", today)
 
         self.assertIn("badge: Self.whoopBrandName", today)
-        self.assertIn('case .nutritionCsv: return String(localized: "Nutrition")', today)
-        self.assertIn('case .localCache: return String(localized: "Cached")', today)
+        # The provider names come from the core (`ScoreProvenance.label`); the words that are not names are
+        # still translated here.
+        self.assertIn('case .nutrition: return String(localized: "Nutrition")', today)
+        self.assertIn('case .cached: return String(localized: "Cached")', today)
 
         strings = audit.load_catalog(ROOT / "Strand/Resources/Localizable.xcstrings")["strings"]
         for key in (

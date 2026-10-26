@@ -2853,6 +2853,9 @@
     <string name="today_customize_live_session_availability">Aparece hoje quando as sessões em direto estão ativadas nas Definições ou existe uma sessão ativa.</string>
     <string name="l10n_app_changelog_today_your_way_heart_rate_any_5e1308b3">Hoje à sua maneira, frequência cardíaca para qualquer aplicação e italiano</string>
     <string name="forge_charge">Carga</string>
+    <string name="forge_source_workout_files">Ficheiros de treino</string>
+    <string name="forge_source_nutrition">Nutrição</string>
+    <string name="forge_source_cached">Em cache</string>
     <string name="forge_effort">Esforço</string>
     <string name="forge_rest">Descanso</string>
     <string name="forge_key_metrics">Métricas principais</string>

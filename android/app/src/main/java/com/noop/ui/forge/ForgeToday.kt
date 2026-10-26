@@ -54,6 +54,7 @@ import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -174,17 +175,41 @@ private fun Header(date: LocalDate, isToday: Boolean) {
 private fun Hero(day: CoreRead.Day?, width: ForgeWidth) {
     val colors = Forge.colors
     ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.heroRadius, glass = true, contentPadding = 0.dp) {
-        BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = HeroRingLayout.horizontalPadding,
-                                                           vertical = HeroRingLayout.verticalPadding)) {
-            val diameter = HeroRingLayout.diameter(maxWidth)
-            Row(Modifier.fillMaxWidth()) {
-                ScoreSlot(R.string.forge_charge, day?.charge, day?.charge?.let { colors.chargeRing(it) } ?: colors.charge,
-                          diameter, OrganicMetric.Charge, Modifier.weight(1f))
-                ScoreSlot(R.string.forge_effort, day?.effort, colors.effort, diameter, OrganicMetric.Effort, Modifier.weight(1f))
-                ScoreSlot(R.string.forge_rest, day?.rest, colors.rest, diameter, OrganicMetric.Rest, Modifier.weight(1f))
+        Box(Modifier.fillMaxWidth()) {
+            BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = HeroRingLayout.horizontalPadding,
+                                                               vertical = HeroRingLayout.verticalPadding)) {
+                val diameter = HeroRingLayout.diameter(maxWidth)
+                Row(Modifier.fillMaxWidth()) {
+                    ScoreSlot(R.string.forge_charge, day?.charge, day?.charge?.let { colors.chargeRing(it) } ?: colors.charge,
+                              diameter, OrganicMetric.Charge, Modifier.weight(1f))
+                    ScoreSlot(R.string.forge_effort, day?.effort, colors.effort, diameter, OrganicMetric.Effort, Modifier.weight(1f))
+                    ScoreSlot(R.string.forge_rest, day?.rest, colors.rest, diameter, OrganicMetric.Rest, Modifier.weight(1f))
+                }
+            }
+            // The hero's provenance, a quiet caption in its top corner as on iOS: who supplied the inputs, from the
+            // core's resolver (`ScoreProvenance`). Each ring already speaks its value, so screen readers skip it.
+            heroSourceLabel(day?.heroSource.orEmpty())?.let { label ->
+                Text(label.uppercase(), style = Forge.type.overline, color = colors.textTertiary, maxLines = 1,
+                     modifier = Modifier.align(Alignment.TopEnd)
+                         .padding(top = ForgeMetrics.space2, end = ForgeMetrics.space4)
+                         .clearAndSetSemantics {})
             }
         }
     }
+}
+
+/** The hero's source caption: the names joined with " + ", the translated words resolved; null without any. */
+@Composable
+private fun heroSourceLabel(tokens: List<String>): String? {
+    if (tokens.isEmpty()) return null
+    return tokens.map { token ->
+        when (token) {
+            "#workoutFiles" -> stringResource(R.string.forge_source_workout_files)
+            "#nutrition" -> stringResource(R.string.forge_source_nutrition)
+            "#cached" -> stringResource(R.string.forge_source_cached)
+            else -> token
+        }
+    }.joinToString(" + ")
 }
 
 @Composable

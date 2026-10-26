@@ -2831,6 +2831,9 @@
     <string name="today_customize_live_session_availability">在设置中启用Live Sessions 实时记录或有正在进行的训练时，今天会显示此部分。</string>
     <string name="l10n_app_changelog_today_your_way_heart_rate_any_5e1308b3">自定义「今天」页面、任何应用都能读取的心率，以及意大利语</string>
     <string name="forge_charge">电量</string>
+    <string name="forge_source_workout_files">训练文件</string>
+    <string name="forge_source_nutrition">营养</string>
+    <string name="forge_source_cached">缓存</string>
     <string name="forge_effort">负荷</string>
     <string name="forge_rest">休息</string>
     <string name="forge_key_metrics">关键指标</string>
