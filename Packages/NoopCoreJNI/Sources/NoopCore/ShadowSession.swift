@@ -22,7 +22,7 @@ public enum ShadowSession {
         /// Starts a new tally, in order with the frames: the Kotlin client resets its own counters per link.
         case resetTally
         /// Runs the daily analysis on the core's store with the wearer's profile; `today` holds the result.
-        case analyze(CoreAnalysis.Profile)
+        case analyze(CoreAnalysis.Profile, CoreAnalysis.Settings)
     }
 
     /// What the core banked from history since the session started, per stream.
@@ -191,9 +191,9 @@ public enum ShadowSession {
                 await collector.flush()
             case .resetTally:
                 state.lock.withLock { state.tally = Tally() }
-            case .analyze(let profile):
+            case .analyze(let profile, let settings):
                 await collector.flush()
-                let result = await CoreAnalysis.run(store: store, deviceId: deviceId, profile: profile)
+                let result = await CoreAnalysis.run(store: store, deviceId: deviceId, profile: profile, settings: settings)
                 state.lock.withLock { state.today = result?.line ?? "no computed row for today" }
             }
             state.lock.withLock { state.processed += 1 }

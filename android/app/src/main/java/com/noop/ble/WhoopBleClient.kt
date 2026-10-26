@@ -3200,7 +3200,12 @@ class WhoopBleClient(
                 // answer is logged two minutes later beside this pass's own per-day lines, for comparison.
                 if (newData) {
                     com.noop.core.CoreShadow.analyze(profile.age.toInt(), profile.sex, profile.weightKg,
-                        profile.heightCm, profileStore.hrMaxOverride)
+                        profile.heightCm, profileStore.hrMaxOverride,
+                        effortBanister = NoopPrefs.banisterEffort(context),
+                        sleepStagerV2 = puffinExperiment.experimentalSleepV2,
+                        motionAwareWake = puffinExperiment.motionAwareWake,
+                        deepHrvWindow = com.noop.ui.UnitPrefs.hrvWindow(context) == com.noop.ui.HrvWindow.DEEP_SLEEP,
+                        dayCycleMode = NoopPrefs.dayCycleMode(context).persistedValue)
                     handler.postDelayed({
                         com.noop.core.CoreShadow.today()?.let { log("Core shadow analysis: $it") }
                     }, 120_000)

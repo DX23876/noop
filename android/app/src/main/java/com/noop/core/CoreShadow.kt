@@ -46,9 +46,17 @@ object CoreShadow {
     /** Starts a new tally in order with the frames, as the Kotlin client resets its own counters per link. */
     fun resetTally() { if (started) SwiftCore.shadowResetTally() }
 
-    /** Runs the core's daily pass on its own store after the frames queued so far. */
-    fun analyze(age: Int, sex: String, weightKg: Double, heightCm: Double, hrMaxOverride: Int) {
-        if (started) SwiftCore.shadowAnalyze(age, sex, weightKg, heightCm, hrMaxOverride)
+    /**
+     * Runs the core's daily pass on its own store after the frames queued so far, with the wearer's analysis choices
+     * as the Apple app passes its own (`AppAnalysisHost`): the Effort model, the sleep stager, the wake check, the
+     * nightly HRV window and the day start. Until 2026-10-26 the core hard-wired Banister Effort and the V1 stager
+     * here, so an untouched install scored differently from an untouched iPhone.
+     */
+    fun analyze(age: Int, sex: String, weightKg: Double, heightCm: Double, hrMaxOverride: Int,
+                effortBanister: Boolean, sleepStagerV2: Boolean, motionAwareWake: Boolean, deepHrvWindow: Boolean,
+                dayCycleMode: String) {
+        if (started) SwiftCore.shadowAnalyze(age, sex, weightKg, heightCm, hrMaxOverride, effortBanister,
+                                             sleepStagerV2, motionAwareWake, deepHrvWindow, dayCycleMode)
     }
 
     /** Today's scores from the core's last pass, as one line; null before one finished. */

@@ -50,7 +50,8 @@ final class ShadowSessionTests: XCTestCase {
         XCTAssertFalse(ShadowSession.awaitBanked(endData: [0, 1, 2, 3, 4, 5, 6, 7], timeout: 0.05))
 
         // The daily pass runs on the same store, in order after the offload, and leaves an answer.
-        ShadowSession.send(.analyze(.init(age: 40, sex: "male", weightKg: 80, heightCm: 180, hrMaxOverride: 0)))
+        ShadowSession.send(.analyze(.init(age: 40, sex: "male", weightKg: 80, heightCm: 180, hrMaxOverride: 0),
+                                    .standard))
         for _ in 0..<500 where ShadowSession.today == nil {
             try await Task.sleep(nanoseconds: 10_000_000)
         }

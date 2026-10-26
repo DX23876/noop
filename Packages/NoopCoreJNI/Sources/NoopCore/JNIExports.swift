@@ -100,10 +100,15 @@ public func jniShadowResetTally(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jc
 
 @_cdecl("Java_com_noop_core_SwiftCore_shadowAnalyze")
 public func jniShadowAnalyze(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?, _ age: jint, _ sex: jstring?,
-                             _ weightKg: jdouble, _ heightCm: jdouble, _ hrMaxOverride: jint) {
+                             _ weightKg: jdouble, _ heightCm: jdouble, _ hrMaxOverride: jint,
+                             _ effortBanister: jboolean, _ sleepStagerV2: jboolean, _ motionAwareWake: jboolean,
+                             _ deepHrvWindow: jboolean, _ dayCycleMode: jstring?) {
     guard let env, let sex, let s = string(env, sex) else { return }
+    let settings = CoreAnalysis.Settings(effortBanister: effortBanister != 0, sleepStagerV2: sleepStagerV2 != 0,
+                                         motionAwareWake: motionAwareWake != 0, deepHrvWindow: deepHrvWindow != 0,
+                                         dayCycleMode: dayCycleMode.flatMap { string(env, $0) })
     ShadowSession.send(.analyze(.init(age: Int(age), sex: s, weightKg: weightKg, heightCm: heightCm,
-                                      hrMaxOverride: Int(hrMaxOverride))))
+                                      hrMaxOverride: Int(hrMaxOverride)), settings))
 }
 
 @_cdecl("Java_com_noop_core_SwiftCore_shadowToday")

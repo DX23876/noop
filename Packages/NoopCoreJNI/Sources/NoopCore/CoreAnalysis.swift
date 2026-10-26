@@ -18,6 +18,31 @@ public enum CoreAnalysis {
         }
     }
 
+    /// The wearer's analysis choices as the Android app holds them (the same keys the Apple `AppAnalysisHost` reads):
+    /// the Effort model, the sleep stager, the wake check, the nightly HRV window and the day start. `standard` is
+    /// what an install that never touched them gets on either platform.
+    public struct Settings: Sendable, Equatable {
+        public var effortBanister: Bool, sleepStagerV2: Bool, motionAwareWake: Bool, deepHrvWindow: Bool
+        public var dayCycleMode: String?
+        public init(effortBanister: Bool, sleepStagerV2: Bool, motionAwareWake: Bool, deepHrvWindow: Bool,
+                    dayCycleMode: String?) {
+            self.effortBanister = effortBanister; self.sleepStagerV2 = sleepStagerV2
+            self.motionAwareWake = motionAwareWake; self.deepHrvWindow = deepHrvWindow; self.dayCycleMode = dayCycleMode
+        }
+
+        public static let standard = Settings(effortBanister: false, sleepStagerV2: true, motionAwareWake: false,
+                                              deepHrvWindow: false, dayCycleMode: nil)
+
+        /// What the pass reads, the experiments the Android app has no switch for left off.
+        public var analysisSettings: AnalysisSettings {
+            AnalysisSettings(effortMethod: effortBanister ? .banister : .edwards, spo2CandidateDisplay: false,
+                             sleepStagerV2: sleepStagerV2, motionAwareWake: motionAwareWake,
+                             deepHrvWindow: deepHrvWindow, dayCycleMode: .persisted(dayCycleMode),
+                             rhythmAge: false, healthspan: false, hrvBaselineEpoch: 0, recoveryBaselineEpoch: 0,
+                             traces: [])
+        }
+    }
+
     /// Today's scores the pass left in the store, as one log-friendly line; nil when today has no computed row.
     public struct Today: Sendable, Equatable {
         public var day: String, charge: Double?, effort: Double?, sleepMinutes: Double?, restingHr: Int?, hrv: Double?
@@ -30,10 +55,11 @@ public enum CoreAnalysis {
 
     /// Runs the standard daily pass over the last `days` days on `store` and returns today's computed scores.
     @MainActor
-    public static func run(store: WhoopStore, deviceId: String, profile: Profile, days: Int = 21) async -> Today? {
+    public static func run(store: WhoopStore, deviceId: String, profile: Profile, settings: Settings = .standard,
+                           days: Int = 21) async -> Today? {
         let reader = StoreReader(store: store, activeDeviceId: deviceId, registeredWhoopIds: [])
         let engine = DailyAnalysis(services: StoreServices(reader: reader), profile: ProfileSource(profile),
-                                   deviceId: deviceId, host: Host(), messages: { "\($0)" })
+                                   deviceId: deviceId, host: Host(settings), messages: { "\($0)" })
         await engine.analyzeRecent(maxDays: days, force: true, allowDayReuse: false)
         let today = StoreReader.localDayKey(Date())
         guard let row = try? await store.dailyMetrics(deviceId: deviceId + "-noop", from: today, to: today).first
@@ -112,14 +138,11 @@ public enum CoreAnalysis {
 
     @MainActor
     private final class Host: AnalysisHost {
+        let settings: Settings
         var bools: [String: Bool] = [:]
         var strings: [String: String] = [:]
-        func analysisSettings() -> AnalysisSettings {
-            AnalysisSettings(effortMethod: .banister, spo2CandidateDisplay: false, sleepStagerV2: false,
-                             motionAwareWake: false, deepHrvWindow: false, dayCycleMode: .persisted(nil),
-                             rhythmAge: false, healthspan: false, hrvBaselineEpoch: 0, recoveryBaselineEpoch: 0,
-                             traces: [])
-        }
+        init(_ settings: Settings) { self.settings = settings }
+        func analysisSettings() -> AnalysisSettings { settings.analysisSettings }
         func diagnostic(_ line: String, domain: TestDomain?) {}
         func storedBool(_ key: String) -> Bool { bools[key] ?? false }
         func storedString(_ key: String) -> String? { strings[key] }
