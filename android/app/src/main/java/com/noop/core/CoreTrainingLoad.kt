@@ -48,18 +48,13 @@ object CoreTrainingLoad {
     internal fun parse(json: String): Output? {
         if (json == "null" || json.contains("\"error\"")) return null
         val o = JSONObject(json)
-        fun lane(x: JSONObject) = Lane(
-            x.getDouble("sevenDayTotal"), x.getInt("sevenDayWorkingSets"), x.dbl("percent"),
-            x.str("band"), x.str("guardState"), x.optInt("daysBelowUsual"), x.str("readingDay"),
-            x.optString("maturity", "immediate"), x.optBoolean("isLowerBound"), x.dbl("monotony"), x.dbl("strain"),
-            x.dbl("weekOverWeek"), x.optInt("measuredCount"), x.optInt("possibleCount"))
         fun verdict(x: JSONObject?) = x?.let { Verdict(it.getString("kind"), it.getString("value")) }
         fun room(x: JSONObject?) = x?.let { Room(it.getDouble("beforeAbove"), it.dbl("beforeWellAbove")) }
         fun reading(x: JSONObject?) = x?.let { Reading(it.getString("day"), it.getDouble("value"), it.getString("segment")) }
         val st = o.getJSONObject("statement")
         return Output(
-            strength = lane(o.getJSONObject("strength")), cardio = lane(o.getJSONObject("cardio")),
-            session = lane(o.getJSONObject("session")),
+            strength = parseLane(o.getJSONObject("strength")), cardio = parseLane(o.getJSONObject("cardio")),
+            session = parseLane(o.getJSONObject("session")),
             ratios = o.optJSONArray("ratios").objects().map { Ratio(it.getString("day"), it.dbl("strength"), it.dbl("cardio")) },
             history = o.optJSONArray("history").objects().map { Week(it.getString("day"), it.str("strength"), it.str("cardio")) },
             strengthVerdict = verdict(o.optJSONObject("strengthVerdict")),
@@ -86,6 +81,12 @@ object CoreTrainingLoad {
             appleSource = o.optString("appleSource", "apple-health"), trustedShare = o.optDouble("trustedShare", 0.6),
         )
     }
+
+    internal fun parseLane(x: JSONObject) = Lane(
+        x.getDouble("sevenDayTotal"), x.getInt("sevenDayWorkingSets"), x.dbl("percent"),
+        x.str("band"), x.str("guardState"), x.optInt("daysBelowUsual"), x.str("readingDay"),
+        x.optString("maturity", "immediate"), x.optBoolean("isLowerBound"), x.dbl("monotony"), x.dbl("strain"),
+        x.dbl("weekOverWeek"), x.optInt("measuredCount"), x.optInt("possibleCount"))
 
     private fun JSONArray?.objects(): List<JSONObject> = if (this == null) emptyList() else (0 until length()).map { getJSONObject(it) }
     private fun JSONArray?.strings(): List<String> = if (this == null) emptyList() else (0 until length()).map { getString(it) }

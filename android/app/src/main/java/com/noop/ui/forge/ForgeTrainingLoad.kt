@@ -180,7 +180,7 @@ private fun belowSince(l: CoreTrainingLoad.Lane): String {
 }
 
 @Composable
-private fun strengthEvidence(l: CoreTrainingLoad.Lane): String = when {
+internal fun strengthEvidence(l: CoreTrainingLoad.Lane): String = when {
     l.guardState == "tooFewSessions" -> stringResource(R.string.forge_tl_too_few_in_window)
     l.band == null -> stringResource(R.string.forge_tl_sets_rated_after_21, l.measuredCount, l.possibleCount)
     l.band == "below" && l.daysBelowUsual > 0 && l.readingDay != null -> belowSince(l)
@@ -188,7 +188,7 @@ private fun strengthEvidence(l: CoreTrainingLoad.Lane): String = when {
 }
 
 @Composable
-private fun cardioEvidence(l: CoreTrainingLoad.Lane): String = when {
+internal fun cardioEvidence(l: CoreTrainingLoad.Lane): String = when {
     l.guardState == "tooFewSessions" -> stringResource(R.string.forge_tl_too_few_in_window)
     l.band == null -> stringResource(R.string.forge_tl_sessions_complete_after_21, l.measuredCount, l.possibleCount)
     l.band == "below" && l.daysBelowUsual > 0 && l.readingDay != null -> belowSince(l)
@@ -217,7 +217,7 @@ private fun cardioCaveat(o: CoreTrainingLoad.Output): String? {
 }
 
 @Composable
-private fun capNote(l: CoreTrainingLoad.Lane): String? =
+internal fun capNote(l: CoreTrainingLoad.Lane): String? =
     if (l.guardState == "lowVolumeCap") stringResource(R.string.forge_tl_cap_note) else null
 
 @Composable

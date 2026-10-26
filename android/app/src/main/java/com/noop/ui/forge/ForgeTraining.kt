@@ -122,6 +122,8 @@ private sealed interface TrainingPage {
     data class Detail(val session: CoreTraining.Session) : TrainingPage
     data object Muscles : TrainingPage
     data object Load : TrainingPage
+    data object Strength : TrainingPage
+    data object Cardio : TrainingPage
 }
 
 /** Activities offered before the wearer's own recents fill the list (`WorkoutQuickStart.starterNames`). */
@@ -275,6 +277,10 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
 
         Section(stringResource(R.string.forge_th_understand), stringResource(R.string.forge_th_noop_analysis)) {
             ForgeCard(Modifier.fillMaxWidth(), contentPadding = 0.dp) {
+                AnalysisRow(stringResource(R.string.forge_th_strength), stringResource(R.string.forge_th_strength_detail),
+                            Icons.Rounded.FitnessCenter) { page = TrainingPage.Strength }
+                AnalysisRow(stringResource(R.string.forge_tl_cardio), stringResource(R.string.forge_th_cardio_detail),
+                            Icons.Rounded.Speed) { page = TrainingPage.Cardio }
                 AnalysisRow(stringResource(R.string.forge_th_load_title), stringResource(R.string.forge_th_load_detail),
                             Icons.Rounded.Speed) { page = TrainingPage.Load }
             }
@@ -294,6 +300,8 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
                     is TrainingPage.Detail -> SessionDetail(open.session, onClose = close)
                     TrainingPage.Muscles -> s?.let { MuscleAnalyticsPage(it.muscles, onClose = close) }
                     TrainingPage.Load -> ForgeTrainingLoadPage(onClose = close)
+                    TrainingPage.Strength -> ForgeStrengthPage(onClose = close)
+                    TrainingPage.Cardio -> ForgeCardioPage(onClose = close)
                 }
             }
         }

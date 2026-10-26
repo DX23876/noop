@@ -1,0 +1,421 @@
+{
+  "averageHr" : 130,
+  "distanceM" : 30000,
+  "energyKcal" : 0,
+  "lane" : {
+    "daysBelowUsual" : 0,
+    "guardState" : "none",
+    "isLowerBound" : true,
+    "maturity" : "earlyEstimate",
+    "measuredCount" : 0,
+    "possibleCount" : 1,
+    "readingDay" : "2026-10-26",
+    "sevenDayTotal" : 0,
+    "sevenDayWorkingSets" : 0
+  },
+  "loadShares" : [
+
+  ],
+  "minutes" : 60,
+  "progress" : {
+    "choices" : [
+      "Cycling"
+    ],
+    "efficiency" : [
+      {
+        "day" : "2026-09-28",
+        "startTs" : 1790586000,
+        "value" : 354.54545454545456
+      },
+      {
+        "day" : "2026-10-05",
+        "startTs" : 1791190800,
+        "value" : 325
+      },
+      {
+        "day" : "2026-10-12",
+        "startTs" : 1791795600,
+        "value" : 300
+      },
+      {
+        "day" : "2026-10-19",
+        "startTs" : 1792400400,
+        "value" : 278.57142857142856
+      },
+      {
+        "day" : "2026-10-26",
+        "startTs" : 1793005200,
+        "value" : 260
+      }
+    ],
+    "efficiencyTrend" : {
+      "directionIsUnclear" : false,
+      "firstValue" : 354.54545454545456,
+      "lastValue" : 260,
+      "pointCount" : 5,
+      "slopePerWeek" : -23.42532467532468,
+      "spanDays" : 28,
+      "spread" : {
+        "lower" : -25.2435064935065,
+        "upper" : -21.48809523809525
+      }
+    },
+    "farthest" : {
+      "day" : "2026-10-26",
+      "distanceM" : 30000,
+      "durationS" : 3600,
+      "sport" : "Cycling",
+      "startTs" : 1793005200,
+      "value" : 30000
+    },
+    "longest" : {
+      "day" : "2026-09-28",
+      "distanceM" : 22000,
+      "durationS" : 3600,
+      "sport" : "Cycling",
+      "startTs" : 1790586000,
+      "value" : 3600
+    },
+    "metric" : "speed",
+    "modality" : "cycling",
+    "pace" : [
+      {
+        "day" : "2026-09-28",
+        "startTs" : 1790586000,
+        "value" : 22
+      },
+      {
+        "day" : "2026-10-05",
+        "startTs" : 1791190800,
+        "value" : 24
+      },
+      {
+        "day" : "2026-10-12",
+        "startTs" : 1791795600,
+        "value" : 26
+      },
+      {
+        "day" : "2026-10-19",
+        "startTs" : 1792400400,
+        "value" : 28
+      },
+      {
+        "day" : "2026-10-26",
+        "startTs" : 1793005200,
+        "value" : 30
+      }
+    ],
+    "paceBests" : {
+      "medium" : {
+        "day" : "2026-10-26",
+        "distanceM" : 30000,
+        "durationS" : 3600,
+        "sport" : "Cycling",
+        "startTs" : 1793005200,
+        "value" : 120
+      }
+    },
+    "paceTrend" : {
+      "directionIsUnclear" : false,
+      "firstValue" : 22,
+      "lastValue" : 30,
+      "pointCount" : 5,
+      "slopePerWeek" : 2,
+      "spanDays" : 28,
+      "spread" : {
+        "lower" : 2,
+        "upper" : 2
+      }
+    },
+    "selectedSport" : "Cycling"
+  },
+  "ratios" : [
+    {
+      "day" : "2026-09-01"
+    },
+    {
+      "day" : "2026-09-02"
+    },
+    {
+      "day" : "2026-09-03"
+    },
+    {
+      "day" : "2026-09-04"
+    },
+    {
+      "day" : "2026-09-05"
+    },
+    {
+      "day" : "2026-09-06"
+    },
+    {
+      "day" : "2026-09-07"
+    },
+    {
+      "day" : "2026-09-08"
+    },
+    {
+      "day" : "2026-09-09"
+    },
+    {
+      "day" : "2026-09-10"
+    },
+    {
+      "day" : "2026-09-11"
+    },
+    {
+      "day" : "2026-09-12"
+    },
+    {
+      "day" : "2026-09-13"
+    },
+    {
+      "day" : "2026-09-14"
+    },
+    {
+      "day" : "2026-09-15"
+    },
+    {
+      "day" : "2026-09-16"
+    },
+    {
+      "day" : "2026-09-17"
+    },
+    {
+      "day" : "2026-09-18"
+    },
+    {
+      "day" : "2026-09-19"
+    },
+    {
+      "day" : "2026-09-20"
+    },
+    {
+      "day" : "2026-09-21"
+    },
+    {
+      "day" : "2026-09-22"
+    },
+    {
+      "day" : "2026-09-23"
+    },
+    {
+      "day" : "2026-09-24"
+    },
+    {
+      "day" : "2026-09-25"
+    },
+    {
+      "day" : "2026-09-26"
+    },
+    {
+      "day" : "2026-09-27"
+    },
+    {
+      "day" : "2026-09-28"
+    },
+    {
+      "day" : "2026-09-29"
+    },
+    {
+      "day" : "2026-09-30"
+    },
+    {
+      "day" : "2026-10-01"
+    },
+    {
+      "day" : "2026-10-02"
+    },
+    {
+      "day" : "2026-10-03"
+    },
+    {
+      "day" : "2026-10-04"
+    },
+    {
+      "day" : "2026-10-05"
+    },
+    {
+      "day" : "2026-10-06"
+    },
+    {
+      "day" : "2026-10-07"
+    },
+    {
+      "day" : "2026-10-08"
+    },
+    {
+      "day" : "2026-10-09"
+    },
+    {
+      "day" : "2026-10-10"
+    },
+    {
+      "day" : "2026-10-11"
+    },
+    {
+      "day" : "2026-10-12"
+    },
+    {
+      "day" : "2026-10-13"
+    },
+    {
+      "day" : "2026-10-14"
+    },
+    {
+      "day" : "2026-10-15"
+    },
+    {
+      "day" : "2026-10-16"
+    },
+    {
+      "day" : "2026-10-17"
+    },
+    {
+      "day" : "2026-10-18"
+    },
+    {
+      "day" : "2026-10-19"
+    },
+    {
+      "day" : "2026-10-20"
+    },
+    {
+      "day" : "2026-10-21"
+    },
+    {
+      "day" : "2026-10-22"
+    },
+    {
+      "day" : "2026-10-23"
+    },
+    {
+      "day" : "2026-10-24"
+    },
+    {
+      "day" : "2026-10-25"
+    },
+    {
+      "day" : "2026-10-26"
+    }
+  ],
+  "selection" : {
+    "days" : 120,
+    "minWeekOffset" : -4,
+    "monday" : "2026-10-26",
+    "readingDay" : "2026-10-26",
+    "sunday" : "2026-11-01",
+    "weekOffset" : 0
+  },
+  "sessions" : [
+    {
+      "avgHr" : 130,
+      "beatsPerKm" : 260,
+      "day" : "2026-10-26",
+      "distanceM" : 30000,
+      "durationS" : 3600,
+      "endTs" : 1793008800,
+      "family" : "endurance",
+      "modality" : "cycling",
+      "paceSecPer100m" : 12,
+      "paceSecPerKm" : 120,
+      "source" : "manual",
+      "speedKmh" : 30,
+      "sport" : "Cycling",
+      "startTs" : 1793005200
+    },
+    {
+      "avgHr" : 130,
+      "beatsPerKm" : 278.57142857142856,
+      "day" : "2026-10-19",
+      "distanceM" : 28000,
+      "durationS" : 3600,
+      "endTs" : 1792404000,
+      "family" : "endurance",
+      "modality" : "cycling",
+      "paceSecPer100m" : 12.857142857142858,
+      "paceSecPerKm" : 128.57142857142858,
+      "source" : "manual",
+      "speedKmh" : 28,
+      "sport" : "Cycling",
+      "startTs" : 1792400400
+    },
+    {
+      "avgHr" : 130,
+      "beatsPerKm" : 300,
+      "day" : "2026-10-12",
+      "distanceM" : 26000,
+      "durationS" : 3600,
+      "endTs" : 1791799200,
+      "family" : "endurance",
+      "modality" : "cycling",
+      "paceSecPer100m" : 13.846153846153845,
+      "paceSecPerKm" : 138.46153846153845,
+      "source" : "manual",
+      "speedKmh" : 26,
+      "sport" : "Cycling",
+      "startTs" : 1791795600
+    },
+    {
+      "avgHr" : 130,
+      "beatsPerKm" : 325,
+      "day" : "2026-10-05",
+      "distanceM" : 24000,
+      "durationS" : 3600,
+      "endTs" : 1791194400,
+      "family" : "endurance",
+      "modality" : "cycling",
+      "paceSecPer100m" : 15,
+      "paceSecPerKm" : 150,
+      "source" : "manual",
+      "speedKmh" : 24,
+      "sport" : "Cycling",
+      "startTs" : 1791190800
+    },
+    {
+      "avgHr" : 130,
+      "beatsPerKm" : 354.54545454545456,
+      "day" : "2026-09-28",
+      "distanceM" : 22000,
+      "durationS" : 3600,
+      "endTs" : 1790589600,
+      "family" : "endurance",
+      "modality" : "cycling",
+      "paceSecPer100m" : 16.363636363636363,
+      "paceSecPerKm" : 163.63636363636363,
+      "source" : "manual",
+      "speedKmh" : 22,
+      "sport" : "Cycling",
+      "startTs" : 1790586000
+    }
+  ],
+  "sessionsWithDistance" : 1,
+  "sports" : [
+    {
+      "distanceM" : 30000,
+      "energyKcal" : 0,
+      "minutes" : 60,
+      "modality" : "cycling",
+      "name" : "Cycling",
+      "sessions" : 1
+    }
+  ],
+  "typicalAverageHr" : 130,
+  "typicalMinutes" : {
+    "lower" : 60,
+    "upper" : 60
+  },
+  "weekSessions" : 1,
+  "zones" : {
+    "minutes" : [
+      10,
+      15,
+      5,
+      0,
+      0
+    ],
+    "sessionsPossible" : 2,
+    "sessionsRead" : 1,
+    "usedMinuteBuckets" : true
+  }
+}

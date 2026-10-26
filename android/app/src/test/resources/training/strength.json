@@ -1,0 +1,651 @@
+{
+  "balance" : [
+    {
+      "axis" : "pushPull",
+      "setsA" : 1,
+      "setsB" : 0,
+      "shareA" : 1
+    },
+    {
+      "axis" : "upperLower",
+      "setsA" : 1,
+      "setsB" : 0,
+      "shareA" : 1
+    },
+    {
+      "axis" : "quadsPosterior",
+      "setsA" : 0,
+      "setsB" : 0
+    }
+  ],
+  "bodyweightKg" : 0,
+  "bodyweightSets" : 0,
+  "exercise" : {
+    "bestEstimatedOneRepMax" : {
+      "day" : "2026-10-26",
+      "reps" : 8,
+      "startTs" : 1793005200,
+      "value" : 106.66666666666666,
+      "workoutId" : "bench-0"
+    },
+    "bestSessionVolume" : {
+      "day" : "2026-10-26",
+      "startTs" : 1793005200,
+      "value" : 640,
+      "workoutId" : "bench-0"
+    },
+    "choices" : [
+      {
+        "id" : "bench",
+        "sessions" : 5,
+        "title" : "Bench press"
+      }
+    ],
+    "heaviestSet" : {
+      "day" : "2026-10-26",
+      "reps" : 8,
+      "startTs" : 1793005200,
+      "value" : 80,
+      "workoutId" : "bench-0"
+    },
+    "isVolume" : false,
+    "points" : [
+      {
+        "day" : "2026-09-28",
+        "startTs" : 1790586000,
+        "value" : 96
+      },
+      {
+        "day" : "2026-10-05",
+        "startTs" : 1791190800,
+        "value" : 98.66666666666666
+      },
+      {
+        "day" : "2026-10-12",
+        "startTs" : 1791795600,
+        "value" : 101.33333333333333
+      },
+      {
+        "day" : "2026-10-19",
+        "startTs" : 1792400400,
+        "value" : 104
+      },
+      {
+        "day" : "2026-10-26",
+        "startTs" : 1793005200,
+        "value" : 106.66666666666666
+      }
+    ],
+    "repRecords" : {
+      "sevenToTwelve" : {
+        "day" : "2026-10-26",
+        "reps" : 8,
+        "startTs" : 1793005200,
+        "value" : 80,
+        "workoutId" : "bench-0"
+      }
+    },
+    "selectedId" : "bench",
+    "trend" : {
+      "directionIsUnclear" : false,
+      "firstValue" : 96,
+      "lastValue" : 106.66666666666666,
+      "pointCount" : 5,
+      "slopePerWeek" : 2.666666666666665,
+      "spanDays" : 28,
+      "spread" : {
+        "lower" : 2.6666666666666643,
+        "upper" : 2.66666666666667
+      }
+    }
+  },
+  "genericSessions" : [
+
+  ],
+  "lane" : {
+    "daysBelowUsual" : 0,
+    "guardState" : "tooFewSessions",
+    "isLowerBound" : false,
+    "maturity" : "earlyEstimate",
+    "measuredCount" : 1,
+    "monotony" : 0.40824829046386296,
+    "possibleCount" : 1,
+    "readingDay" : "2026-10-26",
+    "sevenDayTotal" : 0.6799999999999999,
+    "sevenDayWorkingSets" : 1,
+    "strain" : 0.2776088375154268,
+    "weekOverWeek" : 0
+  },
+  "muscles" : [
+    {
+      "id" : "abdominals",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "shoulders",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "biceps",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "fatigue" : 0.33627915789604695,
+      "id" : "triceps",
+      "primarySets" : 0,
+      "secondarySets" : 1,
+      "stimulus" : 0.33999999999999997,
+      "typicalSession" : 0.33999999999999997,
+      "usualStimulus" : 0.33999999999999997
+    },
+    {
+      "id" : "forearms",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "quadriceps",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "hamstrings",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "calves",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "glutes",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "abductors",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "adductors",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "lats",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "upper_back",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "traps",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "lower_back",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "fatigue" : 0.7323863154708563,
+      "id" : "chest",
+      "primarySets" : 1,
+      "secondarySets" : 0,
+      "stimulus" : 0.6799999999999999,
+      "typicalSession" : 0.6799999999999999,
+      "usualSets" : {
+        "lower" : 1,
+        "upper" : 1
+      },
+      "usualStimulus" : 0.6799999999999999
+    },
+    {
+      "id" : "cardio",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "neck",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "full_body",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "other",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "serratus",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "obliques",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "hip_flexors",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "shins",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    }
+  ],
+  "overview" : {
+    "activeWeeks" : 5,
+    "averageRPE" : 8,
+    "durationSeconds" : 18000,
+    "durationSessions" : 5,
+    "longestStreak" : 5,
+    "observedWeeks" : 5,
+    "ratedSets" : 5,
+    "records" : [
+      {
+        "estimatedOneRepMaxKg" : 106.66666666666666,
+        "exerciseId" : "bench",
+        "exerciseTitle" : "Bench press",
+        "timestamp" : 1793005200,
+        "workoutId" : "bench-0"
+      },
+      {
+        "estimatedOneRepMaxKg" : 104,
+        "exerciseId" : "bench",
+        "exerciseTitle" : "Bench press",
+        "timestamp" : 1792400400,
+        "workoutId" : "bench-1"
+      },
+      {
+        "estimatedOneRepMaxKg" : 101.33333333333333,
+        "exerciseId" : "bench",
+        "exerciseTitle" : "Bench press",
+        "timestamp" : 1791795600,
+        "workoutId" : "bench-2"
+      },
+      {
+        "estimatedOneRepMaxKg" : 98.66666666666666,
+        "exerciseId" : "bench",
+        "exerciseTitle" : "Bench press",
+        "timestamp" : 1791190800,
+        "workoutId" : "bench-3"
+      },
+      {
+        "estimatedOneRepMaxKg" : 96,
+        "exerciseId" : "bench",
+        "exerciseTitle" : "Bench press",
+        "timestamp" : 1790586000,
+        "workoutId" : "bench-4"
+      }
+    ],
+    "sessions" : 5,
+    "sessionsPerWeek" : 0.2916666385352394,
+    "trainingDays" : 5,
+    "volumeKg" : 3040,
+    "volumeSets" : 5,
+    "workingSets" : 5
+  },
+  "ratios" : [
+    {
+      "day" : "2026-09-01"
+    },
+    {
+      "day" : "2026-09-02"
+    },
+    {
+      "day" : "2026-09-03"
+    },
+    {
+      "day" : "2026-09-04"
+    },
+    {
+      "day" : "2026-09-05"
+    },
+    {
+      "day" : "2026-09-06"
+    },
+    {
+      "day" : "2026-09-07"
+    },
+    {
+      "day" : "2026-09-08"
+    },
+    {
+      "day" : "2026-09-09"
+    },
+    {
+      "day" : "2026-09-10"
+    },
+    {
+      "day" : "2026-09-11"
+    },
+    {
+      "day" : "2026-09-12"
+    },
+    {
+      "day" : "2026-09-13"
+    },
+    {
+      "day" : "2026-09-14"
+    },
+    {
+      "day" : "2026-09-15"
+    },
+    {
+      "day" : "2026-09-16"
+    },
+    {
+      "day" : "2026-09-17"
+    },
+    {
+      "day" : "2026-09-18"
+    },
+    {
+      "day" : "2026-09-19"
+    },
+    {
+      "day" : "2026-09-20"
+    },
+    {
+      "day" : "2026-09-21"
+    },
+    {
+      "day" : "2026-09-22"
+    },
+    {
+      "day" : "2026-09-23"
+    },
+    {
+      "day" : "2026-09-24"
+    },
+    {
+      "day" : "2026-09-25"
+    },
+    {
+      "day" : "2026-09-26"
+    },
+    {
+      "day" : "2026-09-27"
+    },
+    {
+      "day" : "2026-09-28"
+    },
+    {
+      "day" : "2026-09-29"
+    },
+    {
+      "day" : "2026-09-30"
+    },
+    {
+      "day" : "2026-10-01"
+    },
+    {
+      "day" : "2026-10-02"
+    },
+    {
+      "day" : "2026-10-03"
+    },
+    {
+      "day" : "2026-10-04"
+    },
+    {
+      "day" : "2026-10-05"
+    },
+    {
+      "day" : "2026-10-06"
+    },
+    {
+      "day" : "2026-10-07"
+    },
+    {
+      "day" : "2026-10-08"
+    },
+    {
+      "day" : "2026-10-09"
+    },
+    {
+      "day" : "2026-10-10"
+    },
+    {
+      "day" : "2026-10-11"
+    },
+    {
+      "day" : "2026-10-12"
+    },
+    {
+      "day" : "2026-10-13"
+    },
+    {
+      "day" : "2026-10-14"
+    },
+    {
+      "day" : "2026-10-15"
+    },
+    {
+      "day" : "2026-10-16"
+    },
+    {
+      "day" : "2026-10-17"
+    },
+    {
+      "day" : "2026-10-18"
+    },
+    {
+      "day" : "2026-10-19"
+    },
+    {
+      "day" : "2026-10-20"
+    },
+    {
+      "day" : "2026-10-21"
+    },
+    {
+      "day" : "2026-10-22"
+    },
+    {
+      "day" : "2026-10-23"
+    },
+    {
+      "day" : "2026-10-24"
+    },
+    {
+      "day" : "2026-10-25"
+    },
+    {
+      "day" : "2026-10-26"
+    }
+  ],
+  "recentSessions" : [
+    {
+      "durationS" : 3600,
+      "exercises" : [
+        {
+          "sets" : [
+            {
+              "countsAsWork" : false,
+              "reps" : 10,
+              "type" : "warmup",
+              "weightKg" : 20
+            },
+            {
+              "countsAsWork" : true,
+              "reps" : 8,
+              "rpe" : 8,
+              "type" : "normal",
+              "weightKg" : 80
+            }
+          ],
+          "title" : "Bench press"
+        }
+      ],
+      "id" : "bench-0",
+      "source" : "hevy_csv",
+      "startTs" : 1793005200,
+      "title" : "Push day"
+    },
+    {
+      "durationS" : 3600,
+      "exercises" : [
+        {
+          "sets" : [
+            {
+              "countsAsWork" : false,
+              "reps" : 10,
+              "type" : "warmup",
+              "weightKg" : 20
+            },
+            {
+              "countsAsWork" : true,
+              "reps" : 8,
+              "rpe" : 8,
+              "type" : "normal",
+              "weightKg" : 78
+            }
+          ],
+          "title" : "Bench press"
+        }
+      ],
+      "id" : "bench-1",
+      "source" : "hevy_csv",
+      "startTs" : 1792400400,
+      "title" : "Push day"
+    },
+    {
+      "durationS" : 3600,
+      "exercises" : [
+        {
+          "sets" : [
+            {
+              "countsAsWork" : false,
+              "reps" : 10,
+              "type" : "warmup",
+              "weightKg" : 20
+            },
+            {
+              "countsAsWork" : true,
+              "reps" : 8,
+              "rpe" : 8,
+              "type" : "normal",
+              "weightKg" : 76
+            }
+          ],
+          "title" : "Bench press"
+        }
+      ],
+      "id" : "bench-2",
+      "source" : "hevy_csv",
+      "startTs" : 1791795600,
+      "title" : "Push day"
+    },
+    {
+      "durationS" : 3600,
+      "exercises" : [
+        {
+          "sets" : [
+            {
+              "countsAsWork" : false,
+              "reps" : 10,
+              "type" : "warmup",
+              "weightKg" : 20
+            },
+            {
+              "countsAsWork" : true,
+              "reps" : 8,
+              "rpe" : 8,
+              "type" : "normal",
+              "weightKg" : 74
+            }
+          ],
+          "title" : "Bench press"
+        }
+      ],
+      "id" : "bench-3",
+      "source" : "hevy_csv",
+      "startTs" : 1791190800,
+      "title" : "Push day"
+    },
+    {
+      "durationS" : 3600,
+      "exercises" : [
+        {
+          "sets" : [
+            {
+              "countsAsWork" : false,
+              "reps" : 10,
+              "type" : "warmup",
+              "weightKg" : 20
+            },
+            {
+              "countsAsWork" : true,
+              "reps" : 8,
+              "rpe" : 8,
+              "type" : "normal",
+              "weightKg" : 72
+            }
+          ],
+          "title" : "Bench press"
+        }
+      ],
+      "id" : "bench-4",
+      "source" : "hevy_csv",
+      "startTs" : 1790586000,
+      "title" : "Push day"
+    }
+  ],
+  "selection" : {
+    "days" : 120,
+    "minWeekOffset" : -4,
+    "monday" : "2026-10-26",
+    "readingDay" : "2026-10-26",
+    "sunday" : "2026-11-01",
+    "weekOffset" : 0
+  },
+  "sessions" : 1,
+  "unattributedSets" : 0,
+  "unmappedExercises" : [
+
+  ],
+  "unpricedBodyweightSets" : 0,
+  "volumeKg" : 640,
+  "volumeSets" : 1,
+  "workingSets" : 1
+}

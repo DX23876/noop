@@ -59,6 +59,18 @@ public enum CoreCall {
             return CoreRead.json(await CoreTrainingReports.cardio(reader: reader, maxHR: maxHR, sex: string("sex"),
                 days: int("days", 120), weekOffset: int("weekOffset", 0), sport: args["sport"] as? String,
                 zoneSet: zones, dismissedWorkouts: args["dismissedWorkouts"] as? [String] ?? []))
+        case "training.strengthSession":
+            return CoreRead.json(await CoreTrainingReports.session(reader: reader, id: string("id")))
+        case "training.saveStrengthDetails":
+            return CoreRead.json(["result": await CoreTrainingReports.saveDetails(reader: reader,
+                sessionId: string("sessionId"), drafts: args["drafts"] as? [[String: Any]] ?? [],
+                dismissedWorkouts: args["dismissedWorkouts"] as? [String] ?? [])])
+        case "training.mapStrengthExercise":
+            return ok(await CoreTrainingReports.saveMapping(store: store, title: string("title"),
+                primary: string("primary"), secondary: args["secondary"] as? [String] ?? []))
+        case "training.muscleFeedback":
+            return ok(await CoreTrainingReports.recordFeedback(store: store, muscle: string("muscle"),
+                feeling: int("feeling", -1)))
         case "training.starters": return CoreRead.json(await CoreTraining.starters(store: store))
         case "training.addStarter": return ok(await CoreTraining.addStarter(store: store, index: int("index", -1)))
         case "training.setSchedule":

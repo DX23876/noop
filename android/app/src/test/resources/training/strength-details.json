@@ -1,0 +1,468 @@
+{
+  "balance" : [
+    {
+      "axis" : "pushPull",
+      "setsA" : 5,
+      "setsB" : 0,
+      "shareA" : 1
+    },
+    {
+      "axis" : "upperLower",
+      "setsA" : 5,
+      "setsB" : 0,
+      "shareA" : 1
+    },
+    {
+      "axis" : "quadsPosterior",
+      "setsA" : 0,
+      "setsB" : 0
+    }
+  ],
+  "bodyweightKg" : 0,
+  "bodyweightSets" : 0,
+  "exercise" : {
+    "choices" : [
+      {
+        "id" : "manual.chest.benchpress",
+        "sessions" : 1,
+        "title" : "Bench press"
+      }
+    ],
+    "isVolume" : true,
+    "points" : [
+      {
+        "day" : "2026-10-26",
+        "startTs" : 1793005200,
+        "value" : 0
+      }
+    ],
+    "repRecords" : {
+
+    },
+    "selectedId" : "manual.chest.benchpress"
+  },
+  "genericSessions" : [
+    {
+      "drafts" : [
+        {
+          "effort" : "8,5",
+          "muscle" : "chest",
+          "title" : "Bench press",
+          "usesRIR" : false,
+          "workSets" : 5
+        }
+      ],
+      "endTs" : 1793008800,
+      "id" : "session|apple-health|1793005200|functionalstrengthtraining",
+      "manualWorkoutId" : "manual-1793005200-1793008800",
+      "source" : "apple-health",
+      "startTs" : 1793005200,
+      "title" : "Functional strength training"
+    }
+  ],
+  "lane" : {
+    "daysBelowUsual" : 0,
+    "guardState" : "none",
+    "isLowerBound" : false,
+    "maturity" : "immediate",
+    "measuredCount" : 5,
+    "possibleCount" : 5,
+    "readingDay" : "2026-10-26",
+    "sevenDayTotal" : 3.8,
+    "sevenDayWorkingSets" : 5
+  },
+  "muscles" : [
+    {
+      "id" : "abdominals",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "shoulders",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "biceps",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "triceps",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "forearms",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "quadriceps",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "hamstrings",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "calves",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "glutes",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "abductors",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "adductors",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "lats",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "upper_back",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "traps",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "lower_back",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "fatigue" : 3.6958970130421234,
+      "id" : "chest",
+      "primarySets" : 5,
+      "secondarySets" : 0,
+      "stimulus" : 3.8,
+      "typicalSession" : 3.8
+    },
+    {
+      "id" : "cardio",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "neck",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "full_body",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "other",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "serratus",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "obliques",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "hip_flexors",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    },
+    {
+      "id" : "shins",
+      "primarySets" : 0,
+      "secondarySets" : 0,
+      "stimulus" : 0
+    }
+  ],
+  "overview" : {
+    "activeWeeks" : 1,
+    "averageRPE" : 8.5,
+    "durationSeconds" : 3600,
+    "durationSessions" : 1,
+    "longestStreak" : 1,
+    "observedWeeks" : 1,
+    "ratedSets" : 5,
+    "records" : [
+
+    ],
+    "sessions" : 1,
+    "sessionsPerWeek" : 0.05833332770704787,
+    "trainingDays" : 1,
+    "volumeKg" : 0,
+    "volumeSets" : 0,
+    "workingSets" : 5
+  },
+  "ratios" : [
+    {
+      "day" : "2026-09-01"
+    },
+    {
+      "day" : "2026-09-02"
+    },
+    {
+      "day" : "2026-09-03"
+    },
+    {
+      "day" : "2026-09-04"
+    },
+    {
+      "day" : "2026-09-05"
+    },
+    {
+      "day" : "2026-09-06"
+    },
+    {
+      "day" : "2026-09-07"
+    },
+    {
+      "day" : "2026-09-08"
+    },
+    {
+      "day" : "2026-09-09"
+    },
+    {
+      "day" : "2026-09-10"
+    },
+    {
+      "day" : "2026-09-11"
+    },
+    {
+      "day" : "2026-09-12"
+    },
+    {
+      "day" : "2026-09-13"
+    },
+    {
+      "day" : "2026-09-14"
+    },
+    {
+      "day" : "2026-09-15"
+    },
+    {
+      "day" : "2026-09-16"
+    },
+    {
+      "day" : "2026-09-17"
+    },
+    {
+      "day" : "2026-09-18"
+    },
+    {
+      "day" : "2026-09-19"
+    },
+    {
+      "day" : "2026-09-20"
+    },
+    {
+      "day" : "2026-09-21"
+    },
+    {
+      "day" : "2026-09-22"
+    },
+    {
+      "day" : "2026-09-23"
+    },
+    {
+      "day" : "2026-09-24"
+    },
+    {
+      "day" : "2026-09-25"
+    },
+    {
+      "day" : "2026-09-26"
+    },
+    {
+      "day" : "2026-09-27"
+    },
+    {
+      "day" : "2026-09-28"
+    },
+    {
+      "day" : "2026-09-29"
+    },
+    {
+      "day" : "2026-09-30"
+    },
+    {
+      "day" : "2026-10-01"
+    },
+    {
+      "day" : "2026-10-02"
+    },
+    {
+      "day" : "2026-10-03"
+    },
+    {
+      "day" : "2026-10-04"
+    },
+    {
+      "day" : "2026-10-05"
+    },
+    {
+      "day" : "2026-10-06"
+    },
+    {
+      "day" : "2026-10-07"
+    },
+    {
+      "day" : "2026-10-08"
+    },
+    {
+      "day" : "2026-10-09"
+    },
+    {
+      "day" : "2026-10-10"
+    },
+    {
+      "day" : "2026-10-11"
+    },
+    {
+      "day" : "2026-10-12"
+    },
+    {
+      "day" : "2026-10-13"
+    },
+    {
+      "day" : "2026-10-14"
+    },
+    {
+      "day" : "2026-10-15"
+    },
+    {
+      "day" : "2026-10-16"
+    },
+    {
+      "day" : "2026-10-17"
+    },
+    {
+      "day" : "2026-10-18"
+    },
+    {
+      "day" : "2026-10-19"
+    },
+    {
+      "day" : "2026-10-20"
+    },
+    {
+      "day" : "2026-10-21"
+    },
+    {
+      "day" : "2026-10-22"
+    },
+    {
+      "day" : "2026-10-23"
+    },
+    {
+      "day" : "2026-10-24"
+    },
+    {
+      "day" : "2026-10-25"
+    },
+    {
+      "day" : "2026-10-26"
+    }
+  ],
+  "recentSessions" : [
+    {
+      "durationS" : 1800,
+      "exercises" : [
+        {
+          "sets" : [
+            {
+              "countsAsWork" : true,
+              "rpe" : 8.5,
+              "type" : "normal"
+            },
+            {
+              "countsAsWork" : true,
+              "rpe" : 8.5,
+              "type" : "normal"
+            },
+            {
+              "countsAsWork" : true,
+              "rpe" : 8.5,
+              "type" : "normal"
+            },
+            {
+              "countsAsWork" : true,
+              "rpe" : 8.5,
+              "type" : "normal"
+            },
+            {
+              "countsAsWork" : true,
+              "rpe" : 8.5,
+              "type" : "normal"
+            }
+          ],
+          "title" : "Bench press"
+        }
+      ],
+      "id" : "manual-1793005200-1793008800",
+      "source" : "manual",
+      "startTs" : 1793005200,
+      "title" : "Functional strength training"
+    }
+  ],
+  "selection" : {
+    "days" : 120,
+    "minWeekOffset" : 0,
+    "monday" : "2026-10-26",
+    "readingDay" : "2026-10-26",
+    "sunday" : "2026-11-01",
+    "weekOffset" : 0
+  },
+  "sessions" : 1,
+  "unattributedSets" : 0,
+  "unmappedExercises" : [
+
+  ],
+  "unpricedBodyweightSets" : 0,
+  "volumeKg" : 0,
+  "volumeSets" : 0,
+  "workingSets" : 5
+}

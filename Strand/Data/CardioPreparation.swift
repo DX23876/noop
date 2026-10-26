@@ -77,7 +77,10 @@ enum CardioPreparation {
                                      meanRpe: nil, rpeSetCount: 0)
         }
         let pacePoints = history.compactMap { session -> ExercisePerformancePoint? in
-            guard let pace = session.paceSecPerKm else { return nil }
+            let modality = CardioModality.of(sport: sport)
+            let value: Double? = modality.readout == .speed ? session.speedKmh
+                : (modality.readout == .pace ? session.paceSecPerKm : nil)
+            guard let pace = value else { return nil }
             return ExercisePerformancePoint(day: session.day, startTs: session.startTs,
                                             workoutId: "", bestE1RMKg: pace, heaviestSetKg: nil,
                                             workingSetCount: 0, totalReps: 0, volumeLoadKg: 0,
