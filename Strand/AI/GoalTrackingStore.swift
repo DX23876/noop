@@ -29,32 +29,12 @@ final class GoalTrackingStore: GoalTrackingModel {
                  actions: [GoalAction] = [], checkoffs: [GoalActionCheckoff] = [],
                  contributions: [GoalWorkoutContribution] = [],
                  dismissedWorkoutKeys: Set<String> = []) async {
-        // The adapter resolves each data lane; GoalTrackingModel owns all evaluation and mutations.
-        let earliestCount = goals.compactMap { goal -> Date? in
-            guard goal.measure?.shape == .sum else { return nil }
-            return goal.measure?.countFrom ?? goal.createdAt
-        }.min()
-        let workoutDays = max(365, earliestCount.map { Int(now.timeIntervalSince($0) / 86_400) + 14 } ?? 0)
-        let workouts = await repo.workoutRows(days: workoutDays, reconcileHrCap: 0)
-        let weights = await repo.weightDailyValues(days: 365)
-        let stress = await repo.series(key: "stress", source: "my-whoop", days: 365)
-        let hardSets = await hardSetsPerWeek(repo: repo, now: now)
-        let activeKcal = await repo.activeEnergyByDay(days: 400)
-        let steps = GoalMotivationBuilder.stepsByDay(days: repo.days, apple: await repo.appleDailyRows(days: 4000))
-        let journal: [JournalEntry]
-        if actions.contains(where: { if case .journal = $0.requirement { return $0.isActive } else { return false } }) {
-            journal = await repo.journalEntries(days: 400)
-        } else { journal = [] }
-        let periodInputs = await periodGoalInputs(repo: repo, workouts: workouts, activeKcalByDay: activeKcal,
-                                                  goals: PeriodGoalStore.shared.goals, now: now)
-        let allWorkouts = GoalPrefs.motivationEnabled ? await repo.workoutRows(days: 4000, reconcileHrCap: 0) : []
-        let metrics = Set(CoachGoalStore.shared.goals.compactMap { $0.measure?.metric })
-        let levels = await loadLevelSeries(repo: repo, metrics: metrics)
-        let calendar = TrainingPreferences.weekCalendar
-        let source = Source(workouts: workouts, allWorkouts: allWorkouts, weights: weights, stress: stress,
-            days: repo.days, hardSetsPerWeek: hardSets, activeKcalByDay: activeKcal, stepsByDay: steps,
-            journalByDay: Dictionary(grouping: journal, by: \.day), periodInputs: periodInputs,
-            levelSeries: levels, calendar: calendar)
+        // The shared loader resolves each data lane (`GoalInputLoader`, the same one the Android core runs);
+        // GoalTrackingModel owns all evaluation and mutations.
+        let source = await GoalInputLoader.source(reader: repo, now: now, goals: goals, actions: actions,
+                                                  periodGoals: PeriodGoalStore.shared.goals)
+        let steps = source.stepsByDay
+        let calendar = source.calendar
         refresh(source: source, now: now, goals: goals, proposals: proposals,
             unresolved: Set(resolutions.map(\.proposalId)), actions: actions, checkoffs: checkoffs,
             contributions: contributions, dismissedWorkoutKeys: dismissedWorkoutKeys)
@@ -70,49 +50,6 @@ final class GoalTrackingStore: GoalTrackingModel {
         GoalEventNotifier.evaluateLongTerm(snapshots, now: now)
     }
 
-    /// The inputs period goals need. Sources only some goals use (lifting log per day, hydration, the
-    /// journal) are read only when such a goal exists or the setup flow asks (`loadFullPeriodInputs`).
-    private func periodGoalInputs(repo: Repository, workouts: [WorkoutRow], activeKcalByDay: [String: Double],
-                                  goals: [PeriodGoal], now: Date, full: Bool = false) async -> PeriodGoalInputs {
-        let open = goals.filter(\.isOpen)
-        var inputs = PeriodGoalInputs()
-        inputs.workouts = workouts
-        inputs.days = repo.days
-        inputs.activeKcalByDay = activeKcalByDay
-        inputs.stepsByDay = GoalMotivationBuilder.stepsByDay(days: repo.days, apple: await repo.appleDailyRows(days: 400))
-        inputs.hydrationEnabled = UserDefaults.standard.bool(forKey: HydrationStore.enabledKey)
-        inputs.profileSex = UserDefaults.standard.string(forKey: "profile.sex") ?? ""
-        let syncedAt = UserDefaults.standard.double(forKey: "lastSyncedAt")
-        inputs.lastSync = syncedAt > 0 ? Date(timeIntervalSince1970: syncedAt) : nil
-        inputs.hasStrap = inputs.lastSync != nil
-        if full || open.contains(where: { $0.metric == .workingSets }) {
-            inputs.setsByDay = await workingSetsByDay(repo: repo, days: 400)
-        } else if await hasLiftingLog(repo: repo, now: now) {
-            // Connected but not needed yet: an empty map still marks the metric as available.
-            inputs.setsByDay = [:]
-        }
-        if inputs.hydrationEnabled && (full || open.contains(where: { $0.metric == .hydrationDays })) {
-            inputs.hydrationByDay = Dictionary(await repo.hydrationHistory(days: 400, now: now)
-                .map { ($0.day, $0.value) }, uniquingKeysWith: { a, _ in a })
-        }
-        if full || open.contains(where: { $0.metric == .habitDays }) {
-            inputs.journal = await repo.journalEntries(days: 400)
-        }
-        // AgeLess's banked activity minutes, while AgeLess is on and something reads them: an open goal on them,
-        // or the setup flow (`full`), where their presence makes the two metrics available. Nil leaves an open
-        // goal on them resting (`PeriodGoalTracker.restsWithoutAgeLess`).
-        if HealthspanFeature.isEnabled, full || open.contains(where: { $0.metric.needsAgeLess }) {
-            func byDay(_ key: String) async -> [String: Double] {
-                Dictionary(await repo.exploreSeries(key: key, source: Repository.whoopSource, days: 400)
-                    .map { ($0.day, $0.value) }, uniquingKeysWith: { _, b in b })
-            }
-            inputs.agelessModerateByDay = await byDay(IntelligenceEngine.healthspanZone13Key)
-            inputs.agelessVigorousByDay = await byDay(IntelligenceEngine.healthspanZone45Key)
-        }
-        return inputs
-    }
-
-    /// Everything, for recommendations in the setup flow.
     /// The target-value series catalog goals read besides weight (`LongTermReaderInputs.series`):
     /// resting heart rate from the nightly metrics, the sleeping heart rate AgeLess reads, VO2max by
     /// AgeLess's rule (`HealthspanVO2.goalReadings`: an entered value for a year, else Apple Health's
@@ -160,57 +97,40 @@ final class GoalTrackingStore: GoalTrackingModel {
         return out
     }
 
+    /// Everything, for recommendations in the setup flow.
     func loadFullPeriodInputs(repo: Repository, now: Date = Date()) async -> PeriodGoalInputs {
-        await periodGoalInputs(repo: repo, workouts: await repo.workoutRows(days: 400, reconcileHrCap: 0),
-                               activeKcalByDay: await repo.activeEnergyByDay(days: 400),
-                               goals: PeriodGoalStore.shared.goals, now: now, full: true)
+        await GoalInputLoader.fullPeriodInputs(reader: repo, goals: PeriodGoalStore.shared.goals, now: now)
     }
+}
 
-    private func hasLiftingLog(repo: Repository, now: Date) async -> Bool {
-        guard let store = await repo.storeHandle() else { return false }
-        let end = Int(now.timeIntervalSince1970)
-        let imported = !(((try? await store.strengthWorkouts(from: 0, to: end + 86_400, limit: 1)) ?? []).isEmpty)
-        if imported { return true }
-        return !(((try? await store.nativeWorkouts(from: 0, to: end + 86_400, limit: 1)) ?? []).isEmpty)
+/// The Apple host of the shared goal loader: the Repository's own reads, unchanged.
+extension Repository: GoalInputReading {
+    func goalDays() async -> [DailyMetric] { days }
+    func goalStore() async -> WhoopStore? { await storeHandle() }
+    func goalWorkoutRows(days: Int) async -> [WorkoutRow] { await workoutRows(days: days, reconcileHrCap: 0) }
+    func goalWeightDailyValues(days: Int) async -> [(day: String, value: Double)] { await weightDailyValues(days: days) }
+    func goalSeries(key: String, source: String, days: Int) async -> [(day: String, value: Double)] {
+        await series(key: key, source: source, days: days)
     }
-
-    /// Working sets per local day, from the canonical strength read model (a session logged natively and
-    /// imported counts once). nil without a lifting log.
-    private func workingSetsByDay(repo: Repository, days: Int) async -> [String: Double]? {
-        guard await hasLiftingLog(repo: repo, now: Date()) else { return nil }
-        let history = await repo.resolvedStrengthHistory(days: days)
-        var byDay: [String: Double] = [:]
-        for workout in history.workouts {
-            let day = Repository.localDayKey(Date(timeIntervalSince1970: Double(workout.startTs)))
-            byDay[day, default: 0] += Double(StrengthSession.summarize(workout, templates: history.templates)
-                .workingSetCount)
-        }
-        return byDay
+    func goalActiveEnergyByDay(days: Int) async -> [String: Double] { await activeEnergyByDay(days: days) }
+    func goalAppleDailyRows(days: Int) async -> [AppleDaily] { await appleDailyRows(days: days) }
+    func goalJournalEntries(days: Int) async -> [JournalEntry] { await journalEntries(days: days) }
+    func goalHydrationHistory(days: Int, now: Date) async -> [(day: String, value: Double)] {
+        await hydrationHistory(days: days, now: now)
     }
-
-    /// Working sets per week over `GoalMeasure.hardSetWindowDays`, or nil when there is no lifting log.
-    ///
-    /// Nil, not zero, when nothing is connected — the goal is then UNMEASURED rather than unmet, and the
-    /// tile says "connect a lifting log" instead of showing a 0 that reads as a failure. An empty window
-    /// WITH a log is a real zero and returns one, exactly as the consistency measure does.
-    private func hardSetsPerWeek(repo: Repository, now: Date) async -> Double? {
-        guard let store = await repo.storeHandle() else { return nil }
-        let end = Int(now.timeIntervalSince1970)
-        // "Is a lifting log connected at all" has to include NOOP's own log and every file import, or a
-        // wearer who never connected Hevy reads as unmeasured instead of as the sets they performed.
-        // Both probes are LIMIT 1 existence checks, not a history read.
-        let hasImportedLog = !(((try? await store.strengthWorkouts(from: 0, to: end + 86_400,
-                                                                   limit: 1)) ?? []).isEmpty)
-        let hasNativeLog = !(((try? await store.nativeWorkouts(from: 0, to: end + 86_400,
-                                                               limit: 1)) ?? []).isEmpty)
-        guard hasImportedLog || hasNativeLog else { return nil }
-        // The window itself comes from the canonical read model, so a session logged natively and
-        // imported is counted once.
-        let history = await repo.resolvedStrengthHistory(days: GoalMeasure.hardSetWindowDays)
-        let sets = history.workouts
-            .map { StrengthSession.summarize($0, templates: history.templates).workingSetCount }
-            .reduce(0, +)
-        return GoalMeasure.perWeek(count: sets, overDays: GoalMeasure.hardSetWindowDays)
+    func goalStrengthHistory(days: Int) async -> ResolvedStrengthHistory { await resolvedStrengthHistory(days: days) }
+    func goalAgeLessMinutes(key: String, days: Int) async -> [(day: String, value: Double)] {
+        await exploreSeries(key: key, source: Self.whoopSource, days: days)
     }
-
+    func goalLevelSeries(metrics: Set<LongTermMetric>) async -> [LongTermMetric: [GoalMilestones.Sample]] {
+        await GoalTrackingStore.shared.loadLevelSeries(repo: self, metrics: metrics)
+    }
+    func goalHostState() -> GoalHostState {
+        let syncedAt = UserDefaults.standard.double(forKey: "lastSyncedAt")
+        return GoalHostState(hydrationEnabled: UserDefaults.standard.bool(forKey: HydrationStore.enabledKey),
+                             profileSex: UserDefaults.standard.string(forKey: "profile.sex") ?? "",
+                             lastSync: syncedAt > 0 ? Date(timeIntervalSince1970: syncedAt) : nil,
+                             agelessEnabled: HealthspanFeature.isEnabled,
+                             motivationEnabled: GoalPrefs.motivationEnabled)
+    }
 }

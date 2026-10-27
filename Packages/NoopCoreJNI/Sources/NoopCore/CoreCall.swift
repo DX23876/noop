@@ -96,6 +96,27 @@ public enum CoreCall {
         case "provider.accept":
             return ok((try? await CoreExerciseProvider.shared.accept(store: store, requested: string("token"),
                 ids: args["ids"] as? [String] ?? [])) ?? false)
+        case "goals.snapshot", "goals.setup":
+            let settings = CoreGoals.Settings(profileSex: string("sex"),
+                lastSync: (args["lastSync"] as? NSNumber).flatMap { $0.doubleValue > 0 ? Date(timeIntervalSince1970: $0.doubleValue) : nil },
+                agelessEnabled: args["ageless"] as? Bool ?? false,
+                dismissedWorkoutSpans: args["dismissedWorkouts"] as? [String] ?? [])
+            do {
+                return op == "goals.snapshot"
+                    ? CoreRead.json(try await CoreGoals.snapshot(reader: reader, settings: settings))
+                    : CoreRead.json(try await CoreGoals.setup(reader: reader, settings: settings))
+            } catch {
+                return #"{"error":"goalState"}"#
+            }
+        case "goals.addPeriod":
+            return CoreRead.json(await CoreGoals.addPeriodGoal(store: store, metric: string("metric"),
+                period: string("period"), target: (args["target"] as? NSNumber)?.doubleValue ?? 0,
+                threshold: (args["threshold"] as? NSNumber)?.doubleValue))
+        case "goals.changePeriod":
+            return CoreRead.json(await CoreGoals.changePeriodGoal(store: store, id: string("id"), action: string("action"),
+                target: (args["target"] as? NSNumber)?.doubleValue, reason: args["reason"] as? String))
+        case "goals.toggleAction":
+            return CoreRead.json(await CoreGoals.toggleAction(store: store, actionId: string("actionId"), day: string("day")))
         case "training.snapshot":
             let start = TrainingWeekStart(rawValue: args["weekStartsOn"] as? String ?? "") ?? .monday
             let dismissed = args["dismissedWorkouts"] as? [String] ?? []

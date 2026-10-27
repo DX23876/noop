@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.Science
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.material.icons.rounded.TrackChanges
 import androidx.compose.material.icons.rounded.Waves
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
@@ -94,6 +95,8 @@ enum class MoreDest(val category: MoreCategory?, val titleRes: Int, val icon: Im
     Live(MoreCategory.Tools, R.string.nav_live, Icons.Rounded.MonitorHeart, listOf("heart rate", "BPM", "now")),
     Breathe(MoreCategory.Tools, R.string.nav_breathe, Icons.Rounded.Air, listOf("breathing", "calm", "biofeedback")),
     Intervals(MoreCategory.Tools, R.string.nav_intervals, Icons.Rounded.Timer, listOf("interval timer", "rounds", "HIIT")),
+    Goals(null, R.string.forge_goals_more_title, Icons.Rounded.TrackChanges,
+          listOf("goals", "weekly goal", "monthly goal", "daily goal", "streak", "target")),
     Alarms(null, R.string.nav_alarms, Icons.Rounded.Alarm, listOf("smart alarm", "wake", "wake-up window")),
     Settings(null, R.string.nav_settings, Icons.Rounded.Settings, listOf("preferences", "options", "configuration")),
 }
@@ -237,12 +240,18 @@ private fun categoryTint(c: MoreCategory): Color = when (c) {
 }
 
 @Composable
-private fun destTint(d: MoreDest): Color = d.category?.let { categoryTint(it) } ?: ForgeTokens.Color.systemGray.resolve()
+private fun destTint(d: MoreDest): Color = d.category?.let { categoryTint(it) }
+    ?: if (d == MoreDest.Goals) ForgeTokens.Color.systemOrange.resolve() else ForgeTokens.Color.systemGray.resolve()
 
 /** Opens one destination: Android's own screen for it, in the Forge frame. */
 @Composable
 private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () -> Unit, onOpen: (MoreDest) -> Unit) {
     val title = stringResource(dest.titleRes)
+    // Goals is a Forge page of its own (the shared core's goals), not a classic screen in the frame.
+    if (dest == MoreDest.Goals) {
+        ForgeGoalsPage(onBack)
+        return
+    }
     Hosted(title, onBack) {
         when (dest) {
             MoreDest.Insights -> InsightsHubScreen(viewModel)
@@ -260,7 +269,7 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
             MoreDest.Breathe -> BreatheScreen(viewModel)
             MoreDest.Intervals -> IntervalsScreen(viewModel)
             MoreDest.Alarms -> SmartAlarmScreen(viewModel)
-            MoreDest.Settings -> Unit
+            MoreDest.Settings, MoreDest.Goals -> Unit
         }
     }
 }

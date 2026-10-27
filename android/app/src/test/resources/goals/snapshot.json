@@ -1,0 +1,82 @@
+{
+  "longTerm" : [
+
+  ],
+  "period" : [
+    {
+      "aggregation" : "count",
+      "bestStreak" : 0,
+      "counted" : [
+        {
+          "day" : "2026-10-27",
+          "id" : "1793123108|1793126708|running",
+          "isManual" : false,
+          "title" : "Running",
+          "value" : 1
+        }
+      ],
+      "current" : 1,
+      "currentStreak" : 0,
+      "dayValues" : [
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "daysLeft" : 6,
+      "fraction" : 0.3333333333333333,
+      "history" : [
+
+      ],
+      "id" : "6137D47A-BA13-4D23-B374-5445EA58E3D1",
+      "isProtected" : false,
+      "metric" : "workouts",
+      "notCounted" : [
+
+      ],
+      "paceFraction" : 0.14340277777777777,
+      "period" : "week",
+      "periodDays" : [
+        "2026-10-26",
+        "2026-10-27",
+        "2026-10-28",
+        "2026-10-29",
+        "2026-10-30",
+        "2026-10-31",
+        "2026-11-01"
+      ],
+      "periodStart" : "2026-10-26",
+      "periodTarget" : 3,
+      "rangeHigh" : 14,
+      "rangeLow" : 1,
+      "remaining" : 2,
+      "requiredPerDay" : 0.3333333333333333,
+      "restDays" : [
+
+      ],
+      "sportFilter" : [
+
+      ],
+      "state" : "starting",
+      "status" : "active",
+      "step" : 1,
+      "suggestedDays" : [
+        "2026-10-30",
+        "2026-11-01"
+      ],
+      "target" : 3,
+      "todayIndex" : 1
+    }
+  ],
+  "periodLimit" : 6,
+  "today" : [
+
+  ],
+  "updatedAt" : 1793126768.0267959,
+  "week" : [
+
+  ]
+}
