@@ -3704,4 +3704,25 @@
     <string name="forge_media_network_failed">Impossibile raggiungere il fornitore oppure la risposta non è supportata.</string>
     <string name="forge_media_action_failed">Impossibile completare l’operazione.</string>
     <string name="forge_media_withdrawn">NOOP ha ritirato questo fornitore di contenuti. Esercizi, routine e analisi non sono interessati.</string>
+    <string name="forge_provider_title">Fonte ExerciseDB</string>
+    <string name="forge_provider_endpoint">Endpoint HTTPS degli esercizi</string>
+    <string name="forge_provider_header">Intestazione della chiave API</string>
+    <string name="forge_provider_key">Chiave API, se richiesta</string>
+    <string name="forge_provider_replace_key">Chiave salvata — inseriscila per sostituirla</string>
+    <string name="forge_provider_remove_key">Rimuovere la chiave memorizzata</string>
+    <string name="forge_provider_load">Carica esercizi</string>
+    <string name="forge_provider_preview">Anteprima</string>
+    <string name="forge_provider_selected_only">Vengono memorizzate solo le definizioni degli esercizi selezionate. Le righe di allenamento conservano l\'ID dell\'esercizio, non le istruzioni o i file multimediali.</string>
+    <string name="forge_provider_select_all">Seleziona tutto</string>
+    <string name="forge_provider_clear_selection">Cancella la selezione</string>
+    <string name="forge_provider_add_selected">Aggiungi selezionati</string>
+    <string name="forge_provider_failed">Impossibile raggiungere il fornitore oppure la risposta non è supportata.</string>
+    <string name="forge_provider_detail">La chiave viene conservata in modo sicuro su questo dispositivo e usata solo per l’endpoint scelto. NOOP legge una pagina senza inviare dati di allenamento o salute.</string>
+    <string name="forge_provider_credentials_failed">Impossibile accedere in modo sicuro alla chiave API.</string>
+    <string name="forge_provider_too_large">La risposta supera il limite di 25 MB. Usa una pagina più piccola.</string>
+    <string name="forge_provider_save_failed">Impossibile salvare gli esercizi selezionati. Ricarica l’anteprima.</string>
+    <string name="forge_provider_invalid_endpoint">Usa un endpoint HTTPS e un’intestazione della chiave API validi.</string>
+    <string name="forge_provider_acknowledgements">Ringraziamenti</string>
+    <string name="forge_provider_acknowledgements_detail">Metadati degli esercizi facoltativi. Si applicano le condizioni del fornitore; i contenuti multimediali vengono scaricati separatamente.</string>
+    <string name="forge_provider_documentation">Documentazione del fornitore</string>
 </resources>

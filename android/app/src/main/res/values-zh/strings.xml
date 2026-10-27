@@ -3706,4 +3706,25 @@
     <string name="forge_media_network_failed">无法联系到提供商或返回不支持的响应。</string>
     <string name="forge_media_action_failed">无法完成此操作。</string>
     <string name="forge_media_withdrawn">NOOP 已撤下该媒体提供方。动作、训练计划和分析不受影响。</string>
+    <string name="forge_provider_title">ExerciseDB 来源</string>
+    <string name="forge_provider_endpoint">动作库 HTTPS 地址</string>
+    <string name="forge_provider_header">API 密钥请求头</string>
+    <string name="forge_provider_key">API 密钥（如果需要）</string>
+    <string name="forge_provider_replace_key">存储密钥 — 输入以替换</string>
+    <string name="forge_provider_remove_key">删除存储的密钥</string>
+    <string name="forge_provider_load">加载动作</string>
+    <string name="forge_provider_preview">预览</string>
+    <string name="forge_provider_selected_only">仅存储选定的练习定义。锻炼行保留锻炼 ID，而不是说明或媒体文件。</string>
+    <string name="forge_provider_select_all">选择全部</string>
+    <string name="forge_provider_clear_selection">清除选择</string>
+    <string name="forge_provider_add_selected">添加所选项目</string>
+    <string name="forge_provider_failed">无法联系到提供商或返回不支持的响应。</string>
+    <string name="forge_provider_detail">密钥安全保存在此设备上，仅用于你选择的接口。NOOP 只读取一页，不发送训练或健康数据。</string>
+    <string name="forge_provider_credentials_failed">无法安全访问 API 密钥。</string>
+    <string name="forge_provider_too_large">提供方响应超过 25 MB 限制。请减小每页条目数。</string>
+    <string name="forge_provider_save_failed">无法保存所选动作。请重新加载预览。</string>
+    <string name="forge_provider_invalid_endpoint">请使用有效的 HTTPS 接口和 API 密钥标头。</string>
+    <string name="forge_provider_acknowledgements">鸣谢</string>
+    <string name="forge_provider_acknowledgements_detail">可选的动作元数据。适用提供方条款；媒体文件另行下载。</string>
+    <string name="forge_provider_documentation">提供方文档</string>
 </resources>

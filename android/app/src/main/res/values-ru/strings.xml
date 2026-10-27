@@ -3631,4 +3631,25 @@
     <string name="forge_media_network_failed">Не удалось связаться с поставщиком, или он получил неподдерживаемый ответ.</string>
     <string name="forge_media_action_failed">Не удалось выполнить операцию.</string>
     <string name="forge_media_withdrawn">NOOP отозвал этого поставщика медиа. Упражнения, программы и аналитика не затронуты.</string>
+    <string name="forge_provider_title">Источник ExerciseDB</string>
+    <string name="forge_provider_endpoint">HTTPS-адрес каталога упражнений</string>
+    <string name="forge_provider_header">Заголовок ключа API</string>
+    <string name="forge_provider_key">Ключ API, если требуется</string>
+    <string name="forge_provider_replace_key">Сохраненный ключ — введите для замены</string>
+    <string name="forge_provider_remove_key">Удалить сохраненный ключ</string>
+    <string name="forge_provider_load">Загрузить упражнения</string>
+    <string name="forge_provider_preview">Просмотр</string>
+    <string name="forge_provider_selected_only">Сохраняются только выбранные определения упражнений. В строках тренировок сохраняется идентификатор упражнения, а не инструкции или мультимедийные файлы.</string>
+    <string name="forge_provider_select_all">Выбрать все</string>
+    <string name="forge_provider_clear_selection">Очистить выбор</string>
+    <string name="forge_provider_add_selected">Добавить выбранное</string>
+    <string name="forge_provider_failed">Не удалось связаться с поставщиком, или он получил неподдерживаемый ответ.</string>
+    <string name="forge_provider_detail">Ключ безопасно хранится на этом устройстве и используется только для выбранного адреса. NOOP читает одну страницу и не отправляет данные тренировок или здоровья.</string>
+    <string name="forge_provider_credentials_failed">Не удалось безопасно получить доступ к ключу API.</string>
+    <string name="forge_provider_too_large">Ответ превышает лимит 25 МБ. Запросите страницу меньшего размера.</string>
+    <string name="forge_provider_save_failed">Не удалось сохранить выбранные упражнения. Загрузите предпросмотр снова.</string>
+    <string name="forge_provider_invalid_endpoint">Укажите корректный адрес HTTPS и заголовок ключа API.</string>
+    <string name="forge_provider_acknowledgements">Благодарности</string>
+    <string name="forge_provider_acknowledgements_detail">Необязательные метаданные упражнений. Действуют условия поставщика; медиафайлы загружаются отдельно.</string>
+    <string name="forge_provider_documentation">Документация поставщика</string>
 </resources>

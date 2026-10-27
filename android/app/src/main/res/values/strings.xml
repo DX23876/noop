@@ -3767,4 +3767,25 @@
     <string name="forge_media_network_failed">The provider could not be reached or returned an unsupported response.</string>
     <string name="forge_media_action_failed">The operation could not be completed.</string>
     <string name="forge_media_withdrawn">NOOP has withdrawn this media provider. Exercises, routines and analytics are unaffected.</string>
+    <string name="forge_provider_title">ExerciseDB source</string>
+    <string name="forge_provider_endpoint">HTTPS exercise endpoint</string>
+    <string name="forge_provider_header">API key header</string>
+    <string name="forge_provider_key">API key, if required</string>
+    <string name="forge_provider_replace_key">Stored key — enter to replace</string>
+    <string name="forge_provider_remove_key">Remove stored key</string>
+    <string name="forge_provider_load">Load exercises</string>
+    <string name="forge_provider_preview">Preview</string>
+    <string name="forge_provider_selected_only">Only selected exercise definitions are stored. Workout rows retain the exercise id, not instructions or media files.</string>
+    <string name="forge_provider_select_all">Select all</string>
+    <string name="forge_provider_clear_selection">Clear selection</string>
+    <string name="forge_provider_add_selected">Add selected</string>
+    <string name="forge_provider_failed">The provider could not be reached or returned an unsupported response.</string>
+    <string name="forge_provider_detail">A key is stored securely on this device and used only for the endpoint you choose. NOOP reads one page and sends no workout or health data.</string>
+    <string name="forge_provider_credentials_failed">Could not access the API key securely.</string>
+    <string name="forge_provider_too_large">The provider response exceeds the 25 MB limit. Use a smaller page.</string>
+    <string name="forge_provider_save_failed">The selected exercises could not be saved. Load the preview again.</string>
+    <string name="forge_provider_invalid_endpoint">Use a valid HTTPS endpoint and API key header.</string>
+    <string name="forge_provider_acknowledgements">Acknowledgements</string>
+    <string name="forge_provider_acknowledgements_detail">Optional exercise metadata. Provider terms apply; media downloads are separate.</string>
+    <string name="forge_provider_documentation">Provider documentation</string>
 </resources>

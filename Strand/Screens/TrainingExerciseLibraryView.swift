@@ -1,6 +1,7 @@
 import SwiftUI
 import StrandDesign
 import StrandTraining
+import StrandCore
 import UniformTypeIdentifiers
 
 /// Searchable, offline-first exercise library. Provider content is displayed with its source;
@@ -724,10 +725,11 @@ private struct ExerciseMediaDisclosureView: View {
 
 private struct ExerciseDBSourceView: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var repo: Repository
     let onImport: ([TrainingExercise]) -> Void
     @AppStorage("training.exerciseDB.endpoint") private var endpoint =
-        "https://oss.exercisedb.dev/api/v1/exercises"
-    @AppStorage("training.exerciseDB.header") private var headerName = "x-rapidapi-key"
+        ExerciseDBProviderClient.defaultEndpoint
+    @AppStorage("training.exerciseDB.header") private var headerName = ExerciseDBProviderClient.defaultHeader
     @State private var key = ""
     @State private var results: [TrainingExercise] = []
     @State private var selected = Set<String>()
@@ -739,13 +741,14 @@ private struct ExerciseDBSourceView: View {
         Form {
             Section {
                 TextField("HTTPS exercise endpoint", text: $endpoint)
-                    .trainingTechnicalTextInput()
+                    .trainingTechnicalTextInput().disabled(loading)
                 TextField("API key header", text: $headerName)
-                    .trainingTechnicalTextInput()
+                    .trainingTechnicalTextInput().disabled(loading)
                 SecureField(hasStoredKey ? "Stored key — enter to replace" : "API key, if required", text: $key)
+                    .disabled(loading)
                 if hasStoredKey {
                     Button("Remove stored key", role: .destructive) {
-                        ExerciseDBCredentials.clear(); hasStoredKey = false; key = ""
+                        ExerciseDBCredentials.clear(); hasStoredKey = false; key = ""; results = []; selected = []
                     }
                 }
                 Button {
@@ -758,7 +761,7 @@ private struct ExerciseDBSourceView: View {
             } header: {
                 Text("Personal provider access")
             } footer: {
-                Text("The free ExerciseDB endpoint does not require a key. A personal key for another compatible provider is stored in this device's Keychain. NOOP requests one page only and sends no workout or health data.")
+                Text("A key is stored securely on this device and used only for the endpoint you choose. NOOP reads one page and sends no workout or health data.")
             }
 
             if !results.isEmpty {
@@ -779,7 +782,9 @@ private struct ExerciseDBSourceView: View {
                         }
                     }
                 } header: { Text("Preview") }
-                  footer: { Text("Only selected exercise definitions are stored. Workout rows retain the exercise id, not instructions or media files.") }
+                  footer: {
+                    Text("Only selected exercise definitions are stored. Workout rows retain the exercise id, not instructions or media files.")
+                  }
             }
 
             if let errorMessage {
@@ -795,10 +800,13 @@ private struct ExerciseDBSourceView: View {
             }
         }
         .onAppear { hasStoredKey = ExerciseDBCredentials.read() != nil }
+        .onChange(of: endpoint) { _ in results = []; selected = [] }
+        .onChange(of: headerName) { _ in results = []; selected = [] }
+        .onChange(of: key) { _ in results = []; selected = [] }
     }
 
     @MainActor private func load() async {
-        loading = true; errorMessage = nil
+        loading = true; errorMessage = nil; results = []; selected = []
         let supplied = key.trimmingCharacters(in: .whitespacesAndNewlines)
         if !supplied.isEmpty {
             guard ExerciseDBCredentials.save(supplied) else {
@@ -811,8 +819,9 @@ private struct ExerciseDBSourceView: View {
             let values = try await ExerciseDBProviderClient.fetch(
                 endpoint: endpoint, key: supplied.isEmpty ? ExerciseDBCredentials.read() : supplied,
                 headerName: headerName)
-            results = values
-            selected = Set(values.map(\.id))
+            let existing = await repo.nativeTrainingExercises()
+            results = try ExerciseDBProviderClient.keepingMeasurementIdentity(values, existing: existing)
+            selected = Set(results.map(\.id))
         } catch {
             errorMessage = String(localized: "The provider could not be reached or returned an unsupported response.")
         }

@@ -565459,6 +565459,134 @@
           }
         }
       }
+    },
+    "A key is stored securely on this device and used only for the endpoint you choose. NOOP reads one page and sends no workout or health data.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A key is stored securely on this device and used only for the endpoint you choose. NOOP reads one page and sends no workout or health data."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein Schlüssel wird sicher auf diesem Gerät gespeichert und nur für den gewählten Endpunkt verwendet. NOOP liest eine Seite und sendet keine Trainings- oder Gesundheitsdaten."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La clave se guarda de forma segura en este dispositivo y solo se usa para el punto de acceso elegido. NOOP lee una página y no envía datos de entrenamiento ni de salud."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La clé est stockée de manière sécurisée sur cet appareil et utilisée uniquement pour le point d’accès choisi. NOOP lit une page sans envoyer de données de santé ou d’entraînement."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La chiave viene conservata in modo sicuro su questo dispositivo e usata solo per l’endpoint scelto. NOOP legge una pagina senza inviare dati di allenamento o salute."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klucz jest bezpiecznie przechowywany na tym urządzeniu i używany tylko dla wybranego adresu. NOOP odczytuje jedną stronę i nie wysyła danych treningowych ani zdrowotnych."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A chave é guardada de forma segura neste dispositivo e usada apenas para o endereço escolhido. O NOOP lê uma página e não envia dados de treino ou saúde."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ключ безопасно хранится на этом устройстве и используется только для выбранного адреса. NOOP читает одну страницу и не отправляет данные тренировок или здоровья."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "密钥安全保存在此设备上，仅用于你选择的接口。NOOP 只读取一页，不发送训练或健康数据。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "金鑰安全儲存在此裝置上，僅用於你選擇的端點。NOOP 只讀取一頁，不傳送訓練或健康資料。"
+          }
+        }
+      }
+    },
+    "Optional exercise metadata. Provider terms apply; media downloads are separate.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Optional exercise metadata. Provider terms apply; media downloads are separate."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Optionale Übungsdaten. Es gelten die Bedingungen des Anbieters; Medien werden separat heruntergeladen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Metadatos de ejercicios opcionales. Se aplican las condiciones del proveedor; los archivos multimedia se descargan por separado."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Métadonnées d’exercices facultatives. Les conditions du fournisseur s’appliquent ; les médias sont téléchargés séparément."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Metadati degli esercizi facoltativi. Si applicano le condizioni del fornitore; i contenuti multimediali vengono scaricati separatamente."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opcjonalne metadane ćwiczeń. Obowiązują warunki dostawcy; multimedia są pobierane osobno."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Metadados de exercícios opcionais. Aplicam-se as condições do fornecedor; os conteúdos multimédia são transferidos separadamente."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Необязательные метаданные упражнений. Действуют условия поставщика; медиафайлы загружаются отдельно."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "可选的动作元数据。适用提供方条款；媒体文件另行下载。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "可選的動作中繼資料。適用提供方條款；媒體檔案另行下載。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

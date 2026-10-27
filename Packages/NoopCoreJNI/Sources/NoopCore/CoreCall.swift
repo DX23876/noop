@@ -38,6 +38,8 @@ public enum CoreCall {
         case "media.cancel": await CoreExerciseMedia.shared.cancel(); return ok(true)
         case "media.disabled": await CoreExerciseMedia.shared.setDisabled(args["disabled"] as? Bool ?? false); return ok(true)
         case "media.delete": return ok(await CoreExerciseMedia.shared.delete())
+        case "provider.defaults": return CoreRead.json(CoreExerciseProvider.Defaults())
+        case "provider.invalidate": await CoreExerciseProvider.shared.invalidate(); return ok(true)
         case "hevy.verify":
             do { try await CoreHevyClient(key: string("key")).verify(); return ok(true) }
             catch let error as HevyImportError { return CoreRead.json(["error": error.rawValue]) }
@@ -85,6 +87,15 @@ public enum CoreCall {
                   let path = await CoreExerciseMedia.shared.resolve(mediaId: mediaId, still: args["still"] as? Bool ?? false)
             else { return #"{"available":false}"# }
             return CoreRead.json(CoreExerciseMedia.Resolved(path: path))
+        case "provider.preview":
+            do { return CoreRead.json(try await CoreExerciseProvider.shared.preview(store: store,
+                endpoint: string("endpoint"), key: args["key"] as? String, header: args["header"] as? String)) }
+            catch is CancellationError { return #"{"error":"cancelled"}"# }
+            catch let error as ExerciseDBProviderError { return CoreRead.json(["error": error.rawValue]) }
+            catch { return #"{"error":"invalidResponse"}"# }
+        case "provider.accept":
+            return ok((try? await CoreExerciseProvider.shared.accept(store: store, requested: string("token"),
+                ids: args["ids"] as? [String] ?? [])) ?? false)
         case "training.snapshot":
             let start = TrainingWeekStart(rawValue: args["weekStartsOn"] as? String ?? "") ?? .monday
             let dismissed = args["dismissedWorkouts"] as? [String] ?? []

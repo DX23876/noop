@@ -98,6 +98,7 @@ public enum Bridge {
         Task.detached {
             await CoreHevy.shared.cancelAndWait()
             await CoreHevyRoutines.shared.invalidate()
+            await CoreExerciseProvider.shared.invalidate()
             box.value = CoreBackup.restore(from: source, toDatabaseAt: path, scratch: scratch, allowOversize: allowOversize)
             done.signal()
         }

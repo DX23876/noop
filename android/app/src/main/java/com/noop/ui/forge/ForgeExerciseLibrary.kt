@@ -61,6 +61,7 @@ fun ForgeExerciseLibrary(onClose: () -> Unit, multiple: Boolean = false,
     var selected by rememberSaveable { mutableStateOf<String?>(null) }
     var creating by rememberSaveable { mutableStateOf(false) }
     var mediaSettings by rememberSaveable { mutableStateOf(false) }
+    var providerPage by rememberSaveable { mutableStateOf(false) }
     var filtersOpen by rememberSaveable { mutableStateOf(false) }
     var equipmentDialog by rememberSaveable { mutableStateOf(false) }
     var availablePayload by remember { mutableStateOf(prefs.getString(AVAILABLE_EQUIPMENT, "").orEmpty()) }
@@ -110,6 +111,7 @@ fun ForgeExerciseLibrary(onClose: () -> Unit, multiple: Boolean = false,
         }
     }
     BackHandler { when { creating -> creating = false; selected != null -> selected = null; else -> onClose() } }
+    if (providerPage) { ForgeExerciseProviderPage(onClose = { providerPage = false }, onImported = { providerPage = false; revision++ }); return }
     if (mediaSettings) { ForgeExerciseMediaSettings { mediaSettings = false; revision++ }; return }
     if (creating) {
         catalog?.let { choices -> CustomExercisePage(choices, onClose = { creating = false }) { id ->
@@ -214,6 +216,7 @@ fun ForgeExerciseLibrary(onClose: () -> Unit, multiple: Boolean = false,
                     }
                 }
             }
+            item { TextButton(onClick = { providerPage = true }) { Text(stringResource(R.string.forge_provider_title)) } }
             item { TextButton(onClick = { mediaSettings = true }) { Text(stringResource(R.string.forge_media_title)) } }
             item { OverlineHeader(stringResource(R.string.forge_library_all_exercises), stringResource(R.string.forge_library_count, shown.size)) }
             if (shown.isEmpty()) item { ForgeCard(Modifier.fillMaxWidth()) {

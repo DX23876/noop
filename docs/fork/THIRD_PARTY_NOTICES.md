@@ -29,3 +29,13 @@ in the Apple app's `Resources/ThirdParty` and Android's `assets/licenses` direct
 The optional exercise pack remains a separate user-initiated download. On Android the completed pack
 lives in private `noBackupFilesDir`; the operating system's temporary download is in app-specific
 external storage, excluded from both cloud backup and device transfer by the app's extraction rules.
+
+## Personal ExerciseDB metadata endpoint
+
+The default optional endpoint is `https://oss.exercisedb.dev/api/v1/exercises`. Its
+[official reference](https://oss.exercisedb.dev/docs) requires AscendAPI credit; the shared client records
+“Exercise data: ExerciseDB V1 / AscendAPI — oss.exercisedb.dev.” on definitions received from that host.
+The credit is visible in the app's Acknowledgements and survives selected-only storage; the selection preview does not repeat it. Provider terms still apply;
+no exercise media is fetched by this metadata request. A single public `limit=1` request on 2026-10-27
+returned a `data` array with one definition, plus `meta` and `success` fields. No personal credential or
+health data was used. Other user-configured providers retain their own applicable terms.

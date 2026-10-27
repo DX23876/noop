@@ -3736,4 +3736,25 @@
     <string name="forge_media_network_failed">No se ha podido contactar con el proveedor o este ha devuelto una respuesta no compatible.</string>
     <string name="forge_media_action_failed">No se pudo completar la operación.</string>
     <string name="forge_media_withdrawn">NOOP ha retirado este proveedor de contenido. Los ejercicios, las rutinas y los análisis no se ven afectados.</string>
+    <string name="forge_provider_title">Fuente de ExerciseDB</string>
+    <string name="forge_provider_endpoint">Punto de acceso HTTPS de ejercicios</string>
+    <string name="forge_provider_header">Cabecera de clave API</string>
+    <string name="forge_provider_key">Clave API, si es necesaria</string>
+    <string name="forge_provider_replace_key">Clave guardada: introdúcela para sustituirla</string>
+    <string name="forge_provider_remove_key">Eliminar clave guardada</string>
+    <string name="forge_provider_load">Cargar ejercicios</string>
+    <string name="forge_provider_preview">Vista previa</string>
+    <string name="forge_provider_selected_only">Solo se guardan las definiciones de ejercicios seleccionadas. Los registros de entrenamiento conservan el identificador del ejercicio, no las instrucciones ni los archivos multimedia.</string>
+    <string name="forge_provider_select_all">Seleccionar todo</string>
+    <string name="forge_provider_clear_selection">Borrar selección</string>
+    <string name="forge_provider_add_selected">Añadir seleccionados</string>
+    <string name="forge_provider_failed">No se ha podido contactar con el proveedor o este ha devuelto una respuesta no compatible.</string>
+    <string name="forge_provider_detail">La clave se guarda de forma segura en este dispositivo y solo se usa para el punto de acceso elegido. NOOP lee una página y no envía datos de entrenamiento ni de salud.</string>
+    <string name="forge_provider_credentials_failed">No se pudo acceder de forma segura a la clave API.</string>
+    <string name="forge_provider_too_large">La respuesta supera el límite de 25 MB. Usa una página más pequeña.</string>
+    <string name="forge_provider_save_failed">No se pudieron guardar los ejercicios seleccionados. Carga de nuevo la vista previa.</string>
+    <string name="forge_provider_invalid_endpoint">Usa un punto de acceso HTTPS y un encabezado de clave API válidos.</string>
+    <string name="forge_provider_acknowledgements">Agradecimientos</string>
+    <string name="forge_provider_acknowledgements_detail">Metadatos de ejercicios opcionales. Se aplican las condiciones del proveedor; los archivos multimedia se descargan por separado.</string>
+    <string name="forge_provider_documentation">Documentación del proveedor</string>
 </resources>

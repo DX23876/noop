@@ -3752,4 +3752,25 @@
     <string name="forge_media_network_failed">Nie udało się uzyskać połączenia z dostawcą lub zwrócono nieobsługiwaną odpowiedź.</string>
     <string name="forge_media_action_failed">Nie udało się ukończyć operacji.</string>
     <string name="forge_media_withdrawn">NOOP wycofał tego dostawcę multimediów. Ćwiczenia, rutyny i analizy pozostają bez zmian.</string>
+    <string name="forge_provider_title">Źródło ExerciseDB</string>
+    <string name="forge_provider_endpoint">Punkt końcowy HTTPS ćwiczeń</string>
+    <string name="forge_provider_header">Nagłówek klucza API</string>
+    <string name="forge_provider_key">Klucz API, jeśli wymagany</string>
+    <string name="forge_provider_replace_key">Klucz zapisany — wpisz nowy, aby go zastąpić</string>
+    <string name="forge_provider_remove_key">Usuń zapisany klucz</string>
+    <string name="forge_provider_load">Wczytaj ćwiczenia</string>
+    <string name="forge_provider_preview">Zapowiedź</string>
+    <string name="forge_provider_selected_only">Zapisywane są tylko wybrane definicje ćwiczeń. Wpisy treningowe zachowują identyfikator ćwiczenia, bez instrukcji i plików multimedialnych.</string>
+    <string name="forge_provider_select_all">Wybierz wszystkie</string>
+    <string name="forge_provider_clear_selection">Wyczyść wybór</string>
+    <string name="forge_provider_add_selected">Dodaj wybrane</string>
+    <string name="forge_provider_failed">Nie udało się uzyskać połączenia z dostawcą lub zwrócono nieobsługiwaną odpowiedź.</string>
+    <string name="forge_provider_detail">Klucz jest bezpiecznie przechowywany na tym urządzeniu i używany tylko dla wybranego adresu. NOOP odczytuje jedną stronę i nie wysyła danych treningowych ani zdrowotnych.</string>
+    <string name="forge_provider_credentials_failed">Nie udało się bezpiecznie uzyskać dostępu do klucza API.</string>
+    <string name="forge_provider_too_large">Odpowiedź przekracza limit 25 MB. Użyj mniejszej strony.</string>
+    <string name="forge_provider_save_failed">Nie udało się zapisać wybranych ćwiczeń. Wczytaj podgląd ponownie.</string>
+    <string name="forge_provider_invalid_endpoint">Użyj prawidłowego adresu HTTPS i nagłówka klucza API.</string>
+    <string name="forge_provider_acknowledgements">Podziękowania</string>
+    <string name="forge_provider_acknowledgements_detail">Opcjonalne metadane ćwiczeń. Obowiązują warunki dostawcy; multimedia są pobierane osobno.</string>
+    <string name="forge_provider_documentation">Dokumentacja dostawcy</string>
 </resources>

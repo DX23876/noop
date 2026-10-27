@@ -207,6 +207,7 @@ enum class ForgeSettingsSub(val titleRes: Int, val cards: Set<ClassicSettingsCar
     HealthWellness(R.string.l10n_settings_screen_health_wellness_93475778, cards = setOf(ClassicSettingsCard.HealthWellness)),
     Advanced(R.string.l10n_settings_screen_advanced_4d064726, cards = setOf(ClassicSettingsCard.Advanced)),
     WhatsNew(R.string.l10n_settings_screen_what_s_new_4d8dc5fe, closes = true),
+    Acknowledgements(R.string.forge_provider_acknowledgements),
     AllSettings(R.string.forge_settings_all),
 }
 
@@ -506,6 +507,7 @@ private fun SubScreen(sub: ForgeSettingsSub, viewModel: AppViewModel, onBack: ()
         ForgeSettingsSub.SelfHostedPush -> Hosted(stringResource(sub.titleRes), onBack) { SelfHostedPushScreen() }
         ForgeSettingsSub.Limitations -> Hosted(stringResource(sub.titleRes), onBack) { NoopLimitationsScreen() }
         ForgeSettingsSub.TestCentre -> Hosted(stringResource(sub.titleRes), onBack) { TestCentreScreen(viewModel) }
+        ForgeSettingsSub.Acknowledgements -> ForgeExerciseProviderAcknowledgements(onBack)
         ForgeSettingsSub.AllSettings -> Hosted(stringResource(sub.titleRes), onBack) {
             SettingsScreen(
                 viewModel,
@@ -1046,6 +1048,9 @@ private fun AboutSection(onOpen: (ForgeSettingsSub) -> Unit) {
         }
     }
     SettingsCard(title = null, blurb = null) {
+        LinkRow(stringResource(R.string.forge_provider_acknowledgements),
+                stringResource(R.string.forge_provider_acknowledgements_detail)) { onOpen(ForgeSettingsSub.Acknowledgements) }
+        RowDivider()
         LinkRow(stringResource(R.string.l10n_settings_screen_what_s_new_4d8dc5fe),
                 stringResource(R.string.l10n_settings_screen_recent_changes_and_what_to_expect_3ceb660b)) {
             onOpen(ForgeSettingsSub.WhatsNew)
