@@ -36,8 +36,19 @@ object CoreGoals {
         val id: String, val actionId: String, val title: String, val kind: String, val day: String,
         val isCompleted: Boolean, val isAutomatic: Boolean, val measured: Double?, val measuredTarget: Double?,
     )
+    data class SpotlightRow(val kind: String, val id: String, val reason: String)
+    data class Spotlight(
+        val rings: List<String>, val checks: List<String>, val rows: List<SpotlightRow>,
+        val dailyTotal: Int, val dailyDone: Int,
+        val weekOnCourse: Int, val weekTotal: Int, val monthOnCourse: Int, val monthTotal: Int,
+    )
+    data class DailySlot(
+        val slot: String, val values: List<Double>, val defaultValue: Double, val value: Double?,
+        val runs: String?, val endsOn: String?, val weekdays: List<Int>, val showsAsRing: Boolean,
+    )
     data class Output(val period: List<Period>, val longTerm: List<LongTerm>, val today: List<Action>,
-                      val week: List<Action>, val periodLimit: Int)
+                      val week: List<Action>, val spotlight: Spotlight, val daily: List<DailySlot>,
+                      val periodLimit: Int)
     data class MetricChoice(
         val metric: String, val aggregation: String, val reason: String?, val available: Boolean,
         val weekDefault: Double, val weekStep: Double, val weekLow: Double, val weekHigh: Double,
@@ -78,6 +89,15 @@ object CoreGoals {
     fun changePeriodGoal(id: String, action: String, target: Double? = null, reason: String? = null): Change =
         change("goals.changePeriod", JSONObject().put("id", id).put("action", action)
             .apply { if (target != null) put("target", target); if (reason != null) put("reason", reason) })
+
+    /** Saves a measured daily goal ("steps", "activeCalories", "sleep") as the iOS editor's Done does. */
+    fun saveDaily(slot: String, value: Double, runs: String, endsOn: String?, weekdays: List<Int>,
+                  showsAsRing: Boolean): Change =
+        change("goals.saveDaily", JSONObject().put("slot", slot).put("value", value).put("runs", runs)
+            .put("weekdays", JSONArray(weekdays)).put("showsAsRing", showsAsRing)
+            .apply { if (endsOn != null) put("endsOn", endsOn) })
+
+    fun turnOffDaily(slot: String): Change = change("goals.turnOffDaily", JSONObject().put("slot", slot))
 
     fun toggleAction(actionId: String, day: String): Change =
         change("goals.toggleAction", JSONObject().put("actionId", actionId).put("day", day))
@@ -139,6 +159,25 @@ object CoreGoals {
             },
             today = o.optJSONArray("today").objects().map(::action),
             week = o.optJSONArray("week").objects().map(::action),
+            spotlight = o.optJSONObject("spotlight").let { sp ->
+                Spotlight(
+                    rings = sp?.optJSONArray("rings").strings(), checks = sp?.optJSONArray("checks").strings(),
+                    rows = sp?.optJSONArray("rows").objects().map {
+                        SpotlightRow(it.getString("kind"), it.getString("id"), it.getString("reason"))
+                    },
+                    dailyTotal = sp?.optInt("dailyTotal") ?: 0, dailyDone = sp?.optInt("dailyDone") ?: 0,
+                    weekOnCourse = sp?.optInt("weekOnCourse") ?: 0, weekTotal = sp?.optInt("weekTotal") ?: 0,
+                    monthOnCourse = sp?.optInt("monthOnCourse") ?: 0, monthTotal = sp?.optInt("monthTotal") ?: 0,
+                )
+            },
+            daily = o.optJSONArray("daily").objects().map { d ->
+                DailySlot(d.getString("slot"), d.optJSONArray("values").let { a ->
+                              if (a == null) emptyList() else (0 until a.length()).map { a.getDouble(it) } },
+                          d.optDouble("defaultValue", 0.0), d.dbl("value"), d.str("runs"), d.str("endsOn"),
+                          d.optJSONArray("weekdays").let { a ->
+                              if (a == null) (1..7).toList() else (0 until a.length()).map { a.getInt(it) } },
+                          d.optBoolean("showsAsRing", true))
+            },
             periodLimit = o.optInt("periodLimit", 6),
         )
     }

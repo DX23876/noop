@@ -76,6 +76,7 @@ import kotlin.math.roundToInt
 /** What the goals page has open over its overview: one weekly or monthly goal, or the setup. */
 private sealed interface GoalsPage {
     data class Detail(val id: String) : GoalsPage
+    data class Daily(val slot: String) : GoalsPage
     data object Setup : GoalsPage
 }
 
@@ -95,6 +96,7 @@ fun ForgeGoalsPage(onBack: () -> Unit) {
     val page: GoalsPage? = when {
         pageRaw == "setup" -> GoalsPage.Setup
         pageRaw.startsWith("detail:") -> GoalsPage.Detail(pageRaw.removePrefix("detail:"))
+        pageRaw.startsWith("daily:") -> GoalsPage.Daily(pageRaw.removePrefix("daily:"))
         else -> null
     }
     LaunchedEffect(revision) {
@@ -113,14 +115,17 @@ fun ForgeGoalsPage(onBack: () -> Unit) {
             PeriodGoalPage(goal, onBack = { pageRaw = "" }, onChanged = ::refresh,
                            onRemoved = { pageRaw = ""; refresh() })
         }
+        is GoalsPage.Daily -> DailyGoalPage(output?.daily?.firstOrNull { it.slot == page.slot },
+                                            onBack = { pageRaw = "" }, onSaved = { pageRaw = ""; refresh() })
         null -> GoalsOverview(output, loaded, onBack, onOpen = { pageRaw = "detail:$it" },
+                              onDaily = { pageRaw = "daily:$it" },
                               onAdd = { pageRaw = "setup" }, onChanged = ::refresh)
     }
 }
 
 @Composable
 private fun GoalsOverview(output: CoreGoals.Output?, loaded: Boolean, onBack: () -> Unit, onOpen: (String) -> Unit,
-                          onAdd: () -> Unit, onChanged: () -> Unit) {
+                          onDaily: (String) -> Unit, onAdd: () -> Unit, onChanged: () -> Unit) {
     val scope = rememberCoroutineScope()
     SettingsColumn {
         PageTitle(stringResource(R.string.forge_goals_title), onBack) {
@@ -149,6 +154,27 @@ private fun GoalsOverview(output: CoreGoals.Output?, loaded: Boolean, onBack: ()
                     }
                     if (i < output.today.lastIndex) RowDivider()
                 }
+            }
+        }
+
+        // The measured daily goals, one slot each, as the iOS "Daily" list offers them (`DailyGoalSheet`).
+        SectionHeader(stringResource(R.string.forge_goals_daily))
+        ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+            output.daily.forEachIndexed { i, slot ->
+                Row(Modifier.fillMaxWidth().clickable(role = Role.Button) { onDaily(slot.slot) }
+                        .padding(vertical = ForgeMetrics.space2),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    MetricTile(slotMetric(slot.slot))
+                    Spacer(Modifier.width(ForgeMetrics.space3))
+                    Text(slotTitle(slot.slot), style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))
+                    Text(slot.value?.let { slotValue(slot.slot, it) } ?: stringResource(R.string.forge_goals_daily_off),
+                         style = Forge.type.subhead,
+                         color = if (slot.value != null) Forge.colors.textSecondary else Forge.colors.textTertiary)
+                    Spacer(Modifier.width(ForgeMetrics.space2))
+                    Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = Forge.colors.textTertiary,
+                         modifier = Modifier.size(18.dp))
+                }
+                if (i < output.daily.lastIndex) RowDivider()
             }
         }
 
@@ -571,6 +597,200 @@ private fun GoalSetupPage(onBack: () -> Unit, onCreated: () -> Unit) {
 
 /** Metrics whose source Android does not read yet (the journal, hydration), so their setup would only say no data. */
 private val HIDDEN_METRICS = setOf("habitDays", "hydrationDays")
+
+// MARK: - Daily goal editor (`DailyGoalSheet`)
+
+@Composable
+private fun DailyGoalPage(slot: CoreGoals.DailySlot?, onBack: () -> Unit, onSaved: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    SettingsColumn {
+        PageTitle(slot?.let { slotTitle(it.slot) } ?: stringResource(R.string.forge_goals_daily), onBack)
+        if (slot == null) {
+            Text(stringResource(R.string.forge_goals_loading), style = Forge.type.subhead, color = Forge.sceneInk.secondary)
+            return@SettingsColumn
+        }
+        var value by rememberSaveable { mutableStateOf(slot.value ?: slot.defaultValue) }
+        var runs by rememberSaveable { mutableStateOf(slot.runs ?: "ongoing") }
+        var endsOn by rememberSaveable {
+            mutableStateOf(slot.endsOn?.takeIf { slot.runs == "untilDate" } ?: LocalDate.now().plusMonths(1).toString())
+        }
+        var weekdays by rememberSaveable { mutableStateOf(slot.weekdays.toSet().toList()) }
+        var ring by rememberSaveable { mutableStateOf(slot.showsAsRing) }
+        val values = slot.values
+        SettingsCard(title = null, blurb = null) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                MetricTile(slotMetric(slot.slot))
+                Spacer(Modifier.width(ForgeMetrics.space3))
+                Column(Modifier.weight(1f)) {
+                    Text(slotValue(slot.slot, value), style = Forge.type.title2, color = Forge.colors.text)
+                    Text(stringResource(if (slot.slot == "sleep") R.string.forge_goals_a_night else R.string.forge_goals_a_day),
+                         style = Forge.type.caption, color = Forge.colors.textTertiary)
+                }
+                val index = values.indexOfFirst { it >= value }.let { if (it < 0) values.lastIndex else it }
+                Stepper("", onMinus = { value = values.getOrElse(index - 1) { values.first() } },
+                        onPlus = { value = values.getOrElse(index + 1) { values.last() } })
+            }
+        }
+        SettingsCard(title = stringResource(R.string.forge_goals_how_long), blurb = null) {
+            Segmented(listOf("ongoing", "untilDate", "todayOnly"), runs,
+                      label = {
+                          stringResource(when (it) {
+                              "untilDate" -> R.string.forge_goals_until_date
+                              "todayOnly" -> R.string.forge_goals_today_only
+                              else -> R.string.forge_goals_ongoing
+                          })
+                      },
+                      onSelect = { runs = it })
+            if (runs == "untilDate") {
+                RowDivider()
+                SettingRow(stringResource(R.string.forge_goals_last_day)) {
+                    Text(longDate(endsOn), style = Forge.type.body, color = Forge.colors.accent,
+                         modifier = Modifier.clickable(role = Role.Button) {
+                             val d = parse(endsOn) ?: LocalDate.now()
+                             android.app.DatePickerDialog(context, { _, y, m, day ->
+                                 endsOn = LocalDate.of(y, m + 1, day).toString()
+                             }, d.year, d.monthValue - 1, d.dayOfMonth).apply {
+                                 datePicker.minDate = System.currentTimeMillis()
+                             }.show()
+                         }.padding(vertical = 8.dp))
+                }
+            }
+        }
+        if (runs != "todayOnly") {
+            SettingsCard(title = stringResource(R.string.forge_goals_on_days), blurb = null) {
+                // Calendar weekdays as iOS stores them (1 Sunday ... 7 Saturday), shown from Monday.
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    listOf(2, 3, 4, 5, 6, 7, 1).forEach { weekday ->
+                        val on = weekday in weekdays
+                        val name = java.time.DayOfWeek.of(if (weekday == 1) 7 else weekday - 1)
+                            .getDisplayName(TextStyle.NARROW, Locale.getDefault())
+                        Box(Modifier.size(36.dp).clip(CircleShape)
+                                .background(if (on) Forge.colors.accent else Forge.colors.inset)
+                                .clickable(role = Role.Checkbox) {
+                                    weekdays = if (on) weekdays - weekday else weekdays + weekday
+                                },
+                            contentAlignment = Alignment.Center) {
+                            Text(name, style = Forge.type.subhead, color = if (on) Color.White else Forge.colors.textSecondary)
+                        }
+                    }
+                }
+            }
+        }
+        SettingsCard(title = null, blurb = null) {
+            ToggleRow(stringResource(R.string.forge_goals_show_ring), stringResource(R.string.forge_goals_show_ring_detail),
+                      ring) { ring = it }
+        }
+        val canSave = runs == "todayOnly" || weekdays.isNotEmpty()
+        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+                .background(if (canSave) Forge.colors.accent else Forge.colors.inset)
+                .clickable(enabled = canSave, role = Role.Button) {
+                    scope.launch {
+                        withContext(Dispatchers.IO) {
+                            CoreGoals.saveDaily(slot.slot, value, runs, endsOn, weekdays.sorted(), ring)
+                        }
+                        onSaved()
+                    }
+                }.padding(vertical = 14.dp), contentAlignment = Alignment.Center) {
+            Text(stringResource(R.string.forge_goals_save), style = Forge.type.headline, color = Color.White)
+        }
+        if (slot.value != null) {
+            ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+                GoalAction(stringResource(R.string.forge_goals_turn_off), ForgeTokens.Color.systemRed.resolve()) {
+                    scope.launch {
+                        withContext(Dispatchers.IO) { CoreGoals.turnOffDaily(slot.slot) }
+                        onSaved()
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun slotMetric(slot: String): String = when (slot) {
+    "activeCalories" -> "activeEnergy"
+    "sleep" -> "sleepNights"
+    else -> "stepDays"
+}
+
+@Composable
+private fun slotTitle(slot: String): String = stringResource(when (slot) {
+    "activeCalories" -> R.string.forge_goals_slot_active
+    "sleep" -> R.string.forge_goals_slot_sleep
+    else -> R.string.forge_goals_slot_steps
+})
+
+@Composable
+private fun slotValue(slot: String, value: Double): String = when (slot) {
+    "activeCalories" -> stringResource(R.string.forge_goals_kcal_value, whole(value))
+    "sleep" -> stringResource(R.string.forge_goals_hours_value,
+                              NumberFormat.getNumberInstance(Locale.getDefault()).apply { maximumFractionDigits = 2 }.format(value))
+    else -> stringResource(R.string.forge_goals_steps_value, whole(value))
+}
+
+// MARK: - Today card (`GoalsTodaySection`)
+
+/**
+ * Today's goals card as iOS shows it on the home screen (`GoalsTodaySection`, decided by the shared `GoalSpotlight`):
+ * the weekly, monthly or long-term goals that need a look, today's daily goals with their progress, and how many
+ * weekly and monthly goals are on course. Nothing is drawn while there are no goals.
+ */
+@Composable
+fun ForgeTodayGoalsCard(output: CoreGoals.Output?, onOpen: () -> Unit, onToggle: (CoreGoals.Action) -> Unit) {
+    output ?: return
+    val spot = output.spotlight
+    if (spot.rows.isEmpty() && output.today.isEmpty() && spot.weekTotal + spot.monthTotal == 0) return
+    val colors = Forge.colors
+    Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+        SectionHeader(stringResource(R.string.forge_goals_more_title))
+        ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+            spot.rows.forEachIndexed { i, row ->
+                if (i > 0) RowDivider()
+                if (row.kind == "period") {
+                    output.period.firstOrNull { it.id == row.id }?.let { PeriodRow(it, onOpen) }
+                } else {
+                    output.longTerm.firstOrNull { it.id == row.id }?.let {
+                        Box(Modifier.clickable(role = Role.Button, onClick = onOpen)) { LongTermRow(it) }
+                    }
+                }
+            }
+            if (output.today.isNotEmpty()) {
+                if (spot.rows.isNotEmpty()) RowDivider()
+                Row(Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget).clickable(role = Role.Button, onClick = onOpen),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.forge_goals_today).uppercase(), style = Forge.type.overline,
+                         color = colors.textSecondary)
+                    Spacer(Modifier.width(ForgeMetrics.space2))
+                    Text(stringResource(R.string.forge_goals_done_count, spot.dailyDone, spot.dailyTotal),
+                         style = Forge.type.caption, color = colors.textSecondary, modifier = Modifier.weight(1f))
+                    Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = colors.textTertiary,
+                         modifier = Modifier.size(16.dp))
+                }
+                val order = spot.rings + spot.checks
+                output.today.sortedBy { order.indexOf(it.id).let { i -> if (i < 0) Int.MAX_VALUE else i } }.forEach { action ->
+                    DailyRow(action) { onToggle(action) }
+                }
+            }
+            val parts = buildList {
+                if (spot.weekTotal > 0) add(stringResource(R.string.forge_goals_week_on_course, spot.weekOnCourse, spot.weekTotal))
+                if (spot.monthTotal > 0) {
+                    val month = LocalDate.now().month.getDisplayName(TextStyle.FULL_STANDALONE, Locale.getDefault())
+                    add(stringResource(R.string.forge_goals_month_on_course, month, spot.monthOnCourse, spot.monthTotal))
+                }
+            }
+            if (parts.isNotEmpty()) {
+                RowDivider()
+                Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onOpen).padding(vertical = ForgeMetrics.space2),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Text(parts.joinToString(" · "), style = Forge.type.footnote, color = colors.textSecondary,
+                         modifier = Modifier.weight(1f))
+                    Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = colors.textTertiary,
+                         modifier = Modifier.size(16.dp))
+                }
+            }
+        }
+    }
+}
 
 // MARK: - Words and numbers (`GoalFormat`, `GoalStatusStyle`)
 

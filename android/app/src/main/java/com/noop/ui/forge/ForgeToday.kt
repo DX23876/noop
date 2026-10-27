@@ -59,6 +59,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.noop.R
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import com.noop.core.CoreGoals
 import com.noop.core.CoreRead
 import com.noop.ui.AppViewModel
 import kotlinx.coroutines.Dispatchers
@@ -142,6 +146,8 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
     ) {
         Header(shown, isToday = shown == today)
         Hero(model?.day, width)
+        // Goals sit after the hero, as in the iOS Today order (`TodayLayoutPrefs.defaultOrder`), on today only.
+        if (shown == today) TodayGoals()
         HeartCard(viewModel, shown, live = shown == today)
         KeyMetrics(model, columns = if (width == ForgeWidth.Compact) 2 else 3)
         Spacer(Modifier.height(ForgeMetrics.space2))
@@ -353,4 +359,31 @@ object HeroRingLayout {
 
     fun diameter(rowWidth: androidx.compose.ui.unit.Dp): androidx.compose.ui.unit.Dp =
         (rowWidth / 3 * OVERDRAW).coerceIn(minDiameter, maxDiameter)
+}
+
+/** Today's goals card, read from the shared core; it opens the goals page over the tabs. */
+@Composable
+private fun TodayGoals() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var output by remember { mutableStateOf<CoreGoals.Output?>(null) }
+    var revision by remember { mutableIntStateOf(0) }
+    var open by remember { mutableStateOf(false) }
+    LaunchedEffect(revision) {
+        output = withContext(Dispatchers.IO) {
+            CoreRead.open(context)
+            CoreGoals.snapshot(context, dismissedTrainingWorkouts(context))
+        }
+    }
+    ForgeTodayGoalsCard(output, onOpen = { open = true }, onToggle = { action ->
+        scope.launch {
+            withContext(Dispatchers.IO) { CoreGoals.toggleAction(action.actionId, action.day) }
+            revision++
+        }
+    })
+    if (open) {
+        ForgeOverlayPage(onDismiss = { open = false; revision++ }) {
+            ForgeSceneBackdrop(ForgeBackdrop.Sky) { ForgeGoalsPage(onBack = { open = false; revision++ }) }
+        }
+    }
 }

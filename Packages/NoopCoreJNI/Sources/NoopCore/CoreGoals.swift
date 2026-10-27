@@ -62,9 +62,25 @@ public enum CoreGoals {
         public var threshold: Double?
     }
 
+    /// What Today's goals card shows (`GoalSpotlight`): the rings and checks among today's daily goals, the weekly,
+    /// monthly or long-term goals that need a look, and how many weekly and monthly goals are on course.
+    public struct Spotlight: Encodable {
+        public struct Row: Encodable { public var kind: String, id: String, reason: String }
+        public var rings: [String], checks: [String], rows: [Row]
+        public var dailyTotal: Int, dailyDone: Int
+        public var weekOnCourse: Int, weekTotal: Int, monthOnCourse: Int, monthTotal: Int
+    }
+
+    /// A measured daily goal's slot as the editor opens it (`DailyGoalSlot`).
+    public struct DailySlot: Encodable {
+        public var slot: String, values: [Double], defaultValue: Double
+        public var value: Double?, runs: String?, endsOn: String?, weekdays: [Int], showsAsRing: Bool
+    }
+
     public struct Output: Encodable {
         public var period: [Period], longTerm: [LongTerm]
         public var today: [Action], week: [Action]
+        public var spotlight: Spotlight, daily: [DailySlot]
         public var periodLimit: Int
         public var updatedAt: Double
     }
@@ -103,8 +119,13 @@ public enum CoreGoals {
                           contributions: context.contributions.contributions,
                           dismissedWorkoutKeys: context.contributions.dismissedWorkoutKeys)
             model.applyFollowingWeeklyTargets(now: now, calendar: source.calendar)
+            let spot = GoalSpotlight.make(todayActions: model.todayActions, periodSnapshots: model.periodSnapshots,
+                                          longTerm: model.snapshots, pinnedLongTerm: GoalPrefs.pinnedLongTermIds,
+                                          maxRows: 3, fillsWithLongTerm: true)
             return Output(period: model.periodSnapshots.map(period), longTerm: model.snapshots.map(longTerm),
                           today: model.todayActions.map(action), week: model.weekActions.map(action),
+                          spotlight: spotlight(spot, periods: model.periodSnapshots),
+                          daily: DailyGoalSlot.allCases.map { daily($0, actions: context.actions.actions, today: today) },
                           periodLimit: GoalPrefs.periodLimit, updatedAt: now.timeIntervalSince1970)
         }
     }
@@ -186,6 +207,40 @@ public enum CoreGoals {
         }
     }
 
+    /// Saves a measured daily goal as the editor's Done does (`DailyGoalSlot.save`).
+    @MainActor
+    public static func saveDaily(store: WhoopStore, slot: String, value: Double, runs: String, endsOn: String?,
+                                 weekdays: [Int], showsAsRing: Bool, now: Date = Date()) async -> Change {
+        guard let slot = DailyGoalSlot(rawValue: slot), let runs = DailyGoalSlot.Runs(rawValue: runs) else {
+            return Change(ok: false, error: "invalid")
+        }
+        do {
+            return try await CoreGoalState.change(store: store) { context in
+                slot.save(in: context.actions, value: slot.nearest(value), runs: runs, endsOn: endsOn,
+                          weekdays: Set(weekdays.filter { (1...7).contains($0) }), showsAsRing: showsAsRing,
+                          today: StoreReader.localDayKey(now), now: now)
+                return Change(ok: true, error: nil)
+            }
+        } catch {
+            return Change(ok: false, error: "conflict")
+        }
+    }
+
+    /// Turns a measured daily goal off, keeping its history (`DailyGoalSlot.turnOff`).
+    @MainActor
+    public static func turnOffDaily(store: WhoopStore, slot: String, now: Date = Date()) async -> Change {
+        guard let slot = DailyGoalSlot(rawValue: slot) else { return Change(ok: false, error: "invalid") }
+        do {
+            return try await CoreGoalState.change(store: store) { context in
+                slot.turnOff(in: context.actions, today: StoreReader.localDayKey(now),
+                             yesterday: StoreReader.localDayKey(now.addingTimeInterval(-86_400)))
+                return Change(ok: true, error: nil)
+            }
+        } catch {
+            return Change(ok: false, error: "conflict")
+        }
+    }
+
     /// Checks a manual daily goal off for a day, or undoes it (`GoalActionStore.toggleManual`).
     @MainActor
     public static func toggleAction(store: WhoopStore, actionId: String, day: String, now: Date = Date()) async -> Change {
@@ -246,6 +301,38 @@ public enum CoreGoals {
                         progress: s.displayProgress, reason: s.reason, nextAction: s.nextAction,
                         currentStreak: s.currentStreak, bestStreak: s.bestStreak,
                         periodGoalIds: children.map(\.id.uuidString))
+    }
+
+    @MainActor
+    private static func spotlight(_ spot: GoalSpotlight, periods: [PeriodGoalSnapshot]) -> Spotlight {
+        let open = periods.filter { $0.goal.status == .active }
+        func onCourse(_ items: [PeriodGoalSnapshot]) -> Int {
+            items.filter { [.onTrack, .ahead, .achieved].contains($0.state) }.count
+        }
+        let week = open.filter { $0.goal.period == .week }, month = open.filter { $0.goal.period == .month }
+        let rows = spot.rows.map { row -> Spotlight.Row in
+            switch row {
+            case .period(let s, let reason): return .init(kind: "period", id: s.id.uuidString, reason: "\(reason)")
+            case .longTerm(let s, let reason): return .init(kind: "longTerm", id: s.id.uuidString, reason: "\(reason)")
+            }
+        }
+        return Spotlight(rings: spot.rings.map(\.id), checks: spot.checks.map(\.id), rows: rows,
+                         dailyTotal: spot.dailyTotal, dailyDone: spot.dailyDone,
+                         weekOnCourse: onCourse(week), weekTotal: week.count,
+                         monthOnCourse: onCourse(month), monthTotal: month.count)
+    }
+
+    @MainActor
+    private static func daily(_ slot: DailyGoalSlot, actions: [GoalAction], today: String) -> DailySlot {
+        let current = slot.current(in: actions, today: today)
+        var runs: String?, weekdays = Array(1...7)
+        if let current {
+            runs = current.endsOn == nil ? "ongoing" : (current.endsOn == today ? "todayOnly" : "untilDate")
+            if case .weekdays(let days) = current.schedule { weekdays = days }
+        }
+        return DailySlot(slot: slot.rawValue, values: slot.values, defaultValue: slot.defaultValue,
+                         value: current.flatMap { slot.value(of: $0.requirement) }, runs: runs,
+                         endsOn: current?.endsOn, weekdays: weekdays, showsAsRing: current?.showsAsRing != false)
     }
 
     @MainActor

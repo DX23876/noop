@@ -3857,4 +3857,27 @@
     <string name="forge_goals_h_building">正在积累数据</string>
     <string name="forge_goals_range">%1$s 至 %2$s</string>
     <string name="forge_goals_fraction">%1$s / %2$s</string>
+    <string name="forge_goals_daily">每日</string>
+    <string name="forge_goals_daily_off">关闭</string>
+    <string name="forge_goals_a_night">每晚</string>
+    <string name="forge_goals_a_day">每天</string>
+    <string name="forge_goals_how_long">持续时间</string>
+    <string name="forge_goals_until_date">截至日期</string>
+    <string name="forge_goals_today_only">仅今天</string>
+    <string name="forge_goals_ongoing">长期</string>
+    <string name="forge_goals_last_day">最后一天</string>
+    <string name="forge_goals_on_days">在这些日子</string>
+    <string name="forge_goals_show_ring">显示为圆环</string>
+    <string name="forge_goals_show_ring_detail">最多三个每日目标显示为圆环，其余在下方计数。</string>
+    <string name="forge_goals_save">完成</string>
+    <string name="forge_goals_turn_off">关闭这个目标</string>
+    <string name="forge_goals_slot_active">活动卡路里</string>
+    <string name="forge_goals_slot_sleep">睡眠</string>
+    <string name="forge_goals_slot_steps">步数</string>
+    <string name="forge_goals_kcal_value">%1$s大卡</string>
+    <string name="forge_goals_hours_value">%1$s 小时</string>
+    <string name="forge_goals_steps_value">%1$s 步</string>
+    <string name="forge_goals_done_count">已完成 %1$d / %2$d</string>
+    <string name="forge_goals_week_on_course">本周 %1$d/%2$d 进展正常</string>
+    <string name="forge_goals_month_on_course">%1$s %2$d/%3$d 进展正常</string>
 </resources>

@@ -3782,4 +3782,27 @@
     <string name="forge_goals_h_building">Собираются данные</string>
     <string name="forge_goals_range">с %1$s по %2$s</string>
     <string name="forge_goals_fraction">%1$s / %2$s</string>
+    <string name="forge_goals_daily">Ежедневные</string>
+    <string name="forge_goals_daily_off">Выкл.</string>
+    <string name="forge_goals_a_night">за ночь</string>
+    <string name="forge_goals_a_day">в день</string>
+    <string name="forge_goals_how_long">Срок действия</string>
+    <string name="forge_goals_until_date">До даты</string>
+    <string name="forge_goals_today_only">Только сегодня</string>
+    <string name="forge_goals_ongoing">Бессрочно</string>
+    <string name="forge_goals_last_day">Последний день</string>
+    <string name="forge_goals_on_days">В эти дни</string>
+    <string name="forge_goals_show_ring">Показывать кольцом</string>
+    <string name="forge_goals_show_ring_detail">До трёх целей дня показываются кольцами, остальные считаются под ними.</string>
+    <string name="forge_goals_save">Готово</string>
+    <string name="forge_goals_turn_off">Отключить эту цель</string>
+    <string name="forge_goals_slot_active">Активные калории</string>
+    <string name="forge_goals_slot_sleep">Сон</string>
+    <string name="forge_goals_slot_steps">Шаги</string>
+    <string name="forge_goals_kcal_value">%1$s ккал</string>
+    <string name="forge_goals_hours_value">%1$s ч</string>
+    <string name="forge_goals_steps_value">%1$s шагов</string>
+    <string name="forge_goals_done_count">Выполнено: %1$d из %2$d</string>
+    <string name="forge_goals_week_on_course">Неделя: %1$d/%2$d по плану</string>
+    <string name="forge_goals_month_on_course">%1$s: %2$d/%3$d по плану</string>
 </resources>

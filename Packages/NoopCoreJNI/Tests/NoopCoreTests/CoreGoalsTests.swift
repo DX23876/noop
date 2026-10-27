@@ -93,4 +93,25 @@ final class CoreGoalsTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(workouts.weekHigh, workouts.weekDefault)
         XCTAssertEqual(setup.openCount, 0)
     }
+
+    func testDailyStepGoalIsSavedShownTodayAndTurnedOff() async throws {
+        let store = try await WhoopStore.inMemory()
+        let reader = StoreReader(store: store, activeDeviceId: "my-whoop", registeredWhoopIds: [])
+        let saved = await CoreGoals.saveDaily(store: store, slot: "steps", value: 9_120, runs: "ongoing",
+                                              endsOn: nil, weekdays: Array(1...7), showsAsRing: true)
+        XCTAssertTrue(saved.ok)
+        var output = try await CoreGoals.snapshot(reader: reader, settings: settings)
+        let steps = try XCTUnwrap(output.daily.first { $0.slot == "steps" })
+        XCTAssertEqual(steps.value, 9_000, "a value off the wheel snaps to the nearest offered one")
+        XCTAssertEqual(steps.runs, "ongoing")
+        let today = try XCTUnwrap(output.today.first { $0.kind == "steps" })
+        XCTAssertEqual(today.measuredTarget, 9_000)
+        XCTAssertEqual(output.spotlight.dailyTotal, output.today.count)
+
+        let off = await CoreGoals.turnOffDaily(store: store, slot: "steps")
+        XCTAssertTrue(off.ok)
+        output = try await CoreGoals.snapshot(reader: reader, settings: settings)
+        XCTAssertNil(output.daily.first { $0.slot == "steps" }?.value)
+        XCTAssertTrue(output.today.isEmpty)
+    }
 }

@@ -115,6 +115,13 @@ public enum CoreCall {
         case "goals.changePeriod":
             return CoreRead.json(await CoreGoals.changePeriodGoal(store: store, id: string("id"), action: string("action"),
                 target: (args["target"] as? NSNumber)?.doubleValue, reason: args["reason"] as? String))
+        case "goals.saveDaily":
+            return CoreRead.json(await CoreGoals.saveDaily(store: store, slot: string("slot"),
+                value: (args["value"] as? NSNumber)?.doubleValue ?? 0, runs: string("runs"),
+                endsOn: args["endsOn"] as? String, weekdays: (args["weekdays"] as? [NSNumber])?.map(\.intValue) ?? Array(1...7),
+                showsAsRing: args["showsAsRing"] as? Bool ?? true))
+        case "goals.turnOffDaily":
+            return CoreRead.json(await CoreGoals.turnOffDaily(store: store, slot: string("slot")))
         case "goals.toggleAction":
             return CoreRead.json(await CoreGoals.toggleAction(store: store, actionId: string("actionId"), day: string("day")))
         case "training.snapshot":

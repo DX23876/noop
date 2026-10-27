@@ -21,6 +21,9 @@ class CoreGoalsTest {
         assertNotNull(goal.paceFraction)
         assertTrue(output.longTerm.isEmpty())
         assertTrue(output.periodLimit > 0)
+        assertEquals(listOf("steps", "activeCalories", "sleep"), output.daily.map { it.slot })
+        assertTrue(output.daily.all { it.value == null && it.values.isNotEmpty() })
+        assertEquals(1, output.spotlight.weekTotal)
     }
 
     @Test fun anErrorAnswerReadsAsNoSnapshot() {

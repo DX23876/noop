@@ -3887,4 +3887,27 @@
     <string name="forge_goals_h_building">Reuniendo datos</string>
     <string name="forge_goals_range">del %1$s al %2$s</string>
     <string name="forge_goals_fraction">%1$s / %2$s</string>
+    <string name="forge_goals_daily">Diarios</string>
+    <string name="forge_goals_daily_off">Desactivado</string>
+    <string name="forge_goals_a_night">por noche</string>
+    <string name="forge_goals_a_day">al día</string>
+    <string name="forge_goals_how_long">Duración</string>
+    <string name="forge_goals_until_date">Hasta una fecha</string>
+    <string name="forge_goals_today_only">Solo hoy</string>
+    <string name="forge_goals_ongoing">Indefinido</string>
+    <string name="forge_goals_last_day">Último día</string>
+    <string name="forge_goals_on_days">Estos días</string>
+    <string name="forge_goals_show_ring">Mostrar como anillo</string>
+    <string name="forge_goals_show_ring_detail">Hasta tres objetivos diarios son anillos; los demás se cuentan debajo.</string>
+    <string name="forge_goals_save">Listo</string>
+    <string name="forge_goals_turn_off">Desactivar este objetivo</string>
+    <string name="forge_goals_slot_active">Calorías activas</string>
+    <string name="forge_goals_slot_sleep">Sueño</string>
+    <string name="forge_goals_slot_steps">Pasos</string>
+    <string name="forge_goals_kcal_value">%1$s kcal</string>
+    <string name="forge_goals_hours_value">%1$s h</string>
+    <string name="forge_goals_steps_value">%1$s pasos</string>
+    <string name="forge_goals_done_count">%1$d de %2$d hechos</string>
+    <string name="forge_goals_week_on_course">Semana: %1$d/%2$d en camino</string>
+    <string name="forge_goals_month_on_course">%1$s: %2$d/%3$d en camino</string>
 </resources>
