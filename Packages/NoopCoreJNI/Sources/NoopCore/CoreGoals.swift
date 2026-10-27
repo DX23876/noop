@@ -46,6 +46,8 @@ public enum CoreGoals {
         public var history: [HistoryEntry], currentStreak: Int, bestStreak: Int
         public var counted: [Contribution], notCounted: [Contribution], suggestedDays: [String]
         public var aggregation: String, step: Double, rangeLow: Double, rangeHigh: Double
+        /// The journal question a habit goal counts; the host names it with the wearer's own label.
+        public var habitKey: String? = nil, habitWantsYes = true
     }
 
     /// A long-term goal as `GoalTrackingSnapshot` reads it.
@@ -185,14 +187,19 @@ public enum CoreGoals {
     /// Adds a weekly or monthly goal as the Apple setup's Create button does (`canAdd`, then `commit`).
     @MainActor
     public static func addPeriodGoal(store: WhoopStore, metric: String, period: String, target: Double,
-                                     threshold: Double?, now: Date = Date()) async -> Change {
+                                     threshold: Double?, habitKey: String? = nil, habitWantsYes: Bool = true,
+                                     now: Date = Date()) async -> Change {
         guard let metric = PeriodMetric(rawValue: metric), let period = PeriodGoal.Period(rawValue: period) else {
             return Change(ok: false, error: "invalid")
         }
+        // A habit goal counts one journal question, as the Apple setup's habit picker requires.
+        let habit = habitKey?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if metric == .habitDays && (habit ?? "").isEmpty { return Change(ok: false, error: "invalid") }
         do {
             return try await CoreGoalState.change(store: store) { context in
                 let goal = PeriodGoal(metric: metric, period: period, target: target,
                                       threshold: metric.hasThreshold ? (threshold ?? metric.defaultThreshold) : nil,
+                                      habitKey: metric == .habitDays ? habit : nil, habitWantsYes: habitWantsYes,
                                       createdAt: now)
                 switch context.periods.canAdd(goal) {
                 case .limitReached?: return Change(ok: false, error: "limitReached")
@@ -307,7 +314,8 @@ public enum CoreGoals {
             currentStreak: s.currentStreak, bestStreak: s.bestStreak,
             counted: s.counted.map(contribution), notCounted: s.notCounted.map(contribution),
             suggestedDays: s.suggestedDays, aggregation: "\(goal.metric.aggregation)",
-            step: goal.metric.step(for: goal.period), rangeLow: range.lowerBound, rangeHigh: range.upperBound)
+            step: goal.metric.step(for: goal.period), rangeLow: range.lowerBound, rangeHigh: range.upperBound,
+            habitKey: goal.habitKey, habitWantsYes: goal.habitWantsYes)
     }
 
     @MainActor

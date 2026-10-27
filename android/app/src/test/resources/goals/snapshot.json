@@ -196,7 +196,7 @@
       "counted" : [
         {
           "day" : "2026-10-27",
-          "id" : "1793123791|1793127391|running",
+          "id" : "1793137140|1793140740|running",
           "isManual" : false,
           "title" : "Running",
           "value" : 1
@@ -215,16 +215,17 @@
       ],
       "daysLeft" : 6,
       "fraction" : 0.3333333333333333,
+      "habitWantsYes" : true,
       "history" : [
 
       ],
-      "id" : "403E8578-1D28-46AC-ADA5-9A619945B2F4",
+      "id" : "C7F40949-399D-443D-985D-2C217873205E",
       "isProtected" : false,
       "metric" : "workouts",
       "notCounted" : [
 
       ],
-      "paceFraction" : 0.14531249999999998,
+      "paceFraction" : 0.16666666666666666,
       "period" : "week",
       "periodDays" : [
         "2026-10-26",
@@ -279,7 +280,7 @@
   "today" : [
 
   ],
-  "updatedAt" : 1793127451.986927,
+  "updatedAt" : 1793140800.514705,
   "week" : [
 
   ]

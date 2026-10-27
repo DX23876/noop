@@ -120,7 +120,8 @@ public enum CoreCall {
         case "goals.addPeriod":
             return CoreRead.json(await CoreGoals.addPeriodGoal(store: store, metric: string("metric"),
                 period: string("period"), target: (args["target"] as? NSNumber)?.doubleValue ?? 0,
-                threshold: (args["threshold"] as? NSNumber)?.doubleValue))
+                threshold: (args["threshold"] as? NSNumber)?.doubleValue, habitKey: args["habitKey"] as? String,
+                habitWantsYes: args["habitWantsYes"] as? Bool ?? true))
         case "goals.changePeriod":
             return CoreRead.json(await CoreGoals.changePeriodGoal(store: store, id: string("id"), action: string("action"),
                 target: (args["target"] as? NSNumber)?.doubleValue, reason: args["reason"] as? String))

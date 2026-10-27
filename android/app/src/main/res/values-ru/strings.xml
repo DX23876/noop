@@ -3948,4 +3948,20 @@
     <string name="forge_momentum_unavailable">Momentum сейчас недоступен.</string>
     <string name="forge_momentum_hide_failed">Не удалось скрыть это сообщение. Попробуйте ещё раз.</string>
     <string name="forge_backup_inputs_unavailable">Резервная копия не создана: не удалось полностью прочитать ваши записи. Попробуйте ещё раз.</string>
+    <string name="forge_goals_habit_which">Какая привычка?</string>
+    <string name="forge_goals_habit_none">В журнале пока нет привычек. Сначала добавьте её в журнале.</string>
+    <string name="forge_goals_habit_do">Делать</string>
+    <string name="forge_goals_habit_avoid">Избегать</string>
+    <string name="forge_goals_habit_counts_yes">Считает дни с ответом «да».</string>
+    <string name="forge_goals_habit_counts_no">Считает дни с ответом «нет».</string>
+    <string name="forge_goals_habit_do_title">Делать: %1$s</string>
+    <string name="forge_goals_habit_avoid_title">Избегать: %1$s</string>
+    <string name="forge_goals_title_habit_yes">%1$s в %2$s дней %3$s</string>
+    <string name="forge_goals_title_habit_no">%1$s дней без %2$s %3$s</string>
+    <string name="forge_settings_today_trends">Сегодня и тренды</string>
+    <string name="forge_settings_today_cards">Карточки на «Сегодня»</string>
+    <string name="forge_settings_water">Вода</string>
+    <string name="forge_settings_water_detail">Журнал воды с дневной целью, которая растёт вместе с нагрузкой.</string>
+    <string name="forge_settings_journal_card">Карточка журнала</string>
+    <string name="forge_settings_journal_card_detail">Показывает последние 7 дней журнала и напоминает, если сегодня ещё не заполнено.</string>
 </resources>

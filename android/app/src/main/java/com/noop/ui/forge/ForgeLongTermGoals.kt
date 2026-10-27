@@ -188,11 +188,13 @@ internal fun LongTermSetupPage(onBack: () -> Unit, onCreated: () -> Unit) {
         error?.let { Text(it, style = Forge.type.caption, color = ForgeTokens.Color.systemRed.resolve()) }
         if (step >= SetupStep.Value && draft != null) {
             val last = step == SetupStep.Preview
+            val ready = draft?.state?.let { it.template != JOURNAL_HABIT || it.habitKey != null } ?: false
             // A rhythm goal is its weekly goal, so it goes straight to the preview.
             val nextStep = if (step == SetupStep.Value && draft?.shape == "consistency") SetupStep.Preview
                            else SetupStep.entries.getOrElse(step.ordinal + 1) { SetupStep.Preview }
-            Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Forge.colors.accent)
-                    .clickable(enabled = !busy, role = Role.Button) {
+            Box(Modifier.fillMaxWidth().alpha(if (ready) 1f else 0.45f).clip(RoundedCornerShape(14.dp))
+                    .background(Forge.colors.accent)
+                    .clickable(enabled = !busy && ready, role = Role.Button) {
                         if (last) create(null, false, null) else step = nextStep
                     }.padding(vertical = 14.dp), contentAlignment = Alignment.Center) {
                 Text(stringResource(if (last) R.string.forge_goals_create else R.string.forge_lt_next),
@@ -243,6 +245,26 @@ private fun ValueStep(d: CoreLongTermGoals.Draft, catalog: CoreLongTermGoals.Cat
                       change: (CoreLongTermGoals.State) -> Unit, run: (CoreLongTermGoals.State, String, () -> Unit) -> Unit) {
     val s = d.state
     val template = catalog.templates.firstOrNull { it.id == s.template }
+    if (s.template == JOURNAL_HABIT) {
+        val context = LocalContext.current
+        val habits = journalHabits()
+        // "Keep a journal habit" says nothing on the list: the name follows the habit picked until the wearer types one.
+        fun named(key: String?, yes: Boolean): String = key?.let { k ->
+            val item = habits.firstOrNull { it.canonical == k }
+            context.getString(if (yes) R.string.forge_goals_habit_do_title else R.string.forge_goals_habit_avoid_title,
+                              item?.displayName ?: item?.canonical ?: k)
+        } ?: ""
+        val generic = template?.title?.let { catalogText(it) }
+        fun pick(key: String?, yes: Boolean) {
+            val follows = s.title.isEmpty() || s.title == template?.title || s.title == generic ||
+                s.title == named(s.habitKey, s.habitWantsYes)
+            change(s.copy(habitKey = key, habitWantsYes = yes, title = if (follows) named(key, yes) else s.title))
+        }
+        SettingsCard(title = stringResource(R.string.forge_goals_habit_which), blurb = null) {
+            HabitPicker(habits, s.habitKey, s.habitWantsYes, onKey = { pick(it, s.habitWantsYes) },
+                        onWantsYes = { pick(s.habitKey, it) })
+        }
+    }
     if (template != null && template.sportChoices.size > 1) {
         SettingsCard(title = stringResource(R.string.forge_lt_sport), blurb = null) {
             template.sportChoices.forEachIndexed { i, label ->
@@ -524,3 +546,6 @@ internal fun LongTermGoalPage(goal: CoreGoals.LongTerm?, periods: List<CoreGoals
         PauseDialog(onDismiss = { choosingPause = false }) { raw -> choosingPause = false; change("pause", raw) }
     }
 }
+
+/** `GoalTemplateID.journalHabit`: the one template that needs a journal question before it can be set. */
+private const val JOURNAL_HABIT = "habit.journal"

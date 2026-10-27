@@ -1,5 +1,11 @@
 package com.noop.ui.forge
 
+import com.noop.ui.journalDisplayName
+import androidx.compose.ui.draw.alpha
+import com.noop.ui.resolveJournalItems
+import com.noop.ui.loadJournalCatalogItems
+import com.noop.ui.JournalCatalogItem
+import com.noop.NoopApplication
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -528,7 +534,10 @@ private fun GoalSetupPage(onBack: () -> Unit, onCreated: () -> Unit) {
     var period by rememberSaveable { mutableStateOf("week") }
     var metric by rememberSaveable { mutableStateOf<String?>(null) }
     var target by rememberSaveable { mutableStateOf<Double?>(null) }
+    var habitKey by rememberSaveable { mutableStateOf<String?>(null) }
+    var habitWantsYes by rememberSaveable { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
+    val habits = journalHabits()
     LaunchedEffect(Unit) {
         setup = withContext(Dispatchers.IO) {
             CoreRead.open(context)
@@ -550,7 +559,7 @@ private fun GoalSetupPage(onBack: () -> Unit, onCreated: () -> Unit) {
             }
         }
         SettingsCard(title = stringResource(R.string.forge_goals_what), blurb = null) {
-            val shown = s.metrics.filter { it.metric !in HIDDEN_METRICS }
+            val shown = s.metrics
             shown.forEachIndexed { i, choice ->
                 val chosen = choice.metric == metric
                 Row(Modifier.fillMaxWidth()
@@ -562,7 +571,9 @@ private fun GoalSetupPage(onBack: () -> Unit, onCreated: () -> Unit) {
                     Column(Modifier.weight(1f)) {
                         Text(metricLabel(choice.metric), style = Forge.type.body,
                              color = if (choice.available) Forge.colors.text else Forge.colors.textTertiary)
-                        Text(if (choice.available) metricBlurb(choice.metric) else stringResource(R.string.forge_goals_no_data_yet),
+                        Text(if (choice.available) metricBlurb(choice.metric)
+                             else choice.reason?.let { GOAL_CATALOG_TEXT[it] }?.let { stringResource(it) }
+                                 ?: stringResource(R.string.forge_goals_no_data_yet),
                              style = Forge.type.caption, color = Forge.colors.textTertiary)
                     }
                     if (chosen) Icon(Icons.Rounded.CheckCircle, contentDescription = null, tint = Forge.colors.accent)
@@ -571,8 +582,16 @@ private fun GoalSetupPage(onBack: () -> Unit, onCreated: () -> Unit) {
             }
         }
         val choice = s.metrics.firstOrNull { it.metric == metric }
+        if (choice?.metric == "habitDays") {
+            SettingsCard(title = stringResource(R.string.forge_goals_habit_which), blurb = null) {
+                HabitPicker(habits, habitKey, habitWantsYes, onKey = { habitKey = it }, onWantsYes = { habitWantsYes = it })
+                Text(stringResource(if (habitWantsYes) R.string.forge_goals_habit_counts_yes else R.string.forge_goals_habit_counts_no),
+                     style = Forge.type.caption, color = Forge.colors.textTertiary)
+            }
+        }
         if (choice != null) {
             val week = period == "week"
+            val ready = choice.metric != "habitDays" || habitKey != null
             val step = if (week) choice.weekStep else choice.monthStep
             val low = if (week) choice.weekLow else choice.monthLow
             val high = if (week) choice.weekHigh else choice.monthHigh
@@ -589,11 +608,13 @@ private fun GoalSetupPage(onBack: () -> Unit, onCreated: () -> Unit) {
                 val limitText = stringResource(R.string.forge_goals_limit, s.periodLimit)
                 val duplicateText = stringResource(R.string.forge_goals_duplicate)
                 val failedText = stringResource(R.string.forge_goals_failed)
-                Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Forge.colors.accent)
-                         .clickable(role = Role.Button) {
+                Box(Modifier.fillMaxWidth().alpha(if (ready) 1f else 0.45f).clip(RoundedCornerShape(14.dp))
+                         .background(Forge.colors.accent)
+                         .clickable(enabled = ready, role = Role.Button) {
                              scope.launch {
                                  val result = withContext(Dispatchers.IO) {
-                                     CoreGoals.addPeriodGoal(choice.metric, period, value, choice.threshold)
+                                     CoreGoals.addPeriodGoal(choice.metric, period, value, choice.threshold,
+                                                             habitKey.takeIf { choice.metric == "habitDays" }, habitWantsYes)
                                  }
                                  when {
                                      result.ok -> onCreated()
@@ -610,8 +631,6 @@ private fun GoalSetupPage(onBack: () -> Unit, onCreated: () -> Unit) {
     }
 }
 
-/** Metrics whose source Android does not read yet (the journal, hydration), so their setup would only say no data. */
-private val HIDDEN_METRICS = setOf("habitDays", "hydrationDays")
 
 // MARK: - Daily goal editor (`DailyGoalSheet`)
 
@@ -920,6 +939,8 @@ private fun progressText(goal: CoreGoals.Period): String =
 private fun shortName(goal: CoreGoals.Period): String = when (goal.metric) {
     "stepDays" -> stringResource(R.string.forge_goals_steps_name, whole(goal.threshold ?: 8_000.0))
     "sleepNights" -> stringResource(R.string.forge_goals_nights_name, hours(goal.threshold ?: 7.0))
+    "habitDays" -> goal.habitKey?.let { journalDisplayName(loadJournalCatalogItems(LocalContext.current), it) }
+        ?: metricLabel(goal.metric)
     else -> metricLabel(goal.metric)
 }
 
@@ -933,6 +954,11 @@ private fun title(goal: CoreGoals.Period): String {
         "sleepNights" -> stringResource(R.string.forge_goals_title_nights, target, hours(goal.threshold ?: 7.0), per)
         "sleepAverage" -> stringResource(R.string.forge_goals_title_sleep_average, target, per)
         "restDays" -> stringResource(R.string.forge_goals_title_rest, target, per)
+        "habitDays" -> {
+            val habit = shortName(goal)
+            if (goal.habitWantsYes) stringResource(R.string.forge_goals_title_habit_yes, habit, target, per)
+            else stringResource(R.string.forge_goals_title_habit_no, target, habit, per)
+        }
         else -> "$target ${unit(goal.metric)} $per"
     }
 }
@@ -1060,3 +1086,43 @@ private fun range(days: List<String>): String {
 
 private fun weekdayInitial(day: String): String =
     parse(day)?.dayOfWeek?.getDisplayName(TextStyle.NARROW, Locale.getDefault()) ?: ""
+
+// MARK: - Journal habits
+
+/** The journal's own list, starter, imported and custom questions, as the Apple habit picker offers it. */
+@Composable
+internal fun journalHabits(): List<JournalCatalogItem> {
+    val context = LocalContext.current
+    var items by remember { mutableStateOf<List<JournalCatalogItem>>(emptyList()) }
+    LaunchedEffect(Unit) {
+        items = withContext(Dispatchers.IO) {
+            val repo = (context.applicationContext as NoopApplication).repository
+            val imported = runCatching { repo.journal("my-whoop", "0000-01-01", "9999-12-31") }.getOrDefault(emptyList())
+            resolveJournalItems(imported.map { it.question }.distinct(), loadJournalCatalogItems(context))
+        }
+    }
+    return items
+}
+
+/** Which journal question a habit goal counts, and whether a yes or a no keeps it. */
+@Composable
+internal fun HabitPicker(items: List<JournalCatalogItem>, key: String?, wantsYes: Boolean,
+                         onKey: (String) -> Unit, onWantsYes: (Boolean) -> Unit) {
+    if (items.isEmpty()) {
+        Text(stringResource(R.string.forge_goals_habit_none), style = Forge.type.footnote, color = Forge.colors.textSecondary)
+    }
+    items.forEachIndexed { i, item ->
+        Row(Modifier.fillMaxWidth().clickable(role = Role.RadioButton) { onKey(item.canonical) }
+                .padding(vertical = ForgeMetrics.space2),
+            verticalAlignment = Alignment.CenterVertically) {
+            Text(item.displayName ?: item.canonical, style = Forge.type.body, color = Forge.colors.text,
+                 modifier = Modifier.weight(1f))
+            if (item.canonical == key) Icon(Icons.Rounded.CheckCircle, contentDescription = null, tint = Forge.colors.accent)
+        }
+        if (i < items.lastIndex) RowDivider()
+    }
+    Spacer(Modifier.height(ForgeMetrics.space2))
+    Segmented(listOf(true, false), wantsYes,
+              label = { stringResource(if (it) R.string.forge_goals_habit_do else R.string.forge_goals_habit_avoid) },
+              onSelect = onWantsYes)
+}

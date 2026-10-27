@@ -4084,4 +4084,20 @@
     <string name="forge_momentum_unavailable">Momentum is not available right now.</string>
     <string name="forge_momentum_hide_failed">Could not hide this message. Try again.</string>
     <string name="forge_backup_inputs_unavailable">No backup was created because your entries could not be read completely. Please try again.</string>
+    <string name="forge_goals_habit_which">Which habit?</string>
+    <string name="forge_goals_habit_none">Your journal has no habits yet. Add one in Journal first.</string>
+    <string name="forge_goals_habit_do">Do it</string>
+    <string name="forge_goals_habit_avoid">Avoid it</string>
+    <string name="forge_goals_habit_counts_yes">Counts days you log it with yes.</string>
+    <string name="forge_goals_habit_counts_no">Counts days you log it with no.</string>
+    <string name="forge_goals_habit_do_title">Do: %1$s</string>
+    <string name="forge_goals_habit_avoid_title">Avoid: %1$s</string>
+    <string name="forge_goals_title_habit_yes">%1$s on %2$s days %3$s</string>
+    <string name="forge_goals_title_habit_no">%1$s days without %2$s %3$s</string>
+    <string name="forge_settings_today_trends">Today &amp; Trends</string>
+    <string name="forge_settings_today_cards">Cards on Today</string>
+    <string name="forge_settings_water">Water</string>
+    <string name="forge_settings_water_detail">A water log with a daily goal that grows with your effort.</string>
+    <string name="forge_settings_journal_card">Journal card</string>
+    <string name="forge_settings_journal_card_detail">Shows your last 7 journal days and reminds you when today is still missing.</string>
 </resources>

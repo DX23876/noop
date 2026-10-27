@@ -4023,4 +4023,20 @@
     <string name="forge_momentum_unavailable">Momentum 目前不可用。</string>
     <string name="forge_momentum_hide_failed">无法隐藏此消息。请重试。</string>
     <string name="forge_backup_inputs_unavailable">无法完整读取你的记录，因此未创建备份。请重试。</string>
+    <string name="forge_goals_habit_which">哪个习惯？</string>
+    <string name="forge_goals_habit_none">你的日志还没有习惯。请先在日志中添加。</string>
+    <string name="forge_goals_habit_do">去做</string>
+    <string name="forge_goals_habit_avoid">避免</string>
+    <string name="forge_goals_habit_counts_yes">统计你记录为“是”的天数。</string>
+    <string name="forge_goals_habit_counts_no">统计你记录为“否”的天数。</string>
+    <string name="forge_goals_habit_do_title">坚持：%1$s</string>
+    <string name="forge_goals_habit_avoid_title">避免：%1$s</string>
+    <string name="forge_goals_title_habit_yes">%3$s %2$s 天做到 %1$s</string>
+    <string name="forge_goals_title_habit_no">%3$s %1$s 天不%2$s</string>
+    <string name="forge_settings_today_trends">今天与趋势</string>
+    <string name="forge_settings_today_cards">今天页卡片</string>
+    <string name="forge_settings_water">饮水</string>
+    <string name="forge_settings_water_detail">饮水记录，每日目标会随消耗增加。</string>
+    <string name="forge_settings_journal_card">日志卡片</string>
+    <string name="forge_settings_journal_card_detail">显示最近 7 天的日志，并在今天尚未记录时提醒你。</string>
 </resources>

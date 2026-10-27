@@ -4053,4 +4053,20 @@
     <string name="forge_momentum_unavailable">Momentum no está disponible en este momento.</string>
     <string name="forge_momentum_hide_failed">No se pudo ocultar este mensaje. Inténtalo de nuevo.</string>
     <string name="forge_backup_inputs_unavailable">No se creó ninguna copia de seguridad porque no se pudieron leer todas tus entradas. Inténtalo de nuevo.</string>
+    <string name="forge_goals_habit_which">¿Qué hábito?</string>
+    <string name="forge_goals_habit_none">Tu diario aún no tiene hábitos. Añade uno primero en Diario.</string>
+    <string name="forge_goals_habit_do">Hacerlo</string>
+    <string name="forge_goals_habit_avoid">Evitarlo</string>
+    <string name="forge_goals_habit_counts_yes">Cuenta los días en que registras sí.</string>
+    <string name="forge_goals_habit_counts_no">Cuenta los días en que registras no.</string>
+    <string name="forge_goals_habit_do_title">Hacer: %1$s</string>
+    <string name="forge_goals_habit_avoid_title">Evitar: %1$s</string>
+    <string name="forge_goals_title_habit_yes">%1$s en %2$s días %3$s</string>
+    <string name="forge_goals_title_habit_no">%1$s días sin %2$s %3$s</string>
+    <string name="forge_settings_today_trends">Hoy y tendencias</string>
+    <string name="forge_settings_today_cards">Tarjetas de Hoy</string>
+    <string name="forge_settings_water">Agua</string>
+    <string name="forge_settings_water_detail">Un registro de agua con un objetivo diario que crece con tu esfuerzo.</string>
+    <string name="forge_settings_journal_card">Tarjeta del diario</string>
+    <string name="forge_settings_journal_card_detail">Muestra tus últimos 7 días de diario y te recuerda si falta el de hoy.</string>
 </resources>

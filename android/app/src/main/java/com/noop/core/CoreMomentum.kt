@@ -37,7 +37,7 @@ object CoreMomentum {
         if (!CoreUserInputs.ensure(context)) return null
         val prefs = NoopPrefs.of(context)
         val profile = ProfileStore.from(context)
-        val args = JSONObject().withGoalProfile(profile).put("sex", profile.sex)
+        val args = JSONObject().withGoalProfile(profile).withGoalHostSettings(context).put("sex", profile.sex)
             .put("lastSync", goalLastSync(context)).put("ageless", CoreFeatures.healthspan(context))
             .put("dismissedWorkouts", JSONArray(dismissedWorkouts))
             .put("hrvEpoch", prefs.getLong(Baselines.hrvBaselineEpochKey, 0L).toDouble())

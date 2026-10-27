@@ -1,5 +1,6 @@
 package com.noop.ui.forge
 
+import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.runtime.CompositionLocalProvider
 import com.noop.ui.LightTokens
 import com.noop.ui.DarkTokens
@@ -164,6 +165,7 @@ enum class ForgeSettingsPage(val titleRes: Int, val subtitleRes: Int, val icon: 
     Strap(R.string.l10n_settings_screen_strap_02b88eeb, R.string.forge_settings_strap_subtitle, Icons.Rounded.SettingsInputAntenna, hosted = true),
     BatteryRecording(R.string.forge_settings_battery, R.string.forge_settings_battery_subtitle, Icons.Rounded.Battery5Bar, hosted = true),
     StrapActions(R.string.forge_settings_actions, R.string.forge_settings_actions_subtitle, Icons.Rounded.TouchApp, hosted = true),
+    TodayTrends(R.string.forge_settings_today_trends, R.string.forge_settings_today_cards, Icons.Rounded.Dashboard),
     Notifications(R.string.forge_settings_notifications, R.string.forge_settings_notifications_subtitle, Icons.Rounded.NotificationsActive, hosted = true),
     Coach(R.string.forge_settings_coach, R.string.forge_settings_coach_subtitle, Icons.Rounded.AutoAwesome, hosted = true),
     LanguageUnits(R.string.forge_settings_language_units, R.string.forge_settings_language_units_subtitle, Icons.Rounded.Language),
@@ -176,14 +178,15 @@ enum class ForgeSettingsPage(val titleRes: Int, val subtitleRes: Int, val icon: 
 }
 
 /**
- * The hub's groups in iOS order (`SettingsHubLayout`). Goals, Training, Today & Trends and Siri have no Android
- * feature behind them yet, so their rows are left out rather than opening an empty page.
+ * The hub's groups in iOS order (`SettingsHubLayout`). Goals, Training and Siri have no Android feature behind them
+ * yet, so their rows are left out rather than opening an empty page; Today & Trends carries only its cards.
  */
 internal val HUB_GROUPS = listOf(
     R.string.forge_settings_group_you to listOf(ForgeSettingsPage.Profile),
     R.string.forge_settings_group_strap to listOf(ForgeSettingsPage.Strap, ForgeSettingsPage.BatteryRecording,
                                                   ForgeSettingsPage.StrapActions),
-    R.string.forge_settings_group_training to listOf(ForgeSettingsPage.Notifications, ForgeSettingsPage.Coach),
+    R.string.forge_settings_group_training to listOf(ForgeSettingsPage.TodayTrends, ForgeSettingsPage.Notifications,
+                                                     ForgeSettingsPage.Coach),
     R.string.forge_settings_group_display to listOf(ForgeSettingsPage.LanguageUnits, ForgeSettingsPage.Appearance),
     R.string.forge_settings_group_data to listOf(ForgeSettingsPage.Calculations, ForgeSettingsPage.DataBackup),
     R.string.forge_settings_group_help to listOf(ForgeSettingsPage.Help, ForgeSettingsPage.Lab, ForgeSettingsPage.About),
@@ -246,6 +249,7 @@ private fun ForgeSettingsPage.tint(): Color {
         ForgeSettingsPage.LanguageUnits -> ForgeTokens.Color.systemOrange
         ForgeSettingsPage.Calculations, ForgeSettingsPage.Lab -> ForgeTokens.Color.systemIndigo
         ForgeSettingsPage.Help -> ForgeTokens.Color.systemTeal
+        ForgeSettingsPage.TodayTrends -> ForgeTokens.Color.systemCyan
         ForgeSettingsPage.About -> ForgeTokens.Color.systemGray
     }
     return token.resolve()
@@ -351,6 +355,7 @@ private fun Page(page: ForgeSettingsPage, viewModel: AppViewModel, onBack: () ->
                 ForgeSettingsPage.Profile -> ProfileSection(profile, viewModel, ::change, onOpen)
                 ForgeSettingsPage.LanguageUnits -> LanguageUnitsSection(context, ::change)
                 ForgeSettingsPage.Appearance -> AppearanceSection(::change)
+                ForgeSettingsPage.TodayTrends -> TodayCardsSection(::change)
                 ForgeSettingsPage.Calculations -> CalculationsSection(viewModel, ::change, onOpen)
                 ForgeSettingsPage.DataBackup -> DataBackupSection(onOpen)
                 ForgeSettingsPage.Help -> HelpSection(onOpen)
@@ -818,6 +823,22 @@ private fun AppearanceSection(change: (() -> Unit) -> Unit) {
         }
     }
     BackgroundCard()
+}
+
+/**
+ * The iOS "Cards on Today" card: water gates the water card, its page and hydration goals; the journal switch gates
+ * the journal card. Today's order and style controls have no Android counterpart yet.
+ */
+@Composable
+private fun TodayCardsSection(change: (() -> Unit) -> Unit) {
+    val context = LocalContext.current
+    SettingsCard(title = stringResource(R.string.forge_settings_today_cards), blurb = null) {
+        ToggleRow(stringResource(R.string.forge_settings_water), stringResource(R.string.forge_settings_water_detail),
+                  NoopPrefs.hydrationTracking(context)) { on -> change { NoopPrefs.setHydrationTracking(context, on) } }
+        RowDivider()
+        ToggleRow(stringResource(R.string.forge_settings_journal_card), stringResource(R.string.forge_settings_journal_card_detail),
+                  NoopPrefs.journalReminderEnabled(context)) { on -> change { NoopPrefs.setJournalReminderEnabled(context, on) } }
+    }
 }
 
 /** The iOS Appearance "Background" card: time-of-day sky, sky behind cards and card transparency. */

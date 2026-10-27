@@ -4069,4 +4069,20 @@
     <string name="forge_momentum_unavailable">Momentum jest obecnie niedostępne.</string>
     <string name="forge_momentum_hide_failed">Nie udało się ukryć tej wiadomości. Spróbuj ponownie.</string>
     <string name="forge_backup_inputs_unavailable">Nie utworzono kopii zapasowej, ponieważ nie udało się odczytać wszystkich wpisów. Spróbuj ponownie.</string>
+    <string name="forge_goals_habit_which">Który nawyk?</string>
+    <string name="forge_goals_habit_none">Twój dziennik nie ma jeszcze nawyków. Najpierw dodaj jeden w Dzienniku.</string>
+    <string name="forge_goals_habit_do">Robić</string>
+    <string name="forge_goals_habit_avoid">Unikać</string>
+    <string name="forge_goals_habit_counts_yes">Liczy dni, w których wpiszesz tak.</string>
+    <string name="forge_goals_habit_counts_no">Liczy dni, w których wpiszesz nie.</string>
+    <string name="forge_goals_habit_do_title">Rób: %1$s</string>
+    <string name="forge_goals_habit_avoid_title">Unikaj: %1$s</string>
+    <string name="forge_goals_title_habit_yes">%1$s przez %2$s dni %3$s</string>
+    <string name="forge_goals_title_habit_no">%1$s dni bez %2$s %3$s</string>
+    <string name="forge_settings_today_trends">Dzisiaj i trendy</string>
+    <string name="forge_settings_today_cards">Karty na Dzisiaj</string>
+    <string name="forge_settings_water">Woda</string>
+    <string name="forge_settings_water_detail">Dziennik picia z dziennym celem, który rośnie z wysiłkiem.</string>
+    <string name="forge_settings_journal_card">Karta dziennika</string>
+    <string name="forge_settings_journal_card_detail">Pokazuje ostatnie 7 dni dziennika i przypomina, gdy brakuje dzisiejszego.</string>
 </resources>

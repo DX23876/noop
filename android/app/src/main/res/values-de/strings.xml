@@ -4066,4 +4066,20 @@
     <string name="forge_momentum_unavailable">Momentum ist gerade nicht verfügbar.</string>
     <string name="forge_momentum_hide_failed">Die Nachricht konnte nicht ausgeblendet werden. Versuche es erneut.</string>
     <string name="forge_backup_inputs_unavailable">Es wurde keine Sicherung erstellt, weil deine Einträge nicht vollständig gelesen werden konnten. Bitte versuche es erneut.</string>
+    <string name="forge_goals_habit_which">Welche Gewohnheit?</string>
+    <string name="forge_goals_habit_none">Dein Journal hat noch keine Gewohnheiten. Leg zuerst eine im Journal an.</string>
+    <string name="forge_goals_habit_do">Machen</string>
+    <string name="forge_goals_habit_avoid">Vermeiden</string>
+    <string name="forge_goals_habit_counts_yes">Zählt Tage, an denen du Ja einträgst.</string>
+    <string name="forge_goals_habit_counts_no">Zählt Tage, an denen du Nein einträgst.</string>
+    <string name="forge_goals_habit_do_title">Machen: %1$s</string>
+    <string name="forge_goals_habit_avoid_title">Vermeiden: %1$s</string>
+    <string name="forge_goals_title_habit_yes">%1$s an %2$s Tagen %3$s</string>
+    <string name="forge_goals_title_habit_no">%1$s Tage ohne %2$s %3$s</string>
+    <string name="forge_settings_today_trends">Heute &amp; Trends</string>
+    <string name="forge_settings_today_cards">Karten auf Heute</string>
+    <string name="forge_settings_water">Trinken</string>
+    <string name="forge_settings_water_detail">Ein Trinkprotokoll mit Tagesziel, das mit deiner Belastung wächst.</string>
+    <string name="forge_settings_journal_card">Tagebuch-Karte</string>
+    <string name="forge_settings_journal_card_detail">Zeigt deine letzten 7 Tagebuch-Tage und erinnert dich, wenn heute noch fehlt.</string>
 </resources>

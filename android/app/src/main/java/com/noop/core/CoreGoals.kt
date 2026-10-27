@@ -26,6 +26,7 @@ object CoreGoals {
         val history: List<HistoryEntry>, val currentStreak: Int, val bestStreak: Int,
         val counted: List<Contribution>, val notCounted: List<Contribution>, val suggestedDays: List<String>,
         val aggregation: String, val step: Double, val rangeLow: Double, val rangeHigh: Double,
+        val habitKey: String? = null, val habitWantsYes: Boolean = true,
     )
     data class LongTerm(
         val id: String, val title: String, val status: String, val targetDate: String?, val health: String,
@@ -83,9 +84,11 @@ object CoreGoals {
         )
     }
 
-    fun addPeriodGoal(metric: String, period: String, target: Double, threshold: Double?): Change =
+    fun addPeriodGoal(metric: String, period: String, target: Double, threshold: Double?,
+                      habitKey: String? = null, habitWantsYes: Boolean = true): Change =
         change("goals.addPeriod", JSONObject().put("metric", metric).put("period", period).put("target", target)
-            .apply { if (threshold != null) put("threshold", threshold) })
+            .put("habitWantsYes", habitWantsYes)
+            .apply { if (threshold != null) put("threshold", threshold); if (habitKey != null) put("habitKey", habitKey) })
 
     /** "setTarget", "pause", "resume", "end" or "remove", as the Apple detail page offers them. */
     fun changePeriodGoal(id: String, action: String, target: Double? = null, reason: String? = null): Change =
@@ -115,7 +118,7 @@ object CoreGoals {
     private fun settings(context: Context, dismissedWorkouts: List<String>): String {
         val lastSync = goalLastSync(context)
         val profile = ProfileStore.from(context)
-        return JSONObject().withGoalProfile(profile).put("sex", profile.sex)
+        return JSONObject().withGoalProfile(profile).withGoalHostSettings(context).put("sex", profile.sex)
             .put("lastSync", lastSync).put("ageless", CoreFeatures.healthspan(context))
             .put("dismissedWorkouts", JSONArray(dismissedWorkouts)).toString()
     }
@@ -154,6 +157,7 @@ object CoreGoals {
                     suggestedDays = p.optJSONArray("suggestedDays").strings(),
                     aggregation = p.optString("aggregation", "count"), step = p.optDouble("step", 1.0),
                     rangeLow = p.optDouble("rangeLow", 0.0), rangeHigh = p.optDouble("rangeHigh", 100.0),
+                    habitKey = p.str("habitKey"), habitWantsYes = p.optBoolean("habitWantsYes", true),
                 )
             },
             longTerm = o.optJSONArray("longTerm").objects().map { g ->

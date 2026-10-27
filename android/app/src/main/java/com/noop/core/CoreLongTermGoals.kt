@@ -88,7 +88,7 @@ object CoreLongTermGoals {
 
     private fun args(context: Context, dismissedWorkouts: List<String>): JSONObject {
         val profile = ProfileStore.from(context)
-        return JSONObject().withGoalProfile(profile).put("sex", profile.sex).put("lastSync", goalLastSync(context))
+        return JSONObject().withGoalProfile(profile).withGoalHostSettings(context).put("sex", profile.sex).put("lastSync", goalLastSync(context))
             .put("ageless", CoreFeatures.healthspan(context)).put("profileWeightKg", profile.weightKg)
             .put("dismissedWorkouts", JSONArray(dismissedWorkouts))
     }
