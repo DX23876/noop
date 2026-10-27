@@ -57,44 +57,7 @@ final class GoalTrackingStore: GoalTrackingModel {
     /// body-measurement resolver. Read only for the metrics asked for, so a refresh without such goals
     /// reads nothing extra.
     func loadLevelSeries(repo: Repository, metrics: Set<LongTermMetric>) async -> [LongTermMetric: [GoalMilestones.Sample]] {
-        var out: [LongTermMetric: [GoalMilestones.Sample]] = [:]
-        func samples(_ rows: [(day: String, value: Double)]) -> [GoalMilestones.Sample] {
-            rows.compactMap { row in GoalMeasurements.parseDay(row.day).map { GoalMilestones.Sample(date: $0, value: row.value) } }
-        }
-        if metrics.contains(.restingHr) {
-            out[.restingHr] = samples(repo.days.compactMap { day in
-                day.restingHr.flatMap { $0 > 0 ? (day.day, Double($0)) : nil }
-            })
-        }
-        if metrics.contains(.sleepHeartRate) {
-            out[.sleepHeartRate] = samples(await repo.exploreSeries(key: "rhr_primary_session",
-                                                                     source: Repository.whoopSource, days: 400))
-        }
-        if metrics.contains(.sleepConsistency) {
-            // The nightly score AgeLess averages, from the same computed sleep sessions and the same function.
-            let now = Date()
-            let to = Int(now.timeIntervalSince1970) + 86_400, from = to - 70 * 86_400
-            let offset = TimeZone.current.secondsFromGMT()
-            let sessions = await repo.computedSleepSessions(from: from - 5 * 86_400, to: to, limit: 1_000)
-                .map { SleepTimingConsistency.Interval(start: $0.effectiveStartTs, end: $0.endTs) }
-            let scores = SleepTimingConsistency.scoresByDay(sessions: sessions, from: from, to: to) {
-                AnalyticsEngine.dayString($0, offsetSec: offset)
-            }
-            out[.sleepConsistency] = samples(scores.map { (day: $0.key, value: $0.value) }.sorted { $0.day < $1.day })
-        }
-        if metrics.contains(.vo2max) {
-            let vo2 = await repo.agelessVO2Inputs(days: 400)
-            out[.vo2max] = samples(HealthspanVO2.goalReadings(manual: vo2.manual, appleHealth: vo2.appleHealth,
-                                                              today: Repository.localDayKey(Date())))
-        }
-        let bodyKeys: [(LongTermMetric, String)] = [(.bodyFat, "body_fat"), (.leanMass, "lean_mass"), (.waist, "waist")]
-        if bodyKeys.contains(where: { metrics.contains($0.0) }) {
-            let body = await repo.bodyMetrics(days: 400)
-            for (metric, key) in bodyKeys where metrics.contains(metric) {
-                out[metric] = samples(body.series(key).map { ($0.day, $0.value) })
-            }
-        }
-        return out
+        await GoalLevelReader.read(reader: repo, metrics: metrics, now: Date())
     }
 
     /// Everything, for recommendations in the setup flow.
@@ -133,4 +96,18 @@ extension Repository: GoalInputReading {
                              agelessEnabled: HealthspanFeature.isEnabled,
                              motivationEnabled: GoalPrefs.motivationEnabled)
     }
+}
+
+/// Store access stays in Repository; target-value assembly and its clock stay in GoalLevelReader.
+extension Repository: GoalLevelReading {
+    func goalLevelValues(key: String, source: String, days: Int) async -> [(day: String, value: Double)] {
+        await exploreSeries(key: key, source: source, days: days)
+    }
+    func goalComputedSleepSessions(from: Int, to: Int, limit: Int) async -> [CachedSleepSession] {
+        await computedSleepSessions(from: from, to: to, limit: limit)
+    }
+    func goalVO2Inputs(days: Int) async -> (manual: (day: String, value: Double)?, appleHealth: [(day: String, value: Double)]) {
+        await agelessVO2Inputs(days: days)
+    }
+    func goalBodyMetrics(days: Int) async -> BodyMetrics { await bodyMetrics(days: days) }
 }

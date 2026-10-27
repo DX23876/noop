@@ -10,6 +10,9 @@ import WhoopStore
 /// function. Runs against the store the shadow session opened; `{"error": …}` when there is none.
 public enum CoreCall {
     public static func run(_ op: String, _ argsJSON: String) async -> String {
+        if op == "momentum.day" {
+            return CoreRead.json(["day": LogicalDay.key(Date())])
+        }
         if op == "core.setResources" {
             // Validate the protocol asset before any notification can reach the collector. Android has no
             // SwiftPM bundle; asking Bundle.module on the first bonded event otherwise terminates the app.
@@ -19,10 +22,18 @@ public enum CoreCall {
             do {
                 try installSchema(from: directory.appendingPathComponent("whoop_protocol.json"))
                 BundledExerciseCatalog.resourceDirectory = directory
+                // The wearer's language for the text the shared code writes; none keeps the English source.
+                CoreLocalization.load((args["l10n"] as? String).map { URL(fileURLWithPath: $0) })
                 return #"{"ok":true}"#
             } catch {
                 return #"{"error":"protocolSchemaUnavailable"}"#
             }
+        }
+        if op == "core.setLanguage" {
+            // A language picked in Settings, applied without a restart.
+            let args = (try? JSONSerialization.jsonObject(with: Data(argsJSON.utf8)) as? [String: Any]) ?? [:]
+            CoreLocalization.load((args["l10n"] as? String).map { URL(fileURLWithPath: $0) })
+            return #"{"ok":true}"#
         }
         let args = (try? JSONSerialization.jsonObject(with: Data(argsJSON.utf8)) as? [String: Any]) ?? [:]
         func string(_ k: String) -> String { args[k] as? String ?? "" }
@@ -97,10 +108,7 @@ public enum CoreCall {
             return ok((try? await CoreExerciseProvider.shared.accept(store: store, requested: string("token"),
                 ids: args["ids"] as? [String] ?? [])) ?? false)
         case "goals.snapshot", "goals.setup":
-            let settings = CoreGoals.Settings(profileSex: string("sex"),
-                lastSync: (args["lastSync"] as? NSNumber).flatMap { $0.doubleValue > 0 ? Date(timeIntervalSince1970: $0.doubleValue) : nil },
-                agelessEnabled: args["ageless"] as? Bool ?? false,
-                dismissedWorkoutSpans: args["dismissedWorkouts"] as? [String] ?? [])
+            let settings = CoreGoalEnergy.settings(args)
             do {
                 return op == "goals.snapshot"
                     ? CoreRead.json(try await CoreGoals.snapshot(reader: reader, settings: settings))
@@ -123,10 +131,7 @@ public enum CoreCall {
         case "goals.turnOffDaily":
             return CoreRead.json(await CoreGoals.turnOffDaily(store: store, slot: string("slot")))
         case "goals.catalog", "goals.ltDraft", "goals.ltCreate":
-            let settings = CoreGoals.Settings(profileSex: string("sex"),
-                lastSync: (args["lastSync"] as? NSNumber).flatMap { $0.doubleValue > 0 ? Date(timeIntervalSince1970: $0.doubleValue) : nil },
-                agelessEnabled: args["ageless"] as? Bool ?? false,
-                dismissedWorkoutSpans: args["dismissedWorkouts"] as? [String] ?? [])
+            let settings = CoreGoalEnergy.settings(args)
             let weight = (args["profileWeightKg"] as? NSNumber)?.doubleValue ?? 0
             let state = (args["state"] as? String).flatMap {
                 try? JSONDecoder().decode(CoreLongTermGoals.State.self, from: Data($0.utf8))
@@ -150,6 +155,19 @@ public enum CoreCall {
         case "goals.changeLongTerm":
             return CoreRead.json(await CoreLongTermGoals.change(store: store, id: string("id"), action: string("action"),
                                                                 reason: args["reason"] as? String))
+        case "momentum.feed":
+            let settings = CoreGoalEnergy.settings(args)
+            do {
+                return CoreRead.json(try await CoreMomentum.feed(reader: reader, settings: settings,
+                    hrvEpoch: (args["hrvEpoch"] as? NSNumber)?.doubleValue ?? 0,
+                    recoveryEpoch: (args["recoveryEpoch"] as? NSNumber)?.doubleValue ?? 0,
+                    snoozedRaw: string("snoozed"), lastKind: string("lastKind"),
+                    lastAt: (args["lastAt"] as? NSNumber)?.doubleValue ?? 0))
+            } catch {
+                return #"{"error":"goalState"}"#
+            }
+        case "momentum.snooze":
+            return CoreRead.json(["snoozed": await CoreMomentum.snooze(kind: string("kind"), snoozedRaw: string("snoozed"))])
         case "goals.toggleAction":
             return CoreRead.json(await CoreGoals.toggleAction(store: store, actionId: string("actionId"), day: string("day")))
         case "training.snapshot":

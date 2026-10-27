@@ -14,6 +14,13 @@ public enum CoreGoals {
         public var lastSync: Date?
         public var agelessEnabled: Bool
         public var dismissedWorkoutSpans: [String]
+        public var energyProfile: UserProfile?
+        public var energyCalibrationEnabled = false
+        public var energyManualVO2: PeakMETResolver.ManualEntry?
+        public var energyActivityLevel: JurcaFitness.ActivityLevel?
+        public var hydrationEnabled = false
+        public var journalAliases: [String: String] = [:]
+        public var journalAliasOrder: [String: Int] = [:]
         public init(profileSex: String, lastSync: Date?, agelessEnabled: Bool, dismissedWorkoutSpans: [String]) {
             self.profileSex = profileSex; self.lastSync = lastSync
             self.agelessEnabled = agelessEnabled; self.dismissedWorkoutSpans = dismissedWorkoutSpans
@@ -108,16 +115,11 @@ public enum CoreGoals {
             return Inputs(goals: context.goals.goals, actions: context.actions.actions,
                           periodGoals: context.periods.goals, motivationEnabled: GoalPrefs.motivationEnabled)
         }
-        let host = Host(reader: reader, settings: settings, motivationEnabled: state.motivationEnabled)
+        let host = Host(reader: reader, settings: settings, motivationEnabled: state.motivationEnabled, now: now)
         let source = await GoalInputLoader.source(reader: host, now: now, goals: state.goals,
                                                   actions: state.actions, periodGoals: state.periodGoals)
         return try await CoreGoalState.change(store: reader.store) { context in
-            let model = GoalTrackingModel()
-            // Coach plans are not on Android yet: no proposals and no open reconciliation questions.
-            model.refresh(source: source, now: now, goals: context.goals.goals, proposals: [], unresolved: [],
-                          actions: context.actions.actions, checkoffs: context.actions.checkoffs,
-                          contributions: context.contributions.contributions,
-                          dismissedWorkoutKeys: context.contributions.dismissedWorkoutKeys)
+            let model = evaluate(source: source, context: context, now: now)
             model.applyFollowingWeeklyTargets(now: now, calendar: source.calendar)
             let spot = GoalSpotlight.make(todayActions: model.todayActions, periodSnapshots: model.periodSnapshots,
                                           longTerm: model.snapshots, pinnedLongTerm: GoalPrefs.pinnedLongTermIds,
@@ -130,13 +132,37 @@ public enum CoreGoals {
         }
     }
 
+    /// The shared refresh over loaded inputs, inside a goal-state transaction.
+    @MainActor
+    static func evaluate(source: GoalTrackingModel.Source, context: CoreGoalState.Context, now: Date) -> GoalTrackingModel {
+        let model = GoalTrackingModel()
+        // Coach plans are not on Android yet: no proposals and no open reconciliation questions.
+        model.refresh(source: source, now: now, goals: context.goals.goals, proposals: [], unresolved: [],
+                      actions: context.actions.actions, checkoffs: context.actions.checkoffs,
+                      contributions: context.contributions.contributions,
+                      dismissedWorkoutKeys: context.contributions.dismissedWorkoutKeys)
+        return model
+    }
+
+    /// The goal inputs for a read that does not change the goals (Momentum).
+    @MainActor
+    static func source(reader: StoreReader, settings: Settings, now: Date) async throws -> GoalTrackingModel.Source {
+        let state = try await CoreGoalState.read(store: reader.store) { context in
+            Inputs(goals: context.goals.goals, actions: context.actions.actions,
+                   periodGoals: context.periods.goals, motivationEnabled: GoalPrefs.motivationEnabled)
+        }
+        let host = Host(reader: reader, settings: settings, motivationEnabled: state.motivationEnabled, now: now)
+        return await GoalInputLoader.source(reader: host, now: now, goals: state.goals, actions: state.actions,
+                                            periodGoals: state.periodGoals)
+    }
+
     /// The metrics the period-goal setup offers, read with every source as the Apple setup reads them.
     @MainActor
     public static func setup(reader: StoreReader, settings: Settings, now: Date = Date()) async throws -> Setup {
         let state = try await CoreGoalState.read(store: reader.store) { context in
             (context.periods.goals, GoalPrefs.motivationEnabled)
         }
-        let host = Host(reader: reader, settings: settings, motivationEnabled: state.1)
+        let host = Host(reader: reader, settings: settings, motivationEnabled: state.1, now: now)
         let inputs = await GoalInputLoader.fullPeriodInputs(reader: host, goals: state.0, now: now)
         let calendar = TrainingPreferences.weekCalendar
         let choices = PeriodMetric.allCases.map { metric -> MetricChoice in
@@ -354,20 +380,21 @@ public enum CoreGoals {
     // MARK: Host
 
     /// The Android host of `GoalInputLoader`, over the core's store reader: the same reads the Apple
-    /// `Repository` makes where the core has them. Lanes the core cannot read yet (active energy, the journal,
-    /// hydration, VO2max and sleep-timing levels) return nothing, which leaves the goals on them unmeasured.
+    /// `Repository` makes over the shared store. Host opt-ins and catalog aliases are explicit inputs;
+    /// target-value assembly uses the same GoalLevelReader as Apple.
     @MainActor
-    final class Host: GoalInputReading {
+    final class Host: GoalInputReading, GoalLevelReading {
         let reader: StoreReader
         let settings: Settings
         let motivationEnabled: Bool
         private var days: [DailyMetric]?
+        private let now: Date
 
-        init(reader: StoreReader, settings: Settings, motivationEnabled: Bool) {
-            self.reader = reader; self.settings = settings; self.motivationEnabled = motivationEnabled
+        init(reader: StoreReader, settings: Settings, motivationEnabled: Bool, now: Date = Date()) {
+            self.reader = reader; self.settings = settings; self.motivationEnabled = motivationEnabled; self.now = now
         }
 
-        private func range(days: Int, now: Date = Date()) -> (from: String, to: String) {
+        private func range(days: Int) -> (from: String, to: String) {
             (StoreReader.localDayKey(now.addingTimeInterval(-Double(days) * 86_400)),
              StoreReader.localDayKey(now.addingTimeInterval(86_400)))
         }
@@ -384,7 +411,7 @@ public enum CoreGoals {
         func goalStore() async -> WhoopStore? { reader.store }
 
         func goalWorkoutRows(days: Int) async -> [WorkoutRow] {
-            let now = Int(Date().timeIntervalSince1970)
+            let now = Int(self.now.timeIntervalSince1970)
             let raw = await reader.rawWorkoutRows(from: now - days * 86_400, to: now + 86_400,
                                                   dismissedDetectedSpans: settings.dismissedWorkoutSpans)
             let deduped = WorkoutSource.dedupCrossSource(raw)
@@ -401,7 +428,17 @@ public enum CoreGoals {
             return await reader.series(key: key, source: source, from: r.from, to: r.to, suppressedSleepWakeDays: [])
         }
 
-        func goalActiveEnergyByDay(days: Int) async -> [String: Double] { [:] }
+        func goalActiveEnergyByDay(days: Int) async -> [String: Double] {
+            guard let profile = settings.energyProfile else { return [:] }
+            let now = self.now
+            let daily = await goalDays()
+            return await EnergySummaryStoreReads.activeEnergyByDay(reader: reader, days: days, dailyRows: daily,
+                workouts: await goalWorkoutRows(days: max(1, days) + 1), profile: profile, hrMax: profile.maxHR,
+                calibrationEnabled: settings.energyCalibrationEnabled, now: now) {
+                await CoreGoalEnergy.repairToday(reader: reader, settings: settings, dailyRows: daily,
+                                                profile: profile, now: now)
+            }
+        }
 
         func goalAppleDailyRows(days: Int) async -> [AppleDaily] {
             let r = range(days: days)
@@ -409,49 +446,52 @@ public enum CoreGoals {
                                                        from: r.from, to: r.to)) ?? []
         }
 
-        func goalJournalEntries(days: Int) async -> [JournalEntry] { [] }
+        func goalJournalEntries(days: Int) async -> [JournalEntry] {
+            let r = range(days: days)
+            return await JournalRead.entries(reader: reader, from: r.from, to: r.to,
+                aliases: settings.journalAliases, aliasOrder: settings.journalAliasOrder)
+        }
 
-        func goalHydrationHistory(days: Int, now: Date) async -> [(day: String, value: Double)] { [] }
+        func goalHydrationHistory(days: Int, now: Date) async -> [(day: String, value: Double)] {
+            await HydrationRead.history(store: reader.store, days: days, now: now)
+        }
 
         func goalStrengthHistory(days: Int) async -> ResolvedStrengthHistory {
-            let now = Int(Date().timeIntervalSince1970)
+            let now = Int(self.now.timeIntervalSince1970)
             let fusion = await TrainingSessionResolver.read(reader: reader, from: now - days * 86_400, to: now + 86_400,
                                                             dismissedDetectedSpans: settings.dismissedWorkoutSpans)
             return await StrengthHistoryReader.read(store: reader.store, days: days, now: now) { fusion }
         }
 
         func goalAgeLessMinutes(key: String, days: Int) async -> [(day: String, value: Double)] {
-            await goalSeries(key: key, source: MetricResolver.whoopSource, days: days)
+            await goalLevelValues(key: key, source: MetricResolver.whoopSource, days: days)
         }
 
         func goalLevelSeries(metrics: Set<LongTermMetric>) async -> [LongTermMetric: [GoalMilestones.Sample]] {
-            var out: [LongTermMetric: [GoalMilestones.Sample]] = [:]
-            func samples(_ rows: [(day: String, value: Double)]) -> [GoalMilestones.Sample] {
-                rows.compactMap { row in
-                    GoalMeasurements.parseDay(row.day).map { GoalMilestones.Sample(date: $0, value: row.value) }
-                }
-            }
-            if metrics.contains(.restingHr) {
-                out[.restingHr] = samples(await goalDays().compactMap { day in
-                    day.restingHr.flatMap { $0 > 0 ? (day.day, Double($0)) : nil }
-                })
-            }
-            if metrics.contains(.sleepHeartRate) {
-                out[.sleepHeartRate] = samples(await goalSeries(key: "rhr_primary_session",
-                                                                source: MetricResolver.whoopSource, days: 400))
-            }
-            let bodyKeys: [(LongTermMetric, String)] = [(.bodyFat, "body_fat"), (.leanMass, "lean_mass"), (.waist, "waist")]
-            if bodyKeys.contains(where: { metrics.contains($0.0) }) {
-                let body = await BodyMetricsReader.read(reader: reader, activeDeviceId: reader.activeDeviceId, days: 400)
-                for (metric, key) in bodyKeys where metrics.contains(metric) {
-                    out[metric] = samples(body.series(key).map { ($0.day, $0.value) })
-                }
-            }
-            return out
+            await GoalLevelReader.read(reader: self, metrics: metrics, now: now)
+        }
+
+        func goalLevelValues(key: String, source: String, days: Int) async -> [(day: String, value: Double)] {
+            let r = range(days: days)
+            return await reader.exploreSeries(key: key, source: source, from: r.from, to: r.to,
+                dailyRows: await goalDays(), suppressedSleepWakeDays: [])
+        }
+
+        func goalComputedSleepSessions(from: Int, to: Int, limit: Int) async -> [CachedSleepSession] {
+            await reader.unionComputedSleepSessions(from: from, to: to, limit: limit).sorted { $0.startTs < $1.startTs }
+        }
+
+        func goalVO2Inputs(days: Int) async -> (manual: (day: String, value: Double)?, appleHealth: [(day: String, value: Double)]) {
+            (settings.energyManualVO2.map { ($0.day, $0.vo2max) },
+             await goalLevelValues(key: "vo2max", source: MetricResolver.appleHealthSource, days: days))
+        }
+
+        func goalBodyMetrics(days: Int) async -> BodyMetrics {
+            await BodyMetricsReader.read(reader: reader, activeDeviceId: reader.activeDeviceId, days: days, now: now)
         }
 
         func goalHostState() -> GoalHostState {
-            GoalHostState(hydrationEnabled: false, profileSex: settings.profileSex, lastSync: settings.lastSync,
+            GoalHostState(hydrationEnabled: settings.hydrationEnabled, profileSex: settings.profileSex, lastSync: settings.lastSync,
                           agelessEnabled: settings.agelessEnabled, motivationEnabled: motivationEnabled)
         }
     }

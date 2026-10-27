@@ -5,6 +5,9 @@ import android.util.Log
 import com.noop.analytics.Baselines
 import com.noop.ui.NoopPrefs
 import java.io.File
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 
 /**
  * Fork (DX23876), Android plan D-5: the shared core running beside the Kotlin pipeline. The Bluetooth client hands
@@ -20,6 +23,9 @@ object CoreShadow {
     private const val PREFS = "forge"
     private const val KEY_CONFIRMS_ACK = "coreConfirmsHistoryAck"
     @Volatile private var started = false
+    private val revision = MutableStateFlow(0L)
+    val dataRevision = revision.asStateFlow()
+    fun noteDataChanged() { revision.update { it + 1 } }
 
     /** Opens the core's store and starts the session once per process. */
     fun ensureStarted(context: Context, deviceId: String) {
@@ -50,13 +56,42 @@ object CoreShadow {
             }.onFailure { Log.e(TAG, "resource $name not unpacked; core session not started: ${it.message}") }
             if (installed.isFailure) return false
         }
-        val result = SwiftCore.call("core.setResources", org.json.JSONObject().put("dir", dir.path).toString())
+        val args = org.json.JSONObject().put("dir", dir.path)
+        localizationFile(context, dir)?.let { args.put("l10n", it.path) }
+        val result = SwiftCore.call("core.setResources", args.toString())
         val ready = runCatching { org.json.JSONObject(result.orEmpty()).optBoolean("ok") }.getOrDefault(false)
         if (!ready) Log.e(TAG, "protocol schema not installed; core session not started: $result")
         return ready
     }
 
     private val RESOURCES = listOf("whoop_protocol.json", "exercise-catalog.json")
+
+    /**
+     * The wearer's language for the text the shared core writes (`CoreLocalization`): the app's chosen language, or
+     * the phone's, as the per-language table `core-l10n/<code>.l10n` built from the Apple String Catalog. English,
+     * or a language without a table, leaves the core on its English source.
+     */
+    private fun localizationFile(context: Context, dir: File): File? {
+        val tag = com.noop.ui.AppLanguagePrefs.selected(context).storageValue ?: java.util.Locale.getDefault().language
+        val code = tag.substringBefore('-').lowercase()
+        if (code == "en") return null
+        val target = File(dir, "l10n.json")
+        return runCatching {
+            val bytes = context.assets.open("core-l10n/$code.l10n").use { it.readBytes() }
+            if (!target.isFile || !target.readBytes().contentEquals(bytes)) target.writeBytes(bytes)
+            target
+        }.getOrNull()
+    }
+
+    /** Re-reads the language after the wearer picked another one in Settings, without restarting the core. */
+    fun applyLanguage(context: Context) {
+        if (!SwiftCore.available) return
+        val dir = File(context.filesDir, "core-resources").apply { mkdirs() }
+        val args = org.json.JSONObject()
+        localizationFile(context, dir)?.let { args.put("l10n", it.path) }
+        SwiftCore.call("core.setLanguage", args.toString())
+        noteDataChanged()
+    }
 
     fun family(whoop5: Boolean) { if (started) SwiftCore.shadowFamily(whoop5) }
 
@@ -83,9 +118,12 @@ object CoreShadow {
     fun analyze(age: Int, sex: String, weightKg: Double, heightCm: Double, hrMaxOverride: Int,
                 effortBanister: Boolean, sleepStagerV2: Boolean, motionAwareWake: Boolean, deepHrvWindow: Boolean,
                 dayCycleMode: String, healthspan: Boolean, rhythmAge: Boolean, extras: String) {
-        if (started) SwiftCore.shadowAnalyze(age, sex, weightKg, heightCm, hrMaxOverride, effortBanister,
-                                             sleepStagerV2, motionAwareWake, deepHrvWindow, dayCycleMode,
-                                             healthspan, rhythmAge, extras)
+        if (started) {
+            SwiftCore.shadowAnalyze(age, sex, weightKg, heightCm, hrMaxOverride, effortBanister,
+                                    sleepStagerV2, motionAwareWake, deepHrvWindow, dayCycleMode,
+                                    healthspan, rhythmAge, extras)
+            noteDataChanged()
+        }
     }
 
     /**

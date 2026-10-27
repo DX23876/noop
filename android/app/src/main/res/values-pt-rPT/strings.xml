@@ -4036,4 +4036,12 @@
     <string name="forge_lt_weeks">Semanas</string>
     <string name="forge_lt_why">Porque é importante para ti</string>
     <string name="forge_lt_with_date">Alcançar até uma data</string>
+    <string name="forge_momentum_title">Momentum</string>
+    <string name="forge_momentum_subtitle">O que importa mais para você agora.</string>
+    <string name="forge_momentum_loading">Descobrir o que importa.</string>
+    <string name="forge_momentum_empty">Nada para marcar no momento</string>
+    <string name="forge_momentum_quiet">O momento fica silencioso quando não há nada de relevante. Use a pulseira e registre seu dia, e ele será preenchido.</string>
+    <string name="forge_momentum_hide">Esconder esta mensagem para hoje.</string>
+    <string name="forge_momentum_unavailable">O Momentum não está disponível neste momento.</string>
+    <string name="forge_momentum_hide_failed">Não foi possível ocultar esta mensagem. Tenta novamente.</string>
 </resources>

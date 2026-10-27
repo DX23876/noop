@@ -106,12 +106,14 @@ object CoreGoals {
         if (!SwiftCore.available) return Change(false, "unavailable")
         val json = SwiftCore.call(op, args.toString()) ?: return Change(false, "unavailable")
         val o = runCatching { JSONObject(json) }.getOrNull() ?: return Change(false, "unavailable")
+        if (o.optBoolean("ok")) CoreShadow.noteDataChanged()
         return Change(o.optBoolean("ok"), o.str("error"))
     }
 
     private fun settings(context: Context, dismissedWorkouts: List<String>): String {
-        val lastSync = NoopPrefs.lastSyncAt(context)
-        return JSONObject().put("sex", ProfileStore.from(context).sex)
+        val lastSync = goalLastSync(context)
+        val profile = ProfileStore.from(context)
+        return JSONObject().withGoalProfile(profile).put("sex", profile.sex)
             .put("lastSync", lastSync).put("ageless", CoreFeatures.healthspan(context))
             .put("dismissedWorkouts", JSONArray(dismissedWorkouts)).toString()
     }

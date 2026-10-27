@@ -4012,4 +4012,12 @@
     <string name="forge_lt_weeks">Settimane</string>
     <string name="forge_lt_why">Perché è importante per te</string>
     <string name="forge_lt_with_date">Raggiungerlo entro una data</string>
+    <string name="forge_momentum_title">Momentum</string>
+    <string name="forge_momentum_subtitle">Cosa conta di più per te in questo momento</string>
+    <string name="forge_momentum_loading">Scoprire cosa conta</string>
+    <string name="forge_momentum_empty">Niente da segnalare al momento</string>
+    <string name="forge_momentum_quiet">Il tuo Momentum resta in disparte quando non c\'è nulla di significativo da affrontare. Indossa la cinghia e registra la tua giornata, e tutto si riempie.</string>
+    <string name="forge_momentum_hide">Nascondere questo messaggio per oggi</string>
+    <string name="forge_momentum_unavailable">Momentum non è disponibile al momento.</string>
+    <string name="forge_momentum_hide_failed">Impossibile nascondere questo messaggio. Riprova.</string>
 </resources>

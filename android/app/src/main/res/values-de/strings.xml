@@ -4057,4 +4057,12 @@
     <string name="forge_lt_weeks">Wochen</string>
     <string name="forge_lt_why">Warum es dir wichtig ist</string>
     <string name="forge_lt_with_date">Bis zu einem Datum erreichen</string>
+    <string name="forge_momentum_title">Momentum</string>
+    <string name="forge_momentum_subtitle">Was zählt gerade am meisten für dich?</string>
+    <string name="forge_momentum_loading">Das Wichtigste im Blick behalten</string>
+    <string name="forge_momentum_empty">Keine Warnung jetzt.</string>
+    <string name="forge_momentum_quiet">Die Dynamik bleibt ruhig, wenn nichts Wertes passiert. Trage den Gürtel und protokolliere deinen Tag, dann wird alles aufgezeichnet.</string>
+    <string name="forge_momentum_hide">Diese Meldung für heute ausblenden</string>
+    <string name="forge_momentum_unavailable">Momentum ist gerade nicht verfügbar.</string>
+    <string name="forge_momentum_hide_failed">Die Nachricht konnte nicht ausgeblendet werden. Versuche es erneut.</string>
 </resources>

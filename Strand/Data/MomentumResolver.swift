@@ -9,7 +9,7 @@ import WhoopStore
 /// two copies is how the two screens end up disagreeing about what matters today, which is exactly what
 /// `MomentumStore` and `MomentumCopy` were introduced to prevent.
 ///
-/// `@MainActor` only because `MomentumBuilder.inputs` reads the main-actor `GoalTrackingStore`; the
+/// `@MainActor` only because `MomentumBuilder.inputs` reads main-actor goal snapshots; the
 /// ranking underneath (`MomentumFeed`) stays actor-free and testable without one.
 @MainActor
 enum MomentumResolver {
@@ -25,9 +25,12 @@ enum MomentumResolver {
                      lastKind: String,
                      lastAt: Double,
                      retrospective: Bool,
+                     periodSnapshots: [PeriodGoalSnapshot],
+                     longTerm: [GoalTrackingSnapshot],
                      now: Date = Date()) -> [MomentumMessage] {
         let snoozed = snoozedKinds(snoozedRaw, now: now)
-        let pool = MomentumBuilder.candidates(MomentumBuilder.inputs(context))
+        let pool = MomentumBuilder.candidates(MomentumBuilder.inputs(context, periodSnapshots: periodSnapshots,
+                                                                     longTerm: longTerm))
             .filter { !snoozed.contains($0.kind.rawValue) }
         let last = MomentumKind(rawValue: lastKind).map {
             MomentumLastShown(kind: $0, at: Date(timeIntervalSince1970: lastAt))
@@ -44,7 +47,7 @@ enum MomentumResolver {
     /// `@AppStorage` booleans would not scale.
     static func snoozedKinds(_ raw: String, now: Date = Date()) -> Set<String> {
         let parts = raw.split(separator: "|", maxSplits: 1).map(String.init)
-        guard parts.count == 2, parts[0] == Repository.logicalDayKey(now) else { return [] }
+        guard parts.count == 2, parts[0] == LogicalDay.key(now) else { return [] }
         return Set(parts[1].split(separator: ",").map(String.init))
     }
 
@@ -52,6 +55,6 @@ enum MomentumResolver {
     static func snoozing(_ kind: MomentumKind, into raw: String, now: Date = Date()) -> String {
         var kinds = snoozedKinds(raw, now: now)
         kinds.insert(kind.rawValue)
-        return "\(Repository.logicalDayKey(now))|\(kinds.sorted().joined(separator: ","))"
+        return "\(LogicalDay.key(now))|\(kinds.sorted().joined(separator: ","))"
     }
 }

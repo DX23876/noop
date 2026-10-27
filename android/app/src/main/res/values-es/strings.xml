@@ -4044,4 +4044,12 @@
     <string name="forge_lt_weeks">Semanas</string>
     <string name="forge_lt_why">Por qué te importa</string>
     <string name="forge_lt_with_date">Alcanzarlo para una fecha</string>
+    <string name="forge_momentum_title">Momentum</string>
+    <string name="forge_momentum_subtitle">Lo más importante para ti ahora.</string>
+    <string name="forge_momentum_loading">Identificar lo esencial.</string>
+    <string name="forge_momentum_empty">Nada para marcar ahora mismo.</string>
+    <string name="forge_momentum_quiet">El momento permanece silencioso cuando no hay nada importante que abordar. Use la correa y registre su día, y lo llenará.</string>
+    <string name="forge_momentum_hide">Ocultar este mensaje para hoy</string>
+    <string name="forge_momentum_unavailable">Momentum no está disponible en este momento.</string>
+    <string name="forge_momentum_hide_failed">No se pudo ocultar este mensaje. Inténtalo de nuevo.</string>
 </resources>

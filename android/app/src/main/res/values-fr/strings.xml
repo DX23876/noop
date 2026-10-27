@@ -4043,4 +4043,12 @@
     <string name="forge_lt_weeks">Semaines</string>
     <string name="forge_lt_why">Pourquoi c\'est important pour vous</string>
     <string name="forge_lt_with_date">L\'atteindre pour une date</string>
+    <string name="forge_momentum_title">Momentum</string>
+    <string name="forge_momentum_subtitle">Ce qui compte le plus pour vous en ce moment.</string>
+    <string name="forge_momentum_loading">Découvrir ce qui compte.</string>
+    <string name="forge_momentum_empty">Rien à signaler pour l’instant.</string>
+    <string name="forge_momentum_quiet">Momentum reste silencieux lorsque rien n’est à faire. Portez la montre et enregistrez votre journée, et elle s’adaptera.</string>
+    <string name="forge_momentum_hide">Masquer ce message pour aujourd’hui.</string>
+    <string name="forge_momentum_unavailable">Momentum n’est pas disponible pour le moment.</string>
+    <string name="forge_momentum_hide_failed">Impossible de masquer ce message. Réessayez.</string>
 </resources>

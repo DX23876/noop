@@ -214,74 +214,14 @@ extension Repository {
         let appleReference = await appleEnergyReference(days: days)
         let appleCoverageByDay = appleReference.coverage
 
-        // TODAY is always included, even with no inputs at all. Without this the engine's
-        // `.profileOnly` branch is unreachable in practice: a day with no Apple row and no strap row
-        // produced no summary, so the card that exists to say "nothing recorded yet, here is your
-        // estimated basal rate" simply never appeared. Past days stay data-driven — an empty card for
-        // every unworn day last month would be noise, not honesty.
-        let allDays = Set(appleByDay.keys).union(strapByDay.keys)
-            .union(derivedByDay.keys).union([todayKey]).sorted()
-        return allDays.map { day in
-            let apple = appleByDay[day]
-            let strap = strapByDay[day]
-            let derived = derivedByDay[day]
-            // A total and its coverage denominator MUST come from the same model. These two lines used
-            // to disagree — the total preferred `derived`, the denominator preferred `strap` — so on
-            // any day both existed the engine divided one model's kcal by the other's seconds. Where
-            // the legacy denominator is the larger (low-confidence PPG stretches are dropped from the
-            // bucket model but counted by `energyCoverageSeconds`), the basal top-up it implies is too
-            // big and `max(0, total - basal)` silently eats the day's active energy.
-            let legacyEnergy = day == todayKey
-                ? nil
-                : strap?.activeKcalEst.map { ($0, strap?.energyCoverageSeconds) }
-            let strapEnergy: (kcal: Double, seconds: Int?)? = derived.map {
-                ($0.rawTotalKcal, $0.representedSeconds)
-            } ?? legacyEnergy
-            var dayProfile = profile
-            if let date = WeightSeries.date(forDay: day),
-               let historicalWeight = CausalWeightResolver.weight(
-                   at: Int(date.timeIntervalSince1970 + 43_200), observations: weightObservations,
-                   calendar: calendar) {
-                dayProfile.weightKg = historicalWeight
-            }
-            dayProfile.bodyFatPercent = bodyFatOn(day)
-            // Priced with THIS day's body mass and resting heart rate: both belong to the day rather
-            // than to today, the same reason the weight above is resolved causally. The engine reads
-            // them only on a day nothing measured, so the decision stays in one place.
-            let sessions = (sessionsByDay[day] ?? []).compactMap {
-                Self.activityContribution($0, profile: dayProfile, hrMax: strainProfile?.hrMax,
-                                          restingHR: strap?.restingHr.map(Double.init),
-                                          peakMET: derivedByDay[day]?.peakMET)
-            }
-            let inputs = EnergyEngine.DayInputs(
-                day: day,
-                appleActiveKcal: apple?.activeKcal,
-                appleBasalKcal: apple?.basalKcal,
-                appleCoverageSeconds: appleCoverageByDay[day],
-                strapTotalKcal: strapEnergy?.kcal,
-                strapCoverageSeconds: strapEnergy?.seconds,
-                // Only for a current-generation day: its hourly rows and its buckets are one pass.
-                strapActiveKcal: derived.map { _ in strapActiveByDay[day] ?? 0 },
-                strapCalibrationFactor: calibrationFactor,
-                strapUncertaintyFraction: derived?.uncertaintyFraction,
-                calibrationStatus: calibration.status,
-                // Apple's own step total first (a phone counts all day), else the strap's.
-                steps: apple?.steps ?? strap?.steps,
-                hoursWithSteps: stepHoursByDay[day]?.count,
-                stepHours: stepHoursByDay[day],
-                strideM: appleReference.stride.estimate(onDay: day)?.metersPerStep,
-                loggedActivity: sessions,
-                unresolvedElevatedHRSeconds: derived.map {
-                    Self.energyContextSeconds($0.contextJSON, context: .unresolvedElevatedHR)
-                } ?? 0,
-                modelWeightSource: derived?.weightSource.rawValue ?? "profile")
-            return EnergyEngine.summarize(
-                inputs,
-                profile: dayProfile,
-                context: Self.energyDayContext(day: day, now: now, calendar: calendar),
-                shape: shape,
-                adaptivePriorKcal: adaptivePrior)
-        }
+        return EnergySummaryPreparation.summaries(.init(
+            appleByDay: appleByDay, strapByDay: strapByDay, derivedByDay: derivedByDay,
+            strapActiveByDay: strapActiveByDay, stepHoursByDay: stepHoursByDay,
+            sessionsByDay: sessionsByDay, weightObservations: weightObservations,
+            calibrationStatus: calibration.status, calibrationFactor: calibrationFactor,
+            shape: shape, adaptivePrior: adaptivePrior, appleCoverageByDay: appleCoverageByDay,
+            stride: appleReference.stride), profile: profile, hrMax: strainProfile?.hrMax,
+            now: now, calendar: calendar, bodyFatOn: bodyFatOn)
     }
 
     /// Today's summary, or nil when the day has produced nothing at all yet.
@@ -447,13 +387,7 @@ extension Repository {
     /// name). A day nobody measured is absent, never zero.
     func activeEnergyByDay(days: Int) async -> [String: Double] {
         let profile = energyProfile ?? ProfileStore.persistedAnalyticsProfile
-        var out: [String: Double] = [:]
-        for summary in await energySummaries(days: days, profile: profile) {
-            if let active = summary.activeBurnedSoFar, active.isFinite, active >= 0 {
-                out[summary.day] = active
-            }
-        }
-        return out
+        return EnergySummaryPreparation.activeValues(await energySummaries(days: days, profile: profile))
     }
 
     /// The day's stored model row of this generation, or nil when none has been computed.
@@ -828,31 +762,7 @@ extension Repository {
     /// Nil is the honest state, not a failure: `EnergyEngine` then keeps the linear projection.
     func activityShape() async -> ActivityShape? {
         guard let store = await storeHandle() else { return nil }
-        let calendar = Calendar.current
-        let now = Date()
-        guard let firstDate = calendar.date(byAdding: .day,
-                                            value: -ActivityShapeEngine.maximumWindowDays,
-                                            to: now) else { return nil }
-        // Yesterday is the last COMPLETE day. Today is still accruing, and a half-finished day would
-        // teach the curve that this person stops being active at whatever time it currently is.
-        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: now) else { return nil }
-        let rows = (try? await store.whoopEnergyHours(deviceId: deviceId,
-                                                      from: Self.localDayKey(firstDate),
-                                                      to: Self.localDayKey(yesterday))) ?? []
-        let daily = (try? await store.whoopDailyEnergy(deviceId: deviceId,
-                                                       from: Self.localDayKey(firstDate),
-                                                       to: Self.localDayKey(yesterday))) ?? []
-        let eligibleDays = Set(daily.filter {
-            EnergyBurnRate.dayQualifies(modelVersion: $0.modelVersion,
-                                        representedSeconds: $0.representedSeconds)
-        }.map(\.day))
-        guard !rows.isEmpty, !eligibleDays.isEmpty else { return nil }
-        var byDay: [String: [Double]] = [:]
-        for row in rows where eligibleDays.contains(row.day) && (0...23).contains(row.hour) {
-            byDay[row.day, default: [Double](repeating: 0, count: 24)][row.hour] += row.activeKcal
-        }
-        return ActivityShapeEngine.fit(days: byDay.sorted { $0.key < $1.key }
-            .map { .init(day: $0.key, activeByHour: $0.value) })
+        return await EnergySummaryStoreReads.activityShape(reader: storeReader(store), now: Date())
     }
 
     /// Pure bucketing of a day's step samples (`EnergyModelRefresh`).
@@ -862,12 +772,7 @@ extension Repository {
         EnergyModelRefresh.bucketStepMovement(samples, ticksPerStep: ticksPerStep)
     }
 
-    private nonisolated static func energyContextSeconds(_ raw: String,
-                                                         context: EnergyContext) -> Int {
-        guard let data = raw.data(using: .utf8),
-              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Int] else { return 0 }
-        return max(0, object[context.rawValue] ?? 0)
-    }
+
 
     /// How many distinct hours of each day carry a step count — the movement-coverage signal.
     ///
@@ -881,21 +786,7 @@ extension Repository {
     /// one `.count` away, so nothing had to read the table twice to get both.
     private func hoursWithStepsByDay(days: Int) async -> [String: [Int]] {
         guard let store = await storeHandle() else { return [:] }
-        let calendar = Calendar.current
-        let now = Date()
-        let fromDate = calendar.date(byAdding: .day, value: -max(0, days), to: now) ?? now
-        let toDate = calendar.date(byAdding: .day, value: 1, to: now) ?? now
-        let from = Int(fromDate.timeIntervalSince1970)
-        let to = Int(toDate.timeIntervalSince1970)
-        guard let rows = try? await store.appleStepHours(deviceId: Self.appleHealthSource,
-                                                         fromTs: from, toTs: to) else { return [:] }
-        var byDay: [String: Set<Int>] = [:]
-        for row in rows where row.steps > 0 {
-            let date = Date(timeIntervalSince1970: TimeInterval(row.ts))
-            let hour = Calendar.current.component(.hour, from: date)
-            byDay[Self.localDayKey(date), default: []].insert(hour)
-        }
-        return byDay.mapValues { $0.sorted() }
+        return await EnergySummaryStoreReads.stepHours(reader: storeReader(store), days: days, now: Date())
     }
 
     /// The sessions each local day carries, for the days no device measured the energy of.
@@ -934,21 +825,7 @@ extension Repository {
                                                  hrMax: Double?, restingHR: Double?,
                                                  peakMET: Double? = nil)
         -> ActivityContribution? {
-        let source = contributionSource(row.source)
-        let seconds = max(0, Double(row.endTs - row.startTs))
-        func contribution(_ kcal: Double, estimated: Bool) -> ActivityContribution? {
-            guard kcal.isFinite, kcal > 0 else { return nil }
-            return ActivityContribution(startTs: row.startTs, endTs: row.endTs, kcal: kcal,
-                                        source: source, isEstimated: estimated)
-        }
-        // The precedence itself lives in `WorkoutEnergyEstimate`, which the Workouts screen also
-        // reads. Two copies of "recorded, else heart rate, else table" is two places for a day's
-        // energy and the same session's own tile to come to different answers.
-        return WorkoutEnergyEstimate.resolve(
-            recordedKcal: row.energyKcal, sport: row.sport, durationSeconds: seconds,
-            averageHR: row.avgHr, profile: profile, hrMax: hrMax, restingHR: restingHR,
-            peakMET: peakMET, distanceM: row.distanceM)
-            .flatMap { contribution($0.kcal, estimated: $0.isEstimated) }
+        EnergySummaryPreparation.activityContribution(row, profile: profile, hrMax: hrMax, restingHR: restingHR, peakMET: peakMET)
     }
 
     /// The app's workout lane for a stored `source` string, as the engine's own mirror of it.
@@ -957,16 +834,7 @@ extension Repository {
     /// contains the bout's resting energy, and a lane added later must answer that question rather
     /// than inherit an answer from whichever case happened to be first.
     nonisolated static func contributionSource(_ source: String) -> ActivityContribution.Source {
-        switch WorkoutSource.classify(source) {
-        case .whoop:        return .whoop
-        case .apple:        return .apple
-        case .detected:     return .detected
-        case .manual:       return .manual
-        case .lifting:      return .lifting
-        case .activityFile: return .activityFile
-        case .hevy:         return .hevy
-        case .oura:         return .oura
-        }
+        EnergySummaryPreparation.contributionSource(source)
     }
 
     /// Distinct seconds an Apple Health energy source (iPhone or Watch) actually reported for, per
@@ -985,31 +853,7 @@ extension Repository {
     private func appleEnergyReference(days: Int) async
         -> (coverage: [String: Int], stride: StepLengthTimeline) {
         guard let store = await storeHandle() else { return ([:], StepLengthTimeline(samplesByDay: [:])) }
-        let calendar = Calendar.current
-        let now = Date()
-        let fromDate = calendar.date(byAdding: .day, value: -max(0, days), to: now) ?? now
-        let toDate = calendar.date(byAdding: .day, value: 1, to: now) ?? now
-        guard let rows = try? await store.healthEnergyBuckets(
-            deviceId: Self.appleHealthSource,
-            from: Int(fromDate.timeIntervalSince1970),
-            to: Int(toDate.timeIntervalSince1970)) else {
-            return ([:], StepLengthTimeline(samplesByDay: [:]))
-        }
-        var maxPerBucket: [Int: Int] = [:]
-        var strideSamplesByDay: [String: [Double]] = [:]
-        for row in rows {
-            maxPerBucket[row.bucketStart] = max(maxPerBucket[row.bucketStart] ?? 0, row.coverageSeconds)
-            if let stride = row.strideM {
-                let day = Self.localDayKey(Date(timeIntervalSince1970: TimeInterval(row.bucketStart)))
-                strideSamplesByDay[day, default: []].append(stride)
-            }
-        }
-        var byDay: [String: Int] = [:]
-        for (bucketStart, seconds) in maxPerBucket where seconds > 0 {
-            let day = Self.localDayKey(Date(timeIntervalSince1970: TimeInterval(bucketStart)))
-            byDay[day, default: 0] += seconds
-        }
-        return (byDay, StepLengthTimeline(samplesByDay: strideSamplesByDay))
+        return await EnergySummaryStoreReads.appleReference(reader: storeReader(store), days: days, now: Date())
     }
 
     /// Real local-day bounds for the energy engine. Calendar arithmetic is essential here: daylight-
@@ -1017,22 +861,7 @@ extension Repository {
     /// basal accrual and the active-energy projection wrong.
     nonisolated static func energyDayContext(day: String, now: Date = Date(),
                                              calendar: Calendar = .current) -> EnergyEngine.DayContext {
-        var parseCalendar = calendar
-        parseCalendar.locale = Locale(identifier: "en_US_POSIX")
-        let parts = day.split(separator: "-").compactMap { Int($0) }
-        guard parts.count == 3,
-              let start = parseCalendar.date(from: DateComponents(
-                calendar: parseCalendar, timeZone: parseCalendar.timeZone,
-                year: parts[0], month: parts[1], day: parts[2])),
-              let end = parseCalendar.date(byAdding: .day, value: 1, to: start) else {
-            return .completePastDay
-        }
-        let duration = end.timeIntervalSince(start)
-        let isToday = parseCalendar.isDate(now, inSameDayAs: start)
-        return EnergyEngine.DayContext(isToday: isToday,
-                                       dayDurationSeconds: duration,
-                                       elapsedSeconds: isToday ? now.timeIntervalSince(start) : duration,
-                                       startTs: Int(start.timeIntervalSince1970))
+        EnergySummaryPreparation.dayContext(day: day, now: now, calendar: calendar)
     }
 
     /// The `UserProfile` the analytics package expects, from the app's `ProfileStore`. One conversion

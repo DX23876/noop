@@ -85,6 +85,8 @@ enum class MoreDest(val category: MoreCategory?, val titleRes: Int, val icon: Im
             listOf("two metrics", "overlay", "correlation")),
     Fused(MoreCategory.Analysis, R.string.nav_fused_record, Icons.Rounded.Layers,
           listOf("merged record", "all sources", "one timeline")),
+    Momentum(MoreCategory.HealthBody, R.string.forge_momentum_title, Icons.Rounded.AutoAwesome,
+             listOf("momentum", "readiness", "priorities", "goals")),
     Health(MoreCategory.HealthBody, R.string.nav_health, Icons.Rounded.Favorite,
            listOf("biometrics", "fitness age", "vitality", "skin temperature")),
     Biomarkers(MoreCategory.HealthBody, R.string.forge_more_biomarkers, Icons.Rounded.Science,
@@ -252,6 +254,10 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
         ForgeGoalsPage(onBack)
         return
     }
+    if (dest == MoreDest.Momentum) {
+        ForgeMomentumPage(onBack, onGoals = { onOpen(MoreDest.Goals) })
+        return
+    }
     Hosted(title, onBack) {
         when (dest) {
             MoreDest.Insights -> InsightsHubScreen(viewModel)
@@ -269,7 +275,7 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
             MoreDest.Breathe -> BreatheScreen(viewModel)
             MoreDest.Intervals -> IntervalsScreen(viewModel)
             MoreDest.Alarms -> SmartAlarmScreen(viewModel)
-            MoreDest.Settings, MoreDest.Goals -> Unit
+            MoreDest.Settings, MoreDest.Goals, MoreDest.Momentum -> Unit
         }
     }
 }

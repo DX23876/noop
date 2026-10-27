@@ -266,8 +266,42 @@ val buildSwiftCore by tasks.registering(Exec::class) {
     commandLine("bash", rootProject.file("swift-core/build-swift-core.sh").path,
                 forkSwiftCoreLibs.get().asFile.path)
 }
+// The Apple String Catalog split per language for the text the shared core writes itself (`CoreLocalization`):
+// `core-l10n/<language>.l10n`, JSON `{"source key": "translation"}`, only the reviewed translations. Android picks the
+// file of the wearer's language at start (`CoreShadow.installResources`).
+val forkCoreLocalization = layout.buildDirectory.dir("generated/core-l10n")
+val buildCoreLocalization by tasks.registering {
+    description = "Splits the Apple String Catalogs per language for the shared Swift core on Android."
+    val catalogs = listOf(rootProject.file("../Strand/Resources/Localizable.xcstrings"),
+                          rootProject.file("../Packages/StrandDesign/Sources/StrandDesign/Resources/Localizable.xcstrings"))
+    inputs.files(catalogs).withPropertyName("catalogs")
+    outputs.dir(forkCoreLocalization)
+    doLast {
+        val languages = mapOf("de" to "de", "fr" to "fr", "es" to "es", "pt-PT" to "pt", "pl" to "pl", "it" to "it",
+                              "ru" to "ru", "zh-Hans" to "zh")
+        val tables = languages.values.associateWith { sortedMapOf<String, String>() }
+        @Suppress("UNCHECKED_CAST")
+        for (catalog in catalogs) {
+            val strings = (groovy.json.JsonSlurper().parse(catalog) as Map<String, Any?>)["strings"] as Map<String, Any?>
+            for ((key, entry) in strings) {
+                val localizations = (entry as? Map<String, Any?>)?.get("localizations") as? Map<String, Any?> ?: continue
+                for ((apple, file) in languages) {
+                    val unit = (localizations[apple] as? Map<String, Any?>)?.get("stringUnit") as? Map<String, Any?> ?: continue
+                    val value = unit["value"] as? String ?: continue
+                    if (unit["state"] == "new" || value.isEmpty()) continue
+                    tables.getValue(file).putIfAbsent(key, value)
+                }
+            }
+        }
+        val dir = forkCoreLocalization.get().asFile.resolve("core-l10n").apply { deleteRecursively(); mkdirs() }
+        // Not `.json`: the core's JSON assets are stored uncompressed, and these tables compress to a third.
+        val json = groovy.json.JsonGenerator.Options().disableUnicodeEscaping().build()
+        for ((file, table) in tables) dir.resolve("$file.l10n").writeText(json.toJson(table))
+    }
+}
 if (forkSwiftCore) {
     android.sourceSets.getByName("main").jniLibs.srcDir(forkSwiftCoreLibs)
+    android.sourceSets.getByName("main").assets.srcDir(forkCoreLocalization)
     // The core's packaged resources as assets, straight from the package that owns them;
     // `CoreShadow.installResources` unpacks them for the core, which has no SwiftPM resource bundle on Android.
     android.sourceSets.getByName("main").assets.srcDir(rootProject.file("../Packages/StrandTraining/Sources/StrandTraining/Resources"))
@@ -276,7 +310,7 @@ if (forkSwiftCore) {
     // Compressed in the APK and extracted at install: the download is about a third of the size (D24 measured
     // 31 MB), which matters for an app that is only ever sideloaded.
     android.packaging.jniLibs.useLegacyPackaging = true
-    tasks.named("preBuild") { dependsOn(buildSwiftCore) }
+    tasks.named("preBuild") { dependsOn(buildSwiftCore, buildCoreLocalization) }
 }
 
 // Fork (DX23876): unit tests run in English wherever they run. Several assert formatted text ("8.6",

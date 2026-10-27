@@ -4075,4 +4075,12 @@
     <string name="forge_lt_weeks">Weeks</string>
     <string name="forge_lt_why">Why it matters to you</string>
     <string name="forge_lt_with_date">Reach it by a date</string>
+    <string name="forge_momentum_title">Momentum</string>
+    <string name="forge_momentum_subtitle">What matters most for you right now</string>
+    <string name="forge_momentum_loading">Working out what matters</string>
+    <string name="forge_momentum_empty">Nothing to flag right now</string>
+    <string name="forge_momentum_quiet">Momentum stays quiet when there\'s nothing worth acting on. Wear the strap and log your day, and it fills in.</string>
+    <string name="forge_momentum_hide">Hide this message for today</string>
+    <string name="forge_momentum_unavailable">Momentum is not available right now.</string>
+    <string name="forge_momentum_hide_failed">Could not hide this message. Try again.</string>
 </resources>

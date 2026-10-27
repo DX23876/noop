@@ -1,6 +1,7 @@
 import Foundation
 import WhoopStore
 import StrandAnalytics
+import StrandCore
 
 // MARK: - Hydration tracker (MVP) — opt-in, local-only water logging
 //
@@ -19,10 +20,10 @@ import StrandAnalytics
 enum HydrationStore {
     /// Source/device id the hydration total is written under — its own local-only source so it is never
     /// confused with strap-imported or computed metrics. MUST match the Android `SOURCE_ID`.
-    static let sourceId = "hydration"
+    static let sourceId = HydrationRead.sourceId
 
     /// metricSeries key for the daily total (ml). MUST match the Android `KEY`.
-    static let key = "hydration"
+    static let key = HydrationRead.manualKey
 
     /// Settings opt-in key (default OFF). The dashboard card + detail are hidden while this is false.
     /// MUST match the Android `NoopPrefs.KEY_HYDRATION_TRACKING` so the toggle reads the same on both.
@@ -51,7 +52,7 @@ enum HydrationStore {
     ///
     /// The user's own taps are never touched by a sync, and imported water is never editable here — it
     /// is owned by the app that logged it.
-    static let importedKey = "hydrationImported"
+    static let importedKey = HydrationRead.importedKey
 
     static func entriesKey(forDay dayKey: String) -> String { entriesKeyPrefix + dayKey }
 }
@@ -287,26 +288,7 @@ extension Repository {
     /// is clamped ≥ 1. Mirrors Android `HydrationStore.history` (a single ranged read projected onto the
     /// full day grid so empty days read as 0 rather than vanishing).
     func hydrationHistory(days: Int = 7, now: Date = Date()) async -> [(day: String, value: Double)] {
-        let n = max(1, days)
-        let from = now.addingTimeInterval(-Double(n - 1) * 86_400)
-        let fromKey = Repository.localDayKey(from)
-        let toKey = Repository.localDayKey(now)
-        var byDay: [String: Double] = [:]
-        if let store = await storeHandle() {
-            // Both rows, summed per day (#949) — the bars have to agree with the Today card and the
-            // ring, and those read the combined `hydrationTotal`. Reading only the manual key here is
-            // what would make an imported day render short.
-            for key in [HydrationStore.key, HydrationStore.importedKey] {
-                let pts = (try? await store.metricSeries(deviceId: HydrationStore.sourceId,
-                                                         key: key,
-                                                         from: fromKey, to: toKey)) ?? []
-                for p in pts { byDay[p.day, default: 0] += p.value }
-            }
-        }
-        return (0..<n).map { i in
-            let key = Repository.localDayKey(now.addingTimeInterval(-Double(n - 1 - i) * 86_400))
-            return (key, byDay[key] ?? 0)
-        }
+        await HydrationRead.history(store: await storeHandle(), days: days, now: now)
     }
 
     /// Today's hydration goal (ml) from the profile sex + today's Effort score. Pure math in

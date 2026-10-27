@@ -44,6 +44,7 @@ public enum ChargeBand: String, CaseIterable, Equatable, Sendable {
         }
     }
 
+    #if !NOOP_CORE
     /// The uppercase state word for this band (§9.3): DEPLETED · LOW · MODERATE · PRIMED · PEAK.
     /// Localized from the package catalog, which is why every caller must go through the package bundle.
     public var word: String {
@@ -55,4 +56,5 @@ public enum ChargeBand: String, CaseIterable, Equatable, Sendable {
         case .peak:     return String(localized: "PEAK", bundle: .module)
         }
     }
+    #endif
 }

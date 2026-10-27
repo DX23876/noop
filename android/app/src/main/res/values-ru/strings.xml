@@ -3939,4 +3939,12 @@
     <string name="forge_lt_weeks">Недели</string>
     <string name="forge_lt_why">Почему это важно для вас</string>
     <string name="forge_lt_with_date">Достичь к дате</string>
+    <string name="forge_momentum_title">Momentum</string>
+    <string name="forge_momentum_subtitle">Что самое важное сейчас.</string>
+    <string name="forge_momentum_loading">Работайте над тем, что важно</string>
+    <string name="forge_momentum_empty">Ничего нет для опознавания сейчас</string>
+    <string name="forge_momentum_quiet">Момент стабильности проявляется только при наличии значимых действий. Носите ремешок и фиксируйте свой день — это уже будет отражено.</string>
+    <string name="forge_momentum_hide">Скрыть это сообщение сегодня</string>
+    <string name="forge_momentum_unavailable">Momentum сейчас недоступен.</string>
+    <string name="forge_momentum_hide_failed">Не удалось скрыть это сообщение. Попробуйте ещё раз.</string>
 </resources>

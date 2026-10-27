@@ -1,4 +1,5 @@
 import Foundation
+import StrandCore
 
 /// The user's custom journal questions plus the starter behaviour catalog. Question strings are
 /// opaque exact-match labels to BehaviorInsights, so imported question strings (merged in at load
@@ -159,10 +160,7 @@ final class JournalCatalogStore: ObservableObject {
     /// key is normalised, so the stored behaviour key (which the effects engine joins on) is intact.
     /// Kept value-for-value in step with Android `normJournalKey` (JournalLog.kt).
     nonisolated static func norm(_ s: String) -> String {
-        s.components(separatedBy: .whitespacesAndNewlines)
-            .filter { !$0.isEmpty }
-            .joined(separator: " ")
-            .lowercased()
+        JournalRead.normalize(s)
     }
 
     /// The merged catalog resolved into full v2 items, grouped and ordered for display. Imported +

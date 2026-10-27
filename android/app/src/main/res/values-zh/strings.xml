@@ -4014,4 +4014,12 @@
     <string name="forge_lt_weeks">周数</string>
     <string name="forge_lt_why">为什么这对你重要</string>
     <string name="forge_lt_with_date">在某个日期前达成</string>
+    <string name="forge_momentum_title">Momentum</string>
+    <string name="forge_momentum_subtitle">当前最关键的是什么</string>
+    <string name="forge_momentum_loading">探索关键因素</string>
+    <string name="forge_momentum_empty">当前没有需要标记的内容。</string>
+    <string name="forge_momentum_quiet">动能在无需行动的信号下保持安静。佩戴带子并记录您的一天，它会自动补充。</string>
+    <string name="forge_momentum_hide">今天隐藏此消息</string>
+    <string name="forge_momentum_unavailable">Momentum 目前不可用。</string>
+    <string name="forge_momentum_hide_failed">无法隐藏此消息。请重试。</string>
 </resources>

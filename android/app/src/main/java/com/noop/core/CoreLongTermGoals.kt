@@ -69,6 +69,7 @@ object CoreLongTermGoals {
             .apply { if (replacing != null) put("replacing", replacing); if (riskReason != null) put("riskReason", riskReason) }
             .toString()) ?: return Created(false, "unavailable", null, null, null)
         val o = runCatching { JSONObject(json) }.getOrNull() ?: return Created(false, "unavailable", null, null, null)
+        if (o.optBoolean("ok")) CoreShadow.noteDataChanged()
         return Created(o.optBoolean("ok"), o.str("error"), o.str("goalId"), o.str("existingId"), o.str("existingTitle"))
     }
 
@@ -78,12 +79,13 @@ object CoreLongTermGoals {
         val json = SwiftCore.call("goals.changeLongTerm", JSONObject().put("id", id).put("action", action)
             .apply { if (reason != null) put("reason", reason) }.toString()) ?: return CoreGoals.Change(false, "unavailable")
         val o = runCatching { JSONObject(json) }.getOrNull() ?: return CoreGoals.Change(false, "unavailable")
+        if (o.optBoolean("ok")) CoreShadow.noteDataChanged()
         return CoreGoals.Change(o.optBoolean("ok"), o.str("error"))
     }
 
     private fun args(context: Context, dismissedWorkouts: List<String>): JSONObject {
         val profile = ProfileStore.from(context)
-        return JSONObject().put("sex", profile.sex).put("lastSync", NoopPrefs.lastSyncAt(context))
+        return JSONObject().withGoalProfile(profile).put("sex", profile.sex).put("lastSync", goalLastSync(context))
             .put("ageless", CoreFeatures.healthspan(context)).put("profileWeightKg", profile.weightKg)
             .put("dismissedWorkouts", JSONArray(dismissedWorkouts))
     }

@@ -59,7 +59,7 @@ public enum CoreLongTermGoals {
     private static func context(reader: StoreReader, settings: CoreGoals.Settings,
                                 now: Date) async throws -> (PeriodGoalInputs, [LongTermMetric: [GoalMilestones.Sample]], Double?) {
         let periods = try await CoreGoalState.read(store: reader.store) { $0.periods.goals }
-        let host = CoreGoals.Host(reader: reader, settings: settings, motivationEnabled: false)
+        let host = CoreGoals.Host(reader: reader, settings: settings, motivationEnabled: false, now: now)
         let inputs = await GoalInputLoader.fullPeriodInputs(reader: host, goals: periods, now: now)
         let series = await host.goalLevelSeries(metrics: [.restingHr, .sleepHeartRate, .vo2max, .bodyFat, .leanMass,
                                                           .waist, .sleepConsistency])

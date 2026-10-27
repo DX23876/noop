@@ -30,7 +30,10 @@ let package = Package(
                            .product(name: "StrandAnalytics", package: "StrandAnalytics"),
                            .product(name: "StrandTraining", package: "StrandTraining"),
                            .product(name: "StrandImport", package: "StrandImport"),
-                           .target(name: "CJNI", condition: .when(platforms: [.android]))]),
+                           .target(name: "CJNI", condition: .when(platforms: [.android]))],
+            // Set for the app sources the core compiles (`Sources/NoopCore/Shared`), where a few Apple-only
+            // pieces are left out: the core has no resource bundle for `String(localized:bundle:)`.
+            swiftSettings: [.define("NOOP_CORE")]),
         .testTarget(name: "NoopCoreTests", dependencies: [
             "NoopCore", .product(name: "WhoopStore", package: "WhoopStore"),
             .product(name: "StrandAnalytics", package: "StrandAnalytics"),

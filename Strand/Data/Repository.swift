@@ -744,7 +744,7 @@ final class Repository: ObservableObject {
     nonisolated static func localDayKey(_ date: Date) -> String { StoreReader.localDayKey(date) }
 
     /// The hour the LOGICAL day rolls (04:00 local). Between midnight and this hour, "Today" stays put.
-    nonisolated static let logicalDayRolloverHour = 4
+    nonisolated static let logicalDayRolloverHour = LogicalDay.rolloverHour
 
     /// The LOGICAL local day for `now` , the calendar date of `now - rolloverHour hours`. Rolls at
     /// 04:00 local rather than midnight, so the small hours after midnight still resolve to the prior
@@ -2731,62 +2731,12 @@ final class Repository: ObservableObject {
     /// byte-identical. The flag is forwarded to the non-strap `series(...)` delegation below so every source
     /// path honours it.
     func exploreSeries(key: String, source: String, days: Int = 4000, fullHistory: Bool = false) async -> [(day: String, value: Double)] {
-        guard source == "my-whoop" else {
-            return Self.oneSkinTempScale(key: key, await series(key: key, source: source, days: days, fullHistory: fullHistory))
-        }
         guard let store = await ensureStore() else { return [] }
         let now = Date()
         let from = fullHistory ? "0000-01-01" : Self.dayString(now.addingTimeInterval(-Double(days) * 86_400))
         let to = fullHistory ? "9999-12-31" : Self.dayString(now.addingTimeInterval(86_400))
-
-        // day → value, lowest-priority source first; higher-priority sources overwrite per day so a
-        // real import always wins over the computed strap value.
-        var byDay: [String: Double] = [:]
-
-        // Layer 3 (lowest): merged daily column for keys that have one. `self.days` is the published
-        // imported ∪ computed daily cache (parameter `days` is the lookback window, not this).
-        for d in self.days where byDay[d.day] == nil {
-            if let v = Self.dailyColumn(key: key, day: d) { byDay[d.day] = v }
-        }
-        // Layer 2: computed metricSeries (covers sleep_performance, which has no daily column). UNION the
-        // active strap's computed sibling + the canonical computed sibling (canonical first so the active
-        // strap's value, applied last, wins per day).
-        for id in computedReadIds.reversed() {
-            for p in (try? await store.metricSeries(deviceId: id, key: key, from: from, to: to)) ?? [] { byDay[p.day] = p.value }
-        }
-        // Layer 1 (highest): the imported export's metricSeries. UNION active strap + canonical (canonical
-        // first so the active strap's value wins per day).
-        for id in importedReadIds.reversed() {
-            for p in (try? await store.metricSeries(deviceId: id, key: key, from: from, to: to)) ?? [] { byDay[p.day] = p.value }
-        }
-
-        let suppressed = Self.isSleepDayMetricKey(key) ? suppressedSleepWakeDays : Set<String>()
-        let visible = byDay.filter { !suppressed.contains($0.key) }
-            .sorted { $0.key < $1.key }
-            .map { (day: $0.key, value: $0.value) }
-        return Self.oneSkinTempScale(key: key, visible)
-    }
-
-    /// #1705: reduce a `skin_temp` window to a single scale; every other key passes through untouched.
-    ///
-    /// The key is bimodal — a CSV import writes ABSOLUTE °C where the computed layers write a baseline
-    /// DEVIATION, so one window can hold both. Every consumer of an Explore series aggregates it
-    /// (min/max/mean, the window-over-window delta, the correlation scan), and those are arithmetic
-    /// across two scales: on the reported account a few ~34 °C readings lifted a should-be-near-zero
-    /// average past a full degree, and the mean then read below 20 so it was labelled Δ°C.
-    ///
-    /// Applied on BOTH of `exploreSeries`' return paths, deliberately. Today the only `skin_temp`
-    /// descriptor is `my-whoop`, so the delegating path is unreachable for it — but a guard that is
-    /// correct only because of a fact in another file is how this bug happened in the first place.
-    /// `series(day:value:)` is ordered ascending by day, which `dominantKind` relies on.
-    private static func oneSkinTempScale(
-        key: String,
-        _ series: [(day: String, value: Double)]
-    ) -> [(day: String, value: Double)] {
-        guard key == "skin_temp",
-              let keep = SkinTempDisplay.dominantKind(valuesAscendingByDay: series.map(\.value))
-        else { return series }
-        return series.filter { SkinTempDisplay.kind(of: $0.value) == keep }
+        return await storeReader(store).exploreSeries(key: key, source: source, from: from, to: to,
+            dailyRows: self.days, suppressedSleepWakeDays: suppressedSleepWakeDays)
     }
 
     /// Every catalog metric's Explore series at once, memoized — the cross-catalog scan behind the
@@ -2977,13 +2927,9 @@ final class Repository: ObservableObject {
         let now = Date()
         let from = Self.dayString(now.addingTimeInterval(-Double(days) * 86_400))
         let to = Self.dayString(now.addingTimeInterval(86_400))
-        var imported: [JournalEntry] = []
-        for id in importedReadIds { imported += (try? await store.journalEntries(deviceId: id, from: from, to: to)) ?? [] }
-        let native = (try? await store.journalEntries(deviceId: Self.journalDeviceId,
-                                                      from: from, to: to)) ?? []
         let aliases = journalAliases()
-        return JournalMerge.fold(imported: imported, native: native,
-                                 aliases: aliases.map, aliasOrder: aliases.order)
+        return await JournalRead.entries(reader: storeReader(store), from: from, to: to,
+                                         aliases: aliases.map, aliasOrder: aliases.order)
     }
 
     /// Imported journal rows only (used by the logging card to adopt the export's exact question
@@ -3064,10 +3010,7 @@ final class Repository: ObservableObject {
     /// Union; the NATIVE row wins per (day, question) , the in-app answer is the user's most recent
     /// explicit action and stays editable, unlike the immutable imported history.
     nonisolated static func mergeJournal(imported: [JournalEntry], native: [JournalEntry]) -> [JournalEntry] {
-        var byKey: [String: JournalEntry] = [:]
-        for e in imported { byKey[e.day + "\u{1F}" + e.question] = e }
-        for e in native { byKey[e.day + "\u{1F}" + e.question] = e }
-        return byKey.values.sorted { ($0.day, $0.question) < ($1.day, $1.question) }
+        JournalRead.fold(imported: imported, native: native, aliases: [:])
     }
 
     /// Coalesces the semantic index refresh that follows journal writes. One task, replaced on every

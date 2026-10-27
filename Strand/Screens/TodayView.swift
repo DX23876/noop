@@ -752,13 +752,8 @@ struct TodayView: View {
     /// days / a scored today / a calibrating today all carry nothing and live behaviour is unchanged.
     static func lastScoredRecoveryDay(days: [DailyMetric], selectedDayKey: String,
                                       isToday: Bool, todayScored: Bool, isCalibrating: Bool) -> DailyMetric? {
-        guard isToday, !todayScored, !isCalibrating else { return nil }
-        // Defensive future-day guard (#547): the carry-over must NEVER select a day after today's key, or a
-        // stray future-dated row (a bad-clock strap that slipped past the ingest gate / pre-heal DB) would
-        // surface as "last night · 12 Jul". `selectedDayKey` is today's logical-day key here (isToday), and
-        // yyyy-MM-dd compares lexicographically, so `$0.day < selectedDayKey` keeps only genuine prior days.
-        // Belt-and-suspenders on top of the gate + one-time heal, cheap and never wrong.
-        return days.last(where: { $0.recovery != nil && $0.day < selectedDayKey })
+        CarriedRecovery.lastScored(days: days, selectedDayKey: selectedDayKey, isToday: isToday,
+                                   todayScored: todayScored, isCalibrating: isCalibrating)
     }
 
     /// #817 - day-nav swipe/arrow clamp. Pure + unit-testable so the bounds can't drift between the
@@ -815,17 +810,14 @@ struct TodayView: View {
     /// Carry-over recency cap (#779): the "Last night" framing only holds when the carried scored day is
     /// within this many days of today. A weeks-old import is still carried so the recovery side isn't a bare
     /// blank, but it is relabelled "Latest sleep · <date>" so a stale number is NEVER passed off as today's.
-    static let carryFreshnessDays = 2
+    static let carryFreshnessDays = CarriedRecovery.freshnessDays
 
     /// True when the carried scored day is OLDER than the freshness cap (#779), which drives the "Latest
     /// sleep" relabel. Pure + unit-testable. Both keys are "yyyy-MM-dd"; an unparseable key (or non-positive gap)
     /// reads as fresh so we never over-claim staleness. `todayKey` is today's logical-day key (carry-over is
     /// today-only). Mirror EXACTLY in Kotlin.
     static func isCarryStale(priorDayKey: String, todayKey: String) -> Bool {
-        guard let prior = dayKeyParser.date(from: priorDayKey),
-              let today = dayKeyParser.date(from: todayKey) else { return false }
-        let days = Calendar.current.dateComponents([.day], from: prior, to: today).day ?? 0
-        return days > carryFreshnessDays
+        CarriedRecovery.isStale(priorDayKey: priorDayKey, todayKey: todayKey)
     }
 
     /// #977 — HONEST Rest resolution for the selected day. Today's own scored Rest wins; otherwise, ONLY on
@@ -872,10 +864,7 @@ struct TodayView: View {
     /// reads "Latest sleep · <date>" so a weeks-old import is never surfaced as "Last night". Shared by every
     /// carried recovery read-out so the prior-day provenance reads identically. Mirror EXACTLY in Kotlin.
     static func carriedCaption(priorDayKey: String, todayKey: String) -> String {
-        let date = lastChargeDateFmt(priorDayKey)
-        return isCarryStale(priorDayKey: priorDayKey, todayKey: todayKey)
-            ? String(localized: "Latest sleep · \(date)")
-            : String(localized: "Last night · \(date)")
+        CarriedRecovery.caption(priorDayKey: priorDayKey, todayKey: todayKey)
     }
 
     /// Instance convenience over the pure `carriedCaption`. `selectedDayKey` is today's logical-day key in

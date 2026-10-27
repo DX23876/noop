@@ -4060,4 +4060,12 @@
     <string name="forge_lt_weeks">Tygodnie</string>
     <string name="forge_lt_why">Dlaczego to dla Ciebie ważne</string>
     <string name="forge_lt_with_date">Osiągnij do daty</string>
+    <string name="forge_momentum_title">Momentum</string>
+    <string name="forge_momentum_subtitle">Co jest najważniejsze dla Ciebie właśnie teraz.</string>
+    <string name="forge_momentum_loading">Poznaj to, co jest ważne.</string>
+    <string name="forge_momentum_empty">W tej chwili nic do zgłaszania.</string>
+    <string name="forge_momentum_quiet">Momentum milczy, gdy nic nie wymaga działania. Noszenie pasa i rejestrowanie dnia uzupełnia to dane.</string>
+    <string name="forge_momentum_hide">Ukryj tę wiadomość na dziś</string>
+    <string name="forge_momentum_unavailable">Momentum jest obecnie niedostępne.</string>
+    <string name="forge_momentum_hide_failed">Nie udało się ukryć tej wiadomości. Spróbuj ponownie.</string>
 </resources>
