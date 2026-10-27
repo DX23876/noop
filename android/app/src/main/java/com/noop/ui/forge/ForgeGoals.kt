@@ -77,6 +77,8 @@ import kotlin.math.roundToInt
 private sealed interface GoalsPage {
     data class Detail(val id: String) : GoalsPage
     data class Daily(val slot: String) : GoalsPage
+    data class LongTerm(val id: String) : GoalsPage
+    data object LongTermSetup : GoalsPage
     data object Setup : GoalsPage
 }
 
@@ -97,6 +99,8 @@ fun ForgeGoalsPage(onBack: () -> Unit) {
         pageRaw == "setup" -> GoalsPage.Setup
         pageRaw.startsWith("detail:") -> GoalsPage.Detail(pageRaw.removePrefix("detail:"))
         pageRaw.startsWith("daily:") -> GoalsPage.Daily(pageRaw.removePrefix("daily:"))
+        pageRaw.startsWith("lt:") -> GoalsPage.LongTerm(pageRaw.removePrefix("lt:"))
+        pageRaw == "ltsetup" -> GoalsPage.LongTermSetup
         else -> null
     }
     LaunchedEffect(revision) {
@@ -117,15 +121,22 @@ fun ForgeGoalsPage(onBack: () -> Unit) {
         }
         is GoalsPage.Daily -> DailyGoalPage(output?.daily?.firstOrNull { it.slot == page.slot },
                                             onBack = { pageRaw = "" }, onSaved = { pageRaw = ""; refresh() })
+        is GoalsPage.LongTerm -> LongTermGoalPage(output?.longTerm?.firstOrNull { it.id == page.id },
+                                                  output?.period.orEmpty(), onBack = { pageRaw = "" },
+                                                  onOpenPeriod = { pageRaw = "detail:$it" }, onChanged = ::refresh,
+                                                  onRemoved = { pageRaw = ""; refresh() })
+        GoalsPage.LongTermSetup -> LongTermSetupPage(onBack = { pageRaw = "" }, onCreated = { pageRaw = ""; refresh() })
         null -> GoalsOverview(output, loaded, onBack, onOpen = { pageRaw = "detail:$it" },
-                              onDaily = { pageRaw = "daily:$it" },
+                              onDaily = { pageRaw = "daily:$it" }, onLongTerm = { pageRaw = "lt:$it" },
+                              onAddLongTerm = { pageRaw = "ltsetup" },
                               onAdd = { pageRaw = "setup" }, onChanged = ::refresh)
     }
 }
 
 @Composable
 private fun GoalsOverview(output: CoreGoals.Output?, loaded: Boolean, onBack: () -> Unit, onOpen: (String) -> Unit,
-                          onDaily: (String) -> Unit, onAdd: () -> Unit, onChanged: () -> Unit) {
+                          onDaily: (String) -> Unit, onLongTerm: (String) -> Unit, onAddLongTerm: () -> Unit,
+                          onAdd: () -> Unit, onChanged: () -> Unit) {
     val scope = rememberCoroutineScope()
     SettingsColumn {
         PageTitle(stringResource(R.string.forge_goals_title), onBack) {
@@ -178,14 +189,13 @@ private fun GoalsOverview(output: CoreGoals.Output?, loaded: Boolean, onBack: ()
             }
         }
 
-        if (longTerm.isNotEmpty()) {
-            SectionHeader(stringResource(R.string.forge_goals_long_term))
-            ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
-                longTerm.forEachIndexed { i, goal ->
-                    LongTermRow(goal)
-                    if (i < longTerm.lastIndex) RowDivider()
-                }
+        SectionHeader(stringResource(R.string.forge_goals_long_term))
+        ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+            longTerm.forEachIndexed { i, goal ->
+                Box(Modifier.clickable(role = Role.Button) { onLongTerm(goal.id) }) { LongTermRow(goal) }
+                RowDivider()
             }
+            AddRow(stringResource(R.string.forge_lt_add), onAddLongTerm)
         }
 
         for (period in listOf("week", "month")) {
@@ -245,7 +255,7 @@ private fun DailyRow(action: CoreGoals.Action, onToggle: () -> Unit) {
 }
 
 @Composable
-private fun LongTermRow(goal: CoreGoals.LongTerm) {
+internal fun LongTermRow(goal: CoreGoals.LongTerm) {
     val colors = Forge.colors
     Column(Modifier.fillMaxWidth().padding(vertical = ForgeMetrics.space2), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -263,7 +273,7 @@ private fun LongTermRow(goal: CoreGoals.LongTerm) {
 }
 
 @Composable
-private fun PeriodRow(goal: CoreGoals.Period, onClick: () -> Unit) {
+internal fun PeriodRow(goal: CoreGoals.Period, onClick: () -> Unit) {
     val colors = Forge.colors
     Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick).padding(vertical = ForgeMetrics.space2),
         verticalAlignment = Alignment.CenterVertically) {
@@ -445,24 +455,29 @@ private fun PeriodGoalPage(goal: CoreGoals.Period?, onBack: () -> Unit, onChange
         )
     }
     if (choosingPause) {
-        AlertDialog(
-            onDismissRequest = { choosingPause = false },
-            title = { Text(stringResource(R.string.forge_goals_pause_title)) },
-            text = {
-                Column {
-                    Text(stringResource(R.string.forge_goals_pause_text), style = Forge.type.footnote)
-                    PAUSE_REASONS.forEach { (raw, label) ->
-                        Text(stringResource(label), style = Forge.type.body, color = Forge.colors.accent,
-                             modifier = Modifier.fillMaxWidth().clickable(role = Role.Button) {
-                                 choosingPause = false; change("pause", reason = raw)
-                             }.padding(vertical = 12.dp))
-                    }
-                }
-            },
-            confirmButton = {},
-            dismissButton = { TextButton(onClick = { choosingPause = false }) { Text(stringResource(R.string.forge_cancel)) } },
-        )
+        PauseDialog(onDismiss = { choosingPause = false }) { raw -> choosingPause = false; change("pause", reason = raw) }
     }
+}
+
+/** The pause question with its reasons (`CoachGoal.PauseReason`): paused weeks are protected. */
+@Composable
+internal fun PauseDialog(onDismiss: () -> Unit, onPick: (String) -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.forge_goals_pause_title)) },
+        text = {
+            Column {
+                Text(stringResource(R.string.forge_goals_pause_text), style = Forge.type.footnote)
+                PAUSE_REASONS.forEach { (raw, label) ->
+                    Text(stringResource(label), style = Forge.type.body, color = Forge.colors.accent,
+                         modifier = Modifier.fillMaxWidth().clickable(role = Role.Button) { onPick(raw) }
+                             .padding(vertical = 12.dp))
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.forge_cancel)) } },
+    )
 }
 
 private val PAUSE_REASONS = listOf(
@@ -472,7 +487,7 @@ private val PAUSE_REASONS = listOf(
 )
 
 @Composable
-private fun GoalAction(label: String, color: Color, onClick: () -> Unit) {
+internal fun GoalAction(label: String, color: Color, onClick: () -> Unit) {
     Text(label, style = Forge.type.body, color = color,
          modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick).padding(vertical = 12.dp))
 }

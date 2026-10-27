@@ -122,6 +122,34 @@ public enum CoreCall {
                 showsAsRing: args["showsAsRing"] as? Bool ?? true))
         case "goals.turnOffDaily":
             return CoreRead.json(await CoreGoals.turnOffDaily(store: store, slot: string("slot")))
+        case "goals.catalog", "goals.ltDraft", "goals.ltCreate":
+            let settings = CoreGoals.Settings(profileSex: string("sex"),
+                lastSync: (args["lastSync"] as? NSNumber).flatMap { $0.doubleValue > 0 ? Date(timeIntervalSince1970: $0.doubleValue) : nil },
+                agelessEnabled: args["ageless"] as? Bool ?? false,
+                dismissedWorkoutSpans: args["dismissedWorkouts"] as? [String] ?? [])
+            let weight = (args["profileWeightKg"] as? NSNumber)?.doubleValue ?? 0
+            let state = (args["state"] as? String).flatMap {
+                try? JSONDecoder().decode(CoreLongTermGoals.State.self, from: Data($0.utf8))
+            } ?? CoreLongTermGoals.State()
+            do {
+                switch op {
+                case "goals.catalog":
+                    return CoreRead.json(try await CoreLongTermGoals.catalog(reader: reader, settings: settings,
+                                                                             profileWeightKg: weight))
+                case "goals.ltDraft":
+                    return CoreRead.json(try await CoreLongTermGoals.draft(reader: reader, settings: settings,
+                        profileWeightKg: weight, state: state, action: string("action")))
+                default:
+                    return CoreRead.json(await CoreLongTermGoals.create(reader: reader, settings: settings,
+                        profileWeightKg: weight, state: state, replacing: args["replacing"] as? String,
+                        keepBoth: args["keepBoth"] as? Bool ?? false, riskReason: args["riskReason"] as? String))
+                }
+            } catch {
+                return #"{"error":"goalState"}"#
+            }
+        case "goals.changeLongTerm":
+            return CoreRead.json(await CoreLongTermGoals.change(store: store, id: string("id"), action: string("action"),
+                                                                reason: args["reason"] as? String))
         case "goals.toggleAction":
             return CoreRead.json(await CoreGoals.toggleAction(store: store, actionId: string("actionId"), day: string("day")))
         case "training.snapshot":

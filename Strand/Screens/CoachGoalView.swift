@@ -441,17 +441,6 @@ enum CoachGoalRange {
     }
 }
 
-/// Small shared helper (#R12): builds a pace acknowledgement from a raw reason, so the one-page editor
-/// and the guided flow record it identically (a blank reason becomes an honest "No reason given").
-enum CoachGoalRisk {
-    static func acknowledgement(verdict: String, reason: String) -> CoachGoal.RiskAcknowledgement {
-        let why = reason.trimmingCharacters(in: .whitespacesAndNewlines)
-        return CoachGoal.RiskAcknowledgement(verdict: verdict,
-                                             reason: why.isEmpty ? "No reason given" : why,
-                                             date: Date())
-    }
-}
-
 /// A tappable goal-type tile (#R12) — extracted so the one-page editor and the guided onboarding flow
 /// show the same visual directions instead of duplicating the layout. Pure over its inputs.
 struct GoalKindTile: View {
