@@ -3593,4 +3593,11 @@
     <string name="forge_library_choose_muscle">Выберите мышцу, чтобы увидеть упражнения для неё.</string>
     <string name="forge_library_equipment_help">Выберите всё своё оборудование. Вес тела всегда доступен. Пустой выбор отключает этот фильтр.</string>
     <string name="forge_hevy_get_key">Получить ключ API</string>
+    <string name="forge_rating_reminder_channel">Оценка тренировки</string>
+    <string name="forge_rating_reminder_off">Выкл.</string>
+    <string name="forge_rating_reminder_useful">Когда полезно</string>
+    <string name="forge_rating_reminder_always">Всегда</string>
+    <string name="forge_rating_reminder_title">Как ощущалась тренировка?</string>
+    <string name="forge_rating_reminder_body">Оцените %1$s от 1 до 10 для нагрузки тренировки.</string>
+    <string name="forge_rating_reminder_policy">Оценка тренировки уточняет нагрузку, когда пульс не отражает мышечное усилие. Вариант «Когда полезно» спрашивает после силовых, плавания и других тяжёлых тренировок. Оценку всегда можно добавить позже.</string>
 </resources>

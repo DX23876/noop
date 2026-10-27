@@ -1,15 +1,9 @@
 import Foundation
 import StrandTraining
+import StrandCore
 
 enum TrainingEffortPreference: String, CaseIterable, Identifiable {
     case off, rir, rpe
-    var id: String { rawValue }
-}
-
-/// When NOOP asks, by notification, how demanding a finished session felt. The Session Load card on a
-/// session's detail is there either way; this governs only the push.
-enum SessionRatingPrompt: String, CaseIterable, Identifiable {
-    case off, whenUseful, always
     var id: String { rawValue }
 }
 

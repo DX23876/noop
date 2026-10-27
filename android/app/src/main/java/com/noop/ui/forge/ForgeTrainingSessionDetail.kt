@@ -52,6 +52,7 @@ fun ForgeTrainingSessionDetailPage(id: String, onClose: () -> Unit) {
             val edges = profile.hrZoneThresholds?.map(Int::toDouble)?.let { it + maxOf(maxHR, it.last()) }
             CoreTrainingSession.read(id, maxHR, edges, dismissedTrainingWorkouts(context))
         }
+        withContext(Dispatchers.IO) { com.noop.notif.SessionRatingReminderWorker.synchronize(context) }
         loaded = true
     }
     fun save(remove: Boolean) = scope.launch {

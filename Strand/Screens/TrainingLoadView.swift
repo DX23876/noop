@@ -128,28 +128,7 @@ final class TrainingLoadModel: ObservableObject {
         let rpeEntries = snapshot.rpeEntries
 
         guard !Task.isCancelled else { return }
-        // Imported workouts do not pass through `finishNativeWorkout`. If one has just ended and has
-        // no rating on any of its canonical components, schedule the same single delayed prompt. The
-        // stable request id makes repeated refreshes idempotent.
-        let ratedIds = Set(rpeEntries.compactMap(\.sessionId))
-        let ratedStarts = Set(rpeEntries.map(\.startTs))
-        for workout in unified {
-            let end = workout.row.endTs
-            let componentStarts = Set(workout.components.map { $0.row.startTs })
-            let alreadyRated = ratedIds.contains(workout.id)
-                || ratedStarts.contains(workout.row.startTs)
-                || !ratedStarts.isDisjoint(with: componentStarts)
-            guard !alreadyRated, end <= now, end + 30 * 60 > now,
-                  await repo.shouldPromptSessionRating(startTs: workout.row.startTs, endTs: end,
-                                                       sport: workout.row.sport,
-                                                       source: workout.row.source,
-                                                       averageHR: workout.row.avgHr)
-            else { continue }
-            await SessionRPEReminder.schedule(
-                startTs: workout.row.startTs,
-                durationS: Double(max(0, end - workout.row.startTs)),
-                sport: workout.row.sport)
-        }
+        await repo.refreshSessionRatingReminders(now: now)
         strength = prepared.strength
         cardio = prepared.cardio
         session = prepared.session

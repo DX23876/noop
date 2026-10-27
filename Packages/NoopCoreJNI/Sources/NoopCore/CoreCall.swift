@@ -64,6 +64,12 @@ public enum CoreCall {
             await CoreHevyRoutines.shared.invalidate()
             do { try await store.deleteAllHevyData(); return ok(true) }
             catch { return #"{"error":"storeUnavailable"}"# }
+        case "training.sessionReminders":
+            return CoreRead.json(await SessionRatingReminders.candidates(reader: reader,
+                prompt: SessionRatingPrompt(rawValue: string("prompt")) ?? .whenUseful,
+                maxHR: (args["maxHR"] as? NSNumber)?.doubleValue,
+                dismissed: args["dismissedWorkouts"] as? [String] ?? [],
+                forDelivery: args["forDelivery"] as? Bool ?? false))
         case "training.snapshot":
             let start = TrainingWeekStart(rawValue: args["weekStartsOn"] as? String ?? "") ?? .monday
             let dismissed = args["dismissedWorkouts"] as? [String] ?? []

@@ -3697,4 +3697,11 @@
     <string name="forge_library_choose_muscle">Choisissez un muscle pour voir les exercices qui le travaillent.</string>
     <string name="forge_library_equipment_help">Sélectionnez tout votre équipement. Le poids du corps est toujours disponible. Une sélection vide désactive ce filtre.</string>
     <string name="forge_hevy_get_key">Obtenir une clé API</string>
+    <string name="forge_rating_reminder_channel">Évaluation de la séance</string>
+    <string name="forge_rating_reminder_off">Désactivé</string>
+    <string name="forge_rating_reminder_useful">Quand c’est utile</string>
+    <string name="forge_rating_reminder_always">Toujours</string>
+    <string name="forge_rating_reminder_title">Comment avez-vous ressenti la séance ?</string>
+    <string name="forge_rating_reminder_body">Évaluez %1$s de 1 à 10 pour votre charge de séance.</string>
+    <string name="forge_rating_reminder_policy">Une évaluation de séance améliore l’estimation de la charge quand la fréquence cardiaque ne reflète pas l’effort musculaire. « Si utile » la demande après la musculation, la natation et d’autres séances exigeantes. Vous pourrez toujours l’ajouter plus tard.</string>
 </resources>

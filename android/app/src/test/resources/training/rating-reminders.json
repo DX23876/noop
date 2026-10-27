@@ -1,0 +1,10 @@
+[
+  {
+    "endTs" : 9000,
+    "fireTs" : 10800,
+    "id" : "session-rpe-reminder-session|native-training|6000|strengthtraining",
+    "sessionId" : "session|native-training|6000|strengthtraining",
+    "sport" : "Strength Training",
+    "startTs" : 6000
+  }
+]

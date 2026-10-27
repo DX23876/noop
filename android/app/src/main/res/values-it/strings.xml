@@ -3666,4 +3666,11 @@
     <string name="forge_library_choose_muscle">Scegli un muscolo per vedere gli esercizi che lo allenano.</string>
     <string name="forge_library_equipment_help">Seleziona tutta la tua attrezzatura. Il peso corporeo è sempre disponibile. Una selezione vuota disattiva questo filtro.</string>
     <string name="forge_hevy_get_key">Ottieni chiave API</string>
+    <string name="forge_rating_reminder_channel">Valutazione della sessione</string>
+    <string name="forge_rating_reminder_off">Off</string>
+    <string name="forge_rating_reminder_useful">Quando utile</string>
+    <string name="forge_rating_reminder_always">Sempre</string>
+    <string name="forge_rating_reminder_title">Come ti è sembrata la sessione?</string>
+    <string name="forge_rating_reminder_body">Valuta %1$s da 1 a 10 per il carico della sessione.</string>
+    <string name="forge_rating_reminder_policy">La valutazione della sessione migliora la stima del carico quando la frequenza cardiaca non rileva lo sforzo muscolare. «Quando utile» la richiede dopo forza, nuoto e altre sessioni impegnative. Puoi sempre valutarla in seguito.</string>
 </resources>

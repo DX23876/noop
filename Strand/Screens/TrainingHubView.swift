@@ -718,9 +718,6 @@ struct StrengthWorkoutSummaryView: View {
                             HStack(spacing: NoopMetrics.space4) {
                                 summary("Active", duration(summary.activeDurationS))
                                 summary("Work sets", summary.workingSetCount.formatted())
-                                if let rpe = workout.sessionRPE {
-                                    summary("Session RPE", rpe.formatted(.number.precision(.fractionLength(0...1))))
-                                }
                             }
                         }.frame(maxWidth: .infinity)
                     }
@@ -747,7 +744,7 @@ struct StrengthWorkoutSummaryView: View {
                     titleCard
                     sessionNote
                     SessionRPECard(startTs: workout.startedAt, sport: workout.title,
-                                   durationS: Double(summary.activeDurationS))
+                                   durationS: canonicalRow?.durationS ?? Double(summary.elapsedDurationS))
                     provenance
                 }
                 .padding(NoopMetrics.screenPadding)
@@ -777,9 +774,6 @@ struct StrengthWorkoutSummaryView: View {
                 fact("Warm-up sets", summary.warmupSetCount.formatted())
                 fact("Exercises", summary.exerciseCount.formatted())
                 if summary.loadedVolumeKg > 0 { fact("Loaded volume", volume(summary.loadedVolumeKg)) }
-                if let rpe = workout.sessionRPE, summary.activeDurationS > 0 {
-                    fact("Session Load", "\(Int((rpe * Double(summary.activeDurationS) / 60).rounded())) AU")
-                }
             }
         }
     }

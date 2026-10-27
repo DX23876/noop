@@ -282,9 +282,20 @@ extension WhoopStore {
         }
     }
 
-    public func completeNativeWorkout(_ workout: NativeWorkout) async throws {
+    public enum NativeCompletionError: Error { case ratingConflict }
+
+    /// The deliberate rating, completed sets and draft removal commit together. A failed rating write
+    /// leaves the draft available instead of silently completing a differently rated workout.
+    public func completeNativeWorkout(_ workout: NativeWorkout, ratedAtTs: Int = Int(Date().timeIntervalSince1970)) async throws {
         try syncWrite { db in
             try Self.write(workout, db: db)
+            if let rpe = workout.sessionRPE {
+                guard rpe.isFinite, (1...10).contains(rpe),
+                      try Self.replaceTrainingSessionRating(.init(id: "session-rpe-\(workout.startedAt)",
+                        sessionId: nil, workoutStartTs: workout.startedAt, ratedAtTs: ratedAtTs,
+                        rpe: rpe, sport: workout.title, source: TrainingSessionRating.manualSource), in: db)
+                else { throw NativeCompletionError.ratingConflict }
+            }
             try db.execute(sql: "DELETE FROM trainingWorkoutDraft WHERE id = ?", arguments: [workout.id.uuidString])
         }
     }

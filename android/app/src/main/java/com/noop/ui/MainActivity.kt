@@ -34,6 +34,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.view.WindowCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.noop.BuildConfig
@@ -68,8 +69,15 @@ class MainActivity : ComponentActivity() {
             // the UI simply reflects connection state. No blocking here.
         }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        com.noop.notif.SessionRatingNavigation.accept(intent)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        com.noop.notif.SessionRatingNavigation.accept(intent)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         // NOTE: `crash` stays RAW here on purpose. acknowledge() fingerprints what it is given, and
         // pendingCrash() fingerprints the stored file — hand it redacted text and the two hashes never
@@ -1663,6 +1671,18 @@ fun NoopRoot() {
                 onboarded = true
             },
         )
+        return
+    }
+
+    val ratingSession by com.noop.notif.SessionRatingNavigation.sessionId.collectAsStateWithLifecycle()
+    if (ratingSession != null) {
+        com.noop.ui.forge.ForgeTheme {
+            com.noop.ui.forge.ForgeSceneBackdrop(com.noop.ui.forge.ForgeBackdrop.Canvas) {
+                com.noop.ui.forge.ForgeTrainingSessionDetailPage(ratingSession!!) {
+                    com.noop.notif.SessionRatingNavigation.sessionId.value = null
+                }
+            }
+        }
         return
     }
 

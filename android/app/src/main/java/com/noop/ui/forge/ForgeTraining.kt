@@ -116,6 +116,7 @@ internal suspend fun dismissedTrainingWorkouts(context: android.content.Context)
 
 /** What the Training tab has open over itself; one page at a time, as the Forge overlay host holds one. */
 private sealed interface TrainingPage {
+    data object RatingPreferences : TrainingPage
     data object Session : TrainingPage
     data class Routine(val routine: CoreTraining.Routine?) : TrainingPage
     data object Schedule : TrainingPage
@@ -159,6 +160,7 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
     LaunchedEffect(revision) {
         val dismissed = withContext(Dispatchers.IO) { dismissedTrainingWorkouts(context) }
         snapshot = core(context) { CoreTraining.snapshot(dismissed) }
+        withContext(Dispatchers.IO) { com.noop.notif.SessionRatingReminderWorker.synchronize(context) }
     }
     fun reload() { revision++ }
     fun start(routineIds: List<String>) = scope.launch {
@@ -182,10 +184,15 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
             .padding(horizontal = ForgeMetrics.screenPadding).widthIn(max = ForgeMetrics.maxContentWidth),
         verticalArrangement = Arrangement.spacedBy(ForgeMetrics.sectionGap),
     ) {
-        Column(Modifier.padding(top = ForgeMetrics.space4)) {
+        Row(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space4), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
             Text(stringResource(R.string.forge_training_overline).uppercase(), style = Forge.type.overline,
                  color = Forge.sceneInk.secondary)
             Text(stringResource(R.string.forge_training), style = Forge.type.title1, color = Forge.sceneInk.text)
+            }
+            IconButton(onClick = { page = TrainingPage.RatingPreferences }) {
+                Icon(Icons.Rounded.Tune, stringResource(R.string.forge_rating_reminder_channel), tint = Forge.sceneInk.text)
+            }
         }
         if (s == null) return@Column
         val live = activeWorkout
@@ -306,6 +313,7 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
         ForgeOverlayPage(onDismiss = close) {
             ForgeSceneBackdrop(ForgeBackdrop.Canvas) {
                 when (open) {
+                    TrainingPage.RatingPreferences -> ForgeSessionRatingPreferences(close)
                     TrainingPage.Session -> ForgeTrainingSession(s?.exercises.orEmpty(), onClose = close)
                     is TrainingPage.Routine -> RoutineEditor(s?.exercises.orEmpty(), open.routine, onClose = close)
                     TrainingPage.Schedule -> ScheduleEditor(s?.routines.orEmpty(), onClose = close)

@@ -965,19 +965,7 @@ final class Repository: ObservableObject {
         guard let store = await ensureStore() else { throw RepositoryTrainingError.storeUnavailable }
         try await store.completeNativeWorkout(workout)
         scheduleEnergyRefresh(coveringStart: workout.startedAt)
-        if let rpe = workout.sessionRPE {
-            _ = await recordSessionRPE(rpe, startTs: workout.startedAt, sport: workout.title,
-                                       ratedAtTs: Int(Date().timeIntervalSince1970))
-        } else if await shouldPromptSessionRating(
-            startTs: workout.startedAt, endTs: workout.endedAt,
-            // The projection's sport, not the title: a title is the wearer's own words ("Shoulder &
-            // Legs") and says nothing about what kind of session it was.
-            sport: NativeTrainingProjection.workoutRow(workout).sport,
-            source: NativeTrainingProjection.workoutRow(workout).source) {
-            await SessionRPEReminder.schedule(startTs: workout.startedAt,
-                                              durationS: Double(workout.endedAt - workout.startedAt),
-                                              sport: workout.title)
-        }
+        await refreshSessionRatingReminders()
         // The summary does not wait for a whole-app refresh; the saved workout is already authoritative.
         Task { await refresh() }
     }

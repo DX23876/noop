@@ -3711,4 +3711,11 @@
     <string name="forge_library_choose_muscle">Wähle einen Muskel, um die Übungen dafür zu sehen.</string>
     <string name="forge_library_equipment_help">Wähle deine gesamte Ausrüstung. Körpergewicht ist immer verfügbar. Eine leere Auswahl deaktiviert diesen Filter.</string>
     <string name="forge_hevy_get_key">API-Schlüssel holen</string>
+    <string name="forge_rating_reminder_channel">Trainingsbewertung</string>
+    <string name="forge_rating_reminder_off">Aus</string>
+    <string name="forge_rating_reminder_useful">Wenn sinnvoll</string>
+    <string name="forge_rating_reminder_always">Immer</string>
+    <string name="forge_rating_reminder_title">Wie hat sich die Einheit angefühlt?</string>
+    <string name="forge_rating_reminder_body">Bewerte %1$s für deine Session Load von 1 bis 10.</string>
+    <string name="forge_rating_reminder_policy">Eine Trainingsbewertung verbessert die Belastungsschätzung, wenn der Puls die Muskelarbeit nicht erfasst. „Wenn sinnvoll“ fragt nach Krafttraining, Schwimmen und anderen fordernden Einheiten. Du kannst eine Einheit jederzeit später bewerten.</string>
 </resources>

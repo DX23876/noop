@@ -3728,4 +3728,11 @@
     <string name="forge_library_choose_muscle">Choose a muscle to see the exercises that train it.</string>
     <string name="forge_library_equipment_help">Select all equipment you have. Bodyweight is always available. An empty selection disables this filter.</string>
     <string name="forge_hevy_get_key">Get API key</string>
+    <string name="forge_rating_reminder_channel">Session rating</string>
+    <string name="forge_rating_reminder_off">Off</string>
+    <string name="forge_rating_reminder_useful">When useful</string>
+    <string name="forge_rating_reminder_always">Always</string>
+    <string name="forge_rating_reminder_title">How did the session feel?</string>
+    <string name="forge_rating_reminder_body">Rate %1$s from 1 to 10 for your Session Load.</string>
+    <string name="forge_rating_reminder_policy">A session rating improves load estimates when heart rate misses muscular effort. “When useful” asks after strength, swimming and other demanding sessions. You can always rate a session later.</string>
 </resources>

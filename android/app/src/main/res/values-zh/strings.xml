@@ -3668,4 +3668,11 @@
     <string name="forge_library_choose_muscle">选择一块肌肉，查看训练它的动作。</string>
     <string name="forge_library_equipment_help">选择你拥有的所有器械。自重始终可用。留空将停用此筛选。</string>
     <string name="forge_hevy_get_key">获取 API 密钥</string>
+    <string name="forge_rating_reminder_channel">训练评分</string>
+    <string name="forge_rating_reminder_off">关闭</string>
+    <string name="forge_rating_reminder_useful">有用时</string>
+    <string name="forge_rating_reminder_always">始终</string>
+    <string name="forge_rating_reminder_title">这次训练感觉如何？</string>
+    <string name="forge_rating_reminder_body">请为 %1$s 的训练负荷按 1 至 10 分评分。</string>
+    <string name="forge_rating_reminder_policy">当心率无法反映肌肉用力时，训练评价可改善负荷估算。“适用时”会在力量、游泳及其他高强度训练后询问。你也可以之后再评价。</string>
 </resources>

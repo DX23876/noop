@@ -24,7 +24,7 @@ struct SessionRPEEntry: Equatable, Sendable {
     }
 
     /// The source a rating the wearer entered in NOOP carries.
-    static let manualSource = "manual-session-rpe"
+    static let manualSource = TrainingSessionRating.manualSource
 
     /// Every whole-session rating in the time range, oldest first (Apple: `Repository.sessionRPEEntries`, Android:
     /// the core's Training Load read).

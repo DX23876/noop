@@ -5,6 +5,8 @@ import GRDB
 /// app can report whether the preferred delayed sRPE protocol was followed without invalidating a
 /// useful immediate or late answer.
 public struct TrainingSessionRating: Equatable, Codable, Sendable {
+    public static let manualSource = "manual-session-rpe"
+
     public var id: String
     public var sessionId: String?
     public var workoutStartTs: Int
@@ -42,16 +44,20 @@ extension WhoopStore {
     public func replaceTrainingSessionRating(_ rating: TrainingSessionRating) async throws -> Bool {
         guard rating.rpe.isFinite, (1...10).contains(rating.rpe) else { return false }
         return try syncWrite { db in
-            if let previous = try Row.fetchOne(db, sql: "SELECT source, sessionId FROM trainingSessionRating WHERE id = ?", arguments: [rating.id]) {
-                let source: String = previous["source"]
-                let session: String? = previous["sessionId"]
-                guard source == rating.source, session == nil || session == rating.sessionId else { return false }
-            }
-            try Self.deleteTrainingSessionRatings(sessionId: rating.sessionId, startTs: rating.workoutStartTs,
-                                                  source: rating.source, in: db)
-            try Self.upsertTrainingSessionRating(rating, in: db)
-            return true
+            try Self.replaceTrainingSessionRating(rating, in: db)
         }
+    }
+
+    static func replaceTrainingSessionRating(_ rating: TrainingSessionRating, in db: Database) throws -> Bool {
+        if let previous = try Row.fetchOne(db, sql: "SELECT source, sessionId FROM trainingSessionRating WHERE id = ?", arguments: [rating.id]) {
+            let source: String = previous["source"]
+            let session: String? = previous["sessionId"]
+            guard source == rating.source, session == nil || session == rating.sessionId else { return false }
+        }
+        try deleteTrainingSessionRatings(sessionId: rating.sessionId, startTs: rating.workoutStartTs,
+                                         source: rating.source, in: db)
+        try upsertTrainingSessionRating(rating, in: db)
+        return true
     }
 
     /// Removes only the named source's rating and its canonical aliases; the workout is untouched.
