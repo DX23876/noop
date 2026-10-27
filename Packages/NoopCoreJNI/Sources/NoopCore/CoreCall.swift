@@ -171,6 +171,10 @@ public enum CoreCall {
         case "goals.changeLongTerm":
             return CoreRead.json(await CoreLongTermGoals.change(store: store, id: string("id"), action: string("action"),
                                                                 reason: args["reason"] as? String))
+        case "rhythm.snapshot":
+            return CoreRead.json(await CoreRhythmAge.snapshot(reader: reader))
+        case "ageless.snapshot":
+            return CoreRead.json(await CoreAgeLess.snapshot(reader: reader, age: int("age", 0), sex: string("sex")))
         case "momentum.feed":
             let settings = CoreGoalEnergy.settings(args)
             do {

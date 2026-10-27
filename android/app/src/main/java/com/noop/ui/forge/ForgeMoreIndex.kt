@@ -87,6 +87,10 @@ enum class MoreDest(val category: MoreCategory?, val titleRes: Int, val icon: Im
           listOf("merged record", "all sources", "one timeline")),
     Momentum(MoreCategory.HealthBody, R.string.forge_momentum_title, Icons.Rounded.AutoAwesome,
              listOf("momentum", "readiness", "priorities", "goals")),
+    AgeLess(MoreCategory.HealthBody, R.string.forge_ageless_title, Icons.Rounded.Favorite,
+            listOf("ageless", "healthspan", "biological age", "aging speed")),
+    RhythmAge(MoreCategory.HealthBody, R.string.forge_rhythm_title, Icons.Rounded.Waves,
+              listOf("daily rhythm", "rhythm age", "circadian", "cosinor")),
     Health(MoreCategory.HealthBody, R.string.nav_health, Icons.Rounded.Favorite,
            listOf("biometrics", "fitness age", "vitality", "skin temperature")),
     Biomarkers(MoreCategory.HealthBody, R.string.forge_more_biomarkers, Icons.Rounded.Science,
@@ -102,6 +106,14 @@ enum class MoreDest(val category: MoreCategory?, val titleRes: Int, val icon: Im
     Alarms(null, R.string.nav_alarms, Icons.Rounded.Alarm, listOf("smart alarm", "wake", "wake-up window")),
     Settings(null, R.string.nav_settings, Icons.Rounded.Settings, listOf("preferences", "options", "configuration")),
 }
+
+/** Lab features appear only while switched on, as iOS lists them. */
+internal fun MoreDest.shown(context: android.content.Context): Boolean =
+    when (this) {
+        MoreDest.AgeLess -> com.noop.core.CoreFeatures.healthspan(context)
+        MoreDest.RhythmAge -> com.noop.core.CoreFeatures.rhythmAge(context)
+        else -> true
+    }
 
 /** One step of the More stack: a category page or a destination. */
 internal sealed interface MoreRoute {
@@ -151,7 +163,7 @@ fun MoreIndexSections(nav: MoreNavigator, onOpenSettings: () -> Unit) {
     fun open(dest: MoreDest) = if (dest == MoreDest.Settings) onOpenSettings() else nav.push(MoreRoute.Dest(dest))
     SearchField(query) { query = it }
     if (query.isNotBlank()) {
-        val hits = MoreDest.entries.filter { d ->
+        val hits = MoreDest.entries.filter { it.shown(context) }.filter { d ->
             (listOf(context.getString(d.titleRes)) + d.keywords).any { it.contains(query.trim(), ignoreCase = true) }
         }
         if (hits.isEmpty()) {
@@ -202,7 +214,8 @@ fun MoreOverlay(nav: MoreNavigator, viewModel: AppViewModel, onOpenSettings: () 
 private fun CategoryPage(category: MoreCategory, onBack: () -> Unit, onOpen: (MoreDest) -> Unit) {
     SettingsColumn {
         PageTitle(stringResource(category.titleRes), onBack)
-        DestCard(MoreDest.entries.filter { it.category == category }, onOpen)
+        val context = LocalContext.current
+        DestCard(MoreDest.entries.filter { it.category == category && it.shown(context) }, onOpen)
     }
 }
 
@@ -254,6 +267,14 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
         ForgeGoalsPage(onBack)
         return
     }
+    if (dest == MoreDest.RhythmAge) {
+        ForgeRhythmAgePage(onBack)
+        return
+    }
+    if (dest == MoreDest.AgeLess) {
+        ForgeAgeLessPage(onBack)
+        return
+    }
     if (dest == MoreDest.Momentum) {
         ForgeMomentumPage(onBack, onGoals = { onOpen(MoreDest.Goals) })
         return
@@ -275,7 +296,7 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
             MoreDest.Breathe -> BreatheScreen(viewModel)
             MoreDest.Intervals -> IntervalsScreen(viewModel)
             MoreDest.Alarms -> SmartAlarmScreen(viewModel)
-            MoreDest.Settings, MoreDest.Goals, MoreDest.Momentum -> Unit
+            MoreDest.Settings, MoreDest.Goals, MoreDest.Momentum, MoreDest.AgeLess, MoreDest.RhythmAge -> Unit
         }
     }
 }
