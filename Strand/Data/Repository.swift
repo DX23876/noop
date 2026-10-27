@@ -911,17 +911,7 @@ final class Repository: ObservableObject {
 
     func importNativeTrainingPlan(_ archive: TrainingPlanArchive) async throws {
         guard let store = await ensureStore() else { throw RepositoryTrainingError.storeUnavailable }
-        let now = Int(Date().timeIntervalSince1970)
-        try await store.upsertTrainingExercises(archive.exercises, nowTs: now)
-        for routine in archive.routines { try await store.upsertTrainingRoutine(routine) }
-        let current = (try? await store.trainingPlan(weekStartsOn: archive.weekStartsOn)) ?? .init()
-        var merged = current.schedule
-        for weekday in TrainingWeekday.allCases {
-            var ids = merged[weekday] ?? []
-            for id in archive.schedule[weekday] ?? [] where !ids.contains(id) { ids.append(id) }
-            merged[weekday] = ids
-        }
-        try await store.replaceTrainingSchedule(merged)
+        try await store.mergeTrainingPlan(archive, nowTs: Int(Date().timeIntervalSince1970))
     }
 
     func importNativeTrainingHistory(_ result: TrainingHistoryImport) async throws {

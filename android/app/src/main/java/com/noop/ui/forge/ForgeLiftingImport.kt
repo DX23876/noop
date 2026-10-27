@@ -20,6 +20,7 @@ import kotlinx.coroutines.withContext
 fun ForgeLiftingImport(onClose: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    var routines by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<CoreLiftingImport.Result?>(null) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -30,6 +31,7 @@ fun ForgeLiftingImport(onClose: () -> Unit) {
             busy = false
         }
     }
+    if (routines) { ForgeHevyRoutines(onClose = { routines = false }); return }
     BackHandler { if (!busy) onClose() }
     SettingsColumn {
         PageTitle(stringResource(R.string.forge_lifting_title), onBack = { if (!busy) onClose() })
@@ -48,5 +50,6 @@ fun ForgeLiftingImport(onClose: () -> Unit) {
                      style = Forge.type.body, color = Forge.colors.text)
             }
         }
+        ForgeHevyCard(onRoutines = { routines = true })
     }
 }

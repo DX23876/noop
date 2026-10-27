@@ -8,6 +8,7 @@ import Foundation
 /// but belongs to an account without Hevy Pro, which is the only tier the public API serves. A single
 /// message would send someone hunting through the wrong settings screen.
 enum HevyError: LocalizedError, Equatable {
+    case syncInProgress
     case notConnected
     /// 401: the key is missing, mistyped, or has been revoked.
     case unauthorized
@@ -20,6 +21,7 @@ enum HevyError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
+        case .syncInProgress: return String(localized: "Syncing…")
         case .notConnected:
             return String(localized: "Connect Hevy first: paste your API key in Data Sources.")
         case .unauthorized:

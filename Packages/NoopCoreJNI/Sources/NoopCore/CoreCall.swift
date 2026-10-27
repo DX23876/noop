@@ -32,6 +32,33 @@ public enum CoreCall {
         func int(_ k: String, _ fallback: Int) -> Int { (args[k] as? NSNumber)?.intValue ?? fallback }
         func ok(_ done: Bool) -> String { done ? #"{"ok":true}"# : #"{"ok":false}"# }
         switch op {
+        case "hevy.verify":
+            do { try await CoreHevyClient(key: string("key")).verify(); return ok(true) }
+            catch let error as HevyImportError { return CoreRead.json(["error": error.rawValue]) }
+            catch { return #"{"error":"network"}"# }
+        case "hevy.startSync": return CoreRead.json(await CoreHevy.shared.start(store: store, key: string("key"), routinesOnly: args["routinesOnly"] as? Bool ?? false))
+        case "hevy.syncStatus": return CoreRead.json(await CoreHevy.shared.read())
+        case "hevy.cancelSync": return CoreRead.json(await CoreHevy.shared.cancel(id: string("id")))
+        case "hevy.info":
+            do { return CoreRead.json(["storedWorkouts": try await store.hevyWorkoutCount()]) }
+            catch { return #"{"error":"storeUnavailable"}"# }
+        case "hevy.stopSync":
+            await CoreHevy.shared.cancelAndWait(); return ok(true)
+        case "hevy.resetSync":
+            await CoreHevy.shared.cancelAndWait()
+            await CoreHevyRoutines.shared.invalidate()
+            do { try await store.resetHevySyncState(); return ok(true) }
+            catch { return #"{"error":"storeUnavailable"}"# }
+        case "hevy.routines":
+            do { return CoreRead.json(try await CoreHevyRoutines.shared.preview(store: store, restSeconds: int("restSeconds", 120))) }
+            catch { return #"{"error":"routinesUnavailable"}"# }
+        case "hevy.importRoutines":
+            return ok((try? await CoreHevyRoutines.shared.accept(store: store, token: string("token"), ids: args["ids"] as? [String] ?? [])) ?? false)
+        case "hevy.forget":
+            await CoreHevy.shared.cancelAndWait()
+            await CoreHevyRoutines.shared.invalidate()
+            do { try await store.deleteAllHevyData(); return ok(true) }
+            catch { return #"{"error":"storeUnavailable"}"# }
         case "training.snapshot":
             let start = TrainingWeekStart(rawValue: args["weekStartsOn"] as? String ?? "") ?? .monday
             let dismissed = args["dismissedWorkouts"] as? [String] ?? []

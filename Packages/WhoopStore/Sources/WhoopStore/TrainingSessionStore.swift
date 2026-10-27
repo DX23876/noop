@@ -71,22 +71,24 @@ public struct TrainingSessionPairDecisionRow: Equatable, Codable, Sendable {
 extension WhoopStore {
     public func upsertWorkoutSourceMetadata(_ rows: [WorkoutSourceMetadataRow]) async throws {
         guard !rows.isEmpty else { return }
-        try syncWrite { db in
-            for r in rows {
-                try db.execute(sql: """
-                    INSERT INTO workoutSourceMetadata
-                      (componentKey, source, startTs, sport, externalId, sourceBundleId,
-                       rawActivityType, activitiesJSON, updatedAtTs, steps)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(componentKey) DO UPDATE SET
-                      source=excluded.source, startTs=excluded.startTs, sport=excluded.sport,
-                      externalId=excluded.externalId, sourceBundleId=excluded.sourceBundleId,
-                      rawActivityType=excluded.rawActivityType, activitiesJSON=excluded.activitiesJSON,
-                      updatedAtTs=excluded.updatedAtTs, steps=excluded.steps
-                    """, arguments: [r.componentKey, r.source, r.startTs, r.sport, r.externalId,
-                                      r.sourceBundleId, r.rawActivityType, r.activitiesJSON, r.updatedAtTs,
-                                      r.steps])
-            }
+        try syncWrite { db in try Self.writeWorkoutSourceMetadata(rows, in: db) }
+    }
+
+    static func writeWorkoutSourceMetadata(_ rows: [WorkoutSourceMetadataRow], in db: Database) throws {
+        for r in rows {
+            try db.execute(sql: """
+                INSERT INTO workoutSourceMetadata
+                  (componentKey, source, startTs, sport, externalId, sourceBundleId,
+                   rawActivityType, activitiesJSON, updatedAtTs, steps)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(componentKey) DO UPDATE SET
+                  source=excluded.source, startTs=excluded.startTs, sport=excluded.sport,
+                  externalId=excluded.externalId, sourceBundleId=excluded.sourceBundleId,
+                  rawActivityType=excluded.rawActivityType, activitiesJSON=excluded.activitiesJSON,
+                  updatedAtTs=excluded.updatedAtTs, steps=excluded.steps
+                """, arguments: [r.componentKey, r.source, r.startTs, r.sport, r.externalId,
+                                  r.sourceBundleId, r.rawActivityType, r.activitiesJSON, r.updatedAtTs,
+                                  r.steps])
         }
     }
 

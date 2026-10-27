@@ -32,7 +32,8 @@ final class HevySyncCoordinatorTests: XCTestCase {
             let page = Int(query["page"] ?? "1") ?? 1
             requested.append(path)
             guard let pages = responses[path], page - 1 < pages.count else {
-                return Data(#"{"page":1,"page_count":1}"#.utf8)
+                let key = path == "/workouts/events" ? "events" : String(path.dropFirst())
+                return Data("{\"page\":1,\"page_count\":1,\"\(key)\":[]}".utf8)
             }
             return pages[page - 1]
         }
@@ -98,9 +99,9 @@ final class HevySyncCoordinatorTests: XCTestCase {
         XCTAssertEqual(summary.templates, 1)
         let stored = try await store.hevyWorkoutCount()
         XCTAssertEqual(stored, 2)
-        // It went down the whole-history path, not the incremental one.
+        // A final event pass covers edits made while the full history was being paged.
         let askedEvents = await fetcher.count(of: "/workouts/events")
-        XCTAssertEqual(askedEvents, 0)
+        XCTAssertEqual(askedEvents, 1)
     }
 
     /// Every synced session also appears in the shared workout table, so the Workouts list, Today and

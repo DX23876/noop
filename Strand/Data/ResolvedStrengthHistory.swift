@@ -275,18 +275,11 @@ enum StrengthHistoryReader {
     }
 
     nonisolated static func measurementMode(_ raw: String?) -> TrainingMeasurementMode? {
-        guard let raw else { return nil }
-        if let exact = TrainingMeasurementMode(rawValue: raw) { return exact }
-        return raw == "reps_only" ? .repetitions : nil
+        HevyExerciseMetadata.measurementMode(raw)
     }
 
     nonisolated static func equipmentIds(_ equipment: HevyEquipment?) -> [String] {
-        guard let equipment else { return [] }
-        switch equipment {
-        case .none: return ["bodyweight"]
-        case .resistanceBand: return ["resistance-band"]
-        default: return [equipment.rawValue]
-        }
+        HevyExerciseMetadata.equipmentIds(equipment)
     }
 
     /// Coarse source anatomy is the final honest fallback. It keeps a standard provider exercise on

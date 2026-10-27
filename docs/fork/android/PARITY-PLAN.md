@@ -1,5 +1,13 @@
 # Android: Kern vollständig, App angeglichen, eine Testversion
 
+## Implementation and validation cadence (owner decision, 2026-10-27)
+
+Implement large, coherent feature packages and keep routine progress local. Use focused checks for new logic
+or a concrete failure during implementation. Do not run the complete Apple/Android acceptance matrix after
+each commit. Bundle `Tools/local-tests.sh`, emulator rounds and the final data comparison at a substantial
+milestone or the final acceptance stage; the committed-tree gate is still required before any approved push.
+The owner has not authorized a push or release.
+
 ## Context
 
 Bisher war geplant, nach einer ersten Android-Testversion anhand des Tester-Feedbacks zu entscheiden, welche

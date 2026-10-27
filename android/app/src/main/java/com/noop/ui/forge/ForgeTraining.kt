@@ -126,6 +126,7 @@ private sealed interface TrainingPage {
     data object Strength : TrainingPage
     data object Cardio : TrainingPage
     data object History : TrainingPage
+    data object HevyRoutines : TrainingPage
     data object Import : TrainingPage
     data object Library : TrainingPage
 }
@@ -214,6 +215,8 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     DropdownMenuItem(text = { Text(stringResource(R.string.forge_training_new_routine)) },
                                      onClick = { menu = false; page = TrainingPage.Routine(null) })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.forge_hevy_routines)) },
+                                     onClick = { menu = false; page = TrainingPage.HevyRoutines })
                     DropdownMenuItem(text = { Text(stringResource(R.string.forge_th_browse_starters)) },
                                      onClick = { menu = false; page = TrainingPage.Starters })
                 }
@@ -312,6 +315,7 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
                     TrainingPage.Load -> ForgeTrainingLoadPage(onClose = close)
                     TrainingPage.Strength -> ForgeStrengthPage(onClose = close)
                     TrainingPage.Cardio -> ForgeCardioPage(onClose = close)
+                    TrainingPage.HevyRoutines -> ForgeHevyRoutines(onClose = close, onConnect = { page = TrainingPage.Import })
                     TrainingPage.Import -> ForgeLiftingImport(onClose = close)
                     TrainingPage.History -> ForgeTrainingHistoryPage(onClose = close)
                     TrainingPage.Library -> ForgeExerciseLibrary(onClose = close, onAdded = {

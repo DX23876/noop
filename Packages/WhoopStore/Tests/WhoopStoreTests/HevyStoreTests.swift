@@ -54,6 +54,55 @@ final class HevyStoreTests: XCTestCase {
         XCTAssertTrue(rows.isEmpty)
     }
 
+    func testAPIMetadataFailureRollsBackTheTranscriptProjectionAndFrontier() async throws {
+        let store = try await WhoopStore.inMemory()
+        let original = workout()
+        func row(_ value: HevyWorkout) -> WorkoutRow {
+            WorkoutRow(startTs: value.startTs, endTs: value.endTs, sport: "Strength Training", source: "hevy",
+                durationS: 3600, energyKcal: nil, avgHr: nil, maxHr: nil, strain: nil,
+                distanceM: nil, zonesJSON: nil, notes: value.title, steps: nil)
+        }
+        func metadata(_ value: HevyWorkout) -> WorkoutSourceMetadataRow {
+            .init(componentKey: "hevy|\(value.id)", source: "hevy", startTs: value.startTs,
+                sport: "Strength Training", externalId: value.id, sourceBundleId: nil,
+                rawActivityType: nil, activitiesJSON: nil, updatedAtTs: value.updatedAtTs)
+        }
+        try await store.applyHevyImport([original], rows: [row(original)], metadata: [metadata(original)], frontier: 100)
+        try await store.syncWrite { db in
+            try db.execute(sql: "CREATE TRIGGER rejectHevyMetadata BEFORE INSERT ON workoutSourceMetadata BEGIN SELECT RAISE(ABORT,'forced failure'); END")
+        }
+        let edited = workout(startTs: original.startTs + 600, updatedAtTs: original.updatedAtTs + 100)
+        do {
+            try await store.applyHevyImport([edited], rows: [row(edited)], metadata: [metadata(edited)], frontier: 200)
+            XCTFail("the metadata write must fail")
+        } catch {}
+        let logs = try await store.hevyWorkouts(from: 0, to: Int.max)
+        let rows = try await store.workouts(deviceId: "hevy", from: 0, to: Int.max, limit: 100)
+        let identities = try await store.workoutSourceMetadata(from: 0, to: Int.max)
+        let frontier = try await store.cursor("hevy:syncFrontier")
+        XCTAssertEqual(logs, [original]); XCTAssertEqual(rows, [row(original)])
+        XCTAssertEqual(identities, [metadata(original)]); XCTAssertEqual(frontier, 100)
+    }
+
+    func testAPIIdentityCollisionAndForgetCannotEraseCSVHistory() async throws {
+        let store = try await WhoopStore.inMemory()
+        let api = workout()
+        let csv = HevyWorkout(id: api.id, title: api.title, routineId: nil, notes: nil,
+            startTs: api.startTs, endTs: api.endTs, updatedAtTs: api.updatedAtTs,
+            createdAtTs: api.createdAtTs, exercises: api.exercises, source: .hevyCSV)
+        _ = try await store.upsertStrengthWorkouts([csv])
+        do {
+            try await store.applyHevyImport([api], rows: [], metadata: [], frontier: 200)
+            XCTFail("the API cannot overwrite a different source's identity")
+        } catch {}
+        _ = try await store.upsertHevyWorkouts([workout(id: "api-only")])
+        try await store.setCursor("hevy:backfillComplete", 1)
+        try await store.deleteAllHevyData()
+        let logs = try await store.strengthWorkouts(from: 0, to: Int.max)
+        let cursor = try await store.cursor("hevy:backfillComplete")
+        XCTAssertEqual(logs, [csv]); XCTAssertNil(cursor)
+    }
+
     // MARK: - Schema
 
     func testV54CreatesTheStrengthTables() async throws {
