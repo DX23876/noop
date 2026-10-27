@@ -253,15 +253,11 @@ struct TrainingExerciseLibraryView: View {
     /// The region comes from the reviewed anatomy where there is one, so a filter can never disagree
     /// with the muscle map; an unmapped exercise falls back to its own primary muscle.
     private func bodyRegion(_ exercise: TrainingExercise) -> TrainingBodyRegion {
-        if let anatomy = TrainingMuscleProjection.anatomy(for: exercise) { return anatomy.bodyRegion }
-        return TrainingBodyRegion.forMuscles([exercise.primaryMuscleId].compactMap { $0 })
+        TrainingLibraryPreparation.Info(exercise).region
     }
 
     private func matchesMuscle(_ exercise: TrainingExercise, _ muscleId: String) -> Bool {
-        if exercise.primaryMuscleId == muscleId { return true }
-        if exercise.secondaryMuscleIds.contains(muscleId) { return true }
-        guard let anatomy = TrainingMuscleProjection.anatomy(for: exercise) else { return false }
-        return anatomy.primaryMuscleIds.contains(muscleId) || anatomy.secondaryMuscleIds.contains(muscleId)
+        TrainingLibraryPreparation.Info(exercise).matchesMuscle(muscleId)
     }
 
     private var filteredExercises: [TrainingExercise] {
@@ -317,13 +313,11 @@ struct TrainingExerciseLibraryView: View {
         let access = url.startAccessingSecurityScopedResource()
         defer { if access { url.stopAccessingSecurityScopedResource() } }
         do {
-            let archive = try ExerciseCatalogArchive.decode(Data(contentsOf: url))
-            guard archive.rights.allowsOfflineCache else {
-                message = String(localized: "This catalog does not allow local storage.")
-                return
-            }
-            archive.exercises.forEach { onSave?($0) }
+            let values = try TrainingLibraryPreparation.importedExercises(Data(contentsOf: url))
+            values.forEach { onSave?($0) }
             message = String(localized: "The exercise catalog was imported.")
+        } catch TrainingLibraryPreparation.ImportError.offlineStorageNotAllowed {
+            message = String(localized: "This catalog does not allow local storage.")
         } catch {
             message = String(localized: "The exercise catalog could not be imported.")
         }
@@ -347,6 +341,7 @@ private struct TrainingExerciseDetailView: View {
     }
 
     var body: some View {
+        let info = TrainingLibraryPreparation.Info(exercise)
         ScrollView {
                 VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
                 NoopCard {
@@ -365,9 +360,9 @@ private struct TrainingExerciseDetailView: View {
                             .buttonStyle(.plain)
                             .foregroundStyle(isFavorite ? StrandPalette.metricAmber : StrandPalette.textSecondary)
                         }
-                        LabeledContent("Primary muscle", value: muscle(exercise.primaryMuscleId))
-                        if !exercise.secondaryMuscleIds.isEmpty {
-                            LabeledContent("Also involved", value: exercise.secondaryMuscleIds.map(muscle).joined(separator: ", "))
+                        LabeledContent("Primary muscle", value: info.primary.isEmpty ? muscle(nil) : info.primary.map { muscle($0) }.joined(separator: ", "))
+                        if !info.secondary.isEmpty {
+                            LabeledContent("Also involved", value: info.secondary.map { muscle($0) }.joined(separator: ", "))
                         }
                         LabeledContent("Equipment", value: exercise.equipmentIds.isEmpty
                                        ? String(localized: "No equipment")
@@ -874,14 +869,10 @@ private struct TrainingCustomExerciseEditor: View {
             ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") {
-                    let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-                    let equipmentIds = equipment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                        ? [] : [equipment.lowercased().replacingOccurrences(of: " ", with: "-")]
-                    let instructions = instruction.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                        ? [] : [instruction.trimmingCharacters(in: .whitespacesAndNewlines)]
-                    onSave(TrainingExercise(id: "user:\(UUID().uuidString.lowercased())", title: trimmed,
-                        mode: mode, primaryMuscleId: primaryMuscle, equipmentIds: equipmentIds,
-                        instructions: instructions, isUnilateral: unilateral, source: .user))
+                    guard let exercise = TrainingLibraryPreparation.customExercise(title: name, mode: mode,
+                        primary: primaryMuscle, equipment: equipment, instruction: instruction,
+                        unilateral: unilateral) else { return }
+                    onSave(exercise)
                 }
                 .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }

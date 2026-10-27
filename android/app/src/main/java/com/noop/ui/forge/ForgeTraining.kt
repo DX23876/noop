@@ -124,6 +124,7 @@ private sealed interface TrainingPage {
     data object Load : TrainingPage
     data object Strength : TrainingPage
     data object Cardio : TrainingPage
+    data object Library : TrainingPage
 }
 
 /** Activities offered before the wearer's own recents fill the list (`WorkoutQuickStart.starterNames`). */
@@ -281,6 +282,8 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
                             Icons.Rounded.FitnessCenter) { page = TrainingPage.Strength }
                 AnalysisRow(stringResource(R.string.forge_tl_cardio), stringResource(R.string.forge_th_cardio_detail),
                             Icons.Rounded.Speed) { page = TrainingPage.Cardio }
+                AnalysisRow(stringResource(R.string.forge_library_title), stringResource(R.string.forge_library_subtitle),
+                            Icons.Rounded.Search) { page = TrainingPage.Library }
                 AnalysisRow(stringResource(R.string.forge_th_load_title), stringResource(R.string.forge_th_load_detail),
                             Icons.Rounded.Speed) { page = TrainingPage.Load }
             }
@@ -302,6 +305,13 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
                     TrainingPage.Load -> ForgeTrainingLoadPage(onClose = close)
                     TrainingPage.Strength -> ForgeStrengthPage(onClose = close)
                     TrainingPage.Cardio -> ForgeCardioPage(onClose = close)
+                    TrainingPage.Library -> ForgeExerciseLibrary(onClose = close, onAdded = {
+                        scope.launch {
+                            val dismissed = withContext(Dispatchers.IO) { dismissedTrainingWorkouts(context) }
+                            snapshot = core(context) { CoreTraining.snapshot(dismissed) }
+                            page = TrainingPage.Session
+                        }
+                    })
                 }
             }
         }
@@ -788,14 +798,14 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
     var picking by remember { mutableStateOf(false) }
     var finishing by remember { mutableStateOf(false) }
     var emptyNotice by remember { mutableStateOf(false) }
-    val titles = remember(exercises) { exercises.associate { it.id to it.title } }
+    val definitions = remember(exercises) { exercises.associateBy { it.id } }
     LaunchedEffect(Unit) { draft = core(context) { CoreTraining.draft() } }
     fun change(block: () -> CoreTraining.Draft?) = scope.launch { core(context, block)?.let { draft = it } }
     BackHandler { onClose() }
 
     if (picking) {
         BackHandler { picking = false }
-        ExercisePicker(exercises, multiple = false, onBack = { picking = false }) { ids ->
+        ExercisePicker(multiple = false, onBack = { picking = false }) { ids ->
             picking = false
             ids.firstOrNull()?.let { id -> change { CoreTraining.addExercise(id) } }
         }
@@ -808,25 +818,30 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
         d.exercises.forEach { exercise ->
             ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(titles[exercise.exerciseId] ?: exercise.exerciseId, style = Forge.type.headline,
+                    Text(definitions[exercise.exerciseId]?.title ?: stringResource(R.string.forge_report_exercise), style = Forge.type.headline,
                          color = Forge.colors.text, modifier = Modifier.weight(1f))
                     IconButton(onClick = { change { CoreTraining.removeExercise(exercise.id) } }) {
                         Icon(Icons.Rounded.Delete, stringResource(R.string.forge_training_remove_exercise),
                              tint = Forge.colors.textTertiary)
                     }
                 }
-                Row(Modifier.padding(vertical = 4.dp)) {
+                val definition = definitions[exercise.exerciseId]
+                val mode = definition?.mode ?: "weight_reps"
+                val columns = TrainingSetInput.columns(mode, definition?.unilateral == true)
+                val massUnits = strengthUnits()
+                val distanceUnits = com.noop.ui.UnitPrefs.distanceSystem(context)
+                ReportNote(measurementName(mode))
+                Row(Modifier.padding(vertical = ForgeMetrics.space1), horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space1)) {
                     Text(stringResource(R.string.forge_training_set), style = Forge.type.caption,
-                         color = Forge.colors.textTertiary, modifier = Modifier.width(44.dp))
-                    Text(stringResource(R.string.forge_training_kg), style = Forge.type.caption,
-                         color = Forge.colors.textTertiary, modifier = Modifier.weight(1f))
-                    Text(stringResource(R.string.forge_training_reps), style = Forge.type.caption,
-                         color = Forge.colors.textTertiary, modifier = Modifier.weight(1f))
-                    Spacer(Modifier.width(48.dp))
+                         color = Forge.colors.textTertiary, modifier = Modifier.width(ForgeMetrics.space6))
+                    columns.forEach { field -> Text(setInputLabel(field, massUnits, distanceUnits), style = Forge.type.caption,
+                        color = Forge.colors.textTertiary, modifier = Modifier.weight(1f)) }
+                    Spacer(Modifier.width(ForgeMetrics.minHitTarget))
                 }
                 exercise.sets.forEachIndexed { i, set ->
-                    SetRow(i + 1, set,
-                           onChange = { w, r, done -> change { CoreTraining.setValues(exercise.id, set.id, w, r, done) } })
+                    SetRow(i + 1, set, columns, massUnits, distanceUnits) { updated ->
+                        change { CoreTraining.setValues(exercise.id, updated) }
+                    }
                 }
                 TintButton(stringResource(R.string.forge_training_add_set), Icons.Rounded.Add) {
                     change { CoreTraining.addSet(exercise.id) }
@@ -863,13 +878,13 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
                 TextButton(onClick = {
                     finishing = false
                     val value = rpe.toIntOrNull()?.takeIf { it in 1..10 }?.toDouble()
-                    scope.launch { core(context) { CoreTraining.finish(value) }; onClose() }
+                    scope.launch { if (core(context) { CoreTraining.finish(value) }) onClose() else emptyNotice = true }
                 }) { Text(stringResource(R.string.forge_training_save)) }
             },
             dismissButton = {
                 TextButton(onClick = {
                     finishing = false
-                    scope.launch { core(context) { CoreTraining.finish(null) }; onClose() }
+                    scope.launch { if (core(context) { CoreTraining.finish(null) }) onClose() else emptyNotice = true }
                 }) { Text(stringResource(R.string.forge_training_skip)) }
             },
         )
@@ -877,27 +892,64 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
 }
 
 @Composable
-private fun SetRow(number: Int, set: CoreTraining.DraftSet, onChange: (Double?, Int?, Boolean?) -> Unit) {
-    var weight by remember(set.id, set.weightKg) { mutableStateOf(set.weightKg?.let(::formatKg) ?: "") }
+private fun setInputLabel(field: TrainingSetInput, mass: com.noop.ui.UnitSystem, distance: com.noop.ui.UnitSystem): String = when (field) {
+    TrainingSetInput.Weight -> com.noop.ui.UnitFormatter.massUnit(mass)
+    TrainingSetInput.Reps -> stringResource(R.string.forge_training_reps)
+    TrainingSetInput.Left -> stringResource(R.string.forge_library_left)
+    TrainingSetInput.Right -> stringResource(R.string.forge_library_right)
+    TrainingSetInput.Seconds -> stringResource(R.string.forge_library_seconds)
+    TrainingSetInput.Distance -> com.noop.ui.UnitFormatter.distanceUnit(distance)
+}
+
+@Composable
+private fun SetRow(number: Int, set: CoreTraining.DraftSet, columns: List<TrainingSetInput>,
+                   massUnits: com.noop.ui.UnitSystem, distanceUnits: com.noop.ui.UnitSystem,
+                   onChange: (CoreTraining.DraftSet) -> Unit) {
+    val initialWeight = remember(set.id, set.weightKg, massUnits) { set.weightKg?.let { inputDecimal(TrainingSetInput.massForInput(it, massUnits)) } ?: "" }
+    val initialDistance = remember(set.id, set.distanceM, distanceUnits) { set.distanceM?.let { inputDecimal(TrainingSetInput.distanceForInput(it, distanceUnits)) } ?: "" }
+    var weight by remember(set.id, set.weightKg, massUnits) { mutableStateOf(initialWeight) }
     var reps by remember(set.id, set.reps) { mutableStateOf(set.reps?.toString() ?: "") }
-    fun commit(done: Boolean? = null) = onChange(weight.replace(',', '.').toDoubleOrNull(), reps.toIntOrNull(), done)
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 2.dp)) {
+    var left by remember(set.id, set.leftReps, set.reps) { mutableStateOf((set.leftReps ?: set.reps)?.toString() ?: "") }
+    var right by remember(set.id, set.rightReps, set.reps) { mutableStateOf((set.rightReps ?: set.reps)?.toString() ?: "") }
+    var duration by remember(set.id, set.durationS) { mutableStateOf(set.durationS?.toString() ?: "") }
+    var distance by remember(set.id, set.distanceM, distanceUnits) { mutableStateOf(initialDistance) }
+    fun commit(done: Boolean = set.done) = onChange(set.copy(
+        weightKg = if (TrainingSetInput.Weight in columns) TrainingSetInput.editedMeasurement(set.weightKg, initialWeight, weight) { TrainingSetInput.massForStore(it, massUnits) } else set.weightKg,
+        reps = if (TrainingSetInput.Reps in columns) reps.toIntOrNull() else if (TrainingSetInput.Left in columns) null else set.reps,
+        leftReps = if (TrainingSetInput.Left in columns) left.toIntOrNull() else set.leftReps,
+        rightReps = if (TrainingSetInput.Right in columns) right.toIntOrNull() else set.rightReps,
+        durationS = if (TrainingSetInput.Seconds in columns) duration.toIntOrNull() else set.durationS,
+        distanceM = if (TrainingSetInput.Distance in columns) TrainingSetInput.editedMeasurement(set.distanceM, initialDistance, distance) { TrainingSetInput.distanceForStore(it, distanceUnits) } else set.distanceM,
+        done = done))
+    Row(verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space1), modifier = Modifier.padding(vertical = ForgeMetrics.space1)) {
         Text(if (set.warmup) stringResource(R.string.forge_training_warmup_short) else number.toString(),
-             style = Forge.type.bodyNumber, color = Forge.colors.textSecondary, modifier = Modifier.width(44.dp))
-        Box(Modifier.weight(1f).padding(end = 6.dp)) {
-            NumberField(weight, decimal = true, onChange = { weight = it }, onDone = { commit() })
+             style = Forge.type.bodyNumber, color = Forge.colors.textSecondary, modifier = Modifier.width(ForgeMetrics.space6))
+        columns.forEach { field ->
+            val value = when (field) {
+                TrainingSetInput.Weight -> weight; TrainingSetInput.Reps -> reps; TrainingSetInput.Left -> left
+                TrainingSetInput.Right -> right; TrainingSetInput.Seconds -> duration; TrainingSetInput.Distance -> distance
+            }
+            Box(Modifier.weight(1f)) { NumberField(value, decimal = field == TrainingSetInput.Weight || field == TrainingSetInput.Distance,
+                onChange = { input ->
+                    val number = input.filter { it.isDigit() || ((field == TrainingSetInput.Weight || field == TrainingSetInput.Distance) && (it == '.' || it == ',')) }
+                    when (field) {
+                        TrainingSetInput.Weight -> weight = number; TrainingSetInput.Reps -> reps = number; TrainingSetInput.Left -> left = number
+                        TrainingSetInput.Right -> right = number; TrainingSetInput.Seconds -> duration = number; TrainingSetInput.Distance -> distance = number
+                    }
+                }, onDone = { commit() }) }
         }
-        Box(Modifier.weight(1f).padding(end = 6.dp)) {
-            NumberField(reps, onChange = { reps = it.filter(Char::isDigit) }, onDone = { commit() })
-        }
-        IconButton(onClick = { commit(!set.done) },
-                   modifier = Modifier.size(40.dp).background(
-                       if (set.done) Forge.colors.charge else Forge.colors.inset, CircleShape)) {
-            Icon(Icons.Rounded.Check, contentDescription = null,
+        IconButton(onClick = { commit(!set.done) }, modifier = Modifier.size(ForgeMetrics.minHitTarget)
+            .background(if (set.done) Forge.colors.charge else Forge.colors.inset, CircleShape)) {
+            Icon(Icons.Rounded.Check, contentDescription = stringResource(if (set.done) R.string.forge_library_uncomplete_set else R.string.forge_library_complete_set),
                  tint = if (set.done) Color.White else Forge.colors.textTertiary)
         }
     }
 }
+
+private fun inputDecimal(value: Double): String = java.text.NumberFormat.getNumberInstance(Locale.getDefault()).apply {
+    maximumFractionDigits = 6; isGroupingUsed = false
+}.format(value)
 
 private fun formatKg(v: Double): String =
     if (v % 1.0 == 0.0) v.toInt().toString()
@@ -931,45 +983,8 @@ private fun Modifier.onFocusLost(action: () -> Unit): Modifier = composed {
 // MARK: - Exercise picker and routine editor
 
 @Composable
-private fun ExercisePicker(exercises: List<CoreTraining.Exercise>, multiple: Boolean, onBack: () -> Unit,
-                           onPicked: (List<String>) -> Unit) {
-    var query by remember { mutableStateOf("") }
-    val picked = remember { mutableStateListOf<String>() }
-    val shown = remember(query, exercises) {
-        exercises.filter { query.isBlank() || it.title.contains(query.trim(), ignoreCase = true) }.take(150)
-    }
-    SettingsColumn {
-        PageTitle(stringResource(R.string.forge_training_add_exercise), onBack, trailing = if (multiple && picked.isNotEmpty()) {
-            { TextButton(onClick = { onPicked(picked.toList()) }) {
-                Text(stringResource(R.string.forge_training_selected, picked.size), color = Forge.colors.charge) } }
-        } else null)
-        OutlinedTextField(
-            value = query, onValueChange = { query = it }, singleLine = true,
-            placeholder = { Text(stringResource(R.string.forge_training_search_exercises)) },
-            leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
-            shape = RoundedCornerShape(ForgeMetrics.groupedRadius),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = Forge.colors.surface, unfocusedContainerColor = Forge.colors.surface,
-                focusedBorderColor = Color.Transparent, unfocusedBorderColor = Color.Transparent,
-                focusedTextColor = Forge.colors.text, unfocusedTextColor = Forge.colors.text),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
-            shown.forEachIndexed { i, e ->
-                Row(Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget)
-                        .clickable { if (multiple) { if (e.id in picked) picked.remove(e.id) else picked.add(e.id) } else onPicked(listOf(e.id)) }
-                        .padding(horizontal = ForgeMetrics.cardPadding, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(e.title, style = Forge.type.body, color = Forge.colors.text)
-                        e.primaryMuscle?.let { Text(muscleName(it), style = Forge.type.caption, color = Forge.colors.textTertiary) }
-                    }
-                    if (e.id in picked) Icon(Icons.Rounded.Check, contentDescription = null, tint = Forge.colors.accent)
-                }
-                if (i < shown.lastIndex) HubDivider()
-            }
-        }
-    }
+private fun ExercisePicker(multiple: Boolean, onBack: () -> Unit, onPicked: (List<String>) -> Unit) {
+    ForgeExerciseLibrary(onClose = onBack, multiple = multiple, onPicked = onPicked)
 }
 
 /**
@@ -987,7 +1002,7 @@ private fun RoutineEditor(exercises: List<CoreTraining.Exercise>, routine: CoreT
     val titles = remember(exercises) { exercises.associate { it.id to it.title } }
     if (picking) {
         BackHandler { picking = false }
-        ExercisePicker(exercises, multiple = true, onBack = { picking = false }) { ids ->
+        ExercisePicker(multiple = true, onBack = { picking = false }) { ids ->
             picking = false
             ids.filterNot { it in chosen }.forEach(chosen::add)
         }

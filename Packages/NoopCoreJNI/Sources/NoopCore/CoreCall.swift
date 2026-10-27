@@ -71,6 +71,20 @@ public enum CoreCall {
         case "training.muscleFeedback":
             return ok(await CoreTrainingReports.recordFeedback(store: store, muscle: string("muscle"),
                 feeling: int("feeling", -1)))
+        case "training.library":
+            guard let library = try? await CoreTrainingLibrary.catalog(store: store) else { return #"{"error":"libraryUnavailable"}"# }
+            return CoreRead.json(library)
+        case "training.exerciseDetail":
+            return CoreRead.json(await CoreTrainingLibrary.detail(reader: reader, id: string("id"),
+                dismissedWorkouts: args["dismissedWorkouts"] as? [String] ?? []))
+        case "training.createExercise":
+            let id = await CoreTrainingLibrary.create(store: store, title: string("title"), mode: string("mode"),
+                primary: string("primary"), equipment: string("equipment"), instruction: string("instruction"),
+                unilateral: args["unilateral"] as? Bool ?? false)
+            return id.map { CoreRead.json(["id": $0]) } ?? #"{"error":"exerciseNotSaved"}"#
+        case "training.importCatalog":
+            let count = await CoreTrainingLibrary.importCatalog(store: store, json: string("archive"))
+            return count.map { CoreRead.json(["count": $0]) } ?? #"{"error":"catalogNotImported"}"#
         case "training.starters": return CoreRead.json(await CoreTraining.starters(store: store))
         case "training.addStarter": return ok(await CoreTraining.addStarter(store: store, index: int("index", -1)))
         case "training.setSchedule":

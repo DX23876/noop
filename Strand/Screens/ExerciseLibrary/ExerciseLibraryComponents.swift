@@ -92,7 +92,7 @@ struct ExerciseLibraryRow: View {
     }
 
     static func metadata(_ exercise: TrainingExercise) -> String {
-        let muscle = TrainingDisplayNames.muscle(exercise.primaryMuscleId)
+        let muscle = TrainingDisplayNames.muscle(TrainingLibraryPreparation.Info(exercise).primary.first)
         let equipment = exercise.equipmentIds.first.map(TrainingDisplayNames.equipment)
             ?? String(localized: "No equipment")
         return "\(muscle) · \(equipment)"

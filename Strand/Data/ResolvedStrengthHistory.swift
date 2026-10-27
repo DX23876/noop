@@ -202,7 +202,7 @@ enum StrengthHistoryReader {
         return values
     }
 
-    private nonisolated static func pagedNativeWorkouts(store: WhoopStore, from: Int,
+    nonisolated static func pagedNativeWorkouts(store: WhoopStore, from: Int,
                                                          to: Int) async -> [NativeWorkout] {
         let pageSize = 500
         var offset = 0

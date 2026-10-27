@@ -1,0 +1,113 @@
+{
+  "attribution" : "Exercise data: ExerciseDB v1 via hasaneyldrm\/exercises-dataset, MIT licence. Exercise media is not included and is not covered by that licence.",
+  "equipment" : [
+    "ab-wheel",
+    "band",
+    "barbell",
+    "bench",
+    "bodyweight",
+    "bosu-ball",
+    "box",
+    "cable",
+    "dip-bar",
+    "dumbbell",
+    "ez-bar",
+    "foam-roller",
+    "hammer",
+    "kettlebell",
+    "machine",
+    "medicine-ball",
+    "pull-up-bar",
+    "rings",
+    "rope",
+    "sled",
+    "smith-machine",
+    "squat-rack",
+    "stability-ball",
+    "tire",
+    "trap-bar",
+    "weight-belt"
+  ],
+  "exercises" : [
+    {
+      "aliases" : [
+
+      ],
+      "equipment" : [
+        "barbell"
+      ],
+      "id" : "user:56c21533-bbf2-4e22-8965-02b120073ac0",
+      "matchingMuscles" : [
+        "chest",
+        "front_delts",
+        "triceps"
+      ],
+      "mode" : "weight_reps",
+      "primary" : [
+        "chest"
+      ],
+      "primaryMuscle" : "chest",
+      "region" : "chest",
+      "secondary" : [
+        "front_delts",
+        "triceps"
+      ],
+      "source" : "user",
+      "title" : "Bench press"
+    }
+  ],
+  "licence" : "MIT",
+  "modes" : [
+    "weight_reps",
+    "bodyweight_reps",
+    "weighted_bodyweight",
+    "assisted_bodyweight",
+    "repetitions",
+    "duration",
+    "distance_duration"
+  ],
+  "muscles" : [
+    "chest",
+    "upper_chest",
+    "lower_chest",
+    "serratus",
+    "front_delts",
+    "side_delts",
+    "rear_delts",
+    "rotator_cuff",
+    "triceps",
+    "biceps",
+    "forearms",
+    "lats",
+    "upper_back",
+    "rhomboids",
+    "traps",
+    "upper_traps",
+    "lower_traps",
+    "lower_back",
+    "abdominals",
+    "upper_abs",
+    "lower_abs",
+    "obliques",
+    "quadriceps",
+    "inner_quadriceps",
+    "outer_quadriceps",
+    "hamstrings",
+    "glutes",
+    "hip_flexors",
+    "adductors",
+    "abductors",
+    "calves",
+    "tibialis",
+    "neck"
+  ],
+  "provider" : "hasaneyldrm\/exercises-dataset",
+  "regions" : [
+    "chest",
+    "back",
+    "shoulders",
+    "arms",
+    "core",
+    "legs"
+  ]
+}

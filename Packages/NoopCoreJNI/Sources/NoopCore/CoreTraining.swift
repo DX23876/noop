@@ -351,7 +351,7 @@ public enum CoreTraining {
         return draft
     }
 
-    /// Applies one change to the draft and saves it: `set` (exercise, set, weight, reps, done), `addSet`,
+    /// Applies one change to the draft and saves it: `set` (exercise, set, measurements, done), `addSet`,
     /// `addExercise` (a library id) or `removeExercise`. Returns the draft as saved, nil without one.
     public static func changeDraft(store: WhoopStore, args: [String: Any]) async -> WorkoutDraft? {
         guard var draft = (try? await store.workoutDraft()) ?? nil else { return nil }
@@ -365,6 +365,14 @@ public enum CoreTraining {
             if args["weightKg"] is NSNull { draft.exercises[e].sets[i].weightKg = nil }
             if let r = args["reps"] as? NSNumber { draft.exercises[e].sets[i].reps = r.intValue }
             if args["reps"] is NSNull { draft.exercises[e].sets[i].reps = nil }
+            if let value = args["leftReps"] as? NSNumber { draft.exercises[e].sets[i].leftReps = value.intValue }
+            if args["leftReps"] is NSNull { draft.exercises[e].sets[i].leftReps = nil }
+            if let value = args["rightReps"] as? NSNumber { draft.exercises[e].sets[i].rightReps = value.intValue }
+            if args["rightReps"] is NSNull { draft.exercises[e].sets[i].rightReps = nil }
+            if let value = args["durationS"] as? NSNumber { draft.exercises[e].sets[i].durationS = value.intValue }
+            if args["durationS"] is NSNull { draft.exercises[e].sets[i].durationS = nil }
+            if let value = args["distanceM"] as? NSNumber { draft.exercises[e].sets[i].distanceM = value.doubleValue }
+            if args["distanceM"] is NSNull { draft.exercises[e].sets[i].distanceM = nil }
             if let done = args["done"] as? Bool { draft.exercises[e].sets[i].isCompleted = done }
         case "addSet":
             guard let exerciseUUID else { return draft }
