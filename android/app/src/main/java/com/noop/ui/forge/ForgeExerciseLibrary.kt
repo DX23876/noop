@@ -60,6 +60,7 @@ fun ForgeExerciseLibrary(onClose: () -> Unit, multiple: Boolean = false,
     val favorites = remember(favoritesPayload) { favoritesPayload.lineSequence().filter { it.isNotBlank() }.toSet() }
     var selected by rememberSaveable { mutableStateOf<String?>(null) }
     var creating by rememberSaveable { mutableStateOf(false) }
+    var mediaSettings by rememberSaveable { mutableStateOf(false) }
     var filtersOpen by rememberSaveable { mutableStateOf(false) }
     var equipmentDialog by rememberSaveable { mutableStateOf(false) }
     var availablePayload by remember { mutableStateOf(prefs.getString(AVAILABLE_EQUIPMENT, "").orEmpty()) }
@@ -109,6 +110,7 @@ fun ForgeExerciseLibrary(onClose: () -> Unit, multiple: Boolean = false,
         }
     }
     BackHandler { when { creating -> creating = false; selected != null -> selected = null; else -> onClose() } }
+    if (mediaSettings) { ForgeExerciseMediaSettings { mediaSettings = false; revision++ }; return }
     if (creating) {
         catalog?.let { choices -> CustomExercisePage(choices, onClose = { creating = false }) { id ->
             creating = false; selected = id; revision++
@@ -212,6 +214,7 @@ fun ForgeExerciseLibrary(onClose: () -> Unit, multiple: Boolean = false,
                     }
                 }
             }
+            item { TextButton(onClick = { mediaSettings = true }) { Text(stringResource(R.string.forge_media_title)) } }
             item { OverlineHeader(stringResource(R.string.forge_library_all_exercises), stringResource(R.string.forge_library_count, shown.size)) }
             if (shown.isEmpty()) item { ForgeCard(Modifier.fillMaxWidth()) {
                 ReportHeading(stringResource(R.string.forge_library_no_match))
@@ -283,6 +286,7 @@ private fun LibraryExercisePage(id: String, favorite: Boolean, toggleFavorite: (
             return@SettingsColumn
         }
         val e = d.exercise
+        ForgeLocalExerciseMedia(e.id, e.title)
         ForgeCard(Modifier.fillMaxWidth()) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(e.title, style = Forge.type.title2, color = Forge.colors.text, modifier = Modifier.weight(1f))

@@ -29,6 +29,15 @@ public enum CoreCall {
         func int(_ k: String, _ fallback: Int) -> Int { (args[k] as? NSNumber)?.intValue ?? fallback }
         func ok(_ done: Bool) -> String { done ? #"{"ok":true}"# : #"{"ok":false}"# }
         switch op {
+        case "media.configure":
+            guard let root = args["root"] as? String, root.hasPrefix("/") else { return #"{"error":"mediaRootMissing"}"# }
+            return CoreRead.json(await CoreExerciseMedia.shared.configure(root: URL(fileURLWithPath: root), disabled: args["disabled"] as? Bool ?? false))
+        case "media.info": return CoreRead.json(await CoreExerciseMedia.shared.info())
+        case "media.install":
+            return CoreRead.json(await CoreExerciseMedia.shared.install(archive: URL(fileURLWithPath: string("archive"))))
+        case "media.cancel": await CoreExerciseMedia.shared.cancel(); return ok(true)
+        case "media.disabled": await CoreExerciseMedia.shared.setDisabled(args["disabled"] as? Bool ?? false); return ok(true)
+        case "media.delete": return ok(await CoreExerciseMedia.shared.delete())
         case "hevy.verify":
             do { try await CoreHevyClient(key: string("key")).verify(); return ok(true) }
             catch let error as HevyImportError { return CoreRead.json(["error": error.rawValue]) }
@@ -70,6 +79,12 @@ public enum CoreCall {
                 maxHR: (args["maxHR"] as? NSNumber)?.doubleValue,
                 dismissed: args["dismissedWorkouts"] as? [String] ?? [],
                 forDelivery: args["forDelivery"] as? Bool ?? false))
+        case "training.exerciseMedia":
+            let exercise = (try? await store.trainingExercises())?.first { $0.id == string("id") }
+            guard let mediaId = exercise?.mediaId,
+                  let path = await CoreExerciseMedia.shared.resolve(mediaId: mediaId, still: args["still"] as? Bool ?? false)
+            else { return #"{"available":false}"# }
+            return CoreRead.json(CoreExerciseMedia.Resolved(path: path))
         case "training.snapshot":
             let start = TrainingWeekStart(rawValue: args["weekStartsOn"] as? String ?? "") ?? .monday
             let dismissed = args["dismissedWorkouts"] as? [String] ?? []

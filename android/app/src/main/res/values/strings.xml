@@ -3735,4 +3735,36 @@
     <string name="forge_rating_reminder_title">How did the session feel?</string>
     <string name="forge_rating_reminder_body">Rate %1$s from 1 to 10 for your Session Load.</string>
     <string name="forge_rating_reminder_policy">A session rating improves load estimates when heart rate misses muscular effort. “When useful” asks after strength, swimming and other demanding sessions. You can always rate a session later.</string>
+    <string name="forge_media_title">Exercise media</string>
+    <string name="forge_media_optional">Exercise logging, routines and analytics work without media. NOOP does not bundle, host or mirror these files.</string>
+    <string name="forge_media_missing">Not downloaded</string>
+    <string name="forge_media_downloading">Downloading</string>
+    <string name="forge_media_installing">Checking and installing</string>
+    <string name="forge_media_disabled">Provider disabled</string>
+    <string name="forge_media_files">Downloaded files</string>
+    <string name="forge_media_checksum">Archive checksum</string>
+    <string name="forge_media_size">Approximate size</string>
+    <string name="forge_media_disable">Disable this media provider</string>
+    <string name="forge_media_download">Download media</string>
+    <string name="forge_media_cancel_download">Cancel download</string>
+    <string name="forge_media_delete">Delete downloaded media</string>
+    <string name="forge_media_source_rights">Source and rights</string>
+    <string name="forge_media_holder">Rights holder</string>
+    <string name="forge_media_confirm_title">Download external media?</string>
+    <string name="forge_media_confirm">Download from external source</string>
+    <string name="forge_media_external">The files are downloaded directly from this external source into private storage on this device and are excluded from backups. A network connection is required.</string>
+    <string name="forge_media_large">Large</string>
+    <string name="forge_media_small">Small</string>
+    <string name="forge_media_hidden">Hidden</string>
+    <string name="forge_media_failed">The downloaded media pack could not be validated.</string>
+    <string name="forge_media_rights">The images and animations belong to Gym visual. Keep this attribution and use them only for personal, non-commercial purposes. NOOP does not grant any licence for these files.</string>
+    <string name="forge_media_downloaded">Ready</string>
+    <string name="forge_media_credit" translatable="false">© Gym visual</string>
+    <string name="forge_media_unsafe">The downloaded media pack contained an unsafe file path.</string>
+    <string name="forge_media_too_large">The exercise media pack exceeds NOOP\'s 200 MB storage limit.</string>
+    <string name="forge_media_checksum_failed">The downloaded media pack did not match its published checksum.</string>
+    <string name="forge_media_no_space">There is not enough free space to install the exercise media pack.</string>
+    <string name="forge_media_network_failed">The provider could not be reached or returned an unsupported response.</string>
+    <string name="forge_media_action_failed">The operation could not be completed.</string>
+    <string name="forge_media_withdrawn">NOOP has withdrawn this media provider. Exercises, routines and analytics are unaffected.</string>
 </resources>

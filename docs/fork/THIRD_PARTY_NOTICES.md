@@ -17,3 +17,15 @@ For every installed pack NOOP records the source URL, attribution, rights holder
 ## Day-cycle scene artwork
 
 The Alps day-cycle set (`alps1`...`alps10` in `Strand/Resources/Assets.xcassets` and `StrandiOS/Resources/Assets.xcassets`) is ten AI-generated images of one imaginary Alpine lake scene, lit for ten times of day, produced with ChatGPT image generation from a text prompt by the fork's owner. It contains no photograph, no third-party artwork and no real place, and it is not derived from any source image. The Coast set (`coast1`...`coast10`) is made the same way: ten AI-generated images of one imaginary dune path to the sea, lit for ten times of day. The painted meadow set (`scene1`...`scene10`) predates it and is unchanged.
+
+## Shared media integrity dependency
+
+The shared media installer uses Swift Crypto 4.5.2 (Apache-2.0), pinned in `StrandCore/Package.swift`.
+The package re-exports CryptoKit on Apple and provides the Android implementation. Its original
+`LICENSE.txt` and `NOTICE.txt` are shipped as `SwiftCrypto-LICENSE.txt` and `SwiftCrypto-NOTICE.txt`
+in the Apple app's `Resources/ThirdParty` and Android's `assets/licenses` directories. Upstream source:
+[apple/swift-crypto, 4.5.2](https://github.com/apple/swift-crypto/tree/4.5.2).
+
+The optional exercise pack remains a separate user-initiated download. On Android the completed pack
+lives in private `noBackupFilesDir`; the operating system's temporary download is in app-specific
+external storage, excluded from both cloud backup and device transfer by the app's extraction rules.

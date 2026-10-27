@@ -819,6 +819,7 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
                 val massUnits = strengthUnits()
                 val distanceUnits = com.noop.ui.UnitPrefs.distanceSystem(context)
                 ReportNote(measurementName(mode))
+                ForgeLocalExerciseMedia(exercise.exerciseId, definition?.title.orEmpty())
                 Row(Modifier.padding(vertical = ForgeMetrics.space1), horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space1)) {
                     Text(stringResource(R.string.forge_training_set), style = Forge.type.caption,
                          color = Forge.colors.textTertiary, modifier = Modifier.width(ForgeMetrics.space6))
