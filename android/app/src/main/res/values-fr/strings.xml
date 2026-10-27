@@ -4051,4 +4051,5 @@
     <string name="forge_momentum_hide">Masquer ce message pour aujourd’hui.</string>
     <string name="forge_momentum_unavailable">Momentum n’est pas disponible pour le moment.</string>
     <string name="forge_momentum_hide_failed">Impossible de masquer ce message. Réessayez.</string>
+    <string name="forge_backup_inputs_unavailable">Aucune sauvegarde créée, car vos entrées ne peuvent pas être lues intégralement. Veuillez réessayer.</string>
 </resources>

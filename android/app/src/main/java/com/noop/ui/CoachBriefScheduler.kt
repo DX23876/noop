@@ -128,7 +128,7 @@ object CoachBriefScheduler {
         // #1304/#512 parity with CoachViewModel: thread the ACTIVE strap id so a headless generation
         // reasons off the same strap the user sees in the app, not a hardcoded canonical fallback.
         val aiCoach = AiCoach(
-            WhoopRepository(WhoopDatabase.get(ctx)),
+            WhoopRepository.from(ctx),
             activeStrapId = { (ctx as? com.noop.NoopApplication)?.activeDeviceId ?: WhoopRepository.WHOOP_SOURCE },
         )
         return aiCoach.generateBrief(ctx, provider, model, consent, customUrl, customHeader, includeSignals)

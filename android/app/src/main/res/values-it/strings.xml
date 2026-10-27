@@ -4020,4 +4020,5 @@
     <string name="forge_momentum_hide">Nascondere questo messaggio per oggi</string>
     <string name="forge_momentum_unavailable">Momentum non è disponibile al momento.</string>
     <string name="forge_momentum_hide_failed">Impossibile nascondere questo messaggio. Riprova.</string>
+    <string name="forge_backup_inputs_unavailable">Nessun backup creato perché non è stato possibile leggere tutte le tue voci. Riprova.</string>
 </resources>

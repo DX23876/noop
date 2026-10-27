@@ -34,6 +34,7 @@ object CoreMomentum {
 
     fun feed(context: Context, dismissedWorkouts: List<String>): List<Message>? {
         if (!SwiftCore.available) return null
+        if (!CoreUserInputs.ensure(context)) return null
         val prefs = NoopPrefs.of(context)
         val profile = ProfileStore.from(context)
         val args = JSONObject().withGoalProfile(profile).put("sex", profile.sex)

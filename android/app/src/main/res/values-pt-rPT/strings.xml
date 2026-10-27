@@ -4044,4 +4044,5 @@
     <string name="forge_momentum_hide">Esconder esta mensagem para hoje.</string>
     <string name="forge_momentum_unavailable">O Momentum não está disponível neste momento.</string>
     <string name="forge_momentum_hide_failed">Não foi possível ocultar esta mensagem. Tenta novamente.</string>
+    <string name="forge_backup_inputs_unavailable">Não foi criada nenhuma cópia de segurança porque não foi possível ler todos os teus registos. Tenta novamente.</string>
 </resources>

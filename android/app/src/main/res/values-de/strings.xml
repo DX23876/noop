@@ -4065,4 +4065,5 @@
     <string name="forge_momentum_hide">Diese Meldung für heute ausblenden</string>
     <string name="forge_momentum_unavailable">Momentum ist gerade nicht verfügbar.</string>
     <string name="forge_momentum_hide_failed">Die Nachricht konnte nicht ausgeblendet werden. Versuche es erneut.</string>
+    <string name="forge_backup_inputs_unavailable">Es wurde keine Sicherung erstellt, weil deine Einträge nicht vollständig gelesen werden konnten. Bitte versuche es erneut.</string>
 </resources>

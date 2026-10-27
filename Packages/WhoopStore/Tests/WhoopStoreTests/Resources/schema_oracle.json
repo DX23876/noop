@@ -80,7 +80,8 @@
   "v76-health-sync-state",
   "v77-ecg-reading",
   "v78-workout-elevation",
-  "v79-goal-preference-state"
+  "v79-goal-preference-state",
+  "v80-host-input-ownership"
  ],
  "divergenceReasons": {
   "android-orphan-synced-column": "REAL COLUMN DRIFT: `synced` exists on Android only. GRDB's v10 note is explicit that stepSample gets no `synced` column ('unused; see StreamStore'), and v12's ppgHrSample never had one either; the Room entities copied the flag from the older per-second entities. Nothing reads it on Android — the per-row upload flag belongs to an upload path that does not exist there — so it is dead width, not divergent data. Removing it needs a Room table rebuild.",
@@ -5124,6 +5125,22 @@
    ],
    "primaryKey": [
     "id"
+   ],
+   "indices": []
+  },
+  "hostInputOwnership": {
+   "platform": "ios_only",
+   "reason": "Shared-core ownership markers for legacy Android user inputs (GRDB v80). Android reads this same store through JNI; Room remains the migration source and has no marker twin.",
+   "columns": [
+    {
+     "name": "key",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "key"
    ],
    "indices": []
   }

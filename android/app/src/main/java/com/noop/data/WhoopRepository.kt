@@ -1,6 +1,7 @@
 package com.noop.data
 
 import android.content.Context
+import com.noop.core.CoreUserInputs
 import androidx.room.withTransaction
 import com.noop.protocol.DroppedRtcEvent
 import com.noop.protocol.RrSourceChannel
@@ -439,6 +440,7 @@ class WhoopRepository(
     private val transactor: Transactor = object : Transactor {
         override suspend fun <R> run(block: suspend () -> R): R = block()
     },
+    private val coreInputs: CoreUserInputs? = null,
 ) {
 
     /** Transaction boundary injected so repository writes remain testable without a Room runtime. */
@@ -465,12 +467,20 @@ class WhoopRepository(
     private var readoutRevisions = ReadoutDataRevisions()
     private val stepRevisionIndex = StepDataRevisionIndex()
 
-    constructor(db: WhoopDatabase) : this(
+    constructor(db: WhoopDatabase, sharedInputs: CoreUserInputs? = null) : this(
         dao = db.whoopDao(),
         transactor = object : Transactor {
             override suspend fun <R> run(block: suspend () -> R): R = db.withTransaction { block() }
         },
+        coreInputs = sharedInputs,
     )
+
+    /** Complete Room snapshot is read transactionally once; the core owns replay protection. */
+    suspend fun ensureSharedJournalHydration() {
+        coreInputs?.ensure {
+            transactor.run { dao.legacyJournalInputs() to dao.legacyHydrationInputs() }
+        }
+    }
 
     // MARK: - Device
 
@@ -1116,12 +1126,30 @@ class WhoopRepository(
     suspend fun sessionSleepState(deviceId: String, sessionStart: Long): List<Int>? =
         dao.sessionSleepStateJson(deviceId, sessionStart)?.let { decodeIntArray(it) }
 
-    suspend fun upsertMetricSeries(rows: List<MetricSeriesRow>) = dao.upsertMetricSeries(rows)
-    suspend fun deleteMetricSeriesPoint(deviceId: String, day: String, key: String) =
-        dao.deleteMetricSeriesPoint(deviceId, day, key)
-    suspend fun deleteMetricSeries(deviceId: String, key: String) =
-        dao.deleteMetricSeries(deviceId, key)
-    suspend fun upsertJournal(rows: List<JournalEntry>) = dao.upsertJournal(rows)
+    suspend fun upsertMetricSeries(rows: List<MetricSeriesRow>) {
+        val core = coreInputs
+        if (core == null) { dao.upsertMetricSeries(rows); return }
+        val (water, other) = rows.partition { CoreUserInputs.isWater(it.deviceId, it.key) }
+        if (water.isNotEmpty()) { ensureSharedJournalHydration(); core.writeWater(water) }
+        if (other.isNotEmpty()) dao.upsertMetricSeries(other)
+    }
+    suspend fun deleteMetricSeriesPoint(deviceId: String, day: String, key: String) {
+        val core = coreInputs
+        if (core != null && CoreUserInputs.isWater(deviceId, key)) {
+            ensureSharedJournalHydration(); core.deleteWater(key, day)
+        } else dao.deleteMetricSeriesPoint(deviceId, day, key)
+    }
+    suspend fun deleteMetricSeries(deviceId: String, key: String) {
+        val core = coreInputs
+        if (core != null && CoreUserInputs.isWater(deviceId, key)) {
+            ensureSharedJournalHydration(); core.deleteWater(key)
+        } else dao.deleteMetricSeries(deviceId, key)
+    }
+    suspend fun upsertJournal(rows: List<JournalEntry>) {
+        val core = coreInputs
+        if (core != null) { ensureSharedJournalHydration(); core.writeJournal(rows) }
+        else dao.upsertJournal(rows)
+    }
     suspend fun upsertWorkouts(rows: List<WorkoutRow>) = dao.upsertWorkouts(rows)
 
     /**
@@ -1769,8 +1797,12 @@ class WhoopRepository(
         return com.noop.analytics.SleepStageTotals.habitualMidsleepSec(blocks, offsetSec)
     }
 
-    suspend fun metricSeries(deviceId: String, key: String, from: String, to: String) =
-        dao.metricSeries(deviceId, key, from, to)
+    suspend fun metricSeries(deviceId: String, key: String, from: String, to: String): List<MetricSeriesRow> {
+        val core = coreInputs
+        return if (core != null && CoreUserInputs.isWater(deviceId, key)) {
+            ensureSharedJournalHydration(); core.water(key, from, to)
+        } else dao.metricSeries(deviceId, key, from, to)
+    }
 
     /**
      * Computed ("-noop") [key] series across the active-strap UNION (the active strap's own computed
@@ -1805,11 +1837,21 @@ class WhoopRepository(
         )
 
     /** Scalar row count for one (deviceId, key) series — the COUNT twin of [metricSeries]. */
-    suspend fun metricSeriesKeyCount(deviceId: String, key: String): Int =
-        dao.metricSeriesKeyCount(deviceId, key)
+    suspend fun metricSeriesKeyCount(deviceId: String, key: String): Int {
+        val core = coreInputs
+        return if (core != null && CoreUserInputs.isWater(deviceId, key)) {
+            ensureSharedJournalHydration(); core.waterCount(key)
+        } else dao.metricSeriesKeyCount(deviceId, key)
+    }
 
     /** Distinct metric keys present for a [deviceId]/source, sorted ascending. */
-    suspend fun metricKeys(deviceId: String): List<String> = dao.metricKeys(deviceId)
+    suspend fun metricKeys(deviceId: String): List<String> {
+        val core = coreInputs
+        return if (core != null && deviceId == "hydration") {
+            ensureSharedJournalHydration()
+            (core.waterKeys() + dao.metricKeys(deviceId).filterNot { CoreUserInputs.isWater(deviceId, it) }).distinct().sorted()
+        } else dao.metricKeys(deviceId)
+    }
 
     /** Workouts whose startTs falls in [from, to] (unix seconds), oldest first, row-limited. */
     suspend fun workouts(deviceId: String, from: Long, to: Long, limit: Int = DEFAULT_LIMIT): List<WorkoutRow> =
@@ -1824,19 +1866,28 @@ class WhoopRepository(
         dao.sumWorkoutSteps(deviceId, from, to)
 
     /** Journal entries for the inclusive day range [from, to] (YYYY-MM-DD), oldest first. */
-    suspend fun journal(deviceId: String, from: String, to: String): List<JournalEntry> =
-        dao.journal(deviceId, from, to)
+    suspend fun journal(deviceId: String, from: String, to: String): List<JournalEntry> {
+        val core = coreInputs
+        return if (core != null) { ensureSharedJournalHydration(); core.journal(deviceId, from, to) }
+        else dao.journal(deviceId, from, to)
+    }
 
     /** Delete one native journal answer by natural key (only ever called with the "noop-journal"
      *  source id , imported rows are never touched). */
-    suspend fun deleteJournalEntry(deviceId: String, day: String, question: String) =
-        dao.deleteJournalEntry(deviceId, day, question)
+    suspend fun deleteJournalEntry(deviceId: String, day: String, question: String) {
+        val core = coreInputs
+        if (core != null) { ensureSharedJournalHydration(); core.deleteJournal(deviceId, day, question) }
+        else dao.deleteJournalEntry(deviceId, day, question)
+    }
 
     /** Atomically replace a device's imported journal within a day range (#136) — the WHOOP importer
      *  clears the span it re-writes and upserts in ONE transaction, so the wake-day re-keying leaves no
      *  pre-fix onset-keyed duplicates and a crash mid-import can't drop the range's journal. */
-    suspend fun replaceJournalRange(deviceId: String, from: String, to: String, rows: List<JournalEntry>) =
-        dao.replaceJournalRange(deviceId, from, to, rows)
+    suspend fun replaceJournalRange(deviceId: String, from: String, to: String, rows: List<JournalEntry>) {
+        val core = coreInputs
+        if (core != null) { ensureSharedJournalHydration(); core.replaceJournal(deviceId, from, to, rows) }
+        else dao.replaceJournalRange(deviceId, from, to, rows)
+    }
 
     /** Apple-Health daily aggregates for the inclusive day range [from, to] (YYYY-MM-DD), oldest first. */
     suspend fun appleDaily(deviceId: String, from: String, to: String): List<AppleDaily> =
@@ -2597,7 +2648,8 @@ class WhoopRepository(
         }
 
         /** Build a repository backed by the process-wide singleton database. */
-        fun from(context: Context): WhoopRepository = WhoopRepository(WhoopDatabase.get(context))
+        fun from(context: Context): WhoopRepository =
+            WhoopRepository(WhoopDatabase.get(context), CoreUserInputs(context.applicationContext))
 
         // MARK: - Compact per-epoch JSON (v18 motionJSON / sleepStateJSON), byte-equivalent with Swift's
         // JSONEncoder/JSONDecoder on [Double] / [Int]: a bare `[..]` array, whole doubles emitted WITHOUT a

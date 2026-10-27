@@ -27,6 +27,8 @@ final class CoreBackupTests: XCTestCase {
         let before = try await source.dailyMetrics(deviceId: "my-whoop-noop", from: "0000-01-01", to: "9999-12-31")
         let after = try await restored.dailyMetrics(deviceId: "my-whoop-noop", from: "0000-01-01", to: "9999-12-31")
         XCTAssertEqual(after, before)
+        let ownsInputs = try await restored.ownsAndroidJournalHydration()
+        XCTAssertTrue(ownsInputs, "Restoring an archive must never replay this phone's old Room inputs")
     }
 
     func testAFileThatIsNoBackupIsRefusedAndTheStoreKept() async throws {

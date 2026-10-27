@@ -30,11 +30,13 @@ extension WhoopStore {
     /// The connection checkpoints and closes before returning, so all writes and any legacy WAL data
     /// are in the main file before the caller copies it into place.
     public static func prepareRestoredGoalPreferenceState(at path: String,
+        sealAndroidInputs: Bool = false,
         transform: (Data?) throws -> Data?) throws {
         let database = try DatabaseQueue(path: path)
         try UpstreamMigrationBridge.adopt(database)
         try makeMigrator().migrate(database)
         try database.write { db in
+            if sealAndroidInputs { try sealAndroidJournalHydration(in: db) }
             let previous = try Data.fetchOne(db, sql: "SELECT payload FROM goalPreferenceState WHERE id = 1")
             guard let replacement = try transform(previous), replacement != previous else { return }
             try db.execute(sql: """

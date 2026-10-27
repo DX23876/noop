@@ -3947,4 +3947,5 @@
     <string name="forge_momentum_hide">Скрыть это сообщение сегодня</string>
     <string name="forge_momentum_unavailable">Momentum сейчас недоступен.</string>
     <string name="forge_momentum_hide_failed">Не удалось скрыть это сообщение. Попробуйте ещё раз.</string>
+    <string name="forge_backup_inputs_unavailable">Резервная копия не создана: не удалось полностью прочитать ваши записи. Попробуйте ещё раз.</string>
 </resources>

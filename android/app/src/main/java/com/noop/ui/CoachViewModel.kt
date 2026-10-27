@@ -43,7 +43,7 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
     // The networked coach, over the local store. No key is held here; the engine reads it from
     // the encrypted store at call time.
     private val aiCoach = AiCoach(
-        WhoopRepository(WhoopDatabase.get(app.applicationContext)),
+        WhoopRepository.from(app.applicationContext),
         // #1304/#512: thread the active strap id (resolved lazily by NoopApplication) so the coach reasons
         // off the active strap's data — daysMerged/R-R/Lab markers union active ∪ canonical — instead of a
         // hardcoded "my-whoop" that misses a strap banked under "whoop-<uuid>".
@@ -623,7 +623,7 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
         val day = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(java.util.Date())
         viewModelScope.launch {
             runCatching {
-                WhoopRepository(WhoopDatabase.get(app.applicationContext)).upsertJournal(
+                WhoopRepository.from(app.applicationContext).upsertJournal(
                     listOf(
                         JournalEntry(
                             deviceId = (app as NoopApplication).activeDeviceId,

@@ -4022,4 +4022,5 @@
     <string name="forge_momentum_hide">今天隐藏此消息</string>
     <string name="forge_momentum_unavailable">Momentum 目前不可用。</string>
     <string name="forge_momentum_hide_failed">无法隐藏此消息。请重试。</string>
+    <string name="forge_backup_inputs_unavailable">无法完整读取你的记录，因此未创建备份。请重试。</string>
 </resources>

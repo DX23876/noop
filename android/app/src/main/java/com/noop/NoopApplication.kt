@@ -65,9 +65,9 @@ class NoopApplication : Application() {
         com.noop.core.SwiftCore.start(this)
     }
 
-    /** Process-wide Room-backed store. One instance shared by the UI and the background service. */
+    /** Process-wide repository: journal and water use the shared core; remaining classic data stays in Room. */
     val repository: WhoopRepository by lazy {
-        WhoopRepository(WhoopDatabase.get(this))
+        WhoopRepository.from(this)
     }
 
     /** Process-wide device registry over the same Room DB — the single source of the active device id. */

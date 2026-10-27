@@ -1172,6 +1172,12 @@ interface WhoopDao : DeviceRegistryDao {
     @Query("UPDATE workout SET deviceId = :to WHERE deviceId = :from AND source = :source")
     suspend fun reassignWorkoutsBySource(from: String, to: String, source: String)
 
+    @Query("SELECT * FROM journal ORDER BY deviceId, day, question")
+    suspend fun legacyJournalInputs(): List<JournalEntry>
+
+    @Query("SELECT * FROM metricSeries WHERE deviceId = 'hydration' AND `key` IN ('hydration', 'hydrationImported') ORDER BY day, `key`")
+    suspend fun legacyHydrationInputs(): List<MetricSeriesRow>
+
     // MARK: - Journal / workouts / Apple-Health reads (mirror JournalWorkoutAppleCache.swift, v8)
 
     /**

@@ -119,6 +119,13 @@ werden.
 
 ### 1.3 Android liest nur noch den Kern (E-4, zweite Hälfte)
 
+Local progress (2026-10-27): journal and hydration raw inputs now cross a one-time, transactional
+ownership boundary (GRDB v80). Android repository reads/writes and backup export use the core; restored
+archives seal the lane against replay from the phone's old Room database. Store/schema, bridge/backup,
+arm64 packaging and the installed Room-to-JNI integration check pass. Catalog/opt-in settings, device
+source re-key/delete integration and the other classic data lanes remain part of this phase.
+Analysis migration required: no for this ownership move; raw values are preserved.
+
 - **Eingebettete Bildschirme:** Die Datenschicht jedes eingebetteten Klassik-Bildschirms, der abgeleitete
   Zahlen zeigt (Workouts, Stress, Gesundheit, Live-Verlauf, Laborbuch, Vergleich, Explore, Insights), liest
   über neue `CoreRead`-Funktionen (JSON über JNI, Muster `Bridge` → `JNIExports` → `SwiftCore.kt` →

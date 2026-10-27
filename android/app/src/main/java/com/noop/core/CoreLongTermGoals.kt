@@ -41,6 +41,7 @@ object CoreLongTermGoals {
 
     fun catalog(context: Context, dismissedWorkouts: List<String>): Catalog? {
         if (!SwiftCore.available) return null
+        if (!CoreUserInputs.ensure(context)) return null
         val json = SwiftCore.call("goals.catalog", args(context, dismissedWorkouts).toString()) ?: return null
         if (json.contains("\"error\"")) return null
         val o = JSONObject(json)
@@ -56,6 +57,7 @@ object CoreLongTermGoals {
     /** "suggest", "sum", "weekly" or "none", as `CoreLongTermGoals.draft` applies them. */
     fun draft(context: Context, dismissedWorkouts: List<String>, state: State, action: String): Draft? {
         if (!SwiftCore.available) return null
+        if (!CoreUserInputs.ensure(context)) return null
         val json = SwiftCore.call("goals.ltDraft", args(context, dismissedWorkouts)
             .put("state", encode(state).toString()).put("action", action).toString()) ?: return null
         return parseDraft(json)
@@ -64,6 +66,7 @@ object CoreLongTermGoals {
     fun create(context: Context, dismissedWorkouts: List<String>, state: State, replacing: String?, keepBoth: Boolean,
                riskReason: String?): Created {
         if (!SwiftCore.available) return Created(false, "unavailable", null, null, null)
+        if (!CoreUserInputs.ensure(context)) return Created(false, "inputMigration", null, null, null)
         val json = SwiftCore.call("goals.ltCreate", args(context, dismissedWorkouts)
             .put("state", encode(state).toString()).put("keepBoth", keepBoth)
             .apply { if (replacing != null) put("replacing", replacing); if (riskReason != null) put("riskReason", riskReason) }

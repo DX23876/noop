@@ -1995,6 +1995,11 @@ extension WhoopStore {
                 t.column("payload", .blob).notNull()
             }
         }
+        migrator.registerMigration("v80-host-input-ownership") { db in
+            try db.create(table: "hostInputOwnership") { t in
+                t.column("key", .text).notNull().primaryKey()
+            }
+        }
         return migrator
     }
 }

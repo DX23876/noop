@@ -35,6 +35,7 @@ object CoreBackup {
     fun export(context: Context, out: OutputStream): Result {
         if (!SwiftCore.available) return Result.Failed("noCore")
         CoreRead.open(context)
+        if (!CoreUserInputs.ensure(context)) return Result.Failed("inputMigration")
         val dir = scratch(context)
         val staged = File(dir, "export.noopbak")
         val result = parse(SwiftCore.exportBackup(staged.path, dir.path, BuildConfig.VERSION_NAME,

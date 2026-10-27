@@ -66,6 +66,7 @@ public enum CoreCall {
         guard let (store, _) = ShadowSession.storeAndPath, let reader = ShadowSession.reader else {
             return #"{"error":"noStore"}"#
         }
+        if op.hasPrefix("input.") { return await CoreUserInputs.run(op, json: argsJSON, store: store) }
         switch op {
         case "hevy.startSync": return CoreRead.json(await CoreHevy.shared.start(store: store, key: string("key"), routinesOnly: args["routinesOnly"] as? Bool ?? false))
         case "hevy.info":

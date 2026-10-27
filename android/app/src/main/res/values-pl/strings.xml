@@ -4068,4 +4068,5 @@
     <string name="forge_momentum_hide">Ukryj tę wiadomość na dziś</string>
     <string name="forge_momentum_unavailable">Momentum jest obecnie niedostępne.</string>
     <string name="forge_momentum_hide_failed">Nie udało się ukryć tej wiadomości. Spróbuj ponownie.</string>
+    <string name="forge_backup_inputs_unavailable">Nie utworzono kopii zapasowej, ponieważ nie udało się odczytać wszystkich wpisów. Spróbuj ponownie.</string>
 </resources>

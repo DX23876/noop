@@ -61,12 +61,14 @@ object CoreGoals {
     /** Every goal, refreshed and evaluated as the Apple `GoalTrackingStore.refresh` does. */
     fun snapshot(context: Context, dismissedWorkouts: List<String>): Output? {
         if (!SwiftCore.available) return null
+        if (!CoreUserInputs.ensure(context)) return null
         return SwiftCore.call("goals.snapshot", settings(context, dismissedWorkouts))?.let(::parse)
     }
 
     /** The metrics the weekly and monthly goal setup offers, with each one's target range. */
     fun setup(context: Context, dismissedWorkouts: List<String>): Setup? {
         if (!SwiftCore.available) return null
+        if (!CoreUserInputs.ensure(context)) return null
         val json = SwiftCore.call("goals.setup", settings(context, dismissedWorkouts)) ?: return null
         if (json == "null" || json.contains("\"error\"")) return null
         val o = JSONObject(json)

@@ -4083,4 +4083,5 @@
     <string name="forge_momentum_hide">Hide this message for today</string>
     <string name="forge_momentum_unavailable">Momentum is not available right now.</string>
     <string name="forge_momentum_hide_failed">Could not hide this message. Try again.</string>
+    <string name="forge_backup_inputs_unavailable">No backup was created because your entries could not be read completely. Please try again.</string>
 </resources>

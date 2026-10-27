@@ -72,7 +72,7 @@ public enum CoreBackup {
                 // Only whitelisted goal values enter the staged source image. A backup without
                 // settings keeps its database state, including older plain-SQLite exports.
                 let bundle = settings.flatMap { BackupSettings.decode($0)[GoalBackupBundle.settingsKey] as? String }
-                try WhoopStore.prepareRestoredGoalPreferenceState(at: database.path) { previous in
+                try WhoopStore.prepareRestoredGoalPreferenceState(at: database.path, sealAndroidInputs: true) { previous in
                     guard let bundle else { return previous }
                     let image = try GoalPreferenceImage(serialized: previous)
                     guard GoalBackupBundle.apply(bundle, to: image) > 0 else { return previous }
