@@ -53,6 +53,9 @@ struct StrengthNextSet: Equatable {
             } else { target = nil }
         case .bodyweightReps, .repetitions:
             target = set.reps.map { String(localized: "\($0) reps") }
+        case .weightDuration, .distanceWeight:
+            // Loaded carries and holds: the weight is what the Lock Screen can say; time and distance are logged.
+            target = set.weightKg.map { TrainingPreferences.formattedWeight($0, unit: unit) }
         case .duration, .distanceDuration, nil:
             target = nil
         }

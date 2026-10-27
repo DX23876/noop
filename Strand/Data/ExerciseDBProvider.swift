@@ -43,6 +43,5 @@ enum ExerciseDBCredentials {
     }
 }
 
-// The platform owns only Keychain access; one parser and read transport serve both platforms.
-typealias ExerciseDBProviderClient = StrandCore.ExerciseDBProviderClient
-typealias ExerciseDBProviderError = StrandCore.ExerciseDBProviderError
+// The platform owns only Keychain access; one parser and read transport serve both platforms
+// (`ExerciseDBProviderClient` and `ExerciseDBProviderError` come from StrandCore).
