@@ -95,6 +95,17 @@ Jeweils Logik und Speicher, ohne Oberfläche:
   `StrengthDraftBuilder`, `TrainingPerformanceHistory` und `TrainingPreferences`. Die Pakete `StrandTraining`
   und `MuscleMap` bauen schon für Android.
 - **Ziele:** die Auswertung (`GoalCatalog`, `GoalActions` und die Trackingseite) samt `GoalBackupBundle`.
+  Foundation progress (2026-10-27): the existing Swift models/stores, period tracker, catalog,
+  safety/volume gates, motivation, measured-input helpers and pure progress engine are shared sources.
+  The new SQLite preference-image transaction preserves the Apple property-list formats, restores scoped
+  store bindings before awaiting persistence, rejects stale writers and leaves the previous image intact
+  on failure. The synchronous `GoalTrackingModel` refresh is now shared too, while Apple retains its
+  asynchronous Repository adapter and notification delivery. The backup bridge derives `goals.bundle`
+  from the exact archived SQLite snapshot; Apple settings are applied to a disposable restore candidate
+  before the live swap, including recovery of a legacy WAL. The arm64 native build passes; the focused
+  backup/model block and the additional snapshot-isolation test pass. This is not the completed Goals feature:
+  data-reader integration, operations, Android screens and bundled native/app/device acceptance remain open.
+  Analysis migration required: no; extraction preserves the existing rules and user inputs.
 - **Momentum:** `MomentumBuilder`, `MomentumResolver`, `MomentumStore`.
 - **Sonstige Rechnungen:** `StressDayCurve`, `SkinTempBackfillWalker`, `WorkoutElevationSeries` und den Rest von
   `BodyMetricsSeries`.

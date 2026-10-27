@@ -1987,6 +1987,14 @@ extension WhoopStore {
                 t.primaryKey(["deviceId", "startTs", "sport"])
             }
         }
+        // The shared Android goal stores keep one property-list image. A single row makes a reviewed
+        // multi-store change atomic, including preserved fields from newer builds.
+        migrator.registerMigration("v79-goal-preference-state") { db in
+            try db.create(table: "goalPreferenceState") { t in
+                t.column("id", .integer).primaryKey().check { $0 == 1 }
+                t.column("payload", .blob).notNull()
+            }
+        }
         return migrator
     }
 }

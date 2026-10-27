@@ -1,5 +1,9 @@
 import XCTest
+#if NOOP_CORE_TESTS
+@testable import NoopCore
+#else
 @testable import Strand
+#endif
 
 /// The goal model + its migration + the feasibility check.
 ///

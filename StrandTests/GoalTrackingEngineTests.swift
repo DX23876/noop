@@ -1,5 +1,9 @@
 import XCTest
+#if NOOP_CORE_TESTS
+@testable import NoopCore
+#else
 @testable import Strand
+#endif
 
 final class GoalTrackingEngineTests: XCTestCase {
     private var calendar: Calendar {

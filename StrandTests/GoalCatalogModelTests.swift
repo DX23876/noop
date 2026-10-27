@@ -1,5 +1,9 @@
 import XCTest
+#if NOOP_CORE_TESTS
+@testable import NoopCore
+#else
 @testable import Strand
+#endif
 
 /// The long-term goal's catalog fields (template, measure), several goals of one kind, and the one-time
 /// template assignment for goals made before the catalog.

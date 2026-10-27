@@ -80,7 +80,7 @@ struct GoalStatusStyle {
 
     /// Whether the state asks for attention (sorts "needs attention" first, feeds "+N need attention").
     static func needsAttention(_ state: PeriodGoalState) -> Bool {
-        state == .close || state == .behind
+        PeriodGoalMaintenance.needsAttention(state)
     }
 }
 

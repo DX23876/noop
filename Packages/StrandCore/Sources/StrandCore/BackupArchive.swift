@@ -145,9 +145,12 @@ public enum BackupArchive {
     /// The hardened restore core, with the destination database path injected so it is unit-testable
     /// against a throwaway DB (real file I/O, never the user's live store). `applySettings` receives a
     /// `settings.json` entry (#1000) only after the swap landed, so a failed or rolled-back restore never
-    /// touches settings; legacy backups without one restore exactly as before.
+    /// touches settings; legacy backups without one restore exactly as before. The optional preparation
+    /// hook receives a disposable database copy and the settings entry before the swap. It must checkpoint
+    /// and close its writes before returning; a thrown error leaves both the picked and live files intact.
     public static func restore(from pickedSource: URL, toDatabaseAt dbPath: String, scratchRoot: URL,
                                allowOversize: Bool = false,
+                               prepareStagedDatabase: ((URL, Data?) throws -> Void)? = nil,
                                applySettings: (Data) -> Void) -> RestoreOutcome {
         // If the picked file is a .noopbak ZIP, extract the SQLite entry to a temp dir first.
         // Legacy plain-SQLite files fall straight through. The extracted dir is cleaned up below.
@@ -222,6 +225,33 @@ public enum BackupArchive {
             return .failure(.damaged(complaint: complaint))
         }
 
+        // Hosts with database-backed settings must apply them before the live swap. A legacy
+        // SQLite source is copied first: the hook must never mutate the picked file or the live DB.
+        var preparedDirectory: URL?
+        defer { if let preparedDirectory { try? fm.removeItem(at: preparedDirectory) } }
+        var replacementSource = source
+        if let prepareStagedDatabase {
+            do {
+                if extractedDir == nil {
+                    let directory = scratchRoot.appendingPathComponent("prepare-\(UUID().uuidString)", isDirectory: true)
+                    preparedDirectory = directory
+                    try fm.createDirectory(at: directory, withIntermediateDirectories: true)
+                    replacementSource = directory.appendingPathComponent(entryName)
+                    try fm.copyItem(at: source, to: replacementSource)
+                    for suffix in ["-wal", "-shm"] where fm.fileExists(atPath: source.path + suffix) {
+                        try fm.copyItem(atPath: source.path + suffix, toPath: replacementSource.path + suffix)
+                    }
+                }
+                let settings = extractedDir.flatMap {
+                    try? Data(contentsOf: $0.appendingPathComponent(BackupSettings.entryName))
+                }
+                try prepareStagedDatabase(replacementSource, settings)
+                if let complaint = DatabaseIntegrity.quickCheckFailure(atPath: replacementSource.path) {
+                    return .failure(.damaged(complaint: complaint))
+                }
+            } catch { return .failure(.importFailed(error.localizedDescription)) }
+        }
+
         let dbURL = URL(fileURLWithPath: dbPath)
 
         do {
@@ -242,7 +272,7 @@ public enum BackupArchive {
             removeIfPresent(URL(fileURLWithPath: dbPath + "-shm"))
 
             do {
-                try fm.copyItem(at: source, to: dbURL)
+                try fm.copyItem(at: replacementSource, to: dbURL)
             } catch {
                 // The live DB was just removed and the replacement didn't land. Roll back to the
                 // snapshot so a failed import leaves the user's data exactly as it was, instead of a
@@ -280,7 +310,7 @@ public enum BackupArchive {
             // checkpointed at export. ZIP imports are always checkpointed; no sidecars expected.
             // Deliberately AFTER the post-swap integrity check (see above) — this is best-effort
             // (`try?` inside) and can't throw, so the rollback semantics are unchanged.
-            if extractedDir == nil {
+            if extractedDir == nil && prepareStagedDatabase == nil {
                 restoreSidecar(from: source, toMainPath: dbPath, suffix: "-wal")
                 restoreSidecar(from: source, toMainPath: dbPath, suffix: "-shm")
             }

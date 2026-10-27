@@ -1,5 +1,9 @@
 import XCTest
+#if NOOP_CORE_TESTS
+@testable import NoopCore
+#else
 @testable import Strand
+#endif
 
 /// Guards the goal route's persistence rules — above all that suggesting it is IDEMPOTENT.
 @MainActor

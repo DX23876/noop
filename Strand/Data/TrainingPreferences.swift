@@ -100,8 +100,7 @@ enum TrainingPreferences {
     /// the goal overrides them. Empty = no fixed rest days.
     static let restWeekdaysKey = "training.restWeekdays"
     static var restWeekdays: [Int] {
-        let raw = UserDefaults.standard.array(forKey: restWeekdaysKey) as? [Int] ?? []
-        return Array(Set(raw.filter { (1...7).contains($0) })).sorted()
+        GoalPrefs.restWeekdays
     }
     static func setRestWeekdays(_ days: [Int]) {
         UserDefaults.standard.set(Array(Set(days.filter { (1...7).contains($0) })).sorted(),

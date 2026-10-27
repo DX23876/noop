@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(Combine)
+import Combine
+#endif
 import StrandAnalytics
 
 /// The user's training goal, as a REAL goal rather than a sentence.
@@ -464,7 +467,7 @@ struct CoachGoal: Codable, Identifiable, Equatable {
 @MainActor
 final class CoachGoalStore: ObservableObject {
 
-    static let shared = CoachGoalStore()
+    static var shared = CoachGoalStore()
 
     /// Upper bound on simultaneously ACTIVE (active/paused) goals. `CoachGoal.Kind` has 8 cases, so the
     /// one-per-kind rule alone would allow more than this — the real ceiling is this ceiling, not the kind
@@ -474,7 +477,7 @@ final class CoachGoalStore: ObservableObject {
 
     @Published var goals: [CoachGoal] = [] { didSet { save() } }
 
-    private let d: UserDefaults
+    private let d: any GoalPreferenceStorage
     static let goalsKey = "ai.goals"
     /// The OLD singular-goal key, from before multiple goals existed. Read once for migration into
     /// `goals` as a one-element array, then left alone (never deleted, so downgrading to an older build
@@ -484,7 +487,7 @@ final class CoachGoalStore: ObservableObject {
     /// deleted, so downgrading to an older build doesn't lose the user's sentence).
     static let legacyGoalKey = "ai.trainingGoal"
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: any GoalPreferenceStorage = GoalPreferences.standard) {
         self.d = defaults
         if let data = defaults.data(forKey: Self.goalsKey),
            let decoded = try? JSONDecoder().decode([CoachGoal].self, from: data) {
@@ -514,7 +517,7 @@ final class CoachGoalStore: ObservableObject {
     /// One-time migration: a user already on the single-goal model keeps their one goal, seeded as a
     /// one-element array. Takes priority over `migrateLegacy` below — a real structured goal beats the
     /// pre-structured free-text fallback.
-    private static func migrateSingular(defaults: UserDefaults) -> CoachGoal? {
+    private static func migrateSingular(defaults: any GoalPreferenceStorage) -> CoachGoal? {
         guard let data = defaults.data(forKey: legacySingularGoalKey),
               let decoded = try? JSONDecoder().decode(CoachGoal.self, from: data) else { return nil }
         return decoded
@@ -523,7 +526,7 @@ final class CoachGoalStore: ObservableObject {
     /// One-time migration: a user who typed "Half marathon in October" into the old free-text field
     /// keeps it, as a `.custom` goal's title. We deliberately do NOT try to parse a date out of the
     /// sentence — guessing wrong would be worse than leaving `targetDate` nil and letting them set it.
-    private static func migrateLegacy(defaults: UserDefaults) -> CoachGoal? {
+    private static func migrateLegacy(defaults: any GoalPreferenceStorage) -> CoachGoal? {
         let legacy = (defaults.string(forKey: legacyGoalKey) ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         guard !legacy.isEmpty else { return nil }
@@ -763,8 +766,9 @@ final class CoachGoalStore: ObservableObject {
     /// A train-regularly goal reads its weeks from a weekly goal, so it gets one: an open weekly workouts
     /// goal without a sport filter that serves no other goal is adopted, otherwise one is created with the
     /// goal's sessions a week. Without room for it the goal is left for a later run.
-    func assignTemplatesToLegacyGoals(periodStore: PeriodGoalStore = .shared, today: String,
+    func assignTemplatesToLegacyGoals(periodStore: PeriodGoalStore? = nil, today: String,
                                       now: Date = Date()) {
+        let periodStore = periodStore ?? .shared
         var updated = goals
         var changed = false
         for index in updated.indices {

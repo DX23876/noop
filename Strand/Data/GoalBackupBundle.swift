@@ -21,17 +21,18 @@ enum GoalBackupBundle {
                             "training.restWeekdays", "momentum.stepGoal"]
 
     /// Every key that belongs to the goals system: the explicit stores plus anything under `goals.`.
-    static func keys(in defaults: UserDefaults) -> [String] {
+    static func keys(in defaults: any GoalPreferenceStorage) -> [String] {
         let fixed = fixedKeys
         let prefixed = defaults.dictionaryRepresentation().keys.filter { $0.hasPrefix("goals.") && $0 != settingsKey }
         return Array(Set(fixed + prefixed)).sorted()
     }
 
     /// The bundle as a JSON string, or nil when no goal state exists yet.
-    static func encode(from defaults: UserDefaults) -> String? {
+    static func encode(from defaults: any GoalPreferenceStorage) -> String? {
         var entries: [String: String] = [:]
-        for key in keys(in: defaults) {
-            guard let value = defaults.object(forKey: key),
+        let snapshot = GoalPreferenceImage(defaults.dictionaryRepresentation())
+        for key in keys(in: snapshot) {
+            guard let value = snapshot.object(forKey: key),
                   let data = try? PropertyListSerialization.data(fromPropertyList: [value], format: .binary,
                                                                  options: 0)
             else { continue }
@@ -46,7 +47,7 @@ enum GoalBackupBundle {
     /// Writes the bundle's values back. A malformed bundle or a single unreadable entry restores fewer
     /// values, never fails the restore. Returns the number of values written.
     @discardableResult
-    static func apply(_ bundle: String, to defaults: UserDefaults) -> Int {
+    static func apply(_ bundle: String, to defaults: any GoalPreferenceStorage) -> Int {
         guard let data = bundle.data(using: .utf8),
               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let entries = object["entries"] as? [String: String] else { return 0 }

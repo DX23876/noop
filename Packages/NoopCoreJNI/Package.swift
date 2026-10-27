@@ -36,6 +36,6 @@ let package = Package(
             .product(name: "StrandAnalytics", package: "StrandAnalytics"),
             .product(name: "StrandTraining", package: "StrandTraining"),
             .product(name: "WhoopProtocol", package: "WhoopProtocol")],
-            resources: [.copy("Fixtures")]),
+            resources: [.copy("Fixtures")], swiftSettings: [.define("NOOP_CORE_TESTS")]),
     ]
 )
