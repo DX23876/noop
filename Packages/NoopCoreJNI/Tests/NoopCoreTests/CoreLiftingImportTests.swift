@@ -16,8 +16,20 @@ final class CoreLiftingImportTests: XCTestCase {
             String(data: try JSONSerialization.data(withJSONObject: ["data": Data(contents.utf8).base64EncodedString(), "timeZone": zone]), encoding: .utf8)!
         }
         let output = await CoreCall.run("training.importLifting", try args(csv))
-        let document = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(output.utf8)) as? [String: Int])
-        XCTAssertEqual(document, ["sessions": 1, "skipped": 0])
+        let document = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(output.utf8)) as? [String: Any])
+        XCTAssertEqual(document["sessions"] as? Int, 1)
+        XCTAssertEqual(document["skipped"] as? Int, 0)
+        let projection = try XCTUnwrap(document["workouts"] as? [[String: Any]])
+        XCTAssertEqual(projection.count, 1)
+        XCTAssertEqual(projection[0]["source"] as? String, "lifting")
+        var root = URL(fileURLWithPath: #filePath)
+        for _ in 0..<5 { root.deleteLastPathComponent() }
+        let fixture = root.appendingPathComponent("android/app/src/test/resources/training/lifting-import.json")
+        if ProcessInfo.processInfo.environment["NOOP_UPDATE_TRAINING_FIXTURES"] == "1" {
+            try Data(output.utf8).write(to: fixture)
+        }
+        let pinned = try JSONSerialization.jsonObject(with: Data(contentsOf: fixture)) as? NSDictionary
+        XCTAssertEqual(document as NSDictionary, pinned)
         let store = try XCTUnwrap(ShadowSession.storeAndPath?.0)
         let workouts = try await store.strengthWorkouts(from: 0, to: Int.max)
         XCTAssertEqual(workouts.count, 1)

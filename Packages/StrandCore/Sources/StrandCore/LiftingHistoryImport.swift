@@ -40,7 +40,12 @@ public enum LiftingHistoryImport {
                                startTs: start, endTs: end, updatedAtTs: start,
                                createdAtTs: start, exercises: exercises, source: session.source)
         }
-        let rows = result.sessions.map { s in
+        try await store.upsertLiftingHistory(detailed, rows: workoutRows(result))
+    }
+
+    /// The compatibility projection used while classic Android screens still read Room.
+    public static func workoutRows(_ result: LiftingImportResult) -> [WorkoutRow] {
+        result.sessions.map { s in
             WorkoutRow(
                 startTs: Int(s.start.timeIntervalSince1970),
                 endTs: Int(s.end.timeIntervalSince1970),
@@ -56,7 +61,6 @@ public enum LiftingHistoryImport {
                 notes: s.volumeLoadNote(), steps: nil
             )
         }
-        try await store.upsertLiftingHistory(detailed, rows: rows)
     }
 
     private static func normalizedExerciseTitle(_ title: String) -> String {

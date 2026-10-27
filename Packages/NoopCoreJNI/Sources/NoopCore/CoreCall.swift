@@ -108,7 +108,12 @@ public enum CoreCall {
             }
             do {
                 let imported = try await LiftingHistoryImport.run(data: data, store: store, zone: zone)
-                return CoreRead.json(["sessions": imported.sessionCount, "skipped": imported.skipped])
+                struct ImportResult: Encodable {
+                    let sessions: Int, skipped: Int
+                    let workouts: [WorkoutRow]
+                }
+                return CoreRead.json(ImportResult(sessions: imported.sessionCount, skipped: imported.skipped,
+                    workouts: LiftingHistoryImport.workoutRows(imported)))
             } catch LiftingHistoryImport.ImportError.noWorkouts {
                 return #"{"error":"noWorkouts"}"#
             } catch { return #"{"error":"importFailed"}"# }
