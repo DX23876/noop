@@ -16,26 +16,9 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
- * Imports strength-training history from a lifting tracker into the local Room store, as one
- * "Strength Training" [WorkoutRow] per workout (source "lifting").
- *
- * Kotlin mirror of the macOS/iOS source of truth
- *   Packages/StrandImport/Sources/StrandImport/LiftingImporter.swift
- * so the same formats, the same volume-load arithmetic and the same honest labelling apply on
- * every platform:
- *
- *   • Hevy CSV export        — one row per set; grouped into a session by (title + start_time).
- *   • Hevy Web API response  — `GET /v1/workouts`, already grouped into `workouts[]
- *                              .exercises[].sets[]`. Parsing only ([parseHevyAPI]); no client yet.
- *   • Liftosaur JSON export  — a `history` array of records with `startTime`/`endTime` (ms) and
- *                              nested `entries[].sets[]`.
- *
- * The headline figure is a TRANSPARENT volume load — Σ(weight × reps) across the working sets —
- * surfaced as a training-VOLUME estimate, never a measured cardiovascular strain: the rows carry no
- * `strain`, so imported lifting never feeds the HR-based Effort score. Weights normalise to
- * kilograms (Hevy `weight_kg` is kg; lb columns and Liftosaur's `lb` unit convert). Tolerant
- * throughout: a malformed set / record is skipped and counted, never fatal. Parsing is pure
- * ([parseHevy] / [parseHevyAPI] / [parseLiftosaur]) so it is JVM unit-testable (LiftingImporterTest).
+ * Compatibility entry point for the classic Data Sources host. Production imports use the shared
+ * Swift parser and store through CoreLiftingImport; the legacy pure parsers remain for existing
+ * callers and fixtures until the classic data layer is retired (parity plan 1.3).
  */
 object LiftingImporter {
 
@@ -49,9 +32,6 @@ object LiftingImporter {
 
     /** Pounds → kilograms (exact avoirdupois definition). */
     internal const val LB_TO_KG = 0.45359237
-
-    /** Input ceiling — a lifting export is small; 64 MB is already generous. */
-    private const val MAX_BYTES = 64L shl 20
 
     enum class Format { HEVY_CSV, LIFTOSAUR_JSON }
 
@@ -94,69 +74,19 @@ object LiftingImporter {
 
     // MARK: - Public entry point (UI calls this)
 
-    /**
-     * Read the SAF [uri], auto-detect Hevy CSV vs Liftosaur JSON, parse it, upsert one workout per
-     * session under [deviceId] (defaults to "lifting"), and return an [ImportSummary].
-     */
+    /** Import a SAF export into the shared core, without creating a second Room summary. */
+    @Suppress("UNUSED_PARAMETER") // Kept for classic host callers; writes now go only to the shared core.
     suspend fun importExport(
         context: Context,
         uri: Uri,
         repo: WhoopRepository,
         deviceId: String = SOURCE_ID,
     ): ImportSummary {
-        val bytes: ByteArray = try {
-            context.contentResolver.openInputStream(uri)?.use { it.readCapped(MAX_BYTES) }
-                ?: return ImportSummary.failure(SOURCE_LABEL, "Could not open the selected file.")
-        } catch (e: Exception) {
-            return ImportSummary.failure(SOURCE_LABEL, "Could not read the file: ${e.message ?: "unknown error"}")
-        }
-
-        val result = parse(bytes)
-        if (result.sessions.isEmpty()) {
-            return ImportSummary.failure(
-                SOURCE_LABEL,
-                "No workouts found - point at a Hevy CSV export or a Liftosaur JSON export.",
-            )
-        }
-
-        val rows = result.sessions.map { s ->
-            WorkoutRow(
-                deviceId = deviceId,
-                startTs = s.startTs,
-                endTs = s.endTs,
-                sport = SPORT,
-                source = SOURCE_ID,
-                durationS = s.durationS,
-                energyKcal = null,
-                avgHr = null,
-                maxHr = null,
-                strain = null,             // never a fabricated cardiovascular strain
-                distanceM = null,
-                zonesJSON = null,
-                notes = s.volumeLoadNote(),
-            )
-        }
-
-        repo.upsertDevice(deviceId, name = "Lifting log")
-        repo.upsertWorkouts(rows)
-
-        val totalVolume = result.sessions.sumOf { it.volumeLoadKg }
-        return ImportSummary(
-            source = SOURCE_LABEL,
-            counts = linkedMapOf("workouts" to rows.size),
-            firstDay = result.firstDay,
-            lastDay = result.lastDay,
-            message = buildString {
-                append("Imported ${rows.size} workout")
-                if (rows.size != 1) append("s")
-                if (totalVolume > 0) append(" (${groupedKg(totalVolume)} kg total volume)")
-                if (result.firstDay != null && result.lastDay != null && result.firstDay != result.lastDay) {
-                    append(" from ${result.firstDay} to ${result.lastDay}")
-                }
-                if (result.skipped > 0) append(", ${result.skipped} skipped")
-                append(".")
-            },
-        )
+        val result = com.noop.core.CoreLiftingImport.read(context, uri)
+        return if (result.error == null) ImportSummary(
+            source = SOURCE_LABEL, counts = mapOf("workouts" to result.sessions),
+            message = context.getString(com.noop.R.string.forge_lifting_success, result.sessions, result.skipped),
+        ) else ImportSummary.failure(SOURCE_LABEL, context.getString(com.noop.R.string.forge_lifting_failed))
     }
 
     // MARK: - Detection + dispatch

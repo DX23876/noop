@@ -126,6 +126,7 @@ private sealed interface TrainingPage {
     data object Strength : TrainingPage
     data object Cardio : TrainingPage
     data object History : TrainingPage
+    data object Import : TrainingPage
     data object Library : TrainingPage
 }
 
@@ -288,6 +289,8 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
                             Icons.Rounded.History) { page = TrainingPage.History }
                 AnalysisRow(stringResource(R.string.forge_library_title), stringResource(R.string.forge_library_subtitle),
                             Icons.Rounded.Search) { page = TrainingPage.Library }
+                AnalysisRow(stringResource(R.string.forge_lifting_title), stringResource(R.string.forge_lifting_detail),
+                            Icons.Rounded.Add) { page = TrainingPage.Import }
                 AnalysisRow(stringResource(R.string.forge_th_load_title), stringResource(R.string.forge_th_load_detail),
                             Icons.Rounded.Speed) { page = TrainingPage.Load }
             }
@@ -309,6 +312,7 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
                     TrainingPage.Load -> ForgeTrainingLoadPage(onClose = close)
                     TrainingPage.Strength -> ForgeStrengthPage(onClose = close)
                     TrainingPage.Cardio -> ForgeCardioPage(onClose = close)
+                    TrainingPage.Import -> ForgeLiftingImport(onClose = close)
                     TrainingPage.History -> ForgeTrainingHistoryPage(onClose = close)
                     TrainingPage.Library -> ForgeExerciseLibrary(onClose = close, onAdded = {
                         scope.launch {

@@ -3541,4 +3541,10 @@
     <string name="forge_session_what">Что ты сделал</string>
     <string name="forge_session_whole_rpe">RPE всей тренировки</string>
     <string name="forge_session_zone_note">Время в настроенных пульсовых зонах, рассчитанное по записанным измерениям.</string>
+    <string name="forge_lifting_title">Импорт силовых тренировок</string>
+    <string name="forge_lifting_detail">CSV Hevy или JSON Liftosaur с упражнениями и подходами.</string>
+    <string name="forge_lifting_privacy">Файл остаётся на устройстве. Время без часового пояса использует пояс устройства. Повторный импорт обновляет тренировки.</string>
+    <string name="forge_lifting_choose">Выбрать экспорт</string>
+    <string name="forge_lifting_success">Импортировано тренировок: %1$d · пропущено: %2$d</string>
+    <string name="forge_lifting_failed">Ошибка импорта. Выберите корректный CSV Hevy или JSON Liftosaur размером менее 64 МБ.</string>
 </resources>

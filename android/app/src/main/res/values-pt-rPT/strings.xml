@@ -3638,4 +3638,10 @@
     <string name="forge_session_what">O que fizeste</string>
     <string name="forge_session_whole_rpe">RPE da sessão completa</string>
     <string name="forge_session_zone_note">Tempo nas zonas de frequência cardíaca configuradas, calculado com as medições registadas.</string>
+    <string name="forge_lifting_title">Importar treinos de força</string>
+    <string name="forge_lifting_detail">CSV do Hevy ou JSON do Liftosaur, com exercícios e séries.</string>
+    <string name="forge_lifting_privacy">O ficheiro fica neste dispositivo. As horas sem fuso usam o fuso do dispositivo. Uma nova importação atualiza as sessões.</string>
+    <string name="forge_lifting_choose">Escolher exportação</string>
+    <string name="forge_lifting_success">%1$d treinos importados · %2$d ignorados</string>
+    <string name="forge_lifting_failed">Falha na importação. Escolhe um CSV do Hevy ou JSON do Liftosaur válido com menos de 64 MB.</string>
 </resources>

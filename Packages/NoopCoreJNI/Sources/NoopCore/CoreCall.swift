@@ -100,6 +100,18 @@ public enum CoreCall {
         case "training.importCatalog":
             let count = await CoreTrainingLibrary.importCatalog(store: store, json: string("archive"))
             return count.map { CoreRead.json(["count": $0]) } ?? #"{"error":"catalogNotImported"}"#
+        case "training.importLifting":
+            guard string("data").utf8.count <= (LiftingHistoryImport.maximumBytes + 2) / 3 * 4,
+                  let zone = TimeZone(identifier: string("timeZone")),
+                  let data = Data(base64Encoded: string("data")), data.count <= LiftingHistoryImport.maximumBytes else {
+                return #"{"error":"invalidImport"}"#
+            }
+            do {
+                let imported = try await LiftingHistoryImport.run(data: data, store: store, zone: zone)
+                return CoreRead.json(["sessions": imported.sessionCount, "skipped": imported.skipped])
+            } catch LiftingHistoryImport.ImportError.noWorkouts {
+                return #"{"error":"noWorkouts"}"#
+            } catch { return #"{"error":"importFailed"}"# }
         case "training.starters": return CoreRead.json(await CoreTraining.starters(store: store))
         case "training.addStarter": return ok(await CoreTraining.addStarter(store: store, index: int("index", -1)))
         case "training.setSchedule":

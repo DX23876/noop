@@ -49,58 +49,68 @@ extension WhoopStore {
     @discardableResult
     public func upsertStrengthWorkouts(_ workouts: [HevyWorkout]) async throws -> [Int] {
         guard !workouts.isEmpty else { return [] }
-        let batchIds = Set(workouts.map(\.id))
-        return try syncWrite { db in
-            var touched: [Int] = []
-            for w in workouts {
-                if Self.fileExportSources.contains(w.source) {
-                    let sameStart = try String.fetchAll(db, sql: """
-                        SELECT id FROM hevyWorkout WHERE source = ? AND startTs = ?
-                        """, arguments: [w.source.rawValue, w.startTs])
-                    for stale in sameStart where !batchIds.contains(stale) {
-                        // Exercises and sets go with it by cascade.
-                        try db.execute(sql: "DELETE FROM hevyWorkout WHERE id = ?", arguments: [stale])
-                    }
-                }
-                try db.execute(sql: """
-                    INSERT INTO hevyWorkout
-                        (id, title, routineId, notes, startTs, endTs, updatedAtTs, createdAtTs, source)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(id) DO UPDATE SET
-                        title = excluded.title, routineId = excluded.routineId, notes = excluded.notes,
-                        startTs = excluded.startTs, endTs = excluded.endTs,
-                        updatedAtTs = excluded.updatedAtTs, createdAtTs = excluded.createdAtTs,
-                        source = excluded.source
-                    """, arguments: [w.id, w.title, w.routineId, w.notes,
-                                     w.startTs, w.endTs, w.updatedAtTs, w.createdAtTs,
-                                     w.source.rawValue])
+        return try syncWrite { db in try Self.writeStrengthWorkouts(workouts, in: db) }
+    }
 
-                // Rewrite the children wholesale. An edit that DROPS an exercise or a set has no
-                // upsert that would remove the stale row, and a leftover set would keep counting
-                // toward weekly volume forever.
-                try db.execute(sql: "DELETE FROM hevyExercise WHERE workoutId = ?", arguments: [w.id])
-                try db.execute(sql: "DELETE FROM hevySet WHERE workoutId = ?", arguments: [w.id])
-
-                for e in w.exercises {
-                    try db.execute(sql: """
-                        INSERT INTO hevyExercise (workoutId, idx, title, templateId, supersetId, notes)
-                        VALUES (?, ?, ?, ?, ?, ?)
-                        """, arguments: [w.id, e.index, e.title, e.templateId, e.supersetId, e.notes])
-                    for s in e.sets {
-                        try db.execute(sql: """
-                            INSERT INTO hevySet
-                                (workoutId, exerciseIdx, idx, type, weightKg, reps,
-                                 distanceM, durationS, rpe, customMetric)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                            """, arguments: [w.id, e.index, s.index, s.type.rawValue,
-                                             s.weightKg, s.reps, s.distanceM, s.durationS,
-                                             s.rpe, s.customMetric])
-                    }
-                }
-                touched.append(w.startTs)
-            }
-            return touched
+    /// Atomically bank a full offline import and its workout-list projection.
+    public func upsertLiftingHistory(_ workouts: [HevyWorkout], rows: [WorkoutRow]) async throws {
+        try syncWrite { db in
+            _ = try Self.writeStrengthWorkouts(workouts, in: db)
+            for row in rows { try Self.writeWorkout(row, deviceId: "lifting", in: db) }
         }
+    }
+
+    private static func writeStrengthWorkouts(_ workouts: [HevyWorkout], in db: Database) throws -> [Int] {
+        let batchIds = Set(workouts.map(\.id))
+        var touched: [Int] = []
+        for w in workouts {
+            if Self.fileExportSources.contains(w.source) {
+                let sameStart = try String.fetchAll(db, sql: """
+                    SELECT id FROM hevyWorkout WHERE source = ? AND startTs = ?
+                    """, arguments: [w.source.rawValue, w.startTs])
+                for stale in sameStart where !batchIds.contains(stale) {
+                    // Exercises and sets go with it by cascade.
+                    try db.execute(sql: "DELETE FROM hevyWorkout WHERE id = ?", arguments: [stale])
+                }
+            }
+            try db.execute(sql: """
+                INSERT INTO hevyWorkout
+                    (id, title, routineId, notes, startTs, endTs, updatedAtTs, createdAtTs, source)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    title = excluded.title, routineId = excluded.routineId, notes = excluded.notes,
+                    startTs = excluded.startTs, endTs = excluded.endTs,
+                    updatedAtTs = excluded.updatedAtTs, createdAtTs = excluded.createdAtTs,
+                    source = excluded.source
+                """, arguments: [w.id, w.title, w.routineId, w.notes,
+                                 w.startTs, w.endTs, w.updatedAtTs, w.createdAtTs,
+                                 w.source.rawValue])
+
+            // Rewrite the children wholesale. An edit that DROPS an exercise or a set has no
+            // upsert that would remove the stale row, and a leftover set would keep counting
+            // toward weekly volume forever.
+            try db.execute(sql: "DELETE FROM hevyExercise WHERE workoutId = ?", arguments: [w.id])
+            try db.execute(sql: "DELETE FROM hevySet WHERE workoutId = ?", arguments: [w.id])
+
+            for e in w.exercises {
+                try db.execute(sql: """
+                    INSERT INTO hevyExercise (workoutId, idx, title, templateId, supersetId, notes)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """, arguments: [w.id, e.index, e.title, e.templateId, e.supersetId, e.notes])
+                for s in e.sets {
+                    try db.execute(sql: """
+                        INSERT INTO hevySet
+                            (workoutId, exerciseIdx, idx, type, weightKg, reps,
+                             distanceM, durationS, rpe, customMetric)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """, arguments: [w.id, e.index, s.index, s.type.rawValue,
+                                         s.weightKg, s.reps, s.distanceM, s.durationS,
+                                         s.rpe, s.customMetric])
+                }
+            }
+            touched.append(w.startTs)
+        }
+        return touched
     }
 
     /// Delete workouts by Hevy id (a `deleted` event). Exercises and sets go with them by cascade.

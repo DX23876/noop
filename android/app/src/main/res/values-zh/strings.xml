@@ -3616,4 +3616,10 @@
     <string name="forge_session_what">你做了什么</string>
     <string name="forge_session_whole_rpe">整场 RPE</string>
     <string name="forge_session_zone_note">根据已记录的测量值，计算在所设心率区间内的时间。</string>
+    <string name="forge_lifting_title">导入力量训练</string>
+    <string name="forge_lifting_detail">Hevy CSV 或 Liftosaur JSON，包含动作和组数。</string>
+    <string name="forge_lifting_privacy">文件保留在此设备上。没有时区的时间使用设备时区。重新导入同一文件会更新训练。</string>
+    <string name="forge_lifting_choose">选择导出文件</string>
+    <string name="forge_lifting_success">已导入 %1$d 次训练 · 已跳过 %2$d 项</string>
+    <string name="forge_lifting_failed">导入失败。请选择小于 64 MB 的有效 Hevy CSV 或 Liftosaur JSON 导出文件。</string>
 </resources>

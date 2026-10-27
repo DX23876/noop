@@ -33,6 +33,27 @@ final class HevyStoreTests: XCTestCase {
             ])
     }
 
+    func testOfflineImportRollsBackTranscriptWhenSummaryCannotBeWritten() async throws {
+        let store = try await WhoopStore.inMemory()
+        let original = workout()
+        _ = try await store.upsertStrengthWorkouts([original])
+        try await store.syncWrite { db in
+            try db.execute(sql: "CREATE TRIGGER rejectLiftingSummary BEFORE INSERT ON workout BEGIN SELECT RAISE(ABORT, 'forced failure'); END")
+        }
+        let changed = workout(exercises: [])
+        let row = WorkoutRow(startTs: original.startTs, endTs: original.endTs,
+            sport: "Strength Training", source: "lifting", durationS: 3600, energyKcal: nil,
+            avgHr: nil, maxHr: nil, strain: nil, distanceM: nil, zonesJSON: nil, notes: nil, steps: nil)
+        do {
+            try await store.upsertLiftingHistory([changed], rows: [row])
+            XCTFail("the forced summary failure must reject the whole import")
+        } catch {}
+        let stored = try await store.strengthWorkouts(from: 0, to: Int.max)
+        XCTAssertEqual(stored, [original], "a failed summary must not erase the original sets")
+        let rows = try await store.workouts(deviceId: "lifting", from: 0, to: Int.max, limit: 100)
+        XCTAssertTrue(rows.isEmpty)
+    }
+
     // MARK: - Schema
 
     func testV54CreatesTheStrengthTables() async throws {

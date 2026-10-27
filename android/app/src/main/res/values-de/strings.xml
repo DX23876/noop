@@ -3659,4 +3659,10 @@
     <string name="forge_session_what">Was du gemacht hast</string>
     <string name="forge_session_whole_rpe">RPE der gesamten Einheit</string>
     <string name="forge_session_zone_note">Zeit in deinen eingestellten Herzfrequenzzonen, berechnet aus aufgezeichneten Messungen.</string>
+    <string name="forge_lifting_title">Krafttraining importieren</string>
+    <string name="forge_lifting_detail">Hevy-CSV oder Liftosaur-JSON mit Übungen und Sätzen.</string>
+    <string name="forge_lifting_privacy">Deine Datei bleibt auf diesem Gerät. Zeiten ohne Zeitzone verwenden die Gerätezeitzone. Ein erneuter Import aktualisiert die Einheiten.</string>
+    <string name="forge_lifting_choose">Export auswählen</string>
+    <string name="forge_lifting_success">%1$d Trainings importiert · %2$d übersprungen</string>
+    <string name="forge_lifting_failed">Import fehlgeschlagen. Wähle einen gültigen Hevy-CSV- oder Liftosaur-JSON-Export unter 64 MB.</string>
 </resources>

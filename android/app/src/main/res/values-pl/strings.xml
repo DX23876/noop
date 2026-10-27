@@ -3662,4 +3662,10 @@
     <string name="forge_session_what">Co zrobiłeś</string>
     <string name="forge_session_whole_rpe">RPE całej sesji</string>
     <string name="forge_session_zone_note">Czas w ustawionych strefach tętna, obliczony z zapisanych pomiarów.</string>
+    <string name="forge_lifting_title">Importuj treningi siłowe</string>
+    <string name="forge_lifting_detail">CSV Hevy lub JSON Liftosaur z ćwiczeniami i seriami.</string>
+    <string name="forge_lifting_privacy">Plik pozostaje na tym urządzeniu. Godziny bez strefy używają strefy urządzenia. Ponowny import aktualizuje sesje.</string>
+    <string name="forge_lifting_choose">Wybierz eksport</string>
+    <string name="forge_lifting_success">Zaimportowano %1$d treningów · pominięto %2$d</string>
+    <string name="forge_lifting_failed">Import nie powiódł się. Wybierz prawidłowy eksport CSV Hevy lub JSON Liftosaur mniejszy niż 64 MB.</string>
 </resources>

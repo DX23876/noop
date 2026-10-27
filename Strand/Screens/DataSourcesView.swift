@@ -3,6 +3,7 @@ import UniformTypeIdentifiers
 import StrandDesign
 import StrandImport
 import StrandAnalytics
+import StrandCore
 import WhoopStore
 import WhoopProtocol   // #137: Streams / HRSample, to persist an imported activity's per-sample HR
 
@@ -530,6 +531,7 @@ struct DataSourcesView: View {
             defer { if scoped { url.stopAccessingSecurityScopedResource() } }
             do {
                 let data = try Data(contentsOf: url)
+                guard data.count <= LiftingHistoryImport.maximumBytes else { throw LiftingHistoryImport.ImportError.tooLarge }
                 let result = LiftingImporter.parse(data: data)
                 guard result.sessionCount > 0 else {
                     liftingSummary = String(localized: "No workouts found. Point at a Hevy CSV export or a Liftosaur JSON export.")
@@ -544,45 +546,7 @@ struct DataSourcesView: View {
                     liftingImporting = false
                     return
                 }
-                let catalogue = (try? await store.hevyExerciseTemplates()) ?? [:]
-                let catalogueByTitle = Dictionary(
-                    catalogue.values.map { (Self.normalizedExerciseTitle($0.title), $0.id) },
-                    uniquingKeysWith: { first, _ in first })
-                let detailed = result.sessions.map { session -> HevyWorkout in
-                    let start = Int(session.start.timeIntervalSince1970)
-                    let end = max(start, Int(session.end.timeIntervalSince1970))
-                    let sourcePrefix = session.source.rawValue
-                    let normalizedTitle = Self.normalizedExerciseTitle(session.title ?? "workout")
-                    let exercises = session.exercises.map { exercise in
-                        HevyExercise(index: exercise.index, title: exercise.title,
-                                     templateId: catalogueByTitle[Self.normalizedExerciseTitle(exercise.title)],
-                                     supersetId: exercise.supersetId, notes: exercise.notes,
-                                     sets: exercise.sets)
-                    }
-                    return HevyWorkout(id: "\(sourcePrefix):\(start):\(normalizedTitle)",
-                                       title: session.title?.isEmpty == false ? session.title! : LiftingImporter.sport,
-                                       routineId: nil, notes: session.volumeLoadNote(),
-                                       startTs: start, endTs: end, updatedAtTs: start,
-                                       createdAtTs: start, exercises: exercises, source: session.source)
-                }
-                try await store.upsertStrengthWorkouts(detailed)
-                let rows = result.sessions.map { s in
-                    WorkoutRow(
-                        startTs: Int(s.start.timeIntervalSince1970),
-                        endTs: Int(s.end.timeIntervalSince1970),
-                        sport: LiftingImporter.sport,
-                        source: LiftingImporter.sourceId,
-                        durationS: s.durationS,
-                        energyKcal: nil,
-                        avgHr: nil,
-                        maxHr: nil,
-                        strain: nil,                 // never a fabricated cardiovascular strain
-                        distanceM: nil,
-                        zonesJSON: nil,
-                        notes: s.volumeLoadNote(), steps: nil
-                    )
-                }
-                try await store.upsertWorkouts(rows, deviceId: LiftingImporter.sourceId)
+                try await LiftingHistoryImport.save(result, store: store)
                 await repo.refresh()
                 let totalVolume = result.sessions.reduce(0.0) { $0 + $1.volumeLoadKg }
                 // Whole-phrase variants per count so translators never see a stitched plural.
@@ -608,13 +572,6 @@ struct DataSourcesView: View {
             }
             liftingImporting = false
         }
-    }
-
-    private static func normalizedExerciseTitle(_ title: String) -> String {
-        title.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
-            .components(separatedBy: CharacterSet.alphanumerics.inverted)
-            .filter { !$0.isEmpty }
-            .joined(separator: " ")
     }
 
     /// Parse a single GPX / TCX / FIT activity file and upsert it as one workout (source

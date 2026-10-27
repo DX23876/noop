@@ -3676,4 +3676,10 @@
     <string name="forge_session_what">What you did</string>
     <string name="forge_session_whole_rpe">Whole-session RPE</string>
     <string name="forge_session_zone_note">Time in your configured heart-rate zones, calculated from recorded samples.</string>
+    <string name="forge_lifting_title">Import lifting history</string>
+    <string name="forge_lifting_detail">Hevy CSV or Liftosaur JSON, including exercises and sets.</string>
+    <string name="forge_lifting_privacy">Your file stays on this device. Times without a time zone use the device time zone. Importing the same export again updates its sessions.</string>
+    <string name="forge_lifting_choose">Choose export</string>
+    <string name="forge_lifting_success">Imported %1$d workouts · %2$d skipped</string>
+    <string name="forge_lifting_failed">Import failed. Choose a valid Hevy CSV or Liftosaur JSON export under 64 MB.</string>
 </resources>
