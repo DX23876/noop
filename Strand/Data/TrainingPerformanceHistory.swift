@@ -102,7 +102,7 @@ struct TrainingPerformanceHistory: Sendable {
     func records(for exerciseId: String, mode: TrainingMeasurementMode) -> Records {
         let sessions = entries(for: exerciseId)
         let working = sessions.flatMap(\.workingSets)
-        let supportsWeight = mode == .weightReps || mode == .weightedBodyweight
+        let supportsWeight = mode == .weightReps || mode == .weightedBodyweight || mode == .weightDuration || mode == .distanceWeight
         return Records(
             sessionCount: sessions.count,
             bestEstimatedOneRepMaxKg: mode == .weightReps

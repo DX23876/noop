@@ -3707,4 +3707,11 @@
     <string name="forge_hevy_import_selected">Importuj wybrane</string>
     <string name="forge_hevy_cancelled">Anulowano</string>
     <string name="forge_hevy_verifying">Sprawdzamy klucz z Hevy…</string>
+    <string name="forge_library_mode_weight_duration">Ciężar i czas</string>
+    <string name="forge_library_mode_distance_weight">Ciężar i dystans</string>
+    <string name="forge_library_available_equipment">Dostępny sprzęt</string>
+    <string name="forge_library_my_equipment">Mój sprzęt</string>
+    <string name="forge_library_choose_muscle">Wybierz mięsień, aby zobaczyć ćwiczenia, które go angażują.</string>
+    <string name="forge_library_equipment_help">Wybierz cały posiadany sprzęt. Masa ciała jest zawsze dostępna. Pusty wybór wyłącza ten filtr.</string>
+    <string name="forge_hevy_get_key">Pobierz klucz API</string>
 </resources>

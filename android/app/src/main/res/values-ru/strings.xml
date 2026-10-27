@@ -3586,4 +3586,11 @@
     <string name="forge_hevy_import_selected">Импортировать выбранное</string>
     <string name="forge_hevy_cancelled">Отменено</string>
     <string name="forge_hevy_verifying">Проверка ключа с использованием Hevy…</string>
+    <string name="forge_library_mode_weight_duration">Вес и длительность</string>
+    <string name="forge_library_mode_distance_weight">Вес и расстояние</string>
+    <string name="forge_library_available_equipment">Доступное оборудование</string>
+    <string name="forge_library_my_equipment">Моё оборудование</string>
+    <string name="forge_library_choose_muscle">Выберите мышцу, чтобы увидеть упражнения для неё.</string>
+    <string name="forge_library_equipment_help">Выберите всё своё оборудование. Вес тела всегда доступен. Пустой выбор отключает этот фильтр.</string>
+    <string name="forge_hevy_get_key">Получить ключ API</string>
 </resources>

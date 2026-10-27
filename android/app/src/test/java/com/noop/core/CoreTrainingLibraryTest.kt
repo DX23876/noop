@@ -59,7 +59,9 @@ class CoreTrainingLibraryTest {
 
     @Test fun everyCoreMeasurementKindHasTheRightInputColumns() {
         val catalog = CoreTrainingLibrary.parseCatalog(fixture("library"))!!
-        assertEquals(setOf("weight_reps", "bodyweight_reps", "weighted_bodyweight", "assisted_bodyweight", "repetitions", "duration", "distance_duration"), catalog.modes.toSet())
+        assertEquals(setOf("weight_reps", "bodyweight_reps", "weighted_bodyweight", "assisted_bodyweight", "repetitions", "duration", "distance_duration", "weight_duration", "distance_weight"), catalog.modes.toSet())
+        assertEquals(listOf(TrainingSetInput.Weight, TrainingSetInput.Seconds), TrainingSetInput.columns("weight_duration", false))
+        assertEquals(listOf(TrainingSetInput.Weight, TrainingSetInput.Distance), TrainingSetInput.columns("distance_weight", false))
         assertEquals(listOf(TrainingSetInput.Seconds), TrainingSetInput.columns("duration", false))
         assertEquals(listOf(TrainingSetInput.Distance, TrainingSetInput.Seconds), TrainingSetInput.columns("distance_duration", false))
         for (mode in listOf("bodyweight_reps", "repetitions")) {

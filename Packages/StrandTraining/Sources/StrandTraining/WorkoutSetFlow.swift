@@ -85,6 +85,10 @@ extension NativeWorkoutEngine {
             return set.weightKg != nil && hasReps
         case .bodyweightReps, .repetitions:
             return hasReps
+        case .weightDuration:
+            return set.weightKg != nil && set.durationS != nil
+        case .distanceWeight:
+            return set.weightKg != nil && set.distanceM != nil
         case .duration:
             return set.durationS != nil
         case .distanceDuration:
@@ -98,7 +102,7 @@ extension NativeWorkoutEngine {
     /// without one, `workingSets` sets of 8 repetitions with the weight left EMPTY. An empty weight shows it
     /// has to be entered; 0 kg would look like a real number and be logged as one.
     public static func setsForAddedExercise(lastPerformance: [NativeWorkoutSet],
-                                            unilateral: Bool, workingSets: Int = 1) -> [NativeWorkoutSet] {
+                                            unilateral: Bool, workingSets: Int = 1, mode: TrainingMeasurementMode? = nil) -> [NativeWorkoutSet] {
         guard lastPerformance.isEmpty else {
             return lastPerformance.enumerated().map { index, prior in
                 NativeWorkoutSet(index: index, phase: prior.phase, weightKg: prior.weightKg,
@@ -107,7 +111,8 @@ extension NativeWorkoutEngine {
             }
         }
         return (0..<max(1, workingSets)).map { index in
-            unilateral ? NativeWorkoutSet(index: index, leftReps: 8, rightReps: 8)
+            if mode?.recordsRepetitions == false { return NativeWorkoutSet(index: index) }
+            return unilateral ? NativeWorkoutSet(index: index, leftReps: 8, rightReps: 8)
                        : NativeWorkoutSet(index: index, reps: 8)
         }
     }

@@ -100,8 +100,8 @@ struct ExerciseLibraryRow: View {
 
     static func modeIcon(_ mode: TrainingMeasurementMode) -> String {
         switch mode {
-        case .duration: return "timer"
-        case .distanceDuration: return "point.topleft.down.to.point.bottomright.curvepath"
+        case .duration, .weightDuration: return "timer"
+        case .distanceDuration, .distanceWeight: return "point.topleft.down.to.point.bottomright.curvepath"
         case .bodyweightReps, .repetitions: return "figure.strengthtraining.traditional"
         default: return "dumbbell.fill"
         }

@@ -9,12 +9,12 @@ internal data class ExerciseLibraryFilters(val query: String = "", val region: S
                                           val muscle: String? = null, val equipment: String? = null,
                                           val mode: String? = null, val favoritesOnly: Boolean = false) {
     fun apply(rows: List<CoreTrainingLibrary.Row>, favorites: Set<String>,
-              muscles: Map<String, String>, equipmentNames: Map<String, String>): List<CoreTrainingLibrary.Row> {
+              muscles: Map<String, String>, equipmentNames: Map<String, String>, availableIds: Set<String> = emptySet()): List<CoreTrainingLibrary.Row> {
         val needle = searchable(query.trim())
         return rows.filter { e ->
             (region == null || region == e.region) &&
                 (muscle == null || muscle in e.matchingMuscles) &&
-                (equipment == null || equipment in e.equipment) &&
+                (equipment == null || (equipment == "available" && e.id in availableIds) || equipment in e.equipment) &&
                 (mode == null || mode == e.mode) && (!favoritesOnly || e.id in favorites) &&
                 (needle.isEmpty() || (listOf(e.title) + e.aliases + e.matchingMuscles + e.equipment +
                     e.matchingMuscles.mapNotNull(muscles::get) + e.equipment.mapNotNull(equipmentNames::get))

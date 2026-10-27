@@ -1,5 +1,8 @@
 {
   "attribution" : "Exercise data: ExerciseDB v1 via hasaneyldrm\/exercises-dataset, MIT licence. Exercise media is not included and is not covered by that licence.",
+  "availableExerciseIds" : [
+    "user:56c21533-bbf2-4e22-8965-02b120073ac0"
+  ],
   "equipment" : [
     "ab-wheel",
     "band",
@@ -64,7 +67,9 @@
     "assisted_bodyweight",
     "repetitions",
     "duration",
-    "distance_duration"
+    "distance_duration",
+    "weight_duration",
+    "distance_weight"
   ],
   "muscles" : [
     "chest",

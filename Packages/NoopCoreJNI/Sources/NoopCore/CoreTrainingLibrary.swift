@@ -21,6 +21,7 @@ public enum CoreTrainingLibrary {
     public struct Catalog: Encodable {
         public var exercises: [Row], muscles: [String], equipment: [String], regions: [String], modes: [String]
         public var provider: String, licence: String, attribution: String?
+        public var availableExerciseIds: [String]
     }
 
     public struct Records: Encodable {
@@ -44,7 +45,7 @@ public enum CoreTrainingLibrary {
         public var unilateral: Bool, hasDraft: Bool, records: Records, recent: [Recent]
     }
 
-    public static func catalog(store: WhoopStore) async throws -> Catalog {
+    public static func catalog(store: WhoopStore, availableEquipment: Set<String> = []) async throws -> Catalog {
         await CoreTraining.prepare(store: store)
         let exercises = try await store.trainingExercises()
         let rows = exercises.map(Row.init)
@@ -53,7 +54,8 @@ public enum CoreTrainingLibrary {
             equipment: Array(Set(rows.flatMap(\.equipment)).union(TrainingEquipmentCatalog.known)).sorted(),
             regions: TrainingBodyRegion.allCases.filter { $0 != .other }.map(\.rawValue),
             modes: TrainingMeasurementMode.allCases.map(\.rawValue),
-            provider: rights.provider, licence: rights.licence, attribution: rights.attribution)
+            provider: rights.provider, licence: rights.licence, attribution: rights.attribution,
+            availableExerciseIds: exercises.filter { TrainingEquipmentCatalog.matches($0.equipmentIds, available: availableEquipment) }.map(\.id))
     }
 
     public static func detail(reader: StoreReader, id: String, dismissedWorkouts: [String],

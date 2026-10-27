@@ -10,13 +10,13 @@ object CoreTrainingLibrary {
                    val primary: List<String>, val secondary: List<String>, val equipment: List<String>, val matchingMuscles: List<String>)
     data class Catalog(val exercises: List<Row>, val muscles: List<String>, val equipment: List<String>,
                        val regions: List<String>, val modes: List<String>, val provider: String,
-                       val licence: String, val attribution: String?)
+                       val licence: String, val attribution: String?, val availableExerciseIds: List<String> = emptyList())
     data class Records(val sessions: Int, val heaviestKg: Double?, val estimatedOneRepMaxKg: Double?, val lastPerformedTs: Long?)
     data class Recent(val startTs: Long, val isNative: Boolean, val workingSets: Int, val heaviestKg: Double?)
     data class Detail(val exercise: Row, val instructions: List<String>, val attribution: String?,
                       val unilateral: Boolean, val hasDraft: Boolean, val records: Records, val recent: List<Recent>)
 
-    fun catalog(): Catalog? = call("training.library")?.let(::parseCatalog)
+    fun catalog(availableEquipment: List<String> = emptyList()): Catalog? = call("training.library", JSONObject().put("availableEquipment", JSONArray(availableEquipment)))?.let(::parseCatalog)
     fun detail(id: String, dismissedWorkouts: List<String>): Detail? = call("training.exerciseDetail",
         JSONObject().put("id", id).put("dismissedWorkouts", JSONArray(dismissedWorkouts)))?.let(::parseDetail)
     fun create(title: String, mode: String, primary: String, equipment: String, instruction: String, unilateral: Boolean): String? =
@@ -28,7 +28,7 @@ object CoreTrainingLibrary {
 
     internal fun parseCatalog(json: String): Catalog? = parse(json) { o -> Catalog(
         o.getJSONArray("exercises").objects().map(::row), o.strings("muscles"), o.strings("equipment"),
-        o.strings("regions"), o.strings("modes"), o.getString("provider"), o.getString("licence"), o.string("attribution")) }
+        o.strings("regions"), o.strings("modes"), o.getString("provider"), o.getString("licence"), o.string("attribution"), o.strings("availableExerciseIds")) }
     internal fun parseDetail(json: String): Detail? = parse(json) { o ->
         val r = o.getJSONObject("records")
         Detail(row(o.getJSONObject("exercise")), o.strings("instructions"), o.string("attribution"),

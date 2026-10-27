@@ -74,6 +74,19 @@ public enum TrainingProgressionEngine {
                          durationS: currentDurationS, reason: .firstSession)
         }
 
+        // A repetition progression must never manufacture repetitions for a timed or distance set.
+        if !mode.recordsRepetitions {
+            let duration = currentDurationS ?? last.durationS
+            if c.policy == .time, mode != .distanceWeight, let duration = last.durationS ?? currentDurationS {
+                let success = succeeded(last, configuration: c)
+                return .init(weightKg: currentWeightKg ?? last.weightKg, setCount: currentSets,
+                    durationS: success ? duration + c.durationIncrementS : duration,
+                    reason: success ? .addTime : .repeatTarget)
+            }
+            return .init(weightKg: currentWeightKg ?? last.weightKg, setCount: currentSets,
+                durationS: duration, reason: .repeatTarget)
+        }
+
         let failures = history.reversed().prefix { !succeeded($0, configuration: c) }.count
         if failures >= c.failuresBeforeDeload, let weight = last.weightKg ?? currentWeightKg {
             return .init(weightKg: min(weight, snap(weight * c.deloadFactor, step: c.weightIncrementKg)),

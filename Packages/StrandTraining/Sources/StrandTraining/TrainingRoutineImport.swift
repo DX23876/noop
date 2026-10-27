@@ -248,6 +248,14 @@ public enum HevyRoutineImporter {
                              now: Int = Int(Date().timeIntervalSince1970),
                              match: (_ title: String, _ templateId: String?) -> HevyRoutineExerciseMatch?)
         -> TrainingRoutineImport {
+        parse(documents, defaultRestSeconds: defaultRestSeconds, now: now, matchWithLoad: { title, id, _ in match(title, id) })
+    }
+
+    /// The extra source fact distinguishes a prescribed added load from a plain bodyweight movement.
+    public static func parse(_ documents: [Data], defaultRestSeconds: Int = 120,
+                             now: Int = Int(Date().timeIntervalSince1970),
+                             matchWithLoad: (_ title: String, _ templateId: String?, _ usesAddedWeight: Bool) -> HevyRoutineExerciseMatch?)
+        -> TrainingRoutineImport {
         var skipped = 0
         var newExercises: [String: TrainingExercise] = [:]
         var routines: [TrainingRoutine] = []
@@ -261,7 +269,10 @@ public enum HevyRoutineImporter {
             }
             for raw in rawExercises {
                 let title = OpenGymPlanImporter.string(raw["title"]) ?? ""
-                guard let found = match(title, OpenGymPlanImporter.string(raw["exercise_template_id"])) else {
+                let addedLoad = (raw["sets"] as? [[String: Any]] ?? []).contains {
+                    (OpenGymPlanImporter.positiveDouble($0["weight_kg"]) ?? 0) > 0
+                }
+                guard let found = matchWithLoad(title, OpenGymPlanImporter.string(raw["exercise_template_id"]), addedLoad) else {
                     skipped += 1
                     continue
                 }
@@ -313,12 +324,12 @@ public enum HevyRoutineImporter {
             case "amrap": intensifier = .amrap
             default: intensifier = .none
             }
-            let timed = mode == .duration || mode == .distanceDuration
+            let usesReps = mode.recordsRepetitions
             return RoutineSetPlan(
                 phase: phase, intensifier: intensifier,
                 targetWeightKg: OpenGymPlanImporter.positiveDouble(set["weight_kg"]),
-                repsMin: timed ? nil : low.map { min($0, high ?? $0) },
-                repsMax: timed ? nil : high.map { max($0, low ?? $0) },
+                repsMin: usesReps ? low.map { min($0, high ?? $0) } : nil,
+                repsMax: usesReps ? high.map { max($0, low ?? $0) } : nil,
                 targetDurationS: OpenGymPlanImporter.positiveInt(set["duration_seconds"]),
                 targetDistanceM: OpenGymPlanImporter.positiveDouble(set["distance_meters"]))
         }

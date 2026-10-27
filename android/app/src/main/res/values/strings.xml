@@ -3721,4 +3721,11 @@
     <string name="forge_hevy_cached">Could not refresh Hevy. Showing the routines saved on this device.</string>
     <string name="forge_hevy_routine_save_failed">Could not save the routines. Open the review again.</string>
     <string name="forge_hevy_verifying">Checking the key with Hevy…</string>
+    <string name="forge_library_mode_weight_duration">Weight and duration</string>
+    <string name="forge_library_mode_distance_weight">Weight and distance</string>
+    <string name="forge_library_available_equipment">Available equipment</string>
+    <string name="forge_library_my_equipment">My equipment</string>
+    <string name="forge_library_choose_muscle">Choose a muscle to see the exercises that train it.</string>
+    <string name="forge_library_equipment_help">Select all equipment you have. Bodyweight is always available. An empty selection disables this filter.</string>
+    <string name="forge_hevy_get_key">Get API key</string>
 </resources>

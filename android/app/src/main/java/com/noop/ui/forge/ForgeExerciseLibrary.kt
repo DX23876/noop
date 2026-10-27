@@ -36,6 +36,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 
+private const val AVAILABLE_EQUIPMENT = "training.availableEquipment"
+
 private const val FAVORITES = "training.favoriteExerciseIds"
 
 /** One offline library for browsing and the workout/routine pickers. Rows are virtualized, not capped. */
@@ -59,13 +61,18 @@ fun ForgeExerciseLibrary(onClose: () -> Unit, multiple: Boolean = false,
     var selected by rememberSaveable { mutableStateOf<String?>(null) }
     var creating by rememberSaveable { mutableStateOf(false) }
     var filtersOpen by rememberSaveable { mutableStateOf(false) }
+    var equipmentDialog by rememberSaveable { mutableStateOf(false) }
+    var availablePayload by remember { mutableStateOf(prefs.getString(AVAILABLE_EQUIPMENT, "").orEmpty()) }
+    val available = remember(availablePayload) { availablePayload.lineSequence().filter { it.isNotBlank() }.toSet() }
+    var mapSide by rememberSaveable { mutableStateOf("front") }
+    var muscleChoices by remember { mutableStateOf<List<String>>(emptyList()) }
     var picked by rememberSaveable { mutableStateOf(arrayListOf<String>()) }
     var importing by remember { mutableStateOf(false) }
     var importResult by remember { mutableStateOf<Int?>(null) }
     var importFailed by remember { mutableStateOf(false) }
-    LaunchedEffect(revision) {
+    LaunchedEffect(revision, availablePayload) {
         loaded = false
-        catalog = withContext(Dispatchers.IO) { CoreRead.open(context); CoreTrainingLibrary.catalog() }
+        catalog = withContext(Dispatchers.IO) { CoreRead.open(context); CoreTrainingLibrary.catalog(available.toList()) }
         loaded = true
     }
     fun toggleFavorite(id: String) {
@@ -119,11 +126,24 @@ fun ForgeExerciseLibrary(onClose: () -> Unit, multiple: Boolean = false,
             else stringResource(R.string.forge_library_imported_count, importResult ?: 0)) },
         confirmButton = { TextButton(onClick = { importResult = null; importFailed = false }) { Text(stringResource(R.string.forge_library_ok)) } })
     val c = catalog
+    if (equipmentDialog && c != null) AvailableEquipmentDialog(c.equipment, available,
+        onDismiss = { equipmentDialog = false }) { values ->
+        availablePayload = values.sorted().joinToString("\n")
+        prefs.edit().putString(AVAILABLE_EQUIPMENT, availablePayload).apply()
+        if (values.isEmpty() && equipment == "available") equipment = null
+        equipmentDialog = false
+    }
+    if (muscleChoices.isNotEmpty()) AlertDialog(onDismissRequest = { muscleChoices = emptyList() },
+        title = { Text(stringResource(R.string.forge_library_muscle)) },
+        text = { Column { muscleChoices.forEach { id ->
+            TextButton(onClick = { muscle = id; muscleChoices = emptyList() }) { Text(muscleName(id)) }
+        } } },
+        confirmButton = { TextButton(onClick = { muscleChoices = emptyList() }) { Text(stringResource(R.string.forge_library_ok)) } })
     val muscleLabels = c?.muscles.orEmpty().associateWith { muscleName(it) }
     val equipmentLabels = c?.equipment.orEmpty().associateWith { equipmentName(it) }
     val shown = remember(c, query, region, muscle, equipment, mode, favoritesOnly, favorites, muscleLabels, equipmentLabels) {
         ExerciseLibraryFilters(query, region, muscle, equipment, mode, favoritesOnly)
-            .apply(c?.exercises.orEmpty(), favorites, muscleLabels, equipmentLabels)
+            .apply(c?.exercises.orEmpty(), favorites, muscleLabels, equipmentLabels, c?.availableExerciseIds.orEmpty().toSet())
     }
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
     LazyColumn(Modifier.fillMaxHeight().widthIn(max = ForgeMetrics.maxContentWidth).fillMaxWidth()
@@ -157,12 +177,25 @@ fun ForgeExerciseLibrary(onClose: () -> Unit, multiple: Boolean = false,
                     Text(stringResource(if (filtersOpen) R.string.forge_library_hide_filters else R.string.forge_library_filter))
                 }
                 if (filtersOpen) ForgeCard(Modifier.fillMaxWidth()) {
+                    ReportNote(stringResource(R.string.forge_library_choose_muscle))
+                    ForgeSegmented(listOf(stringResource(R.string.forge_th_front), stringResource(R.string.forge_th_back)),
+                        if (mapSide == "front") 0 else 1, Modifier.fillMaxWidth()) { mapSide = if (it == 0) "front" else "back" }
+                    val selectedSlug = muscle?.let(MuscleMapArt::muscle)
+                    val fills = selectedSlug?.let { mapOf(it to Forge.colors.accent) }.orEmpty()
+                    ForgeBodyMap(if (ProfileStore.from(context).sex == "female") "female" else "male", mapSide, fills,
+                        Modifier.fillMaxWidth().height(ForgeMetrics.chartHeight), stringResource(R.string.forge_library_choose_muscle)) { slug ->
+                        val choices = MuscleMapArt.ids(slug, c.muscles)
+                        if (choices.size == 1) muscle = choices.single() else muscleChoices = choices
+                    }
                     ReportNote(stringResource(R.string.forge_library_muscle))
                     ReportPicker(muscle?.let { muscleName(it) } ?: stringResource(R.string.forge_library_any_muscle),
                         listOf(stringResource(R.string.forge_library_any_muscle)) + c.muscles.map { muscleName(it) }) { muscle = c.muscles.getOrNull(it - 1) }
                     ReportNote(stringResource(R.string.forge_library_equipment))
-                    ReportPicker(equipment?.let { equipmentName(it) } ?: stringResource(R.string.forge_library_any_equipment),
-                        listOf(stringResource(R.string.forge_library_any_equipment)) + c.equipment.map { equipmentName(it) }) { equipment = c.equipment.getOrNull(it - 1) }
+                    val equipmentIds = (if (available.isNotEmpty()) listOf("available") else emptyList()) + c.equipment
+                    fun equipmentLabel(id: String): String = if (id == "available") context.getString(R.string.forge_library_my_equipment) else equipmentLabels[id] ?: id
+                    ReportPicker(equipment?.let(::equipmentLabel) ?: stringResource(R.string.forge_library_any_equipment),
+                        listOf(stringResource(R.string.forge_library_any_equipment)) + equipmentIds.map(::equipmentLabel)) { equipment = equipmentIds.getOrNull(it - 1) }
+                    TextButton(onClick = { equipmentDialog = true }) { Text(stringResource(R.string.forge_library_available_equipment)) }
                     ReportNote(stringResource(R.string.forge_library_type))
                     ReportPicker(mode?.let { measurementName(it) } ?: stringResource(R.string.forge_library_any_type),
                         listOf(stringResource(R.string.forge_library_any_type)) + c.modes.map { measurementName(it) }) { mode = c.modes.getOrNull(it - 1) }
@@ -372,4 +405,27 @@ private fun CustomExercisePage(catalog: CoreTrainingLibrary.Catalog, onClose: ()
         }) { Text(stringResource(R.string.forge_report_save)) }
         if (saving) LinearProgressIndicator(Modifier.fillMaxWidth())
     }
+}
+
+@Composable
+private fun AvailableEquipmentDialog(equipment: List<String>, saved: Set<String>, onDismiss: () -> Unit,
+                                     onSave: (Set<String>) -> Unit) {
+    var selected by remember(saved) { mutableStateOf(saved) }
+    AlertDialog(onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.forge_library_available_equipment)) },
+        text = { Column {
+            ReportNote(stringResource(R.string.forge_library_equipment_help))
+            LazyColumn(Modifier.heightIn(max = ForgeMetrics.chartHeight)) {
+                items(equipment.filter { it != "bodyweight" }) { id ->
+                    Row(Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget).clickable {
+                        selected = if (id in selected) selected - id else selected + id
+                    }, verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(id in selected, onCheckedChange = null)
+                        Text(equipmentName(id), style = Forge.type.subhead, color = Forge.colors.text)
+                    }
+                }
+            }
+        } },
+        confirmButton = { TextButton(onClick = { onSave(selected) }) { Text(stringResource(R.string.forge_library_ok)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.forge_report_cancel)) } })
 }

@@ -160,7 +160,7 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
         let initial = NativeWorkoutEngine.setsForAddedExercise(
             lastPerformance: last, unilateral: exercise.isUnilateral,
             workingSets: UserDefaults.standard.object(forKey: TrainingPreferences.newExerciseSetsKey) as? Int
-                ?? TrainingPreferences.defaultNewExerciseSets)
+                ?? TrainingPreferences.defaultNewExerciseSets, mode: exercise.mode)
         NativeWorkoutEngine.addExercise(exercise.id, to: &draft,
             sets: initial, definition: exercise)
         if let index = draft.exercises.indices.last {

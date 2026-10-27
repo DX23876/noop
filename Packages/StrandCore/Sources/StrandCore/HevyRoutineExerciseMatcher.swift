@@ -6,9 +6,10 @@ import WhoopStore
 /// exercise an earlier import already made, the wearer's own alias, the reviewed anatomy catalogue,
 /// then an exact name. Only when all of them miss is a new exercise made from Hevy's description.
 public struct HevyRoutineExerciseMatcher {
-    private let byAnatomy: [String: TrainingExercise]
-    private let byTitle: [String: TrainingExercise]
-    private let byHevyId: [String: TrainingExercise]
+    private let byAnatomy: [String: [TrainingExercise]]
+    private let byTitle: [String: [TrainingExercise]]
+    private let byHevyId: [String: [TrainingExercise]]
+    private let existingIds: Set<String>
     private let templates: [String: HevyExerciseTemplate]
     private let aliases: [TrainingExerciseAnatomyAlias]
 
@@ -24,20 +25,21 @@ public struct HevyRoutineExerciseMatcher {
             case .imported: 3
             }
         }
-        var byAnatomy: [String: TrainingExercise] = [:]
-        var byTitle: [String: TrainingExercise] = [:]
-        var byHevyId: [String: TrainingExercise] = [:]
+        var byAnatomy: [String: [TrainingExercise]] = [:]
+        var byTitle: [String: [TrainingExercise]] = [:]
+        var byHevyId: [String: [TrainingExercise]] = [:]
         for exercise in exercises.sorted(by: { rank($0) < rank($1) }) {
             if let anatomy = TrainingMuscleProjection.anatomy(for: exercise),
-               !anatomy.id.hasPrefix("exercise:"), byAnatomy[anatomy.id] == nil {
-                byAnatomy[anatomy.id] = exercise
+               !anatomy.id.hasPrefix("exercise:") {
+                byAnatomy[anatomy.id, default: []].append(exercise)
             }
             let title = ExerciseAnatomyCatalog.normalize(exercise.title)
-            if byTitle[title] == nil { byTitle[title] = exercise }
+            byTitle[title, default: []].append(exercise)
             if exercise.id.hasPrefix("imported:hevy:"), let sourceId = exercise.sourceId {
-                byHevyId[sourceId] = exercise
+                byHevyId[sourceId, default: []].append(exercise)
             }
         }
+        self.existingIds = Set(exercises.map(\.id))
         self.byAnatomy = byAnatomy
         self.byTitle = byTitle
         self.byHevyId = byHevyId
@@ -60,13 +62,17 @@ public struct HevyRoutineExerciseMatcher {
         return ["\(equipment) \(base)", trimmed]
     }
 
-    public func match(title: String, templateId: String?) -> HevyRoutineExerciseMatch? {
-        if let templateId, let earlier = byHevyId[templateId] { return .init(exercise: earlier, isNew: false) }
+    public func match(title: String, templateId: String?, usesAddedWeight: Bool = false) -> HevyRoutineExerciseMatch? {
         let template = templateId.flatMap { templates[$0] }
         let name = template?.title ?? title
         guard !name.isEmpty else { return nil }
         let normalized = ExerciseAnatomyCatalog.normalize(name)
-        let mode = HevyExerciseMetadata.measurementMode(template?.type)
+        let declared = HevyExerciseMetadata.measurementMode(template?.type)
+        let mode = declared == .bodyweightReps && usesAddedWeight ? TrainingMeasurementMode.weightedBodyweight : declared
+        func compatible(_ exercise: TrainingExercise) -> Bool { mode == nil || exercise.mode == mode }
+        if let templateId, let earlier = byHevyId[templateId]?.first(where: compatible) {
+            return .init(exercise: earlier, isNew: false)
+        }
         let equipment = HevyExerciseMetadata.equipmentIds(template?.equipment)
         let alias = aliases.first { alias in
             if alias.origin == "user" { return alias.normalizedTitle == normalized }
@@ -78,8 +84,8 @@ public struct HevyRoutineExerciseMatcher {
             ExerciseAnatomyCatalog.resolve(title: candidate, source: .hevyAPI, sourceId: templateId,
                                            equipmentIds: equipment, mode: mode)
         }.first
-        if let anatomy, let known = byAnatomy[anatomy.id] { return .init(exercise: known, isNew: false) }
-        if let known = names.lazy.compactMap({ byTitle[ExerciseAnatomyCatalog.normalize($0)] }).first {
+        if let anatomy, let known = byAnatomy[anatomy.id]?.first(where: compatible) { return .init(exercise: known, isNew: false) }
+        if let known = names.lazy.compactMap({ byTitle[ExerciseAnatomyCatalog.normalize($0)]?.first(where: compatible) }).first {
             return .init(exercise: known, isNew: false)
         }
 
@@ -87,8 +93,12 @@ public struct HevyRoutineExerciseMatcher {
         let primary = template?.primaryMuscleGroup.trainingMuscleIds ?? []
         let secondary = (template?.secondaryMuscleGroups ?? []).flatMap(\.trainingMuscleIds)
         let key = templateId ?? normalized.replacingOccurrences(of: " ", with: "-")
+        let base = "imported:hevy:\(key)"
+        var id = existingIds.contains(base) ? "\(base):\(mode.rawValue)" : base
+        var suffix = 2
+        while existingIds.contains(id) { id = "\(base):\(mode.rawValue):\(suffix)"; suffix += 1 }
         return .init(exercise: TrainingExercise(
-            id: "imported:hevy:\(key)", title: name, mode: mode,
+            id: id, title: name, mode: mode,
             primaryMuscleId: primary.first,
             secondaryMuscleIds: (primary.dropFirst() + secondary).filter { $0 != primary.first },
             equipmentIds: equipment, source: .imported, sourceId: templateId,
@@ -101,7 +111,12 @@ public enum HevyExerciseMetadata {
     public static func measurementMode(_ raw: String?) -> TrainingMeasurementMode? {
         guard let raw else { return nil }
         if let exact = TrainingMeasurementMode(rawValue: raw) { return exact }
-        return raw == "reps_only" ? .repetitions : nil
+        switch raw {
+        case "reps_only": return .repetitions
+        case "bodyweight_assisted_reps": return .assistedBodyweight
+        case "short_distance_weight": return .distanceWeight
+        default: return nil
+        }
     }
     public static func equipmentIds(_ equipment: HevyEquipment?) -> [String] {
         guard let equipment else { return [] }

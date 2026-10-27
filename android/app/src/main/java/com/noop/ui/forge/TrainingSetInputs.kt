@@ -9,6 +9,8 @@ internal enum class TrainingSetInput { Weight, Reps, Left, Right, Seconds, Dista
         fun columns(mode: String, unilateral: Boolean): List<TrainingSetInput> {
             val reps = if (unilateral) listOf(Left, Right) else listOf(Reps)
             return when (mode) {
+                "weight_duration" -> listOf(Weight, Seconds)
+                "distance_weight" -> listOf(Weight, Distance)
                 "duration" -> listOf(Seconds)
                 "distance_duration" -> listOf(Distance, Seconds)
                 "bodyweight_reps", "repetitions" -> reps

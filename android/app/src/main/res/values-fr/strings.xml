@@ -3690,4 +3690,11 @@
     <string name="forge_hevy_import_selected">Importer la sélection</string>
     <string name="forge_hevy_cancelled">Annulé</string>
     <string name="forge_hevy_verifying">Classic</string>
+    <string name="forge_library_mode_weight_duration">Poids et durée</string>
+    <string name="forge_library_mode_distance_weight">Poids et distance</string>
+    <string name="forge_library_available_equipment">Équipement disponible</string>
+    <string name="forge_library_my_equipment">Mon équipement</string>
+    <string name="forge_library_choose_muscle">Choisissez un muscle pour voir les exercices qui le travaillent.</string>
+    <string name="forge_library_equipment_help">Sélectionnez tout votre équipement. Le poids du corps est toujours disponible. Une sélection vide désactive ce filtre.</string>
+    <string name="forge_hevy_get_key">Obtenir une clé API</string>
 </resources>

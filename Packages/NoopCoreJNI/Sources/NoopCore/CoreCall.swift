@@ -24,9 +24,6 @@ public enum CoreCall {
                 return #"{"error":"protocolSchemaUnavailable"}"#
             }
         }
-        guard let (store, _) = ShadowSession.storeAndPath, let reader = ShadowSession.reader else {
-            return #"{"error":"noStore"}"#
-        }
         let args = (try? JSONSerialization.jsonObject(with: Data(argsJSON.utf8)) as? [String: Any]) ?? [:]
         func string(_ k: String) -> String { args[k] as? String ?? "" }
         func int(_ k: String, _ fallback: Int) -> Int { (args[k] as? NSNumber)?.intValue ?? fallback }
@@ -36,14 +33,22 @@ public enum CoreCall {
             do { try await CoreHevyClient(key: string("key")).verify(); return ok(true) }
             catch let error as HevyImportError { return CoreRead.json(["error": error.rawValue]) }
             catch { return #"{"error":"network"}"# }
-        case "hevy.startSync": return CoreRead.json(await CoreHevy.shared.start(store: store, key: string("key"), routinesOnly: args["routinesOnly"] as? Bool ?? false))
         case "hevy.syncStatus": return CoreRead.json(await CoreHevy.shared.read())
         case "hevy.cancelSync": return CoreRead.json(await CoreHevy.shared.cancel(id: string("id")))
+        case "hevy.stopSync":
+            await CoreHevy.shared.cancelAndWait()
+            await CoreHevyRoutines.shared.invalidate()
+            return ok(true)
+        default: break
+        }
+        guard let (store, _) = ShadowSession.storeAndPath, let reader = ShadowSession.reader else {
+            return #"{"error":"noStore"}"#
+        }
+        switch op {
+        case "hevy.startSync": return CoreRead.json(await CoreHevy.shared.start(store: store, key: string("key"), routinesOnly: args["routinesOnly"] as? Bool ?? false))
         case "hevy.info":
             do { return CoreRead.json(["storedWorkouts": try await store.hevyWorkoutCount()]) }
             catch { return #"{"error":"storeUnavailable"}"# }
-        case "hevy.stopSync":
-            await CoreHevy.shared.cancelAndWait(); return ok(true)
         case "hevy.resetSync":
             await CoreHevy.shared.cancelAndWait()
             await CoreHevyRoutines.shared.invalidate()
@@ -114,7 +119,7 @@ public enum CoreCall {
             return ok(await CoreTrainingReports.recordFeedback(store: store, muscle: string("muscle"),
                 feeling: int("feeling", -1)))
         case "training.library":
-            guard let library = try? await CoreTrainingLibrary.catalog(store: store) else { return #"{"error":"libraryUnavailable"}"# }
+            guard let library = try? await CoreTrainingLibrary.catalog(store: store, availableEquipment: Set(args["availableEquipment"] as? [String] ?? [])) else { return #"{"error":"libraryUnavailable"}"# }
             return CoreRead.json(library)
         case "training.exerciseDetail":
             return CoreRead.json(await CoreTrainingLibrary.detail(reader: reader, id: string("id"),

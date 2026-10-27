@@ -512,6 +512,8 @@ private struct TrainingExerciseDetailView: View {
         case .repetitions: return String(localized: "Repetitions")
         case .duration: return String(localized: "Duration")
         case .distanceDuration: return String(localized: "Distance and duration")
+        case .weightDuration: return String(localized: "Weight and duration")
+        case .distanceWeight: return String(localized: "Weight and distance")
         }
     }
 
@@ -888,6 +890,8 @@ private struct TrainingCustomExerciseEditor: View {
         case .repetitions: return String(localized: "Repetitions")
         case .duration: return String(localized: "Duration")
         case .distanceDuration: return String(localized: "Distance and duration")
+        case .weightDuration: return String(localized: "Weight and duration")
+        case .distanceWeight: return String(localized: "Weight and distance")
         }
     }
 }

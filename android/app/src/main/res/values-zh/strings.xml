@@ -3661,4 +3661,11 @@
     <string name="forge_hevy_import_selected">导入所选项目</string>
     <string name="forge_hevy_cancelled">已取消</string>
     <string name="forge_hevy_verifying">正在检查Hevy的密钥…</string>
+    <string name="forge_library_mode_weight_duration">重量和时长</string>
+    <string name="forge_library_mode_distance_weight">重量和距离</string>
+    <string name="forge_library_available_equipment">可用器械</string>
+    <string name="forge_library_my_equipment">我的器械</string>
+    <string name="forge_library_choose_muscle">选择一块肌肉，查看训练它的动作。</string>
+    <string name="forge_library_equipment_help">选择你拥有的所有器械。自重始终可用。留空将停用此筛选。</string>
+    <string name="forge_hevy_get_key">获取 API 密钥</string>
 </resources>

@@ -161,10 +161,7 @@ enum TrainingPreferences {
     /// Whether every piece of equipment the exercise lists is available. An empty selection disables
     /// the filter, and bodyweight never has to be selected.
     static func exercise(_ exercise: TrainingExercise, matches available: Set<String>) -> Bool {
-        guard !available.isEmpty else { return true }
-        let owned = Set(available.map(TrainingDisplayNames.canonicalEquipment))
-        return exercise.equipmentIds.map(TrainingDisplayNames.canonicalEquipment)
-            .allSatisfy { $0 == "bodyweight" || owned.contains($0) }
+        TrainingEquipmentCatalog.matches(exercise.equipmentIds, available: available)
     }
 
     /// The − / + step for one exercise: two of the smallest saved plates for a barbell, otherwise the

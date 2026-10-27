@@ -66,7 +66,7 @@ internal fun ForgeHevyCard(onRoutines: () -> Unit) {
         Text(stringResource(R.string.forge_hevy_detail), style = Forge.type.subhead, color = Forge.colors.textSecondary)
         TextButton(enabled = !busy, onClick = {
             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://hevy.com/settings?developer")))
-        }) { Text("hevy.com/settings?developer") }
+        }) { Text(stringResource(R.string.forge_hevy_get_key)) }
         if (!loaded) CircularProgressIndicator() else if (!connected) {
             OutlinedTextField(draft, onValueChange = { if (it.length <= 4096) draft = it },
                 label = { Text(stringResource(R.string.forge_hevy_key)) }, enabled = !busy, singleLine = true,

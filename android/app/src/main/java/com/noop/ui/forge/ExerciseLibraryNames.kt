@@ -16,6 +16,8 @@ internal fun measurementName(id: String): String = stringResource(when (id) {
     "weighted_bodyweight" -> R.string.forge_library_mode_weighted_bodyweight
     "assisted_bodyweight" -> R.string.forge_library_mode_assisted_bodyweight
     "repetitions" -> R.string.forge_library_mode_repetitions
+    "weight_duration" -> R.string.forge_library_mode_weight_duration
+    "distance_weight" -> R.string.forge_library_mode_distance_weight
     "duration" -> R.string.forge_library_mode_duration
     "distance_duration" -> R.string.forge_library_mode_distance_duration
     else -> R.string.forge_library_region_other

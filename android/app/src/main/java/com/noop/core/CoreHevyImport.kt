@@ -76,13 +76,15 @@ object CoreHevyImport {
 
     fun cancel(id: String) { call("hevy.cancelSync", JSONObject().put("id", id)) }
 
-    fun disconnect(context: Context, forget: Boolean = false): Boolean = try {
-        val result = call(if (forget) "hevy.forget" else "hevy.stopSync")
-        if (!result.optBoolean("ok")) false else {
-            if (forget) context.getSharedPreferences("noop_hevy_status", Context.MODE_PRIVATE).edit().clear().apply()
-            credentials(context).edit().remove("api_key").commit()
-        }
-    } catch (_: Exception) { false }
+    fun disconnect(context: Context, forget: Boolean = false): Boolean {
+        // Revoking the local credential must work even if the core or its store is unavailable.
+        val removed = runCatching { credentials(context).edit().remove("api_key").commit() }.getOrDefault(false)
+        val stopped = runCatching { call("hevy.stopSync").optBoolean("ok") }.getOrDefault(false)
+        if (!forget) return removed && (stopped || !SwiftCore.available)
+        val forgotten = runCatching { call("hevy.forget").optBoolean("ok") }.getOrDefault(false)
+        if (forgotten) context.getSharedPreferences("noop_hevy_status", Context.MODE_PRIVATE).edit().clear().apply()
+        return removed && forgotten
+    }
 
     fun preview(restSeconds: Int = 120): Preview? = runCatching { parsePreview(call("hevy.routines", JSONObject().put("restSeconds", restSeconds))) }.getOrNull()
     fun importRoutines(preview: Preview, selected: List<String>): Boolean = runCatching {

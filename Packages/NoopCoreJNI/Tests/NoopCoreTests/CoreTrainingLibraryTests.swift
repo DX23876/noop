@@ -21,6 +21,10 @@ final class CoreTrainingLibraryTests: XCTestCase {
         XCTAssertTrue(row.matchingMuscles.contains("triceps"))
         XCTAssertEqual(row.source, "user")
         XCTAssertTrue(id.hasPrefix("user:"))
+        let compatible = try await CoreTrainingLibrary.catalog(store: store, availableEquipment: ["olympic-barbell"])
+        XCTAssertTrue(compatible.availableExerciseIds.contains(id))
+        let incompatible = try await CoreTrainingLibrary.catalog(store: store, availableEquipment: ["dumbbell"])
+        XCTAssertFalse(incompatible.availableExerciseIds.contains(id))
         let started = await CoreTraining.startDraft(reader: reader, routineIds: [], dismissedWorkoutSpans: [])
         XCTAssertNotNil(started)
         let draft = await CoreTraining.changeDraft(store: store, args: ["change": "addExercise", "exerciseId": id])
@@ -50,6 +54,7 @@ final class CoreTrainingLibraryTests: XCTestCase {
         XCTAssertEqual(detail.recent.map(\.workingSets), [1, 1])
         XCTAssertFalse(detail.hasDraft)
         catalog.exercises = [row]
+        catalog.availableExerciseIds = [row.id]
         try contract(catalog, name: "library")
         try contract(detail, name: "exercise-detail")
     }

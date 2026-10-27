@@ -11,6 +11,6 @@ public enum HevyRoutinePreparation {
         let matcher = HevyRoutineExerciseMatcher(exercises: exercises,
             templates: try await store.strengthExerciseTemplates(), aliases: try await store.trainingExerciseAnatomyAliases())
         return HevyRoutineImporter.parse(routines.map { Data($0.rawJSON.utf8) },
-            defaultRestSeconds: defaultRestSeconds, match: { matcher.match(title: $0, templateId: $1) })
+            defaultRestSeconds: defaultRestSeconds, matchWithLoad: { matcher.match(title: $0, templateId: $1, usesAddedWeight: $2) })
     }
 }
