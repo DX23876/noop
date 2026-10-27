@@ -304,7 +304,7 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
                     is TrainingPage.Routine -> RoutineEditor(s?.exercises.orEmpty(), open.routine, onClose = close)
                     TrainingPage.Schedule -> ScheduleEditor(s?.routines.orEmpty(), onClose = close)
                     TrainingPage.Starters -> StarterPlans(onClose = close)
-                    is TrainingPage.Detail -> SessionDetail(open.session, onClose = close)
+                    is TrainingPage.Detail -> ForgeTrainingSessionDetailPage(open.session.id, onClose = close)
                     TrainingPage.Muscles -> s?.let { MuscleAnalyticsPage(it.muscles, onClose = close) }
                     TrainingPage.Load -> ForgeTrainingLoadPage(onClose = close)
                     TrainingPage.Strength -> ForgeStrengthPage(onClose = close)
@@ -672,39 +672,6 @@ internal fun ActivityHeatmap(days: List<CoreTraining.ActivityDay>) {
 }
 
 // MARK: - Pages
-
-/** A logged session's exercises and working sets (iOS `StrengthSessionDetailView`, the set list). */
-@Composable
-private fun SessionDetail(session: CoreTraining.Session, onClose: () -> Unit) {
-    BackHandler { onClose() }
-    val kg = stringResource(R.string.forge_training_kg)
-    SettingsColumn {
-        PageTitle(session.title, onClose)
-        Text(longDate(session.startTs), style = Forge.type.subhead, color = Forge.sceneInk.secondary,
-             modifier = Modifier.padding(horizontal = ForgeMetrics.space1))
-        session.lines.forEach { line ->
-            ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
-                Text(line.title, style = Forge.type.headline, color = Forge.colors.text)
-                Spacer(Modifier.height(ForgeMetrics.space2))
-                line.sets.forEachIndexed { i, set ->
-                    Row(Modifier.padding(vertical = 3.dp)) {
-                        Text((i + 1).toString(), style = Forge.type.bodyNumber, color = Forge.colors.textTertiary,
-                             modifier = Modifier.width(32.dp))
-                        Text(setText(set, kg), style = Forge.type.bodyNumber, color = Forge.colors.text)
-                    }
-                }
-            }
-        }
-    }
-}
-
-private fun setText(set: CoreTraining.SetLine, kg: String): String {
-    val parts = mutableListOf<String>()
-    set.weightKg?.let { parts += "${formatKg(it)} $kg" }
-    set.reps?.let { parts += it.toString() }
-    if (parts.isEmpty()) set.durationS?.let { parts += "${(it / 60).toInt()}:${(it % 60).toInt().toString().padStart(2, '0')}" }
-    return parts.joinToString(" × ")
-}
 
 /** The weekly schedule (`TrainingScheduleEditorView`): per weekday, a switch for each routine. */
 @Composable

@@ -31,7 +31,7 @@ extension Repository {
     }
 
     func sessionRPE(sessionId: String) async -> SessionRPEEntry? {
-        await sessionRPEEntries(from: 0, to: Int.max).last { $0.sessionId == sessionId }
+        SessionRPEEntry.latest(await sessionRPEEntries(from: 0, to: Int.max), sessionId: sessionId, startTs: nil)
     }
 
     /// Store or replace one whole-session RPE. Values use the conventional 1–10 session scale.
@@ -39,12 +39,9 @@ extension Repository {
     func recordSessionRPE(_ rpe: Double, startTs: Int, sport: String,
                           sessionId: String? = nil,
                           ratedAtTs: Int = Int(Date().timeIntervalSince1970)) async -> Bool {
-        guard rpe.isFinite, (1...10).contains(rpe), let store = await storeHandle() else { return false }
-        let row = TrainingSessionRating(id: "session-rpe-\(startTs)", sessionId: sessionId,
-                                        workoutStartTs: startTs, ratedAtTs: ratedAtTs,
-                                        rpe: rpe, sport: sport, source: Self.sessionRPESource)
-        do { try await store.upsertTrainingSessionRating(row); return true }
-        catch { return false }
+        guard let store = await storeHandle() else { return false }
+        return await SessionRPEEntry.record(store: store, rpe: rpe, startTs: startTs, sport: sport,
+                                            sessionId: sessionId, ratedAtTs: ratedAtTs)
     }
 
     /// Remove only NOOP's rating for this workout; the workout itself is untouched.
@@ -53,13 +50,14 @@ extension Repository {
         guard let entry = await sessionRPE(at: startTs), let store = await storeHandle() else {
             return false
         }
-        return (try? await store.deleteTrainingSessionRating(id: entry.id)) == true
+        return await SessionRPEEntry.remove(store: store, entry: entry)
     }
 
     @discardableResult
     func deleteSessionRPE(id: String) async -> Bool {
         guard let store = await storeHandle() else { return false }
-        return (try? await store.deleteTrainingSessionRating(id: id)) == true
+        guard let entry = await sessionRPEEntries(from: 0, to: Int.max).first(where: { $0.id == id }) else { return false }
+        return await SessionRPEEntry.remove(store: store, entry: entry)
     }
 }
 

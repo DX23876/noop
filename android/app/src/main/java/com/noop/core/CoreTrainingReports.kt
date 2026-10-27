@@ -49,7 +49,7 @@ object CoreTrainingReports {
     }
     data class GenericSession(val id: String, val title: String, val startTs: Long, val endTs: Long,
                               val source: String, val drafts: List<EntryDraft>, val manualWorkoutId: String?)
-    data class CardioSession(val startTs: Long, val endTs: Long, val day: String, val sport: String,
+    data class CardioSession(val id: String, val startTs: Long, val endTs: Long, val day: String, val sport: String,
                              val source: String, val modality: String, val family: String,
                              val durationS: Double?, val distanceM: Double?, val avgHr: Int?,
                              val maxHr: Int?, val energyKcal: Double?, val strain: Double?,
@@ -158,7 +158,7 @@ object CoreTrainingReports {
     internal fun parseCardio(json: String): Cardio? = parse(json) { o ->
         val p = o.getJSONObject("progress")
         Cardio(selection(o.getJSONObject("selection")), o.objectOrNull("lane")?.let(CoreTrainingLoad::parseLane), ratios(o),
-            o.array("sessions").map { CardioSession(it.getLong("startTs"), it.getLong("endTs"),
+            o.array("sessions").map { CardioSession(it.getString("id"), it.getLong("startTs"), it.getLong("endTs"),
                 it.getString("day"), it.getString("sport"), it.getString("source"),
                 it.getString("modality"), it.getString("family"), it.double("durationS"),
                 it.double("distanceM"), it.int("avgHr"), it.int("maxHr"), it.double("energyKcal"),

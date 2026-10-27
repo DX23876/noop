@@ -29,7 +29,6 @@ import com.noop.ui.UnitFormatter
 import com.noop.ui.UnitPrefs
 import com.noop.ui.UnitSystem
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.NumberFormat
 import java.time.Instant
@@ -46,7 +45,6 @@ private val windows = listOf(120, 365, ALL_HISTORY_DAYS)
 @Composable
 fun ForgeStrengthPage(onClose: () -> Unit) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val massUnits = strengthUnits()
     var history by rememberSaveable { mutableStateOf(false) }
     var days by rememberSaveable { mutableIntStateOf(120) }
@@ -55,12 +53,10 @@ fun ForgeStrengthPage(onClose: () -> Unit) {
     var revision by remember { mutableIntStateOf(0) }
     var report by remember { mutableStateOf<CoreTrainingReports.Strength?>(null) }
     var loaded by remember { mutableStateOf(false) }
-    var detail by remember { mutableStateOf<CoreTrainingReports.LoggedSession?>(null) }
+    var detail by remember { mutableStateOf<String?>(null) }
     var editor by remember { mutableStateOf<CoreTrainingReports.GenericSession?>(null) }
     var mapping by remember { mutableStateOf<String?>(null) }
     var feedback by remember { mutableStateOf<String?>(null) }
-    var actionError by remember { mutableStateOf(false) }
-    var actionBusy by remember { mutableStateOf(false) }
     LaunchedEffect(days, weekOffset, exerciseId, revision) {
         loaded = false
         report = withContext(Dispatchers.IO) {
@@ -71,19 +67,12 @@ fun ForgeStrengthPage(onClose: () -> Unit) {
         }
         loaded = true
     }
-    fun openSession(id: String) {
-        scope.launch {
-            actionBusy = true
-            val found = withContext(Dispatchers.IO) { CoreTrainingReports.session(id) }
-            actionBusy = false
-            if (found == null) actionError = true else detail = found
-        }
-    }
+    fun openSession(id: String) { detail = id }
     if (history) { ForgeTrainingHistoryPage(initialFocus = "strength", onClose = { history = false }); return }
     BackHandler {
         when { detail != null -> detail = null; editor != null -> editor = null; else -> onClose() }
     }
-    detail?.let { LoggedSessionPage(it, massUnits) { detail = null }; return }
+    detail?.let { ForgeTrainingSessionDetailPage(it) { detail = null; revision++ }; return }
     editor?.let { session ->
         StrengthDetailsPage(session, report?.muscles.orEmpty().map { it.id }, onClose = { editor = null }) {
             editor = null; revision++
@@ -212,10 +201,8 @@ fun ForgeStrengthPage(onClose: () -> Unit) {
             r.genericSessions.take(6).forEach { session ->
                 ReportRow(session.title, "${sessionDate(session.startTs)} · ${stringResource(R.string.forge_report_add_details)}") { editor = session }
             }
-            r.recentSessions.filter { session -> r.genericSessions.none { it.manualWorkoutId == session.id } }.take(10).forEach { session -> ReportRow(session.title, sessionDate(session.startTs)) { detail = session } }
+            r.recentSessions.filter { session -> r.genericSessions.none { it.manualWorkoutId == session.id } }.take(10).forEach { session -> ReportRow(session.title, sessionDate(session.startTs)) { detail = session.id } }
         }
-        if (actionBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
-        if (actionError) ReportNote(stringResource(R.string.forge_report_session_unavailable))
         Spacer(Modifier.height(ForgeMetrics.space4))
     }
 }
@@ -247,7 +234,7 @@ fun ForgeCardioPage(onClose: () -> Unit) {
     }
     if (history) { ForgeTrainingHistoryPage(initialFocus = "cardio", onClose = { history = false }); return }
     BackHandler { if (detail != null) detail = null else onClose() }
-    detail?.let { CardioSessionPage(it, units) { detail = null }; return }
+    detail?.let { ForgeTrainingSessionDetailPage(it.id) { detail = null; retry++ }; return }
     SettingsColumn {
         PageTitle(stringResource(R.string.forge_tl_cardio), onClose)
         ReportRange(days) { days = it; weekOffset = 0; sport = null }
@@ -490,52 +477,6 @@ internal fun ReportPicker(title: String, choices: List<String>, choose: (Int) ->
 }
 @Composable
 private fun ReportDivider() { Spacer(Modifier.height(ForgeMetrics.space2)) }
-
-@Composable
-private fun LoggedSessionPage(s: CoreTrainingReports.LoggedSession, massUnits: UnitSystem, onClose: () -> Unit) {
-    val units = UnitPrefs.distanceSystem(LocalContext.current)
-    SettingsColumn {
-        PageTitle(s.title, onClose)
-        ReportNote(sessionDate(s.startTs))
-        ForgeCard(Modifier.fillMaxWidth()) {
-            s.durationS?.let { ReportFact(stringResource(R.string.forge_report_duration), minutes(it / 60)) }
-            ReportFact(stringResource(R.string.forge_report_source), strengthSource(s.source))
-        }
-        s.exercises.forEach { exercise ->
-            ForgeCard(Modifier.fillMaxWidth()) {
-                ReportHeading(exercise.title)
-                exercise.sets.forEachIndexed { index, set ->
-                    val measure = listOfNotNull(set.weightKg?.let { mass(it, massUnits) },
-                        set.reps?.let { stringResource(R.string.forge_report_reps, it) },
-                        set.durationS?.let { minutes(it / 60) }, set.distanceM?.let { UnitFormatter.distanceFromMeters(it, units) },
-                        set.rpe?.let { "RPE ${decimal(it, 1)}" })
-                    ReportFact("${index + 1} · ${setTypeName(set.type)}", measure.joinToString(" · ").ifEmpty { "—" })
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun CardioSessionPage(s: CoreTrainingReports.CardioSession, units: UnitSystem, onClose: () -> Unit) {
-    SettingsColumn {
-        PageTitle(s.sport, onClose)
-        ReportNote(sessionDate(s.startTs))
-        ForgeCard(Modifier.fillMaxWidth()) {
-            s.durationS?.let { ReportFact(stringResource(R.string.forge_report_duration), minutes(it / 60)) }
-            s.distanceM?.let { ReportFact(stringResource(R.string.forge_report_distance), UnitFormatter.distanceFromMeters(it, units)) }
-            s.avgHr?.let { ReportFact(stringResource(R.string.forge_report_average_hr), "${integer(it)} bpm") }
-            s.maxHr?.let { ReportFact(stringResource(R.string.forge_report_max_hr), "${integer(it)} bpm") }
-            s.cardioLoad?.let { ReportFact(stringResource(R.string.forge_tl_cardiovascular_load), decimal(it, 0)) }
-            when (s.modality) {
-                "cycling", "rowing" -> s.speedKmh?.let { ReportFact(stringResource(R.string.forge_report_speed), UnitFormatter.speedFromKilometersPerHour(it, units) ?: "—") }
-                "foot", "swimming" -> s.paceSecPerKm?.let { ReportFact(stringResource(R.string.forge_report_pace), reportPace(it, s.modality, units)) }
-            }
-            s.energyKcal?.let { ReportFact(stringResource(R.string.forge_report_energy), "${integer(it.roundToInt())} kcal") }
-            ReportFact(stringResource(R.string.forge_report_source), s.source)
-        }
-    }
-}
 
 @Composable
 internal fun strengthUnits(): UnitSystem {

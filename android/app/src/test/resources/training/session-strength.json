@@ -1,0 +1,325 @@
+{
+  "avgHr" : 135,
+  "bucketSeconds" : 30,
+  "canonicalId" : "session|gym-noop|1793016000|strengthtraining",
+  "durationS" : 3600,
+  "endTs" : 1793019600,
+  "energyKcal" : 300,
+  "groups" : [
+    [
+      {
+        "kind" : "weightAndReps",
+        "notes" : "Synthetic exercise note",
+        "primary" : "chest",
+        "secondary" : [
+          "triceps"
+        ],
+        "sets" : [
+          {
+            "index" : 0,
+            "isWorking" : false,
+            "reps" : 10,
+            "type" : "warmup",
+            "weightKg" : 20
+          },
+          {
+            "e1rmKg" : 106.66666666666666,
+            "index" : 1,
+            "isWorking" : true,
+            "reps" : 8,
+            "rpe" : 8,
+            "type" : "normal",
+            "weightKg" : 80
+          }
+        ],
+        "title" : "Bench press",
+        "topSetKg" : 80,
+        "workingSets" : 1
+      },
+      {
+        "kind" : "bodyweightReps",
+        "primary" : "lats",
+        "secondary" : [
+          "biceps"
+        ],
+        "sets" : [
+          {
+            "bodyweightLoadKg" : 80,
+            "index" : 0,
+            "isWorking" : true,
+            "reps" : 10,
+            "type" : "normal"
+          }
+        ],
+        "title" : "Pull-up",
+        "workingSets" : 1
+      }
+    ]
+  ],
+  "heartRate" : [
+    {
+      "bpm" : 130,
+      "ts" : 1793016000
+    },
+    {
+      "bpm" : 130,
+      "ts" : 1793016060
+    },
+    {
+      "bpm" : 130,
+      "ts" : 1793016120
+    },
+    {
+      "bpm" : 130,
+      "ts" : 1793016180
+    },
+    {
+      "bpm" : 130,
+      "ts" : 1793016240
+    },
+    {
+      "bpm" : 130,
+      "ts" : 1793016300
+    },
+    {
+      "bpm" : 130,
+      "ts" : 1793016360
+    },
+    {
+      "bpm" : 130,
+      "ts" : 1793016420
+    },
+    {
+      "bpm" : 130,
+      "ts" : 1793016480
+    },
+    {
+      "bpm" : 130,
+      "ts" : 1793016540
+    },
+    {
+      "bpm" : 130,
+      "ts" : 1793016600
+    },
+    {
+      "bpm" : 130,
+      "ts" : 1793016660
+    },
+    {
+      "bpm" : 130,
+      "ts" : 1793016720
+    },
+    {
+      "bpm" : 130,
+      "ts" : 1793016780
+    },
+    {
+      "bpm" : 130,
+      "ts" : 1793016840
+    },
+    {
+      "bpm" : 130,
+      "ts" : 1793016900
+    },
+    {
+      "bpm" : 130,
+      "ts" : 1793016960
+    },
+    {
+      "bpm" : 130,
+      "ts" : 1793017020
+    },
+    {
+      "bpm" : 130,
+      "ts" : 1793017080
+    },
+    {
+      "bpm" : 130,
+      "ts" : 1793017140
+    },
+    {
+      "bpm" : 130,
+      "ts" : 1793017200
+    },
+    {
+      "bpm" : 130,
+      "ts" : 1793017260
+    },
+    {
+      "bpm" : 130,
+      "ts" : 1793017320
+    },
+    {
+      "bpm" : 130,
+      "ts" : 1793017380
+    },
+    {
+      "bpm" : 130,
+      "ts" : 1793017440
+    },
+    {
+      "bpm" : 130,
+      "ts" : 1793017500
+    },
+    {
+      "bpm" : 130,
+      "ts" : 1793017560
+    },
+    {
+      "bpm" : 130,
+      "ts" : 1793017620
+    },
+    {
+      "bpm" : 130,
+      "ts" : 1793017680
+    },
+    {
+      "bpm" : 130,
+      "ts" : 1793017740
+    },
+    {
+      "bpm" : 140,
+      "ts" : 1793017800
+    },
+    {
+      "bpm" : 140,
+      "ts" : 1793017860
+    },
+    {
+      "bpm" : 140,
+      "ts" : 1793017920
+    },
+    {
+      "bpm" : 140,
+      "ts" : 1793017980
+    },
+    {
+      "bpm" : 140,
+      "ts" : 1793018040
+    },
+    {
+      "bpm" : 140,
+      "ts" : 1793018100
+    },
+    {
+      "bpm" : 140,
+      "ts" : 1793018160
+    },
+    {
+      "bpm" : 140,
+      "ts" : 1793018220
+    },
+    {
+      "bpm" : 140,
+      "ts" : 1793018280
+    },
+    {
+      "bpm" : 140,
+      "ts" : 1793018340
+    },
+    {
+      "bpm" : 140,
+      "ts" : 1793018400
+    },
+    {
+      "bpm" : 140,
+      "ts" : 1793018460
+    },
+    {
+      "bpm" : 140,
+      "ts" : 1793018520
+    },
+    {
+      "bpm" : 140,
+      "ts" : 1793018580
+    },
+    {
+      "bpm" : 140,
+      "ts" : 1793018640
+    },
+    {
+      "bpm" : 140,
+      "ts" : 1793018700
+    },
+    {
+      "bpm" : 140,
+      "ts" : 1793018760
+    },
+    {
+      "bpm" : 140,
+      "ts" : 1793018820
+    },
+    {
+      "bpm" : 140,
+      "ts" : 1793018880
+    },
+    {
+      "bpm" : 140,
+      "ts" : 1793018940
+    },
+    {
+      "bpm" : 140,
+      "ts" : 1793019000
+    },
+    {
+      "bpm" : 140,
+      "ts" : 1793019060
+    },
+    {
+      "bpm" : 140,
+      "ts" : 1793019120
+    },
+    {
+      "bpm" : 140,
+      "ts" : 1793019180
+    },
+    {
+      "bpm" : 140,
+      "ts" : 1793019240
+    },
+    {
+      "bpm" : 140,
+      "ts" : 1793019300
+    },
+    {
+      "bpm" : 140,
+      "ts" : 1793019360
+    },
+    {
+      "bpm" : 140,
+      "ts" : 1793019420
+    },
+    {
+      "bpm" : 140,
+      "ts" : 1793019480
+    },
+    {
+      "bpm" : 140,
+      "ts" : 1793019540
+    }
+  ],
+  "id" : "qa-push",
+  "kind" : "strength",
+  "maxHr" : 140,
+  "notes" : "Synthetic session note",
+  "source" : "hevy_csv",
+  "startTs" : 1793016000,
+  "summary" : {
+    "bodyweightVolumeKg" : 800,
+    "exerciseCount" : 2,
+    "meanRPE" : 8,
+    "ratedSets" : 1,
+    "unpricedBodyweightSets" : 0,
+    "volumeKg" : 640,
+    "volumeSets" : 1,
+    "workingSets" : 2
+  },
+  "title" : "Push and pull",
+  "zoneMinutes" : [
+    0,
+    30,
+    30,
+    0,
+    0
+  ]
+}

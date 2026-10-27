@@ -64,6 +64,16 @@ public enum CoreCall {
             return CoreRead.json(await CoreTrainingReports.cardio(reader: reader, maxHR: maxHR, sex: string("sex"),
                 days: int("days", 120), weekOffset: int("weekOffset", 0), sport: args["sport"] as? String,
                 zoneSet: zones, dismissedWorkouts: args["dismissedWorkouts"] as? [String] ?? []))
+        case "training.sessionDetail":
+            let maxHR = (args["maxHR"] as? NSNumber)?.doubleValue ?? Double(StrainScorer.defaultMaxHR())
+            let edges = (args["zoneBpmEdges"] as? [NSNumber])?.map(\.doubleValue)
+            let zones = edges.map { HRZones.zones(bpmEdges: $0, maxHR: maxHR) } ?? HRZones.zones(maxHR: maxHR)
+            return CoreRead.json(await CoreTrainingSession.read(reader: reader, id: string("id"), zoneSet: zones,
+                dismissed: args["dismissedWorkouts"] as? [String] ?? []))
+        case "training.sessionRating":
+            return ok(await CoreTrainingSession.rate(reader: reader, id: string("id"),
+                rpe: (args["rpe"] as? NSNumber)?.doubleValue, remove: args["remove"] as? Bool ?? false,
+                dismissed: args["dismissedWorkouts"] as? [String] ?? []))
         case "training.strengthSession":
             return CoreRead.json(await CoreTrainingReports.session(reader: reader, id: string("id")))
         case "training.saveStrengthDetails":

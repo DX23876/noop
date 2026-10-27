@@ -382696,6 +382696,64 @@
         }
       }
     },
+    "RPE %@ × %@ min · sRPE load" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RPE %@ × %@ Min. · sRPE-Last"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RPE %@ × %@ min · carga sRPE"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RPE %@ × %@ min · charge sRPE"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RPE %@ × %@ min · carico sRPE"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RPE %@ × %@ min · obciążenie sRPE"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RPE %@ × %@ min · carga sRPE"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RPE %@ × %@ мин · нагрузка sRPE"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RPE %@ × %@ 分钟 · sRPE 负荷"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RPE %@ × %@ 分鐘 · sRPE 負荷"
+          }
+        }
+      }
+    },
     "RPE %@ × %lld min · sRPE load" : {
       "localizations" : {
         "de" : {

@@ -160,11 +160,13 @@ public enum CoreTrainingReports {
     }
 
     public struct CardioSession: Encodable {
+        public var id: String
         public var startTs: Int, endTs: Int, day: String, sport: String, source: String, modality: String, family: String
         public var durationS: Double?, distanceM: Double?, avgHr: Int?, maxHr: Int?
         public var energyKcal: Double?, strain: Double?, steps: Int?, cardioLoad: Double?
         public var paceSecPerKm: Double?, paceSecPer100m: Double?, speedKmh: Double?, beatsPerKm: Double?
-        init(_ session: CardioSessionMetrics, family: String) {
+        init(_ session: CardioSessionMetrics, family: String, id: String) {
+            self.id = id
             startTs = session.startTs; endTs = session.endTs; day = session.day; sport = session.sport
             source = session.source; modality = session.modality.rawValue; self.family = family
             durationS = session.durationS; distanceM = session.distanceM; avgHr = session.avgHr; maxHr = session.maxHr
@@ -357,7 +359,12 @@ public enum CoreTrainingReports {
         let families = visible.reduce(into: [Int: String]()) { $0[$1.row.startTs] = $1.kind.rawValue }
         return Cardio(selection: selection, lane: week.lane.map(CoreTrainingLoad.Lane.init),
             ratios: week.laneRatios.map { .init(day: $0.day, strength: $0.strength, cardio: $0.cardio) },
-            sessions: sessions.map { CardioSession($0, family: families[$0.startTs] ?? "other") },
+            sessions: sessions.map { metric in
+                let matches = visible.filter { $0.row.startTs == metric.startTs && $0.row.endTs == metric.endTs
+                    && $0.row.source == metric.source && $0.row.sport == metric.sport }
+                return CardioSession(metric, family: families[metric.startTs] ?? "other",
+                                     id: matches.count == 1 ? matches[0].id : "")
+            },
             weekSessions: week.week.sessionCount, minutes: week.week.minutes, distanceM: week.week.distanceM,
             energyKcal: week.week.energyKcal, effort: week.week.effort,
             sessionsWithDistance: week.week.sessionsWithDistance, typicalMinutes: week.typical.map(Range.init),

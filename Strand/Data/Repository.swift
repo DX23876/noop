@@ -3487,18 +3487,7 @@ final class Repository: ObservableObject {
     /// install collapses to one in both branches — so every existing number is unchanged.
     nonisolated static func workoutHrDeviceIds(source: String, activeStrapId: String,
                                                importedIds: [String]) -> [String] {
-        if source.hasPrefix("native-training:"),
-           let trackerId = source.split(separator: ":", maxSplits: 1).last.map(String.init),
-           !trackerId.isEmpty {
-            return [trackerId]
-        }
-        // An Oura session was measured by the ring, whose heart rate the sync banks under the same
-        // namespace. The worn strap stays first, so a session both devices saw reads the strap.
-        if WorkoutSource.classify(source) == .oura {
-            return importedIds + [WorkoutSource.ouraSource]
-        }
-        guard WorkoutSource.classify(source) == .detected else { return importedIds }
-        return [source.hasSuffix("-noop") ? String(source.dropLast(5)) : source]
+        WorkoutPhysiology.deviceIds(source: source, activeStrapId: activeStrapId, importedIds: importedIds)
     }
 
     // MARK: - Workout editing (manual add/edit · relabel · dismiss · delete)
@@ -4020,12 +4009,8 @@ final class Repository: ObservableObject {
     /// `source` defaults to "" (⇒ the imported/manual branch, the union) so callers without a row keep
     /// today's behaviour.
     func workoutHrBuckets(from: Int, to: Int, source: String = "") async -> [HRBucket] {
-        guard to > from else { return [] }
-        let span = to - from
-        let bucket = max(15, min(300, span / 120))
-        let ids = Self.workoutHrDeviceIds(source: source, activeStrapId: deviceId,
-                                          importedIds: importedReadIds)
-        return await hrBuckets(deviceIds: ids, from: from, to: to, bucketSeconds: bucket)
+        guard let store = await ensureStore() else { return [] }
+        return await WorkoutPhysiology.buckets(reader: reader(store), from: from, to: to, source: source)
     }
 
     /// Raw HR samples binned into per-zone MINUTES for a workout window, using the %HRmax display zone
@@ -4044,14 +4029,9 @@ final class Repository: ObservableObject {
     /// without a row keeps today's behaviour.
     func workoutZoneMinutes(from: Int, to: Int, zoneSet: HRZoneSet,
                             source: String = "") async -> [Double]? {
-        guard to > from else { return nil }
-        let ids = Self.workoutHrDeviceIds(source: source, activeStrapId: deviceId,
-                                          importedIds: importedReadIds)
-        let samples = await hrSamples(deviceIds: ids, from: from, to: to)
-        guard !samples.isEmpty else { return nil }
-        let tiz = HRZones.timeInZone(samples, zoneSet: zoneSet)
-        let minutes = tiz.seconds.map { $0 / 60.0 }
-        return minutes.contains(where: { $0 > 0 }) ? minutes : nil
+        guard let store = await ensureStore() else { return nil }
+        return await WorkoutPhysiology.zoneMinutes(reader: reader(store), from: from, to: to,
+                                                   zoneSet: zoneSet, source: source)
     }
 
     /// HRR for one workout (#516), derived from the final five minutes of recorded effort plus the five

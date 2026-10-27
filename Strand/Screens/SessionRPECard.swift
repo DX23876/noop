@@ -134,15 +134,15 @@ struct SessionRPECard: View {
     }
 
     private func loadText(_ entry: SessionRPEEntry) -> String? {
-        guard let minutes = durationMinutes else { return nil }
-        return String(localized: "\(Int((entry.rpe * minutes).rounded())) AU")
+        guard let load = entry.load(durationS: durationS) else { return nil }
+        return String(localized: "\(Int(load.rounded())) AU")
     }
 
     private func loadExplanation(_ rpe: Double) -> String {
         guard let minutes = durationMinutes else {
             return String(localized: "Rating saved · duration unavailable")
         }
-        return String(localized: "RPE \(rpeNumber(rpe)) × \(Int(minutes.rounded())) min · sRPE load")
+        return String(localized: "RPE \(rpeNumber(rpe)) × \(minutes.formatted(.number.precision(.fractionLength(0...2)))) min · sRPE load")
     }
 
     private func rpeNumber(_ value: Double) -> String {
@@ -150,8 +150,7 @@ struct SessionRPECard: View {
     }
 
     private var durationMinutes: Double? {
-        guard let durationS, durationS > 0 else { return nil }
-        return durationS / 60
+        SessionRPEEntry.durationMinutes(durationS)
     }
 
     @MainActor
@@ -183,12 +182,12 @@ struct SessionRPECard: View {
 
 private extension SessionRPECard {
     func ratingTiming(_ entry: SessionRPEEntry) -> String {
-        guard let ratedAt = entry.ratedAtTs else { return String(localized: "Rating time unknown") }
-        let end = startTs + Int(durationS ?? 0)
-        let delayMinutes = Int((Double(ratedAt - end) / 60).rounded())
-        if (20...45).contains(delayMinutes) { return String(localized: "Rated about 30 minutes after training") }
-        if delayMinutes < 20 { return String(localized: "Rated immediately after training") }
-        return String(localized: "Rated later")
+        switch entry.timing(durationS: durationS) {
+        case .unknown: return String(localized: "Rating time unknown")
+        case .about30Minutes: return String(localized: "Rated about 30 minutes after training")
+        case .immediately: return String(localized: "Rated immediately after training")
+        case .later: return String(localized: "Rated later")
+        }
     }
 }
 

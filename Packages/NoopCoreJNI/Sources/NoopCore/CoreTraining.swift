@@ -401,6 +401,10 @@ public enum CoreTraining {
               let workout = try? NativeWorkoutEngine.complete(draft: draft, endTs: Int(Date().timeIntervalSince1970),
                                                               sessionRPE: sessionRPE) else { return nil }
         guard (try? await store.completeNativeWorkout(workout)) != nil else { return nil }
+        if let rpe = workout.sessionRPE {
+            _ = await SessionRPEEntry.record(store: store, rpe: rpe, startTs: workout.startedAt,
+                sport: workout.title, sessionId: nil, ratedAtTs: Int(Date().timeIntervalSince1970))
+        }
         await EnergyCorrections.noteInputsRederived(store: store, dayStartTs: workout.startedAt)
         return workout
     }
