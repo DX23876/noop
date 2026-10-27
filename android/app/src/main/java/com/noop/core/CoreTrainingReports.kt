@@ -39,7 +39,7 @@ object CoreTrainingReports {
                         val sessions: Int, val workingSets: Int, val volumeSets: Int, val volumeKg: Double,
                         val bodyweightKg: Double, val bodyweightSets: Int,
                         val unpricedBodyweightSets: Int, val unattributedSets: Int,
-                        val charge: Double?, val effort: Double?, val overview: StrengthOverview,
+                        val charge: Double?, val effort: Double?, val activity: List<CoreTraining.ActivityDay>, val overview: StrengthOverview,
                         val muscles: List<Muscle>, val balance: List<Balance>, val exercise: Exercise,
                         val recentSessions: List<LoggedSession>, val genericSessions: List<GenericSession>, val unmappedExercises: List<String>)
     data class EntryDraft(val title: String = "", val workSets: Int = 3, val muscle: String = "other",
@@ -126,6 +126,7 @@ object CoreTrainingReports {
             o.getInt("sessions"), o.getInt("workingSets"), o.getInt("volumeSets"), o.getDouble("volumeKg"),
             o.getDouble("bodyweightKg"), o.getInt("bodyweightSets"), o.getInt("unpricedBodyweightSets"),
             o.getInt("unattributedSets"), o.double("charge"), o.double("effort"),
+            o.array("activity").map { CoreTraining.ActivityDay(it.getString("day"), it.getDouble("minutes")) },
             StrengthOverview(overview.getInt("sessions"), overview.getInt("trainingDays"),
                 overview.getInt("workingSets"), overview.getInt("ratedSets"), overview.getDouble("volumeKg"),
                 overview.getInt("volumeSets"), overview.getInt("durationSeconds"), overview.getInt("durationSessions"), overview.getDouble("sessionsPerWeek"),

@@ -134,6 +134,7 @@ public enum CoreTrainingReports {
         public var sessions: Int, workingSets: Int, volumeSets: Int, volumeKg: Double, bodyweightKg: Double
         public var bodyweightSets: Int, unpricedBodyweightSets: Int, unattributedSets: Int
         public var charge: Double?, effort: Double?, overview: Overview, muscles: [Muscle], balance: [Balance]
+        public var activity: [CoreTraining.ActivityDay]
         public var exercise: Exercise
         public var recentSessions: [LoggedSession], genericSessions: [GenericSession], unmappedExercises: [String]
     }
@@ -286,7 +287,10 @@ public enum CoreTrainingReports {
             }, balance: week.balance.map {
                 Balance(axis: $0.axis.rawValue, setsA: $0.setsA, setsB: $0.setsB, ratio: $0.ratio,
                         shareA: $0.shareA, usualRatio: week.ratios[$0.axis].map(Range.init))
-            }, exercise: exercise,
+            }, activity: TrainingActivityDay.pastYear(sessions: history.sessions,
+                weekStart: firstWeekday == 1 ? .sunday : .monday,
+                now: Date(timeIntervalSince1970: TimeInterval(now))).map { .init(day: $0.day, minutes: $0.minutes) },
+            exercise: exercise,
             recentSessions: history.sessions.sorted { $0.startTs > $1.startTs }.prefix(30).map(Strength.LoggedSession.init),
             genericSessions: StrengthDetails.genericSessions(fusion, workouts: history.workouts)
                 .sorted { $0.session.row.startTs > $1.session.row.startTs }

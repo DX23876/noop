@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.ListAlt
 import androidx.compose.material.icons.rounded.Add
@@ -124,6 +125,7 @@ private sealed interface TrainingPage {
     data object Load : TrainingPage
     data object Strength : TrainingPage
     data object Cardio : TrainingPage
+    data object History : TrainingPage
     data object Library : TrainingPage
 }
 
@@ -282,6 +284,8 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
                             Icons.Rounded.FitnessCenter) { page = TrainingPage.Strength }
                 AnalysisRow(stringResource(R.string.forge_tl_cardio), stringResource(R.string.forge_th_cardio_detail),
                             Icons.Rounded.Speed) { page = TrainingPage.Cardio }
+                AnalysisRow(stringResource(R.string.forge_history_title), stringResource(R.string.forge_history_subtitle),
+                            Icons.Rounded.History) { page = TrainingPage.History }
                 AnalysisRow(stringResource(R.string.forge_library_title), stringResource(R.string.forge_library_subtitle),
                             Icons.Rounded.Search) { page = TrainingPage.Library }
                 AnalysisRow(stringResource(R.string.forge_th_load_title), stringResource(R.string.forge_th_load_detail),
@@ -305,6 +309,7 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
                     TrainingPage.Load -> ForgeTrainingLoadPage(onClose = close)
                     TrainingPage.Strength -> ForgeStrengthPage(onClose = close)
                     TrainingPage.Cardio -> ForgeCardioPage(onClose = close)
+                    TrainingPage.History -> ForgeTrainingHistoryPage(onClose = close)
                     TrainingPage.Library -> ForgeExerciseLibrary(onClose = close, onAdded = {
                         scope.launch {
                             val dismissed = withContext(Dispatchers.IO) { dismissedTrainingWorkouts(context) }
@@ -649,7 +654,7 @@ private fun longDate(ts: Long): String = Instant.ofEpochSecond(ts).atZone(ZoneId
  * to the card's width, darker for more time logged.
  */
 @Composable
-private fun ActivityHeatmap(days: List<CoreTraining.ActivityDay>) {
+internal fun ActivityHeatmap(days: List<CoreTraining.ActivityDay>) {
     val columns = maxOf(1, (days.size + 6) / 7)
     val accent = Forge.colors.accent
     val empty = Forge.colors.border.copy(alpha = Forge.colors.border.alpha * 0.55f)

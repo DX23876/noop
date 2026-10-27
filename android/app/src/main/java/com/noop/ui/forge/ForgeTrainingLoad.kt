@@ -102,6 +102,7 @@ fun ForgeTrainingLoadPage(onClose: () -> Unit) {
     val context = LocalContext.current
     var output by remember { mutableStateOf<CoreTrainingLoad.Output?>(null) }
     var loaded by remember { mutableStateOf(false) }
+    var history by remember { mutableStateOf(false) }
     var detail by remember { mutableStateOf<LoadDetail?>(null) }
     LaunchedEffect(Unit) {
         output = withContext(Dispatchers.IO) {
@@ -111,6 +112,7 @@ fun ForgeTrainingLoadPage(onClose: () -> Unit) {
         }
         loaded = true
     }
+    if (history) { ForgeTrainingHistoryPage(onClose = { history = false }); return }
     BackHandler { if (detail != null) detail = null else onClose() }
     val o = output
     detail?.let { d ->
@@ -131,6 +133,7 @@ fun ForgeTrainingLoadPage(onClose: () -> Unit) {
         StrengthDevelopment(o)
         CardioDevelopment(o)
         ShapeCard(o)
+        TrainingHistoryButton { history = true }
         val maturity = maturity(o)
         ExplainerRows(listOf(
             ExplainerItem("maturity", maturityIcon(maturity), maturityTitle(maturity), maturityDetail(maturity)),

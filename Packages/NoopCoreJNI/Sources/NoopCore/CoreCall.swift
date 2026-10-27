@@ -48,6 +48,11 @@ public enum CoreCall {
             let maxHR = (args["maxHR"] as? NSNumber)?.doubleValue ?? Double(StrainScorer.defaultMaxHR())
             return CoreRead.json(await CoreTrainingLoad.read(reader: reader, maxHR: maxHR, sex: string("sex"),
                                                              dismissedWorkoutSpans: args["dismissedWorkouts"] as? [String] ?? []))
+        case "training.history":
+            return CoreRead.json(await CoreTrainingHistory.read(reader: reader, span: string("span"),
+                jumpDay: args["jumpDay"] as? String, lifts: args["lifts"] as? [String] ?? [],
+                maxHR: (args["maxHR"] as? NSNumber)?.doubleValue ?? Double(StrainScorer.defaultMaxHR()),
+                sex: string("sex"), dismissedWorkouts: args["dismissedWorkouts"] as? [String] ?? []))
         case "training.strength":
             return CoreRead.json(await CoreTrainingReports.strength(reader: reader, days: int("days", 120),
                 weekOffset: int("weekOffset", 0), exerciseId: args["exerciseId"] as? String,

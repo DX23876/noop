@@ -48,6 +48,7 @@ fun ForgeStrengthPage(onClose: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val massUnits = strengthUnits()
+    var history by rememberSaveable { mutableStateOf(false) }
     var days by rememberSaveable { mutableIntStateOf(120) }
     var weekOffset by rememberSaveable { mutableIntStateOf(0) }
     var exerciseId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -78,6 +79,7 @@ fun ForgeStrengthPage(onClose: () -> Unit) {
             if (found == null) actionError = true else detail = found
         }
     }
+    if (history) { ForgeTrainingHistoryPage(initialFocus = "strength", onClose = { history = false }); return }
     BackHandler {
         when { detail != null -> detail = null; editor != null -> editor = null; else -> onClose() }
     }
@@ -125,6 +127,7 @@ fun ForgeStrengthPage(onClose: () -> Unit) {
             ReportNote(stringResource(R.string.forge_report_bodyweight_coverage, r.bodyweightSets, r.unpricedBodyweightSets))
         }
         ReportLoadChart(r.ratios, TrainingLane.Strength)
+        TrainingHistoryButton { history = true }
         OverlineHeader(stringResource(R.string.forge_report_muscles), weekLabel(r.selection))
         ForgeCard(Modifier.fillMaxWidth()) {
             ReportNote(stringResource(R.string.forge_report_muscle_method))
@@ -198,6 +201,11 @@ fun ForgeStrengthPage(onClose: () -> Unit) {
                 ReportRow(repBandName(band), "${format(record.value)} · ${shortDate(record.day)}") { openSession(record.workoutId) }
             }
         }
+        OverlineHeader(stringResource(R.string.forge_th_consistency), stringResource(R.string.forge_th_past_year))
+        ForgeCard(Modifier.fillMaxWidth()) {
+            ActivityHeatmap(r.activity)
+            ReportNote(stringResource(R.string.forge_th_consistency_caption))
+        }
         OverlineHeader(stringResource(R.string.forge_report_recent_sessions), rangeLabel(r.selection.days))
         ForgeCard(Modifier.fillMaxWidth()) {
             if (r.recentSessions.isEmpty() && r.genericSessions.isEmpty()) ReportNote(stringResource(R.string.forge_no_data))
@@ -217,6 +225,7 @@ fun ForgeStrengthPage(onClose: () -> Unit) {
 fun ForgeCardioPage(onClose: () -> Unit) {
     val context = LocalContext.current
     val units = UnitPrefs.distanceSystem(context)
+    var history by rememberSaveable { mutableStateOf(false) }
     var days by rememberSaveable { mutableIntStateOf(120) }
     var weekOffset by rememberSaveable { mutableIntStateOf(0) }
     var sport by rememberSaveable { mutableStateOf<String?>(null) }
@@ -236,6 +245,7 @@ fun ForgeCardioPage(onClose: () -> Unit) {
         }
         loaded = true
     }
+    if (history) { ForgeTrainingHistoryPage(initialFocus = "cardio", onClose = { history = false }); return }
     BackHandler { if (detail != null) detail = null else onClose() }
     detail?.let { CardioSessionPage(it, units) { detail = null }; return }
     SettingsColumn {
@@ -264,6 +274,7 @@ fun ForgeCardioPage(onClose: () -> Unit) {
             r.charge?.let { ReportFact(stringResource(R.string.forge_report_charge), integer(it.roundToInt())) }
         }
         ReportLoadChart(r.ratios, TrainingLane.Cardio)
+        TrainingHistoryButton { history = true }
         OverlineHeader(stringResource(R.string.forge_report_intensity), stringResource(R.string.forge_report_time_in_zone))
         ForgeCard(Modifier.fillMaxWidth()) {
             val zones = r.zones
