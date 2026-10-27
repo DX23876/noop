@@ -71,7 +71,11 @@ class NoopApplication : Application() {
     }
 
     /** Process-wide device registry over the same Room DB — the single source of the active device id. */
-    val deviceRegistry: DeviceRegistry by lazy { DeviceRegistry(WhoopDatabase.get(this)) }
+    val deviceRegistry: DeviceRegistry by lazy {
+        WhoopDatabase.get(this).let { db ->
+            DeviceRegistry(db, com.noop.core.CoreInputLanes(this, db), com.noop.core.CoreDeviceData)
+        }
+    }
 
     /**
      * Active device id, resolved once at startup from the registry and falling back to the legacy

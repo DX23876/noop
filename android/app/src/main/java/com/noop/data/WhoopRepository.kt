@@ -441,6 +441,7 @@ class WhoopRepository(
         override suspend fun <R> run(block: suspend () -> R): R = block()
     },
     private val coreInputs: CoreUserInputs? = null,
+    private val inputLanes: com.noop.core.CoreInputLanes? = null,
 ) {
 
     /** Transaction boundary injected so repository writes remain testable without a Room runtime. */
@@ -467,20 +468,33 @@ class WhoopRepository(
     private var readoutRevisions = ReadoutDataRevisions()
     private val stepRevisionIndex = StepDataRevisionIndex()
 
-    constructor(db: WhoopDatabase, sharedInputs: CoreUserInputs? = null) : this(
+    constructor(db: WhoopDatabase, sharedInputs: CoreUserInputs? = null,
+                lanes: com.noop.core.CoreInputLanes? = null) : this(
         dao = db.whoopDao(),
         transactor = object : Transactor {
             override suspend fun <R> run(block: suspend () -> R): R = db.withTransaction { block() }
         },
         coreInputs = sharedInputs,
+        inputLanes = lanes,
     )
 
-    /** Complete Room snapshot is read transactionally once; the core owns replay protection. */
+    /** Complete Room snapshot is read transactionally once; the core owns replay protection. The other input
+     *  lanes (workouts, health days, markers, sessions, imported series and nights, sleep edits) follow. */
     suspend fun ensureSharedJournalHydration() {
         coreInputs?.ensure {
             transactor.run { dao.legacyJournalInputs() to dao.legacyHydrationInputs() }
         }
+        inputLanes?.ensure()
     }
+
+    // Mirrors of the input lanes into the core, by primary key as Room now holds them (parity plan 1.3).
+    private suspend fun mirror(table: String, keys: List<List<Any?>>) { inputLanes?.mirror(table, keys) }
+    private suspend fun keysWhere(table: String, where: String, vararg args: Any?): List<List<Any?>> =
+        inputLanes?.keysWhere(table, where, arrayOf(*args)).orEmpty()
+    private fun workoutKey(row: WorkoutRow): List<Any?> = listOf(row.deviceId, row.startTs, row.sport)
+    private fun sleepKey(row: SleepSession): List<Any?> = listOf(row.deviceId, row.startTs)
+    private suspend fun mirrorSleep(rows: List<SleepSession>) =
+        mirror("sleepSession", rows.filter { !it.deviceId.endsWith("-noop") || it.userEdited }.map(::sleepKey))
 
     // MARK: - Device
 
@@ -765,7 +779,10 @@ class WhoopRepository(
 
     // MARK: - Server-derived caches (latest value wins on conflict)
 
-    suspend fun upsertDailyMetrics(days: List<DailyMetric>) = dao.upsertDailyMetrics(days)
+    suspend fun upsertDailyMetrics(days: List<DailyMetric>) {
+        dao.upsertDailyMetrics(days)
+        mirror("dailyMetric", days.map { listOf(it.deviceId, it.day) })
+    }
 
     /**
      * Upsert cached sleep sessions without letting a partial re-serve replace a fuller night.
@@ -788,6 +805,7 @@ class WhoopRepository(
                 }
             }
         }
+        mirrorSleep(sessions)
     }
 
     /** Delete the computed source's cached daily rows whose day-key is in [from, to] (inclusive,
@@ -840,7 +858,10 @@ class WhoopRepository(
     suspend fun upsertMetricSeriesWithProvenance(
         rows: List<MetricSeriesRow>,
         provenance: List<ScoreInputProvenanceRow>,
-    ) = dao.upsertMetricSeriesWithProvenance(rows, provenance)
+    ) {
+        dao.upsertMetricSeriesWithProvenance(rows, provenance)
+        mirror("metricSeries", rows.map { listOf(it.deviceId, it.day, it.key) })
+    }
 
     /** Hand-correct the bed (onset) / wake (end) time of an existing sleep session, DURABLY , port
      *  of iOS PR #395 (Repository.editSleepTimes + MetricsCache.applySleepEdit).
@@ -876,6 +897,7 @@ class WhoopRepository(
                 stagesJSON = reclipped ?: session.stagesJSON,
             )),
         )
+        mirror("sleepSession", listOf(sleepKey(session)))
     }
 
     /** Apply a hand-corrected bed/wake window across a BRIDGED night — every fragment, not just one.
@@ -900,6 +922,7 @@ class WhoopRepository(
         val plan = com.noop.analytics.SleepGroupEdit.plan(group, safeStartTs, safeEndTs)
         if (plan.clipped.isEmpty()) return
         dao.upsertSleepSessions(plan.clipped)
+        mirror("sleepSession", plan.clipped.map(::sleepKey))
         plan.dropped.forEach { deleteSleepSession(it) }
     }
 
@@ -926,6 +949,7 @@ class WhoopRepository(
             dao.insertDismissedSleep(listOf(DismissedSleep(session.deviceId, session.startTs, session.endTs)))
         }
         dao.deleteSleepSession(session.deviceId, session.startTs)
+        mirror("sleepSession", listOf(sleepKey(session)))
     }
 
     /** Undo a [deleteSleepSession] (#65): lift the tombstone and restore the deleted row into its ORIGINAL
@@ -936,6 +960,7 @@ class WhoopRepository(
     suspend fun undoDeleteSleepSession(session: SleepSession) {
         dao.deleteDismissedSleep(session.deviceId, session.startTs)
         dao.upsertSleepSessions(listOf(session))
+        mirror("sleepSession", listOf(sleepKey(session)))
     }
 
     /** Lift a deleted-sleep tombstone by (deviceId, startTs) (#65 "Allow re-detection" escape hatch): the
@@ -1042,6 +1067,7 @@ class WhoopRepository(
                 startTsAdjusted = null,
             ),
         )
+        mirror("sleepSession", listOf(listOf(computedId, safeStartTs)))
     }
 
     /** Asleep fraction (light+deep+rem ÷ total in-bed) of a segment-array [stagesJSON], or null when the
@@ -1131,26 +1157,39 @@ class WhoopRepository(
         if (core == null) { dao.upsertMetricSeries(rows); return }
         val (water, other) = rows.partition { CoreUserInputs.isWater(it.deviceId, it.key) }
         if (water.isNotEmpty()) { ensureSharedJournalHydration(); core.writeWater(water) }
-        if (other.isNotEmpty()) dao.upsertMetricSeries(other)
+        if (other.isNotEmpty()) {
+            dao.upsertMetricSeries(other)
+            mirror("metricSeries", other.map { listOf(it.deviceId, it.day, it.key) })
+        }
     }
     suspend fun deleteMetricSeriesPoint(deviceId: String, day: String, key: String) {
         val core = coreInputs
         if (core != null && CoreUserInputs.isWater(deviceId, key)) {
             ensureSharedJournalHydration(); core.deleteWater(key, day)
-        } else dao.deleteMetricSeriesPoint(deviceId, day, key)
+        } else {
+            dao.deleteMetricSeriesPoint(deviceId, day, key)
+            mirror("metricSeries", listOf(listOf(deviceId, day, key)))
+        }
     }
     suspend fun deleteMetricSeries(deviceId: String, key: String) {
         val core = coreInputs
         if (core != null && CoreUserInputs.isWater(deviceId, key)) {
             ensureSharedJournalHydration(); core.deleteWater(key)
-        } else dao.deleteMetricSeries(deviceId, key)
+        } else {
+            val gone = keysWhere("metricSeries", "deviceId = ? AND key = ?", deviceId, key)
+            dao.deleteMetricSeries(deviceId, key)
+            mirror("metricSeries", gone)
+        }
     }
     suspend fun upsertJournal(rows: List<JournalEntry>) {
         val core = coreInputs
         if (core != null) { ensureSharedJournalHydration(); core.writeJournal(rows) }
         else dao.upsertJournal(rows)
     }
-    suspend fun upsertWorkouts(rows: List<WorkoutRow>) = dao.upsertWorkouts(rows)
+    suspend fun upsertWorkouts(rows: List<WorkoutRow>) {
+        dao.upsertWorkouts(rows)
+        mirror("workout", rows.map(::workoutKey))
+    }
 
     /**
      * Persist analytics-derived fields onto workouts the user already logged. This is deliberately
@@ -1158,18 +1197,24 @@ class WhoopRepository(
      * performs no DAO call and can never delete grandfathered `sport="detected"` history (#2187).
      */
     suspend fun persistWorkoutBackfills(rows: List<WorkoutRow>) {
-        if (rows.isNotEmpty()) dao.upsertWorkouts(rows)
+        if (rows.isNotEmpty()) { dao.upsertWorkouts(rows); mirror("workout", rows.map(::workoutKey)) }
     }
-    suspend fun upsertAppleDaily(rows: List<AppleDaily>) = dao.upsertAppleDaily(rows)
+    suspend fun upsertAppleDaily(rows: List<AppleDaily>) {
+        dao.upsertAppleDaily(rows)
+        mirror("appleDaily", rows.map { listOf(it.deviceId, it.day) })
+    }
 
     // MARK: - Live Sessions (silent guardian, v22). The runner banks the row at start (endTs null) and
     // again at end (totals); the summary reads the recent rows for its guarded-count / streak line.
-    suspend fun upsertLiveSession(row: LiveSessionRow) = dao.upsertLiveSession(
-        deviceId = row.deviceId, startTs = row.startTs, endTs = row.endTs,
-        chargeAtStart = row.chargeAtStart, floorBpm = row.floorBpm, ceilingBpm = row.ceilingBpm,
-        inBandSec = row.inBandSec, belowSec = row.belowSec, aboveSec = row.aboveSec,
-        pushCount = row.pushCount, easeCount = row.easeCount, hrSource = row.hrSource,
-    )
+    suspend fun upsertLiveSession(row: LiveSessionRow) {
+        dao.upsertLiveSession(
+            deviceId = row.deviceId, startTs = row.startTs, endTs = row.endTs,
+            chargeAtStart = row.chargeAtStart, floorBpm = row.floorBpm, ceilingBpm = row.ceilingBpm,
+            inBandSec = row.inBandSec, belowSec = row.belowSec, aboveSec = row.aboveSec,
+            pushCount = row.pushCount, easeCount = row.easeCount, hrSource = row.hrSource,
+        )
+        mirror("liveSession", listOf(listOf(row.deviceId, row.startTs)))
+    }
 
     /** #1410: append one app-level event (e.g. APP_VERSION_CHANGED) onto the event table. */
     suspend fun recordEvent(deviceId: String, ts: Long, kind: String, payloadJSON: String) {
@@ -1180,8 +1225,27 @@ class WhoopRepository(
 
     // MARK: - Lab Book markers (Swift labMarker, v17). Writing also projects the daily series into
     // metricSeries under WhoopDao.LAB_BOOK_SOURCE_ID, so Compare/Explore/Coach see markers unchanged.
-    suspend fun upsertLabMarkers(rows: List<LabMarkerRow>) = dao.upsertLabMarkers(rows)
-    suspend fun deleteLabMarker(id: String): Boolean = dao.deleteLabMarker(id)
+    suspend fun upsertLabMarkers(rows: List<LabMarkerRow>) {
+        val keys = rows.map { it.markerKey }.distinct()
+        val before = labBookKeys(keys)
+        dao.upsertLabMarkers(rows)
+        mirror("labMarker", rows.map { listOf(it.id) })
+        mirror("metricSeries", (before + labBookKeys(keys)).distinct())
+    }
+    suspend fun deleteLabMarker(id: String): Boolean {
+        val keys = if (inputLanes != null) markerKeysOf(id) else emptyList()
+        val before = labBookKeys(keys)
+        val removed = dao.deleteLabMarker(id)
+        mirror("labMarker", listOf(listOf(id)))
+        mirror("metricSeries", (before + labBookKeys(keys)).distinct())
+        return removed
+    }
+    /** The daily marker projection's keys for these markers, which the DAO rewrites beside each marker. */
+    private suspend fun labBookKeys(markerKeys: List<String>): List<List<Any?>> = markerKeys.flatMap {
+        keysWhere("metricSeries", "deviceId = ? AND key = ?", WhoopDao.LAB_BOOK_SOURCE_ID, it)
+    }
+    private suspend fun markerKeysOf(id: String): List<String> =
+        dao.labMarkerById(id)?.let { listOf(it.markerKey) }.orEmpty()
     suspend fun labMarkersByKey(deviceId: String, markerKey: String) = dao.labMarkersByKey(deviceId, markerKey)
     suspend fun labMarkersByCategory(deviceId: String, category: String) = dao.labMarkersByCategory(deviceId, category)
     suspend fun markerKeysPresent(deviceId: String) = dao.markerKeysPresent(deviceId)
@@ -1625,6 +1689,7 @@ class WhoopRepository(
     suspend fun saveManualWorkout(row: WorkoutRow, replacing: WorkoutRow? = null) {
         if (replacing != null && replacing.source.lowercase().endsWith("-noop")) {
             dao.upsertWorkouts(listOf(row))
+            mirror("workout", listOf(workoutKey(row)))
             dismissDetected(replacing)
             return
         }
@@ -1633,9 +1698,11 @@ class WhoopRepository(
             // safer and recoverable; the caller can retry the edit.
             dao.upsertWorkouts(listOf(row))
             dao.deleteWorkoutByKey(replacing.deviceId, replacing.startTs, replacing.sport)
+            mirror("workout", listOf(workoutKey(row), workoutKey(replacing)))
             return
         }
         dao.upsertWorkouts(listOf(row))
+        mirror("workout", listOf(workoutKey(row)))
     }
 
     /**
@@ -1649,6 +1716,7 @@ class WhoopRepository(
         if (trimmed.isEmpty()) return
         val manual = row.copy(deviceId = strapDeviceId, sport = trimmed, source = "manual")
         dao.upsertWorkouts(listOf(manual))
+        mirror("workout", listOf(workoutKey(manual)))
         dismissDetected(row)
     }
 
@@ -1663,6 +1731,7 @@ class WhoopRepository(
         // half-open overlap semantics even though the analytics engine no longer creates generic rows.
         dao.insertDismissed(listOf(DismissedWorkout(row.deviceId, row.startTs, row.endTs)))
         dao.deleteWorkoutsBySport(row.deviceId, row.sport, row.startTs, row.startTs)
+        mirror("workout", listOf(workoutKey(row)))
     }
 
     /**
@@ -1672,6 +1741,7 @@ class WhoopRepository(
     suspend fun deleteWorkout(row: WorkoutRow) {
         if (row.source.lowercase().endsWith("-noop")) { dismissDetected(row); return }
         dao.deleteWorkoutByKey(row.deviceId, row.startTs, row.sport)
+        mirror("workout", listOf(workoutKey(row)))
     }
 
     /**
@@ -1694,7 +1764,7 @@ class WhoopRepository(
             if (r.startTs == merged.startTs && r.sport == merged.sport) continue
             when {
                 r.source.lowercase().endsWith("-noop") -> dismissDetected(r)
-                r.source.lowercase() == "manual" -> dao.deleteWorkoutByKey(r.deviceId, r.startTs, r.sport)
+                r.source.lowercase() == "manual" -> { dao.deleteWorkoutByKey(r.deviceId, r.startTs, r.sport); mirror("workout", listOf(workoutKey(r))) }
                 // Defensive: canMerge already excludes imported rows; never rewrite imported history.
                 else -> continue
             }
@@ -1710,7 +1780,7 @@ class WhoopRepository(
         for (r in rows) {
             when {
                 r.source.lowercase().endsWith("-noop") -> dismissDetected(r)
-                r.source.lowercase() == "manual" -> dao.deleteWorkoutByKey(r.deviceId, r.startTs, r.sport)
+                r.source.lowercase() == "manual" -> { dao.deleteWorkoutByKey(r.deviceId, r.startTs, r.sport); mirror("workout", listOf(workoutKey(r))) }
                 else -> continue
             }
         }
@@ -1927,8 +1997,13 @@ class WhoopRepository(
      * stage minutes) or user-edited rows, so real data survives. Idempotent — a re-run matches
      * nothing. Returns the TOTAL rows deleted (for the heal log).
      */
-    suspend fun purgeHcShadowedStrapDays(): Int =
-        dao.purgeHcShadowedSleepSessions() + dao.purgeHcShadowedDailyMetrics()
+    suspend fun purgeHcShadowedStrapDays(): Int {
+        val nights = keysWhere("sleepSession", "deviceId = 'my-whoop'")
+        val days = keysWhere("dailyMetric", "deviceId = 'my-whoop'")
+        val removed = dao.purgeHcShadowedSleepSessions() + dao.purgeHcShadowedDailyMetrics()
+        if (removed > 0) { mirror("sleepSession", nights); mirror("dailyMetric", days) }
+        return removed
+    }
 
     /**
      * One-time #34 refile: move legacy Health Connect data out of the shared "apple-health" bucket into
@@ -1938,9 +2013,13 @@ class WhoopRepository(
      * Idempotent + safe (runs before this import writes any HC data, so no PK conflict).
      */
     suspend fun refileLegacyHealthConnect() {
+        val moved = keysWhere("workout", "deviceId = 'apple-health' AND source = 'health-connect'")
         dao.reassignWorkoutsBySource(from = "apple-health", to = "health-connect", source = "health-connect")
+        mirror("workout", moved + moved.map { listOf("health-connect") + it.drop(1) })
         if (dao.metricSeriesCount("apple-health") == 0) {
+            val days = keysWhere("appleDaily", "deviceId = 'apple-health'")
             dao.reassignAppleDaily(from = "apple-health", to = "health-connect")
+            mirror("appleDaily", days + days.map { listOf("health-connect") + it.drop(1) })
             upsertDevice("health-connect", name = "Health Connect")
         }
     }
@@ -2649,7 +2728,10 @@ class WhoopRepository(
 
         /** Build a repository backed by the process-wide singleton database. */
         fun from(context: Context): WhoopRepository =
-            WhoopRepository(WhoopDatabase.get(context), CoreUserInputs(context.applicationContext))
+            WhoopDatabase.get(context).let { db ->
+                WhoopRepository(db, CoreUserInputs(context.applicationContext),
+                                com.noop.core.CoreInputLanes(context.applicationContext, db))
+            }
 
         // MARK: - Compact per-epoch JSON (v18 motionJSON / sleepStateJSON), byte-equivalent with Swift's
         // JSONEncoder/JSONDecoder on [Double] / [Int]: a bare `[..]` array, whole doubles emitted WITHOUT a

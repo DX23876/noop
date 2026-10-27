@@ -49,6 +49,20 @@ enum CoreUserInputs {
                 _ = try await store.upsertMetricSeries(rows, deviceId: "hydration")
             case "input.waterDelete":
                 _ = try await store.deleteMetricSeriesPoint(deviceId: "hydration", day: string("day"), key: waterKey(args))
+            case "lanes.owned": return CoreRead.json(["owned": try await store.ownsAndroidInputLanes()])
+            case "lanes.reset": try await store.resetAndroidInputLaneStage()
+            case "lanes.stage": try await store.stageAndroidInputLane(table: string("table"), rows: rows(args))
+            case "lanes.commit":
+                return CoreRead.json(["moved": try await store.commitAndroidInputLanes(replace: args["replace"] as? Bool ?? false)])
+            case "lanes.put": try await store.putAndroidInputLaneRows(table: string("table"), rows: rows(args))
+            case "lanes.delete":
+                let equals = ((args["equals"] as? [String: Any]) ?? [:]).mapValues(databaseValue)
+                var range: (column: String, from: WhoopStore.LaneValue, to: WhoopStore.LaneValue)?
+                if let r = args["range"] as? [String: Any], let column = r["column"] as? String {
+                    range = (column, databaseValue(r["from"] ?? NSNull()), databaseValue(r["to"] ?? NSNull()))
+                }
+                return CoreRead.json(["removed": try await store.deleteAndroidInputLaneRows(table: string("table"),
+                                                                                           equals: equals, range: range)])
             case "input.waterDeleteSeries":
                 _ = try await store.deleteMetricSeries(deviceId: "hydration", key: waterKey(args))
             default: return #"{"error":"unknownInputOperation"}"#
@@ -58,6 +72,24 @@ enum CoreUserInputs {
     }
 
     private enum InputError: Error { case missingArgument, outsideWindow }
+
+    /// A Room row as it crossed: column names to SQLite values. Column affinity stores 3 as 3.0 in a REAL column.
+    private static func rows(_ args: [String: Any]) throws -> [WhoopStore.LaneRow] {
+        guard let list = args["rows"] as? [[String: Any]] else { throw InputError.missingArgument }
+        return list.map { $0.mapValues(databaseValue) }
+    }
+
+    private static func databaseValue(_ value: Any) -> WhoopStore.LaneValue {
+        switch value {
+        case is NSNull: return .null
+        case let text as String: return .text(text)
+        case let number as NSNumber:
+            let double = number.doubleValue
+            if double.rounded() == double, abs(double) < 9.0e15 { return .integer(Int64(double)) }
+            return .real(double)
+        default: return .null
+        }
+    }
     private static func validWaterKey(_ key: String) -> Bool { ["hydration", "hydrationImported"].contains(key) }
     private static func waterKey(_ args: [String: Any]) throws -> String {
         guard let key = args["key"] as? String, validWaterKey(key) else { throw InputError.missingArgument }

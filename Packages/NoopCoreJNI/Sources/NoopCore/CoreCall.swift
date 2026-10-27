@@ -40,6 +40,20 @@ public enum CoreCall {
         func int(_ k: String, _ fallback: Int) -> Int { (args[k] as? NSNumber)?.intValue ?? fallback }
         func ok(_ done: Bool) -> String { done ? #"{"ok":true}"# : #"{"ok":false}"# }
         switch op {
+        case "device.deleteData":
+            // "Delete this device's data" and "Forget": the core's copy goes first, as `DeviceRegistry.forget`
+            // does on Apple, so a failure leaves both stores holding the device.
+            let id = string("id")
+            guard !id.isEmpty else { return #"{"error":"invalid"}"# }
+            guard let (store, _) = ShadowSession.storeAndPath else { return #"{"error":"noStore"}"# }
+            do { try await store.deleteAllData(deviceId: id); return #"{"ok":true}"# }
+            catch { return #"{"error":"deleteFailed"}"# }
+        case "device.reKey":
+            let from = string("from"), to = string("to")
+            guard !from.isEmpty, !to.isEmpty else { return #"{"error":"invalid"}"# }
+            guard let (store, _) = ShadowSession.storeAndPath else { return #"{"error":"noStore"}"# }
+            do { try await store.reKeyDeviceData(from: from, to: to); return #"{"ok":true}"# }
+            catch { return #"{"error":"reKeyFailed"}"# }
         case "media.configure":
             guard let root = args["root"] as? String, root.hasPrefix("/") else { return #"{"error":"mediaRootMissing"}"# }
             return CoreRead.json(await CoreExerciseMedia.shared.configure(root: URL(fileURLWithPath: root), disabled: args["disabled"] as? Bool ?? false))
@@ -66,7 +80,7 @@ public enum CoreCall {
         guard let (store, _) = ShadowSession.storeAndPath, let reader = ShadowSession.reader else {
             return #"{"error":"noStore"}"#
         }
-        if op.hasPrefix("input.") { return await CoreUserInputs.run(op, json: argsJSON, store: store) }
+        if op.hasPrefix("input.") || op.hasPrefix("lanes.") { return await CoreUserInputs.run(op, json: argsJSON, store: store) }
         switch op {
         case "hevy.startSync": return CoreRead.json(await CoreHevy.shared.start(store: store, key: string("key"), routinesOnly: args["routinesOnly"] as? Bool ?? false))
         case "hevy.info":

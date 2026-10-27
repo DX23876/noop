@@ -14,7 +14,8 @@ final class CoreGoalsTests: XCTestCase {
     func testAddedWeeklyGoalCountsTheStoredWorkoutsOfThisWeek() async throws {
         let store = try await WhoopStore.inMemory()
         let reader = StoreReader(store: store, activeDeviceId: "my-whoop", registeredWhoopIds: [])
-        let now = Date()
+        // Noon today, so the hour-long workout before it never falls on yesterday when the suite runs after midnight.
+        let now = Calendar.current.startOfDay(for: Date()).addingTimeInterval(12 * 3_600)
         let start = Int(now.timeIntervalSince1970) - 60
         _ = try await store.upsertWorkouts([WorkoutRow(startTs: start - 3_600, endTs: start, sport: "Running",
             source: "my-whoop", durationS: 3_600, energyKcal: nil, avgHr: 140, maxHr: 170, strain: 10,

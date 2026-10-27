@@ -36,7 +36,7 @@ extension WhoopStore {
         try UpstreamMigrationBridge.adopt(database)
         try makeMigrator().migrate(database)
         try database.write { db in
-            if sealAndroidInputs { try sealAndroidJournalHydration(in: db) }
+            if sealAndroidInputs { try sealAndroidJournalHydration(in: db); try sealAndroidInputLanes(in: db) }
             let previous = try Data.fetchOne(db, sql: "SELECT payload FROM goalPreferenceState WHERE id = 1")
             guard let replacement = try transform(previous), replacement != previous else { return }
             try db.execute(sql: """

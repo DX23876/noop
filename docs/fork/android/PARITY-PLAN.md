@@ -123,7 +123,10 @@ Local progress (2026-10-27): journal and hydration raw inputs now cross a one-ti
 ownership boundary (GRDB v80). Android repository reads/writes and backup export use the core; restored
 archives seal the lane against replay from the phone's old Room database. Store/schema, bridge/backup,
 arm64 packaging and the installed Room-to-JNI integration check pass. Catalog/opt-in settings now reach
-the core (habit and hydration goals, Today & Trends cards). Device source re-key/delete integration and the other classic data lanes remain part of this phase.
+the core (habit and hydration goals, Today & Trends cards). Device delete/forget/re-key and the remaining input lanes
+(workouts, health days, lab markers, live sessions, imported series/days/nights, sleep edits, day ownership)
+are adopted once and mirrored on every write (2026-10-28). Moving the classic screens' reads to the core and
+ending Room writes remain; the strap path among them waits for hardware evidence.
 Analysis migration required: no for this ownership move; raw values are preserved.
 
 - **Eingebettete Bildschirme:** Die Datenschicht jedes eingebetteten Klassik-Bildschirms, der abgeleitete
