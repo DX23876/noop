@@ -63,6 +63,7 @@ import com.noop.R
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.rememberCoroutineScope
+import com.noop.core.CoreCoach
 import com.noop.core.CoreGoals
 import com.noop.core.CoreRead
 import com.noop.ui.AppViewModel
@@ -363,10 +364,13 @@ private fun KeyMetrics(model: TodayModel?, columns: Int) {
         val unitBreaths = stringResource(R.string.forge_unit_breaths)
         val unitMin = stringResource(R.string.forge_unit_min)
         // "Ask coach" while the coach is on: the metric goes to the chat, which opens in place of the trend page.
-        // Hidden without data access, as iOS hides its card buttons: a card read sends the card's figures.
+        // Hidden without data access or its purposes, as iOS hides its card buttons: a card read sends the card's
+        // figures, and the shared coach would drop a read its purposes do not cover without a word.
         val askContext = LocalContext.current
-        val ask: ((String, String) -> Unit)? = if (!com.noop.ui.NoopPrefs.coachEnabled(askContext) ||
-            !com.noop.ai.AiKeyStore.readConsent(askContext)) null
+        val coachOn = com.noop.ui.NoopPrefs.coachEnabled(askContext) && com.noop.ai.AiKeyStore.readConsent(askContext)
+        var purposesOn by remember { mutableStateOf(false) }
+        LaunchedEffect(coachOn) { purposesOn = coachOn && withContext(Dispatchers.IO) { CoreCoach.cardAllowed() } }
+        val ask: ((String, String) -> Unit)? = if (!coachOn || !purposesOn) null
             else { title, summary -> com.noop.ui.CoachHandoff.pendingCard = title to summary; open = null; coachOpen = true }
         ForgeOverlayPage(onDismiss = { open = null }) {
             ForgeSceneBackdrop(ForgeBackdrop.Sky) {

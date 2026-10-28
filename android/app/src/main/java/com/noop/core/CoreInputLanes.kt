@@ -30,6 +30,15 @@ class CoreInputLanes(private val context: Context, private val db: WhoopDatabase
         private const val COMPUTED = "-noop"
         private val mutex = Mutex()
 
+        /**
+         * Whether the core's lanes hold Room's rows in this process: set once [ensure] found them adopted with no
+         * repair waiting, cleared while a repair restages them and when a mirror fails. Reads back from the core
+         * go by it, so a lane that is empty, half-staged or behind is never shown in place of Room's copy.
+         */
+        @Volatile
+        var ready = false
+            private set
+
         /** Primary keys, in Room's (and GRDB's) column order. */
         val KEYS = linkedMapOf(
             "workout" to listOf("deviceId", "startTs", "sport"),
@@ -55,7 +64,8 @@ class CoreInputLanes(private val context: Context, private val db: WhoopDatabase
             CoreRead.open(context)
             val owned = JSONObject(call("lanes.owned", JSONObject())).getBoolean("owned")
             val repair = prefs.getBoolean(KEY_REPAIR, false)
-            if (owned && !repair) return@withLock
+            if (owned && !repair) { ready = true; return@withLock }
+            ready = false
             call("lanes.reset", JSONObject())
             // One read transaction, so Room cannot move under the chunked snapshot.
             db.runInTransaction {
@@ -71,6 +81,7 @@ class CoreInputLanes(private val context: Context, private val db: WhoopDatabase
             }
             val moved = JSONObject(call("lanes.commit", JSONObject().put("replace", owned))).optInt("moved")
             prefs.edit().putBoolean(KEY_REPAIR, false).apply()
+            ready = true
             Log.i(TAG, "input lanes ${if (owned) "repaired" else "adopted"}: $moved rows")
             CoreShadow.noteDataChanged()
         }
@@ -113,6 +124,7 @@ class CoreInputLanes(private val context: Context, private val db: WhoopDatabase
 
     private fun markForRepair(table: String, error: Throwable) {
         Log.w(TAG, "mirror of $table failed; repair on next adoption check: ${error.message}")
+        ready = false
         prefs.edit().putBoolean(KEY_REPAIR, true).apply()
     }
 

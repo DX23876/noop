@@ -274,20 +274,24 @@ public enum CoreCall {
                                                  suppressedSleepWakeDays: Set(args["suppressedWakeDays"] as? [String] ?? []))
             return CoreRead.json(CoreRead.ResolvedSeries(r))
         case "read.metricSeries":
-            // One source's stored series verbatim, as `WhoopStore.metricSeries` holds it.
-            return CoreRead.json((try? await reader.store.metricSeries(deviceId: string("deviceId"), key: string("key"),
-                                                                       from: string("from"), to: string("to"))) ?? [])
+            // One source's stored series verbatim, as `WhoopStore.metricSeries` holds it. These stored reads answer
+            // `null` when the store throws, so Android reads Room instead of showing an empty list (`stored`).
+            return await stored { try await reader.store.metricSeries(deviceId: string("deviceId"), key: string("key"),
+                                                                      from: string("from"), to: string("to")) }
         case "read.metricKeys":
-            return CoreRead.json((try? await reader.store.metricKeys(deviceId: string("deviceId"))) ?? [])
+            return await stored { try await reader.store.metricKeys(deviceId: string("deviceId")) }
         case "read.metricCount":
-            return CoreRead.json(["count": (try? await reader.store.metricSeriesKeyCount(deviceId: string("deviceId"), key: string("key"))) ?? 0])
+            return await stored {
+                let count = try await reader.store.metricSeriesKeyCount(deviceId: string("deviceId"), key: string("key"))
+                return ["count": count]
+            }
         case "read.appleDaily":
-            return CoreRead.json((try? await reader.store.appleDaily(deviceId: string("deviceId"), from: string("from"), to: string("to"))) ?? [])
+            return await stored { try await reader.store.appleDaily(deviceId: string("deviceId"), from: string("from"), to: string("to")) }
         case "read.dailyMetrics":
-            return CoreRead.json((try? await reader.store.dailyMetrics(deviceId: string("deviceId"), from: string("from"), to: string("to"))) ?? [])
+            return await stored { try await reader.store.dailyMetrics(deviceId: string("deviceId"), from: string("from"), to: string("to")) }
         case "read.labMarkers":
             // The Lab Book's readings for one category, as Apple's `LabBookView` reads them.
-            return CoreRead.json((try? await reader.store.labMarkers(deviceId: string("deviceId"), category: string("category"))) ?? [])
+            return await stored { try await reader.store.labMarkers(deviceId: string("deviceId"), category: string("category")) }
         case "read.workouts":
             return CoreRead.json(await CoreRead.workouts(days: (args["days"] as? Int) ?? 4000,
                                                          dismissed: args["dismissedWorkouts"] as? [String] ?? [], reader: reader))
@@ -435,5 +439,12 @@ public enum CoreCall {
         default:
             return #"{"error":"unknownOp"}"#
         }
+    }
+
+    /// A stored read for the host: the value as JSON, or `null` when the store throws, so the caller can tell a
+    /// failed read from an empty one.
+    private static func stored<T: Encodable>(_ read: () async throws -> T) async -> String {
+        guard let value = try? await read() else { return "null" }
+        return CoreRead.json(value)
     }
 }

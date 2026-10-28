@@ -17,7 +17,10 @@ object CoreLabMarkers {
         return parse(json)
     }
 
-    internal fun parse(json: String): List<LabMarkerRow>? {
+    /** Null for anything but the expected shape (a missing field included), so the caller reads Room instead. */
+    internal fun parse(json: String): List<LabMarkerRow>? = runCatching { parseOrThrow(json) }.getOrNull()
+
+    private fun parseOrThrow(json: String): List<LabMarkerRow>? {
         val a = runCatching { JSONArray(json) }.getOrNull() ?: return null
         return (0 until a.length()).map { i ->
             val o = a.getJSONObject(i)

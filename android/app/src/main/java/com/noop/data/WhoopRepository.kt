@@ -1254,8 +1254,7 @@ class WhoopRepository(
         dao.labMarkerById(id)?.let { listOf(it.markerKey) }.orEmpty()
     suspend fun labMarkersByKey(deviceId: String, markerKey: String) = dao.labMarkersByKey(deviceId, markerKey)
     suspend fun labMarkersByCategory(deviceId: String, category: String): List<LabMarkerRow> =
-        (if (coreReads()) com.noop.core.CoreLabMarkers.read(deviceId, category) else null)
-            ?: dao.labMarkersByCategory(deviceId, category)
+        coreLaneRead { com.noop.core.CoreLabMarkers.read(deviceId, category) } ?: dao.labMarkersByCategory(deviceId, category)
     suspend fun markerKeysPresent(deviceId: String) = dao.markerKeysPresent(deviceId)
 
     // MARK: - Reads
@@ -1885,10 +1884,25 @@ class WhoopRepository(
 
     /**
      * Parity plan 1.3: with the Lab switch on, a source the input lanes mirror is read back from the core; null
-     * (Room reads) for a computed source, without a core, or when the core read fails.
+     * (Room reads) for a computed source and in every case [coreLaneRead] falls back.
      */
-    private inline fun <T> storedInput(deviceId: String, read: () -> T?): T? =
-        if (coreReads() && com.noop.core.CoreStoredInputs.owns(deviceId)) read() else null
+    private suspend fun <T> storedInput(deviceId: String, read: () -> T?): T? =
+        if (com.noop.core.CoreStoredInputs.owns(deviceId)) coreLaneRead(read) else null
+
+    /**
+     * A read the shared core answers from its input lanes, with the Lab switch on: off the main thread, since the
+     * core call blocks where Room's DAO suspends, and only once the lanes hold Room's rows. Null (Room reads)
+     * without a core or lanes, while the lanes are not adopted or wait for a repair, and when the core read fails.
+     */
+    private suspend fun <T> coreLaneRead(read: () -> T?): T? {
+        val lanes = inputLanes ?: return null
+        if (!coreReads()) return null
+        if (!com.noop.core.CoreInputLanes.ready) {
+            runCatching { lanes.ensure() }.onFailure { if (it is kotlinx.coroutines.CancellationException) throw it }
+            if (!com.noop.core.CoreInputLanes.ready) return null
+        }
+        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { read() }
+    }
 
     /**
      * Computed ("-noop") [key] series across the active-strap UNION (the active strap's own computed
@@ -1991,7 +2005,9 @@ class WhoopRepository(
             ?: dao.days(deviceId)
 
     /** Scalar COUNT twin of [days] for count badges. */
-    suspend fun daysCount(deviceId: String): Int = dao.daysCount(deviceId)
+    suspend fun daysCount(deviceId: String): Int =
+        storedInput(deviceId) { com.noop.core.CoreStoredInputs.dailyMetrics(deviceId, "0000-01-01", "9999-12-31")?.size }
+            ?: dao.daysCount(deviceId)
 
     /** #1304/#512: the newest HR-sample ts across the active-strap union, or null — the union twin of
      *  [latestHrSampleTs] for the Data Sources "has HR" badge (a 2nd strap banks HR under its own id, so a
@@ -2386,13 +2402,11 @@ class WhoopRepository(
         to: String,
         strapDeviceId: String = "my-whoop",
     ): MetricSeriesResolution {
-        if (coreReads()) {
-            // The core resolves as Apple's `MetricResolver`; the #1705 one-scale rule below stays on this path too.
-            com.noop.core.CoreResolvedSeries.read(key, preferredSource, from, to, strapDeviceId)?.let { r ->
-                return if (key != "skin_temp") r else {
-                    val keep = com.noop.analytics.SkinTempDisplay.dominantKind(r.points.map { it.value })
-                    if (keep == null) r else r.copy(points = r.points.filter { com.noop.analytics.SkinTempDisplay.kind(it.value) == keep })
-                }
+        // The core resolves as Apple's `MetricResolver`; the #1705 one-scale rule below stays on this path too.
+        coreLaneRead { com.noop.core.CoreResolvedSeries.read(key, preferredSource, from, to, strapDeviceId) }?.let { r ->
+            return if (key != "skin_temp") r else {
+                val keep = com.noop.analytics.SkinTempDisplay.dominantKind(r.points.map { it.value })
+                if (keep == null) r else r.copy(points = r.points.filter { com.noop.analytics.SkinTempDisplay.kind(it.value) == keep })
             }
         }
         val candidates = sourceCandidates(key, preferredSource, strapDeviceId)
