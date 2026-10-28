@@ -41,6 +41,10 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.AlertDialog
+import com.noop.core.CoreGoals
+import androidx.compose.material.icons.rounded.TrackChanges
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.runtime.produceState
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -860,10 +864,29 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
     }
     if (finishing) {
         var rpe by remember { mutableStateOf("") }
+        // What saving adds to this week's goals, before Save as on iOS (`GoalSessionPreviewNote`).
+        val preview by produceState(emptyList<CoreGoals.Preview>()) {
+            value = withContext(Dispatchers.IO) {
+                CoreGoals.lines(context, dismissedTrainingWorkouts(context), draft = true)?.preview.orEmpty()
+            }
+        }
         AlertDialog(
             onDismissRequest = { finishing = false },
             title = { Text(stringResource(R.string.forge_training_effort)) },
-            text = { NumberField(rpe, onChange = { rpe = it.filter(Char::isDigit).take(2) }) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space3)) {
+                    NumberField(rpe, onChange = { rpe = it.filter(Char::isDigit).take(2) })
+                    preview.forEach { line ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(if (line.reaches) Icons.Rounded.Star else Icons.Rounded.TrackChanges, contentDescription = null,
+                                 tint = if (line.reaches) ForgeTokens.StrandPalette.statusWarning.resolve() else Forge.colors.accent,
+                                 modifier = Modifier.size(14.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(line.text, style = Forge.type.footnote, color = Forge.colors.textSecondary)
+                        }
+                    }
+                }
+            },
             confirmButton = {
                 TextButton(onClick = {
                     finishing = false

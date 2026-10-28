@@ -37,5 +37,8 @@ class CoreGoalsTest {
         assertEquals(listOf("Counts toward Runs: 3/4"), lines.workout)
         assertEquals(emptyList<String>(), lines.night)
         assertEquals(null, CoreGoals.parseLines("""{"error":"goalState"}"""))
+        val preview = CoreGoals.parseLines(
+            """{"workout":[],"night":[],"preview":[{"text":"This session reaches Workouts: 4/4","reaches":true}]}""")!!
+        assertEquals(listOf(CoreGoals.Preview("This session reaches Workouts: 4/4", true)), preview.preview)
     }
 }

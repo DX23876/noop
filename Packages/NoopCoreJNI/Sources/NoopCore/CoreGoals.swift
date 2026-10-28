@@ -140,11 +140,17 @@ public enum CoreGoals {
     /// the night stands in the week's sleep goals. Reads the goals without changing them.
     public struct Lines: Encodable {
         public var workout: [String], night: [String]
+        /// With `draft`: what saving the open logger session adds, and whether it reaches the goal.
+        public var preview: [PreviewLine] = []
+    }
+
+    public struct PreviewLine: Encodable {
+        public var text: String, reaches: Bool
     }
 
     @MainActor
     public static func lines(reader: StoreReader, settings: Settings, workoutId: String?, day: String?,
-                             now: Date = Date()) async throws -> Lines {
+                             draft: Bool = false, now: Date = Date()) async throws -> Lines {
         var row: WorkoutRow?
         if let workoutId, !workoutId.isEmpty {
             row = await CoreTrainingSession.select(reader: reader, id: workoutId, dismissed: settings.dismissedWorkoutSpans,
@@ -154,8 +160,20 @@ public enum CoreGoals {
         let snapshots = try await CoreGoalState.read(store: reader.store) { context in
             evaluate(source: source, context: context, now: now).periodSnapshots
         }
+        var preview: [PreviewLine] = []
+        if draft, let open = (try? await reader.store.workoutDraft()) ?? nil {
+            // The session as the Apple logger previews it: a manual strength workout from its start until now,
+            // with the completed work sets it would keep.
+            let end = Int(now.timeIntervalSince1970)
+            let session = WorkoutRow(startTs: open.startedAt, endTs: end, sport: "Strength Training", source: "manual",
+                                     durationS: Double(end - open.startedAt), energyKcal: nil, avgHr: nil, maxHr: nil,
+                                     strain: nil, distanceM: nil, zonesJSON: nil, notes: nil, steps: nil)
+            let sets = open.exercises.flatMap(\.sets).filter { $0.isCompleted && $0.phase == .work }.count
+            preview = GoalContextLines.sessionPreview(snapshots, row: session, workingSets: sets)
+                .map { PreviewLine(text: $0.text, reaches: $0.reaches) }
+        }
         return Lines(workout: row.map { GoalContextLines.contributions(snapshots, row: $0) } ?? [],
-                     night: day.map { GoalContextLines.night(snapshots, day: $0) } ?? [])
+                     night: day.map { GoalContextLines.night(snapshots, day: $0) } ?? [], preview: preview)
     }
 
     /// The shared refresh over loaded inputs, inside a goal-state transaction.

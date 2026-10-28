@@ -2,6 +2,7 @@ import Foundation
 import XCTest
 import StrandCore
 import WhoopStore
+import StrandTraining
 @testable import NoopCore
 
 /// The Android goal operations (parity plan 1.2): a goal added through the core is measured from the store by the
@@ -79,6 +80,28 @@ final class CoreGoalsTests: XCTestCase {
         XCTAssertEqual(lines.night, [])
         let none = try await CoreGoals.lines(reader: reader, settings: settings, workoutId: "missing", day: nil, now: now)
         XCTAssertEqual(none.workout, [])
+    }
+
+    func testTheOpenSessionPreviewsWhatItAddsToTheWorkingSetGoal() async throws {
+        let store = try await WhoopStore.inMemory()
+        let reader = StoreReader(store: store, activeDeviceId: "my-whoop", registeredWhoopIds: [])
+        let now = Calendar.current.startOfDay(for: Date()).addingTimeInterval(12 * 3_600)
+        _ = await CoreGoals.addPeriodGoal(store: store, metric: "workingSets", period: "week", target: 40,
+                                          threshold: nil, now: now)
+        let sets = [NativeWorkoutSet(index: 0, phase: .warmup, weightKg: 40, reps: 10, isCompleted: true),
+                    NativeWorkoutSet(index: 1, weightKg: 80, reps: 5, isCompleted: true),
+                    NativeWorkoutSet(index: 2, weightKg: 80, reps: 5, isCompleted: true),
+                    NativeWorkoutSet(index: 3, weightKg: 80, reps: 5)]
+        try await store.saveWorkoutDraft(WorkoutDraft(title: "Push", startedAt: Int(now.timeIntervalSince1970) - 1_800,
+            plannedDay: StoreReader.localDayKey(now), exercises: [NativeWorkoutExercise(exerciseId: "bench", sets: sets)]))
+
+        let lines = try await CoreGoals.lines(reader: reader, settings: settings, workoutId: nil, day: nil,
+                                              draft: true, now: now)
+        // Two completed work sets count; the warm-up and the open set do not.
+        let line = try XCTUnwrap(lines.preview.first)
+        XCTAssertTrue(line.text.hasPrefix("With this session: "), line.text)
+        XCTAssertTrue(line.text.contains(" 2/"), line.text)
+        XCTAssertFalse(line.reaches)
     }
 
     func testDetailActionsChangeThePersistedGoal() async throws {

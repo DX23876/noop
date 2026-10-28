@@ -134,7 +134,8 @@ public enum CoreCall {
         case "goals.lines":
             do {
                 return CoreRead.json(try await CoreGoals.lines(reader: reader, settings: CoreGoalEnergy.settings(args),
-                    workoutId: args["workoutId"] as? String, day: args["day"] as? String))
+                    workoutId: args["workoutId"] as? String, day: args["day"] as? String,
+                    draft: args["draft"] as? Bool ?? false))
             } catch {
                 return #"{"error":"goalState"}"#
             }

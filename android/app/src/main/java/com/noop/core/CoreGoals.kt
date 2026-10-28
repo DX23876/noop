@@ -69,20 +69,25 @@ object CoreGoals {
     }
 
     /** The goal notes beside one workout and one night (`GoalContextLines`), in the wearer's language. */
-    data class Lines(val workout: List<String>, val night: List<String>)
+    data class Lines(val workout: List<String>, val night: List<String>, val preview: List<Preview> = emptyList())
+    /** What saving the open logger session adds to a goal, and whether it reaches it. */
+    data class Preview(val text: String, val reaches: Boolean)
 
-    fun lines(context: Context, dismissedWorkouts: List<String>, workoutId: String? = null, day: String? = null): Lines? {
+    fun lines(context: Context, dismissedWorkouts: List<String>, workoutId: String? = null, day: String? = null,
+              draft: Boolean = false): Lines? {
         if (!SwiftCore.available) return null
         if (!CoreUserInputs.ensure(context)) return null
         val args = JSONObject(settings(context, dismissedWorkouts))
             .apply { if (workoutId != null) put("workoutId", workoutId); if (day != null) put("day", day) }
+            .put("draft", draft)
         return SwiftCore.call("goals.lines", args.toString())?.let(::parseLines)
     }
 
     internal fun parseLines(json: String): Lines? {
         if (json == "null" || json.contains("\"error\"")) return null
         val o = JSONObject(json)
-        return Lines(o.optJSONArray("workout").strings(), o.optJSONArray("night").strings())
+        return Lines(o.optJSONArray("workout").strings(), o.optJSONArray("night").strings(),
+                     o.optJSONArray("preview").objects().map { Preview(it.getString("text"), it.optBoolean("reaches")) })
     }
 
     /** The metrics the weekly and monthly goal setup offers, with each one's target range. */
