@@ -1312,45 +1312,10 @@ final class Repository: ObservableObject {
         StoreReader.mergeDaily(imported: imported, computed: computed, userEditedDays: userEditedDays)
     }
 
+    /// Activity-file steps on days the merged rows have none (`StoreReader.mergeActivityFileSteps`).
     nonisolated static func mergeActivityFileSteps(into base: [DailyMetric],
                                                    _ activityFile: [DailyMetric]) -> [DailyMetric] {
-        guard !activityFile.isEmpty else { return base }
-        // Last-wins on a duplicate day rather than `uniqueKeysWithValues`, which TRAPS (crashes) if `base`
-        // ever carries two rows for one day. Matches the Kotlin twin's graceful merge and this file's own
-        // safe convention (the other `Dictionary(…, uniquingKeysWith:)` builders here).
-        var byDay = Dictionary(base.map { ($0.day, $0) }, uniquingKeysWith: { _, last in last })
-        for row in activityFile {
-            guard let steps = row.steps, steps > 0 else { continue }
-            if let existing = byDay[row.day] {
-                if existing.steps == nil {
-                    byDay[row.day] = DailyMetric(
-                        day: existing.day,
-                        totalSleepMin: existing.totalSleepMin,
-                        efficiency: existing.efficiency,
-                        deepMin: existing.deepMin,
-                        remMin: existing.remMin,
-                        lightMin: existing.lightMin,
-                        disturbances: existing.disturbances,
-                        restingHr: existing.restingHr,
-                        avgHrv: existing.avgHrv,
-                        recovery: existing.recovery,
-                        strain: existing.strain,
-                        exerciseCount: existing.exerciseCount,
-                        spo2Pct: existing.spo2Pct,
-                        skinTempDevC: existing.skinTempDevC,
-                        respRateBpm: existing.respRateBpm,
-                        steps: steps,
-                        activeKcalEst: existing.activeKcalEst,
-                        spo2Red: existing.spo2Red,
-                        spo2Ir: existing.spo2Ir,
-                        skinTempC: existing.skinTempC
-                    )
-                }
-            } else {
-                byDay[row.day] = row
-            }
-        }
-        return byDay.values.sorted { $0.day < $1.day }
+        StoreReader.mergeActivityFileSteps(into: base, activityFile)
     }
 
     /// The local wake-days that carry a user-edited sleep session (`StoreReader.userEditedDays`).

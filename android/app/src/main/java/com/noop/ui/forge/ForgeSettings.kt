@@ -359,7 +359,7 @@ private fun Page(page: ForgeSettingsPage, viewModel: AppViewModel, onBack: () ->
                 ForgeSettingsPage.Calculations -> CalculationsSection(viewModel, ::change, onOpen)
                 ForgeSettingsPage.DataBackup -> DataBackupSection(onOpen)
                 ForgeSettingsPage.Help -> HelpSection(onOpen)
-                ForgeSettingsPage.Lab -> LabSection(onOpen)
+                ForgeSettingsPage.Lab -> LabSection(viewModel, onOpen)
                 ForgeSettingsPage.About -> AboutSection(onOpen)
                 else -> Unit
             }
@@ -987,7 +987,7 @@ private fun HelpSection(onOpen: (ForgeSettingsSub) -> Unit) {
 }
 
 @Composable
-private fun LabSection(onOpen: (ForgeSettingsSub) -> Unit) {
+private fun LabSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub) -> Unit) {
     val context = LocalContext.current
     var confirms by remember { mutableStateOf(CoreShadow.confirmsHistoryAck(context)) }
     SettingsCard(title = stringResource(R.string.forge_experimental_section), blurb = null) {
@@ -1014,6 +1014,33 @@ private fun LabSection(onOpen: (ForgeSettingsSub) -> Unit) {
             exerciseVO2max = it
             com.noop.core.CoreFeatures.setExerciseVO2max(context, it)
         }
+        RowDivider()
+        // Parity plan 1.3: the classic screens' daily rows from the shared core, and the check that they agree.
+        var coreDays by remember { mutableStateOf(com.noop.core.CoreDailyRows.coreReads(context)) }
+        ToggleRow(stringResource(R.string.forge_lab_core_days), stringResource(R.string.forge_lab_core_days_detail), coreDays) {
+            coreDays = it
+            com.noop.core.CoreDailyRows.setCoreReads(context, it)
+        }
+        val scope = rememberCoroutineScope()
+        var comparison by remember { mutableStateOf<String?>(null) }
+        val same = stringResource(R.string.forge_lab_compare_same)
+        val unavailable = stringResource(R.string.forge_lab_compare_none)
+        val res = LocalContext.current.resources
+        TextButton(onClick = {
+            scope.launch {
+                val found = viewModel.compareDailyRowsWithCore()
+                comparison = when {
+                    found == null -> unavailable
+                    found.isEmpty() -> same
+                    else -> found.first().let { f ->
+                        res.getString(R.string.forge_lab_compare_diff, found.size,
+                                      res.getString(R.string.forge_join_dot, f.day,
+                                                    res.getString(R.string.forge_join_arrow, res.getString(R.string.forge_join_space, f.field, f.room), f.core)))
+                    }
+                }
+            }
+        }) { Text(stringResource(R.string.forge_lab_compare)) }
+        comparison?.let { Text(it, style = Forge.type.caption, color = Forge.colors.textSecondary) }
     }
     SettingsCard(title = null, blurb = null) {
         LinkRow(stringResource(R.string.l10n_settings_screen_health_wellness_93475778),

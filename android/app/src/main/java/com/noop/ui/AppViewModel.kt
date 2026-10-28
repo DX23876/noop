@@ -69,6 +69,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
@@ -766,8 +767,24 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // illness watch. recentDaysMergedFlow caps each source to RECENT_DAYS_CAP most-recent days first, so
         // the merge stays bounded while every current surface (deepest Trends range, 7-day Fitness Age /
         // Vitality windows) keeps its data. Same oldest-first ordering as before.
+        // Parity plan 1.3: with the Lab switch on, the same window is read from the shared core's merge
+        // (`CoreDailyRows`), Room's flow serving only as the change signal; off, Room's merge as before.
         repository.recentDaysMergedFlow(deviceId)
+            .map { room ->
+                if (room.isEmpty() || !com.noop.core.CoreDailyRows.coreReads(appContext)) room
+                else com.noop.core.CoreDailyRows.rows(room.first().day, room.last().day, deviceId) ?: room
+            }
+            .flowOn(Dispatchers.IO)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Room's merge against the core's for the recent window: every disagreeing (day, field), for the Lab check. */
+    suspend fun compareDailyRowsWithCore(): List<com.noop.core.CoreDailyRows.Deviation>? = withContext(Dispatchers.IO) {
+        val room = repository.recentDaysMergedFlow(deviceId).first()
+        if (room.isEmpty()) return@withContext emptyList()
+        com.noop.core.CoreDailyRows.rows(room.first().day, room.last().day, deviceId)?.let {
+            com.noop.core.CoreDailyRows.compare(room, it)
+        }
+    }
 
     /**
      * #2525: the Charge baselines (HRV, resting HR, respiration) resolved with the engine's own rule from the

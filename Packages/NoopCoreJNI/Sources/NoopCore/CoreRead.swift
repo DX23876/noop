@@ -113,6 +113,22 @@ public enum CoreRead {
         await reader.hrBuckets(from: from, to: to, bucketSeconds: 300).map { HeartPoint(ts: $0.ts, bpm: $0.bpm) }
     }
 
+    /// The daily rows as the iPhone's `Repository.days` holds them: imports win a day, the core's own rows fill it, a
+    /// hand-edited night's sleep comes from the edit, and an activity file supplies steps a day lacks. What
+    /// Android's classic screens read instead of Room's merge (parity plan 1.3).
+    public static func dailyRows(from: String, to: String, reader: StoreReader) async -> [DailyMetric] {
+        let start = Int(WeightSeries.date(forDay: from)?.timeIntervalSince1970 ?? 0) - 86_400
+        let end = Int(WeightSeries.date(forDay: to)?.timeIntervalSince1970 ?? Date().timeIntervalSince1970) + 2 * 86_400
+        let sessions = await reader.allSleepSessions(from: start, to: end)
+        let merged = StoreReader.applyingEditedSleepSessions(sessions, to: StoreReader.mergeDaily(
+            imported: await reader.unionDailyMetrics(from: from, to: to),
+            computed: await reader.unionComputedDailyMetrics(from: from, to: to),
+            userEditedDays: StoreReader.userEditedDays(sessions)))
+        let activityFile = (try? await reader.store.dailyMetrics(deviceId: ScoreProvenance.activityFileSource,
+                                                                 from: from, to: to)) ?? []
+        return StoreReader.mergeActivityFileSteps(into: merged, activityFile)
+    }
+
     /// Imported days with the computed rows filling their gaps, one row per day (`Repository`'s daily cache).
     private static func merged(from: String, to: String, reader: StoreReader) async -> [DailyMetric] {
         StoreReader.mergeDaily(imported: await reader.unionDailyMetrics(from: from, to: to),

@@ -4455,4 +4455,10 @@
     <string name="forge_sd_balance">Balansować</string>
     <string name="forge_sd_need">Zapotrzebowanie na noc</string>
     <string name="forge_sd_nights">Noce</string>
+    <string name="forge_lab_core_days">Wspólny rdzeń odczytuje wartości dzienne</string>
+    <string name="forge_lab_core_days_detail">Dla testerów. Klasyczne ekrany odczytują sen, Charge, Effort i parametry życiowe z każdego dnia ze wspólnego rdzenia, jak na iPhonie, zamiast z kopii telefonu.</string>
+    <string name="forge_lab_compare">Porównaj z kopią telefonu</string>
+    <string name="forge_lab_compare_same">Brak różnic w ostatnich dniach.</string>
+    <string name="forge_lab_compare_diff">Różnice: %1$d, pierwsza: %2$s</string>
+    <string name="forge_lab_compare_none">Wspólny rdzeń jest niedostępny.</string>
 </resources>

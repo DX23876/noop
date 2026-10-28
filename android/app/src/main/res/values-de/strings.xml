@@ -4452,4 +4452,10 @@
     <string name="forge_sd_balance">Bilanz</string>
     <string name="forge_sd_need">Bedarf pro Nacht</string>
     <string name="forge_sd_nights">Nächte</string>
+    <string name="forge_lab_core_days">Gemeinsamer Kern liest Tageswerte</string>
+    <string name="forge_lab_core_days_detail">Für Tester. Die klassischen Bildschirme lesen Schlaf, Charge, Effort und Vitalwerte jedes Tages aus dem gemeinsamen Kern, wie auf dem iPhone, statt aus der eigenen Kopie des Telefons.</string>
+    <string name="forge_lab_compare">Mit der Kopie des Telefons vergleichen</string>
+    <string name="forge_lab_compare_same">Keine Abweichungen in den letzten Tagen.</string>
+    <string name="forge_lab_compare_diff">%1$d Abweichungen, zuerst: %2$s</string>
+    <string name="forge_lab_compare_none">Der gemeinsame Kern ist nicht verfügbar.</string>
 </resources>

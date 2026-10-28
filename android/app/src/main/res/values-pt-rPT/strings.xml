@@ -4431,4 +4431,10 @@
     <string name="forge_sd_balance">Equilíbrio</string>
     <string name="forge_sd_need">Necessidade por noite</string>
     <string name="forge_sd_nights">Noites</string>
+    <string name="forge_lab_core_days">O núcleo partilhado lê os valores diários</string>
+    <string name="forge_lab_core_days_detail">Para testadores. Os ecrãs clássicos leem o sono, Charge, Effort e os sinais vitais de cada dia a partir do núcleo partilhado, como no iPhone, em vez da cópia do telemóvel.</string>
+    <string name="forge_lab_compare">Comparar com a cópia do telemóvel</string>
+    <string name="forge_lab_compare_same">Sem diferenças nos últimos dias.</string>
+    <string name="forge_lab_compare_diff">%1$d diferenças, a primeira: %2$s</string>
+    <string name="forge_lab_compare_none">O núcleo partilhado não está disponível.</string>
 </resources>
