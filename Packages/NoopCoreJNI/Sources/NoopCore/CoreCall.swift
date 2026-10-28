@@ -89,6 +89,7 @@ public enum CoreCall {
         }
         if op.hasPrefix("input.") || op.hasPrefix("lanes.") { return await CoreUserInputs.run(op, json: argsJSON, store: store) }
         if op.hasPrefix("coach.") { return await CoreCoach.run(op, args: args, reader: reader) }
+        if op.hasPrefix("ecg.") { return await CoreEcg.run(op, args: args, store: store) }
         switch op {
         case "hevy.startSync": return CoreRead.json(await CoreHevy.shared.start(store: store, key: string("key"), routinesOnly: args["routinesOnly"] as? Bool ?? false))
         case "hevy.info":

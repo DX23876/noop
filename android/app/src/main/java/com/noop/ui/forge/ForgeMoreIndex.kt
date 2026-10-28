@@ -100,6 +100,7 @@ enum class MoreDest(val category: MoreCategory?, val titleRes: Int, val icon: Im
           listOf("merged record", "all sources", "one timeline")),
     Momentum(MoreCategory.HealthBody, R.string.forge_momentum_title, Icons.Rounded.AutoAwesome,
              listOf("momentum", "readiness", "priorities", "goals")),
+    Ecg(MoreCategory.HealthBody, R.string.forge_ecg_title, Icons.Rounded.MonitorHeart, listOf("ecg", "ekg", "heart", "rhythm", "afib")),
     Body(MoreCategory.HealthBody, R.string.forge_body_title, Icons.Rounded.Accessibility,
          listOf("body", "weight", "weigh-in", "waist", "measurements", "body fat", "tape")),
     Energy(MoreCategory.HealthBody, R.string.forge_energy_title, Icons.Rounded.LocalFireDepartment,
@@ -288,6 +289,10 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
         ForgeBodyPage(onBack)
         return
     }
+    if (dest == MoreDest.Ecg) {
+        ForgeEcgPage(onBack)
+        return
+    }
     if (dest == MoreDest.Coach) {
         ForgeCoachDestination(title, onBack)
         return
@@ -327,7 +332,7 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
             MoreDest.Breathe -> BreatheScreen(viewModel)
             MoreDest.Intervals -> IntervalsScreen(viewModel)
             MoreDest.Alarms -> SmartAlarmScreen(viewModel)
-            MoreDest.Settings, MoreDest.Goals, MoreDest.Momentum, MoreDest.AgeLess, MoreDest.RhythmAge, MoreDest.Energy, MoreDest.Body, MoreDest.Coach -> Unit
+            MoreDest.Settings, MoreDest.Goals, MoreDest.Momentum, MoreDest.AgeLess, MoreDest.RhythmAge, MoreDest.Energy, MoreDest.Body, MoreDest.Coach, MoreDest.Ecg -> Unit
         }
     }
 }
