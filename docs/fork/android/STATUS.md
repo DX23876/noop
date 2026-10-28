@@ -136,8 +136,10 @@ full Today context and the charge/Coach/live-session destinations remain open. A
 already compute in the core but need their screens. The energy plan, body (photos, weight, body model),
 Coach goals/plans/history (llama.cpp on Android unverified), GPS elevation, ECG and the sleep debt ledger
 remain open. Semantic Coach memory is outside this testing release. Remaining Apple app computations to
-move into the core include `EnergyPlanStore`, `StressDayCurve`, `SkinTempBackfillWalker` and the Coach
-context builder; energy summary preparation and goal/Momentum evaluation are now shared.
+move into the core include the Coach context builder; energy summary preparation, goal/Momentum evaluation,
+today's daytime stress, the skin-temperature backfill and the body-measurement reader are now shared.
+`WorkoutElevationSeries` waits on Android recording altitude with its routes (today only imported activity
+files carry it), which needs a real GPS walk to verify (updated 2026-10-28).
 
 ## How to run a real-data check (B4)
 
