@@ -313,7 +313,7 @@ public enum CoreAnalysis {
         var heightCm: Double { p.heightCm }
         var waistCm: Double { p.waistCm }
         var hrMaxOverride: Int { p.hrMaxOverride }
-        var hrMax: Int { p.hrMaxOverride > 0 ? p.hrMaxOverride : Int(StrainScorer.tanakaHRmax(age: Double(max(p.age, 1)))) }
+        var hrMax: Int { MaxHeartRate.resolve(overrideBpm: p.hrMaxOverride, age: Double(p.age)).wholeBpm }
         var stepTicksPerStep: Double { p.stepTicksPerStep }
         var stepsManualOverride: Double? { p.stepsManualCoefficient > 0 ? p.stepsManualCoefficient : nil }
         var stepsCalibrationCoefficient: Double

@@ -112,7 +112,7 @@ extension DailyAnalysis {
         guard let windowStart = midnightForDayKey(bankFrom, offsetSec: tzOffset),
               let windowEndDay = midnightForDayKey(newestDay, offsetSec: tzOffset) else { return }
         let windowEnd = windowEndDay + 86_400
-        let maxHR = hrMaxOverride > 0 ? Double(hrMaxOverride) : StrainScorer.tanakaHRmax(age: Double(age))
+        let maxHR = MaxHeartRate.resolve(overrideBpm: hrMaxOverride, age: Double(age)).bpm ?? 0
 
         // (1) Bank zone minutes while raw HR exists. A day counts as worn when it has a computed daily row; a
         // worn day whose raw HR is already gone keeps the value banked while it still existed.

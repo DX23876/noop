@@ -131,8 +131,7 @@ public enum EnergyModelRefresh {
                                         source: point.source == .manual ? .manual : .health)
             }
         }
-        let maximumHR = profile.maxHR
-            ?? (profile.age > 0 ? StrainScorer.tanakaHRmax(age: profile.age) : nil)
+        let maximumHR = profile.maxHR ?? MaxHeartRate.ageFormula(age: profile.age)
         let sleepIntervals = await sleepIntervals(reader: reader, from: from, to: to)
         let offWristIntervals = await offWristIntervals(reader: reader, from: from, to: to)
         let workoutIntervals = await workoutIntervals(reader: reader, from: from, to: to,

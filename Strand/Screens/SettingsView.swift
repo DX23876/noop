@@ -1238,7 +1238,7 @@ struct SettingsView: View {
     private func loadMaxHRSuggestion() async {
         let peaks = await model.repo.exploreSeries(key: IntelligenceEngine.heldPeakKey, source: Repository.whoopSource,
                                                    days: MaxHRSuggestion.windowDays)
-        let current = Double(profile.hrMaxOverride > 0 ? profile.hrMaxOverride : profile.hrMax)
+        let current = Double(profile.hrMax)
         maxHRSuggestion = MaxHRSuggestion.suggestion(dayPeaks: peaks.map { (day: $0.day, value: $0.value) },
                                                      current: current, declined: maxHRSuggestionDeclined,
                                                      today: Repository.localDayKey(Date()))
@@ -1250,7 +1250,7 @@ struct SettingsView: View {
             HStack(alignment: .firstTextBaseline, spacing: NoopMetrics.space1) {
                 // Always a number: the Tanaka value when automatic (muted), so the column never has to
                 // fit a word, and the caption below says which of the two it is.
-                Text("\(profile.hrMaxOverride > 0 ? profile.hrMaxOverride : profile.hrMax)")
+                Text("\(profile.hrMax)")
                     .font(StrandFont.bodyNumber)
                     .foregroundStyle(profile.hrMaxOverride > 0
                                      ? StrandPalette.textPrimary
@@ -1266,10 +1266,10 @@ struct SettingsView: View {
                 // Steps from the value on screen: from automatic, one beat either side of the Tanaka
                 // estimate rather than from 0; below 120 it returns to automatic.
                 Stepper("Max heart rate override") {
-                    let current = profile.hrMaxOverride > 0 ? profile.hrMaxOverride : profile.hrMax
+                    let current = profile.hrMax
                     profile.hrMaxOverride = min(230, current + 1)
                 } onDecrement: {
-                    let current = profile.hrMaxOverride > 0 ? profile.hrMaxOverride : profile.hrMax
+                    let current = profile.hrMax
                     profile.hrMaxOverride = current - 1 < 120 ? 0 : current - 1
                 }
                     .labelsHidden()

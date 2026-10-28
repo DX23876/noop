@@ -636,7 +636,7 @@ public final class DailyAnalysis {
         // age-predicted); RHR = the same median the Nes value used. Both persist under "vo2max_est"; the card
         // labels it "Estimated". Mirrors the Android twin.
         let vo2 = res.vo2max
-            ?? Calories.vo2maxFor(hrmax: StrainScorer.estimateHRmax([], age: Double(age)).0, restingHR: medianOf(rhrs))
+            ?? Calories.vo2maxFor(hrmax: MaxHeartRate.ageFormula(age: Double(age)) ?? 0, restingHR: medianOf(rhrs))
         if let v = vo2 { rows.append(MetricPoint(day: satKey, key: "vo2max_est", value: v)) }
         return rows
     }
@@ -1045,9 +1045,7 @@ public final class DailyAnalysis {
         let stepSamples = stepOptional ?? []
         let existing = existingOptional?.first
 
-        let maxHR = profile.hrMaxOverride > 0
-            ? Double(profile.hrMaxOverride)
-            : (profile.age > 0 ? StrainScorer.tanakaHRmax(age: Double(profile.age)) : nil)
+        let maxHR = MaxHeartRate.resolve(overrideBpm: profile.hrMaxOverride, age: Double(profile.age)).bpm
         let restingHR = existing?.restingHr.map(Double.init) ?? StrainScorer.defaultRestingHR
         let effortMethod = host.analysisSettings().effortMethod
         let sex = profile.sex
@@ -1110,9 +1108,7 @@ public final class DailyAnalysis {
         let offset = TimeZone.current.secondsFromGMT()
         let age = profile.age
         let sex = profile.sex
-        let maxHR = profile.hrMaxOverride > 0
-            ? Double(profile.hrMaxOverride)
-            : (age > 0 ? StrainScorer.tanakaHRmax(age: Double(age)) : nil)
+        let maxHR = MaxHeartRate.resolve(overrideBpm: profile.hrMaxOverride, age: Double(age)).bpm
         let fallbackId = deviceId
         let registry = DeviceRegistryStore(dbQueue: store.registryWriter)
         let devices = (try? registry.all()) ?? []

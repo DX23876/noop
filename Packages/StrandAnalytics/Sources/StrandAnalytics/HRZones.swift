@@ -168,7 +168,7 @@ public enum HRZones {
 
     /// Tanaka (2001) age-predicted max HR: 208 − 0.7 × age (gender-independent).
     public static func tanakaMaxHR(age: Double) -> Double {
-        208.0 - 0.7 * age
+        StrainScorer.tanakaHRmax(age: age)
     }
 
     /// Build the 5-zone set from age (Tanaka) or a manual `maxHROverride`.
@@ -177,16 +177,10 @@ public enum HRZones {
     ///   - age: age in years (used only when `maxHROverride` is nil).
     ///   - maxHROverride: explicit HRmax (bpm); when provided, `source == "manual"`.
     public static func zones(age: Double, maxHROverride: Double? = nil) -> HRZoneSet {
-        let maxHR: Double
-        let source: String
-        if let override = maxHROverride {
-            maxHR = override
-            source = "manual"
-        } else {
-            maxHR = tanakaMaxHR(age: age)
-            source = "tanaka"
-        }
-        return zones(maxHR: maxHR, source: source)
+        let resolved = MaxHeartRate.resolve(override: maxHROverride, age: age)
+        // No age reads the formula at age 0 (208), as this always did.
+        let maxHR = resolved.bpm ?? Double(resolved.wholeBpm)
+        return zones(maxHR: maxHR, source: resolved.source == .override ? "manual" : "tanaka")
     }
 
     /// Build the 5-zone set directly from a known max HR, over `edges` (default: the conventional

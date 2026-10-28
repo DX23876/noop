@@ -925,7 +925,8 @@ public enum AnalyticsEngine {
         // today's Effort same-day instead of being cut off at the night window's ≈ noon bound, and
         // the prior evening's HR (the night window's −30h tail) no longer bleeds in. Falls back to the
         // night `hr` for pure-function callers/tests.
-        let effMaxHR: Double? = maxHROverride ?? (profile.age > 0 ? StrainScorer.tanakaHRmax(age: profile.age) : nil)
+        let resolvedMaxHR = MaxHeartRate.resolve(override: maxHROverride, age: profile.age)
+        let effMaxHR: Double? = resolvedMaxHR.bpm
         let restForStrain = restingHRDaily.map(Double.init) ?? StrainScorer.defaultRestingHR
         // The Effort ring's own funnel. A nil sink builds nothing at all, so a caller that does not want
         // diagnostics pays nothing; IntelligenceEngine passes its per-day recorder, the same one the
@@ -947,8 +948,8 @@ public enum AnalyticsEngine {
                 // this line in direct contradiction with the `effort score` line above it, which prints
                 // that substituted number, about the same day.
                 day: day, hrmax: effMaxHR ?? Double(StrainScorer.defaultMaxHR()),
-                hrmaxSource: maxHROverride != nil ? "override" : (profile.age > 0 ? "tanaka" : "default"),
-                tanaka: profile.age > 0 ? StrainScorer.tanakaHRmax(age: profile.age) : nil,
+                hrmaxSource: resolvedMaxHR.source.rawValue,
+                tanaka: MaxHeartRate.ageFormula(age: profile.age),
                 observedPeak: hrForPeak.max(by: { $0.bpm < $1.bpm }).map { Double($0.bpm) },
                 restingHR: restForStrain)
                 // The raw peak is usually one isolated sample on a ring; this is the value held (#2438).

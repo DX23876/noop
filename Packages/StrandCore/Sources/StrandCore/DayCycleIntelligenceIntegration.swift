@@ -270,8 +270,7 @@ public actor DayCycleIntelligenceIntegration {
                     if !$0.contains($1) { $0.append($1) }
                 }
                 let restingHR = persisted?.restingHr.map(Double.init) ?? StrainScorer.defaultRestingHR
-                let effectiveMaxHR = maxHROverride
-                    ?? (profile.age > 0 ? StrainScorer.tanakaHRmax(age: profile.age) : nil)
+                let effectiveMaxHR = MaxHeartRate.resolve(override: maxHROverride, age: profile.age).bpm
                 // A day the fingerprint reuse above cannot skip may still hold a cycle whose heart rate did
                 // not move since the last pass (#2293): its onset or the next day changed, not its beats.
                 // The index-only count and newest timestamp per owner witness the heart rate the same way

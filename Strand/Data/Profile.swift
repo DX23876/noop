@@ -249,7 +249,7 @@ final class ProfileStore: ObservableObject {
         let dob = d.object(forKey: K.dateOfBirth) as? Date
         let age = dob.map { years(from: $0, to: Date()) } ?? (d.object(forKey: K.legacyAge) as? Int ?? 30)
         let override = d.object(forKey: K.hrMax) as? Int ?? 0
-        let hrMax = override > 0 ? override : Int((208 - 0.7 * Double(age)).rounded())
+        let hrMax = MaxHeartRate.resolve(overrideBpm: override, age: Double(age)).wholeBpm
         return UserProfile(weightKg: persistedWeightKg,
                            heightCm: d.object(forKey: K.height) as? Double ?? 178,
                            age: Double(age),
@@ -325,12 +325,11 @@ final class ProfileStore: ObservableObject {
     /// therefore did nothing until the day stopped being today. Both views now read this, so the live
     /// value and the stored day are scored against one number.
     var effortHRmax: Double? {
-        if hrMaxOverride > 0 { return Double(hrMaxOverride) }
-        return age > 0 ? StrainScorer.tanakaHRmax(age: Double(age)) : nil
+        MaxHeartRate.resolve(overrideBpm: hrMaxOverride, age: Double(age)).bpm
     }
 
     /// Tanaka estimate unless overridden.
-    var hrMax: Int { hrMaxOverride > 0 ? hrMaxOverride : Int((208 - 0.7 * Double(age)).rounded()) }
+    var hrMax: Int { MaxHeartRate.resolve(overrideBpm: hrMaxOverride, age: Double(age)).wholeBpm }
 
     // MARK: - HR zone bands
 
