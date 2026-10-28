@@ -121,8 +121,9 @@ fun ForgeGoalsPage(onBack: () -> Unit, initialPage: String = "") {
     }
     // A page opened straight from a context card returns to that screen, not to the overview.
     fun back() { if (initialPage.isNotEmpty()) onBack() else pageRaw = "" }
-    BackHandler(enabled = page != null) { back() }
     fun refresh() { revision++ }
+    // System Back reloads like the page's own arrow, so what a page changed (badges seen, a goal edited) shows.
+    BackHandler(enabled = page != null) { back(); refresh() }
     when (page) {
         GoalsPage.Setup -> GoalSetupPage(onBack = ::back, onCreated = { back(); refresh() })
         is GoalsPage.Detail -> {
