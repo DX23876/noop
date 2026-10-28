@@ -4229,4 +4229,24 @@
     <string name="forge_join_range">%1$s–%2$s</string>
     <string name="forge_ed_kcal">%1$s kcal</string>
     <string name="forge_ed_pct">%1$d %%</string>
+    <string name="forge_bp_title">Фото</string>
+    <string name="forge_bp_front">Спереди</string>
+    <string name="forge_bp_side">Сбоку</string>
+    <string name="forge_bp_back">Сзади</string>
+    <string name="forge_bp_guide_front">Лицом к камере, руки свободно вдоль тела, ступни на ширине плеч.</string>
+    <string name="forge_bp_guide_side">Повернитесь на четверть оборота, руки свободно опущены. Выберите одну сторону и всегда используйте её.</string>
+    <string name="forge_bp_guide_back">Спиной, руки расслаблены. То же расстояние и та же стойка, что и на фото спереди.</string>
+    <string name="forge_bp_none">Пока нет фото (%1$s).</string>
+    <string name="forge_bp_then_now">Тогда и сейчас</string>
+    <string name="forge_bp_second">Второе фото в этой позе даёт точку сравнения.</string>
+    <string name="forge_bp_every">Все снимки</string>
+    <string name="forge_bp_delete_q">Удалить фото (%1$s) от %2$s?</string>
+    <string name="forge_bp_delete_detail">Файл удаляется с этого устройства. Копии больше нигде нет.</string>
+    <string name="forge_bp_delete">Удалить</string>
+    <string name="forge_bp_cancel">Отмена</string>
+    <string name="forge_bp_replaces">Новый снимок заменяет сегодняшний: одно фото на позу в день, чтобы лента оставалась лентой.</string>
+    <string name="forge_bp_delete_this">Удалить это фото</string>
+    <string name="forge_bp_choose">Выбрать фото</string>
+    <string name="forge_bp_rechoose">Заменить сегодняшнее фото</string>
+    <string name="forge_bp_privacy">Фото остаются на этом устройстве. Они копируются из выбранного снимка, не записываются обратно в галерею, не попадают в резервную копию NOOP и в резервную копию Android. Метаданные камеры, включая местоположение, удаляются при сохранении.</string>
 </resources>

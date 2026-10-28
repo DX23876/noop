@@ -4302,4 +4302,24 @@
     <string name="forge_join_range">%1$s–%2$s</string>
     <string name="forge_ed_kcal">%1$s kcal</string>
     <string name="forge_ed_pct">%1$d %%</string>
+    <string name="forge_bp_title">Foto</string>
+    <string name="forge_bp_front">Fronte</string>
+    <string name="forge_bp_side">Profilo</string>
+    <string name="forge_bp_back">Schiena</string>
+    <string name="forge_bp_guide_front">Di fronte alla fotocamera, braccia rilassate lungo i fianchi, piedi alla larghezza delle spalle.</string>
+    <string name="forge_bp_guide_side">Ruota di un quarto di giro, braccia che pendono naturalmente. Scegli un lato e usa sempre lo stesso.</string>
+    <string name="forge_bp_guide_back">Di spalle, braccia rilassate. Stessa distanza e stessa posizione dello scatto frontale.</string>
+    <string name="forge_bp_none">Ancora nessuna foto (%1$s).</string>
+    <string name="forge_bp_then_now">Prima e adesso</string>
+    <string name="forge_bp_second">Una seconda foto in questa posa ti dà un termine di confronto.</string>
+    <string name="forge_bp_every">Tutti gli scatti</string>
+    <string name="forge_bp_delete_q">Eliminare la foto (%1$s) del %2$s?</string>
+    <string name="forge_bp_delete_detail">Il file viene rimosso da questo dispositivo. Non esiste copia da nessun\'altra parte.</string>
+    <string name="forge_bp_delete">Elimina</string>
+    <string name="forge_bp_cancel">Annulla</string>
+    <string name="forge_bp_replaces">Uno scatto nuovo sostituisce quello di oggi: una foto per posa al giorno, così la cronologia resta tale.</string>
+    <string name="forge_bp_delete_this">Elimina questa foto</string>
+    <string name="forge_bp_choose">Scegli una foto</string>
+    <string name="forge_bp_rechoose">Sostituisci la foto di oggi</string>
+    <string name="forge_bp_privacy">Restano su questo dispositivo. Vengono copiate dalla foto scelta, non riscritte nella galleria, non incluse in un backup NOOP né nel backup del dispositivo Android. I metadati della fotocamera, posizione inclusa, vengono rimossi al salvataggio.</string>
 </resources>

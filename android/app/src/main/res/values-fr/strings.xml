@@ -4333,4 +4333,24 @@
     <string name="forge_join_range">%1$s–%2$s</string>
     <string name="forge_ed_kcal">%1$s kcal</string>
     <string name="forge_ed_pct">%1$d %%</string>
+    <string name="forge_bp_title">Photos</string>
+    <string name="forge_bp_front">Face</string>
+    <string name="forge_bp_side">Profil</string>
+    <string name="forge_bp_back">Dos</string>
+    <string name="forge_bp_guide_front">Face à l\'appareil, bras relâchés le long du corps, pieds à largeur d\'épaules.</string>
+    <string name="forge_bp_guide_side">Faites un quart de tour, bras tombant naturellement. Choisissez un côté et gardez toujours le même.</string>
+    <string name="forge_bp_guide_back">De dos, bras relâchés. Même distance et même position que pour la vue de face.</string>
+    <string name="forge_bp_none">Pas encore de photos (%1$s).</string>
+    <string name="forge_bp_then_now">Avant et maintenant</string>
+    <string name="forge_bp_second">Une deuxième photo dans cette pose vous donne un point de comparaison.</string>
+    <string name="forge_bp_every">Toutes les prises</string>
+    <string name="forge_bp_delete_q">Supprimer la photo (%1$s) du %2$s ?</string>
+    <string name="forge_bp_delete_detail">Le fichier est supprimé de cet appareil. Il n\'en existe de copie nulle part ailleurs.</string>
+    <string name="forge_bp_delete">Supprimer</string>
+    <string name="forge_bp_cancel">Annuler</string>
+    <string name="forge_bp_replaces">Une nouvelle prise remplace celle du jour : une photo par pose et par jour, pour que la chronologie en reste une.</string>
+    <string name="forge_bp_delete_this">Supprimer cette photo</string>
+    <string name="forge_bp_choose">Choisir une photo</string>
+    <string name="forge_bp_rechoose">Remplacer la photo du jour</string>
+    <string name="forge_bp_privacy">Elles restent sur cet appareil. Elles sont copiées depuis la photo choisie, jamais réécrites dans ta galerie, ni incluses dans une sauvegarde NOOP ou la sauvegarde Android de l\'appareil. Les métadonnées de l\'appareil photo, y compris la position, sont supprimées à l\'enregistrement.</string>
 </resources>

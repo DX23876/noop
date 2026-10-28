@@ -47,6 +47,12 @@ internal fun ForgeBodyPage(onBack: () -> Unit) {
     var revision by remember { mutableIntStateOf(0) }
     var loaded by remember { mutableStateOf(false) }
     var measuring by remember { mutableStateOf(false) }
+    var photos by remember { mutableStateOf(false) }
+    androidx.activity.compose.BackHandler(enabled = photos) { photos = false }
+    if (photos) {
+        ForgeBodyPhotosPage(onBack = { photos = false })
+        return
+    }
     LaunchedEffect(revision) {
         body = withContext(Dispatchers.IO) { CoreRead.open(context); CoreBody.snapshot(context) }
         loaded = true
@@ -68,6 +74,9 @@ internal fun ForgeBodyPage(onBack: () -> Unit) {
             }
         } else {
             SitesCard(b, onMeasure = { measuring = true }, onDelete = { id -> after { CoreBody.deleteMeasurement(context, id) } })
+        }
+        SettingsCard(title = null, blurb = null) {
+            LinkRow(stringResource(R.string.forge_bp_title), stringResource(R.string.forge_bp_then_now)) { photos = true }
         }
     }
 }

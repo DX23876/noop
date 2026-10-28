@@ -4334,4 +4334,24 @@
     <string name="forge_join_range">%1$s–%2$s</string>
     <string name="forge_ed_kcal">%1$s kcal</string>
     <string name="forge_ed_pct">%1$d %%</string>
+    <string name="forge_bp_title">Fotos</string>
+    <string name="forge_bp_front">Frente</string>
+    <string name="forge_bp_side">Perfil</string>
+    <string name="forge_bp_back">Espalda</string>
+    <string name="forge_bp_guide_front">De frente a la cámara, brazos relajados a los lados, pies a la anchura de los hombros.</string>
+    <string name="forge_bp_guide_side">Gira un cuarto de vuelta, brazos colgando con naturalidad. Elige un lado y usa siempre el mismo.</string>
+    <string name="forge_bp_guide_back">De espaldas, brazos relajados. Misma distancia y misma postura que en la toma frontal.</string>
+    <string name="forge_bp_none">Aún no hay fotos (%1$s).</string>
+    <string name="forge_bp_then_now">Antes y ahora</string>
+    <string name="forge_bp_second">Una segunda foto en esta pose te da algo con lo que comparar.</string>
+    <string name="forge_bp_every">Todas las tomas</string>
+    <string name="forge_bp_delete_q">¿Eliminar la foto (%1$s) del %2$s?</string>
+    <string name="forge_bp_delete_detail">El archivo se elimina de este dispositivo. No hay copia en ningún otro sitio.</string>
+    <string name="forge_bp_delete">Eliminar</string>
+    <string name="forge_bp_cancel">Cancelar</string>
+    <string name="forge_bp_replaces">Una nueva toma sustituye la de hoy: una foto por pose y día, para que la línea temporal siga siéndolo.</string>
+    <string name="forge_bp_delete_this">Eliminar esta foto</string>
+    <string name="forge_bp_choose">Elegir una foto</string>
+    <string name="forge_bp_rechoose">Sustituir la foto de hoy</string>
+    <string name="forge_bp_privacy">Se quedan en este dispositivo. Se copian de la foto que eliges, no se vuelven a guardar en tu galería, no se incluyen en una copia de NOOP ni en la copia de seguridad de Android. Los metadatos de la cámara, incluida la ubicación, se eliminan al guardar.</string>
 </resources>

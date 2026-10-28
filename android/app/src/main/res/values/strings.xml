@@ -4365,4 +4365,24 @@
     <string name="forge_join_range">%1$s–%2$s</string>
     <string name="forge_ed_kcal">%1$s kcal</string>
     <string name="forge_ed_pct">%1$d %%</string>
+    <string name="forge_bp_title">Photos</string>
+    <string name="forge_bp_front">Front</string>
+    <string name="forge_bp_side">Side</string>
+    <string name="forge_bp_back">Back</string>
+    <string name="forge_bp_guide_front">Face the camera square on, arms relaxed at your sides, feet at shoulder width.</string>
+    <string name="forge_bp_guide_side">Turn a quarter turn, arms hanging naturally. Pick one side and always use the same one.</string>
+    <string name="forge_bp_guide_back">Face away, arms relaxed. Same distance and same stance as the front shot.</string>
+    <string name="forge_bp_none">No %1$s photos yet.</string>
+    <string name="forge_bp_then_now">Then and now</string>
+    <string name="forge_bp_second">A second photo in this pose gives you something to compare against.</string>
+    <string name="forge_bp_every">Every shot</string>
+    <string name="forge_bp_delete_q">Delete the %1$s photo from %2$s?</string>
+    <string name="forge_bp_delete_detail">The file is removed from this device. There is no copy anywhere else.</string>
+    <string name="forge_bp_delete">Delete</string>
+    <string name="forge_bp_cancel">Cancel</string>
+    <string name="forge_bp_replaces">A new shot replaces today\'s — one photo per pose per day, so the timeline stays a timeline.</string>
+    <string name="forge_bp_delete_this">Delete this photo</string>
+    <string name="forge_bp_choose">Choose a photo</string>
+    <string name="forge_bp_rechoose">Replace today\'s photo</string>
+    <string name="forge_bp_privacy">These stay on this device. They are copied out of the photo you pick, not written back to your gallery, not included in a NOOP backup and not part of Android\'s device backup. Camera metadata, including location, is stripped when the photo is saved.</string>
 </resources>

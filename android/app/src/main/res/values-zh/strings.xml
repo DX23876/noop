@@ -4304,4 +4304,24 @@
     <string name="forge_join_range">%1$s–%2$s</string>
     <string name="forge_ed_kcal">%1$s kcal</string>
     <string name="forge_ed_pct">%1$d %%</string>
+    <string name="forge_bp_title">照片</string>
+    <string name="forge_bp_front">正面</string>
+    <string name="forge_bp_side">侧面</string>
+    <string name="forge_bp_back">背面</string>
+    <string name="forge_bp_guide_front">正对镜头，手臂自然垂于体侧，双脚与肩同宽。</string>
+    <string name="forge_bp_guide_side">转身四分之一圈，手臂自然下垂。选定一侧并始终使用同一侧。</string>
+    <string name="forge_bp_guide_back">背对镜头，手臂放松。与正面照保持相同距离和站姿。</string>
+    <string name="forge_bp_none">尚无照片（%1$s）。</string>
+    <string name="forge_bp_then_now">当时与现在</string>
+    <string name="forge_bp_second">这个姿势的第二张照片才有可比对象。</string>
+    <string name="forge_bp_every">全部照片</string>
+    <string name="forge_bp_delete_q">删除 %1$s 的照片（%2$s）？</string>
+    <string name="forge_bp_delete_detail">该文件将从本设备移除。别处没有任何副本。</string>
+    <string name="forge_bp_delete">删除</string>
+    <string name="forge_bp_cancel">取消</string>
+    <string name="forge_bp_replaces">新拍的照片会替换今天的——每个姿势每天一张，时间线才是时间线。</string>
+    <string name="forge_bp_delete_this">删除这张照片</string>
+    <string name="forge_bp_choose">选择照片</string>
+    <string name="forge_bp_rechoose">替换今天的照片</string>
+    <string name="forge_bp_privacy">照片只保存在本设备上。它们从你选择的照片复制而来，不会写回相册，不包含在 NOOP 备份或 Android 设备备份中。保存时会去除相机元数据，包括位置。</string>
 </resources>

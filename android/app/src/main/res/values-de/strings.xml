@@ -4347,4 +4347,24 @@
     <string name="forge_join_range">%1$s–%2$s</string>
     <string name="forge_ed_kcal">%1$s kcal</string>
     <string name="forge_ed_pct">%1$d %%</string>
+    <string name="forge_bp_title">Fotos</string>
+    <string name="forge_bp_front">Vorne</string>
+    <string name="forge_bp_side">Seitlich</string>
+    <string name="forge_bp_back">Hinten</string>
+    <string name="forge_bp_guide_front">Frontal zur Kamera, Arme locker seitlich, Füße schulterbreit.</string>
+    <string name="forge_bp_guide_side">Eine Vierteldrehung, Arme natürlich hängend. Wähle eine Seite und nimm immer dieselbe.</string>
+    <string name="forge_bp_guide_back">Mit dem Rücken zur Kamera, Arme locker. Gleicher Abstand und gleicher Stand wie bei der Vorderansicht.</string>
+    <string name="forge_bp_none">Noch keine Fotos (%1$s).</string>
+    <string name="forge_bp_then_now">Damals und heute</string>
+    <string name="forge_bp_second">Ein zweites Foto in dieser Pose gibt dir etwas zum Vergleichen.</string>
+    <string name="forge_bp_every">Alle Aufnahmen</string>
+    <string name="forge_bp_delete_q">Foto (%1$s) vom %2$s löschen?</string>
+    <string name="forge_bp_delete_detail">Die Datei wird von diesem Gerät entfernt. Es gibt nirgendwo eine Kopie.</string>
+    <string name="forge_bp_delete">Löschen</string>
+    <string name="forge_bp_cancel">Abbrechen</string>
+    <string name="forge_bp_replaces">Eine neue Aufnahme ersetzt die von heute — ein Foto je Pose und Tag, damit der Verlauf ein Verlauf bleibt.</string>
+    <string name="forge_bp_delete_this">Dieses Foto löschen</string>
+    <string name="forge_bp_choose">Foto auswählen</string>
+    <string name="forge_bp_rechoose">Heutiges Foto ersetzen</string>
+    <string name="forge_bp_privacy">Die Fotos bleiben auf diesem Gerät. Sie werden aus dem gewählten Foto kopiert, nicht in deine Galerie zurückgeschrieben, nicht in ein NOOP-Backup aufgenommen und nicht in die Android-Gerätesicherung. Kameradaten, auch der Ort, werden beim Speichern entfernt.</string>
 </resources>

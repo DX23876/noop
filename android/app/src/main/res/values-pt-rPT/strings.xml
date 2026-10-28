@@ -4326,4 +4326,24 @@
     <string name="forge_join_range">%1$s–%2$s</string>
     <string name="forge_ed_kcal">%1$s kcal</string>
     <string name="forge_ed_pct">%1$d %%</string>
+    <string name="forge_bp_title">Fotografias</string>
+    <string name="forge_bp_front">Frente</string>
+    <string name="forge_bp_side">Perfil</string>
+    <string name="forge_bp_back">Costas</string>
+    <string name="forge_bp_guide_front">De frente para a câmara, braços relaxados ao lado do corpo, pés à largura dos ombros.</string>
+    <string name="forge_bp_guide_side">Rode um quarto de volta, braços pendidos naturalmente. Escolha um lado e use sempre o mesmo.</string>
+    <string name="forge_bp_guide_back">De costas, braços relaxados. Mesma distância e mesma posição da fotografia de frente.</string>
+    <string name="forge_bp_none">Ainda não há fotografias (%1$s).</string>
+    <string name="forge_bp_then_now">Antes e agora</string>
+    <string name="forge_bp_second">Uma segunda fotografia nesta pose dá-lhe um termo de comparação.</string>
+    <string name="forge_bp_every">Todas as fotografias</string>
+    <string name="forge_bp_delete_q">Eliminar a fotografia (%1$s) de %2$s?</string>
+    <string name="forge_bp_delete_detail">O ficheiro é removido deste dispositivo. Não existe cópia em mais lado nenhum.</string>
+    <string name="forge_bp_delete">Eliminar</string>
+    <string name="forge_bp_cancel">Cancelar</string>
+    <string name="forge_bp_replaces">Uma nova fotografia substitui a de hoje: uma por pose e por dia, para que a linha temporal continue a sê-lo.</string>
+    <string name="forge_bp_delete_this">Eliminar esta fotografia</string>
+    <string name="forge_bp_choose">Escolher uma foto</string>
+    <string name="forge_bp_rechoose">Substituir a foto de hoje</string>
+    <string name="forge_bp_privacy">Ficam neste dispositivo. São copiadas da foto que escolhes, não voltam a ser gravadas na galeria nem entram numa cópia do NOOP ou na cópia de segurança do Android. Os metadados da câmara, incluindo a localização, são removidos ao guardar.</string>
 </resources>

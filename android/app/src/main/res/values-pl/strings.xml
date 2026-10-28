@@ -4350,4 +4350,24 @@
     <string name="forge_join_range">%1$s–%2$s</string>
     <string name="forge_ed_kcal">%1$s kcal</string>
     <string name="forge_ed_pct">%1$d %%</string>
+    <string name="forge_bp_title">Zdjęcia</string>
+    <string name="forge_bp_front">Przód</string>
+    <string name="forge_bp_side">Bok</string>
+    <string name="forge_bp_back">Tył</string>
+    <string name="forge_bp_guide_front">Przodem do aparatu, ramiona swobodnie wzdłuż ciała, stopy na szerokość barków.</string>
+    <string name="forge_bp_guide_side">Obróć się o ćwierć obrotu, ramiona swobodnie opuszczone. Wybierz jedną stronę i zawsze używaj tej samej.</string>
+    <string name="forge_bp_guide_back">Tyłem, ramiona rozluźnione. Ta sama odległość i postawa co przy zdjęciu z przodu.</string>
+    <string name="forge_bp_none">Brak zdjęć (%1$s).</string>
+    <string name="forge_bp_then_now">Wtedy i teraz</string>
+    <string name="forge_bp_second">Drugie zdjęcie w tej pozie daje punkt odniesienia.</string>
+    <string name="forge_bp_every">Wszystkie zdjęcia</string>
+    <string name="forge_bp_delete_q">Usunąć zdjęcie (%1$s) z %2$s?</string>
+    <string name="forge_bp_delete_detail">Plik zostaje usunięty z tego urządzenia. Nigdzie indziej nie ma kopii.</string>
+    <string name="forge_bp_delete">Usuń</string>
+    <string name="forge_bp_cancel">Anuluj</string>
+    <string name="forge_bp_replaces">Nowe zdjęcie zastępuje dzisiejsze — jedno na pozę dziennie, żeby oś czasu pozostała osią czasu.</string>
+    <string name="forge_bp_delete_this">Usuń to zdjęcie</string>
+    <string name="forge_bp_choose">Wybierz zdjęcie</string>
+    <string name="forge_bp_rechoose">Zastąp dzisiejsze zdjęcie</string>
+    <string name="forge_bp_privacy">Zostają na tym urządzeniu. Są kopiowane z wybranego zdjęcia, nie trafiają z powrotem do galerii, do kopii NOOP ani do kopii zapasowej Androida. Metadane aparatu, w tym lokalizacja, są usuwane przy zapisie.</string>
 </resources>
