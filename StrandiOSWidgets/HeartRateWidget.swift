@@ -251,7 +251,7 @@ struct HeartRateWidget: Widget {
         StaticConfiguration(kind: Self.kind, provider: HeartRateProvider()) { entry in
             if #available(iOS 17.0, *) {
                 HeartRateWidgetView(entry: entry)
-                    .containerBackground(StrandPalette.surfaceBase, for: .widget)
+                    .appGroupNotice().containerBackground(StrandPalette.surfaceBase, for: .widget)
             } else {
                 HeartRateWidgetView(entry: entry)
                     .padding()

@@ -165,7 +165,7 @@ struct CoachBriefWidget: Widget {
         StaticConfiguration(kind: Self.kind, provider: CoachBriefProvider()) { entry in
             if #available(iOS 17.0, *) {
                 CoachBriefWidgetView(entry: entry)
-                    .containerBackground(StrandPalette.surfaceBase, for: .widget)
+                    .appGroupNotice().containerBackground(StrandPalette.surfaceBase, for: .widget)
             } else {
                 CoachBriefWidgetView(entry: entry)
                     .padding()

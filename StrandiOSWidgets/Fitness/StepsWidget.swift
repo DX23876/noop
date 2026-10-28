@@ -6,7 +6,7 @@ import StrandDesign
 struct NOOPStepsWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "NOOPStepsWidget", provider: FitnessProvider()) { entry in
-            StepsWidgetView(entry: entry).containerBackground(StrandPalette.surfaceBase, for: .widget)
+            StepsWidgetView(entry: entry).appGroupNotice().containerBackground(StrandPalette.surfaceBase, for: .widget)
         }
         .configurationDisplayName("Steps")
         .description("Today's steps against your step goal, and the past week.")

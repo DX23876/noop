@@ -330,7 +330,7 @@ struct NOOPGoalWidget: Widget {
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: kind, intent: SelectGoalIntent.self, provider: GoalProvider()) { entry in
             GoalWidgetView(entry: entry)
-                .containerBackground(StrandPalette.surfaceBase, for: .widget)
+                .appGroupNotice().containerBackground(StrandPalette.surfaceBase, for: .widget)
         }
         .configurationDisplayName("NOOP Goals")
         .description("Your goals, each drawn in its own shape, and how many of today's goals are done.")
