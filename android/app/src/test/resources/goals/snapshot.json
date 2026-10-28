@@ -523,7 +523,8 @@
       "history" : [
 
       ],
-      "id" : "4EF39C81-11DF-4C49-A215-F3D92AAFC2E6",
+      "id" : "16759E46-4B7C-435A-813C-0ED50ACE6C55",
+      "isProrated" : true,
       "isProtected" : false,
       "metric" : "workouts",
       "notCounted" : [
