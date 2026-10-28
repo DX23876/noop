@@ -4122,4 +4122,7 @@
     <string name="forge_lj_activities_text">These show execution, not proof that the outcome itself was reached.</string>
     <string name="forge_lj_changes">Изменения этой цели</string>
     <string name="forge_lj_pace_ack">Пейс подтвердил: «%1$s»</string>
+    <string name="forge_tc_skin_backfill">Заполнение абсолютных значений температуры кожи</string>
+    <string name="forge_tc_skin_backfill_detail">Пересчитывает абсолютные °C для ночей, до которых не доходит окно в 21 ночь, тем же алгоритмом, что и обычный расчёт. Только заполняет: измеренное значение никогда не перезаписывается. Результат смотрите в журнале ремешка.</string>
+    <string name="forge_tc_skin_backfilling">Заполнение…</string>
 </resources>

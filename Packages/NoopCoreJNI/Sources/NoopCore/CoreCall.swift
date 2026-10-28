@@ -180,6 +180,10 @@ public enum CoreCall {
             return CoreRead.json(await CoreLongTermGoals.change(store: store, id: string("id"), action: string("action"),
                                                                 reason: args["reason"] as? String,
                                                                 value: (args["value"] as? NSNumber)?.doubleValue))
+        case "diagnostics.skinTempBackfill":
+            // #1853: the Test Centre's on-demand fill of NULL skin-temperature absolutes, as Apple runs it.
+            let result = await SkinTempBackfillWalker(store: store).runBackfill()
+            return CoreRead.json(["line": result.summary, "filled": "\(result.filledCount)"])
         case "stress.day":
             return CoreRead.json(await CoreStress.day(reader: reader, personalBaseline: args["personal"] as? Bool ?? false))
         case "stress.fingerprint":

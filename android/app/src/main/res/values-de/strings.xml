@@ -4240,4 +4240,7 @@
     <string name="forge_lj_activities_text">These show execution, not proof that the outcome itself was reached.</string>
     <string name="forge_lj_changes">Änderungen an diesem Ziel</string>
     <string name="forge_lj_pace_ack">Tempo bestätigt: „%1$s“</string>
+    <string name="forge_tc_skin_backfill">Hauttemperatur-Absolutwerte nachtragen</string>
+    <string name="forge_tc_skin_backfill_detail">Leitet das absolute °C für Nächte neu ab, die das 21-Nächte-Fenster nie erreicht, mit demselben Funnel wie der Scoring-Durchlauf. Nur Auffüllen: ein gemessener Wert wird nie überschrieben. Das Ergebnis steht im Strap-Log.</string>
+    <string name="forge_tc_skin_backfilling">Wird nachgetragen…</string>
 </resources>

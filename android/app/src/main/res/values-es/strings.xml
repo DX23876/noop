@@ -4227,4 +4227,7 @@
     <string name="forge_lj_activities_text">These show execution, not proof that the outcome itself was reached.</string>
     <string name="forge_lj_changes">Cambios en este objetivo</string>
     <string name="forge_lj_pace_ack">Ritmo confirmado: «%1$s»</string>
+    <string name="forge_tc_skin_backfill">Rellenar temperaturas absolutas de la piel</string>
+    <string name="forge_tc_skin_backfill_detail">Vuelve a derivar el °C absoluto de las noches que la ventana de 21 noches nunca alcanza, con el mismo embudo que la pasada de puntuación. Solo rellena: nunca sobrescribe un valor medido. Consulta el resultado en el registro de la banda.</string>
+    <string name="forge_tc_skin_backfilling">Rellenando…</string>
 </resources>

@@ -4195,4 +4195,7 @@
     <string name="forge_lj_activities_text">These show execution, not proof that the outcome itself was reached.</string>
     <string name="forge_lj_changes">Modifiche a questo obiettivo</string>
     <string name="forge_lj_pace_ack">Andatura riconosciuta: \"%1$s\"</string>
+    <string name="forge_tc_skin_backfill">Aggiornamento delle temperature della pelle dirette</string>
+    <string name="forge_tc_skin_backfill_detail">Ricalcola il °C assoluto per le notti che la finestra di 21 notti non raggiunge mai, con lo stesso funnel della passata di calcolo. Solo riempimento: non sovrascrive mai un valore misurato. Il risultato è nel log della fascia.</string>
+    <string name="forge_tc_skin_backfilling">Aggiornamento in corso…</string>
 </resources>

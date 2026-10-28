@@ -4197,4 +4197,7 @@
     <string name="forge_lj_activities_text">These show execution, not proof that the outcome itself was reached.</string>
     <string name="forge_lj_changes">此目标的改变</string>
     <string name="forge_lj_pace_ack">佩斯确认：“%1$s”</string>
+    <string name="forge_tc_skin_backfill">补充皮肤温度绝对值。</string>
+    <string name="forge_tc_skin_backfill_detail">用与评分流程相同的漏斗，为 21 晚窗口未覆盖的夜晚重新推导绝对温度（°C）。仅填充：绝不覆盖已测量的值。结果见腕带日志。</string>
+    <string name="forge_tc_skin_backfilling">补填中…</string>
 </resources>

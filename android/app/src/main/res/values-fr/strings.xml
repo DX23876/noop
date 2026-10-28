@@ -4226,4 +4226,7 @@
     <string name="forge_lj_activities_text">These show execution, not proof that the outcome itself was reached.</string>
     <string name="forge_lj_changes">Modifications de cet objectif</string>
     <string name="forge_lj_pace_ack">Rythme confirmé : « %1$s »</string>
+    <string name="forge_tc_skin_backfill">Compléter les températures cutanées absolues</string>
+    <string name="forge_tc_skin_backfill_detail">Recalcule le °C absolu des nuits que la fenêtre de 21 nuits n’atteint jamais, avec le même entonnoir que la passe de calcul. Remplissage seul : une valeur mesurée n’est jamais écrasée. Le résultat s’affiche dans le journal du bracelet.</string>
+    <string name="forge_tc_skin_backfilling">Complément en cours…</string>
 </resources>

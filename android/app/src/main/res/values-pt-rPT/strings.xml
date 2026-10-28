@@ -4219,4 +4219,7 @@
     <string name="forge_lj_activities_text">These show execution, not proof that the outcome itself was reached.</string>
     <string name="forge_lj_changes">Mudanças nesta meta</string>
     <string name="forge_lj_pace_ack">Ritmo reconhecido: \"%1$s\"</string>
+    <string name="forge_tc_skin_backfill">Preencher temperaturas absolutas da pele</string>
+    <string name="forge_tc_skin_backfill_detail">Volta a derivar o °C absoluto das noites que a janela de 21 noites nunca alcança, com o mesmo funil da passagem de pontuação. Apenas preenche: nunca substitui um valor medido. Vê o resultado no registo da fita.</string>
+    <string name="forge_tc_skin_backfilling">A preencher…</string>
 </resources>

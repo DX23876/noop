@@ -4243,4 +4243,7 @@
     <string name="forge_lj_activities_text">Pokazują wykonanie, a nie dowód na osiągnięcie samego wyniku.</string>
     <string name="forge_lj_changes">Zmiany w tym celu</string>
     <string name="forge_lj_pace_ack">Tempo przyjęte do wiadomości: „%1$s”</string>
+    <string name="forge_tc_skin_backfill">Wypełnianie wartości podstawowych temperatury skóry.</string>
+    <string name="forge_tc_skin_backfill_detail">Ponownie wylicza bezwzględne °C dla nocy, których nie obejmuje okno 21 nocy, tym samym lejkiem co przebieg oceniający. Tylko uzupełnia: nigdy nie nadpisuje zmierzonej wartości. Wynik znajdziesz w dzienniku opaski.</string>
+    <string name="forge_tc_skin_backfilling">Wypełnianie…</string>
 </resources>

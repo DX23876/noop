@@ -4258,4 +4258,7 @@
     <string name="forge_lj_activities_text">These show execution, not proof that the outcome itself was reached.</string>
     <string name="forge_lj_changes">Changes to this goal</string>
     <string name="forge_lj_pace_ack">Pace acknowledged: \"%1$s\"</string>
+    <string name="forge_tc_skin_backfill">Backfill skin-temp absolutes</string>
+    <string name="forge_tc_skin_backfill_detail">Re-derives the absolute °C for nights the 21-night rescore window never reaches, using the same funnel as the scoring pass. Fill-only: it never overwrites a measured value. Watch the strap log for the result.</string>
+    <string name="forge_tc_skin_backfilling">Backfilling…</string>
 </resources>
