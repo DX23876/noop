@@ -4404,4 +4404,5 @@
     <string name="forge_lt_aside_priorities">Приоритеты изменились</string>
     <string name="forge_lt_aside_none">Без особой причины</string>
     <string name="coach_goals_journey">Цели и путь</string>
+    <string name="coach_goals_journey_subtitle">Поставьте цель и следите за прогрессом.</string>
 </resources>

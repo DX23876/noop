@@ -103,7 +103,7 @@ import com.noop.ai.CustomAiAuthHeader
 fun CoachScreen(vm: CoachViewModel = viewModel(), onOpenSettings: () -> Unit = {},
                 trailing: (@Composable () -> Unit)? = null, onOpenPlan: (() -> Unit)? = null,
                 onOpenHistory: (() -> Unit)? = null, onOpenBreathe: (() -> Unit)? = null,
-                onOpenLive: (() -> Unit)? = null) {
+                onOpenLive: (() -> Unit)? = null, onOpenGoals: (() -> Unit)? = null) {
     val context = LocalContext.current
     val keyVersion by vm.keyVersion.collectAsStateWithLifecycle()
     val provider by vm.provider.collectAsStateWithLifecycle()
@@ -138,7 +138,7 @@ fun CoachScreen(vm: CoachViewModel = viewModel(), onOpenSettings: () -> Unit = {
             CoachSetup(vm = vm)
         } else {
             CoachChat(vm = vm, onOpenSettings = onOpenSettings, onOpenPlan = onOpenPlan, onOpenHistory = onOpenHistory,
-                      onOpenBreathe = onOpenBreathe, onOpenLive = onOpenLive)
+                      onOpenBreathe = onOpenBreathe, onOpenLive = onOpenLive, onOpenGoals = onOpenGoals)
         }
     }
 }
@@ -297,7 +297,7 @@ private fun CoachSetup(vm: CoachViewModel) {
 @Composable
 private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit, onOpenPlan: (() -> Unit)? = null,
                       onOpenHistory: (() -> Unit)? = null, onOpenBreathe: (() -> Unit)? = null,
-                      onOpenLive: (() -> Unit)? = null) {
+                      onOpenLive: (() -> Unit)? = null, onOpenGoals: (() -> Unit)? = null) {
     val context = LocalContext.current
     val messages by vm.messages.collectAsStateWithLifecycle()
     val sending by vm.sending.collectAsStateWithLifecycle()
@@ -400,6 +400,7 @@ private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit, onOpenPlan
             planWaiting = chrome.planWaiting,
             planLabel = chrome.planLabel,
             onHistory = onOpenHistory,
+            onGoals = onOpenGoals,
             onNew = { vm.clearConversation() },
             onSettings = onOpenSettings,
             onUpdateKey = { showKeyEditor = !showKeyEditor; if (!showKeyEditor) keyFix = "" },
@@ -624,6 +625,7 @@ private fun CoachHeaderRow(
     planWaiting: Int = 0,
     planLabel: String = "",
     onHistory: (() -> Unit)?,
+    onGoals: (() -> Unit)? = null,
     onNew: () -> Unit,
     onSettings: () -> Unit,
     onUpdateKey: () -> Unit,
@@ -683,6 +685,10 @@ private fun CoachHeaderRow(
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 if (onHistory != null) {
                     DropdownMenuItem(text = { Text(stringResource(R.string.coach_history)) }, onClick = { menu = false; onHistory() })
+                }
+                // The goal and its journey, as the iOS chat's overflow offers them.
+                if (onGoals != null) {
+                    DropdownMenuItem(text = { Text(stringResource(R.string.coach_goals_journey)) }, onClick = { menu = false; onGoals() })
                 }
                 DropdownMenuItem(text = { Text(uiString(R.string.coach_settings)) }, onClick = { menu = false; onSettings() })
                 DropdownMenuItem(text = { Text(uiString(R.string.coach_key_rejected_action)) }, onClick = { menu = false; onUpdateKey() })

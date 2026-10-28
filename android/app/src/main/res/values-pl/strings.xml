@@ -4525,4 +4525,5 @@
     <string name="forge_lt_aside_priorities">Zmiana priorytetów</string>
     <string name="forge_lt_aside_none">Bez konkretnego powodu</string>
     <string name="coach_goals_journey">Cele i droga</string>
+    <string name="coach_goals_journey_subtitle">Ustal cel i śledź postępy.</string>
 </resources>

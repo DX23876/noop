@@ -67,7 +67,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 // against a second instance persisted to storage and still left the conversation sending on the old
 // one. AppRoot passes the Coach entry's view model.
 fun CoachSettingsScreen(vm: CoachViewModel, onOpenIdentity: (() -> Unit)? = null, onOpenMemory: (() -> Unit)? = null,
-                        onOpenInfo: (() -> Unit)? = null) {
+                        onOpenInfo: (() -> Unit)? = null, onOpenGoals: (() -> Unit)? = null) {
     val context = LocalContext.current
 
     // The brief settings are read from prefs on show, the same as the coach page did before the
@@ -92,6 +92,7 @@ fun CoachSettingsScreen(vm: CoachViewModel, onOpenIdentity: (() -> Unit)? = null
             CoachModelCard(vm = vm)
             CoachBackgroundModelsCard(vm = vm)
             if (onOpenIdentity != null) CoachIdentityRow(vm, onOpenIdentity)
+            if (onOpenGoals != null) CoachNavRow(stringResource(R.string.coach_goals_journey), stringResource(R.string.coach_goals_journey_subtitle), onOpenGoals)
             if (onOpenMemory != null) CoachNavRow(stringResource(R.string.coach_memory), stringResource(R.string.coach_memory_subtitle), onOpenMemory)
             CoachConsentCard(vm = vm)
             CoachSharedSettingsCards(vm = vm)

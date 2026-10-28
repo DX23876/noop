@@ -4479,4 +4479,5 @@
     <string name="forge_lt_aside_priorities">优先事项变了</string>
     <string name="forge_lt_aside_none">没有特别原因</string>
     <string name="coach_goals_journey">目标与历程</string>
+    <string name="coach_goals_journey_subtitle">设定目标，查看进展。</string>
 </resources>

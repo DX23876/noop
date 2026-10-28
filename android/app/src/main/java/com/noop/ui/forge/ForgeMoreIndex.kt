@@ -360,9 +360,10 @@ internal fun ForgeCoachDestination(title: String, onBack: () -> Unit, onOpen: (M
     when (sub) {
         "history" -> ForgeCoachHistoryPage(onBack = { sub = null }, onPicked = { vm.showCoreConversation(); sub = null })
         "plan" -> ForgeCoachPlanPage(onBack = { sub = null })
+        "goals" -> ForgeGoalsPage(onBack = { sub = null })
         "settings" -> Hosted(stringResource(R.string.coach_settings), { sub = null }) {
             CoachSettingsScreen(vm, onOpenIdentity = { sub = "identity" }, onOpenMemory = { sub = "memory" },
-                                onOpenInfo = { sub = "info" })
+                                onOpenInfo = { sub = "info" }, onOpenGoals = { sub = "goals" })
         }
         "identity" -> Hosted(stringResource(R.string.coach_identity), { sub = "settings" }) { CoachIdentityEditor(vm) }
         "memory" -> Hosted(stringResource(R.string.coach_memory), { sub = "settings" }) { com.noop.ui.CoachMemoryPage() }
@@ -374,7 +375,7 @@ internal fun ForgeCoachDestination(title: String, onBack: () -> Unit, onOpen: (M
         else -> Hosted("", onBack) {
             CoachScreen(vm, onOpenSettings = { sub = "settings" }, onOpenPlan = { sub = "plan" },
                         onOpenHistory = { sub = "history" }, onOpenBreathe = { onOpen(MoreDest.Breathe) },
-                        onOpenLive = { onOpen(MoreDest.Live) })
+                        onOpenLive = { onOpen(MoreDest.Live) }, onOpenGoals = { sub = "goals" })
         }
     }
 }
