@@ -1879,8 +1879,16 @@ class WhoopRepository(
         val core = coreInputs
         return if (core != null && CoreUserInputs.isWater(deviceId, key)) {
             ensureSharedJournalHydration(); core.water(key, from, to)
-        } else dao.metricSeries(deviceId, key, from, to)
+        } else storedInput(deviceId) { com.noop.core.CoreStoredInputs.metricSeries(deviceId, key, from, to) }
+            ?: dao.metricSeries(deviceId, key, from, to)
     }
+
+    /**
+     * Parity plan 1.3: with the Lab switch on, a source the input lanes mirror is read back from the core; null
+     * (Room reads) for a computed source, without a core, or when the core read fails.
+     */
+    private inline fun <T> storedInput(deviceId: String, read: () -> T?): T? =
+        if (coreReads() && com.noop.core.CoreStoredInputs.owns(deviceId)) read() else null
 
     /**
      * Computed ("-noop") [key] series across the active-strap UNION (the active strap's own computed
@@ -1919,7 +1927,8 @@ class WhoopRepository(
         val core = coreInputs
         return if (core != null && CoreUserInputs.isWater(deviceId, key)) {
             ensureSharedJournalHydration(); core.waterCount(key)
-        } else dao.metricSeriesKeyCount(deviceId, key)
+        } else storedInput(deviceId) { com.noop.core.CoreStoredInputs.metricCount(deviceId, key) }
+            ?: dao.metricSeriesKeyCount(deviceId, key)
     }
 
     /** Distinct metric keys present for a [deviceId]/source, sorted ascending. */
@@ -1928,7 +1937,7 @@ class WhoopRepository(
         return if (core != null && deviceId == "hydration") {
             ensureSharedJournalHydration()
             (core.waterKeys() + dao.metricKeys(deviceId).filterNot { CoreUserInputs.isWater(deviceId, it) }).distinct().sorted()
-        } else dao.metricKeys(deviceId)
+        } else storedInput(deviceId) { com.noop.core.CoreStoredInputs.metricKeys(deviceId) } ?: dao.metricKeys(deviceId)
     }
 
     /** Workouts whose startTs falls in [from, to] (unix seconds), oldest first, row-limited. */
@@ -1969,14 +1978,17 @@ class WhoopRepository(
 
     /** Apple-Health daily aggregates for the inclusive day range [from, to] (YYYY-MM-DD), oldest first. */
     suspend fun appleDaily(deviceId: String, from: String, to: String): List<AppleDaily> =
-        dao.appleDaily(deviceId, from, to)
+        storedInput(deviceId) { com.noop.core.CoreStoredInputs.appleDaily(deviceId, from, to) } ?: dao.appleDaily(deviceId, from, to)
 
     /** Scalar COUNT twin of [appleDaily] for count badges. */
     suspend fun appleDailyCount(deviceId: String, from: String, to: String): Int =
-        dao.appleDailyCount(deviceId, from, to)
+        storedInput(deviceId) { com.noop.core.CoreStoredInputs.appleDaily(deviceId, from, to)?.size }
+            ?: dao.appleDailyCount(deviceId, from, to)
 
     /** All cached daily metrics for a device, oldest first. Feeds com.noop.analytics.IllnessWatch. */
-    suspend fun days(deviceId: String): List<DailyMetric> = dao.days(deviceId)
+    suspend fun days(deviceId: String): List<DailyMetric> =
+        storedInput(deviceId) { com.noop.core.CoreStoredInputs.dailyMetrics(deviceId, "0000-01-01", "9999-12-31") }
+            ?: dao.days(deviceId)
 
     /** Scalar COUNT twin of [days] for count badges. */
     suspend fun daysCount(deviceId: String): Int = dao.daysCount(deviceId)
@@ -2306,7 +2318,8 @@ class WhoopRepository(
 
     /** Cached daily metrics for the inclusive day range [from, to] (YYYY-MM-DD), oldest first. */
     suspend fun dailyMetrics(deviceId: String, from: String, to: String): List<DailyMetric> =
-        dao.dailyMetricsRange(deviceId, from, to)
+        storedInput(deviceId) { com.noop.core.CoreStoredInputs.dailyMetrics(deviceId, from, to) }
+            ?: dao.dailyMetricsRange(deviceId, from, to)
 
     // MARK: - Cross-source resolver (PR#196 , freshest-wins charts/metrics)
     //

@@ -273,6 +273,18 @@ public enum CoreCall {
                                                  actualWhoopSource: string("whoopSource"), from: string("from"), to: string("to"),
                                                  suppressedSleepWakeDays: Set(args["suppressedWakeDays"] as? [String] ?? []))
             return CoreRead.json(CoreRead.ResolvedSeries(r))
+        case "read.metricSeries":
+            // One source's stored series verbatim, as `WhoopStore.metricSeries` holds it.
+            return CoreRead.json((try? await reader.store.metricSeries(deviceId: string("deviceId"), key: string("key"),
+                                                                       from: string("from"), to: string("to"))) ?? [])
+        case "read.metricKeys":
+            return CoreRead.json((try? await reader.store.metricKeys(deviceId: string("deviceId"))) ?? [])
+        case "read.metricCount":
+            return CoreRead.json(["count": (try? await reader.store.metricSeriesKeyCount(deviceId: string("deviceId"), key: string("key"))) ?? 0])
+        case "read.appleDaily":
+            return CoreRead.json((try? await reader.store.appleDaily(deviceId: string("deviceId"), from: string("from"), to: string("to"))) ?? [])
+        case "read.dailyMetrics":
+            return CoreRead.json((try? await reader.store.dailyMetrics(deviceId: string("deviceId"), from: string("from"), to: string("to"))) ?? [])
         case "read.labMarkers":
             // The Lab Book's readings for one category, as Apple's `LabBookView` reads them.
             return CoreRead.json((try? await reader.store.labMarkers(deviceId: string("deviceId"), category: string("category"))) ?? [])
