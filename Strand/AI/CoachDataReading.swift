@@ -6,7 +6,7 @@ import WhoopProtocol
 import WhoopStore
 
 /// The reads and writes the coach makes on the wearer's data (Android parity plan, Coach step 1). Apple's
-/// `Repository` answers them with its own methods, unchanged; the Android core is meant to answer them over its
+/// `Repository` answers them (`CoachDataReading+Repository.swift`); the Android core is meant to answer them over its
 /// `StoreReader`, the way `GoalInputReading` already does for the goals, so `AICoach` can move into a package that
 /// does not see `Repository`. Requirements carry no default arguments; the defaults Repository's methods have live
 /// in the extension below, so call sites read the same as before.
@@ -119,14 +119,5 @@ extension CoachDataReading {
     }
     func saveJournalNumeric(day: String, question: String, value: Double) async {
         await saveJournalNumeric(day: day, question: question, value: value, notes: nil)
-    }
-}
-
-extension Repository: CoachDataReading {
-    var cardioLoadMaxHR: Double { Self.cardioLoadMaxHR(strainProfile) }
-    var strainProfileSex: String { strainProfile?.sex ?? "" }
-    func refreshCoachCheckIn() async { await CoachCheckIn.refreshDynamicSchedule(repo: self) }
-    func trainingLoadBrief() async -> String {
-        CoachTrainingLoadBrief.text(await TrainingLoadModel.snapshot(repo: self).prepared)
     }
 }

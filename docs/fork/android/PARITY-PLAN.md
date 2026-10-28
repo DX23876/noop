@@ -137,7 +137,9 @@ Jeweils Logik und Speicher, ohne Oberfläche:
   `cardioLoadMaxHR` und `strainProfileSex` statt des Apple-Typs `Repository.StrainProfile`. Schritt 2
   erledigt (2026-10-28): der Plan-Abgleich (`PlanReconciliationCoordinator.reconcile`) liest über
   `CoachDataReading`, die Antwort auf verpasste Ziel-Fragen über `CoachDataReading & GoalInputReading`, und
-  `GoalTrackingStore.refresh` nimmt jeden `GoalInputReading`-Host. Als Nächstes der Kern-Host für Android.
+  `GoalTrackingStore.refresh` nimmt jeden `GoalInputReading`-Host. Das Protokoll ist als Symlink im
+  Kern verlinkt (`NoopCore/Shared`), die Apple-Umsetzung liegt getrennt in `CoachDataReading+Repository.swift`.
+  Als Nächstes der Kern-Host für Android über `StoreReader`, wie `CoreGoals` für `GoalInputReading`.
 
 Jede Verschiebung bekommt Kern-Tests auf macOS. Der Echtdaten-Vergleich läuft dort, wo Werte gespeichert
 werden.
