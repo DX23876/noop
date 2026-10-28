@@ -12,7 +12,7 @@ import WhoopProtocol
 /// that produced them. A diagnostic that names the wrong branch is worse than none, which is why the
 /// branch is pinned end to end here and not only as a string.
 ///
-/// Byte-parity twin of Kotlin `EffortDayCalibrationTest`.
+/// The fork prints Gellish as `formula=`; the Kotlin twin `EffortDayCalibrationTest` still pins `tanaka=`.
 final class EffortDayCalibrationTests: XCTestCase {
 
     // MARK: the line
@@ -22,9 +22,9 @@ final class EffortDayCalibrationTests: XCTestCase {
     func testTheLineIsExactlyThis() {
         XCTAssertEqual(
             StrainScorer.dayCalibrationLine(day: "2026-09-25", hrmax: 195.0, hrmaxSource: "override",
-                                            tanaka: 187.0, observedPeak: 178.0, restingHR: 52.0)
+                                            formula: 187.0, observedPeak: 178.0, restingHR: 52.0)
                 + StrainScorer.sustainedPeakField(171.0) + StrainScorer.sustainedPeakSpanField(4),
-            "effort calib day=2026-09-25 hrmax=195 src=override tanaka=187 peak=178 rhr=52 sustained=171 span=4")
+            "effort calib day=2026-09-25 hrmax=195 src=override formula=187 peak=178 rhr=52 sustained=171 span=4")
     }
 
     /// An age-less profile has no formula value and a day with no heart rate has no peak. Both must say
@@ -33,15 +33,15 @@ final class EffortDayCalibrationTests: XCTestCase {
     func testMissingValuesRenderAsNilNotZero() {
         XCTAssertEqual(
             StrainScorer.dayCalibrationLine(day: "2026-09-25", hrmax: nil, hrmaxSource: "default",
-                                            tanaka: nil, observedPeak: nil, restingHR: 60.0)
+                                            formula: nil, observedPeak: nil, restingHR: 60.0)
                 + StrainScorer.sustainedPeakField(nil) + StrainScorer.sustainedPeakSpanField(nil),
-            "effort calib day=2026-09-25 hrmax=nil src=default tanaka=nil peak=nil rhr=60 sustained=nil span=nil")
+            "effort calib day=2026-09-25 hrmax=nil src=default formula=nil peak=nil rhr=60 sustained=nil span=nil")
     }
 
-    /// The three source words are disjoint, and none of them is `effort score`'s `provided` — the whole
+    /// The four source words are disjoint, and none of them is `effort score`'s `provided` — the whole
     /// point is that the word on this line resolves the one on that line.
     func testTheSourceWordsAreDisjointAndNotProvided() {
-        let words = ["override", "tanaka", "default"]
+        let words = ["override", "measured", "gellish", "default"]
         XCTAssertEqual(Set(words).count, words.count)
         XCTAssertFalse(words.contains("provided"))
     }
@@ -49,29 +49,29 @@ final class EffortDayCalibrationTests: XCTestCase {
     // MARK: end to end, through the engine
 
     /// A manual override must read as `override`, with the formula value still printed beside it. That
-    /// pair is the step-0 question in one line: an override of 195 on a profile Tanaka puts at 187 is a
-    /// day scored 8 bpm higher than the formula would have.
-    func testAnOverrideIsNamedAsOneAndStillPrintsTanaka() {
+    /// pair is the step-0 question in one line: an override of 195 on a profile Gellish puts at 186 is a
+    /// day scored 9 bpm higher than the formula would have.
+    func testAnOverrideIsNamedAsOneAndStillPrintsTheFormula() {
         let line = calibLine(age: 30, maxHROverride: 195, peakBpm: 178)
-        XCTAssertEqual(line, "effort calib day=2026-09-25 hrmax=195 src=override tanaka=187 peak=178 rhr=60 sustained=178 span=4")
+        XCTAssertEqual(line, "effort calib day=2026-09-25 hrmax=195 src=override formula=186 peak=178 rhr=60 sustained=178 span=4")
     }
 
-    /// With no override the day runs on the formula, and `hrmax` and `tanaka` are then the same number.
+    /// With no override the day runs on the formula, and `hrmax` and `formula` are then the same number.
     /// A reader seeing them agree knows no setting was in force without having to know the profile.
-    func testNoOverrideIsNamedTanakaAndAgreesWithIt() {
+    func testNoOverrideIsNamedGellishAndAgreesWithIt() {
         let line = calibLine(age: 30, maxHROverride: nil, peakBpm: 178)
-        XCTAssertEqual(line, "effort calib day=2026-09-25 hrmax=187 src=tanaka tanaka=187 peak=178 rhr=60 sustained=178 span=4")
+        XCTAssertEqual(line, "effort calib day=2026-09-25 hrmax=186 src=gellish formula=186 peak=178 rhr=60 sustained=178 span=4")
     }
 
     /// No age, no override: `strain` substitutes its own default internally, and the line reports THAT
-    /// number rather than nil, because it is the yardstick the day was really scored against. `tanaka`
+    /// number rather than nil, because it is the yardstick the day was really scored against. `formula`
     /// is nil, since without an age there is no formula value, and that is the honest half.
     ///
     /// The nil version of this was the first draft, and it made the line contradict `effort score` about
     /// the same day: that line prints the substituted 190 while this one claimed there was no HRmax.
     func testAnAgelessProfileReportsTheSubstitutedDefault() {
         let line = calibLine(age: 0, maxHROverride: nil, peakBpm: 178)
-        XCTAssertEqual(line, "effort calib day=2026-09-25 hrmax=190 src=default tanaka=nil peak=178 rhr=60 sustained=178 span=4")
+        XCTAssertEqual(line, "effort calib day=2026-09-25 hrmax=190 src=default formula=nil peak=178 rhr=60 sustained=178 span=4")
     }
 
     /// The peak is the day's RAW maximum, not a percentile and not a trimmed one. The rule under
@@ -207,11 +207,11 @@ final class EffortDayCalibrationTests: XCTestCase {
     /// The two lines must agree about the day. `effort calib` reads the branch at the call site and
     /// `effort score` reads the HRmax that actually reached the scorer, by two different routes — so
     /// they can disagree, and a contributor reading one against the other would be reading a fiction.
-    /// `src` maps onto the score line's coarser word: override and tanaka are both `provided` there.
+    /// `src` maps onto the score line's coarser word: override and gellish are both `provided` there.
     func testTheCalibAndScoreLinesAgreeAboutTheSameDay() {
         let cases: [(age: Double, override: Double?, src: String, word: String)] = [
             (30, 195, "override", "provided"),
-            (30, nil, "tanaka", "provided"),
+            (30, nil, "gellish", "provided"),
             (0, nil, "default", "default"),
         ]
         for c in cases {

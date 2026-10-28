@@ -313,7 +313,13 @@ public enum CoreAnalysis {
         var heightCm: Double { p.heightCm }
         var waistCm: Double { p.waistCm }
         var hrMaxOverride: Int { p.hrMaxOverride }
-        var hrMax: Int { MaxHeartRate.resolve(overrideBpm: p.hrMaxOverride, age: Double(p.age)).wholeBpm }
+        /// The setting, the level the core's last pass measured (kept by `Host` like the rest of the pass's
+        /// bookkeeping), else Gellish: `MaxHeartRate`, as `ProfileStore.hrMax` on Apple.
+        var hrMax: Int {
+            MaxHeartRate.resolve(overrideBpm: p.hrMaxOverride, age: Double(p.age),
+                                 measured: MaxHeartRate.Level(stored: Host.strings[MaxHeartRate.measuredLevelKey])?.bpm)
+                .wholeBpm
+        }
         var stepTicksPerStep: Double { p.stepTicksPerStep }
         var stepsManualOverride: Double? { p.stepsManualCoefficient > 0 ? p.stepsManualCoefficient : nil }
         var stepsCalibrationCoefficient: Double

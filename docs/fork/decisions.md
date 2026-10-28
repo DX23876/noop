@@ -393,6 +393,8 @@ are kept. No daily row is re-scored.
 
 ### 2026-10-12 — Measured maximum heart rate offered, never applied silently
 
+Superseded on 2026-10-28 by "The maximum heart rate follows what the band measured in workouts (AI-32)" below.
+
 The analysis pass banks each day's highest heart rate held for 30 seconds without a gap in a workout
 (`hr_peak_held_30s`, `MaxHRSuggestion.heldPeak`) while the band's raw trace exists, over the whole
 retention on its first run. Settings offers that level under Max heart rate when it appears on two days of
@@ -721,3 +723,34 @@ The rule itself stands. What counts as "shipped" for it is any published build, 
 only a release.
 
 Analysis migration required: no. This records a numbering decision; the bump lands with the change it serves.
+
+### 2026-10-28 — The maximum heart rate follows what the band measured in workouts (AI-32)
+
+Step 0 of [#2438](https://github.com/ryanbr/noop/issues/2438). The maximum heart rate is resolved in one place
+(`MaxHeartRate`, StrandAnalytics) and every reader goes through it: day and workout Effort, workout detection,
+zones, workout energy, AgeLess, the VO₂max fallback, the coach and Settings. The rule:
+
+1. The wearer's own setting wins, as entered. It stays available in Settings.
+2. Otherwise the measured level: each day's highest heart rate held for five consecutive samples
+   (`StrainScorer.sustainedPeak`, about five seconds) inside a workout of any source, measured on the band's
+   trace, banked per day (`hr_peak_workout_5s`). The level is the second-highest day of the 90 before a day,
+   so it needs two days; a day more than 25 bpm above the formula counts as an artefact. A day reads only the
+   days before it. After a quiet stretch the last level stays and falls only by the formula's age slope.
+3. Otherwise Gellish (2007), 192 − 0.007 × age², the formula WHOOP starts from, instead of Tanaka.
+
+Every value is a whole bpm, so a day and its workouts read one number (Swift rounded Tanaka for workouts and
+not for days before). Settings shows where the value comes from: the setting, "Measured in your workouts,
+confirmed …", or "Estimated from your age". The 30-second suggestion of 2026-10-12 and its series are removed.
+
+Why automatic now: the new Effort curve is fitted to WHOOP values, and WHOOP adjusts the maximum from workout
+peaks itself; a suggestion few people accept would leave most wearers on the formula. Why five samples and
+not 30 seconds: real maximal efforts are often seconds long, and against the usual wrist artefact (cadence
+lock, which lasts minutes) the hold length helps little; the two-day rule and the bound do. A measured peak is
+a lower bound of the true maximum, so the level only raises the value; a maximum below the formula cannot be
+seen in everyday data and needs the setting. The idea of a resolver comes from bartmuskala
+(refactor/effort-hrmax-resolver).
+
+Analysis migration required: yes. AI-32: the workout peaks are banked over the whole raw history
+(`RebuildStep.workoutPeaks`), then the full rebuild scores every day again with the maximum in force on it.
+Energy, AgeLess, the VO₂max fallback and the coach read today's value for the whole history, as they read
+the setting before.

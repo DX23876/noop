@@ -46,7 +46,8 @@ RESOLVER_FILES = {
 
 # The age formula, through a helper or as a literal, and the observed-percentile estimator.
 FORMULA = re.compile(
-    r"tanakaHRmax\(|tanakaMaxHR\(|estimateHRmax\(|208(?:\.0)?\s*-\s*0\.7\s*\*|220\s*-\s*age\b"
+    r"tanakaHRmax\(|tanakaMaxHR\(|estimateHRmax\(|208(?:\.0)?\s*-\s*0\.7\s*\*|192(?:\.0)?\s*-\s*0\.007\s*\*"
+    r"|220\s*-\s*age\b"
 )
 # "Setting if set, else something else", merged by hand.
 HAND_MERGE = re.compile(r"hrMaxOverride\s*>\s*0\s*\?\s*(?:Double\()?[\w.]*hrMaxOverride")
@@ -57,9 +58,6 @@ EXEMPT = {
     # The zones' own formula entry point, kept for its callers and delegating to the scorer's formula.
     (ANALYTICS + "HRZones.swift", "func tanakaMaxHR(age: Double)"),
     (ANALYTICS + "HRZones.swift", "StrainScorer.tanakaHRmax(age: age)"),
-    # The detector's last resort for an age-less profile with no HRmax passed in (every product caller
-    # passes the day's value). Step 0 removes it.
-    (ANALYTICS + "WorkoutDetector.swift", "StrainScorer.estimateHRmax(hrSeg.map"),
     # A classifier feature: the peak of one session, not the wearer's maximum.
     (ANALYTICS + "WorkoutTypeClassifier.swift", "StrainScorer.estimateHRmax(bpms, age: nil)"),
 }
@@ -67,11 +65,12 @@ EXEMPT = {
 # Every reader that resolves the wearer's maximum, and how it must reach the resolver.
 READERS = {
     ANALYTICS + "AnalyticsEngine.swift": "MaxHeartRate.resolve(",
-    ANALYTICS + "WorkoutEnergyEstimate.swift": "MaxHeartRate.ageFormula(",
+    ANALYTICS + "WorkoutEnergyEstimate.swift": "MaxHeartRate.resolve(",
+    ANALYTICS + "WorkoutDetector.swift": "MaxHeartRate.resolve(",
     CORE + "DailyAnalysis.swift": "MaxHeartRate.resolve(",
     CORE + "DailyAnalysis+Healthspan.swift": "MaxHeartRate.resolve(",
     CORE + "DayCycleIntelligenceIntegration.swift": "MaxHeartRate.resolve(",
-    CORE + "EnergyModelRefresh.swift": "MaxHeartRate.ageFormula(",
+    CORE + "EnergyModelRefresh.swift": "MaxHeartRate.resolve(",
     "Packages/NoopCoreJNI/Sources/NoopCore/CoreAnalysis.swift": "MaxHeartRate.resolve(",
     "Strand/Data/Profile.swift": "MaxHeartRate.resolve(",
     # The Today views, the live workout and the settings read it through ProfileStore, routed above.

@@ -571,15 +571,19 @@ public enum StrainScorer {
     /// Changes no score. `hrmaxSource` is the branch the CALLER took, because the branch is only visible
     /// there — `strain` receives an HRmax with its provenance already discarded.
     ///
-    /// No PII: a day key and four bpm values. Byte-identical to the Kotlin twin `dayCalibrationLine`.
+    /// `formula` is the age formula the fork starts from (Gellish, `MaxHeartRate.gellish`); `src` is
+    /// `override`, `measured`, `gellish` or `default` (#2438 step 0). The fork's line therefore differs
+    /// from the Kotlin twin, which still prints `tanaka=`.
+    ///
+    /// No PII: a day key and four bpm values.
     public static func dayCalibrationLine(day: String, hrmax: Double?, hrmaxSource: String,
-                                          tanaka: Double?, observedPeak: Double?,
+                                          formula: Double?, observedPeak: Double?,
                                           restingHR: Double) -> String {
         // The formatters live on WorkoutDetector, where `effort bout` needed them first. Sharing them
         // rather than copying is what keeps a day line and a bout line in the same log rounding the same
         // way; a second copy would be free to drift, and these two lines are read side by side.
         var out = "effort calib day=\(day) hrmax=\(WorkoutDetector.round0(hrmax))"
-        out += " src=\(hrmaxSource) tanaka=\(WorkoutDetector.round0(tanaka))"
+        out += " src=\(hrmaxSource) formula=\(WorkoutDetector.round0(formula))"
         out += " peak=\(WorkoutDetector.round0(observedPeak)) rhr=\(WorkoutDetector.round0(restingHR))"
         return out
     }

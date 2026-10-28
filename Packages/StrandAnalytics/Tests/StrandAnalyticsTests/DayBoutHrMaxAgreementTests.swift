@@ -20,7 +20,7 @@ final class DayBoutHrMaxAgreementTests: XCTestCase {
 
     private let age = 30.0
     private let rhr = 60.0
-    private var tanaka: Double { StrainScorer.tanakaHRmax(age: age) }   // 187 for age 30
+    private var formula: Double { MaxHeartRate.resolve(override: nil, age: age).bpm ?? 0 }   // Gellish, 186 for age 30
 
     /// The arithmetic the fix is about, stated independently of the engine.
     private func zoneWeight(_ bpm: Double, _ hrmax: Double) -> Int {
@@ -36,7 +36,7 @@ final class DayBoutHrMaxAgreementTests: XCTestCase {
     func testTheBoutFallbackIsNeverBelowTheDaysTanaka() {
         for observed in [150.0, 185.0, 195.0, 210.0] {
             let est = StrainScorer.estimateHRmax(Array(repeating: observed, count: 700), age: age).0
-            XCTAssertGreaterThanOrEqual(est, tanaka - 1e-9, "observed \(observed) gave \(est)")
+            XCTAssertGreaterThanOrEqual(est, formula - 1e-9, "observed \(observed) gave \(est)")
         }
     }
 
@@ -45,7 +45,7 @@ final class DayBoutHrMaxAgreementTests: XCTestCase {
     func testTheSameMinuteSplitsAcrossTheZoneFloor() {
         let boutMax = StrainScorer.estimateHRmax(Array(repeating: 195.0, count: 700), age: age).0
         XCTAssertEqual(boutMax, 195.0, accuracy: 1e-9, "fixture assumes the observed value wins")
-        XCTAssertEqual(zoneWeight(125, tanaka), 1, "day scores it zone 1")
+        XCTAssertEqual(zoneWeight(125, formula), 1, "day scores it zone 1")
         XCTAssertEqual(zoneWeight(125, boutMax), 0, "bout scored it zone 0 — the bug")
     }
 
@@ -62,7 +62,7 @@ final class DayBoutHrMaxAgreementTests: XCTestCase {
 
         XCTAssertFalse(res.workouts.isEmpty, "the boundary bout should now be detected")
         for w in res.workouts {
-            XCTAssertEqual(w.hrmax ?? -1, tanaka, accuracy: 1e-9,
+            XCTAssertEqual(w.hrmax ?? -1, formula, accuracy: 1e-9,
                            "every bout must carry the day's HRmax, not the observed estimate")
         }
     }

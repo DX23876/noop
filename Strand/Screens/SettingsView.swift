@@ -106,9 +106,6 @@ struct SettingsView: View {
     /// [PuffinExperiment.exerciseVO2maxKey].
     @AppStorage(PuffinExperiment.exerciseVO2maxKey) private var exerciseVO2maxEnabled = false
     /// A measured maximum the wearer declined; the suggestion returns only for a higher one.
-    @AppStorage("noopMaxHRSuggestionDeclined") private var maxHRSuggestionDeclined = 0
-    /// The measured maximum to offer (`MaxHRSuggestion`), nil when there is none.
-    @State private var maxHRSuggestion: Int?
     @AppStorage(HealthspanFeature.defaultsKey) private var healthspanEnabled = false
     @AppStorage(RhythmAgeFeature.defaultsKey) private var rhythmAgeEnabled = false
     /// #1545 opt-in: score Effort with Banister's exponential TRIMP instead of Edwards' heart-rate zones.
@@ -718,15 +715,13 @@ struct SettingsView: View {
                 FormRow(label: "Max heart rate") {
                     VStack(alignment: .trailing, spacing: 6) {
                         hrMaxField
-                        Text(profile.hrMaxOverride > 0 ? "Manual override" : "Automatic")
+                        Text(maxHeartRateCaption)
                             .font(StrandFont.footnote)
                             .foregroundStyle(profile.hrMaxOverride > 0
                                              ? StrandPalette.accent
                                              : StrandPalette.textTertiary)
                     }
                 }
-                .task(id: "\(profile.hrMaxOverride)|\(profile.hrMax)|\(maxHRSuggestionDeclined)") { await loadMaxHRSuggestion() }
-                if let suggested = maxHRSuggestion { maxHRSuggestionRow(suggested) }
                 rowDivider
                 // The aerobic capacity the energy model scales workouts to (`PeakMETResolver`). Empty is
                 // the normal state: a fresh Apple Watch reading or the Jurca estimate then applies.
@@ -1208,48 +1203,31 @@ struct SettingsView: View {
         return String(localized: "Entered \(date)")
     }
 
-    /// Offers a measured maximum the band has seen held above the value in use; the wearer decides.
-    private func maxHRSuggestionRow(_ suggested: Int) -> some View {
-        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-            Text("Your workouts reached \(suggested) bpm, held for 30 seconds on at least two days. Use it as your maximum heart rate?")
-                .font(StrandFont.subhead)
-                .foregroundStyle(StrandPalette.textPrimary)
-                .fixedSize(horizontal: false, vertical: true)
-            Text("Applies from now on; Effort already scored stays as it is.")
-                .font(StrandFont.caption)
-                .foregroundStyle(StrandPalette.textSecondary)
-            HStack(spacing: NoopMetrics.space3) {
-                Button("Use \(suggested) bpm") {
-                    profile.hrMaxOverride = suggested
-                    maxHRSuggestion = nil
-                }
-                .buttonStyle(.borderedProminent)
-                Button("Not now") {
-                    maxHRSuggestionDeclined = suggested
-                    maxHRSuggestion = nil
-                }
-                .buttonStyle(.bordered)
-            }
+    /// Where the maximum heart rate in use comes from (`MaxHeartRate`), so the number beside it is never
+    /// unexplained: the wearer's own value, the level measured in workouts with the day it was last
+    /// confirmed, or the estimate from age.
+    private var maxHeartRateCaption: String {
+        switch profile.maxHeartRate.source {
+        case .override:
+            return String(localized: "Manual override")
+        case .measured:
+            let day = ProfileStore.measuredMaxHeartRate?.confirmedOn ?? ""
+            let date = WeightSeries.date(forDay: day)
+                .map { $0.formatted(date: .abbreviated, time: .omitted) } ?? day
+            return String(localized: "Measured in your workouts, confirmed \(date)")
+        case .gellish:
+            return String(localized: "Estimated from your age")
+        case .default:
+            return String(localized: "Automatic")
         }
-        .padding(.vertical, NoopMetrics.space2)
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func loadMaxHRSuggestion() async {
-        let peaks = await model.repo.exploreSeries(key: IntelligenceEngine.heldPeakKey, source: Repository.whoopSource,
-                                                   days: MaxHRSuggestion.windowDays)
-        let current = Double(profile.hrMax)
-        maxHRSuggestion = MaxHRSuggestion.suggestion(dayPeaks: peaks.map { (day: $0.day, value: $0.value) },
-                                                     current: current, declined: maxHRSuggestionDeclined,
-                                                     today: Repository.localDayKey(Date()))
     }
 
     /// HR-max override: 0 = auto. Shown as a compact tabular value with a stepper.
     private var hrMaxField: some View {
         HStack(spacing: NoopMetrics.space2) {
             HStack(alignment: .firstTextBaseline, spacing: NoopMetrics.space1) {
-                // Always a number: the Tanaka value when automatic (muted), so the column never has to
-                // fit a word, and the caption below says which of the two it is.
+                // Always a number: the measured or estimated value when automatic (muted), so the column
+                // never has to fit a word, and the caption below says where it comes from.
                 Text("\(profile.hrMax)")
                     .font(StrandFont.bodyNumber)
                     .foregroundStyle(profile.hrMaxOverride > 0
@@ -1263,8 +1241,8 @@ struct SettingsView: View {
             }
             .fixedSize()
             if profileEditing {
-                // Steps from the value on screen: from automatic, one beat either side of the Tanaka
-                // estimate rather than from 0; below 120 it returns to automatic.
+                // Steps from the value on screen: from automatic, one beat either side of the automatic
+                // value rather than from 0; below 120 it returns to automatic.
                 Stepper("Max heart rate override") {
                     let current = profile.hrMax
                     profile.hrMaxOverride = min(230, current + 1)

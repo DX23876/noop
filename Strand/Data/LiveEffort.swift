@@ -14,7 +14,7 @@ import StrandCore
 // chosen.
 //
 // The read lives here rather than being copied into each screen because its PARAMETERS are the part that
-// must not drift: the window (logical-day midnight → now), the profile's Effort HRmax (override, else Tanaka), today's
+// must not drift: the window (logical-day midnight → now), the profile's Effort HRmax (`MaxHeartRate`: override, measured, else Gellish), today's
 // resting HR with `StrainScorer.defaultRestingHR` as the fallback, the Puffin effort method and the
 // profile's sex are exactly what the daily pass will eventually persist. A screen that got any one of
 // them wrong would not fail — it would quietly show a different number for the same day, which is the
@@ -42,8 +42,8 @@ enum LiveEffort {
         let dayStart = Calendar.current.startOfDay(for: Repository.logicalDay(now))
         let from = Int(dayStart.timeIntervalSince1970)
         let to = Int(now.timeIntervalSince1970)
-        // #2460: the manual HR-max override, then Tanaka, exactly as AnalyticsEngine resolves it for the
-        // STORED day. The two meet in `effectiveEffort`, which takes the larger, so a live value on the
+        // #2460: the manual HR-max override, then the measured level, then Gellish, as the daily pass
+        // resolves it for the STORED day. The two meet in `effectiveEffort`, which takes the larger, so a live value on the
         // formula's yardstick would outvote an override set because the real maximum is above it.
         let maxHR = profile.effortHRmax
         let restHR = restingHr.map(Double.init) ?? StrainScorer.defaultRestingHR

@@ -3,8 +3,8 @@ import WhoopProtocol
 
 // HRZones.swift — HR-max + 5 heart-rate zones and time-in-zone from an HR stream.
 //
-// HR-max uses Tanaka et al. (2001): HRmax = 208 − 0.7 × age (gender-independent),
-// with an optional manual override. The five zones are the conventional %HRmax
+// HR-max comes from `MaxHeartRate` (manual setting, measured level, else Gellish 2007 from age).
+// The five zones are the conventional %HRmax
 // bands used across consumer wearables:
 //
 //   Zone 1 (50–60% HRmax) — very light / recovery
@@ -57,7 +57,8 @@ public struct HRZoneSet: Equatable, Sendable {
     public let zones: [HRZone]
     /// Max HR (bpm) the zones were built from.
     public let maxHR: Double
-    /// "tanaka" (age formula), "manual" (caller HRmax override), or "custom" (user-edited bands).
+    /// "gellish" (age formula), "measured" (held workout peaks), "manual" (caller HRmax override), or
+    /// "custom" (user-edited bands).
     public let source: String
 
     public init(zones: [HRZone], maxHR: Double, source: String) {
@@ -171,16 +172,15 @@ public enum HRZones {
         StrainScorer.tanakaHRmax(age: age)
     }
 
-    /// Build the 5-zone set from age (Tanaka) or a manual `maxHROverride`.
+    /// Build the 5-zone set from age (`MaxHeartRate`, Gellish) or a manual `maxHROverride`.
     ///
     /// - Parameters:
     ///   - age: age in years (used only when `maxHROverride` is nil).
     ///   - maxHROverride: explicit HRmax (bpm); when provided, `source == "manual"`.
     public static func zones(age: Double, maxHROverride: Double? = nil) -> HRZoneSet {
         let resolved = MaxHeartRate.resolve(override: maxHROverride, age: age)
-        // No age reads the formula at age 0 (208), as this always did.
-        let maxHR = resolved.bpm ?? Double(resolved.wholeBpm)
-        return zones(maxHR: maxHR, source: resolved.source == .override ? "manual" : "tanaka")
+        return zones(maxHR: Double(resolved.wholeBpm),
+                     source: resolved.source == .override ? "manual" : resolved.source.rawValue)
     }
 
     /// Build the 5-zone set directly from a known max HR, over `edges` (default: the conventional
@@ -227,8 +227,8 @@ public enum HRZones {
     }
 
     /// Resolve a stored `HRZoneConfig` into the zone set to use. THE entry point for anything that owns
-    /// a user configuration; `autoSource` is what `.auto` should call itself ("tanaka" when HRmax came
-    /// from the age formula, "manual" when the user set HRmax by hand) — that distinction lives in the
+    /// a user configuration; `autoSource` is what `.auto` should call itself (the `MaxHeartRate.Source` word, "gellish" or
+    /// "measured", or "manual" when the user set HRmax by hand) — that distinction lives in the
     /// profile, not here.
     ///
     /// A config whose bounds no longer validate degrades to `.auto` rather than to a broken partition,

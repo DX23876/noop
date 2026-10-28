@@ -131,7 +131,7 @@ public enum EnergyModelRefresh {
                                         source: point.source == .manual ? .manual : .health)
             }
         }
-        let maximumHR = profile.maxHR ?? MaxHeartRate.ageFormula(age: profile.age)
+        let maximumHR = profile.maxHR ?? MaxHeartRate.resolve(override: nil, age: profile.age).bpm
         let sleepIntervals = await sleepIntervals(reader: reader, from: from, to: to)
         let offWristIntervals = await offWristIntervals(reader: reader, from: from, to: to)
         let workoutIntervals = await workoutIntervals(reader: reader, from: from, to: to,

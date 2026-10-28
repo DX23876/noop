@@ -24,7 +24,7 @@ public struct UserProfile: Equatable, Sendable {
     public var heightCm: Double
     public var age: Double
     public var sex: String   // "male" | "female" | "nonbinary"
-    /// Optional user-tested/manual maximum heart rate. Consumers fall back to Tanaka only when nil.
+    /// Optional user-tested/manual maximum heart rate. Consumers fall back to `MaxHeartRate` (Gellish from age) only when nil.
     public var maxHR: Double?
     /// Counter ticks per real step for the @57 motion counter (#139). The WHOOP 5/MG
     /// counter overcounts and its true tick rate is unknown, so the daily-steps total
@@ -71,7 +71,7 @@ public struct ExerciseSession: Equatable, Sendable {
     public let avgHRRPct: Double?
     /// Effective HRmax used for zone math (bpm), or nil.
     public let hrmax: Double?
-    /// "caller" | "observed" | "tanaka" | "unknown".
+    /// "caller", or the `MaxHeartRate.Source` word when the detector resolved it ("gellish" | "default").
     public let hrmaxSource: String
     public let caloriesKcal: Double?
     public let caloriesKJ: Double?
@@ -428,7 +428,7 @@ public enum WorkoutDetector {
     ///   - restingHR: day resting-HR baseline (bpm). nil → derived as the 10th
     ///     percentile of the day's HR.
     ///   - maxHR: HRmax (bpm). nil → estimated via StrainScorer.estimateHRmax.
-    ///   - age: used only for the Tanaka fallback when maxHR is nil.
+    ///   - age: used only for the `MaxHeartRate` fallback when maxHR is nil.
     ///   - profile: when provided, per-bout calories are estimated.
     /// The sport a bout is priced as: the detector sees heart rate and motion, never what the activity
     /// was, so a bout takes the generic curve and, without a ceiling, the table's unnamed-session MET.
@@ -470,14 +470,16 @@ public enum WorkoutDetector {
         f.restingHR = restHR
         f.hrFloor = hrFloor
 
+        // The day's value from the caller; without one, the same resolver the day would use. The detector's
+        // own observed-percentile estimate is gone (#2438 step 0): a bout must be held to its day's maximum.
         let effMaxHR: Double?
         let hrmaxSource: String
         if let m = maxHR {
             effMaxHR = m; hrmaxSource = "caller"
         } else {
-            let (est, src) = StrainScorer.estimateHRmax(hrSeg.map { $0.bpm }, age: age)
-            effMaxHR = est == 0.0 ? nil : est
-            hrmaxSource = src
+            let resolved = MaxHeartRate.resolve(override: nil, age: age ?? 0)
+            effMaxHR = resolved.bpm
+            hrmaxSource = resolved.source.rawValue
         }
 
         let hrTs = hrSeg.map { $0.ts }

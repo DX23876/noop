@@ -190,7 +190,14 @@ public enum AnalysisRecipe {
     // the strap trace, and a corrected night keeps its bed and wake times while its stages are derived again.
     // AI-31 changes no formula: what moves is every day scored under an older recipe or outside the windows
     // the earlier migrations re-scored, which now reads what the current code produces.
-    public static let currentVersion = 31
+    // AI-32 (2026-10-28, fork, #2438 step 0) resolves the maximum heart rate in one place (`MaxHeartRate`): the
+    // manual setting, else the level held for five samples in workouts on two days of the 90 before a day,
+    // else Gellish (192 − 0.007 × age²) instead of Tanaka, all in whole bpm. Effort, workout detection and
+    // scores, zones, workout energy, AgeLess, the VO₂max fallback and the coach read it. The workout peaks
+    // are banked over the whole raw history first (`RebuildStep.workoutPeaks`), then the full rebuild runs.
+    // Its own number although AI-31 has not shipped in a release: the testing build of 2026-10-26 carries
+    // AI-31, so a store that ran it would otherwise keep its history on the old maximum (decisions.md).
+    public static let currentVersion = 32
 
     /// The first recipe whose migration is the full rebuild. A store below it may still owe the legacy
     /// repairs of older recipes, which fix stored inputs rather than derive anything (`LegacyRepair`).
@@ -204,6 +211,9 @@ public enum AnalysisRecipe {
         case legacyRepairs
         /// Every AgeLess week is deleted, so the daily pass rebuilds them all from the banked inputs.
         case healthspanReset
+        /// Each day's sustained workout peak over the whole raw history, which the daily step reads for the
+        /// measured maximum heart rate (`MaxHeartRate.measuredLevels`).
+        case workoutPeaks
         /// Every day that has raw strap data, scored again in one pass.
         case dailyHistory
         /// The Saturday-keyed weekly scores (Fitness Age, VO2max estimate, Vitality, Body Age) for every

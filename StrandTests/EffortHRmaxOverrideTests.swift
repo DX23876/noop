@@ -31,18 +31,31 @@ final class EffortHRmaxOverrideTests: XCTestCase {
         }
     }
 
-    /// With no override the formula applies, UNROUNDED, and that is also why this is not the existing
-    /// `hrMax`. The engine scores against `StrainScorer.tanakaHRmax`, which is not an integer for most
-    /// ages; `hrMax` rounds it to an Int, which would put the live value on a slightly different reserve
-    /// than the day it belongs to.
-    ///
-    /// Age 41 is chosen because 208 - 0.7*41 = 179.3, so the rounding actually shows. The expectation is
-    /// derived from `p.age` rather than hardcoded, since `age` is computed from the stored birth date.
+    /// With no override and no measured level the formula applies (Gellish, #2438 step 0), as a whole
+    /// bpm, so the live value, the stored day, the zones and the workouts all read one number: `effortHRmax`
+    /// and `hrMax` no longer differ by a rounding. The expectation is derived from `p.age` rather than
+    /// hardcoded, since `age` is computed from the stored birth date.
     @MainActor
-    func testNoOverrideIsUnroundedTanakaAndNotTheRoundedHrMax() {
+    func testNoOverrideIsGellishAndTheSameNumberAsHrMax() {
         withProfile(age: 41, hrMaxOverride: 0) { p in
-            XCTAssertEqual(p.effortHRmax ?? -1, StrainScorer.tanakaHRmax(age: Double(p.age)), accuracy: 1e-9)
-            XCTAssertNotEqual(p.effortHRmax ?? -1, Double(p.hrMax))
+            XCTAssertEqual(p.effortHRmax, MaxHeartRate.gellish(age: Double(p.age)))
+            XCTAssertEqual(p.effortHRmax, Double(p.hrMax))
+            XCTAssertEqual(p.maxHeartRate.source, .gellish)
+        }
+    }
+
+    /// A level the daily pass measured above the formula reaches every profile reader; a setting still wins.
+    @MainActor
+    func testTheMeasuredLevelReachesTheProfileAndASettingStillWins() {
+        withProfile(age: 30, hrMaxOverride: 0, measured: "194|2026-10-20") { p in
+            XCTAssertEqual(p.effortHRmax, 194)
+            XCTAssertEqual(p.hrMax, 194)
+            XCTAssertEqual(p.maxHeartRate.source, .measured)
+            XCTAssertEqual(ProfileStore.persistedAnalyticsProfile.maxHR, 194)
+        }
+        withProfile(age: 30, hrMaxOverride: 180, measured: "194|2026-10-20") { p in
+            XCTAssertEqual(p.hrMax, 180)
+            XCTAssertEqual(p.maxHeartRate.source, .override)
         }
     }
 
@@ -128,10 +141,11 @@ final class EffortHRmaxOverrideTests: XCTestCase {
     /// fixtures, and the failure would look like anything except this file. Same save-and-restore shape
     /// as `DetectedWorkoutReconciliationTests.withPreferences`, narrowed to the keys touched here.
     @MainActor
-    private func withProfile(age: Int, hrMaxOverride: Int, sex: String = "male",
+    private func withProfile(age: Int, hrMaxOverride: Int, sex: String = "male", measured: String? = nil,
                              _ body: (ProfileStore) -> Void) {
         let defaults = UserDefaults.standard
-        let keys = ["profile.dateOfBirth", "profile.age", "profile.sex", "profile.hrMaxOverride"]
+        let keys = ["profile.dateOfBirth", "profile.age", "profile.sex", "profile.hrMaxOverride",
+                    MaxHeartRate.measuredLevelKey]
         let saved = keys.map { ($0, defaults.object(forKey: $0)) }
         defer {
             for (key, value) in saved {
@@ -143,13 +157,14 @@ final class EffortHRmaxOverrideTests: XCTestCase {
         p.dateOfBirth = ProfileStore.dateOfBirth(forAge: age)
         p.sex = sex
         p.hrMaxOverride = hrMaxOverride
+        defaults.set(measured, forKey: MaxHeartRate.measuredLevelKey)
         body(p)
     }
 
     /// The day key the fixture's timestamps fall in, under the tests' UTC offset.
     private static let day = "2026-09-26"
 
-    /// A calendar day at 60 bpm with a 40-minute block at 140, which is zone 2 under Tanaka and zone 1
+    /// A calendar day at 60 bpm with a 40-minute block at 140, which is zone 2 under the formula and zone 1
     /// under a 195 override. The two yardsticks have to actually disagree or the comparison is vacuous.
     private func dayHR() -> [HRSample] {
         let base = 1_790_380_800   // 2026-09-26T00:00:00Z

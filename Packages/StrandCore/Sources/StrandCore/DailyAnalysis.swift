@@ -611,7 +611,7 @@ public final class DailyAnalysis {
     /// Mirrors the Android `DailyAnalysis.fitnessAgeRows`.
     public static func fitnessAgeRows(
         gateDays: [DailyMetric], age: Int, sex: String, waistCm: Double, heightCm: Double, weightKg: Double,
-        computedId: String, satKey: String,
+        computedId: String, satKey: String, maxHR: Double? = nil,
     ) -> [MetricPoint] {
         let rhrs = gateDays.compactMap { $0.restingHr }.map(Double.init)
         let strains = gateDays.compactMap { $0.strain }.filter { $0 >= 30 }
@@ -632,11 +632,12 @@ public final class DailyAnalysis {
         // #1391: offer a VO₂max even without a waist. res.vo2max is the Nes 2011 waist-based estimate (nil
         // when no waist is set). Fall back to the Uth 2004 HR-ratio estimate (15.3·HRmax/RHR — waist-free,
         // the SAME formula the calorie path already uses), so any user past the age+RHR fitness-age gate gets
-        // a (rougher) VO₂max instead of a blank. HRmax via the shared Tanaka estimator (no HR history here →
-        // age-predicted); RHR = the same median the Nes value used. Both persist under "vo2max_est"; the card
+        // a (rougher) VO₂max instead of a blank. HRmax is the one in force (`maxHR`, from `MaxHeartRate`;
+        // Gellish when the caller passes none); RHR = the same median the Nes value used. Both persist under "vo2max_est"; the card
         // labels it "Estimated". Mirrors the Android twin.
         let vo2 = res.vo2max
-            ?? Calories.vo2maxFor(hrmax: MaxHeartRate.ageFormula(age: Double(age)) ?? 0, restingHR: medianOf(rhrs))
+            ?? Calories.vo2maxFor(hrmax: maxHR ?? MaxHeartRate.resolve(override: nil, age: Double(age)).bpm ?? 0,
+                                  restingHR: medianOf(rhrs))
         if let v = vo2 { rows.append(MetricPoint(day: satKey, key: "vo2max_est", value: v)) }
         return rows
     }
@@ -702,7 +703,7 @@ public final class DailyAnalysis {
         let rows = Self.fitnessAgeRows(
             gateDays: gate7, age: profile.age, sex: profile.sex, waistCm: profile.waistCm,
             heightCm: profile.heightCm, weightKg: profile.weightKg, computedId: computedId,
-            satKey: Self.saturdayKey(onOrBefore: newestDay))
+            satKey: Self.saturdayKey(onOrBefore: newestDay), maxHR: maxHeartRateToday.bpm)
         if !rows.isEmpty {
             try? await store.persistMetricSeriesWithProvenance(
                 points: rows,
@@ -900,6 +901,10 @@ public final class DailyAnalysis {
             }
         case .healthspanReset:
             try await Self.deleteHealthspanWeeks(store: store, deviceId: deviceId)
+        case .workoutPeaks:
+            try await Self.bankWorkoutPeaks(store: store, strapId: deviceId, computedId: deviceId + "-noop",
+                                            fromDay: firstDay, toDay: today,
+                                            tzOffset: TimeZone.current.secondsFromGMT())
         case .dailyHistory:
             await analyzeRecent(maxDays: days, force: true, allowDayReuse: false, reason: .semanticChange)
             // A pass that heals duplicate sleep sessions queues one forced re-pass over the same window. The
@@ -957,7 +962,8 @@ public final class DailyAnalysis {
             let gate7 = Array(gate.filter { $0.day <= through }.suffix(7))
             let faPts = Self.fitnessAgeRows(
                 gateDays: gate7, age: profile.age, sex: profile.sex, waistCm: profile.waistCm,
-                heightCm: profile.heightCm, weightKg: profile.weightKg, computedId: computedId, satKey: saturday)
+                heightCm: profile.heightCm, weightKg: profile.weightKg, computedId: computedId, satKey: saturday,
+                maxHR: maxHeartRateToday.bpm)
             if !faPts.isEmpty {
                 try await store.persistMetricSeriesWithProvenance(
                     points: faPts, provenance: Self.vo2MaxProvenance(points: faPts, waistCm: profile.waistCm),
@@ -1045,7 +1051,7 @@ public final class DailyAnalysis {
         let stepSamples = stepOptional ?? []
         let existing = existingOptional?.first
 
-        let maxHR = MaxHeartRate.resolve(overrideBpm: profile.hrMaxOverride, age: Double(profile.age)).bpm
+        let maxHR = maxHeartRateToday.bpm
         let restingHR = existing?.restingHr.map(Double.init) ?? StrainScorer.defaultRestingHR
         let effortMethod = host.analysisSettings().effortMethod
         let sex = profile.sex
@@ -1108,7 +1114,7 @@ public final class DailyAnalysis {
         let offset = TimeZone.current.secondsFromGMT()
         let age = profile.age
         let sex = profile.sex
-        let maxHR = MaxHeartRate.resolve(overrideBpm: profile.hrMaxOverride, age: Double(age)).bpm
+        let maxHR = maxHeartRateToday.bpm
         let fallbackId = deviceId
         let registry = DeviceRegistryStore(dbQueue: store.registryWriter)
         let devices = (try? registry.all()) ?? []
@@ -1324,6 +1330,17 @@ public final class DailyAnalysis {
     /// change, stored beside `steps_est` and `steps_motion` under the same computed id.
     public static let hrmaxEffectiveKey = "hrmax_effective"
 
+    /// The level the last pass measured (`MaxHeartRate.measuredLevelKey`), nil when none is confirmed.
+    var measuredMaxHeartRate: Double? {
+        MaxHeartRate.Level(stored: host.storedString(MaxHeartRate.measuredLevelKey))?.bpm
+    }
+
+    /// The maximum heart rate in force today, for the paths outside the per-day scoring: the setting, the
+    /// level the last pass measured, else Gellish (`MaxHeartRate`).
+    var maxHeartRateToday: MaxHeartRate.Resolved {
+        MaxHeartRate.resolve(overrideBpm: profile.hrMaxOverride, age: Double(profile.age), measured: measuredMaxHeartRate)
+    }
+
     /// Which max-HR override each day was — and stays — scored with: the newest entry dated at or
     /// before that day, or `fallback` when none is.
     ///
@@ -1339,7 +1356,7 @@ public final class DailyAnalysis {
     /// effect from the day it is set and never moves an earlier day again — which is also what stops
     /// the re-derivation, since an untouched day keeps a matching fingerprint.
     ///
-    /// The raw override is stored, not the Tanaka-resolved effective HR: the signature component keeps
+    /// The raw override is stored, not the resolved effective HR (`MaxHeartRate`): the signature component keeps
     /// its exact existing form that way, so seeding an install's history with its current value leaves
     /// every day's signature byte-identical and the changeover costs no re-derivation at all.
     ///
@@ -1756,6 +1773,20 @@ public final class DailyAnalysis {
         }
         let hrmaxByDay = Self.hrmaxByDay(days: scanDayKeys, journal: hrmaxJournal,
                                          fallback: profileHrmax)
+        // #2438 step 0: the level each day is scored with, measured from the workout peaks of the days
+        // BEFORE it (`MaxHeartRate.measuredLevels`). Read whole like the journal: a day's level can rest on
+        // peaks up to `MaxHeartRate.windowDays` before the window and on a level confirmed long before that.
+        let workoutPeaks = ((try? await store.metricSeries(deviceId: computedId, key: Self.workoutPeakKey,
+                                                           from: "0000-01-01", to: newestScanDay)) ?? [])
+            .reduce(into: [String: Double]()) { $0[$1.day] = $1.value }
+        let measuredByDay = MaxHeartRate.measuredLevels(days: scanDayKeys, peaks: workoutPeaks,
+                                                        age: Double(profile.age))
+        let maxHRByDay = scanDayKeys.reduce(into: [String: MaxHeartRate.Resolved]()) { out, day in
+            out[day] = MaxHeartRate.resolve(overrideBpm: hrmaxByDay[day] ?? profileHrmax, age: Double(profile.age),
+                                            measured: measuredByDay[day]?.bpm)
+        }
+        // Today's level for the readers outside the pass (profile, zones, live Effort, coach, Settings).
+        host.store(measuredByDay[newestScanDay]?.stored, forKey: MaxHeartRate.measuredLevelKey)
         // `weight` and `hrmax` are deliberately NOT in these two lists — both are per DAY, spliced in by
         // `semanticSignature(forDay:)` below. Everything that remains is genuinely pass-global: it holds
         // for every day in the window or for none, which is what makes a single miss on one of these
@@ -1785,7 +1816,8 @@ public final class DailyAnalysis {
         // assembly would be a copy that can disagree — and the failure it produces is silent and total:
         // no day ever matches again, and the log says only "semanticSignature".
         let semanticSignature: @Sendable (String) -> String = { day in
-            "\(semanticSignatureHead)|hrmax=\(hrmaxByDay[day] ?? profileHrmax)|\(semanticSignatureTail)"
+            "\(semanticSignatureHead)|hrmax=\(hrmaxByDay[day] ?? profileHrmax)"
+                + "/\(maxHRByDay[day]?.wholeBpm ?? 0)|\(semanticSignatureTail)"
                 + "|weight=\((weightByDay[day] ?? profileWeightKg).bitPattern)"
         }
         // ── Per-day skip (#launch-rescore) ───────────────────────────────────────────────────────────
@@ -2192,8 +2224,7 @@ public final class DailyAnalysis {
                 // Same rule as the weight above, for the same reason: the signature promises a max HR for
                 // this day, so this is the one the day must be scored with. It reaches Effort AND the
                 // z2+ gate that decides which workouts are detected at all.
-                let dayHrmax = hrmaxByDay[day] ?? profileHrmax
-                let dayMaxHR: Double? = dayHrmax > 0 ? Double(dayHrmax) : nil
+                let dayMaxHR = maxHRByDay[day]
                 // Hand-off between the reads and the scorer. The reads above are each an `await` on the
                 // store actor and therefore already suspension points; `analyzeDay` below is one
                 // synchronous fold with none. Yielding here bounds how long the scan holds its thread
@@ -2224,7 +2255,7 @@ public final class DailyAnalysis {
                                                      skinTempWornToleranceSec: skinWornToleranceSec,   // #1467
                                                      spo2: spo2,                   // #93
                                                      profile: dayProfile, baselines: baselines1,
-                                                     maxHROverride: dayMaxHR,
+                                                     maxHR: dayMaxHR,
                                                      tzOffsetSeconds: tzOffset, wristOff: wristOff,
                                                      sleepNeedHours: sleepNeedHours,
                                                      sleepConsistency: sleepConsistency,
@@ -2909,8 +2940,8 @@ public final class DailyAnalysis {
             // setting in force today. A window spanning an old change therefore attributes its earlier
             // days' steps/effort with today's number; the per-day scoring above does not, and that
             // narrower correctness is the one this fix was for. Naming the gap rather than hiding it.
-            maxHROverride: (hrmaxByDay[newestScanDay] ?? profileHrmax) > 0
-                ? Double(hrmaxByDay[newestScanDay] ?? profileHrmax) : nil,
+            // The value is already resolved (`maxHRByDay`), so it reaches the cycle path as given.
+            maxHROverride: maxHRByDay[newestScanDay]?.bpm,
             effortMethod: effortMethodGlobal,
             trace: cycleTraceSink) else { return }
         guard !Task.isCancelled else { return }
@@ -3362,7 +3393,7 @@ public final class DailyAnalysis {
         let faPts = Self.fitnessAgeRows(
             gateDays: faGate7, age: profile.age, sex: profile.sex, waistCm: profile.waistCm,
             heightCm: profile.heightCm, weightKg: profile.weightKg, computedId: computedId,
-            satKey: DailyAnalysis.saturdayKey(onOrBefore: newestDay))
+            satKey: DailyAnalysis.saturdayKey(onOrBefore: newestDay), maxHR: maxHeartRateToday.bpm)
         if !faPts.isEmpty {
             try? await store.persistMetricSeriesWithProvenance(
                 points: faPts,
@@ -3381,9 +3412,11 @@ public final class DailyAnalysis {
         if !vitalityPts.isEmpty {
             _ = try? await store.upsertMetricSeries(vitalityPts, deviceId: computedId)
         }
-        // Fork: each day's held workout peak, for the measured-maximum suggestion in Settings (MaxHRPeakSeries.swift).
-        await Self.bankHeldPeaks(store: store, strapId: deviceId, computedId: computedId,
-                                 oldestDay: oldestDay, newestDay: newestDay, tzOffset: tzOffset)
+        // Fork: each day's sustained workout peak, which the next pass reads for the measured maximum heart
+        // rate (MaxHRPeakSeries.swift, `MaxHeartRate.measuredLevels`). Banked after the days are scored, so a
+        // workout this pass detected counts from the next day on, never for its own day.
+        await Self.bankWorkoutPeaks(store: store, strapId: deviceId, computedId: computedId,
+                                    oldestDay: oldestDay, newestDay: newestDay, tzOffset: tzOffset)
         // Fork: daily-rhythm readout (CosinorAge beta), once per local day (DailyAnalysis+RhythmAge.swift).
         if settings.rhythmAge {
             await Self.runRhythmAgePass(store: store, strapId: deviceId, computedId: computedId, age: profile.age,
@@ -3832,6 +3865,7 @@ public final class DailyAnalysis {
                 .map { ($0.day, $0.value) }, uniquingKeysWith: { first, _ in first })
             await Self.runHealthspanPass(store: store, strapId: deviceId, computedId: computedId,
                                          age: profile.age, sex: profile.sex, hrMaxOverride: profile.hrMaxOverride,
+                                         measuredMaxHR: measuredMaxHeartRate,
                                          oldestDay: oldestDay, newestDay: newestDay, tzOffset: tzOffset,
                                          manualVO2max: manualVO2, longSessions: longSessions, bodyFat: bodyFat,
                                          steps: steps)
@@ -4020,7 +4054,7 @@ public final class DailyAnalysis {
         let since = now - 14 * 86_400
         guard let rows = try? await store.workouts(deviceId: deviceId, from: since, to: now, limit: 200)
         else { return }
-        let hrMax = Double(profile.hrMax)
+        let hrMax = Double(maxHeartRateToday.wholeBpm)
         // The ceiling each day's energy model used, so a rescored session is priced on the curve its
         // day was. Days without one take the sport's table MET.
         let peakByDay = await repo.energyPeakMETByDay(

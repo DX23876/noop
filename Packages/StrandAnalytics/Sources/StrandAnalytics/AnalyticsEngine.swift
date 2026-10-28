@@ -282,7 +282,9 @@ public enum AnalyticsEngine {
     ///   - profile: user profile (age/sex/weight/height) for HRmax + calories.
     ///   - baselines: personal baselines for recovery normalization.
     ///   - maxHROverride: explicit HRmax (bpm) to use for strain/zones; nil →
-    ///     Tanaka from profile.age.
+    ///     `MaxHeartRate.resolve` from profile.age.
+    ///   - maxHR: the day's maximum heart rate already resolved, with its source; wins over
+    ///     `maxHROverride`. The daily pass passes it (`MaxHeartRate`, measured level included).
     /// The night's respiratory rate (breaths/min) from a strap's OWN per-window rate rows, or nil when
     /// the night has too little of it to summarise. Pure → unit-testable, and byte-twinned in Kotlin.
     ///
@@ -389,6 +391,7 @@ public enum AnalyticsEngine {
                                   profile: UserProfile,
                                   baselines: ProfileBaselines = ProfileBaselines(),
                                   maxHROverride: Double? = nil,
+                                  maxHR: MaxHeartRate.Resolved? = nil,
                                   // Wall-clock UTC offset (seconds) for the sleep detector's daytime
                                   // false-sleep guard (#90). Default 0 keeps pure-function callers/tests
                                   // on UTC; IntelligenceEngine passes the device's real offset.
@@ -925,7 +928,7 @@ public enum AnalyticsEngine {
         // today's Effort same-day instead of being cut off at the night window's ≈ noon bound, and
         // the prior evening's HR (the night window's −30h tail) no longer bleeds in. Falls back to the
         // night `hr` for pure-function callers/tests.
-        let resolvedMaxHR = MaxHeartRate.resolve(override: maxHROverride, age: profile.age)
+        let resolvedMaxHR = maxHR ?? MaxHeartRate.resolve(override: maxHROverride, age: profile.age)
         let effMaxHR: Double? = resolvedMaxHR.bpm
         let restForStrain = restingHRDaily.map(Double.init) ?? StrainScorer.defaultRestingHR
         // The Effort ring's own funnel. A nil sink builds nothing at all, so a caller that does not want
@@ -949,7 +952,7 @@ public enum AnalyticsEngine {
                 // that substituted number, about the same day.
                 day: day, hrmax: effMaxHR ?? Double(StrainScorer.defaultMaxHR()),
                 hrmaxSource: resolvedMaxHR.source.rawValue,
-                tanaka: MaxHeartRate.ageFormula(age: profile.age),
+                formula: MaxHeartRate.gellish(age: profile.age),
                 observedPeak: hrForPeak.max(by: { $0.bpm < $1.bpm }).map { Double($0.bpm) },
                 restingHR: restForStrain)
                 // The raw peak is usually one isolated sample on a ring; this is the value held (#2438).
