@@ -703,3 +703,21 @@ tables and no raw table changed. On the owner's iPhone 13 Pro Max (105 days) it 
 Analysis migration required: yes. AI-31 changes no formula; it is the first rebuild, which re-scores every
 day an older recipe or a narrower window left behind.
 
+
+### 2026-10-28 — The Effort recalibration gets its own bump (AI-32) before AI-31 ships in a release
+
+The Effort recalibration of [#2438](https://github.com/ryanbr/noop/issues/2438) (maximum heart rate from held
+workout peaks, a new load curve) changes stored Effort and everything derived from it, so it needs a rebuild.
+The rule of 2026-10-25 says a release carries at most one bump, and AI-31 has not shipped in a release yet, so
+the change would normally ride on AI-31. It does not: the testing build of 2026-10-26 (`b351eecd4`) already
+carries AI-31 and is published, and the owner's iPhone ran its rebuild. On every store that ran it, a change
+riding on AI-31 would reach new days only and leave the history on the old formula.
+
+The recalibration therefore bumps to AI-32. This costs release users nothing: a store on AI-30 migrates to
+AI-32 in one rebuild, because every bump runs the same full rebuild. Stores on AI-31 run the rebuild once more,
+which is the point.
+
+The rule itself stands. What counts as "shipped" for it is any published build, testing builds included, not
+only a release.
+
+Analysis migration required: no. This records a numbering decision; the bump lands with the change it serves.
