@@ -526,14 +526,17 @@ private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit, onOpenPlan
 /** The coach's face, breathing while a reply is written, from the identity the chat provides. */
 @Composable
 private fun CoachAvatar(size: androidx.compose.ui.unit.Dp, breathing: Boolean = false) {
-    val transition = androidx.compose.animation.core.rememberInfiniteTransition(label = "coachBreath")
-    val pulse by transition.animateFloat(
-        initialValue = 1f, targetValue = 1.06f,
-        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
-            androidx.compose.animation.core.tween(1100), androidx.compose.animation.core.RepeatMode.Reverse),
-        label = "coachBreathScale",
-    )
-    Box(Modifier.graphicsLayer { val s = if (breathing) pulse else 1f; scaleX = s; scaleY = s }) {
+    // Held still under battery saver or reduced motion, as iOS holds the avatar still under Reduce Motion.
+    val pulse = if (breathing && !rememberPoseStill()) {
+        val transition = androidx.compose.animation.core.rememberInfiniteTransition(label = "coachBreath")
+        transition.animateFloat(
+            initialValue = 1f, targetValue = 1.06f,
+            animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+                androidx.compose.animation.core.tween(1100), androidx.compose.animation.core.RepeatMode.Reverse),
+            label = "coachBreathScale",
+        ).value
+    } else 1f
+    Box(Modifier.graphicsLayer { scaleX = pulse; scaleY = pulse }) {
         CoachIdentityAvatar(LocalCoachIdentity.current, size)
     }
 }
@@ -688,6 +691,7 @@ private fun ChatBubble(msg: ChatMsg, vm: CoachViewModel, groupStart: Boolean = t
 /** Three dots beside the coach's avatar until the first words of the reply arrive. */
 @Composable
 private fun ThinkingBubble() {
+    val still = rememberPoseStill()
     val transition = androidx.compose.animation.core.rememberInfiniteTransition(label = "typing")
     Row(
         modifier = Modifier.fillMaxWidth()
@@ -703,13 +707,14 @@ private fun ThinkingBubble() {
             horizontalArrangement = Arrangement.spacedBy(5.dp),
         ) {
             repeat(3) { i ->
-                val alpha by transition.animateFloat(
+                // Three steady dots under battery saver or reduced motion; a pulse otherwise.
+                val alpha = if (still) 0.7f else transition.animateFloat(
                     initialValue = 0.25f, targetValue = 1f,
                     animationSpec = androidx.compose.animation.core.infiniteRepeatable(
                         androidx.compose.animation.core.tween(600, delayMillis = i * 180),
                         androidx.compose.animation.core.RepeatMode.Reverse),
                     label = "dot$i",
-                )
+                ).value
                 Box(Modifier.size(7.dp).graphicsLayer { this.alpha = alpha }.clip(CircleShape).background(Palette.accent))
             }
         }
