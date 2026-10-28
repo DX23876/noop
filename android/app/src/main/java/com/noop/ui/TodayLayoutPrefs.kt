@@ -23,16 +23,25 @@ import com.noop.R
  * the macOS `TodaySection` enum so a backup/restore reads the same layout on either OS.
  */
 enum class TodaySection(val raw: String, @StringRes val titleRes: Int) {
+    COACH("coach", R.string.forge_lay_section_coach),
     HERO("hero", R.string.today_section_hero),
     LIVE_SESSION("liveSession", R.string.today_section_live_session),
-    SYNTHESIS("synthesis", R.string.today_section_synthesis),
+    // The raw `synthesis` is the persisted key; only the label follows the card's name, Momentum.
+    SYNTHESIS("synthesis", R.string.forge_lay_section_momentum),
+    /** Goals: where each one stands and what there is to tick off today, one card. */
+    GOALS("goals", R.string.forge_lay_section_goals),
     KEY_METRICS("keyMetrics", R.string.today_section_key_metrics),
+    /** Strength and cardio load against the wearer's usual. */
+    TRAINING_LOAD("trainingLoad", R.string.forge_lay_section_training_load),
+    /** Today's energy: basal, active, total burn and where the day is heading. */
+    ENERGY("energy", R.string.forge_lay_section_energy),
     WORKOUTS("workouts", R.string.today_section_workouts),
     HEART_RATE("heartRate", R.string.today_section_heart_rate),
     RECOVERY_VITALS("recoveryVitals", R.string.today_section_recovery_vitals),
     YOUR_CARDS("yourCards", R.string.today_section_your_cards),
     MENSTRUAL_CYCLE("menstrualCycle", R.string.today_section_menstrual_cycle),
     JOURNAL("journal", R.string.today_section_journal),
+    DATA_SOURCES("dataSources", R.string.forge_lay_section_data_sources),
 
     /** Cards hosted from the Trends / Sleep tabs (#today-hosted-cards). Renders the [HostedCardPrefs]
      *  selection in order; empty (and effectively invisible) until the user adds a card in Customise.
@@ -42,11 +51,11 @@ enum class TodaySection(val raw: String, @StringRes val titleRes: Int) {
     companion object {
         fun fromRaw(raw: String?): TodaySection? = entries.firstOrNull { it.raw == raw }
 
-        /** The original, hard-coded section order — the default when the layout isn't customised. The
-         *  journal widget (#656) is last by default, where it was first added, above the data-sources card. */
+        /** The Apple `TodaySection.defaultOrder`, so an order saved on either platform back-fills the same way.
+         *  Coach leads it; the journal sits above data sources, added cards last. */
         val defaultOrder: List<TodaySection> = listOf(
-            HERO, LIVE_SESSION, SYNTHESIS, KEY_METRICS, WORKOUTS, HEART_RATE, RECOVERY_VITALS, YOUR_CARDS,
-            MENSTRUAL_CYCLE, JOURNAL, ADDED_CARDS,
+            COACH, HERO, LIVE_SESSION, SYNTHESIS, GOALS, KEY_METRICS, TRAINING_LOAD, ENERGY, WORKOUTS, HEART_RATE,
+            RECOVERY_VITALS, YOUR_CARDS, MENSTRUAL_CYCLE, JOURNAL, DATA_SOURCES, ADDED_CARDS,
         )
     }
 }
@@ -60,6 +69,15 @@ enum class TodaySection(val raw: String, @StringRes val titleRes: Int) {
 object TodayLayoutPrefs {
     private const val KEY_ORDER = "today.sectionOrder"
     private const val KEY_HIDDEN = "today.hiddenSections"
+
+    /** The stored strings as written, null while unset (an unset key reads as the style's fresh default). */
+    fun orderRaw(context: Context): String? = NoopPrefs.of(context).getString(KEY_ORDER, null)
+
+    fun hiddenRaw(context: Context): String? = NoopPrefs.of(context).getString(KEY_HIDDEN, null)
+
+    fun setRaw(context: Context, order: String, hidden: String) {
+        NoopPrefs.of(context).edit().putString(KEY_ORDER, order).putString(KEY_HIDDEN, hidden).apply()
+    }
 
     /** Every known section in display order (saved order first, then any newly-added section appended). */
     fun order(context: Context): List<TodaySection> =

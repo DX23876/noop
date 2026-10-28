@@ -63,10 +63,11 @@ import com.noop.R
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.rememberCoroutineScope
-import com.noop.core.CoreCoach
 import com.noop.core.CoreGoals
 import com.noop.core.CoreRead
 import com.noop.ui.AppViewModel
+import com.noop.ui.TodayLayoutPrefs
+import com.noop.ui.TodaySection
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
@@ -83,8 +84,9 @@ internal const val DAY_MONTH_SKELETON = "EEEdMMM"
 /** One day's values as the Today screen shows them; [CoreRead.Day] or nothing. */
 data class TodayModel(val date: LocalDate, val day: CoreRead.Day?, val baselines: Map<CoreRead.Metric, Double> = emptyMap())
 
-/** The metrics whose tile shows a change against the week before. */
-private val baselineMetrics = listOf(CoreRead.Metric.Hrv, CoreRead.Metric.RestingHr, CoreRead.Metric.RespRate)
+/** The metrics whose tile shows a change against the week before: the scores and vitals iOS compares to normal. */
+internal val baselineMetrics = listOf(CoreRead.Metric.Charge, CoreRead.Metric.Rest, CoreRead.Metric.Hrv,
+                                      CoreRead.Metric.RestingHr, CoreRead.Metric.RespRate)
 
 /** A tile's change against its baseline: "±0" inside the rounding step, else an arrow and the signed change. */
 fun deltaText(value: Double?, baseline: Double?, decimals: Int): String? {
@@ -118,6 +120,53 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
     }
     val today = LocalDate.now()
     val shown = LocalDate.ofEpochDay(date)
+    var customizing by remember { mutableStateOf<TodayCustomizationDestination?>(null) }
+    var layoutRevision by remember { mutableIntStateOf(0) }
+    val sections = remember(layoutRevision) {
+        TodayLayoutDefaults.visibleSections(TodayLayoutPrefs.orderRaw(context), TodayLayoutPrefs.hiddenRaw(context))
+    }
+    var quickActions by remember { mutableStateOf(false) }
+    var settingsOpen by remember { mutableStateOf(false) }
+    var startWorkout by remember { mutableStateOf(false) }
+    var liveWorkout by remember { mutableStateOf(false) }
+    val more = rememberMoreNavigator()
+    val selectTab = LocalForgeTabSelect.current
+    if (quickActions) {
+        ForgeQuickActionSheet(viewModel, onDismiss = { quickActions = false }) { action ->
+            quickActions = false
+            when (action) {
+                QuickAction.Battery -> selectTab(ForgeTab.More)
+                QuickAction.Live -> more.push(MoreRoute.Dest(MoreDest.Live))
+                QuickAction.Workout -> startWorkout = true
+                QuickAction.Journal -> more.push(MoreRoute.Dest(MoreDest.Journal))
+                QuickAction.Breathe -> more.push(MoreRoute.Dest(MoreDest.Breathe))
+                QuickAction.Goals -> more.push(MoreRoute.Dest(MoreDest.Goals))
+                QuickAction.CustomizeToday -> customizing = TodayCustomizationDestination.Today
+            }
+        }
+    }
+    MoreOverlay(more, viewModel, onOpenSettings = { settingsOpen = true })
+    if (settingsOpen) {
+        ForgeOverlayPage(onDismiss = { settingsOpen = false }) { ForgeSettings(viewModel, onClose = { settingsOpen = false }) }
+    }
+    // The workout picker, then the live workout once one runs, as the Training tab opens them.
+    if (startWorkout) {
+        com.noop.ui.StartWorkoutSheet(vm = viewModel, onDismiss = {
+            startWorkout = false
+            if (viewModel.activeWorkout.value != null) liveWorkout = true
+        })
+    }
+    if (liveWorkout) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = { liveWorkout = false },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+            com.noop.ui.LiveWorkoutScreen(vm = viewModel, onClose = { liveWorkout = false })
+        }
+    }
+    customizing?.let { destination ->
+        ForgeOverlayPage(onDismiss = { customizing = null }) {
+            ForgeTodayCustomization(destination) { saved -> customizing = null; if (saved) layoutRevision++ }
+        }
+    }
     val previousLabel = stringResource(R.string.forge_previous_day)
     val nextLabel = stringResource(R.string.forge_next_day)
     var drag by remember { mutableStateOf(0f) }
@@ -146,19 +195,29 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
             .padding(horizontal = ForgeMetrics.screenPadding),
         verticalArrangement = Arrangement.spacedBy(ForgeMetrics.sectionGap),
     ) {
-        Header(shown, isToday = shown == today)
-        Hero(model?.day, width)
-        // Goals sit after the hero, as in the iOS Today order (`TodayLayoutPrefs.defaultOrder`), on today only.
-        if (shown == today) { ForgeTodayMomentum(viewModel); ForgeTodayCoach(viewModel); ForgeMorningSuggestion(); TodayGoals() }
-        HeartCard(viewModel, shown, live = shown == today)
-        KeyMetrics(model, columns = if (width == ForgeWidth.Compact) 2 else 3)
-        if (shown == today) TodayEnergy()
+        Header(shown, isToday = shown == today, onProfile = { settingsOpen = true }, onQuickActions = { quickActions = true })
+        // Pinned above the arranged sections, as on iOS (`MorningSuggestionCard` before the `ForEach`).
+        if (shown == today) ForgeMorningSuggestion()
+        // Every drawn section in the saved order (`TodayLayoutDefaults`); a hidden one keeps its stored place.
+        sections.forEach { section ->
+            when (section) {
+                TodaySection.HERO -> Hero(model?.day, width)
+                TodaySection.SYNTHESIS -> if (shown == today) ForgeTodayMomentum(viewModel)
+                TodaySection.GOALS -> if (shown == today) TodayGoals()
+                TodaySection.COACH -> if (shown == today) ForgeTodayCoach(viewModel)
+                TodaySection.HEART_RATE -> HeartCard(viewModel, shown, live = shown == today)
+                TodaySection.KEY_METRICS -> ForgeKeyMetrics(model, revision = layoutRevision,
+                                                            onEdit = { customizing = TodayCustomizationDestination.KeyMetrics })
+                TodaySection.ENERGY -> if (shown == today) TodayEnergy()
+                else -> Unit
+            }
+        }
         Spacer(Modifier.height(ForgeMetrics.space2))
     }
 }
 
 @Composable
-private fun Header(date: LocalDate, isToday: Boolean) {
+private fun Header(date: LocalDate, isToday: Boolean, onProfile: () -> Unit, onQuickActions: () -> Unit) {
     val colors = Forge.colors
     val locale = Locale.getDefault()
     // The iOS header row: the title and its date on the left, the wordmark centred on the same line. Over a dark
@@ -177,6 +236,8 @@ private fun Header(date: LocalDate, isToday: Boolean) {
                  style = Forge.type.subhead.copy(shadow = sceneShadow), color = Forge.sceneInk.secondary, maxLines = 1)
         }
         ForgeWordmark(Modifier.align(Alignment.TopCenter).padding(top = ForgeMetrics.space2))
+        // Profile and quick actions trailing, as on iOS.
+        TodayHeaderButtons(onProfile, onQuickActions, Modifier.align(Alignment.TopEnd))
     }
 }
 
@@ -316,77 +377,6 @@ private fun HeartCard(viewModel: AppViewModel, date: LocalDate, live: Boolean) {
                     if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
                 }
                 drawPath(path, colors.heart, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round))
-            }
-        }
-    }
-}
-
-@Composable
-private fun KeyMetrics(model: TodayModel?, columns: Int) {
-    // A tile with a series opens its trend over the tabs, as the iOS tile opens the metric's detail.
-    var open by remember { mutableStateOf<CoreRead.Metric?>(null) }
-    var coachOpen by remember { mutableStateOf(false) }
-    fun Modifier.opens(metric: CoreRead.Metric) = this.clickable { open = metric }
-    val colors = Forge.colors
-    val day = model?.day
-    val base = model?.baselines.orEmpty()
-    val noData = stringResource(R.string.forge_no_data)
-    val sleep = day?.sleepMinutes?.roundToInt()
-    val tiles: List<@Composable (Modifier) -> Unit> = listOf(
-        { m -> MetricTile(Icons.Rounded.MonitorHeart, colors.accent, stringResource(R.string.forge_hrv),
-                          day?.hrv?.roundToInt()?.toString(), stringResource(R.string.forge_unit_ms), noData, m.opens(CoreRead.Metric.Hrv),
-                          deltaText(day?.hrv, base[CoreRead.Metric.Hrv], 0)) },
-        { m -> MetricTile(Icons.Rounded.Favorite, colors.heart, stringResource(R.string.forge_resting_hr),
-                          day?.restingHr?.toString(), stringResource(R.string.forge_unit_bpm), noData, m.opens(CoreRead.Metric.RestingHr),
-                          deltaText(day?.restingHr?.toDouble(), base[CoreRead.Metric.RestingHr], 0)) },
-        { m -> MetricTile(Icons.Rounded.WaterDrop, colors.sleepLight, stringResource(R.string.forge_blood_oxygen),
-                          day?.spo2?.roundToInt()?.toString(), "%", noData, m) },
-        { m -> MetricTile(Icons.Rounded.Air, colors.sleepRem, stringResource(R.string.forge_breathing),
-                          day?.respRate?.let { "%.1f".format(it) }, stringResource(R.string.forge_unit_breaths), noData, m.opens(CoreRead.Metric.RespRate),
-                          deltaText(day?.respRate, base[CoreRead.Metric.RespRate], 1)) },
-        { m -> MetricTile(Icons.Rounded.Bedtime, colors.rest, stringResource(R.string.forge_sleep),
-                          sleep?.let { stringResource(R.string.forge_hours_minutes, it / 60, it % 60) }, null, noData, m.opens(CoreRead.Metric.SleepMinutes)) },
-        { m -> MetricTile(Icons.Rounded.DirectionsWalk, colors.charge, stringResource(R.string.forge_steps),
-                          day?.steps?.let { "%,d".format(it) }, null, noData, m) },
-    )
-    Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
-        SectionHeader(stringResource(R.string.forge_key_metrics))
-        tiles.chunked(columns).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
-                row.forEach { tile -> tile(Modifier.weight(1f)) }
-                repeat(columns - row.size) { Box(Modifier.weight(1f)) }
-            }
-        }
-    }
-    open?.let { metric ->
-        val unitMs = stringResource(R.string.forge_unit_ms)
-        val unitBpm = stringResource(R.string.forge_unit_bpm)
-        val unitBreaths = stringResource(R.string.forge_unit_breaths)
-        val unitMin = stringResource(R.string.forge_unit_min)
-        // "Ask coach" while the coach is on: the metric goes to the chat, which opens in place of the trend page.
-        // Hidden without data access or its purposes, as iOS hides its card buttons: a card read sends the card's
-        // figures, and the shared coach would drop a read its purposes do not cover without a word.
-        val askContext = LocalContext.current
-        val coachOn = com.noop.ui.NoopPrefs.coachEnabled(askContext) && com.noop.ai.AiKeyStore.readConsent(askContext)
-        var purposesOn by remember { mutableStateOf(false) }
-        LaunchedEffect(coachOn) { purposesOn = coachOn && withContext(Dispatchers.IO) { CoreCoach.cardAllowed() } }
-        val ask: ((String, String) -> Unit)? = if (!coachOn || !purposesOn) null
-            else { title, summary -> com.noop.ui.CoachHandoff.pendingCard = title to summary; open = null; coachOpen = true }
-        ForgeOverlayPage(onDismiss = { open = null }) {
-            ForgeSceneBackdrop(ForgeBackdrop.Sky) {
-                when (metric) {
-                    CoreRead.Metric.Hrv -> ForgeMetricTrendPage(metric, R.string.forge_hrv_long, unitMs, colors.accent, true, ask) { open = null }
-                    CoreRead.Metric.RestingHr -> ForgeMetricTrendPage(metric, R.string.forge_rhr_long, unitBpm, colors.heart, false, ask) { open = null }
-                    CoreRead.Metric.RespRate -> ForgeMetricTrendPage(metric, R.string.forge_breathing, unitBreaths, colors.sleepRem, false, ask) { open = null }
-                    else -> ForgeMetricTrendPage(metric, R.string.forge_sleep, unitMin, colors.rest, true, ask) { open = null }
-                }
-            }
-        }
-    }
-    if (coachOpen) {
-        ForgeOverlayPage(onDismiss = { coachOpen = false }) {
-            ForgeSceneBackdrop(ForgeBackdrop.Sky) {
-                ForgeCoachDestination(stringResource(R.string.nav_coach), onBack = { coachOpen = false }, onOpen = {})
             }
         }
     }
