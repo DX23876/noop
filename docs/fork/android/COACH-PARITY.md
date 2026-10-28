@@ -14,7 +14,7 @@ screen and its `coach.*` operation in `CoreCoach.swift`.
 | Header: plan book with "waiting" dot, New chat, overflow (history, goal, settings, goal setup) | ✅ | goal entry opens Goals & journey; no separate goal setup sheet |
 | Empty state: portrait, "Hi, I'm …", what the coach reads, suggestion cloud | ✅ | |
 | Question bubble (accent, tight sender corner), long-press Copy, Share, Edit and ask again | ✅ | |
-| Reply without bubble beside avatar, Markdown, streaming word by word with caret | 🟡 | Markdown and the caret while it is written; the text arrives in polled chunks rather than word by word |
+| Reply without bubble beside avatar, Markdown, streaming word by word with caret | ✅ | the words each poll brings are laid down one by one across the poll interval |
 | Reply long-press: Copy, Share, Regenerate, Look at this more closely | ✅ | plus Save to journal |
 | Charts in chat (`plot_metric`), cards in chat (`show_card`) | ✅ | |
 | Evidence chain under a reply (tools used, local context) | ✅ | wording in the shared `CoachChatLabels.swift` |

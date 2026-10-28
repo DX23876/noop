@@ -701,16 +701,37 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
         _recovery.value = state.recovery?.let { it to state.retryAfter }
     }
 
-    /** Mirrors the shared coach's transcript while a reply streams, then its error if it ended in one. */
+    /**
+     * Mirrors the shared coach's transcript while a reply streams, then its error if it ended in one. iOS draws
+     * every delta the moment it arrives; a poll brings several words at once, so the words that came since the
+     * last poll are laid down one by one across the poll interval instead of landing as a block.
+     */
     private suspend fun followReply() {
+        var streamingId: String? = null
+        var shown = 0
         while (true) {
             val state = withContext(Dispatchers.IO) { CoreCoach.state() } ?: break
+            val last = state.messages.lastOrNull()
+            var paced = false
+            if (state.sending && last != null && last.role == "assistant") {
+                if (last.id != streamingId) { streamingId = last.id; shown = 0 }
+                val ends = wordEnds(last.text, shown)
+                if (ends.size > 1) {
+                    val step = STREAM_POLL_MS / ends.size
+                    for (end in ends.dropLast(1)) {
+                        apply(state.copy(messages = state.messages.dropLast(1) + last.copy(text = last.text.substring(0, end))))
+                        delay(step)
+                    }
+                    paced = true
+                }
+                shown = last.text.length
+            }
             apply(state)
             if (!state.sending) {
                 _error.value = state.error
                 break
             }
-            delay(STREAM_POLL_MS)
+            delay(if (paced) STREAM_POLL_MS / 4 else STREAM_POLL_MS)
         }
     }
 
@@ -888,6 +909,20 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
         private const val MAX_STORED_MESSAGES = 40
         /** How often the transcript is read back from the shared coach while a reply streams. */
         private const val STREAM_POLL_MS = 120L
+
+        /** Where each word after [from] ends in [text] (after its trailing spaces), the last one being the text's end. */
+        internal fun wordEnds(text: String, from: Int): List<Int> {
+            if (from >= text.length) return emptyList()
+            val ends = mutableListOf<Int>()
+            var i = from
+            while (i < text.length) {
+                while (i < text.length && text[i].isWhitespace()) i++
+                while (i < text.length && !text[i].isWhitespace()) i++
+                while (i < text.length && text[i].isWhitespace()) i++
+                ends += i
+            }
+            return ends
+        }
 
         /** How long a pulled model catalogue is trusted before [refreshModelsIfStale] pulls again. */
         internal const val MODEL_REFRESH_INTERVAL_MS = 7L * 24 * 60 * 60 * 1000
