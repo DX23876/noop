@@ -735,6 +735,25 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** "Ask coach" on a metric: the shared coach reads the card, and the chat follows the read as it does a reply. */
+    fun askAboutCard(ctx: Context, title: String, summary: String) {
+        if (_sending.value) return
+        val appCtx = ctx.applicationContext
+        _error.value = null
+        _sending.value = true
+        viewModelScope.launch {
+            try {
+                val started = withContext(Dispatchers.IO) {
+                    CoreCoach.configure(appCtx, coreSettings(appCtx), com.noop.ui.forge.dismissedTrainingWorkouts(appCtx)) &&
+                        CoreCoach.card(title, summary)
+                }
+                if (started) { delay(STREAM_POLL_MS); followReply() }
+            } finally {
+                _sending.value = false
+            }
+        }
+    }
+
     /** Regenerate, or with [deeper] look at the last answer again with the deep-analysis model. */
     fun regenerate(deeper: Boolean = false) {
         if (_sending.value) return

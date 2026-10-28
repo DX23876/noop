@@ -249,7 +249,7 @@ private fun LineChart(points: List<CoreRead.Point>, days: Int, lo: Double, hi: D
  */
 @Composable
 internal fun ForgeMetricTrendPage(metric: CoreRead.Metric, titleRes: Int, unit: String, tint: Color, higherIsBetter: Boolean,
-                                  onBack: () -> Unit) {
+                                  onAskCoach: ((title: String, summary: String) -> Unit)? = null, onBack: () -> Unit) {
     val context = LocalContext.current
     var days by rememberSaveable { mutableIntStateOf(30) }
     var points by remember { mutableStateOf<List<CoreRead.Point>?>(null) }
@@ -263,6 +263,18 @@ internal fun ForgeMetricTrendPage(metric: CoreRead.Metric, titleRes: Int, unit: 
     SettingsColumn {
         PageTitle(stringResource(titleRes), onBack)
         WindowPicker(days) { days = it }
-        TrendCard(titleRes, unit, TrendStats.of(points.orEmpty(), days, LocalDate.now()), days, tint, higherIsBetter, tall = true)
+        val stats = TrendStats.of(points.orEmpty(), days, LocalDate.now())
+        TrendCard(titleRes, unit, stats, days, tint, higherIsBetter, tall = true)
+        // "Ask coach" (`TodayView`'s card context): what the page shows, as the line the coach reads.
+        val title = stringResource(titleRes)
+        val latest = stats.current.lastOrNull()
+        if (onAskCoach != null && latest != null) {
+            val summary = "$title: ${latest.value.roundToInt()} $unit (${latest.day})." +
+                (stats.average?.let { " ${days}d average: ${it.roundToInt()} $unit." } ?: "") +
+                (stats.change?.let { " Change against the ${days} days before: $it %." } ?: "")
+            androidx.compose.material3.TextButton(onClick = { onAskCoach(title, summary) }) {
+                Text(stringResource(R.string.forge_ask_coach), style = Forge.type.headline, color = tint)
+            }
+        }
     }
 }

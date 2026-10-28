@@ -4438,6 +4438,7 @@
     <string name="forge_sd_balance">Équilibre</string>
     <string name="forge_sd_need">Besoin par nuit</string>
     <string name="forge_sd_nights">Nuits</string>
+    <string name="forge_ask_coach">Demander au coach</string>
     <string name="forge_lab_core_days">Le noyau partagé lit les valeurs du jour et les entraînements</string>
     <string name="forge_lab_core_days_detail">Pour les testeurs. Les écrans classiques lisent le sommeil, Charge, Effort et les signes vitaux de chaque jour ainsi que la liste des entraînements dans le noyau partagé, comme sur iPhone, au lieu de la copie du téléphone.</string>
     <string name="forge_lab_compare">Comparer avec la copie du téléphone</string>

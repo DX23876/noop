@@ -4452,6 +4452,7 @@
     <string name="forge_sd_balance">Bilanz</string>
     <string name="forge_sd_need">Bedarf pro Nacht</string>
     <string name="forge_sd_nights">Nächte</string>
+    <string name="forge_ask_coach">Coach fragen</string>
     <string name="forge_lab_core_days">Gemeinsamer Kern liest Tageswerte und Workouts</string>
     <string name="forge_lab_core_days_detail">Für Tester. Die klassischen Bildschirme lesen Schlaf, Charge, Effort und Vitalwerte jedes Tages sowie die Workout-Liste aus dem gemeinsamen Kern, wie auf dem iPhone, statt aus der eigenen Kopie des Telefons.</string>
     <string name="forge_lab_compare">Mit der Kopie des Telefons vergleichen</string>

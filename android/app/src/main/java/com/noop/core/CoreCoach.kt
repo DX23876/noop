@@ -185,6 +185,10 @@ object CoreCoach {
         )
     }
 
+    /** "Ask coach" on a metric: the shared coach starts its short read of [summary]; the chat then follows it. */
+    fun card(title: String, summary: String): Boolean =
+        call("coach.card", JSONObject().put("title", title).put("summary", summary).toString())?.optBoolean("ok") ?: false
+
     /** "Test connection": whether the provider answered, and the line saying so (`connectionTestRow`). */
     fun testConnection(context: Context, settings: Settings, dismissedWorkouts: List<String>): Pair<Boolean, String>? {
         configure(context, settings, dismissedWorkouts)

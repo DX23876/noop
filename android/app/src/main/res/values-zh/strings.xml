@@ -4409,6 +4409,7 @@
     <string name="forge_sd_balance">平衡</string>
     <string name="forge_sd_need">每晚所需</string>
     <string name="forge_sd_nights">夜数</string>
+    <string name="forge_ask_coach">询问教练</string>
     <string name="forge_lab_core_days">由共享核心读取每日数值和训练</string>
     <string name="forge_lab_core_days_detail">供测试者使用。经典界面从共享核心读取每天的睡眠、Charge、Effort 和生命体征以及训练列表，与 iPhone 相同，而不是读取手机自己的副本。</string>
     <string name="forge_lab_compare">与手机副本比较</string>

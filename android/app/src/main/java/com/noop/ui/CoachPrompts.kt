@@ -35,6 +35,12 @@ object CoachHandoff {
     @Volatile
     var pendingPrompt: String? = null
 
+    /** A metric handed over by "Ask coach" (title and the card's summary), read once by the chat. */
+    @Volatile
+    var pendingCard: Pair<String, String>? = null
+
+    fun consumeCard(): Pair<String, String>? = pendingCard.also { pendingCard = null }
+
     /** Take the pending question and clear it, so a recomposition cannot send it twice. */
     fun consume(): String? {
         val p = pendingPrompt

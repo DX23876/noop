@@ -4455,6 +4455,7 @@
     <string name="forge_sd_balance">Balansować</string>
     <string name="forge_sd_need">Zapotrzebowanie na noc</string>
     <string name="forge_sd_nights">Noce</string>
+    <string name="forge_ask_coach">Zapytaj trenera</string>
     <string name="forge_lab_core_days">Wspólny rdzeń odczytuje wartości dzienne i treningi</string>
     <string name="forge_lab_core_days_detail">Dla testerów. Klasyczne ekrany odczytują sen, Charge, Effort i parametry życiowe z każdego dnia oraz listę treningów ze wspólnego rdzenia, jak na iPhonie, zamiast z kopii telefonu.</string>
     <string name="forge_lab_compare">Porównaj z kopią telefonu</string>

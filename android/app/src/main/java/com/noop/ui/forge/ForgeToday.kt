@@ -324,6 +324,7 @@ private fun HeartCard(viewModel: AppViewModel, date: LocalDate, live: Boolean) {
 private fun KeyMetrics(model: TodayModel?, columns: Int) {
     // A tile with a series opens its trend over the tabs, as the iOS tile opens the metric's detail.
     var open by remember { mutableStateOf<CoreRead.Metric?>(null) }
+    var coachOpen by remember { mutableStateOf(false) }
     fun Modifier.opens(metric: CoreRead.Metric) = this.clickable { open = metric }
     val colors = Forge.colors
     val day = model?.day
@@ -361,14 +362,27 @@ private fun KeyMetrics(model: TodayModel?, columns: Int) {
         val unitBpm = stringResource(R.string.forge_unit_bpm)
         val unitBreaths = stringResource(R.string.forge_unit_breaths)
         val unitMin = stringResource(R.string.forge_unit_min)
+        // "Ask coach" while the coach is on: the metric goes to the chat, which opens in place of the trend page.
+        // Hidden without data access, as iOS hides its card buttons: a card read sends the card's figures.
+        val askContext = LocalContext.current
+        val ask: ((String, String) -> Unit)? = if (!com.noop.ui.NoopPrefs.coachEnabled(askContext) ||
+            !com.noop.ai.AiKeyStore.readConsent(askContext)) null
+            else { title, summary -> com.noop.ui.CoachHandoff.pendingCard = title to summary; open = null; coachOpen = true }
         ForgeOverlayPage(onDismiss = { open = null }) {
             ForgeSceneBackdrop(ForgeBackdrop.Sky) {
                 when (metric) {
-                    CoreRead.Metric.Hrv -> ForgeMetricTrendPage(metric, R.string.forge_hrv_long, unitMs, colors.accent, true) { open = null }
-                    CoreRead.Metric.RestingHr -> ForgeMetricTrendPage(metric, R.string.forge_rhr_long, unitBpm, colors.heart, false) { open = null }
-                    CoreRead.Metric.RespRate -> ForgeMetricTrendPage(metric, R.string.forge_breathing, unitBreaths, colors.sleepRem, false) { open = null }
-                    else -> ForgeMetricTrendPage(metric, R.string.forge_sleep, unitMin, colors.rest, true) { open = null }
+                    CoreRead.Metric.Hrv -> ForgeMetricTrendPage(metric, R.string.forge_hrv_long, unitMs, colors.accent, true, ask) { open = null }
+                    CoreRead.Metric.RestingHr -> ForgeMetricTrendPage(metric, R.string.forge_rhr_long, unitBpm, colors.heart, false, ask) { open = null }
+                    CoreRead.Metric.RespRate -> ForgeMetricTrendPage(metric, R.string.forge_breathing, unitBreaths, colors.sleepRem, false, ask) { open = null }
+                    else -> ForgeMetricTrendPage(metric, R.string.forge_sleep, unitMin, colors.rest, true, ask) { open = null }
                 }
+            }
+        }
+    }
+    if (coachOpen) {
+        ForgeOverlayPage(onDismiss = { coachOpen = false }) {
+            ForgeSceneBackdrop(ForgeBackdrop.Sky) {
+                ForgeCoachDestination(stringResource(R.string.nav_coach), onBack = { coachOpen = false }, onOpen = {})
             }
         }
     }

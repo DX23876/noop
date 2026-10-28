@@ -4431,6 +4431,7 @@
     <string name="forge_sd_balance">Equilíbrio</string>
     <string name="forge_sd_need">Necessidade por noite</string>
     <string name="forge_sd_nights">Noites</string>
+    <string name="forge_ask_coach">Pergunte ao treinador</string>
     <string name="forge_lab_core_days">O núcleo partilhado lê os valores diários e os treinos</string>
     <string name="forge_lab_core_days_detail">Para testadores. Os ecrãs clássicos leem o sono, Charge, Effort e os sinais vitais de cada dia e a lista de treinos a partir do núcleo partilhado, como no iPhone, em vez da cópia do telemóvel.</string>
     <string name="forge_lab_compare">Comparar com a cópia do telemóvel</string>

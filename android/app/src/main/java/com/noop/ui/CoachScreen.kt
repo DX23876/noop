@@ -122,6 +122,8 @@ fun CoachScreen(vm: CoachViewModel = viewModel(), onOpenSettings: () -> Unit = {
     LaunchedEffect(configured) {
         val handed = CoachHandoff.consume()
         if (handed != null && configured) vm.send(context, handed)
+        val card = CoachHandoff.consumeCard()
+        if (card != null && configured) vm.askAboutCard(context, card.first, card.second)
     }
     // Same day-cycle gate as the liquid Today: the time-of-day sky settles behind the top content when the
     // user hasn't opted out; otherwise the scaffold paints the plain dark canvas.

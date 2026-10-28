@@ -141,6 +141,16 @@ enum CoreCoach {
             // The coach instructions the editor shows and changes (`customSystemPrompt`); blank restores the default.
             if op == "coach.prompt.set", let prompt = args["prompt"] as? String { coach.customSystemPrompt = prompt }
             return CoreRead.json(["prompt": coach.customSystemPrompt, "custom": coach.hasCustomSystemPrompt ? "1" : ""])
+        case "coach.card":
+            // "Ask coach" on a Today metric (`TodayView`'s card context): a short read on the card model, then the
+            // card's follow-ups. The read runs in the background; the chat follows it through `coach.state`.
+            let title = args["title"] as? String ?? ""
+            coach.openedFromCard(CoachCardContext(
+                title: title, summary: args["summary"] as? String ?? "",
+                suggestions: [String(localized: "What does this mean for me?"),
+                              String(localized: "Is this good, or something to watch?")]))
+            Task { @MainActor in await coach.runCardAnalysisIfNeeded() }
+            return #"{"ok":true}"#
         case "coach.test":
             // "Test connection" (`connectionTestRow`): the coach's own wire format, no health data read.
             await coach.testConnection()

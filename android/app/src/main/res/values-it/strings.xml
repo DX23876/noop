@@ -4407,6 +4407,7 @@
     <string name="forge_sd_balance">Equilibrio</string>
     <string name="forge_sd_need">Fabbisogno per notte</string>
     <string name="forge_sd_nights">Notti</string>
+    <string name="forge_ask_coach">Chiedi all\'allenatore</string>
     <string name="forge_lab_core_days">Il nucleo condiviso legge i valori giornalieri e gli allenamenti</string>
     <string name="forge_lab_core_days_detail">Per i tester. Le schermate classiche leggono sonno, Charge, Effort e parametri di ogni giorno e l\'elenco degli allenamenti dal nucleo condiviso, come su iPhone, invece che dalla copia del telefono.</string>
     <string name="forge_lab_compare">Confronta con la copia del telefono</string>

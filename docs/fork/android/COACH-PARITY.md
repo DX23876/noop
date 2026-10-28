@@ -24,7 +24,7 @@ screen and its `coach.*` operation in `CoreCoach.swift`.
 | Time separators | ✅ | |
 | Typing indicator | ✅ | |
 | Error banner with Retry (wait seconds), consent-off banner | ✅ | |
-| Card follow-up chips | 🟡 | shown when the engine has them; Android has no card read that opens the chat yet |
+| Card follow-up chips | ✅ | "Ask coach" on a Today metric's trend page: the short card read, then its two follow-ups |
 | Composer: glass capsule, mic, send/stop | ✅ | stays at the bottom above the keyboard while the transcript scrolls |
 | First-use sheet, goal onboarding sheet | ✅ | the guided setup (`goals.onboarding`, iOS's `GoalOnboardingDraft`) is offered once and sits in the goals overview |
 
