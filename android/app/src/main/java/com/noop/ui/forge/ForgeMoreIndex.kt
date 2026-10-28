@@ -353,14 +353,15 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
 private fun ForgeCoachDestination(title: String, onBack: () -> Unit) {
     val vm = viewModel<CoachViewModel>()
     var sub by remember { mutableStateOf<String?>(null) }
-    androidx.activity.compose.BackHandler(enabled = sub != null) { sub = if (sub == "identity") "settings" else null }
+    androidx.activity.compose.BackHandler(enabled = sub != null) { sub = if (sub == "identity" || sub == "memory") "settings" else null }
     when (sub) {
         "history" -> ForgeCoachHistoryPage(onBack = { sub = null }, onPicked = { vm.showCoreConversation(); sub = null })
         "plan" -> ForgeCoachPlanPage(onBack = { sub = null })
         "settings" -> Hosted(stringResource(R.string.coach_settings), { sub = null }) {
-            CoachSettingsScreen(vm, onOpenIdentity = { sub = "identity" })
+            CoachSettingsScreen(vm, onOpenIdentity = { sub = "identity" }, onOpenMemory = { sub = "memory" })
         }
         "identity" -> Hosted(stringResource(R.string.coach_identity), { sub = "settings" }) { CoachIdentityEditor(vm) }
+        "memory" -> Hosted(stringResource(R.string.coach_memory), { sub = "settings" }) { com.noop.ui.CoachMemoryPage() }
         // As the iOS chat: only a way back up here; the plan book sits in the chat's own header row and the
         // history in its overflow menu.
         else -> Hosted("", onBack) {

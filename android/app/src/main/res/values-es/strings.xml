@@ -4486,4 +4486,18 @@
     <string name="coach_retry">Reintentar</string>
     <string name="coach_retry_in">Reintentar en %1$d s</string>
     <string name="coach_enter_key_again">Introduce tu clave otra vez</string>
+    <string name="coach_memory">Memoria del coach</string>
+    <string name="coach_memory_subtitle">Lo que el coach recuerda de ti</string>
+    <string name="coach_memory_add">Añadir un dato</string>
+    <string name="coach_memory_add_action">Añadir</string>
+    <string name="coach_memory_empty">La memoria está vacía</string>
+    <string name="coach_memory_edit">Editar</string>
+    <string name="coach_memory_save">Guardar</string>
+    <string name="coach_memory_expire">Caduca hoy</string>
+    <string name="coach_memory_unexpire">Quitar caducidad</string>
+    <string name="coach_memory_delete">Eliminar</string>
+    <string name="coach_memory_expired">Caducado</string>
+    <string name="coach_memory_forget_all">Olvidar todo</string>
+    <string name="coach_memory_forget_all_title">¿Olvidar todo?</string>
+    <string name="coach_memory_forget_all_body">Se eliminan todos los datos que recuerda el coach. No se puede deshacer.</string>
 </resources>

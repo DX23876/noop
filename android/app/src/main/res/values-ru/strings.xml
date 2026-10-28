@@ -4381,4 +4381,18 @@
     <string name="coach_retry">Повторить</string>
     <string name="coach_retry_in">Повторить через %1$d с</string>
     <string name="coach_enter_key_again">Ввести ключ ещё раз</string>
+    <string name="coach_memory">Память тренера</string>
+    <string name="coach_memory_subtitle">Что тренер помнит о вас</string>
+    <string name="coach_memory_add">Добавить факт</string>
+    <string name="coach_memory_add_action">Добавить</string>
+    <string name="coach_memory_empty">Память пуста</string>
+    <string name="coach_memory_edit">Изменить</string>
+    <string name="coach_memory_save">Сохранить</string>
+    <string name="coach_memory_expire">Истекает сегодня</string>
+    <string name="coach_memory_unexpire">Убрать срок</string>
+    <string name="coach_memory_delete">Удалить</string>
+    <string name="coach_memory_expired">Истёк</string>
+    <string name="coach_memory_forget_all">Забыть всё</string>
+    <string name="coach_memory_forget_all_title">Забыть всё?</string>
+    <string name="coach_memory_forget_all_body">Все факты, которые помнит тренер, будут удалены. Это нельзя отменить.</string>
 </resources>

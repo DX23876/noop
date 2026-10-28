@@ -4517,4 +4517,18 @@
     <string name="coach_retry">Retry</string>
     <string name="coach_retry_in">Retry in %1$ds</string>
     <string name="coach_enter_key_again">Enter your key again</string>
+    <string name="coach_memory">Coach memory</string>
+    <string name="coach_memory_subtitle">What the coach remembers about you</string>
+    <string name="coach_memory_add">Add a fact</string>
+    <string name="coach_memory_add_action">Add</string>
+    <string name="coach_memory_empty">Memory is empty</string>
+    <string name="coach_memory_edit">Edit</string>
+    <string name="coach_memory_save">Save</string>
+    <string name="coach_memory_expire">Expire today</string>
+    <string name="coach_memory_unexpire">Remove expiry</string>
+    <string name="coach_memory_delete">Delete</string>
+    <string name="coach_memory_expired">Expired</string>
+    <string name="coach_memory_forget_all">Forget everything</string>
+    <string name="coach_memory_forget_all_title">Forget everything?</string>
+    <string name="coach_memory_forget_all_body">Every fact the coach remembers is deleted. This cannot be undone.</string>
 </resources>

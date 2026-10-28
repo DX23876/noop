@@ -4478,4 +4478,18 @@
     <string name="coach_retry">Tentar novamente</string>
     <string name="coach_retry_in">Tentar novamente em %1$d s</string>
     <string name="coach_enter_key_again">Introduzir a chave de novo</string>
+    <string name="coach_memory">Memória do coach</string>
+    <string name="coach_memory_subtitle">O que o coach lembra de ti</string>
+    <string name="coach_memory_add">Adicionar um facto</string>
+    <string name="coach_memory_add_action">Adicionar</string>
+    <string name="coach_memory_empty">A memória está vazia</string>
+    <string name="coach_memory_edit">Editar</string>
+    <string name="coach_memory_save">Guardar</string>
+    <string name="coach_memory_expire">Expirar hoje</string>
+    <string name="coach_memory_unexpire">Remover validade</string>
+    <string name="coach_memory_delete">Eliminar</string>
+    <string name="coach_memory_expired">Expirado</string>
+    <string name="coach_memory_forget_all">Esquecer tudo</string>
+    <string name="coach_memory_forget_all_title">Esquecer tudo?</string>
+    <string name="coach_memory_forget_all_body">Todos os factos que o coach lembra são eliminados. Não é possível anular.</string>
 </resources>

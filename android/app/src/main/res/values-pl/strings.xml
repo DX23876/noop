@@ -4502,4 +4502,18 @@
     <string name="coach_retry">Ponów</string>
     <string name="coach_retry_in">Ponów za %1$d s</string>
     <string name="coach_enter_key_again">Wprowadź klucz ponownie</string>
+    <string name="coach_memory">Pamięć trenera</string>
+    <string name="coach_memory_subtitle">Co trener o tobie pamięta</string>
+    <string name="coach_memory_add">Dodaj fakt</string>
+    <string name="coach_memory_add_action">Dodaj</string>
+    <string name="coach_memory_empty">Pamięć jest pusta</string>
+    <string name="coach_memory_edit">Edytuj</string>
+    <string name="coach_memory_save">Zapisz</string>
+    <string name="coach_memory_expire">Wygaś dzisiaj</string>
+    <string name="coach_memory_unexpire">Usuń datę wygaśnięcia</string>
+    <string name="coach_memory_delete">Usuń</string>
+    <string name="coach_memory_expired">Wygasło</string>
+    <string name="coach_memory_forget_all">Zapomnij wszystko</string>
+    <string name="coach_memory_forget_all_title">Zapomnieć wszystko?</string>
+    <string name="coach_memory_forget_all_body">Wszystkie fakty, które pamięta trener, zostaną usunięte. Nie można tego cofnąć.</string>
 </resources>

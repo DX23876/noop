@@ -489,10 +489,15 @@ private fun HostedPage(page: ForgeSettingsPage, viewModel: AppViewModel, onBack:
         ForgeSettingsPage.Notifications -> Hosted(stringResource(page.titleRes), onBack) { NotificationsSettingsScreen(viewModel) }
         ForgeSettingsPage.Coach -> {
             val vm = viewModel<CoachViewModel>()
-            var identity by remember { mutableStateOf(false) }
-            androidx.activity.compose.BackHandler(enabled = identity) { identity = false }
-            if (identity) Hosted(stringResource(R.string.coach_identity), { identity = false }) { com.noop.ui.CoachIdentityEditor(vm) }
-            else Hosted(stringResource(page.titleRes), onBack) { CoachSettingsScreen(vm, onOpenIdentity = { identity = true }) }
+            var sub by remember { mutableStateOf<String?>(null) }
+            androidx.activity.compose.BackHandler(enabled = sub != null) { sub = null }
+            when (sub) {
+                "identity" -> Hosted(stringResource(R.string.coach_identity), { sub = null }) { com.noop.ui.CoachIdentityEditor(vm) }
+                "memory" -> Hosted(stringResource(R.string.coach_memory), { sub = null }) { com.noop.ui.CoachMemoryPage() }
+                else -> Hosted(stringResource(page.titleRes), onBack) {
+                    CoachSettingsScreen(vm, onOpenIdentity = { sub = "identity" }, onOpenMemory = { sub = "memory" })
+                }
+            }
         }
         else -> Unit
     }

@@ -4485,4 +4485,18 @@
     <string name="coach_retry">Réessayer</string>
     <string name="coach_retry_in">Réessayer dans %1$d s</string>
     <string name="coach_enter_key_again">Saisir à nouveau votre clé</string>
+    <string name="coach_memory">Mémoire du coach</string>
+    <string name="coach_memory_subtitle">Ce que le coach retient de toi</string>
+    <string name="coach_memory_add">Ajouter un fait</string>
+    <string name="coach_memory_add_action">Ajouter</string>
+    <string name="coach_memory_empty">La mémoire est vide</string>
+    <string name="coach_memory_edit">Modifier</string>
+    <string name="coach_memory_save">Enregistrer</string>
+    <string name="coach_memory_expire">Expirer aujourd\'hui</string>
+    <string name="coach_memory_unexpire">Retirer l\'expiration</string>
+    <string name="coach_memory_delete">Supprimer</string>
+    <string name="coach_memory_expired">Expiré</string>
+    <string name="coach_memory_forget_all">Tout oublier</string>
+    <string name="coach_memory_forget_all_title">Tout oublier ?</string>
+    <string name="coach_memory_forget_all_body">Tous les faits retenus par le coach sont supprimés. C\'est irréversible.</string>
 </resources>

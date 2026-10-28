@@ -4499,4 +4499,18 @@
     <string name="coach_retry">Erneut versuchen</string>
     <string name="coach_retry_in">Erneut in %1$d s</string>
     <string name="coach_enter_key_again">Schlüssel erneut eingeben</string>
+    <string name="coach_memory">Coach-Gedächtnis</string>
+    <string name="coach_memory_subtitle">Was sich der Coach über dich merkt</string>
+    <string name="coach_memory_add">Fakt hinzufügen</string>
+    <string name="coach_memory_add_action">Hinzufügen</string>
+    <string name="coach_memory_empty">Das Gedächtnis ist leer</string>
+    <string name="coach_memory_edit">Bearbeiten</string>
+    <string name="coach_memory_save">Sichern</string>
+    <string name="coach_memory_expire">Heute ablaufen lassen</string>
+    <string name="coach_memory_unexpire">Ablauf entfernen</string>
+    <string name="coach_memory_delete">Löschen</string>
+    <string name="coach_memory_expired">Abgelaufen</string>
+    <string name="coach_memory_forget_all">Alles vergessen</string>
+    <string name="coach_memory_forget_all_title">Alles vergessen?</string>
+    <string name="coach_memory_forget_all_body">Alle Fakten, die sich der Coach merkt, werden gelöscht. Das lässt sich nicht rückgängig machen.</string>
 </resources>

@@ -105,6 +105,27 @@ object CoreCoach {
         )
     }
 
+    /** The coach's memory (`CoachMemory`): facts with category, origin and expiry, and the categories. */
+    data class Fact(val id: String, val text: String, val category: String, val categoryLabel: String, val source: String,
+                    val active: Boolean, val expires: Double?, val sensitive: Boolean)
+    data class Memory(val facts: List<Fact>, val categories: List<Choice>)
+
+    /** Reads the memory, or first applies [op] (`add`, `update`, `remove`, `expire`, `unexpire`, `clear`). */
+    fun memory(op: String? = null, id: String? = null, text: String? = null, category: String? = null): Memory? {
+        val args = JSONObject()
+        id?.let { args.put("id", it) }; text?.let { args.put("text", it) }; category?.let { args.put("category", it) }
+        val o = call(if (op == null) "coach.memory" else "coach.memory.$op", args.toString()) ?: return null
+        val f = o.optJSONArray("facts") ?: return null
+        val c = o.optJSONArray("categories")
+        return Memory(
+            (0 until f.length()).map { i -> f.getJSONObject(i).let { x ->
+                Fact(x.getString("id"), x.getString("text"), x.optString("category"), x.optString("categoryLabel"),
+                     x.optString("source"), x.optBoolean("active", true),
+                     if (x.isNull("expires") || !x.has("expires")) null else x.getDouble("expires"), x.optBoolean("sensitive")) } },
+            (0 until (c?.length() ?: 0)).map { i -> c!!.getJSONObject(i).let { Choice(it.getString("id"), it.getString("label"), "") } },
+        )
+    }
+
     /** One saved thread in the history (`CoachHistoryView`). */
     data class Conversation(
         val id: String, val title: String, val preview: String, val updatedAt: Long, val pinned: Boolean,

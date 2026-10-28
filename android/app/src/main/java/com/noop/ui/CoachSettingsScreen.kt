@@ -63,7 +63,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 // defect this screen shipped with: consent is held in memory and read by `send`, so a revoke made
 // against a second instance persisted to storage and still left the conversation sending on the old
 // one. AppRoot passes the Coach entry's view model.
-fun CoachSettingsScreen(vm: CoachViewModel, onOpenIdentity: (() -> Unit)? = null) {
+fun CoachSettingsScreen(vm: CoachViewModel, onOpenIdentity: (() -> Unit)? = null, onOpenMemory: (() -> Unit)? = null) {
     val context = LocalContext.current
 
     // The brief settings are read from prefs on show, the same as the coach page did before the
@@ -86,6 +86,7 @@ fun CoachSettingsScreen(vm: CoachViewModel, onOpenIdentity: (() -> Unit)? = null
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             CoachModelCard(vm = vm)
             if (onOpenIdentity != null) CoachIdentityRow(vm, onOpenIdentity)
+            if (onOpenMemory != null) CoachNavRow(stringResource(R.string.coach_memory), stringResource(R.string.coach_memory_subtitle), onOpenMemory)
             CoachConsentCard(vm = vm)
             CoachSharedSettingsCards(vm = vm)
             CoachInstructions(vm = vm)
@@ -320,6 +321,20 @@ private fun CoachIdentityRow(vm: CoachViewModel, onOpen: () -> Unit) {
                 Text(stringResource(R.string.coach_identity), style = NoopType.headline, color = Palette.textPrimary)
                 Text(identity?.name ?: stringResource(R.string.coach_identity_subtitle), style = NoopType.footnote,
                      color = Palette.textSecondary)
+            }
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = Palette.textTertiary)
+        }
+    }
+}
+
+/** A row into one of the coach's own pages, in the shape of the identity row. */
+@Composable
+private fun CoachNavRow(title: String, subtitle: String, onOpen: () -> Unit) {
+    NoopCard(padding = 14.dp, tint = Palette.chargeColor) {
+        Row(Modifier.fillMaxWidth().clickable(onClick = onOpen), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(title, style = NoopType.headline, color = Palette.textPrimary)
+                Text(subtitle, style = NoopType.footnote, color = Palette.textSecondary)
             }
             Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = Palette.textTertiary)
         }

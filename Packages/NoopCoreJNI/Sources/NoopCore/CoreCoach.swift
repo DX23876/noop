@@ -93,6 +93,24 @@ enum CoreCoach {
                 if on { coach.toolConsent.enabled.insert(purpose) } else { coach.toolConsent.enabled.remove(purpose) }
             }
             return CoreRead.json(SettingsState(coach))
+        case "coach.memory", "coach.memory.add", "coach.memory.update", "coach.memory.remove", "coach.memory.expire",
+             "coach.memory.unexpire", "coach.memory.clear":
+            let memory = CoachMemory.shared
+            let id = (args["id"] as? String).flatMap(UUID.init(uuidString:))
+            switch op {
+            case "coach.memory.add":
+                let text = (args["text"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                let category = (args["category"] as? String).flatMap(CoachMemory.Category.init(rawValue:)) ?? .other
+                if !text.isEmpty { _ = memory.add(text, category: category, confirmedByUser: true) }
+            case "coach.memory.update":
+                if let id, let text = args["text"] as? String { _ = memory.update(id, text: text, confirmedByUser: true) }
+            case "coach.memory.remove": if let id { memory.remove(id) }
+            case "coach.memory.expire": if let id { memory.setValidUntil(id, Date()) }
+            case "coach.memory.unexpire": if let id { memory.setValidUntil(id, nil) }
+            case "coach.memory.clear": memory.clearAll()
+            default: break
+            }
+            return CoreRead.json(MemoryState(memory))
         case "coach.identity":
             return CoreRead.json(IdentityState(CoreCoachIdentity.load()))
         case "coach.identity.set":
@@ -426,6 +444,35 @@ struct SettingsState: Encodable {
         ]
         purposes = rows.map { Purpose(id: $0.0.rawValue, label: $0.1.localizedCatalogValue,
                                       detail: $0.2.localizedCatalogValue, on: enabled.contains($0.0)) }
+    }
+}
+
+/// The coach's memory as the iOS Memory page lists it: each fact with its category, where it came from and
+/// whether it has expired, and the categories a new fact can take.
+struct MemoryState: Encodable {
+    struct Fact: Encodable {
+        var id: String, text: String, category: String, categoryLabel: String, source: String
+        var active: Bool, expires: Double?, sensitive: Bool
+    }
+    struct Category: Encodable { var id: String, label: String }
+    var facts: [Fact]
+    var categories: [Category]
+
+    @MainActor init(_ memory: CoachMemory) {
+        facts = memory.facts.map { f in
+            let source: String
+            switch f.source {
+            case .user: source = "You told the coach this."
+            case .coachTool: source = "The coach saved this during a conversation."
+            case .conversationSummary: source = "Distilled from a past conversation."
+            case .legacy: source = "Saved before the coach recorded where facts came from."
+            }
+            return Fact(id: f.id.uuidString, text: f.text, category: f.category.rawValue,
+                        categoryLabel: f.category.label.localizedCatalogValue, source: source.localizedCatalogValue,
+                        active: memory.isActive(f), expires: f.validUntil?.timeIntervalSince1970,
+                        sensitive: f.sensitivity != .ordinary)
+        }
+        categories = CoachMemory.Category.allCases.map { Category(id: $0.rawValue, label: $0.label.localizedCatalogValue) }
     }
 }
 
