@@ -242,6 +242,9 @@ public enum CoreCall {
             return CoreRead.json(await CoreEnergyPlan.plan(reader: reader, settings: settings,
                 activity: ActivityLevel(rawValue: string("activity")) ?? .light,
                 targetKgPerWeek: (args["targetKgPerWeek"] as? NSNumber)?.doubleValue ?? 0))
+        case "energy.detail":
+            return CoreRead.json(await CoreEnergyDetail.read(reader: reader, settings: CoreGoalEnergy.settings(args),
+                                                             day: string("day"), comparison: string("comparison")))
         case "energy.switchFormula":
             // Append-only, as `EnergyPlanStore.switchFormula` does on Apple: the switch applies from today.
             guard let formula = BasalFormula(rawValue: string("formula")) else { return #"{"error":"invalid"}"# }

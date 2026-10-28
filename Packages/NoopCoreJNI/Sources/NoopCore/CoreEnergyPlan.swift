@@ -56,20 +56,8 @@ enum CoreEnergyPlan {
         }
         let metrics = await BodyMetricsReader.read(reader: reader, activeDeviceId: reader.activeDeviceId, days: 4_000)
         let balance = await NutritionReads.adaptiveEstimate(reader: reader, asOf: now)
-        let from = StoreReader.localDayKey(now.addingTimeInterval(-Double(windowDays + 1) * 86_400))
-        let daily = StoreReader.mergeDaily(imported: await reader.unionDailyMetrics(from: from, to: today),
-                                           computed: await reader.unionComputedDailyMetrics(from: from, to: today))
-        // Logged sessions as the Apple summaries read them: one row per session, heart-rate fills overlaid.
-        let raw = await reader.rawWorkoutRows(from: Int(now.timeIntervalSince1970) - (windowDays + 2) * 86_400,
-            to: Int(now.timeIntervalSince1970) + 86_400, dismissedDetectedSpans: settings.dismissedWorkoutSpans)
-        let workouts = await WorkoutHeartRateFills.overlay(WorkoutSource.dedupCrossSource(raw).sorted { $0.startTs > $1.startTs },
-                                                           store: reader.store)
-        let shape = await EnergySummaryStoreReads.activityShape(reader: reader, now: now)
-        let summaries = await EnergySummaryStoreReads.summaries(reader: reader, days: windowDays, dailyRows: daily,
-            workouts: workouts, profile: profile, hrMax: profile.maxHR, calibrationEnabled: settings.energyCalibrationEnabled,
-            now: now, shape: shape, adaptivePrior: balance?.estimatedDailyKcal) {
-            await CoreGoalEnergy.repairToday(reader: reader, settings: settings, dailyRows: daily, profile: profile, now: now)
-        }
+        let summaries = await summaries(reader: reader, settings: settings, profile: profile, days: windowDays, now: now,
+                                        adaptivePrior: balance?.estimatedDailyKcal)
         // Today is excluded: a day still in progress has a partial total.
         let burn = EnergyPlanning.measuredBurn(days: summaries.filter { $0.day < today }.compactMap { s in
             s.totalBurnedSoFar.map { BurnDay(day: s.day, totalKcal: $0, source: s.source, coverage: s.coverage.energy) }
@@ -129,6 +117,29 @@ enum CoreEnergyPlan {
                                                                age: profile.age, sex: profile.sex, bodyFatPercent: bodyFat))
             },
             corridorKcal: corridor.present, corridorSpreadKcal: corridor.spreadKcal)
+    }
+
+    /// The day summaries of the last `days` days as Apple's `energySummaries` builds them: daily rows, logged
+    /// sessions with their heart-rate fills, the activity shape and today's repair.
+    @MainActor
+    static func summaries(reader: StoreReader, settings: CoreGoals.Settings, profile: UserProfile, days: Int,
+                          now: Date = Date(), adaptivePrior: Double? = nil) async -> [DailyEnergySummary] {
+        let today = StoreReader.localDayKey(now)
+        let windowDays = days
+        let from = StoreReader.localDayKey(now.addingTimeInterval(-Double(windowDays + 1) * 86_400))
+        let daily = StoreReader.mergeDaily(imported: await reader.unionDailyMetrics(from: from, to: today),
+                                           computed: await reader.unionComputedDailyMetrics(from: from, to: today))
+        // Logged sessions as the Apple summaries read them: one row per session, heart-rate fills overlaid.
+        let raw = await reader.rawWorkoutRows(from: Int(now.timeIntervalSince1970) - (windowDays + 2) * 86_400,
+            to: Int(now.timeIntervalSince1970) + 86_400, dismissedDetectedSpans: settings.dismissedWorkoutSpans)
+        let workouts = await WorkoutHeartRateFills.overlay(WorkoutSource.dedupCrossSource(raw).sorted { $0.startTs > $1.startTs },
+                                                           store: reader.store)
+        let shape = await EnergySummaryStoreReads.activityShape(reader: reader, now: now)
+        return await EnergySummaryStoreReads.summaries(reader: reader, days: windowDays, dailyRows: daily,
+            workouts: workouts, profile: profile, hrMax: profile.maxHR, calibrationEnabled: settings.energyCalibrationEnabled,
+            now: now, shape: shape, adaptivePrior: adaptivePrior) {
+            await CoreGoalEnergy.repairToday(reader: reader, settings: settings, dailyRows: daily, profile: profile, now: now)
+        }
     }
 
     /// Records today's intake (a typed zero means "ate nothing"), keeping any macros already entered.

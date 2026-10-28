@@ -293,7 +293,9 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
         return
     }
     if (dest == MoreDest.Energy) {
-        ForgeEnergyPlanPage(onBack)
+        var detail by remember { mutableStateOf(false) }
+        androidx.activity.compose.BackHandler(enabled = detail) { detail = false }
+        if (detail) ForgeEnergyDetailPage(onBack = { detail = false }) else ForgeEnergyPlanPage(onBack, onDetail = { detail = true })
         return
     }
     if (dest == MoreDest.RhythmAge) {

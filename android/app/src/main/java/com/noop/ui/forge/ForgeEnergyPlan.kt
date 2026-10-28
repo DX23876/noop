@@ -46,7 +46,7 @@ import kotlin.math.roundToInt
  * it means per day, how active an ordinary day is, and the basal formula. The shared core computes every figure.
  */
 @Composable
-internal fun ForgeEnergyPlanPage(onBack: () -> Unit) {
+internal fun ForgeEnergyPlanPage(onBack: () -> Unit, onDetail: () -> Unit = {}) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var plan by remember { mutableStateOf<CoreEnergyPlan.Plan?>(null) }
@@ -64,6 +64,9 @@ internal fun ForgeEnergyPlanPage(onBack: () -> Unit) {
             Text(stringResource(if (loaded) R.string.forge_goals_no_data_yet else R.string.forge_goals_loading),
                  style = Forge.type.body, color = Forge.sceneInk.secondary)
             return@SettingsColumn
+        }
+        SettingsCard(title = null, blurb = null) {
+            LinkRow(stringResource(R.string.forge_ed_title), stringResource(R.string.forge_ed_so_far)) { onDetail() }
         }
         BandCard(p)
         TodayCard(p, onSave = { kcal, done ->
