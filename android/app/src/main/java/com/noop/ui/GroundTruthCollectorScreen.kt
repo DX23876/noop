@@ -293,7 +293,8 @@ fun GroundTruthCollectorScreen(vm: AppViewModel) {
                         }
                     }
                     OutlinedTextField(editor.text, { markerEditor = editor.copy(text = it.take(500)) },
-                        label = { Text(stringResource(R.string.ground_truth_marker_note)) }, modifier = Modifier.fillMaxWidth(), minLines = 2)
+                        label = { Text(stringResource(R.string.ground_truth_marker_note)) }, modifier = Modifier.fillMaxWidth(), minLines = 2,
+                        colors = noopFieldColors())
                 }
             },
             dismissButton = {
@@ -375,6 +376,7 @@ private fun SessionCard(
                 }
             }
             OutlinedTextField(
+                colors = noopFieldColors(),
                 value = session.comment,
                 onValueChange = onComment,
                 label = { Text(stringResource(R.string.ground_truth_comment)) },

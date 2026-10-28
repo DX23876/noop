@@ -284,6 +284,21 @@ public struct DeviceRegistryStore: Sendable {
         }
     }
 
+    /// Android parity (plan 1.3): the same data move as `adoptSerialIdentity` when the host keeps the registry
+    /// itself. Both id shapes move, canonical rows win a clash, and the new owner is marked for analysis.
+    public func reKeyDeviceData(from: String, to: String) throws {
+        guard from != to else { return }
+        try dbQueue.write { db in
+            for (a, b) in [(from, to), (from + Self.computedSuffix, to + Self.computedSuffix)] {
+                for table in Self.deviceScopedTables {
+                    try db.execute(sql: "UPDATE OR IGNORE \(table) SET deviceId = ? WHERE deviceId = ?", arguments: [b, a])
+                    try db.execute(sql: "DELETE FROM \(table) WHERE deviceId = ?", arguments: [a])
+                }
+            }
+            try WhoopStore.markAnalysisDeviceChanged(db, deviceId: to)
+        }
+    }
+
     // MARK: day ownership
     public struct DayOwner: Equatable { public let deviceId: String; public let locked: Bool }
 

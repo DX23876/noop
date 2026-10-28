@@ -166,8 +166,9 @@ final class ReadSpineActiveDeviceTests: XCTestCase {
 
         // (1) Import history lands under the CANONICAL id (this is the STABLE import target). Three days,
         // a few days back, so they are clearly NOT today.
+        // Calendar days, not 24-hour steps: across a clock change two 24-hour steps can land on one local day.
         let importedDays = (3...5).map { offset -> DailyMetric in
-            let day = Repository.localDayKey(Date().addingTimeInterval(-Double(offset) * 86_400))
+            let day = Repository.localDayKey(Calendar.current.date(byAdding: .day, value: -offset, to: Date())!)
             return dailyMetric(day: day, recovery: 55 + Double(offset))
         }
         _ = try await store.upsertDailyMetrics(importedDays, deviceId: canonicalId)

@@ -138,3 +138,20 @@ enum DashboardMomentum {
         MomentumStore.shared.publish(messages, recentDays: allDays)
     }
 }
+
+/// The Apple screens' entries into the shared builder and resolver, with the goals `GoalTrackingStore` holds.
+extension MomentumBuilder {
+    @MainActor
+    static func inputs(_ c: Context) -> Inputs {
+        inputs(c, periodSnapshots: GoalTrackingStore.shared.periodSnapshots, longTerm: GoalTrackingStore.shared.snapshots)
+    }
+}
+
+extension MomentumResolver {
+    static func feed(context: MomentumBuilder.Context, snoozedRaw: String, lastKind: String, lastAt: Double,
+                     retrospective: Bool, now: Date = Date()) -> [MomentumMessage] {
+        feed(context: context, snoozedRaw: snoozedRaw, lastKind: lastKind, lastAt: lastAt,
+             retrospective: retrospective, periodSnapshots: GoalTrackingStore.shared.periodSnapshots,
+             longTerm: GoalTrackingStore.shared.snapshots, now: now)
+    }
+}

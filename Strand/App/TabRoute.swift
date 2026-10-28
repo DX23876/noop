@@ -154,3 +154,13 @@ enum HeroRingMetric {
     /// Charge, Effort, Rest, in the order the hero row renders them.
     static let all = [charge, effort, rest]
 }
+
+extension CoachCardContext {
+    /// The purposes behind a Today dashboard row's one-line summary. Stress has its own switch in Data
+    /// access; every other row there states a core biometric. Beside `TabRoute`, so `CoachCardContext` itself
+    /// needs no app navigation type.
+    static func purposes(forDashboard route: TabRoute) -> Set<CoachPurpose> {
+        if case .stress = route { return [.coreBiometrics, .stress] }
+        return [.coreBiometrics]
+    }
+}

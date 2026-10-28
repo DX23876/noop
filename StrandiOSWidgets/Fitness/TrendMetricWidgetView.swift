@@ -100,7 +100,7 @@ struct NOOPHrvWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "NOOPHrvWidget", provider: FitnessProvider()) { entry in
             TrendMetricWidgetView(entry: entry, metric: .hrv)
-                .containerBackground(StrandPalette.surfaceBase, for: .widget)
+                .appGroupNotice().containerBackground(StrandPalette.surfaceBase, for: .widget)
         }
         .configurationDisplayName("HRV")
         .description("Today's heart rate variability against your usual range.")
@@ -112,7 +112,7 @@ struct NOOPRestingHrWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "NOOPRestingHrWidget", provider: FitnessProvider()) { entry in
             TrendMetricWidgetView(entry: entry, metric: .restingHr)
-                .containerBackground(StrandPalette.surfaceBase, for: .widget)
+                .appGroupNotice().containerBackground(StrandPalette.surfaceBase, for: .widget)
         }
         .configurationDisplayName("Resting HR")
         .description("Today's resting heart rate against your usual range.")

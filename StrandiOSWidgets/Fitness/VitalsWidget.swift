@@ -7,7 +7,7 @@ import StrandDesign
 struct NOOPVitalsWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "NOOPVitalsWidget", provider: FitnessProvider()) { entry in
-            VitalsWidgetView(entry: entry).containerBackground(StrandPalette.surfaceBase, for: .widget)
+            VitalsWidgetView(entry: entry).appGroupNotice().containerBackground(StrandPalette.surfaceBase, for: .widget)
         }
         .configurationDisplayName("Vitals")
         .description("Last night's blood oxygen, breathing and skin temperature against your usual.")

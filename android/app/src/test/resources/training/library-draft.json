@@ -1,0 +1,60 @@
+{
+  "exercises" : [
+    {
+      "equipmentSnapshot" : {
+        "equipmentIds" : [
+
+        ],
+        "loadSemantics" : "not_applicable"
+      },
+      "excludeFromProgression" : false,
+      "exerciseId" : "user:f8d22536-2208-48c2-8e9a-3f22c8dd0f20",
+      "id" : "7A7B3088-F872-4DAA-B2AA-711A4E7078E7",
+      "restSeconds" : 120,
+      "sets" : [
+        {
+          "distanceM" : 250.5,
+          "durationS" : 75,
+          "id" : "7E21851F-37ED-4A63-8501-F25D8A56547F",
+          "index" : 0,
+          "intensifier" : "none",
+          "isCompleted" : true,
+          "phase" : "work"
+        }
+      ]
+    },
+    {
+      "equipmentSnapshot" : {
+        "equipmentIds" : [
+
+        ],
+        "loadSemantics" : "bodyweight_only"
+      },
+      "excludeFromProgression" : false,
+      "exerciseId" : "user:2eebdf57-f13f-42fe-96af-a0379afe6f11",
+      "id" : "2B30162A-24A6-4402-A722-0B4922586295",
+      "restSeconds" : 120,
+      "sets" : [
+        {
+          "id" : "BA310CB3-32CA-4F03-9C5A-9C45B56551F6",
+          "index" : 0,
+          "intensifier" : "none",
+          "isCompleted" : true,
+          "leftReps" : 8,
+          "phase" : "work",
+          "rightReps" : 6
+        }
+      ]
+    }
+  ],
+  "id" : "EAF6AB84-87FD-4521-8B56-1D63AF8D8DA5",
+  "lifecycleVersion" : 1,
+  "plannedDay" : "2026-10-27",
+  "routineIds" : [
+
+  ],
+  "startedAt" : 1793084114,
+  "state" : "active",
+  "title" : "Freestyle workout",
+  "updatedAt" : 1793084114
+}

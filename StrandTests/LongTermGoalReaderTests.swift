@@ -1,7 +1,11 @@
 import XCTest
 import WhoopStore
 import StrandAnalytics
+#if NOOP_CORE_TESTS
+@testable import NoopCore
+#else
 @testable import Strand
+#endif
 
 /// Catalog goals turned into their page's reading, one test per shape the walkthrough carries.
 final class LongTermGoalReaderTests: XCTestCase {

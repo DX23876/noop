@@ -77,7 +77,7 @@ enum TrainingLoadLanes {
         return TrainingLoadPreparation.Lane(
             sevenDayTotal: lastSeven(byDay, through: day),
             sevenDayWorkingSets: recent.flatMap { $0.exercises.flatMap(\.workingSets) }.count,
-            trend: reading.trend,
+            trend: comparisonTrend(reading),
             relative: reading.relative,
             isLowerBound: false,
             distribution: TrainingLoad.distribution(dailyByDay: byDay, through: day),
@@ -102,7 +102,7 @@ enum TrainingLoadLanes {
         return TrainingLoadPreparation.Lane(
             sevenDayTotal: lastSeven(series.byDay, through: day),
             sevenDayWorkingSets: 0,
-            trend: reading.trend,
+            trend: comparisonTrend(reading),
             relative: reading.relative,
             isLowerBound: lastSevenContainsUnknown(series.unknownDays, through: day),
             distribution: TrainingLoad.distribution(dailyByDay: series.byDay, through: day,
@@ -129,8 +129,8 @@ enum TrainingLoadLanes {
         }
         return days.indices.map { index in
             TrainingLoadPreparation.RatioPoint(day: days[index],
-                                         strength: strength?[index].trend?.ratio,
-                                         cardio: cardio?[index].trend?.ratio,
+                                         strength: strength.flatMap { comparisonTrend($0[index])?.ratio },
+                                         cardio: cardio.flatMap { comparisonTrend($0[index])?.ratio },
                                          strengthBand: strength?[index].band,
                                          cardioBand: cardio?[index].band)
         }
@@ -193,4 +193,9 @@ enum TrainingLoadLanes {
         }
         return false
     }
+    /// The hero and curve share the lane guard; an unavailable comparison has no visible trend.
+    static func comparisonTrend(_ reading: LaneReading) -> LoadTrend? {
+        reading.band == nil ? nil : reading.trend
+    }
+
 }

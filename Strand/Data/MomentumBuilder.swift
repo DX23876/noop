@@ -1,6 +1,8 @@
 import Foundation
 import StrandAnalytics
+#if !NOOP_CORE
 import StrandDesign
+#endif
 import WhoopStore
 
 /// Turns what the Today screen already holds into `MomentumMessage` candidates.
@@ -205,7 +207,7 @@ enum MomentumBuilder {
                 actionLine: score.flatMap(recoveryActionLine),
                 progress: score.map {
                     MomentumProgress(fraction: $0 / 100, label: "\(Int($0.rounded())) / 100",
-                                     chipText: "\(DomainTheme.charge.productName) \(Int($0.rounded()))")
+                                     chipText: "Charge \(Int($0.rounded()))")
                 },
                 // Named like the score chip beside it: the headline is not always the HRV one.
                 deltaText: i.hrvDeltaPct.map { "HRV " + ($0 >= 0 ? "+\($0)%" : "\($0)%") },
@@ -477,11 +479,11 @@ extension MomentumBuilder {
 
     /// Everything the builder needs, assembled once for either Today screen.
     ///
-    /// `@MainActor` because it reads `GoalTrackingStore.shared`, which is main-actor isolated. Both
+    /// `@MainActor` because the goal snapshots it reads are main-actor state on Apple. Both
     /// callers are views, so this costs nothing; the *pure* half (`candidates`) stays actor-free and
     /// keeps being testable without one.
     @MainActor
-    static func inputs(_ c: Context) -> Inputs {
+    static func inputs(_ c: Context, periodSnapshots: [PeriodGoalSnapshot], longTerm: [GoalTrackingSnapshot]) -> Inputs {
         var i = Inputs()
 
         // ONE row for the whole recovery read — headline, detail, delta and tone (see `MomentumCopy`).
@@ -520,17 +522,16 @@ extension MomentumBuilder {
 
         // Goals — the same snapshots the Goals section already draws. A slipping weekly workouts goal
         // drives "sessions short of your week" first: it is the week the wearer chose to count.
-        let tracking = GoalTrackingStore.shared
-        if let shortfall = GoalMaintenance.weeklyShortfall(tracking.periodSnapshots) {
+        if let shortfall = GoalMaintenance.weeklyShortfall(periodSnapshots) {
             i.weekSessionsPlanned = shortfall.planned
             i.weekSessionsDone = shortfall.done
             i.daysLeftInWeek = shortfall.daysLeft
         }
         if c.isToday {
-            i.goalCheckIn = GoalMaintenance.momentumCheckIn(snapshots: tracking.periodSnapshots,
+            i.goalCheckIn = GoalMaintenance.momentumCheckIn(snapshots: periodSnapshots,
                                                             recentDays: c.allDays)
         }
-        if let hero = tracking.snapshots.first(where: { $0.goal.status == .active }) {
+        if let hero = longTerm.first(where: { $0.goal.status == .active }) {
             if i.weekSessionsPlanned == nil {
                 i.weekSessionsPlanned = hero.currentWeek.planned
                 i.weekSessionsDone = hero.currentWeek.completed

@@ -1,4 +1,8 @@
 import Foundation
+import StrandCore
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import StrandAnalytics
 
 // MARK: - Provider enum
@@ -505,9 +509,9 @@ func performStreamingRequest(
     session: URLSession,
     onLine: (String) -> Void
 ) async throws {
-    let bytes: (URLSession.AsyncBytes, URLResponse)
+    let bytes: (CoachByteStream, URLResponse)
     do {
-        bytes = try await session.bytes(for: req)
+        bytes = try await session.coachBytes(for: req)
     } catch {
         throw AICoachError.network(error.localizedDescription)
     }
@@ -537,3 +541,25 @@ func performStreamingRequest(
         throw AICoachError.server(http.statusCode, providerErrorMessage(from: Data(body.utf8)))
     }
 }
+
+#if canImport(FoundationNetworking)
+/// The streamed response body the providers read line by line: `StreamedBytes` where FoundationNetworking has no
+/// `bytes(for:)` (the Android core), `URLSession.AsyncBytes` on Apple. Both are byte sequences with `lines`.
+typealias CoachByteStream = StreamedBytes
+
+extension URLSession {
+    func coachBytes(for request: URLRequest) async throws -> (CoachByteStream, URLResponse) {
+        try await streamedBytes(for: request)
+    }
+}
+#else
+/// The streamed response body the providers read line by line: `StreamedBytes` where FoundationNetworking has no
+/// `bytes(for:)` (the Android core), `URLSession.AsyncBytes` on Apple. Both are byte sequences with `lines`.
+typealias CoachByteStream = URLSession.AsyncBytes
+
+extension URLSession {
+    func coachBytes(for request: URLRequest) async throws -> (CoachByteStream, URLResponse) {
+        try await bytes(for: request)
+    }
+}
+#endif

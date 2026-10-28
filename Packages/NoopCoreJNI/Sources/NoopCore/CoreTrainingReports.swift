@@ -37,7 +37,7 @@ public enum CoreTrainingReports {
             var minimum = 0
             if let earliestDay, let earliestMonday = WeeklyDigestEngine.mondayOfWeek(containing: earliestDay) {
                 var monday = thisMonday
-                while monday > earliestMonday && minimum > -520 {
+                while monday > earliestMonday && minimum > -(TrainingHistoryWindow.allDays / 7 + 1) {
                     monday = WeeklyDigestEngine.addDays(monday, -7)
                     minimum -= 1
                 }
@@ -102,20 +102,71 @@ public enum CoreTrainingReports {
     }
 
     public struct Strength: Encodable {
+        public struct LoggedSet: Encodable {
+            public var type: String, countsAsWork: Bool
+            public var weightKg: Double?, reps: Int?, rpe: Double?, durationS: Double?, distanceM: Double?
+            init(_ value: HevySet) {
+                type = value.type.rawValue; countsAsWork = value.type.countsAsWork
+                weightKg = value.weightKg; reps = value.reps; rpe = value.rpe
+                durationS = value.durationS; distanceM = value.distanceM
+            }
+        }
+        public struct LoggedExercise: Encodable {
+            public var title: String, sets: [LoggedSet]
+            init(_ value: HevyExercise) {
+                title = value.title; sets = value.sets.map(LoggedSet.init)
+            }
+        }
+        public struct LoggedSession: Encodable {
+            public var id: String, title: String, startTs: Int, durationS: Double?, source: String
+            public var exercises: [LoggedExercise]
+            init(_ value: HevyWorkout) {
+                id = value.id; title = value.title; startTs = value.startTs
+                durationS = value.durationS; source = value.source.rawValue
+                exercises = value.exercises.map(LoggedExercise.init)
+            }
+            init(_ session: ResolvedStrengthSession) {
+                self.init(session.workout)
+                durationS = session.canonicalRow?.durationS ?? durationS
+            }
+        }
         public var selection: Selection, lane: CoreTrainingLoad.Lane, ratios: [CoreTrainingLoad.Ratio]
-        public var sessions: Int, workingSets: Int, volumeKg: Double, bodyweightKg: Double
+        public var sessions: Int, workingSets: Int, volumeSets: Int, volumeKg: Double, bodyweightKg: Double
         public var bodyweightSets: Int, unpricedBodyweightSets: Int, unattributedSets: Int
         public var charge: Double?, effort: Double?, overview: Overview, muscles: [Muscle], balance: [Balance]
+        public var activity: [CoreTraining.ActivityDay]
         public var exercise: Exercise
-        public var sessionIds: [String], unmappedExercises: [String]
+        public var recentSessions: [LoggedSession], genericSessions: [GenericSession], unmappedExercises: [String]
+    }
+
+    public struct EntryDraft: Encodable {
+        public var title: String, workSets: Int, muscle: String, effort: String, usesRIR: Bool
+        init(_ draft: StrengthDetails.Draft) {
+            title = draft.title; workSets = draft.workSets; muscle = draft.muscle.rawValue
+            effort = draft.effort; usesRIR = draft.usesRIR
+        }
+    }
+
+    public struct GenericSession: Encodable {
+        public var id: String, title: String, startTs: Int, endTs: Int, source: String
+        public var drafts: [EntryDraft]
+        public var manualWorkoutId: String?
+        init(_ entry: StrengthDetails.GenericSession, templates: [String: HevyExerciseTemplate]) {
+            id = entry.session.id; title = entry.session.row.sport
+            startTs = entry.session.row.startTs; endTs = entry.session.row.endTs
+            source = entry.session.row.source; manualWorkoutId = entry.manual?.id
+            drafts = StrengthDetails.drafts(from: entry.manual, templates: templates).map(EntryDraft.init)
+        }
     }
 
     public struct CardioSession: Encodable {
+        public var id: String
         public var startTs: Int, endTs: Int, day: String, sport: String, source: String, modality: String, family: String
         public var durationS: Double?, distanceM: Double?, avgHr: Int?, maxHr: Int?
         public var energyKcal: Double?, strain: Double?, steps: Int?, cardioLoad: Double?
         public var paceSecPerKm: Double?, paceSecPer100m: Double?, speedKmh: Double?, beatsPerKm: Double?
-        init(_ session: CardioSessionMetrics, family: String) {
+        init(_ session: CardioSessionMetrics, family: String, id: String) {
+            self.id = id
             startTs = session.startTs; endTs = session.endTs; day = session.day; sport = session.sport
             source = session.source; modality = session.modality.rawValue; self.family = family
             durationS = session.durationS; distanceM = session.distanceM; avgHr = session.avgHr; maxHr = session.maxHr
@@ -150,6 +201,7 @@ public enum CoreTrainingReports {
             }
         }
         public var selectedSport: String?
+        public var modality: String, metric: String
         public var choices: [String], pace: [Point], efficiency: [Point]
         public var paceTrend: Trend?, efficiencyTrend: Trend?
         public var farthest: Best?, longest: Best?, paceBests: [String: Best]
@@ -187,7 +239,8 @@ public enum CoreTrainingReports {
                                                    observations: observations, now: now, historyDays: days,
                                                    offset: offset, firstWeekday: firstWeekday)
         var selection = Selection(days: days, requestedOffset: weekOffset,
-                                  earliestDay: history.workouts.map { AnalyticsEngine.dayString($0.startTs, offsetSec: offset) }.min(),
+                                  earliestDay: (history.workouts.map { AnalyticsEngine.dayString($0.startTs, offsetSec: offset) }
+                                    + fusion.sessions.filter { $0.kind == .strength }.map { AnalyticsEngine.dayString($0.row.startTs, offsetSec: offset) }).min(),
                                   now: now)
         let anchor = WeeklyDigestEngine.addDays(today, selection.weekOffset * 7)
         let activity = TrainingLoadLanes.strengthActivity(laneHistory.workouts, tzOffsetSeconds: offset)
@@ -220,7 +273,11 @@ public enum CoreTrainingReports {
             repRecords: progress?.records.bestByRepBand.reduce(into: [:]) { $0[$1.key.rawValue] = Exercise.Record($1.value) } ?? [:])
         return Strength(selection: selection, lane: CoreTrainingLoad.Lane(week.lane),
             ratios: week.laneRatios.map { .init(day: $0.day, strength: $0.strength, cardio: $0.cardio) },
-            sessions: week.week.sessionCount, workingSets: week.week.workingSetCount, volumeKg: week.week.volumeLoadKg,
+            sessions: week.week.sessionCount, workingSets: week.week.workingSetCount,
+            volumeSets: prepared.summaries.filter {
+                let day = AnalyticsEngine.dayString($0.startTs, offsetSec: offset)
+                return day >= selection.monday && day <= selection.sunday
+            }.reduce(0) { $0 + $1.volumeSetCount }, volumeKg: week.week.volumeLoadKg,
             bodyweightKg: week.bodyweightKg, bodyweightSets: week.bodyweightSets,
             unpricedBodyweightSets: week.unpricedBodyweightSets, unattributedSets: week.week.unattributedSetCount,
             charge: average(charges), effort: efforts.isEmpty ? nil : efforts.reduce(0, +),
@@ -232,7 +289,15 @@ public enum CoreTrainingReports {
             }, balance: week.balance.map {
                 Balance(axis: $0.axis.rawValue, setsA: $0.setsA, setsB: $0.setsB, ratio: $0.ratio,
                         shareA: $0.shareA, usualRatio: week.ratios[$0.axis].map(Range.init))
-            }, exercise: exercise, sessionIds: history.workouts.map(\.id), unmappedExercises: prepared.unmapped)
+            }, activity: TrainingActivityDay.pastYear(sessions: history.sessions,
+                weekStart: firstWeekday == 1 ? .sunday : .monday,
+                now: Date(timeIntervalSince1970: TimeInterval(now))).map { .init(day: $0.day, minutes: $0.minutes) },
+            exercise: exercise,
+            recentSessions: history.sessions.sorted { $0.startTs > $1.startTs }.prefix(30).map(Strength.LoggedSession.init),
+            genericSessions: StrengthDetails.genericSessions(fusion, workouts: history.workouts)
+                .sorted { $0.session.row.startTs > $1.session.row.startTs }
+                .map { GenericSession($0, templates: history.templates) },
+            unmappedExercises: prepared.unmapped)
     }
 
     /// Reads the same Cardio inputs as `CardioModel.load`, including all sport families and the
@@ -279,8 +344,11 @@ public enum CoreTrainingReports {
         let daily = await dailyMetrics(reader: reader, from: selection.monday, to: selection.sunday)
         let selected = sport.flatMap { name in choices.contains { $0.sport == name } ? name : nil } ?? choices.first?.sport
         let progress = selected.map { CardioPreparation.sport($0, all: sessions) }
-        let sportProgress = SportProgress(selectedSport: selected, choices: choices.map(\.sport),
-            pace: progress?.history.map { Point(day: $0.day, startTs: $0.startTs, value: $0.paceSecPerKm) } ?? [],
+        let modality = selected.map { CardioModality.of(sport: $0) } ?? .unknown
+        let metric: String
+        switch modality.readout { case .pace: metric = "pace"; case .speed: metric = "speed"; case .none: metric = "none" }
+        let sportProgress = SportProgress(selectedSport: selected, modality: modality.rawValue, metric: metric, choices: choices.map(\.sport),
+            pace: progress?.history.map { Point(day: $0.day, startTs: $0.startTs, value: modality.readout == .speed ? $0.speedKmh : (modality.readout == .pace ? $0.paceSecPerKm : nil)) } ?? [],
             efficiency: progress?.series.map { Point(day: $0.day, startTs: $0.startTs, value: $0.value) } ?? [],
             paceTrend: progress?.pace.map(Trend.init), efficiencyTrend: progress?.efficiency.map(Trend.init),
             farthest: progress?.bests.farthest.map(SportProgress.Best.init),
@@ -291,7 +359,12 @@ public enum CoreTrainingReports {
         let families = visible.reduce(into: [Int: String]()) { $0[$1.row.startTs] = $1.kind.rawValue }
         return Cardio(selection: selection, lane: week.lane.map(CoreTrainingLoad.Lane.init),
             ratios: week.laneRatios.map { .init(day: $0.day, strength: $0.strength, cardio: $0.cardio) },
-            sessions: sessions.map { CardioSession($0, family: families[$0.startTs] ?? "other") },
+            sessions: sessions.map { metric in
+                let matches = visible.filter { $0.row.startTs == metric.startTs && $0.row.endTs == metric.endTs
+                    && $0.row.source == metric.source && $0.row.sport == metric.sport }
+                return CardioSession(metric, family: families[metric.startTs] ?? "other",
+                                     id: matches.count == 1 ? matches[0].id : "")
+            },
             weekSessions: week.week.sessionCount, minutes: week.week.minutes, distanceM: week.week.distanceM,
             energyKcal: week.week.energyKcal, effort: week.week.effort,
             sessionsWithDistance: week.week.sessionsWithDistance, typicalMinutes: week.typical.map(Range.init),
@@ -303,6 +376,70 @@ public enum CoreTrainingReports {
             }, loadShares: week.shares.map {
                 SportShare(sport: $0.sport, modality: $0.modality.rawValue, load: $0.load, share: $0.share)
             }, zones: week.zones.map(Zones.init), progress: sportProgress)
+    }
+
+    public static func session(reader: StoreReader, id: String,
+                               now: Int = Int(Date().timeIntervalSince1970)) async -> Strength.LoggedSession? {
+        let fusion = await TrainingSessionResolver.read(reader: reader,
+            from: now - TrainingHistoryWindow.allDays * 86_400, to: now + 86_400, dismissedDetectedSpans: [])
+        let history = await StrengthHistoryReader.read(store: reader.store,
+            days: TrainingHistoryWindow.allDays, now: now) { fusion }
+        return history.sessions.first { $0.workout.id == id }.map(Strength.LoggedSession.init)
+    }
+
+    /// Re-resolve the canonical envelope before editing; repeat saves replace its manual detail.
+    public static func saveDetails(reader: StoreReader, sessionId: String, drafts: [[String: Any]],
+                                   dismissedWorkouts: [String], now: Int = Int(Date().timeIntervalSince1970)) async -> String {
+        let days = TrainingHistoryWindow.allDays
+        let fusion = await TrainingSessionResolver.read(reader: reader, from: now - days * 86_400,
+            to: now + 86_400, dismissedDetectedSpans: dismissedWorkouts)
+        let history = await StrengthHistoryReader.read(store: reader.store, days: days, now: now) { fusion }
+        guard let entry = StrengthDetails.genericSessions(fusion, workouts: history.workouts)
+            .first(where: { $0.session.id == sessionId }) else { return "sessionUnavailable" }
+        guard drafts.count <= 100 else { return "invalidDetails" }
+        var parsed: [StrengthDetails.Draft] = []
+        for value in drafts {
+            guard let title = value["title"] as? String, let count = value["workSets"] as? Int,
+                  let rawMuscle = value["muscle"] as? String, let muscle = HevyMuscleGroup(rawValue: rawMuscle),
+                  let effort = value["effort"] as? String, let usesRIR = value["usesRIR"] as? Bool else {
+                return "invalidDetails"
+            }
+            var draft = StrengthDetails.Draft()
+            draft.title = title; draft.workSets = count; draft.muscle = muscle
+            draft.effort = effort; draft.usesRIR = usesRIR
+            parsed.append(draft)
+        }
+        do {
+            let built = try StrengthDetails.makeEntry(drafts: parsed, session: entry.session,
+                existingId: entry.manual?.id, now: now)
+            _ = try await reader.store.upsertHevyExerciseTemplates(built.templates)
+            _ = try await reader.store.upsertStrengthWorkouts([built.workout])
+            return "saved"
+        } catch StrengthDetails.DraftError.noExercise { return "noExercise" }
+          catch StrengthDetails.DraftError.effortOutOfRange { return "invalidEffort" }
+          catch StrengthDetails.DraftError.setCountOutOfRange { return "invalidSets" }
+          catch { return "saveFailed" }
+    }
+
+    public static func saveMapping(store: WhoopStore, title: String, primary: String, secondary: [String]) async -> Bool {
+        guard let group = HevyMuscleGroup(rawValue: primary),
+              secondary.allSatisfy({ HevyMuscleGroup(rawValue: $0) != nil }) else { return false }
+        do {
+            try await StrengthDetails.saveMapping(store: store, title: title, primary: group,
+                secondary: secondary.compactMap(HevyMuscleGroup.init(rawValue:)))
+            return true
+        } catch { return false }
+    }
+
+    public static func recordFeedback(store: WhoopStore, muscle: String, feeling: Int,
+                                      now: Int = Int(Date().timeIntervalSince1970)) async -> Bool {
+        guard let group = HevyMuscleGroup(rawValue: muscle), MuscleRecovery.Feeling(rawValue: feeling) != nil else {
+            return false
+        }
+        do {
+            try await store.saveMuscleRecoveryFeedback(.init(muscleGroup: group, ts: now, feeling: feeling))
+            return true
+        } catch { return false }
     }
 
     static func historyDays(_ days: Int) -> Int {

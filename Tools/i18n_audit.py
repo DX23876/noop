@@ -215,7 +215,9 @@ def _extract_literals(text: str, start: int, end: int) -> list[tuple[int, str]]:
     nearest preceding non-whitespace token is `+`: string concatenation
     (typically `uiString(R.string.x) + "hardcoded suffix"`) is a real but
     DIFFERENT, larger bug (partial localization via an engineered prefix) —
-    deliberately out of scope here, tracked separately."""
+    deliberately out of scope here, tracked separately. Also skips a literal
+    that is a whole subscript key (`labels["errorTitle"]`): it names a word
+    the shared core already translated, it is not shown itself."""
     out: list[tuple[int, str]] = []
     i = start
     while i < end:
@@ -225,7 +227,11 @@ def _extract_literals(text: str, start: int, end: int) -> list[tuple[int, str]]:
             prev = i - 1
             while prev >= start and text[prev].isspace():
                 prev -= 1
-            if prev < start or text[prev] != "+":
+            after = j
+            while after < end and text[after].isspace():
+                after += 1
+            is_key = prev >= start and text[prev] == "[" and after < len(text) and text[after] == "]"
+            if (prev < start or text[prev] != "+") and not is_key:
                 out.append((i, text[i + 1:j - 1]))
             i = j
             continue

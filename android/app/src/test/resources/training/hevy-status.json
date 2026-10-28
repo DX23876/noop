@@ -1,0 +1,16 @@
+{
+  "id" : "synthetic-job",
+  "page" : 1,
+  "phase" : "writing",
+  "state" : "completed",
+  "storedWorkouts" : 21,
+  "summary" : {
+    "deletedWorkouts" : 1,
+    "fetchedWorkouts" : 2,
+    "routines" : 0,
+    "skipped" : 3,
+    "templates" : 0,
+    "wasBackfill" : false
+  },
+  "totalPages" : 1
+}

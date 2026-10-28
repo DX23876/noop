@@ -1304,6 +1304,9 @@ struct SettingsView: View {
                         Text("When useful").tag(SessionRatingPrompt.whenUseful.rawValue)
                         Text("Always").tag(SessionRatingPrompt.always.rawValue)
                     }.labelsHidden().pickerStyle(.menu)
+                    .onChange(of: sessionRatingPromptRaw) { _ in
+                        Task { await model.repo.refreshSessionRatingReminders() }
+                    }
                 }
                 Text("A session rating improves load estimates when heart rate misses muscular effort. “When useful” asks after strength, swimming and other demanding sessions. You can always rate a session later.")
                     .font(StrandFont.caption)

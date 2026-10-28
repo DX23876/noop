@@ -1,10 +1,11 @@
 import Foundation
+import StrandCore
+#if canImport(Combine)
 import Combine
-import Security
+#endif
 import WhoopStore
 import StrandAnalytics
 import StrandImport
-import StrandDesign
 import SemanticMemory
 
 // AICoachEngine plan tools (`propose_plan` and its siblings).
@@ -26,7 +27,7 @@ extension AICoachEngine {
             return "Nothing proposed: intent must be one of rest, easy, moderate, hard, mobility."
         }
         let requestedDay = (day ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        let dayKey = requestedDay.isEmpty ? Repository.localDayKey(Date()) : requestedDay
+        let dayKey = requestedDay.isEmpty ? StoreReader.localDayKey(Date()) : requestedDay
 
         // "HH:mm" on the proposal's own day — a time without its day would silently land on today.
         var when: Date?
@@ -74,7 +75,7 @@ extension AICoachEngine {
         if let cleanZone, let cleanDuration,
            let range = EffortFeasibility.sessionEffortRange(
                zone: cleanZone, minutes: Double(cleanDuration),
-               zoneSet: ProfileStore().hrZoneSet, restingHR: await recentRestingHR()) {
+               zoneSet: repo.coachProfile().hrZoneSet, restingHR: await recentRestingHR()) {
             let computed = (range.typical * 10).rounded() / 10
             if let given = effort, range.distanceFromTypical(given) <= EffortFeasibility.targetTolerance {
                 // Close enough to be the coach's judgement about where in the band to sit — leave it.
@@ -104,7 +105,7 @@ extension AICoachEngine {
             return "Not proposed: the user already has \(trimmedSport) committed for \(dayKey). "
                 + "Acknowledge their existing plan rather than suggesting it again as if it were new."
         }
-        CoachNotifier.postPlanProposal(proposal)
+        coachAppHooks().planProposed(proposal)
         let adapted = adaptation.evidenceNote.map { " Local adaptation: \($0)" } ?? ""
         let effortNote = correction.map { " \($0)" } ?? ""
         return "Proposed (NOT scheduled): \(proposal.contextSummary()) on \(dayKey).\(adapted)\(effortNote) "
@@ -150,12 +151,12 @@ extension AICoachEngine {
 
     func refreshVO2maxDisplay() async {
         activeEnergyByDay = await repo.activeEnergyByDay(days: 31)
-        let estimates = await repo.exploreSeries(key: "vo2max_est", source: Repository.whoopSource, days: 90)
+        let estimates = await repo.exploreSeries(key: "vo2max_est", source: MetricResolver.whoopSource, days: 90)
             .map { VO2maxReading(day: $0.day, value: $0.value, segment: "vo2max_est") }
-        let apple = await repo.exploreSeries(key: "vo2max", source: Repository.appleHealthSource, days: 365)
-            .map { VO2maxReading(day: $0.day, value: $0.value, segment: Repository.appleHealthSource) }
+        let apple = await repo.exploreSeries(key: "vo2max", source: MetricResolver.appleHealthSource, days: 365)
+            .map { VO2maxReading(day: $0.day, value: $0.value, segment: MetricResolver.appleHealthSource) }
         vo2maxDisplay = CardioEvidence.display(estimates: estimates, apple: apple,
-                                               through: Repository.logicalDayKey(Date()))
+                                               through: LogicalDay.key(Date()))
     }
 
     /// The headline VO₂max value, or nil when neither source has one.

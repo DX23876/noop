@@ -96,6 +96,19 @@ final class AICoachPromptAndStressTests: XCTestCase {
         XCTAssertFalse(engine.hasCustomSystemPrompt)
     }
 
+    /// The editor reads `customSystemPrompt`; saving the composed prompt back would store the identity,
+    /// persona and clauses inside the override and send them twice.
+    func testEditorSeesOnlyTheEditableInstructions() {
+        let engine = makeEngine()
+        XCTAssertEqual(engine.customSystemPrompt, AICoachEngine.defaultSystemPrompt)
+        engine.customSystemPrompt = engine.customSystemPrompt
+        XCTAssertNil(UserDefaults.standard.string(forKey: AICoachEngine.systemPromptKey))
+        XCTAssertFalse(engine.hasCustomSystemPrompt)
+
+        engine.customSystemPrompt = "Be brief."
+        XCTAssertEqual(engine.customSystemPrompt, "Be brief.")
+    }
+
     func testBlankOverrideNeverSendsAnEmptyPrompt() {
         let engine = makeEngine()
         engine.customSystemPrompt = "   \n  "   // whitespace only

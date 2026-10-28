@@ -120,6 +120,7 @@ object ForgeMetrics {
     val space5 = ForgeTokens.NoopMetrics.space5.dp
     val space6 = ForgeTokens.NoopMetrics.space6.dp
     val space8 = ForgeTokens.NoopMetrics.space8.dp
+    val chartHeight = ForgeTokens.NoopMetrics.chartHeight.dp
     val hairline = ForgeTokens.NoopMetrics.hairlineWidth.dp
     val minHitTarget = ForgeTokens.NoopButtonMetrics.minHitTarget.dp
     val tabBarClearance = ForgeTokens.NoopMetrics.tabBarClearance.dp

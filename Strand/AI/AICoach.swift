@@ -1,11 +1,14 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
+#if canImport(Combine)
 import Combine
-import Security
+#endif
 import WhoopStore
 import StrandCore
 import StrandAnalytics
 import StrandImport
-import StrandDesign
 import SemanticMemory
 
 // MARK: - AI Coach (strictly opt-in, bring-your-own-key)
@@ -16,7 +19,7 @@ import SemanticMemory
 // key is set AND a question is asked. We never embed our own key, never auto-send, and only ever
 // transmit the small text context built in `buildContext()` + the running chat, no raw streams.
 //
-// Pure macOS: Foundation + URLSession + Security (Keychain). Compiles on macOS 13, Swift 5.
+// Pure macOS: Foundation + URLSession; the key store goes through `SecretVault`. Compiles on macOS 13, Swift 5.
 // Provider wire formats live in Providers/: OpenAI.swift, Anthropic.swift, Gemini.swift.
 
 // MARK: - Chat model
@@ -152,19 +155,11 @@ struct ChatMessage: Identifiable, Equatable, Codable {
 
 // MARK: - Secure key storage (Keychain)
 
-/// Keychain Services wrapper for the user's API key. Uses a generic-password item under a fixed
+/// The user's API key in the platform's secret store (`SecretVault`, the Keychain on Apple), under a fixed
 /// service so the key never lands in UserDefaults, a plist, or on disk in the clear.
 enum AIKeyStore {
     private static let service = "com.noop.aicoach"
     private static let account = "api-key"
-
-    private static var baseQuery: [String: Any] {
-        [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account
-        ]
-    }
 
     /// UserDefaults key recording which provider the stored API key belongs to, so one provider's key
     /// is never sent to another provider's endpoint (above all the arbitrary user-typed Custom URL).
@@ -184,28 +179,14 @@ enum AIKeyStore {
         guard !trimmed.isEmpty else { clear(); return true }
         guard let data = trimmed.data(using: .utf8) else { return false }
 
-        // Delete any existing item first so we always insert a single, fresh value.
-        SecItemDelete(baseQuery as CFDictionary)
-
-        var attrs = baseQuery
-        attrs[kSecValueData as String] = data
-        attrs[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        let status = SecItemAdd(attrs as CFDictionary, nil)
-        guard status == errSecSuccess else { return false }
+        guard secretVault().write(data, service: service, account: account) else { return false }
         UserDefaults.standard.set(owner, forKey: ownerKey)
         return true
     }
 
     /// Read the stored API key, or nil if none is set.
     static func read() -> String? {
-        var query = baseQuery
-        query[kSecReturnData as String] = kCFBooleanTrue
-        query[kSecMatchLimit as String] = kSecMatchLimitOne
-
-        var item: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &item)
-        guard status == errSecSuccess,
-              let data = item as? Data,
+        guard let data = secretVault().read(service: service, account: account),
               let str = String(data: data, encoding: .utf8),
               !str.isEmpty else { return nil }
         return str
@@ -213,7 +194,7 @@ enum AIKeyStore {
 
     /// Remove any stored API key.
     static func clear() {
-        SecItemDelete(baseQuery as CFDictionary)
+        secretVault().delete(service: service, account: account)
         UserDefaults.standard.removeObject(forKey: ownerKey)
     }
 }
@@ -318,7 +299,9 @@ final class AICoachEngine: ObservableObject {
     // Published state the UI binds to.
     /// All saved conversations, most-recently-updated first. The visible chat is the ACTIVE one; older
     /// ones stay findable in the history sheet instead of being overwritten.
-    @Published private(set) var conversations: [CoachConversation] = []
+    @Published private(set) var conversations: [CoachConversation] = [] {
+        didSet { scheduleTranscriptAutosave() }
+    }
     /// The conversation currently shown in the chat. `messages` reads/writes into this one.
     @Published var activeConversationID: UUID?
     /// Local day the current transcript was last written on; nil while it is empty. Drives the day
@@ -351,7 +334,7 @@ final class AICoachEngine: ObservableObject {
     /// the settings UI can trigger a refresh the moment the user switches to `.afterWake`, without holding
     /// a `Repository` of its own — the engine already has one.
     func refreshCoachCheckInSchedule() async {
-        await CoachCheckIn.refreshDynamicSchedule(repo: repo)
+        await repo.refreshCoachCheckIn()
     }
 
     /// The active conversation, if any.
@@ -481,7 +464,7 @@ final class AICoachEngine: ObservableObject {
 
     private var semanticAllowedScopes: Set<SemanticConsentScope> {
         guard dataConsent else { return [] }
-        return CoachSemanticMemory.allowedScopes(for: toolConsent)
+        return memory.allowedScopes(for: toolConsent)
     }
 
     /// Called from the Coach screen. It only reconciles text metadata and begins an asynchronous warm-up;
@@ -491,7 +474,7 @@ final class AICoachEngine: ObservableObject {
             || semanticAllowedScopes.contains(.sensitiveLogs)
             ? await repo.journalEntries()
             : []
-        await CoachSemanticMemory.shared.prewarm(
+        await memory.prewarm(
             conversations: conversations,
             journalEntries: entries,
             allowedScopes: semanticAllowedScopes
@@ -504,7 +487,7 @@ final class AICoachEngine: ObservableObject {
             || semanticAllowedScopes.contains(.sensitiveLogs)
             ? await repo.journalEntries()
             : []
-        await CoachSemanticMemory.shared.performMaintenance(
+        await memory.performMaintenance(
             conversations: conversations,
             journalEntries: entries,
             allowedScopes: semanticAllowedScopes,
@@ -519,28 +502,28 @@ final class AICoachEngine: ObservableObject {
             || semanticAllowedScopes.contains(.sensitiveLogs)
             ? await repo.journalEntries()
             : []
-        await CoachSemanticMemory.shared.reconcile(
+        await memory.reconcile(
             conversations: conversations,
             journalEntries: entries,
             allowedScopes: semanticAllowedScopes
         )
-        CoachSemanticMemory.shared.startManualIndexing()
+        memory.startManualIndexing()
     }
 
     func unloadSemanticMemory() async {
-        await CoachSemanticMemory.shared.unload()
+        await memory.unload()
     }
 
     private func semanticPrivacyDidChange() async {
         // A privacy change invalidates any in-flight lease. Reconciliation below may retain still-
         // permitted vectors, but the 328 MB model is released immediately and only a later Coach use
         // or approved maintenance run may load it again.
-        await CoachSemanticMemory.shared.unload()
+        await memory.unload()
         let entries = semanticAllowedScopes.contains(.personalLogs)
             || semanticAllowedScopes.contains(.sensitiveLogs)
             ? await repo.journalEntries()
             : []
-        await CoachSemanticMemory.shared.reconcile(
+        await memory.reconcile(
             conversations: conversations,
             journalEntries: entries,
             allowedScopes: semanticAllowedScopes
@@ -620,8 +603,11 @@ final class AICoachEngine: ObservableObject {
     @Published var cardSuggestions: [String] = []
 
     /// Internal so consent-gated tool extensions can resolve local proposal evidence without copying
-    /// Repository access into another owner. It is never exposed outside the app module.
-    let repo: Repository
+    /// data access into another owner. Held as `CoachDataReading` so the coach does not depend on Apple's
+    /// `Repository` (Android parity plan, Coach step 1). It is never exposed outside the app module.
+    let repo: any CoachDataReading
+    /// The long-term memory index (`CoachMemoryIndex`): the semantic memory on Apple, none on Android yet.
+    private let memory: any CoachMemoryIndex
     private let session: URLSession
 
     /// Closure `AppModel` wires right after constructing the engine, so the coach can read the LIVE
@@ -817,7 +803,7 @@ final class AICoachEngine: ObservableObject {
         // decides and how hard it holds you) on top of the methodology in `base`. Both read fresh so a
         // change to either applies on the very next message. Name comes from the identity, behaviour from
         // the persona — they never fight over "who you are".
-        var prompt = CoachIdentityStore.shared.identity.identityPreamble
+        var prompt = coachAppHooks().identityPreamble
             + "\n\n" + persona.systemPreamble + "\n\n" + base
         // Persistent memory is only shared when its own purpose is enabled under the master consent.
         // Query-relevant normal facts are injected per-question in `wireMessages` instead, so a large
@@ -863,8 +849,13 @@ final class AICoachEngine: ObservableObject {
 
     /// The user's stored prompt override, or the default when nothing custom is set. The UI binds its
     /// editor to this: writing persists the override; writing a blank string clears it (back to default).
+    /// Only the editable instructions (`base` in `systemPrompt(toolsActive:)`), never the composed prompt:
+    /// handing the editor the identity, persona and clauses would save them into the override on the next edit.
     var customSystemPrompt: String {
-        get { systemPrompt }
+        get {
+            let stored = UserDefaults.standard.string(forKey: Self.systemPromptKey)
+            return (stored?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false) ? stored! : Self.defaultSystemPrompt
+        }
         set {
             let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
             if trimmed.isEmpty || trimmed == Self.defaultSystemPrompt {
@@ -929,8 +920,9 @@ final class AICoachEngine: ObservableObject {
     them to enable "Let the coach use my data" for guidance tailored to their real numbers.
     """
 
-    init(repo: Repository, session: URLSession = .shared) {
+    init(repo: any CoachDataReading, memory: any CoachMemoryIndex, session: URLSession = .shared) {
         self.repo = repo
+        self.memory = memory
         self.session = session
 
         // Restore persisted provider / model (falling back to sane defaults).
@@ -988,16 +980,6 @@ final class AICoachEngine: ObservableObject {
         self.conversations = restored
         self.activeConversationID = restored.first?.id
 
-        // Keep the list saved: a debounced sink (not a didSet) so token-by-token streaming doesn't
-        // hammer the disk.
-        transcriptAutosave = $conversations
-            .dropFirst()
-            .debounce(for: .seconds(1.0), scheduler: DispatchQueue.main)
-            .sink { conversations in
-                CoachConversationStore.save(conversations)
-                Task { await CoachSemanticMemory.shared.conversationsChanged(conversations) }
-            }
-
         // Rebuild the in-memory chart artifacts for the active conversation from their snapshots.
         rebuildChartsForActive()
 
@@ -1007,8 +989,22 @@ final class AICoachEngine: ObservableObject {
         archiveStaleAutoThreads()
     }
 
-    /// Debounced transcript persistence (see init).
-    private var transcriptAutosave: AnyCancellable?
+    /// Debounced transcript persistence: every change restarts a one-second wait, so token-by-token streaming
+    /// doesn't hammer the disk, and the list is saved once the changes stop. A task rather than a Combine
+    /// `debounce`, so the same code runs where the core has no Combine (Android). The restore in `init` does not
+    /// trigger it, as a property observer does not run for the initializer's own assignment.
+    private var transcriptAutosave: Task<Void, Never>?
+
+    private func scheduleTranscriptAutosave() {
+        transcriptAutosave?.cancel()
+        transcriptAutosave = Task { [weak self, memory] in
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            guard !Task.isCancelled, let self else { return }
+            let conversations = self.conversations
+            CoachConversationStore.save(conversations)
+            await memory.conversationsChanged(conversations)
+        }
+    }
 
     // MARK: Conversation management (history)
 
@@ -1586,7 +1582,7 @@ final class AICoachEngine: ObservableObject {
         guard !trimmed.isEmpty else { errorText = AICoachError.emptyQuestion.errorDescription; return }
         // The master switch, checked at the EGRESS rather than only on the routes in: a wearer can be
         // STANDING on this screen when the switch goes off, and that path passes no tab. (#2269)
-        guard CoachBriefScheduler.coachMasterEnabled else { return }
+        guard CoachFeaturePrefs.isEnabled else { return }
         guard let key = resolvedKey else { errorText = AICoachError.noKey.errorDescription; return }
         // Catch an unset model here rather than letting it reach the provider: every server answers a
         // `"model": ""` body with an opaque 400 that gives the user nothing to act on.
@@ -1636,7 +1632,7 @@ final class AICoachEngine: ObservableObject {
             : []
         let semanticRetrieval: CoachSemanticRetrieval
         if dataConsent {
-            semanticRetrieval = await CoachSemanticMemory.shared.retrieve(
+            semanticRetrieval = await memory.retrieve(
                 question: trimmed,
                 conversations: conversationsBeforeCurrentQuestion,
                 journalEntries: semanticJournalEntries,
@@ -1645,7 +1641,7 @@ final class AICoachEngine: ObservableObject {
             // Queue the just-added user turn immediately, but do not start another model operation.
             // Only the conversations changed since the reconcile inside `retrieve` a moment ago — this
             // used to be a second FULL reconcile of every source, doubling that work on every message.
-            await CoachSemanticMemory.shared.conversationsChanged(conversations)
+            await memory.conversationsChanged(conversations)
         } else {
             semanticRetrieval = CoachSemanticRetrieval(context: "", mode: .unavailable)
         }
@@ -1830,7 +1826,7 @@ final class AICoachEngine: ObservableObject {
             return "No data available to plot \"\(metric)\"."
         }
         pendingCharts.append(art)
-        return "Displayed a chart of \(art.title) over the last \(art.points.count) days for the user."
+        return "Displayed a chart of \(art.title) over the last \(art.values.count) days for the user."
     }
 
     /// Append one empty assistant message per queued chart (the id links it to `chartsByMessage`), then
@@ -1892,15 +1888,15 @@ final class AICoachEngine: ObservableObject {
         let n = max(7, min(days, 180))
         let recent = Array(repo.days.suffix(n))
 
-        func series(_ extract: (DailyMetric) -> Double?) -> [TrendPoint] {
+        func series(_ extract: (DailyMetric) -> Double?) -> [CoachChartSnapshot.Point] {
             recent.compactMap { d in
                 guard let v = extract(d), let date = Self.parseDay(d.day) else { return nil }
-                return TrendPoint(date: date, value: v)
+                return CoachChartSnapshot.Point(date: date, value: v)
             }
         }
 
         let title: String
-        let points: [TrendPoint]
+        let points: [CoachChartSnapshot.Point]
         let range: ClosedRange<Double>
         let kind: CoachChartArtifact.Kind
 
@@ -1918,10 +1914,10 @@ final class AICoachEngine: ObservableObject {
         case "sleep", "rest":
             title = "Sleep"; points = series { $0.totalSleepMin.map { $0 / 60 } }; range = 0...12; kind = .sleep
         default:
-            guard await repo.availableKeys(source: Repository.whoopSource).contains(rawMetric) else { return nil }
-            let rows = await repo.series(key: rawMetric, source: Repository.whoopSource, days: n)
+            guard await repo.availableKeys(source: MetricResolver.whoopSource).contains(rawMetric) else { return nil }
+            let rows = await repo.series(key: rawMetric, source: MetricResolver.whoopSource, days: n)
             title = Self.humanizeMetricKey(rawMetric)
-            points = rows.compactMap { row in Self.parseDay(row.day).map { TrendPoint(date: $0, value: row.value) } }
+            points = rows.compactMap { row in Self.parseDay(row.day).map { CoachChartSnapshot.Point(date: $0, value: row.value) } }
             let vals = points.map(\.value)
             let span = (vals.max() ?? 0) - (vals.min() ?? 0)
             range = Self.paddedRange(vals, pad: max(span * 0.1, 0.5))
@@ -1929,7 +1925,7 @@ final class AICoachEngine: ObservableObject {
         }
 
         guard points.count >= 2 else { return nil }
-        return CoachChartArtifact(title: title, points: points, valueRange: range, kind: kind)
+        return CoachChartArtifact(title: title, values: points, valueRange: range, kind: kind)
     }
 
     /// "sleep_performance" → "Sleep Performance", for a chart title built from an arbitrary metric key
@@ -2053,8 +2049,8 @@ final class AICoachEngine: ObservableObject {
     /// `get_energy_balance`: today's wearable expenditure plus an optional, clearly separate
     /// retrospective energy-balance estimate when imported nutrition and weight history support it.
     func energyBalanceTool() async -> String {
-        let profile = ProfileStore()
-        guard let summary = await repo.todayEnergy(profile: Repository.analyticsProfile(profile)) else {
+        let profile = repo.coachProfile()
+        guard let summary = await repo.todayEnergy(profile: profile.analytics) else {
             return "No energy data for today yet. Don't estimate one — say there's nothing recorded."
         }
         func kcal(_ value: Double?) -> String { value.map { "\(Int($0.rounded())) kcal" } ?? "unknown" }
@@ -2167,7 +2163,7 @@ final class AICoachEngine: ObservableObject {
             return lines.joined(separator: "\n")
 
         case "journal":
-            let cutoffDay = Repository.localDayKey(Date().addingTimeInterval(-Double(days) * 86_400))
+            let cutoffDay = StoreReader.localDayKey(Date().addingTimeInterval(-Double(days) * 86_400))
             let entries = (await repo.journalEntries()).filter {
                 $0.day >= cutoffDay
                     && (onlySensitive == CoachSensitiveJournalPolicy.isSensitive(label: $0.question))
@@ -2211,7 +2207,7 @@ final class AICoachEngine: ObservableObject {
             let history = await repo.hydrationHistory(days: days)
             let logged = history.filter { $0.value > 0 }
             guard !logged.isEmpty else { return "No hydration logged in the last \(days) days." }
-            let goal = repo.hydrationGoalML(profileSex: ProfileStore().sex)
+            let goal = repo.hydrationGoalML(profileSex: repo.coachProfile().sex)
             var lines = ["HYDRATION LOG (ml per day, today's goal \(goal) ml, last \(days) days):"]
             for (day, ml) in history.reversed() where ml > 0 {
                 lines.append("  • \(day): \(Int(ml.rounded())) ml")
@@ -2219,7 +2215,7 @@ final class AICoachEngine: ObservableObject {
             return lines.joined(separator: "\n")
 
         case "mood":
-            let cutoffDay = Repository.localDayKey(Date().addingTimeInterval(-Double(days) * 86_400))
+            let cutoffDay = StoreReader.localDayKey(Date().addingTimeInterval(-Double(days) * 86_400))
             let series = (await repo.moodSeries()).filter { $0.day >= cutoffDay }
             guard !series.isEmpty else { return "No mood check-ins in the last \(days) days." }
             var lines = ["MOOD LOG (daily 1–5 check-in, newest first, last \(days) days):"]
@@ -2246,7 +2242,7 @@ final class AICoachEngine: ObservableObject {
     func zoneMinutesTool(days: Int) async -> String {
         let now = Int(Date().timeIntervalSince1970)
         let from = now - days * 86_400
-        let zoneSet = ProfileStore().hrZoneSet
+        let zoneSet = repo.coachProfile().hrZoneSet
         guard let minutes = await workoutZoneMinutesTotal(from: from, to: now, zoneSet: zoneSet) else {
             return "No workout heart-rate data in the last \(days) days to compute zone minutes."
         }
@@ -2295,7 +2291,7 @@ final class AICoachEngine: ObservableObject {
             return "Name how long the session lasts, in minutes."
         }
         let minutes = Double(min(durationMin, 600))
-        let zoneSet = ProfileStore().hrZoneSet
+        let zoneSet = repo.coachProfile().hrZoneSet
         let resting = await recentRestingHR()
         guard let range = EffortFeasibility.sessionEffortRange(
             zone: zone, minutes: minutes, zoneSet: zoneSet, restingHR: resting) else {
@@ -2308,8 +2304,8 @@ final class AICoachEngine: ObservableObject {
         // P6: the same session against today's cardio room — the lane's own Banister TRIMP, priced with
         // the lane's maximum and the profile's coefficient, between the zone's lower and upper heart rate.
         if let band = zoneSet.zones.first(where: { $0.number == zone }) {
-            let maxHR = Repository.cardioLoadMaxHR(repo.strainProfile)
-            let sex = repo.strainProfile?.sex ?? ""
+            let maxHR = repo.cardioLoadMaxHR
+            let sex = repo.strainProfileSex
             if let low = StrainScorer.banisterAverageTRIMP(minutes: minutes, averageHR: band.lower, maxHR: maxHR,
                                                            restingHR: resting, sex: sex),
                let high = StrainScorer.banisterAverageTRIMP(minutes: minutes, averageHR: band.upper, maxHR: maxHR,
@@ -2525,9 +2521,9 @@ final class AICoachEngine: ObservableObject {
         let window = max(7, min(days, 3_650))
         let candidates: [String]
         switch sourceRequest {
-        case "my-whoop": candidates = [Repository.whoopSource]
-        case "apple-health": candidates = [Repository.appleHealthSource]
-        case "health-connect": candidates = [Repository.healthConnectSource]
+        case "my-whoop": candidates = [MetricResolver.whoopSource]
+        case "apple-health": candidates = [MetricResolver.appleHealthSource]
+        case "health-connect": candidates = [MetricResolver.healthConnectSource]
         case "lab-book", "lab book": candidates = [WhoopStore.labBookSourceId]
         case "oura", "oura-import": candidates = ["oura-import", "oura-api"]
         case "garmin", "garmin-import": candidates = ["garmin-import"]
@@ -2550,8 +2546,8 @@ final class AICoachEngine: ObservableObject {
             // Continue with an exact-source discovery fallback for custom imported metrics that have
             // no declared cross-source mapping yet.
             candidates = metric == "weight"
-                ? [Repository.appleHealthSource, Repository.healthConnectSource, Repository.whoopSource]
-                : [Repository.whoopSource, Repository.appleHealthSource, Repository.healthConnectSource]
+                ? [MetricResolver.appleHealthSource, MetricResolver.healthConnectSource, MetricResolver.whoopSource]
+                : [MetricResolver.whoopSource, MetricResolver.appleHealthSource, MetricResolver.healthConnectSource]
         }
         // The store may contain sources from a CSV, a ring, a watch or a future importer. Preserve the
         // preferred order above, then append any discovered source that actually holds this metric.
@@ -2560,11 +2556,11 @@ final class AICoachEngine: ObservableObject {
             if !result.contains(source) { result.append(source) }
         }.filter { CoachLocalSourceAccess.permits($0, includesLabBook: includesLabBook) }
         let cutoff = Calendar.current.date(byAdding: .day, value: -(window - 1), to: Date()) ?? Date()
-        let cutoffDay = Repository.localDayKey(cutoff)
+        let cutoffDay = StoreReader.localDayKey(cutoff)
 
         var available: [CoachMetricHistory.SourceSeries] = []
         for candidate in allCandidates {
-            let rows = candidate == Repository.whoopSource
+            let rows = candidate == MetricResolver.whoopSource
                 ? await repo.exploreSeries(key: metric, source: candidate, days: window)
                 : await repo.series(key: metric, source: candidate, days: window)
             // `exploreSeries` can fill an otherwise missing stored series from the in-memory daily
@@ -2594,8 +2590,8 @@ final class AICoachEngine: ObservableObject {
         let healthPrimary: Set<String> = [
             "weight", "body_fat", "lean_mass", "bmi", "steps", "active_kcal", "basal_kcal", "vo2max"
         ]
-        let primary = healthPrimary.contains(metric) ? Repository.appleHealthSource : Repository.whoopSource
-        let secondary = primary == Repository.appleHealthSource ? Repository.whoopSource : Repository.appleHealthSource
+        let primary = healthPrimary.contains(metric) ? MetricResolver.appleHealthSource : MetricResolver.whoopSource
+        let secondary = primary == MetricResolver.appleHealthSource ? MetricResolver.whoopSource : MetricResolver.appleHealthSource
         let first = await repo.resolvedSeries(key: metric, source: primary, days: days)
 
         // `resolvedSeries` already provides Apple Health as a fallback for WHOOP-compatible vitals.
@@ -2674,13 +2670,13 @@ final class AICoachEngine: ObservableObject {
     @discardableResult
     func startBriefIfNeeded() async -> Bool {
         guard CoachFeaturePrefs.isEnabled else { return false }
-        let today = Repository.logicalDayKey(Date())
+        let today = LogicalDay.key(Date())
         guard CoachBriefStamp.lastBriefDay() != today else { return false }
         // A hand-corrected night invalidates the brief that was built on the old numbers. That re-run
         // has to get PAST the "this thread already has today's messages" gate below — the messages it
         // is replacing are exactly what would block it.
         let stale = CoachBriefStamp.isStale(today: today)
-        if !stale, let last = messages.last, Repository.logicalDayKey(last.date) == today { return false }
+        if !stale, let last = messages.last, LogicalDay.key(last.date) == today { return false }
         CoachBriefStamp.clearStale()
 
         // Don't plan a day on a night that hasn't settled. When the strap has not finished offloading,
@@ -2715,12 +2711,12 @@ final class AICoachEngine: ObservableObject {
     /// the active thread, a thread the user actually took a turn in, or one already archived. Purely
     /// additive: nothing is deleted, and an archived thread stays findable and restorable.
     func archiveStaleAutoThreads() {
-        let today = Repository.logicalDayKey(Date())
+        let today = LogicalDay.key(Date())
         for idx in conversations.indices {
             let c = conversations[idx]
             guard !c.archived, c.id != activeConversationID, c.isAutoOnly,
                   let last = c.messages.last,
-                  Repository.logicalDayKey(last.date) != today else { continue }
+                  LogicalDay.key(last.date) != today else { continue }
             conversations[idx].archived = true
         }
     }
@@ -2866,7 +2862,7 @@ final class AICoachEngine: ObservableObject {
                                           memoryWrites: takeMemoryWrites()))
                 // Stamp only on genuine success, so a network failure doesn't burn the day's slot — a
                 // retry (reopening the conversation after a day boundary) can still land one.
-                CoachBriefStamp.stamp(day: Repository.logicalDayKey(Date()))
+                CoachBriefStamp.stamp(day: LogicalDay.key(Date()))
                 spoken = clean
             }
         } catch let e as AICoachError {
@@ -2886,7 +2882,7 @@ final class AICoachEngine: ObservableObject {
     /// day, so the next tap retries.
     func checkInIfNeeded() async {
         guard CoachFeaturePrefs.isEnabled else { return }
-        let today = Repository.logicalDayKey(Date())
+        let today = LogicalDay.key(Date())
         guard UserDefaults.standard.string(forKey: Self.lastCheckInDayKey) != today else { return }
         await runCheckInCancellable()
     }
@@ -2947,7 +2943,7 @@ final class AICoachEngine: ObservableObject {
                 appendMessage(ChatMessage(role: .assistant, text: "Check-in\n\n" + clean,
                                           toolsUsed: reply.toolsUsed, origin: .checkIn,
                                           memoryWrites: takeMemoryWrites()))
-                UserDefaults.standard.set(Repository.logicalDayKey(Date()), forKey: Self.lastCheckInDayKey)
+                UserDefaults.standard.set(LogicalDay.key(Date()), forKey: Self.lastCheckInDayKey)
             }
         } catch let e as AICoachError {
             setError(e)
@@ -3039,7 +3035,7 @@ final class AICoachEngine: ObservableObject {
     @discardableResult
     func runProactiveNudgeIfNeeded() async -> Bool {
         guard CoachFeaturePrefs.isEnabled, proactiveLevel != .off, isConfigured, dataConsent, !sending else { return false }
-        let today = Repository.logicalDayKey(Date())
+        let today = LogicalDay.key(Date())
         guard UserDefaults.standard.string(forKey: Self.lastProactiveDayKey) != today else { return false }
         guard let signal = ProactiveCoach.detect(proposals: CoachPlanStore.shared.proposals,
                                                   goals: CoachGoalStore.shared.goals,
@@ -3062,7 +3058,7 @@ final class AICoachEngine: ObservableObject {
         }
         // Post to the bell independent of whether the chat generation below succeeds — the structured
         // detection already happened locally, and a network failure shouldn't also hide it from the bell.
-        CoachNotifier.postProactiveSignal(signal, level: proactiveLevel)
+        coachAppHooks().proactiveSignal(signal, level: proactiveLevel)
         let goodNews = signal.category == .milestone || signal.category == .bodyPositive
         let prefix = goodNews ? "Nice work" : "A quick nudge"
         let spoke = await runSeededTurnCancellable(
@@ -3126,7 +3122,7 @@ final class AICoachEngine: ObservableObject {
         // `logicalDayKey`, matching what the generator STAMPS. This used to read `localDayKey` while the
         // stamp was written as a logical key, so a review that ran between midnight and 04:00 recorded
         // the previous day and the seven-day gate opened a day early.
-        let today = Repository.logicalDayKey(Date())
+        let today = LogicalDay.key(Date())
         if let last = UserDefaults.standard.string(forKey: Self.lastWeeklyReviewDayKey) {
             guard let days = Self.dayKeyDistance(from: last, to: today) else {
                 // An unparsable stamp used to fall THROUGH to sending — a corrupted value meant a review
@@ -3138,7 +3134,7 @@ final class AICoachEngine: ObservableObject {
         }
         // Plan days are calendar days, so the activity window keeps using `localDayKey`.
         let recentCutoff = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
-        let recentKey = Repository.localDayKey(recentCutoff)
+        let recentKey = StoreReader.localDayKey(recentCutoff)
         guard CoachPlanStore.shared.proposals.contains(where: {
             $0.status.isDecided && $0.day >= recentKey
         }) else { return false }
@@ -3221,7 +3217,7 @@ final class AICoachEngine: ObservableObject {
                 appendMessage(ChatMessage(role: .assistant, text: prefix + "\n\n" + clean,
                                           toolsUsed: reply.toolsUsed, origin: origin,
                                           memoryWrites: takeMemoryWrites()))
-                UserDefaults.standard.set(stampValue ?? Repository.logicalDayKey(Date()), forKey: stampKey)
+                UserDefaults.standard.set(stampValue ?? LogicalDay.key(Date()), forKey: stampKey)
                 spoke = true
             }
         } catch let e as AICoachError {
@@ -3412,7 +3408,7 @@ final class AICoachEngine: ObservableObject {
             categories.append(.bodyMetrics)
         }
         if sections.contains(.planning), toolConsent.allows(.planAdherence) {
-            let profile = ProfileStore()
+            let profile = repo.coachProfile()
             if let goals = goalsBlock(profile: profile) { blocks.append(goals) }
             if let plan = planContextBlock() { blocks.append(plan) }
             blocks.append(await planAdherenceBlock())
@@ -3474,7 +3470,7 @@ final class AICoachEngine: ObservableObject {
         // `.learning`/`.unknown`) — the same gate + skin-temp/RHR/HRV z-scored inputs
         // `AppModel.computeCyclePhase()` uses for the Health hub's cards, so the two can't disagree.
         // Costs nothing for a user without cycle data: the UserDefaults check short-circuits first.
-        if UserDefaults.standard.bool(forKey: AppModel.cycleAwarenessKey) {
+        if UserDefaults.standard.bool(forKey: CycleAwarenessPrefs.key) {
             let (nights, baselineUsable) = Self.cyclePhaseNights(days: repo.days)
             let phase = CyclePhaseEngine.classify(nights, baselineUsable: baselineUsable)
             if phase.phase != .learning, phase.phase != .unknown {
@@ -3540,7 +3536,7 @@ final class AICoachEngine: ObservableObject {
     /// `restQualityTerm` — see there for why the earlier "out of scope" note was wrong and what it cost.
     func chargeDriversBlock() -> String {
         let days = repo.days
-        let todayKey = Repository.logicalDayKey(Date())
+        let todayKey = LogicalDay.key(Date())
         guard let today = Self.chargeBreakdownRow(days: days, todayKey: todayKey),
               let hrv = today.avgHrv, let rhr = today.restingHr else {
             return "Not enough data yet to break down today's Charge."
@@ -3609,7 +3605,7 @@ final class AICoachEngine: ObservableObject {
     /// brief over one would be presumptuous; it travels as a caveat instead.
     func unconfirmedWakeNeedingReview(now: Date = Date()) async -> Int? {
         guard let night = repo.sleeps.max(by: { $0.endTs < $1.endTs }) else { return nil }
-        guard !CoachBriefStamp.wakeConfirmed(today: Repository.logicalDayKey(now)) else { return nil }
+        guard !CoachBriefStamp.wakeConfirmed(today: LogicalDay.key(now)) else { return nil }
         let nowTs = Int(now.timeIntervalSince1970)
         guard nowTs - night.endTs < Self.briefDeadlineSeconds else { return nil }
         let verdict = SleepWindowSettledness.verdict(
@@ -3656,7 +3652,7 @@ final class AICoachEngine: ObservableObject {
     /// never sees.
     func chargeConfidenceLine() -> String? {
         let days = repo.days
-        let todayKey = Repository.logicalDayKey(Date())
+        let todayKey = LogicalDay.key(Date())
         guard let today = days.last(where: { $0.day == todayKey }) ?? days.last else { return nil }
         let hrvBase = Baselines.foldHistory(days.map(\.avgHrv), dayKeys: days.map(\.day),
                                             cfg: Baselines.hrvCfg,
@@ -3675,7 +3671,7 @@ final class AICoachEngine: ObservableObject {
     /// closed goals doesn't accumulate as context noise — `CoachGoal` has no dedicated `closedAt` field,
     /// so the closing history event's own date stands in for it). When more than one goal is active, an
     /// explicit instruction tells the model to weigh across all of them rather than address just one.
-    func goalsBlock(profile: ProfileStore) -> String? {
+    func goalsBlock(profile: CoachProfile) -> String? {
         let store = CoachGoalStore.shared
         let recencyCutoff = Date().addingTimeInterval(-14 * 24 * 3600)
         let recentlyClosed = store.goals.filter { g in
@@ -3685,7 +3681,7 @@ final class AICoachEngine: ObservableObject {
         var blocks = (store.activeGoals + recentlyClosed).compactMap { goalBlock(for: $0, profile: profile) }
         // Weekly and monthly goals with their state, computed in code (goals plan §14): the coach narrates
         // where the week stands instead of judging it itself.
-        if let periodBlock = Self.periodGoalsBlock(GoalTrackingStore.shared.periodSnapshots) {
+        if let periodBlock = Self.periodGoalsBlock(coachAppHooks().goalTracking.periodSnapshots) {
             blocks.append(periodBlock)
         }
         let pendingSetups = CoachGoalSetupProposalStore.shared.pending
@@ -3740,7 +3736,7 @@ final class AICoachEngine: ObservableObject {
     ///
     /// `motivation` is included ONLY when the user explicitly opted in (`shareMotivation`). It is the
     /// most personal line in the app and it stays on the device by default.
-    private func goalBlock(for goal: CoachGoal, profile: ProfileStore) -> String? {
+    private func goalBlock(for goal: CoachGoal, profile: CoachProfile) -> String? {
         let title = goal.title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return nil }
 
@@ -3786,11 +3782,11 @@ final class AICoachEngine: ObservableObject {
             lines.append("CATALOG GOAL: template \(templateId), measures \(measure.metric.rawValue) in "
                          + "\(measure.metric.coachUnit)\(sports). Measured from the user's data; update its target or date "
                          + "with propose_goal_setup operation=update, never by redefining what it measures.")
-            if let reading = GoalTrackingStore.shared.snapshot(for: goal.id)?.reading {
+            if let reading = coachAppHooks().goalTracking.snapshot(for: goal.id)?.reading {
                 lines.append("CATALOG READING (computed facts): \(reading.coachFacts())")
             }
         }
-        if let tracking = GoalTrackingStore.shared.snapshot(for: goal.id) {
+        if let tracking = coachAppHooks().goalTracking.snapshot(for: goal.id) {
             lines.append("DETERMINISTIC GOAL STATUS: \(tracking.health.label); "
                          + "this week plan \(tracking.currentWeek.planCompleted)/\(tracking.currentWeek.planPlanned), "
                          + "daily actions \(tracking.currentWeek.actionCompleted)/\(tracking.currentWeek.actionPlanned); "
@@ -3800,7 +3796,7 @@ final class AICoachEngine: ObservableObject {
         }
         let linkedActions = GoalActionStore.shared.actions.filter { $0.isActive && $0.goalIds.contains(goal.id) }
         if !linkedActions.isEmpty {
-            let today = Dictionary(uniqueKeysWithValues: GoalTrackingStore.shared.todayActions.map {
+            let today = Dictionary(uniqueKeysWithValues: coachAppHooks().goalTracking.todayActions.map {
                 ($0.action.id, $0.isCompleted)
             })
             lines.append("CONFIRMED DAILY ACTIONS (execution evidence, never outcome proof): "
@@ -3853,7 +3849,7 @@ final class AICoachEngine: ObservableObject {
     /// built for the model. Calls the SAME `ReadinessEngine.evaluate` the coach's context and Today's
     /// synthesis card use, so this can never disagree with either.
     func currentReadiness() -> ReadinessEngine.Readiness {
-        ReadinessEngine.evaluate(days: repo.days, today: Repository.logicalDayKey(Date()),
+        ReadinessEngine.evaluate(days: repo.days, today: LogicalDay.key(Date()),
                                  loadContext: repo.readinessLoadContext)
     }
 
@@ -3927,7 +3923,7 @@ final class AICoachEngine: ObservableObject {
         let store = CoachPlanStore.shared
         let cal = Calendar.current
         let from = cal.date(byAdding: .day, value: -max(1, days), to: Date()) ?? Date()
-        let fromKey = Repository.localDayKey(from)
+        let fromKey = StoreReader.localDayKey(from)
         let relevant = store.proposals
             .filter { $0.day >= fromKey && $0.status.isDecided }
             .sorted { $0.day > $1.day }
@@ -3987,7 +3983,7 @@ final class AICoachEngine: ObservableObject {
     /// of proposing over the top of it. `store` is injectable so the block can be exercised without the
     /// singleton; production always passes the default.
     func planContextBlock(store: CoachPlanStore = .shared) -> String? {
-        let today = Repository.localDayKey(Date())
+        let today = StoreReader.localDayKey(Date())
         var lines: [String] = []
         let pending = store.pending.filter { $0.day >= today }
         if !pending.isEmpty {
@@ -4466,8 +4462,8 @@ final class AICoachEngine: ObservableObject {
             uniquingKeysWith: { _, last in last })
         var doseRowsByBehavior: [DosedBehavior: [(day: String, value: Double)]] = [:]
         for behavior in DosedBehavior.allCases {
-            let key = InsightsHubViewModel.doseKey(for: behavior)
-            doseRowsByBehavior[behavior] = await repo.series(key: key, source: InsightsHubViewModel.doseSource)
+            let key = DoseJournal.doseKey(for: behavior)
+            doseRowsByBehavior[behavior] = await repo.series(key: key, source: DoseJournal.doseSource)
         }
         let doseLines = Self.doseResponseLines(byBehaviour: byBehaviour, doseRowsByBehavior: doseRowsByBehavior,
                                                recoveryByDay: recoveryByDay, hrvByDay: hrvByDay)
@@ -4511,7 +4507,7 @@ final class AICoachEngine: ObservableObject {
         var doseLines: [String] = []
         for behavior in DosedBehavior.allCases {
             var doses: [String: Int] = [:]
-            for (question, days) in byBehaviour where InsightsHubViewModel.matches(behavior, question: question) {
+            for (question, days) in byBehaviour where DoseJournal.matches(behavior, question: question) {
                 for day in days { doses[day] = max(doses[day] ?? 0, 1) }
             }
             for row in (doseRowsByBehavior[behavior] ?? []) { doses[row.day] = Int(row.value.rounded()) }

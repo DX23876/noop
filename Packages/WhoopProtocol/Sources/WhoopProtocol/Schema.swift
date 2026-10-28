@@ -172,9 +172,22 @@ private struct RawSchema: Decodable {
 }
 
 private var _cachedSchema: Schema?
+private let schemaLoadLock = NSLock()
+
+/// Installs the packaged schema before decoding starts on hosts such as Android, where SwiftPM's resource
+/// bundle is not beside the executable. A missing or invalid file throws before replacing a loaded schema.
+public func installSchema(from url: URL) throws {
+    let schema = try decodeSchema(Data(contentsOf: url))
+    schemaLoadLock.lock(); defer { schemaLoadLock.unlock() }
+    if _cachedSchema == nil { registerPostHooks() }
+    _cachedSchema = schema
+}
 
 public func loadSchema() -> Schema {
+    schemaLoadLock.lock(); defer { schemaLoadLock.unlock() }
     if let cached = _cachedSchema { return cached }
+    // SwiftPM executables and tests keep their ordinary bundle lookup on every platform. The Android app
+    // installs its validated asset before starting a session and therefore reaches the cache above instead.
     guard let url = Bundle.module.url(forResource: "whoop_protocol", withExtension: "json") else {
         fatalError("whoop_protocol.json missing from Bundle.module resources")
     }
@@ -184,12 +197,19 @@ public func loadSchema() -> Schema {
     } catch {
         fatalError("failed to read whoop_protocol.json: \(error)")
     }
-    let raw: RawSchema
+    let schema: Schema
     do {
-        raw = try JSONDecoder().decode(RawSchema.self, from: data)
+        schema = try decodeSchema(data)
     } catch {
         fatalError("failed to decode whoop_protocol.json: \(error)")
     }
+    registerPostHooks()
+    _cachedSchema = schema
+    return schema
+}
+
+private func decodeSchema(_ data: Data) throws -> Schema {
+    let raw = try JSONDecoder().decode(RawSchema.self, from: data)
     var packets: [String: PacketSpec] = [:]
     for (name, rp) in raw.packets {
         var variants: [String: VariantSpec] = [:]
@@ -226,8 +246,5 @@ public func loadSchema() -> Schema {
             variants: variants,
             versions: versions)
     }
-    let schema = Schema(enums: raw.enums, envelope: raw.envelope, packets: packets)
-    registerPostHooks()
-    _cachedSchema = schema
-    return schema
+    return Schema(enums: raw.enums, envelope: raw.envelope, packets: packets)
 }

@@ -92,7 +92,7 @@ struct ExerciseLibraryRow: View {
     }
 
     static func metadata(_ exercise: TrainingExercise) -> String {
-        let muscle = TrainingDisplayNames.muscle(exercise.primaryMuscleId)
+        let muscle = TrainingDisplayNames.muscle(TrainingLibraryPreparation.Info(exercise).primary.first)
         let equipment = exercise.equipmentIds.first.map(TrainingDisplayNames.equipment)
             ?? String(localized: "No equipment")
         return "\(muscle) · \(equipment)"
@@ -100,8 +100,8 @@ struct ExerciseLibraryRow: View {
 
     static func modeIcon(_ mode: TrainingMeasurementMode) -> String {
         switch mode {
-        case .duration: return "timer"
-        case .distanceDuration: return "point.topleft.down.to.point.bottomright.curvepath"
+        case .duration, .weightDuration: return "timer"
+        case .distanceDuration, .distanceWeight: return "point.topleft.down.to.point.bottomright.curvepath"
         case .bodyweightReps, .repetitions: return "figure.strengthtraining.traditional"
         default: return "dumbbell.fill"
         }

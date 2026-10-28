@@ -80,31 +80,13 @@ enum StressDayCurve {
             return (memo.result, day)
         }
 
-        let hr = await repo.hrSamples(from: from, to: to, limit: 200_000)
         var scored: DaytimeStress.Result = .empty
-        if hr.count >= DaytimeStress.minHourHRSamples {
-            let rr = await repo.rrIntervals(from: from, to: to, limit: 200_000)
-            // Wrist accelerometer for the motion gate, so an ambulatory hour reads as exertion rather
-            // than as stress. Empty on hardware or imports without gravity, which degrades to no masking
-            // exactly as the screen does.
-            let gravity = await repo.gravitySamplesUnion(from: from, to: to, limit: 200_000)
-            let tz = TimeZone.current.secondsFromGMT(for: now)
-            let mode = await DaytimeStressMode.selected(
-                repo: repo,
-                startOfToday: startOfDay,
-                calendar: calendar,
-                personalBaseline: personalBaseline
-            )
+        if let inputs = await DaytimeStressDay.inputs(source: repo, now: now, calendar: calendar,
+                                                      personalBaseline: personalBaseline) {
             // Scored OFF the main actor. `Repository` is `@MainActor`, so without this hop a day's worth
             // of hours would be bucketed and averaged on the main thread — and unlike the Stress screen,
             // which does this because the user asked for it and is waiting, this runs unprompted when
             // the app becomes active and after every Health sync, which is exactly when the UI is busy.
-            // The Kotlin twin does NOT get this for free, which this comment used to claim. A coroutine
-            // runs on whatever dispatcher it inherits, and a LaunchedEffect body inherits the main one,
-            // so Android was scoring a day of samples on its UI thread until the producer was given an
-            // explicit Dispatchers.Default of its own. Both sides now ask for the hop; neither is
-            // handed it by its concurrency model.
-            // The samples are plain value structs, so the hop retains rather than copies them.
             // The half-step display series is asked for here (`includeTimeline`), because both readers
             // draw a curve. Nothing downstream of this counts hours, so the overlap is free.
             // #2181: `runUnescalated`, not an awaited detached task. This caller is @MainActor, and
@@ -113,8 +95,8 @@ enum StressDayCurve {
             // the UI for cores at the UI's own quality of service. This runs unprompted on activation
             // and after every Health sync, exactly when the UI is busy, so it must yield.
             scored = await runUnescalated {
-                DaytimeStress.analyze(hr: hr, rr: rr, gravity: gravity,
-                                      tzOffsetSeconds: tz, mode: mode,
+                DaytimeStress.analyze(hr: inputs.hr, rr: inputs.rr, gravity: inputs.gravity,
+                                      tzOffsetSeconds: inputs.tzOffsetSeconds, mode: inputs.mode,
                                       includeTimeline: true)
             }
         }
@@ -147,4 +129,8 @@ enum StressDayCurve {
     /// Drops both memo slots so a test starts from a known state.
     @MainActor
     static func resetForTest() { memos.removeAll() }
+}
+
+extension Repository: DaytimeStressSource {
+    var stressSourceId: String { deviceId }
 }

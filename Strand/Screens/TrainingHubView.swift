@@ -718,9 +718,6 @@ struct StrengthWorkoutSummaryView: View {
                             HStack(spacing: NoopMetrics.space4) {
                                 summary("Active", duration(summary.activeDurationS))
                                 summary("Work sets", summary.workingSetCount.formatted())
-                                if let rpe = workout.sessionRPE {
-                                    summary("Session RPE", rpe.formatted(.number.precision(.fractionLength(0...1))))
-                                }
                             }
                         }.frame(maxWidth: .infinity)
                     }
@@ -747,7 +744,7 @@ struct StrengthWorkoutSummaryView: View {
                     titleCard
                     sessionNote
                     SessionRPECard(startTs: workout.startedAt, sport: workout.title,
-                                   durationS: Double(summary.activeDurationS))
+                                   durationS: canonicalRow?.durationS ?? Double(summary.elapsedDurationS))
                     provenance
                 }
                 .padding(NoopMetrics.screenPadding)
@@ -777,9 +774,6 @@ struct StrengthWorkoutSummaryView: View {
                 fact("Warm-up sets", summary.warmupSetCount.formatted())
                 fact("Exercises", summary.exerciseCount.formatted())
                 if summary.loadedVolumeKg > 0 { fact("Loaded volume", volume(summary.loadedVolumeKg)) }
-                if let rpe = workout.sessionRPE, summary.activeDurationS > 0 {
-                    fact("Session Load", "\(Int((rpe * Double(summary.activeDurationS) / 60).rounded())) AU")
-                }
             }
         }
     }
@@ -1651,7 +1645,7 @@ struct NativeWorkoutLoggerView: View {
         guard !stacked else { return false }
         switch mode {
         case .weightReps, .weightedBodyweight, .assistedBodyweight, .bodyweightReps, .repetitions: return true
-        case .duration, .distanceDuration: return false
+        case .duration, .distanceDuration, .weightDuration, .distanceWeight: return false
         }
     }
 
@@ -1666,7 +1660,7 @@ struct NativeWorkoutLoggerView: View {
         switch mode {
         case .weightReps, .weightedBodyweight, .assistedBodyweight: true
         case .bodyweightReps, .repetitions: unilateral
-        case .duration, .distanceDuration: false
+        case .duration, .distanceDuration, .weightDuration, .distanceWeight: false
         }
     }
 
@@ -1758,6 +1752,10 @@ struct NativeWorkoutLoggerView: View {
                 Text("TIME").frame(maxWidth: .infinity)
             case .distanceDuration:
                 Text("DISTANCE").frame(maxWidth: .infinity); Text("TIME").frame(maxWidth: .infinity)
+            case .weightDuration:
+                Text("WEIGHT").frame(width: SetColumns.weight); Text("TIME").frame(maxWidth: .infinity)
+            case .distanceWeight:
+                Text("WEIGHT").frame(width: SetColumns.weight); Text("DISTANCE").frame(maxWidth: .infinity)
             }
             if effortPreference != .off { effortHeader }
             Color.clear.frame(width: SetColumns.check, height: 1)
@@ -1951,31 +1949,39 @@ struct NativeWorkoutLoggerView: View {
         case .bodyweightReps, .repetitions:
             repsControls(exerciseIndex, setIndex, set, unilateral: unilateral, compact: true)
         case .duration:
-            stepControl(String(localized: "Duration"), value: durationText(set.durationS), field: nil,
-                        minus: { model.adjustDuration(exerciseIndex: exerciseIndex, setIndex: setIndex, by: -5) },
-                        plus: { model.adjustDuration(exerciseIndex: exerciseIndex, setIndex: setIndex, by: 5) }) {
-                Text(durationText(set.durationS)).font(StrandFont.subhead.monospacedDigit())
-            }
-            Button { model.startTimedSet(exerciseIndex: exerciseIndex, setIndex: setIndex) } label: {
-                Image(systemName: "timer")
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(Text("Start timed set"))
+            durationControls(exerciseIndex, setIndex, set, timer: true)
         case .distanceDuration:
-            let field = TrainingSetField(setId: set.id, metric: .distance)
-            stepControl(String(localized: "Distance in meters"),
-                        value: set.distanceM.map { "\(Int($0.rounded())) m" } ?? "—", field: field,
-                        minus: { model.adjustDistance(exerciseIndex: exerciseIndex, setIndex: setIndex, by: -10) },
-                        plus: { model.adjustDistance(exerciseIndex: exerciseIndex, setIndex: setIndex, by: 10) }) {
-                decimalField(set.distanceM, field: field) {
-                    model.setDistance(exerciseIndex: exerciseIndex, setIndex: setIndex, meters: $0)
-                }
-            }
-            stepControl(String(localized: "Duration"), value: durationText(set.durationS), field: nil,
-                        minus: { model.adjustDuration(exerciseIndex: exerciseIndex, setIndex: setIndex, by: -5) },
-                        plus: { model.adjustDuration(exerciseIndex: exerciseIndex, setIndex: setIndex, by: 5) }) {
-                Text(durationText(set.durationS)).font(StrandFont.subhead.monospacedDigit())
-            }
+            distanceControl(exerciseIndex, setIndex, set)
+            durationControls(exerciseIndex, setIndex, set, timer: false)
+        case .weightDuration:
+            loadControl(exerciseIndex, setIndex, set, mode: mode, width: SetColumns.weight)
+            durationControls(exerciseIndex, setIndex, set, timer: true)
+        case .distanceWeight:
+            loadControl(exerciseIndex, setIndex, set, mode: mode, width: SetColumns.weight)
+            distanceControl(exerciseIndex, setIndex, set)
+        }
+    }
+
+    @ViewBuilder private func durationControls(_ exerciseIndex: Int, _ setIndex: Int,
+                                               _ set: NativeWorkoutSet, timer: Bool) -> some View {
+        stepControl(String(localized: "Duration"), value: durationText(set.durationS), field: nil,
+                    minus: { model.adjustDuration(exerciseIndex: exerciseIndex, setIndex: setIndex, by: -5) },
+                    plus: { model.adjustDuration(exerciseIndex: exerciseIndex, setIndex: setIndex, by: 5) }) {
+            Text(durationText(set.durationS)).font(StrandFont.subhead.monospacedDigit())
+        }
+        if timer {
+            Button { model.startTimedSet(exerciseIndex: exerciseIndex, setIndex: setIndex) } label: { Image(systemName: "timer") }
+                .buttonStyle(.plain).accessibilityLabel(Text("Start timed set"))
+        }
+    }
+
+    private func distanceControl(_ exerciseIndex: Int, _ setIndex: Int, _ set: NativeWorkoutSet) -> some View {
+        let field = TrainingSetField(setId: set.id, metric: .distance)
+        return stepControl(String(localized: "Distance in meters"),
+                    value: set.distanceM.map { "\(Int($0.rounded())) m" } ?? "—", field: field,
+                    minus: { model.adjustDistance(exerciseIndex: exerciseIndex, setIndex: setIndex, by: -10) },
+                    plus: { model.adjustDistance(exerciseIndex: exerciseIndex, setIndex: setIndex, by: 10) }) {
+            decimalField(set.distanceM, field: field) { model.setDistance(exerciseIndex: exerciseIndex, setIndex: setIndex, meters: $0) }
         }
     }
 
@@ -2447,6 +2453,10 @@ private enum TrainingSetText {
             return "\(load(set, mode: mode, unit: unit) ?? "—") × \(reps)"
         case .bodyweightReps, .repetitions: return String(localized: "\(reps) reps")
         case .duration: return duration(set.durationS)
+        case .weightDuration: return "\(weight(set.weightKg, unit: unit)) · \(duration(set.durationS))"
+        case .distanceWeight:
+            let meters = set.distanceM?.formatted(.number.precision(.fractionLength(0...2))) ?? "—"
+            return "\(weight(set.weightKg, unit: unit)) · \(meters) m"
         case .distanceDuration:
             let meters = set.distanceM?.formatted(.number.precision(.fractionLength(0...2))) ?? "—"
             return "\(meters) m · \(duration(set.durationS))"
@@ -2458,7 +2468,7 @@ private enum TrainingSetText {
     static func compactList(_ sets: [TrainingPerformanceHistory.PerformedSet],
                             mode: TrainingMeasurementMode, unilateral: Bool,
                             unit: TrainingWeightUnit = TrainingPreferences.weightUnit) -> String {
-        if !unilateral, sets.count > 1, let first = sets.first, first.weightKg != nil,
+        if mode.recordsRepetitions, !unilateral, sets.count > 1, let first = sets.first, first.weightKg != nil,
            sets.allSatisfy({ $0.weightKg == first.weightKg }), let shared = load(first, mode: mode, unit: unit) {
             let reps = sets.map { repetitions($0, unilateral: false) }.joined(separator: ", ")
             return "\(shared) × \(reps)"
@@ -2478,7 +2488,7 @@ private enum TrainingSetText {
         case .weightedBodyweight: return "+\(number) × \(reps)"
         case .assistedBodyweight: return "−\(number) × \(reps)"
         case .bodyweightReps, .repetitions: return reps
-        case .duration, .distanceDuration: return summary(set, mode: mode, unilateral: unilateral, unit: unit)
+        case .duration, .distanceDuration, .weightDuration, .distanceWeight: return summary(set, mode: mode, unilateral: unilateral, unit: unit)
         }
     }
 
@@ -2486,7 +2496,7 @@ private enum TrainingSetText {
     static func load(_ set: TrainingPerformanceHistory.PerformedSet, mode: TrainingMeasurementMode,
                      unit: TrainingWeightUnit = TrainingPreferences.weightUnit) -> String? {
         switch mode {
-        case .weightReps: weight(set.weightKg, unit: unit)
+        case .weightReps, .weightDuration, .distanceWeight: weight(set.weightKg, unit: unit)
         case .weightedBodyweight: "+\(weight(set.weightKg, unit: unit))"
         case .assistedBodyweight: "−\(weight(set.weightKg, unit: unit))"
         case .bodyweightReps, .repetitions, .duration, .distanceDuration: nil
@@ -3158,7 +3168,7 @@ private struct RoutineEditorView: View {
             NavigationStack {
                 TrainingExerciseLibraryView(exercises: exercises, mode: .addToRoutine, onPick: { exercise in
                     routine.exercises.append(.init(exerciseId: exercise.id,
-                        sets: (0..<3).map { _ in .init(repsMin: 8, repsMax: 12) }))
+                        sets: RoutineSetPlan.defaults(for: exercise.mode)))
                     showingExercises = false
                 })
             }
@@ -3382,6 +3392,12 @@ private struct RoutineSetEditor: View {
                 repRange
             case .bodyweightReps, .repetitions:
                 repRange
+            case .weightDuration:
+                trainingWeight("Target weight", value: $set.targetWeightKg)
+                optionalInteger("Target time", value: $set.targetDurationS, suffix: "sec")
+            case .distanceWeight:
+                trainingWeight("Target weight", value: $set.targetWeightKg)
+                optionalNumber("Target distance", value: $set.targetDistanceM, suffix: "m")
             case .duration:
                 optionalInteger("Target time", value: $set.targetDurationS, suffix: "sec")
             case .distanceDuration:

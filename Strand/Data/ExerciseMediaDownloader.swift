@@ -76,7 +76,8 @@ final class ExerciseMediaDownloader: NSObject, URLSessionDownloadDelegate, @unch
     func start(url: URL) {
         session.getAllTasks { [weak self] tasks in
             guard let self else { return }
-            let downloads = tasks.compactMap { $0 as? URLSessionDownloadTask }
+            self.lock.lock(); let ignored = self.ignoredTaskIds; self.lock.unlock()
+            let downloads = tasks.compactMap { $0 as? URLSessionDownloadTask }.filter { !ignored.contains($0.taskIdentifier) }
             if let running = downloads.first(where: { $0.state == .running || $0.state == .suspended }) {
                 let duplicates = downloads.filter { $0 !== running }
                 self.lock.lock()
@@ -117,6 +118,7 @@ final class ExerciseMediaDownloader: NSObject, URLSessionDownloadDelegate, @unch
     /// fresh archive.
     func discard() {
         lock.lock()
+        if let task { ignoredTaskIds.insert(task.taskIdentifier) }
         task = nil
         storedResumeData = nil
         lock.unlock()
@@ -188,9 +190,11 @@ final class ExerciseMediaDownloader: NSObject, URLSessionDownloadDelegate, @unch
 
     private func complete(_ result: Result<URL, Error>, task finished: URLSessionTask) {
         lock.lock()
-        let handler = onCompletion
+        let ignored = ignoredTaskIds.remove(finished.taskIdentifier) != nil
+        let handler = ignored ? nil : onCompletion
         if task === finished { task = nil }
         lock.unlock()
+        if ignored, case .success(let file) = result { try? FileManager.default.removeItem(at: file) }
         handler?(result)
     }
 }

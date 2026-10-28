@@ -338,16 +338,7 @@ struct JourneyView: View {
 
     /// "N weeks to go · build phase" — built outside the view builder so it stays a single Text.
     /// A closed goal has no countdown; its closure card already says how it ended.
-    private func timeSummary(_ goal: CoachGoal) -> String? {
-        guard goal.status == .active else { return nil }
-        var parts: [String] = []
-        if let weeks = goal.weeksRemaining() {
-            parts.append(weeks < 0 ? "target date has passed"
-                                   : String(format: "%.0f weeks to go", weeks.rounded()))
-        }
-        if let phase = goal.phase() { parts.append("\(phase) phase") }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
-    }
+    private func timeSummary(_ goal: CoachGoal) -> String? { GoalJourney.timeSummary(goal) }
 
     // MARK: - Progress: real measurement or an honest fallback, never an invented percentage
 
@@ -549,9 +540,7 @@ struct JourneyView: View {
     }
 
     private func goalAppearsReached(_ goal: CoachGoal) -> Bool {
-        guard goal.kind.isQuantified, let baseline = goal.baseline, let target = goal.target,
-              target != baseline, let current = currentMeasurement(goal) else { return false }
-        return target > baseline ? current >= target : current <= target
+        GoalJourney.appearsReached(goal, current: currentMeasurement(goal))
     }
 
     // MARK: - Flexible goal weeks

@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// A provider client that can STREAM the assistant reply token-by-token (optionally running the same
 /// tool-use rounds as `ToolCallingClient` along the way). Providers opt in by conforming — Anthropic

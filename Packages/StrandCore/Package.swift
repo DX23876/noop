@@ -19,13 +19,16 @@ let package = Package(
         // Pinned EXACT, the same versions as every other package and project.yml, so SPM resolves one copy.
         .package(url: "https://github.com/groue/GRDB.swift.git", exact: "6.29.3"),
         .package(url: "https://github.com/weichsel/ZIPFoundation.git", exact: "0.9.20"),
+        // CryptoKit on Apple, the same SHA-256 API backed by BoringSSL on Android/Linux.
+        .package(url: "https://github.com/apple/swift-crypto.git", exact: "4.5.2"),
     ],
     targets: [
         .target(
             name: "StrandCore",
             dependencies: ["WhoopProtocol", "WhoopStore", "StrandAnalytics", "StrandTraining", "StrandImport",
                            .product(name: "GRDB", package: "GRDB.swift"),
-                           .product(name: "ZIPFoundation", package: "ZIPFoundation")],
+                           .product(name: "ZIPFoundation", package: "ZIPFoundation"),
+                           .product(name: "Crypto", package: "swift-crypto")],
             // Optimised even in Debug, like StrandAnalytics and WhoopStore: Xcode compiles package
             // targets from the configuration name, so project.yml's Debug `-O` never reaches them.
             swiftSettings: [.unsafeFlags(["-O"])]),

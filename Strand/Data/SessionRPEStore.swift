@@ -1,5 +1,6 @@
 import Foundation
 import StrandAnalytics
+import StrandCore
 import WhoopStore
 
 // MARK: - The athlete's own rating of one whole session
@@ -9,9 +10,8 @@ import WhoopStore
 // answer. This sidecar therefore stores only a rating the athlete deliberately supplied for the whole
 // workout. The duration comes from the workout itself when Session Load is calculated.
 //
-// The existing Lab Book table is used because it already provides precise timestamps, edit/delete,
-// durable local SQLite storage and `.noopbak` backup. These rows use their own category and device id,
-// so they do not appear among body or clinical markers and never overwrite an imported source.
+// The source-scoped trainingSessionRating sidecar keeps the answer and its recording time durable in
+// local SQLite and .noopbak. These rows never overwrite an imported source or a set-level rating.
 
 extension Repository {
     nonisolated static let sessionRPEDeviceId = "training-load"
@@ -31,7 +31,7 @@ extension Repository {
     }
 
     func sessionRPE(sessionId: String) async -> SessionRPEEntry? {
-        await sessionRPEEntries(from: 0, to: Int.max).last { $0.sessionId == sessionId }
+        SessionRPEEntry.latest(await sessionRPEEntries(from: 0, to: Int.max), sessionId: sessionId, startTs: nil)
     }
 
     /// Store or replace one whole-session RPE. Values use the conventional 1–10 session scale.
@@ -39,12 +39,9 @@ extension Repository {
     func recordSessionRPE(_ rpe: Double, startTs: Int, sport: String,
                           sessionId: String? = nil,
                           ratedAtTs: Int = Int(Date().timeIntervalSince1970)) async -> Bool {
-        guard rpe.isFinite, (1...10).contains(rpe), let store = await storeHandle() else { return false }
-        let row = TrainingSessionRating(id: "session-rpe-\(startTs)", sessionId: sessionId,
-                                        workoutStartTs: startTs, ratedAtTs: ratedAtTs,
-                                        rpe: rpe, sport: sport, source: Self.sessionRPESource)
-        do { try await store.upsertTrainingSessionRating(row); return true }
-        catch { return false }
+        guard let store = await storeHandle() else { return false }
+        return await SessionRPEEntry.record(store: store, rpe: rpe, startTs: startTs, sport: sport,
+                                            sessionId: sessionId, ratedAtTs: ratedAtTs)
     }
 
     /// Remove only NOOP's rating for this workout; the workout itself is untouched.
@@ -53,13 +50,14 @@ extension Repository {
         guard let entry = await sessionRPE(at: startTs), let store = await storeHandle() else {
             return false
         }
-        return (try? await store.deleteTrainingSessionRating(id: entry.id)) == true
+        return await SessionRPEEntry.remove(store: store, entry: entry)
     }
 
     @discardableResult
     func deleteSessionRPE(id: String) async -> Bool {
         guard let store = await storeHandle() else { return false }
-        return (try? await store.deleteTrainingSessionRating(id: id)) == true
+        guard let entry = await sessionRPEEntries(from: 0, to: Int.max).first(where: { $0.id == id }) else { return false }
+        return await SessionRPEEntry.remove(store: store, entry: entry)
     }
 }
 
@@ -67,39 +65,15 @@ extension Repository {
 
 extension Repository {
 
-    /// Whether a finished session should get the delayed "how did it feel?" prompt.
-    ///
-    /// The Session Load card stays on every session's detail; this decides only the push. The choice is
-    /// the wearer's (`SessionRatingPrompt`); the default asks where the answer adds something heart
-    /// rate cannot (`SessionRatingPolicy`). A session's average heart rate is read from the window
-    /// when the caller has none, so a steady session is not asked about merely because its row was
-    /// loaded without one — the policy treats "no heart rate" as a reason to ask.
-    func shouldPromptSessionRating(startTs: Int, endTs: Int, sport: String, source: String = "",
-                                   averageHR: Int? = nil) async -> Bool {
-        switch TrainingPreferences.sessionRatingPrompt {
-        case .off: return false
-        case .always: return true
-        case .whenUseful: break
-        }
-        let seconds = Double(max(0, endTs - startTs))
-        guard !SessionRatingPolicy.family(forSport: sport).alwaysWorthRating else { return true }
-        var average = averageHR.map(Double.init)
-        if average == nil, endTs > startTs, let store = await storeHandle() {
-            let ids = Self.workoutHrDeviceIds(source: source, activeStrapId: deviceId,
-                                              importedIds: importedReadIds)
-            if let primary = ids.first,
-               let stats = try? await store.hrWindowStats(primaryId: primary,
-                                                          secondaryId: ids.dropFirst().first ?? primary,
-                                                          from: startTs, to: endTs),
-               stats.n >= 60 {
-                average = stats.avg
-            }
-        }
-        let resting = days.compactMap(\.restingHr).suffix(14).sorted()
-        return SessionRatingPolicy.isWorthRating(
-            sport: sport, durationSeconds: seconds, averageHR: average,
-            restingHR: resting.isEmpty ? nil : Double(resting[resting.count / 2]),
-            maxHR: strainProfile?.hrMax)
+    /// Both hosts schedule from the core's canonical, unrated session list.
+    func refreshSessionRatingReminders(now: Int = Int(Date().timeIntervalSince1970)) async {
+        await SessionRPEReminder.synchronize(await pendingSessionRatingReminders(now: now), now: now)
+    }
+
+    func pendingSessionRatingReminders(now: Int, forDelivery: Bool = false) async -> [SessionRatingReminders.Candidate] {
+        guard let store = await storeHandle() else { return [] }
+        return await SessionRatingReminders.candidates(reader: storeReader(store),
+            prompt: TrainingPreferences.sessionRatingPrompt, maxHR: strainProfile?.hrMax,
+            dismissed: dismissedDetectedWorkoutSpans, now: now, forDelivery: forDelivery)
     }
 }
-

@@ -1,7 +1,11 @@
 import XCTest
 import WhoopStore
 import StrandAnalytics
+#if NOOP_CORE_TESTS
+@testable import NoopCore
+#else
 @testable import Strand
+#endif
 
 /// Weekly and monthly goals: persistence, the backup bundle, the tracker's day values, history and the
 /// maintenance suggestions.
@@ -43,6 +47,23 @@ final class PeriodGoalTests: XCTestCase {
                           corrections: [GoalCountingCorrections.Correction] = []) -> PeriodGoalSnapshot {
         PeriodGoalTracker.snapshots(goals: [goal], inputs: inputs, parents: [], frozen: [],
                                     corrections: corrections, now: date(now), calendar: calendar)[0]
+    }
+
+    func testMovingOpenGoalsPreservesClosedAndOtherPeriodSlots() {
+        let store = PeriodGoalStore(defaults: suite())
+        let first = PeriodGoal(metric: .workouts, period: .week, target: 3)
+        let monthly = PeriodGoal(metric: .distance, period: .month, target: 30)
+        let second = PeriodGoal(metric: .trainingMinutes, period: .week, target: 100)
+        let third = PeriodGoal(metric: .stepDays, period: .week, target: 4)
+        for goal in [first, monthly, second, third] { store.commit(goal, today: "2026-10-26") }
+        let before = store.goals
+        let weekly = before.filter { $0.period == .week && $0.isOpen }
+        store.move(fromOffsets: IndexSet([0, 2]), toOffset: 3, within: .week)
+        XCTAssertEqual(store.goals.filter { $0.period == .week && $0.isOpen }.map(\.id),
+                       [weekly[1].id, weekly[0].id, weekly[2].id])
+        XCTAssertEqual(store.goals.firstIndex { $0.id == monthly.id }, before.firstIndex { $0.id == monthly.id })
+        store.move(fromOffsets: IndexSet([0]), toOffset: 2, within: .week)
+        XCTAssertEqual(store.goals.map(\.id), before.map(\.id))
     }
 
     // MARK: - Model and store
@@ -224,8 +245,8 @@ final class PeriodGoalTests: XCTestCase {
         let snapshots = PeriodGoalTracker.snapshots(goals: [close, behind], inputs: inputs, parents: [], frozen: [],
                                                     corrections: [], now: date("2026-10-09"), calendar: calendar)
         XCTAssertEqual(snapshots[1].state, .behind)
-        XCTAssertEqual(GoalNotifier.slipping(snapshots)?.id, behind.id)
-        XCTAssertNil(GoalNotifier.slipping([]))
+        XCTAssertEqual(PeriodGoalMaintenance.slipping(snapshots)?.id, behind.id)
+        XCTAssertNil(PeriodGoalMaintenance.slipping([]))
     }
 
     func testHistorySeriesAndStepUpSuggestion() {
@@ -241,7 +262,7 @@ final class PeriodGoalTests: XCTestCase {
         let s = snapshot(goal, inputs: inputs, now: "2026-10-06")
         XCTAssertEqual(s.history.map(\.outcome), [.achieved, .achieved, .achieved])
         XCTAssertEqual(s.currentStreak, 3)
-        XCTAssertEqual(GoalMaintenance.adjustment(for: s), 5)
+        XCTAssertEqual(PeriodGoalMaintenance.adjustment(for: s), 5)
     }
 
     func testGoalStartedMidWeekIsProratedAndIgnoresEarlierDays() {

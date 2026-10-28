@@ -112,6 +112,14 @@ extension WhoopStore {
         }
     }
 
+    /// Scalar count for a single source/key, without materializing its daily points.
+    public func metricSeriesKeyCount(deviceId: String, key: String) async throws -> Int {
+        try syncRead { db in
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM metricSeries WHERE deviceId = ? AND key = ?",
+                             arguments: [deviceId, key]) ?? 0
+        }
+    }
+
     /// Distinct metric keys present for a device, sorted ascending.
     public func metricKeys(deviceId: String) async throws -> [String] {
         try syncRead { db in

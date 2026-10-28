@@ -69,6 +69,8 @@ struct SleepView: View {
     /// The displayed offset advances only with its fully prepared night snapshot.
     @State private var displayedNightOffset = 0
     @State private var navNight: Night?
+    /// The nap whose delete is waiting for confirmation.
+    @State private var napPendingDelete: CachedSleepSession?
 
     @State private var presentation: SleepPresentation?
     private var habitualMidsleepSec: Int? { presentation?.habitualMidsleepSec }
@@ -214,6 +216,17 @@ struct SleepView: View {
             do { try await Task.sleep(nanoseconds: 6_000_000_000) }
             catch { return }
             withAnimation(.easeOut(duration: 0.2)) { deletedSleepNote = nil }
+        }
+        .confirmationDialog("Delete this nap?", isPresented: Binding(
+            get: { napPendingDelete != nil }, set: { if !$0 { napPendingDelete = nil } }),
+                            titleVisibility: .visible) {
+            Button("Delete nap", role: .destructive) {
+                if let nap = napPendingDelete { Task { await deleteNap(nap) } }
+                napPendingDelete = nil
+            }
+            Button("Cancel", role: .cancel) { napPendingDelete = nil }
+        } message: {
+            Text("It no longer counts toward the day's sleep, and the next analysis leaves it out.")
         }
         .sheet(isPresented: $showSleepCustomize) {
             SleepCustomizationSheet(sectionOrderRaw: $sleepSectionOrderRaw,
@@ -858,8 +871,8 @@ struct SleepView: View {
         .onChange(of: displayedNightOffset) { _ in selectedStage = nil }
     }
 
-    /// Existing naps remain a compact, read-only part of the day's sleep accounting. Creation and editing
-    /// are intentionally no longer exposed from the Sleep tab.
+    /// Existing naps remain a compact part of the day's sleep accounting. Creating and editing them is not
+    /// exposed from the Sleep tab; a wrongly detected nap can be deleted, with the same undo as a night.
     @ViewBuilder
     private func napSection(_ night: Night) -> some View {
         // The day's main sleep is the bridged main-night GROUP (#561): a briefly-interrupted / biphasic
@@ -912,7 +925,7 @@ struct SleepView: View {
         }
     }
 
-    /// One read-only nap row: clock window and duration, with no edit, delete or explanation action.
+    /// One nap row: clock window and duration, and a menu to delete a nap that was detected wrongly.
     @ViewBuilder
     private func napRow(_ nap: CachedSleepSession) -> some View {
         HStack(spacing: 10) {
@@ -926,8 +939,30 @@ struct SleepView: View {
                     .strandOverline()
             }
             Spacer(minLength: 8)
+            Menu {
+                Button(role: .destructive) { napPendingDelete = nap } label: {
+                    Label("Delete nap", systemImage: "trash")
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .font(StrandFont.headline)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel(Text("Nap actions"))
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
+    }
+
+    /// Deletes a wrongly detected nap: tombstoned so the next analysis does not bring it back, without
+    /// hiding the day's main night, with the same few-second undo as a deleted night.
+    private func deleteNap(_ nap: CachedSleepSession) async {
+        guard let snapshot = await repo.deleteSleepSession(detectedStartTs: nap.startTs, endTs: nap.endTs,
+                                                           suppressesWakeDay: false) else { return }
+        presentSleepUndo([snapshot], displayStart: nap.effectiveStartTs, windowEnd: nap.endTs, fromEdit: false)
+        scheduleBackgroundRescore(wakeDays: [Repository.sleepEndDayKey(nap.endTs)],
+                                  required: snapshot.ownerDeviceId.hasSuffix("-noop"))
     }
 
     /// "HH:mm–HH:mm" clock window for a nap row (device 12-/24-h setting via the shared Night formatter).

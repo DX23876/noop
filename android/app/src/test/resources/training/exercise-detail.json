@@ -1,0 +1,53 @@
+{
+  "exercise" : {
+    "aliases" : [
+
+    ],
+    "equipment" : [
+      "barbell"
+    ],
+    "id" : "user:56c21533-bbf2-4e22-8965-02b120073ac0",
+    "matchingMuscles" : [
+      "chest",
+      "front_delts",
+      "triceps"
+    ],
+    "mode" : "weight_reps",
+    "primary" : [
+      "chest"
+    ],
+    "primaryMuscle" : "chest",
+    "region" : "chest",
+    "secondary" : [
+      "front_delts",
+      "triceps"
+    ],
+    "source" : "user",
+    "title" : "Bench press"
+  },
+  "hasDraft" : false,
+  "instructions" : [
+    "Keep a stable setup."
+  ],
+  "recent" : [
+    {
+      "heaviestKg" : 80,
+      "isNative" : true,
+      "startTs" : 1793084114,
+      "workingSets" : 1
+    },
+    {
+      "heaviestKg" : 85,
+      "isNative" : false,
+      "startTs" : 1792997714,
+      "workingSets" : 1
+    }
+  ],
+  "records" : {
+    "estimatedOneRepMaxKg" : 104.83333333333334,
+    "heaviestKg" : 85,
+    "lastPerformedTs" : 1793084114,
+    "sessions" : 2
+  },
+  "unilateral" : false
+}

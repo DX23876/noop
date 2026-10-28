@@ -5,32 +5,34 @@ import StrandTraining
 extension WhoopStore {
     public func upsertTrainingExercises(_ exercises: [TrainingExercise], nowTs: Int) async throws {
         guard !exercises.isEmpty else { return }
-        try syncWrite { db in
-            for exercise in exercises {
-                try db.execute(sql: """
-                    INSERT INTO trainingExerciseDefinition
-                      (id, title, mode, primaryMuscleId, secondaryMuscleIdsJSON, equipmentIdsJSON,
-                       instructionsJSON, isUnilateral, source, sourceId, mediaId, updatedAtTs,
-                       canonicalId, aliasesJSON, contentVersion, attribution, loadSemantics)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(id) DO UPDATE SET
-                      title=excluded.title, mode=excluded.mode, primaryMuscleId=excluded.primaryMuscleId,
-                      secondaryMuscleIdsJSON=excluded.secondaryMuscleIdsJSON,
-                      equipmentIdsJSON=excluded.equipmentIdsJSON,
-                      instructionsJSON=excluded.instructionsJSON,
-                      isUnilateral=excluded.isUnilateral, source=excluded.source,
-                      sourceId=excluded.sourceId, mediaId=excluded.mediaId, updatedAtTs=excluded.updatedAtTs,
-                      canonicalId=excluded.canonicalId, aliasesJSON=excluded.aliasesJSON,
-                      contentVersion=excluded.contentVersion, attribution=excluded.attribution,
-                      loadSemantics=excluded.loadSemantics
-                    """, arguments: [exercise.id, exercise.title, exercise.mode.rawValue,
-                                      exercise.primaryMuscleId, try Self.json(exercise.secondaryMuscleIds),
-                                      try Self.json(exercise.equipmentIds), try Self.json(exercise.instructions),
-                                      exercise.isUnilateral, exercise.source.rawValue, exercise.sourceId,
-                                      exercise.mediaId, nowTs, exercise.canonicalId,
-                                      try Self.json(exercise.aliases), exercise.contentVersion,
-                                      exercise.attribution, exercise.loadSemantics?.rawValue])
-            }
+        try syncWrite { db in try Self.writeTrainingExercises(exercises, nowTs: nowTs, in: db) }
+    }
+
+    private static func writeTrainingExercises(_ exercises: [TrainingExercise], nowTs: Int, in db: Database) throws {
+        for exercise in exercises {
+            try db.execute(sql: """
+                INSERT INTO trainingExerciseDefinition
+                  (id, title, mode, primaryMuscleId, secondaryMuscleIdsJSON, equipmentIdsJSON,
+                   instructionsJSON, isUnilateral, source, sourceId, mediaId, updatedAtTs,
+                   canonicalId, aliasesJSON, contentVersion, attribution, loadSemantics)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                  title=excluded.title, mode=excluded.mode, primaryMuscleId=excluded.primaryMuscleId,
+                  secondaryMuscleIdsJSON=excluded.secondaryMuscleIdsJSON,
+                  equipmentIdsJSON=excluded.equipmentIdsJSON,
+                  instructionsJSON=excluded.instructionsJSON,
+                  isUnilateral=excluded.isUnilateral, source=excluded.source,
+                  sourceId=excluded.sourceId, mediaId=excluded.mediaId, updatedAtTs=excluded.updatedAtTs,
+                  canonicalId=excluded.canonicalId, aliasesJSON=excluded.aliasesJSON,
+                  contentVersion=excluded.contentVersion, attribution=excluded.attribution,
+                  loadSemantics=excluded.loadSemantics
+                """, arguments: [exercise.id, exercise.title, exercise.mode.rawValue,
+                                  exercise.primaryMuscleId, try Self.json(exercise.secondaryMuscleIds),
+                                  try Self.json(exercise.equipmentIds), try Self.json(exercise.instructions),
+                                  exercise.isUnilateral, exercise.source.rawValue, exercise.sourceId,
+                                  exercise.mediaId, nowTs, exercise.canonicalId,
+                                  try Self.json(exercise.aliases), exercise.contentVersion,
+                                  exercise.attribution, exercise.loadSemantics?.rawValue])
         }
     }
 
@@ -71,40 +73,42 @@ extension WhoopStore {
     }
 
     public func upsertTrainingRoutine(_ routine: TrainingRoutine) async throws {
-        try syncWrite { db in
+        try syncWrite { db in try Self.writeTrainingRoutine(routine, in: db) }
+    }
+
+    private static func writeTrainingRoutine(_ routine: TrainingRoutine, in db: Database) throws {
+        try db.execute(sql: """
+            INSERT INTO trainingRoutineNative
+              (id, title, notes, defaultProgressionJSON, excludeFromProgression, createdAtTs, updatedAtTs)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET title=excluded.title, notes=excluded.notes,
+              defaultProgressionJSON=excluded.defaultProgressionJSON,
+              excludeFromProgression=excluded.excludeFromProgression, updatedAtTs=excluded.updatedAtTs
+            """, arguments: [routine.id.uuidString, routine.title, routine.notes,
+                              try Self.json(routine.defaultProgression), routine.excludeFromProgression,
+                              routine.createdAt, routine.updatedAt])
+        try db.execute(sql: "DELETE FROM trainingRoutineExercise WHERE routineId = ?",
+                       arguments: [routine.id.uuidString])
+        for (index, exercise) in routine.exercises.enumerated() {
             try db.execute(sql: """
-                INSERT INTO trainingRoutineNative
-                  (id, title, notes, defaultProgressionJSON, excludeFromProgression, createdAtTs, updatedAtTs)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(id) DO UPDATE SET title=excluded.title, notes=excluded.notes,
-                  defaultProgressionJSON=excluded.defaultProgressionJSON,
-                  excludeFromProgression=excluded.excludeFromProgression, updatedAtTs=excluded.updatedAtTs
-                """, arguments: [routine.id.uuidString, routine.title, routine.notes,
-                                  try Self.json(routine.defaultProgression), routine.excludeFromProgression,
-                                  routine.createdAt, routine.updatedAt])
-            try db.execute(sql: "DELETE FROM trainingRoutineExercise WHERE routineId = ?",
-                           arguments: [routine.id.uuidString])
-            for (index, exercise) in routine.exercises.enumerated() {
+                INSERT INTO trainingRoutineExercise
+                  (id, routineId, idx, exerciseId, restSeconds, supersetId, progressionJSON,
+                   barWeightKg, note, warmupRestSeconds, loadSemanticsJSON)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, arguments: [exercise.id.uuidString, routine.id.uuidString, index,
+                                  exercise.exerciseId, exercise.restSeconds, exercise.supersetId?.uuidString,
+                                  try exercise.progression.map(Self.json), exercise.barWeightKg, exercise.note,
+                                  exercise.warmupRestSeconds, try exercise.loadSemantics.map(Self.json)])
+            for (setIndex, set) in exercise.sets.enumerated() {
                 try db.execute(sql: """
-                    INSERT INTO trainingRoutineExercise
-                      (id, routineId, idx, exerciseId, restSeconds, supersetId, progressionJSON,
-                       barWeightKg, note, warmupRestSeconds, loadSemanticsJSON)
+                    INSERT INTO trainingRoutineSetPlan
+                      (id, routineExerciseId, idx, phase, intensifier, targetWeightKg,
+                       repsMin, repsMax, targetDurationS, targetDistanceM, intensifierConfigJSON)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, arguments: [exercise.id.uuidString, routine.id.uuidString, index,
-                                      exercise.exerciseId, exercise.restSeconds, exercise.supersetId?.uuidString,
-                                      try exercise.progression.map(Self.json), exercise.barWeightKg, exercise.note,
-                                      exercise.warmupRestSeconds, try exercise.loadSemantics.map(Self.json)])
-                for (setIndex, set) in exercise.sets.enumerated() {
-                    try db.execute(sql: """
-                        INSERT INTO trainingRoutineSetPlan
-                          (id, routineExerciseId, idx, phase, intensifier, targetWeightKg,
-                           repsMin, repsMax, targetDurationS, targetDistanceM, intensifierConfigJSON)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """, arguments: [set.id.uuidString, exercise.id.uuidString, setIndex,
-                                          set.phase.rawValue, set.intensifier.rawValue, set.targetWeightKg,
-                                          set.repsMin, set.repsMax, set.targetDurationS, set.targetDistanceM,
-                                          try set.intensifierConfiguration.map(Self.json)])
-                }
+                    """, arguments: [set.id.uuidString, exercise.id.uuidString, setIndex,
+                                      set.phase.rawValue, set.intensifier.rawValue, set.targetWeightKg,
+                                      set.repsMin, set.repsMax, set.targetDurationS, set.targetDistanceM,
+                                      try set.intensifierConfiguration.map(Self.json)])
             }
         }
     }
@@ -163,6 +167,22 @@ extension WhoopStore {
     public func deleteTrainingRoutine(id: UUID) async throws {
         try syncWrite { db in
             try db.execute(sql: "DELETE FROM trainingRoutineNative WHERE id = ?", arguments: [id.uuidString])
+        }
+    }
+
+    /// Merge an explicitly imported plan atomically, retaining unrelated routines and scheduled days.
+    public func mergeTrainingPlan(_ archive: TrainingPlanArchive, nowTs: Int) async throws {
+        try syncWrite { db in
+            try Self.writeTrainingExercises(archive.exercises, nowTs: nowTs, in: db)
+            for routine in archive.routines { try Self.writeTrainingRoutine(routine, in: db) }
+            for weekday in TrainingWeekday.allCases {
+                var ids = try String.fetchAll(db, sql: "SELECT routineId FROM trainingSchedule WHERE weekday = ? ORDER BY idx", arguments: [weekday.rawValue])
+                for id in archive.schedule[weekday] ?? [] where !ids.contains(id.uuidString) { ids.append(id.uuidString) }
+                try db.execute(sql: "DELETE FROM trainingSchedule WHERE weekday = ?", arguments: [weekday.rawValue])
+                for (index, id) in ids.enumerated() {
+                    try db.execute(sql: "INSERT INTO trainingSchedule (weekday,idx,routineId) VALUES (?,?,?)", arguments: [weekday.rawValue,index,id])
+                }
+            }
         }
     }
 
@@ -262,9 +282,20 @@ extension WhoopStore {
         }
     }
 
-    public func completeNativeWorkout(_ workout: NativeWorkout) async throws {
+    public enum NativeCompletionError: Error { case ratingConflict }
+
+    /// The deliberate rating, completed sets and draft removal commit together. A failed rating write
+    /// leaves the draft available instead of silently completing a differently rated workout.
+    public func completeNativeWorkout(_ workout: NativeWorkout, ratedAtTs: Int = Int(Date().timeIntervalSince1970)) async throws {
         try syncWrite { db in
             try Self.write(workout, db: db)
+            if let rpe = workout.sessionRPE {
+                guard rpe.isFinite, (1...10).contains(rpe),
+                      try Self.replaceTrainingSessionRating(.init(id: "session-rpe-\(workout.startedAt)",
+                        sessionId: nil, workoutStartTs: workout.startedAt, ratedAtTs: ratedAtTs,
+                        rpe: rpe, sport: workout.title, source: TrainingSessionRating.manualSource), in: db)
+                else { throw NativeCompletionError.ratingConflict }
+            }
             try db.execute(sql: "DELETE FROM trainingWorkoutDraft WHERE id = ?", arguments: [workout.id.uuidString])
         }
     }

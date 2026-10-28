@@ -57,12 +57,12 @@ final class BodyModel: ObservableObject {
 
     /// Every circumference site that has ever been measured, in the catalog's head-to-toe order.
     var measuredSites: [String] {
-        MarkerCatalog.circumferenceKeys.filter { !metrics.series($0).isEmpty }
+        BodyPreparation.measuredSites(metrics)
     }
 
     /// Sites with no reading yet — what the capture sheet offers to start tracking.
     var unmeasuredSites: [String] {
-        MarkerCatalog.circumferenceKeys.filter { metrics.series($0).isEmpty }
+        BodyPreparation.unmeasuredSites(metrics)
     }
 
     // MARK: - Development over time
@@ -97,11 +97,7 @@ final class BodyModel: ObservableObject {
     /// Every site with a usable comparison, largest movement first — what moved most is what the
     /// wearer wants to see first, and head-to-toe order buries it.
     var circumferenceChanges: [CircumferenceChange] {
-        MarkerCatalog.circumferenceKeys.compactMap { key in
-            CircumferenceProgress.change(key: key, readings: metrics.series(key),
-                                         from: comparisonFromDay, to: today)
-        }
-        .sorted { abs($0.deltaCm) > abs($1.deltaCm) }
+        BodyPreparation.circumferenceChanges(metrics, from: comparisonFromDay, to: today)
     }
 
     /// Direction counts and internal magnitudes after each site's own scatter is removed.
@@ -112,30 +108,18 @@ final class BodyModel: ObservableObject {
     /// Weight over the same window, so the tape can be read against the scale — the whole point when
     /// the scale has stalled.
     var weightChangeKg: Double? {
-        let key = WhoopStore.bodyWeightMetricKey
-        guard let then = metrics.value(key, on: comparisonFromDay),
-              let now = metrics.value(key, on: today), then > 0 else { return nil }
-        return now - then
+        BodyPreparation.weightChangeKg(metrics, from: comparisonFromDay, to: today)
     }
 
     /// The Navy estimate for today's measurements, or nil when the tape readings it needs are absent.
     func navyEstimate(equation: NavyEquation) -> Double? {
-        guard let height = current("height")?.value,
-              let neck = current("neck")?.value,
-              let waist = current("waist")?.value else { return nil }
-        return NavyBodyFat.percent(equation: equation, heightCm: height, neckCm: neck,
-                                   waistCm: waist, hipCm: current("hips")?.value)
+        BodyPreparation.navyEstimate(metrics, today: today, equation: equation)
     }
 
     /// What the Navy estimate is still missing, so the screen can ask for it by name rather than
     /// showing an unexplained blank.
     func navyMissingSites(equation: NavyEquation) -> [String] {
-        var missing: [String] = []
-        if current("height") == nil { missing.append("height") }
-        if current("neck") == nil { missing.append("neck") }
-        if current("waist") == nil { missing.append("waist") }
-        if equation.needsHip, current("hips") == nil { missing.append("hips") }
-        return missing
+        BodyPreparation.navyMissingSites(metrics, today: today, equation: equation)
     }
 
     /// Body-fat readings split by where they came from. DEXA and a tape estimate are not the same
@@ -161,40 +145,19 @@ final class BodyModel: ObservableObject {
 
     /// Sites with at least two readings — the ones a trend can honestly be drawn for.
     var plottableSites: [String] {
-        MarkerCatalog.circumferenceKeys.filter { metrics.series($0).count >= 2 }
+        BodyPreparation.plottableSites(metrics)
     }
 
     /// The change in the selected site across the window, in centimetres.
     func siteChange(_ key: String) -> Double? {
-        let series = metrics.series(key)
-        guard let first = series.first, let last = series.last, series.count >= 2 else { return nil }
-        return last.value - first.value
+        BodyPreparation.siteChange(metrics, key)
     }
 
     // MARK: - Labels
 
     /// Localized UI label for a locale-stable stored marker key.
     func label(_ key: String) -> String {
-        switch key {
-        case "weight":    return String(localized: "Weight")
-        case "body_fat":  return String(localized: "Body fat")
-        case "waist":     return String(localized: "Waist circumference")
-        case "height":    return String(localized: "Height")
-        case "neck":      return String(localized: "Neck")
-        case "shoulders": return String(localized: "Shoulders")
-        case "chest":     return String(localized: "Chest")
-        case "abdomen":   return String(localized: "Abdomen")
-        case "hips":      return String(localized: "Hips")
-        case "thigh_l":   return String(localized: "Thigh (left)")
-        case "thigh_r":   return String(localized: "Thigh (right)")
-        case "calf_l":    return String(localized: "Calf (left)")
-        case "calf_r":    return String(localized: "Calf (right)")
-        case "biceps_l":  return String(localized: "Biceps (left)")
-        case "biceps_r":  return String(localized: "Biceps (right)")
-        case "forearm_l": return String(localized: "Forearm (left)")
-        case "forearm_r": return String(localized: "Forearm (right)")
-        default:           return MarkerCatalog.definition(for: key)?.displayName ?? key
-        }
+        BodyPreparation.label(key)
     }
 
     /// How to take this measurement, shown where it is entered.
@@ -203,29 +166,6 @@ final class BodyModel: ObservableObject {
     /// different height or tension moves the number more than a month of training does. Without this
     /// the chart is a random walk drawn beautifully.
     func guidance(_ key: String) -> String? {
-        switch key {
-        case "neck":
-            return String(localized: "Just below the larynx, tape sloping slightly down at the front. Do not flex.")
-        case "shoulders":
-            return String(localized: "Around the widest point of the deltoids, arms relaxed at your sides.")
-        case "chest":
-            return String(localized: "At nipple height, at the end of a normal breath out.")
-        case "waist":
-            return String(localized: "At the navel, standing relaxed. Do not pull the stomach in — the same posture every time matters more than the posture you pick.")
-        case "abdomen":
-            return String(localized: "At the navel, relaxed. Hevy tracks this separately from the waist — the waist is the narrowest point, the abdomen is at the navel.")
-        case "hips":
-            return String(localized: "Around the widest point of the buttocks, feet together.")
-        case "biceps_l", "biceps_r":
-            return String(localized: "Midway between shoulder and elbow. Relaxed or flexed both work — record the same one every time.")
-        case "forearm_l", "forearm_r":
-            return String(localized: "At the widest point below the elbow, arm hanging relaxed.")
-        case "thigh_l", "thigh_r":
-            return String(localized: "Midway between hip crease and knee, weight evenly on both feet.")
-        case "calf_l", "calf_r":
-            return String(localized: "At the widest point, standing with weight evenly on both feet.")
-        default:
-            return nil
-        }
+        BodyPreparation.guidance(key)
     }
 }

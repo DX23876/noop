@@ -201,7 +201,7 @@ struct NOOPEnergyWidget: Widget {
         StaticConfiguration(kind: kind, provider: NOOPProvider()) { entry in
             if #available(iOS 17.0, *) {
                 NOOPEnergyWidgetView(entry: entry)
-                    .containerBackground(StrandPalette.surfaceBase, for: .widget)
+                    .appGroupNotice().containerBackground(StrandPalette.surfaceBase, for: .widget)
             } else {
                 NOOPEnergyWidgetView(entry: entry)
                     .padding()

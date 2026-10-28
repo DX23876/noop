@@ -1,5 +1,7 @@
 package com.noop.ui.forge
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.runtime.CompositionLocalProvider
 import com.noop.ui.LightTokens
 import com.noop.ui.DarkTokens
@@ -164,6 +166,7 @@ enum class ForgeSettingsPage(val titleRes: Int, val subtitleRes: Int, val icon: 
     Strap(R.string.l10n_settings_screen_strap_02b88eeb, R.string.forge_settings_strap_subtitle, Icons.Rounded.SettingsInputAntenna, hosted = true),
     BatteryRecording(R.string.forge_settings_battery, R.string.forge_settings_battery_subtitle, Icons.Rounded.Battery5Bar, hosted = true),
     StrapActions(R.string.forge_settings_actions, R.string.forge_settings_actions_subtitle, Icons.Rounded.TouchApp, hosted = true),
+    TodayTrends(R.string.forge_settings_today_trends, R.string.forge_settings_today_cards, Icons.Rounded.Dashboard),
     Notifications(R.string.forge_settings_notifications, R.string.forge_settings_notifications_subtitle, Icons.Rounded.NotificationsActive, hosted = true),
     Coach(R.string.forge_settings_coach, R.string.forge_settings_coach_subtitle, Icons.Rounded.AutoAwesome, hosted = true),
     LanguageUnits(R.string.forge_settings_language_units, R.string.forge_settings_language_units_subtitle, Icons.Rounded.Language),
@@ -176,14 +179,15 @@ enum class ForgeSettingsPage(val titleRes: Int, val subtitleRes: Int, val icon: 
 }
 
 /**
- * The hub's groups in iOS order (`SettingsHubLayout`). Goals, Training, Today & Trends and Siri have no Android
- * feature behind them yet, so their rows are left out rather than opening an empty page.
+ * The hub's groups in iOS order (`SettingsHubLayout`). Goals, Training and Siri have no Android feature behind them
+ * yet, so their rows are left out rather than opening an empty page; Today & Trends carries only its cards.
  */
 internal val HUB_GROUPS = listOf(
     R.string.forge_settings_group_you to listOf(ForgeSettingsPage.Profile),
     R.string.forge_settings_group_strap to listOf(ForgeSettingsPage.Strap, ForgeSettingsPage.BatteryRecording,
                                                   ForgeSettingsPage.StrapActions),
-    R.string.forge_settings_group_training to listOf(ForgeSettingsPage.Notifications, ForgeSettingsPage.Coach),
+    R.string.forge_settings_group_training to listOf(ForgeSettingsPage.TodayTrends, ForgeSettingsPage.Notifications,
+                                                     ForgeSettingsPage.Coach),
     R.string.forge_settings_group_display to listOf(ForgeSettingsPage.LanguageUnits, ForgeSettingsPage.Appearance),
     R.string.forge_settings_group_data to listOf(ForgeSettingsPage.Calculations, ForgeSettingsPage.DataBackup),
     R.string.forge_settings_group_help to listOf(ForgeSettingsPage.Help, ForgeSettingsPage.Lab, ForgeSettingsPage.About),
@@ -207,6 +211,7 @@ enum class ForgeSettingsSub(val titleRes: Int, val cards: Set<ClassicSettingsCar
     HealthWellness(R.string.l10n_settings_screen_health_wellness_93475778, cards = setOf(ClassicSettingsCard.HealthWellness)),
     Advanced(R.string.l10n_settings_screen_advanced_4d064726, cards = setOf(ClassicSettingsCard.Advanced)),
     WhatsNew(R.string.l10n_settings_screen_what_s_new_4d8dc5fe, closes = true),
+    Acknowledgements(R.string.forge_provider_acknowledgements),
     AllSettings(R.string.forge_settings_all),
 }
 
@@ -245,6 +250,7 @@ private fun ForgeSettingsPage.tint(): Color {
         ForgeSettingsPage.LanguageUnits -> ForgeTokens.Color.systemOrange
         ForgeSettingsPage.Calculations, ForgeSettingsPage.Lab -> ForgeTokens.Color.systemIndigo
         ForgeSettingsPage.Help -> ForgeTokens.Color.systemTeal
+        ForgeSettingsPage.TodayTrends -> ForgeTokens.Color.systemCyan
         ForgeSettingsPage.About -> ForgeTokens.Color.systemGray
     }
     return token.resolve()
@@ -350,10 +356,11 @@ private fun Page(page: ForgeSettingsPage, viewModel: AppViewModel, onBack: () ->
                 ForgeSettingsPage.Profile -> ProfileSection(profile, viewModel, ::change, onOpen)
                 ForgeSettingsPage.LanguageUnits -> LanguageUnitsSection(context, ::change)
                 ForgeSettingsPage.Appearance -> AppearanceSection(::change)
+                ForgeSettingsPage.TodayTrends -> TodayCardsSection(::change)
                 ForgeSettingsPage.Calculations -> CalculationsSection(viewModel, ::change, onOpen)
                 ForgeSettingsPage.DataBackup -> DataBackupSection(onOpen)
                 ForgeSettingsPage.Help -> HelpSection(onOpen)
-                ForgeSettingsPage.Lab -> LabSection(onOpen)
+                ForgeSettingsPage.Lab -> LabSection(viewModel, onOpen)
                 ForgeSettingsPage.About -> AboutSection(onOpen)
                 else -> Unit
             }
@@ -481,7 +488,22 @@ private fun HostedPage(page: ForgeSettingsPage, viewModel: AppViewModel, onBack:
         ForgeSettingsPage.BatteryRecording -> Hosted(stringResource(page.titleRes), onBack) { PowerSavingScreen(viewModel) }
         ForgeSettingsPage.StrapActions -> Hosted(stringResource(page.titleRes), onBack) { AutomationsScreen(viewModel) }
         ForgeSettingsPage.Notifications -> Hosted(stringResource(page.titleRes), onBack) { NotificationsSettingsScreen(viewModel) }
-        ForgeSettingsPage.Coach -> Hosted(stringResource(page.titleRes), onBack) { CoachSettingsScreen(viewModel<CoachViewModel>()) }
+        ForgeSettingsPage.Coach -> {
+            val vm = viewModel<CoachViewModel>()
+            var sub by remember { mutableStateOf<String?>(null) }
+            androidx.activity.compose.BackHandler(enabled = sub != null) { sub = null }
+            when (sub) {
+                "identity" -> Hosted(stringResource(R.string.coach_identity), { sub = null }) { com.noop.ui.CoachIdentityEditor(vm) }
+                "memory" -> Hosted(stringResource(R.string.coach_memory), { sub = null }) { com.noop.ui.CoachMemoryPage() }
+                "info" -> Hosted(vm.info.collectAsStateWithLifecycle().value?.infoTitle.orEmpty(), { sub = null }) {
+                    com.noop.ui.CoachInfoPage(vm)
+                }
+                else -> Hosted(stringResource(page.titleRes), onBack) {
+                    CoachSettingsScreen(vm, onOpenIdentity = { sub = "identity" }, onOpenMemory = { sub = "memory" },
+                                        onOpenInfo = { sub = "info" })
+                }
+            }
+        }
         else -> Unit
     }
 }
@@ -506,6 +528,7 @@ private fun SubScreen(sub: ForgeSettingsSub, viewModel: AppViewModel, onBack: ()
         ForgeSettingsSub.SelfHostedPush -> Hosted(stringResource(sub.titleRes), onBack) { SelfHostedPushScreen() }
         ForgeSettingsSub.Limitations -> Hosted(stringResource(sub.titleRes), onBack) { NoopLimitationsScreen() }
         ForgeSettingsSub.TestCentre -> Hosted(stringResource(sub.titleRes), onBack) { TestCentreScreen(viewModel) }
+        ForgeSettingsSub.Acknowledgements -> ForgeExerciseProviderAcknowledgements(onBack)
         ForgeSettingsSub.AllSettings -> Hosted(stringResource(sub.titleRes), onBack) {
             SettingsScreen(
                 viewModel,
@@ -818,6 +841,22 @@ private fun AppearanceSection(change: (() -> Unit) -> Unit) {
     BackgroundCard()
 }
 
+/**
+ * The iOS "Cards on Today" card: water gates the water card, its page and hydration goals; the journal switch gates
+ * the journal card. Today's order and style controls have no Android counterpart yet.
+ */
+@Composable
+private fun TodayCardsSection(change: (() -> Unit) -> Unit) {
+    val context = LocalContext.current
+    SettingsCard(title = stringResource(R.string.forge_settings_today_cards), blurb = null) {
+        ToggleRow(stringResource(R.string.forge_settings_water), stringResource(R.string.forge_settings_water_detail),
+                  NoopPrefs.hydrationTracking(context)) { on -> change { NoopPrefs.setHydrationTracking(context, on) } }
+        RowDivider()
+        ToggleRow(stringResource(R.string.forge_settings_journal_card), stringResource(R.string.forge_settings_journal_card_detail),
+                  NoopPrefs.journalReminderEnabled(context)) { on -> change { NoopPrefs.setJournalReminderEnabled(context, on) } }
+    }
+}
+
 /** The iOS Appearance "Background" card: time-of-day sky, sky behind cards and card transparency. */
 @Composable
 private fun BackgroundCard() {
@@ -964,7 +1003,7 @@ private fun HelpSection(onOpen: (ForgeSettingsSub) -> Unit) {
 }
 
 @Composable
-private fun LabSection(onOpen: (ForgeSettingsSub) -> Unit) {
+private fun LabSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub) -> Unit) {
     val context = LocalContext.current
     var confirms by remember { mutableStateOf(CoreShadow.confirmsHistoryAck(context)) }
     SettingsCard(title = stringResource(R.string.forge_experimental_section), blurb = null) {
@@ -985,6 +1024,44 @@ private fun LabSection(onOpen: (ForgeSettingsSub) -> Unit) {
             rhythm = it
             com.noop.core.CoreFeatures.setRhythmAge(context, it)
         }
+        RowDivider()
+        var exerciseVO2max by remember { mutableStateOf(com.noop.core.CoreFeatures.exerciseVO2max(context)) }
+        ToggleRow(stringResource(R.string.forge_lab_xvo2), stringResource(R.string.forge_lab_xvo2_detail), exerciseVO2max) {
+            exerciseVO2max = it
+            com.noop.core.CoreFeatures.setExerciseVO2max(context, it)
+        }
+        RowDivider()
+        // Parity plan 1.3: the classic screens' daily rows from the shared core, and the check that they agree.
+        var coreDays by remember { mutableStateOf(com.noop.core.CoreDailyRows.coreReads(context)) }
+        ToggleRow(stringResource(R.string.forge_lab_core_days), stringResource(R.string.forge_lab_core_days_detail), coreDays) {
+            coreDays = it
+            com.noop.core.CoreDailyRows.setCoreReads(context, it)
+        }
+        val scope = rememberCoroutineScope()
+        var comparison by remember { mutableStateOf<String?>(null) }
+        val same = stringResource(R.string.forge_lab_compare_same)
+        val unavailable = stringResource(R.string.forge_lab_compare_none)
+        val res = LocalContext.current.resources
+        TextButton(onClick = {
+            scope.launch {
+                // The daily rows first, then the workout list: one count over both, naming the first difference.
+                val days = viewModel.compareDailyRowsWithCore()
+                val workouts = viewModel.compareWorkoutsWithCore()
+                val found = if (days == null || workouts == null) null
+                    else days.map { listOf(it.day, it.field, it.room, it.core) } +
+                         workouts.map { listOf(it.session, it.field, it.room, it.core) }
+                comparison = when {
+                    found == null -> unavailable
+                    found.isEmpty() -> same
+                    else -> found.first().let { (where, field, room, core) ->
+                        res.getString(R.string.forge_lab_compare_diff, found.size,
+                                      res.getString(R.string.forge_join_dot, where,
+                                                    res.getString(R.string.forge_join_arrow, res.getString(R.string.forge_join_space, field, room), core)))
+                    }
+                }
+            }
+        }) { Text(stringResource(R.string.forge_lab_compare)) }
+        comparison?.let { Text(it, style = Forge.type.caption, color = Forge.colors.textSecondary) }
     }
     SettingsCard(title = null, blurb = null) {
         LinkRow(stringResource(R.string.l10n_settings_screen_health_wellness_93475778),
@@ -1046,6 +1123,9 @@ private fun AboutSection(onOpen: (ForgeSettingsSub) -> Unit) {
         }
     }
     SettingsCard(title = null, blurb = null) {
+        LinkRow(stringResource(R.string.forge_provider_acknowledgements),
+                stringResource(R.string.forge_provider_acknowledgements_detail)) { onOpen(ForgeSettingsSub.Acknowledgements) }
+        RowDivider()
         LinkRow(stringResource(R.string.l10n_settings_screen_what_s_new_4d8dc5fe),
                 stringResource(R.string.l10n_settings_screen_recent_changes_and_what_to_expect_3ceb660b)) {
             onOpen(ForgeSettingsSub.WhatsNew)

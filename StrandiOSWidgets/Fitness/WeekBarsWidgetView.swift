@@ -136,7 +136,7 @@ struct NOOPChargeWeekWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "NOOPChargeWeekWidget", provider: FitnessProvider()) { entry in
             WeekBarsWidgetView(entry: entry, metric: .charge)
-                .containerBackground(StrandPalette.surfaceBase, for: .widget)
+                .appGroupNotice().containerBackground(StrandPalette.surfaceBase, for: .widget)
         }
         .configurationDisplayName("Charge week")
         .description("Today's Charge and the last seven days at a glance.")
@@ -148,7 +148,7 @@ struct NOOPEffortWeekWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "NOOPEffortWeekWidget", provider: FitnessProvider()) { entry in
             WeekBarsWidgetView(entry: entry, metric: .effort)
-                .containerBackground(StrandPalette.surfaceBase, for: .widget)
+                .appGroupNotice().containerBackground(StrandPalette.surfaceBase, for: .widget)
         }
         .configurationDisplayName("Effort week")
         .description("Today's Effort and the load of the last seven days.")

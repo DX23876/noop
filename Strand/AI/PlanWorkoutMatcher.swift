@@ -1,36 +1,8 @@
 import Foundation
 import WhoopStore
 
-/// Immutable workout snapshot used by reconciliation UI and completion evidence. `WorkoutRow` has no
-/// stable id, so the key intentionally excludes source: the repository may choose a richer cross-source
-/// twin after a later import, but it is still the same start/end/sport activity.
-struct PlanWorkoutReference: Codable, Equatable, Identifiable {
-    let workoutKey: String
-    let startTs: Int
-    let endTs: Int
-    let sport: String
-    let source: String
-    let durationS: Double?
-    let strain: Double?
-    let distanceM: Double?
-
-    var id: String { workoutKey }
-
-    init(_ row: WorkoutRow) {
-        workoutKey = Self.key(startTs: row.startTs, endTs: row.endTs, sport: row.sport)
-        startTs = row.startTs
-        endTs = row.endTs
-        sport = row.sport
-        source = row.source
-        durationS = row.durationS
-        strain = row.strain
-        distanceM = row.distanceM
-    }
-
-    static func key(startTs: Int, endTs: Int, sport: String) -> String {
-        "\(startTs)|\(endTs)|\(PlanWorkoutMatcher.normalizedLabel(sport))"
-    }
-
+/// Plan-store completion evidence stays with the Apple plan host.
+extension PlanWorkoutReference {
     func completionEvidence(method: PlanProposal.CompletionEvidence.Method,
                             matchedAt: Date) -> PlanProposal.CompletionEvidence {
         .init(workoutKey: workoutKey, startTs: startTs, endTs: endTs, sport: sport, source: source,
@@ -145,11 +117,7 @@ enum PlanWorkoutMatcher {
     }
 
     static func normalizedLabel(_ value: String) -> String {
-        value.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
-            .lowercased()
-            .components(separatedBy: CharacterSet.alphanumerics.inverted)
-            .filter { !$0.isEmpty }
-            .joined(separator: " ")
+        PlanWorkoutReference.normalizedLabel(value)
     }
 
     private static func sportFamily(_ value: String) -> String {
@@ -180,39 +148,6 @@ enum PlanWorkoutMatcher {
     private static func dayKey(_ date: Date, calendar: Calendar) -> String {
         let parts = calendar.dateComponents([.year, .month, .day], from: date)
         return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
-    }
-}
-
-@MainActor
-enum PlanReconciliationCoordinator {
-    /// Rebuild the closed loop from the canonical, already cross-source-deduplicated workout feed.
-    @discardableResult
-    static func reconcile(repo: Repository, store suppliedStore: CoachPlanStore? = nil,
-                          now: Date = Date()) async -> [PlanReconciliationResolution] {
-        let store = suppliedStore ?? CoachPlanStore.shared
-        PlanGoalAttributionMigration.runIfNeeded(store: store, goals: CoachGoalStore.shared.goals)
-        // `reconcileHrCap: 0` — matching keys on `(startTs, endTs, sport)` and never consults HR. `strain` is
-        // carried into `completionEvidence`, which no view reads, and only for automatic matches. The
-        // display-only HR reconcile would put one query per candidate workout on the launch path for
-        // nothing. See `Repository.workoutRows(days:reconcileHrCap:)`.
-        let workouts = await repo.workoutRows(days: 45, reconcileHrCap: 0)
-        let result = PlanWorkoutMatcher.match(proposals: store.proposals, workouts: workouts, now: now)
-        for match in result.automatic {
-            let proposal = store.proposals.first { $0.id == match.proposalId }
-            store.complete(match.proposalId,
-                           evidence: match.workout.completionEvidence(method: .automatic,
-                                                                        matchedAt: now))
-            if let proposal {
-                CoachNotifier.postAutomaticCompletion(proposal: proposal, workout: match.workout,
-                                                       now: now)
-            }
-        }
-        // Re-run after mutations so conflicts freed by an automatic match and every transient question
-        // reflect the persisted state rather than the pre-mutation snapshot.
-        let final = PlanWorkoutMatcher.match(proposals: store.proposals, workouts: workouts, now: now)
-        store.setReconciliationResolutions(final.resolutions)
-        CoachNotifier.syncPlanReconciliation(final.resolutions, proposals: store.proposals, now: now)
-        return final.resolutions
     }
 }
 

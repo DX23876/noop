@@ -590,7 +590,7 @@ private fun CustomAmountDialog(
                         unfocusedTextColor = Palette.textPrimary,
                         cursorColor = accent,
                         focusedBorderColor = accent,
-                        unfocusedBorderColor = Palette.hairline,
+                        unfocusedBorderColor = androidx.compose.ui.graphics.Color.Transparent,
                         focusedLabelColor = accent,
                         unfocusedLabelColor = Palette.textSecondary,
                         focusedContainerColor = Palette.surfaceInset,

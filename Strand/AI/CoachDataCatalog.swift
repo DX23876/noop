@@ -1,4 +1,5 @@
 import Foundation
+import StrandCore
 import WhoopStore
 
 /// Presentation boundary for locally discovered metric series. It intentionally exposes only coverage
@@ -122,9 +123,9 @@ struct CoachDataCatalog {
 enum CoachLocalSourceLabel {
     static func label(_ source: String) -> String {
         switch source {
-        case Repository.whoopSource: return "WHOOP / NOOP"
-        case Repository.appleHealthSource: return "Apple Health"
-        case Repository.healthConnectSource: return "Health Connect"
+        case MetricResolver.whoopSource: return "WHOOP / NOOP"
+        case MetricResolver.appleHealthSource: return "Apple Health"
+        case MetricResolver.healthConnectSource: return "Health Connect"
         case WhoopStore.labBookSourceId: return "Lab Book"
         case WhoopStore.noopWeightSourceId: return "Weigh-ins logged in NOOP"
         case "oura-import", "oura-api": return "Oura import"

@@ -1,0 +1,20 @@
+{
+  "routines" : [
+    {
+      "exercises" : [
+        "Barbell Bench Press"
+      ],
+      "id" : "BAFEBD2F-A7CD-2BEC-666A-F4F519AEC896",
+      "title" : "Synthetic push"
+    },
+    {
+      "exercises" : [
+        "Synthetic unknown movement"
+      ],
+      "id" : "BAFEC02F-A7CD-3105-666A-F5F519AECA49",
+      "title" : "Synthetic custom"
+    }
+  ],
+  "skippedExercises" : 0,
+  "token" : "synthetic-preview"
+}

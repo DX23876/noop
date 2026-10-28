@@ -45,9 +45,9 @@ extension AICoachEngine {
     /// and the user would have no way to tell which had drifted.
     func metricCardArtifact(metric: String) async -> CoachCardArtifact? {
         guard let chart = await chartArtifactForCard(metric: metric, days: 30),
-              let latest = chart.points.last else { return nil }
+              let latest = chart.values.last else { return nil }
 
-        let values = chart.points.map(\.value)
+        let values = chart.values.map(\.value)
         let format = chart.valueFormat
         // The user's own trailing average — the only comparison NOOP has evidence for. A population
         // "normal range" would be a claim about people in general dressed up as one about this person.
@@ -147,7 +147,7 @@ extension AICoachEngine {
                                   at: 0)
                 if summary.volumeLoadKg > 0 {
                     detailRows.insert(.init(label: String(localized: "Volume"),
-                                            value: "\(HevySource.groupedKg(summary.volumeLoadKg)) kg"),
+                                            value: "\(HevyFormat.groupedKg(summary.volumeLoadKg)) kg"),
                                       at: 1)
                 }
                 if let rpe = summary.meanRpe {

@@ -1,4 +1,5 @@
 import Foundation
+import StrandCore
 
 /// Who has had today's brief, and whether the numbers behind it have since changed.
 ///
@@ -77,8 +78,8 @@ enum CoachBriefStamp {
     static func invalidateAfterSleepCorrection(wakeTs: Int,
                                                now: Date = Date(),
                                                defaults: UserDefaults = .standard) -> Bool {
-        let today = Repository.logicalDayKey(now)
-        let nightDay = Repository.logicalDayKey(Date(timeIntervalSince1970: TimeInterval(wakeTs)))
+        let today = LogicalDay.key(now)
+        let nightDay = LogicalDay.key(Date(timeIntervalSince1970: TimeInterval(wakeTs)))
         guard nightDay == today else { return false }
         defaults.removeObject(forKey: lastBriefDayKey)
         defaults.set(today, forKey: staleAfterSleepEditKey)

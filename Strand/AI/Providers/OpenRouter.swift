@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// A single entry from OpenRouter's `/models` catalogue — richer than a bare id, so the searchable
 /// picker can show context length and price, and so a later tool-calling gate (P9) can read whether a

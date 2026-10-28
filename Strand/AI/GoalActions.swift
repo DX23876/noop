@@ -1,5 +1,7 @@
 import Foundation
+#if canImport(Combine)
 import Combine
+#endif
 import WhoopStore
 import StrandCore
 
@@ -35,27 +37,7 @@ struct GoalAction: Codable, Identifiable, Equatable {
             }
         }
 
-        /// `label` in the reader's language. The English `label` stays for anything that is not UI; a
-        /// composed English string cannot be looked up in the catalog afterwards, so each part is
-        /// localized here with its own key.
-        var displayLabel: String {
-            switch self {
-            case .steps(let minimum): return String(localized: "\(minimum.formatted()) steps")
-            case .workout(let sports, let minutes):
-                let activity = sports.isEmpty ? String(localized: "Any workout") : sports.joined(separator: ", ")
-                return minutes.map { String(localized: "\(activity) · \($0) min") } ?? activity
-            case .sleep(let hours):
-                return String(localized: "\(hours.formatted(.number.precision(.fractionLength(0...1)))) h sleep")
-            case .activeCalories(let minimum):
-                return String(localized: "\(minimum.formatted()) kcal active (estimate)")
-            // Nothing to say: ticking a box by hand is what a goal without a measure is.
-            case .manual: return ""
-            case .journal(let question, let wantsYes):
-                let habit = JournalLabel.display(question)
-                return wantsYes ? String(localized: "Ticks when you log yes: \(habit)")
-                                : String(localized: "Ticks when you log no: \(habit)")
-            }
-        }
+
     }
 
     enum Schedule: Codable, Equatable {
@@ -408,11 +390,11 @@ enum GoalAttributionSuggester {
 
 @MainActor
 final class GoalActionStore: ObservableObject {
-    static let shared = GoalActionStore()
+    static var shared = GoalActionStore()
     static let storageKey = "coach.goalActions.v1"
 
     private struct Payload: Codable { var actions: TolerantStoredList<GoalAction>; var checkoffs: [GoalActionCheckoff] }
-    private let defaults: UserDefaults
+    private let defaults: any GoalPreferenceStorage
     private let storageKey: String
     private var isLoading = true
 
@@ -422,7 +404,7 @@ final class GoalActionStore: ObservableObject {
     /// shown or evaluated, only written back so they survive this build.
     private var foreignActions: [PreservedJSON] = []
 
-    init(defaults: UserDefaults = .standard, storageKey: String = "coach.goalActions.v1",
+    init(defaults: any GoalPreferenceStorage = GoalPreferences.standard, storageKey: String = "coach.goalActions.v1",
          loading: Bool = true) {
         self.defaults = defaults
         self.storageKey = storageKey
@@ -514,21 +496,21 @@ final class GoalActionStore: ObservableObject {
 
 @MainActor
 final class GoalContributionStore: ObservableObject {
-    static let shared = GoalContributionStore()
+    static var shared = GoalContributionStore()
     static let storageKey = "coach.goalContributions.v1"
 
     private struct Payload: Codable {
         var contributions: [GoalWorkoutContribution]
         var dismissedWorkoutKeys: [String]
     }
-    private let defaults: UserDefaults
+    private let defaults: any GoalPreferenceStorage
     private let storageKey: String
     private var isLoading = true
 
     @Published private(set) var contributions: [GoalWorkoutContribution] = [] { didSet { save() } }
     @Published private(set) var dismissedWorkoutKeys: Set<String> = [] { didSet { save() } }
 
-    init(defaults: UserDefaults = .standard,
+    init(defaults: any GoalPreferenceStorage = GoalPreferences.standard,
          storageKey: String = "coach.goalContributions.v1", loading: Bool = true) {
         self.defaults = defaults
         self.storageKey = storageKey

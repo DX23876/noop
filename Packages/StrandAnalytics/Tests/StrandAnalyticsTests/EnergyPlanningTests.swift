@@ -258,6 +258,18 @@ final class EnergyPlanningTests: XCTestCase {
         XCTAssertEqual(settled?.verdict, .deficit)
     }
 
+    func testFiveKilocaloriesDoNotFlipTheVerdict() {
+        // A tester's day: 2,191 kcal projected burn, 315 digesting, and a forecast that ends the day between a
+        // balance of -2 and +1,270 at 3,140 eaten. Both ends sit in or above the ±125 band, so the day cannot
+        // become a deficit; 3,140 and 3,145 read the same, not "still open" against "surplus".
+        let lower = balance(intake: 3_140, thermic: 315, burn: 2_191, range: 1_557...2_829)
+        let higher = balance(intake: 3_145, thermic: 315, burn: 2_191, range: 1_557...2_829)
+        XCTAssertEqual(lower?.verdict, .surplus)
+        XCTAssertEqual(higher?.verdict, .surplus)
+        // A range that reaches into the deficit past the band is still open.
+        XCTAssertEqual(balance(intake: 2_600, thermic: 315, burn: 2_191, range: 1_557...2_829)?.verdict, .tooEarly)
+    }
+
     func testTheBalanceRangeIsTheBurnRangeInverted() {
         // A bigger burn is a more negative balance; getting this backwards would put the optimistic
         // end where the pessimistic one belongs.

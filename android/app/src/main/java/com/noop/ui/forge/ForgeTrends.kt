@@ -242,3 +242,39 @@ private fun LineChart(points: List<CoreRead.Point>, days: Int, lo: Double, hi: D
         drawCircle(tint, radius = 6f, center = Offset(x(lastPoint), y(lastPoint.value)))
     }
 }
+
+/**
+ * One metric's trend on its own page, opened from a key-metric tile on Today (iOS opens the metric's detail from the
+ * same tile): the window picker and the metric's trend card over the last six months, from the shared core.
+ */
+@Composable
+internal fun ForgeMetricTrendPage(metric: CoreRead.Metric, titleRes: Int, unit: String, tint: Color, higherIsBetter: Boolean,
+                                  onAskCoach: ((title: String, summary: String) -> Unit)? = null, onBack: () -> Unit) {
+    val context = LocalContext.current
+    var days by rememberSaveable { mutableIntStateOf(30) }
+    var points by remember { mutableStateOf<List<CoreRead.Point>?>(null) }
+    LaunchedEffect(metric) {
+        points = withContext(Dispatchers.IO) {
+            CoreRead.open(context)
+            val today = LocalDate.now()
+            CoreRead.series(metric, today.minusDays(179).toString(), today.toString())
+        }
+    }
+    SettingsColumn {
+        PageTitle(stringResource(titleRes), onBack)
+        WindowPicker(days) { days = it }
+        val stats = TrendStats.of(points.orEmpty(), days, LocalDate.now())
+        TrendCard(titleRes, unit, stats, days, tint, higherIsBetter, tall = true)
+        // "Ask coach" (`TodayView`'s card context): what the page shows, as the line the coach reads.
+        val title = stringResource(titleRes)
+        val latest = stats.current.lastOrNull()
+        if (onAskCoach != null && latest != null) {
+            val summary = "$title: ${latest.value.roundToInt()} $unit (${latest.day})." +
+                (stats.average?.let { " ${days}d average: ${it.roundToInt()} $unit." } ?: "") +
+                (stats.change?.let { " Change against the ${days} days before: $it %." } ?: "")
+            androidx.compose.material3.TextButton(onClick = { onAskCoach(title, summary) }) {
+                Text(stringResource(R.string.forge_ask_coach), style = Forge.type.headline, color = tint)
+            }
+        }
+    }
+}

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Thermostat
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.DeleteOutline
@@ -809,6 +810,8 @@ private fun DiagnosticToolsCard(vm: AppViewModel) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var showRecalibrate by remember { mutableStateOf(false) }
+    var skinBackfillStatus by remember { mutableStateOf<String?>(null) }
+    var skinBackfillRunning by remember { mutableStateOf(false) }
     // "Debug logging" moved here from Settings: dev-only, mirrors the strap log to logcat over adb.
     var debugLogging by remember { mutableStateOf(NoopPrefs.debugLogging(context)) }
     // #polar-debug: the model NOOP auto-detects for a PAIRED Polar strap, from its stored advertised name
@@ -868,6 +871,34 @@ private fun DiagnosticToolsCard(vm: AppViewModel) {
                 fullWidth = true,
                 onClick = { showRecalibrate = true },
             )
+            // #1853, parity plan 1.2: the skin-temp absolute backfill Apple's Test Centre runs, on the shared core's
+            // walker. Fill-only: it can only fill a NULL, never overwrite a measured value or touch the deviation.
+            if (com.noop.core.SwiftCore.available) {
+                NoopButton(
+                    text = stringResource(R.string.forge_tc_skin_backfill),
+                    leadingIcon = Icons.Filled.Thermostat,
+                    kind = NoopButtonKind.Secondary,
+                    fullWidth = true,
+                    enabled = !skinBackfillRunning,
+                    onClick = {
+                        skinBackfillRunning = true
+                        skinBackfillStatus = context.getString(R.string.forge_tc_skin_backfilling)
+                        scope.launch {
+                            val line = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                com.noop.core.CoreRead.open(context)
+                                com.noop.core.SwiftCore.call("diagnostics.skinTempBackfill", "{}")
+                                    ?.let { runCatching { org.json.JSONObject(it).getString("line") }.getOrNull() }
+                            }
+                            if (line != null) vm.ble.externalLog(line)
+                            skinBackfillStatus = line
+                            skinBackfillRunning = false
+                        }
+                    },
+                )
+                Text(stringResource(R.string.forge_tc_skin_backfill_detail), style = NoopType.caption,
+                     color = Palette.textTertiary)
+                skinBackfillStatus?.let { Text(it, style = NoopType.caption, color = Palette.textSecondary) }
+            }
             // Debug logging (moved here from Settings): mirror the strap log to logcat for adb
             // development. Dev-only, off by default; the in-app log and "Share strap log" above work either way.
             Row(

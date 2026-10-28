@@ -66,6 +66,12 @@ class AndroidLiteralExtraction(unittest.TestCase):
         text = 'Text(uiString(R.string.x) + "hardcoded suffix")'
         self.assertEqual(literals(text), [])
 
+    def test_subscript_key_skipped(self):
+        # A word looked up in the shared core's translated labels is not copy;
+        # the literal beside it in the same call still is.
+        text = 'Text(l["errorTitle"].orEmpty() + suffix, contentDescription = if (on) "On" else l["off"])'
+        self.assertEqual(literals(text), ["On"])
+
     def test_plus_concatenation_does_not_swallow_a_real_conditional(self):
         # LiveScreen.kt:1068-shaped: the first branch is a real, standalone
         # conditional literal; only the +-joined unit-suffix is excluded.

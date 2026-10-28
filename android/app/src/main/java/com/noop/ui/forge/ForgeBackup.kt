@@ -134,6 +134,7 @@ private fun NoticeDialog(notice: Notice, onDismiss: () -> Unit, onRestart: () ->
 /** The wearer-facing reason for a failed export or import; the core's code only where no plain sentence fits. */
 @Composable
 private fun failureText(why: String): String = when {
+    why == "inputMigration" -> stringResource(R.string.forge_backup_inputs_unavailable)
     why == "notSQLite" || why == "noDatabaseEntry" || why.startsWith("archiveUnreadable") ->
         stringResource(R.string.forge_backup_not_backup)
     why == "foreignBackup" -> stringResource(R.string.forge_backup_foreign)

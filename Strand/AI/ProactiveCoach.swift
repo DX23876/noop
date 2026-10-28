@@ -107,11 +107,7 @@ enum ProactiveCoach {
     /// "1 day overdue", and the UI's expired-goal card (`CoachGoalJourneyView.expiredGoals`) and the
     /// chat's `expiredGoalNeedingReview` agree on exactly when a goal counts as overdue.
     static func daysPastTarget(_ goal: CoachGoal, now: Date = Date()) -> Int? {
-        guard let target = goal.targetDate else { return nil }
-        let cal = Calendar.current
-        return cal.dateComponents([.day],
-                                  from: cal.startOfDay(for: target),
-                                  to: cal.startOfDay(for: now)).day
+        goal.daysPastTarget(now: now)
     }
 
     /// A goal whose target date has passed and that nobody has closed out.

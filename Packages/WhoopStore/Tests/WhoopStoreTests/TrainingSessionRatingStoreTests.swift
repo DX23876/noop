@@ -33,4 +33,34 @@ final class TrainingSessionRatingStoreTests: XCTestCase {
             XCTAssertEqual(row["source"] as String, "manual-session-rpe")
         }
     }
+    func testCanonicalEditsAndRemovalDoNotLeaveAnOlderRatingBehind() async throws {
+        let store = try await WhoopStore.inMemory()
+        for (id, start, source) in [("old-a", 100, "manual"), ("old-b", 101, "manual"), ("imported", 100, "imported")] {
+            try await store.upsertTrainingSessionRating(.init(id: id, sessionId: "session-a", workoutStartTs: start,
+                ratedAtTs: 200, rpe: 5, sport: "Run", source: source))
+        }
+        let edited = TrainingSessionRating(id: "new", sessionId: "session-a", workoutStartTs: 102,
+            ratedAtTs: 300, rpe: 8, sport: "Run", source: "manual")
+        let replaced = try await store.replaceTrainingSessionRating(edited)
+        XCTAssertTrue(replaced)
+        var rows = try await store.trainingSessionRatings(from: 0, to: 1_000)
+        XCTAssertEqual(Set(rows.map(\.id)), ["new", "imported"])
+        let removed = try await store.deleteTrainingSessionRatings(sessionId: "session-a", startTs: 102, source: "manual")
+        XCTAssertTrue(removed)
+        rows = try await store.trainingSessionRatings(from: 0, to: 1_000)
+        XCTAssertEqual(rows.map(\.id), ["imported"])
+    }
+
+    func testAnIdCollisionDoesNotOverwriteAnotherCanonicalSession() async throws {
+        let store = try await WhoopStore.inMemory()
+        let previous = TrainingSessionRating(id: "shared-time", sessionId: "session-a", workoutStartTs: 100,
+            ratedAtTs: 200, rpe: 5, sport: "Run", source: "manual")
+        try await store.upsertTrainingSessionRating(previous)
+        var different = previous; different.sessionId = "session-b"; different.rpe = 9
+        let replaced = try await store.replaceTrainingSessionRating(different)
+        XCTAssertFalse(replaced)
+        let rows = try await store.trainingSessionRatings(from: 0, to: 1_000)
+        XCTAssertEqual(rows, [previous])
+    }
+
 }

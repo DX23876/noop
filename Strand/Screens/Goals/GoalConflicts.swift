@@ -4,13 +4,9 @@ import Foundation
 /// thresholds, a weekly workout goal that disagrees with the long-term rate it sits beside, a weekly sum
 /// that does not add up to the monthly one. NOOP warns and never blocks; the wearer decides which number
 /// counts.
-enum GoalConflicts {
+extension GoalConflicts {
 
-    struct Note: Equatable {
-        /// The goal the note is shown on: the newer one of the pair.
-        let goalId: UUID
-        let text: String
-    }
+
 
     static func notes(actions: [GoalAction], period: [PeriodGoal], longTerm: [CoachGoal], today: String) -> [Note] {
         var notes: [Note] = []
@@ -65,40 +61,6 @@ enum GoalConflicts {
         return notes
     }
 
-    /// Long-term goals the wearer kept side by side that cannot both be served: two weight goals pulling
-    /// in opposite directions, or the same template twice with different numbers.
-    static func longTermNotes(_ longTerm: [CoachGoal]) -> [Note] {
-        var notes: [Note] = []
-        let open = longTerm.filter { $0.status == .active || $0.status == .paused }
-        for (index, a) in open.enumerated() {
-            for b in open[(index + 1)...] {
-                let newerId = newer(a.id, a.createdAt, b.id, b.createdAt)
-                if a.kind == .weight, b.kind == .weight,
-                   let da = direction(a), let db = direction(b), da * db < 0 {
-                    notes.append(Note(goalId: newerId,
-                                      text: String(localized: "Two weight goals pull in opposite directions")))
-                } else if let template = a.templateId, template == b.templateId,
-                          sports(a) == sports(b),
-                          a.target != b.target {
-                    notes.append(Note(goalId: newerId,
-                                      text: String(localized: "Two goals of the same kind ask for different numbers")))
-                }
-            }
-        }
-        return notes
-    }
-
-    /// The sports a catalog goal counts, normalised, so "Running" and "running" are one filter.
-    private static func sports(_ goal: CoachGoal) -> [String] {
-        (goal.measure?.sportFilter ?? []).map { $0.lowercased() }.sorted()
-    }
-
-    /// +1 for a goal that counts up, -1 for one that counts down, nil when the way is not set.
-    private static func direction(_ goal: CoachGoal) -> Double? {
-        guard let baseline = goal.baseline, let target = goal.target, baseline != target else { return nil }
-        return target > baseline ? 1 : -1
-    }
-
     /// What saving `draft` would add, for the setup screens: the notes that exist with it and not without.
     static func notes(adding draft: PeriodGoal, actions: [GoalAction], period: [PeriodGoal],
                       longTerm: [CoachGoal], today: String) -> [String] {
@@ -116,7 +78,5 @@ enum GoalConflicts {
             .map(\.text).filter { !before.contains($0) }
     }
 
-    private static func newer(_ a: UUID, _ aDate: Date, _ b: UUID, _ bDate: Date) -> UUID {
-        aDate >= bDate ? a : b
-    }
+
 }

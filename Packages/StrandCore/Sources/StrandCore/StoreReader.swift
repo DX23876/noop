@@ -292,6 +292,45 @@ public struct StoreReader: Sendable {
         return byTs.values.sorted { $0.ts < $1.ts }
     }
 
+    /// The HR fingerprint over the UNION `hrSamples(from:to:limit:)` reads, as one opaque string: one COUNT and
+    /// one MAX per raw id over the `(deviceId, ts)` index, no rows. A fingerprint narrower than the read it guards
+    /// would let a caller reuse a result after a backfill landed rows under an alias id, so it walks the same ids.
+    /// Compared only to itself in memory; empty when nothing could be read ("cannot tell", never "unchanged").
+    public func hrFingerprintUnion(from: Int, to: Int) async -> String {
+        var parts: [String] = []
+        for id in rawPhysiologyReadIds {
+            let fp = (try? await store.hrFingerprint(deviceId: id, from: from, to: to)) ?? (count: 0, maxTs: 0)
+            parts.append("\(id):\(fp.count):\(fp.maxTs)")
+        }
+        return parts.joined(separator: "|")
+    }
+
+    /// R-R beats across the active physical WHOOP and canonical history. Exact duplicates are removed
+    /// active-first, while same-timestamp distinct beats remain intact. Only the ambiguous canonical alias
+    /// inherits WHOOP 5's unit guard; a confirmed WHOOP 4 keeps its policy.
+    public func rrIntervals(from: Int, to: Int, limit: Int = 8000) async -> [RRInterval] {
+        let activeWhoop5 = (try? await store.isWhoop5RRSource(deviceId: activeDeviceId)) == true
+        let ids = rawPhysiologyReadIds
+        guard ids.count != 1 else {
+            return (try? await store.rrIntervals(deviceId: activeDeviceId, from: from, to: to, limit: limit)) ?? []
+        }
+        var lists: [[RRInterval]] = []
+        for id in ids {
+            lists.append((try? await store.rrIntervals(deviceId: id, from: from, to: to, limit: limit,
+                unlabelledAliasOfWhoop5: activeWhoop5 && id == MetricResolver.whoopSource)) ?? [])
+        }
+        return Self.mergeRRByIdentity(lists)
+    }
+
+    /// Wrist gravity across the raw ids, active strap first so it wins any shared timestamp.
+    public func gravitySamplesUnion(from: Int, to: Int, limit: Int = 200_000) async -> [GravitySample] {
+        var lists: [[GravitySample]] = []
+        for id in rawPhysiologyReadIds {
+            lists.append((try? await store.gravitySamples(deviceId: id, from: from, to: to, limit: limit)) ?? [])
+        }
+        return Self.mergeGravityByTs(lists)
+    }
+
     public func hrBuckets(deviceIds: [String], from: Int, to: Int, bucketSeconds: Int = 300) async -> [HRBucket] {
         guard !deviceIds.isEmpty else { return [] }
         guard deviceIds.count > 1 else {
@@ -449,6 +488,121 @@ public struct StoreReader: Sendable {
             // `winner ?? filler` would caption the winner's own hypnogram with the filler's staging.
             sleepHrOnly: sleepFromFiller ? filler.sleepHrOnly : winner.sleepHrOnly
         )
+    }
+
+    // Activity-file steps: moved from `Repository` so the shared core merges the days as the iPhone does.
+
+    public static func mergeActivityFileSteps(into base: [DailyMetric],
+                                                   _ activityFile: [DailyMetric]) -> [DailyMetric] {
+        guard !activityFile.isEmpty else { return base }
+        // Last-wins on a duplicate day rather than `uniqueKeysWithValues`, which TRAPS (crashes) if `base`
+        // ever carries two rows for one day. Matches the Kotlin twin's graceful merge and this file's own
+        // safe convention (the other `Dictionary(…, uniquingKeysWith:)` builders here).
+        var byDay = Dictionary(base.map { ($0.day, $0) }, uniquingKeysWith: { _, last in last })
+        for row in activityFile {
+            guard let steps = row.steps, steps > 0 else { continue }
+            if let existing = byDay[row.day] {
+                if existing.steps == nil {
+                    byDay[row.day] = DailyMetric(
+                        day: existing.day,
+                        totalSleepMin: existing.totalSleepMin,
+                        efficiency: existing.efficiency,
+                        deepMin: existing.deepMin,
+                        remMin: existing.remMin,
+                        lightMin: existing.lightMin,
+                        disturbances: existing.disturbances,
+                        restingHr: existing.restingHr,
+                        avgHrv: existing.avgHrv,
+                        recovery: existing.recovery,
+                        strain: existing.strain,
+                        exerciseCount: existing.exerciseCount,
+                        spo2Pct: existing.spo2Pct,
+                        skinTempDevC: existing.skinTempDevC,
+                        respRateBpm: existing.respRateBpm,
+                        steps: steps,
+                        activeKcalEst: existing.activeKcalEst,
+                        spo2Red: existing.spo2Red,
+                        spo2Ir: existing.spo2Ir,
+                        skinTempC: existing.skinTempC
+                    )
+                }
+            } else {
+                byDay[row.day] = row
+            }
+        }
+        return byDay.values.sorted { $0.day < $1.day }
+    }
+
+    // Edited sleep (H5, #509): moved from `Repository` so the shared core merges a corrected night as the iPhone does.
+
+    /// The set of LOCAL wake-days that carry a user-edited sleep session , keyed exactly as
+    /// `DailyMetric.day` is (the engine's cached-offset local-day keyer, matching `mergeSleep.endDay`).
+    /// Drives the H5 edit-merge precedence in `mergeDaily`.
+    public static func userEditedDays(_ sessions: [CachedSleepSession]) -> Set<String> {
+        var days = Set<String>()
+        for s in sessions where s.userEdited {
+            days.insert(sleepEndDayKey(s.endTs))
+        }
+        return days
+    }
+
+    /// Local wake-day key for a sleep endpoint. Resolve the GMT offset at the endpoint itself so an edit
+    /// across a daylight-saving boundary is filed under the same day as the session and daily metric.
+    public static func sleepEndDayKey(_ endTs: Int) -> String {
+        let date = Date(timeIntervalSince1970: TimeInterval(endTs))
+        let offsetSec = TimeZone.current.secondsFromGMT(for: date)
+        return AnalyticsEngine.dayString(endTs, offsetSec: offsetSec)
+    }
+
+    /// Rebuild the sleep-only fields for days with a manually corrected session. Historical imports have no
+    /// raw streams, so `IntelligenceEngine` cannot always create a computed daily row after an edit; deriving
+    /// this overlay from the stored, re-clipped stages makes the edited duration immediately authoritative.
+    public static func applyingEditedSleepSessions(_ sessions: [CachedSleepSession],
+                                                        to days: [DailyMetric]) -> [DailyMetric] {
+        guard sessions.contains(where: \.userEdited) else { return days }
+        let habitualBlocks = sessions.compactMap { session -> SleepStageTotals.HistoryBlock? in
+            let start = session.effectiveStartTs, end = session.endTs
+            guard end > start else { return nil }
+            let midpoint = start + (end - start) / 2
+            let offsetSec = TimeZone.current.secondsFromGMT(
+                for: Date(timeIntervalSince1970: TimeInterval(midpoint)))
+            return SleepStageTotals.HistoryBlock(
+                start: start,
+                end: end,
+                dayKey: AnalyticsEngine.dayString(midpoint, offsetSec: offsetSec)
+            )
+        }
+        let currentOffsetSec = TimeZone.current.secondsFromGMT()
+        let habitualMidsleepSec = SleepStageTotals.habitualMidsleepSec(
+            habitualBlocks, offsetSec: currentOffsetSec)
+        let sessionsByDay = Dictionary(grouping: sessions) { session in
+            sleepEndDayKey(session.endTs)
+        }
+
+        return days.map { daily in
+            guard let daySessions = sessionsByDay[daily.day], daySessions.contains(where: \.userEdited) else {
+                return daily
+            }
+            let editedStages = Dictionary(
+                daySessions.filter(\.userEdited).map { ($0.startTs, $0.stagesJSON) },
+                uniquingKeysWith: { first, _ in first }
+            )
+            let onsets = Dictionary(
+                daySessions.map { ($0.startTs, $0.effectiveStartTs) },
+                uniquingKeysWith: { first, _ in first }
+            )
+            guard let aggregate = SleepStageTotals.dailyAggregateHonoringEdits(
+                detected: daySessions.map { (startTs: $0.startTs, stagesJSON: $0.stagesJSON) },
+                edited: editedStages,
+                onsetByStart: onsets,
+                offsetSec: TimeZone.current.secondsFromGMT(
+                    for: Date(timeIntervalSince1970: TimeInterval(daySessions[0].endTs))),
+                habitualMidsleepSec: habitualMidsleepSec
+            ), aggregate.editApplied else {
+                return daily
+            }
+            return daily.takingEditedSleepFields(from: aggregate.sleep)
+        }
     }
 
     /// Imported daily values win field-by-field; computed rows fill only nil imported fields.

@@ -76,6 +76,8 @@ public enum NativeTrainingProjection {
         case .repetitions: return "reps_only"
         case .duration: return "duration"
         case .distanceDuration: return "distance_duration"
+        case .weightDuration: return "weight_duration"
+        case .distanceWeight: return "short_distance_weight"
         }
     }
 

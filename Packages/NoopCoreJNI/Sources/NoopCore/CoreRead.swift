@@ -55,11 +55,31 @@ public enum CoreRead {
             return nil
         }
         let rest = await restSeries(from: day, to: day, reader: reader).last?.value
+        // A day the strap measured no steps or SpO2 for takes them from the phone's health store, as the iPhone's
+        // Today falls back to Apple Health: Apple Health first, then Health Connect (Android's equivalent).
+        var steps = row.steps
+        if steps == nil {
+            for source in [MetricResolver.appleHealthSource, MetricResolver.healthConnectSource] {
+                if let s = ((try? await reader.store.appleDaily(deviceId: source, from: day, to: day)) ?? [])
+                    .first(where: { $0.day == day })?.steps, s > 0 {
+                    steps = s; break
+                }
+            }
+        }
+        var spo2 = row.spo2Pct
+        if spo2 == nil {
+            for source in [MetricResolver.appleHealthSource, MetricResolver.healthConnectSource] {
+                if let v = ((try? await reader.store.metricSeries(deviceId: source, key: "spo2", from: day, to: day)) ?? [])
+                    .last?.value {
+                    spo2 = v; break
+                }
+            }
+        }
         return Day(day: row.day, charge: row.recovery, effort: row.strain, rest: rest,
                    sleepMinutes: row.totalSleepMin, deepMinutes: row.deepMin, remMinutes: row.remMin,
                    lightMinutes: row.lightMin, efficiency: row.efficiency, restingHr: row.restingHr,
-                   hrv: row.avgHrv, respRate: row.respRateBpm, spo2: row.spo2Pct, skinTempDev: row.skinTempDevC,
-                   steps: row.steps,
+                   hrv: row.avgHrv, respRate: row.respRateBpm, spo2: spo2, skinTempDev: row.skinTempDevC,
+                   steps: steps,
                    heroSource: await ScoreProvenance.heroLabels(day: day, reader: reader).map(token))
     }
 
@@ -111,6 +131,48 @@ public enum CoreRead {
     /// has, as the Apple Today screen's banked trace reads it (`StoreReader.hrBuckets`).
     public static func heartRate(from: Int, to: Int, reader: StoreReader) async -> [HeartPoint] {
         await reader.hrBuckets(from: from, to: to, bucketSeconds: 300).map { HeartPoint(ts: $0.ts, bpm: $0.bpm) }
+    }
+
+    /// A resolved metric series in Android's shape (`WhoopRepository.MetricSeriesResolution`).
+    public struct ResolvedSeries: Encodable {
+        struct Candidate: Encodable { var source: String, key: String }
+        struct Point: Encodable { var day: String, value: Double, source: String, sourceKey: String }
+        var requestedSource: String
+        var candidates: [Candidate]
+        var points: [Point]
+
+        init(_ r: MetricSeriesResolution) {
+            requestedSource = r.requestedSource
+            candidates = r.candidates.map { Candidate(source: $0.source, key: $0.key) }
+            points = r.points.map { Point(day: $0.day, value: $0.value, source: $0.source, sourceKey: $0.sourceKey) }
+        }
+    }
+
+    /// The workout list as the iPhone's `Repository.workoutRows` builds it, without its display-only heart-rate
+    /// reconcile: every source's rows with native sessions and dismissed detections applied, cross-source twins
+    /// collapsed, recorded heart-rate fills laid over, newest first. What Android's Workouts screen reads instead of
+    /// Room's own assembly (parity plan 1.3).
+    public static func workouts(days: Int, dismissed: [String], reader: StoreReader) async -> [WorkoutRow] {
+        let now = Int(Date().timeIntervalSince1970)
+        let raw = await reader.rawWorkoutRows(from: now - days * 86_400, to: now + 86_400, dismissedDetectedSpans: dismissed)
+        let deduped = WorkoutSource.dedupCrossSource(raw)
+        return await WorkoutHeartRateFills.overlay(deduped.sorted { $0.startTs > $1.startTs }, store: reader.store)
+    }
+
+    /// The daily rows as the iPhone's `Repository.days` holds them: imports win a day, the core's own rows fill it, a
+    /// hand-edited night's sleep comes from the edit, and an activity file supplies steps a day lacks. What
+    /// Android's classic screens read instead of Room's merge (parity plan 1.3).
+    public static func dailyRows(from: String, to: String, reader: StoreReader) async -> [DailyMetric] {
+        let start = Int(WeightSeries.date(forDay: from)?.timeIntervalSince1970 ?? 0) - 86_400
+        let end = Int(WeightSeries.date(forDay: to)?.timeIntervalSince1970 ?? Date().timeIntervalSince1970) + 2 * 86_400
+        let sessions = await reader.allSleepSessions(from: start, to: end)
+        let merged = StoreReader.applyingEditedSleepSessions(sessions, to: StoreReader.mergeDaily(
+            imported: await reader.unionDailyMetrics(from: from, to: to),
+            computed: await reader.unionComputedDailyMetrics(from: from, to: to),
+            userEditedDays: StoreReader.userEditedDays(sessions)))
+        let activityFile = (try? await reader.store.dailyMetrics(deviceId: ScoreProvenance.activityFileSource,
+                                                                 from: from, to: to)) ?? []
+        return StoreReader.mergeActivityFileSteps(into: merged, activityFile)
     }
 
     /// Imported days with the computed rows filling their gaps, one row per day (`Repository`'s daily cache).

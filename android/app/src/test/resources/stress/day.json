@@ -1,0 +1,197 @@
+{
+  "activityMaskedHours" : 0,
+  "dayMean" : 2.422107736429523,
+  "highStressMinutes" : 420,
+  "hours" : [
+    {
+      "hour" : 8,
+      "level" : 2.4923717102261844,
+      "masked" : false,
+      "meanHR" : 61,
+      "rmssd" : 29.99335389936935,
+      "startTs" : 1793170800
+    },
+    {
+      "hour" : 9,
+      "level" : 2.3738170321719996,
+      "masked" : false,
+      "meanHR" : 64,
+      "rmssd" : 29.99389119984503,
+      "startTs" : 1793174400
+    },
+    {
+      "hour" : 10,
+      "level" : 2.4132184361079068,
+      "masked" : false,
+      "meanHR" : 67,
+      "rmssd" : 29.99418763736672,
+      "startTs" : 1793178000
+    },
+    {
+      "hour" : 11,
+      "level" : 2.326938519748997,
+      "masked" : false,
+      "meanHR" : 70,
+      "rmssd" : 29.99466471035162,
+      "startTs" : 1793181600
+    },
+    {
+      "hour" : 12,
+      "level" : 2.4520540890116216,
+      "masked" : false,
+      "meanHR" : 73,
+      "rmssd" : 29.9948360842316,
+      "startTs" : 1793185200
+    },
+    {
+      "hour" : 13,
+      "level" : 2.4533921327849404,
+      "masked" : false,
+      "meanHR" : 76,
+      "rmssd" : 29.99518809237342,
+      "startTs" : 1793188800
+    },
+    {
+      "hour" : 14,
+      "level" : 2.442962234955012,
+      "masked" : false,
+      "meanHR" : 79,
+      "rmssd" : 29.99555862279676,
+      "startTs" : 1793192400
+    }
+  ],
+  "hrOnlyFallback" : false,
+  "peak" : {
+    "hour" : 8,
+    "level" : 2.4923717102261844,
+    "masked" : false,
+    "meanHR" : 61,
+    "rmssd" : 29.99335389936935,
+    "startTs" : 1793170800
+  },
+  "sustainedHigh" : true,
+  "sustainedRun" : 7,
+  "timeline" : [
+    {
+      "hour" : 7,
+      "level" : 2.5204587153141436,
+      "masked" : false,
+      "meanHR" : 60.333333333333336,
+      "rmssd" : 29.993226954534123,
+      "startTs" : 1793169000
+    },
+    {
+      "hour" : 8,
+      "level" : 2.4923717102261844,
+      "masked" : false,
+      "meanHR" : 61,
+      "rmssd" : 29.99335389936935,
+      "startTs" : 1793170800
+    },
+    {
+      "hour" : 8,
+      "level" : 2.9917192494151177,
+      "masked" : false,
+      "meanHR" : 62.5,
+      "rmssd" : 29.99048659012977,
+      "startTs" : 1793172600
+    },
+    {
+      "hour" : 9,
+      "level" : 2.3738170321719996,
+      "masked" : false,
+      "meanHR" : 64,
+      "rmssd" : 29.99389119984503,
+      "startTs" : 1793174400
+    },
+    {
+      "hour" : 9,
+      "level" : 2.9888557906167668,
+      "masked" : false,
+      "meanHR" : 65.5,
+      "rmssd" : 29.991051735773425,
+      "startTs" : 1793176200
+    },
+    {
+      "hour" : 10,
+      "level" : 2.4132184361079068,
+      "masked" : false,
+      "meanHR" : 67,
+      "rmssd" : 29.99418763736672,
+      "startTs" : 1793178000
+    },
+    {
+      "hour" : 10,
+      "level" : 2.9837898658089776,
+      "masked" : false,
+      "meanHR" : 68.5,
+      "rmssd" : 29.991672457241187,
+      "startTs" : 1793179800
+    },
+    {
+      "hour" : 11,
+      "level" : 2.326938519748997,
+      "masked" : false,
+      "meanHR" : 70,
+      "rmssd" : 29.99466471035162,
+      "startTs" : 1793181600
+    },
+    {
+      "hour" : 11,
+      "level" : 2.98445591365759,
+      "masked" : false,
+      "meanHR" : 71.5,
+      "rmssd" : 29.99199670961604,
+      "startTs" : 1793183400
+    },
+    {
+      "hour" : 12,
+      "level" : 2.4520540890116216,
+      "masked" : false,
+      "meanHR" : 73,
+      "rmssd" : 29.9948360842316,
+      "startTs" : 1793185200
+    },
+    {
+      "hour" : 12,
+      "level" : 2.9749340128174566,
+      "masked" : false,
+      "meanHR" : 74.5,
+      "rmssd" : 29.99269152432932,
+      "startTs" : 1793187000
+    },
+    {
+      "hour" : 13,
+      "level" : 2.4533921327849404,
+      "masked" : false,
+      "meanHR" : 76,
+      "rmssd" : 29.99518809237342,
+      "startTs" : 1793188800
+    },
+    {
+      "hour" : 13,
+      "level" : 2.9746810796792884,
+      "masked" : false,
+      "meanHR" : 77.5,
+      "rmssd" : 29.9930528216191,
+      "startTs" : 1793190600
+    },
+    {
+      "hour" : 14,
+      "level" : 2.442962234955012,
+      "masked" : false,
+      "meanHR" : 79,
+      "rmssd" : 29.99555862279676,
+      "startTs" : 1793192400
+    },
+    {
+      "hour" : 14,
+      "level" : 2.3690388584850135,
+      "masked" : false,
+      "meanHR" : 79.66666666666667,
+      "rmssd" : 29.99574733615727,
+      "startTs" : 1793194200
+    }
+  ],
+  "usesPersonalBaseline" : false
+}

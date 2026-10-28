@@ -1,5 +1,6 @@
 import SwiftUI
 import StrandDesign
+import StrandCore
 
 /// Third-party content NOOP uses under its own licence, in one place instead of scattered across the
 /// screens that happen to use it. Content mirrors `docs/fork/THIRD_PARTY_NOTICES.md` — keep both in
@@ -24,6 +25,9 @@ struct AcknowledgementsView: View {
                 entry(title: "ExerciseDB v1 exercise data",
                       detail: "Exercise names, body parts, equipment, targets, muscle groups and instructions via hasaneyldrm/exercises-dataset. MIT licence.",
                       link: "https://github.com/hasaneyldrm/exercises-dataset")
+                entry(title: ExerciseDBProviderClient.defaultAttribution,
+                      detail: String(localized: "Optional exercise metadata. Provider terms apply; media downloads are separate."),
+                      link: ExerciseDBProviderClient.defaultDocumentation)
                 entry(title: "Exercise media (images and animations)",
                       detail: "© Gym visual — gymvisual.com. Not licensed to NOOP: cloning the exercises-dataset repository is not a licence to its media. NOOP never bundles these files; downloading them is an explicit, disclosed, opt-in action, and the credit line appears under every animation.")
             }

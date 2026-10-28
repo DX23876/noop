@@ -836,13 +836,7 @@ struct TestCentreView: View {
             }
             let walker = SkinTempBackfillWalker(store: store)
             let result = await walker.runBackfill()
-            let anchorNote = result.windowAnchorRaw != nil
-                ? "anchor from current window"
-                : "no 4.0 anchor (5/MG or too few worn samples)"
-            let endNote = result.reachedEnd ? "reached end" : "hit page budget"
-            let line = "skin-temp backfill (#1853): filled \(result.filledCount), " +
-                       "declined \(result.declinedCount), no raw data \(result.noRawDataCount) " +
-                       "(\(anchorNote), \(endNote))"
+            let line = result.summary
             live.append(log: line)
             skinTempBackfillStatus = line
             skinTempBackfillRunning = false

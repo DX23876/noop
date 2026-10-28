@@ -1,5 +1,9 @@
 import XCTest
+#if NOOP_CORE_TESTS
+@testable import NoopCore
+#else
 @testable import Strand
+#endif
 
 /// The combined-volume gate is deliberately coarse (no load-tracking, no fixed weekly-frequency field on
 /// a run goal) — these pin its named thresholds/estimates and, above all, that it WARNS and never blocks,

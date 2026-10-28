@@ -1,4 +1,5 @@
 import Foundation
+import StrandCore
 import SwiftUI
 import StrandAnalytics
 import WhoopStore

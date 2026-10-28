@@ -175,7 +175,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
         // (mergeActivityFileSteps(mergeDaily(imported, computed))), so this
         // matches the iOS badge count, including a strap-only user's computed-only ("-noop") days that an
         // imported-only count would miss. workoutsUnion mirrors Swift's dataVolumeSnapshot workout union.
-        whoopDays = vm.repo.daysMerged(vm.activeStrapId).size
+        whoopDays = vm.mergedDays(vm.activeStrapId).size
         whoopWorkouts = vm.repo.workoutsUnion(vm.activeStrapId, 0L, nowS).size
         whoopHasHr = vm.repo.latestHrSampleTsUnion(vm.activeStrapId) != null
         appleDays = vm.repo.appleDailyCount("apple-health", "0000-01-01", "9999-12-31")

@@ -18,9 +18,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -40,6 +43,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
@@ -138,7 +142,13 @@ fun MetricTile(icon: ImageVector, tint: Color, label: String, value: String?, un
         }
         Spacer(Modifier.padding(top = ForgeMetrics.space2 + ForgeMetrics.space1))
         if (value == null) {
-            Text(noData, style = Forge.type.subhead, color = colors.textTertiary, maxLines = 1)
+            // Held at the height of a value line, so a tile without data stays as tall as its neighbour.
+            Box(contentAlignment = Alignment.BottomStart) {
+                Text(noData, style = Forge.type.title1, color = Color.Transparent, maxLines = 1, softWrap = false,
+                     modifier = Modifier.width(1.dp).clearAndSetSemantics {})
+                Text(noData, style = Forge.type.subhead, color = colors.textTertiary, maxLines = 1,
+                     modifier = Modifier.padding(bottom = 4.dp))
+            }
         } else {
             Row(verticalAlignment = Alignment.Bottom) {
                 // The value and unit give way first, shrinking together until they fit (a narrow phone, a large
@@ -201,9 +211,26 @@ fun ForgeOverlayHost(content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalForgeOverlay provides overlay) {
         Box(Modifier.fillMaxSize()) {
             content()
-            overlay.page?.let { page ->
-                BackHandler { overlay.dismiss() }
-                Box(Modifier.fillMaxSize()) { page() }
+            // The first page slides in over the tab and the last one slides out to it, as the pages inside a
+            // stack already do; the closing page keeps drawing until its exit has run.
+            val current = overlay.page
+            var shown by remember { mutableStateOf<(@Composable () -> Unit)?>(null) }
+            val progress = remember { Animatable(0f) }
+            LaunchedEffect(current) {
+                if (current != null) {
+                    shown = current
+                    progress.animateTo(1f, tween(280))
+                } else {
+                    progress.animateTo(0f, tween(220))
+                    shown = null
+                }
+            }
+            if (current != null) BackHandler { overlay.dismiss() }
+            (current ?: shown)?.let { page ->
+                Box(Modifier.fillMaxSize().graphicsLayer {
+                    translationX = (1f - progress.value) * size.width
+                    alpha = progress.value
+                }) { page() }
             }
         }
     }

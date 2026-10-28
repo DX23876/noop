@@ -97,6 +97,7 @@ fun StartWorkoutSheet(vm: AppViewModel, onDismiss: () -> Unit) {
         text = {
             Column {
                 OutlinedTextField(
+                    colors = noopFieldColors(),
                     value = query, onValueChange = { query = it },
                     label = { Text(uiString(R.string.l10n_workout_start_search_sport_004b7928)) }, singleLine = true,
                     modifier = Modifier.fillMaxWidth(),

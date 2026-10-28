@@ -10,7 +10,8 @@ import org.json.JSONObject
  * operations, so prefill, progression and completion are never rebuilt in Kotlin.
  */
 object CoreTraining {
-    data class Exercise(val id: String, val title: String, val primaryMuscle: String?)
+    data class Exercise(val id: String, val title: String, val primaryMuscle: String?,
+                        val mode: String = "weight_reps", val unilateral: Boolean = false)
     data class Routine(val id: String, val title: String, val exerciseIds: List<String>,
                        val muscles: Map<String, Double>, val weekdays: List<Int>) {
         val exerciseCount get() = exerciseIds.size
@@ -40,7 +41,8 @@ object CoreTraining {
     data class Starter(val index: Int, val title: String, val exercises: List<String>)
 
     data class DraftSet(val id: String, val index: Int, val warmup: Boolean, val weightKg: Double?, val reps: Int?,
-                        val done: Boolean)
+                        val done: Boolean, val leftReps: Int? = null, val rightReps: Int? = null,
+                        val durationS: Int? = null, val distanceM: Double? = null)
     data class DraftExercise(val id: String, val exerciseId: String, val restSeconds: Int, val sets: List<DraftSet>)
     data class Draft(val id: String, val title: String, val startedAt: Long, val exercises: List<DraftExercise>)
 
@@ -54,10 +56,12 @@ object CoreTraining {
     fun startDraft(routineIds: List<String>): Draft? =
         call("training.startDraft", JSONObject().put("routineIds", JSONArray(routineIds)))?.let(::parseDraft)
 
-    fun setValues(exercise: String, set: String, weightKg: Double?, reps: Int?, done: Boolean?): Draft? =
-        call("training.changeDraft", JSONObject().put("change", "set").put("exercise", exercise).put("set", set)
-            .put("weightKg", weightKg ?: JSONObject.NULL).put("reps", reps ?: JSONObject.NULL)
-            .apply { if (done != null) put("done", done) })?.let(::parseDraft)
+    fun setValues(exercise: String, set: DraftSet): Draft? =
+        call("training.changeDraft", JSONObject().put("change", "set").put("exercise", exercise).put("set", set.id)
+            .put("weightKg", set.weightKg ?: JSONObject.NULL).put("reps", set.reps ?: JSONObject.NULL)
+            .put("leftReps", set.leftReps ?: JSONObject.NULL).put("rightReps", set.rightReps ?: JSONObject.NULL)
+            .put("durationS", set.durationS ?: JSONObject.NULL).put("distanceM", set.distanceM ?: JSONObject.NULL)
+            .put("done", set.done))?.let(::parseDraft)
 
     fun addSet(exercise: String): Draft? =
         call("training.changeDraft", JSONObject().put("change", "addSet").put("exercise", exercise))?.let(::parseDraft)
@@ -76,7 +80,7 @@ object CoreTraining {
     /** True when the workout was saved (at least one completed set). */
     fun finish(sessionRPE: Double?): Boolean =
         call("training.finishDraft", JSONObject().put("sessionRPE", sessionRPE ?: JSONObject.NULL))
-            ?.let { it != "null" && it.startsWith("{") && !it.contains("\"error\"") } ?: false
+            ?.let(::parseFinished) ?: false
 
     fun discard(draftId: String): Boolean =
         call("training.discardDraft", JSONObject().put("id", draftId))?.contains("true") == true
@@ -109,11 +113,17 @@ object CoreTraining {
     fun deleteRoutine(id: String): Boolean =
         call("training.deleteRoutine", JSONObject().put("id", id))?.contains("true") == true
 
+    internal fun parseFinished(json: String): Boolean = runCatching {
+        val o = JSONObject(json)
+        !o.has("error") && o.getString("id").isNotEmpty() && o.getLong("endedAt") > 0
+    }.getOrDefault(false)
+
     internal fun parseSnapshot(json: String): Snapshot? {
         if (json == "null" || json.contains("\"error\"")) return null
         val o = JSONObject(json)
         val exercises = o.optJSONArray("exercises").objects().map {
-            Exercise(it.getString("id"), it.getString("title"), it.optStringOrNull("primaryMuscleId"))
+            Exercise(it.getString("id"), it.getString("title"), it.optStringOrNull("primaryMuscleId"),
+                it.optString("mode", "weight_reps"), it.optBoolean("isUnilateral"))
         }
         val plan = o.getJSONObject("plan")
         val routineMuscles = o.optJSONObject("routineMuscles")
@@ -178,7 +188,8 @@ object CoreTraining {
                         DraftSet(s.getString("id"), s.optInt("index"), s.optString("phase") == "warmup",
                                  if (s.has("weightKg") && !s.isNull("weightKg")) s.getDouble("weightKg") else null,
                                  if (s.has("reps") && !s.isNull("reps")) s.getInt("reps") else null,
-                                 s.optBoolean("isCompleted"))
+                                 s.optBoolean("isCompleted"), s.optIntOrNull("leftReps"), s.optIntOrNull("rightReps"),
+                                 s.optIntOrNull("durationS"), s.optDoubleOrNull("distanceM"))
                     })
             })
     }

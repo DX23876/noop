@@ -119,6 +119,9 @@ object CoachBriefScheduler {
         // switched off.
         if (!NoopPrefs.coachEnabled(context.applicationContext)) return null
         val ctx = context.applicationContext
+        // The shared coach writes the brief as iOS does, with its tools and into its own chat. The Kotlin coach
+        // below only answers when the core is not up in this process (a worker started before the app).
+        com.noop.core.CoreCoach.brief(ctx)?.let { return it }
         val provider = AiKeyStore.readProvider(ctx)
         val model = AiKeyStore.readModel(ctx, provider)
         val consent = AiKeyStore.readConsent(ctx)
@@ -128,7 +131,7 @@ object CoachBriefScheduler {
         // #1304/#512 parity with CoachViewModel: thread the ACTIVE strap id so a headless generation
         // reasons off the same strap the user sees in the app, not a hardcoded canonical fallback.
         val aiCoach = AiCoach(
-            WhoopRepository(WhoopDatabase.get(ctx)),
+            WhoopRepository.from(ctx),
             activeStrapId = { (ctx as? com.noop.NoopApplication)?.activeDeviceId ?: WhoopRepository.WHOOP_SOURCE },
         )
         return aiCoach.generateBrief(ctx, provider, model, consent, customUrl, customHeader, includeSignals)

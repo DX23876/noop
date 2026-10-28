@@ -948,13 +948,14 @@ struct CoachView: View {
     /// question after "why is the coach talking to me" is always "how often will it".
     @ViewBuilder
     private func coachInitiatedLabel(_ origin: ChatMessage.Origin) -> some View {
-        let (text, symbol): (LocalizedStringKey, String) = {
+        let text = LocalizedStringKey(origin.gotInTouchLine ?? "")
+        let symbol: String = {
             switch origin {
-            case .brief:        return ("Your daily brief — the coach got in touch", "sun.horizon")
-            case .checkIn:      return ("Check-in — the coach got in touch", "hand.wave")
-            case .nudge:        return ("The coach got in touch", "bell")
-            case .weeklyReview: return ("Your weekly review — the coach got in touch", "calendar")
-            case .reply:        return ("", "")
+            case .brief:        return "sun.horizon"
+            case .checkIn:      return "hand.wave"
+            case .nudge:        return "bell"
+            case .weeklyReview: return "calendar"
+            case .reply:        return ""
             }
         }()
         HStack(spacing: 5) {
@@ -999,44 +1000,7 @@ struct CoachView: View {
     /// memory-editing tools) — one catalog entry, not three near-duplicates.
     @ViewBuilder
     private func evidenceLabel(_ tool: CoachTool) -> some View {
-        switch tool {
-        case .dataCatalog:             Text("Data catalog")
-        case .biometricSummary:        Text("Your metrics")
-        case .recentWorkouts:          Text("Recent workouts")
-        case .strengthHistory:         Text("Strength history")
-        case .bodyMetrics:             Text("Body & energy")
-        case .stressIndex:             Text("Stress index")
-        case .personalPatterns:        Text("Your patterns")
-        case .plotMetric:              Text("Chart")
-        case .rememberFact, .updateFact, .forgetFact: Text("Memory")
-        case .searchPastConversations: Text("Past conversations")
-        case .logCaffeine:             Text("Caffeine log")
-        case .logJournal:              Text("Journal")
-        case .logLabMarker:            Text("Lab Book")
-        case .logWeight:               Text("Weigh-in")
-        case .energyBalance:           Text("Energy")
-        case .sleepDetail:             Text("Sleep detail")
-        case .rangeReport:             Text("Range report")
-        case .trainingPreferences:     Text("Training preferences")
-        case .metricHistory:           Text("Long-term trend")
-        case .readiness:               Text("Readiness")
-        case .chargeDrivers:           Text("Charge breakdown")
-        case .proposePlan:             Text("Plan proposal")
-        case .proposeGoalSetup:        Text("Goal and routine draft")
-        case .showCard:                Text("A card from your data")
-        case .findHevyExercises:       Text("Your exercise list")
-        case .hevyRoutines:            Text("Your routines")
-        case .proposeHevyRoutine:      Text("Routine draft")
-        case .proposeHevyWorkout:      Text("Workout draft")
-        case .sessionOutlook:          Text("Session outlook")
-        case .simulateDay:             Text("Simulation")
-        case .planAdherence:           Text("Plan adherence")
-        case .myLogs:                  Text("Your logs")
-        case .sensitiveLogs:           Text("Sensitive journal")
-        case .zoneMinutes:             Text("Zone minutes")
-        case .trainingLoad:            Text("Training load")
-        case .estimateSessionEffort:   Text("Session Effort estimate")
-        }
+        Text(LocalizedStringKey(tool.evidenceTitle))
     }
 
     /// A one-line "what this source contributed" note per tool (#P12 12.2) — the data BEHIND the label, so

@@ -1,0 +1,66 @@
+{
+  "bucketSeconds" : 15,
+  "canonicalId" : "session|native-training|1793016000|strengthtraining",
+  "durationS" : 600,
+  "endTs" : 1793016600,
+  "groups" : [
+    [
+      {
+        "kind" : "repsOnly",
+        "primary" : "quadriceps",
+        "secondary" : [
+
+        ],
+        "sets" : [
+          {
+            "index" : 0,
+            "isWorking" : true,
+            "leftReps" : 10,
+            "reps" : 10,
+            "rightReps" : 12,
+            "type" : "normal"
+          }
+        ],
+        "title" : "Split exercise",
+        "workingSets" : 1
+      }
+    ],
+    [
+      {
+        "kind" : "distance",
+        "primary" : "forearms",
+        "secondary" : [
+
+        ],
+        "sets" : [
+          {
+            "distanceM" : 120,
+            "durationS" : 75,
+            "index" : 0,
+            "isWorking" : true,
+            "type" : "normal"
+          }
+        ],
+        "title" : "Carry",
+        "workingSets" : 1
+      }
+    ]
+  ],
+  "heartRate" : [
+
+  ],
+  "id" : "noop-native:00000000-0000-4000-8000-000000000001",
+  "kind" : "strength",
+  "source" : "noop_native",
+  "startTs" : 1793016000,
+  "summary" : {
+    "bodyweightVolumeKg" : 0,
+    "exerciseCount" : 2,
+    "ratedSets" : 0,
+    "unpricedBodyweightSets" : 0,
+    "volumeKg" : 0,
+    "volumeSets" : 0,
+    "workingSets" : 2
+  },
+  "title" : "Synthetic native session"
+}

@@ -243,7 +243,7 @@ enum DataBackup {
             if !customs.isEmpty { values["journal.customBehaviors"] = customs.joined(separator: "\n") }
         }
         // Every goal, daily goal, attribution, frozen period result and goal preference, as one string.
-        if let goals = GoalBackupBundle.encode(from: .standard) {
+        if let goals = GoalBackupBundle.encode(from: UserDefaults.standard) {
             values[GoalBackupBundle.settingsKey] = goals
         }
         return BackupSettings.encode(values)

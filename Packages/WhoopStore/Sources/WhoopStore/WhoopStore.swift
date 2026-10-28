@@ -259,6 +259,11 @@ public actor WhoopStore {
         try DeviceRegistryStore(dbQueue: dbWriter).deleteAllData(deviceId: deviceId)
     }
 
+    /// Moves one device's recordings and computed rows onto another id; see `DeviceRegistryStore.reKeyDeviceData`.
+    public func reKeyDeviceData(from: String, to: String) async throws {
+        try DeviceRegistryStore(dbQueue: dbWriter).reKeyDeviceData(from: from, to: to)
+    }
+
     /// Total on-disk size of the database — the main file plus its `-wal`/`-shm` siblings — in bytes.
     /// Drives the iOS Storage diagnostics screen (#590). `nil` for an in-memory store (no path). Runs
     /// on the actor's executor, off the main thread. Note (#755): under the `DatabasePool` the `-wal`

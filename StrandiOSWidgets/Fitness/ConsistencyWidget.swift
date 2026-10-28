@@ -8,7 +8,7 @@ import StrandDesign
 struct NOOPConsistencyWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "NOOPConsistencyWidget", provider: FitnessProvider()) { entry in
-            ConsistencyWidgetView(entry: entry).containerBackground(StrandPalette.surfaceBase, for: .widget)
+            ConsistencyWidgetView(entry: entry).appGroupNotice().containerBackground(StrandPalette.surfaceBase, for: .widget)
         }
         .configurationDisplayName("Consistency")
         .description("Your training days of the last weeks at a glance.")

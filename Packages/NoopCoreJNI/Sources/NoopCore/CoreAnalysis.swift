@@ -50,6 +50,8 @@ public enum CoreAnalysis {
         public var activityLevelOverride: Int
         /// Whether the energy model calibrates against a watch's active energy (Apple: Energy Plan setting).
         public var energyCalibration: Bool
+        /// The Energy Plan's current formula, matching Apple's default before a plan is configured.
+        public var basalFormula = BmrFormulaLog.decode("").current
         /// Manual baseline recalibration anchors, in Unix seconds; zero means no recalibration.
         public var hrvBaselineEpoch: Double = 0, recoveryBaselineEpoch: Double = 0
         /// Lab: the strap's SpO₂ estimate is kept for the Blood Oxygen tile (Apple `noopSpo2CandidateDisplay`).
@@ -92,12 +94,13 @@ public enum CoreAnalysis {
     /// Applies the Android app's further choices, sent as one JSON object so the JNI signature stays short: the
     /// deleted nights and workouts (`dismissedSleep`, `dismissedWorkouts`, "start:end" tokens), the waist and the
     /// step estimate's calibration (the `ProfileStore` names), and the fitness inputs the Apple Energy Plan holds
-    /// (`manualVO2max`, `manualVO2maxDay`, `manualVO2maxWeightKg`, `activityLevelOverride`, `energyCalibration`)
+    /// (`manualVO2max`, `manualVO2maxDay`, `manualVO2maxWeightKg`, `activityLevelOverride`, `energyCalibration`, `formulaLog`)
     /// the Lab's `spo2CandidateDisplay` and the two manual baseline-recalibration anchors.
     /// Absent keys keep their defaults, the values an untouched Apple install has.
     public static func applyExtras(_ json: String, to settings: inout Settings, profile: inout Profile) {
         guard let data = json.data(using: .utf8),
               let o = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+        if let raw = o["formulaLog"] as? String { settings.basalFormula = BmrFormulaLog.decode(raw).current }
         func double(_ k: String) -> Double? { (o[k] as? NSNumber)?.doubleValue }
         func int(_ k: String) -> Int? { (o[k] as? NSNumber)?.intValue }
         func bool(_ k: String) -> Bool? { (o[k] as? NSNumber)?.boolValue }
@@ -138,6 +141,7 @@ public enum CoreAnalysis {
         let reader = StoreReader(store: store, activeDeviceId: deviceId, registeredWhoopIds: [])
         let host = Host(settings)
         let source = ProfileSource(profile)
+        source.basalFormula = settings.basalFormula
         source.manual = settings.manualEntry.map { ($0.day, $0.vo2max) }
         let services = StoreServices(reader: reader, settings: settings, host: host,
                                      profile: { [source] in source.analyticsProfile() })
@@ -299,6 +303,7 @@ public enum CoreAnalysis {
     @MainActor
     private final class ProfileSource: AnalysisProfileSource {
         let p: Profile
+        var basalFormula = BmrFormulaLog.decode("").current
         init(_ p: Profile) {
             self.p = p
             stepsCalibrationCoefficient = p.stepsCalibrationCoefficient
@@ -322,10 +327,10 @@ public enum CoreAnalysis {
         var stepsCalibrationManual: Bool
         var stepsHasBankedMotion: Bool
         func analyticsProfile() -> UserProfile {
-            // As `Repository.analyticsProfile` on Apple: the maximum heart rate in force; the basal formula stays at
-            // its default, since Android has no Energy Plan to choose another.
+            // Same formula selection as Repository.analyticsProfile; the generic UserProfile default
+            // is retained for other callers and must not substitute for the Energy Plan's selection.
             UserProfile(weightKg: p.weightKg, heightCm: p.heightCm, age: Double(p.age), sex: p.sex,
-                        maxHR: Double(hrMax))
+                        maxHR: Double(hrMax), basalFormula: basalFormula)
         }
         func enteredVO2max() -> (day: String, value: Double)? { manual }
         var manual: (day: String, value: Double)?

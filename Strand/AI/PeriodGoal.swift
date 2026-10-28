@@ -1,5 +1,8 @@
 import Foundation
+import StrandCore
+#if canImport(Combine)
 import Combine
+#endif
 import StrandAnalytics
 
 /// What a weekly or monthly goal measures. Every case is something NOOP can actually read; a metric is
@@ -389,7 +392,7 @@ struct PeriodGoal: Codable, Identifiable, Equatable {
     /// The rest weekdays this goal's pace leaves out.
     var effectiveRestWeekdays: [Int] {
         guard metric.usesRestDays else { return [] }
-        return restWeekdaysOverride ?? TrainingPreferences.restWeekdays
+        return restWeekdaysOverride ?? GoalPrefs.restWeekdays
     }
 }
 
@@ -423,26 +426,31 @@ enum GoalPrefs {
     /// Weekly goals beyond this many get a one-time "this gets hard to follow" hint (Q15).
     static let crowdThreshold = 4
 
+    static var restWeekdays: [Int] {
+        let stored = GoalPreferences.standard.array(forKey: "training.restWeekdays") as? [Int] ?? []
+        return Array(Set(stored.filter { (1...7).contains($0) })).sorted()
+    }
+
     static var longTermLimit: Int {
-        let stored = UserDefaults.standard.integer(forKey: longTermLimitKey)
+        let stored = GoalPreferences.standard.integer(forKey: longTermLimitKey)
         return stored == 0 ? defaultLongTermLimit
             : min(longTermLimitRange.upperBound, max(longTermLimitRange.lowerBound, stored))
     }
 
     static var periodLimit: Int {
-        let stored = UserDefaults.standard.integer(forKey: periodLimitKey)
+        let stored = GoalPreferences.standard.integer(forKey: periodLimitKey)
         return stored == 0 ? defaultPeriodLimit
             : min(periodLimitRange.upperBound, max(periodLimitRange.lowerBound, stored))
     }
 
     static var pinnedLongTermIds: Set<UUID> {
-        Set((UserDefaults.standard.stringArray(forKey: pinnedKey) ?? []).compactMap(UUID.init(uuidString:)))
+        Set((GoalPreferences.standard.stringArray(forKey: pinnedKey) ?? []).compactMap(UUID.init(uuidString:)))
     }
 
     static func setPinned(_ id: UUID, _ pinned: Bool) {
         var ids = pinnedLongTermIds
         if pinned { ids.insert(id) } else { ids.remove(id) }
-        UserDefaults.standard.set(ids.map(\.uuidString).sorted(), forKey: pinnedKey)
+        GoalPreferences.standard.set(ids.map(\.uuidString).sorted(), forKey: pinnedKey)
     }
 
     /// Opt-in system notifications per kind (Q4: off by default). The in-app hints run regardless.
@@ -459,11 +467,11 @@ enum GoalPrefs {
     }
 
     static func notifies(_ kind: NotificationKind) -> Bool {
-        UserDefaults.standard.bool(forKey: notifyKey + "." + kind.rawValue)
+        GoalPreferences.standard.bool(forKey: notifyKey + "." + kind.rawValue)
     }
 
     static func setNotifies(_ kind: NotificationKind, _ on: Bool) {
-        UserDefaults.standard.set(on, forKey: notifyKey + "." + kind.rawValue)
+        GoalPreferences.standard.set(on, forKey: notifyKey + "." + kind.rawValue)
     }
 }
 
@@ -471,7 +479,7 @@ enum GoalPrefs {
 /// (the same posture as `CoachGoalStore`). The array order IS the order the wearer arranged (Q13).
 @MainActor
 final class PeriodGoalStore: ObservableObject {
-    static let shared = PeriodGoalStore()
+    static var shared = PeriodGoalStore()
     static let storageKey = "goals.period.v1"
     static let resultsKey = "goals.periodResults.v1"
 
@@ -482,10 +490,10 @@ final class PeriodGoalStore: ObservableObject {
     private var foreignGoals: [PreservedJSON] = []
     private var foreignResults: [PreservedJSON] = []
 
-    private let defaults: UserDefaults
+    private let defaults: any GoalPreferenceStorage
     private var isLoading = true
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: any GoalPreferenceStorage = GoalPreferences.standard) {
         self.defaults = defaults
         if let data = defaults.data(forKey: Self.storageKey),
            let decoded = try? JSONDecoder().decode(TolerantStoredList<PeriodGoal>.self, from: data) {
@@ -570,7 +578,7 @@ final class PeriodGoalStore: ObservableObject {
         var history = goal.targetHistory
         if history.isEmpty {
             // Goals saved before the log existed: anchor their old target at creation.
-            history.append(.init(fromDay: Repository.localDayKey(goal.createdAt), target: goal.target))
+            history.append(.init(fromDay: StoreReader.localDayKey(goal.createdAt), target: goal.target))
         }
         history.removeAll { $0.fromDay == today }
         history.append(.init(fromDay: today, target: target))
@@ -579,7 +587,11 @@ final class PeriodGoalStore: ObservableObject {
 
     func move(fromOffsets: IndexSet, toOffset: Int, within period: PeriodGoal.Period) {
         var subset = goals.filter { $0.period == period && $0.isOpen }
-        subset.move(fromOffsets: fromOffsets, toOffset: toOffset)
+        // SwiftUI's list move expressed in Foundation so the shared core uses the same order.
+        let moving = fromOffsets.map { subset[$0] }
+        let insertion = toOffset - fromOffsets.filter { $0 < toOffset }.count
+        for index in fromOffsets.reversed() { subset.remove(at: index) }
+        subset.insert(contentsOf: moving, at: insertion)
         var iterator = subset.makeIterator()
         goals = goals.map { goal in
             guard goal.period == period && goal.isOpen else { return goal }
@@ -662,8 +674,8 @@ final class PeriodGoalStore: ObservableObject {
 
     static let chainQuestionKey = "goals.chainQuestions"
     static var pendingChainQuestions: Set<UUID> {
-        get { Set((UserDefaults.standard.stringArray(forKey: chainQuestionKey) ?? []).compactMap(UUID.init)) }
-        set { UserDefaults.standard.set(newValue.map(\.uuidString).sorted(), forKey: chainQuestionKey) }
+        get { Set((GoalPreferences.standard.stringArray(forKey: chainQuestionKey) ?? []).compactMap(UUID.init)) }
+        set { GoalPreferences.standard.set(newValue.map(\.uuidString).sorted(), forKey: chainQuestionKey) }
     }
 
     // MARK: Results
@@ -702,7 +714,7 @@ final class PeriodGoalStore: ObservableObject {
 /// count, or one the automatic sport match missed. Keyed by goal and workout key.
 @MainActor
 final class GoalCountingCorrections: ObservableObject {
-    static let shared = GoalCountingCorrections()
+    static var shared = GoalCountingCorrections()
     static let storageKey = "goals.countingCorrections.v1"
 
     struct Correction: Codable, Equatable {
@@ -713,10 +725,10 @@ final class GoalCountingCorrections: ObservableObject {
     }
 
     @Published private(set) var corrections: [Correction] = [] { didSet { save() } }
-    private let defaults: UserDefaults
+    private let defaults: any GoalPreferenceStorage
     private var isLoading = true
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: any GoalPreferenceStorage = GoalPreferences.standard) {
         self.defaults = defaults
         if let data = defaults.data(forKey: Self.storageKey),
            let decoded = try? JSONDecoder().decode([Correction].self, from: data) {

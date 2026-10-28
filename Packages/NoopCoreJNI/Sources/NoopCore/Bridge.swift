@@ -93,7 +93,17 @@ public enum Bridge {
     /// Restores over the session's store file; the app must restart before it reads the restored data.
     public static func importBackup(from source: String, scratch: String, allowOversize: Bool) -> String {
         guard let (_, path) = ShadowSession.storeAndPath else { return CoreBackup.Result.failed("noSession").line }
-        return CoreBackup.restore(from: source, toDatabaseAt: path, scratch: scratch, allowOversize: allowOversize).line
+        final class Box: @unchecked Sendable { var value = CoreBackup.Result.failed("import") }
+        let box = Box(), done = DispatchSemaphore(value: 0)
+        Task.detached {
+            await CoreHevy.shared.cancelAndWait()
+            await CoreHevyRoutines.shared.invalidate()
+            await CoreExerciseProvider.shared.invalidate()
+            box.value = CoreBackup.restore(from: source, toDatabaseAt: path, scratch: scratch, allowOversize: allowOversize)
+            done.signal()
+        }
+        done.wait()
+        return box.value.line
     }
 
     /// Demo builds only: writes the demo history into the session's store when it has no scored day; the days

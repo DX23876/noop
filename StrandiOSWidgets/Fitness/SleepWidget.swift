@@ -6,7 +6,7 @@ import StrandDesign
 struct NOOPSleepWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "NOOPSleepWidget", provider: FitnessProvider()) { entry in
-            SleepWidgetView(entry: entry).containerBackground(StrandPalette.surfaceBase, for: .widget)
+            SleepWidgetView(entry: entry).appGroupNotice().containerBackground(StrandPalette.surfaceBase, for: .widget)
         }
         .configurationDisplayName("Sleep")
         .description("Last night against your sleep need, with its stages and the past week.")

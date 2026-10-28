@@ -19,7 +19,11 @@ import com.noop.data.WhoopRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import com.noop.core.CoreCoach
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -43,7 +47,7 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
     // The networked coach, over the local store. No key is held here; the engine reads it from
     // the encrypted store at call time.
     private val aiCoach = AiCoach(
-        WhoopRepository(WhoopDatabase.get(app.applicationContext)),
+        WhoopRepository.from(app.applicationContext),
         // #1304/#512: thread the active strap id (resolved lazily by NoopApplication) so the coach reasons
         // off the active strap's data — daysMerged/R-R/Lab markers union active ∪ canonical — instead of a
         // hardcoded "my-whoop" that misses a strap banked under "whoop-<uuid>".
@@ -63,6 +67,94 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
     private val _sending = MutableStateFlow(false)
     /** True while a request is in flight, the UI disables Send and shows a thinking state. */
     val sending: StateFlow<Boolean> = _sending.asStateFlow()
+
+    /** The coach's name from the shared coach (its default identity on Android), for the header and greeting. */
+    private val _coachName = MutableStateFlow("")
+    val coachName: StateFlow<String> = _coachName.asStateFlow()
+
+    /** The coach's whole identity (name, picture, tone), for the avatar and the identity editor. */
+    private val _identity = MutableStateFlow<CoreCoach.Identity?>(null)
+    val identity: StateFlow<CoreCoach.Identity?> = _identity.asStateFlow()
+
+    /** Reads the coach's identity once the core is up; the header shows "Coach" until then. */
+    fun loadCoachName() {
+        if (_identity.value != null) return
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { CoreCoach.identity() }?.let { applyIdentity(it) }
+        }
+    }
+
+    /** Changes the identity in the shared coach, which also puts the name and tone into its prompt. */
+    fun updateIdentity(preset: String? = null, name: String? = null, voice: String? = null,
+                       avatarKind: String? = null, avatarValue: String? = null) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { CoreCoach.setIdentity(preset, name, voice, avatarKind, avatarValue) }
+                ?.let { applyIdentity(it) }
+        }
+    }
+
+    /** The coaching and data-access settings of the shared coach. */
+    private val _coachSettings = MutableStateFlow<CoreCoach.CoachSettings?>(null)
+    val coachSettings: StateFlow<CoreCoach.CoachSettings?> = _coachSettings.asStateFlow()
+
+    fun loadCoachSettings() {
+        viewModelScope.launch { withContext(Dispatchers.IO) { CoreCoach.settings() }?.let(::showSettings) }
+    }
+
+    fun updateCoachSettings(change: org.json.JSONObject) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { CoreCoach.updateSettings(change) }?.let(::showSettings)
+        }
+    }
+
+    /** The Android settings in the shared coach's terms, with the consent read fresh from its store. */
+    private fun coreSettings(appCtx: Context): CoreCoach.Settings {
+        val consentNow = AiKeyStore.readConsent(appCtx)
+        _consent.value = consentNow
+        val provider = _provider.value
+        return CoreCoach.Settings(
+            provider = provider, model = _model.value, key = AiKeyStore.read(appCtx, provider).orEmpty(),
+            consent = consentNow, customBaseUrl = _customBaseUrl.value,
+            customAuthHeader = _customAuthHeader.value, customConnected = _customConnected.value,
+        )
+    }
+
+    private val _connectionTest = MutableStateFlow<Pair<Boolean, String>?>(null)
+    /** The last "Test connection" result; an empty line while it runs. */
+    val connectionTest: StateFlow<Pair<Boolean, String>?> = _connectionTest.asStateFlow()
+
+    fun testConnection(ctx: Context) {
+        val appCtx = ctx.applicationContext
+        _connectionTest.value = false to ""
+        viewModelScope.launch {
+            _connectionTest.value = withContext(Dispatchers.IO) {
+                CoreCoach.testConnection(appCtx, coreSettings(appCtx), com.noop.ui.forge.dismissedTrainingWorkouts(appCtx))
+            } ?: (false to getApplication<Application>().getString(R.string.coach_no_reply))
+        }
+    }
+
+    private fun showSettings(s: CoreCoach.CoachSettings) {
+        _coachSettings.value = s
+    }
+
+    /**
+     * "Enable AI Coach": Android's one master switch (`NoopPrefs.coachEnabled`, through the bar store so the brief
+     * and More follow). The shared coach receives it with its next `configure`, as `CoachFeaturePrefs`.
+     */
+    fun setCoachFeature(ctx: Context, on: Boolean) = BottomBarStyleStore.setCoachEnabled(ctx, on)
+
+    private val _info = MutableStateFlow<CoreCoach.Info?>(null)
+    /** The first-use note and "How Coach works", from the shared coach. */
+    val info: StateFlow<CoreCoach.Info?> = _info.asStateFlow()
+
+    fun loadInfo(acknowledge: Boolean = false) {
+        viewModelScope.launch { withContext(Dispatchers.IO) { CoreCoach.info(acknowledge) }?.let { _info.value = it } }
+    }
+
+    private fun applyIdentity(identity: CoreCoach.Identity) {
+        _identity.value = identity
+        _coachName.value = identity.name
+    }
 
     private val _error = MutableStateFlow<String?>(null)
     /** Non-null when the last send failed; the UI shows it in red. Cleared on the next send. */
@@ -182,18 +274,30 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
     /** True when an edited prompt differs from the default, gates the "Reset to default" control. */
     val hasCustomPrompt: StateFlow<Boolean> = _hasCustomPrompt.asStateFlow()
 
-    /** Persist the edited [prompt] (blank clears it back to default) and reflect it in the editor. */
-    fun setSystemPrompt(ctx: Context, prompt: String) {
-        NoopPrefs.setCoachSystemPrompt(ctx, prompt)
-        _systemPrompt.value = prompt
-        _hasCustomPrompt.value = prompt.isNotBlank() && prompt.trim() != AiCoach.DEFAULT_SYSTEM_PROMPT
+    /** Shows the shared coach's instructions in the editor: the ones that actually frame every reply. */
+    fun loadSystemPrompt() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { CoreCoach.prompt() }?.let { (prompt, custom) ->
+                _systemPrompt.value = prompt; _hasCustomPrompt.value = custom
+            }
+        }
     }
 
-    /** Restore the built-in default prompt by clearing any override. */
-    fun resetSystemPrompt(ctx: Context) {
-        NoopPrefs.setCoachSystemPrompt(ctx, "")
-        _systemPrompt.value = AiCoach.DEFAULT_SYSTEM_PROMPT
-        _hasCustomPrompt.value = false
+    /** Persist the edited [prompt] in the shared coach (blank restores its default) and reflect it in the editor. */
+    fun setSystemPrompt(@Suppress("UNUSED_PARAMETER") ctx: Context, prompt: String) {
+        _systemPrompt.value = prompt
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { CoreCoach.prompt(set = prompt) }?.let { (_, custom) -> _hasCustomPrompt.value = custom }
+        }
+    }
+
+    /** Restore the shared coach's default instructions. */
+    fun resetSystemPrompt(@Suppress("UNUSED_PARAMETER") ctx: Context) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { CoreCoach.prompt(set = "") }?.let { (prompt, custom) ->
+                _systemPrompt.value = prompt; _hasCustomPrompt.value = custom
+            }
+        }
     }
 
     // Bumped whenever the stored key changes so the UI recomposes its setup/chat gate.
@@ -463,67 +567,29 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
 
         val appCtx = ctx.applicationContext
         _error.value = null
-        appendMessage(ChatMsg(role = "user", text = question))
+        _keyRejected.value = false
         _sending.value = true
 
-        // K1: append a placeholder assistant message, then mutate its text as chunks arrive.
-        val placeholderId = java.util.UUID.randomUUID().toString()
-        appendMessage(ChatMsg(id = placeholderId, role = "assistant", text = ""))
-        var accumulated = ""
-
+        // The reply comes from the shared coach in the Swift core (`CoreCoach`, Apple's `AICoachEngine`): its
+        // tools read the wearer's data on demand, and it keeps its own transcript, which this screen mirrors.
         viewModelScope.launch {
             try {
-                // Re-read the stored grant rather than trusting the copy this instance was built
-                // with. Consent is editable from CoachSettingsScreen, and the system prompt already
-                // works this way (`resolveSystemPrompt` is read fresh per send); a revoked grant
-                // must not be able to survive in memory on the one call that egresses data.
-                val consentNow = AiKeyStore.readConsent(appCtx)
-                _consent.value = consentNow
-                aiCoach.chatStream(
-                    ctx = appCtx,
-                    history = _messages.value.dropLast(1), // exclude the placeholder
-                    provider = _provider.value,
-                    model = _model.value,
-                    consent = consentNow,
-                    customBaseUrl = _customBaseUrl.value,
-                    customAuthHeader = _customAuthHeader.value,
-                    includeSignals = consentNow && NoopPrefs.coachSignals(appCtx),
-                ) { delta ->
-                    accumulated += delta
-                    // Replace the placeholder's text with the accumulated stream so far.
-                    _messages.value = _messages.value.map { msg ->
-                        if (msg.id == placeholderId) ChatMsg(id = placeholderId, role = "assistant", text = accumulated)
-                        else msg
-                    }
+                // Re-read the stored grant rather than trusting the copy this instance was built with: a
+                // revoked grant must not survive in memory on the one call that egresses data.
+                val settings = coreSettings(appCtx)
+                val dismissed = com.noop.ui.forge.dismissedTrainingWorkouts(appCtx)
+                val started = withContext(Dispatchers.IO) {
+                    CoreCoach.configure(appCtx, settings, dismissed) && CoreCoach.send(question)
                 }
-                // Finalize: trim whitespace. If the stream produced nothing, show "(no reply)".
-                val clean = accumulated.trim()
-                _messages.value = _messages.value.map { msg ->
-                    if (msg.id == placeholderId) {
-                        ChatMsg(id = placeholderId, role = "assistant",
-                                text = if (clean.isEmpty()) getApplication<Application>().getString(R.string.coach_no_reply) else clean)
-                    } else msg
+                if (!started) {
+                    _error.value = getApplication<Application>().getString(R.string.coach_no_reply)
+                    return@launch
                 }
+                followReply()
             } catch (e: Exception) {
-                val partial = accumulated.trim()
-                if (partial.isNotEmpty()) {
-                    _messages.value = _messages.value.map { msg ->
-                        if (msg.id == placeholderId) {
-                            ChatMsg(id = placeholderId, role = "assistant",
-                                    text = getApplication<Application>().getString(R.string.coach_stream_interrupted, partial))
-                        } else msg
-                    }
-                } else {
-                    // No text received at all — remove the empty placeholder.
-                    _messages.value = _messages.value.filterNot { it.id == placeholderId }
-                }
                 _error.value = e.message ?: "Something went wrong. Please try again."
-                // Typed, never text-matched: the message is localized and the type is not.
-                _keyRejected.value = e is AiKeyRejectedException
             } finally {
                 _sending.value = false
-                // K2: persist once the turn is fully settled (success, mid-stream error, or empty-
-                // stream removal) — not per streamed chunk, so a long reply doesn't hammer the store.
                 persistMessages()
             }
         }
@@ -600,10 +666,132 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
      *  persisted table. */
     fun clearConversation() {
         _messages.value = emptyList()
+        viewModelScope.launch { withContext(Dispatchers.IO) { CoreCoach.newConversation() } }
         // Goes with the transcript, as in [clearKey] and [disconnect]: a field claiming the empty
         // transcript belongs to some past day would not be true.
         conversationDay = null
         viewModelScope.launch { runCatching { coachDao.clearCoachMessages() } }
+    }
+
+    /** How the last failure can be answered (`AICoachError.Recovery`): "reauthenticate", "retry" or "none". */
+    private val _recovery = MutableStateFlow<Pair<String, Int?>?>(null)
+    val recovery: StateFlow<Pair<String, Int?>?> = _recovery.asStateFlow()
+    private val _canDeepen = MutableStateFlow(false)
+    val canDeepen: StateFlow<Boolean> = _canDeepen.asStateFlow()
+    private val _chrome = MutableStateFlow(CoreCoach.Chrome())
+    val chrome: StateFlow<CoreCoach.Chrome> = _chrome.asStateFlow()
+
+    /** A memory receipt's control (`confirm`, `update`, `remove`) on the fact [id], then the chat again. */
+    fun receipt(op: String, id: String, text: String? = null) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { CoreCoach.memory(op, id = id, text = text) }
+            withContext(Dispatchers.IO) { CoreCoach.state() }?.let(::apply)
+        }
+    }
+
+    /** Re-reads the chat's surroundings (the plan dot after the plan book, consent after settings). */
+    fun refreshChrome() {
+        viewModelScope.launch { withContext(Dispatchers.IO) { CoreCoach.state() }?.let(::apply) }
+    }
+
+    private fun apply(state: CoreCoach.State) {
+        _messages.value = state.messages.takeLast(MAX_STORED_MESSAGES)
+        _canDeepen.value = state.canDeepen
+        _chrome.value = state.chrome
+        _recovery.value = state.recovery?.let { it to state.retryAfter }
+    }
+
+    /**
+     * Mirrors the shared coach's transcript while a reply streams, then its error if it ended in one. iOS draws
+     * every delta the moment it arrives; a poll brings several words at once, so the words that came since the
+     * last poll are laid down one by one across the poll interval instead of landing as a block.
+     */
+    private suspend fun followReply() {
+        var streamingId: String? = null
+        var shown = 0
+        while (true) {
+            val state = withContext(Dispatchers.IO) { CoreCoach.state() } ?: break
+            val last = state.messages.lastOrNull()
+            var paced = false
+            if (state.sending && last != null && last.role == "assistant") {
+                if (last.id != streamingId) { streamingId = last.id; shown = 0 }
+                val ends = wordEnds(last.text, shown)
+                if (ends.size > 1) {
+                    val step = STREAM_POLL_MS / ends.size
+                    for (end in ends.dropLast(1)) {
+                        apply(state.copy(messages = state.messages.dropLast(1) + last.copy(text = last.text.substring(0, end))))
+                        delay(step)
+                    }
+                    paced = true
+                }
+                shown = last.text.length
+            }
+            apply(state)
+            if (!state.sending) {
+                _error.value = state.error
+                break
+            }
+            delay(if (paced) STREAM_POLL_MS / 4 else STREAM_POLL_MS)
+        }
+    }
+
+    /** "Ask coach" on a metric: the shared coach reads the card, and the chat follows the read as it does a reply. */
+    fun askAboutCard(ctx: Context, title: String, summary: String) {
+        if (_sending.value) return
+        val appCtx = ctx.applicationContext
+        _error.value = null
+        _sending.value = true
+        viewModelScope.launch {
+            try {
+                val started = withContext(Dispatchers.IO) {
+                    CoreCoach.configure(appCtx, coreSettings(appCtx), com.noop.ui.forge.dismissedTrainingWorkouts(appCtx)) &&
+                        CoreCoach.card(title, summary)
+                }
+                if (started) { delay(STREAM_POLL_MS); followReply() }
+            } finally {
+                _sending.value = false
+            }
+        }
+    }
+
+    /** Regenerate, or with [deeper] look at the last answer again with the deep-analysis model. */
+    fun regenerate(deeper: Boolean = false) {
+        if (_sending.value) return
+        _error.value = null
+        _sending.value = true
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) { if (deeper) CoreCoach.deeper() else CoreCoach.regenerate() }
+                followReply()
+            } finally {
+                _sending.value = false
+                persistMessages()
+            }
+        }
+    }
+
+    /** "Edit and ask again": hands the last question back for the composer and removes its exchange. */
+    fun reclaimLastQuestion(onQuestion: (String) -> Unit) {
+        if (_sending.value) return
+        viewModelScope.launch {
+            val (question, state) = withContext(Dispatchers.IO) { CoreCoach.reclaim() }
+            state?.let(::apply)
+            question?.let(onQuestion)
+        }
+    }
+
+    /** Shows the shared coach's active conversation, after the history switched or deleted one. */
+    fun showCoreConversation() {
+        viewModelScope.launch {
+            val state = withContext(Dispatchers.IO) { CoreCoach.state() } ?: return@launch
+            apply(state)
+            _error.value = null
+        }
+    }
+
+    /** Stops the reply mid-stream, keeping what already arrived (the shared coach's `stop`). */
+    fun stopReply() {
+        viewModelScope.launch { withContext(Dispatchers.IO) { CoreCoach.stop() } }
     }
 
     /** Dismiss the current error (e.g. when the user edits the input again). */
@@ -623,7 +811,7 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
         val day = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(java.util.Date())
         viewModelScope.launch {
             runCatching {
-                WhoopRepository(WhoopDatabase.get(app.applicationContext)).upsertJournal(
+                WhoopRepository.from(app.applicationContext).upsertJournal(
                     listOf(
                         JournalEntry(
                             deviceId = (app as NoopApplication).activeDeviceId,
@@ -713,9 +901,19 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
     fun consumeScheduledBriefIfAny(ctx: Context) {
         if (_messages.value.isNotEmpty()) return
         val text = CoachBriefSettings.from(ctx.applicationContext).consumeStoredBrief() ?: return
-        appendMessage(ChatMsg(role = "assistant", text = getApplication<Application>().getString(R.string.coach_today_brief_format, text)))
-        conversationDay = LocalDate.now().toEpochDay()
-        persistMessages()
+        viewModelScope.launch {
+            // A brief the shared coach wrote is already in its chat, marked as the coach getting in touch: show
+            // that chat rather than a second copy.
+            val state = withContext(Dispatchers.IO) { CoreCoach.state() }
+            val today = LocalDate.now().toEpochDay()
+            if (state != null && state.messages.any { it.gotInTouch != null && it.date > 0 && localEpochDay(it.date.toLong()) == today }) {
+                apply(state)
+                return@launch
+            }
+            appendMessage(ChatMsg(role = "assistant", text = getApplication<Application>().getString(R.string.coach_today_brief_format, text)))
+            conversationDay = LocalDate.now().toEpochDay()
+            persistMessages()
+        }
     }
 
     companion object {
@@ -728,6 +926,22 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
          * what's sent. (parity with Swift `maxStoredMessages`)
          */
         private const val MAX_STORED_MESSAGES = 40
+        /** How often the transcript is read back from the shared coach while a reply streams. */
+        private const val STREAM_POLL_MS = 120L
+
+        /** Where each word after [from] ends in [text] (after its trailing spaces), the last one being the text's end. */
+        internal fun wordEnds(text: String, from: Int): List<Int> {
+            if (from >= text.length) return emptyList()
+            val ends = mutableListOf<Int>()
+            var i = from
+            while (i < text.length) {
+                while (i < text.length && text[i].isWhitespace()) i++
+                while (i < text.length && !text[i].isWhitespace()) i++
+                while (i < text.length && text[i].isWhitespace()) i++
+                ends += i
+            }
+            return ends
+        }
 
         /** How long a pulled model catalogue is trusted before [refreshModelsIfStale] pulls again. */
         internal const val MODEL_REFRESH_INTERVAL_MS = 7L * 24 * 60 * 60 * 1000

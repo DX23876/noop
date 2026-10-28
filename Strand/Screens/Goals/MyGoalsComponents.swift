@@ -328,86 +328,8 @@ struct DailyGoalStarter: View {
 /// The small window behind a daily goal in the list: a value wheel, how long it runs, on which days.
 /// Opens for the fixed slots (steps, active calories, sleep), set or not yet set.
 struct DailyGoalSheet: View {
-    enum Slot: String, Identifiable, CaseIterable {
-        case steps, activeCalories, sleep
-        var id: String { rawValue }
-
-        var title: String {
-            switch self {
-            case .steps: return String(localized: "Steps")
-            case .activeCalories: return String(localized: "Active calories")
-            case .sleep: return String(localized: "Sleep")
-            }
-        }
-        var icon: String {
-            switch self {
-            case .steps: return "figure.walk"
-            case .activeCalories: return "flame.fill"
-            case .sleep: return "moon.stars.fill"
-            }
-        }
-        var metric: PeriodMetric {
-            switch self {
-            case .steps: return .stepDays
-            case .activeCalories: return .activeEnergy
-            case .sleep: return .sleepNights
-            }
-        }
-        var values: [Double] {
-            switch self {
-            case .steps: return stride(from: 2_000.0, through: 40_000, by: 500).map { $0 }
-            case .activeCalories: return stride(from: 100.0, through: 2_000, by: 50).map { $0 }
-            case .sleep: return stride(from: 5.0, through: 10, by: 0.25).map { $0 }
-            }
-        }
-        var defaultValue: Double {
-            switch self {
-            case .steps: return 10_000
-            case .activeCalories: return 500
-            case .sleep: return 7.5
-            }
-        }
-        func format(_ value: Double) -> String {
-            switch self {
-            case .steps: return String(localized: "\(Int(value).formatted()) steps")
-            case .activeCalories: return String(localized: "\(Int(value).formatted()) kcal")
-            case .sleep: return String(localized: "\(value.formatted(.number.precision(.fractionLength(0...2)))) h")
-            }
-        }
-        func requirement(_ value: Double) -> GoalAction.Requirement {
-            switch self {
-            case .steps: return .steps(minimum: Int(value))
-            case .activeCalories: return .activeCalories(minimum: Int(value))
-            case .sleep: return .sleep(minimumHours: value)
-            }
-        }
-        func value(of requirement: GoalAction.Requirement) -> Double? {
-            switch (self, requirement) {
-            case (.steps, .steps(let m)): return Double(m)
-            case (.activeCalories, .activeCalories(let m)): return Double(m)
-            case (.sleep, .sleep(let h)): return h
-            default: return nil
-            }
-        }
-
-        /// The standalone daily goal filling this slot, if one is set and running.
-        func current(in actions: [GoalAction], today: String) -> GoalAction? {
-            actions.first { $0.isActive && $0.goalIds.isEmpty && !$0.hasEnded(today: today)
-                && value(of: $0.requirement) != nil }
-        }
-    }
-
-    enum Runs: String, CaseIterable, Identifiable {
-        case ongoing, untilDate, todayOnly
-        var id: String { rawValue }
-        var label: String {
-            switch self {
-            case .ongoing: return String(localized: "Ongoing")
-            case .untilDate: return String(localized: "Until a date")
-            case .todayOnly: return String(localized: "Today only")
-            }
-        }
-    }
+    typealias Slot = DailyGoalSlot
+    typealias Runs = DailyGoalSlot.Runs
 
     let slot: Slot
     let onSave: () -> Void
@@ -557,82 +479,66 @@ struct DailyGoalSheet: View {
         } else {
             value = slot.defaultValue
         }
-        if !slot.values.contains(value) {
-            value = slot.values.min { abs($0 - value) < abs($1 - value) } ?? slot.defaultValue
-        }
+        value = slot.nearest(value)
     }
 
     private func save() {
-        let endsOn: String?
-        switch runs {
-        case .ongoing: endsOn = nil
-        case .untilDate: endsOn = Repository.localDayKey(endDate)
-        case .todayOnly: endsOn = today
-        }
-        let schedule: GoalAction.Schedule = (runs == .todayOnly || weekdays.count == 7) ? .daily : .weekdays(weekdays.sorted())
-        store.upsert(GoalAction(id: existing?.id ?? UUID(),
-                                title: existing?.title ?? defaultTitle,
-                                requirement: slot.requirement(value), schedule: schedule, goalIds: [],
-                                createdAt: existing?.createdAt ?? Date(), endsOn: endsOn,
-                                showsAsRing: showsAsRing ? existing?.showsAsRing.flatMap { $0 ? true : nil } : false))
+        slot.save(in: store, value: value, runs: runs, endsOn: Repository.localDayKey(endDate), weekdays: weekdays,
+                  showsAsRing: showsAsRing, today: today)
         StrandHaptic.commit.play()
         onSave()
         dismiss()
     }
 
-    private var defaultTitle: String {
-        switch slot {
-        case .steps: return String(localized: "Daily steps")
-        case .activeCalories: return String(localized: "Active calories")
-        case .sleep: return String(localized: "Sleep")
-        }
-    }
-
     /// Off keeps the goal and its history (it moves to the ended goals); it can be set again any time.
     private func turnOff() {
-        guard var action = existing else { return }
-        action.endsOn = Repository.localDayKey(Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date())
-        store.upsert(action)
+        slot.turnOff(in: store, today: today, yesterday: Repository.localDayKey(
+            Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()))
         onSave()
         dismiss()
     }
 }
 
-// MARK: - Badges
-
-extension GoalMotivation.Badge {
+/// The editor's words and symbols for each slot.
+extension DailyGoalSlot {
     var title: String {
-        switch family {
-        case .dailySteps: return String(localized: "\(threshold.formatted()) steps in a day")
-        case .lifetimeSteps: return String(localized: "\(threshold.formatted()) steps in total")
-        case .stepStreak: return String(localized: "\(threshold) days in a row")
-        case .weeksReached:
-            return threshold == 1 ? String(localized: "First weekly goal reached")
-                                  : String(localized: "\(threshold) weekly goals reached")
-        case .workouts: return String(localized: "\(threshold) workouts")
+        switch self {
+        case .steps: return String(localized: "Steps")
+        case .activeCalories: return String(localized: "Active calories")
+        case .sleep: return String(localized: "Sleep")
         }
     }
 
-    /// The short figure on the medal. Some locales (German among them) do not abbreviate thousands, so
-    /// from 100,000 on a figure the locale left whole is written with the SI "k": "500.000" did not fit.
-    var shortValue: String {
-        guard threshold >= 1_000 else { return "\(threshold)" }
-        let compact = threshold.formatted(.number.notation(.compactName))
-        guard threshold >= 100_000, !compact.contains(where: \.isLetter) else { return compact }
-        return "\((threshold / 1_000).formatted())k"
+    var icon: String {
+        switch self {
+        case .steps: return "figure.walk"
+        case .activeCalories: return "flame.fill"
+        case .sleep: return "moon.stars.fill"
+        }
+    }
+
+    func format(_ value: Double) -> String {
+        switch self {
+        case .steps: return String(localized: "\(Int(value).formatted()) steps")
+        case .activeCalories: return String(localized: "\(Int(value).formatted()) kcal")
+        case .sleep: return String(localized: "\(value.formatted(.number.precision(.fractionLength(0...2)))) h")
+        }
     }
 }
 
-extension GoalMotivation.BadgeFamily {
-    var title: String {
+extension DailyGoalSlot.Runs {
+    var label: String {
         switch self {
-        case .dailySteps: return String(localized: "Steps in a day")
-        case .lifetimeSteps: return String(localized: "Steps in total")
-        case .stepStreak: return String(localized: "Step goal streaks")
-        case .weeksReached: return String(localized: "Weekly goals reached")
-        case .workouts: return String(localized: "Workouts")
+        case .ongoing: return String(localized: "Ongoing")
+        case .untilDate: return String(localized: "Until a date")
+        case .todayOnly: return String(localized: "Today only")
         }
     }
+}
+
+// MARK: - Badges
+
+extension GoalMotivation.BadgeFamily {
     var symbol: String {
         switch self {
         case .dailySteps: return "figure.walk"

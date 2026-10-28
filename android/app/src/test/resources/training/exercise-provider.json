@@ -1,0 +1,20 @@
+{
+  "attribution" : [
+    "Exercise data: ExerciseDB V1 \/ AscendAPI — oss.exercisedb.dev."
+  ],
+  "exercises" : [
+    {
+      "id" : "exercisedb:body:bodyweight_reps",
+      "mode" : "bodyweight_reps",
+      "primary" : "biceps",
+      "title" : "Synthetic bodyweight"
+    },
+    {
+      "id" : "exercisedb:loaded",
+      "mode" : "weight_reps",
+      "primary" : "biceps",
+      "title" : "Synthetic loaded"
+    }
+  ],
+  "token" : "synthetic-review"
+}

@@ -474,11 +474,7 @@ final class Repository: ObservableObject {
     /// because its repository is not device-scoped; this one already knows `importedReadIds`.
     func gravitySamplesUnion(from: Int, to: Int, limit: Int = 200_000) async -> [GravitySample] {
         guard let store = await storeHandle() else { return [] }
-        var lists: [[GravitySample]] = []
-        for id in rawPhysiologyReadIds(store: store) {   // active strap FIRST → it wins any shared timestamp
-            lists.append((try? await store.gravitySamples(deviceId: id, from: from, to: to, limit: limit)) ?? [])
-        }
-        return Self.mergeGravityByTs(lists)
+        return await storeReader(store).gravitySamplesUnion(from: from, to: to, limit: limit)
     }
 
     /// Step-counter samples for `[from, to]` from the one raw WHOOP namespace that holds the most of them,
@@ -744,7 +740,7 @@ final class Repository: ObservableObject {
     nonisolated static func localDayKey(_ date: Date) -> String { StoreReader.localDayKey(date) }
 
     /// The hour the LOGICAL day rolls (04:00 local). Between midnight and this hour, "Today" stays put.
-    nonisolated static let logicalDayRolloverHour = 4
+    nonisolated static let logicalDayRolloverHour = LogicalDay.rolloverHour
 
     /// The LOGICAL local day for `now` , the calendar date of `now - rolloverHour hours`. Rolls at
     /// 04:00 local rather than midnight, so the small hours after midnight still resolve to the prior
@@ -911,17 +907,7 @@ final class Repository: ObservableObject {
 
     func importNativeTrainingPlan(_ archive: TrainingPlanArchive) async throws {
         guard let store = await ensureStore() else { throw RepositoryTrainingError.storeUnavailable }
-        let now = Int(Date().timeIntervalSince1970)
-        try await store.upsertTrainingExercises(archive.exercises, nowTs: now)
-        for routine in archive.routines { try await store.upsertTrainingRoutine(routine) }
-        let current = (try? await store.trainingPlan(weekStartsOn: archive.weekStartsOn)) ?? .init()
-        var merged = current.schedule
-        for weekday in TrainingWeekday.allCases {
-            var ids = merged[weekday] ?? []
-            for id in archive.schedule[weekday] ?? [] where !ids.contains(id) { ids.append(id) }
-            merged[weekday] = ids
-        }
-        try await store.replaceTrainingSchedule(merged)
+        try await store.mergeTrainingPlan(archive, nowTs: Int(Date().timeIntervalSince1970))
     }
 
     func importNativeTrainingHistory(_ result: TrainingHistoryImport) async throws {
@@ -975,19 +961,7 @@ final class Repository: ObservableObject {
         guard let store = await ensureStore() else { throw RepositoryTrainingError.storeUnavailable }
         try await store.completeNativeWorkout(workout)
         scheduleEnergyRefresh(coveringStart: workout.startedAt)
-        if let rpe = workout.sessionRPE {
-            _ = await recordSessionRPE(rpe, startTs: workout.startedAt, sport: workout.title,
-                                       ratedAtTs: Int(Date().timeIntervalSince1970))
-        } else if await shouldPromptSessionRating(
-            startTs: workout.startedAt, endTs: workout.endedAt,
-            // The projection's sport, not the title: a title is the wearer's own words ("Shoulder &
-            // Legs") and says nothing about what kind of session it was.
-            sport: NativeTrainingProjection.workoutRow(workout).sport,
-            source: NativeTrainingProjection.workoutRow(workout).source) {
-            await SessionRPEReminder.schedule(startTs: workout.startedAt,
-                                              durationS: Double(workout.endedAt - workout.startedAt),
-                                              sport: workout.title)
-        }
+        await refreshSessionRatingReminders()
         // The summary does not wait for a whole-app refresh; the saved workout is already authoritative.
         Task { await refresh() }
     }
@@ -1338,115 +1312,27 @@ final class Repository: ObservableObject {
         StoreReader.mergeDaily(imported: imported, computed: computed, userEditedDays: userEditedDays)
     }
 
+    /// Activity-file steps on days the merged rows have none (`StoreReader.mergeActivityFileSteps`).
     nonisolated static func mergeActivityFileSteps(into base: [DailyMetric],
                                                    _ activityFile: [DailyMetric]) -> [DailyMetric] {
-        guard !activityFile.isEmpty else { return base }
-        // Last-wins on a duplicate day rather than `uniqueKeysWithValues`, which TRAPS (crashes) if `base`
-        // ever carries two rows for one day. Matches the Kotlin twin's graceful merge and this file's own
-        // safe convention (the other `Dictionary(…, uniquingKeysWith:)` builders here).
-        var byDay = Dictionary(base.map { ($0.day, $0) }, uniquingKeysWith: { _, last in last })
-        for row in activityFile {
-            guard let steps = row.steps, steps > 0 else { continue }
-            if let existing = byDay[row.day] {
-                if existing.steps == nil {
-                    byDay[row.day] = DailyMetric(
-                        day: existing.day,
-                        totalSleepMin: existing.totalSleepMin,
-                        efficiency: existing.efficiency,
-                        deepMin: existing.deepMin,
-                        remMin: existing.remMin,
-                        lightMin: existing.lightMin,
-                        disturbances: existing.disturbances,
-                        restingHr: existing.restingHr,
-                        avgHrv: existing.avgHrv,
-                        recovery: existing.recovery,
-                        strain: existing.strain,
-                        exerciseCount: existing.exerciseCount,
-                        spo2Pct: existing.spo2Pct,
-                        skinTempDevC: existing.skinTempDevC,
-                        respRateBpm: existing.respRateBpm,
-                        steps: steps,
-                        activeKcalEst: existing.activeKcalEst,
-                        spo2Red: existing.spo2Red,
-                        spo2Ir: existing.spo2Ir,
-                        skinTempC: existing.skinTempC
-                    )
-                }
-            } else {
-                byDay[row.day] = row
-            }
-        }
-        return byDay.values.sorted { $0.day < $1.day }
+        StoreReader.mergeActivityFileSteps(into: base, activityFile)
     }
 
-    /// The set of LOCAL wake-days that carry a user-edited sleep session , keyed exactly as
-    /// `DailyMetric.day` is (the engine's cached-offset local-day keyer, matching `mergeSleep.endDay`).
-    /// Drives the H5 edit-merge precedence in `mergeDaily`.
+    /// The local wake-days that carry a user-edited sleep session (`StoreReader.userEditedDays`).
     nonisolated static func userEditedDays(_ sessions: [CachedSleepSession]) -> Set<String> {
-        var days = Set<String>()
-        for s in sessions where s.userEdited {
-            days.insert(sleepEndDayKey(s.endTs))
-        }
-        return days
+        StoreReader.userEditedDays(sessions)
     }
 
-    /// Local wake-day key for a sleep endpoint. Resolve the GMT offset at the endpoint itself so an edit
-    /// across a daylight-saving boundary is filed under the same day as the session and daily metric.
+    /// Local wake-day key for a sleep endpoint (`StoreReader.sleepEndDayKey`).
     nonisolated static func sleepEndDayKey(_ endTs: Int) -> String {
-        let date = Date(timeIntervalSince1970: TimeInterval(endTs))
-        let offsetSec = TimeZone.current.secondsFromGMT(for: date)
-        return AnalyticsEngine.dayString(endTs, offsetSec: offsetSec)
+        StoreReader.sleepEndDayKey(endTs)
     }
 
-    /// Rebuild the sleep-only fields for days with a manually corrected session. Historical imports have no
-    /// raw streams, so `IntelligenceEngine` cannot always create a computed daily row after an edit; deriving
-    /// this overlay from the stored, re-clipped stages makes the edited duration immediately authoritative.
+    /// The sleep fields of days with a manually corrected session, rebuilt from the stored stages
+    /// (`StoreReader.applyingEditedSleepSessions`).
     nonisolated static func applyingEditedSleepSessions(_ sessions: [CachedSleepSession],
                                                         to days: [DailyMetric]) -> [DailyMetric] {
-        guard sessions.contains(where: \.userEdited) else { return days }
-        let habitualBlocks = sessions.compactMap { session -> SleepStageTotals.HistoryBlock? in
-            let start = session.effectiveStartTs, end = session.endTs
-            guard end > start else { return nil }
-            let midpoint = start + (end - start) / 2
-            let offsetSec = TimeZone.current.secondsFromGMT(
-                for: Date(timeIntervalSince1970: TimeInterval(midpoint)))
-            return SleepStageTotals.HistoryBlock(
-                start: start,
-                end: end,
-                dayKey: AnalyticsEngine.dayString(midpoint, offsetSec: offsetSec)
-            )
-        }
-        let currentOffsetSec = TimeZone.current.secondsFromGMT()
-        let habitualMidsleepSec = SleepStageTotals.habitualMidsleepSec(
-            habitualBlocks, offsetSec: currentOffsetSec)
-        let sessionsByDay = Dictionary(grouping: sessions) { session in
-            sleepEndDayKey(session.endTs)
-        }
-
-        return days.map { daily in
-            guard let daySessions = sessionsByDay[daily.day], daySessions.contains(where: \.userEdited) else {
-                return daily
-            }
-            let editedStages = Dictionary(
-                daySessions.filter(\.userEdited).map { ($0.startTs, $0.stagesJSON) },
-                uniquingKeysWith: { first, _ in first }
-            )
-            let onsets = Dictionary(
-                daySessions.map { ($0.startTs, $0.effectiveStartTs) },
-                uniquingKeysWith: { first, _ in first }
-            )
-            guard let aggregate = SleepStageTotals.dailyAggregateHonoringEdits(
-                detected: daySessions.map { (startTs: $0.startTs, stagesJSON: $0.stagesJSON) },
-                edited: editedStages,
-                onsetByStart: onsets,
-                offsetSec: TimeZone.current.secondsFromGMT(
-                    for: Date(timeIntervalSince1970: TimeInterval(daySessions[0].endTs))),
-                habitualMidsleepSec: habitualMidsleepSec
-            ), aggregate.editApplied else {
-                return daily
-            }
-            return daily.takingEditedSleepFields(from: aggregate.sleep)
-        }
+        StoreReader.applyingEditedSleepSessions(sessions, to: days)
     }
 
     /// Keep imported Rest/performance verbatim after a manual time correction, while rebasing the
@@ -1546,12 +1432,7 @@ final class Repository: ObservableObject {
     /// asserting one, so do not "align" the encodings on the assumption that there is.
     func hrFingerprintUnion(from: Int, to: Int) async -> String {
         guard let store = await ensureStore() else { return "" }
-        var parts: [String] = []
-        for id in rawPhysiologyReadIds(store: store) {
-            let fp = (try? await store.hrFingerprint(deviceId: id, from: from, to: to)) ?? (count: 0, maxTs: 0)
-            parts.append("\(id):\(fp.count):\(fp.maxTs)")
-        }
-        return parts.joined(separator: "|")
+        return await reader(store).hrFingerprintUnion(from: from, to: to)
     }
 
     func hrSamples(from: Int, to: Int, limit: Int = 8000) async -> [HRSample] {
@@ -1573,19 +1454,7 @@ final class Repository: ObservableObject {
     /// active-first, while same-timestamp distinct beats remain intact.
     func rrIntervals(from: Int, to: Int, limit: Int = 8000) async -> [RRInterval] {
         guard let store = await ensureStore() else { return [] }
-        // Keep each physical strap's independently filtered history after a device switch. Only the
-        // ambiguous canonical alias inherits WHOOP 5's unit guard; a confirmed WHOOP 4 keeps its policy.
-        let activeWhoop5 = (try? await store.isWhoop5RRSource(deviceId: deviceId)) == true
-        let ids = rawPhysiologyReadIds(store: store)
-        guard ids.count != 1 else {
-            return (try? await store.rrIntervals(deviceId: deviceId, from: from, to: to, limit: limit)) ?? []
-        }
-        var lists: [[RRInterval]] = []
-        for id in ids {
-            lists.append((try? await store.rrIntervals(deviceId: id, from: from, to: to, limit: limit,
-                unlabelledAliasOfWhoop5: activeWhoop5 && id == Self.whoopSource)) ?? [])
-        }
-        return Self.mergeRRByIdentity(lists)
+        return await reader(store).rrIntervals(from: from, to: to, limit: limit)
     }
 
     /// Logical day-start of the most recent day the active device has HR data for, or nil when the store is
@@ -1958,8 +1827,12 @@ final class Repository: ObservableObject {
     /// re-detect + re-insert it; a user-created/edited (`userEdited`) night is deleted WITHOUT a tombstone
     /// (it is never re-detected, so it needs no suppression). The undo re-inserts the snapshot into its
     /// ORIGINAL namespace and lifts the tombstone.
+    ///
+    /// `suppressesWakeDay` is false for a nap: hiding the wake day's sleep values is right when the day's
+    /// night itself is deleted, but a nap shares its day with the main night, which must keep its numbers.
     @discardableResult
-    func deleteSleepSession(detectedStartTs: Int, endTs: Int) async -> SleepDeletionSnapshot? {
+    func deleteSleepSession(detectedStartTs: Int, endTs: Int,
+                            suppressesWakeDay: Bool = true) async -> SleepDeletionSnapshot? {
         guard let store = await ensureStore() else { return nil }
         // Snapshot the owning row BEFORE deleting, resolving the owner exactly as the delete does below:
         // computed source first, imported deviceId as the fallback. A one-second-wide window around the
@@ -1988,9 +1861,11 @@ final class Repository: ObservableObject {
             dismissedSleepSpans = priorTombstones
             return nil
         }
-        let wakeDay = Self.sleepEndDayKey(endTs)
-        suppressedSleepWakeDays.insert(wakeDay)
-        snapshot.suppressedWakeDay = wakeDay
+        if suppressesWakeDay {
+            let wakeDay = Self.sleepEndDayKey(endTs)
+            suppressedSleepWakeDays.insert(wakeDay)
+            snapshot.suppressedWakeDay = wakeDay
+        }
         sleepPresentationRevision &+= 1
         await refresh()
         return snapshot
@@ -2753,62 +2628,12 @@ final class Repository: ObservableObject {
     /// byte-identical. The flag is forwarded to the non-strap `series(...)` delegation below so every source
     /// path honours it.
     func exploreSeries(key: String, source: String, days: Int = 4000, fullHistory: Bool = false) async -> [(day: String, value: Double)] {
-        guard source == "my-whoop" else {
-            return Self.oneSkinTempScale(key: key, await series(key: key, source: source, days: days, fullHistory: fullHistory))
-        }
         guard let store = await ensureStore() else { return [] }
         let now = Date()
         let from = fullHistory ? "0000-01-01" : Self.dayString(now.addingTimeInterval(-Double(days) * 86_400))
         let to = fullHistory ? "9999-12-31" : Self.dayString(now.addingTimeInterval(86_400))
-
-        // day → value, lowest-priority source first; higher-priority sources overwrite per day so a
-        // real import always wins over the computed strap value.
-        var byDay: [String: Double] = [:]
-
-        // Layer 3 (lowest): merged daily column for keys that have one. `self.days` is the published
-        // imported ∪ computed daily cache (parameter `days` is the lookback window, not this).
-        for d in self.days where byDay[d.day] == nil {
-            if let v = Self.dailyColumn(key: key, day: d) { byDay[d.day] = v }
-        }
-        // Layer 2: computed metricSeries (covers sleep_performance, which has no daily column). UNION the
-        // active strap's computed sibling + the canonical computed sibling (canonical first so the active
-        // strap's value, applied last, wins per day).
-        for id in computedReadIds.reversed() {
-            for p in (try? await store.metricSeries(deviceId: id, key: key, from: from, to: to)) ?? [] { byDay[p.day] = p.value }
-        }
-        // Layer 1 (highest): the imported export's metricSeries. UNION active strap + canonical (canonical
-        // first so the active strap's value wins per day).
-        for id in importedReadIds.reversed() {
-            for p in (try? await store.metricSeries(deviceId: id, key: key, from: from, to: to)) ?? [] { byDay[p.day] = p.value }
-        }
-
-        let suppressed = Self.isSleepDayMetricKey(key) ? suppressedSleepWakeDays : Set<String>()
-        let visible = byDay.filter { !suppressed.contains($0.key) }
-            .sorted { $0.key < $1.key }
-            .map { (day: $0.key, value: $0.value) }
-        return Self.oneSkinTempScale(key: key, visible)
-    }
-
-    /// #1705: reduce a `skin_temp` window to a single scale; every other key passes through untouched.
-    ///
-    /// The key is bimodal — a CSV import writes ABSOLUTE °C where the computed layers write a baseline
-    /// DEVIATION, so one window can hold both. Every consumer of an Explore series aggregates it
-    /// (min/max/mean, the window-over-window delta, the correlation scan), and those are arithmetic
-    /// across two scales: on the reported account a few ~34 °C readings lifted a should-be-near-zero
-    /// average past a full degree, and the mean then read below 20 so it was labelled Δ°C.
-    ///
-    /// Applied on BOTH of `exploreSeries`' return paths, deliberately. Today the only `skin_temp`
-    /// descriptor is `my-whoop`, so the delegating path is unreachable for it — but a guard that is
-    /// correct only because of a fact in another file is how this bug happened in the first place.
-    /// `series(day:value:)` is ordered ascending by day, which `dominantKind` relies on.
-    private static func oneSkinTempScale(
-        key: String,
-        _ series: [(day: String, value: Double)]
-    ) -> [(day: String, value: Double)] {
-        guard key == "skin_temp",
-              let keep = SkinTempDisplay.dominantKind(valuesAscendingByDay: series.map(\.value))
-        else { return series }
-        return series.filter { SkinTempDisplay.kind(of: $0.value) == keep }
+        return await storeReader(store).exploreSeries(key: key, source: source, from: from, to: to,
+            dailyRows: self.days, suppressedSleepWakeDays: suppressedSleepWakeDays)
     }
 
     /// Every catalog metric's Explore series at once, memoized — the cross-catalog scan behind the
@@ -2999,13 +2824,9 @@ final class Repository: ObservableObject {
         let now = Date()
         let from = Self.dayString(now.addingTimeInterval(-Double(days) * 86_400))
         let to = Self.dayString(now.addingTimeInterval(86_400))
-        var imported: [JournalEntry] = []
-        for id in importedReadIds { imported += (try? await store.journalEntries(deviceId: id, from: from, to: to)) ?? [] }
-        let native = (try? await store.journalEntries(deviceId: Self.journalDeviceId,
-                                                      from: from, to: to)) ?? []
         let aliases = journalAliases()
-        return JournalMerge.fold(imported: imported, native: native,
-                                 aliases: aliases.map, aliasOrder: aliases.order)
+        return await JournalRead.entries(reader: storeReader(store), from: from, to: to,
+                                         aliases: aliases.map, aliasOrder: aliases.order)
     }
 
     /// Imported journal rows only (used by the logging card to adopt the export's exact question
@@ -3086,10 +2907,7 @@ final class Repository: ObservableObject {
     /// Union; the NATIVE row wins per (day, question) , the in-app answer is the user's most recent
     /// explicit action and stays editable, unlike the immutable imported history.
     nonisolated static func mergeJournal(imported: [JournalEntry], native: [JournalEntry]) -> [JournalEntry] {
-        var byKey: [String: JournalEntry] = [:]
-        for e in imported { byKey[e.day + "\u{1F}" + e.question] = e }
-        for e in native { byKey[e.day + "\u{1F}" + e.question] = e }
-        return byKey.values.sorted { ($0.day, $0.question) < ($1.day, $1.question) }
+        JournalRead.fold(imported: imported, native: native, aliases: [:])
     }
 
     /// Coalesces the semantic index refresh that follows journal writes. One task, replaced on every
@@ -3487,18 +3305,7 @@ final class Repository: ObservableObject {
     /// install collapses to one in both branches — so every existing number is unchanged.
     nonisolated static func workoutHrDeviceIds(source: String, activeStrapId: String,
                                                importedIds: [String]) -> [String] {
-        if source.hasPrefix("native-training:"),
-           let trackerId = source.split(separator: ":", maxSplits: 1).last.map(String.init),
-           !trackerId.isEmpty {
-            return [trackerId]
-        }
-        // An Oura session was measured by the ring, whose heart rate the sync banks under the same
-        // namespace. The worn strap stays first, so a session both devices saw reads the strap.
-        if WorkoutSource.classify(source) == .oura {
-            return importedIds + [WorkoutSource.ouraSource]
-        }
-        guard WorkoutSource.classify(source) == .detected else { return importedIds }
-        return [source.hasSuffix("-noop") ? String(source.dropLast(5)) : source]
+        WorkoutPhysiology.deviceIds(source: source, activeStrapId: activeStrapId, importedIds: importedIds)
     }
 
     // MARK: - Workout editing (manual add/edit · relabel · dismiss · delete)
@@ -4020,12 +3827,8 @@ final class Repository: ObservableObject {
     /// `source` defaults to "" (⇒ the imported/manual branch, the union) so callers without a row keep
     /// today's behaviour.
     func workoutHrBuckets(from: Int, to: Int, source: String = "") async -> [HRBucket] {
-        guard to > from else { return [] }
-        let span = to - from
-        let bucket = max(15, min(300, span / 120))
-        let ids = Self.workoutHrDeviceIds(source: source, activeStrapId: deviceId,
-                                          importedIds: importedReadIds)
-        return await hrBuckets(deviceIds: ids, from: from, to: to, bucketSeconds: bucket)
+        guard let store = await ensureStore() else { return [] }
+        return await WorkoutPhysiology.buckets(reader: reader(store), from: from, to: to, source: source)
     }
 
     /// Raw HR samples binned into per-zone MINUTES for a workout window, using the %HRmax display zone
@@ -4044,14 +3847,9 @@ final class Repository: ObservableObject {
     /// without a row keeps today's behaviour.
     func workoutZoneMinutes(from: Int, to: Int, zoneSet: HRZoneSet,
                             source: String = "") async -> [Double]? {
-        guard to > from else { return nil }
-        let ids = Self.workoutHrDeviceIds(source: source, activeStrapId: deviceId,
-                                          importedIds: importedReadIds)
-        let samples = await hrSamples(deviceIds: ids, from: from, to: to)
-        guard !samples.isEmpty else { return nil }
-        let tiz = HRZones.timeInZone(samples, zoneSet: zoneSet)
-        let minutes = tiz.seconds.map { $0 / 60.0 }
-        return minutes.contains(where: { $0 > 0 }) ? minutes : nil
+        guard let store = await ensureStore() else { return nil }
+        return await WorkoutPhysiology.zoneMinutes(reader: reader(store), from: from, to: to,
+                                                   zoneSet: zoneSet, source: source)
     }
 
     /// HRR for one workout (#516), derived from the final five minutes of recorded effort plus the five
