@@ -76,7 +76,8 @@ import com.noop.ai.CustomAiAuthHeader
  * Palette / StatePill / SegmentedPillControl), dark Material3.
  */
 @Composable
-fun CoachScreen(vm: CoachViewModel = viewModel(), onOpenSettings: () -> Unit = {}) {
+fun CoachScreen(vm: CoachViewModel = viewModel(), onOpenSettings: () -> Unit = {},
+                trailing: (@Composable () -> Unit)? = null) {
     val context = LocalContext.current
     val keyVersion by vm.keyVersion.collectAsStateWithLifecycle()
     val provider by vm.provider.collectAsStateWithLifecycle()
@@ -98,6 +99,7 @@ fun CoachScreen(vm: CoachViewModel = viewModel(), onOpenSettings: () -> Unit = {
     ScreenScaffold(
         title = uiString(R.string.l10n_coach_screen_coach_b32c9ad3),
         subtitle = "Ask about your recovery, strain, sleep and HRV, grounded in your own numbers.",
+        trailing = trailing,
         // LIQUID SKY BACKDROP (the pilot pattern — LiquidScreenSky.kt): the liquid sky sits behind the
         // header and the cards float over the flat canvas below. Reuses the shared LiquidScreenSky() slot
         // verbatim; when the day-cycle background is off, the scaffold paints the plain surface instead.

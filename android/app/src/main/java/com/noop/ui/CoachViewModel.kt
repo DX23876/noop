@@ -588,6 +588,15 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { runCatching { coachDao.clearCoachMessages() } }
     }
 
+    /** Shows the shared coach's active conversation, after the history switched or deleted one. */
+    fun showCoreConversation() {
+        viewModelScope.launch {
+            val state = withContext(Dispatchers.IO) { CoreCoach.state() } ?: return@launch
+            _messages.value = state.messages.takeLast(MAX_STORED_MESSAGES)
+            _error.value = null
+        }
+    }
+
     /** Dismiss the current error (e.g. when the user edits the input again). */
     fun clearError() {
         _error.value = null

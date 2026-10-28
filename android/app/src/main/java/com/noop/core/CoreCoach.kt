@@ -38,6 +38,69 @@ object CoreCoach {
 
     fun stop(): State? = call("coach.stop", "{}")?.let(::parse)
 
+    /** One saved thread in the history (`CoachHistoryView`). */
+    data class Conversation(
+        val id: String, val title: String, val preview: String, val updatedAt: Long, val pinned: Boolean,
+        val archived: Boolean, val active: Boolean, val searchText: String,
+    )
+
+    fun conversations(): List<Conversation>? = call("coach.conversations", "{}")?.let(::parseConversations)
+
+    /** Switches to, renames, deletes, archives or pins a thread; returns the history afterwards. */
+    fun conversationOp(op: String, id: String, title: String? = null, value: Boolean? = null): List<Conversation>? {
+        val args = JSONObject().put("id", id)
+        title?.let { args.put("title", it) }
+        value?.let { args.put("value", it) }
+        return call("coach.$op", args.toString())?.let(::parseConversations)
+    }
+
+    internal fun parseConversations(o: JSONObject): List<Conversation>? {
+        val list = o.optJSONArray("conversations") ?: return null
+        return (0 until list.length()).map { i ->
+            val c = list.getJSONObject(i)
+            Conversation(c.getString("id"), c.getString("title"), c.optString("preview"),
+                         (c.optDouble("updatedAt") * 1000).toLong(), c.optBoolean("pinned"), c.optBoolean("archived"),
+                         c.optBoolean("active"), c.optString("searchText"))
+        }
+    }
+
+    /** The coach's plan book (`CoachPlanView`), every line worded by the core. */
+    data class Plan(
+        val pending: List<PlanRow>, val agreed: List<PlanRow>, val recent: List<PlanRow>, val empty: Boolean,
+        val skipReasons: List<Pair<String, String>>, val feedbacks: List<Pair<String, String>>,
+    )
+    data class PlanRow(
+        val id: String, val summary: String, val rationale: String, val day: String, val dayLabel: String,
+        val status: String, val swappedFrom: String?, val statusLine: String, val feedback: String?, val feedbackLabel: String?,
+    )
+
+    /** Reads the plan, or applies [op] (`accept`, `decline`, `complete`, `skip`, `feedback`) to one proposal first. */
+    fun plan(effortScale: String, op: String? = null, id: String? = null, reason: String? = null, feedback: String? = null): Plan? {
+        val args = JSONObject().put("effortScale", effortScale)
+        id?.let { args.put("id", it) }
+        reason?.let { args.put("reason", it) }
+        feedback?.let { args.put("feedback", it) }
+        return call(if (op == null) "coach.plan" else "coach.plan.$op", args.toString())?.let(::parsePlan)
+    }
+
+    internal fun parsePlan(o: JSONObject): Plan? {
+        if (!o.has("pending")) return null
+        fun rows(key: String) = o.optJSONArray(key).let { a ->
+            (0 until (a?.length() ?: 0)).map { i ->
+                val r = a!!.getJSONObject(i)
+                fun opt(k: String) = if (r.isNull(k)) null else r.optString(k).takeIf { it.isNotEmpty() }
+                PlanRow(r.getString("id"), r.getString("summary"), r.optString("rationale"), r.getString("day"),
+                        r.optString("dayLabel"), r.getString("status"), opt("swappedFrom"), r.optString("statusLine"),
+                        opt("feedback"), opt("feedbackLabel"))
+            }
+        }
+        fun choices(key: String) = o.optJSONArray(key).let { a ->
+            (0 until (a?.length() ?: 0)).map { i -> a!!.getJSONObject(i).let { it.getString("id") to it.getString("label") } }
+        }
+        return Plan(rows("pending"), rows("agreed"), rows("recent"), o.optBoolean("empty"),
+                    choices("skipReasons"), choices("feedbacks"))
+    }
+
     /** The Swift `AIProvider` raw value for a Kotlin provider. */
     internal fun providerId(provider: AiProvider): String = when (provider) {
         AiProvider.OPENAI -> "openAI"

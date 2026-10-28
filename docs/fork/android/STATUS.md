@@ -1,11 +1,12 @@
 # Android on a shared Swift core: status
 
-Plan: [`PLAN.md`](PLAN.md) · parity continuation: [`PARITY-PLAN.md`](PARITY-PLAN.md) · last updated 2026-10-27
+Plan: [`PLAN.md`](PLAN.md) · parity continuation: [`PARITY-PLAN.md`](PARITY-PLAN.md) · last updated 2026-10-28
 
 ## In progress
 
 | Step | Since | Note |
 |---|---|---|
+| Parity 2.3: Coach chat, history and plan on Android | 2026-10-28 | The coach chat answers through the shared `AICoachEngine` in the core (`coach.configure`, `coach.send`, `coach.state`): Kotlin hands in its settings and the key from its encrypted store, the core keeps the key in memory only, and its conversations persist in the app's files. The chat is under More, Analysis. Two buttons in its header open the conversation history after `CoachHistoryView` (pinned, current and archived threads, search, tap to switch, long press to rename, pin, archive or delete; `coach.conversations` and friends) and the plan book after `CoachPlanView` (waiting, agreed and the last ten decided sessions, accept, not this one, done, didn't happen with a reason, how it felt; `coach.plan.*` over the shared `CoachPlanStore`, status lines and day names worded by the core). Coach goals are the long-term goals already on Android. Not yet on Android: the plan's time, move-day and swap sheets (accepting keeps a session untimed), the goal-context card and workout reconciliation on the plan page, sharing a thread as text. Core tests cover the plan wording, a Kotlin test the parsing; checked on the emulator against a local stub (history, rename, empty plan). Analysis migration required: no; presentation only. |
 | Parity 2.3: Body on Android | 2026-10-28 | `BodyPreparation` (shared `Strand/Data`) now holds what `BodyModel` derived: measured and unmeasured sites, circumference changes, the weight change, the Navy estimate and what it misses, labels, tape guidance and the rows of a measurement session; Apple's `BodyModel` and `recordBodyMeasurements` forward to it. Core operations `body.snapshot`, `body.rows`, `body.logWeight` and `body.deleteWeight`. Android's Body page (More, Health & Body): weight with weigh-ins (logged to the core's own weight lane, as on Apple), body fat with the Navy estimate on its own line, and every tape site with its change and guidance; a tape session is written through the lab-marker lane so the classic screens and the core hold the same rows. Core test, 233 core tests, Android and Tools tests pass; macOS and iOS build. Demo emulator: a weigh-in and a neck reading saved and read back from the core (the latter also proves the Room-to-core mirror); data restored byte-for-byte. Not yet on Android: progress photos, editing a reading and the history chart. Note for Apple: the catalogue's German and Polish "% estimated" read "% egeschätzter" and "% eszacowana"; Android carries corrected text. Analysis migration required: no. |
 | Parity 2.3: Goals widget on Android | 2026-10-28 | A Glance home-screen widget for the goals, like iOS `NOOPGoalWidget`: the goals Today's card picks (`GoalSpotlight`, up to three, those that need a look first) with their progress bar and state word, and how many daily goals are done and how the week stands. It draws only what the app stored: Today's goals card and the goals page hand it the rows in their own words whenever they load, and nothing is written while no goals widget is placed. The empty state is the iOS widget's text in nine languages. Compiled with the Android app; not yet placed and looked at on an emulator home screen, and it updates when the app shows the goals, not yet after a background sync as on iOS. Analysis migration required: no; presentation only. |
 | Parity 2.3: Badges, streaks and records on Android | 2026-10-28 | The goal snapshot from the core now carries the motivation Apple's goals page shows (`GoalMotivationSnapshot`): every badge with its words (the badge texts moved to the shared `GoalEventPlan` file), the earned and unseen ones, the next badge with its progress, the personal records and the streak of each daily goal; `goals.motivation` marks badges as seen and switches motivation on or off. Android's goals page shows the new-badge banner (the row opens the badges, the cross hides it), "N days in a row" under a daily goal from two days on, and an achievements card with the on/off switch; the achievements page has the records, the latest badges with the next one and every family as medals, and opening it marks the earned badges seen, as on iOS. Texts are the iOS catalogue's in nine languages (plural forms use the catalogue's general form). A core test covers the output and the switch; the Swift-emitted goals fixture now includes it and a Kotlin test reads it. Analysis migration required: no; presentation and a stored preference only. |
@@ -131,20 +132,20 @@ functions and Android screens before the single testing release.
 
 Skip was tried for shared screens and not adopted for now ([`SKIP-SPIKE.md`](SKIP-SPIKE.md)).
 
-**Remaining fork parity** (local work, updated 2026-10-27): Training still needs the media/provider
+**Remaining fork parity** (local work, updated 2026-10-28): Training still needs the media/provider
 controls and report acceptance listed above. Goals have daily, period and long-term setup and management,
 milestones and the journey, badges, streaks, records, notifications and a widget.
 Momentum has its shared builder/resolver, core localization and Android presentation under validation;
-full Today context and the charge/Coach/live-session destinations remain open. AgeLess and daily rhythm
-already compute in the core but need their screens. The energy plan, body (photos, weight, body model),
-Coach goals/plans/history (llama.cpp on Android unverified; HTTPS through the core works, streaming goes
-through StrandCore's `streamedBytes(for:)`, a data-task stand-in for the missing `URLSession.bytes(for:)` on
-Android, tested on macOS and compiled for Android; see PARITY-PLAN 1.2), GPS elevation, ECG and the sleep debt ledger
-remain open. Semantic Coach memory is outside this testing release. Remaining Apple app computations to
-move into the core include the Coach context builder; energy summary preparation, goal/Momentum evaluation,
-today's daytime stress, the skin-temperature backfill and the body-measurement reader are now shared.
-`WorkoutElevationSeries` waits on Android recording altitude with its routes (today only imported activity
-files carry it), which needs a real GPS walk to verify (updated 2026-10-28).
+full Today context and the charge/Coach/live-session destinations remain open. AgeLess, daily rhythm, the
+energy plan, body (weight, body fat, circumferences) and the coach's chat, history and plan book have their
+Android screens. Body photos, the plan's time/move/swap sheets, GPS elevation, ECG and the sleep debt ledger
+remain open. The coach's on-device model (llama.cpp) is unverified on Android; HTTPS through the core works,
+streaming goes through StrandCore's `streamedBytes(for:)`, a data-task stand-in for the missing
+`URLSession.bytes(for:)` on Android (see PARITY-PLAN 1.2). Semantic Coach memory is outside this testing
+release. Remaining Apple app computations to move into the core include the Coach context builder; energy
+summary preparation, goal/Momentum evaluation, today's daytime stress, the skin-temperature backfill and the
+body-measurement reader are now shared. `WorkoutElevationSeries` waits on Android recording altitude with its
+routes (today only imported activity files carry it), which needs a real GPS walk to verify (updated 2026-10-28).
 
 ## How to run a real-data check (B4)
 

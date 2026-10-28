@@ -48,6 +48,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.rounded.CalendarMonth
+import androidx.compose.material.icons.rounded.History
+import androidx.compose.material3.IconButton
+import androidx.compose.foundation.layout.Row
+import androidx.compose.runtime.remember
 import com.noop.R
 import com.noop.ui.AppViewModel
 import com.noop.ui.BreatheScreen
@@ -283,6 +288,10 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
         ForgeBodyPage(onBack)
         return
     }
+    if (dest == MoreDest.Coach) {
+        ForgeCoachDestination(title, onBack)
+        return
+    }
     if (dest == MoreDest.Energy) {
         ForgeEnergyPlanPage(onBack)
         return
@@ -301,7 +310,6 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
     }
     Hosted(title, onBack) {
         when (dest) {
-            MoreDest.Coach -> CoachScreen(viewModel<CoachViewModel>())
             MoreDest.Insights -> InsightsHubScreen(viewModel)
             MoreDest.Scoring -> IntelligenceScreen(viewModel)
             MoreDest.Journal -> InsightsScreen(viewModel, onOpenInsightsHub = { onOpen(MoreDest.Insights) })
@@ -317,7 +325,31 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
             MoreDest.Breathe -> BreatheScreen(viewModel)
             MoreDest.Intervals -> IntervalsScreen(viewModel)
             MoreDest.Alarms -> SmartAlarmScreen(viewModel)
-            MoreDest.Settings, MoreDest.Goals, MoreDest.Momentum, MoreDest.AgeLess, MoreDest.RhythmAge, MoreDest.Energy, MoreDest.Body -> Unit
+            MoreDest.Settings, MoreDest.Goals, MoreDest.Momentum, MoreDest.AgeLess, MoreDest.RhythmAge, MoreDest.Energy, MoreDest.Body, MoreDest.Coach -> Unit
+        }
+    }
+}
+
+/** The coach chat with its history and plan book a tap away, as the chat header offers them on iOS. */
+@Composable
+private fun ForgeCoachDestination(title: String, onBack: () -> Unit) {
+    val vm = viewModel<CoachViewModel>()
+    var sub by remember { mutableStateOf<String?>(null) }
+    androidx.activity.compose.BackHandler(enabled = sub != null) { sub = null }
+    when (sub) {
+        "history" -> ForgeCoachHistoryPage(onBack = { sub = null }, onPicked = { vm.showCoreConversation(); sub = null })
+        "plan" -> ForgeCoachPlanPage(onBack = { sub = null })
+        else -> Hosted(title, onBack) {
+            CoachScreen(vm, trailing = {
+                Row {
+                    IconButton(onClick = { sub = "plan" }) {
+                        Icon(Icons.Rounded.CalendarMonth, contentDescription = stringResource(R.string.forge_cp_title), tint = Forge.colors.accent)
+                    }
+                    IconButton(onClick = { sub = "history" }) {
+                        Icon(Icons.Rounded.History, contentDescription = stringResource(R.string.forge_ch_title), tint = Forge.colors.accent)
+                    }
+                }
+            })
         }
     }
 }

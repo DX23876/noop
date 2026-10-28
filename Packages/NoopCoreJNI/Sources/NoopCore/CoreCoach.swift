@@ -25,7 +25,10 @@ enum CoreCoach {
     }
 
     static func run(_ op: String, args: [String: Any], reader: StoreReader) async -> String {
+        // The plan book needs no engine: it is the shared store the coach's tools write into.
+        if op.hasPrefix("coach.plan") { return CorePlan.run(op, args: args) }
         let coach = await engine(reader: reader, settings: CoreGoalEnergy.settings(args))
+        let id = (args["id"] as? String).flatMap(UUID.init(uuidString:))
         switch op {
         case "coach.configure":
             configure(coach, args)
@@ -43,6 +46,23 @@ enum CoreCoach {
         case "coach.stop":
             coach.stop()
             return CoreRead.json(State(coach))
+        case "coach.conversations":
+            return CoreRead.json(Conversations(coach))
+        case "coach.switch":
+            if let id { coach.switchTo(id) }
+            return CoreRead.json(Conversations(coach))
+        case "coach.rename":
+            if let id { coach.renameConversation(id, to: args["title"] as? String ?? "") }
+            return CoreRead.json(Conversations(coach))
+        case "coach.delete":
+            if let id { coach.deleteConversation(id) }
+            return CoreRead.json(Conversations(coach))
+        case "coach.archive":
+            if let id { coach.setArchived(id, args["value"] as? Bool ?? true) }
+            return CoreRead.json(Conversations(coach))
+        case "coach.pin":
+            if let id { coach.setPinned(id, args["value"] as? Bool ?? true) }
+            return CoreRead.json(Conversations(coach))
         default:
             return #"{"error":"unknownOp"}"#
         }
@@ -86,5 +106,118 @@ enum CoreCoach {
             error = coach.errorText
             configured = coach.isConfigured
         }
+    }
+
+    /// The history list as `CoachHistoryView` draws it: every thread, newest first, with the preview line.
+    struct Conversations: Encodable {
+        struct Row: Encodable {
+            var id: String, title: String, preview: String, updatedAt: Double, pinned: Bool, archived: Bool, active: Bool
+            var searchText: String
+        }
+        var conversations: [Row]
+
+        @MainActor init(_ coach: AICoachEngine) {
+            conversations = coach.conversations.map { c in
+                let last = c.messages.last { !$0.text.isEmpty }?.text.replacingOccurrences(of: "\n", with: " ")
+                return Row(id: c.id.uuidString, title: c.title.isEmpty ? String(localized: "New chat") : c.title,
+                           preview: last ?? String(localized: "No messages yet"), updatedAt: c.updatedAt.timeIntervalSince1970,
+                           pinned: c.pinned, archived: c.archived, active: c.id == coach.activeConversationID,
+                           searchText: ([c.title] + c.messages.map(\.text)).joined(separator: "\n"))
+            }
+        }
+    }
+}
+
+/// The coach's plan book (`CoachPlanView`): what waits for the wearer's yes, what was agreed, and what happened,
+/// with every line worded as the Apple page words it.
+@MainActor
+enum CorePlan {
+    struct Output: Encodable {
+        var pending: [Row]
+        var agreed: [Row]
+        var recent: [Row]
+        var empty: Bool
+        var skipReasons: [Choice]
+        var feedbacks: [Choice]
+    }
+    struct Row: Encodable {
+        var id: String, summary: String, rationale: String, day: String, dayLabel: String, status: String
+        var swappedFrom: String?, statusLine: String, feedback: String?, feedbackLabel: String?
+    }
+    struct Choice: Encodable { var id: String, label: String }
+
+    static func run(_ op: String, args: [String: Any]) -> String {
+        let store = CoachPlanStore.shared
+        let id = (args["id"] as? String).flatMap(UUID.init(uuidString:))
+        switch (op, id) {
+        case ("coach.plan.accept", let id?): store.accept(id)
+        case ("coach.plan.decline", let id?): store.decline(id)
+        case ("coach.plan.complete", let id?): store.complete(id)
+        case ("coach.plan.skip", let id?):
+            if let reason = (args["reason"] as? String).flatMap(PlanProposal.SkipReason.init(rawValue:)) {
+                store.skip(id, reason: reason)
+            }
+        case ("coach.plan.feedback", let id?):
+            if let feedback = (args["feedback"] as? String).flatMap(PlanProposal.EffectFeedback.init(rawValue:)) {
+                store.recordEffect(id, feedback: feedback)
+            }
+        default: break
+        }
+        let scale = EffortScale(rawValue: args["effortScale"] as? String ?? "") ?? .hundred
+        return CoreRead.json(output(store: store, scale: scale))
+    }
+
+    static func output(store: CoachPlanStore, scale: EffortScale, now: Date = Date()) -> Output {
+        let today = StoreReader.localDayKey(now)
+        func row(_ p: PlanProposal) -> Row {
+            Row(id: p.id.uuidString, summary: p.summary(effortScale: scale), rationale: p.rationale, day: p.day,
+                dayLabel: dayLabel(p.day, now: now), status: p.status.rawValue, swappedFrom: p.swappedFrom,
+                statusLine: statusLine(p, now: now), feedback: p.effectFeedback?.rawValue,
+                feedbackLabel: p.effectFeedback?.label.localizedCatalogValue)
+        }
+        return Output(
+            pending: store.pending.map(row),
+            agreed: store.commitments(fromDay: today).map(row),
+            recent: store.proposals.filter { $0.day < today && $0.status.isDecided }.prefix(10).map(row),
+            empty: store.proposals.isEmpty,
+            skipReasons: PlanProposal.SkipReason.allCases.map { Choice(id: $0.rawValue, label: $0.label.localizedCatalogValue) },
+            feedbacks: PlanProposal.EffectFeedback.allCases.map { Choice(id: $0.rawValue, label: $0.label.localizedCatalogValue) })
+    }
+
+    /// `CoachPlanView.statusLine`: neutral wording, a skip states its reason.
+    static func statusLine(_ p: PlanProposal, now: Date) -> String {
+        switch p.status {
+        case .completed:
+            if let feedback = p.effectFeedback {
+                return String(localized: "completed — \(feedback.label.localizedCatalogValue)")
+            }
+            return String(localized: "completed — effect not rated")
+        case .skipped:
+            if let reason = p.skipReason {
+                return String(localized: "didn't happen — \(reason.label.localizedCatalogValue)")
+            }
+            return String(localized: "didn't happen")
+        case .declined:
+            return String(localized: "you passed on this one")
+        case .rescheduled:
+            if let from = p.rescheduledFrom {
+                return String(localized: "moved from \(dayLabel(from, now: now).localizedCatalogValue)")
+            }
+            return String(localized: "moved")
+        default:
+            return p.status.rawValue
+        }
+    }
+
+    /// `CoachPlanView.dayLabel`: Today, Tomorrow, Yesterday, else a short weekday and date.
+    static func dayLabel(_ day: String, now: Date) -> String {
+        let df = DateFormatter(); df.dateFormat = "yyyy-MM-dd"
+        guard let date = df.date(from: day) else { return day }
+        let cal = Calendar.current
+        if cal.isDate(date, inSameDayAs: now) { return String(localized: "Today") }
+        if let d = cal.date(byAdding: .day, value: 1, to: now), cal.isDate(date, inSameDayAs: d) { return String(localized: "Tomorrow") }
+        if let d = cal.date(byAdding: .day, value: -1, to: now), cal.isDate(date, inSameDayAs: d) { return String(localized: "Yesterday") }
+        let out = DateFormatter(); out.setLocalizedDateFormatFromTemplate("EEEdMMM")
+        return out.string(from: date)
     }
 }
