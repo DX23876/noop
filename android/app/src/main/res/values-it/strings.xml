@@ -4413,4 +4413,8 @@
     <string name="forge_lab_compare_same">Nessuna differenza negli ultimi giorni.</string>
     <string name="forge_lab_compare_diff">%1$d differenze, la prima: %2$s</string>
     <string name="forge_lab_compare_none">Il nucleo condiviso non è disponibile.</string>
+    <string name="forge_unit_min">min</string>
+    <string name="forge_hr_avg">Media</string>
+    <string name="forge_hr_low">Minimo</string>
+    <string name="forge_hr_high">Massimo</string>
 </resources>

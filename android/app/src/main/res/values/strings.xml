@@ -4476,4 +4476,8 @@
     <string name="forge_lab_compare_same">No differences in the recent days.</string>
     <string name="forge_lab_compare_diff">%1$d differences, first: %2$s</string>
     <string name="forge_lab_compare_none">The shared core is not available.</string>
+    <string name="forge_unit_min">min</string>
+    <string name="forge_hr_avg">Average</string>
+    <string name="forge_hr_low">Lowest</string>
+    <string name="forge_hr_high">Highest</string>
 </resources>

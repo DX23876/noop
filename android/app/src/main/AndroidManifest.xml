@@ -166,7 +166,8 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.NOOP"
-        tools:targetApi="34">
+        tools:targetApi="34"
+        android:enableOnBackInvokedCallback="true">
 
         <!--
           MainActivity no longer carries the LAUNCHER intent-filter itself. The home-screen entry

@@ -242,3 +242,27 @@ private fun LineChart(points: List<CoreRead.Point>, days: Int, lo: Double, hi: D
         drawCircle(tint, radius = 6f, center = Offset(x(lastPoint), y(lastPoint.value)))
     }
 }
+
+/**
+ * One metric's trend on its own page, opened from a key-metric tile on Today (iOS opens the metric's detail from the
+ * same tile): the window picker and the metric's trend card over the last six months, from the shared core.
+ */
+@Composable
+internal fun ForgeMetricTrendPage(metric: CoreRead.Metric, titleRes: Int, unit: String, tint: Color, higherIsBetter: Boolean,
+                                  onBack: () -> Unit) {
+    val context = LocalContext.current
+    var days by rememberSaveable { mutableIntStateOf(30) }
+    var points by remember { mutableStateOf<List<CoreRead.Point>?>(null) }
+    LaunchedEffect(metric) {
+        points = withContext(Dispatchers.IO) {
+            CoreRead.open(context)
+            val today = LocalDate.now()
+            CoreRead.series(metric, today.minusDays(179).toString(), today.toString())
+        }
+    }
+    SettingsColumn {
+        PageTitle(stringResource(titleRes), onBack)
+        WindowPicker(days) { days = it }
+        TrendCard(titleRes, unit, TrendStats.of(points.orEmpty(), days, LocalDate.now()), days, tint, higherIsBetter, tall = true)
+    }
+}

@@ -4458,4 +4458,8 @@
     <string name="forge_lab_compare_same">Keine Abweichungen in den letzten Tagen.</string>
     <string name="forge_lab_compare_diff">%1$d Abweichungen, zuerst: %2$s</string>
     <string name="forge_lab_compare_none">Der gemeinsame Kern ist nicht verfügbar.</string>
+    <string name="forge_unit_min">Min.</string>
+    <string name="forge_hr_avg">Durchschnitt</string>
+    <string name="forge_hr_low">Niedrigster</string>
+    <string name="forge_hr_high">Höchster</string>
 </resources>

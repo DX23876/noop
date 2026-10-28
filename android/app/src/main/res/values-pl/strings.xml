@@ -4461,4 +4461,8 @@
     <string name="forge_lab_compare_same">Brak różnic w ostatnich dniach.</string>
     <string name="forge_lab_compare_diff">Różnice: %1$d, pierwsza: %2$s</string>
     <string name="forge_lab_compare_none">Wspólny rdzeń jest niedostępny.</string>
+    <string name="forge_unit_min">min</string>
+    <string name="forge_hr_avg">Przeciętny</string>
+    <string name="forge_hr_low">Najniższe</string>
+    <string name="forge_hr_high">Najwyższe</string>
 </resources>

@@ -4340,4 +4340,8 @@
     <string name="forge_lab_compare_same">За последние дни расхождений нет.</string>
     <string name="forge_lab_compare_diff">Расхождений: %1$d, первое: %2$s</string>
     <string name="forge_lab_compare_none">Общее ядро недоступно.</string>
+    <string name="forge_unit_min">мин</string>
+    <string name="forge_hr_avg">Среднее</string>
+    <string name="forge_hr_low">Минимум</string>
+    <string name="forge_hr_high">Максимум</string>
 </resources>

@@ -4415,4 +4415,8 @@
     <string name="forge_lab_compare_same">最近几天没有差异。</string>
     <string name="forge_lab_compare_diff">%1$d 处差异，第一处：%2$s</string>
     <string name="forge_lab_compare_none">共享核心不可用。</string>
+    <string name="forge_unit_min">分钟</string>
+    <string name="forge_hr_avg">平均</string>
+    <string name="forge_hr_low">最低</string>
+    <string name="forge_hr_high">最高</string>
 </resources>
