@@ -55,11 +55,31 @@ public enum CoreRead {
             return nil
         }
         let rest = await restSeries(from: day, to: day, reader: reader).last?.value
+        // A day the strap measured no steps or SpO2 for takes them from the phone's health store, as the iPhone's
+        // Today falls back to Apple Health: Apple Health first, then Health Connect (Android's equivalent).
+        var steps = row.steps
+        if steps == nil {
+            for source in [MetricResolver.appleHealthSource, MetricResolver.healthConnectSource] {
+                if let s = ((try? await reader.store.appleDaily(deviceId: source, from: day, to: day)) ?? [])
+                    .first(where: { $0.day == day })?.steps, s > 0 {
+                    steps = s; break
+                }
+            }
+        }
+        var spo2 = row.spo2Pct
+        if spo2 == nil {
+            for source in [MetricResolver.appleHealthSource, MetricResolver.healthConnectSource] {
+                if let v = ((try? await reader.store.metricSeries(deviceId: source, key: "spo2", from: day, to: day)) ?? [])
+                    .last?.value {
+                    spo2 = v; break
+                }
+            }
+        }
         return Day(day: row.day, charge: row.recovery, effort: row.strain, rest: rest,
                    sleepMinutes: row.totalSleepMin, deepMinutes: row.deepMin, remMinutes: row.remMin,
                    lightMinutes: row.lightMin, efficiency: row.efficiency, restingHr: row.restingHr,
-                   hrv: row.avgHrv, respRate: row.respRateBpm, spo2: row.spo2Pct, skinTempDev: row.skinTempDevC,
-                   steps: row.steps,
+                   hrv: row.avgHrv, respRate: row.respRateBpm, spo2: spo2, skinTempDev: row.skinTempDevC,
+                   steps: steps,
                    heroSource: await ScoreProvenance.heroLabels(day: day, reader: reader).map(token))
     }
 
