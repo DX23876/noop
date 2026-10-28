@@ -4250,4 +4250,26 @@
     <string name="forge_gn_milestone">Ein Meilenstein eines Langzeitziels erreicht</string>
     <string name="forge_gn_footer">Standardmäßig aus. Höchstens zwei Ziel-Mitteilungen am Tag, nie nach 21:00 Uhr oder während eines Workouts. Hinweise und Rückblicke erscheinen immer in der App. Die Ruhezeiten aus den Mitteilungseinstellungen gelten.</string>
     <string name="forge_gn_channel">Ziele</string>
+    <string name="forge_gm_new_badge">Neues Abzeichen</string>
+    <string name="forge_gm_new_badges">%1$d neue Abzeichen</string>
+    <string name="forge_gm_achievements">Erfolge</string>
+    <string name="forge_gm_of_badges">%1$d von %2$d Abzeichen</string>
+    <string name="forge_gm_best_day_steps">bester Tag %1$s Schritte</string>
+    <string name="forge_gm_longest_streak">längste Serie %1$d Tage</string>
+    <string name="forge_gm_page_subtitle">Aus deinen eigenen Daten, auf diesem Gerät.</string>
+    <string name="forge_gm_records">Persönliche Rekorde</string>
+    <string name="forge_gm_best_day">Bester Tag</string>
+    <string name="forge_gm_steps">%1$s Schritte</string>
+    <string name="forge_gm_best_week">Beste Woche</string>
+    <string name="forge_gm_most_workouts">Meiste Workouts in einer Woche</string>
+    <string name="forge_gm_longest">Längste Schritt-Serie</string>
+    <string name="forge_gm_days">%1$d Tage</string>
+    <string name="forge_gm_records_empty">Rekorde erscheinen, sobald Schritte oder Workouts vorliegen.</string>
+    <string name="forge_gm_badges">Abzeichen</string>
+    <string name="forge_gm_first_badge">Dein erstes Abzeichen gibt es für den ersten Tag mit 10.000 Schritten oder das erste erreichte Wochenziel.</string>
+    <string name="forge_gm_next">Als Nächstes: %1$s</string>
+    <string name="forge_gm_in_a_row">%1$d Tage hintereinander</string>
+    <string name="forge_gm_toggle">Abzeichen, Serien und Rekorde</string>
+    <string name="forge_gm_toggle_detail">Abzeichen für Schritte, Serien und erreichte Ziele, deine persönlichen Rekorde und ein anfeuernder Satz kurz vor dem Ziel. Berechnet auf diesem Gerät aus deinen eigenen Daten.</string>
+    <string name="forge_gm_hide">Ausblenden</string>
 </resources>

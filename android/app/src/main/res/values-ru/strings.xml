@@ -4132,4 +4132,26 @@
     <string name="forge_gn_milestone">Достигнута веха долгосрочной цели</string>
     <string name="forge_gn_footer">По умолчанию выключено. Не более двух уведомлений о целях в день, никогда после 21:00 и во время тренировки. Подсказки и обзоры всегда видны в приложении. Действуют тихие часы из настроек уведомлений.</string>
     <string name="forge_gn_channel">Цели</string>
+    <string name="forge_gm_new_badge">Новый значок</string>
+    <string name="forge_gm_new_badges">Новых значков: %1$d</string>
+    <string name="forge_gm_achievements">Достижения</string>
+    <string name="forge_gm_of_badges">%1$d из %2$d значков</string>
+    <string name="forge_gm_best_day_steps">лучший день %1$s шагов</string>
+    <string name="forge_gm_longest_streak">самая длинная серия %1$d дн.</string>
+    <string name="forge_gm_page_subtitle">Получены по вашим данным, на этом устройстве.</string>
+    <string name="forge_gm_records">Личные рекорды</string>
+    <string name="forge_gm_best_day">Лучший день</string>
+    <string name="forge_gm_steps">%1$s шагов</string>
+    <string name="forge_gm_best_week">Лучшая неделя</string>
+    <string name="forge_gm_most_workouts">Больше всего тренировок за неделю</string>
+    <string name="forge_gm_longest">Самая длинная серия шагов</string>
+    <string name="forge_gm_days">%1$d дней</string>
+    <string name="forge_gm_records_empty">Рекорды появятся, когда будут записаны шаги или тренировки.</string>
+    <string name="forge_gm_badges">Значки</string>
+    <string name="forge_gm_first_badge">Первый значок придёт с первым днём в 10 000 шагов или первой достигнутой недельной целью.</string>
+    <string name="forge_gm_next">Следующий: %1$s</string>
+    <string name="forge_gm_in_a_row">%1$d дней подряд</string>
+    <string name="forge_gm_toggle">Значки, серии и рекорды</string>
+    <string name="forge_gm_toggle_detail">Значки за шаги, серии и достигнутые цели, личные рекорды и подбадривание у самой цели. Считается на этом устройстве по вашим данным.</string>
+    <string name="forge_gm_hide">Скрыть</string>
 </resources>

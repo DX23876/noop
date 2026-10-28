@@ -4237,4 +4237,26 @@
     <string name="forge_gn_milestone">Un hito a largo plazo alcanzado</string>
     <string name="forge_gn_footer">Desactivado por defecto. Como máximo dos avisos de objetivos al día, nunca después de las 21:00 ni durante un entreno. Los avisos y resúmenes siempre aparecen en la app. Se aplican las horas de silencio de los ajustes de notificaciones.</string>
     <string name="forge_gn_channel">Objetivos</string>
+    <string name="forge_gm_new_badge">Nueva insignia</string>
+    <string name="forge_gm_new_badges">%1$d insignias nuevas</string>
+    <string name="forge_gm_achievements">Logros</string>
+    <string name="forge_gm_of_badges">%1$d de %2$d insignias</string>
+    <string name="forge_gm_best_day_steps">mejor día %1$s pasos</string>
+    <string name="forge_gm_longest_streak">racha más larga %1$d días</string>
+    <string name="forge_gm_page_subtitle">Ganadas con tus propios datos, en este dispositivo.</string>
+    <string name="forge_gm_records">Récords personales</string>
+    <string name="forge_gm_best_day">Mejor día</string>
+    <string name="forge_gm_steps">%1$s pasos</string>
+    <string name="forge_gm_best_week">Mejor semana</string>
+    <string name="forge_gm_most_workouts">Más entrenamientos en una semana</string>
+    <string name="forge_gm_longest">Racha de pasos más larga</string>
+    <string name="forge_gm_days">%1$d días</string>
+    <string name="forge_gm_records_empty">Los récords aparecen cuando haya pasos o entrenamientos registrados.</string>
+    <string name="forge_gm_badges">Insignias</string>
+    <string name="forge_gm_first_badge">Tu primera insignia llega con tu primer día de 10.000 pasos o tu primer objetivo semanal logrado.</string>
+    <string name="forge_gm_next">Siguiente: %1$s</string>
+    <string name="forge_gm_in_a_row">%1$d días seguidos</string>
+    <string name="forge_gm_toggle">Insignias, rachas y récords</string>
+    <string name="forge_gm_toggle_detail">Insignias por pasos, rachas y objetivos logrados, tus récords personales y una frase de ánimo cerca del objetivo. Calculado en este dispositivo con tus propios datos.</string>
+    <string name="forge_gm_hide">Ocultar</string>
 </resources>

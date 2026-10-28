@@ -53,7 +53,31 @@ object CoreGoals {
     )
     data class Output(val period: List<Period>, val longTerm: List<LongTerm>, val today: List<Action>,
                       val week: List<Action>, val spotlight: Spotlight, val daily: List<DailySlot>,
-                      val periodLimit: Int)
+                      val periodLimit: Int, val motivation: Motivation? = null, val motivationEnabled: Boolean = true)
+
+    /** Badges, streaks and records as the core words them (`GoalMotivationSnapshot`); null while switched off. */
+    data class Badge(val id: String, val family: String, val familyTitle: String, val title: String,
+                     val shortValue: String, val earned: Boolean, val earnedOn: String?)
+    data class Motivation(
+        val badges: List<Badge>, val earnedIds: List<String>, val unseenIds: List<String>,
+        val nextId: String?, val nextFraction: Double?,
+        val bestStepDay: Int?, val bestStepDayOn: String?, val bestStepWeek: Int?, val bestStepWeekStart: String?,
+        val mostWorkoutsWeek: Int?, val mostWorkoutsWeekStart: String?, val longestStepStreak: Int,
+        /** Days in a row per measured daily goal, keyed by the goal action's id. */
+        val streaks: Map<String, Int>,
+    ) {
+        val earned: List<Badge> get() = earnedIds.mapNotNull { id -> badges.firstOrNull { it.id == id } }
+        val unseen: List<Badge> get() = unseenIds.mapNotNull { id -> badges.firstOrNull { it.id == id } }
+    }
+
+    /** Marks badges as seen, or switches badges, streaks and records on or off. */
+    fun changeMotivation(seen: List<String> = emptyList(), enabled: Boolean? = null): Change {
+        if (!SwiftCore.available) return Change(false, "unavailable")
+        val json = SwiftCore.call("goals.motivation", JSONObject().put("seen", JSONArray(seen))
+            .apply { if (enabled != null) put("enabled", enabled) }.toString()) ?: return Change(false, "unavailable")
+        val o = runCatching { JSONObject(json) }.getOrNull() ?: return Change(false, "unavailable")
+        return Change(o.optBoolean("ok"), o.str("error"))
+    }
     data class MetricChoice(
         val metric: String, val aggregation: String, val reason: String?, val available: Boolean,
         val weekDefault: Double, val weekStep: Double, val weekLow: Double, val weekHigh: Double,
@@ -241,8 +265,30 @@ object CoreGoals {
                           d.optBoolean("showsAsRing", true))
             },
             periodLimit = o.optInt("periodLimit", 6),
+            motivation = o.optJSONObject("motivation")?.let(::motivation),
+            motivationEnabled = o.optBoolean("motivationEnabled", true),
         )
     }
+
+    private fun motivation(m: JSONObject): Motivation {
+        val next = m.optJSONObject("next")
+        val streaks = m.optJSONObject("streaks")
+        return Motivation(
+            badges = m.optJSONArray("badges").objects().map {
+                Badge(it.getString("id"), it.getString("family"), it.getString("familyTitle"), it.getString("title"),
+                      it.getString("shortValue"), it.optBoolean("earned"), it.str("earnedOn"))
+            },
+            earnedIds = m.optJSONArray("earnedIds").strings(), unseenIds = m.optJSONArray("unseenIds").strings(),
+            nextId = next?.str("id"), nextFraction = next?.dbl("fraction"),
+            bestStepDay = m.int("bestStepDay"), bestStepDayOn = m.str("bestStepDayOn"),
+            bestStepWeek = m.int("bestStepWeek"), bestStepWeekStart = m.str("bestStepWeekStart"),
+            mostWorkoutsWeek = m.int("mostWorkoutsWeek"), mostWorkoutsWeekStart = m.str("mostWorkoutsWeekStart"),
+            longestStepStreak = m.optInt("longestStepStreak"),
+            streaks = streaks?.keys()?.asSequence()?.associateWith { streaks.getInt(it) }.orEmpty(),
+        )
+    }
+
+    private fun JSONObject.int(key: String): Int? = if (has(key) && !isNull(key)) getInt(key) else null
 
     private fun JSONArray?.objects(): List<JSONObject> = if (this == null) emptyList() else (0 until length()).map { getJSONObject(it) }
     private fun JSONArray?.strings(): List<String> = if (this == null) emptyList() else (0 until length()).map { getString(it) }

@@ -97,6 +97,56 @@ public enum CoreGoals {
         public var spotlight: Spotlight, daily: [DailySlot]
         public var periodLimit: Int
         public var updatedAt: Double
+        /// Badges, streaks and records (`GoalMotivationSnapshot`); nil while motivation is switched off.
+        public var motivation: Motivation? = nil
+        public var motivationEnabled = true
+    }
+
+    /// The motivation the goals page shows, worded by the shared badge texts (`GoalEventPlan`).
+    public struct Motivation: Encodable {
+        public struct Badge: Encodable {
+            public var id: String, family: String, familyTitle: String, title: String, shortValue: String
+            public var earned: Bool, earnedOn: String?
+        }
+        public struct Next: Encodable { public var id: String, fraction: Double }
+        public var badges: [Badge], earnedIds: [String], unseenIds: [String], next: Next?
+        public var bestStepDay: Int?, bestStepDayOn: String?, bestStepWeek: Int?, bestStepWeekStart: String?
+        public var mostWorkoutsWeek: Int?, mostWorkoutsWeekStart: String?, longestStepStreak: Int
+        /// Days in a row per measured daily goal, keyed by the goal action's id.
+        public var streaks: [String: Int]
+    }
+
+    static func motivation(_ m: GoalMotivationSnapshot) -> Motivation {
+        let next = GoalMotivation.BadgeFamily.allCases
+            .compactMap { GoalMotivation.nextBadge(in: $0, badges: m.badges, progressValue: m.progressValue(for: $0)) }
+            .max { $0.fraction < $1.fraction }
+        let r = m.records
+        return Motivation(
+            badges: m.badges.map {
+                Motivation.Badge(id: $0.id, family: "\($0.family)", familyTitle: $0.family.title, title: $0.title,
+                                 shortValue: $0.shortValue, earned: $0.isEarned, earnedOn: $0.earnedOn)
+            },
+            earnedIds: m.earned.map(\.id), unseenIds: m.unseen.map(\.id),
+            next: next.map { Motivation.Next(id: $0.badge.id, fraction: $0.fraction) },
+            bestStepDay: r.bestStepDay?.steps, bestStepDayOn: r.bestStepDay?.day,
+            bestStepWeek: r.bestStepWeek?.steps, bestStepWeekStart: r.bestStepWeek?.start,
+            mostWorkoutsWeek: r.mostWorkoutsWeek?.count, mostWorkoutsWeekStart: r.mostWorkoutsWeek?.start,
+            longestStepStreak: r.longestStepStreak,
+            streaks: Dictionary(uniqueKeysWithValues: m.streaks.map { ($0.key.uuidString, $0.value.current) }))
+    }
+
+    /// Marks badges as seen (the banner's cross, the achievements page), or switches motivation on or off.
+    @MainActor
+    public static func changeMotivation(store: WhoopStore, seen: [String], enabled: Bool?) async -> Change {
+        do {
+            return try await CoreGoalState.change(store: store) { _ in
+                if !seen.isEmpty { GoalPrefs.markBadgesSeen(seen) }
+                if let enabled { GoalPreferences.standard.set(enabled, forKey: GoalPrefs.motivationEnabledKey) }
+                return Change(ok: true, error: nil)
+            }
+        } catch {
+            return Change(ok: false, error: "conflict")
+        }
     }
 
     public struct Setup: Encodable {
@@ -135,7 +185,8 @@ public enum CoreGoals {
                           today: model.todayActions.map(action), week: model.weekActions.map(action),
                           spotlight: spotlight(spot, periods: model.periodSnapshots),
                           daily: DailyGoalSlot.allCases.map { daily($0, actions: context.actions.actions, today: today) },
-                          periodLimit: GoalPrefs.periodLimit, updatedAt: now.timeIntervalSince1970)
+                          periodLimit: GoalPrefs.periodLimit, updatedAt: now.timeIntervalSince1970,
+                          motivation: model.motivation.map(motivation), motivationEnabled: GoalPrefs.motivationEnabled)
         }
     }
 

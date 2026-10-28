@@ -4253,4 +4253,26 @@
     <string name="forge_gn_milestone">Osiągnięty kamień milowy celu długoterminowego</string>
     <string name="forge_gn_footer">Domyślnie wyłączone. Najwyżej dwa powiadomienia o celach dziennie, nigdy po 21:00 ani podczas treningu. Wskazówki i podsumowania zawsze pojawiają się w aplikacji. Obowiązują godziny ciszy z ustawień powiadomień.</string>
     <string name="forge_gn_channel">Cele</string>
+    <string name="forge_gm_new_badge">Nowa odznaka</string>
+    <string name="forge_gm_new_badges">Nowe odznaki: %1$d</string>
+    <string name="forge_gm_achievements">Osiągnięcia</string>
+    <string name="forge_gm_of_badges">%1$d z %2$d odznak</string>
+    <string name="forge_gm_best_day_steps">najlepszy dzień %1$s kroków</string>
+    <string name="forge_gm_longest_streak">najdłuższa seria %1$d dni</string>
+    <string name="forge_gm_page_subtitle">Zdobyte z Twoich danych, na tym urządzeniu.</string>
+    <string name="forge_gm_records">Rekordy osobiste</string>
+    <string name="forge_gm_best_day">Najlepszy dzień</string>
+    <string name="forge_gm_steps">%1$s kroków</string>
+    <string name="forge_gm_best_week">Najlepszy tydzień</string>
+    <string name="forge_gm_most_workouts">Najwięcej treningów w tygodniu</string>
+    <string name="forge_gm_longest">Najdłuższa seria kroków</string>
+    <string name="forge_gm_days">%1$d dnia</string>
+    <string name="forge_gm_records_empty">Rekordy pojawią się, gdy będą zapisane kroki lub treningi.</string>
+    <string name="forge_gm_badges">Odznaki</string>
+    <string name="forge_gm_first_badge">Pierwsza odznaka przyjdzie z pierwszym dniem 10 000 kroków lub pierwszym osiągniętym celem tygodniowym.</string>
+    <string name="forge_gm_next">Następna: %1$s</string>
+    <string name="forge_gm_in_a_row">%1$d dni w ciągłości</string>
+    <string name="forge_gm_toggle">Odznaki, serie i rekordy</string>
+    <string name="forge_gm_toggle_detail">Odznaki za kroki, serie i osiągnięte cele, Twoje rekordy oraz zdanie zachęty tuż przed celem. Liczone na tym urządzeniu z Twoich danych.</string>
+    <string name="forge_gm_hide">Ukryj</string>
 </resources>

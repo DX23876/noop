@@ -4229,4 +4229,26 @@
     <string name="forge_gn_milestone">Um marco a longo prazo alcançado</string>
     <string name="forge_gn_footer">Desligado por omissão. No máximo duas notificações de objetivos por dia, nunca depois das 21:00 nem durante um treino. Dicas e resumos aparecem sempre na app. Aplicam-se as horas de silêncio das definições de notificações.</string>
     <string name="forge_gn_channel">Objetivos</string>
+    <string name="forge_gm_new_badge">Nova insígnia</string>
+    <string name="forge_gm_new_badges">%1$d insígnias novas</string>
+    <string name="forge_gm_achievements">Conquistas</string>
+    <string name="forge_gm_of_badges">%1$d de %2$d insígnias</string>
+    <string name="forge_gm_best_day_steps">melhor dia %1$s passos</string>
+    <string name="forge_gm_longest_streak">maior sequência %1$d dias</string>
+    <string name="forge_gm_page_subtitle">Ganhas com os seus dados, neste dispositivo.</string>
+    <string name="forge_gm_records">Recordes pessoais</string>
+    <string name="forge_gm_best_day">Melhor dia</string>
+    <string name="forge_gm_steps">%1$s passos</string>
+    <string name="forge_gm_best_week">Melhor semana</string>
+    <string name="forge_gm_most_workouts">Mais treinos numa semana</string>
+    <string name="forge_gm_longest">Maior série de passos</string>
+    <string name="forge_gm_days">%1$d dias</string>
+    <string name="forge_gm_records_empty">Os recordes aparecem quando houver passos ou treinos registados.</string>
+    <string name="forge_gm_badges">Insígnias</string>
+    <string name="forge_gm_first_badge">A primeira insígnia chega com o primeiro dia de 10 000 passos ou o primeiro objetivo semanal atingido.</string>
+    <string name="forge_gm_next">Próxima: %1$s</string>
+    <string name="forge_gm_in_a_row">%1$d dias consecutivos</string>
+    <string name="forge_gm_toggle">Insígnias, séries e recordes</string>
+    <string name="forge_gm_toggle_detail">Insígnias por passos, séries e objetivos atingidos, os seus recordes pessoais e uma frase de incentivo perto do objetivo. Calculado neste dispositivo com os seus dados.</string>
+    <string name="forge_gm_hide">Ocultar</string>
 </resources>

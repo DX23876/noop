@@ -87,6 +87,7 @@ private sealed interface GoalsPage {
     data class LongTerm(val id: String) : GoalsPage
     data object LongTermSetup : GoalsPage
     data object Setup : GoalsPage
+    data object Badges : GoalsPage
 }
 
 /**
@@ -108,6 +109,7 @@ fun ForgeGoalsPage(onBack: () -> Unit, initialPage: String = "") {
         pageRaw.startsWith("daily:") -> GoalsPage.Daily(pageRaw.removePrefix("daily:"))
         pageRaw.startsWith("lt:") -> GoalsPage.LongTerm(pageRaw.removePrefix("lt:"))
         pageRaw == "ltsetup" -> GoalsPage.LongTermSetup
+        pageRaw == "badges" -> GoalsPage.Badges
         else -> null
     }
     LaunchedEffect(revision) {
@@ -135,9 +137,10 @@ fun ForgeGoalsPage(onBack: () -> Unit, initialPage: String = "") {
                                                   onOpenPeriod = { pageRaw = "detail:$it" }, onChanged = ::refresh,
                                                   onRemoved = { back(); refresh() })
         GoalsPage.LongTermSetup -> LongTermSetupPage(onBack = ::back, onCreated = { back(); refresh() })
+        GoalsPage.Badges -> GoalBadgesPage(output?.motivation, onBack = { back(); refresh() })
         null -> GoalsOverview(output, loaded, onBack, onOpen = { pageRaw = "detail:$it" },
                               onDaily = { pageRaw = "daily:$it" }, onLongTerm = { pageRaw = "lt:$it" },
-                              onAddLongTerm = { pageRaw = "ltsetup" },
+                              onAddLongTerm = { pageRaw = "ltsetup" }, onBadges = { pageRaw = "badges" },
                               onAdd = { pageRaw = "setup" }, onChanged = ::refresh)
     }
 }
@@ -145,7 +148,7 @@ fun ForgeGoalsPage(onBack: () -> Unit, initialPage: String = "") {
 @Composable
 private fun GoalsOverview(output: CoreGoals.Output?, loaded: Boolean, onBack: () -> Unit, onOpen: (String) -> Unit,
                           onDaily: (String) -> Unit, onLongTerm: (String) -> Unit, onAddLongTerm: () -> Unit,
-                          onAdd: () -> Unit, onChanged: () -> Unit) {
+                          onBadges: () -> Unit, onAdd: () -> Unit, onChanged: () -> Unit) {
     val scope = rememberCoroutineScope()
     SettingsColumn {
         PageTitle(stringResource(R.string.forge_goals_title), onBack) {
@@ -161,12 +164,23 @@ private fun GoalsOverview(output: CoreGoals.Output?, loaded: Boolean, onBack: ()
         val active = output.period.filter { it.status == "active" }
         val paused = output.period.filter { it.status == "paused" }
         val longTerm = output.longTerm.filter { it.status == "active" || it.status == "paused" }
+        val motivation = output.motivation
+        var bannerHidden by remember { mutableStateOf(false) }
+        if (motivation != null && motivation.unseen.isNotEmpty() && !bannerHidden) {
+            NewBadgeBanner(motivation.unseen, onOpen = onBadges, onSeen = {
+                bannerHidden = true
+                scope.launch {
+                    withContext(Dispatchers.IO) { CoreGoals.changeMotivation(seen = motivation.unseenIds) }
+                    onChanged()
+                }
+            })
+        }
 
         if (output.today.isNotEmpty()) {
             GoalSectionHeader(stringResource(R.string.forge_goals_today))
             ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
                 output.today.forEachIndexed { i, action ->
-                    DailyRow(action) {
+                    DailyRow(action, streak = motivation?.streaks?.get(action.actionId)) {
                         scope.launch {
                             withContext(Dispatchers.IO) { CoreGoals.toggleAction(action.actionId, action.day) }
                             onChanged()
@@ -233,6 +247,12 @@ private fun GoalsOverview(output: CoreGoals.Output?, loaded: Boolean, onBack: ()
                 }
             }
         }
+        AchievementsCard(motivation, output.motivationEnabled, onOpen = onBadges, onSwitch = { on ->
+            scope.launch {
+                withContext(Dispatchers.IO) { CoreGoals.changeMotivation(enabled = on) }
+                onChanged()
+            }
+        })
         GoalNotificationsCard()
     }
 }
@@ -274,7 +294,7 @@ private fun GoalNotificationsCard() {
 // MARK: - Rows
 
 @Composable
-private fun DailyRow(action: CoreGoals.Action, onToggle: () -> Unit) {
+private fun DailyRow(action: CoreGoals.Action, streak: Int? = null, onToggle: () -> Unit) {
     val colors = Forge.colors
     val manual = action.kind == "manual" || action.kind == "journal"
     Row(Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget)
@@ -293,6 +313,10 @@ private fun DailyRow(action: CoreGoals.Action, onToggle: () -> Unit) {
                 ProgressBar((measured / target).coerceIn(0.0, 1.0), if (action.isCompleted) colors.charge else colors.accent,
                             pace = null)
                 Text(stringResource(R.string.forge_goals_fraction, whole(measured), whole(target)), style = Forge.type.caption, color = colors.textSecondary)
+            }
+            // "5 days in a row", as the iOS daily list adds it from two days on.
+            if (streak != null && streak >= 2) {
+                Text(stringResource(R.string.forge_gm_in_a_row, streak), style = Forge.type.caption, color = colors.textSecondary)
             }
         }
     }

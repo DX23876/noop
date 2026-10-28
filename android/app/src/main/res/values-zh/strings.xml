@@ -4207,4 +4207,26 @@
     <string name="forge_gn_milestone">达成一个长期里程碑</string>
     <string name="forge_gn_footer">默认关闭。每天最多两条目标通知，21:00 后或训练期间绝不发送。提示和回顾始终在应用内显示。遵循通知设置中的安静时段。</string>
     <string name="forge_gn_channel">目标</string>
+    <string name="forge_gm_new_badge">新徽章</string>
+    <string name="forge_gm_new_badges">%1$d 枚新徽章</string>
+    <string name="forge_gm_achievements">成就</string>
+    <string name="forge_gm_of_badges">%1$d/%2$d 枚徽章</string>
+    <string name="forge_gm_best_day_steps">最佳单日 %1$s 步</string>
+    <string name="forge_gm_longest_streak">最长连续 %1$d 天</string>
+    <string name="forge_gm_page_subtitle">基于你自己的数据，在本设备上获得。</string>
+    <string name="forge_gm_records">个人纪录</string>
+    <string name="forge_gm_best_day">最佳单日</string>
+    <string name="forge_gm_steps">%1$s 步</string>
+    <string name="forge_gm_best_week">最佳一周</string>
+    <string name="forge_gm_most_workouts">单周最多训练</string>
+    <string name="forge_gm_longest">最长步数连续记录</string>
+    <string name="forge_gm_days">%1$d 天</string>
+    <string name="forge_gm_records_empty">有步数或训练记录后才会显示纪录。</string>
+    <string name="forge_gm_badges">徽章</string>
+    <string name="forge_gm_first_badge">第一个徽章会在你首次单日走满 10,000 步或首次达成每周目标时获得。</string>
+    <string name="forge_gm_next">下一个：%1$s</string>
+    <string name="forge_gm_in_a_row">%1$d连续几天</string>
+    <string name="forge_gm_toggle">徽章、连续记录和纪录</string>
+    <string name="forge_gm_toggle_detail">步数、连续记录和已达成目标的徽章、个人纪录，以及接近目标时的鼓励。在本设备上用你自己的数据计算。</string>
+    <string name="forge_gm_hide">隐藏</string>
 </resources>

@@ -11,6 +11,10 @@ class CoreGoalsTest {
         val goal = output.period.single()
         assertEquals("workouts", goal.metric)
         assertEquals(listOf("training"), goal.contexts)
+        val motivation = output.motivation!!
+        assertTrue(motivation.badges.isNotEmpty())
+        assertTrue(motivation.badges.all { it.title.isNotEmpty() && it.familyTitle.isNotEmpty() })
+        assertTrue(output.motivationEnabled)
         assertEquals("week", goal.period)
         assertEquals("active", goal.status)
         assertEquals(3.0, goal.target, 0.0)

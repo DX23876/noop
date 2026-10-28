@@ -37,6 +37,16 @@ final class CoreGoalsTests: XCTestCase {
         XCTAssertEqual(goal.periodTarget, 3, accuracy: 3)
         XCTAssertEqual(goal.current, 1)
         XCTAssertEqual(goal.counted.count, 1)
+        // Motivation is on by default: the badge ladder with its words, and none earned from one run.
+        let motivation = try XCTUnwrap(output.motivation)
+        XCTAssertFalse(motivation.badges.isEmpty)
+        XCTAssertTrue(motivation.badges.allSatisfy { !$0.title.isEmpty && !$0.familyTitle.isEmpty })
+        XCTAssertTrue(output.motivationEnabled)
+        let off = await CoreGoals.changeMotivation(store: store, seen: [], enabled: false)
+        XCTAssertTrue(off.ok)
+        let without = try await CoreGoals.snapshot(reader: reader, settings: settings, now: now)
+        XCTAssertNil(without.motivation)
+        XCTAssertFalse(without.motivationEnabled)
 
         // The answer Kotlin parses (`CoreGoalsTest`): the dates and ids change per run, so the pin compares the
         // shape, every key at every level; NOOP_UPDATE_TRAINING_FIXTURES=1 rewrites the file.

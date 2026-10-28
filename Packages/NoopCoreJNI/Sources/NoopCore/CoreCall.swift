@@ -188,6 +188,9 @@ public enum CoreCall {
             return CoreRead.json(await CoreStress.day(reader: reader, personalBaseline: args["personal"] as? Bool ?? false))
         case "stress.fingerprint":
             return CoreRead.json(["fingerprint": await CoreStress.fingerprint(reader: reader)])
+        case "goals.motivation":
+            return CoreRead.json(await CoreGoals.changeMotivation(store: store, seen: args["seen"] as? [String] ?? [],
+                                                                  enabled: args["enabled"] as? Bool))
         case "goals.notices":
             let host = CoreGoalNotices.Host(kinds: args["kinds"] as? [String] ?? [], quiet: args["quiet"] as? Bool ?? false,
                 eveningMinute: int("eveningMinute", 19 * 60), workoutInProgress: args["workoutInProgress"] as? Bool ?? false,
