@@ -10,6 +10,12 @@ import WhoopStore
 /// function. Runs against the store the shadow session opened; `{"error": …}` when there is none.
 public enum CoreCall {
     public static func run(_ op: String, _ argsJSON: String) async -> String {
+        // Whatever the shared code wrote to UserDefaults during the call reaches the disk (`CoreDefaults`).
+        defer { CoreDefaults.save() }
+        return await perform(op, argsJSON)
+    }
+
+    private static func perform(_ op: String, _ argsJSON: String) async -> String {
         if op == "momentum.day" {
             return CoreRead.json(["day": LogicalDay.key(Date())])
         }
@@ -24,6 +30,12 @@ public enum CoreCall {
                 setenv("HOME", home, 1)
                 setenv("XDG_DATA_HOME", home + "/share", 1)
                 setenv("XDG_CONFIG_HOME", home + "/config", 1)
+                // Foundation does not create the folder its UserDefaults file goes in, and drops every write
+                // without one; and a store made before HOME was set would keep its old path.
+                for dir in ["/share", "/config"] {
+                    try? FileManager.default.createDirectory(atPath: home + dir, withIntermediateDirectories: true)
+                }
+                CoreDefaults.load(from: URL(fileURLWithPath: home + "/config/defaults.plist"))
             }
             let directory = URL(fileURLWithPath: dir)
             do {
