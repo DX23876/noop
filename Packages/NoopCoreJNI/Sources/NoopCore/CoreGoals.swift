@@ -136,6 +136,28 @@ public enum CoreGoals {
         }
     }
 
+    /// The goal notes beside one workout and one night (`GoalContextLines`): what the workout counted toward and where
+    /// the night stands in the week's sleep goals. Reads the goals without changing them.
+    public struct Lines: Encodable {
+        public var workout: [String], night: [String]
+    }
+
+    @MainActor
+    public static func lines(reader: StoreReader, settings: Settings, workoutId: String?, day: String?,
+                             now: Date = Date()) async throws -> Lines {
+        var row: WorkoutRow?
+        if let workoutId, !workoutId.isEmpty {
+            row = await CoreTrainingSession.select(reader: reader, id: workoutId, dismissed: settings.dismissedWorkoutSpans,
+                                                   now: Int(now.timeIntervalSince1970))?.row
+        }
+        let source = try await source(reader: reader, settings: settings, now: now)
+        let snapshots = try await CoreGoalState.read(store: reader.store) { context in
+            evaluate(source: source, context: context, now: now).periodSnapshots
+        }
+        return Lines(workout: row.map { GoalContextLines.contributions(snapshots, row: $0) } ?? [],
+                     night: day.map { GoalContextLines.night(snapshots, day: $0) } ?? [])
+    }
+
     /// The shared refresh over loaded inputs, inside a goal-state transaction.
     @MainActor
     static func evaluate(source: GoalTrackingModel.Source, context: CoreGoalState.Context, now: Date) -> GoalTrackingModel {

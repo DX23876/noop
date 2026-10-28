@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AddCircle
+import androidx.compose.material.icons.rounded.TrackChanges
 import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.ChevronRight
@@ -869,6 +870,25 @@ fun ForgeGoalsContextCard(contextName: String) {
     open?.let { start ->
         ForgeOverlayPage(onDismiss = { open = null; revision++ }) {
             ForgeSceneBackdrop(ForgeBackdrop.Sky) { ForgeGoalsPage(onBack = { open = null; revision++ }, initialPage = start) }
+        }
+    }
+}
+
+/**
+ * The goal notes beside a workout or a night (iOS `GoalContributionNote`, `SleepGoalNightLine`): one line per goal with
+ * the target mark, as the core words them. Nothing is drawn without a line.
+ */
+@Composable
+fun ForgeGoalLines(lines: List<String>) {
+    if (lines.isEmpty()) return
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        lines.forEach { line ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.TrackChanges, contentDescription = null, tint = Forge.colors.accent,
+                     modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(line, style = Forge.type.footnote, color = Forge.colors.textSecondary)
+            }
         }
     }
 }

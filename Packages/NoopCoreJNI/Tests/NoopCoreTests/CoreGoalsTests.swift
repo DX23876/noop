@@ -57,6 +57,30 @@ final class CoreGoalsTests: XCTestCase {
         XCTAssertEqual(shape(try JSONSerialization.jsonObject(with: data)) as? NSDictionary, shape(pinned) as? NSDictionary)
     }
 
+    func testASavedWorkoutNamesTheGoalItCountedToward() async throws {
+        let store = try await WhoopStore.inMemory()
+        let reader = StoreReader(store: store, activeDeviceId: "my-whoop", registeredWhoopIds: [])
+        let now = Calendar.current.startOfDay(for: Date()).addingTimeInterval(12 * 3_600)
+        let start = Int(now.timeIntervalSince1970) - 60
+        _ = try await store.upsertWorkouts([WorkoutRow(startTs: start - 3_600, endTs: start, sport: "Running",
+            source: "my-whoop", durationS: 3_600, energyKcal: nil, avgHr: 140, maxHr: 170, strain: 10,
+            distanceM: 8_000, zonesJSON: nil, notes: nil, steps: nil)], deviceId: "my-whoop")
+        _ = await CoreGoals.addPeriodGoal(store: store, metric: "workouts", period: "week", target: 3,
+                                          threshold: nil, now: now)
+        let fusion = await TrainingSessionResolver.read(reader: reader, from: start - 86_400, to: start + 86_400,
+                                                        dismissedDetectedSpans: [])
+        let id = try XCTUnwrap(fusion.sessions.first?.id)
+
+        let lines = try await CoreGoals.lines(reader: reader, settings: settings, workoutId: id,
+                                              day: StoreReader.localDayKey(now), now: now)
+        XCTAssertEqual(lines.workout.count, 1)
+        XCTAssertTrue(lines.workout[0].hasPrefix("Counts toward Workouts: 1/"), lines.workout[0])
+        // No weekly sleep goal, so the night says nothing.
+        XCTAssertEqual(lines.night, [])
+        let none = try await CoreGoals.lines(reader: reader, settings: settings, workoutId: "missing", day: nil, now: now)
+        XCTAssertEqual(none.workout, [])
+    }
+
     func testDetailActionsChangeThePersistedGoal() async throws {
         let store = try await WhoopStore.inMemory()
         let reader = StoreReader(store: store, activeDeviceId: "my-whoop", registeredWhoopIds: [])

@@ -131,6 +131,13 @@ public enum CoreCall {
             } catch {
                 return #"{"error":"goalState"}"#
             }
+        case "goals.lines":
+            do {
+                return CoreRead.json(try await CoreGoals.lines(reader: reader, settings: CoreGoalEnergy.settings(args),
+                    workoutId: args["workoutId"] as? String, day: args["day"] as? String))
+            } catch {
+                return #"{"error":"goalState"}"#
+            }
         case "goals.addPeriod":
             return CoreRead.json(await CoreGoals.addPeriodGoal(store: store, metric: string("metric"),
                 period: string("period"), target: (args["target"] as? NSNumber)?.doubleValue ?? 0,

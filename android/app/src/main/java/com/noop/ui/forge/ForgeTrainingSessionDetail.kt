@@ -14,6 +14,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import com.noop.R
 import com.noop.core.CoreRead
+import com.noop.core.CoreGoals
 import com.noop.core.CoreTrainingSession
 import com.noop.ui.ProfileStore
 import com.noop.ui.UnitFormatter
@@ -37,6 +38,7 @@ fun ForgeTrainingSessionDetailPage(id: String, onClose: () -> Unit) {
     val massUnits = strengthUnits()
     val distanceUnits = UnitPrefs.distanceSystem(context)
     var output by remember { mutableStateOf<CoreTrainingSession.Output?>(null) }
+    var goalLines by remember { mutableStateOf<List<String>>(emptyList()) }
     var loaded by remember { mutableStateOf(false) }
     var revision by remember { mutableIntStateOf(0) }
     var editing by rememberSaveable { mutableStateOf(false) }
@@ -54,6 +56,9 @@ fun ForgeTrainingSessionDetailPage(id: String, onClose: () -> Unit) {
         }
         withContext(Dispatchers.IO) { com.noop.notif.SessionRatingReminderWorker.synchronize(context) }
         loaded = true
+        goalLines = withContext(Dispatchers.IO) {
+            CoreGoals.lines(context, dismissedTrainingWorkouts(context), workoutId = id)?.workout.orEmpty()
+        }
     }
     fun save(remove: Boolean) = scope.launch {
         saving = true; error = false
@@ -72,6 +77,7 @@ fun ForgeTrainingSessionDetailPage(id: String, onClose: () -> Unit) {
             return@SettingsColumn
         }
         ReportNote(sessionDate(s.startTs) + " – " + sessionTime(s.endTs))
+        ForgeGoalLines(goalLines)
         ForgeCard(Modifier.fillMaxWidth()) {
             s.durationS?.let { ReportFact(stringResource(R.string.forge_report_duration), sessionDuration(it)) }
             s.avgHr?.let { ReportFact(stringResource(R.string.forge_report_average_hr), "$it bpm") }

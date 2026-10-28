@@ -68,6 +68,23 @@ object CoreGoals {
         return SwiftCore.call("goals.snapshot", settings(context, dismissedWorkouts))?.let(::parse)
     }
 
+    /** The goal notes beside one workout and one night (`GoalContextLines`), in the wearer's language. */
+    data class Lines(val workout: List<String>, val night: List<String>)
+
+    fun lines(context: Context, dismissedWorkouts: List<String>, workoutId: String? = null, day: String? = null): Lines? {
+        if (!SwiftCore.available) return null
+        if (!CoreUserInputs.ensure(context)) return null
+        val args = JSONObject(settings(context, dismissedWorkouts))
+            .apply { if (workoutId != null) put("workoutId", workoutId); if (day != null) put("day", day) }
+        return SwiftCore.call("goals.lines", args.toString())?.let(::parseLines)
+    }
+
+    internal fun parseLines(json: String): Lines? {
+        if (json == "null" || json.contains("\"error\"")) return null
+        val o = JSONObject(json)
+        return Lines(o.optJSONArray("workout").strings(), o.optJSONArray("night").strings())
+    }
+
     /** The metrics the weekly and monthly goal setup offers, with each one's target range. */
     fun setup(context: Context, dismissedWorkouts: List<String>): Setup? {
         if (!SwiftCore.available) return null

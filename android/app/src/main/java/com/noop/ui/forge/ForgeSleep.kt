@@ -48,6 +48,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.noop.R
 import com.noop.core.CoreRead
+import androidx.compose.runtime.produceState
+import com.noop.core.CoreGoals
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.time.Instant
@@ -160,7 +162,16 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth) {
             Times(night, zone)
             Breakdown(night, zone)
         }
-        // The week's sleep goal, where sleep is read (iOS `GoalsContextCard(context: .sleep)`); nothing without one.
+        // Where this night stands in the week's sleep goals (iOS `SleepGoalNightLine`), then the week's sleep goal
+        // itself, where sleep is read (iOS `GoalsContextCard(context: .sleep)`); neither draws without a goal.
+        if (wakeDay != null) {
+            val nightLines by produceState(emptyList<String>(), wakeDay) {
+                value = withContext(Dispatchers.IO) {
+                    CoreGoals.lines(context, dismissedTrainingWorkouts(context), day = wakeDay.toString())?.night.orEmpty()
+                }
+            }
+            ForgeGoalLines(nightLines)
+        }
         ForgeGoalsContextCard("sleep")
         Spacer(Modifier.height(ForgeMetrics.space2))
         }

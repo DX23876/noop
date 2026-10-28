@@ -61,7 +61,7 @@ public enum CoreTrainingSession {
         public var rating: Rating?
     }
 
-    private struct Selection {
+    struct Selection {
         var canonicalId: String?, row: WorkoutRow?, detailed: ResolvedStrengthSession?, kind: String
         var templates: [String: HevyExerciseTemplate]
         var start: Int { detailed?.startTs ?? row?.startTs ?? 0 }
@@ -70,7 +70,7 @@ public enum CoreTrainingSession {
         var title: String { detailed?.workout.title ?? row?.sport ?? "" }
     }
 
-    private static func select(reader: StoreReader, id: String, dismissed: [String], now: Int) async -> Selection? {
+    static func select(reader: StoreReader, id: String, dismissed: [String], now: Int) async -> Selection? {
         let days = TrainingHistoryWindow.allDays
         let fusion = await TrainingSessionResolver.read(reader: reader, from: now - days * 86_400,
             to: now + 86_400, dismissedDetectedSpans: dismissed)

@@ -31,4 +31,11 @@ class CoreGoalsTest {
         assertNull(CoreGoals.parse("""{"error":"goalState"}"""))
         assertNull(CoreGoals.parse("null"))
     }
+
+    @Test fun theGoalLinesKeepTheCoreWording() {
+        val lines = CoreGoals.parseLines("""{"workout":["Counts toward Runs: 3/4"],"night":[]}""")!!
+        assertEquals(listOf("Counts toward Runs: 3/4"), lines.workout)
+        assertEquals(emptyList<String>(), lines.night)
+        assertEquals(null, CoreGoals.parseLines("""{"error":"goalState"}"""))
+    }
 }

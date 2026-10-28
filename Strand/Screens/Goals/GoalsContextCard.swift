@@ -74,26 +74,16 @@ struct GoalContributionNote: View {
     let row: WorkoutRow
     @ObservedObject private var tracking = GoalTrackingStore.shared
 
-    private var matches: [PeriodGoalSnapshot] {
-        let key = PlanWorkoutReference(row).workoutKey
-        let day = Repository.localDayKey(Date(timeIntervalSince1970: Double(row.startTs)))
-        return tracking.periodSnapshots.filter { snapshot in
-            guard snapshot.goal.status == .active, snapshot.goal.metric.isWorkoutBased,
-                  snapshot.periodDays.contains(day) else { return false }
-            if snapshot.counted.contains(where: { $0.id == key }) { return true }
-            if snapshot.notCounted.contains(where: { $0.id == key }) { return false }
-            return PeriodGoalTracker.workoutMatches(snapshot.goal, row)
-        }
-    }
+    private var lines: [String] { GoalContextLines.contributions(tracking.periodSnapshots, row: row) }
 
     var body: some View {
-        let items = matches
+        let items = lines
         if !items.isEmpty {
             VStack(alignment: .leading, spacing: 4) {
-                ForEach(items) { snapshot in
+                ForEach(items, id: \.self) { line in
                     HStack(spacing: 6) {
                         Image(systemName: "target").foregroundStyle(StrandPalette.accent).accessibilityHidden(true)
-                        Text("Counts toward \(GoalFormat.shortName(snapshot.goal)): \(GoalFormat.progress(snapshot))")
+                        Text(line)
                             .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                     }
                 }
@@ -111,36 +101,8 @@ struct GoalSessionPreviewNote: View {
     var workingSets = 0
     @ObservedObject private var tracking = GoalTrackingStore.shared
 
-    private struct Line: Identifiable {
-        let id: UUID
-        let text: String
-        let reaches: Bool
-    }
-
-    private var lines: [Line] {
-        let day = Repository.localDayKey(Date(timeIntervalSince1970: Double(row.startTs)))
-        return tracking.periodSnapshots.compactMap { snapshot in
-            let goal = snapshot.goal
-            guard goal.status == .active, snapshot.periodDays.contains(day) else { return nil }
-            let added: Double
-            if goal.metric == .workingSets {
-                added = Double(workingSets)
-            } else if goal.metric.isWorkoutBased, PeriodGoalTracker.workoutMatches(goal, row) {
-                added = goal.metric == .workouts ? 1 : (PeriodGoalTracker.workoutAmount(goal.metric, row) ?? 0)
-            } else {
-                return nil
-            }
-            guard added > 0 else { return nil }
-            let before = snapshot.result.current
-            let after = before + added
-            let target = snapshot.result.target
-            let name = GoalFormat.shortName(goal)
-            let progress = "\(GoalFormat.number(after, goal.metric))/\(GoalFormat.number(target, goal.metric))"
-            let reaches = before < target && after >= target
-            return Line(id: goal.id, text: reaches ? String(localized: "This session reaches \(name): \(progress)")
-                                                   : String(localized: "With this session: \(name) \(progress)"),
-                        reaches: reaches)
-        }
+    private var lines: [GoalContextLines.Preview] {
+        GoalContextLines.sessionPreview(tracking.periodSnapshots, row: row, workingSets: workingSets)
     }
 
     var body: some View {
@@ -170,28 +132,7 @@ struct SleepGoalNightLine: View {
     let day: String
     @ObservedObject private var tracking = GoalTrackingStore.shared
 
-    private var lines: [String] {
-        tracking.periodSnapshots.compactMap { snapshot in
-            let goal = snapshot.goal
-            guard goal.status == .active, goal.period == .week,
-                  let index = snapshot.periodDays.firstIndex(of: day),
-                  snapshot.dayValues.indices.contains(index), let value = snapshot.dayValues[index] else { return nil }
-            let target = GoalFormat.number(snapshot.result.target, goal.metric)
-            switch goal.metric {
-            case .sleepNights:
-                let hours = (goal.threshold ?? 7).formatted(.number.precision(.fractionLength(0...1)))
-                let sofar = snapshot.dayValues[...index].compactMap { $0 }.filter { $0 >= 1 }.count
-                if value >= 1 {
-                    return String(localized: "Night \(sofar) of \(target) of \(hours) h this week")
-                }
-                return String(localized: "Under \(hours) h, so it does not count: \(sofar) of \(target) nights so far")
-            case .sleepAverage:
-                return String(localized: "Average this week: \(GoalFormat.amount(snapshot.result.current, goal.metric)) of \(GoalFormat.amount(snapshot.result.target, goal.metric))")
-            default:
-                return nil
-            }
-        }
-    }
+    private var lines: [String] { GoalContextLines.night(tracking.periodSnapshots, day: day) }
 
     var body: some View {
         let items = lines
