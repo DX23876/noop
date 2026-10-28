@@ -4259,4 +4259,5 @@
     <string name="forge_gm_toggle">Insignias, rachas y récords</string>
     <string name="forge_gm_toggle_detail">Insignias por pasos, rachas y objetivos logrados, tus récords personales y una frase de ánimo cerca del objetivo. Calculado en este dispositivo con tus propios datos.</string>
     <string name="forge_gm_hide">Ocultar</string>
+    <string name="forge_gw_empty">Crea un objetivo semanal en NOOP para verlo aquí.</string>
 </resources>

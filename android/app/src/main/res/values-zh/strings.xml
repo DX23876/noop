@@ -4229,4 +4229,5 @@
     <string name="forge_gm_toggle">徽章、连续记录和纪录</string>
     <string name="forge_gm_toggle_detail">步数、连续记录和已达成目标的徽章、个人纪录，以及接近目标时的鼓励。在本设备上用你自己的数据计算。</string>
     <string name="forge_gm_hide">隐藏</string>
+    <string name="forge_gw_empty">在 NOOP 中设置每周目标即可在此查看。</string>
 </resources>

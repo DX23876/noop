@@ -4272,4 +4272,5 @@
     <string name="forge_gm_toggle">Abzeichen, Serien und Rekorde</string>
     <string name="forge_gm_toggle_detail">Abzeichen für Schritte, Serien und erreichte Ziele, deine persönlichen Rekorde und ein anfeuernder Satz kurz vor dem Ziel. Berechnet auf diesem Gerät aus deinen eigenen Daten.</string>
     <string name="forge_gm_hide">Ausblenden</string>
+    <string name="forge_gw_empty">Leg in NOOP ein Wochenziel an, um es hier zu sehen.</string>
 </resources>

@@ -124,6 +124,7 @@ fun ForgeGoalsPage(onBack: () -> Unit, initialPage: String = "") {
     fun refresh() { revision++ }
     // System Back reloads like the page's own arrow, so what a page changed (badges seen, a goal edited) shows.
     BackHandler(enabled = page != null) { back(); refresh() }
+    PublishGoalsWidget(output)
     when (page) {
         GoalsPage.Setup -> GoalSetupPage(onBack = ::back, onCreated = { back(); refresh() })
         is GoalsPage.Detail -> {
@@ -965,6 +966,32 @@ fun ForgeGoalLines(lines: List<String>) {
                 Text(line, style = Forge.type.footnote, color = Forge.colors.textSecondary)
             }
         }
+    }
+}
+
+/**
+ * Hands the goals widget what Today's card shows (`GoalSpotlight`'s rows with their progress, the daily count and the
+ * week on course), in the screens' own words. Called wherever the app shows the goals; quiet without a widget placed.
+ */
+@Composable
+internal fun PublishGoalsWidget(output: CoreGoals.Output?) {
+    output ?: return
+    val context = LocalContext.current
+    val spot = output.spotlight
+    val goals = spot.rows.mapNotNull { row ->
+        if (row.kind == "period") output.period.firstOrNull { it.id == row.id }?.let {
+            com.noop.widget.GoalsGlanceWidget.Goal(shortName(it), progressText(it), it.fraction.coerceIn(0.0, 1.0), stateWord(it.state))
+        } else output.longTerm.firstOrNull { it.id == row.id }?.let {
+            com.noop.widget.GoalsGlanceWidget.Goal(it.title, it.progress?.let { p -> "${(p * 100).roundToInt()} %" } ?: "",
+                it.progress ?: 0.0, it.statusText ?: healthWord(it.health))
+        }
+    }
+    val summary = buildList {
+        if (spot.dailyTotal > 0) add(stringResource(R.string.forge_goals_done_count, spot.dailyDone, spot.dailyTotal))
+        if (spot.weekTotal > 0) add(stringResource(R.string.forge_goals_week_on_course, spot.weekOnCourse, spot.weekTotal))
+    }.joinToString(" · ")
+    LaunchedEffect(goals, summary) {
+        withContext(Dispatchers.IO) { com.noop.widget.GoalsGlanceWidget.publish(context, goals, summary) }
     }
 }
 

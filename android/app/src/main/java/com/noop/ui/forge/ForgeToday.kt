@@ -375,6 +375,7 @@ private fun TodayGoals() {
             CoreGoals.snapshot(context, dismissedTrainingWorkouts(context))
         }
     }
+    PublishGoalsWidget(output)
     ForgeTodayGoalsCard(output, onOpen = { open = true }, onToggle = { action ->
         scope.launch {
             withContext(Dispatchers.IO) { CoreGoals.toggleAction(action.actionId, action.day) }

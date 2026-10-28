@@ -4275,4 +4275,5 @@
     <string name="forge_gm_toggle">Odznaki, serie i rekordy</string>
     <string name="forge_gm_toggle_detail">Odznaki za kroki, serie i osiągnięte cele, Twoje rekordy oraz zdanie zachęty tuż przed celem. Liczone na tym urządzeniu z Twoich danych.</string>
     <string name="forge_gm_hide">Ukryj</string>
+    <string name="forge_gw_empty">Ustaw cel tygodniowy w NOOP, aby go tu zobaczyć.</string>
 </resources>

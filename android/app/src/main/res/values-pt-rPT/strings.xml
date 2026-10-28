@@ -4251,4 +4251,5 @@
     <string name="forge_gm_toggle">Insígnias, séries e recordes</string>
     <string name="forge_gm_toggle_detail">Insígnias por passos, séries e objetivos atingidos, os seus recordes pessoais e uma frase de incentivo perto do objetivo. Calculado neste dispositivo com os seus dados.</string>
     <string name="forge_gm_hide">Ocultar</string>
+    <string name="forge_gw_empty">Define um objetivo semanal no NOOP para o veres aqui.</string>
 </resources>

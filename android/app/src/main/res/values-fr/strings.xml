@@ -4258,4 +4258,5 @@
     <string name="forge_gm_toggle">Badges, séries et records</string>
     <string name="forge_gm_toggle_detail">Badges pour les pas, les séries et les objectifs atteints, vos records personnels et un mot d’encouragement près du but. Calculé sur cet appareil à partir de vos données.</string>
     <string name="forge_gm_hide">Masquer</string>
+    <string name="forge_gw_empty">Crée un objectif hebdomadaire dans NOOP pour le voir ici.</string>
 </resources>

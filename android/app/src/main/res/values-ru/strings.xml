@@ -4154,4 +4154,5 @@
     <string name="forge_gm_toggle">Значки, серии и рекорды</string>
     <string name="forge_gm_toggle_detail">Значки за шаги, серии и достигнутые цели, личные рекорды и подбадривание у самой цели. Считается на этом устройстве по вашим данным.</string>
     <string name="forge_gm_hide">Скрыть</string>
+    <string name="forge_gw_empty">Создайте недельную цель в NOOP, чтобы увидеть её здесь.</string>
 </resources>

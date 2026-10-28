@@ -4290,4 +4290,5 @@
     <string name="forge_gm_toggle">Badges, streaks and records</string>
     <string name="forge_gm_toggle_detail">Badges for steps, streaks and reached goals, your personal records and a cheering line near the goal. Worked out on this device from your own data.</string>
     <string name="forge_gm_hide">Hide</string>
+    <string name="forge_gw_empty">Set a weekly goal in NOOP to see it here.</string>
 </resources>

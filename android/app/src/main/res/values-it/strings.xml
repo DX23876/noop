@@ -4227,4 +4227,5 @@
     <string name="forge_gm_toggle">Badge, serie e record</string>
     <string name="forge_gm_toggle_detail">Badge per passi, serie e obiettivi raggiunti, i tuoi record personali e una frase di incoraggiamento vicino all’obiettivo. Calcolato su questo dispositivo dai tuoi dati.</string>
     <string name="forge_gm_hide">Nascondi</string>
+    <string name="forge_gw_empty">Crea un obiettivo settimanale in NOOP per vederlo qui.</string>
 </resources>
