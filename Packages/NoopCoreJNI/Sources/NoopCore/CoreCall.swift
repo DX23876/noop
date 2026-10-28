@@ -101,6 +101,9 @@ public enum CoreCall {
         }
         if op.hasPrefix("input.") || op.hasPrefix("lanes.") { return await CoreUserInputs.run(op, json: argsJSON, store: store) }
         if op.hasPrefix("coach.") { return await CoreCoach.run(op, args: args, reader: reader) }
+        if op.hasPrefix("goals.onboarding") {
+            return CoreRead.json(await CoreGoalOnboarding.run(op, args, weightKg: (args["weightKg"] as? NSNumber)?.doubleValue ?? 0))
+        }
         if op.hasPrefix("ecg.") { return await CoreEcg.run(op, args: args, store: store) }
         switch op {
         case "hevy.startSync": return CoreRead.json(await CoreHevy.shared.start(store: store, key: string("key"), routinesOnly: args["routinesOnly"] as? Bool ?? false))

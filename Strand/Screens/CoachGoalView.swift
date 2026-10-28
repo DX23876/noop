@@ -419,28 +419,6 @@ struct CoachGoalEditorView: View {
     }
 }
 
-/// The from/to range check, shared by the one-page editor and the guided wizard so the two save paths
-/// can't disagree about what is savable.
-///
-/// The bug it closes: the same number in both fields (or a typo that happens to land on it) saved a
-/// goal whose progress fraction is `nil` forever — `GoalTrackingEngine.rawProgressFraction` guards
-/// `baseline != target` — so it showed 0%, never got a route and could never read "on course", with
-/// nothing on screen saying why. Parsing matches the draft builders exactly, comma decimals included,
-/// so "70,0" and "70" are recognised as the same number.
-enum CoachGoalRange {
-    static func value(_ text: String) -> Double? {
-        Double(text.replacingOccurrences(of: ",", with: "."))
-    }
-
-    /// True when this range is worth saving. A kind NOOP doesn't quantify has no range to judge, and a
-    /// half-filled one is a legitimate work-in-progress — only two equal numbers are refused.
-    static func isUsable(kind: CoachGoal.Kind, baselineText: String, targetText: String) -> Bool {
-        guard kind.isQuantified,
-              let baseline = value(baselineText), let target = value(targetText) else { return true }
-        return baseline != target
-    }
-}
-
 /// A tappable goal-type tile (#R12) — extracted so the one-page editor and the guided onboarding flow
 /// show the same visual directions instead of duplicating the layout. Pure over its inputs.
 struct GoalKindTile: View {

@@ -361,6 +361,7 @@ internal fun ForgeCoachDestination(title: String, onBack: () -> Unit, onOpen: (M
         "history" -> ForgeCoachHistoryPage(onBack = { sub = null }, onPicked = { vm.showCoreConversation(); sub = null })
         "plan" -> ForgeCoachPlanPage(onBack = { sub = null })
         "goals" -> ForgeGoalsPage(onBack = { sub = null })
+        "onboarding" -> GoalOnboardingPage(onClose = { sub = null })
         "settings" -> Hosted(stringResource(R.string.coach_settings), { sub = null }) {
             CoachSettingsScreen(vm, onOpenIdentity = { sub = "identity" }, onOpenMemory = { sub = "memory" },
                                 onOpenInfo = { sub = "info" }, onOpenGoals = { sub = "goals" })
@@ -373,7 +374,7 @@ internal fun ForgeCoachDestination(title: String, onBack: () -> Unit, onOpen: (M
         // As the iOS chat: only a way back up here; the plan book sits in the chat's own header row and the
         // history in its overflow menu.
         else -> Hosted("", onBack) {
-            CoachScreen(vm, onOpenSettings = { sub = "settings" }, onOpenPlan = { sub = "plan" },
+            CoachScreen(vm, onGoalOnboarding = { sub = "onboarding" }, onOpenSettings = { sub = "settings" }, onOpenPlan = { sub = "plan" },
                         onOpenHistory = { sub = "history" }, onOpenBreathe = { onOpen(MoreDest.Breathe) },
                         onOpenLive = { onOpen(MoreDest.Live) }, onOpenGoals = { sub = "goals" })
         }

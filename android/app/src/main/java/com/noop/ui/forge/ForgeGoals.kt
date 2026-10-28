@@ -74,6 +74,7 @@ import com.noop.core.CoreRead
 import com.noop.ui.UnitPrefs
 import com.noop.ui.UnitSystem
 import kotlinx.coroutines.Dispatchers
+import androidx.compose.material.icons.rounded.AutoAwesome
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.NumberFormat
@@ -90,6 +91,7 @@ private sealed interface GoalsPage {
     data object LongTermSetup : GoalsPage
     data object Setup : GoalsPage
     data object Badges : GoalsPage
+    data object Guided : GoalsPage
 }
 
 /**
@@ -112,6 +114,7 @@ fun ForgeGoalsPage(onBack: () -> Unit, initialPage: String = "") {
         pageRaw.startsWith("lt:") -> GoalsPage.LongTerm(pageRaw.removePrefix("lt:"))
         pageRaw == "ltsetup" -> GoalsPage.LongTermSetup
         pageRaw == "badges" -> GoalsPage.Badges
+        pageRaw == "guided" -> GoalsPage.Guided
         else -> null
     }
     LaunchedEffect(revision) {
@@ -141,19 +144,27 @@ fun ForgeGoalsPage(onBack: () -> Unit, initialPage: String = "") {
                                                   onOpenPeriod = { pageRaw = "detail:$it" }, onChanged = ::refresh,
                                                   onRemoved = { back(); refresh() })
         GoalsPage.LongTermSetup -> LongTermSetupPage(onBack = ::back, onCreated = { back(); refresh() })
+        GoalsPage.Guided -> GoalOnboardingPage(onClose = { back(); refresh() })
         GoalsPage.Badges -> GoalBadgesPage(output?.motivation, onBack = { back(); refresh() })
         null -> GoalsOverview(output, loaded, onBack, onOpen = { pageRaw = "detail:$it" },
                               onDaily = { pageRaw = "daily:$it" }, onLongTerm = { pageRaw = "lt:$it" },
                               onAddLongTerm = { pageRaw = "ltsetup" }, onBadges = { pageRaw = "badges" },
-                              onAdd = { pageRaw = "setup" }, onChanged = ::refresh)
+                              onAdd = { pageRaw = "setup" }, onChanged = ::refresh, onGuided = { pageRaw = "guided" })
     }
 }
 
 @Composable
 private fun GoalsOverview(output: CoreGoals.Output?, loaded: Boolean, onBack: () -> Unit, onOpen: (String) -> Unit,
                           onDaily: (String) -> Unit, onLongTerm: (String) -> Unit, onAddLongTerm: () -> Unit,
-                          onBadges: () -> Unit, onAdd: () -> Unit, onChanged: () -> Unit) {
+                          onBadges: () -> Unit, onAdd: () -> Unit, onChanged: () -> Unit, onGuided: () -> Unit = {}) {
     val scope = rememberCoroutineScope()
+    // The guided setup's entry (`guidedSetupButton`), worded by the shared wizard.
+    var guided by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    LaunchedEffect(output) {
+        guided = withContext(Dispatchers.IO) {
+            com.noop.core.CoreGoalOnboarding.run(com.noop.core.CoreGoalOnboarding.Draft(), 0.0)?.labels
+        } ?: emptyMap()
+    }
     SettingsColumn {
         PageTitle(stringResource(R.string.forge_goals_title), onBack) {
             IconButton(onClick = onAdd) {
@@ -223,6 +234,18 @@ private fun GoalsOverview(output: CoreGoals.Output?, loaded: Boolean, onBack: ()
                 RowDivider()
             }
             AddRow(stringResource(R.string.forge_lt_add), onAddLongTerm)
+        }
+        guided["entry"]?.let { entry ->
+            ForgeCard(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onGuided), radius = ForgeMetrics.groupedRadius) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Icon(Icons.Rounded.AutoAwesome, contentDescription = null, tint = Forge.colors.accent, modifier = Modifier.size(20.dp))
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                        Text(entry, style = Forge.type.subhead, color = Forge.colors.text)
+                        Text(guided["entryNote"].orEmpty(), style = Forge.type.footnote, color = Forge.colors.textTertiary)
+                    }
+                    Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = Forge.colors.textTertiary, modifier = Modifier.size(18.dp))
+                }
+            }
         }
 
         for (period in listOf("week", "month")) {

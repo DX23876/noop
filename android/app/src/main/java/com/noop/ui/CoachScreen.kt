@@ -105,7 +105,8 @@ import com.noop.ai.CustomAiAuthHeader
 fun CoachScreen(vm: CoachViewModel = viewModel(), onOpenSettings: () -> Unit = {},
                 trailing: (@Composable () -> Unit)? = null, onOpenPlan: (() -> Unit)? = null,
                 onOpenHistory: (() -> Unit)? = null, onOpenBreathe: (() -> Unit)? = null,
-                onOpenLive: (() -> Unit)? = null, onOpenGoals: (() -> Unit)? = null) {
+                onOpenLive: (() -> Unit)? = null, onOpenGoals: (() -> Unit)? = null,
+                onGoalOnboarding: (() -> Unit)? = null) {
     val context = LocalContext.current
     val keyVersion by vm.keyVersion.collectAsStateWithLifecycle()
     val provider by vm.provider.collectAsStateWithLifecycle()
@@ -141,7 +142,8 @@ fun CoachScreen(vm: CoachViewModel = viewModel(), onOpenSettings: () -> Unit = {
             CoachSetup(vm = vm)
         } else {
             CoachChat(vm = vm, onOpenSettings = onOpenSettings, onOpenPlan = onOpenPlan, onOpenHistory = onOpenHistory,
-                      onOpenBreathe = onOpenBreathe, onOpenLive = onOpenLive, onOpenGoals = onOpenGoals)
+                      onOpenBreathe = onOpenBreathe, onOpenLive = onOpenLive, onOpenGoals = onOpenGoals,
+                      onGoalOnboarding = onGoalOnboarding)
         }
     }
 }
@@ -300,7 +302,8 @@ private fun CoachSetup(vm: CoachViewModel) {
 @Composable
 private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit, onOpenPlan: (() -> Unit)? = null,
                       onOpenHistory: (() -> Unit)? = null, onOpenBreathe: (() -> Unit)? = null,
-                      onOpenLive: (() -> Unit)? = null, onOpenGoals: (() -> Unit)? = null) {
+                      onOpenLive: (() -> Unit)? = null, onOpenGoals: (() -> Unit)? = null,
+                      onGoalOnboarding: (() -> Unit)? = null) {
     val context = LocalContext.current
     val messages by vm.messages.collectAsStateWithLifecycle()
     val sending by vm.sending.collectAsStateWithLifecycle()
@@ -332,6 +335,15 @@ private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit, onOpenPlan
         } else {
             CoachFirstUseNote(i, onMore = { infoOpen = true }, onGotIt = { vm.loadInfo(acknowledge = true) })
         }
+    }
+    // The goal setup, offered once to a coach with no goal yet, after the first-use note (`goalOnboarding`).
+    val acknowledged = info?.acknowledged == true
+    LaunchedEffect(acknowledged) {
+        if (!acknowledged || onGoalOnboarding == null) return@LaunchedEffect
+        val offer = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            com.noop.core.CoreGoalOnboarding.run(com.noop.core.CoreGoalOnboarding.Draft(), 0.0)?.offer
+        }
+        if (offer == true) onGoalOnboarding()
     }
     // The plan dot and the consent hint change on the pages this chat opens, so read them again on every return.
     LaunchedEffect(Unit) { vm.loadCoachName(); vm.refreshChrome() }

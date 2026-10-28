@@ -98,3 +98,31 @@ final class CoreMorningSuggestionTests: XCTestCase {
         XCTAssertEqual(CoreCoach.card(state, on: true, scale: .hundred).kind, "hidden")
     }
 }
+
+/// The guided goal setup on Android runs iOS's `GoalOnboardingDraft` step machine and words.
+@MainActor
+final class CoreGoalOnboardingTests: XCTestCase {
+    private func draft(step: Int, kind: String = "run", title: String = "", baseline: String = "", target: String = "") -> [String: Any] {
+        ["step": step, "kind": kind, "title": title, "baseline": baseline, "target": target]
+    }
+
+    func testDetailsNeedANameAndAUsableRange() {
+        var s = CoreGoalOnboarding.run("goals.onboarding.advance", ["draft": draft(step: 2)], weightKg: 0)
+        XCTAssertEqual(s.draft.step, 2)
+        XCTAssertFalse(s.canAdvance)
+        s = CoreGoalOnboarding.run("goals.onboarding.advance", ["draft": draft(step: 2, title: "5k", baseline: "3", target: "3")], weightKg: 0)
+        XCTAssertEqual(s.draft.step, 2)
+        XCTAssertFalse(s.rangeIsUsable)
+        s = CoreGoalOnboarding.run("goals.onboarding.advance", ["draft": draft(step: 2, title: "5k", baseline: "3", target: "5")], weightKg: 0)
+        XCTAssertEqual(s.draft.step, 3)
+        XCTAssertEqual(s.stepTitle, "Why does it matter?")
+    }
+
+    func testKindFollowsTheTargetDateDefaultAndExplainsWeight() {
+        let s = CoreGoalOnboarding.run("goals.onboarding.kind", ["draft": draft(step: 1), "to": "custom"], weightKg: 0)
+        XCTAssertEqual(s.draft.kind, "custom")
+        XCTAssertFalse(s.draft.hasTargetDate)
+        XCTAssertNotNil(s.kindNote)
+        XCTAssertFalse(s.kinds.contains { $0.id == "endurance" }, "catalog areas are not offered here")
+    }
+}
