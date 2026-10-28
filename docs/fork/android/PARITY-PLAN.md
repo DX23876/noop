@@ -118,7 +118,10 @@ Jeweils Logik und Speicher, ohne Oberfläche:
   `URLSession.bytes(for:)` (AsyncBytes), mit dem `AIProvider`, `AnthropicStreaming`, `OpenAICompatibleStreaming`
   und `GeminiTools` die Antworten streamen; vorhanden sind nur Datentasks mit Delegate. Der Coach braucht deshalb
   für Android einen kleinen Adapter, der einen Delegate-Datentask als `AsyncThrowingStream` von Bytes liefert und
-  hinter derselben Schnittstelle sitzt; der Rest des Netzwerkteils kann bleiben.
+  hinter derselben Schnittstelle sitzt; der Rest des Netzwerkteils kann bleiben. Dieser Adapter liegt seit
+  2026-10-28 in StrandCore (`URLSession.streamedBytes(for:)`, `StreamedBytes` mit Byte- und Zeilenlesen wie
+  `AsyncBytes.lines`), getestet auf macOS gegen einen Stub und für Android kompiliert; die Provider nutzen ihn,
+  sobald der Coach für Android gebaut wird.
 
 Jede Verschiebung bekommt Kern-Tests auf macOS. Der Echtdaten-Vergleich läuft dort, wo Werte gespeichert
 werden.
