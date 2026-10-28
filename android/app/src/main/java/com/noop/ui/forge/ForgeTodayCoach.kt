@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.ArrowUpward
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -52,7 +53,7 @@ import kotlinx.coroutines.withContext
 @Composable
 internal fun ForgeTodayCoach(viewModel: com.noop.ui.AppViewModel) {
     val context = LocalContext.current
-    if (!NoopPrefs.coachEnabled(context)) return
+    if (!NoopPrefs.coachEnabled(context) || !com.noop.ui.CoachTodayPrefs.shown(context)) return
     var card by remember { mutableStateOf<CoreCoach.TodayCard?>(null) }
     // The portrait follows the coach's identity, as the name in the overline does.
     var identity by remember { mutableStateOf<CoreCoach.Identity?>(null) }
@@ -65,7 +66,11 @@ internal fun ForgeTodayCoach(viewModel: com.noop.ui.AppViewModel) {
 
     ForgeCard(Modifier.fillMaxWidth().clickable(role = Role.Button) { page = "launcher" }) {
         Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            com.noop.ui.CoachIdentityAvatar(identity, 52.dp)
+            // The coach's picture, or the plain sparkle when the wearer turned it off (`coach.todayAvatar`).
+            if (com.noop.ui.CoachTodayPrefs.avatar(context)) com.noop.ui.CoachIdentityAvatar(identity, 52.dp)
+            else Icon(Icons.Rounded.AutoAwesome, contentDescription = null, tint = colors.accent,
+                      modifier = Modifier.size(52.dp).clip(androidx.compose.foundation.shape.CircleShape)
+                          .background(colors.accent.copy(alpha = 0.14f)).padding(12.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(c.overline, style = Forge.type.caption, color = colors.textTertiary)
                 Text(c.greeting, style = Forge.type.headline, color = colors.text)

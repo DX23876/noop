@@ -78,6 +78,25 @@ internal fun CoachSharedSettingsCards(vm: CoachViewModel) {
     }
 }
 
+/** "Show Coach on Today" and its avatar switch (`coachVisibilityBar`); shown while the coach is switched on. */
+@Composable
+internal fun CoachTodayCard(vm: CoachViewModel) {
+    val settings by vm.coachSettings.collectAsStateWithLifecycle()
+    val s = settings ?: return
+    val context = androidx.compose.ui.platform.LocalContext.current
+    if (!BottomBarStyleStore.coachEnabled) return
+    var shown by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(CoachTodayPrefs.shown(context)) }
+    var avatar by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(CoachTodayPrefs.avatar(context)) }
+    NoopCard(padding = 14.dp, tint = Palette.chargeColor) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            ToggleRow(s.labels["today"].orEmpty(), s.labels["todayDetail"], shown) { shown = it; CoachTodayPrefs.setShown(context, it) }
+            if (shown) ToggleRow(s.labels["todayAvatar"].orEmpty(), s.labels["todayAvatarDetail"], avatar) {
+                avatar = it; CoachTodayPrefs.setAvatar(context, it)
+            }
+        }
+    }
+}
+
 /** "Enable AI Coach" (`coachFeatureBar`): off hides the coach and its check-ins; chats and data stay saved. */
 @Composable
 internal fun CoachFeatureCard(vm: CoachViewModel) {

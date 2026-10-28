@@ -89,6 +89,7 @@ fun CoachSettingsScreen(vm: CoachViewModel, onOpenIdentity: (() -> Unit)? = null
         // has no equivalent.
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             CoachFeatureCard(vm = vm)
+            CoachTodayCard(vm = vm)
             CoachModelCard(vm = vm)
             CoachBackgroundModelsCard(vm = vm)
             if (onOpenIdentity != null) CoachIdentityRow(vm, onOpenIdentity)

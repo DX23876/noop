@@ -527,6 +527,10 @@ struct SettingsState: Encodable {
             "usageNote": "Counted on-device from what your provider reports back — not every request format reports usage, so this may undercount rather than overcount.",
             "info": "How Coach works",
             "test": "Test connection", "testing": "Checking…",
+            "today": "Show Coach on Today",
+            "todayDetail": "Turn off to hide the Coach card and floating button. Per-metric “Ask coach” and the AI that writes your card summaries keep working.",
+            "todayAvatar": "Show coach avatar",
+            "todayAvatarDetail": "Use your coach’s picture on the Today entry instead of a plain icon.",
         ]
         labels = words.mapValues { $0.localizedCatalogValue }
         let log = CoachUsageLog.shared
