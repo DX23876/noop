@@ -1,6 +1,8 @@
 import Foundation
 import StrandCore
+#if canImport(Combine)
 import Combine
+#endif
 import Security
 import WhoopStore
 import StrandAnalytics

@@ -1,5 +1,7 @@
 import Foundation
+#if canImport(Combine)
 import Combine
+#endif
 import WhoopStore
 import StrandCore
 import StrandAnalytics
@@ -294,7 +296,9 @@ final class AICoachEngine: ObservableObject {
     // Published state the UI binds to.
     /// All saved conversations, most-recently-updated first. The visible chat is the ACTIVE one; older
     /// ones stay findable in the history sheet instead of being overwritten.
-    @Published private(set) var conversations: [CoachConversation] = []
+    @Published private(set) var conversations: [CoachConversation] = [] {
+        didSet { scheduleTranscriptAutosave() }
+    }
     /// The conversation currently shown in the chat. `messages` reads/writes into this one.
     @Published var activeConversationID: UUID?
     /// Local day the current transcript was last written on; nil while it is empty. Drives the day
@@ -968,16 +972,6 @@ final class AICoachEngine: ObservableObject {
         self.conversations = restored
         self.activeConversationID = restored.first?.id
 
-        // Keep the list saved: a debounced sink (not a didSet) so token-by-token streaming doesn't
-        // hammer the disk.
-        transcriptAutosave = $conversations
-            .dropFirst()
-            .debounce(for: .seconds(1.0), scheduler: DispatchQueue.main)
-            .sink { [memory] conversations in
-                CoachConversationStore.save(conversations)
-                Task { await memory.conversationsChanged(conversations) }
-            }
-
         // Rebuild the in-memory chart artifacts for the active conversation from their snapshots.
         rebuildChartsForActive()
 
@@ -987,8 +981,22 @@ final class AICoachEngine: ObservableObject {
         archiveStaleAutoThreads()
     }
 
-    /// Debounced transcript persistence (see init).
-    private var transcriptAutosave: AnyCancellable?
+    /// Debounced transcript persistence: every change restarts a one-second wait, so token-by-token streaming
+    /// doesn't hammer the disk, and the list is saved once the changes stop. A task rather than a Combine
+    /// `debounce`, so the same code runs where the core has no Combine (Android). The restore in `init` does not
+    /// trigger it, as a property observer does not run for the initializer's own assignment.
+    private var transcriptAutosave: Task<Void, Never>?
+
+    private func scheduleTranscriptAutosave() {
+        transcriptAutosave?.cancel()
+        transcriptAutosave = Task { [weak self, memory] in
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            guard !Task.isCancelled, let self else { return }
+            let conversations = self.conversations
+            CoachConversationStore.save(conversations)
+            await memory.conversationsChanged(conversations)
+        }
+    }
 
     // MARK: Conversation management (history)
 
