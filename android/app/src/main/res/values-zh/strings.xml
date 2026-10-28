@@ -4145,4 +4145,23 @@
     <string name="forge_join_dot">%1$s · %2$s</string>
     <string name="forge_join_arrow">%1$s → %2$s</string>
     <string name="forge_join_rank">%1$d. %2$s</string>
+    <string name="forge_body_title">身体</string>
+    <string name="forge_body_measurements">测量记录</string>
+    <string name="forge_body_nothing">尚未测量任何数据。</string>
+    <string name="forge_body_weight">体重</string>
+    <string name="forge_body_fat">体脂</string>
+    <string name="forge_body_pct_estimated" formatted="false">% 估算</string>
+    <string name="forge_body_navy_missing">测量以下项目以估算体脂：</string>
+    <string name="forge_body_circumferences">围度</string>
+    <string name="forge_body_leave_empty">未测量的项目请留空。只有填写的字段会被保存。</string>
+    <string name="forge_body_measure">测量</string>
+    <string name="forge_body_log_weight">记录体重</string>
+    <string name="forge_body_delete">删除</string>
+    <string name="forge_body_height">身高</string>
+    <string name="forge_body_cm">%1$s 厘米</string>
+    <string name="forge_body_kg">%1$s kg</string>
+    <string name="forge_body_no_tape">尚无皮尺测量。点按“测量”记录一次。</string>
+    <string name="forge_body_cancel">取消</string>
+    <string name="forge_body_weigh_ins">称重记录</string>
+    <string name="forge_body_pct">%1$s %%</string>
 </resources>

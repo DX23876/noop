@@ -4070,4 +4070,23 @@
     <string name="forge_join_dot">%1$s · %2$s</string>
     <string name="forge_join_arrow">%1$s → %2$s</string>
     <string name="forge_join_rank">%1$d. %2$s</string>
+    <string name="forge_body_title">Тело</string>
+    <string name="forge_body_measurements">Измерения</string>
+    <string name="forge_body_nothing">Пока ничего не измерено.</string>
+    <string name="forge_body_weight">Вес</string>
+    <string name="forge_body_fat">Процент жира в организме</string>
+    <string name="forge_body_pct_estimated" formatted="false">% оценка</string>
+    <string name="forge_body_navy_missing">Измерьте это, чтобы оценить процент жира:</string>
+    <string name="forge_body_circumferences">Обхваты</string>
+    <string name="forge_body_leave_empty">Оставьте пустым то, что не измеряли. Сохраняются только заполненные поля.</string>
+    <string name="forge_body_measure">Измерить</string>
+    <string name="forge_body_log_weight">Записать вес</string>
+    <string name="forge_body_delete">Удалить</string>
+    <string name="forge_body_height">Рост</string>
+    <string name="forge_body_cm">%1$s см</string>
+    <string name="forge_body_kg">%1$s кг</string>
+    <string name="forge_body_no_tape">Пока нет замеров лентой. Нажмите «Измерить», чтобы записать сессию.</string>
+    <string name="forge_body_cancel">Отмена</string>
+    <string name="forge_body_weigh_ins">Взвешивания</string>
+    <string name="forge_body_pct">%1$s %%</string>
 </resources>

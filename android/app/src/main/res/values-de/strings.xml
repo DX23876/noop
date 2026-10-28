@@ -4188,4 +4188,23 @@
     <string name="forge_join_dot">%1$s · %2$s</string>
     <string name="forge_join_arrow">%1$s → %2$s</string>
     <string name="forge_join_rank">%1$d. %2$s</string>
+    <string name="forge_body_title">Körper</string>
+    <string name="forge_body_measurements">Messungen</string>
+    <string name="forge_body_nothing">Noch nichts gemessen.</string>
+    <string name="forge_body_weight">Gewicht</string>
+    <string name="forge_body_fat">Körperfett</string>
+    <string name="forge_body_pct_estimated" formatted="false">% geschätzt</string>
+    <string name="forge_body_navy_missing">Miss diese, um den Körperfettanteil zu schätzen:</string>
+    <string name="forge_body_circumferences">Umfänge</string>
+    <string name="forge_body_leave_empty">Was du nicht gemessen hast, lass leer. Gespeichert werden nur ausgefüllte Felder.</string>
+    <string name="forge_body_measure">Messen</string>
+    <string name="forge_body_log_weight">Gewicht erfassen</string>
+    <string name="forge_body_delete">Löschen</string>
+    <string name="forge_body_height">Größe</string>
+    <string name="forge_body_cm">%1$s cm</string>
+    <string name="forge_body_kg">%1$s kg</string>
+    <string name="forge_body_no_tape">Noch keine Bandmessungen. Tippe auf Messen, um eine Sitzung zu erfassen.</string>
+    <string name="forge_body_cancel">Abbrechen</string>
+    <string name="forge_body_weigh_ins">Messungen</string>
+    <string name="forge_body_pct">%1$s %%</string>
 </resources>

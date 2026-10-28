@@ -4206,4 +4206,23 @@
     <string name="forge_join_dot">%1$s · %2$s</string>
     <string name="forge_join_arrow">%1$s → %2$s</string>
     <string name="forge_join_rank">%1$d. %2$s</string>
+    <string name="forge_body_title">Body</string>
+    <string name="forge_body_measurements">Measurements</string>
+    <string name="forge_body_nothing">Nothing measured yet.</string>
+    <string name="forge_body_weight">Weight</string>
+    <string name="forge_body_fat">Body fat</string>
+    <string name="forge_body_pct_estimated" formatted="false">% estimated</string>
+    <string name="forge_body_navy_missing">Measure these to estimate body fat:</string>
+    <string name="forge_body_circumferences">Circumferences</string>
+    <string name="forge_body_leave_empty">Leave anything you did not measure empty. Only filled fields are saved.</string>
+    <string name="forge_body_measure">Measure</string>
+    <string name="forge_body_log_weight">Log weight</string>
+    <string name="forge_body_delete">Delete</string>
+    <string name="forge_body_height">Height</string>
+    <string name="forge_body_cm">%1$s cm</string>
+    <string name="forge_body_kg">%1$s kg</string>
+    <string name="forge_body_no_tape">No tape measurements yet. Tap Measure to record a session.</string>
+    <string name="forge_body_cancel">Cancel</string>
+    <string name="forge_body_weigh_ins">Weigh-ins</string>
+    <string name="forge_body_pct">%1$s %%</string>
 </resources>

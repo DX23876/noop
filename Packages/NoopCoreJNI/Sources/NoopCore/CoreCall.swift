@@ -171,6 +171,20 @@ public enum CoreCall {
         case "goals.changeLongTerm":
             return CoreRead.json(await CoreLongTermGoals.change(store: store, id: string("id"), action: string("action"),
                                                                 reason: args["reason"] as? String))
+        case "body.snapshot":
+            return CoreRead.json(await CoreBody.snapshot(reader: reader, days: int("days", 120),
+                comparisonDays: int("comparisonDays", 42), equation: NavyEquation(rawValue: string("equation"))))
+        case "body.rows":
+            let values = ((args["values"] as? [String: Any]) ?? [:]).compactMapValues { ($0 as? NSNumber)?.doubleValue }
+            let epoch = (args["takenAt"] as? NSNumber)?.doubleValue ?? Date().timeIntervalSince1970
+            return CoreRead.json(CoreBody.rows(values: values, deviceId: string("deviceId"),
+                                               takenAt: Date(timeIntervalSince1970: epoch), note: args["note"] as? String))
+        case "body.logWeight":
+            guard let kg = (args["kg"] as? NSNumber)?.doubleValue else { return #"{"error":"invalid"}"# }
+            let epoch = (args["takenAt"] as? NSNumber)?.doubleValue ?? Date().timeIntervalSince1970
+            return ok(await CoreBody.logWeight(store: store, kg: kg, at: Date(timeIntervalSince1970: epoch), note: args["note"] as? String))
+        case "body.deleteWeight":
+            return ok(await CoreBody.deleteWeight(store: store, id: string("id")))
         case "energy.plan":
             let settings = CoreGoalEnergy.settings(args)
             return CoreRead.json(await CoreEnergyPlan.plan(reader: reader, settings: settings,

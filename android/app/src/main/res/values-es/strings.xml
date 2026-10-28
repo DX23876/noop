@@ -4175,4 +4175,23 @@
     <string name="forge_join_dot">%1$s · %2$s</string>
     <string name="forge_join_arrow">%1$s → %2$s</string>
     <string name="forge_join_rank">%1$d. %2$s</string>
+    <string name="forge_body_title">Cuerpo</string>
+    <string name="forge_body_measurements">Mediciones</string>
+    <string name="forge_body_nothing">Aún no se ha medido nada.</string>
+    <string name="forge_body_weight">Peso</string>
+    <string name="forge_body_fat">Grasa corporal</string>
+    <string name="forge_body_pct_estimated" formatted="false">% estimado</string>
+    <string name="forge_body_navy_missing">Mide estos para estimar la grasa corporal:</string>
+    <string name="forge_body_circumferences">Perímetros</string>
+    <string name="forge_body_leave_empty">Deja vacío lo que no hayas medido. Solo se guardan los campos rellenados.</string>
+    <string name="forge_body_measure">Medir</string>
+    <string name="forge_body_log_weight">Registrar peso</string>
+    <string name="forge_body_delete">Eliminar</string>
+    <string name="forge_body_height">Altura</string>
+    <string name="forge_body_cm">%1$scm</string>
+    <string name="forge_body_kg">%1$skg</string>
+    <string name="forge_body_no_tape">Aún no hay medidas con cinta. Toca Medir para registrar una sesión.</string>
+    <string name="forge_body_cancel">Cancelar</string>
+    <string name="forge_body_weigh_ins">Pesajes</string>
+    <string name="forge_body_pct">%1$s %%</string>
 </resources>

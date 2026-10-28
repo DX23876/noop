@@ -4191,4 +4191,23 @@
     <string name="forge_join_dot">%1$s · %2$s</string>
     <string name="forge_join_arrow">%1$s → %2$s</string>
     <string name="forge_join_rank">%1$d. %2$s</string>
+    <string name="forge_body_title">Ciało</string>
+    <string name="forge_body_measurements">Pomiary</string>
+    <string name="forge_body_nothing">Nic jeszcze nie zmierzono.</string>
+    <string name="forge_body_weight">Waga</string>
+    <string name="forge_body_fat">Tłuszcz w organizmie</string>
+    <string name="forge_body_pct_estimated" formatted="false">% szacunkowo</string>
+    <string name="forge_body_navy_missing">Zmierz te, aby oszacować tkankę tłuszczową:</string>
+    <string name="forge_body_circumferences">Obwody</string>
+    <string name="forge_body_leave_empty">Zostaw puste to, czego nie zmierzyłeś. Zapisywane są tylko wypełnione pola.</string>
+    <string name="forge_body_measure">Zmierz</string>
+    <string name="forge_body_log_weight">Zapisz wagę</string>
+    <string name="forge_body_delete">Usuń</string>
+    <string name="forge_body_height">Wysokość</string>
+    <string name="forge_body_cm">%1$s cm</string>
+    <string name="forge_body_kg">%1$s kg</string>
+    <string name="forge_body_no_tape">Brak pomiarów taśmą. Dotknij Zmierz, aby zapisać sesję.</string>
+    <string name="forge_body_cancel">Anuluj</string>
+    <string name="forge_body_weigh_ins">Pomiary masy ciała</string>
+    <string name="forge_body_pct">%1$s %%</string>
 </resources>

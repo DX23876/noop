@@ -1,5 +1,6 @@
 package com.noop.ui.forge
 
+import androidx.compose.material.icons.rounded.Accessibility
 import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
@@ -88,6 +89,8 @@ enum class MoreDest(val category: MoreCategory?, val titleRes: Int, val icon: Im
           listOf("merged record", "all sources", "one timeline")),
     Momentum(MoreCategory.HealthBody, R.string.forge_momentum_title, Icons.Rounded.AutoAwesome,
              listOf("momentum", "readiness", "priorities", "goals")),
+    Body(MoreCategory.HealthBody, R.string.forge_body_title, Icons.Rounded.Accessibility,
+         listOf("body", "weight", "weigh-in", "waist", "measurements", "body fat", "tape")),
     Energy(MoreCategory.HealthBody, R.string.forge_energy_title, Icons.Rounded.LocalFireDepartment,
            listOf("energy plan", "calories", "maintenance", "intake", "basal rate", "TDEE")),
     AgeLess(MoreCategory.HealthBody, R.string.forge_ageless_title, Icons.Rounded.Favorite,
@@ -270,6 +273,10 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
         ForgeGoalsPage(onBack)
         return
     }
+    if (dest == MoreDest.Body) {
+        ForgeBodyPage(onBack)
+        return
+    }
     if (dest == MoreDest.Energy) {
         ForgeEnergyPlanPage(onBack)
         return
@@ -303,7 +310,7 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
             MoreDest.Breathe -> BreatheScreen(viewModel)
             MoreDest.Intervals -> IntervalsScreen(viewModel)
             MoreDest.Alarms -> SmartAlarmScreen(viewModel)
-            MoreDest.Settings, MoreDest.Goals, MoreDest.Momentum, MoreDest.AgeLess, MoreDest.RhythmAge, MoreDest.Energy -> Unit
+            MoreDest.Settings, MoreDest.Goals, MoreDest.Momentum, MoreDest.AgeLess, MoreDest.RhythmAge, MoreDest.Energy, MoreDest.Body -> Unit
         }
     }
 }
