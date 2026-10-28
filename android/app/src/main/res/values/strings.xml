@@ -4484,4 +4484,8 @@
     <string name="coach_more_actions">More actions</string>
     <string name="coach_you_said">You said: %1$s</string>
     <string name="coach_stop_reply">Stop the reply</string>
+    <string name="coach_your_coach">Your coach</string>
+    <string name="coach_hi_im">Hi, I\'m %1$s</string>
+    <string name="coach_empty_intro">Coach reads a summary of your last two weeks plus 30-day averages and recent workouts, then answers in plain language. Try a suggestion below.</string>
+    <string name="coach_history">History</string>
 </resources>

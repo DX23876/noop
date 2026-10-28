@@ -4423,4 +4423,8 @@
     <string name="coach_more_actions">更多操作</string>
     <string name="coach_you_said">你说：%1$s</string>
     <string name="coach_stop_reply">停止回复</string>
+    <string name="coach_your_coach">你的教练</string>
+    <string name="coach_hi_im">你好，我是%1$s</string>
+    <string name="coach_empty_intro">教练会读取你最近两周的摘要，以及 30 天平均值和近期锻炼，然后用通俗的语言作答。试试下面的建议。</string>
+    <string name="coach_history">历史</string>
 </resources>

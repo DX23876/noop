@@ -2,6 +2,7 @@ package com.noop.ui
 
 import com.noop.R
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,7 +26,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.EditNote
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.ui.graphics.graphicsLayer
@@ -85,7 +87,8 @@ import com.noop.ai.CustomAiAuthHeader
  */
 @Composable
 fun CoachScreen(vm: CoachViewModel = viewModel(), onOpenSettings: () -> Unit = {},
-                trailing: (@Composable () -> Unit)? = null) {
+                trailing: (@Composable () -> Unit)? = null, onOpenPlan: (() -> Unit)? = null,
+                onOpenHistory: (() -> Unit)? = null) {
     val context = LocalContext.current
     val keyVersion by vm.keyVersion.collectAsStateWithLifecycle()
     val provider by vm.provider.collectAsStateWithLifecycle()
@@ -105,7 +108,8 @@ fun CoachScreen(vm: CoachViewModel = viewModel(), onOpenSettings: () -> Unit = {
     val skyBehindCards = remember { NoopPrefs.skyBehindCards(context) }
 
     ScreenScaffold(
-        title = uiString(R.string.l10n_coach_screen_coach_b32c9ad3),
+        // The connected chat opens on its own header row, as on iOS; the setup keeps the page title.
+        title = if (configured) null else uiString(R.string.l10n_coach_screen_coach_b32c9ad3),
         trailing = trailing,
         // LIQUID SKY BACKDROP (the pilot pattern — LiquidScreenSky.kt): the liquid sky sits behind the
         // header and the cards float over the flat canvas below. Reuses the shared LiquidScreenSky() slot
@@ -118,7 +122,7 @@ fun CoachScreen(vm: CoachViewModel = viewModel(), onOpenSettings: () -> Unit = {
         if (!configured) {
             CoachSetup(vm = vm)
         } else {
-            CoachChat(vm = vm, onOpenSettings = onOpenSettings)
+            CoachChat(vm = vm, onOpenSettings = onOpenSettings, onOpenPlan = onOpenPlan, onOpenHistory = onOpenHistory)
         }
     }
 }
@@ -275,7 +279,8 @@ private fun CoachSetup(vm: CoachViewModel) {
 // MARK: - Chat (key saved)
 
 @Composable
-private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit) {
+private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit, onOpenPlan: (() -> Unit)? = null,
+                      onOpenHistory: (() -> Unit)? = null) {
     val context = LocalContext.current
     val messages by vm.messages.collectAsStateWithLifecycle()
     val sending by vm.sending.collectAsStateWithLifecycle()
@@ -285,6 +290,8 @@ private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit) {
     val provider by vm.provider.collectAsStateWithLifecycle()
     val model by vm.model.collectAsStateWithLifecycle()
     val suggestions by vm.suggestions.collectAsStateWithLifecycle()
+    val coachName by vm.coachName.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) { vm.loadCoachName() }
     // K15: the composer draft is persisted to SharedPreferences so it survives an app relaunch.
     // Restored on first composition, saved on every change. Keyed identically to the iOS twin.
     val draftPrefs = remember { context.getSharedPreferences("noop_coach_draft", android.content.Context.MODE_PRIVATE) }
@@ -344,9 +351,11 @@ private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit) {
         // overflow menu. The plan book and history come in through the host's `trailing` slot.
         CoachHeaderRow(
             sending = sending,
-            title = model.ifBlank { provider.displayName },
-            providerLine = provider.displayName,
+            title = coachName.ifEmpty { uiString(R.string.l10n_coach_screen_coach_b32c9ad3) },
+            providerLine = stringResource(R.string.coach_your_coach),
             canStartNew = messages.isNotEmpty() && !sending,
+            onPlan = onOpenPlan,
+            onHistory = onOpenHistory,
             onNew = { vm.clearConversation() },
             onSettings = onOpenSettings,
             onUpdateKey = { showKeyEditor = !showKeyEditor; if (!showKeyEditor) keyFix = "" },
@@ -371,23 +380,22 @@ private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit) {
 
         // Transcript or empty-state with suggested prompts.
         if (messages.isEmpty()) {
-            NoopCard(padding = 18.dp) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        uiString(R.string.l10n_coach_screen_ask_anything_about_your_recent_recovery_e6c287ca),
-                        style = NoopType.subhead, color = Palette.textSecondary,
-                    )
-                    SuggestedPrompts(prompts = suggestions, onPick = { input = it })
-                }
-            }
-        } else {
-            // One calm reading surface behind the whole conversation rather than a card per turn: the reply
-            // stays unboxed as on iOS, and stays readable over a photo backdrop.
+            // The iOS greeting: the coach's portrait, who it is, what it reads, then the suggestions.
             Column(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp))
-                    .frostedCardSurface(tint = Palette.accent, cornerRadius = 22.dp)
-                    .padding(14.dp),
+                Modifier.fillMaxWidth().padding(top = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                CoachAvatar(size = 96.dp)
+                Text(stringResource(R.string.coach_hi_im, coachName.ifEmpty { uiString(R.string.l10n_coach_screen_coach_b32c9ad3) }),
+                     style = NoopType.title2, color = Palette.textPrimary)
+                Text(stringResource(R.string.coach_empty_intro), style = NoopType.subhead, color = Palette.textSecondary,
+                     textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            }
+            if (sending) ThinkingBubble()
+            SuggestedPrompts(prompts = suggestions, onPick = { input = it })
+        } else {
+            Column(Modifier.fillMaxWidth()) {
                 messages.forEachIndexed { index, msg ->
                     val previous = messages.getOrNull(index - 1)
                     val continuation = msg.role == "assistant" && previous?.role == "assistant"
@@ -510,7 +518,7 @@ private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit) {
 
 // MARK: - Chat bubbles
 
-/** The coach's face at conversation scale, as `CoachAvatarView`: an accent disc with the coach glyph. */
+/** The coach's face, as `CoachAvatarView`: the preset portrait in a thin ring. */
 @Composable
 private fun CoachAvatar(size: androidx.compose.ui.unit.Dp, breathing: Boolean = false) {
     val transition = androidx.compose.animation.core.rememberInfiniteTransition(label = "coachBreath")
@@ -525,11 +533,13 @@ private fun CoachAvatar(size: androidx.compose.ui.unit.Dp, breathing: Boolean = 
             .size(size)
             .graphicsLayer { val s = if (breathing) pulse else 1f; scaleX = s; scaleY = s }
             .clip(CircleShape)
-            .background(Brush.linearGradient(listOf(Palette.accent, Palette.accent.copy(alpha = 0.72f)))),
+            .border(if (size >= 60.dp) 3.dp else 1.5.dp, Palette.textPrimary.copy(alpha = 0.22f), CircleShape),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = Palette.surfaceBase,
-             modifier = Modifier.size(size * 0.5f))
+        androidx.compose.foundation.Image(
+            painterResource(R.drawable.coach_svea_avatar), contentDescription = null,
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.matchParentSize(),
+        )
     }
 }
 
@@ -540,6 +550,8 @@ private fun CoachHeaderRow(
     title: String,
     providerLine: String,
     canStartNew: Boolean,
+    onPlan: (() -> Unit)?,
+    onHistory: (() -> Unit)?,
     onNew: () -> Unit,
     onSettings: () -> Unit,
     onUpdateKey: () -> Unit,
@@ -549,8 +561,9 @@ private fun CoachHeaderRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp))
-            .frostedCardSurface(tint = Palette.accent, cornerRadius = 22.dp)
+            .clip(RoundedCornerShape(28.dp))
+            .background(Palette.surfaceBase.copy(alpha = 0.32f))
+            .border(1.dp, Palette.textPrimary.copy(alpha = 0.18f), RoundedCornerShape(28.dp))
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -563,26 +576,38 @@ private fun CoachHeaderRow(
             // The page title already says "Coach"; the row names what answers: the model, then its provider.
             Text(title, style = NoopType.headline, color = Palette.textPrimary, maxLines = 1,
                  overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+
             // One fixed-height line: "Thinking…" takes the provider line's place, so the header never grows.
             Text(if (sending) uiString(R.string.l10n_coach_screen_thinking_a60d9c9c) else providerLine,
                  style = NoopType.footnote, color = if (sending) Palette.accent else Palette.textTertiary,
                  maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         }
+        if (onPlan != null) {
+            Icon(
+                Icons.Filled.CalendarMonth,
+                contentDescription = stringResource(R.string.forge_cp_title),
+                tint = Palette.textSecondary,
+                modifier = Modifier.clip(CircleShape).clickable(onClick = onPlan).padding(6.dp).size(22.dp),
+            )
+        }
         Icon(
             Icons.Filled.EditNote,
             contentDescription = stringResource(R.string.coach_new_chat),
-            tint = if (canStartNew) Palette.textSecondary else Palette.textTertiary.copy(alpha = 0.5f),
+            tint = if (canStartNew) Palette.statusPositive else Palette.textTertiary.copy(alpha = 0.5f),
             modifier = Modifier.clip(CircleShape)
                 .clickable(enabled = canStartNew, onClick = onNew).padding(6.dp).size(22.dp),
         )
         Box {
             Icon(
-                Icons.Filled.MoreVert,
+                Icons.Filled.MoreHoriz,
                 contentDescription = stringResource(R.string.coach_more_actions),
                 tint = Palette.textSecondary,
                 modifier = Modifier.clip(CircleShape).clickable { menu = true }.padding(6.dp).size(22.dp),
             )
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                if (onHistory != null) {
+                    DropdownMenuItem(text = { Text(stringResource(R.string.coach_history)) }, onClick = { menu = false; onHistory() })
+                }
                 DropdownMenuItem(text = { Text(uiString(R.string.coach_settings)) }, onClick = { menu = false; onSettings() })
                 DropdownMenuItem(text = { Text(uiString(R.string.coach_key_rejected_action)) }, onClick = { menu = false; onUpdateKey() })
                 DropdownMenuItem(text = { Text(uiString(R.string.l10n_coach_screen_disconnect_ed28e068)) },
@@ -677,7 +702,9 @@ private fun ThinkingBubble() {
     ) {
         CoachAvatar(size = 26.dp, breathing = true)
         Row(
-            Modifier.clip(RoundedCornerShape(14.dp)).background(Palette.surfaceInset).padding(horizontal = 12.dp, vertical = 10.dp),
+            Modifier.clip(RoundedCornerShape(50)).background(Palette.surfaceBase.copy(alpha = 0.6f))
+                .border(1.dp, Palette.textPrimary.copy(alpha = 0.16f), RoundedCornerShape(50))
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(5.dp),
         ) {
             repeat(3) { i ->
@@ -688,7 +715,7 @@ private fun ThinkingBubble() {
                         androidx.compose.animation.core.RepeatMode.Reverse),
                     label = "dot$i",
                 )
-                Box(Modifier.size(7.dp).graphicsLayer { this.alpha = alpha }.clip(CircleShape).background(Palette.textSecondary))
+                Box(Modifier.size(7.dp).graphicsLayer { this.alpha = alpha }.clip(CircleShape).background(Palette.accent))
             }
         }
     }
@@ -704,26 +731,28 @@ private fun ThinkingBubble() {
  */
 internal val SUGGESTED_PROMPTS: List<String> get() = CoachPrompts.SUGGESTIONS
 
+/** The suggestions as wrapping capsules over the backdrop, as the iOS chip cloud. */
 @Composable
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 private fun SuggestedPrompts(prompts: List<String>, onPick: (String) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Overline("Try asking")
-        // Simple wrapped column of chips (one per row keeps long prompts readable).
+    androidx.compose.foundation.layout.FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         prompts.forEach { prompt ->
             val shape = RoundedCornerShape(50)
             val chipInteraction = remember { MutableInteractionSource() }
             Text(
                 prompt,
-                style = NoopType.caption,
+                style = NoopType.subhead,
                 color = Palette.textPrimary,
                 modifier = Modifier
-                    .wrapContentWidth()
                     .clip(shape)
-                    .background(Palette.surfaceInset)
-                    .border(1.dp, Palette.hairline, shape)
+                    .background(Palette.surfaceBase.copy(alpha = 0.55f))
+                    .border(1.dp, Palette.textPrimary.copy(alpha = 0.16f), shape)
                     .liquidPress(chipInteraction)
                     .clickable(interactionSource = chipInteraction, indication = null) { onPick(prompt) }
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .padding(horizontal = 14.dp, vertical = 9.dp)
                     .semantics { contentDescription = uiString(R.string.l10n_coach_screen_suggested_prompt_prompt_379c0b15, prompt) },
             )
         }

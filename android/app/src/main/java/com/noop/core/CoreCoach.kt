@@ -12,7 +12,8 @@ import org.json.JSONObject
  * Blocking JNI calls; run them off the main thread.
  */
 object CoreCoach {
-    data class State(val messages: List<ChatMsg>, val sending: Boolean, val error: String?, val configured: Boolean)
+    data class State(val messages: List<ChatMsg>, val sending: Boolean, val error: String?, val configured: Boolean,
+                     val name: String = "")
 
     data class Settings(
         val provider: AiProvider, val model: String, val key: String, val consent: Boolean,
@@ -125,7 +126,7 @@ object CoreCoach {
             ChatMsg(id = m.getString("id"), role = m.getString("role"), text = m.getString("text"))
         }
         val error = if (o.isNull("error")) null else o.optString("error").takeIf { it.isNotEmpty() }
-        return State(messages, o.optBoolean("sending"), error, o.optBoolean("configured"))
+        return State(messages, o.optBoolean("sending"), error, o.optBoolean("configured"), o.optString("name"))
     }
 
     private fun call(op: String, args: String): JSONObject? {

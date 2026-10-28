@@ -355,17 +355,10 @@ private fun ForgeCoachDestination(title: String, onBack: () -> Unit) {
     when (sub) {
         "history" -> ForgeCoachHistoryPage(onBack = { sub = null }, onPicked = { vm.showCoreConversation(); sub = null })
         "plan" -> ForgeCoachPlanPage(onBack = { sub = null })
-        else -> Hosted(title, onBack) {
-            CoachScreen(vm, trailing = {
-                Row {
-                    IconButton(onClick = { sub = "plan" }) {
-                        Icon(Icons.Rounded.CalendarMonth, contentDescription = stringResource(R.string.forge_cp_title), tint = Forge.colors.accent)
-                    }
-                    IconButton(onClick = { sub = "history" }) {
-                        Icon(Icons.Rounded.History, contentDescription = stringResource(R.string.forge_ch_title), tint = Forge.colors.accent)
-                    }
-                }
-            })
+        // As the iOS chat: only a way back up here; the plan book sits in the chat's own header row and the
+        // history in its overflow menu.
+        else -> Hosted("", onBack) {
+            CoachScreen(vm, onOpenPlan = { sub = "plan" }, onOpenHistory = { sub = "history" })
         }
     }
 }

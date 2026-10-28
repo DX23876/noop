@@ -4445,4 +4445,8 @@
     <string name="coach_more_actions">Mais ações</string>
     <string name="coach_you_said">Disseste: %1$s</string>
     <string name="coach_stop_reply">Parar a resposta</string>
+    <string name="coach_your_coach">O teu coach</string>
+    <string name="coach_hi_im">Olá, sou a %1$s</string>
+    <string name="coach_empty_intro">O Treinador lê um resumo das tuas últimas duas semanas, além das médias de 30 dias e dos treinos recentes, e depois responde numa linguagem simples. Experimenta uma sugestão abaixo.</string>
+    <string name="coach_history">Histórico</string>
 </resources>

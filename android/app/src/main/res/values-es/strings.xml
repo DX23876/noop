@@ -4453,4 +4453,8 @@
     <string name="coach_more_actions">Más acciones</string>
     <string name="coach_you_said">Has dicho: %1$s</string>
     <string name="coach_stop_reply">Detener la respuesta</string>
+    <string name="coach_your_coach">Tu coach</string>
+    <string name="coach_hi_im">Hola, soy %1$s</string>
+    <string name="coach_empty_intro">El Entrenador lee un resumen de tus últimas dos semanas más los promedios de 30 días y los entrenamientos recientes, y luego responde en lenguaje sencillo. Prueba una sugerencia a continuación.</string>
+    <string name="coach_history">Historial</string>
 </resources>

@@ -4348,4 +4348,8 @@
     <string name="coach_more_actions">Другие действия</string>
     <string name="coach_you_said">Вы сказали: %1$s</string>
     <string name="coach_stop_reply">Остановить ответ</string>
+    <string name="coach_your_coach">Ваш тренер</string>
+    <string name="coach_hi_im">Привет, я %1$s</string>
+    <string name="coach_empty_intro">ИИ-тренер анализирует сводку за последние две недели, средние показатели за 30 дней и недавние тренировки, а затем отвечает понятным языком. Попробуйте один из вариантов ниже.</string>
+    <string name="coach_history">История</string>
 </resources>

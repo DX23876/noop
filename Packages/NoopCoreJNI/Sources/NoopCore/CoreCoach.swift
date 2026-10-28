@@ -99,6 +99,8 @@ enum CoreCoach {
         var sending: Bool
         var error: String?
         var configured: Bool
+        /// The coach's name, as the iOS chat header and greeting show it (the default identity on Android).
+        var name = CoachIdentity.default.name
 
         @MainActor init(_ coach: AICoachEngine) {
             messages = coach.messages.map { Message(id: $0.id.uuidString, role: $0.role.rawValue, text: $0.text) }

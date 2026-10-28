@@ -4421,4 +4421,8 @@
     <string name="coach_more_actions">Altre azioni</string>
     <string name="coach_you_said">Hai detto: %1$s</string>
     <string name="coach_stop_reply">Interrompi la risposta</string>
+    <string name="coach_your_coach">Il tuo coach</string>
+    <string name="coach_hi_im">Ciao, sono %1$s</string>
+    <string name="coach_empty_intro">Il Coach legge un riepilogo delle tue ultime due settimane più le medie su 30 giorni e gli allenamenti recenti, poi risponde in linguaggio naturale. Prova un suggerimento qui sotto.</string>
+    <string name="coach_history">Cronologia</string>
 </resources>

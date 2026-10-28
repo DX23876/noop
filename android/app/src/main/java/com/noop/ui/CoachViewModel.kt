@@ -68,6 +68,18 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
     /** True while a request is in flight, the UI disables Send and shows a thinking state. */
     val sending: StateFlow<Boolean> = _sending.asStateFlow()
 
+    /** The coach's name from the shared coach (its default identity on Android), for the header and greeting. */
+    private val _coachName = MutableStateFlow("")
+    val coachName: StateFlow<String> = _coachName.asStateFlow()
+
+    /** Reads the coach's name once the core is up; the header shows "Coach" until then. */
+    fun loadCoachName() {
+        if (_coachName.value.isNotEmpty()) return
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { CoreCoach.state() }?.name?.takeIf { it.isNotEmpty() }?.let { _coachName.value = it }
+        }
+    }
+
     private val _error = MutableStateFlow<String?>(null)
     /** Non-null when the last send failed; the UI shows it in red. Cleared on the next send. */
     val error: StateFlow<String?> = _error.asStateFlow()

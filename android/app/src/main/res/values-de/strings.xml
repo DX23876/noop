@@ -4466,4 +4466,8 @@
     <string name="coach_more_actions">Weitere Aktionen</string>
     <string name="coach_you_said">Du hast gesagt: %1$s</string>
     <string name="coach_stop_reply">Antwort stoppen</string>
+    <string name="coach_your_coach">Dein Coach</string>
+    <string name="coach_hi_im">Hallo, ich bin %1$s</string>
+    <string name="coach_empty_intro">Der Coach liest eine Zusammenfassung deiner letzten zwei Wochen sowie 30-Tage-Durchschnitte und aktuelle Workouts und antwortet dann in klarer Sprache. Probiere einen Vorschlag unten aus.</string>
+    <string name="coach_history">Verlauf</string>
 </resources>
