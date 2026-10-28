@@ -98,7 +98,8 @@ private fun Reading(o: CoreRhythmAge.Output, actualAge: Int) {
                 Text(one(actualAge + advance), style = Forge.type.title1, color = if (advance > 0) old else young)
                 Spacer(Modifier.width(ForgeMetrics.space2))
             }
-            Text("${one(abs(advance))} ${stringResource(if (advance > 0) R.string.forge_ageless_older else R.string.forge_ageless_younger)}",
+            Text(stringResource(R.string.forge_join_space, one(abs(advance)),
+                                stringResource(if (advance > 0) R.string.forge_ageless_older else R.string.forge_ageless_younger)),
                  style = Forge.type.subhead, color = Forge.colors.textSecondary, modifier = Modifier.padding(bottom = 4.dp))
         }
     }

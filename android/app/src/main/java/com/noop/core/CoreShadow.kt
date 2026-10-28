@@ -129,7 +129,7 @@ object CoreShadow {
     /**
      * The further choices the core's pass reads (`CoreAnalysis.applyExtras`): the deleted nights and detected
      * workouts as "start:end" tokens, the waist, the step estimate's calibration, baseline anchors and the Lab's
-     * SpO₂ estimate. Android has no Energy Plan yet, so its fitness inputs keep the untouched Apple defaults.
+     * SpO₂ estimate, and the Energy Plan's basal formula.
      */
     fun extras(context: Context, profile: com.noop.ui.ProfileStore, dismissedSleep: List<Pair<Long, Long>>,
                dismissedWorkouts: List<Pair<Long, Long>>, spo2CandidateDisplay: Boolean): String =
@@ -140,6 +140,7 @@ object CoreShadow {
             put("dismissedSleep", org.json.JSONArray(dismissedSleep.map { "${it.first}:${it.second}" }))
             put("dismissedWorkouts", org.json.JSONArray(dismissedWorkouts.map { "${it.first}:${it.second}" }))
             put("waistCm", profile.waistCm)
+            put("formulaLog", CoreEnergyPlan.formulaLog(context))
             put("stepTicksPerStep", profile.stepTicksPerStep)
             put("stepsManualCoefficient", profile.stepsManualCoefficient)
             put("stepsCalibrationCoefficient", profile.stepsCalibrationCoefficient)

@@ -97,34 +97,9 @@ extension Repository {
     /// replaces WHOOP, and an incomplete current day is always excluded.
     func adaptiveExpenditureEstimate(asOf: Date = Date()) async -> AdaptiveExpenditureEstimate? {
         guard let store = await storeHandle() else { return nil }
-        let calendar = Calendar.current
-        let cutoff = calendar.startOfDay(for: asOf)
-        guard let firstDate = calendar.date(
-            byAdding: .day, value: -(AdaptiveExpenditureEngine.maximumWindowDays + 1), to: cutoff),
-              let yesterday = calendar.date(byAdding: .day, value: -1, to: cutoff) else { return nil }
-        let from = Self.localDayKey(firstDate)
-        let to = Self.localDayKey(yesterday)
-        // Both intake sources, manual winning a day it shares with an import — the same "one source
-        // wins a day, never a sum" rule weight follows. Reading only the CSV source (as this did) made
-        // a typed number invisible to the balance estimate, which for a strap-only setup is the ONLY
-        // remaining way to check the level at all.
-        let intake = await intakeByDay(from: from, to: to)
-        guard !intake.isEmpty else { return nil }
-        let nutrition = intake.map { MetricPoint(day: $0.key, key: "calories_in", value: $0.value) }
-        let weights = await weightSeries(days: AdaptiveExpenditureEngine.maximumWindowDays + 2)
-
-        var byDay: [String: (calories: Double?, weight: Double?)] = [:]
-        for point in nutrition where point.day >= from && point.day <= to {
-            byDay[point.day, default: (nil, nil)].calories = point.value
-        }
-        for point in weights where point.day >= from && point.day <= to {
-            byDay[point.day, default: (nil, nil)].weight = point.value
-        }
-        let inputs = byDay.compactMap { day, values -> AdaptiveExpenditureDay? in
-            guard let date = WeightSeries.date(forDay: day) else { return nil }
-            return .init(date: date, caloriesIn: values.calories, weightKg: values.weight)
-        }
-        return AdaptiveExpenditureEngine.estimate(days: inputs, asOf: asOf, calendar: calendar)
+        // Both intake sources, manual winning a day it shares with an import, priced in `NutritionReads`.
+        return await NutritionReads.adaptiveEstimate(reader: storeReader(store), asOf: asOf,
+                                                     healthSourceNames: NutritionSourcePreferences.healthSourceByDay)
     }
 
     /// Energy summaries for the trailing `days`, oldest first. One entry per day that has ANY input;

@@ -87,6 +87,18 @@ public enum EnergySummaryStoreReads {
     public static func activeEnergyByDay(reader: StoreReader, days: Int, dailyRows: [DailyMetric],
         workouts: [WorkoutRow], profile: UserProfile, hrMax: Double?, calibrationEnabled: Bool,
         now: Date, refreshToday: () async -> Void) async -> [String: Double] {
+        EnergySummaryPreparation.activeValues(await summaries(reader: reader, days: days, dailyRows: dailyRows,
+            workouts: workouts, profile: profile, hrMax: hrMax, calibrationEnabled: calibrationEnabled, now: now,
+            shape: nil, adaptivePrior: nil, refreshToday: refreshToday))
+    }
+
+    /// The day summaries over the stored inputs, as `Repository.energySummaries` assembles them on Apple. The
+    /// activity shape and the balance prior shape the forecast only; a measured-only reader passes nil.
+    @MainActor
+    public static func summaries(reader: StoreReader, days: Int, dailyRows: [DailyMetric],
+        workouts: [WorkoutRow], profile: UserProfile, hrMax: Double?, calibrationEnabled: Bool,
+        now: Date, shape: ActivityShape?, adaptivePrior: Double?,
+        refreshToday: () async -> Void) async -> [DailyEnergySummary] {
         let calendar = Calendar.current
         let today = StoreReader.localDayKey(now)
         let cutoffDate = calendar.date(byAdding: .day, value: -max(0, days), to: now) ?? now
@@ -146,10 +158,9 @@ public enum EnergySummaryStoreReads {
         let source = EnergySummaryPreparation.Inputs(appleByDay: appleByDay, strapByDay: strapByDay,
             derivedByDay: derived, strapActiveByDay: active, stepHoursByDay: hours, sessionsByDay: sessions,
             weightObservations: observations, calibrationStatus: status, calibrationFactor: factor,
-            shape: nil, adaptivePrior: nil, appleCoverageByDay: apple.coverage, stride: apple.stride)
-        let summaries = EnergySummaryPreparation.summaries(source, profile: profile, hrMax: hrMax, now: now,
+            shape: shape, adaptivePrior: adaptivePrior, appleCoverageByDay: apple.coverage, stride: apple.stride)
+        return EnergySummaryPreparation.summaries(source, profile: profile, hrMax: hrMax, now: now,
             calendar: calendar, bodyFatOn: { body.asOf("body_fat", day: $0)?.value })
-        return EnergySummaryPreparation.activeValues(summaries)
     }
 
 }

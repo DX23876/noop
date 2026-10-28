@@ -171,6 +171,19 @@ public enum CoreCall {
         case "goals.changeLongTerm":
             return CoreRead.json(await CoreLongTermGoals.change(store: store, id: string("id"), action: string("action"),
                                                                 reason: args["reason"] as? String))
+        case "energy.plan":
+            let settings = CoreGoalEnergy.settings(args)
+            return CoreRead.json(await CoreEnergyPlan.plan(reader: reader, settings: settings,
+                activity: ActivityLevel(rawValue: string("activity")) ?? .light,
+                targetKgPerWeek: (args["targetKgPerWeek"] as? NSNumber)?.doubleValue ?? 0))
+        case "energy.switchFormula":
+            // Append-only, as `EnergyPlanStore.switchFormula` does on Apple: the switch applies from today.
+            guard let formula = BasalFormula(rawValue: string("formula")) else { return #"{"error":"invalid"}"# }
+            let next = BmrFormulaLog.decode(string("log")).appending(formula, effectiveFrom: StoreReader.localDayKey(Date()))
+            return CoreRead.json(["log": next.encodedJSON()])
+        case "energy.recordIntake":
+            guard let kcal = (args["kcal"] as? NSNumber)?.doubleValue else { return #"{"error":"invalid"}"# }
+            return ok(await CoreEnergyPlan.recordIntake(store: store, kcal: kcal))
         case "rhythm.snapshot":
             return CoreRead.json(await CoreRhythmAge.snapshot(reader: reader))
         case "ageless.snapshot":

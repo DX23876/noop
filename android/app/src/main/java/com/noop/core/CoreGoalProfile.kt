@@ -16,9 +16,11 @@ internal fun JSONObject.withGoalProfile(profile: ProfileStore): JSONObject = put
     .put("weightKg", profile.weightKg).put("heightCm", profile.heightCm)
     .put("age", profile.age).put("maxHR", profile.hrMax))
 
-/** The wearer's opt-ins the goal reader needs, as `GoalTrackingStore.goalHostState` reads them on Apple. */
+/** The wearer's opt-ins and energy choices the goal reader needs, as `GoalTrackingStore.goalHostState` reads them on Apple. */
 internal fun JSONObject.withGoalHostSettings(context: Context): JSONObject =
     put("hydrationEnabled", NoopPrefs.hydrationTracking(context))
+        // The Energy Plan's basal formula, so goals, Momentum and the plan price energy with one formula.
+        .put("formulaLog", CoreEnergyPlan.formulaLog(context))
         .put("journalCatalog", journalCatalogWire(loadJournalCatalogItems(context)).toString())
 
 /** The catalog in Swift's own `JournalCatalogItem` coding, so the core folds the same aliases Apple does. */

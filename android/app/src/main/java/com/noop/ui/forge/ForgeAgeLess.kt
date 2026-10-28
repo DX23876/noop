@@ -120,7 +120,8 @@ private fun AgeCard(week: CoreAgeLess.Week) {
         Row(verticalAlignment = Alignment.Bottom) {
             Text(years(week.age), style = Forge.type.title1, color = ageColor(week.delta))
             Spacer(Modifier.width(ForgeMetrics.space2))
-            Text("${years(abs(week.delta))} ${stringResource(if (younger) R.string.forge_ageless_younger else R.string.forge_ageless_older)}",
+            Text(stringResource(R.string.forge_join_space, years(abs(week.delta)),
+                                stringResource(if (younger) R.string.forge_ageless_younger else R.string.forge_ageless_older)),
                  style = Forge.type.subhead, color = Forge.colors.textSecondary, modifier = Modifier.padding(bottom = 4.dp))
         }
     }
@@ -132,7 +133,7 @@ private fun PaceCard(week: CoreAgeLess.Week, pace: Double) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.forge_ageless_speed), style = Forge.type.title2, color = Forge.colors.text,
                  modifier = Modifier.weight(1f))
-            Text("${number(pace, 2)} · ${paceClassText(week.paceClass)}", style = Forge.type.subhead,
+            Text(stringResource(R.string.forge_join_dot, number(pace, 2), paceClassText(week.paceClass)), style = Forge.type.subhead,
                  color = if (pace <= 1.0) ForgeTokens.StrandPalette.agelessYoungDeep.resolve() else ForgeTokens.StrandPalette.agelessOld.resolve())
         }
         // The slider runs from reversing (below zero) to accelerating (twice the calendar).
@@ -173,11 +174,11 @@ private fun LeversCard(week: CoreAgeLess.Week) {
         week.levers.forEachIndexed { i, lever ->
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("${i + 1}. ${componentName(lever.component)}", style = Forge.type.body, color = Forge.colors.text,
+                    Text(stringResource(R.string.forge_join_rank, i + 1, componentName(lever.component)), style = Forge.type.body, color = Forge.colors.text,
                          modifier = Modifier.weight(1f))
                     Text(signedYears(lever.years), style = Forge.type.subhead, color = ForgeTokens.StrandPalette.agelessYoungDeep.resolve())
                 }
-                Text("${valueText(lever.component, lever.current)} → ${valueText(lever.component, lever.next)}",
+                Text(stringResource(R.string.forge_join_arrow, valueText(lever.component, lever.current), valueText(lever.component, lever.next)),
                      style = Forge.type.caption, color = Forge.colors.textSecondary)
                 Bar(position = (-lever.years / biggest).coerceIn(0.0, 1.0), target = null, filled = true)
             }
