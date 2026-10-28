@@ -19,6 +19,8 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.CompareArrows
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.material.icons.rounded.Forum
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Layers
@@ -49,6 +51,8 @@ import androidx.compose.ui.unit.dp
 import com.noop.R
 import com.noop.ui.AppViewModel
 import com.noop.ui.BreatheScreen
+import com.noop.ui.CoachScreen
+import com.noop.ui.CoachViewModel
 import com.noop.ui.CompareScreen
 import com.noop.ui.FusedRecordRoute
 import com.noop.ui.HealthScreen
@@ -76,6 +80,8 @@ enum class MoreCategory(val titleRes: Int, val subtitleRes: Int, val icon: Image
  * empty page; the parity plan adds each one with its screen.
  */
 enum class MoreDest(val category: MoreCategory?, val titleRes: Int, val icon: ImageVector, val keywords: List<String>) {
+    Coach(MoreCategory.Analysis, R.string.nav_coach, Icons.Rounded.Forum,
+          listOf("ai", "coach", "chat", "ask", "plan")),
     Insights(MoreCategory.Analysis, R.string.forge_more_insights, Icons.Rounded.AutoAwesome,
              listOf("correlations", "weekly review", "patterns")),
     Scoring(MoreCategory.Analysis, R.string.forge_more_scoring, Icons.Rounded.Psychology,
@@ -295,6 +301,7 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
     }
     Hosted(title, onBack) {
         when (dest) {
+            MoreDest.Coach -> CoachScreen(viewModel<CoachViewModel>())
             MoreDest.Insights -> InsightsHubScreen(viewModel)
             MoreDest.Scoring -> IntelligenceScreen(viewModel)
             MoreDest.Journal -> InsightsScreen(viewModel, onOpenInsightsHub = { onOpen(MoreDest.Insights) })

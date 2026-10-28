@@ -18,6 +18,13 @@ public enum CoreCall {
             // SwiftPM bundle; asking Bundle.module on the first bonded event otherwise terminates the app.
             let args = (try? JSONSerialization.jsonObject(with: Data(argsJSON.utf8)) as? [String: Any]) ?? [:]
             guard let dir = args["dir"] as? String else { return #"{"error":"resourceDirectoryMissing"}"# }
+            // Foundation finds Application Support and UserDefaults' file under HOME, which an Android app process
+            // lacks; the coach keeps its conversations and settings there.
+            if let home = args["home"] as? String, !home.isEmpty {
+                setenv("HOME", home, 1)
+                setenv("XDG_DATA_HOME", home + "/share", 1)
+                setenv("XDG_CONFIG_HOME", home + "/config", 1)
+            }
             let directory = URL(fileURLWithPath: dir)
             do {
                 try installSchema(from: directory.appendingPathComponent("whoop_protocol.json"))
@@ -81,6 +88,7 @@ public enum CoreCall {
             return #"{"error":"noStore"}"#
         }
         if op.hasPrefix("input.") || op.hasPrefix("lanes.") { return await CoreUserInputs.run(op, json: argsJSON, store: store) }
+        if op.hasPrefix("coach.") { return await CoreCoach.run(op, args: args, reader: reader) }
         switch op {
         case "hevy.startSync": return CoreRead.json(await CoreHevy.shared.start(store: store, key: string("key"), routinesOnly: args["routinesOnly"] as? Bool ?? false))
         case "hevy.info":

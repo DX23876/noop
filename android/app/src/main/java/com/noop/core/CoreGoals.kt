@@ -193,7 +193,7 @@ object CoreGoals {
         }, o.optString("state", "{}"))
     }
 
-    private fun settings(context: Context, dismissedWorkouts: List<String>): String {
+    internal fun settings(context: Context, dismissedWorkouts: List<String>): String {
         val lastSync = goalLastSync(context)
         val profile = ProfileStore.from(context)
         return JSONObject().withGoalProfile(profile).withGoalHostSettings(context).put("sex", profile.sex)

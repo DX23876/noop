@@ -57,6 +57,7 @@ object CoreShadow {
             if (installed.isFailure) return false
         }
         val args = org.json.JSONObject().put("dir", dir.path)
+            .put("home", File(context.filesDir, "core-home").apply { mkdirs() }.path)
         localizationFile(context, dir)?.let { args.put("l10n", it.path) }
         val result = SwiftCore.call("core.setResources", args.toString())
         val ready = runCatching { org.json.JSONObject(result.orEmpty()).optBoolean("ok") }.getOrDefault(false)

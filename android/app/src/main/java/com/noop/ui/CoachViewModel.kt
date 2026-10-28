@@ -19,7 +19,11 @@ import com.noop.data.WhoopRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import com.noop.core.CoreCoach
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -463,67 +467,44 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
 
         val appCtx = ctx.applicationContext
         _error.value = null
-        appendMessage(ChatMsg(role = "user", text = question))
+        _keyRejected.value = false
         _sending.value = true
 
-        // K1: append a placeholder assistant message, then mutate its text as chunks arrive.
-        val placeholderId = java.util.UUID.randomUUID().toString()
-        appendMessage(ChatMsg(id = placeholderId, role = "assistant", text = ""))
-        var accumulated = ""
-
+        // The reply comes from the shared coach in the Swift core (`CoreCoach`, Apple's `AICoachEngine`): its
+        // tools read the wearer's data on demand, and it keeps its own transcript, which this screen mirrors.
         viewModelScope.launch {
             try {
-                // Re-read the stored grant rather than trusting the copy this instance was built
-                // with. Consent is editable from CoachSettingsScreen, and the system prompt already
-                // works this way (`resolveSystemPrompt` is read fresh per send); a revoked grant
-                // must not be able to survive in memory on the one call that egresses data.
+                // Re-read the stored grant rather than trusting the copy this instance was built with: a
+                // revoked grant must not survive in memory on the one call that egresses data.
                 val consentNow = AiKeyStore.readConsent(appCtx)
                 _consent.value = consentNow
-                aiCoach.chatStream(
-                    ctx = appCtx,
-                    history = _messages.value.dropLast(1), // exclude the placeholder
-                    provider = _provider.value,
-                    model = _model.value,
-                    consent = consentNow,
-                    customBaseUrl = _customBaseUrl.value,
-                    customAuthHeader = _customAuthHeader.value,
-                    includeSignals = consentNow && NoopPrefs.coachSignals(appCtx),
-                ) { delta ->
-                    accumulated += delta
-                    // Replace the placeholder's text with the accumulated stream so far.
-                    _messages.value = _messages.value.map { msg ->
-                        if (msg.id == placeholderId) ChatMsg(id = placeholderId, role = "assistant", text = accumulated)
-                        else msg
-                    }
+                val provider = _provider.value
+                val settings = CoreCoach.Settings(
+                    provider = provider, model = _model.value, key = AiKeyStore.read(appCtx, provider).orEmpty(),
+                    consent = consentNow, customBaseUrl = _customBaseUrl.value,
+                    customAuthHeader = _customAuthHeader.value, customConnected = _customConnected.value,
+                )
+                val dismissed = com.noop.ui.forge.dismissedTrainingWorkouts(appCtx)
+                val started = withContext(Dispatchers.IO) {
+                    CoreCoach.configure(appCtx, settings, dismissed) && CoreCoach.send(question)
                 }
-                // Finalize: trim whitespace. If the stream produced nothing, show "(no reply)".
-                val clean = accumulated.trim()
-                _messages.value = _messages.value.map { msg ->
-                    if (msg.id == placeholderId) {
-                        ChatMsg(id = placeholderId, role = "assistant",
-                                text = if (clean.isEmpty()) getApplication<Application>().getString(R.string.coach_no_reply) else clean)
-                    } else msg
+                if (!started) {
+                    _error.value = getApplication<Application>().getString(R.string.coach_no_reply)
+                    return@launch
+                }
+                while (true) {
+                    val state = withContext(Dispatchers.IO) { CoreCoach.state() } ?: break
+                    _messages.value = state.messages.takeLast(MAX_STORED_MESSAGES)
+                    if (!state.sending) {
+                        _error.value = state.error
+                        break
+                    }
+                    delay(STREAM_POLL_MS)
                 }
             } catch (e: Exception) {
-                val partial = accumulated.trim()
-                if (partial.isNotEmpty()) {
-                    _messages.value = _messages.value.map { msg ->
-                        if (msg.id == placeholderId) {
-                            ChatMsg(id = placeholderId, role = "assistant",
-                                    text = getApplication<Application>().getString(R.string.coach_stream_interrupted, partial))
-                        } else msg
-                    }
-                } else {
-                    // No text received at all — remove the empty placeholder.
-                    _messages.value = _messages.value.filterNot { it.id == placeholderId }
-                }
                 _error.value = e.message ?: "Something went wrong. Please try again."
-                // Typed, never text-matched: the message is localized and the type is not.
-                _keyRejected.value = e is AiKeyRejectedException
             } finally {
                 _sending.value = false
-                // K2: persist once the turn is fully settled (success, mid-stream error, or empty-
-                // stream removal) — not per streamed chunk, so a long reply doesn't hammer the store.
                 persistMessages()
             }
         }
@@ -600,6 +581,7 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
      *  persisted table. */
     fun clearConversation() {
         _messages.value = emptyList()
+        viewModelScope.launch { withContext(Dispatchers.IO) { CoreCoach.newConversation() } }
         // Goes with the transcript, as in [clearKey] and [disconnect]: a field claiming the empty
         // transcript belongs to some past day would not be true.
         conversationDay = null
@@ -728,6 +710,8 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
          * what's sent. (parity with Swift `maxStoredMessages`)
          */
         private const val MAX_STORED_MESSAGES = 40
+        /** How often the transcript is read back from the shared coach while a reply streams. */
+        private const val STREAM_POLL_MS = 120L
 
         /** How long a pulled model catalogue is trusted before [refreshModelsIfStale] pulls again. */
         internal const val MODEL_REFRESH_INTERVAL_MS = 7L * 24 * 60 * 60 * 1000
