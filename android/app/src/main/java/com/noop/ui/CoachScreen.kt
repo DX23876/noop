@@ -1083,7 +1083,7 @@ private fun MicComposerRow(
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(20.dp))
                         .background(Palette.surfaceInset)
-                        .border(1.dp, if (focused) Palette.accent.copy(alpha = 0.6f) else Palette.hairline, RoundedCornerShape(20.dp))
+                        .border(1.dp, if (focused) Palette.accent.copy(alpha = 0.6f) else Color.Transparent, RoundedCornerShape(20.dp))
                         .padding(horizontal = 14.dp, vertical = 12.dp),
                 ) {
                     if (input.isEmpty()) {
@@ -1202,15 +1202,4 @@ private fun PrivacyNote(local: Boolean = false) {
 // MARK: - Shared field colors (dark, design-system tinted)
 
 @Composable
-internal fun coachFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedTextColor = Palette.textPrimary,
-    unfocusedTextColor = Palette.textPrimary,
-    disabledTextColor = Palette.textTertiary,
-    cursorColor = Palette.accent,
-    focusedBorderColor = Palette.accent,
-    unfocusedBorderColor = Palette.hairline,
-    disabledBorderColor = Palette.hairline,
-    focusedContainerColor = Palette.surfaceInset,
-    unfocusedContainerColor = Palette.surfaceInset,
-    disabledContainerColor = Palette.surfaceInset,
-)
+internal fun coachFieldColors() = noopFieldColors()

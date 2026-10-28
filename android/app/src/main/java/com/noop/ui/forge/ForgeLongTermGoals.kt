@@ -1,5 +1,7 @@
 package com.noop.ui.forge
 
+import com.noop.ui.noopFieldColors
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -248,7 +250,7 @@ internal fun LongTermSetupPage(onBack: () -> Unit, onCreated: () -> Unit) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(stringResource(R.string.forge_lt_risk_text, draft?.rate ?: ""))
                     OutlinedTextField(value = reason, onValueChange = { reason = it },
-                                      label = { Text(stringResource(R.string.forge_lt_risk_reason)) })
+                                      label = { Text(stringResource(R.string.forge_lt_risk_reason)) }, colors = noopFieldColors())
                 }
             },
             confirmButton = {
@@ -405,9 +407,9 @@ private fun PreviewStep(d: CoreLongTermGoals.Draft, catalog: CoreLongTermGoals.C
     SettingsCard(title = null, blurb = null) {
         OutlinedTextField(value = s.title.ifEmpty { template?.title?.let { catalogText(it) } ?: "" },
                           onValueChange = { change(s.copy(title = it)) },
-                          label = { Text(stringResource(R.string.forge_lt_name)) }, modifier = Modifier.fillMaxWidth())
+                          label = { Text(stringResource(R.string.forge_lt_name)) }, modifier = Modifier.fillMaxWidth(), colors = noopFieldColors())
         OutlinedTextField(value = s.motivation, onValueChange = { change(s.copy(motivation = it)) },
-                          label = { Text(stringResource(R.string.forge_lt_why)) }, modifier = Modifier.fillMaxWidth())
+                          label = { Text(stringResource(R.string.forge_lt_why)) }, modifier = Modifier.fillMaxWidth(), colors = noopFieldColors())
         Spacer(Modifier.height(ForgeMetrics.space2))
         SettingRow(stringResource(R.string.forge_goals_target)) {
             Text(if (d.shape == "consistency") whole(s.target) + " · " + stringResource(R.string.forge_goals_a_week)

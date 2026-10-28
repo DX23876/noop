@@ -1,5 +1,7 @@
 package com.noop.ui.forge
 
+import com.noop.ui.noopFieldColors
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -65,13 +67,13 @@ fun ForgeExerciseProviderPage(onClose: () -> Unit, onImported: () -> Unit) {
         item { ForgeCard(Modifier.fillMaxWidth()) {
             ReportNote(stringResource(R.string.forge_provider_detail))
             OutlinedTextField(endpoint, { endpoint = it; invalidateReview() }, label = { Text(stringResource(R.string.forge_provider_endpoint)) },
-                enabled = initialized && !loading && !saving, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri), modifier = Modifier.fillMaxWidth())
+                enabled = initialized && !loading && !saving, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri), modifier = Modifier.fillMaxWidth(), colors = noopFieldColors())
             OutlinedTextField(header, { header = it; invalidateReview() }, label = { Text(stringResource(R.string.forge_provider_header)) },
-                enabled = initialized && !loading && !saving, singleLine = true, modifier = Modifier.fillMaxWidth())
+                enabled = initialized && !loading && !saving, singleLine = true, modifier = Modifier.fillMaxWidth(), colors = noopFieldColors())
             OutlinedTextField(key, { key = it.take(4096); invalidateReview() },
                 label = { Text(stringResource(if (storedKey) R.string.forge_provider_replace_key else R.string.forge_provider_key)) },
                 enabled = initialized && !loading && !saving, singleLine = true, visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), modifier = Modifier.fillMaxWidth())
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), modifier = Modifier.fillMaxWidth(), colors = noopFieldColors())
             if (storedKey) TextButton(enabled = !loading && !saving, onClick = {
                 scope.launch {
                     invalidateReview()

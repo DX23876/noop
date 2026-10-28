@@ -1,5 +1,7 @@
 package com.noop.ui.forge
 
+import com.noop.ui.noopFieldColors
+
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -161,7 +163,7 @@ fun ForgeExerciseLibrary(onClose: () -> Unit, multiple: Boolean = false,
         item {
             OutlinedTextField(query, { query = it }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                 label = { Text(stringResource(R.string.forge_library_search)) },
-                leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) })
+                leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) }, colors = noopFieldColors())
         }
         if (!loaded || importing) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
         if (loaded && c == null) item { ForgeCard(Modifier.fillMaxWidth()) {
@@ -383,7 +385,7 @@ private fun CustomExercisePage(catalog: CoreTrainingLibrary.Catalog, onClose: ()
     SettingsColumn {
         PageTitle(stringResource(R.string.forge_library_new), onBack = { if (!saving) onClose() })
         ForgeCard(Modifier.fillMaxWidth()) {
-            OutlinedTextField(title, { title = it }, label = { Text(stringResource(R.string.forge_library_name)) }, enabled = !saving, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(title, { title = it }, label = { Text(stringResource(R.string.forge_library_name)) }, enabled = !saving, modifier = Modifier.fillMaxWidth(), colors = noopFieldColors())
             ReportNote(stringResource(R.string.forge_library_tracking))
             if (!saving) ReportPicker(measurementName(mode), catalog.modes.map { measurementName(it) }) {
                 mode = catalog.modes[it]
@@ -397,8 +399,8 @@ private fun CustomExercisePage(catalog: CoreTrainingLibrary.Catalog, onClose: ()
         ForgeCard(Modifier.fillMaxWidth()) {
             ReportNote(stringResource(R.string.forge_report_primary_muscle))
             if (!saving) ReportPicker(muscleName(primary), catalog.muscles.map { muscleName(it) }) { primary = catalog.muscles[it] }
-            OutlinedTextField(equipment, { equipment = it }, label = { Text(stringResource(R.string.forge_library_equipment_optional)) }, enabled = !saving, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(instructions, { instructions = it }, label = { Text(stringResource(R.string.forge_library_instruction_optional)) }, enabled = !saving, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(equipment, { equipment = it }, label = { Text(stringResource(R.string.forge_library_equipment_optional)) }, enabled = !saving, modifier = Modifier.fillMaxWidth(), colors = noopFieldColors())
+            OutlinedTextField(instructions, { instructions = it }, label = { Text(stringResource(R.string.forge_library_instruction_optional)) }, enabled = !saving, modifier = Modifier.fillMaxWidth(), colors = noopFieldColors())
             ReportNote(stringResource(R.string.forge_library_custom_local))
         }
         if (failed) ReportNote(stringResource(R.string.forge_library_save_failed))

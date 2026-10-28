@@ -1,5 +1,7 @@
 package com.noop.ui.forge
 
+import com.noop.ui.noopFieldColors
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -35,7 +37,7 @@ internal fun StrengthDetailsPage(session: CoreTrainingReports.GenericSession, mu
             ForgeCard(Modifier.fillMaxWidth()) {
                 fun update(value: CoreTrainingReports.EntryDraft) { drafts = drafts.toMutableList().also { it[index] = value } }
                 OutlinedTextField(draft.title, { update(draft.copy(title = it)) }, enabled = !saving,
-                    label = { Text(stringResource(R.string.forge_report_exercise)) }, modifier = Modifier.fillMaxWidth())
+                    label = { Text(stringResource(R.string.forge_report_exercise)) }, modifier = Modifier.fillMaxWidth(), colors = noopFieldColors())
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                     ReportNote(stringResource(R.string.forge_report_working_sets))
                     TextButton(enabled = !saving && draft.workSets > 1, onClick = { update(draft.copy(workSets = draft.workSets - 1)) }) { Text("−") }
@@ -51,7 +53,7 @@ internal fun StrengthDetailsPage(session: CoreTrainingReports.GenericSession, mu
                 }
                 OutlinedTextField(draft.effort, { update(draft.copy(effort = it)) }, enabled = !saving,
                     label = { Text(stringResource(if (draft.usesRIR) R.string.forge_report_optional_rir else R.string.forge_report_optional_rpe)) },
-                    modifier = Modifier.fillMaxWidth())
+                    modifier = Modifier.fillMaxWidth(), colors = noopFieldColors())
                 TextButton(enabled = !saving && drafts.size > 1,
                     onClick = { drafts = drafts.filterIndexed { i, _ -> i != index } }) { Text(stringResource(R.string.forge_report_remove_exercise)) }
             }

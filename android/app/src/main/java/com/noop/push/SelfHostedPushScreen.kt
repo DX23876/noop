@@ -359,7 +359,7 @@ private fun PushTextField(value: String, onValueChange: (String) -> Unit, label:
             focusedTextColor = Palette.textPrimary,
             unfocusedTextColor = Palette.textPrimary,
             focusedBorderColor = Palette.accent,
-            unfocusedBorderColor = Palette.hairline,
+            unfocusedBorderColor = androidx.compose.ui.graphics.Color.Transparent,
             cursorColor = Palette.accent,
             focusedContainerColor = Palette.surfaceInset,
             unfocusedContainerColor = Palette.surfaceInset,

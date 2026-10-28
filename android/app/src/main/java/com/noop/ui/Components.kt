@@ -1688,3 +1688,24 @@ fun BackupFailureDialog(message: String, onDismiss: () -> Unit) {
         },
     )
 }
+
+/**
+ * Text field colours for the whole app, as iOS draws its fields: a flat inset fill with no frame at rest, and the
+ * accent line only while the field has focus. Material's default draws a grey outline around every field, which
+ * no iOS field has.
+ */
+@androidx.compose.runtime.Composable
+fun noopFieldColors() = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+    focusedTextColor = Palette.textPrimary,
+    unfocusedTextColor = Palette.textPrimary,
+    disabledTextColor = Palette.textTertiary,
+    cursorColor = Palette.accent,
+    focusedBorderColor = Palette.accent,
+    unfocusedBorderColor = androidx.compose.ui.graphics.Color.Transparent,
+    disabledBorderColor = androidx.compose.ui.graphics.Color.Transparent,
+    errorBorderColor = Palette.statusCritical,
+    focusedContainerColor = Palette.surfaceInset,
+    unfocusedContainerColor = Palette.surfaceInset,
+    disabledContainerColor = Palette.surfaceInset,
+)
+

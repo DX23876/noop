@@ -1,5 +1,7 @@
 package com.noop.ui.forge
 
+import com.noop.ui.noopFieldColors
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -91,7 +93,7 @@ private fun WeightCard(b: CoreBody.Snapshot, onLog: (Double) -> Unit, onDelete: 
         Row(verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(value = text, onValueChange = { v -> text = v.filter { it.isDigit() || it == '.' || it == ',' }.take(6) },
                               singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                              suffix = { Text("kg") }, modifier = Modifier.weight(1f))
+                              suffix = { Text("kg") }, modifier = Modifier.weight(1f), colors = noopFieldColors())
             Spacer(Modifier.width(ForgeMetrics.space2))
             val kg = text.replace(',', '.').toDoubleOrNull()
             TextButton(enabled = kg != null && kg > 0, onClick = { kg?.let(onLog); text = "" }) {
@@ -161,7 +163,7 @@ private fun MeasureCard(b: CoreBody.Snapshot, onCancel: () -> Unit, onSave: (Map
                 OutlinedTextField(value = values[site.key] ?: "", label = { Text(site.label) },
                                   onValueChange = { v -> values[site.key] = v.filter { it.isDigit() || it == '.' || it == ',' }.take(6) },
                                   singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                                  suffix = { Text("cm") }, modifier = Modifier.fillMaxWidth())
+                                  suffix = { Text("cm") }, modifier = Modifier.fillMaxWidth(), colors = noopFieldColors())
                 site.guidance?.let { Text(it, style = Forge.type.caption, color = Forge.colors.textTertiary) }
             }
         }

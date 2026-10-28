@@ -1,5 +1,7 @@
 package com.noop.ui.forge
 
+import com.noop.ui.noopFieldColors
+
 import android.text.format.DateUtils
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
@@ -73,7 +75,7 @@ internal fun ForgeCoachHistoryPage(onBack: () -> Unit, onPicked: () -> Unit) {
             return@SettingsColumn
         }
         OutlinedTextField(value = search, onValueChange = { search = it }, singleLine = true,
-                          placeholder = { Text(stringResource(R.string.forge_ch_search)) }, modifier = Modifier.fillMaxWidth())
+                          placeholder = { Text(stringResource(R.string.forge_ch_search)) }, modifier = Modifier.fillMaxWidth(), colors = noopFieldColors())
         val query = search.trim()
         val matching = all.filter { query.isEmpty() || it.searchText.contains(query, ignoreCase = true) }
         if (query.isNotEmpty() && matching.isEmpty()) {
@@ -103,7 +105,7 @@ internal fun ForgeCoachHistoryPage(onBack: () -> Unit, onPicked: () -> Unit) {
             title = { Text(stringResource(R.string.forge_ch_rename_title)) },
             text = {
                 OutlinedTextField(value = text, onValueChange = { text = it }, singleLine = true,
-                                  label = { Text(stringResource(R.string.forge_ch_field_title)) })
+                                  label = { Text(stringResource(R.string.forge_ch_field_title)) }, colors = noopFieldColors())
             },
             confirmButton = {
                 TextButton(onClick = { renaming = null; op("rename", c.id, title = text) }) { Text(stringResource(R.string.forge_ch_save)) }
@@ -366,7 +368,7 @@ private fun SwapDialog(row: CoreCoach.PlanRow, intents: List<Pair<String, String
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
                 OutlinedTextField(value = sport, onValueChange = { sport = it }, singleLine = true,
-                                  placeholder = { Text(stringResource(R.string.forge_cp_eg)) })
+                                  placeholder = { Text(stringResource(R.string.forge_cp_eg)) }, colors = noopFieldColors())
                 Text(stringResource(R.string.forge_cp_how_hard), style = Forge.type.caption, color = Forge.colors.textSecondary)
                 intents.forEach { (id, label) ->
                     Row(Modifier.fillMaxWidth().clickable { intent = id }, verticalAlignment = Alignment.CenterVertically) {
