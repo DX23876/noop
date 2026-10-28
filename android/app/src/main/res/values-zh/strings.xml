@@ -4200,4 +4200,11 @@
     <string name="forge_tc_skin_backfill">补充皮肤温度绝对值。</string>
     <string name="forge_tc_skin_backfill_detail">用与评分流程相同的漏斗，为 21 晚窗口未覆盖的夜晚重新推导绝对温度（°C）。仅填充：绝不覆盖已测量的值。结果见腕带日志。</string>
     <string name="forge_tc_skin_backfilling">补填中…</string>
+    <string name="forge_gn_title">通知</string>
+    <string name="forge_gn_reached">达成每日目标</string>
+    <string name="forge_gn_streak">晚间连续记录面临中断</string>
+    <string name="forge_gn_badge">新徽章</string>
+    <string name="forge_gn_milestone">达成一个长期里程碑</string>
+    <string name="forge_gn_footer">默认关闭。每天最多两条目标通知，21:00 后或训练期间绝不发送。提示和回顾始终在应用内显示。遵循通知设置中的安静时段。</string>
+    <string name="forge_gn_channel">目标</string>
 </resources>

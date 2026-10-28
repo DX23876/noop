@@ -141,6 +141,32 @@ object CoreGoals {
         return Change(o.optBoolean("ok"), o.str("error"))
     }
 
+    /** One goal notification the core decided on (`GoalEventPlan`), and the state to keep for the next run. */
+    data class Notice(val id: String, val title: String, val body: String)
+    data class Notices(val messages: List<Notice>, val state: String)
+
+    /**
+     * What to tell now: the kinds the wearer switched on, whether it is quiet hours, the minute the evening
+     * reminder may go from, whether a workout runs or the app is open, and the state the last run returned.
+     */
+    fun notices(context: Context, dismissedWorkouts: List<String>, kinds: List<String>, quiet: Boolean,
+                eveningMinute: Int, workoutInProgress: Boolean, appIsActive: Boolean, state: String?): Notices? {
+        if (!SwiftCore.available) return null
+        if (!CoreUserInputs.ensure(context)) return null
+        val args = JSONObject(settings(context, dismissedWorkouts)).put("kinds", JSONArray(kinds)).put("quiet", quiet)
+            .put("eveningMinute", eveningMinute).put("workoutInProgress", workoutInProgress)
+            .put("appIsActive", appIsActive).apply { if (state != null) put("noticeState", state) }
+        return SwiftCore.call("goals.notices", args.toString())?.let(::parseNotices)
+    }
+
+    internal fun parseNotices(json: String): Notices? {
+        if (json == "null" || json.contains("\"error\"")) return null
+        val o = JSONObject(json)
+        return Notices(o.optJSONArray("messages").objects().map {
+            Notice(it.getString("id"), it.getString("title"), it.optString("body"))
+        }, o.optString("state", "{}"))
+    }
+
     private fun settings(context: Context, dismissedWorkouts: List<String>): String {
         val lastSync = goalLastSync(context)
         val profile = ProfileStore.from(context)

@@ -233,6 +233,41 @@ private fun GoalsOverview(output: CoreGoals.Output?, loaded: Boolean, onBack: ()
                 }
             }
         }
+        GoalNotificationsCard()
+    }
+}
+
+/**
+ * The goal notifications iOS offers in its goal settings (`GoalsSettingsView`): four kinds, each off until switched
+ * on. Switching one on asks for Android's notification permission where the system needs it.
+ */
+@Composable
+private fun GoalNotificationsCard() {
+    val context = LocalContext.current
+    val kinds = com.noop.notif.GoalNoticeNotifier.Kind.values()
+    var on by remember { mutableStateOf(kinds.associateWith { com.noop.notif.GoalNoticeNotifier.isOn(context, it) }) }
+    val permission = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) {}
+    GoalSectionHeader(stringResource(R.string.forge_gn_title))
+    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+        kinds.forEachIndexed { i, kind ->
+            ToggleRow(stringResource(when (kind) {
+                com.noop.notif.GoalNoticeNotifier.Kind.Reached -> R.string.forge_gn_reached
+                com.noop.notif.GoalNoticeNotifier.Kind.Streak -> R.string.forge_gn_streak
+                com.noop.notif.GoalNoticeNotifier.Kind.Badge -> R.string.forge_gn_badge
+                com.noop.notif.GoalNoticeNotifier.Kind.Milestone -> R.string.forge_gn_milestone
+            }), detail = null, checked = on[kind] == true) { value ->
+                com.noop.notif.GoalNoticeNotifier.setOn(context, kind, value)
+                on = on + (kind to value)
+                if (value && android.os.Build.VERSION.SDK_INT >= 33 &&
+                    androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) !=
+                    android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    permission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+            if (i < kinds.lastIndex) RowDivider()
+        }
+        Text(stringResource(R.string.forge_gn_footer), style = Forge.type.caption, color = Forge.colors.textTertiary)
     }
 }
 

@@ -4125,4 +4125,11 @@
     <string name="forge_tc_skin_backfill">Заполнение абсолютных значений температуры кожи</string>
     <string name="forge_tc_skin_backfill_detail">Пересчитывает абсолютные °C для ночей, до которых не доходит окно в 21 ночь, тем же алгоритмом, что и обычный расчёт. Только заполняет: измеренное значение никогда не перезаписывается. Результат смотрите в журнале ремешка.</string>
     <string name="forge_tc_skin_backfilling">Заполнение…</string>
+    <string name="forge_gn_title">Уведомления</string>
+    <string name="forge_gn_reached">Дневная цель достигнута</string>
+    <string name="forge_gn_streak">Серия под угрозой, вечером</string>
+    <string name="forge_gn_badge">Новый значок</string>
+    <string name="forge_gn_milestone">Достигнута веха долгосрочной цели</string>
+    <string name="forge_gn_footer">По умолчанию выключено. Не более двух уведомлений о целях в день, никогда после 21:00 и во время тренировки. Подсказки и обзоры всегда видны в приложении. Действуют тихие часы из настроек уведомлений.</string>
+    <string name="forge_gn_channel">Цели</string>
 </resources>

@@ -4246,4 +4246,11 @@
     <string name="forge_tc_skin_backfill">Wypełnianie wartości podstawowych temperatury skóry.</string>
     <string name="forge_tc_skin_backfill_detail">Ponownie wylicza bezwzględne °C dla nocy, których nie obejmuje okno 21 nocy, tym samym lejkiem co przebieg oceniający. Tylko uzupełnia: nigdy nie nadpisuje zmierzonej wartości. Wynik znajdziesz w dzienniku opaski.</string>
     <string name="forge_tc_skin_backfilling">Wypełnianie…</string>
+    <string name="forge_gn_title">Powiadomienia</string>
+    <string name="forge_gn_reached">Osiągnięty cel dzienny</string>
+    <string name="forge_gn_streak">Seria zagrożona, wieczorem</string>
+    <string name="forge_gn_badge">Nowa odznaka</string>
+    <string name="forge_gn_milestone">Osiągnięty kamień milowy celu długoterminowego</string>
+    <string name="forge_gn_footer">Domyślnie wyłączone. Najwyżej dwa powiadomienia o celach dziennie, nigdy po 21:00 ani podczas treningu. Wskazówki i podsumowania zawsze pojawiają się w aplikacji. Obowiązują godziny ciszy z ustawień powiadomień.</string>
+    <string name="forge_gn_channel">Cele</string>
 </resources>

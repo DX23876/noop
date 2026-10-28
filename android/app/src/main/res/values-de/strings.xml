@@ -4243,4 +4243,11 @@
     <string name="forge_tc_skin_backfill">Hauttemperatur-Absolutwerte nachtragen</string>
     <string name="forge_tc_skin_backfill_detail">Leitet das absolute °C für Nächte neu ab, die das 21-Nächte-Fenster nie erreicht, mit demselben Funnel wie der Scoring-Durchlauf. Nur Auffüllen: ein gemessener Wert wird nie überschrieben. Das Ergebnis steht im Strap-Log.</string>
     <string name="forge_tc_skin_backfilling">Wird nachgetragen…</string>
+    <string name="forge_gn_title">Mitteilungen</string>
+    <string name="forge_gn_reached">Ein Tagesziel erreicht</string>
+    <string name="forge_gn_streak">Eine Serie in Gefahr, am Abend</string>
+    <string name="forge_gn_badge">Ein neues Abzeichen</string>
+    <string name="forge_gn_milestone">Ein Meilenstein eines Langzeitziels erreicht</string>
+    <string name="forge_gn_footer">Standardmäßig aus. Höchstens zwei Ziel-Mitteilungen am Tag, nie nach 21:00 Uhr oder während eines Workouts. Hinweise und Rückblicke erscheinen immer in der App. Die Ruhezeiten aus den Mitteilungseinstellungen gelten.</string>
+    <string name="forge_gn_channel">Ziele</string>
 </resources>

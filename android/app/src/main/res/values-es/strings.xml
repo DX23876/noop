@@ -4230,4 +4230,11 @@
     <string name="forge_tc_skin_backfill">Rellenar temperaturas absolutas de la piel</string>
     <string name="forge_tc_skin_backfill_detail">Vuelve a derivar el °C absoluto de las noches que la ventana de 21 noches nunca alcanza, con el mismo embudo que la pasada de puntuación. Solo rellena: nunca sobrescribe un valor medido. Consulta el resultado en el registro de la banda.</string>
     <string name="forge_tc_skin_backfilling">Rellenando…</string>
+    <string name="forge_gn_title">Notificaciones</string>
+    <string name="forge_gn_reached">Un objetivo diario logrado</string>
+    <string name="forge_gn_streak">Una racha en peligro, por la tarde</string>
+    <string name="forge_gn_badge">Una nueva insignia</string>
+    <string name="forge_gn_milestone">Un hito a largo plazo alcanzado</string>
+    <string name="forge_gn_footer">Desactivado por defecto. Como máximo dos avisos de objetivos al día, nunca después de las 21:00 ni durante un entreno. Los avisos y resúmenes siempre aparecen en la app. Se aplican las horas de silencio de los ajustes de notificaciones.</string>
+    <string name="forge_gn_channel">Objetivos</string>
 </resources>

@@ -4198,4 +4198,11 @@
     <string name="forge_tc_skin_backfill">Aggiornamento delle temperature della pelle dirette</string>
     <string name="forge_tc_skin_backfill_detail">Ricalcola il °C assoluto per le notti che la finestra di 21 notti non raggiunge mai, con lo stesso funnel della passata di calcolo. Solo riempimento: non sovrascrive mai un valore misurato. Il risultato è nel log della fascia.</string>
     <string name="forge_tc_skin_backfilling">Aggiornamento in corso…</string>
+    <string name="forge_gn_title">Notifiche</string>
+    <string name="forge_gn_reached">Un obiettivo giornaliero raggiunto</string>
+    <string name="forge_gn_streak">Una serie a rischio, la sera</string>
+    <string name="forge_gn_badge">Un nuovo badge</string>
+    <string name="forge_gn_milestone">Un traguardo a lungo termine raggiunto</string>
+    <string name="forge_gn_footer">Disattivato per impostazione predefinita. Al massimo due notifiche sugli obiettivi al giorno, mai dopo le 21:00 o durante un allenamento. Suggerimenti e riepiloghi compaiono sempre nell’app. Valgono le ore di silenzio delle impostazioni notifiche.</string>
+    <string name="forge_gn_channel">Obiettivi</string>
 </resources>

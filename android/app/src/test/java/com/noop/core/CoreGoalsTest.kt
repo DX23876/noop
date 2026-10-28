@@ -41,4 +41,12 @@ class CoreGoalsTest {
             """{"workout":[],"night":[],"preview":[{"text":"This session reaches Workouts: 4/4","reaches":true}]}""")!!
         assertEquals(listOf(CoreGoals.Preview("This session reaches Workouts: 4/4", true)), preview.preview)
     }
+
+    @Test fun theGoalNoticesKeepTheirMessagesAndState() {
+        val notices = CoreGoals.parseNotices(
+            """{"messages":[{"id":"goal-event-2026-10-28-0","title":"⭐ Daily steps reached","body":"","evening":false}],"state":"{\"day\":\"2026-10-28\"}"}""")!!
+        assertEquals(listOf("goal-event-2026-10-28-0"), notices.messages.map { it.id })
+        assertEquals("""{"day":"2026-10-28"}""", notices.state)
+        assertEquals(null, CoreGoals.parseNotices("""{"error":"goalState"}"""))
+    }
 }

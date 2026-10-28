@@ -4261,4 +4261,11 @@
     <string name="forge_tc_skin_backfill">Backfill skin-temp absolutes</string>
     <string name="forge_tc_skin_backfill_detail">Re-derives the absolute °C for nights the 21-night rescore window never reaches, using the same funnel as the scoring pass. Fill-only: it never overwrites a measured value. Watch the strap log for the result.</string>
     <string name="forge_tc_skin_backfilling">Backfilling…</string>
+    <string name="forge_gn_title">Notifications</string>
+    <string name="forge_gn_reached">A daily goal reached</string>
+    <string name="forge_gn_streak">A streak in danger, in the evening</string>
+    <string name="forge_gn_badge">A new badge</string>
+    <string name="forge_gn_milestone">A long-term milestone reached</string>
+    <string name="forge_gn_footer">Off by default. At most two goal notifications a day, never after 21:00 or during a workout. Hints and reviews always appear in the app. Quiet hours from the notification settings apply.</string>
+    <string name="forge_gn_channel">Goals</string>
 </resources>

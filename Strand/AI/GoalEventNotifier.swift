@@ -38,11 +38,9 @@ enum GoalEventNotifier {
     static let eveningTickCategory = "noop.goal.evening.tick"
     static let tickAction = "noop.goal.tick"
     static let snoozeAction = "noop.goal.snooze"
-    static let dailyLimit = 2
+    static let dailyLimit = GoalEventPlan.dailyLimit
     /// Never later than this minute of the day (21:00).
-    static let latestMinute = 21 * 60
-    /// "Still doable" for a step streak in the evening: about 45 minutes of walking.
-    static let doableSteps = 45 * 110
+    static let latestMinute = GoalEventPlan.latestMinute
 
     /// Set by the workout surfaces while a session runs; a goal notification never interrupts one.
     static var workoutInProgress = false
@@ -90,114 +88,53 @@ enum GoalEventNotifier {
 
     // MARK: - Evaluation
 
-    /// Today's bookkeeping in one record, replaced when the day changes: how many went out, which goals
-    /// were already told, whether the evening reminder went.
-    private struct DayState: Codable {
+    /// The plan's bookkeeping, one record. Before it existed the day, the told badges and the milestone counts
+    /// lived under keys of their own; they are read once into it, so nothing already told is told again.
+    private static let stateKey = "goals.notify.state"
+    private static let dayStateKey = "goals.notify.day"
+    private static let toldBadgesKey = "goals.notify.toldBadges"
+
+    private struct LegacyDayState: Codable {
         var day: String
         var sent = 0
         var reached: [String] = []
         var eveningSent = false
     }
 
-    private static let dayStateKey = "goals.notify.day"
-    private static let toldBadgesKey = "goals.notify.toldBadges"
-
-    private static func dayState(_ day: String) -> DayState {
-        guard let data = UserDefaults.standard.data(forKey: dayStateKey),
-              let state = try? JSONDecoder().decode(DayState.self, from: data), state.day == day
-        else { return DayState(day: day) }
+    private static func loadState() -> GoalEventPlan.State {
+        let d = UserDefaults.standard
+        if let data = d.data(forKey: stateKey), let state = try? JSONDecoder().decode(GoalEventPlan.State.self, from: data) {
+            return state
+        }
+        var state = GoalEventPlan.State()
+        if let data = d.data(forKey: dayStateKey), let old = try? JSONDecoder().decode(LegacyDayState.self, from: data) {
+            state.day = old.day; state.sent = old.sent; state.reached = old.reached; state.eveningSent = old.eveningSent
+        }
+        state.toldBadges = d.stringArray(forKey: toldBadgesKey) ?? []
+        state.milestoneCounts = (d.dictionary(forKey: milestoneCountsKey) as? [String: Int]) ?? [:]
+        state.milestoneRoutes = (d.dictionary(forKey: milestoneRoutesKey) as? [String: String]) ?? [:]
         return state
     }
 
-    private static func save(_ state: DayState) {
-        if let data = try? JSONEncoder().encode(state) { UserDefaults.standard.set(data, forKey: dayStateKey) }
+    private static func save(_ state: GoalEventPlan.State) {
+        if let data = try? JSONEncoder().encode(state) { UserDefaults.standard.set(data, forKey: stateKey) }
+    }
+
+    private static func context(now: Date, calendar: Calendar) -> GoalEventPlan.Context {
+        GoalEventPlan.Context(kinds: Set(Kind.allCases.filter(isOn).compactMap { GoalEventPlan.Kind(rawValue: $0.rawValue) }),
+                              workoutInProgress: workoutInProgress, appIsActive: appIsActive,
+                              quiet: GoalNotifier.isQuiet(now, calendar: calendar),
+                              eveningMinute: eveningMinute(now: now, calendar: calendar),
+                              seenBadgeIds: GoalPrefs.seenBadgeIds)
     }
 
     static func evaluate(todayActions: [GoalActionOccurrence], motivation: GoalMotivationSnapshot?,
                          now: Date = Date(), calendar: Calendar = .autoupdatingCurrent) {
-        let day = GoalActionEvaluator.dayKey(now, calendar: calendar)
-        var state = dayState(day)
-
-        // What happened since the last look, marked as handled whether or not it is told: an event seen
-        // in the open app, in the quiet hours or past the daily limit is never sent hours later.
-        let freshReached = todayActions.filter {
-            $0.isCompleted && $0.fraction != nil && !state.reached.contains($0.action.id.uuidString)
-        }
-        state.reached += freshReached.map(\.action.id.uuidString)
-        var toldBadges = Set(UserDefaults.standard.stringArray(forKey: toldBadgesKey) ?? [])
-        let freshBadges = (motivation?.earned ?? []).filter {
-            !toldBadges.contains($0.id) && !GoalPrefs.seenBadgeIds.contains($0.id)
-        }
-        toldBadges.formUnion(freshBadges.map(\.id))
-        UserDefaults.standard.set(Array(toldBadges), forKey: toldBadgesKey)
-        defer { save(state) }
-
-        guard Kind.allCases.contains(where: isOn), !workoutInProgress, !appIsActive else { return }
-        let minute = calendar.component(.hour, from: now) * 60 + calendar.component(.minute, from: now)
-        guard minute < latestMinute, !GoalNotifier.isQuiet(now, calendar: calendar), state.sent < dailyLimit
-        else { return }
-
-        // Reached and new badges, in one notification.
-        var title: String?
-        var lines: [String] = []
-        if isOn(.reached), !freshReached.isEmpty {
-            title = freshReached.count == 1 ? String(localized: "⭐ \(freshReached[0].action.title) reached")
-                                            : String(localized: "⭐ \(freshReached.count) daily goals reached")
-            for o in freshReached {
-                if let streak = motivation?.streaks[o.action.id]?.current, streak >= 2 {
-                    lines.append(String(localized: "\(o.action.title): day \(streak) in a row."))
-                }
-            }
-        }
-        if isOn(.badge), !freshBadges.isEmpty {
-            if title == nil {
-                title = freshBadges.count == 1 ? String(localized: "New badge")
-                                               : String(localized: "\(freshBadges.count) new badges")
-            }
-            lines.append(freshBadges.prefix(2).map(\.title).joined(separator: " · "))
-        }
-        if let title {
-            post(id: "goal-event-\(day)-\(state.sent)", title: title, body: lines.joined(separator: " "), tickGoal: nil)
-            state.sent += 1
-            return
-        }
-
-        // Evening: a streak worth keeping that today has not met yet, while it is still doable.
-        guard isOn(.streak), !state.eveningSent, minute >= eveningMinute(now: now, calendar: calendar) else { return }
-        var text: String?
-        for o in todayActions where !o.isCompleted {
-            guard let streak = motivation?.streaks[o.action.id]?.current, streak >= 3,
-                  let measured = o.measured, let target = o.measuredTarget else { continue }
-            let left = target - measured
-            switch o.action.requirement {
-            case .steps where left > 0 && left <= Double(doableSteps):
-                let steps = Int(left.rounded())
-                text = String(localized: "\(steps.formatted()) steps to go for day \(streak + 1) in a row, about \(MomentumBuilder.walkMinutes(steps)) min of walking.")
-            case .activeCalories where left > 0 && left <= 250:
-                text = String(localized: "\(Int(left.rounded())) kcal to go for day \(streak + 1) in a row.")
-            default:
-                continue
-            }
-            break
-        }
-        // A box still to tick rides along; with exactly one, the notification can tick it.
-        let openTicks = todayActions.filter { !$0.isCompleted && isTick($0.action.requirement) }
-        guard text != nil || !openTicks.isEmpty else { return }
-        var body = text ?? ""
-        if !openTicks.isEmpty {
-            let names = openTicks.prefix(2).map(\.action.title).joined(separator: ", ")
-            body += (body.isEmpty ? "" : " ") + String(localized: "Still open: \(names).")
-        }
-        post(id: "goal-evening-\(day)",
-             title: text != nil ? String(localized: "Keep your streak") : String(localized: "Still open today"),
-             body: body, tickGoal: openTicks.count == 1 ? openTicks.first : nil, evening: true)
-        state.eveningSent = true
-        state.sent += 1
-    }
-
-    private static func isTick(_ requirement: GoalAction.Requirement) -> Bool {
-        if case .manual = requirement { return true }
-        return false
+        let (message, state) = GoalEventPlan.daily(todayActions: todayActions, motivation: motivation, state: loadState(),
+                                                   context: context(now: now, calendar: calendar), now: now,
+                                                   calendar: calendar)
+        save(state)
+        if let message { post(message) }
     }
 
     /// Three hours before the usual bedtime (wake time minus sleep need, from the wind-down settings),
@@ -249,63 +186,29 @@ enum GoalEventNotifier {
     private static let milestoneCountsKey = "goals.notify.milestones"
     private static let milestoneRoutesKey = "goals.notify.milestoneRoutes"
 
-    /// A long-term goal passing a waypoint (plan Q25). Counted on every refresh and marked as seen
-    /// whether or not it is told, like the daily events; the first count of a goal only records where
-    /// it stands, so a goal that started past its first marks does not announce them.
+    /// A long-term goal passing a waypoint (plan Q25), as `GoalEventPlan.longTerm` decides it.
     static func evaluateLongTerm(_ snapshots: [GoalTrackingSnapshot], now: Date = Date(),
                                  calendar: Calendar = .autoupdatingCurrent) {
-        var counts = (UserDefaults.standard.dictionary(forKey: milestoneCountsKey) as? [String: Int]) ?? [:]
-        var routes = (UserDefaults.standard.dictionary(forKey: milestoneRoutesKey) as? [String: String]) ?? [:]
-        var fresh: [String] = []
-        var newMarks = 0
-        for snapshot in snapshots where snapshot.goal.status == .active {
-            guard let (window, metric) = milestones(snapshot.reading) else { continue }
-            let key = snapshot.id.uuidString
-            let step = MilestoneLedger.advance(high: counts[key], storedRoute: routes[key], window: window)
-            if step.fresh > 0 {
-                newMarks += step.fresh
-                fresh.append(String(localized: "\(snapshot.displayTitle): \(LongTermFormat.value(window.values[step.high - 1], metric))"))
-            }
-            counts[key] = step.high
-            routes[key] = MilestoneLedger.route(window)
-        }
-        UserDefaults.standard.set(counts, forKey: milestoneCountsKey)
-        UserDefaults.standard.set(routes, forKey: milestoneRoutesKey)
-
-        guard !fresh.isEmpty, isOn(.milestone), !workoutInProgress, !appIsActive else { return }
-        let day = GoalActionEvaluator.dayKey(now, calendar: calendar)
-        var state = dayState(day)
-        let minute = calendar.component(.hour, from: now) * 60 + calendar.component(.minute, from: now)
-        guard minute < latestMinute, !GoalNotifier.isQuiet(now, calendar: calendar), state.sent < dailyLimit
-        else { return }
-        post(id: "goal-milestone-\(day)-\(state.sent)",
-             title: newMarks == 1 ? String(localized: "Milestone reached") : String(localized: "\(newMarks) milestones reached"),
-             body: fresh.prefix(2).joined(separator: " · "), tickGoal: nil)
-        state.sent += 1
+        let (message, state) = GoalEventPlan.longTerm(snapshots, state: loadState(),
+                                                      context: context(now: now, calendar: calendar), now: now,
+                                                      calendar: calendar)
         save(state)
+        if let message { post(message) }
     }
 
-    private static func milestones(_ reading: GoalShapeReading?) -> (LongTermGoalMath.MilestoneWindow, LongTermMetric)? {
-        switch reading {
-        case .sum(let d)?: return d.milestones.map { ($0, d.metric) }
-        case .target(let d)?: return d.milestones.map { ($0, d.metric) }
-        case .best(let d)?: return d.milestones.map { ($0, .longestDistance) }
-        default: return nil
-        }
-    }
-
-    private static func post(id: String, title: String, body: String, tickGoal: GoalActionOccurrence?,
-                             evening: Bool = false) {
+    private static func post(_ message: GoalEventPlan.Message) {
         let content = UNMutableNotificationContent()
-        content.title = title
-        content.body = body
+        content.title = message.title
+        content.body = message.body
         content.sound = .default
-        content.categoryIdentifier = !evening ? category : (tickGoal != nil ? eveningTickCategory : eveningCategory)
+        content.categoryIdentifier = !message.evening ? category
+            : (message.tickGoalId != nil ? eveningTickCategory : eveningCategory)
         content.threadIdentifier = "noop.goals"
-        if let tickGoal {
-            content.userInfo = ["goalId": tickGoal.action.id.uuidString, "day": tickGoal.day]
+        if let goal = message.tickGoalId, let day = message.tickDay {
+            content.userInfo = ["goalId": goal, "day": day]
         }
-        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: id, content: content, trigger: nil))
+        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: message.id, content: content,
+                                                                     trigger: nil))
     }
 
 }

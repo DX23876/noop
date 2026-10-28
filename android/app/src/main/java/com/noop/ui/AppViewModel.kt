@@ -1083,6 +1083,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         target21 = optimalStrainRange(todayRow.recovery)?.low,
                     )
                 }
+                // Parity plan 2.3: the goal notifications iOS sends after each goals refresh (a goal reached, a
+                // streak in danger, a badge, a milestone), decided by the shared core. Nothing while every kind is off.
+                viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                    runCatching {
+                        com.noop.notif.GoalNoticeNotifier.evaluate(
+                            appContext, com.noop.ui.forge.dismissedTrainingWorkouts(appContext),
+                            workoutInProgress = _activeWorkout.value != null,
+                        )
+                    }
+                }
                 // v5 skin-temp suite: run the Cycle / Body-clock / Illness-heads-up engines over the same
                 // cached history and publish their RESULTS for the Health hub. The richer IllnessSignalEngine
                 // here is the v5 replacement for AppModel.evaluateIllness's body (the macOS Result analogue);

@@ -538,39 +538,7 @@ extension DailyGoalSlot.Runs {
 
 // MARK: - Badges
 
-extension GoalMotivation.Badge {
-    var title: String {
-        switch family {
-        case .dailySteps: return String(localized: "\(threshold.formatted()) steps in a day")
-        case .lifetimeSteps: return String(localized: "\(threshold.formatted()) steps in total")
-        case .stepStreak: return String(localized: "\(threshold) days in a row")
-        case .weeksReached:
-            return threshold == 1 ? String(localized: "First weekly goal reached")
-                                  : String(localized: "\(threshold) weekly goals reached")
-        case .workouts: return String(localized: "\(threshold) workouts")
-        }
-    }
-
-    /// The short figure on the medal. Some locales (German among them) do not abbreviate thousands, so
-    /// from 100,000 on a figure the locale left whole is written with the SI "k": "500.000" did not fit.
-    var shortValue: String {
-        guard threshold >= 1_000 else { return "\(threshold)" }
-        let compact = threshold.formatted(.number.notation(.compactName))
-        guard threshold >= 100_000, !compact.contains(where: \.isLetter) else { return compact }
-        return "\((threshold / 1_000).formatted())k"
-    }
-}
-
 extension GoalMotivation.BadgeFamily {
-    var title: String {
-        switch self {
-        case .dailySteps: return String(localized: "Steps in a day")
-        case .lifetimeSteps: return String(localized: "Steps in total")
-        case .stepStreak: return String(localized: "Step goal streaks")
-        case .weeksReached: return String(localized: "Weekly goals reached")
-        case .workouts: return String(localized: "Workouts")
-        }
-    }
     var symbol: String {
         switch self {
         case .dailySteps: return "figure.walk"
