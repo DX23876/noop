@@ -122,6 +122,16 @@ Jeweils Logik und Speicher, ohne Oberfläche:
   2026-10-28 in StrandCore (`URLSession.streamedBytes(for:)`, `StreamedBytes` mit Byte- und Zeilenlesen wie
   `AsyncBytes.lines`), getestet auf macOS gegen einen Stub und für Android kompiliert; die Provider nutzen ihn,
   sobald der Coach für Android gebaut wird.
+  Bestandsaufnahme für den ersten Schritt (2026-10-28): `Strand/AI` hat 95 Dateien mit rund 27.000 Zeilen, 40
+  davon sind schon im Kern verlinkt. An UI- oder Benachrichtigungs-Frameworks hängen `CoachCardArtifact`,
+  `CoachChart`, `CoachIdentity`, `GoalEventNotifier`, `GoalMaintenance` und `PlanReminder`; sie bleiben App-seitig
+  oder bekommen eine geteilte Logikhälfte wie `GoalEventPlan`. 21 Dateien lesen über das Apple-`Repository`
+  (allen voran `AICoach.swift` mit 4.691 Zeilen), mit 35 verschiedenen Lesefunktionen. Die häufigsten sind
+  `storeHandle` (10, direkter Store-Zugriff, einzeln aufzulösen), `workoutRows` (9), `journalEntries` (8), `series`
+  (4), `resolvedStrengthHistory` und `exploreSeries` (je 3). Fast alle haben schon ein Gegenstück im Kern
+  (`StoreReader`, `GoalInputReading`, `WeightSeries`, `BodyMetricsReader`, Energie- und Trainingsleser). Der erste
+  Schritt ist deshalb ein `CoachDataReading`-Protokoll über genau diese Lesefunktionen, das `Repository` und ein
+  Kern-Host erfüllen, wie `GoalInputReading` für die Ziele.
 
 Jede Verschiebung bekommt Kern-Tests auf macOS. Der Echtdaten-Vergleich läuft dort, wo Werte gespeichert
 werden.
