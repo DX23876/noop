@@ -27,6 +27,17 @@ Each one counts once it worked, with a strap log from that day (**More → Share
 Report the result as an issue with the **Android bug report (testing)** form, also when everything worked (say
 so in "What happened"). Attach the strap log.
 
+### Also worth a look (no strap needed)
+
+These pages compute in the same shared core as the iPhone app. If a number differs from what your iPhone shows
+for the same data, or a page does not open, say which page and what you saw.
+
+- **More → Health & Body:** Body (weight, tape measurements, progress photos), Energy (plan, and the day's
+  detail behind it), Saved ECGs, Momentum.
+- **More → Analysis → Coach:** the conversation history and the plan book in the chat's header.
+- **More → Goals:** daily, weekly and long-term goals, badges and records.
+- **Settings → Lab:** AgeLess, Daily rhythm and Training-based VO₂max, all off by default.
+
 ## The experimental switch
 
 **More → Experimental → Shared core confirms history** is off by default. On, the strap only deletes its
