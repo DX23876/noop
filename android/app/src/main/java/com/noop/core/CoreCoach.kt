@@ -126,6 +126,14 @@ object CoreCoach {
         )
     }
 
+    /** The coach instructions of the shared coach and whether they differ from its default; [set] changes them. */
+    fun prompt(set: String? = null): Pair<String, Boolean>? {
+        val o = call(if (set == null) "coach.prompt" else "coach.prompt.set",
+                     JSONObject().apply { set?.let { put("prompt", it) } }.toString()) ?: return null
+        if (!o.has("prompt")) return null
+        return o.getString("prompt") to o.optString("custom").isNotEmpty()
+    }
+
     /** One saved thread in the history (`CoachHistoryView`). */
     data class Conversation(
         val id: String, val title: String, val preview: String, val updatedAt: Long, val pinned: Boolean,

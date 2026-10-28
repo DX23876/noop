@@ -111,6 +111,10 @@ enum CoreCoach {
             default: break
             }
             return CoreRead.json(MemoryState(memory))
+        case "coach.prompt", "coach.prompt.set":
+            // The coach instructions the editor shows and changes (`customSystemPrompt`); blank restores the default.
+            if op == "coach.prompt.set", let prompt = args["prompt"] as? String { coach.customSystemPrompt = prompt }
+            return CoreRead.json(["prompt": coach.customSystemPrompt, "custom": coach.hasCustomSystemPrompt ? "1" : ""])
         case "coach.identity":
             return CoreRead.json(IdentityState(CoreCoachIdentity.load()))
         case "coach.identity.set":

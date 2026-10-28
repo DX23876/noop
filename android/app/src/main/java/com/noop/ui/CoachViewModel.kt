@@ -230,18 +230,30 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
     /** True when an edited prompt differs from the default, gates the "Reset to default" control. */
     val hasCustomPrompt: StateFlow<Boolean> = _hasCustomPrompt.asStateFlow()
 
-    /** Persist the edited [prompt] (blank clears it back to default) and reflect it in the editor. */
-    fun setSystemPrompt(ctx: Context, prompt: String) {
-        NoopPrefs.setCoachSystemPrompt(ctx, prompt)
-        _systemPrompt.value = prompt
-        _hasCustomPrompt.value = prompt.isNotBlank() && prompt.trim() != AiCoach.DEFAULT_SYSTEM_PROMPT
+    /** Shows the shared coach's instructions in the editor: the ones that actually frame every reply. */
+    fun loadSystemPrompt() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { CoreCoach.prompt() }?.let { (prompt, custom) ->
+                _systemPrompt.value = prompt; _hasCustomPrompt.value = custom
+            }
+        }
     }
 
-    /** Restore the built-in default prompt by clearing any override. */
-    fun resetSystemPrompt(ctx: Context) {
-        NoopPrefs.setCoachSystemPrompt(ctx, "")
-        _systemPrompt.value = AiCoach.DEFAULT_SYSTEM_PROMPT
-        _hasCustomPrompt.value = false
+    /** Persist the edited [prompt] in the shared coach (blank restores its default) and reflect it in the editor. */
+    fun setSystemPrompt(@Suppress("UNUSED_PARAMETER") ctx: Context, prompt: String) {
+        _systemPrompt.value = prompt
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { CoreCoach.prompt(set = prompt) }?.let { (_, custom) -> _hasCustomPrompt.value = custom }
+        }
+    }
+
+    /** Restore the shared coach's default instructions. */
+    fun resetSystemPrompt(@Suppress("UNUSED_PARAMETER") ctx: Context) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { CoreCoach.prompt(set = "") }?.let { (prompt, custom) ->
+                _systemPrompt.value = prompt; _hasCustomPrompt.value = custom
+            }
+        }
     }
 
     // Bumped whenever the stored key changes so the UI recomposes its setup/chat gate.

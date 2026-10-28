@@ -849,8 +849,13 @@ final class AICoachEngine: ObservableObject {
 
     /// The user's stored prompt override, or the default when nothing custom is set. The UI binds its
     /// editor to this: writing persists the override; writing a blank string clears it (back to default).
+    /// Only the editable instructions (`base` in `systemPrompt(toolsActive:)`), never the composed prompt:
+    /// handing the editor the identity, persona and clauses would save them into the override on the next edit.
     var customSystemPrompt: String {
-        get { systemPrompt }
+        get {
+            let stored = UserDefaults.standard.string(forKey: Self.systemPromptKey)
+            return (stored?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false) ? stored! : Self.defaultSystemPrompt
+        }
         set {
             let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
             if trimmed.isEmpty || trimmed == Self.defaultSystemPrompt {

@@ -237,6 +237,7 @@ private fun CoachInstructions(vm: CoachViewModel) {
     val context = LocalContext.current
     val prompt by vm.systemPrompt.collectAsStateWithLifecycle()
     val hasCustom by vm.hasCustomPrompt.collectAsStateWithLifecycle()
+    androidx.compose.runtime.LaunchedEffect(Unit) { vm.loadSystemPrompt() }
     var expanded by remember { mutableStateOf(false) }
 
     val headerInteraction = remember { MutableInteractionSource() }

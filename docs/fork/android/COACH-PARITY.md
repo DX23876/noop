@@ -10,20 +10,20 @@ screen and its `coach.*` operation in `CoreCoach.swift`.
 
 | iOS | Android | Note |
 |---|---|---|
-| Header row: coach avatar (breathing while writing), name, "Your coach" / "Thinking…" | 🟡 | layout done; avatar fixed to Svea until identity exists |
+| Header row: coach avatar (breathing while writing), name, "Your coach" / "Thinking…" | ✅ | avatar and name follow the identity |
 | Header: plan book with "waiting" dot, New chat, overflow (history, goal, settings, goal setup) | 🟡 | plan, new chat, history, settings; no waiting dot, no goal entries |
 | Empty state: portrait, "Hi, I'm …", what the coach reads, suggestion cloud | ✅ | |
-| Question bubble (accent, tight sender corner), long-press Copy, Share, Edit and ask again | 🟡 | no "Edit and ask again" |
+| Question bubble (accent, tight sender corner), long-press Copy, Share, Edit and ask again | ✅ | |
 | Reply without bubble beside avatar, Markdown, streaming word by word with caret | 🟡 | Markdown; no streaming animation or caret |
-| Reply long-press: Copy, Share, Regenerate, Look at this more closely | 🟡 | Copy, Share, Save to journal; no Regenerate, no deeper look |
-| Charts in chat (`plot_metric`), cards in chat (`show_card`) | ❌ | engine makes them; not passed over `coach.state` |
-| Evidence chain under a reply (tools used, local context) | ❌ | |
+| Reply long-press: Copy, Share, Regenerate, Look at this more closely | ✅ | plus Save to journal |
+| Charts in chat (`plot_metric`), cards in chat (`show_card`) | ✅ | |
+| Evidence chain under a reply (tools used, local context) | ✅ | wording in the shared `CoachChatLabels.swift` |
 | Memory receipt (what this reply saved, undo) | ❌ | |
-| "The coach got in touch" label on brief, nudge, weekly review | ❌ | |
+| "The coach got in touch" label on brief, nudge, weekly review | ✅ | |
 | Action row: Review draft goal, Review routine, Review workout, Schedule a session | ❌ | |
-| Time separators | ❌ | |
+| Time separators | ✅ | |
 | Typing indicator | ✅ | |
-| Error banner with Retry (wait seconds), consent-off banner | 🟡 | error line only |
+| Error banner with Retry (wait seconds), consent-off banner | 🟡 | Retry waits, re-enter key; no consent-off banner |
 | Card follow-up chips | ❌ | |
 | Composer: glass capsule, mic, send/stop | ✅ | |
 | First-use sheet, goal onboarding sheet | ❌ | |
@@ -35,20 +35,20 @@ screen and its `coach.*` operation in `CoreCoach.swift`.
 | Connection & model: provider, key, custom URL and header, model picker, Custom model, check connection, forget key, reconnect | 🟡 | Kotlin setup screen covers provider, key, URL, model; no connection check, no forget/reconnect page |
 | Background models (summary, card analysis, deep analysis) per role | ❌ | |
 | Quick presets | ❌ | |
-| Coach identity: name, avatar (Svea, Marv, symbol, own photo), voice | ❌ | `CoachIdentityEditor` |
-| Emoji in replies | ❌ | |
-| Reply length | ❌ | |
-| Proactive messages level | ❌ | |
-| Coaching style (persona) | ❌ | |
-| Coach instructions (system prompt) | 🟡 | Kotlin editor; not passed to the shared coach yet |
+| Coach identity: name, avatar (Svea, Marv, symbol, own photo), voice | ✅ | |
+| Emoji in replies | ✅ | |
+| Reply length | ✅ | |
+| Proactive messages level | ✅ | |
+| Coaching style (persona) | ✅ | |
+| Coach instructions (system prompt) | ✅ | the editor reads and writes the shared coach's (`coach.prompt`) |
 | Morning suggestion on Today | ❌ | |
 | Morning brief with time | 🟡 | Kotlin brief, not the shared coach's |
 | Daily check-in (fixed time or after waking) | ❌ | |
 | Plan reminders | ❌ | |
 | Goal & Journey (`CoachGoalView`, `CoachGoalJourneyView`, setup review) | ❌ | |
-| Memory: facts list with category, edit, expiry, source, add fact, forget all, summarise past chats | ❌ | |
+| Memory: facts list with category, edit, expiry, source, add fact, forget all, summarise past chats | ✅ | |
 | Semantic memory switch and status | ❌ | no embedding model on Android (plan decision) |
-| Privacy & data: Enable AI Coach, privacy level, data access purposes (8 switches), share patterns & Lab Book, let the coach use my data | 🟡 | only "Let the coach use my data" |
+| Privacy & data: Enable AI Coach, privacy level, data access purposes (8 switches), share patterns & Lab Book, let the coach use my data | 🟡 | all but Enable AI Coach |
 | How Coach works (`CoachInfoView`) | ❌ | |
 | Usage: last question, today, this session | ❌ | |
 | Coach on Today: show coach, avatar, banner, floating button, position, lock | ❌ | |
