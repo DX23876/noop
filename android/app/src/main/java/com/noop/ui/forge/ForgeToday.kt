@@ -148,7 +148,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
         Header(shown, isToday = shown == today)
         Hero(model?.day, width)
         // Goals sit after the hero, as in the iOS Today order (`TodayLayoutPrefs.defaultOrder`), on today only.
-        if (shown == today) { ForgeTodayMomentum(viewModel); TodayGoals() }
+        if (shown == today) { ForgeTodayMomentum(viewModel); ForgeTodayCoach(viewModel); TodayGoals() }
         HeartCard(viewModel, shown, live = shown == today)
         KeyMetrics(model, columns = if (width == ForgeWidth.Compact) 2 else 3)
         if (shown == today) TodayEnergy()

@@ -51,7 +51,7 @@ screen and its `coach.*` operation in `CoreCoach.swift`.
 | Privacy & data: Enable AI Coach, privacy level, data access purposes (8 switches), share patterns & Lab Book, let the coach use my data | ✅ | Enable AI Coach is Android's own switch (`NoopPrefs.coachEnabled`) |
 | How Coach works (`CoachInfoView`) | ✅ | without the two paragraphs on the iPhone's on-device search |
 | Usage: last question, today, this session | ✅ | |
-| Coach on Today: show coach, avatar, banner, floating button, position, lock | ❌ | |
+| Coach on Today: show coach, avatar, banner, floating button, position, lock | 🟡 | the card follows the master switch; no separate Today switch, no floating button |
 
 ## Elsewhere
 
@@ -59,4 +59,4 @@ screen and its `coach.*` operation in `CoreCoach.swift`.
 |---|---|---|
 | Coach history (`CoachHistoryView`) | ✅ | |
 | Plan book (`CoachPlanView`) | ✅ | with time, move-day and swap |
-| Today launcher sheet (`CoachLauncherSheet`), Today coach card (`DashboardCoachCard`) | ❌ | |
+| Today launcher sheet (`CoachLauncherSheet`), Today coach card (`DashboardCoachCard`) | ✅ | the card's sentence is Momentum's (`MomentumCopy.stateDetail`) |

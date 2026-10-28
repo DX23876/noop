@@ -32,6 +32,7 @@ enum CoreCoach {
         // The plan book needs no engine: it is the shared store the coach's tools write into.
         if op.hasPrefix("coach.plan") { return CorePlan.run(op, args: args) }
         // The daily check-in needs no engine either: the learned wake time and its words.
+        if op == "coach.today" { return CoreRead.json(await TodayCoachCard(reader: reader)) }
         if op == "coach.checkin" { return CoreRead.json(await CheckInState(reader: reader, fixedMinutes: args["fixedMinutes"] as? Int ?? 480)) }
         let coach = await engine(reader: reader, settings: CoreGoalEnergy.settings(args))
         let id = (args["id"] as? String).flatMap(UUID.init(uuidString:))
@@ -702,5 +703,32 @@ struct CheckInState: Encodable {
             let fallback = clock(fixedMinutes)
             labels["wakeReadout"] = String(localized: "Learning your wake time from your sleep. Until there's enough, it uses your fixed time (\(fallback)).")
         }
+    }
+}
+
+/// The coach card on Today (`DashboardCoachCard`) and the words of its launcher (`CoachLauncherSheet`). The sentence
+/// is Momentum's own read of today (`MomentumCopy.stateDetail`), so the card can never tell the wearer something
+/// different from Today's Momentum card.
+struct TodayCoachCard: Encodable {
+    var overline: String, greeting: String, detail: String, badge: String
+    var intro: String, ask: String, cancel: String, title: String
+
+    @MainActor init(reader: StoreReader, now: Date = Date()) async {
+        let todayKey = LogicalDay.key(now)
+        let from = StoreReader.localDayKey(now.addingTimeInterval(-2 * 86_400))
+        let to = StoreReader.localDayKey(now.addingTimeInterval(86_400))
+        let days = StoreReader.mergeDaily(imported: await reader.unionDailyMetrics(from: from, to: to),
+                                          computed: await reader.unionComputedDailyMetrics(from: from, to: to))
+        let display = days.last { $0.day == todayKey }
+        overline = "\("Your coach".localizedCatalogValue) \(CoreCoachIdentity.load().name)".uppercased()
+        let h = Calendar.current.component(.hour, from: now)
+        let greet = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"
+        greeting = "\(greet.localizedCatalogValue) \(h < 17 ? "☀️" : "🌙")"
+        detail = MomentumCopy.stateDetail(display)
+        badge = "Today's recommendation".localizedCatalogValue
+        intro = "Ask about your charge, effort, rest and workouts, grounded in your own numbers.".localizedCatalogValue
+        ask = "Ask your coach…".localizedCatalogValue
+        cancel = "Cancel".localizedCatalogValue
+        title = "Coach".localizedCatalogValue
     }
 }

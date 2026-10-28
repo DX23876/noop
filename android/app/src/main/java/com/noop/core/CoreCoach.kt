@@ -148,6 +148,17 @@ object CoreCoach {
         return o.optString("ok").isNotEmpty() to o.optString("line")
     }
 
+    /** The coach card on Today and its launcher's words (`DashboardCoachCard`, `CoachLauncherSheet`). */
+    data class TodayCard(val overline: String, val greeting: String, val detail: String, val badge: String,
+                         val intro: String, val ask: String, val cancel: String, val title: String)
+
+    fun todayCard(): TodayCard? {
+        val o = call("coach.today", "{}") ?: return null
+        if (!o.has("overline")) return null
+        return TodayCard(o.getString("overline"), o.optString("greeting"), o.optString("detail"), o.optString("badge"),
+                         o.optString("intro"), o.optString("ask"), o.optString("cancel"), o.optString("title"))
+    }
+
     /** An agreed session with a time still ahead, and the words of its reminder (`PlanReminder`). */
     data class PlanReminder(val id: String, val at: Double, val title: String, val body: String)
 

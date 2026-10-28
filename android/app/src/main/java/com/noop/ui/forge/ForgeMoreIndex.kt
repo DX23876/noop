@@ -353,7 +353,7 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
 
 /** The coach chat with its history and plan book a tap away, as the chat header offers them on iOS. */
 @Composable
-private fun ForgeCoachDestination(title: String, onBack: () -> Unit, onOpen: (MoreDest) -> Unit) {
+internal fun ForgeCoachDestination(title: String, onBack: () -> Unit, onOpen: (MoreDest) -> Unit) {
     val vm = viewModel<CoachViewModel>()
     var sub by remember { mutableStateOf<String?>(null) }
     androidx.activity.compose.BackHandler(enabled = sub != null) { sub = if (sub == "identity" || sub == "memory" || sub == "info") "settings" else null }
