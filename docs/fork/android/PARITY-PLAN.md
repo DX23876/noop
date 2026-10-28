@@ -113,6 +113,12 @@ Jeweils Logik und Speicher, ohne Oberfläche:
 - **Coach:** wird ein eigenes Paket `StrandCoach` aus `Strand/AI` (rund 23.000 Zeilen; nur 4 Dateien hängen an
   UI-Frameworks), ohne `CoachSemanticMemory`. Netzwerk und Streaming laufen über ein Host-Protokoll, und
   Kotlin übernimmt das HTTP, falls FoundationNetworking auf Android nicht trägt (gleich zu Beginn prüfen).
+  Geprüft am 2026-10-28: HTTPS über FoundationNetworking trägt auf Android (der Hevy-Client des Kerns erreichte
+  den Server und bekam das erwartete 401, `libFoundationNetworking.so` wird schon mitgeliefert). Es fehlt aber
+  `URLSession.bytes(for:)` (AsyncBytes), mit dem `AIProvider`, `AnthropicStreaming`, `OpenAICompatibleStreaming`
+  und `GeminiTools` die Antworten streamen; vorhanden sind nur Datentasks mit Delegate. Der Coach braucht deshalb
+  für Android einen kleinen Adapter, der einen Delegate-Datentask als `AsyncThrowingStream` von Bytes liefert und
+  hinter derselben Schnittstelle sitzt; der Rest des Netzwerkteils kann bleiben.
 
 Jede Verschiebung bekommt Kern-Tests auf macOS. Der Echtdaten-Vergleich läuft dort, wo Werte gespeichert
 werden.

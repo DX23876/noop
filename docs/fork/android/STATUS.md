@@ -137,7 +137,8 @@ milestones and the journey, badges, streaks, records, notifications and a widget
 Momentum has its shared builder/resolver, core localization and Android presentation under validation;
 full Today context and the charge/Coach/live-session destinations remain open. AgeLess and daily rhythm
 already compute in the core but need their screens. The energy plan, body (photos, weight, body model),
-Coach goals/plans/history (llama.cpp on Android unverified), GPS elevation, ECG and the sleep debt ledger
+Coach goals/plans/history (llama.cpp on Android unverified; HTTPS through the core works, streaming needs a
+data-task adapter because Android's FoundationNetworking has no `URLSession.bytes(for:)`, see PARITY-PLAN 1.2), GPS elevation, ECG and the sleep debt ledger
 remain open. Semantic Coach memory is outside this testing release. Remaining Apple app computations to
 move into the core include the Coach context builder; energy summary preparation, goal/Momentum evaluation,
 today's daytime stress, the skin-temperature backfill and the body-measurement reader are now shared.
