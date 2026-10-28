@@ -4492,4 +4492,13 @@
     <string name="coach_memory_forget_all">Esquecer tudo</string>
     <string name="coach_memory_forget_all_title">Esquecer tudo?</string>
     <string name="coach_memory_forget_all_body">Todos os factos que o coach lembra são eliminados. Não é possível anular.</string>
+    <string name="forge_goals_past">Objetivos anteriores</string>
+    <string name="forge_goals_past_reached">Alcançado</string>
+    <string name="forge_goals_past_set_aside">Posto de lado</string>
+    <string name="forge_goals_past_archived">Arquivado</string>
+    <string name="forge_lt_aside_injury">Lesão ou saúde</string>
+    <string name="forge_lt_aside_busy">Demasiado ocupado</string>
+    <string name="forge_lt_aside_priorities">Prioridades mudaram</string>
+    <string name="forge_lt_aside_none">Sem motivo especial</string>
+    <string name="coach_goals_journey">Objetivos e percurso</string>
 </resources>

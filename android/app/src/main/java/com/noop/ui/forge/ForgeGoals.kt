@@ -29,6 +29,8 @@ import androidx.compose.material.icons.rounded.TrackChanges
 import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.DirectionsRun
 import androidx.compose.material.icons.rounded.DirectionsWalk
 import androidx.compose.material.icons.rounded.Eco
@@ -249,6 +251,7 @@ private fun GoalsOverview(output: CoreGoals.Output?, loaded: Boolean, onBack: ()
                 }
             }
         }
+        if (output.past.isNotEmpty()) PastGoalsCard(output.past)
         AchievementsCard(motivation, output.motivationEnabled, onOpen = onBadges, onSwitch = { on ->
             scope.launch {
                 withContext(Dispatchers.IO) { CoreGoals.changeMotivation(enabled = on) }
@@ -1003,6 +1006,38 @@ internal fun PublishGoalsWidget(output: CoreGoals.Output?) {
 @Composable
 private fun periodWidgetGoal(goal: CoreGoals.Period) = com.noop.widget.GoalsGlanceWidget.Goal(
     shortName(goal), progressText(goal), goal.fraction.coerceIn(0.0, 1.0), stateWord(goal.state))
+
+/** Goals that were reached, set aside or archived, folded until opened, as the iOS journey's "Past goals". */
+@Composable
+private fun PastGoalsCard(past: List<CoreGoals.Past>) {
+    var open by remember { mutableStateOf(false) }
+    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+        Row(Modifier.fillMaxWidth().clickable(role = Role.Button) { open = !open }.padding(vertical = ForgeMetrics.space2),
+            verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.forge_goals_past), style = Forge.type.headline, color = Forge.colors.text,
+                 modifier = Modifier.weight(1f))
+            Text("${past.size}", style = Forge.type.caption, color = Forge.colors.textTertiary)
+            Spacer(Modifier.width(ForgeMetrics.space1))
+            Icon(if (open) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown, contentDescription = null,
+                 tint = Forge.colors.textTertiary, modifier = Modifier.size(18.dp))
+        }
+        if (open) {
+            past.forEach { g ->
+                RowDivider()
+                Column(Modifier.fillMaxWidth().padding(vertical = ForgeMetrics.space2)) {
+                    Text(g.title, style = Forge.type.body, color = Forge.colors.text)
+                    val state = stringResource(when (g.status) {
+                        "achieved" -> R.string.forge_goals_past_reached
+                        "abandoned" -> R.string.forge_goals_past_set_aside
+                        else -> R.string.forge_goals_past_archived
+                    })
+                    Text(listOfNotNull(state, g.closedOn, g.reason).joinToString(" · "), style = Forge.type.caption,
+                         color = Forge.colors.textSecondary)
+                }
+            }
+        }
+    }
+}
 
 // MARK: - Words and numbers (`GoalFormat`, `GoalStatusStyle`)
 

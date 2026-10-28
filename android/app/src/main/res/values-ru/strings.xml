@@ -4395,4 +4395,13 @@
     <string name="coach_memory_forget_all">Забыть всё</string>
     <string name="coach_memory_forget_all_title">Забыть всё?</string>
     <string name="coach_memory_forget_all_body">Все факты, которые помнит тренер, будут удалены. Это нельзя отменить.</string>
+    <string name="forge_goals_past">Прошлые цели</string>
+    <string name="forge_goals_past_reached">Достигнута</string>
+    <string name="forge_goals_past_set_aside">Отложена</string>
+    <string name="forge_goals_past_archived">В архиве</string>
+    <string name="forge_lt_aside_injury">Травма или здоровье</string>
+    <string name="forge_lt_aside_busy">Было не до того</string>
+    <string name="forge_lt_aside_priorities">Приоритеты изменились</string>
+    <string name="forge_lt_aside_none">Без особой причины</string>
+    <string name="coach_goals_journey">Цели и путь</string>
 </resources>

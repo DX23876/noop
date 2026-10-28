@@ -55,7 +55,11 @@ object CoreGoals {
     )
     data class Output(val period: List<Period>, val longTerm: List<LongTerm>, val today: List<Action>,
                       val week: List<Action>, val spotlight: Spotlight, val daily: List<DailySlot>,
-                      val periodLimit: Int, val motivation: Motivation? = null, val motivationEnabled: Boolean = true)
+                      val periodLimit: Int, val motivation: Motivation? = null, val motivationEnabled: Boolean = true,
+                      val past: List<Past> = emptyList())
+
+    /** A goal that was reached, set aside or archived (`CoachGoalJourneyView.pastGoals`). */
+    data class Past(val id: String, val title: String, val status: String, val closedOn: String?, val reason: String?)
 
     /** Badges, streaks and records as the core words them (`GoalMotivationSnapshot`); null while switched off. */
     data class Badge(val id: String, val family: String, val familyTitle: String, val title: String,
@@ -270,6 +274,8 @@ object CoreGoals {
             periodLimit = o.optInt("periodLimit", 6),
             motivation = o.optJSONObject("motivation")?.let(::motivation),
             motivationEnabled = o.optBoolean("motivationEnabled", true),
+            past = o.optJSONArray("past").objects().map { Past(it.getString("id"), it.getString("title"), it.getString("status"),
+                                                               it.str("closedOn"), it.str("reason")) },
         )
     }
 

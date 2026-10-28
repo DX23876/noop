@@ -4470,4 +4470,13 @@
     <string name="coach_memory_forget_all">全部忘记</string>
     <string name="coach_memory_forget_all_title">全部忘记？</string>
     <string name="coach_memory_forget_all_body">教练记住的所有内容都会被删除，且无法撤销。</string>
+    <string name="forge_goals_past">过去的目标</string>
+    <string name="forge_goals_past_reached">已达成</string>
+    <string name="forge_goals_past_set_aside">已搁置</string>
+    <string name="forge_goals_past_archived">已归档</string>
+    <string name="forge_lt_aside_injury">受伤或健康原因</string>
+    <string name="forge_lt_aside_busy">太忙了</string>
+    <string name="forge_lt_aside_priorities">优先事项变了</string>
+    <string name="forge_lt_aside_none">没有特别原因</string>
+    <string name="coach_goals_journey">目标与历程</string>
 </resources>

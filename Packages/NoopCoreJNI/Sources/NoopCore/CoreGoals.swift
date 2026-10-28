@@ -102,6 +102,12 @@ public enum CoreGoals {
         /// Badges, streaks and records (`GoalMotivationSnapshot`); nil while motivation is switched off.
         public var motivation: Motivation? = nil
         public var motivationEnabled = true
+        /// Goals that were reached, set aside or archived, newest first, as the iOS journey's "Past goals" lists them.
+        public var past: [Past] = []
+    }
+
+    public struct Past: Encodable {
+        public var id: String, title: String, status: String, closedOn: String?, reason: String?
     }
 
     /// The motivation the goals page shows, worded by the shared badge texts (`GoalEventPlan`).
@@ -188,7 +194,13 @@ public enum CoreGoals {
                           spotlight: spotlight(spot, periods: model.periodSnapshots),
                           daily: DailyGoalSlot.allCases.map { daily($0, actions: context.actions.actions, today: today) },
                           periodLimit: GoalPrefs.periodLimit, updatedAt: now.timeIntervalSince1970,
-                          motivation: model.motivation.map(motivation), motivationEnabled: GoalPrefs.motivationEnabled)
+                          motivation: model.motivation.map(motivation), motivationEnabled: GoalPrefs.motivationEnabled,
+                          past: context.goals.goals
+                              .filter { $0.status == .achieved || $0.status == .abandoned || $0.status == .archived }
+                              .sorted { ($0.closure?.date ?? $0.createdAt) > ($1.closure?.date ?? $1.createdAt) }
+                              .map { g in Past(id: g.id.uuidString, title: g.title, status: g.status.rawValue,
+                                               closedOn: g.closure.map { StoreReader.localDayKey($0.date) },
+                                               reason: g.closure?.reason?.isEmpty == false ? g.closure?.reason : nil) })
         }
     }
 

@@ -4499,4 +4499,13 @@
     <string name="coach_memory_forget_all">Tout oublier</string>
     <string name="coach_memory_forget_all_title">Tout oublier ?</string>
     <string name="coach_memory_forget_all_body">Tous les faits retenus par le coach sont supprimés. C\'est irréversible.</string>
+    <string name="forge_goals_past">Objectifs passés</string>
+    <string name="forge_goals_past_reached">Atteint</string>
+    <string name="forge_goals_past_set_aside">Mis de côté</string>
+    <string name="forge_goals_past_archived">Archivé</string>
+    <string name="forge_lt_aside_injury">Blessure ou santé</string>
+    <string name="forge_lt_aside_busy">Trop occupé</string>
+    <string name="forge_lt_aside_priorities">Priorités changées</string>
+    <string name="forge_lt_aside_none">Sans raison particulière</string>
+    <string name="coach_goals_journey">Objectifs et parcours</string>
 </resources>

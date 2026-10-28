@@ -4516,4 +4516,13 @@
     <string name="coach_memory_forget_all">Zapomnij wszystko</string>
     <string name="coach_memory_forget_all_title">Zapomnieć wszystko?</string>
     <string name="coach_memory_forget_all_body">Wszystkie fakty, które pamięta trener, zostaną usunięte. Nie można tego cofnąć.</string>
+    <string name="forge_goals_past">Wcześniejsze cele</string>
+    <string name="forge_goals_past_reached">Osiągnięty</string>
+    <string name="forge_goals_past_set_aside">Odłożony</string>
+    <string name="forge_goals_past_archived">Zarchiwizowany</string>
+    <string name="forge_lt_aside_injury">Kontuzja lub zdrowie</string>
+    <string name="forge_lt_aside_busy">Za dużo się działo</string>
+    <string name="forge_lt_aside_priorities">Zmiana priorytetów</string>
+    <string name="forge_lt_aside_none">Bez konkretnego powodu</string>
+    <string name="coach_goals_journey">Cele i droga</string>
 </resources>

@@ -4513,4 +4513,13 @@
     <string name="coach_memory_forget_all">Alles vergessen</string>
     <string name="coach_memory_forget_all_title">Alles vergessen?</string>
     <string name="coach_memory_forget_all_body">Alle Fakten, die sich der Coach merkt, werden gelöscht. Das lässt sich nicht rückgängig machen.</string>
+    <string name="forge_goals_past">Frühere Ziele</string>
+    <string name="forge_goals_past_reached">Erreicht</string>
+    <string name="forge_goals_past_set_aside">Beiseitegelegt</string>
+    <string name="forge_goals_past_archived">Archiviert</string>
+    <string name="forge_lt_aside_injury">Verletzung oder Gesundheit</string>
+    <string name="forge_lt_aside_busy">Zu viel los</string>
+    <string name="forge_lt_aside_priorities">Andere Prioritäten</string>
+    <string name="forge_lt_aside_none">Kein bestimmter Grund</string>
+    <string name="coach_goals_journey">Ziele & Weg</string>
 </resources>

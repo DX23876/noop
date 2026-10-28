@@ -520,6 +520,7 @@ internal fun LongTermGoalPage(goal: CoreGoals.LongTerm?, periods: List<CoreGoals
         val id = goal?.id ?: return@LaunchedEffect
         page = withContext(Dispatchers.IO) { CoreLongTermGoals.page(context, dismissedTrainingWorkouts(context), id) }
     }
+    var choosingAside by remember { mutableStateOf(false) }
     fun change(action: String, reason: String? = null, value: Double? = null, after: () -> Unit = onChanged) {
         val id = goal?.id ?: return
         scope.launch {
@@ -596,10 +597,30 @@ internal fun LongTermGoalPage(goal: CoreGoals.LongTerm?, periods: List<CoreGoals
                 GoalAction(stringResource(R.string.forge_goals_pause), colors.accent) { choosingPause = true }
             }
             RowDivider()
-            GoalAction(stringResource(R.string.forge_lt_set_aside), colors.accent) { change("setAside", after = onRemoved) }
+            // As iOS asks before setting a goal aside: why, kept with the goal (or no reason at all).
+            GoalAction(stringResource(R.string.forge_lt_set_aside), colors.accent) { choosingAside = true }
             RowDivider()
             GoalAction(stringResource(R.string.forge_goals_delete), ForgeTokens.Color.systemRed.resolve()) { confirmDelete = true }
         }
+    }
+    if (choosingAside) {
+        AlertDialog(
+            onDismissRequest = { choosingAside = false },
+            title = { Text(stringResource(R.string.forge_lt_set_aside)) },
+            text = {
+                Column {
+                    listOf(R.string.forge_lt_aside_injury to "injury or health", R.string.forge_lt_aside_busy to "life got busy",
+                           R.string.forge_lt_aside_priorities to "priorities changed", R.string.forge_lt_aside_none to "")
+                        .forEach { (label, reason) ->
+                            TextButton(onClick = { choosingAside = false; change("setAside", reason = reason, after = onRemoved) }) {
+                                Text(stringResource(label))
+                            }
+                        }
+                }
+            },
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = { choosingAside = false }) { Text(stringResource(android.R.string.cancel)) } },
+        )
     }
     if (confirmDelete) {
         AlertDialog(

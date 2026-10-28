@@ -4531,4 +4531,13 @@
     <string name="coach_memory_forget_all">Forget everything</string>
     <string name="coach_memory_forget_all_title">Forget everything?</string>
     <string name="coach_memory_forget_all_body">Every fact the coach remembers is deleted. This cannot be undone.</string>
+    <string name="forge_goals_past">Past goals</string>
+    <string name="forge_goals_past_reached">Reached</string>
+    <string name="forge_goals_past_set_aside">Set aside</string>
+    <string name="forge_goals_past_archived">Archived</string>
+    <string name="forge_lt_aside_injury">Injury or health</string>
+    <string name="forge_lt_aside_busy">Life got busy</string>
+    <string name="forge_lt_aside_priorities">Priorities changed</string>
+    <string name="forge_lt_aside_none">No particular reason</string>
+    <string name="coach_goals_journey">Goals & journey</string>
 </resources>
