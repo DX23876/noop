@@ -4213,4 +4213,17 @@
     <string name="forge_goals_ctx_training">Cele treningowe w tym tygodniu</string>
     <string name="forge_goals_ctx_sleep">Cel snu w tym tygodniu</string>
     <string name="forge_goals_ctx_set_training">Ustaw tygodniowy cel treningowy</string>
+    <string name="forge_ltp_reached">Cel osiągnięty</string>
+    <string name="forge_ltp_reached_keep">Zamknij go, celuj wyżej lub utrzymaj to, co osiągnięte.</string>
+    <string name="forge_ltp_reached_plain">Zamknij go lub celuj wyżej.</string>
+    <string name="forge_ltp_close">Zamknij</string>
+    <string name="forge_ltp_aim_higher">Celuj wyżej</string>
+    <string name="forge_ltp_keep_weight">Utrzymaj wagę</string>
+    <string name="forge_ltp_new_target">Nowy cel</string>
+    <string name="forge_ltp_insights">Spostrzeżenia</string>
+    <string name="forge_ltp_manage">Zarządzaj</string>
+    <string name="forge_ltp_keep_on_today">Przypnij do Dziś</string>
+    <string name="forge_ltp_all">Wszystko</string>
+    <string name="forge_ltp_up_next">Następny</string>
+    <string name="forge_ltp_first_week">Pierwszy tydzień pojawi się tu po jego zakończeniu.</string>
 </resources>

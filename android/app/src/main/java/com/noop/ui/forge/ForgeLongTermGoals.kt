@@ -15,6 +15,23 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Insights
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.TrackChanges
+import androidx.compose.material.icons.rounded.SwapVert
+import androidx.compose.material.icons.rounded.Balance
+import androidx.compose.material.icons.rounded.RemoveCircleOutline
+import androidx.compose.material.icons.rounded.BarChart
+import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.NorthEast
+import androidx.compose.material.icons.rounded.SwapHoriz
+import androidx.compose.material.icons.rounded.CalendarMonth
+import androidx.compose.material.icons.rounded.Flag
+import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.Checklist
 import androidx.compose.material.icons.rounded.DirectionsRun
@@ -484,13 +501,23 @@ private fun AreaTile(area: String) {
 @Composable
 internal fun LongTermGoalPage(goal: CoreGoals.LongTerm?, periods: List<CoreGoals.Period>, onBack: () -> Unit,
                               onOpenPeriod: (String) -> Unit, onChanged: () -> Unit, onRemoved: () -> Unit) {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    var page by remember { mutableStateOf<CoreLongTermGoals.Page?>(null) }
+    var revision by remember { mutableIntStateOf(0) }
     var confirmDelete by remember { mutableStateOf(false) }
     var choosingPause by remember { mutableStateOf(false) }
-    fun change(action: String, reason: String? = null, after: () -> Unit = onChanged) {
+    var raising by remember { mutableStateOf(false) }
+    var allMilestones by remember { mutableStateOf(false) }
+    LaunchedEffect(goal?.id, revision) {
+        val id = goal?.id ?: return@LaunchedEffect
+        page = withContext(Dispatchers.IO) { CoreLongTermGoals.page(context, dismissedTrainingWorkouts(context), id) }
+    }
+    fun change(action: String, reason: String? = null, value: Double? = null, after: () -> Unit = onChanged) {
         val id = goal?.id ?: return
         scope.launch {
-            withContext(Dispatchers.IO) { CoreLongTermGoals.change(id, action, reason) }
+            withContext(Dispatchers.IO) { CoreLongTermGoals.change(id, action, reason, value) }
+            revision++
             after()
         }
     }
@@ -501,23 +528,52 @@ internal fun LongTermGoalPage(goal: CoreGoals.LongTerm?, periods: List<CoreGoals
             return@SettingsColumn
         }
         val colors = Forge.colors
-        ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
-            LongTermRow(goal)
-            if (goal.reason.isNotBlank()) {
-                Text(goal.nextAction.ifBlank { goal.reason }, style = Forge.type.footnote, color = colors.textSecondary)
+        val p = page
+        if (p == null) {
+            // A goal without a catalog reading keeps its summary, as Apple keeps its journey page.
+            ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+                LongTermRow(goal)
+                if (goal.reason.isNotBlank()) {
+                    Text(goal.nextAction.ifBlank { goal.reason }, style = Forge.type.footnote, color = colors.textSecondary)
+                }
+            }
+        } else {
+            LongTermHero(p)
+            if (p.reached) ReachedCard(p, onClose = { change("close") }, onRaise = { raising = true },
+                                       onKeep = { p.keepWeightAt?.let { change("keepWeight", value = it) } })
+            p.band?.let { band ->
+                LongTermSectionHeader(p.bandTitle, if (band.kind == "milestones" && (band.moreBefore || band.moreAfter))
+                    stringResource(R.string.forge_ltp_all) else null) { allMilestones = true }
+                ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) { LongTermBand(band) }
+            }
+            if (p.insights.isNotEmpty()) {
+                LongTermSectionHeader(stringResource(R.string.forge_ltp_insights))
+                ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+                    p.insights.forEachIndexed { i, item ->
+                        InsightLine(item)
+                        if (i < p.insights.lastIndex) RowDivider()
+                    }
+                }
             }
         }
         val children = periods.filter { it.parentGoalId == goal.id }
         if (children.isNotEmpty()) {
             SectionHeader(stringResource(R.string.forge_lt_serving))
             ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
-                children.forEachIndexed { i, p ->
-                    PeriodRow(p) { onOpenPeriod(p.id) }
+                children.forEachIndexed { i, child ->
+                    PeriodRow(child) { onOpenPeriod(child.id) }
                     if (i < children.lastIndex) RowDivider()
                 }
             }
         }
+        LongTermSectionHeader(stringResource(R.string.forge_ltp_manage))
         ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+            if (p != null) {
+                ToggleRow(stringResource(R.string.forge_ltp_keep_on_today), detail = null, checked = p.pinned) {
+                    change(if (it) "pin" else "unpin")
+                }
+                RowDivider()
+            }
             if (goal.status == "paused") {
                 GoalAction(stringResource(R.string.forge_goals_resume), colors.accent) { change("resume") }
             } else {
@@ -545,6 +601,216 @@ internal fun LongTermGoalPage(goal: CoreGoals.LongTerm?, periods: List<CoreGoals
     if (choosingPause) {
         PauseDialog(onDismiss = { choosingPause = false }) { raw -> choosingPause = false; change("pause", raw) }
     }
+    val p = page
+    if (raising && p != null && p.raise.isNotEmpty()) {
+        var index by remember { mutableIntStateOf(0) }
+        AlertDialog(
+            onDismissRequest = { raising = false },
+            title = { Text(stringResource(R.string.forge_ltp_aim_higher)) },
+            text = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.forge_ltp_new_target), style = Forge.type.body, color = Forge.colors.text,
+                         modifier = Modifier.weight(1f))
+                    // The first option is already one step up: the stepper only goes higher.
+                    Stepper(p.raise[index].text, onMinus = { if (index > 0) index-- },
+                            onPlus = { if (index < p.raise.lastIndex) index++ })
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { raising = false; change("raise", value = p.raise[index].value) }) {
+                    Text(stringResource(R.string.forge_training_save))
+                }
+            },
+            dismissButton = { TextButton(onClick = { raising = false }) { Text(stringResource(R.string.forge_cancel)) } },
+        )
+    }
+    if (allMilestones && p?.band != null) {
+        AlertDialog(
+            onDismissRequest = { allMilestones = false },
+            title = { Text(p.bandTitle) },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    p.band.all.forEach { point -> MilestoneLine(point) }
+                }
+            },
+            confirmButton = { TextButton(onClick = { allMilestones = false }) { Text(stringResource(R.string.l10n_today_screen_done_e9b450d1)) } },
+        )
+    }
+}
+
+/** The tone a shared goal state or figure reads in (`GoalTone`), in the iOS palette. */
+@Composable
+private fun toneColor(tone: String?): Color = when (tone) {
+    "positive" -> ForgeTokens.StrandPalette.statusPositive.resolve()
+    "warning" -> ForgeTokens.StrandPalette.statusWarning.resolve()
+    "critical" -> ForgeTokens.StrandPalette.statusCritical.resolve()
+    "accent" -> Forge.colors.accent
+    else -> Forge.colors.textSecondary
+}
+
+/** The goal's hero as iOS draws it (`GoalHeroCard`): title and state, the big number and its caption, three figures. */
+@Composable
+private fun LongTermHero(p: CoreLongTermGoals.Page) {
+    val colors = Forge.colors
+    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+        Text(p.title, style = Forge.type.headline, color = colors.text)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(8.dp).clip(CircleShape).background(toneColor(p.tone)))
+            Spacer(Modifier.width(6.dp))
+            Text(p.statusText, style = Forge.type.footnote, color = toneColor(p.tone))
+        }
+        Spacer(Modifier.height(ForgeMetrics.space3))
+        Text(p.heroValue, style = Forge.type.title1, color = colors.text)
+        p.heroCaption?.let { Text(it, style = Forge.type.footnote, color = colors.textSecondary) }
+        Spacer(Modifier.height(ForgeMetrics.space3))
+        Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space3)) {
+            p.figures.forEach { figure ->
+                Column(Modifier.weight(1f)) {
+                    Text(figure.label, style = Forge.type.caption, color = colors.textSecondary, maxLines = 1)
+                    Text(figure.value, style = Forge.type.bodyNumber, color = colors.text, maxLines = 1)
+                    figure.fraction?.let { f ->
+                        Spacer(Modifier.height(4.dp))
+                        Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(colors.inset)) {
+                            Box(Modifier.fillMaxWidth(f.coerceIn(0.0, 1.0).toFloat()).height(4.dp)
+                                .clip(RoundedCornerShape(2.dp)).background(colors.accent))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** The goal reached (Apple's plan Q24): the wearer decides what happens next; nothing closes by itself. */
+@Composable
+private fun ReachedCard(p: CoreLongTermGoals.Page, onClose: () -> Unit, onRaise: () -> Unit, onKeep: () -> Unit) {
+    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+        Text(stringResource(R.string.forge_ltp_reached), style = Forge.type.headline,
+             color = ForgeTokens.StrandPalette.statusPositive.resolve())
+        Text(stringResource(if (p.keepWeightAt != null) R.string.forge_ltp_reached_keep else R.string.forge_ltp_reached_plain),
+             style = Forge.type.footnote, color = Forge.colors.textSecondary)
+        Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+            TextButton(onClick = onClose) { Text(stringResource(R.string.forge_ltp_close)) }
+            if (p.raise.isNotEmpty()) TextButton(onClick = onRaise) { Text(stringResource(R.string.forge_ltp_aim_higher)) }
+            if (p.keepWeightAt != null) TextButton(onClick = onKeep) { Text(stringResource(R.string.forge_ltp_keep_weight)) }
+        }
+    }
+}
+
+@Composable
+private fun LongTermSectionHeader(title: String, action: String? = null, onAction: () -> Unit = {}) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.weight(1f)) { SectionHeader(title) }
+        if (action != null) {
+            Text(action, style = Forge.type.footnote, color = Forge.colors.accent,
+                 modifier = Modifier.clickable(role = Role.Button, onClick = onAction).padding(ForgeMetrics.space2))
+        }
+    }
+}
+
+/** The route (milestones), the last eight weeks or the 28-day columns, as the shared content chose. */
+@Composable
+private fun LongTermBand(band: CoreLongTermGoals.Band) {
+    val colors = Forge.colors
+    val positive = ForgeTokens.StrandPalette.statusPositive.resolve()
+    when (band.kind) {
+        "milestones" -> Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+            band.points.forEach { point ->
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                    val reached = point.state == "reached"
+                    val next = point.state == "next"
+                    Box(Modifier.size(if (next) 14.dp else 10.dp).clip(CircleShape)
+                        .background(if (reached) positive else if (next) positive.copy(alpha = 0.35f) else colors.inset))
+                    Spacer(Modifier.height(4.dp))
+                    Text(point.label, style = Forge.type.caption, maxLines = 1,
+                         color = if (point.state == "open") colors.textTertiary else colors.text)
+                }
+            }
+        }
+        "weeks" -> if (band.points.isEmpty()) {
+            Text(stringResource(R.string.forge_ltp_first_week), style = Forge.type.footnote, color = colors.textSecondary)
+        } else Row(Modifier.fillMaxWidth()) {
+            band.points.forEach { week ->
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                    val fill = when (week.state) {
+                        "kept" -> positive
+                        "almost" -> positive.copy(alpha = 0.5f)
+                        "missed" -> ForgeTokens.StrandPalette.statusWarning.resolve().copy(alpha = 0.6f)
+                        "protected" -> colors.accent.copy(alpha = 0.5f)
+                        else -> colors.inset
+                    }
+                    Box(Modifier.size(14.dp).clip(CircleShape).background(fill))
+                    Spacer(Modifier.height(4.dp))
+                    Text(week.label, style = Forge.type.caption, color = colors.textTertiary, maxLines = 1)
+                }
+            }
+        }
+        else -> {
+            val shown = band.values.filterNotNull()
+            val top = (shown + band.target).maxOrNull()?.takeIf { it > 0 } ?: 1.0
+            val bottom = minOf(shown.minOrNull() ?: 0.0, band.target).let { if (band.higherIsBetter) 0.0 else it * 0.9 }
+            Row(Modifier.fillMaxWidth().height(90.dp), verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                band.values.forEach { v ->
+                    val share = if (v == null) 0.0 else ((v - bottom) / (top - bottom)).coerceIn(0.04, 1.0)
+                    val met = v != null && (if (band.higherIsBetter) v >= band.target else v <= band.target)
+                    Box(Modifier.weight(1f).fillMaxHeight(share.toFloat()).clip(RoundedCornerShape(2.dp))
+                        .background(if (v == null) colors.inset else if (met) colors.accent else colors.accent.copy(alpha = 0.4f)))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MilestoneLine(point: CoreLongTermGoals.Point) {
+    val positive = ForgeTokens.StrandPalette.statusPositive.resolve()
+    Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(10.dp).clip(CircleShape).background(when (point.state) {
+            "reached" -> positive
+            "next" -> positive.copy(alpha = 0.4f)
+            else -> Forge.colors.inset
+        }))
+        Spacer(Modifier.width(ForgeMetrics.space3))
+        Text(point.label, style = Forge.type.bodyNumber, modifier = Modifier.weight(1f),
+             color = if (point.state == "open") Forge.colors.textSecondary else Forge.colors.text)
+        if (point.state == "next") {
+            Text(stringResource(R.string.forge_ltp_up_next), style = Forge.type.caption, color = positive)
+        }
+    }
+}
+
+/** One insight read across: icon, title and caption on the left, the value on the right edge. */
+@Composable
+private fun InsightLine(item: CoreLongTermGoals.Insight) {
+    val colors = Forge.colors
+    Row(Modifier.fillMaxWidth().padding(vertical = ForgeMetrics.space2), verticalAlignment = Alignment.CenterVertically) {
+        Icon(insightIcon(item.icon), contentDescription = null, tint = colors.accent, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(ForgeMetrics.space3))
+        Column(Modifier.weight(1f)) {
+            Text(item.title, style = Forge.type.body, color = colors.text)
+            item.caption?.let { Text(it, style = Forge.type.caption, color = colors.textSecondary) }
+        }
+        Text(item.value, style = Forge.type.bodyNumber, color = if (item.tone != null) toneColor(item.tone) else colors.text)
+    }
+}
+
+/** The SF Symbol the shared insight names, as its Material counterpart. */
+private fun insightIcon(symbol: String): ImageVector = when (symbol) {
+    "speedometer" -> Icons.Rounded.Speed
+    "flag" -> Icons.Rounded.Flag
+    "calendar" -> Icons.Rounded.CalendarMonth
+    "arrow.left.and.right" -> Icons.Rounded.SwapHoriz
+    "arrow.up.right" -> Icons.Rounded.NorthEast
+    "clock.arrow.circlepath" -> Icons.Rounded.History
+    "chart.bar" -> Icons.Rounded.BarChart
+    "minus.circle" -> Icons.Rounded.RemoveCircleOutline
+    "equal.circle" -> Icons.Rounded.Balance
+    "arrow.up.and.down" -> Icons.Rounded.SwapVert
+    "scalemass" -> Icons.Rounded.MonitorWeight
+    "target" -> Icons.Rounded.TrackChanges
+    "star" -> Icons.Rounded.Star
+    else -> Icons.Rounded.Insights
 }
 
 /** `GoalTemplateID.journalHabit`: the one template that needs a journal question before it can be set. */

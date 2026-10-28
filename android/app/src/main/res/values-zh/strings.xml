@@ -4167,4 +4167,17 @@
     <string name="forge_goals_ctx_training">本周训练目标</string>
     <string name="forge_goals_ctx_sleep">本周睡眠目标</string>
     <string name="forge_goals_ctx_set_training">设置每周训练目标</string>
+    <string name="forge_ltp_reached">目标已达成</string>
+    <string name="forge_ltp_reached_keep">关闭它、提高目标，或保持已达成的成果。</string>
+    <string name="forge_ltp_reached_plain">关闭它或提高目标。</string>
+    <string name="forge_ltp_close">关闭</string>
+    <string name="forge_ltp_aim_higher">提高目标</string>
+    <string name="forge_ltp_keep_weight">保持体重</string>
+    <string name="forge_ltp_new_target">新目标</string>
+    <string name="forge_ltp_insights">洞察</string>
+    <string name="forge_ltp_manage">管理</string>
+    <string name="forge_ltp_keep_on_today">固定到今日</string>
+    <string name="forge_ltp_all">全部</string>
+    <string name="forge_ltp_up_next">下一个</string>
+    <string name="forge_ltp_first_week">第一周结束后会显示在这里。</string>
 </resources>

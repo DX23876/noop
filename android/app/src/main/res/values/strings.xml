@@ -4228,4 +4228,17 @@
     <string name="forge_goals_ctx_training">Training goals this week</string>
     <string name="forge_goals_ctx_sleep">Sleep goal this week</string>
     <string name="forge_goals_ctx_set_training">Set a weekly training goal</string>
+    <string name="forge_ltp_reached">Goal reached</string>
+    <string name="forge_ltp_reached_keep">Close it, aim higher, or keep what you have reached.</string>
+    <string name="forge_ltp_reached_plain">Close it or aim higher.</string>
+    <string name="forge_ltp_close">Close it</string>
+    <string name="forge_ltp_aim_higher">Aim higher</string>
+    <string name="forge_ltp_keep_weight">Keep the weight</string>
+    <string name="forge_ltp_new_target">New target</string>
+    <string name="forge_ltp_insights">Insights</string>
+    <string name="forge_ltp_manage">Manage</string>
+    <string name="forge_ltp_keep_on_today">Keep on Today</string>
+    <string name="forge_ltp_all">All</string>
+    <string name="forge_ltp_up_next">Up next</string>
+    <string name="forge_ltp_first_week">The first week shows here once it ends.</string>
 </resources>

@@ -39,6 +39,53 @@ object CoreLongTermGoals {
     data class Created(val ok: Boolean, val error: String?, val goalId: String?, val existingId: String?,
                        val existingTitle: String?)
 
+    /** A catalog goal's page from the shared `LongTermGoalContent`, worded by the core in the wearer's language. */
+    data class Figure(val label: String, val value: String, val fraction: Double?)
+    data class Point(val label: String, val state: String)
+    data class Band(val kind: String, val points: List<Point>, val all: List<Point>, val moreBefore: Boolean,
+                    val moreAfter: Boolean, val values: List<Double?>, val target: Double, val higherIsBetter: Boolean)
+    data class Insight(val icon: String, val title: String, val value: String, val caption: String?, val tone: String?)
+    data class Option(val value: Double, val text: String)
+    data class Page(
+        val id: String, val title: String, val goalStatus: String, val statusText: String, val statusSymbol: String,
+        val tone: String, val heroValue: String, val heroCaption: String?, val figures: List<Figure>,
+        val bandTitle: String, val band: Band?, val insights: List<Insight>, val reached: Boolean,
+        val keepWeightAt: Double?, val raise: List<Option>, val pinned: Boolean,
+    )
+
+    fun page(context: Context, dismissedWorkouts: List<String>, id: String): Page? {
+        if (!SwiftCore.available) return null
+        if (!CoreUserInputs.ensure(context)) return null
+        return SwiftCore.call("goals.longTermPage", args(context, dismissedWorkouts).put("id", id).toString())
+            ?.let(::parsePage)
+    }
+
+    internal fun parsePage(json: String): Page? {
+        if (json == "null" || json.contains("\"error\"")) return null
+        val o = JSONObject(json)
+        fun points(a: JSONArray?) = a.objects().map { Point(it.getString("label"), it.getString("state")) }
+        val band = o.optJSONObject("band")?.let { b ->
+            val values = b.optJSONArray("values")
+            Band(b.getString("kind"), points(b.optJSONArray("points")), points(b.optJSONArray("all")),
+                 b.optBoolean("moreBefore"), b.optBoolean("moreAfter"),
+                 if (values == null) emptyList() else (0 until values.length()).map { if (values.isNull(it)) null else values.getDouble(it) },
+                 b.optDouble("target", 0.0), b.optBoolean("higherIsBetter", true))
+        }
+        return Page(
+            id = o.getString("id"), title = o.getString("title"), goalStatus = o.getString("goalStatus"),
+            statusText = o.getString("statusText"), statusSymbol = o.optString("statusSymbol"), tone = o.optString("tone", "neutral"),
+            heroValue = o.getString("heroValue"), heroCaption = o.str("heroCaption"),
+            figures = o.optJSONArray("figures").objects().map { Figure(it.getString("label"), it.getString("value"), it.dbl("fraction")) },
+            bandTitle = o.optString("bandTitle"), band = band,
+            insights = o.optJSONArray("insights").objects().map {
+                Insight(it.getString("icon"), it.getString("title"), it.getString("value"), it.str("caption"), it.str("tone"))
+            },
+            reached = o.optBoolean("reached"), keepWeightAt = o.dbl("keepWeightAt"),
+            raise = o.optJSONArray("raise").objects().map { Option(it.getDouble("value"), it.getString("text")) },
+            pinned = o.optBoolean("pinned"),
+        )
+    }
+
     fun catalog(context: Context, dismissedWorkouts: List<String>): Catalog? {
         if (!SwiftCore.available) return null
         if (!CoreUserInputs.ensure(context)) return null
@@ -76,11 +123,15 @@ object CoreLongTermGoals {
         return Created(o.optBoolean("ok"), o.str("error"), o.str("goalId"), o.str("existingId"), o.str("existingTitle"))
     }
 
-    /** "pause" (with a pause reason), "resume", "setAside" or "remove". */
-    fun change(id: String, action: String, reason: String? = null): CoreGoals.Change {
+    /**
+     * "pause" (with a pause reason), "resume", "setAside", "remove"; for a reached goal "close", "raise" and
+     * "keepWeight" (both with [value]); "pin" and "unpin" keep it on Today.
+     */
+    fun change(id: String, action: String, reason: String? = null, value: Double? = null): CoreGoals.Change {
         if (!SwiftCore.available) return CoreGoals.Change(false, "unavailable")
         val json = SwiftCore.call("goals.changeLongTerm", JSONObject().put("id", id).put("action", action)
-            .apply { if (reason != null) put("reason", reason) }.toString()) ?: return CoreGoals.Change(false, "unavailable")
+            .apply { if (reason != null) put("reason", reason); if (value != null) put("value", value) }.toString())
+            ?: return CoreGoals.Change(false, "unavailable")
         val o = runCatching { JSONObject(json) }.getOrNull() ?: return CoreGoals.Change(false, "unavailable")
         if (o.optBoolean("ok")) CoreShadow.noteDataChanged()
         return CoreGoals.Change(o.optBoolean("ok"), o.str("error"))

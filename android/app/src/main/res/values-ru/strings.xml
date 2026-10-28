@@ -4092,4 +4092,17 @@
     <string name="forge_goals_ctx_training">Тренировочные цели на неделю</string>
     <string name="forge_goals_ctx_sleep">Цель по сну на неделю</string>
     <string name="forge_goals_ctx_set_training">Поставить недельную цель по тренировкам</string>
+    <string name="forge_ltp_reached">Цель достигнута</string>
+    <string name="forge_ltp_reached_keep">Закрой её, подними планку или удерживай достигнутое.</string>
+    <string name="forge_ltp_reached_plain">Закрой её или подними планку.</string>
+    <string name="forge_ltp_close">Закрыть</string>
+    <string name="forge_ltp_aim_higher">Поднять планку</string>
+    <string name="forge_ltp_keep_weight">Удерживать вес</string>
+    <string name="forge_ltp_new_target">Новая цель</string>
+    <string name="forge_ltp_insights">Выводы</string>
+    <string name="forge_ltp_manage">Управление</string>
+    <string name="forge_ltp_keep_on_today">Закрепить на «Сегодня»</string>
+    <string name="forge_ltp_all">Все</string>
+    <string name="forge_ltp_up_next">Следующая</string>
+    <string name="forge_ltp_first_week">Первая неделя появится здесь, когда закончится.</string>
 </resources>

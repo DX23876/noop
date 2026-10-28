@@ -138,10 +138,85 @@ public enum CoreLongTermGoals {
         }
     }
 
-    /// The long-term page's lifecycle actions: "pause" (with a `CoachGoal.PauseReason`), "resume", "setAside" and
-    /// "remove"; the weekly and monthly goals that serve it follow, as on Apple.
+    /// A catalog goal's page as Apple's `LongTermGoalPage` shows it, from the shared `LongTermGoalContent`: the hero
+    /// with its state and three figures, the band (milestones, weeks or columns), the insights, and what the page
+    /// offers (close a reached goal, aim higher, keep a reached weight, keep it on Today).
+    public struct Page: Encodable {
+        public struct Figure: Encodable { public var label: String, value: String, fraction: Double? }
+        public struct Point: Encodable { public var label: String, state: String }
+        public struct Band: Encodable {
+            public var kind: String
+            public var points: [Point] = [], all: [Point] = [], moreBefore = false, moreAfter = false
+            public var values: [Double?] = [], target: Double = 0, higherIsBetter = true
+        }
+        public struct Insight: Encodable {
+            public var icon: String, title: String, value: String, caption: String?, tone: String?
+        }
+        public struct Option: Encodable { public var value: Double, text: String }
+
+        public var id: String, title: String, goalStatus: String
+        public var statusText: String, statusSymbol: String, tone: String
+        public var heroValue: String, heroCaption: String?, figures: [Figure]
+        public var bandTitle: String, band: Band?, insights: [Insight]
+        public var reached: Bool, keepWeightAt: Double?, raise: [Option], pinned: Bool
+    }
+
+    /// Nil when the goal is gone or has no catalog reading (it keeps its journey page on Apple).
     @MainActor
-    public static func change(store: WhoopStore, id: String, action: String, reason: String?,
+    public static func page(reader: StoreReader, settings: CoreGoals.Settings, id: String,
+                            now: Date = Date()) async throws -> Page? {
+        guard let uuid = UUID(uuidString: id) else { return nil }
+        let source = try await CoreGoals.source(reader: reader, settings: settings, now: now)
+        return try await CoreGoalState.read(store: reader.store) { context -> Page? in
+            let model = CoreGoals.evaluate(source: source, context: context, now: now)
+            guard let snapshot = model.snapshot(for: uuid), let content = LongTermGoalContent(snapshot) else { return nil }
+            func points(_ list: [LongTermGoalContent.Point]) -> [Page.Point] {
+                list.map { Page.Point(label: $0.label, state: $0.state.rawValue) }
+            }
+            var band: Page.Band?
+            switch content.band {
+            case .milestones(let visible, let before, let after, let all)?:
+                band = Page.Band(kind: "milestones", points: points(visible), all: points(all), moreBefore: before,
+                                 moreAfter: after)
+            case .weeks(let weeks)?:
+                band = Page.Band(kind: "weeks", points: weeks.map { Page.Point(label: $0.label, state: $0.state.rawValue) })
+            case .columns(let values, let target, let higher)?:
+                band = Page.Band(kind: "columns", values: values, target: target, higherIsBetter: higher)
+            case nil:
+                band = nil
+            }
+            let template = snapshot.goal.templateId.flatMap(GoalTemplateID.init(rawValue:))
+            var keepAt: Double?
+            if template == .weightLose, case .target(let data)? = snapshot.reading { keepAt = data.current }
+            var raise: [Page.Option] = []
+            if let metric = snapshot.goal.measure?.metric, var value = snapshot.goal.target {
+                // "Aim higher" offers the next targets up, each one step on as Apple's stepper takes it.
+                for _ in 0..<24 {
+                    value += LongTermFormat.raiseStep(metric, value)
+                    raise.append(Page.Option(value: value, text: LongTermFormat.value(value, metric)))
+                }
+            }
+            return Page(id: id, title: content.title, goalStatus: snapshot.goal.status.rawValue,
+                        statusText: content.status.text, statusSymbol: content.status.symbol,
+                        tone: content.status.tone.rawValue, heroValue: content.heroValue,
+                        heroCaption: content.heroCaption,
+                        figures: content.figures.map { Page.Figure(label: $0.label, value: $0.value, fraction: $0.fraction) },
+                        bandTitle: content.bandTitle, band: band,
+                        insights: content.insights.map {
+                            Page.Insight(icon: $0.icon, title: $0.title, value: $0.value, caption: $0.caption,
+                                         tone: $0.tone?.rawValue)
+                        },
+                        reached: snapshot.reading?.state == .achieved && snapshot.goal.status == .active,
+                        keepWeightAt: keepAt, raise: raise, pinned: GoalPrefs.pinnedLongTermIds.contains(uuid))
+        }
+    }
+
+    /// The long-term page's lifecycle actions: "pause" (with a `CoachGoal.PauseReason`), "resume", "setAside" and
+    /// "remove"; the weekly and monthly goals that serve it follow, as on Apple. A reached goal can be closed
+    /// ("close"), get a higher target ("raise" with `value`) or, a weight loss, turn into holding the weight it reached
+    /// ("keepWeight" with `value`, a band of one kilo). "pin" and "unpin" keep it on Today.
+    @MainActor
+    public static func change(store: WhoopStore, id: String, action: String, reason: String?, value: Double? = nil,
                               now: Date = Date()) async -> CoreGoals.Change {
         guard let uuid = UUID(uuidString: id) else { return CoreGoals.Change(ok: false, error: "invalid") }
         do {
@@ -153,6 +228,24 @@ public enum CoreLongTermGoals {
                 case "resume": context.goals.resume(uuid, on: now)
                 case "setAside": context.goals.setAside(uuid, reason: reason ?? "", on: now)
                 case "remove": context.goals.remove(uuid)
+                case "close": context.goals.markAchieved(uuid, on: now)
+                case "raise":
+                    guard let value, var raised = context.goals.goal(id: uuid) else {
+                        return CoreGoals.Change(ok: false, error: "invalid")
+                    }
+                    raised.target = value
+                    context.goals.commit(raised, editingId: uuid)
+                case "keepWeight":
+                    guard let value, let goal = context.goals.goal(id: uuid) else {
+                        return CoreGoals.Change(ok: false, error: "invalid")
+                    }
+                    context.goals.markAchieved(uuid, on: now)
+                    let center = (value * 2).rounded() / 2
+                    context.goals.commit(CoachGoal(
+                        kind: .weight, title: GoalCatalog.template(.weightMaintain)?.title.localizedCatalogValue ?? goal.title,
+                        baseline: center, target: center, templateId: GoalTemplateID.weightMaintain.rawValue,
+                        measure: GoalMeasureSpec(metric: .weight, band: 1)))
+                case "pin", "unpin": GoalPrefs.setPinned(uuid, action == "pin")
                 default: return CoreGoals.Change(ok: false, error: "invalid")
                 }
                 return CoreGoals.Change(ok: true, error: nil)

@@ -52,6 +52,34 @@ final class CoreLongTermGoalsTests: XCTestCase {
         let weekly = try XCTUnwrap(output.period.first { $0.parentGoalId == id })
         XCTAssertEqual(weekly.metric, "workouts")
 
+        // The page from the shared content: a sum goal has a hero with three figures and a milestone route.
+        let loaded = try await CoreLongTermGoals.page(reader: reader, settings: settings, id: id)
+        let page = try XCTUnwrap(loaded)
+        XCTAssertEqual(page.figures.count, 3)
+        XCTAssertEqual(page.band?.kind, "milestones")
+        XCTAssertFalse(page.statusText.isEmpty)
+        XCTAssertFalse(page.insights.isEmpty)
+        XCTAssertFalse(page.pinned)
+        XCTAssertFalse(page.reached)
+        XCTAssertEqual(page.raise.count, 24)
+        XCTAssertEqual(page.raise.map(\.value), page.raise.map(\.value).sorted())
+        let pageData = try encoder.encode(page)
+        let pageFile = file.deletingLastPathComponent().appendingPathComponent("long-term-page.json")
+        if ProcessInfo.processInfo.environment["NOOP_UPDATE_TRAINING_FIXTURES"] == "1" { try pageData.write(to: pageFile) }
+        let pinnedPage = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: pageFile)) as? [String: Any])
+        let freshPage = try XCTUnwrap(JSONSerialization.jsonObject(with: pageData) as? [String: Any])
+        XCTAssertEqual(Set(pinnedPage.keys), Set(freshPage.keys))
+
+        let pin = await CoreLongTermGoals.change(store: store, id: id, action: "pin", reason: nil)
+        XCTAssertTrue(pin.ok)
+        let higher = page.raise[0].value
+        let raised = await CoreLongTermGoals.change(store: store, id: id, action: "raise", reason: nil, value: higher)
+        XCTAssertTrue(raised.ok)
+        let reloaded = try await CoreLongTermGoals.page(reader: reader, settings: settings, id: id)
+        let changed = try XCTUnwrap(reloaded)
+        XCTAssertTrue(changed.pinned)
+        XCTAssertEqual(changed.raise.first.map { $0.value > higher }, true)
+
         let paused = await CoreLongTermGoals.change(store: store, id: id, action: "pause", reason: "travel")
         XCTAssertTrue(paused.ok)
         output = try await CoreGoals.snapshot(reader: reader, settings: settings)

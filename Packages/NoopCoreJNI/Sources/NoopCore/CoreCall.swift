@@ -178,7 +178,15 @@ public enum CoreCall {
             }
         case "goals.changeLongTerm":
             return CoreRead.json(await CoreLongTermGoals.change(store: store, id: string("id"), action: string("action"),
-                                                                reason: args["reason"] as? String))
+                                                                reason: args["reason"] as? String,
+                                                                value: (args["value"] as? NSNumber)?.doubleValue))
+        case "goals.longTermPage":
+            do {
+                return CoreRead.json(try await CoreLongTermGoals.page(reader: reader, settings: CoreGoalEnergy.settings(args),
+                                                                      id: string("id")))
+            } catch {
+                return #"{"error":"goalState"}"#
+            }
         case "body.snapshot":
             return CoreRead.json(await CoreBody.snapshot(reader: reader, days: int("days", 120),
                 comparisonDays: int("comparisonDays", 42), equation: NavyEquation(rawValue: string("equation"))))

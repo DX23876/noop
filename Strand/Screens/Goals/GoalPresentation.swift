@@ -14,57 +14,19 @@ struct GoalStatusStyle {
     var color: Color { tone.color }
     var foreground: Color { tone.foregroundColor }
 
-    static func of(_ state: PeriodGoalState) -> GoalStatusStyle {
-        switch state {
-        case .achieved:   return .init(word: "Achieved", wordText: String(localized: "Achieved"),
-                                       symbol: "checkmark.circle.fill", tone: .positive)
-        case .ahead:      return .init(word: "Ahead", wordText: String(localized: "Ahead"),
-                                       symbol: "arrow.up.right", tone: .positive)
-        case .onTrack:    return .init(word: "On track", wordText: String(localized: "On track"),
-                                       symbol: "circle.fill", tone: .positive)
-        case .close:      return .init(word: "Close", wordText: String(localized: "Close"),
-                                       symbol: "exclamationmark", tone: .warning)
-        case .behind:     return .init(word: "Behind", wordText: String(localized: "Behind"),
-                                       symbol: "arrow.down.right", tone: .critical)
-        case .outOfReach: return .init(word: "Out of reach", wordText: String(localized: "Out of reach"),
-                                       symbol: "minus.circle", tone: .neutral)
-        case .protected:  return .init(word: "Protected", wordText: String(localized: "Protected"),
-                                       symbol: "shield", tone: .accent)
-        case .starting:   return .init(word: "Starting", wordText: String(localized: "Starting"),
-                                       symbol: "hourglass", tone: .neutral)
-        case .noData:     return .init(word: "No data", wordText: String(localized: "No data"),
-                                       symbol: "questionmark", tone: .neutral)
-        }
+    init(_ shared: GoalStatusWord) {
+        word = LocalizedStringKey(shared.key)
+        wordText = shared.text
+        symbol = shared.symbol
+        tone = StrandTone(shared.tone)
     }
 
-    static func of(_ outcome: PeriodOutcome) -> GoalStatusStyle {
-        switch outcome {
-        case .achieved:  return of(PeriodGoalState.achieved)
-        case .almost:    return .init(word: "Almost", wordText: String(localized: "Almost"),
-                                      symbol: "circle.lefthalf.filled", tone: .positive)
-        case .missed:    return .init(word: "Missed", wordText: String(localized: "Missed"),
-                                      symbol: "circle", tone: .warning)
-        case .protected: return of(PeriodGoalState.protected)
-        case .noData:    return of(PeriodGoalState.noData)
-        }
-    }
+    static func of(_ state: PeriodGoalState) -> GoalStatusStyle { .init(GoalStatusWord.of(state)) }
+
+    static func of(_ outcome: PeriodOutcome) -> GoalStatusStyle { .init(GoalStatusWord.of(outcome)) }
 
     /// The long-term goals' existing health, in the same vocabulary.
-    static func of(_ health: GoalTrackingSnapshot.Health) -> GoalStatusStyle {
-        switch health {
-        case .onTrack:        return of(PeriodGoalState.onTrack)
-        case .attention:      return .init(word: "Needs attention", wordText: String(localized: "Needs attention"),
-                                           symbol: "exclamationmark", tone: .warning)
-        case .atRisk:         return .init(word: "At risk", wordText: String(localized: "At risk"),
-                                           symbol: "arrow.down.right", tone: .critical)
-        case .decisionNeeded: return .init(word: "Decision needed", wordText: String(localized: "Decision needed"),
-                                           symbol: "questionmark.circle", tone: .warning)
-        case .building:       return .init(word: "Building evidence", wordText: String(localized: "Building evidence"),
-                                           symbol: "hourglass", tone: .neutral)
-        case .paused:         return .init(word: "Paused", wordText: String(localized: "Paused"),
-                                           symbol: "pause.circle", tone: .neutral)
-        }
-    }
+    static func of(_ health: GoalTrackingSnapshot.Health) -> GoalStatusStyle { .init(GoalStatusWord.of(health)) }
 
     /// The fill colour for a goal's progress: the goal's own colour, so done work always looks like
     /// done work (a filled day, a filled bar) and every goal keeps one colour across all surfaces. The
@@ -132,4 +94,16 @@ extension PeriodGoalSnapshot {
 /// The identity colour of a metric (its icon), from the same Apple-inspired table as the long-term kinds.
 func goalIdentityColor(_ metric: PeriodMetric, appleColors: Bool) -> Color {
     appleColors ? CoachIconColors.color(for: metric.colorKey) : StrandPalette.accent
+}
+
+extension StrandTone {
+    init(_ tone: GoalTone) {
+        switch tone {
+        case .neutral: self = .neutral
+        case .accent: self = .accent
+        case .positive: self = .positive
+        case .warning: self = .warning
+        case .critical: self = .critical
+        }
+    }
 }

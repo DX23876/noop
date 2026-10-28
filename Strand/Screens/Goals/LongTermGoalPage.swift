@@ -2,400 +2,38 @@ import SwiftUI
 import StrandDesign
 import StrandAnalytics
 
-/// Values of a catalog goal in the reader's format: kilometres, hours, kilos, a night's sleep.
-enum LongTermFormat {
-
-    static func value(_ value: Double, _ metric: LongTermMetric) -> String {
-        switch metric {
-        case .distanceTotal, .longestDistance:
-            let digits = value < 100 ? 1 : 0
-            return String(localized: "\(value.formatted(.number.precision(.fractionLength(0...digits)))) km")
-        case .minutesTotal:
-            return String(localized: "\((value / 60).formatted(.number.precision(.fractionLength(0)))) h")
-        case .workoutsTotal:
-            return Int(value.rounded()).formatted()
-        case .stepsTotal, .stepsAverage:
-            return Int(value.rounded()).formatted()
-        case .weight, .leanMass:
-            return String(localized: "\(value.formatted(.number.precision(.fractionLength(1)))) kg")
-        case .bodyFat:
-            return String(localized: "\(value.formatted(.number.precision(.fractionLength(1)))) %")
-        case .waist:
-            return String(localized: "\(value.formatted(.number.precision(.fractionLength(0...1)))) cm")
-        case .sleepAverage:
-            return hoursAndMinutes(value)
-        case .hrvAverage:
-            return String(localized: "\(Int(value.rounded())) ms")
-        case .recoveryAverage, .sleepConsistency:
-            return String(localized: "\(Int(value.rounded())) %")
-        case .vo2max:
-            return value.formatted(.number.precision(.fractionLength(1)))
-        case .restingHr, .sleepHeartRate:
-            return String(localized: "\(Int(value.rounded())) bpm")
-        case .paceAverage:
-            let seconds = Int(value.rounded())
-            return String(localized: "\(seconds / 60):\(String(format: "%02d", seconds % 60)) /km")
-        case .weeklyAdherence:
-            return "\(Int((value * 100).rounded())) %"
-        }
-    }
-
-    /// A change, signed: "+22 min", "−0.6 kg".
-    static func signed(_ value: Double, _ metric: LongTermMetric) -> String {
-        let text = metric == .sleepAverage ? minutesText(abs(value) * 60) : self.value(abs(value), metric)
-        if abs(value) < 1e-9 { return text }
-        return (value > 0 ? "+" : "−") + text
-    }
-
-    static func hoursAndMinutes(_ hours: Double) -> String {
-        let total = Int((hours * 60).rounded())
-        if total % 60 == 0 { return String(localized: "\(total / 60) h") }
-        return String(localized: "\(total / 60) h \(total % 60) min")
-    }
-
-    static func minutesText(_ minutes: Double) -> String {
-        String(localized: "\(Int(minutes.rounded())) min")
-    }
-
-    static func shortDate(_ date: Date) -> String {
-        date.formatted(.dateTime.day().month(.abbreviated))
-    }
-
-    /// "in about 3 weeks", "in about 5 days", "this week".
-    static func inAbout(days: Double) -> String {
-        if days < 1 { return String(localized: "today") }
-        if days < 14 { return String(localized: "in about \(Int(days.rounded())) days") }
-        return String(localized: "in about \(Int((days / 7).rounded())) weeks")
-    }
-
-    /// A weekly amount in its own unit: "10× / week", "150 min / week", "5 nights / week".
-    static func perWeek(_ value: Double, _ metric: PeriodMetric) -> String {
-        let n = number(value)
-        switch metric {
-        case .workouts: return String(localized: "\(n)× / week")
-        case .trainingMinutes, .zoneMinutes, .strengthMinutes, .moderateMinutes, .vigorousMinutes:
-            return String(localized: "\(n) min / week")
-        case .distance: return String(localized: "\(n) km / week")
-        case .workingSets: return String(localized: "\(n) sets / week")
-        case .activeEnergy: return String(localized: "\(n) kcal / week")
-        case .sleepNights: return String(localized: "\(n) nights / week")
-        case .restDays: return String(localized: "\(n) rest days / week")
-        case .stepDays, .hydrationDays, .habitDays: return String(localized: "\(n) days / week")
-        case .sleepAverage: return hoursAndMinutes(value)
-        }
-    }
-
-    /// What one day has to reach for a day-counting weekly goal, nil for the others.
-    static func dayBar(_ metric: PeriodMetric, threshold: Double?) -> String? {
-        switch metric {
-        case .stepDays:
-            let steps = Int((threshold ?? metric.defaultThreshold ?? 0).rounded())
-            return String(localized: "from \(steps.formatted()) steps a day")
-        case .sleepNights:
-            return String(localized: "from \(hoursAndMinutes(threshold ?? metric.defaultThreshold ?? 7)) a night")
-        default:
-            return nil
-        }
-    }
-
-    static func weekdayName(_ weekday: Int) -> String {
-        let symbols = Calendar.autoupdatingCurrent.standaloneWeekdaySymbols
-        return symbols.indices.contains(weekday - 1) ? symbols[weekday - 1] : ""
+/// The shared content (`LongTermGoalContent`) in Apple's design components.
+extension LongTermGoalContent {
+    var style: GoalStatusStyle { GoalStatusStyle(status) }
+    var stats: [GoalHeroStat] {
+        figures.map { GoalHeroStat(id: $0.id, label: $0.label, value: $0.value, fraction: $0.fraction) }
     }
 }
 
-/// Everything a catalog goal's hero, band and insights show, worked out once from its snapshot.
-struct LongTermGoalContent {
-
-    enum Band {
-        /// The visible window, and every waypoint for the full list a tap opens.
-        case milestones([MilestoneTrack.Point], moreBefore: Bool, moreAfter: Bool, all: [MilestoneTrack.Point])
-        case weeks([WeekDotRow.Week])
-        case columns([Double?], target: Double, higherIsBetter: Bool)
-    }
-
-    struct Insight: Identifiable {
-        let id: Int
-        let icon: String
-        let title: String
-        let value: String
-        let caption: String?
-        let tone: StrandTone?
-    }
-
-    let title: String
-    let style: GoalStatusStyle
-    let heroValue: String
-    let heroCaption: String?
-    let stats: [GoalHeroStat]
-    let bandTitle: String
-    let band: Band?
-    let insights: [Insight]
-
-    /// The style for a snapshot: the catalog reading's state where there is one, else the kind's health.
-    static func style(_ snapshot: GoalTrackingSnapshot) -> GoalStatusStyle {
-        if let state = snapshot.reading?.state { return GoalStatusStyle.of(state) }
-        if snapshot.reading != nil {
-            return GoalStatusStyle(word: "Running", wordText: String(localized: "Running"),
-                                   symbol: "circle.dashed", tone: .neutral)
+extension MilestoneTrack.Point {
+    init(_ point: LongTermGoalContent.Point) {
+        let state: MilestoneTrack.PointState
+        switch point.state {
+        case .reached: state = .reached
+        case .next: state = .next
+        case .open: state = .open
         }
-        return GoalStatusStyle.of(snapshot.health)
-    }
-
-    // swiftlint:disable:next cyclomatic_complexity function_body_length
-    init?(_ snapshot: GoalTrackingSnapshot) {
-        guard let reading = snapshot.reading else { return nil }
-        title = snapshot.displayTitle
-        let style = Self.style(snapshot)
-        self.style = style
-        let toneOfState = style.tone
-
-        switch reading {
-        case .sum(let d):
-            let r = d.reading
-            heroValue = LongTermFormat.value(r.total, d.metric)
-            heroCaption = String(localized: "of \(LongTermFormat.value(r.target, d.metric))")
-            stats = [
-                .init(id: 0, label: String(localized: "Target"), value: LongTermFormat.value(r.target, d.metric)),
-                .init(id: 1, label: String(localized: "Progress"),
-                      value: "\(Int((min(1, r.fraction) * 100).rounded())) %", fraction: min(1, r.fraction)),
-                .init(id: 2, label: String(localized: "Estimated"),
-                      value: r.projectedFinish.map(LongTermFormat.shortDate) ?? "–"),
-            ]
-            bandTitle = Self.milestoneTitle(d.milestones)
-            band = Self.milestoneBand(d.milestones, metric: d.metric)
-            var items: [Insight] = []
-            items.append(.init(id: 0, icon: "speedometer", title: String(localized: "Current pace"),
-                               value: r.recentWeeklyAverage.map { String(localized: "\(LongTermFormat.value($0, d.metric))/week") } ?? "–",
-                               caption: r.recentWeeklyAverage == nil ? String(localized: "After four weeks of data")
-                                                                      : style.wordText,
-                               tone: r.recentWeeklyAverage == nil ? nil : toneOfState))
-            if let next = d.milestones?.next {
-                let caption = r.recentWeeklyAverage.flatMap { avg -> String? in
-                    guard avg > 0 else { return nil }
-                    return LongTermFormat.inAbout(days: (next - r.total) / avg * 7)
-                }
-                items.append(.init(id: 1, icon: "flag", title: String(localized: "Next milestone"),
-                                   value: LongTermFormat.value(next, d.metric), caption: caption, tone: nil))
-            }
-            if let suggested = r.suggestedWeeklyTarget {
-                items.append(.init(id: 2, icon: "calendar", title: String(localized: "Needed per week"),
-                                   value: LongTermFormat.value(suggested, d.metric),
-                                   caption: r.catchUpExceedsCap ? String(localized: "Getting tight by the end date")
-                                                                : String(localized: "\(Int(r.weeksLeft)) weeks left"),
-                                   tone: nil))
-            }
-            insights = items
-
-        case .target(let d):
-            heroValue = LongTermFormat.value(d.current, d.metric)
-            // VO2max has no short unit to put on every figure; the caption names it once.
-            // A single measurement carries its date, so a reading from last week is not passed off as today's.
-            heroCaption = d.metric == .vo2max
-                ? String(localized: "ml/kg/min, target \(LongTermFormat.value(d.target, d.metric))")
-                : d.currentDate.map {
-                    String(localized: "measured \(LongTermFormat.shortDate($0)), target \(LongTermFormat.value(d.target, d.metric))")
-                } ?? String(localized: "target \(LongTermFormat.value(d.target, d.metric))")
-            let next = d.milestones?.next
-            stats = [
-                .init(id: 0, label: String(localized: "Start"), value: LongTermFormat.value(d.baseline, d.metric)),
-                .init(id: 1, label: String(localized: "Progress"),
-                      value: "\(Int((d.progress * 100).rounded())) %", fraction: d.progress),
-                .init(id: 2, label: String(localized: "Next mark"),
-                      value: next.map { mark in
-                          d.nextMarkDate.map { "\(LongTermFormat.value(mark, d.metric)) · \(LongTermFormat.shortDate($0))" }
-                              ?? LongTermFormat.value(mark, d.metric)
-                      } ?? "–"),
-            ]
-            bandTitle = Self.milestoneTitle(d.milestones)
-            band = Self.milestoneBand(d.milestones, metric: d.metric)
-            insights = [
-                .init(id: 0, icon: "speedometer", title: String(localized: "Pace"),
-                      value: d.ratePerWeek.map { String(localized: "\(LongTermFormat.signed($0, d.metric))/week") } ?? "–",
-                      caption: d.ratePerWeek == nil ? String(localized: "After two weeks of readings") : style.wordText,
-                      tone: d.ratePerWeek == nil ? nil : toneOfState),
-                .init(id: 1, icon: "arrow.left.and.right", title: String(localized: "Since the start"),
-                      value: LongTermFormat.signed(d.current - d.baseline, d.metric),
-                      caption: String(localized: "from \(LongTermFormat.value(d.baseline, d.metric))"), tone: nil),
-                .init(id: 2, icon: "calendar", title: String(localized: "Target reached"),
-                      value: d.arrivalDate.map(LongTermFormat.shortDate) ?? "–",
-                      caption: d.arrivalDate == nil ? String(localized: "More than a year at this pace, or no trend yet")
-                                                    : String(localized: "at the current pace"),
-                      tone: nil),
-            ]
-
-        case .best(let d):
-            let r = d.reading
-            let target = snapshot.goal.target ?? 0
-            heroValue = r.best.map { LongTermFormat.value($0, .longestDistance) } ?? "–"
-            heroCaption = String(localized: "best since the start")
-            let third: GoalHeroStat
-            if let date = snapshot.goal.targetDate {
-                let days = Calendar.autoupdatingCurrent.dateComponents([.day], from: Date(), to: date).day ?? 0
-                let isRace = snapshot.goal.templateId == GoalTemplateID.event.rawValue
-                third = .init(id: 2, label: isRace ? String(localized: "Race day") : String(localized: "By"),
-                              value: days >= 0 ? LongTermFormat.inAbout(days: Double(days)) : LongTermFormat.shortDate(date))
-            } else {
-                third = .init(id: 2, label: String(localized: "Last best"),
-                              value: r.daysSinceBest.map { $0 == 0 ? String(localized: "today")
-                                  : String(localized: "\($0) days ago") } ?? "–")
-            }
-            stats = [
-                .init(id: 0, label: String(localized: "Target"), value: LongTermFormat.value(target, .longestDistance)),
-                .init(id: 1, label: String(localized: "Progress"),
-                      value: r.fraction.map { "\(Int((min(1, $0) * 100).rounded())) %" } ?? "–",
-                      fraction: r.fraction.map { min(1, $0) }),
-                third,
-            ]
-            bandTitle = Self.milestoneTitle(d.milestones)
-            band = Self.milestoneBand(d.milestones, metric: .longestDistance)
-            insights = [
-                .init(id: 0, icon: "speedometer", title: String(localized: "Per week"),
-                      value: d.recentWeeklyDistance.map { String(localized: "\(LongTermFormat.value($0, .distanceTotal))/week") } ?? "–",
-                      caption: String(localized: "last four weeks"), tone: r.state.map { _ in toneOfState }),
-                .init(id: 1, icon: "arrow.up.right", title: String(localized: "Longest lately"),
-                      value: r.recentBest.map { LongTermFormat.value($0, .longestDistance) } ?? "–",
-                      caption: String(localized: "last four weeks"), tone: nil),
-                .init(id: 2, icon: "clock.arrow.circlepath", title: String(localized: "Earlier best"),
-                      value: r.earlierBest.map { LongTermFormat.value($0, .longestDistance) } ?? "–",
-                      caption: String(localized: "before this goal"), tone: nil),
-            ]
-
-        case .consistency(let d):
-            let r = d.reading
-            heroValue = LongTermFormat.perWeek(d.weeklyTarget, d.weeklyMetric)
-            heroCaption = LongTermFormat.dayBar(d.weeklyMetric, threshold: d.weeklyThreshold)
-            stats = [
-                .init(id: 0, label: String(localized: "Consistency"),
-                      value: r.share.map { "\(Int(($0 * 100).rounded())) %" } ?? "–"),
-                .init(id: 1, label: String(localized: "This week"),
-                      value: "\(LongTermFormat.number(d.thisWeek)) / \(LongTermFormat.number(d.weeklyTarget))",
-                      fraction: d.weeklyTarget > 0 ? min(1, d.thisWeek / d.weeklyTarget) : nil),
-                .init(id: 2, label: String(localized: "Current streak"),
-                      value: String(localized: "\(r.currentStreak) weeks")),
-            ]
-            bandTitle = String(localized: "Last 8 weeks")
-            band = .weeks(zip(d.lastWeeks, d.lastWeekStarts).enumerated().map { index, pair in
-                .init(id: index, label: Self.weekLabel(pair.1), state: Self.weekState(pair.0))
-            })
-            var items: [Insight] = []
-            if let avg = d.averagePerWeek {
-                let delta = d.previousAveragePerWeek.map { avg - $0 }
-                items.append(.init(id: 0, icon: "chart.bar", title: String(localized: "Average per week"),
-                                   value: LongTermFormat.number(avg),
-                                   caption: delta.map { String(localized: "\($0 >= 0 ? "+" : "−")\(LongTermFormat.number(abs($0))) vs before") },
-                                   tone: toneOfState))
-            }
-            if let weekday = d.strongestWeekday, let share = d.strongestWeekdayShare {
-                items.append(.init(id: 1, icon: "calendar", title: String(localized: "Best day"),
-                                   value: LongTermFormat.weekdayName(weekday),
-                                   caption: String(localized: "\(Int((share * 100).rounded())) % of sessions"), tone: nil))
-            }
-            let missed = d.lastWeeks.filter { $0 == .missed }.count
-            items.append(.init(id: 2, icon: "minus.circle", title: String(localized: "Missed weeks"),
-                               value: d.lastWeeks.isEmpty ? "–" : String(localized: "\(missed) of \(d.lastWeeks.count)"),
-                               caption: r.share.map { String(localized: "\(Int(($0 * 100).rounded())) % kept") }, tone: nil))
-            insights = items
-
-        case .maintain(let d):
-            let r = d.reading
-            heroValue = r.latest.map { LongTermFormat.value($0, d.metric) } ?? "–"
-            heroCaption = String(localized: "\(LongTermFormat.value(d.center, d.metric)) ± \(LongTermFormat.value(d.band, d.metric))")
-            stats = [
-                .init(id: 0, label: String(localized: "Band"),
-                      value: String(localized: "± \(LongTermFormat.value(d.band, d.metric))")),
-                .init(id: 1, label: String(localized: "In the band"),
-                      value: r.inBandShare.map { "\(Int(($0 * 100).rounded())) %" } ?? "–",
-                      fraction: r.inBandShare),
-                .init(id: 2, label: String(localized: "From the middle"),
-                      value: r.deviation.map { LongTermFormat.signed($0, d.metric) } ?? "–"),
-            ]
-            bandTitle = ""
-            band = nil
-            insights = [
-                .init(id: 0, icon: "equal.circle", title: String(localized: "In the band"),
-                      value: r.inBandShare.map { "\(Int(($0 * 100).rounded())) %" } ?? "–",
-                      caption: String(localized: "of readings, last four weeks"), tone: r.inBandShare == nil ? nil : toneOfState),
-                .init(id: 1, icon: "arrow.up.and.down", title: String(localized: "Swing"),
-                      value: r.spread.map { LongTermFormat.value($0, d.metric) } ?? "–",
-                      caption: String(localized: "highest to lowest"), tone: nil),
-                .init(id: 2, icon: "scalemass", title: String(localized: "Weigh-ins"),
-                      value: "\(r.readings)", caption: String(localized: "last four weeks"), tone: nil),
-            ]
-
-        case .average(let d):
-            let r = d.reading
-            // A pace goal reads runs, not days: its band is one column per run.
-            let isPace = d.metric == .paceAverage
-            let meanText = r.mean.map { LongTermFormat.value($0, d.metric) } ?? "–"
-            heroValue = meanText
-            heroCaption = isPace && r.mean == nil && r.values > 0
-                ? String(localized: "average from two runs of 3 km") : String(localized: "28-day average")
-            stats = [
-                .init(id: 0, label: String(localized: "Target"), value: LongTermFormat.value(d.target, d.metric)),
-                .init(id: 1, label: String(localized: "Trend"),
-                      value: r.trendPerMonth.map { String(localized: "\(LongTermFormat.signed($0, d.metric))/month") } ?? "–"),
-                .init(id: 2, label: String(localized: "At target"),
-                      value: isPace ? String(localized: "\(r.atTarget) / \(r.values) runs")
-                                    : String(localized: "\(r.atTarget) / \(r.values) days")),
-            ]
-            bandTitle = isPace ? String(localized: "Runs, last 28 days") : String(localized: "28-day trend")
-            band = .columns(d.days, target: d.target, higherIsBetter: d.higherIsBetter)
-            insights = [
-                .init(id: 0, icon: "chart.bar", title: String(localized: "Current average"),
-                      value: meanText,
-                      caption: r.trendPerMonth.map { String(localized: "\(LongTermFormat.signed($0, d.metric))/month") },
-                      tone: r.mean == nil ? nil : toneOfState),
-                .init(id: 1, icon: "target", title: String(localized: "Gap to target"),
-                      value: r.gap.map { $0 < 1e-9 ? String(localized: "None") : LongTermFormat.signed($0, d.metric)
-                          .replacingOccurrences(of: "+", with: "") } ?? "–",
-                      caption: String(localized: "to reach \(LongTermFormat.value(d.target, d.metric))"), tone: nil),
-                .init(id: 2, icon: "star", title: isPace ? String(localized: "Fastest run") : String(localized: "Best week"),
-                      value: d.bestWeekMean.map { LongTermFormat.value($0, d.metric) } ?? "–",
-                      caption: String(localized: "in the last four weeks"), tone: nil),
-            ]
-        }
-    }
-
-    /// "Milestones · 3 of 10": the band shows five at a time, so the count says how far the whole route is.
-    private static func milestoneTitle(_ window: LongTermGoalMath.MilestoneWindow?) -> String {
-        guard let window, window.values.count > window.visible.count else { return String(localized: "Milestones") }
-        return String(localized: "Milestones · \(window.reachedCount) of \(window.values.count)")
-    }
-
-    private static func milestoneBand(_ window: LongTermGoalMath.MilestoneWindow?, metric: LongTermMetric) -> Band? {
-        guard let window, !window.values.isEmpty else { return nil }
-        let all = window.values.indices.map { index in
-            MilestoneTrack.Point(id: index, label: LongTermFormat.value(window.values[index], metric),
-                                 state: index < window.reachedCount ? .reached
-                                     : index == window.reachedCount ? .next : .open)
-        }
-        return .milestones(Array(all[window.visible]), moreBefore: window.visible.lowerBound > 0,
-                           moreAfter: window.visible.upperBound < window.values.count, all: all)
-    }
-
-    private static func weekState(_ outcome: PeriodOutcome) -> WeekDotRow.WeekState {
-        switch outcome {
-        case .achieved: return .kept
-        case .almost: return .almost
-        case .missed: return .missed
-        case .protected: return .protected
-        case .noData: return .noData
-        }
-    }
-
-    /// "W41": the calendar week the period starts in.
-    private static func weekLabel(_ dayKey: String) -> String {
-        guard let date = PeriodGoalTracker.date(dayKey, calendar: TrainingPreferences.weekCalendar) else { return "" }
-        let week = Calendar(identifier: .iso8601).component(.weekOfYear, from: date)
-        return String(localized: "W\(week)")
+        self.init(id: point.id, label: point.label, state: state)
     }
 }
 
-extension LongTermFormat {
-    /// A count or a rate as a person says it: "3", "2.5".
-    static func number(_ value: Double) -> String {
-        value.formatted(.number.precision(.fractionLength(0...1)))
+extension WeekDotRow.Week {
+    init(_ week: LongTermGoalContent.Week) {
+        let state: WeekDotRow.WeekState
+        switch week.state {
+        case .kept: state = .kept
+        case .almost: state = .almost
+        case .missed: state = .missed
+        case .protected: state = .protected
+        case .noData: state = .noData
+        case .running: state = .running
+        }
+        self.init(id: week.id, label: week.label, state: state)
     }
 }
 
@@ -560,7 +198,7 @@ struct LongTermGoalPage: View {
         if let snapshot, let metric = snapshot.goal.measure?.metric {
             NavigationStack {
                 Form {
-                    Stepper(value: $raisedTarget, in: 0...100_000, step: Self.raiseStep(metric, raisedTarget)) {
+                    Stepper(value: $raisedTarget, in: 0...100_000, step: LongTermFormat.raiseStep(metric, raisedTarget)) {
                         HStack {
                             Text("New target")
                             Spacer()
@@ -585,15 +223,6 @@ struct LongTermGoalPage: View {
         }
     }
 
-    private static func raiseStep(_ metric: LongTermMetric, _ value: Double) -> Double {
-        switch metric {
-        case .distanceTotal: return value >= 200 ? 50 : 10
-        case .longestDistance, .weight: return 0.5
-        case .sleepAverage: return 0.25
-        default: return 1
-        }
-    }
-
     /// A small uppercase heading over a section, with an optional action at its end ("All").
     private func sectionHeader(_ title: String, action: (label: LocalizedStringKey, run: () -> Void)? = nil) -> some View {
         HStack(alignment: .firstTextBaseline) {
@@ -613,14 +242,14 @@ struct LongTermGoalPage: View {
     private func bandSection(_ title: String, _ band: LongTermGoalContent.Band) -> some View {
         var action: (label: LocalizedStringKey, run: () -> Void)?
         if case .milestones(_, let before, let after, let all) = band, before || after {
-            action = ("All", { allMilestones = all })
+            action = ("All", { allMilestones = all.map(MilestoneTrack.Point.init) })
         }
         return VStack(alignment: .leading, spacing: NoopMetrics.space2) {
             sectionHeader(title, action: action)
             NoopCard(padding: NoopMetrics.space4) {
                 switch band {
                 case .milestones(let points, let before, let after, _):
-                    MilestoneTrack(points: points, tint: StrandPalette.statusPositive,
+                    MilestoneTrack(points: points.map(MilestoneTrack.Point.init), tint: StrandPalette.statusPositive,
                                    moreBefore: before, moreAfter: after)
                 case .weeks(let weeks):
                     if weeks.isEmpty {
@@ -628,7 +257,7 @@ struct LongTermGoalPage: View {
                         Text("The first week shows here once it ends.")
                             .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                     } else {
-                        WeekDotRow(weeks: weeks, tint: StrandPalette.statusPositive)
+                        WeekDotRow(weeks: weeks.map(WeekDotRow.Week.init), tint: StrandPalette.statusPositive)
                     }
                 case .columns(let values, let target, let higherIsBetter):
                     TargetColumns(values: values, target: target, tint: StrandPalette.accent, height: 90,
@@ -646,7 +275,7 @@ struct LongTermGoalPage: View {
                 VStack(spacing: 0) {
                     ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                         InsightRow(icon: item.icon, title: item.title, value: item.value,
-                                   caption: item.caption, valueTone: item.tone)
+                                   caption: item.caption, valueTone: item.tone.map(StrandTone.init))
                         if index < items.count - 1 { rowDivider }
                     }
                 }

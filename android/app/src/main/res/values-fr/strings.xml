@@ -4196,4 +4196,17 @@
     <string name="forge_goals_ctx_training">Objectifs d’entraînement de la semaine</string>
     <string name="forge_goals_ctx_sleep">Objectif de sommeil de la semaine</string>
     <string name="forge_goals_ctx_set_training">Fixer un objectif d’entraînement hebdomadaire</string>
+    <string name="forge_ltp_reached">Objectif atteint</string>
+    <string name="forge_ltp_reached_keep">Clôture-le, vise plus haut ou garde ce que tu as atteint.</string>
+    <string name="forge_ltp_reached_plain">Clôture-le ou vise plus haut.</string>
+    <string name="forge_ltp_close">Le clôturer</string>
+    <string name="forge_ltp_aim_higher">Viser plus haut</string>
+    <string name="forge_ltp_keep_weight">Garder le poids</string>
+    <string name="forge_ltp_new_target">Nouvelle cible</string>
+    <string name="forge_ltp_insights">Perspectives</string>
+    <string name="forge_ltp_manage">Gérer</string>
+    <string name="forge_ltp_keep_on_today">Épingler sur Aujourd’hui</string>
+    <string name="forge_ltp_all">Tout</string>
+    <string name="forge_ltp_up_next">Prochain</string>
+    <string name="forge_ltp_first_week">La première semaine s\'affiche ici une fois terminée.</string>
 </resources>
