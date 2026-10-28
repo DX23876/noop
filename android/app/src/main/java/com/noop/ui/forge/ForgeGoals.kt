@@ -978,13 +978,18 @@ internal fun PublishGoalsWidget(output: CoreGoals.Output?) {
     output ?: return
     val context = LocalContext.current
     val spot = output.spotlight
-    val goals = spot.rows.mapNotNull { row ->
-        if (row.kind == "period") output.period.firstOrNull { it.id == row.id }?.let {
-            com.noop.widget.GoalsGlanceWidget.Goal(shortName(it), progressText(it), it.fraction.coerceIn(0.0, 1.0), stateWord(it.state))
-        } else output.longTerm.firstOrNull { it.id == row.id }?.let {
+    val chosen = spot.rows.mapNotNull { row ->
+        if (row.kind == "period") output.period.firstOrNull { it.id == row.id }?.let { periodWidgetGoal(it) }
+        else output.longTerm.firstOrNull { it.id == row.id }?.let {
             com.noop.widget.GoalsGlanceWidget.Goal(it.title, it.progress?.let { p -> "${(p * 100).roundToInt()} %" } ?: "",
                 it.progress ?: 0.0, it.statusText ?: healthWord(it.health))
         }
+    }
+    // Nothing needs a look: the open weekly goals, then the monthly ones, as the iOS widget falls back to every
+    // goal (`spot.isEmpty ? goals : spot`), so a goal on course never reads as "set a weekly goal".
+    val open = output.period.filter { it.status == "active" }
+    val goals = chosen.ifEmpty {
+        (open.filter { it.period == "week" } + open.filter { it.period == "month" }).take(3).map { periodWidgetGoal(it) }
     }
     val summary = buildList {
         if (spot.dailyTotal > 0) add(stringResource(R.string.forge_goals_done_count, spot.dailyDone, spot.dailyTotal))
@@ -994,6 +999,10 @@ internal fun PublishGoalsWidget(output: CoreGoals.Output?) {
         withContext(Dispatchers.IO) { com.noop.widget.GoalsGlanceWidget.publish(context, goals, summary) }
     }
 }
+
+@Composable
+private fun periodWidgetGoal(goal: CoreGoals.Period) = com.noop.widget.GoalsGlanceWidget.Goal(
+    shortName(goal), progressText(goal), goal.fraction.coerceIn(0.0, 1.0), stateWord(goal.state))
 
 // MARK: - Words and numbers (`GoalFormat`, `GoalStatusStyle`)
 

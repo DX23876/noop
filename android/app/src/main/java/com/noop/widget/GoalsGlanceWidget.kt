@@ -45,15 +45,23 @@ class GoalsGlanceWidget : GlanceAppWidget() {
     data class Goal(val name: String, val progress: String, val fraction: Double, val state: String)
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val dark = WidgetTheme.isDark(context)
+        // Read inside the composition: `publish`'s `updateAll` recomposes a session that is still running rather
+        // than calling `provideGlance` again, so a read out here kept showing what the session started with.
+        provideContent {
+            val (goals, summary) = stored(context)
+            GoalsWidgetContent(goals, summary, dark)
+        }
+    }
+
+    private fun stored(context: Context): Pair<List<Goal>, String> {
         val raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, null)
         val o = raw?.let { runCatching { JSONObject(it) }.getOrNull() }
         val goals = o?.optJSONArray("goals")?.let { a ->
             (0 until a.length()).map { a.getJSONObject(it) }
                 .map { Goal(it.getString("name"), it.getString("progress"), it.optDouble("fraction", 0.0), it.optString("state")) }
         }.orEmpty()
-        val summary = o?.optString("summary").orEmpty()
-        val dark = WidgetTheme.isDark(context)
-        provideContent { GoalsWidgetContent(goals, summary, dark) }
+        return goals to o?.optString("summary").orEmpty()
     }
 
     companion object {
