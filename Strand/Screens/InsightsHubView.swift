@@ -552,7 +552,7 @@ final class InsightsHubViewModel: ObservableObject {
     private var currentOutcome: Outcome = .recovery
 
     /// The source id dose rows are parked under (mirrors MoodStore's noop-mood isolation).
-    static let doseSource = "noop-journal-dose"
+    static let doseSource = DoseJournal.doseSource
 
     private let outcomeKeys = ["recovery", "hrv", "sleep_performance", "rhr"]
 
@@ -658,16 +658,9 @@ final class InsightsHubViewModel: ObservableObject {
         }
     }
 
-    /// The dose storage key for a behaviour (its raw enum value — the stable, cross-platform key).
-    static func doseKey(for behavior: DosedBehavior) -> String { "dose_\(behavior.rawValue)" }
-
-    /// Whether a journal question is the dosed behaviour (so its yes-days back-fill dose = 1).
+    static func doseKey(for behavior: DosedBehavior) -> String { DoseJournal.doseKey(for: behavior) }
     static func matches(_ behavior: DosedBehavior, question: String) -> Bool {
-        let q = question.lowercased()
-        switch behavior {
-        case .alcohol:  return q.contains("alcohol") || q.contains("drink")
-        case .caffeine: return q.contains("caffeine") || q.contains("coffee")
-        }
+        DoseJournal.matches(behavior, question: question)
     }
 
     // MARK: Dose card view-data

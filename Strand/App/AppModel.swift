@@ -3048,7 +3048,7 @@ final class AppModel: ObservableObject {
 
     /// UserDefaults key for the cycle-awareness opt-in (default OFF , the most sensitive health category,
     /// manual-first). The Settings toggle + the card's opt-in CTA both write this single key.
-    static let cycleAwarenessKey = "noopCycleAwareness"
+    static let cycleAwarenessKey = CycleAwarenessPrefs.key
     var cycleAwarenessEnabled: Bool {
         get { UserDefaults.standard.bool(forKey: Self.cycleAwarenessKey) }
         set { UserDefaults.standard.set(newValue, forKey: Self.cycleAwarenessKey) }

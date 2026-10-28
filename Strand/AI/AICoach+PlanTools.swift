@@ -104,7 +104,7 @@ extension AICoachEngine {
             return "Not proposed: the user already has \(trimmedSport) committed for \(dayKey). "
                 + "Acknowledge their existing plan rather than suggesting it again as if it were new."
         }
-        CoachNotifier.postPlanProposal(proposal)
+        coachAppHooks().planProposed(proposal)
         let adapted = adaptation.evidenceNote.map { " Local adaptation: \($0)" } ?? ""
         let effortNote = correction.map { " \($0)" } ?? ""
         return "Proposed (NOT scheduled): \(proposal.contextSummary()) on \(dayKey).\(adapted)\(effortNote) "

@@ -42,7 +42,7 @@ and through 18 `Repository` members.
 | `ProfileStore` | `Data/Profile.swift` (imports SwiftUI) | Reads the profile, mirrors the step-length fit back for Settings | Pass takes a `UserProfile` value; the mirror becomes a result field the app applies |
 | `StressMath` | **`Screens/StressView.swift`** | `stressProxyRows` | Pure maths inside a screen file; moves to the core, `StressView` imports it |
 | `WeightSeries` statics | `Data/WeightSeries.swift` | Day to date, weigh-in merge | Pure parts move; the HealthKit-facing parts stay |
-| `WorkoutEnergyDisplay.peakMET` | `Data/WorkoutEnergyDisplay.swift` (imports SwiftUI) | Peak MET for workouts | The function moves; the SwiftUI display stays |
+| `WorkoutEnergyDisplay.peakMET` | `AI/WorkoutEnergyDisplay.swift` (Foundation only since 2026-10-28) | Peak MET for workouts | The function moves; the SwiftUI display stays |
 | `WorkoutSource.sourceLabel` | `Data/WorkoutSource.swift` | One diagnostic label | Moves with its pure part |
 | `DayCycleIntelligenceIntegration` | `Data/` (Foundation, packages only) | Day-cycle worker | Moves whole |
 | `AnalysisProgress` | `Data/` (Foundation only; uses `AppLanguage` for text) | Progress steps | Data part moves; the localised text stays |

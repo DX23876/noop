@@ -150,17 +150,16 @@ Jeweils Logik und Speicher, ohne Oberfläche:
   Kotlin.
   Inventur dieser App-Typen (2026-10-28, Probebau von `AICoach` mit 27 Coach-Dateien im Kern, in drei Runden,
   bis keine neuen fehlenden Namen dazukamen; ein Fehler kann weitere verdecken, die Liste ist ein Arbeitsstand):
-  - Stand nach weiteren Probeläufen (2026-10-28, mit `SemanticMemory` vorübergehend im Kern und leeren
-    Umsetzungen von `coachPlanEffects()`, `secretVault()` und `coachMemoryIndex()`): Alle Hilfsdateien des
-    Coaches einschließlich der Anbieter-Clients (OpenAI, Anthropic, Gemini, OpenRouter, Custom, Streaming) bauen
-    im Kern. Die statischen `Repository`-Aufrufe in `Strand/AI` gehen jetzt an `StoreReader.localDayKey`,
-    `LogicalDay.key` und `MetricResolver` (gleichwertig, `Repository` leitete nur weiter). Der Schlüsselbund geht
-    über `SecretVault` (`SecretVault+Keychain.swift` auf Apple), die Gedächtnis-Meldungen von `CoachMemory` über
-    `coachMemoryIndex()`. In `AICoach` selbst fehlen noch diese App-Typen: `GoalTrackingStore` (importiert
-    Combine), `LabBookFormat`, `InsightsHubViewModel`, `TrendsReportData` (alle in SwiftUI-Bildschirmen),
-    `WorkoutEnergyDisplay`, `MoodStore` (erweitert `Repository`), `EnergyPlanStore`, `CoachNotifier`,
-    `CoachIdentityStore` (UIKit/AppKit), `CoachBriefScheduler` (UserNotifications, WidgetKit), `AppModel`, und
-    die Funktion `maybeSummarize`.
+  - Stand 2026-10-28: Der ganze Coach (`AICoach` mit 55 Hilfsdateien und den Anbieter-Clients) baut probeweise
+    im Kern auf dem Mac, ohne Fehler. Dafür nötig waren `SemanticMemory` als Abhängigkeit und vier Umsetzungen,
+    die jedes Ziel selbst liefert: `coachPlanEffects()`, `secretVault()`, `coachMemoryIndex()` und
+    `coachAppHooks()` (Zielstand, Identität, Benachrichtigungen; Apple: `CoachAppHooks+App.swift`). Aus
+    Bildschirm-Dateien in eigene Dateien gezogen: `LabBookFormat`, `TrendsReportData` mit `ReportRange`,
+    `WorkoutEnergyDisplay` (der Rest heißt jetzt `HealthWorkoutRewrite.swift`), `DoseJournal`,
+    `CycleAwarenessPrefs`, `MoodStoreValues`. Der Grundumsatz im Coach liest `profile.basalFormula` statt
+    `EnergyPlanStore` (gleicher Wert). Noch offen für den echten Umzug: die vier Umsetzungen im Kern, der
+    verzögerte Speicher-Publisher in `AICoach` (`$conversations.debounce.sink`), den der Combine-Ersatz des
+    Kerns (`CombineShim.swift`) auf Android nicht kennt, der Android-Build selbst und die Brücke nach Kotlin.
   - Ältere Punkte dieser Liste. Erledigt (2026-10-28):
     Diagramm und Karte, deren Datenhälften in `CoachChartData.swift` und `CoachCardData.swift` liegen und im Kern
     verlinkt sind, und das Profil, das `AICoach` als Wert `CoachProfile` über `CoachDataReading.coachProfile()`

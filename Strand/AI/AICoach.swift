@@ -796,7 +796,7 @@ final class AICoachEngine: ObservableObject {
         // decides and how hard it holds you) on top of the methodology in `base`. Both read fresh so a
         // change to either applies on the very next message. Name comes from the identity, behaviour from
         // the persona — they never fight over "who you are".
-        var prompt = CoachIdentityStore.shared.identity.identityPreamble
+        var prompt = coachAppHooks().identityPreamble
             + "\n\n" + persona.systemPreamble + "\n\n" + base
         // Persistent memory is only shared when its own purpose is enabled under the master consent.
         // Query-relevant normal facts are injected per-question in `wireMessages` instead, so a large
@@ -1566,7 +1566,7 @@ final class AICoachEngine: ObservableObject {
         guard !trimmed.isEmpty else { errorText = AICoachError.emptyQuestion.errorDescription; return }
         // The master switch, checked at the EGRESS rather than only on the routes in: a wearer can be
         // STANDING on this screen when the switch goes off, and that path passes no tab. (#2269)
-        guard CoachBriefScheduler.coachMasterEnabled else { return }
+        guard CoachFeaturePrefs.isEnabled else { return }
         guard let key = resolvedKey else { errorText = AICoachError.noKey.errorDescription; return }
         // Catch an unset model here rather than letting it reach the provider: every server answers a
         // `"model": ""` body with an opaque 400 that gives the user nothing to act on.
@@ -1810,7 +1810,7 @@ final class AICoachEngine: ObservableObject {
             return "No data available to plot \"\(metric)\"."
         }
         pendingCharts.append(art)
-        return "Displayed a chart of \(art.title) over the last \(art.points.count) days for the user."
+        return "Displayed a chart of \(art.title) over the last \(art.values.count) days for the user."
     }
 
     /// Append one empty assistant message per queued chart (the id links it to `chartsByMessage`), then
@@ -3042,7 +3042,7 @@ final class AICoachEngine: ObservableObject {
         }
         // Post to the bell independent of whether the chat generation below succeeds — the structured
         // detection already happened locally, and a network failure shouldn't also hide it from the bell.
-        CoachNotifier.postProactiveSignal(signal, level: proactiveLevel)
+        coachAppHooks().proactiveSignal(signal, level: proactiveLevel)
         let goodNews = signal.category == .milestone || signal.category == .bodyPositive
         let prefix = goodNews ? "Nice work" : "A quick nudge"
         let spoke = await runSeededTurnCancellable(
@@ -3454,7 +3454,7 @@ final class AICoachEngine: ObservableObject {
         // `.learning`/`.unknown`) — the same gate + skin-temp/RHR/HRV z-scored inputs
         // `AppModel.computeCyclePhase()` uses for the Health hub's cards, so the two can't disagree.
         // Costs nothing for a user without cycle data: the UserDefaults check short-circuits first.
-        if UserDefaults.standard.bool(forKey: AppModel.cycleAwarenessKey) {
+        if UserDefaults.standard.bool(forKey: CycleAwarenessPrefs.key) {
             let (nights, baselineUsable) = Self.cyclePhaseNights(days: repo.days)
             let phase = CyclePhaseEngine.classify(nights, baselineUsable: baselineUsable)
             if phase.phase != .learning, phase.phase != .unknown {
@@ -3665,7 +3665,7 @@ final class AICoachEngine: ObservableObject {
         var blocks = (store.activeGoals + recentlyClosed).compactMap { goalBlock(for: $0, profile: profile) }
         // Weekly and monthly goals with their state, computed in code (goals plan §14): the coach narrates
         // where the week stands instead of judging it itself.
-        if let periodBlock = Self.periodGoalsBlock(GoalTrackingStore.shared.periodSnapshots) {
+        if let periodBlock = Self.periodGoalsBlock(coachAppHooks().goalTracking.periodSnapshots) {
             blocks.append(periodBlock)
         }
         let pendingSetups = CoachGoalSetupProposalStore.shared.pending
@@ -3766,11 +3766,11 @@ final class AICoachEngine: ObservableObject {
             lines.append("CATALOG GOAL: template \(templateId), measures \(measure.metric.rawValue) in "
                          + "\(measure.metric.coachUnit)\(sports). Measured from the user's data; update its target or date "
                          + "with propose_goal_setup operation=update, never by redefining what it measures.")
-            if let reading = GoalTrackingStore.shared.snapshot(for: goal.id)?.reading {
+            if let reading = coachAppHooks().goalTracking.snapshot(for: goal.id)?.reading {
                 lines.append("CATALOG READING (computed facts): \(reading.coachFacts())")
             }
         }
-        if let tracking = GoalTrackingStore.shared.snapshot(for: goal.id) {
+        if let tracking = coachAppHooks().goalTracking.snapshot(for: goal.id) {
             lines.append("DETERMINISTIC GOAL STATUS: \(tracking.health.label); "
                          + "this week plan \(tracking.currentWeek.planCompleted)/\(tracking.currentWeek.planPlanned), "
                          + "daily actions \(tracking.currentWeek.actionCompleted)/\(tracking.currentWeek.actionPlanned); "
@@ -3780,7 +3780,7 @@ final class AICoachEngine: ObservableObject {
         }
         let linkedActions = GoalActionStore.shared.actions.filter { $0.isActive && $0.goalIds.contains(goal.id) }
         if !linkedActions.isEmpty {
-            let today = Dictionary(uniqueKeysWithValues: GoalTrackingStore.shared.todayActions.map {
+            let today = Dictionary(uniqueKeysWithValues: coachAppHooks().goalTracking.todayActions.map {
                 ($0.action.id, $0.isCompleted)
             })
             lines.append("CONFIRMED DAILY ACTIONS (execution evidence, never outcome proof): "
@@ -4446,8 +4446,8 @@ final class AICoachEngine: ObservableObject {
             uniquingKeysWith: { _, last in last })
         var doseRowsByBehavior: [DosedBehavior: [(day: String, value: Double)]] = [:]
         for behavior in DosedBehavior.allCases {
-            let key = InsightsHubViewModel.doseKey(for: behavior)
-            doseRowsByBehavior[behavior] = await repo.series(key: key, source: InsightsHubViewModel.doseSource)
+            let key = DoseJournal.doseKey(for: behavior)
+            doseRowsByBehavior[behavior] = await repo.series(key: key, source: DoseJournal.doseSource)
         }
         let doseLines = Self.doseResponseLines(byBehaviour: byBehaviour, doseRowsByBehavior: doseRowsByBehavior,
                                                recoveryByDay: recoveryByDay, hrvByDay: hrvByDay)
@@ -4491,7 +4491,7 @@ final class AICoachEngine: ObservableObject {
         var doseLines: [String] = []
         for behavior in DosedBehavior.allCases {
             var doses: [String: Int] = [:]
-            for (question, days) in byBehaviour where InsightsHubViewModel.matches(behavior, question: question) {
+            for (question, days) in byBehaviour where DoseJournal.matches(behavior, question: question) {
                 for day in days { doses[day] = max(doses[day] ?? 0, 1) }
             }
             for row in (doseRowsByBehavior[behavior] ?? []) { doses[row.day] = Int(row.value.rounded()) }
