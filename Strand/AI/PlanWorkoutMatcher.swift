@@ -155,7 +155,7 @@ enum PlanWorkoutMatcher {
 enum PlanReconciliationCoordinator {
     /// Rebuild the closed loop from the canonical, already cross-source-deduplicated workout feed.
     @discardableResult
-    static func reconcile(repo: Repository, store suppliedStore: CoachPlanStore? = nil,
+    static func reconcile(repo: any CoachDataReading, store suppliedStore: CoachPlanStore? = nil,
                           now: Date = Date()) async -> [PlanReconciliationResolution] {
         let store = suppliedStore ?? CoachPlanStore.shared
         PlanGoalAttributionMigration.runIfNeeded(store: store, goals: CoachGoalStore.shared.goals)

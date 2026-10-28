@@ -134,8 +134,10 @@ Jeweils Logik und Speicher, ohne Oberfläche:
   Kern-Host erfüllen, wie `GoalInputReading` für die Ziele.
   Schritt 1 erledigt (2026-10-28): `Strand/AI/CoachDataReading.swift`; `AICoach.repo` ist jetzt
   `any CoachDataReading`. Zwei Host-Haken bleiben App-seitig (`refreshCoachCheckIn`, `trainingLoadBrief`), dazu
-  `cardioLoadMaxHR` und `strainProfileSex` statt des Apple-Typs `Repository.StrainProfile`. Die Werkzeug-Dateien
-  mit eigenem `repo: Repository` (Plan-Abgleich, Ziel-Fragen) folgen im nächsten Schritt, danach der Kern-Host.
+  `cardioLoadMaxHR` und `strainProfileSex` statt des Apple-Typs `Repository.StrainProfile`. Schritt 2
+  erledigt (2026-10-28): der Plan-Abgleich (`PlanReconciliationCoordinator.reconcile`) liest über
+  `CoachDataReading`, die Antwort auf verpasste Ziel-Fragen über `CoachDataReading & GoalInputReading`, und
+  `GoalTrackingStore.refresh` nimmt jeden `GoalInputReading`-Host. Als Nächstes der Kern-Host für Android.
 
 Jede Verschiebung bekommt Kern-Tests auf macOS. Der Echtdaten-Vergleich läuft dort, wo Werte gespeichert
 werden.

@@ -4,7 +4,7 @@ import Foundation
 extension GoalMissedQuestions {
     /// Records the answer: the journal entry for a journal-linked goal, the tick for any other goal on yes;
     /// then marks the question answered and refreshes, so streaks and rings take the late tick at once.
-    static func answer(_ occurrence: GoalActionOccurrence, yes: Bool, repo: Repository,
+    static func answer(_ occurrence: GoalActionOccurrence, yes: Bool, repo: any CoachDataReading & GoalInputReading,
                        defaults: UserDefaults = .standard) async {
         if let entry = journalAnswer(occurrence.action.requirement, yes: yes) {
             await repo.saveJournalAnswer(day: occurrence.day, question: entry.question,

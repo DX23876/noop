@@ -8,7 +8,7 @@ import StrandCore
 final class GoalTrackingStore: GoalTrackingModel {
     static let shared = GoalTrackingStore()
 
-    func refresh(repo: Repository, now: Date = Date()) async {
+    func refresh(repo: any GoalInputReading, now: Date = Date()) async {
         // One step goal in the app (Q8): Momentum's own value becomes a daily goal once, then follows it.
         GoalActionStore.shared.migrateMomentumStepGoalIfNeeded()
         GoalActionStore.shared.syncStepGoal()
@@ -23,7 +23,7 @@ final class GoalTrackingStore: GoalTrackingModel {
                       dismissedWorkoutKeys: GoalContributionStore.shared.dismissedWorkoutKeys)
     }
 
-    func refresh(repo: Repository, now: Date,
+    func refresh(repo: any GoalInputReading, now: Date,
                  goals: [CoachGoal], proposals: [PlanProposal],
                  resolutions: [PlanReconciliationResolution],
                  actions: [GoalAction] = [], checkoffs: [GoalActionCheckoff] = [],
