@@ -1,4 +1,5 @@
 import Foundation
+import StrandCore
 
 /// Bridges the coach's two structured "the coach decided something" outputs — a detected
 /// `ProactiveSignal` and a proposed `PlanProposal` — into the bell (`UpdateStore`). Deliberately a plain
@@ -34,9 +35,9 @@ enum CoachNotifier {
         // that never carry a `goalId` keep exactly their old key, so their per-day dedup is untouched.
         let deepLink = signal.goalId.map { "proactive:\(signal.category.rawValue):\($0.uuidString)" }
             ?? "proactive:\(signal.category.rawValue)"
-        let today = Repository.logicalDayKey(now)
+        let today = LogicalDay.key(now)
         let alreadyPostedToday = store.items.contains {
-            $0.deepLink == deepLink && Repository.logicalDayKey($0.date) == today
+            $0.deepLink == deepLink && LogicalDay.key($0.date) == today
         }
         guard !alreadyPostedToday else { return }
 

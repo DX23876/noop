@@ -1,4 +1,5 @@
 import Foundation
+import StrandCore
 import Combine
 import Security
 import WhoopStore
@@ -25,7 +26,7 @@ extension AICoachEngine {
             return "Nothing proposed: intent must be one of rest, easy, moderate, hard, mobility."
         }
         let requestedDay = (day ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        let dayKey = requestedDay.isEmpty ? Repository.localDayKey(Date()) : requestedDay
+        let dayKey = requestedDay.isEmpty ? StoreReader.localDayKey(Date()) : requestedDay
 
         // "HH:mm" on the proposal's own day — a time without its day would silently land on today.
         var when: Date?
@@ -149,12 +150,12 @@ extension AICoachEngine {
 
     func refreshVO2maxDisplay() async {
         activeEnergyByDay = await repo.activeEnergyByDay(days: 31)
-        let estimates = await repo.exploreSeries(key: "vo2max_est", source: Repository.whoopSource, days: 90)
+        let estimates = await repo.exploreSeries(key: "vo2max_est", source: MetricResolver.whoopSource, days: 90)
             .map { VO2maxReading(day: $0.day, value: $0.value, segment: "vo2max_est") }
-        let apple = await repo.exploreSeries(key: "vo2max", source: Repository.appleHealthSource, days: 365)
-            .map { VO2maxReading(day: $0.day, value: $0.value, segment: Repository.appleHealthSource) }
+        let apple = await repo.exploreSeries(key: "vo2max", source: MetricResolver.appleHealthSource, days: 365)
+            .map { VO2maxReading(day: $0.day, value: $0.value, segment: MetricResolver.appleHealthSource) }
         vo2maxDisplay = CardioEvidence.display(estimates: estimates, apple: apple,
-                                               through: Repository.logicalDayKey(Date()))
+                                               through: LogicalDay.key(Date()))
     }
 
     /// The headline VO₂max value, or nil when neither source has one.

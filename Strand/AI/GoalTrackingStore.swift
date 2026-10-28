@@ -13,7 +13,7 @@ final class GoalTrackingStore: GoalTrackingModel {
         GoalActionStore.shared.migrateMomentumStepGoalIfNeeded()
         GoalActionStore.shared.syncStepGoal()
         // Goals made before the catalog get their template once (plan Q5), before anything reads them.
-        CoachGoalStore.shared.assignTemplatesToLegacyGoals(today: Repository.localDayKey(now), now: now)
+        CoachGoalStore.shared.assignTemplatesToLegacyGoals(today: StoreReader.localDayKey(now), now: now)
         await refresh(repo: repo, now: now, goals: CoachGoalStore.shared.goals,
                       proposals: CoachPlanStore.shared.proposals,
                       resolutions: CoachPlanStore.shared.reconciliationResolutions,
@@ -40,7 +40,7 @@ final class GoalTrackingStore: GoalTrackingModel {
             contributions: contributions, dismissedWorkoutKeys: dismissedWorkoutKeys)
         GoalNotifier.reschedule(periodSnapshots, now: now)
         GoalEvents.announce(periodSnapshots)
-        GoalReminderLines.update(periodSnapshots: periodSnapshots, todaySteps: steps[Repository.localDayKey(now)])
+        GoalReminderLines.update(periodSnapshots: periodSnapshots, todaySteps: steps[StoreReader.localDayKey(now)])
         GoalEventNotifier.evaluate(todayActions: todayActions, motivation: motivation, now: now)
         #if os(iOS)
         GoalWidgetPublisher.publish(periodSnapshots, daily: todayActions, longTerm: snapshots, now: now)

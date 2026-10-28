@@ -151,22 +151,16 @@ Jeweils Logik und Speicher, ohne Oberfläche:
   Inventur dieser App-Typen (2026-10-28, Probebau von `AICoach` mit 27 Coach-Dateien im Kern, in drei Runden,
   bis keine neuen fehlenden Namen dazukamen; ein Fehler kann weitere verdecken, die Liste ist ein Arbeitsstand):
   - Stand nach weiteren Probeläufen (2026-10-28, mit `SemanticMemory` vorübergehend im Kern und leeren
-    Umsetzungen von `coachPlanEffects()`, `secretVault()` und `coachMemoryIndex()`): Die Abhängigkeiten der
-    Hilfsdateien sind gelöst, der Probebau prüft jetzt `AICoach` selbst. Dort fehlen noch: rund 46 statische
-    `Repository`-Aufrufe (`localDayKey`, `logicalDayKey`, Quellennamen; Gegenstücke in `StoreReader` und
-    `MetricResolver`), weitere Coach-Dateien (`CoachMetricHistory`, `CoachBriefStamp`, `CoachHistoryBudget`,
-    `CoachDataCatalog`, `CoachTrainingPreferences`, `CoachLocalSourceAccess`, `CoachLocalContextPlanner`,
-    `CoachJournalPatternAnalyzer`, `CoachIdentityStore`, `CoachBriefScheduler`, `CoachRecommendationAdaptation`,
-    `LabBookFormat`, `StreamingToolClient` und die Anbieter-Clients), dazu App-Typen (`GoalTrackingStore`,
-    `InsightsHubViewModel`, `TrendsReportData`, `MoodStore`, `WorkoutEnergyDisplay`, `CoachNotifier`,
-    `AppModel`). Der Schlüsselbund geht seit diesem Stand über `SecretVault` (`SecretVault+Keychain.swift` auf
-    Apple), die Gedächtnis-Meldungen von `CoachMemory` über `coachMemoryIndex()`.
-    Erledigt: `CoachTrainingLoad` (die Teile mit `TrainingLoadModel` liegen in `CoachTrainingLoad+Screen.swift`),
-    `CoachFeaturePrefs` (eigene Datei statt `Screens/CoachEntry.swift`), `LongTermGoalCoach` (liest
-    `StoreReader.localDayKey`), der Plan-Abgleich (`PlanReconciliationCoordinator` mit `CoachNotifier` in eigener
-    App-Datei), `CoachPlanStore` (Erinnerung und Gedächtnis über `CoachPlanEffects`, den jedes Ziel mit
-    `coachPlanEffects()` liefert; der Kern braucht dafür beim Umzug eine leere Umsetzung), `HevyFormat` statt
-    `HevySource.groupedKg`, und `CoachCardContext` ohne `TabRoute`.
+    Umsetzungen von `coachPlanEffects()`, `secretVault()` und `coachMemoryIndex()`): Alle Hilfsdateien des
+    Coaches einschließlich der Anbieter-Clients (OpenAI, Anthropic, Gemini, OpenRouter, Custom, Streaming) bauen
+    im Kern. Die statischen `Repository`-Aufrufe in `Strand/AI` gehen jetzt an `StoreReader.localDayKey`,
+    `LogicalDay.key` und `MetricResolver` (gleichwertig, `Repository` leitete nur weiter). Der Schlüsselbund geht
+    über `SecretVault` (`SecretVault+Keychain.swift` auf Apple), die Gedächtnis-Meldungen von `CoachMemory` über
+    `coachMemoryIndex()`. In `AICoach` selbst fehlen noch diese App-Typen: `GoalTrackingStore` (importiert
+    Combine), `LabBookFormat`, `InsightsHubViewModel`, `TrendsReportData` (alle in SwiftUI-Bildschirmen),
+    `WorkoutEnergyDisplay`, `MoodStore` (erweitert `Repository`), `EnergyPlanStore`, `CoachNotifier`,
+    `CoachIdentityStore` (UIKit/AppKit), `CoachBriefScheduler` (UserNotifications, WidgetKit), `AppModel`, und
+    die Funktion `maybeSummarize`.
   - Ältere Punkte dieser Liste. Erledigt (2026-10-28):
     Diagramm und Karte, deren Datenhälften in `CoachChartData.swift` und `CoachCardData.swift` liegen und im Kern
     verlinkt sind, und das Profil, das `AICoach` als Wert `CoachProfile` über `CoachDataReading.coachProfile()`

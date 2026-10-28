@@ -1,4 +1,5 @@
 import Foundation
+import StrandCore
 import Combine
 import Security
 import WhoopStore
@@ -104,7 +105,7 @@ extension AICoachEngine {
                      + ", steps: \(avgInt(last30.compactMap { $0.steps.map(Double.init) }))/day"
                      + ", active energy: \(avgInt(last30.compactMap { activeEnergyByDay[$0.day] }))kcal/day")
         if let display = vo2maxDisplay, let headline = display.primary {
-            let source = headline.segment == Repository.appleHealthSource
+            let source = headline.segment == MetricResolver.appleHealthSource
                 ? "Apple Watch, measured \(headline.day)" : "NOOP weekly estimate, not a lab test"
             lines.append(String(format: "VO2max: %.1f ml/kg/min (%@)", headline.value, source))
             if let apple = display.appleLatest {
@@ -206,8 +207,8 @@ extension AICoachEngine {
         var restingHrByDay: [String: Double] = [:]
         var peakMETByDay: [String: Double] = [:]
         if let oldest = quoted.map(\.startTs).min(), let newest = quoted.map(\.startTs).max() {
-            let fromDay = Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(oldest)))
-            let toDay = Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(newest)))
+            let fromDay = StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(oldest)))
+            let toDay = StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(newest)))
             restingHrByDay = await repo.restingHrByDay(fromDay: fromDay, toDay: toDay)
             peakMETByDay = await repo.energyPeakMETByDay(fromDay: fromDay, toDay: toDay)
         }
@@ -246,7 +247,7 @@ extension AICoachEngine {
     /// actually known — which is the difference between advice and a guess with a decimal point.
     func bodyAndEnergyBlock() async -> String {
         let metrics = await repo.bodyMetrics()
-        let today = Repository.localDayKey(Date())
+        let today = StoreReader.localDayKey(Date())
         var lines: [String] = []
 
         var body: [String] = []

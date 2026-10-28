@@ -1898,8 +1898,8 @@ final class AICoachEngine: ObservableObject {
         case "sleep", "rest":
             title = "Sleep"; points = series { $0.totalSleepMin.map { $0 / 60 } }; range = 0...12; kind = .sleep
         default:
-            guard await repo.availableKeys(source: Repository.whoopSource).contains(rawMetric) else { return nil }
-            let rows = await repo.series(key: rawMetric, source: Repository.whoopSource, days: n)
+            guard await repo.availableKeys(source: MetricResolver.whoopSource).contains(rawMetric) else { return nil }
+            let rows = await repo.series(key: rawMetric, source: MetricResolver.whoopSource, days: n)
             title = Self.humanizeMetricKey(rawMetric)
             points = rows.compactMap { row in Self.parseDay(row.day).map { CoachChartSnapshot.Point(date: $0, value: row.value) } }
             let vals = points.map(\.value)
@@ -2147,7 +2147,7 @@ final class AICoachEngine: ObservableObject {
             return lines.joined(separator: "\n")
 
         case "journal":
-            let cutoffDay = Repository.localDayKey(Date().addingTimeInterval(-Double(days) * 86_400))
+            let cutoffDay = StoreReader.localDayKey(Date().addingTimeInterval(-Double(days) * 86_400))
             let entries = (await repo.journalEntries()).filter {
                 $0.day >= cutoffDay
                     && (onlySensitive == CoachSensitiveJournalPolicy.isSensitive(label: $0.question))
@@ -2199,7 +2199,7 @@ final class AICoachEngine: ObservableObject {
             return lines.joined(separator: "\n")
 
         case "mood":
-            let cutoffDay = Repository.localDayKey(Date().addingTimeInterval(-Double(days) * 86_400))
+            let cutoffDay = StoreReader.localDayKey(Date().addingTimeInterval(-Double(days) * 86_400))
             let series = (await repo.moodSeries()).filter { $0.day >= cutoffDay }
             guard !series.isEmpty else { return "No mood check-ins in the last \(days) days." }
             var lines = ["MOOD LOG (daily 1–5 check-in, newest first, last \(days) days):"]
@@ -2505,9 +2505,9 @@ final class AICoachEngine: ObservableObject {
         let window = max(7, min(days, 3_650))
         let candidates: [String]
         switch sourceRequest {
-        case "my-whoop": candidates = [Repository.whoopSource]
-        case "apple-health": candidates = [Repository.appleHealthSource]
-        case "health-connect": candidates = [Repository.healthConnectSource]
+        case "my-whoop": candidates = [MetricResolver.whoopSource]
+        case "apple-health": candidates = [MetricResolver.appleHealthSource]
+        case "health-connect": candidates = [MetricResolver.healthConnectSource]
         case "lab-book", "lab book": candidates = [WhoopStore.labBookSourceId]
         case "oura", "oura-import": candidates = ["oura-import", "oura-api"]
         case "garmin", "garmin-import": candidates = ["garmin-import"]
@@ -2530,8 +2530,8 @@ final class AICoachEngine: ObservableObject {
             // Continue with an exact-source discovery fallback for custom imported metrics that have
             // no declared cross-source mapping yet.
             candidates = metric == "weight"
-                ? [Repository.appleHealthSource, Repository.healthConnectSource, Repository.whoopSource]
-                : [Repository.whoopSource, Repository.appleHealthSource, Repository.healthConnectSource]
+                ? [MetricResolver.appleHealthSource, MetricResolver.healthConnectSource, MetricResolver.whoopSource]
+                : [MetricResolver.whoopSource, MetricResolver.appleHealthSource, MetricResolver.healthConnectSource]
         }
         // The store may contain sources from a CSV, a ring, a watch or a future importer. Preserve the
         // preferred order above, then append any discovered source that actually holds this metric.
@@ -2540,11 +2540,11 @@ final class AICoachEngine: ObservableObject {
             if !result.contains(source) { result.append(source) }
         }.filter { CoachLocalSourceAccess.permits($0, includesLabBook: includesLabBook) }
         let cutoff = Calendar.current.date(byAdding: .day, value: -(window - 1), to: Date()) ?? Date()
-        let cutoffDay = Repository.localDayKey(cutoff)
+        let cutoffDay = StoreReader.localDayKey(cutoff)
 
         var available: [CoachMetricHistory.SourceSeries] = []
         for candidate in allCandidates {
-            let rows = candidate == Repository.whoopSource
+            let rows = candidate == MetricResolver.whoopSource
                 ? await repo.exploreSeries(key: metric, source: candidate, days: window)
                 : await repo.series(key: metric, source: candidate, days: window)
             // `exploreSeries` can fill an otherwise missing stored series from the in-memory daily
@@ -2574,8 +2574,8 @@ final class AICoachEngine: ObservableObject {
         let healthPrimary: Set<String> = [
             "weight", "body_fat", "lean_mass", "bmi", "steps", "active_kcal", "basal_kcal", "vo2max"
         ]
-        let primary = healthPrimary.contains(metric) ? Repository.appleHealthSource : Repository.whoopSource
-        let secondary = primary == Repository.appleHealthSource ? Repository.whoopSource : Repository.appleHealthSource
+        let primary = healthPrimary.contains(metric) ? MetricResolver.appleHealthSource : MetricResolver.whoopSource
+        let secondary = primary == MetricResolver.appleHealthSource ? MetricResolver.whoopSource : MetricResolver.appleHealthSource
         let first = await repo.resolvedSeries(key: metric, source: primary, days: days)
 
         // `resolvedSeries` already provides Apple Health as a fallback for WHOOP-compatible vitals.
@@ -2654,13 +2654,13 @@ final class AICoachEngine: ObservableObject {
     @discardableResult
     func startBriefIfNeeded() async -> Bool {
         guard CoachFeaturePrefs.isEnabled else { return false }
-        let today = Repository.logicalDayKey(Date())
+        let today = LogicalDay.key(Date())
         guard CoachBriefStamp.lastBriefDay() != today else { return false }
         // A hand-corrected night invalidates the brief that was built on the old numbers. That re-run
         // has to get PAST the "this thread already has today's messages" gate below — the messages it
         // is replacing are exactly what would block it.
         let stale = CoachBriefStamp.isStale(today: today)
-        if !stale, let last = messages.last, Repository.logicalDayKey(last.date) == today { return false }
+        if !stale, let last = messages.last, LogicalDay.key(last.date) == today { return false }
         CoachBriefStamp.clearStale()
 
         // Don't plan a day on a night that hasn't settled. When the strap has not finished offloading,
@@ -2695,12 +2695,12 @@ final class AICoachEngine: ObservableObject {
     /// the active thread, a thread the user actually took a turn in, or one already archived. Purely
     /// additive: nothing is deleted, and an archived thread stays findable and restorable.
     func archiveStaleAutoThreads() {
-        let today = Repository.logicalDayKey(Date())
+        let today = LogicalDay.key(Date())
         for idx in conversations.indices {
             let c = conversations[idx]
             guard !c.archived, c.id != activeConversationID, c.isAutoOnly,
                   let last = c.messages.last,
-                  Repository.logicalDayKey(last.date) != today else { continue }
+                  LogicalDay.key(last.date) != today else { continue }
             conversations[idx].archived = true
         }
     }
@@ -2846,7 +2846,7 @@ final class AICoachEngine: ObservableObject {
                                           memoryWrites: takeMemoryWrites()))
                 // Stamp only on genuine success, so a network failure doesn't burn the day's slot — a
                 // retry (reopening the conversation after a day boundary) can still land one.
-                CoachBriefStamp.stamp(day: Repository.logicalDayKey(Date()))
+                CoachBriefStamp.stamp(day: LogicalDay.key(Date()))
                 spoken = clean
             }
         } catch let e as AICoachError {
@@ -2866,7 +2866,7 @@ final class AICoachEngine: ObservableObject {
     /// day, so the next tap retries.
     func checkInIfNeeded() async {
         guard CoachFeaturePrefs.isEnabled else { return }
-        let today = Repository.logicalDayKey(Date())
+        let today = LogicalDay.key(Date())
         guard UserDefaults.standard.string(forKey: Self.lastCheckInDayKey) != today else { return }
         await runCheckInCancellable()
     }
@@ -2927,7 +2927,7 @@ final class AICoachEngine: ObservableObject {
                 appendMessage(ChatMessage(role: .assistant, text: "Check-in\n\n" + clean,
                                           toolsUsed: reply.toolsUsed, origin: .checkIn,
                                           memoryWrites: takeMemoryWrites()))
-                UserDefaults.standard.set(Repository.logicalDayKey(Date()), forKey: Self.lastCheckInDayKey)
+                UserDefaults.standard.set(LogicalDay.key(Date()), forKey: Self.lastCheckInDayKey)
             }
         } catch let e as AICoachError {
             setError(e)
@@ -3019,7 +3019,7 @@ final class AICoachEngine: ObservableObject {
     @discardableResult
     func runProactiveNudgeIfNeeded() async -> Bool {
         guard CoachFeaturePrefs.isEnabled, proactiveLevel != .off, isConfigured, dataConsent, !sending else { return false }
-        let today = Repository.logicalDayKey(Date())
+        let today = LogicalDay.key(Date())
         guard UserDefaults.standard.string(forKey: Self.lastProactiveDayKey) != today else { return false }
         guard let signal = ProactiveCoach.detect(proposals: CoachPlanStore.shared.proposals,
                                                   goals: CoachGoalStore.shared.goals,
@@ -3106,7 +3106,7 @@ final class AICoachEngine: ObservableObject {
         // `logicalDayKey`, matching what the generator STAMPS. This used to read `localDayKey` while the
         // stamp was written as a logical key, so a review that ran between midnight and 04:00 recorded
         // the previous day and the seven-day gate opened a day early.
-        let today = Repository.logicalDayKey(Date())
+        let today = LogicalDay.key(Date())
         if let last = UserDefaults.standard.string(forKey: Self.lastWeeklyReviewDayKey) {
             guard let days = Self.dayKeyDistance(from: last, to: today) else {
                 // An unparsable stamp used to fall THROUGH to sending — a corrupted value meant a review
@@ -3118,7 +3118,7 @@ final class AICoachEngine: ObservableObject {
         }
         // Plan days are calendar days, so the activity window keeps using `localDayKey`.
         let recentCutoff = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
-        let recentKey = Repository.localDayKey(recentCutoff)
+        let recentKey = StoreReader.localDayKey(recentCutoff)
         guard CoachPlanStore.shared.proposals.contains(where: {
             $0.status.isDecided && $0.day >= recentKey
         }) else { return false }
@@ -3201,7 +3201,7 @@ final class AICoachEngine: ObservableObject {
                 appendMessage(ChatMessage(role: .assistant, text: prefix + "\n\n" + clean,
                                           toolsUsed: reply.toolsUsed, origin: origin,
                                           memoryWrites: takeMemoryWrites()))
-                UserDefaults.standard.set(stampValue ?? Repository.logicalDayKey(Date()), forKey: stampKey)
+                UserDefaults.standard.set(stampValue ?? LogicalDay.key(Date()), forKey: stampKey)
                 spoke = true
             }
         } catch let e as AICoachError {
@@ -3520,7 +3520,7 @@ final class AICoachEngine: ObservableObject {
     /// `restQualityTerm` — see there for why the earlier "out of scope" note was wrong and what it cost.
     func chargeDriversBlock() -> String {
         let days = repo.days
-        let todayKey = Repository.logicalDayKey(Date())
+        let todayKey = LogicalDay.key(Date())
         guard let today = Self.chargeBreakdownRow(days: days, todayKey: todayKey),
               let hrv = today.avgHrv, let rhr = today.restingHr else {
             return "Not enough data yet to break down today's Charge."
@@ -3589,7 +3589,7 @@ final class AICoachEngine: ObservableObject {
     /// brief over one would be presumptuous; it travels as a caveat instead.
     func unconfirmedWakeNeedingReview(now: Date = Date()) async -> Int? {
         guard let night = repo.sleeps.max(by: { $0.endTs < $1.endTs }) else { return nil }
-        guard !CoachBriefStamp.wakeConfirmed(today: Repository.logicalDayKey(now)) else { return nil }
+        guard !CoachBriefStamp.wakeConfirmed(today: LogicalDay.key(now)) else { return nil }
         let nowTs = Int(now.timeIntervalSince1970)
         guard nowTs - night.endTs < Self.briefDeadlineSeconds else { return nil }
         let verdict = SleepWindowSettledness.verdict(
@@ -3636,7 +3636,7 @@ final class AICoachEngine: ObservableObject {
     /// never sees.
     func chargeConfidenceLine() -> String? {
         let days = repo.days
-        let todayKey = Repository.logicalDayKey(Date())
+        let todayKey = LogicalDay.key(Date())
         guard let today = days.last(where: { $0.day == todayKey }) ?? days.last else { return nil }
         let hrvBase = Baselines.foldHistory(days.map(\.avgHrv), dayKeys: days.map(\.day),
                                             cfg: Baselines.hrvCfg,
@@ -3833,7 +3833,7 @@ final class AICoachEngine: ObservableObject {
     /// built for the model. Calls the SAME `ReadinessEngine.evaluate` the coach's context and Today's
     /// synthesis card use, so this can never disagree with either.
     func currentReadiness() -> ReadinessEngine.Readiness {
-        ReadinessEngine.evaluate(days: repo.days, today: Repository.logicalDayKey(Date()),
+        ReadinessEngine.evaluate(days: repo.days, today: LogicalDay.key(Date()),
                                  loadContext: repo.readinessLoadContext)
     }
 
@@ -3907,7 +3907,7 @@ final class AICoachEngine: ObservableObject {
         let store = CoachPlanStore.shared
         let cal = Calendar.current
         let from = cal.date(byAdding: .day, value: -max(1, days), to: Date()) ?? Date()
-        let fromKey = Repository.localDayKey(from)
+        let fromKey = StoreReader.localDayKey(from)
         let relevant = store.proposals
             .filter { $0.day >= fromKey && $0.status.isDecided }
             .sorted { $0.day > $1.day }
@@ -3967,7 +3967,7 @@ final class AICoachEngine: ObservableObject {
     /// of proposing over the top of it. `store` is injectable so the block can be exercised without the
     /// singleton; production always passes the default.
     func planContextBlock(store: CoachPlanStore = .shared) -> String? {
-        let today = Repository.localDayKey(Date())
+        let today = StoreReader.localDayKey(Date())
         var lines: [String] = []
         let pending = store.pending.filter { $0.day >= today }
         if !pending.isEmpty {

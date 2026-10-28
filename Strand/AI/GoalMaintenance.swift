@@ -1,4 +1,5 @@
 import Foundation
+import StrandCore
 import StrandAnalytics
 import WhoopStore
 import StrandDesign
@@ -119,7 +120,7 @@ enum GoalReminderLines {
             d.removeObject(forKey: stepsKey)
         }
 
-        let today = Repository.localDayKey(Date())
+        let today = StoreReader.localDayKey(Date())
         let dailySleep = GoalActionStore.shared.actions.contains {
             guard $0.isActive, !$0.hasEnded(today: today), case .sleep = $0.requirement else { return false }
             return true
