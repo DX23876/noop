@@ -271,9 +271,14 @@ internal fun LongTermRow(goal: CoreGoals.LongTerm) {
             Text(goal.title, style = Forge.type.body, color = colors.text, maxLines = 2, overflow = TextOverflow.Ellipsis,
                  modifier = Modifier.weight(1f))
             Spacer(Modifier.width(ForgeMetrics.space2))
-            Text(healthWord(goal.health), style = Forge.type.footnote, color = healthColor(goal.health))
+            // A catalog goal reads its state as its page does (Apple's overview row); others keep their health.
+            val color = if (goal.statusText != null) toneColor(goal.statusTone) else healthColor(goal.health)
+            Text(goal.statusText ?: healthWord(goal.health), style = Forge.type.footnote, color = color)
         }
-        goal.progress?.let { ProgressBar(it.coerceIn(0.0, 1.0), healthColor(goal.health), pace = null) }
+        goal.progress?.let {
+            ProgressBar(it.coerceIn(0.0, 1.0), if (goal.statusText != null) toneColor(goal.statusTone) else healthColor(goal.health),
+                        pace = null)
+        }
         goal.targetDate?.let { day ->
             Text(stringResource(R.string.forge_goals_by_date, longDate(day)), style = Forge.type.caption,
                  color = colors.textTertiary)

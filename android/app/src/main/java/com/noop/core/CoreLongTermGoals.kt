@@ -51,6 +51,8 @@ object CoreLongTermGoals {
         val tone: String, val heroValue: String, val heroCaption: String?, val figures: List<Figure>,
         val bandTitle: String, val band: Band?, val insights: List<Insight>, val reached: Boolean,
         val keepWeightAt: Double?, val raise: List<Option>, val pinned: Boolean,
+        /** What the target is worth in AgeLess while it is on, and a note on a goal measuring the same thing. */
+        val ageless: String? = null, val conflict: String? = null,
     )
 
     fun page(context: Context, dismissedWorkouts: List<String>, id: String): Page? {
@@ -82,7 +84,7 @@ object CoreLongTermGoals {
             },
             reached = o.optBoolean("reached"), keepWeightAt = o.dbl("keepWeightAt"),
             raise = o.optJSONArray("raise").objects().map { Option(it.getDouble("value"), it.getString("text")) },
-            pinned = o.optBoolean("pinned"),
+            pinned = o.optBoolean("pinned"), ageless = o.str("ageless"), conflict = o.str("conflict"),
         )
     }
 

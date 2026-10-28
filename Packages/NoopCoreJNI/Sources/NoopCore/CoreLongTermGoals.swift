@@ -159,6 +159,9 @@ public enum CoreLongTermGoals {
         public var heroValue: String, heroCaption: String?, figures: [Figure]
         public var bandTitle: String, band: Band?, insights: [Insight]
         public var reached: Bool, keepWeightAt: Double?, raise: [Option], pinned: Bool
+        /// What reaching the target is worth in AgeLess (only while AgeLess is on), and a note when another goal
+        /// measures the same thing with a different number (`GoalConflicts`).
+        public var ageless: String?, conflict: String?
     }
 
     /// Nil when the goal is gone or has no catalog reading (it keeps its journey page on Apple).
@@ -167,6 +170,12 @@ public enum CoreLongTermGoals {
                             now: Date = Date()) async throws -> Page? {
         guard let uuid = UUID(uuidString: id) else { return nil }
         let source = try await CoreGoals.source(reader: reader, settings: settings, now: now)
+        // The newest AgeLess week the goal is priced against, as Apple's page loads it; nothing while AgeLess is off.
+        var week: HealthspanEngine.Inputs?
+        if settings.agelessEnabled, let age = settings.energyProfile?.age, age > 0 {
+            week = await HealthspanSnapshot.latestInputs(repo: CoreAgeLess.Reader(reader: reader, now: now), age: Int(age),
+                                                         sex: settings.profileSex == "female" ? .female : .male)
+        }
         return try await CoreGoalState.read(store: reader.store) { context -> Page? in
             let model = CoreGoals.evaluate(source: source, context: context, now: now)
             guard let snapshot = model.snapshot(for: uuid), let content = LongTermGoalContent(snapshot) else { return nil }
@@ -207,7 +216,10 @@ public enum CoreLongTermGoals {
                                          tone: $0.tone?.rawValue)
                         },
                         reached: snapshot.reading?.state == .achieved && snapshot.goal.status == .active,
-                        keepWeightAt: keepAt, raise: raise, pinned: GoalPrefs.pinnedLongTermIds.contains(uuid))
+                        keepWeightAt: keepAt, raise: raise, pinned: GoalPrefs.pinnedLongTermIds.contains(uuid),
+                        ageless: week.flatMap { AgeLessGoalLink.years(goal: snapshot.goal, week: $0) }
+                            .map { AgeLessGoalLink.worthLine(years: $0) },
+                        conflict: GoalConflicts.longTermNotes(context.goals.goals).first { $0.goalId == uuid }?.text)
         }
     }
 

@@ -95,7 +95,7 @@ struct LongTermGoalPage: View {
                         }
                         if let week = agelessWeek, let years = AgeLessGoalLink.years(goal: snapshot.goal, week: week) {
                             NoopCard(padding: NoopMetrics.space3) {
-                                Label(String(localized: "Worth about \(HealthspanSection.signedNumber(years)) years in AgeLess"),
+                                Label(AgeLessGoalLink.worthLine(years: years),
                                       systemImage: "hourglass")
                                     .font(StrandFont.footnote)
                                     .foregroundStyle(StrandPalette.agelessYoungDeep.legibleText)

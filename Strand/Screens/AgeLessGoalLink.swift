@@ -129,4 +129,11 @@ enum AgeLessGoalLink {
               years <= -minimumYears else { return nil }
         return years
     }
+
+    /// "Worth about −0.9 years in AgeLess": the line a goal's page shows for `years(goal:week:)`.
+    static func worthLine(years: Double) -> String {
+        let n = abs(years).formatted(.number.precision(.fractionLength(1)))
+        let signed = abs(years) < 0.05 ? n : (years < 0 ? "−" + n : "+" + n)
+        return String(localized: "Worth about \(signed) years in AgeLess")
+    }
 }

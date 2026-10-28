@@ -57,6 +57,9 @@ public enum CoreGoals {
         public var id: String, title: String, status: String, targetDate: String?
         public var health: String, progress: Double?, reason: String, nextAction: String
         public var currentStreak: Int, bestStreak: Int, periodGoalIds: [String]
+        /// A catalog goal's state as its page and Apple's overview word it (`LongTermGoalContent.style`), with its
+        /// `GoalTone`; nil for a goal without a catalog reading, which keeps its health.
+        public var statusText: String? = nil, statusTone: String? = nil
     }
 
     /// One daily goal on one day (`GoalActionOccurrence`).
@@ -373,11 +376,13 @@ public enum CoreGoals {
         case .paused: health = "paused"
         }
         let children = PeriodGoalStore.shared.goals.filter { $0.parentGoalId == s.id && $0.isOpen }
+        let word = s.reading == nil ? nil : LongTermGoalContent.style(s)
         return LongTerm(id: s.id.uuidString, title: s.goal.title, status: s.goal.status.rawValue,
                         targetDate: s.goal.targetDate.map(StoreReader.localDayKey), health: health,
                         progress: s.displayProgress, reason: s.reason, nextAction: s.nextAction,
                         currentStreak: s.currentStreak, bestStreak: s.bestStreak,
-                        periodGoalIds: children.map(\.id.uuidString))
+                        periodGoalIds: children.map(\.id.uuidString),
+                        statusText: word?.text, statusTone: word?.tone.rawValue)
     }
 
     @MainActor

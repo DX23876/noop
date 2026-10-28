@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.WarningAmber
+import androidx.compose.material.icons.rounded.HourglassBottom
 import androidx.compose.material.icons.rounded.Insights
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.TrackChanges
@@ -539,6 +541,8 @@ internal fun LongTermGoalPage(goal: CoreGoals.LongTerm?, periods: List<CoreGoals
             }
         } else {
             LongTermHero(p)
+            p.ageless?.let { NoteCard(Icons.Rounded.HourglassBottom, it, ForgeTokens.StrandPalette.statusPositive.resolve()) }
+            p.conflict?.let { NoteCard(Icons.Rounded.WarningAmber, it, ForgeTokens.StrandPalette.statusWarningForeground.resolve()) }
             if (p.reached) ReachedCard(p, onClose = { change("close") }, onRaise = { raising = true },
                                        onKeep = { p.keepWeightAt?.let { change("keepWeight", value = it) } })
             p.band?.let { band ->
@@ -640,7 +644,7 @@ internal fun LongTermGoalPage(goal: CoreGoals.LongTerm?, periods: List<CoreGoals
 
 /** The tone a shared goal state or figure reads in (`GoalTone`), in the iOS palette. */
 @Composable
-private fun toneColor(tone: String?): Color = when (tone) {
+internal fun toneColor(tone: String?): Color = when (tone) {
     "positive" -> ForgeTokens.StrandPalette.statusPositive.resolve()
     "warning" -> ForgeTokens.StrandPalette.statusWarning.resolve()
     "critical" -> ForgeTokens.StrandPalette.statusCritical.resolve()
@@ -677,6 +681,18 @@ private fun LongTermHero(p: CoreLongTermGoals.Page) {
                     }
                 }
             }
+        }
+    }
+}
+
+/** A one-line note under the hero (the AgeLess worth, a conflicting goal), as Apple's small cards show them. */
+@Composable
+private fun NoteCard(icon: ImageVector, text: String, tint: Color) {
+    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(ForgeMetrics.space2))
+            Text(text, style = Forge.type.footnote, color = tint)
         }
     }
 }

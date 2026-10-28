@@ -49,6 +49,8 @@ final class CoreLongTermGoalsTests: XCTestCase {
 
         var output = try await CoreGoals.snapshot(reader: reader, settings: settings)
         XCTAssertEqual(output.longTerm.map(\.id), [id])
+        // The overview words a catalog goal's state as its page does, not with the older health.
+        XCTAssertNotNil(output.longTerm.first?.statusText)
         let weekly = try XCTUnwrap(output.period.first { $0.parentGoalId == id })
         XCTAssertEqual(weekly.metric, "workouts")
 
