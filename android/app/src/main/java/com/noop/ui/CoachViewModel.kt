@@ -597,6 +597,11 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Stops the reply mid-stream, keeping what already arrived (the shared coach's `stop`). */
+    fun stopReply() {
+        viewModelScope.launch { withContext(Dispatchers.IO) { CoreCoach.stop() } }
+    }
+
     /** Dismiss the current error (e.g. when the user edits the input again). */
     fun clearError() {
         _error.value = null

@@ -21,6 +21,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -98,7 +106,6 @@ fun CoachScreen(vm: CoachViewModel = viewModel(), onOpenSettings: () -> Unit = {
 
     ScreenScaffold(
         title = uiString(R.string.l10n_coach_screen_coach_b32c9ad3),
-        subtitle = "Ask about your recovery, strain, sleep and HRV, grounded in your own numbers.",
         trailing = trailing,
         // LIQUID SKY BACKDROP (the pilot pattern — LiquidScreenSky.kt): the liquid sky sits behind the
         // header and the cards float over the flat canvas below. Reuses the shared LiquidScreenSky() slot
@@ -332,70 +339,19 @@ private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit) {
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
 
-        // Active-provider strip. The consent toggle, the coach instructions and the morning brief
-        // moved to CoachSettingsScreen (#2243) so this tab is the conversation; what stays is the one
-        // line saying which model is answering, and the way through to the rest.
-        //
-        // Connection management stays HERE rather than moving with settings. Keeping it on the
-        // conversation screen on both platforms also keeps that one split identical,
-        // which is the part worth keeping identical. The two settings screens do NOT hold the same
-        // cards: see CoachSettingsScreen's own note on the two Gemini/signals opt-ins.
-        NoopCard(padding = 14.dp, tint = Palette.chargeColor) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                // The pill takes the flexible space (ellipsizing a long model id); the actions
-                // keep their intrinsic single-line width so they can never be squeezed into a vertical
-                // stack (#1074).
-                StatePill(
-                    title = uiString(R.string.l10n_coach_screen_provider_displayname_model_8b39f761, provider.displayName, model),
-                    tone = StrandTone.Accent, showsDot = true,
-                    modifier = Modifier.weight(1f),
-                )
-                Spacer(Modifier.width(8.dp))
-                val settingsInteraction = remember { MutableInteractionSource() }
-                Icon(
-                    Icons.Filled.Tune,
-                    contentDescription = uiString(R.string.coach_settings),
-                    tint = Palette.textSecondary,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .liquidPress(settingsInteraction)
-                        .clickable(interactionSource = settingsInteraction, indication = null) { onOpenSettings() }
-                        .padding(6.dp)
-                        .size(20.dp),
-                )
-                Spacer(Modifier.width(4.dp))
-                val keyInteraction = remember { MutableInteractionSource() }
-                Icon(
-                    Icons.Filled.Edit,
-                    contentDescription = uiString(R.string.coach_key_rejected_action),
-                    tint = Palette.textSecondary,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .liquidPress(keyInteraction)
-                        .clickable(interactionSource = keyInteraction, indication = null) {
-                            showKeyEditor = !showKeyEditor
-                            if (!showKeyEditor) keyFix = ""
-                        }
-                        .padding(6.dp)
-                        .size(20.dp),
-                )
-                Spacer(Modifier.width(4.dp))
-                val disconnectInteraction = remember { MutableInteractionSource() }
-                Text(
-                    uiString(R.string.l10n_coach_screen_disconnect_ed28e068),
-                    style = NoopType.caption,
-                    color = Palette.textSecondary,
-                    maxLines = 1,
-                    softWrap = false,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .liquidPress(disconnectInteraction)
-                        .clickable(interactionSource = disconnectInteraction, indication = null) { vm.disconnect(context) }
-                        .padding(horizontal = 10.dp, vertical = 6.dp)
-                        .semantics { contentDescription = uiString(R.string.l10n_coach_screen_disconnect_provider_fa13625c) },
-                )
-            }
-        }
+        // One compact glass row, as the iOS chat header: the coach's avatar (breathing while a reply is
+        // written), its name with "Thinking…" in place of the provider line, New chat, and the rest in an
+        // overflow menu. The plan book and history come in through the host's `trailing` slot.
+        CoachHeaderRow(
+            sending = sending,
+            title = model.ifBlank { provider.displayName },
+            providerLine = provider.displayName,
+            canStartNew = messages.isNotEmpty() && !sending,
+            onNew = { vm.clearConversation() },
+            onSettings = onOpenSettings,
+            onUpdateKey = { showKeyEditor = !showKeyEditor; if (!showKeyEditor) keyFix = "" },
+            onDisconnect = { vm.disconnect(context) },
+        )
 
         if (showClearConfirm) {
             AlertDialog(
@@ -425,9 +381,25 @@ private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit) {
                 }
             }
         } else {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                messages.forEach { msg -> ChatBubble(msg, vm) }
-                if (sending) ThinkingBubble()
+            // One calm reading surface behind the whole conversation rather than a card per turn: the reply
+            // stays unboxed as on iOS, and stays readable over a photo backdrop.
+            Column(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp))
+                    .frostedCardSurface(tint = Palette.accent, cornerRadius = 22.dp)
+                    .padding(14.dp),
+            ) {
+                messages.forEachIndexed { index, msg ->
+                    val previous = messages.getOrNull(index - 1)
+                    val continuation = msg.role == "assistant" && previous?.role == "assistant"
+                    if (index > 0) Spacer(Modifier.height(if (continuation) 6.dp else 16.dp))
+                    ChatBubble(msg, vm, groupStart = msg.role == "assistant" && !continuation)
+                }
+                // The typing indicator only until the reply's first words arrive; then the reply itself streams.
+                if (sending && messages.lastOrNull()?.role != "assistant") {
+                    Spacer(Modifier.height(16.dp))
+                    ThinkingBubble()
+                }
+                Spacer(Modifier.height(10.dp))
                 // K7: follow-up suggestion chips after each assistant reply (when not mid-send).
                 if (!sending && messages.isNotEmpty() && messages.last().role == "assistant") {
                     SuggestedPrompts(prompts = vm.followUpSuggestions, onPick = { input = it })
@@ -491,6 +463,7 @@ private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit) {
                 if (error != null) vm.clearError()
             },
             sending = sending,
+            onStop = { vm.stopReply() },
             onSend = {
                 vm.send(context, input)
                 input = ""
@@ -537,115 +510,186 @@ private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit) {
 
 // MARK: - Chat bubbles
 
+/** The coach's face at conversation scale, as `CoachAvatarView`: an accent disc with the coach glyph. */
 @Composable
-@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
-private fun ChatBubble(msg: ChatMsg, vm: CoachViewModel) {
-    val isUser = msg.role == "user"
-    val bubbleShape = RoundedCornerShape(16.dp)
-    val context = LocalContext.current
-    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
-    // K8: long-press popup menu for Copy / Share / Save on assistant replies.
-    var showMenu by remember { mutableStateOf(false) }
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
+private fun CoachAvatar(size: androidx.compose.ui.unit.Dp, breathing: Boolean = false) {
+    val transition = androidx.compose.animation.core.rememberInfiniteTransition(label = "coachBreath")
+    val pulse by transition.animateFloat(
+        initialValue = 1f, targetValue = 1.06f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            androidx.compose.animation.core.tween(1100), androidx.compose.animation.core.RepeatMode.Reverse),
+        label = "coachBreathScale",
+    )
+    Box(
+        modifier = Modifier
+            .size(size)
+            .graphicsLayer { val s = if (breathing) pulse else 1f; scaleX = s; scaleY = s }
+            .clip(CircleShape)
+            .background(Brush.linearGradient(listOf(Palette.accent, Palette.accent.copy(alpha = 0.72f)))),
+        contentAlignment = Alignment.Center,
     ) {
-        // User bubbles = a brand-green tinted bubble; Coach replies = a frosted Charge-tinted surface
-        // so the reply reads as a card in the green Coach world rather than a flat grey box.
-        val bubbleModifier = if (isUser) {
-            Modifier
-                .clip(bubbleShape)
-                .background(Palette.accentMuted)
-                .border(1.dp, Palette.accent.copy(alpha = 0.35f), bubbleShape)
-        } else {
-            Modifier
-                .clip(bubbleShape)
-                .frostedCardSurface(tint = Palette.chargeColor, cornerRadius = 16.dp)
+        Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = Palette.surfaceBase,
+             modifier = Modifier.size(size * 0.5f))
+    }
+}
+
+/** The iOS chat header: avatar, the chat's name with what the coach is doing under it, New chat, overflow. */
+@Composable
+private fun CoachHeaderRow(
+    sending: Boolean,
+    title: String,
+    providerLine: String,
+    canStartNew: Boolean,
+    onNew: () -> Unit,
+    onSettings: () -> Unit,
+    onUpdateKey: () -> Unit,
+    onDisconnect: () -> Unit,
+) {
+    var menu by remember { mutableStateOf(false) }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(22.dp))
+            .frostedCardSurface(tint = Palette.accent, cornerRadius = 22.dp)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Box(Modifier.clip(CircleShape).clickable(onClick = onSettings)
+                .semantics { contentDescription = uiString(R.string.coach_settings) }) {
+            CoachAvatar(size = 36.dp, breathing = sending)
         }
-        Box(
-            modifier = Modifier
-                .widthIn(max = 320.dp)
-                .then(bubbleModifier)
-                .padding(horizontal = 14.dp, vertical = 10.dp)
-                // K8: long-press assistant bubbles to show Copy / Share / Save. User bubbles
-                // are not actionable (the text is the user's own input).
-                .then(
-                    if (isUser) Modifier
-                    else Modifier.combinedClickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = {},
-                        onLongClick = { showMenu = true },
-                    )
-                ),
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Overline(
-                    if (isUser) "You" else "Coach",
-                    color = if (isUser) Palette.accentHover else Palette.textTertiary,
-                )
-                if (isUser) {
-                    Text(msg.text, style = NoopType.body, color = Palette.textPrimary)
-                } else {
-                    // Render the Coach's Markdown (bold/lists/headings) instead of raw symbols (#149).
-                    CoachMarkdown(msg.text, color = Palette.textPrimary)
-                }
-            }
-            // K8: dropdown popup anchored to the bubble.
-            DropdownMenu(
-                expanded = showMenu,
-                onDismissRequest = { showMenu = false },
-            ) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.coach_copy_action)) },
-                    onClick = {
-                        clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(msg.text))
-                        showMenu = false
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.coach_share_action)) },
-                    onClick = {
-                        val sendIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(android.content.Intent.EXTRA_TEXT, msg.text)
-                        }
-                        context.startActivity(
-                            android.content.Intent.createChooser(sendIntent, "Share Coach advice")
-                        )
-                        showMenu = false
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.coach_save_to_journal)) },
-                    onClick = {
-                        vm.saveAdviceToJournal(msg.text)
-                        showMenu = false
-                    },
-                )
+        Column(Modifier.weight(1f)) {
+            // The page title already says "Coach"; the row names what answers: the model, then its provider.
+            Text(title, style = NoopType.headline, color = Palette.textPrimary, maxLines = 1,
+                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            // One fixed-height line: "Thinking…" takes the provider line's place, so the header never grows.
+            Text(if (sending) uiString(R.string.l10n_coach_screen_thinking_a60d9c9c) else providerLine,
+                 style = NoopType.footnote, color = if (sending) Palette.accent else Palette.textTertiary,
+                 maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+        }
+        Icon(
+            Icons.Filled.EditNote,
+            contentDescription = stringResource(R.string.coach_new_chat),
+            tint = if (canStartNew) Palette.textSecondary else Palette.textTertiary.copy(alpha = 0.5f),
+            modifier = Modifier.clip(CircleShape)
+                .clickable(enabled = canStartNew, onClick = onNew).padding(6.dp).size(22.dp),
+        )
+        Box {
+            Icon(
+                Icons.Filled.MoreVert,
+                contentDescription = stringResource(R.string.coach_more_actions),
+                tint = Palette.textSecondary,
+                modifier = Modifier.clip(CircleShape).clickable { menu = true }.padding(6.dp).size(22.dp),
+            )
+            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                DropdownMenuItem(text = { Text(uiString(R.string.coach_settings)) }, onClick = { menu = false; onSettings() })
+                DropdownMenuItem(text = { Text(uiString(R.string.coach_key_rejected_action)) }, onClick = { menu = false; onUpdateKey() })
+                DropdownMenuItem(text = { Text(uiString(R.string.l10n_coach_screen_disconnect_ed28e068)) },
+                                 onClick = { menu = false; onDisconnect() })
             }
         }
     }
 }
 
+/**
+ * One turn, in the iOS chat's shape. The question is a bubble in the accent colour with its sender-side
+ * corner pulled tight; the coach's reply has NO bubble, it is text to read beside the coach's avatar, shown
+ * once at the top of a run of replies. Long-press for Copy, Share and (on a reply) Save to journal.
+ */
+@Composable
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+private fun ChatBubble(msg: ChatMsg, vm: CoachViewModel, groupStart: Boolean = true) {
+    val isUser = msg.role == "user"
+    val context = LocalContext.current
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+    var showMenu by remember { mutableStateOf(false) }
+    val longPress = Modifier.combinedClickable(
+        interactionSource = remember { MutableInteractionSource() }, indication = null,
+        onClick = {}, onLongClick = { showMenu = true },
+    )
+    val menu: @Composable () -> Unit = {
+        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.coach_copy_action)) },
+                onClick = {
+                    clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(msg.text))
+                    showMenu = false
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.coach_share_action)) },
+                onClick = {
+                    val sendIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(android.content.Intent.EXTRA_TEXT, msg.text)
+                    }
+                    context.startActivity(android.content.Intent.createChooser(sendIntent, "Share Coach advice"))
+                    showMenu = false
+                },
+            )
+            if (!isUser) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.coach_save_to_journal)) },
+                    onClick = { vm.saveAdviceToJournal(msg.text); showMenu = false },
+                )
+            }
+        }
+    }
+    if (isUser) {
+        val shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomEnd = 6.dp, bottomStart = 20.dp)
+        Row(Modifier.fillMaxWidth()) {
+            Spacer(Modifier.weight(1f).widthIn(min = 32.dp))
+            Box(
+                Modifier
+                    .widthIn(max = 340.dp)
+                    .clip(shape)
+                    .background(Brush.verticalGradient(listOf(Palette.accent, Palette.accent.copy(alpha = 0.86f))))
+                    .then(longPress)
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .semantics { contentDescription = uiString(R.string.coach_you_said, msg.text) },
+            ) {
+                Text(msg.text, style = NoopType.body, color = Palette.surfaceBase)
+                menu()
+            }
+        }
+    } else {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (groupStart) CoachAvatar(size = 26.dp) else Spacer(Modifier.width(26.dp))
+            Box(Modifier.weight(1f).widthIn(max = 640.dp).then(longPress).padding(vertical = 2.dp)) {
+                // Render the Coach's Markdown (bold/lists/headings) instead of raw symbols (#149).
+                CoachMarkdown(msg.text, color = Palette.textPrimary)
+                menu()
+            }
+        }
+    }
+}
+
+/** Three dots beside the coach's avatar until the first words of the reply arrive. */
 @Composable
 private fun ThinkingBubble() {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
+    val transition = androidx.compose.animation.core.rememberInfiniteTransition(label = "typing")
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .semantics { contentDescription = uiString(R.string.l10n_coach_screen_coach_is_thinking_aaf91547) },
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        CoachAvatar(size = 26.dp, breathing = true)
         Row(
-            modifier = Modifier
-                .clip(RoundedCornerShape(16.dp))
-                .frostedCardSurface(tint = Palette.chargeColor, cornerRadius = 16.dp)
-                .padding(horizontal = 14.dp, vertical = 12.dp)
-                .semantics { contentDescription = uiString(R.string.l10n_coach_screen_coach_is_thinking_aaf91547) },
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            Modifier.clip(RoundedCornerShape(14.dp)).background(Palette.surfaceInset).padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
         ) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(16.dp),
-                strokeWidth = 2.dp,
-                color = Palette.accent,
-            )
-            Text(uiString(R.string.l10n_coach_screen_thinking_a60d9c9c), style = NoopType.subhead, color = Palette.textSecondary)
+            repeat(3) { i ->
+                val alpha by transition.animateFloat(
+                    initialValue = 0.25f, targetValue = 1f,
+                    animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+                        androidx.compose.animation.core.tween(600, delayMillis = i * 180),
+                        androidx.compose.animation.core.RepeatMode.Reverse),
+                    label = "dot$i",
+                )
+                Box(Modifier.size(7.dp).graphicsLayer { this.alpha = alpha }.clip(CircleShape).background(Palette.textSecondary))
+            }
         }
     }
 }
@@ -925,6 +969,7 @@ private fun MicComposerRow(
     onInputChange: (String) -> Unit,
     sending: Boolean,
     onSend: () -> Unit,
+    onStop: () -> Unit = {},
 ) {
     val context = LocalContext.current
     var isRecording by remember { mutableStateOf(false) }
@@ -963,38 +1008,19 @@ private fun MicComposerRow(
         }
     }
 
+    // A floating glass capsule, as the iOS composer: the voice button leading, the field on an inset
+    // surface, and one round button that sends, or stops a reply while it streams.
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(Palette.surfaceOverlay)
-            .border(1.dp, Palette.hairline, RoundedCornerShape(18.dp))
-            .padding(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+            .clip(RoundedCornerShape(26.dp))
+            .frostedCardSurface(tint = Palette.accent, cornerRadius = 26.dp)
+            .border(1.dp, Palette.hairline, RoundedCornerShape(26.dp))
+            .padding(10.dp),
+        verticalAlignment = Alignment.Bottom,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        OutlinedTextField(
-            value = input,
-            onValueChange = onInputChange,
-            modifier = Modifier.weight(1f),
-            placeholder = {
-                Text(
-                    if (isRecording) stringResource(R.string.coach_listening) else uiString(R.string.l10n_coach_screen_ask_your_coach_b1577d4c),
-                    style = NoopType.body,
-                    color = Palette.textTertiary,
-                )
-            },
-            textStyle = NoopType.body,
-            singleLine = false,
-            maxLines = 4,
-            enabled = !sending,
-            colors = coachFieldColors(),
-            shape = RoundedCornerShape(14.dp),
-        )
-
-        // K4: mic button — on-device voice input. Hidden entirely when on-device recognition
-        // is not available (API < 31 or locale without an offline model), matching iOS which
-        // disables voice when `supportsOnDeviceRecognition` is false.
+        // K4: on-device voice input, hidden where on-device recognition is not available.
         if (voiceInput.isAvailable()) {
             MicButton(
                 isRecording = isRecording,
@@ -1017,10 +1043,29 @@ private fun MicComposerRow(
             )
         }
 
+        OutlinedTextField(
+            value = input,
+            onValueChange = onInputChange,
+            modifier = Modifier.weight(1f),
+            placeholder = {
+                Text(
+                    if (isRecording) stringResource(R.string.coach_listening) else uiString(R.string.l10n_coach_screen_ask_your_coach_b1577d4c),
+                    style = NoopType.body,
+                    color = Palette.textTertiary,
+                )
+            },
+            textStyle = NoopType.body,
+            singleLine = false,
+            maxLines = 8,
+            enabled = !sending,
+            colors = coachFieldColors(),
+            shape = RoundedCornerShape(18.dp),
+        )
+
         SendButton(
-            enabled = input.isNotBlank() && !sending,
+            enabled = input.isNotBlank() || sending,
             sending = sending,
-            onClick = onSend,
+            onClick = if (sending) onStop else onSend,
         )
     }
 
@@ -1048,10 +1093,9 @@ private fun MicButton(
     val statusSuffix = statusMessage?.let { stringResource(R.string.coach_status_suffix, it) } ?: ""
     Box(
         modifier = Modifier
-            .size(48.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .size(44.dp)
+            .clip(CircleShape)
             .background(bg)
-            .border(1.dp, Palette.hairline, RoundedCornerShape(14.dp))
             .let {
                 if (enabled)
                     it
@@ -1073,16 +1117,16 @@ private fun MicButton(
     }
 }
 
+/** One round accent button: an arrow to send, a square to stop a reply mid-stream. */
 @Composable
 private fun SendButton(enabled: Boolean, sending: Boolean, onClick: () -> Unit) {
     val bg = if (enabled) Palette.accent else Palette.surfaceInset
     val interaction = remember { MutableInteractionSource() }
     Box(
         modifier = Modifier
-            .size(52.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .size(44.dp)
+            .clip(CircleShape)
             .background(bg)
-            .border(1.dp, if (enabled) Color.Transparent else Palette.hairline, RoundedCornerShape(14.dp))
             .let {
                 if (enabled)
                     it
@@ -1090,19 +1134,18 @@ private fun SendButton(enabled: Boolean, sending: Boolean, onClick: () -> Unit) 
                         .clickable(interactionSource = interaction, indication = null, onClick = onClick)
                 else it
             }
-            .semantics { contentDescription = uiString(R.string.l10n_coach_screen_send_message_c70a890d) },
+            .semantics {
+                contentDescription = if (sending) uiString(R.string.coach_stop_reply)
+                    else uiString(R.string.l10n_coach_screen_send_message_c70a890d)
+            },
         contentAlignment = Alignment.Center,
     ) {
-        if (sending) {
-            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = Palette.accent)
-        } else {
-            Icon(
-                Icons.AutoMirrored.Filled.Send,
-                contentDescription = null,
-                tint = if (enabled) Palette.surfaceBase else Palette.textTertiary,
-                modifier = Modifier.size(20.dp),
-            )
-        }
+        Icon(
+            if (sending) Icons.Filled.Stop else Icons.Filled.ArrowUpward,
+            contentDescription = null,
+            tint = if (enabled) Palette.surfaceBase else Palette.textTertiary,
+            modifier = Modifier.size(20.dp),
+        )
     }
 }
 

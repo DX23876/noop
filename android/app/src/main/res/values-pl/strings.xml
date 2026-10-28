@@ -4465,4 +4465,8 @@
     <string name="forge_hr_avg">Przeciętny</string>
     <string name="forge_hr_low">Najniższe</string>
     <string name="forge_hr_high">Najwyższe</string>
+    <string name="coach_new_chat">Nowy czat</string>
+    <string name="coach_more_actions">Więcej działań</string>
+    <string name="coach_you_said">Napisałeś: %1$s</string>
+    <string name="coach_stop_reply">Zatrzymaj odpowiedź</string>
 </resources>

@@ -4344,4 +4344,8 @@
     <string name="forge_hr_avg">Среднее</string>
     <string name="forge_hr_low">Минимум</string>
     <string name="forge_hr_high">Максимум</string>
+    <string name="coach_new_chat">Новый чат</string>
+    <string name="coach_more_actions">Другие действия</string>
+    <string name="coach_you_said">Вы сказали: %1$s</string>
+    <string name="coach_stop_reply">Остановить ответ</string>
 </resources>

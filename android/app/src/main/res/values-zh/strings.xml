@@ -4419,4 +4419,8 @@
     <string name="forge_hr_avg">平均</string>
     <string name="forge_hr_low">最低</string>
     <string name="forge_hr_high">最高</string>
+    <string name="coach_new_chat">新对话</string>
+    <string name="coach_more_actions">更多操作</string>
+    <string name="coach_you_said">你说：%1$s</string>
+    <string name="coach_stop_reply">停止回复</string>
 </resources>

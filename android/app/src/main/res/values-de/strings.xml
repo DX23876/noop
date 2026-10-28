@@ -4462,4 +4462,8 @@
     <string name="forge_hr_avg">Durchschnitt</string>
     <string name="forge_hr_low">Niedrigster</string>
     <string name="forge_hr_high">Höchster</string>
+    <string name="coach_new_chat">Neuer Chat</string>
+    <string name="coach_more_actions">Weitere Aktionen</string>
+    <string name="coach_you_said">Du hast gesagt: %1$s</string>
+    <string name="coach_stop_reply">Antwort stoppen</string>
 </resources>

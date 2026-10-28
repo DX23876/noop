@@ -4441,4 +4441,8 @@
     <string name="forge_hr_avg">Média</string>
     <string name="forge_hr_low">Mínimo</string>
     <string name="forge_hr_high">Máximo</string>
+    <string name="coach_new_chat">Nova conversa</string>
+    <string name="coach_more_actions">Mais ações</string>
+    <string name="coach_you_said">Disseste: %1$s</string>
+    <string name="coach_stop_reply">Parar a resposta</string>
 </resources>
